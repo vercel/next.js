@@ -6,22 +6,29 @@ import path from 'path'
 
 const rootSandboxDirectory = path.join(__dirname, '__tmp__')
 
-export async function sandbox(id = nanoid(), initialFiles = new Map()) {
+export async function sandbox(
+  id = nanoid(),
+  initialFiles = new Map(),
+  defaultFiles = true
+) {
   const sandboxDirectory = path.join(rootSandboxDirectory, id)
 
   const pagesDirectory = path.join(sandboxDirectory, 'pages')
   await fs.remove(sandboxDirectory)
   await fs.mkdirp(pagesDirectory)
 
-  await fs.writeFile(
-    path.join(pagesDirectory, 'index.js'),
-    `export { default } from '../index';`
-  )
-  await fs.writeFile(
-    path.join(sandboxDirectory, 'index.js'),
-    `export default () => 'new sandbox';`
-  )
+  if (defaultFiles) {
+    await fs.writeFile(
+      path.join(pagesDirectory, 'index.js'),
+      `export { default } from '../index';`
+    )
+    await fs.writeFile(
+      path.join(sandboxDirectory, 'index.js'),
+      `export default () => 'new sandbox';`
+    )
+  }
   for (const [k, v] of initialFiles.entries()) {
+    await fs.mkdirp(path.dirname(path.join(sandboxDirectory, k)))
     await fs.writeFile(path.join(sandboxDirectory, k), v)
   }
 
@@ -30,9 +37,9 @@ export async function sandbox(id = nanoid(), initialFiles = new Map()) {
     env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
   })
   const browser = await webdriver(appPort, '/')
-
   return [
     {
+      sandboxDirectory,
       async write(fileName, content) {
         // Update the file on filesystem
         const fullFileName = path.join(sandboxDirectory, fileName)

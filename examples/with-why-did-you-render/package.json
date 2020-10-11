@@ -1,5 +1,5 @@
 {
-  "name": "why-did-you-render",
+  "name": "with-why-did-you-render",
   "scripts": {
     "dev": "next",
     "build": "next build",
@@ -11,5 +11,5 @@
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

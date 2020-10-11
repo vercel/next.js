@@ -1,23 +1,41 @@
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { NodePath } from 'ast-types/lib/node-path'
-import { compilation as CompilationType, Compiler } from 'webpack'
+import webpack, { compilation as CompilationType, Compiler } from 'webpack'
 import { namedTypes } from 'ast-types'
-import { RawSource } from 'webpack-sources'
+import sources from 'webpack-sources'
 import {
   getFontDefinitionFromNetwork,
   FontManifest,
 } from '../../../next-server/server/font-utils'
 // @ts-ignore
 import BasicEvaluatedExpression from 'webpack/lib/BasicEvaluatedExpression'
+import postcss from 'postcss'
+import minifier from 'cssnano-simple'
 import { OPTIMIZED_FONT_PROVIDERS } from '../../../next-server/lib/constants'
 
-interface VisitorMap {
-  [key: string]: (path: NodePath) => void
+// @ts-ignore: TODO: remove ignore when webpack 5 is stable
+const { RawSource } = webpack.sources || sources
+
+const isWebpack5 = parseInt(webpack.version!) === 5
+
+async function minifyCss(css: string): Promise<string> {
+  return new Promise((resolve) =>
+    postcss([
+      minifier({
+        excludeAll: true,
+        discardComments: true,
+        normalizeWhitespace: { exclude: false },
+      }),
+    ])
+      .process(css, { from: undefined })
+      .then((res) => {
+        resolve(res.css)
+      })
+  )
 }
 
 export class FontStylesheetGatheringPlugin {
   compiler?: Compiler
   gatheredStylesheets: Array<string> = []
+  manifestContent: FontManifest = []
 
   private parserHandler = (
     factory: CompilationType.NormalModuleFactory
@@ -102,28 +120,70 @@ export class FontStylesheetGatheringPlugin {
       this.parserHandler
     )
     compiler.hooks.make.tapAsync(this.constructor.name, (compilation, cb) => {
+      // @ts-ignore
+      if (compilation.options.output.path.endsWith('serverless')) {
+        /**
+         * Inline font manifest for serverless case only.
+         * For target: server drive the manifest through physical file and less of webpack magic.
+         */
+        const mainTemplate = compilation.mainTemplate
+        mainTemplate.hooks.requireExtensions.tap(
+          this.constructor.name,
+          (source: string) => {
+            return `${source}
+                // Font manifest declaration
+                ${
+                  mainTemplate.requireFn
+                }.__NEXT_FONT_MANIFEST__ = ${JSON.stringify(
+              this.manifestContent
+            )};`
+          }
+        )
+      }
       compilation.hooks.finishModules.tapAsync(
         this.constructor.name,
         async (_: any, modulesFinished: Function) => {
           const fontDefinitionPromises = this.gatheredStylesheets.map((url) =>
             getFontDefinitionFromNetwork(url)
           )
-          let manifestContent: FontManifest = []
 
+          this.manifestContent = []
           for (let promiseIndex in fontDefinitionPromises) {
-            manifestContent.push({
+            const css = await fontDefinitionPromises[promiseIndex]
+            const content = await minifyCss(css)
+            this.manifestContent.push({
               url: this.gatheredStylesheets[promiseIndex],
-              content: await fontDefinitionPromises[promiseIndex],
+              content,
             })
           }
-          compilation.assets['font-manifest.json'] = new RawSource(
-            JSON.stringify(manifestContent, null, '  ')
-          )
+          if (!isWebpack5) {
+            compilation.assets['font-manifest.json'] = new RawSource(
+              JSON.stringify(this.manifestContent, null, '  ')
+            )
+          }
           modulesFinished()
         }
       )
       cb()
     })
+
+    if (isWebpack5) {
+      compiler.hooks.make.tap(this.constructor.name, (compilation) => {
+        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+        compilation.hooks.processAssets.tap(
+          {
+            name: this.constructor.name,
+            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+          },
+          (assets: any) => {
+            assets['font-manifest.json'] = new RawSource(
+              JSON.stringify(this.manifestContent, null, '  ')
+            )
+          }
+        )
+      })
+    }
   }
 }
 

@@ -6,7 +6,6 @@ import { loader } from 'webpack'
 import { API_ROUTE } from '../../../lib/constants'
 import {
   BUILD_MANIFEST,
-  FONT_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../../next-server/lib/constants'
@@ -29,6 +28,7 @@ export type ServerlessLoaderQuery = {
   runtimeConfig: string
   previewProps: string
   loadedEnvFiles: string
+  i18n: string
 }
 
 const vercelHeader = 'x-vercel-id'
@@ -50,6 +50,7 @@ const nextServerlessLoader: loader.Loader = function () {
     runtimeConfig,
     previewProps,
     loadedEnvFiles,
+    i18n,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
 
@@ -59,10 +60,6 @@ const nextServerlessLoader: loader.Loader = function () {
     '/'
   )
   const routesManifest = join(distDir, ROUTES_MANIFEST).replace(/\\/g, '/')
-  const fontManifest = join(distDir, 'serverless', FONT_MANIFEST).replace(
-    /\\/g,
-    '/'
-  )
 
   const escapedBuildId = escapeRegexp(buildId)
   const pageIsDynamicRoute = isDynamicRoute(page)
@@ -71,12 +68,18 @@ const nextServerlessLoader: loader.Loader = function () {
     JSON.parse(previewProps) as __ApiPreviewProps
   )
 
-  const collectDynamicRouteParams = pageIsDynamicRoute
-    ? `
-      function collectDynamicRouteParams(query) {
-        const routeRegex = getRouteRegex("${page}")
+  const i18nEnabled = !!i18n
 
-        return Object.keys(routeRegex.groups)
+  const defaultRouteRegex = pageIsDynamicRoute
+    ? `
+      const defaultRouteRegex = getRouteRegex("${page}")
+    `
+    : ''
+
+  const normalizeDynamicRouteParams = pageIsDynamicRoute
+    ? `
+      function normalizeDynamicRouteParams(query) {
+        return Object.keys(defaultRouteRegex.groups)
           .reduce((prev, key) => {
             let value = query[key]
 
@@ -85,7 +88,19 @@ const nextServerlessLoader: loader.Loader = function () {
               // non-provided optional values should be undefined so normalize
               // them to undefined
             }
-            if(routeRegex.groups[key].optional && !value) {
+            if(
+              defaultRouteRegex.groups[key].optional &&
+              (!value || (
+                Array.isArray(value) &&
+                value.length === 1 &&
+                ${
+                  ''
+                  // fallback optional catch-all SSG pages have
+                  // [[...paramName]] for the root path on Vercel
+                }
+                (value[0] === 'index' || value[0] === \`[[...\${key}]]\`)
+              ))
+            ) {
               value = undefined
               delete query[key]
             }
@@ -97,7 +112,7 @@ const nextServerlessLoader: loader.Loader = function () {
             if (
               value &&
               typeof value === 'string' &&
-              routeRegex.groups[key].repeat
+              defaultRouteRegex.groups[key].repeat
             ) {
               value = value.split('/')
             }
@@ -111,7 +126,7 @@ const nextServerlessLoader: loader.Loader = function () {
     `
     : ''
   const envLoading = `
-    const { processEnv } = require('next/dist/lib/load-env-config')
+    const { processEnv } = require('@next/env')
     processEnv(${Buffer.from(loadedEnvFiles, 'base64').toString()})
   `
 
@@ -143,12 +158,12 @@ const nextServerlessLoader: loader.Loader = function () {
 
   const rewriteImports = `
     const { rewrites } = require('${routesManifest}')
-    const { pathToRegexp, default: pathMatch } = require('next/dist/next-server/server/lib/path-match')
+    const { pathToRegexp, default: pathMatch } = require('next/dist/next-server/lib/router/utils/path-match')
   `
 
   const handleRewrites = `
     const getCustomRouteMatcher = pathMatch(true)
-    const {prepareDestination} = require('next/dist/next-server/server/router')
+    const prepareDestination = require('next/dist/next-server/lib/router/utils/prepare-destination').default
 
     function handleRewrites(parsedUrl) {
       for (const rewrite of rewrites) {
@@ -164,7 +179,7 @@ const nextServerlessLoader: loader.Loader = function () {
             "${basePath}"
           )
 
-          Object.assign(parsedUrl.query, parsedDestination.query, params)
+          Object.assign(parsedUrl.query, parsedDestination.query)
           delete parsedDestination.query
 
           Object.assign(parsedUrl, parsedDestination)
@@ -201,6 +216,79 @@ const nextServerlessLoader: loader.Loader = function () {
   `
     : ''
 
+  const handleLocale = i18nEnabled
+    ? `
+      // get pathname from URL with basePath stripped for locale detection
+      const i18n = ${i18n}
+      const accept = require('@hapi/accept')
+      const { detectLocaleCookie } = require('next/dist/next-server/lib/i18n/detect-locale-cookie')
+      const { detectDomainLocales } = require('next/dist/next-server/lib/i18n/detect-domain-locales')
+      const { normalizeLocalePath } = require('next/dist/next-server/lib/i18n/normalize-locale-path')
+      let detectedLocale = detectLocaleCookie(req, i18n.locales)
+
+      const { defaultLocale, locales } = detectDomainLocales(
+        req,
+        i18n.domains,
+        i18n.locales,
+        i18n.defaultLocale,
+      )
+
+      if (!detectedLocale) {
+        detectedLocale = accept.language(
+          req.headers['accept-language'],
+          locales
+        )
+      }
+
+      const denormalizedPagePath = denormalizePagePath(parsedUrl.pathname || '/')
+      const detectedDefaultLocale = !detectedLocale || detectedLocale === defaultLocale
+      const shouldStripDefaultLocale =
+        detectedDefaultLocale &&
+        denormalizedPagePath === \`/\${defaultLocale}\`
+      const shouldAddLocalePrefix =
+        !detectedDefaultLocale && denormalizedPagePath === '/'
+
+      detectedLocale = detectedLocale || defaultLocale
+
+      if (
+        !fromExport &&
+        !nextStartMode &&
+        i18n.localeDetection !== false &&
+        (shouldAddLocalePrefix || shouldStripDefaultLocale)
+      ) {
+        res.setHeader(
+          'Location',
+          formatUrl({
+            // make sure to include any query values when redirecting
+            ...parsedUrl,
+            pathname: shouldStripDefaultLocale ? '/' : \`/\${detectedLocale}\`,
+          })
+        )
+        res.statusCode = 307
+        res.end()
+        return
+      }
+
+      const localePathResult = normalizeLocalePath(parsedUrl.pathname, locales)
+
+      if (localePathResult.detectedLocale) {
+        detectedLocale = localePathResult.detectedLocale
+        req.url = formatUrl({
+          ...parsedUrl,
+          pathname: localePathResult.pathname,
+        })
+        parsedUrl.pathname = localePathResult.pathname
+      }
+
+      detectedLocale = detectedLocale || defaultLocale
+    `
+    : `
+      const i18n = {}
+      const detectedLocale = undefined
+      const defaultLocale = undefined
+      const locales = undefined
+    `
+
   if (page.match(API_ROUTE)) {
     return `
       import initServer from 'next-plugin-loader?middleware=on-init-server!'
@@ -216,12 +304,15 @@ const nextServerlessLoader: loader.Loader = function () {
         runtimeConfigSetter
       }
       ${dynamicRouteImports}
-      const { parse } = require('url')
+      const { parse: parseUrl } = require('url')
       const { apiResolver } = require('next/dist/next-server/server/api-utils')
       ${rewriteImports}
 
       ${dynamicRouteMatcher}
-      ${collectDynamicRouteParams}
+
+      ${defaultRouteRegex}
+
+      ${normalizeDynamicRouteParams}
 
       ${handleRewrites}
 
@@ -232,16 +323,18 @@ const nextServerlessLoader: loader.Loader = function () {
           // We need to trust the dynamic route params from the proxy
           // to ensure we are using the correct values
           const trustQuery = req.headers['${vercelHeader}']
-          const parsedUrl = handleRewrites(parse(req.url, true))
+          const parsedUrl = handleRewrites(parseUrl(req.url, true))
 
           ${handleBasePath}
 
           const params = ${
             pageIsDynamicRoute
               ? `
-              trustQuery
-                ? collectDynamicRouteParams(parsedUrl.query)
-                : dynamicRouteMatcher(parsedUrl.pathname)
+              normalizeDynamicRouteParams(
+                trustQuery
+                  ? parsedUrl.query
+                  : dynamicRouteMatcher(parsedUrl.pathname)
+              )
               `
               : `{}`
           }
@@ -284,10 +377,12 @@ const nextServerlessLoader: loader.Loader = function () {
       // this needs to be called first so its available for any other imports
       runtimeConfigSetter
     }
-    const {parse} = require('url')
+    const {parse: parseUrl, format: formatUrl} = require('url')
     const {parse: parseQs} = require('querystring')
     const { renderToHTML } = require('next/dist/next-server/server/render');
     const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
+    const { denormalizePagePath } = require('next/dist/next-server/server/denormalize-page-path')
+    const { setLazyProp, getCookieParser } = require('next/dist/next-server/server/api-utils')
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
@@ -313,13 +408,17 @@ const nextServerlessLoader: loader.Loader = function () {
     export const unstable_getServerProps = ComponentInfo['unstable_getServerProp' + 's']
 
     ${dynamicRouteMatcher}
-    ${collectDynamicRouteParams}
+    ${defaultRouteRegex}
+    ${normalizeDynamicRouteParams}
     ${handleRewrites}
 
     export const config = ComponentInfo['confi' + 'g'] || {}
     export const _app = App
     export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
       const fromExport = renderMode === 'export' || renderMode === true;
+      const nextStartMode = renderMode === 'passthrough'
+
+      setLazyProp({ req }, 'cookies', getCookieParser(req))
 
       const options = {
         App,
@@ -345,23 +444,32 @@ const nextServerlessLoader: loader.Loader = function () {
         // We need to trust the dynamic route params from the proxy
         // to ensure we are using the correct values
         const trustQuery = !getStaticProps && req.headers['${vercelHeader}']
-        const parsedUrl = handleRewrites(parse(req.url, true))
+        let parsedUrl = parseUrl(req.url, true)
+        let routeNoAssetPath = parsedUrl.pathname${
+          basePath ? `.replace(new RegExp('^${basePath}'), '') || '/'` : ''
+        }
+        const origQuery = Object.assign({}, parsedUrl.query)
+
+        parsedUrl = handleRewrites(parsedUrl)
 
         ${handleBasePath}
 
         if (parsedUrl.pathname.match(/_next\\/data/)) {
           const {
-            default: getRouteFromAssetPath,
+            default: getrouteNoAssetPath,
           } = require('next/dist/next-server/lib/router/utils/get-route-from-asset-path');
           _nextData = true;
-          parsedUrl.pathname = getRouteFromAssetPath(
+          parsedUrl.pathname = getrouteNoAssetPath(
             parsedUrl.pathname.replace(
               new RegExp('/_next/data/${escapedBuildId}/'),
               '/'
             ),
             '.json'
           );
+          routeNoAssetPath = parsedUrl.pathname
         }
+
+        ${handleLocale}
 
         const renderOpts = Object.assign(
           {
@@ -369,6 +477,9 @@ const nextServerlessLoader: loader.Loader = function () {
             pageConfig: config,
             nextExport: fromExport,
             isDataReq: _nextData,
+            locale: detectedLocale,
+            locales,
+            defaultLocale,
           },
           options,
         )
@@ -387,13 +498,13 @@ const nextServerlessLoader: loader.Loader = function () {
           pageIsDynamicRoute
             ? `
             const params = (
-              fromExport &&
-              !getStaticProps &&
-              !getServerSideProps
+              fromExport
             ) ? {}
-              : trustQuery
-                ? collectDynamicRouteParams(parsedUrl.query)
-                : dynamicRouteMatcher(parsedUrl.pathname) || {};
+              : normalizeDynamicRouteParams(
+                trustQuery
+                  ? parsedUrl.query
+                  : dynamicRouteMatcher(parsedUrl.pathname)
+              )
             `
             : `const params = {};`
         }
@@ -430,9 +541,91 @@ const nextServerlessLoader: loader.Loader = function () {
           `
             : `const nowParams = null;`
         }
+
         // make sure to set renderOpts to the correct params e.g. _params
         // if provided from worker or params if we're parsing them here
         renderOpts.params = _params || params
+
+        // make sure to normalize req.url on Vercel to strip dynamic params
+        // from the query which are added during routing
+        ${
+          pageIsDynamicRoute
+            ? `
+          if (trustQuery) {
+            const _parsedUrl = parseUrl(req.url, true)
+            delete _parsedUrl.search
+
+            for (const param of Object.keys(defaultRouteRegex.groups)) {
+              delete _parsedUrl.query[param]
+            }
+            req.url = formatUrl(_parsedUrl)
+          }
+        `
+            : ''
+        }
+
+        // normalize request URL/asPath for fallback/revalidate pages since the
+        // proxy sets the request URL to the output's path for fallback pages
+        ${
+          pageIsDynamicRoute
+            ? `
+            if (nowParams) {
+              const _parsedUrl = parseUrl(req.url)
+
+              for (const param of Object.keys(defaultRouteRegex.groups)) {
+                const paramIdx = _parsedUrl.pathname.indexOf(\`[\${param}]\`)
+
+                if (paramIdx > -1) {
+                  _parsedUrl.pathname = _parsedUrl.pathname.substr(0, paramIdx) +
+                    encodeURI(nowParams[param]) +
+                    _parsedUrl.pathname.substr(paramIdx + param.length + 2)
+                }
+              }
+              parsedUrl.pathname = _parsedUrl.pathname
+              req.url = formatUrl(_parsedUrl)
+            }
+          `
+            : ``
+        }
+
+        // make sure to normalize asPath for revalidate and _next/data requests
+        // since the asPath should match what is shown on the client
+        if (
+          !fromExport &&
+          (getStaticProps || getServerSideProps)
+        ) {
+          ${
+            pageIsDynamicRoute
+              ? `
+              // don't include dynamic route params in query while normalizing
+              // asPath
+              if (trustQuery) {
+                delete parsedUrl.search
+
+                for (const param of Object.keys(defaultRouteRegex.groups)) {
+                  delete origQuery[param]
+                }
+              }
+            `
+              : ``
+          }
+
+          parsedUrl.pathname = denormalizePagePath(parsedUrl.pathname)
+          renderOpts.resolvedUrl = formatUrl({
+            ...parsedUrl,
+            query: origQuery
+          })
+
+          // For getServerSideProps we need to ensure we use the original URL
+          // and not the resolved URL to prevent a hydration mismatch on asPath
+          renderOpts.resolvedAsPath = getServerSideProps
+            ? formatUrl({
+              ...parsedUrl,
+              pathname: routeNoAssetPath,
+              query: origQuery,
+            })
+            : renderOpts.resolvedUrl
+        }
 
         const isFallback = parsedUrl.query.__nextFallback
 
@@ -441,7 +634,11 @@ const nextServerlessLoader: loader.Loader = function () {
 
         if (process.env.__NEXT_OPTIMIZE_FONTS) {
           renderOpts.optimizeFonts = true
-          renderOpts.fontManifest = require('${fontManifest}')
+          /**
+           * __webpack_require__.__NEXT_FONT_MANIFEST__ is added by
+           * font-stylesheet-gathering-plugin
+           */
+          renderOpts.fontManifest = __webpack_require__.__NEXT_FONT_MANIFEST__;
           process.env['__NEXT_OPTIMIZE_FONT'+'S'] = true
         }
         let result = await renderToHTML(req, res, "${page}", Object.assign({}, getStaticProps ? { ...(parsedUrl.query.amp ? { amp: '1' } : {}) } : parsedUrl.query, nowParams ? nowParams : params, _params, isFallback ? { __nextFallback: 'true' } : {}), renderOpts)
@@ -468,7 +665,7 @@ const nextServerlessLoader: loader.Loader = function () {
         return result
       } catch (err) {
         if (!parsedUrl) {
-          parsedUrl = parse(req.url, true)
+          parsedUrl = parseUrl(req.url, true)
         }
 
         if (err.code === 'ENOENT') {

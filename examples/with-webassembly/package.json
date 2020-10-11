@@ -1,4 +1,5 @@
 {
+  "name": "with-webassembly",
   "dependencies": {
     "next": "latest",
     "react": "^16.7.0",
@@ -9,5 +10,6 @@
     "build": "next build",
     "build-rust": "rustc +nightly --target wasm32-unknown-unknown -O --crate-type=cdylib src/add.rs -o add.wasm",
     "start": "next start"
-  }
+  },
+  "license": "MIT"
 }

@@ -8,7 +8,7 @@ import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { warn } from './output/log'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
-import { LoadedEnvFiles } from '../lib/load-env-config'
+import { LoadedEnvFiles } from '@next/env'
 
 type PagesMapping = {
   [page: string]: string
@@ -97,6 +97,9 @@ export function createEntrypoints(
     loadedEnvFiles: Buffer.from(JSON.stringify(loadedEnvFiles)).toString(
       'base64'
     ),
+    i18n: config.experimental.i18n
+      ? JSON.stringify(config.experimental.i18n)
+      : '',
   }
 
   Object.keys(pages).forEach((page) => {

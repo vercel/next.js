@@ -21,7 +21,7 @@ import loadCustomRoutes, {
   Redirect,
   RouteType,
 } from '../lib/load-custom-routes'
-import { loadEnvConfig } from '../lib/load-env-config'
+import { loadEnvConfig } from '@next/env'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
@@ -75,6 +75,8 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
+import * as Log from './output/log'
+
 const staticCheckWorker = require.resolve('./utils')
 
 export type SsgRoute = {
@@ -85,7 +87,7 @@ export type SsgRoute = {
 
 export type DynamicSsgRoute = {
   routeRegex: string
-  fallback: string | false
+  fallback: string | null | false
   dataRoute: string
   dataRouteRegex: string
 }
@@ -100,7 +102,8 @@ export type PrerenderManifest = {
 export default async function build(
   dir: string,
   conf = null,
-  reactProductionProfiling = false
+  reactProductionProfiling = false,
+  debugOutput = false
 ): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
@@ -109,7 +112,7 @@ export default async function build(
   }
 
   // attempt to load global env values so they are available in next.config.js
-  const { loadedEnvFiles } = loadEnvConfig(dir)
+  const { loadedEnvFiles } = loadEnvConfig(dir, false, Log)
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config
@@ -126,17 +129,13 @@ export default async function build(
       // Intentionally not piping to stderr in case people fail in CI when
       // stderr is detected.
       console.log(
-        chalk.bold.yellow(`Warning: `) +
-          chalk.bold(
-            `No build cache found. Please configure build caching for faster rebuilds. Read more: https://err.sh/next.js/no-cache`
-          )
+        `${Log.prefixes.warn} No build cache found. Please configure build caching for faster rebuilds. Read more: https://err.sh/next.js/no-cache`
       )
-      console.log('')
     }
   }
 
   const buildSpinner = createSpinner({
-    prefixText: 'Creating an optimized production build',
+    prefixText: `${Log.prefixes.info} Creating an optimized production build`,
   })
 
   const telemetry = new Telemetry({ distDir })
@@ -243,16 +242,10 @@ export default async function build(
   })
 
   if (nestedReservedPages.length) {
-    console.warn(
-      '\n' +
-        chalk.bold.yellow(`Warning: `) +
-        chalk.bold(
-          `The following reserved Next.js pages were detected not directly under the pages directory:\n`
-        ) +
+    Log.warn(
+      `The following reserved Next.js pages were detected not directly under the pages directory:\n` +
         nestedReservedPages.join('\n') +
-        chalk.bold(
-          `\nSee more info here: https://err.sh/next.js/nested-reserved-page\n`
-        )
+        `\nSee more info here: https://err.sh/next.js/nested-reserved-page\n`
     )
   }
 
@@ -294,7 +287,26 @@ export default async function build(
   }
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
-  const routesManifest: any = {
+  const routesManifest: {
+    version: number
+    pages404: boolean
+    basePath: string
+    redirects: Array<ReturnType<typeof buildCustomRoute>>
+    rewrites: Array<ReturnType<typeof buildCustomRoute>>
+    headers: Array<ReturnType<typeof buildCustomRoute>>
+    dynamicRoutes: Array<{
+      page: string
+      regex: string
+      namedRegex?: string
+      routeKeys?: { [key: string]: string }
+    }>
+    dataRoutes: Array<{
+      page: string
+      routeKeys?: { [key: string]: string }
+      dataRouteRegex: string
+      namedDataRouteRegex?: string
+    }>
+  } = {
     version: 3,
     pages404: true,
     basePath: config.basePath,
@@ -312,6 +324,7 @@ export default async function build(
           namedRegex: routeRegex.namedRegex,
         }
       }),
+    dataRoutes: [],
   }
 
   await promises.mkdir(distDir, { recursive: true })
@@ -333,6 +346,7 @@ export default async function build(
       target,
       pagesDir,
       entrypoints: entrypoints.client,
+      rewrites,
     }),
     getBaseWebpackConfig(dir, {
       tracer,
@@ -343,6 +357,7 @@ export default async function build(
       target,
       pagesDir,
       entrypoints: entrypoints.server,
+      rewrites,
     }),
   ])
 
@@ -354,11 +369,8 @@ export default async function build(
       (clientConfig.optimization.minimizer &&
         clientConfig.optimization.minimizer.length === 0))
   ) {
-    console.warn(
-      chalk.bold.yellow(`Warning: `) +
-        chalk.bold(
-          `Production code optimization has been disabled in your project. Read more: https://err.sh/vercel/next.js/minification-disabled`
-        )
+    Log.warn(
+      `Production code optimization has been disabled in your project. Read more: https://err.sh/vercel/next.js/minification-disabled`
     )
   }
 
@@ -389,7 +401,6 @@ export default async function build(
   if (buildSpinner) {
     buildSpinner.stopAndPersist()
   }
-  console.log()
 
   result = formatWebpackMessages(result)
 
@@ -435,15 +446,16 @@ export default async function build(
     )
 
     if (result.warnings.length > 0) {
-      console.warn(chalk.yellow('Compiled with warnings.\n'))
+      Log.warn('Compiled with warnings\n')
       console.warn(result.warnings.join('\n\n'))
       console.warn()
     } else {
-      console.log(chalk.green('Compiled successfully.\n'))
+      Log.info('Compiled successfully')
     }
   }
-  const postBuildSpinner = createSpinner({
-    prefixText: 'Automatically optimizing pages',
+
+  const postCompileSpinner = createSpinner({
+    prefixText: `${Log.prefixes.info} Collecting page data`,
   })
 
   const manifestPath = path.join(
@@ -454,7 +466,8 @@ export default async function build(
   const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
 
   const ssgPages = new Set<string>()
-  const ssgFallbackPages = new Set<string>()
+  const ssgStaticFallbackPages = new Set<string>()
+  const ssgBlockingFallbackPages = new Set<string>()
   const staticPages = new Set<string>()
   const invalidPages = new Set<string>()
   const hybridAmpPages = new Set<string>()
@@ -509,9 +522,10 @@ export default async function build(
       let isStatic = false
       let isHybridAmp = false
       let ssgPageRoutes: string[] | null = null
-      let hasSsgFallback: boolean = false
 
-      const nonReservedPage = !page.match(/^\/(_app|_error|_document|api)/)
+      const nonReservedPage = !page.match(
+        /^\/(_app|_error|_document|api(\/|$))/
+      )
 
       if (nonReservedPage) {
         const serverBundle = getPagePath(page, distDir, isLikeServerless)
@@ -549,7 +563,9 @@ export default async function build(
           let workerResult = await staticCheckWorkers.isPageStatic(
             page,
             serverBundle,
-            runtimeEnvConfig
+            runtimeEnvConfig,
+            config.experimental.i18n?.locales,
+            config.experimental.i18n?.defaultLocale
           )
 
           if (workerResult.isHybridAmp) {
@@ -565,9 +581,11 @@ export default async function build(
               additionalSsgPaths.set(page, workerResult.prerenderRoutes)
               ssgPageRoutes = workerResult.prerenderRoutes
             }
-            if (workerResult.prerenderFallback) {
-              hasSsgFallback = true
-              ssgFallbackPages.add(page)
+
+            if (workerResult.prerenderFallback === 'unstable_blocking') {
+              ssgBlockingFallbackPages.add(page)
+            } else if (workerResult.prerenderFallback === true) {
+              ssgStaticFallbackPages.add(page)
             }
           } else if (workerResult.hasServerProps) {
             serverPropsPages.add(page)
@@ -602,7 +620,7 @@ export default async function build(
         isSsg,
         isHybridAmp,
         ssgPageRoutes,
-        hasSsgFallback,
+        initialRevalidateSeconds: false,
       })
     })
   )
@@ -663,6 +681,7 @@ export default async function build(
       'utf8'
     )
   }
+
   // Since custom _app.js can wrap the 404 page we have to opt-out of static optimization if it has getInitialProps
   // Only export the static 404 when there is no /_error present
   const useStatic404 =
@@ -685,15 +704,18 @@ export default async function build(
   const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
   const tbdPrerenderRoutes: string[] = []
 
+  if (postCompileSpinner) postCompileSpinner.stopAndPersist()
+
   if (staticPages.size > 0 || ssgPages.size > 0 || useStatic404) {
     const combinedPages = [...staticPages, ...ssgPages]
     const exportApp = require('../export').default
     const exportOptions = {
-      silent: true,
+      silent: false,
       buildExport: true,
       threads: config.experimental.cpus,
       pages: combinedPages,
       outdir: path.join(distDir, 'export'),
+      statusMessage: 'Generating static pages',
     }
     const exportConfig: any = {
       ...config,
@@ -703,6 +725,8 @@ export default async function build(
       // n.b. we cannot handle this above in combinedPages because the dynamic
       // page must be in the `pages` array, but not in the mapping.
       exportPathMap: (defaultMap: any) => {
+        const { i18n } = config.experimental
+
         // Dynamically routed pages should be prerendered to be used as
         // a client-side skeleton (fallback) while data is being fetched.
         // This ensures the end-user never sees a 500 or slow response from the
@@ -713,10 +737,17 @@ export default async function build(
           if (isDynamicRoute(page)) {
             tbdPrerenderRoutes.push(page)
 
-            if (ssgFallbackPages.has(page)) {
+            if (ssgStaticFallbackPages.has(page)) {
               // Override the rendering for the dynamic page to be treated as a
               // fallback render.
-              defaultMap[page] = { page, query: { __nextFallback: true } }
+              if (i18n) {
+                defaultMap[`/${i18n.defaultLocale}${page}`] = {
+                  page,
+                  query: { __nextFallback: true },
+                }
+              } else {
+                defaultMap[page] = { page, query: { __nextFallback: true } }
+              }
             } else {
               // Remove dynamically routed pages from the default path map when
               // fallback behavior is disabled.
@@ -738,12 +769,48 @@ export default async function build(
           }
         }
 
+        if (i18n) {
+          for (const page of [
+            ...staticPages,
+            ...ssgPages,
+            ...(useStatic404 ? ['/404'] : []),
+          ]) {
+            const isSsg = ssgPages.has(page)
+            const isDynamic = isDynamicRoute(page)
+            const isFallback = isSsg && ssgStaticFallbackPages.has(page)
+
+            for (const locale of i18n.locales) {
+              // skip fallback generation for SSG pages without fallback mode
+              if (isSsg && isDynamic && !isFallback) continue
+              const outputPath = `/${locale}${page === '/' ? '' : page}`
+
+              defaultMap[outputPath] = {
+                page: defaultMap[page].page,
+                query: { __nextLocale: locale },
+              }
+
+              if (isFallback) {
+                defaultMap[outputPath].query.__nextFallback = true
+              }
+            }
+
+            if (isSsg && !isFallback) {
+              // remove non-locale prefixed variant from defaultMap
+              delete defaultMap[page]
+            }
+          }
+        }
+
         return defaultMap
       },
-      exportTrailingSlash: false,
+      trailingSlash: false,
     }
 
     await exportApp(dir, exportOptions, exportConfig)
+
+    const postBuildSpinner = createSpinner({
+      prefixText: `${Log.prefixes.info} Finalizing page optimization`,
+    })
 
     // remove server bundles that were exported
     for (const page of staticPages) {
@@ -760,7 +827,8 @@ export default async function build(
       page: string,
       file: string,
       isSsg: boolean,
-      ext: 'html' | 'json'
+      ext: 'html' | 'json',
+      additionalSsgFile = false
     ) => {
       file = `${file}.${ext}`
       const orig = path.join(exportOptions.outdir, file)
@@ -794,8 +862,55 @@ export default async function build(
       if (!isSsg) {
         pagesManifest[page] = relativeDest
       }
-      await promises.mkdir(path.dirname(dest), { recursive: true })
-      await promises.rename(orig, dest)
+
+      const { i18n } = config.experimental
+
+      // for SSG files with i18n the non-prerendered variants are
+      // output with the locale prefixed so don't attempt moving
+      // without the prefix
+      if (!i18n || additionalSsgFile) {
+        await promises.mkdir(path.dirname(dest), { recursive: true })
+        await promises.rename(orig, dest)
+      } else if (i18n && !isSsg) {
+        // this will be updated with the locale prefixed variant
+        // since all files are output with the locale prefix
+        delete pagesManifest[page]
+      }
+
+      if (i18n) {
+        if (additionalSsgFile) return
+
+        for (const locale of i18n.locales) {
+          const localeExt = page === '/' ? path.extname(file) : ''
+          const relativeDestNoPages = relativeDest.substr('pages/'.length)
+
+          const updatedRelativeDest = path.join(
+            'pages',
+            locale + localeExt,
+            // if it's the top-most index page we want it to be locale.EXT
+            // instead of locale/index.html
+            page === '/' ? '' : relativeDestNoPages
+          )
+          const updatedOrig = path.join(
+            exportOptions.outdir,
+            locale + localeExt,
+            page === '/' ? '' : file
+          )
+          const updatedDest = path.join(
+            distDir,
+            isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+            updatedRelativeDest
+          )
+
+          if (!isSsg) {
+            pagesManifest[
+              `/${locale}${page === '/' ? '' : page}`
+            ] = updatedRelativeDest
+          }
+          await promises.mkdir(path.dirname(updatedDest), { recursive: true })
+          await promises.rename(updatedOrig, updatedDest)
+        }
+      }
     }
 
     // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
@@ -805,14 +920,14 @@ export default async function build(
 
     for (const page of combinedPages) {
       const isSsg = ssgPages.has(page)
-      const isSsgFallback = ssgFallbackPages.has(page)
+      const isStaticSsgFallback = ssgStaticFallbackPages.has(page)
       const isDynamic = isDynamicRoute(page)
       const hasAmp = hybridAmpPages.has(page)
       const file = normalizePagePath(page)
 
       // The dynamic version of SSG pages are only prerendered if the fallback
       // is enabled. Below, we handle the specific prerenders of these.
-      if (!(isSsg && isDynamic && !isSsgFallback)) {
+      if (!(isSsg && isDynamic && !isStaticSsgFallback)) {
         await moveExportedPage(page, page, file, isSsg, 'html')
       }
 
@@ -836,6 +951,13 @@ export default async function build(
             srcRoute: null,
             dataRoute: path.posix.join('/_next/data', buildId, `${file}.json`),
           }
+          // Set Page Revalidation Interval
+          const pageInfo = pageInfos.get(page)
+          if (pageInfo) {
+            pageInfo.initialRevalidateSeconds =
+              exportConfig.initialPageRevalidationMap[page]
+            pageInfos.set(page, pageInfo)
+          }
         } else {
           // For a dynamic SSG page, we did not copy its data exports and only
           // copy the fallback HTML file (if present).
@@ -844,13 +966,13 @@ export default async function build(
           const extraRoutes = additionalSsgPaths.get(page) || []
           for (const route of extraRoutes) {
             const pageFile = normalizePagePath(route)
-            await moveExportedPage(page, route, pageFile, true, 'html')
-            await moveExportedPage(page, route, pageFile, true, 'json')
+            await moveExportedPage(page, route, pageFile, true, 'html', true)
+            await moveExportedPage(page, route, pageFile, true, 'json', true)
 
             if (hasAmp) {
               const ampPage = `${pageFile}.amp`
-              await moveExportedPage(page, ampPage, ampPage, true, 'html')
-              await moveExportedPage(page, ampPage, ampPage, true, 'json')
+              await moveExportedPage(page, ampPage, ampPage, true, 'html', true)
+              await moveExportedPage(page, ampPage, ampPage, true, 'json', true)
             }
 
             finalPrerenderRoutes[route] = {
@@ -862,6 +984,14 @@ export default async function build(
                 buildId,
                 `${normalizePagePath(route)}.json`
               ),
+            }
+
+            // Set route Revalidation Interval
+            const pageInfo = pageInfos.get(route)
+            if (pageInfo) {
+              pageInfo.initialRevalidateSeconds =
+                exportConfig.initialPageRevalidationMap[route]
+              pageInfos.set(route, pageInfo)
             }
           }
         }
@@ -876,10 +1006,10 @@ export default async function build(
       JSON.stringify(pagesManifest, null, 2),
       'utf8'
     )
-  }
 
-  if (postBuildSpinner) postBuildSpinner.stopAndPersist()
-  console.log()
+    if (postBuildSpinner) postBuildSpinner.stopAndPersist()
+    console.log()
+  }
 
   const analysisEnd = process.hrtime(analysisBegin)
   telemetry.record(
@@ -909,7 +1039,9 @@ export default async function build(
       finalDynamicRoutes[tbdRoute] = {
         routeRegex: normalizeRouteRegex(getRouteRegex(tbdRoute).re.source),
         dataRoute,
-        fallback: ssgFallbackPages.has(tbdRoute)
+        fallback: ssgBlockingFallbackPages.has(tbdRoute)
+          ? null
+          : ssgStaticFallbackPages.has(tbdRoute)
           ? `${normalizedRoute}.html`
           : false,
         dataRouteRegex: normalizeRouteRegex(
@@ -956,7 +1088,7 @@ export default async function build(
     JSON.stringify({
       version: 1,
       hasExportPathMap: typeof config.exportPathMap === 'function',
-      exportTrailingSlash: config.exportTrailingSlash === true,
+      exportTrailingSlash: config.trailingSlash === true,
     }),
     'utf8'
   )
@@ -986,7 +1118,10 @@ export default async function build(
       isModern: config.experimental.modern,
     }
   )
-  printCustomRoutes({ redirects, rewrites, headers })
+
+  if (debugOutput) {
+    printCustomRoutes({ redirects, rewrites, headers })
+  }
 
   if (tracer) {
     const parsedResults = await tracer.profiler.stopProfiling()
@@ -1049,6 +1184,8 @@ export default async function build(
   await telemetry.flush()
 }
 
+export type ClientSsgManifest = Set<string>
+
 function generateClientSsgManifest(
   prerenderManifest: PrerenderManifest,
   {
@@ -1057,7 +1194,7 @@ function generateClientSsgManifest(
     isModern,
   }: { buildId: string; distDir: string; isModern: boolean }
 ) {
-  const ssgPages: Set<string> = new Set<string>([
+  const ssgPages: ClientSsgManifest = new Set<string>([
     ...Object.entries(prerenderManifest.routes)
       // Filter out dynamic routes
       .filter(([, { srcRoute }]) => srcRoute == null)

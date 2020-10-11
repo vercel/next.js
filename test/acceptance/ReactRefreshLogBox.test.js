@@ -238,6 +238,7 @@ test('render error not shown right after syntax error', async () => {
   await session.patch(
     'index.js',
     `
+      import * as React from 'react';
       class ClassDefault extends React.Component {
         render() {
           return <h1>Default Export</h1>;
@@ -576,6 +577,7 @@ test('boundaries', async () => {
     'index.js',
     `
       import FunctionDefault from './FunctionDefault.js'
+      import * as React from 'react'
       class ErrorBoundary extends React.Component {
         constructor() {
           super()
@@ -673,6 +675,37 @@ test('unterminated JSX', async () => {
       6 |           div
       7 |         )
       8 |       }"
+  `)
+
+  await cleanup()
+})
+
+test('Module not found', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.patch(
+    'index.js',
+    `import Comp from 'b'
+      export default function Oops() {
+        return (
+          <div>
+            <Comp>lol</Comp>
+          </div>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox(true)).toBe(true)
+
+  const source = await session.getRedboxSource()
+  expect(source).toMatchInlineSnapshot(`
+    "./index.js:1:0
+    Module not found: Can't resolve 'b'
+    > 1 | import Comp from 'b'
+      2 |       export default function Oops() {
+      3 |         return (
+      4 |           <div>"
   `)
 
   await cleanup()
@@ -796,7 +829,7 @@ test('css syntax errors', async () => {
     Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
 
     > 1 | button {}
-        | ^"
+        |         ^"
   `)
 
   await cleanup()
@@ -1039,6 +1072,168 @@ test('logbox: anchors links in error messages', async () => {
           ).href
     )
   ).toMatchInlineSnapshot(`"http://example.com/"`)
+
+  await cleanup()
+})
+
+test('<Link> component props errors', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return <Link />
+      }
+    `
+  )
+
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+    `"Error: Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`undefined\` instead."`
+  )
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return <Link href="/">Abc</Link>
+      }
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return (
+          <Link
+            href="/"
+            as="/"
+            replace={false}
+            scroll={false}
+            shallow={false}
+            passHref={false}
+            prefetch={false}
+          >
+            Abc
+          </Link>
+        )
+      }
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return (
+          <Link
+            href="/"
+            as="/"
+            replace={true}
+            scroll={true}
+            shallow={true}
+            passHref={true}
+            prefetch={true}
+          >
+            Abc
+          </Link>
+        )
+      }
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return (
+          <Link
+            href="/"
+            as="/"
+            replace={undefined}
+            scroll={undefined}
+            shallow={undefined}
+            passHref={undefined}
+            prefetch={undefined}
+          >
+            Abc
+          </Link>
+        )
+      }
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return (
+          <Link
+            href="/"
+            as="/"
+            replace={undefined}
+            scroll={'oops'}
+            shallow={undefined}
+            passHref={undefined}
+            prefetch={undefined}
+          >
+            Abc
+          </Link>
+        )
+      }
+    `
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+    "Error: Failed prop type: The prop \`scroll\` expects a \`boolean\` in \`<Link>\`, but got \`string\` instead.
+    Open your browser's console to view the Component stack trace."
+  `)
+
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Hello() {
+        return (
+          <Link
+            href={false}
+            as="/"
+            replace={undefined}
+            scroll={'oops'}
+            shallow={undefined}
+            passHref={undefined}
+            prefetch={undefined}
+          >
+            Abc
+          </Link>
+        )
+      }
+    `
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+    "Error: Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`boolean\` instead.
+    Open your browser's console to view the Component stack trace."
+  `)
 
   await cleanup()
 })

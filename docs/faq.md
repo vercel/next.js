@@ -72,3 +72,8 @@ description: Get to know more about Next.js with the frequently asked questions.
 
   <p>As we were researching options for server-rendering React that didn’t involve a large number of steps, we came across <a href="https://github.com/facebookarchive/react-page">react-page</a> (now deprecated), a similar approach to Next.js by the creator of React Jordan Walke.</p>
 </details>
+
+<details>
+  <summary>Can I make a Next.js Progressive Web App (PWA)?</summary>
+   <p>Yes! Check out our <a href="https://github.com/vercel/next.js/tree/canary/examples/progressive-web-app">PWA Example</a> to see how it works.</p>
+</details>

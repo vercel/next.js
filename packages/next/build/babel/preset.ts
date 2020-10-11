@@ -65,6 +65,9 @@ module.exports = (
   const supportsESM = api.caller(supportsStaticESM)
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
   const isModern = api.caller((caller: any) => !!caller && caller.isModern)
+  const hasJsxRuntime = Boolean(
+    api.caller((caller: any) => !!caller && caller.hasJsxRuntime)
+  )
 
   const isLaxModern =
     isModern ||
@@ -76,6 +79,10 @@ module.exports = (
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
     modules: 'auto',
     exclude: ['transform-typeof-symbol'],
+    include: [
+      '@babel/plugin-proposal-optional-chaining',
+      '@babel/plugin-proposal-nullish-coalescing-operator',
+    ],
     ...options['preset-env'],
   }
 
@@ -113,7 +120,7 @@ module.exports = (
           // This adds @babel/plugin-transform-react-jsx-source and
           // @babel/plugin-transform-react-jsx-self automatically in development
           development: isDevelopment || isTest,
-          pragma: '__jsx',
+          ...(hasJsxRuntime ? { runtime: 'automatic' } : { pragma: '__jsx' }),
           ...options['preset-react'],
         },
       ],
@@ -123,7 +130,7 @@ module.exports = (
       ],
     ],
     plugins: [
-      [
+      !hasJsxRuntime && [
         require('./plugins/jsx-pragma'),
         {
           // This produces the following injected import for modules containing JSX:
@@ -178,16 +185,11 @@ module.exports = (
           removeImport: true,
         },
       ],
-      require('@babel/plugin-proposal-optional-chaining'),
-      require('@babel/plugin-proposal-nullish-coalescing-operator'),
       isServer && require('@babel/plugin-syntax-bigint'),
-      [require('@babel/plugin-proposal-numeric-separator').default, false],
+      // Always compile numeric separator because the resulting number is
+      // smaller.
+      require('@babel/plugin-proposal-numeric-separator'),
+      require('@babel/plugin-proposal-export-namespace-from'),
     ].filter(Boolean),
-    overrides: [
-      {
-        test: /\.tsx?$/,
-        plugins: [require('@babel/plugin-proposal-numeric-separator').default],
-      },
-    ],
   }
 }

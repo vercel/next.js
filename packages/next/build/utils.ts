@@ -26,6 +26,8 @@ import { GetStaticPaths } from 'next/types'
 import { denormalizePagePath } from '../next-server/server/normalize-page-path'
 import { BuildManifest } from '../next-server/server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
+import type { UnwrapPromise } from '../lib/coalesced-function'
+import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
 const fsStatGzip = (file: string) => {
@@ -51,7 +53,7 @@ export interface PageInfo {
   static: boolean
   isSsg: boolean
   ssgPageRoutes: string[] | null
-  hasSsgFallback: boolean
+  initialRevalidateSeconds: number | false
 }
 
 export async function printTreeView(
@@ -153,7 +155,11 @@ export async function printTreeView(
           : pageInfo?.isSsg
           ? '●'
           : 'λ'
-      } ${item}`,
+      } ${
+        pageInfo?.initialRevalidateSeconds
+          ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
+          : item
+      }`,
       pageInfo
         ? ampFirst
           ? chalk.cyan('AMP')
@@ -268,6 +274,13 @@ export async function printTreeView(
           '●',
           '(SSG)',
           `automatically generated as static HTML + JSON (uses ${chalk.cyan(
+            'getStaticProps'
+          )})`,
+        ],
+        [
+          '',
+          '(ISR)',
+          `incremental static regeneration (uses revalidate in ${chalk.cyan(
             'getStaticProps'
           )})`,
         ],
@@ -463,7 +476,7 @@ async function computeFromManifest(
   return lastCompute!
 }
 
-function difference<T>(main: T[], sub: T[]): T[] {
+export function difference<T>(main: T[] | Set<T>, sub: T[] | Set<T>): T[] {
   const a = new Set(main)
   const b = new Set(sub)
   return [...a].filter((x) => !b.has(x))
@@ -518,8 +531,12 @@ export async function getJsPageSizeInKb(
 
 export async function buildStaticPaths(
   page: string,
-  getStaticPaths: GetStaticPaths
-): Promise<{ paths: string[]; fallback: boolean }> {
+  getStaticPaths: GetStaticPaths,
+  locales?: string[],
+  defaultLocale?: string
+): Promise<
+  Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & { paths: string[] }
+> {
   const prerenderPaths = new Set<string>()
   const _routeRegex = getRouteRegex(page)
   const _routeMatcher = getRouteMatcher(_routeRegex)
@@ -555,7 +572,12 @@ export async function buildStaticPaths(
     )
   }
 
-  if (typeof staticPathsResult.fallback !== 'boolean') {
+  if (
+    !(
+      typeof staticPathsResult.fallback === 'boolean' ||
+      staticPathsResult.fallback === 'unstable_blocking'
+    )
+  ) {
     throw new Error(
       `The \`fallback\` key must be returned from getStaticPaths in ${page}.\n` +
         expectedReturnVal
@@ -576,7 +598,17 @@ export async function buildStaticPaths(
     // route.
     if (typeof entry === 'string') {
       entry = removePathTrailingSlash(entry)
-      const result = _routeMatcher(entry)
+
+      const localePathResult = normalizeLocalePath(entry, locales)
+      let cleanedEntry = entry
+
+      if (localePathResult.detectedLocale) {
+        cleanedEntry = entry.substr(localePathResult.detectedLocale.length + 1)
+      } else if (defaultLocale) {
+        entry = `/${defaultLocale}${entry}`
+      }
+
+      const result = _routeMatcher(cleanedEntry)
       if (!result) {
         throw new Error(
           `The provided path \`${entry}\` does not match the page: \`${page}\`.`
@@ -588,7 +620,10 @@ export async function buildStaticPaths(
     // For the object-provided path, we must make sure it specifies all
     // required keys.
     else {
-      const invalidKeys = Object.keys(entry).filter((key) => key !== 'params')
+      const invalidKeys = Object.keys(entry).filter(
+        (key) => key !== 'params' && key !== 'locale'
+      )
+
       if (invalidKeys.length) {
         throw new Error(
           `Additional keys were returned from \`getStaticPaths\` in page "${page}". ` +
@@ -638,7 +673,14 @@ export async function buildStaticPaths(
           .replace(/(?!^)\/$/, '')
       })
 
-      prerenderPaths?.add(builtPage)
+      if (entry.locale && !locales?.includes(entry.locale)) {
+        throw new Error(
+          `Invalid locale returned from getStaticPaths for ${page}, the locale ${entry.locale} is not specified in next.config.js`
+        )
+      }
+      const curLocale = entry.locale || defaultLocale || ''
+
+      prerenderPaths?.add(`${curLocale ? `/${curLocale}` : ''}${builtPage}`)
     }
   })
 
@@ -648,7 +690,9 @@ export async function buildStaticPaths(
 export async function isPageStatic(
   page: string,
   serverBundle: string,
-  runtimeEnvConfig: any
+  runtimeEnvConfig: any,
+  locales?: string[],
+  defaultLocale?: string
 ): Promise<{
   isStatic?: boolean
   isAmpOnly?: boolean
@@ -656,7 +700,7 @@ export async function isPageStatic(
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[] | undefined
-  prerenderFallback?: boolean | undefined
+  prerenderFallback?: boolean | 'unstable_blocking' | undefined
 }> {
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
@@ -731,12 +775,17 @@ export async function isPageStatic(
     }
 
     let prerenderRoutes: Array<string> | undefined
-    let prerenderFallback: boolean | undefined
+    let prerenderFallback: boolean | 'unstable_blocking' | undefined
     if (hasStaticProps && hasStaticPaths) {
       ;({
         paths: prerenderRoutes,
         fallback: prerenderFallback,
-      } = await buildStaticPaths(page, mod.getStaticPaths))
+      } = await buildStaticPaths(
+        page,
+        mod.getStaticPaths,
+        locales,
+        defaultLocale
+      ))
     }
 
     const config = mod.config || {}

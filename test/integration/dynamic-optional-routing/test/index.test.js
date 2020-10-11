@@ -370,23 +370,34 @@ describe('Dynamic Optional Routing', () => {
       }).then((res) => res.text())
     }
 
+    it('should render normal (non-dynamic) page', async () => {
+      const html = await render('/about')
+      const $ = cheerio.load(html)
+      expect($('#content').text()).toBe('about')
+    })
+
     it('should render top level optional catch-all root', async () => {
       const html = await render('/', { optionalName: '' })
       const $ = cheerio.load(html)
       expect($('#route').text()).toBe('top level route param: undefined')
       expect($('#keys').text()).toBe('[]')
+      expect($('#asPath').text()).toBe('/')
     })
 
     it('should render top level optional catch-all one level', async () => {
       const html = await render('/hello', { optionalName: 'hello' })
       const $ = cheerio.load(html)
       expect($('#route').text()).toBe('top level route param: [hello]')
+      expect($('#keys').text()).toBe('["optionalName"]')
+      expect($('#asPath').text()).toBe('/hello')
     })
 
     it('should render top level optional catch-all two levels', async () => {
       const html = await render('/hello/world', { optionalName: 'hello/world' })
       const $ = cheerio.load(html)
       expect($('#route').text()).toBe('top level route param: [hello|world]')
+      expect($('#keys').text()).toBe('["optionalName"]')
+      expect($('#asPath').text()).toBe('/hello/world')
     })
 
     it('should render nested optional catch-all root', async () => {
@@ -394,12 +405,15 @@ describe('Dynamic Optional Routing', () => {
       const $ = cheerio.load(html)
       expect($('#route').text()).toBe('nested route param: undefined')
       expect($('#keys').text()).toBe('[]')
+      expect($('#asPath').text()).toBe('/nested')
     })
 
     it('should render nested optional catch-all one level', async () => {
       const html = await render('/nested/hello', { optionalName: 'hello' })
       const $ = cheerio.load(html)
       expect($('#route').text()).toBe('nested route param: [hello]')
+      expect($('#keys').text()).toBe('["optionalName"]')
+      expect($('#asPath').text()).toBe('/nested/hello')
     })
 
     it('should render nested optional catch-all two levels', async () => {
@@ -408,6 +422,8 @@ describe('Dynamic Optional Routing', () => {
       })
       const $ = cheerio.load(html)
       expect($('#route').text()).toBe('nested route param: [hello|world]')
+      expect($('#keys').text()).toBe('["optionalName"]')
+      expect($('#asPath').text()).toBe('/nested/hello/world')
     })
 
     it('should render optional catch-all api root', async () => {
