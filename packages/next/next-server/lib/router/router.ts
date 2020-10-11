@@ -979,8 +979,7 @@ export default class Router implements BaseRouter {
           formatWithValidation({ pathname, query }),
           delBasePath(as),
           __N_SSG,
-          this.locale,
-          this.defaultLocale
+          this.locale
         )
       }
 
