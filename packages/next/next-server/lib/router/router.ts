@@ -47,17 +47,43 @@ function buildCancellationError() {
   })
 }
 
+function addPathPrefix(path: string, prefix?: string) {
+  return prefix && path.startsWith('/')
+    ? path === '/'
+      ? normalizePathTrailingSlash(prefix)
+      : `${prefix}${path}`
+    : path
+}
+
+export function addLocale(
+  path: string,
+  locale?: string,
+  defaultLocale?: string
+) {
+  if (process.env.__NEXT_i18n_SUPPORT) {
+    return locale && locale !== defaultLocale && !path.startsWith('/' + locale)
+      ? addPathPrefix(path, '/' + locale)
+      : path
+  }
+  return path
+}
+
+export function delLocale(path: string, locale?: string) {
+  if (process.env.__NEXT_i18n_SUPPORT) {
+    return locale && path.startsWith('/' + locale)
+      ? path.substr(locale.length + 1) || '/'
+      : path
+  }
+  return path
+}
+
 export function hasBasePath(path: string): boolean {
   return path === basePath || path.startsWith(basePath + '/')
 }
 
 export function addBasePath(path: string): string {
   // we only add the basepath on relative urls
-  return basePath && path.startsWith('/')
-    ? path === '/'
-      ? normalizePathTrailingSlash(basePath)
-      : basePath + path
-    : path
+  return addPathPrefix(path, basePath)
 }
 
 export function delBasePath(path: string): string {
@@ -178,11 +204,14 @@ export function resolveHref(
         finalUrl.pathname,
         query
       )
-      interpolatedAs = formatWithValidation({
-        pathname: result,
-        hash: finalUrl.hash,
-        query: omitParmsFromQuery(query, params),
-      })
+
+      if (result) {
+        interpolatedAs = formatWithValidation({
+          pathname: result,
+          hash: finalUrl.hash,
+          query: omitParmsFromQuery(query, params),
+        })
+      }
     }
 
     // if the origin didn't change, it means we received a relative href
@@ -191,7 +220,9 @@ export function resolveHref(
         ? finalUrl.href.slice(finalUrl.origin.length)
         : finalUrl.href
 
-    return (resolveAs ? [resolvedHref, interpolatedAs] : resolvedHref) as string
+    return (resolveAs
+      ? [resolvedHref, interpolatedAs || resolvedHref]
+      : resolvedHref) as string
   } catch (_) {
     return (resolveAs ? [urlAsString] : urlAsString) as string
   }
@@ -217,6 +248,9 @@ export type BaseRouter = {
   query: ParsedUrlQuery
   asPath: string
   basePath: string
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
 }
 
 export type NextRouter = BaseRouter &
@@ -325,6 +359,9 @@ export default class Router implements BaseRouter {
   isFallback: boolean
   _inFlightRoute?: string
   _shallow?: boolean
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
 
   static events: MittEmitter = mitt()
 
@@ -342,6 +379,9 @@ export default class Router implements BaseRouter {
       err,
       subscription,
       isFallback,
+      locale,
+      locales,
+      defaultLocale,
     }: {
       subscription: Subscription
       initialProps: any
@@ -352,6 +392,9 @@ export default class Router implements BaseRouter {
       wrapApp: (App: AppComponent) => any
       err?: Error
       isFallback: boolean
+      locale?: string
+      locales?: string[]
+      defaultLocale?: string
     }
   ) {
     // represents the current component key
@@ -401,6 +444,12 @@ export default class Router implements BaseRouter {
     this.isSsr = true
 
     this.isFallback = isFallback
+
+    if (process.env.__NEXT_i18n_SUPPORT) {
+      this.locale = locale
+      this.locales = locales
+      this.defaultLocale = defaultLocale
+    }
 
     if (typeof window !== 'undefined') {
       // make sure "as" doesn't start with double slashes or else it can
@@ -556,7 +605,11 @@ export default class Router implements BaseRouter {
       this.abortComponentLoad(this._inFlightRoute)
     }
 
-    const cleanedAs = hasBasePath(as) ? delBasePath(as) : as
+    as = addLocale(as, this.locale, this.defaultLocale)
+    const cleanedAs = delLocale(
+      hasBasePath(as) ? delBasePath(as) : as,
+      this.locale
+    )
     this._inFlightRoute = as
 
     // If the url change is only related to a hash change
@@ -609,7 +662,7 @@ export default class Router implements BaseRouter {
       method = 'replaceState'
     }
 
-    const route = removePathTrailingSlash(pathname)
+    let route = removePathTrailingSlash(pathname)
     const { shallow = false } = options
 
     // we need to resolve the as value using rewrites for dynamic SSG
@@ -625,8 +678,27 @@ export default class Router implements BaseRouter {
         query,
         (p: string) => this._resolveHref({ pathname: p }, pages).pathname!
       )
+
+      if (resolvedAs !== as) {
+        const potentialHref = removePathTrailingSlash(
+          this._resolveHref(
+            Object.assign({}, parsed, { pathname: resolvedAs }),
+            pages,
+            false
+          ).pathname!
+        )
+
+        // if this directly matches a page we need to update the href to
+        // allow the correct page chunk to be loaded
+        if (pages.includes(potentialHref)) {
+          route = potentialHref
+          pathname = potentialHref
+          parsed.pathname = pathname
+          url = formatWithValidation(parsed)
+        }
+      }
     }
-    resolvedAs = delBasePath(resolvedAs)
+    resolvedAs = delLocale(delBasePath(resolvedAs), this.locale)
 
     if (isDynamicRoute(route)) {
       const parsedAs = parseRelativeUrl(resolvedAs)
@@ -634,7 +706,12 @@ export default class Router implements BaseRouter {
 
       const routeRegex = getRouteRegex(route)
       const routeMatch = getRouteMatcher(routeRegex)(asPathname)
-      if (!routeMatch) {
+      const shouldInterpolate = route === asPathname
+      const interpolatedAs = shouldInterpolate
+        ? interpolateAs(route, asPathname, query)
+        : ({} as { result: undefined; params: undefined })
+
+      if (!routeMatch || (shouldInterpolate && !interpolatedAs.result)) {
         const missingParams = Object.keys(routeRegex.groups).filter(
           (param) => !query[param]
         )
@@ -642,7 +719,11 @@ export default class Router implements BaseRouter {
         if (missingParams.length > 0) {
           if (process.env.NODE_ENV !== 'production') {
             console.warn(
-              `Mismatching \`as\` and \`href\` failed to manually provide ` +
+              `${
+                shouldInterpolate
+                  ? `Interpolating href`
+                  : `Mismatching \`as\` and \`href\``
+              } failed to manually provide ` +
                 `the params: ${missingParams.join(
                   ', '
                 )} in the \`href\`'s \`query\``
@@ -650,16 +731,23 @@ export default class Router implements BaseRouter {
           }
 
           throw new Error(
-            `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
-              `Read more: https://err.sh/vercel/next.js/incompatible-href-as`
+            (shouldInterpolate
+              ? `The provided \`href\` (${url}) value is missing query values (${missingParams.join(
+                  ', '
+                )}) to be interpolated properly. `
+              : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) +
+              `Read more: https://err.sh/vercel/next.js/${
+                shouldInterpolate
+                  ? 'href-interpolation-failed'
+                  : 'incompatible-href-as'
+              }`
           )
         }
-      } else if (route === asPathname) {
-        const { result, params } = interpolateAs(route, asPathname, query)
+      } else if (shouldInterpolate) {
         as = formatWithValidation(
           Object.assign({}, parsedAs, {
-            pathname: result,
-            query: omitParmsFromQuery(query, params),
+            pathname: interpolatedAs.result,
+            query: omitParmsFromQuery(query, interpolatedAs.params!),
           })
         )
       } else {
@@ -678,10 +766,45 @@ export default class Router implements BaseRouter {
         as,
         shallow
       )
-      let { error } = routeInfo
+      let { error, props, __N_SSG, __N_SSP } = routeInfo
+
+      // handle redirect on client-transition
+      if (
+        (__N_SSG || __N_SSP) &&
+        props &&
+        (props as any).pageProps &&
+        (props as any).pageProps.__N_REDIRECT
+      ) {
+        const destination = (props as any).pageProps.__N_REDIRECT
+
+        // check if destination is internal (resolves to a page) and attempt
+        // client-navigation if it is falling back to hard navigation if
+        // it's not
+        if (destination.startsWith('/')) {
+          const parsedHref = parseRelativeUrl(destination)
+          this._resolveHref(parsedHref, pages)
+
+          if (pages.includes(parsedHref.pathname)) {
+            return this.change(
+              'replaceState',
+              destination,
+              destination,
+              options
+            )
+          }
+        }
+
+        window.location.href = destination
+        return new Promise(() => {})
+      }
 
       Router.events.emit('beforeHistoryChange', as)
-      this.changeState(method, url, as, options)
+      this.changeState(
+        method,
+        url,
+        addLocale(as, this.locale, this.defaultLocale),
+        options
+      )
 
       if (process.env.NODE_ENV !== 'production') {
         const appComp: any = this.components['/_app'].Component
@@ -850,7 +973,8 @@ export default class Router implements BaseRouter {
         dataHref = this.pageLoader.getDataHref(
           formatWithValidation({ pathname, query }),
           delBasePath(as),
-          __N_SSG
+          __N_SSG,
+          this.locale
         )
       }
 
@@ -869,6 +993,7 @@ export default class Router implements BaseRouter {
               } as any
             )
       )
+
       routeInfo.props = props
       this.components[route] = routeInfo
       return routeInfo
@@ -949,10 +1074,10 @@ export default class Router implements BaseRouter {
     return this.asPath !== asPath
   }
 
-  _resolveHref(parsedHref: UrlObject, pages: string[]) {
+  _resolveHref(parsedHref: UrlObject, pages: string[], applyBasePath = true) {
     const { pathname } = parsedHref
     const cleanPathname = removePathTrailingSlash(
-      denormalizePagePath(delBasePath(pathname!))
+      denormalizePagePath(applyBasePath ? delBasePath(pathname!) : pathname!)
     )
 
     if (cleanPathname === '/404' || cleanPathname === '/_error') {
@@ -967,7 +1092,7 @@ export default class Router implements BaseRouter {
           isDynamicRoute(page) &&
           getRouteRegex(page).re.test(cleanPathname!)
         ) {
-          parsedHref.pathname = addBasePath(page)
+          parsedHref.pathname = applyBasePath ? addBasePath(page) : page
           return true
         }
       })
@@ -1006,7 +1131,12 @@ export default class Router implements BaseRouter {
 
     const route = removePathTrailingSlash(pathname)
     await Promise.all([
-      this.pageLoader.prefetchData(url, asPath),
+      this.pageLoader.prefetchData(
+        url,
+        asPath,
+        this.locale,
+        this.defaultLocale
+      ),
       this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
     ])
   }
