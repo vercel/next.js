@@ -72,7 +72,7 @@ Make sure your `package.json` has the `"build"` and `"start"` scripts:
 
 ### Docker Image
 
-Next.js can be deployed to any hosting provider that supports Docker containers. This is the approach you should use when you're deploying to container orchestrators such as Kubernetes or Hashicorp Nomad.
+Next.js can be deployed to any hosting provider that supports Docker containers. This is the approach you should use when you're deploying to container orchestrators such as Kubernetes or Hashicorp Nomad, or just want to run a docker container in a single node in any cloud provider.
 
 Here is a multi-stage `Dockerfile` using `node:alpine` that you can use:
 
