@@ -7,6 +7,7 @@ import {
   addBasePath,
   markLoadingError,
   interpolateAs,
+  addLocale,
 } from '../next-server/lib/router/router'
 
 import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
@@ -202,13 +203,23 @@ export default class PageLoader {
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
-  getDataHref(href: string, asPath: string, ssg: boolean) {
+  getDataHref(
+    href: string,
+    asPath: string,
+    ssg: boolean,
+    locale?: string,
+    defaultLocale?: string
+  ) {
     const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
     const { pathname: asPathname } = parseRelativeUrl(asPath)
     const route = normalizeRoute(hrefPathname)
 
     const getHrefForSlug = (path: string) => {
-      const dataRoute = getAssetPathFromRoute(path, '.json')
+      const dataRoute = addLocale(
+        getAssetPathFromRoute(path, '.json'),
+        locale,
+        defaultLocale
+      )
       return addBasePath(
         `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`
       )
@@ -228,7 +239,12 @@ export default class PageLoader {
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
-  prefetchData(href: string, asPath: string) {
+  prefetchData(
+    href: string,
+    asPath: string,
+    locale?: string,
+    defaultLocale?: string
+  ) {
     const { pathname: hrefPathname } = parseRelativeUrl(href)
     const route = normalizeRoute(hrefPathname)
     return this.promisedSsgManifest!.then(
@@ -236,7 +252,13 @@ export default class PageLoader {
         // Check if the route requires a data file
         s.has(route) &&
         // Try to generate data href, noop when falsy
-        (_dataHref = this.getDataHref(href, asPath, true)) &&
+        (_dataHref = this.getDataHref(
+          href,
+          asPath,
+          true,
+          locale,
+          defaultLocale
+        )) &&
         // noop when data has already been prefetched (dedupe)
         !document.querySelector(
           `link[rel="${relPrefetch}"][href^="${_dataHref}"]`
