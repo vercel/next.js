@@ -9,6 +9,7 @@ import {
   notice
 } from "@bunred/bunadmin"
 import { SchemaLabel, SchemaColumns } from "./plugin"
+import Type from "./types"
 
 export default function Post() {
   const { t } = useTranslation("table")
@@ -41,22 +42,22 @@ export default function Post() {
           }
         ]}
         editable={{
-          onRowAdd: async newData =>
+          onRowAdd: async (newData: Type) =>
             await notice({
               title: "test create",
               content: newData
             }),
-          onRowUpdate: async (newData, oldData) =>
+          onRowUpdate: async (newData: Type, oldData: Type) =>
             await notice({
               title: "test update",
               content: { newData, oldData }
             }),
-          onBulkUpdate: async changes =>
+          onBulkUpdate: async (changes: any) =>
             await notice({
               title: "test bulk update",
               content: changes
             }),
-          onRowDelete: async oldData =>
+          onRowDelete: async (oldData: Type) =>
             await notice({
               title: "test delete",
               content: oldData
@@ -66,7 +67,7 @@ export default function Post() {
           {
             tooltip: "Remove All Selected Rows",
             icon: "delete",
-            onClick: async (_evt, data) =>
+            onClick: async (_evt: any, data: Type[]) =>
               await notice({
                 title: "test bulk delete",
                 content: data
