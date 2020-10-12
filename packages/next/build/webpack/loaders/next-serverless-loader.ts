@@ -339,7 +339,7 @@ const nextServerlessLoader: loader.Loader = function () {
               : `{}`
           }
 
-          const { default: resolver } = await require('${absolutePagePath}')
+          const resolver = await require('${absolutePagePath}')
           await apiResolver(
             req,
             res,
