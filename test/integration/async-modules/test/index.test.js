@@ -49,6 +49,26 @@ function runTests() {
     const result = await res.json()
     expect(result).toHaveProperty('value', 42)
   })
+
+  it('works with getServerSideProps', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/gssp')
+      expect(await browser.elementByCss('#gssp-value').text()).toBe('42')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('works with getStaticProps', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/gsp')
+      expect(await browser.elementByCss('#gsp-value').text()).toBe('42')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
 }
 
 ;(isWebpack5 ? describe : describe.skip)('Async modules', () => {

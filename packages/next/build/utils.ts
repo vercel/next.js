@@ -712,13 +712,13 @@ export async function isPageStatic(
     }
 
     const hasGetInitialProps = !!(Comp as any).getInitialProps
-    const hasStaticProps = !!mod.getStaticProps
-    const hasStaticPaths = !!mod.getStaticPaths
-    const hasServerProps = !!mod.getServerSideProps
-    const hasLegacyServerProps = !!mod.unstable_getServerProps
-    const hasLegacyStaticProps = !!mod.unstable_getStaticProps
-    const hasLegacyStaticPaths = !!mod.unstable_getStaticPaths
-    const hasLegacyStaticParams = !!mod.unstable_getStaticParams
+    const hasStaticProps = !!(await mod.getStaticProps)
+    const hasStaticPaths = !!(await mod.getStaticPaths)
+    const hasServerProps = !!(await mod.getServerSideProps)
+    const hasLegacyServerProps = !!(await mod.unstable_getServerProps)
+    const hasLegacyStaticProps = !!(await mod.unstable_getStaticProps)
+    const hasLegacyStaticPaths = !!(await mod.unstable_getStaticPaths)
+    const hasLegacyStaticParams = !!(await mod.unstable_getStaticParams)
 
     if (hasLegacyStaticParams) {
       throw new Error(
