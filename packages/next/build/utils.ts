@@ -705,7 +705,7 @@ export async function isPageStatic(
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
     const mod = await require(serverBundle)
-    const Comp = mod.default || mod
+    const Comp = await (mod.default || mod)
 
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
       throw new Error('INVALID_DEFAULT_EXPORT')
@@ -804,19 +804,20 @@ export async function isPageStatic(
   }
 }
 
-export function hasCustomGetInitialProps(
+export async function hasCustomGetInitialProps(
   bundle: string,
   runtimeEnvConfig: any,
   checkingApp: boolean
-): boolean {
+): Promise<boolean> {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
   let mod = require(bundle)
 
   if (checkingApp) {
-    mod = mod._app || mod.default || mod
+    mod = (await mod._app) || mod.default || mod
   } else {
     mod = mod.default || mod
   }
+  mod = await mod
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 

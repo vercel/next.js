@@ -77,7 +77,7 @@ function runTests() {
     runTests()
   })
 
-  describe.skip('serverless mode', () => {
+  describe('serverless mode', () => {
     beforeAll(async () => {
       nextConfig.replace('// target:', 'target:')
       await nextBuild(appDir)

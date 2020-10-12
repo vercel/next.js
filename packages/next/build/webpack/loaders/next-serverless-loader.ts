@@ -388,14 +388,16 @@ const nextServerlessLoader: loader.Loader = function () {
     const reactLoadableManifest = require('${reactLoadableManifest}');
     const Document = require('${absoluteDocumentPath}').default;
     const Error = require('${absoluteErrorPath}').default;
-    const App = require('${absoluteAppPath}').default;
+
+    const appMod = require('${absoluteAppPath}')
+    const App = appMod.default || appMod.then(mod => mod.default);
 
     ${dynamicRouteImports}
     ${rewriteImports}
 
     const ComponentInfo = require('${absolutePagePath}')
 
-    const Component = ComponentInfo.default
+    const Component = ComponentInfo.default || ComponentInfo.then(mod => mod.default)
     export default Component
     export const unstable_getStaticParams = ComponentInfo['unstable_getStaticParam' + 's']
     export const getStaticProps = ComponentInfo['getStaticProp' + 's']
@@ -421,7 +423,7 @@ const nextServerlessLoader: loader.Loader = function () {
       setLazyProp({ req }, 'cookies', getCookieParser(req))
 
       const options = {
-        App,
+        App: await App,
         Document,
         buildManifest,
         getStaticProps,
@@ -473,7 +475,7 @@ const nextServerlessLoader: loader.Loader = function () {
 
         const renderOpts = Object.assign(
           {
-            Component,
+            Component: await Component,
             pageConfig: config,
             nextExport: fromExport,
             isDataReq: _nextData,
