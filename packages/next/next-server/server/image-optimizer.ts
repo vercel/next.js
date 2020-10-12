@@ -104,14 +104,23 @@ export async function imageOptimizer(
   }
 
   const { href } = absoluteUrl
-  const fileName = getFileName([CACHE_VERSION, href, width, quality, mediaType])
-  const imageDir = join(distDir, 'cache', 'images')
-  const cacheFile = join(imageDir, fileName)
+  const hash = getHash([CACHE_VERSION, href, width, quality, mediaType])
+  const imagesDir = join(distDir, 'cache', 'images')
+  const hashDir = join(imagesDir, hash)
+  const now = Date.now()
 
-  if (await fileExists(cacheFile)) {
-    res.setHeader('Content-Type', mediaType)
-    createReadStream(cacheFile).pipe(res)
-    return { finished: true }
+  if (await fileExists(hashDir, 'directory')) {
+    const files = await promises.readdir(hashDir)
+    for (let file of files) {
+      const expireAt = Number(file)
+      if (expireAt < now) {
+        res.setHeader('Content-Type', mediaType)
+        createReadStream(join(hashDir, file)).pipe(res)
+        return { finished: true }
+      } else {
+        await promises.unlink(join(hashDir, file))
+      }
+    }
   }
 
   if (!sharp) {
@@ -136,23 +145,57 @@ export async function imageOptimizer(
   if (!fetchResponse.body) {
     throw new Error(`No body from ${href}`)
   }
+  const maxAge = getMaxAge(fetchResponse.headers.get('Cache-Control'))
+  const expireAt = now + maxAge * 1000
 
-  await promises.mkdir(imageDir, { recursive: true })
+  await promises.mkdir(hashDir, { recursive: true })
 
   // We know this code only runs server-side so use Node Streams
   const body = (fetchResponse.body as any) as NodeJS.ReadableStream
   const imageTransform = body.pipe(transformer)
-  imageTransform.pipe(createWriteStream(cacheFile))
+  imageTransform.pipe(createWriteStream(join(hashDir, expireAt.toString())))
   res.setHeader('Content-Type', mediaType)
   imageTransform.pipe(res)
   return { finished: true }
 }
 
-function getFileName(items: (string | number | undefined)[]) {
+function getHash(items: (string | number | undefined)[]) {
   const hash = createHash('sha256')
   for (let item of items) {
     hash.update(String(item))
   }
   // See https://en.wikipedia.org/wiki/Base64#Filenames
   return hash.digest('base64').replace(/\//g, '-')
+}
+
+function parseCacheControl(str: string | null): Map<string, string> {
+  const map = new Map<string, string>()
+  if (!str) {
+    return map
+  }
+  for (let directive of str.split(',')) {
+    let [key, value] = directive.trim().split('=')
+    key = key.toLowerCase()
+    if (value) {
+      value = value.toLowerCase()
+    }
+    map.set(key, value)
+  }
+  return map
+}
+
+function getMaxAge(str: string | null): number {
+  const minimum = 60
+  const map = parseCacheControl(str)
+  if (map) {
+    const smaxAge = parseInt(map.get('s-maxage') || '', 10)
+    if (smaxAge && !isNaN(smaxAge)) {
+      return Math.max(smaxAge, minimum)
+    }
+    const maxAge = parseInt(map.get('max-age') || '', 10)
+    if (maxAge && !isNaN(maxAge)) {
+      return Math.max(maxAge, minimum)
+    }
+  }
+  return minimum
 }
