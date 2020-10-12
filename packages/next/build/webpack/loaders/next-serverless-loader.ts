@@ -390,14 +390,14 @@ const nextServerlessLoader: loader.Loader = function () {
     const Error = require('${absoluteErrorPath}').default;
 
     const appMod = require('${absoluteAppPath}')
-    const App = appMod.default || appMod.then(mod => mod.default);
+    const App = appMod.default || appMod.then && appMod.then(mod => mod.default);
 
     ${dynamicRouteImports}
     ${rewriteImports}
 
     const ComponentInfo = require('${absolutePagePath}')
 
-    const Component = ComponentInfo.default || ComponentInfo.then(mod => mod.default)
+    const Component = ComponentInfo.default || ComponentInfo.then && ComponentInfo.then(mod => mod.default)
     export default Component
     export const unstable_getStaticParams = ComponentInfo['unstable_getStaticParam' + 's']
     export const getStaticProps = ComponentInfo['getStaticProp' + 's']
