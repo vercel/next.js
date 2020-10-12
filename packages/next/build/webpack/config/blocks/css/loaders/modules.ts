@@ -2,6 +2,7 @@ import postcss from 'postcss'
 import webpack from 'webpack'
 import { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
+import { cssFileResolve } from './file-resolve'
 import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
 
 export function getCssModuleLoader(
@@ -28,8 +29,16 @@ export function getCssModuleLoader(
     options: {
       importLoaders: 1 + preProcessors.length,
       sourceMap: true,
-      onlyLocals: ctx.isServer,
+      // Use CJS mode for backwards compatibility:
+      esModule: false,
+      url: cssFileResolve,
+      import: (url: string, _: any, resourcePath: string) =>
+        cssFileResolve(url, resourcePath),
       modules: {
+        // Do not transform class names (CJS mode backwards compatibility):
+        exportLocalsConvention: 'asIs',
+        // Server-side (Node.js) rendering support:
+        exportOnlyLocals: ctx.isServer,
         // Disallow global style exports so we can code-split CSS and
         // not worry about loading order.
         mode: 'pure',

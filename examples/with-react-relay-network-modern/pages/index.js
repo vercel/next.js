@@ -1,4 +1,6 @@
-import { graphql, QueryRenderer, fetchQuery } from 'react-relay'
+import { graphql, fetchQuery } from 'react-relay'
+import { useQuery } from 'relay-hooks'
+
 import { initEnvironment } from '../lib/createEnvironment'
 import BlogPosts from '../components/BlogPosts'
 
@@ -10,27 +12,28 @@ const query = graphql`
   }
 `
 
-const Index = ({ environment }) => (
-  <QueryRenderer
-    fetchPolicy="store-and-network"
-    environment={environment}
-    query={query}
-    render={({ error, props }) => {
-      if (error) return <div>{error.message}</div>
-      else if (props) return <BlogPosts viewer={props.viewer} />
-      return <div>Loading</div>
-    }}
-  />
-)
+const Index = ({ environment }) => {
+  const { error, props } = useQuery(query)
+
+  if (error) return <div>{error.message}</div>
+
+  if (!props) return <div>Loading</div>
+
+  return <BlogPosts viewer={props.viewer} />
+}
 
 export async function getStaticProps() {
-  const { environment } = initEnvironment()
+  const { environment, relaySSR } = initEnvironment()
 
   await fetchQuery(environment, query)
 
-  const records = environment.getStore().getSource().toJSON()
+  const relayData = (await relaySSR.getCache())?.[0]
 
-  return { props: { records } }
+  return {
+    props: {
+      relayData: !relayData ? null : [[relayData[0], relayData[1].json]],
+    },
+  }
 }
 
 export default Index

@@ -28,6 +28,7 @@ export type ServerlessLoaderQuery = {
   runtimeConfig: string
   previewProps: string
   loadedEnvFiles: string
+  i18n: string
 }
 
 const vercelHeader = 'x-vercel-id'
@@ -49,6 +50,7 @@ const nextServerlessLoader: loader.Loader = function () {
     runtimeConfig,
     previewProps,
     loadedEnvFiles,
+    i18n,
   }: ServerlessLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
 
@@ -65,6 +67,8 @@ const nextServerlessLoader: loader.Loader = function () {
   const encodedPreviewProps = devalue(
     JSON.parse(previewProps) as __ApiPreviewProps
   )
+
+  const i18nEnabled = !!i18n
 
   const defaultRouteRegex = pageIsDynamicRoute
     ? `
@@ -89,7 +93,12 @@ const nextServerlessLoader: loader.Loader = function () {
               (!value || (
                 Array.isArray(value) &&
                 value.length === 1 &&
-                value[0] === 'index'
+                ${
+                  ''
+                  // fallback optional catch-all SSG pages have
+                  // [[...paramName]] for the root path on Vercel
+                }
+                (value[0] === 'index' || value[0] === \`[[...\${key}]]\`)
               ))
             ) {
               value = undefined
@@ -117,7 +126,7 @@ const nextServerlessLoader: loader.Loader = function () {
     `
     : ''
   const envLoading = `
-    const { processEnv } = require('next/dist/lib/load-env-config')
+    const { processEnv } = require('@next/env')
     processEnv(${Buffer.from(loadedEnvFiles, 'base64').toString()})
   `
 
@@ -206,6 +215,79 @@ const nextServerlessLoader: loader.Loader = function () {
     parsedUrl.pathname = parsedUrl.pathname.replace(new RegExp('^${basePath}'), '') || '/'
   `
     : ''
+
+  const handleLocale = i18nEnabled
+    ? `
+      // get pathname from URL with basePath stripped for locale detection
+      const i18n = ${i18n}
+      const accept = require('@hapi/accept')
+      const { detectLocaleCookie } = require('next/dist/next-server/lib/i18n/detect-locale-cookie')
+      const { detectDomainLocales } = require('next/dist/next-server/lib/i18n/detect-domain-locales')
+      const { normalizeLocalePath } = require('next/dist/next-server/lib/i18n/normalize-locale-path')
+      let detectedLocale = detectLocaleCookie(req, i18n.locales)
+
+      const { defaultLocale, locales } = detectDomainLocales(
+        req,
+        i18n.domains,
+        i18n.locales,
+        i18n.defaultLocale,
+      )
+
+      if (!detectedLocale) {
+        detectedLocale = accept.language(
+          req.headers['accept-language'],
+          locales
+        )
+      }
+
+      const denormalizedPagePath = denormalizePagePath(parsedUrl.pathname || '/')
+      const detectedDefaultLocale = !detectedLocale || detectedLocale.toLowerCase() === defaultLocale.toLowerCase()
+      const shouldStripDefaultLocale =
+        detectedDefaultLocale &&
+        denormalizedPagePath.toLowerCase() === \`/\${defaultLocale.toLowerCase()}\`
+      const shouldAddLocalePrefix =
+        !detectedDefaultLocale && denormalizedPagePath === '/'
+
+      detectedLocale = detectedLocale || defaultLocale
+
+      if (
+        !fromExport &&
+        !nextStartMode &&
+        i18n.localeDetection !== false &&
+        (shouldAddLocalePrefix || shouldStripDefaultLocale)
+      ) {
+        res.setHeader(
+          'Location',
+          formatUrl({
+            // make sure to include any query values when redirecting
+            ...parsedUrl,
+            pathname: shouldStripDefaultLocale ? '/' : \`/\${detectedLocale}\`,
+          })
+        )
+        res.statusCode = 307
+        res.end()
+        return
+      }
+
+      const localePathResult = normalizeLocalePath(parsedUrl.pathname, locales)
+
+      if (localePathResult.detectedLocale) {
+        detectedLocale = localePathResult.detectedLocale
+        req.url = formatUrl({
+          ...parsedUrl,
+          pathname: localePathResult.pathname,
+        })
+        parsedUrl.pathname = localePathResult.pathname
+      }
+
+      detectedLocale = detectedLocale || defaultLocale
+    `
+    : `
+      const i18n = {}
+      const detectedLocale = undefined
+      const defaultLocale = undefined
+      const locales = undefined
+    `
 
   if (page.match(API_ROUTE)) {
     return `
@@ -299,6 +381,8 @@ const nextServerlessLoader: loader.Loader = function () {
     const {parse: parseQs} = require('querystring')
     const { renderToHTML } = require('next/dist/next-server/server/render');
     const { tryGetPreviewData } = require('next/dist/next-server/server/api-utils');
+    const { denormalizePagePath } = require('next/dist/next-server/server/denormalize-page-path')
+    const { setLazyProp, getCookieParser } = require('next/dist/next-server/server/api-utils')
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
@@ -332,6 +416,9 @@ const nextServerlessLoader: loader.Loader = function () {
     export const _app = App
     export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
       const fromExport = renderMode === 'export' || renderMode === true;
+      const nextStartMode = renderMode === 'passthrough'
+
+      setLazyProp({ req }, 'cookies', getCookieParser(req))
 
       const options = {
         App,
@@ -357,23 +444,32 @@ const nextServerlessLoader: loader.Loader = function () {
         // We need to trust the dynamic route params from the proxy
         // to ensure we are using the correct values
         const trustQuery = !getStaticProps && req.headers['${vercelHeader}']
-        const parsedUrl = handleRewrites(parseUrl(req.url, true))
+        let parsedUrl = parseUrl(req.url, true)
+        let routeNoAssetPath = parsedUrl.pathname${
+          basePath ? `.replace(new RegExp('^${basePath}'), '') || '/'` : ''
+        }
+        const origQuery = Object.assign({}, parsedUrl.query)
+
+        parsedUrl = handleRewrites(parsedUrl)
 
         ${handleBasePath}
 
         if (parsedUrl.pathname.match(/_next\\/data/)) {
           const {
-            default: getRouteFromAssetPath,
+            default: getrouteNoAssetPath,
           } = require('next/dist/next-server/lib/router/utils/get-route-from-asset-path');
           _nextData = true;
-          parsedUrl.pathname = getRouteFromAssetPath(
+          parsedUrl.pathname = getrouteNoAssetPath(
             parsedUrl.pathname.replace(
               new RegExp('/_next/data/${escapedBuildId}/'),
               '/'
             ),
             '.json'
           );
+          routeNoAssetPath = parsedUrl.pathname
         }
+
+        ${handleLocale}
 
         const renderOpts = Object.assign(
           {
@@ -381,6 +477,9 @@ const nextServerlessLoader: loader.Loader = function () {
             pageConfig: config,
             nextExport: fromExport,
             isDataReq: _nextData,
+            locale: detectedLocale,
+            locales,
+            defaultLocale,
           },
           options,
         )
@@ -465,8 +564,8 @@ const nextServerlessLoader: loader.Loader = function () {
             : ''
         }
 
-        // normalize request URL/asPath for fallback pages since the proxy
-        // sets the request URL to the output's path for fallback pages
+        // normalize request URL/asPath for fallback/revalidate pages since the
+        // proxy sets the request URL to the output's path for fallback pages
         ${
           pageIsDynamicRoute
             ? `
@@ -482,10 +581,50 @@ const nextServerlessLoader: loader.Loader = function () {
                     _parsedUrl.pathname.substr(paramIdx + param.length + 2)
                 }
               }
+              parsedUrl.pathname = _parsedUrl.pathname
               req.url = formatUrl(_parsedUrl)
             }
           `
             : ``
+        }
+
+        // make sure to normalize asPath for revalidate and _next/data requests
+        // since the asPath should match what is shown on the client
+        if (
+          !fromExport &&
+          (getStaticProps || getServerSideProps)
+        ) {
+          ${
+            pageIsDynamicRoute
+              ? `
+              // don't include dynamic route params in query while normalizing
+              // asPath
+              if (trustQuery) {
+                delete parsedUrl.search
+
+                for (const param of Object.keys(defaultRouteRegex.groups)) {
+                  delete origQuery[param]
+                }
+              }
+            `
+              : ``
+          }
+
+          parsedUrl.pathname = denormalizePagePath(parsedUrl.pathname)
+          renderOpts.resolvedUrl = formatUrl({
+            ...parsedUrl,
+            query: origQuery
+          })
+
+          // For getServerSideProps we need to ensure we use the original URL
+          // and not the resolved URL to prevent a hydration mismatch on asPath
+          renderOpts.resolvedAsPath = getServerSideProps
+            ? formatUrl({
+              ...parsedUrl,
+              pathname: routeNoAssetPath,
+              query: origQuery,
+            })
+            : renderOpts.resolvedUrl
         }
 
         const isFallback = parsedUrl.query.__nextFallback
