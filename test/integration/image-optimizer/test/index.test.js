@@ -133,7 +133,7 @@ function runTests() {
   })
 }
 
-describe('API routes', () => {
+describe('Image Optimizer', () => {
   describe('dev support', () => {
     beforeAll(async () => {
       appPort = await findPort()
