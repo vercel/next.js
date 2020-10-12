@@ -83,6 +83,7 @@ jobs:
           mkdir -p ./e2e-tests/next-pnp
           cp -r ./examples/with-typescript/. ./e2e-tests/next-pnp
           cd ./e2e-tests/next-pnp
+          cd ./packages/next && yarn remove sharp && cd ../../
           touch yarn.lock
           yarn set version berry
           yarn config set pnpFallbackMode none
