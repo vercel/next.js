@@ -1,3 +1,4 @@
 {
+  "allowAwaitOutsideFunction": true,
   "plugins": ["@babel/plugin-syntax-top-level-await"]
 }

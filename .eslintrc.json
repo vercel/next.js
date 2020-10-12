@@ -1,6 +1,6 @@
 {
   "root": true,
-  "parser": "@babel/eslint-parser",
+  "parser": "babel-eslint",
   "plugins": ["react", "react-hooks", "jest", "import"],
   "env": {
     "browser": true,
@@ -9,7 +9,7 @@
     "node": true
   },
   "parserOptions": {
-    "ecmaVersion": 2021,
+    "ecmaVersion": 2018,
     "sourceType": "module",
     "ecmaFeatures": {
       "jsx": true
