@@ -429,7 +429,7 @@ const nextServerlessLoader: loader.Loader = function () {
       setLazyProp({ req }, 'cookies', getCookieParser(req))
 
       const options = {
-        App: await App,
+        App,
         Document,
         buildManifest,
         getStaticProps,
@@ -481,7 +481,7 @@ const nextServerlessLoader: loader.Loader = function () {
 
         const renderOpts = Object.assign(
           {
-            Component: await Component,
+            Component,
             pageConfig: config,
             nextExport: fromExport,
             isDataReq: _nextData,
