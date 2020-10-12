@@ -1314,7 +1314,8 @@ export default async function getBaseWebpackConfig(
           chalk.bold(
             'Built-in CSS support is being disabled due to custom CSS configuration being detected.\n'
           ) +
-          'See here for more info: https://err.sh/next.js/built-in-css-disabled\n'
+          'See here for more info: https://err.sh/next.js/built-in-css-disabled' +
+          '\n'
       )
     }
 
