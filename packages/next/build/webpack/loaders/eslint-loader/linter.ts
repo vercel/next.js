@@ -11,7 +11,7 @@ import { ParseResult } from '@babel/core'
 const {
   CascadingConfigArrayFactory,
 } = require('eslint/lib/cli-engine/cascading-config-array-factory')
-const BabelParser = require('babel-eslint')
+const BabelParser = require('@babel/eslint-parser')
 
 export interface NextLintResult {
   report?: CLIEngine.LintReport
@@ -33,11 +33,7 @@ export class Linter {
     this.config = new CascadingConfigArrayFactory({
       additionalPluginPool: new Map(),
       baseConfig: {
-        extends: [
-          'eslint:recommended',
-          'plugin:@next/next/recommended',
-          'plugin:react-hooks/recommended',
-        ],
+        extends: ['eslint:recommended', 'plugin:@next/next/recommended'],
       },
       cliConfig: createConfigDataFromOptions(options),
       cwd: options.cwd,
