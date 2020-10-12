@@ -81,7 +81,7 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  const width = parseInt(w)
+  const width = parseInt(w, 10)
 
   if (!width || isNaN(width)) {
     res.statusCode = 400
