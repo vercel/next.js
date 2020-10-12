@@ -184,7 +184,7 @@ function parseCacheControl(str: string | null): Map<string, string> {
   return map
 }
 
-function getMaxAge(str: string | null): number {
+export function getMaxAge(str: string | null): number {
   const minimum = 60
   const map = parseCacheControl(str)
   if (map) {
