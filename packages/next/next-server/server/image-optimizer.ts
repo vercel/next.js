@@ -113,7 +113,7 @@ export async function imageOptimizer(
     const files = await promises.readdir(hashDir)
     for (let file of files) {
       const expireAt = Number(file)
-      if (expireAt < now) {
+      if (now < expireAt) {
         res.setHeader('Content-Type', mediaType)
         createReadStream(join(hashDir, file)).pipe(res)
         return { finished: true }

@@ -13,10 +13,26 @@ import {
 jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '../')
+const imagesDir = join(appDir, '.next', 'cache', 'images')
 const nextConfig = join(appDir, 'next.config.js')
 const nextConfigContent = fs.readFileSync(nextConfig, 'utf8')
 let appPort
 let app
+
+async function fsToJson(dir, output = {}) {
+  const files = await fs.readdir(dir)
+  for (let file of files) {
+    const fsPath = join(dir, file)
+    const stat = await fs.stat(fsPath)
+    if (stat.isDirectory()) {
+      output[file] = {}
+      await fsToJson(fsPath, output[file])
+    } else {
+      output[file] = 'file'
+    }
+  }
+  return output
+}
 
 function runTests() {
   it('should return home page', async () => {
@@ -131,6 +147,23 @@ function runTests() {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('image/webp')
   })
+
+  it('should use cached image file when parameters are the same', async () => {
+    const query = { url: '/vercel-logo.png', w: 64, q: 80 }
+    const opts = { headers: { accept: 'image/webp' } }
+
+    const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res1.status).toBe(200)
+    expect(res1.headers.get('content-type')).toBe('image/webp')
+    const json1 = await fsToJson(imagesDir)
+    expect(json1).toBeTruthy()
+
+    const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res2.status).toBe(200)
+    expect(res2.headers.get('content-type')).toBe('image/webp')
+    const json2 = await fsToJson(imagesDir)
+    expect(json2).toStrictEqual(json1)
+  })
 }
 
 describe('Image Optimizer', () => {
@@ -139,7 +172,10 @@ describe('Image Optimizer', () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await killApp(app)
+      await fs.remove(imagesDir)
+    })
 
     runTests()
   })
@@ -150,7 +186,10 @@ describe('Image Optimizer', () => {
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await killApp(app)
+      await fs.remove(imagesDir)
+    })
 
     runTests()
   })
@@ -168,6 +207,7 @@ describe('Image Optimizer', () => {
     afterAll(async () => {
       await killApp(app)
       await fs.writeFile(nextConfig, nextConfigContent)
+      await fs.remove(imagesDir)
     })
 
     runTests()
