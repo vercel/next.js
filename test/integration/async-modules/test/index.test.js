@@ -24,7 +24,7 @@ let appPort
 const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 
-function runTests() {
+function runTests(dev = false) {
   it('ssr async page modules', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
@@ -80,6 +80,17 @@ function runTests() {
       if (browser) await browser.close()
     }
   })
+  ;(dev ? it.skip : it)('can render async error page', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/make-error')
+      expect(await browser.elementByCss('#content-error').text()).toBe(
+        'hello error'
+      )
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
 }
 
 ;(isWebpack5 ? describe : describe.skip)('Async modules', () => {
@@ -92,7 +103,7 @@ function runTests() {
       await killApp(app)
     })
 
-    runTests()
+    runTests(true)
   })
 
   describe('production mode', () => {

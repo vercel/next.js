@@ -415,13 +415,25 @@ const nextServerlessLoader: loader.Loader = function () {
     export const config = compMod['confi' + 'g'] || (compMod.then && compMod.then(mod => mod['confi' + 'g'])) || {}
     export const _app = App
     export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
-      getStaticProps = await getStaticProps
-      getServerSideProps = await getServerSideProps
-      getStaticPaths = await getStaticPaths
-      Component = await Component
-      App = await App
-      const { default: Document } = await require('${absoluteDocumentPath}');
-      const { default: Error } = await require('${absoluteErrorPath}');
+      let Document
+      let Error
+      ;[
+        getStaticProps,
+        getServerSideProps,
+        getStaticPaths,
+        Component,
+        App,
+        { default: Document },
+        { default: Error }
+      ] = await Promise.all([
+        getStaticProps,
+        getServerSideProps,
+        getStaticPaths,
+        Component,
+        App,
+        require('${absoluteDocumentPath}'),
+        require('${absoluteErrorPath}')
+      ])
 
       const fromExport = renderMode === 'export' || renderMode === true;
       const nextStartMode = renderMode === 'passthrough'
