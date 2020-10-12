@@ -416,6 +416,7 @@ export async function renderToHTML(
   delete query.__nextLocale
   delete query.__nextLocales
   delete query.__nextDefaultLocale
+  delete query.__next404
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -640,6 +641,7 @@ export async function renderToHTML(
 
       if (data.unstable_notFound) {
         ;(renderOpts as any).ssgNotFound = true
+        ;(renderOpts as any).revalidate = false
         return null
       }
 

@@ -55,7 +55,6 @@ export default class DevServer extends Server {
   protected staticPathsWorker: import('jest-worker').default & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   }
-  protected pendingSsg404s: Set<string>
 
   constructor(options: ServerConstructor & { isNextDevCommand?: boolean }) {
     super({ ...options, dev: true })
@@ -114,8 +113,6 @@ export default class DevServer extends Server {
 
     this.staticPathsWorker.getStdout().pipe(process.stdout)
     this.staticPathsWorker.getStderr().pipe(process.stderr)
-
-    this.pendingSsg404s = new Set()
   }
 
   protected currentPhase(): string {

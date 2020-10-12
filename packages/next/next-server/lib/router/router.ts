@@ -298,6 +298,8 @@ const manualScrollRestoration =
   typeof window !== 'undefined' &&
   'scrollRestoration' in window.history
 
+const SSG_DATA_NOT_FOUND_ERROR = 'SSG Data NOT_FOUND'
+
 function fetchRetry(url: string, attempts: number): Promise<any> {
   return fetch(url, {
     // Cookies are required to be present for Next.js' SSG "Preview Mode".
@@ -320,7 +322,7 @@ function fetchRetry(url: string, attempts: number): Promise<any> {
       if (res.status === 404) {
         // TODO: handle reloading in development from fallback returning 200
         // to on-demand-entry-handler causing it to reload periodically
-        throw new Error('NOT_FOUND')
+        throw new Error(SSG_DATA_NOT_FOUND_ERROR)
       }
       throw new Error(`Failed to load static props`)
     }
@@ -334,7 +336,7 @@ function fetchNextData(dataHref: string, isServerRender: boolean) {
     // on a client-side transition. Otherwise, we'd get into an infinite
     // loop.
 
-    if (!isServerRender || err.message === 'NOT_FOUND') {
+    if (!isServerRender || err.message === 'SSG Data NOT_FOUND') {
       markLoadingError(err)
     }
     throw err
@@ -903,6 +905,13 @@ export default class Router implements BaseRouter {
       //  3. Internal error while loading the page
 
       // So, doing a hard reload is the proper way to deal with this.
+      if (process.env.NODE_ENV === 'development') {
+        // append __next404 query to prevent fallback from being re-served
+        // on reload in development
+        if (err.message === SSG_DATA_NOT_FOUND_ERROR && this.isSsr) {
+          as += `${as.indexOf('?') > -1 ? '&' : '?'}__next404=1`
+        }
+      }
       window.location.href = as
 
       // Changing the URL doesn't block executing the current code path.

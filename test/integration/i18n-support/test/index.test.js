@@ -14,6 +14,7 @@ import {
   nextStart,
   renderViaHTTP,
   File,
+  waitFor,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -206,10 +207,65 @@ function runTests(isDev) {
     for (const locale of locales) {
       const res = await fetchViaHTTP(appPort, `/${locale}/not-found`)
       expect(res.status).toBe(skippedLocales.includes(locale) ? 404 : 200)
+
+      if (skippedLocales.includes(locale)) {
+        const browser = await webdriver(appPort, `/${locale}/not-found`)
+        expect(await browser.elementByCss('html').getAttribute('lang')).toBe(
+          locale
+        )
+        expect(
+          await browser.eval('document.documentElement.innerHTML')
+        ).toContain('This page could not be found')
+
+        const parsedUrl = url.parse(
+          await browser.eval('window.location.href'),
+          true
+        )
+        expect(parsedUrl.pathname).toBe(`/${locale}/not-found`)
+        expect(parsedUrl.query).toEqual({})
+      }
     }
   })
 
-  // TODO: tests for notFound with fallback GSP pages
+  it('should 404 for GSP that returned notFound on client-transition', async () => {
+    const browser = await webdriver(appPort, '/en')
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/not-found')
+    })()`)
+
+    await browser.waitForElementByCss('h1')
+
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(null)
+  })
+
+  it('should render 404 for fallback page that returned 404', async () => {
+    const browser = await webdriver(appPort, '/en/not-found/fallback/first')
+    await browser.waitForElementByCss('h1')
+    await browser.eval('window.beforeNav = 1')
+
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+
+    const parsedUrl = url.parse(
+      await browser.eval('window.location.href'),
+      true
+    )
+    expect(parsedUrl.pathname).toBe('/en/not-found/fallback/first')
+    expect(parsedUrl.query).toEqual(isDev ? { __next404: '1' } : {})
+
+    if (isDev) {
+      // make sure page doesn't reload un-necessarily in development
+      await waitFor(10 * 1000)
+    }
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
 
   it('should remove un-necessary locale prefix for default locale', async () => {
     const res = await fetchViaHTTP(appPort, '/en-US', undefined, {

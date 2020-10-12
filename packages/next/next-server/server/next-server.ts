@@ -149,7 +149,6 @@ export default class Server {
   router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes
-  protected pendingSsg404s?: Set<string>
 
   public constructor({
     dir = '.',
@@ -1077,6 +1076,7 @@ export default class Server {
             ...(components.getStaticProps
               ? {
                   amp: query.amp,
+                  __next404: query.__next404,
                   _nextDataReq: query._nextDataReq,
                   __nextLocale: query.__nextLocale,
                   __nextLocales: query.__nextLocales,
@@ -1151,6 +1151,13 @@ export default class Server {
     const isDataReq = !!query._nextDataReq && (isSSG || isServerProps)
     delete query._nextDataReq
 
+    const locale = query.__nextLocale as string
+    const locales = query.__nextLocales as string[]
+    // const defaultLocale = query.__nextDefaultLocale as string
+    delete query.__nextLocale
+    delete query.__nextLocales
+    // delete query.__nextDefaultLocale
+
     let previewData: string | false | object | undefined
     let isPreviewMode = false
 
@@ -1179,7 +1186,7 @@ export default class Server {
       }
 
       if (this.nextConfig.experimental.i18n) {
-        return normalizeLocalePath(path, this.renderOpts.locales).pathname
+        return normalizeLocalePath(path, locales).pathname
       }
       return path
     }
@@ -1191,13 +1198,6 @@ export default class Server {
       urlPathname = stripNextDataPath(urlPathname)
     }
 
-    const locale = query.__nextLocale as string
-    const locales = query.__nextLocales as string[]
-    // const defaultLocale = query.__nextDefaultLocale as string
-    delete query.__nextLocale
-    delete query.__nextLocales
-    // delete query.__nextDefaultLocale
-
     const ssgCacheKey =
       isPreviewMode || !isSSG
         ? undefined // Preview mode bypasses the cache
@@ -1205,16 +1205,12 @@ export default class Server {
             query.amp ? '.amp' : ''
           }`
 
-    // in development handle 404 before re-serving fallback
-    // since the page reloads when the data 404s and now
-    // we need to render the 404, in production this is
-    // populated in the incremental cache which is a no-op in dev
-    if (
-      ssgCacheKey &&
-      this.renderOpts.dev &&
-      this.pendingSsg404s?.has(ssgCacheKey)
-    ) {
-      this.pendingSsg404s.delete(ssgCacheKey)
+    // In development we use a __next404 query to allow signaling we should
+    // render the 404 page after attempting to fetch the _next/data for a
+    // fallback page since the fallback page will always be available after
+    // reload and we don't want to re-serve it and instead want to 404.
+    if (this.renderOpts.dev && isSSG && query.__next404) {
+      delete query.__next404
       throw new NoFallbackError()
     }
 
@@ -1295,11 +1291,6 @@ export default class Server {
               // defaultLocale,
             }
           )
-
-          if (renderResult.renderOpts.ssgNotFound) {
-            // trigger 404
-            throw new NoFallbackError()
-          }
 
           html = renderResult.html
           pageData = renderResult.renderOpts.pageData
@@ -1470,13 +1461,8 @@ export default class Server {
     }
 
     if (isNotFound) {
-      // trigger 404
-      if (ssgCacheKey && this.renderOpts.dev && this.pendingSsg404s) {
-        this.pendingSsg404s.add(ssgCacheKey)
-      }
       throw new NoFallbackError()
     }
-
     return resHtml
   }
 
