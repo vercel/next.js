@@ -74,10 +74,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: '--unhandled-rejections=strict'
+      npm_package_engines_node: 'v12.18.3' # fix for sharp@0.26.1
     steps:
       - uses: actions/checkout@v2
 
-      - run: npm_package_engines_node=v12.18.3 yarn install --frozen-lockfile --check-files
+      - run: yarn install --frozen-lockfile --check-files
 
       - run: |
           mkdir -p ./e2e-tests/next-pnp
