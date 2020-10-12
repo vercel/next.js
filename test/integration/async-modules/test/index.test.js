@@ -80,6 +80,16 @@ function runTests(dev = false) {
       if (browser) await browser.close()
     }
   })
+
+  it('can render async AMP pages', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/config')
+      expect(await browser.elementByCss('#amp-timeago').text()).not.toBe('fail')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
   ;(dev ? it.skip : it)('can render async error page', async () => {
     let browser
     try {

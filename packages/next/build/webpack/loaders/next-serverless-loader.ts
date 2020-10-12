@@ -412,7 +412,7 @@ const nextServerlessLoader: loader.Loader = function () {
     ${normalizeDynamicRouteParams}
     ${handleRewrites}
 
-    export const config = compMod['confi' + 'g'] || (compMod.then && compMod.then(mod => mod['confi' + 'g'])) || {}
+    export let config = compMod['confi' + 'g'] || (compMod.then && compMod.then(mod => mod['confi' + 'g'])) || {}
     export const _app = App
     export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
       let Document
@@ -423,6 +423,7 @@ const nextServerlessLoader: loader.Loader = function () {
         getStaticPaths,
         Component,
         App,
+        config,
         { default: Document },
         { default: Error }
       ] = await Promise.all([
@@ -431,6 +432,7 @@ const nextServerlessLoader: loader.Loader = function () {
         getStaticPaths,
         Component,
         App,
+        config,
         require('${absoluteDocumentPath}'),
         require('${absoluteErrorPath}')
       ])

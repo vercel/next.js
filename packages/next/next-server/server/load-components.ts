@@ -46,10 +46,11 @@ export async function loadComponents(
     getStaticProps = await getStaticProps
     getStaticPaths = await getStaticPaths
     getServerSideProps = await getServerSideProps
+    const pageConfig = (await Component.config) || {}
 
     return {
       Component,
-      pageConfig: Component.config || {},
+      pageConfig,
       getStaticProps,
       getStaticPaths,
       getServerSideProps,
