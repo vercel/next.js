@@ -5,8 +5,6 @@ import {
   getFontDefinitionFromNetwork,
   FontManifest,
 } from '../../../next-server/server/font-utils'
-// @ts-ignore
-import BasicEvaluatedExpression from 'webpack/lib/BasicEvaluatedExpression'
 import postcss from 'postcss'
 import minifier from 'cssnano-simple'
 import { OPTIMIZED_FONT_PROVIDERS } from '../../../next-server/lib/constants'
@@ -15,6 +13,13 @@ import { OPTIMIZED_FONT_PROVIDERS } from '../../../next-server/lib/constants'
 const { RawSource } = webpack.sources || sources
 
 const isWebpack5 = parseInt(webpack.version!) === 5
+
+let BasicEvaluatedExpression: any
+if (isWebpack5) {
+  BasicEvaluatedExpression = require('webpack/lib/javascript/BasicEvaluatedExpression')
+} else {
+  BasicEvaluatedExpression = require('webpack/lib/BasicEvaluatedExpression')
+}
 
 async function minifyCss(css: string): Promise<string> {
   return new Promise((resolve) =>
@@ -62,13 +67,20 @@ export class FontStylesheetGatheringPlugin {
               if (parser?.state?.module?.resource.includes('node_modules')) {
                 return
               }
-              return node.name === '__jsx'
-                ? new BasicEvaluatedExpression()
-                    //@ts-ignore
-                    .setRange(node.range)
-                    .setExpression(node)
-                    .setIdentifier('__jsx')
-                : undefined
+              let result
+              if (node.name === '__jsx') {
+                result = new BasicEvaluatedExpression()
+                // @ts-ignore
+                result.setRange(node.range)
+                result.setExpression(node)
+                result.setIdentifier('__jsx')
+
+                // This was added webpack 5.
+                if (isWebpack5) {
+                  result.getMembers = () => []
+                }
+              }
+              return result
             })
 
           parser.hooks.call
