@@ -38,6 +38,7 @@ function runTests() {
       browser = await webdriver(appPort, '/')
       expect(await browser.elementByCss('#app-value').text()).toBe('hello')
       expect(await browser.elementByCss('#page-value').text()).toBe('42')
+      expect(await browser.elementByCss('#doc-value').text()).toBe('doc value')
     } finally {
       if (browser) await browser.close()
     }
@@ -65,6 +66,16 @@ function runTests() {
     try {
       browser = await webdriver(appPort, '/gsp')
       expect(await browser.elementByCss('#gsp-value').text()).toBe('42')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('can render async 404 pages', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/dhiuhefoiahjeoij')
+      expect(await browser.elementByCss('#content-404').text()).toBe("hi y'all")
     } finally {
       if (browser) await browser.close()
     }

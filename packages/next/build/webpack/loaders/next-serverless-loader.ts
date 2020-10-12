@@ -386,8 +386,6 @@ const nextServerlessLoader: loader.Loader = function () {
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
-    const Document = require('${absoluteDocumentPath}').default;
-    const Error = require('${absoluteErrorPath}').default;
 
     const appMod = require('${absoluteAppPath}')
     let App = appMod.default || appMod.then && appMod.then(mod => mod.default);
@@ -422,6 +420,8 @@ const nextServerlessLoader: loader.Loader = function () {
       getStaticPaths = await getStaticPaths
       Component = await Component
       App = await App
+      const { default: Document } = await require('${absoluteDocumentPath}');
+      const { default: Error } = await require('${absoluteErrorPath}');
 
       const fromExport = renderMode === 'export' || renderMode === true;
       const nextStartMode = renderMode === 'passthrough'
