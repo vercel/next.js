@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: '--unhandled-rejections=strict'
-      npm_package_engines_node: 'v12.18.3' # fix for sharp@0.26.1
+      npm_package_engines_node: 'v12.18.4' # HACK: temp fix for sharp@0.26.1
     steps:
       - uses: actions/checkout@v2
 
