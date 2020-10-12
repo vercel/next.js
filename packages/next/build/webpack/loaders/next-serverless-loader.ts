@@ -303,22 +303,16 @@ const nextServerlessLoader: loader.Loader = function () {
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
+    const Document = require('${absoluteDocumentPath}').default;
+    const Error = require('${absoluteErrorPath}').default;
+    const App = require('${absoluteAppPath}').default;
 
     ${dynamicRouteImports}
     ${rewriteImports}
 
-    const [
-      { default: App },
-      { default: Document },
-      { default: Error },
-      { default: Component, ...ComponentInfo }
-    ] = await Promise.all([
-      require('${absoluteAppPath}'),
-      require('${absoluteDocumentPath}'),
-      require('${absoluteErrorPath}'),
-      require('${absolutePagePath}'),
-    ])
+    const ComponentInfo = require('${absolutePagePath}')
 
+    const Component = ComponentInfo.default
     export default Component
     export const unstable_getStaticParams = ComponentInfo['unstable_getStaticParam' + 's']
     export const getStaticProps = ComponentInfo['getStaticProp' + 's']
