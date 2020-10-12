@@ -227,6 +227,47 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       throw new Error(`Specified i18n.defaultLocale should be a string`)
     }
 
+    if (typeof i18n.domains !== 'undefined' && !Array.isArray(i18n.domains)) {
+      throw new Error(
+        `Specified i18n.domains must be an array of domain objects e.g. [ { domain: 'example.fr', defaultLocale: 'fr', locales: ['fr'] } ] received ${typeof i18n.domains}`
+      )
+    }
+
+    if (i18n.domains) {
+      const invalidDomainItems = i18n.domains.filter((item: any) => {
+        if (!item || typeof item !== 'object') return true
+        if (!item.defaultLocale) return true
+        if (!item.domain || typeof item.domain !== 'string') return true
+        if (!item.locales || !Array.isArray(item.locales)) return true
+
+        const invalidLocales = item.locales.filter(
+          (locale: string) => !i18n.locales.includes(locale)
+        )
+
+        if (invalidLocales.length > 0) {
+          console.error(
+            `i18n.domains item "${
+              item.domain
+            }" has the following locales (${invalidLocales.join(
+              ', '
+            )}) that aren't provided in the main i18n.locales. Add them to the i18n.locales list or remove them from the domains item locales to continue.\n`
+          )
+          return true
+        }
+        return false
+      })
+
+      if (invalidDomainItems.length > 0) {
+        throw new Error(
+          `Invalid i18n.domains values:\n${invalidDomainItems
+            .map((item: any) => JSON.stringify(item))
+            .join(
+              '\n'
+            )}\n\ndomains value must follow format { domain: 'example.fr', defaultLocale: 'fr', locales: ['fr'] }`
+        )
+      }
+    }
+
     if (!Array.isArray(i18n.locales)) {
       throw new Error(
         `Specified i18n.locales must be an array of locale strings e.g. ["en-US", "nl-NL"] received ${typeof i18n.locales}`
