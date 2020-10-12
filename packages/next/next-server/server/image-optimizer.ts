@@ -188,13 +188,13 @@ export function getMaxAge(str: string | null): number {
   const minimum = 60
   const map = parseCacheControl(str)
   if (map) {
-    const smaxAge = parseInt(map.get('s-maxage') || '', 10)
-    if (smaxAge && !isNaN(smaxAge)) {
-      return Math.max(smaxAge, minimum)
+    let age = map.get('s-maxage') || map.get('max-age') || ''
+    if (age.startsWith('"') && age.endsWith('"')) {
+      age = age.slice(1, -1)
     }
-    const maxAge = parseInt(map.get('max-age') || '', 10)
-    if (maxAge && !isNaN(maxAge)) {
-      return Math.max(maxAge, minimum)
+    const n = parseInt(age, 10)
+    if (!isNaN(n)) {
+      return Math.max(n, minimum)
     }
   }
   return minimum
