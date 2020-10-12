@@ -1150,6 +1150,13 @@ export default class Server {
     const isDataReq = !!query._nextDataReq && (isSSG || isServerProps)
     delete query._nextDataReq
 
+    const locale = query.__nextLocale as string
+    const locales = query.__nextLocales as string[]
+    // const defaultLocale = query.__nextDefaultLocale as string
+    delete query.__nextLocale
+    delete query.__nextLocales
+    // delete query.__nextDefaultLocale
+
     let previewData: string | false | object | undefined
     let isPreviewMode = false
 
@@ -1178,7 +1185,7 @@ export default class Server {
       }
 
       if (this.nextConfig.experimental.i18n) {
-        return normalizeLocalePath(path, this.renderOpts.locales).pathname
+        return normalizeLocalePath(path, locales).pathname
       }
       return path
     }
@@ -1189,13 +1196,6 @@ export default class Server {
       resolvedUrlPathname = stripNextDataPath(resolvedUrlPathname)
       urlPathname = stripNextDataPath(urlPathname)
     }
-
-    const locale = query.__nextLocale as string
-    const locales = query.__nextLocales as string[]
-    // const defaultLocale = query.__nextDefaultLocale as string
-    delete query.__nextLocale
-    delete query.__nextLocales
-    // delete query.__nextDefaultLocale
 
     const ssgCacheKey =
       isPreviewMode || !isSSG

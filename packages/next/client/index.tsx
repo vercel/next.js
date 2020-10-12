@@ -92,7 +92,7 @@ if (process.env.__NEXT_i18n_SUPPORT) {
     const localePathResult = normalizeLocalePath(asPath, locales)
 
     if (localePathResult.detectedLocale) {
-      asPath = asPath.substr(localePathResult.detectedLocale.length + 1)
+      asPath = asPath.substr(localePathResult.detectedLocale.length + 1) || '/'
     } else {
       // derive the default locale if it wasn't detected in the asPath
       // since we don't prerender static pages with all possible default
