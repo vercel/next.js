@@ -85,6 +85,36 @@ ruleTester.run('no-unsized-images', rule, {
         import Image from 'next/image'
         export default function Page() {
           return <div>
+            <Image height width src="foo.jpg" />
+          </div>
+        }
+      `,
+      errors: [
+        {
+          messageId: 'unsizedImages',
+        },
+      ],
+    },
+    {
+      code: `
+        import Image from 'next/image'
+        export default function Page() {
+          return <div>
+            <Image height="" width="" src="foo.jpg" />
+          </div>
+        }
+      `,
+      errors: [
+        {
+          messageId: 'unsizedImages',
+        },
+      ],
+    },
+    {
+      code: `
+        import Image from 'next/image'
+        export default function Page() {
+          return <div>
             <Image width="100" src="foo.jpg" />
           </div>
         }
