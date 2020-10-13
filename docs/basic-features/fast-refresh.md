@@ -75,7 +75,7 @@ local state being reset on every edit to a file:
 - The file you're editing might have _other_ exports in addition to a React
   component.
 - Sometimes, a file would export the result of calling higher-order component
-  like `higherOrderComponent(WrappedComponent)`. If the returned component is a
+  like `HOC(WrappedComponent)`. If the returned component is a
   class, state will be reset.
 
 As more of your codebase moves to function components and Hooks, you can expect
