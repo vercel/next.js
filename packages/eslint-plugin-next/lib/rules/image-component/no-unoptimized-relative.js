@@ -1,4 +1,5 @@
 const createImageRule = require('../../utils/imageComponentRule.js')
+const NodeAttributes = require('../../utils/nodeAttributes.js')
 
 module.exports = {
   meta: {
@@ -18,17 +19,10 @@ module.exports = {
   }),
 }
 function hasBadRelativePath(node) {
-  let attributesObj = {}
-  node.attributes.forEach((attribute) => {
-    if (!attribute.value) {
-      attributesObj[attribute.name.name] = 1
-    } else {
-      attributesObj[attribute.name.name] = attribute.value.value
-    }
-  })
+  let attributes = new NodeAttributes(node)
   return (
-    attributesObj['unoptimized'] &&
-    attributesObj.src &&
-    !attributesObj.src.match(/^http|www/)
+    attributes.has('unoptimized') &&
+    attributes.has('src') &&
+    !attributes.value('src').match(/^[a-zA-z\d]*:*\/\//)
   )
 }

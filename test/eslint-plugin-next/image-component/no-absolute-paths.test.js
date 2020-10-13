@@ -22,6 +22,14 @@ ruleTester.run('no-absolute-paths', rule, {
         <Image height="150" width="100" src="foo.jpg" alt="A picture of foo" />
       </div>
     }
+    `,
+    `
+    import Image from 'next/image'
+    export default function Page() {
+      return <div>
+        <Image height="150" width="100" src="/bar/foo.jpg" alt="A picture of foo" />
+      </div>
+    }
 	  `,
     `
     import Image from 'next/image'
