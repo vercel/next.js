@@ -152,12 +152,36 @@ function runTests() {
     expect(res.headers.get('content-type')).toBe('image/png')
   })
 
-  it('should resize relative url and invalid accept header as jpeg', async () => {
+  it('should resize relative url with invalid accept header as png', async () => {
     const query = { url: '/vercel-logo.png', w: 64, q: 80 }
     const opts = { headers: { accept: 'image/invalid' } }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toBe('image/jpeg')
+    expect(res.headers.get('content-type')).toBe('image/png')
+  })
+
+  it('should resize relative url with invalid accept header as gif', async () => {
+    const query = { url: '/vercel-logo.gif', w: 64, q: 80 }
+    const opts = { headers: { accept: 'image/invalid' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/gif')
+  })
+
+  it('should resize relative url with invalid accept header as svg', async () => {
+    const query = { url: '/vercel-logo.svg', w: 64, q: 80 }
+    const opts = { headers: { accept: 'image/invalid' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/svg+xml')
+  })
+
+  it('should resize relative url with invalid accept header as tiff', async () => {
+    const query = { url: '/vercel-logo.tiff', w: 64, q: 80 }
+    const opts = { headers: { accept: 'image/invalid' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/tiff')
   })
 
   it('should resize relative url and wildcard accept header as webp', async () => {
