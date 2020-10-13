@@ -21,8 +21,11 @@ jobs:
 
       - script: |
           yarn install --immutable
-          yarn prepublish
         displayName: 'Install dependencies'
+
+      - script: |
+          yarn prepublish
+        displayName: 'Build packages'
 
       - script: |
           yarn testie --forceExit test/integration/production/
@@ -60,8 +63,11 @@ jobs:
 
       - script: |
           yarn install --immutable
-          yarn prepublish
         displayName: 'Install dependencies'
+
+      - script: |
+          yarn prepublish
+        displayName: 'Build packages'
 
       - script: |
           node run-tests.js -g $(group) --timings --azure
