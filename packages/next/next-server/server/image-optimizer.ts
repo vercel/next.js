@@ -2,7 +2,7 @@ import { parse } from 'url'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join } from 'path'
 import { mediaType } from '@hapi/accept'
-import { createReadStream, createWriteStream, promises } from 'fs'
+import { createReadStream, promises } from 'fs'
 import { createHash } from 'crypto'
 import Server from './next-server'
 import { fileExists } from '../../lib/file-exists'
@@ -127,17 +127,18 @@ export async function imageOptimizer(
     }
   }
 
-  const fetchResponse = await fetch(href)
+  const upstreamRes = await fetch(href)
 
-  if (!fetchResponse.ok) {
-    throw new Error(`Unexpected status ${fetchResponse.status} from ${href}`)
-  }
-  if (!fetchResponse.body) {
-    throw new Error(`No body from ${href}`)
+  if (!upstreamRes.ok) {
+    server.logError(
+      new Error(`Unexpected status ${upstreamRes.status} from upstream ${href}`)
+    )
+    return { finished: true }
   }
 
-  const upstreamType = fetchResponse.headers.get('Content-Type')
-  const maxAge = getMaxAge(fetchResponse.headers.get('Cache-Control'))
+  const upstreamBuffer = Buffer.from(await upstreamRes.arrayBuffer())
+  const upstreamType = upstreamRes.headers.get('Content-Type')
+  const maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
   const expireAt = maxAge * 1000 + now
   let contentType: string
 
@@ -149,17 +150,13 @@ export async function imageOptimizer(
     contentType = JPEG
   }
 
-  await promises.mkdir(hashDir, { recursive: true })
-
-  // We know this code only runs server-side so use Node Streams
-  const body = (fetchResponse.body as any) as NodeJS.ReadableStream
-
   if (!sharp) {
     // Lazy load per https://github.com/vercel/next.js/discussions/17141
     // eslint-disable-next-line import/no-extraneous-dependencies
     sharp = require('sharp')
   }
-  const transformer = sharp().resize(width)
+
+  const transformer = sharp(upstreamBuffer).resize(width)
 
   //if (contentType === AVIF) {
   // Soon https://github.com/lovell/sharp/issues/2289
@@ -172,12 +169,22 @@ export async function imageOptimizer(
     transformer.jpeg({ quality })
   }
 
-  const imageTransform = body.pipe(transformer)
-  const extension = contentType.slice('image/'.length)
-  const filename = join(hashDir, `${expireAt}.${extension}`)
-  imageTransform.pipe(createWriteStream(filename))
-  res.setHeader('Content-Type', contentType)
-  imageTransform.pipe(res)
+  try {
+    const optimizedBuffer = await transformer.toBuffer()
+    await promises.mkdir(hashDir, { recursive: true })
+    const extension = contentType.slice('image/'.length)
+    const filename = join(hashDir, `${expireAt}.${extension}`)
+    await promises.writeFile(filename, optimizedBuffer)
+    res.setHeader('Content-Type', contentType)
+    res.end(optimizedBuffer)
+  } catch (error) {
+    server.logError(error)
+    if (upstreamType) {
+      res.setHeader('Content-Type', upstreamType)
+    }
+    res.end(upstreamBuffer)
+  }
+
   return { finished: true }
 }
 

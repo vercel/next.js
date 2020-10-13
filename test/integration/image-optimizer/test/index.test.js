@@ -217,6 +217,20 @@ function runTests() {
     const json2 = await fsToJson(imagesDir)
     expect(json2).toStrictEqual(json1)
   })
+
+  it('should proxy-pass unsupported image types and should not cache file', async () => {
+    const json1 = await fsToJson(imagesDir)
+    expect(json1).toBeTruthy()
+
+    const query = { url: '/test.bmp', w: 64, q: 80 }
+    const opts = { headers: { accept: 'image/invalid' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toBe('image/bmp')
+
+    const json2 = await fsToJson(imagesDir)
+    expect(json2).toStrictEqual(json1)
+  })
 }
 
 describe('Image Optimizer', () => {
