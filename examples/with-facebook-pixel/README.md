@@ -2,8 +2,6 @@
 
 This example shows how to use Next.js along with Facebook Pixel. A custom `_app.js` is used to track route changes and send pageviews to facebook pixel. This example uses [react-facebook-pixel](https://www.npmjs.com/package/react-facebook-pixel).
 
-You will need to set your `NEXT_PUBLIC_FACEBOOK_PIXEL_ID` environment variable for it to send events to your facebook app. When not specified, tracking is disabled.
-
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com/now):
@@ -19,5 +17,13 @@ npx create-next-app --example with-facebook-pixel with-facebook-pixel-app
 # or
 yarn create next-app --example with-facebook-pixel with-facebook-pixel-app
 ```
+
+Next, copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
+
+```bash
+cp .env.local.example .env.local
+```
+
+Set the `NEXT_PUBLIC_FACEBOOK_PIXEL_ID` variable in `.env.local` to match your facebook app's pixel ID. If not specified, tracking will be disabled.
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
