@@ -79,6 +79,10 @@ module.exports = (
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
     modules: 'auto',
     exclude: ['transform-typeof-symbol'],
+    include: [
+      '@babel/plugin-proposal-optional-chaining',
+      '@babel/plugin-proposal-nullish-coalescing-operator',
+    ],
     ...options['preset-env'],
   }
 
@@ -181,8 +185,6 @@ module.exports = (
           removeImport: true,
         },
       ],
-      require('@babel/plugin-proposal-optional-chaining'),
-      require('@babel/plugin-proposal-nullish-coalescing-operator'),
       isServer && require('@babel/plugin-syntax-bigint'),
       // Always compile numeric separator because the resulting number is
       // smaller.

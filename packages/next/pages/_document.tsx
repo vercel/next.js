@@ -123,7 +123,7 @@ export function Html(
     HTMLHtmlElement
   >
 ) {
-  const { inAmpMode, docComponentsRendered } = useContext(
+  const { inAmpMode, docComponentsRendered, locale } = useContext(
     DocumentComponentContext
   )
 
@@ -132,6 +132,7 @@ export function Html(
   return (
     <html
       {...props}
+      lang={props.lang || locale || undefined}
       amp={inAmpMode ? '' : undefined}
       data-ampdevmode={
         inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
@@ -441,10 +442,6 @@ export class Head extends Component<
         )}
         {children}
         {head}
-        <meta
-          name="next-head-count"
-          content={React.Children.count(head || []).toString()}
-        />
         {inAmpMode && (
           <>
             <meta

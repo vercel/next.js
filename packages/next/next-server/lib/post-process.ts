@@ -191,8 +191,10 @@ class ImageOptimizerMiddleware implements PostProcessMiddleware {
 }
 
 function isImgEligible(imgElement: HTMLElement): boolean {
+  let imgSrc = imgElement.getAttribute('src')
   return (
-    imgElement.hasAttribute('src') &&
+    !!imgSrc &&
+    sourceIsSupportedType(imgSrc) &&
     imageIsNotTooSmall(imgElement) &&
     imageIsNotHidden(imgElement)
   )
@@ -241,6 +243,11 @@ function imageIsNotHidden(imgElement: HTMLElement): boolean {
     activeElement = activeElement.parentNode as HTMLElement
   }
   return true
+}
+
+// Currently only filters out svg images--could be made more specific in the future.
+function sourceIsSupportedType(imgSrc: string): boolean {
+  return !imgSrc.includes('.svg')
 }
 
 // Initialization

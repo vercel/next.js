@@ -1,21 +1,26 @@
 /* global location */
+import '@next/polyfill-module'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
 import mitt from '../next-server/lib/mitt'
 import { RouterContext } from '../next-server/lib/router-context'
-import { delBasePath, hasBasePath } from '../next-server/lib/router/router'
 import type Router from '../next-server/lib/router/router'
 import type {
   AppComponent,
   AppProps,
   PrivateRouteInfo,
 } from '../next-server/lib/router/router'
+import {
+  delBasePath,
+  hasBasePath,
+  delLocale,
+} from '../next-server/lib/router/router'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import * as querystring from '../next-server/lib/router/utils/querystring'
 import * as envConfig from '../next-server/lib/runtime-config'
-import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import type { NEXT_DATA } from '../next-server/lib/utils'
+import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
 import PageLoader, { looseToArray, StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
@@ -41,10 +46,6 @@ declare global {
 type RenderRouteInfo = PrivateRouteInfo & { App: AppComponent }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 
-if (!('finally' in Promise.prototype)) {
-  ;(Promise.prototype as PromiseConstructor['prototype']).finally = require('next/dist/build/polyfills/finally-polyfill.min')
-}
-
 const data: typeof window['__NEXT_DATA__'] = JSON.parse(
   document.getElementById('__NEXT_DATA__')!.textContent!
 )
@@ -62,7 +63,12 @@ const {
   runtimeConfig,
   dynamicIds,
   isFallback,
+  head: initialHeadData,
+  locales,
+  defaultLocale,
 } = data
+
+let { locale } = data
 
 const prefix = assetPrefix || ''
 
@@ -82,6 +88,23 @@ if (hasBasePath(asPath)) {
   asPath = delBasePath(asPath)
 }
 
+asPath = delLocale(asPath, locale)
+
+if (process.env.__NEXT_i18n_SUPPORT) {
+  const {
+    normalizeLocalePath,
+  } = require('../next-server/lib/i18n/normalize-locale-path')
+
+  if (isFallback && locales) {
+    const localePathResult = normalizeLocalePath(asPath, locales)
+
+    if (localePathResult.detectedLocale) {
+      asPath = asPath.substr(localePathResult.detectedLocale.length + 1)
+      locale = localePathResult.detectedLocale
+    }
+  }
+}
+
 type RegisterFn = (input: [string, () => void]) => void
 
 const pageLoader = new PageLoader(buildId, prefix, page)
@@ -94,7 +117,7 @@ if (window.__NEXT_P) {
 window.__NEXT_P = []
 ;(window.__NEXT_P as any).push = register
 
-const headManager = initHeadManager()
+const headManager = initHeadManager(initialHeadData)
 const appElement = document.getElementById('__next')
 
 let lastAppProps: AppProps
@@ -293,6 +316,9 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     isFallback: Boolean(isFallback),
     subscription: ({ Component, styleSheets, props, err }, App) =>
       render({ App, Component, styleSheets, props, err }),
+    locale,
+    locales,
+    defaultLocale,
   })
 
   // call init-client middleware
