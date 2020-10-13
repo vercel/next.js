@@ -1,4 +1,5 @@
 const createImageRule = require('../../utils/imageComponentRule.js')
+const NodeAttributes = require('../../utils/nodeAttributes.js')
 
 module.exports = {
   meta: {
@@ -21,9 +22,15 @@ module.exports = {
 }
 
 function imageValidSize(node) {
-  let attributes = node.attributes.map((attribute) => attribute.name.name)
+  let attributes = new NodeAttributes(node)
+  // Need to check both hasValue and value to catch attribute without value and
+  // attribute with empty string for value
   return (
-    attributes.includes('unsized') ||
-    (attributes.includes('height') && attributes.includes('width'))
+    attributes.has('unsized') ||
+    (attributes.has('height') &&
+      attributes.has('width') &&
+      attributes.hasValue('height') &&
+      attributes.hasValue('width') ** attributes.value('height') &&
+      attributes.value('width'))
   )
 }

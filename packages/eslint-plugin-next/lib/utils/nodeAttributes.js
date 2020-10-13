@@ -26,6 +26,9 @@ class NodeAttributes {
   has(attrName) {
     return !!this.attributes[attrName]
   }
+  hasValue(attrName) {
+    return !!this.attributes[attrName].hasValue
+  }
   value(attrName) {
     if (!this.attributes[attrName]) {
       return true
