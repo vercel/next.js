@@ -146,7 +146,7 @@ You can revert to the previous behavior by creating a `next.config.js` with the 
 ```js
 // next.config.js
 module.exports = {
-  exportTrailingSlash: true,
+  trailingSlash: true,
 }
 ```
 
