@@ -1,4 +1,5 @@
 const createImageRule = require('../../utils/imageComponentRule.js')
+const NodeAttributes = require('../../utils/nodeAttributes.js')
 
 module.exports = {
   meta: {
@@ -20,6 +21,6 @@ module.exports = {
 }
 
 function imageHasAltText(node) {
-  let attributes = node.attributes.map((attribute) => attribute.name.name)
-  return attributes.includes('alt')
+  let attributes = new NodeAttributes(node)
+  return attributes.has('alt')
 }
