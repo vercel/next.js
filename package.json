@@ -49,7 +49,7 @@
     "@types/string-hash": "1.1.1",
     "@typescript-eslint/eslint-plugin": "2.17.0",
     "@typescript-eslint/parser": "2.17.0",
-    "@zeit/next-css": "1.0.2-canary.2",
+    "@zeit/next-css": "patch:@zeit/next-css@1.0.2-canary.2#./next-css.patch",
     "@zeit/next-sass": "1.0.2-canary.2",
     "@zeit/next-typescript": "1.1.2-canary.0",
     "abort-controller": "3.0.0",

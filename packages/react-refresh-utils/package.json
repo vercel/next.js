@@ -23,6 +23,7 @@
     "webpack": "^4 || ^5"
   },
   "devDependencies": {
-    "react-refresh": "0.8.3"
+    "react-refresh": "0.8.3",
+    "typescript": "3.8.3"
   }
 }

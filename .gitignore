@@ -2,6 +2,13 @@
 dist
 .next
 
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+
 # dependencies
 node_modules
 package-lock.json

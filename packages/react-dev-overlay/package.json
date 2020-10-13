@@ -31,5 +31,8 @@
     "react": "^16.9.0",
     "react-dom": "^16.9.0",
     "webpack": "^4 || ^5"
+  },
+  "devDependencies": {
+    "typescript": "3.8.3"
   }
 }

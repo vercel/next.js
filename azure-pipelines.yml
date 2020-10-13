@@ -20,7 +20,8 @@ jobs:
         displayName: Cache Yarn packages
 
       - script: |
-          yarn install --frozen-lockfile --check-files
+          yarn install --immutable
+          yarn prepublish
         displayName: 'Install dependencies'
 
       - script: |
@@ -58,7 +59,8 @@ jobs:
         displayName: Cache Yarn packages
 
       - script: |
-          yarn install --frozen-lockfile --check-files
+          yarn install --immutable
+          yarn prepublish
         displayName: 'Install dependencies'
 
       - script: |

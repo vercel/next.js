@@ -20,5 +20,8 @@
     "build": "yarn tsc -d -w -p tsconfig.json",
     "test": "jest"
   },
-  "bin": "./bin/next-codemod.js"
+  "bin": "./bin/next-codemod.js",
+  "devDependencies": {
+    "typescript": "3.8.3"
+  }
 }

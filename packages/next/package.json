@@ -39,9 +39,7 @@
     "types/index.d.ts",
     "types/global.d.ts"
   ],
-  "bin": {
-    "next": "./dist/bin/next"
-  },
+  "bin": "./dist/bin/next",
   "scripts": {
     "build": "taskr",
     "release": "taskr release",

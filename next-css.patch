@@ -1,0 +1,40 @@
+diff --git a/css-loader-config.js b/css-loader-config.js
+index 19815a132c7a3ca5d77cba5cf327fdca428de517..be57e4fa37617c6ff11ba65f840b0f60a07f578f 100644
+--- a/css-loader-config.js
++++ b/css-loader-config.js
+@@ -70,7 +70,7 @@ module.exports = (
+     )
+ 
+     postcssLoader = {
+-      loader: 'postcss-loader',
++      loader: require.resolve('postcss-loader'),
+       options: Object.assign({}, postcssLoaderOptions, {
+         config: postcssOptionsConfig
+       })
+@@ -78,7 +78,7 @@ module.exports = (
+   }
+ 
+   const cssLoader = {
+-    loader: isServer ? 'css-loader/locals' : 'css-loader',
++    loader: require.resolve(isServer ? 'css-loader/locals' : 'css-loader'),
+     options: Object.assign(
+       {},
+       {
+@@ -92,7 +92,7 @@ module.exports = (
+ 
+   // When not using css modules we don't transpile on the server
+   if (isServer && !cssLoader.options.modules) {
+-    return ['ignore-loader']
++    return [require.resolve('ignore-loader')]
+   }
+ 
+   // When on the server and using css modules we transpile the css
+@@ -101,7 +101,7 @@ module.exports = (
+   }
+ 
+   return [
+-    !isServer && dev && 'extracted-loader',
++    !isServer && dev && require.resolve('extracted-loader'),
+     !isServer && ExtractCssChunks.loader,
+     cssLoader,
+     postcssLoader,

@@ -14,9 +14,7 @@
   },
   "author": "Next.js Team <support@vercel.com>",
   "license": "MIT",
-  "bin": {
-    "create-next-app": "./dist/index.js"
-  },
+  "bin": "./dist/index.js",
   "files": [
     "dist"
   ],
