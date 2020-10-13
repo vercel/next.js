@@ -1,4 +1,4 @@
-import { IncomingMessage, ServerResponse } from 'http'
+import { IncomingMessage, ServerResponse, STATUS_CODES } from 'http'
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import generateETag from 'next/dist/compiled/etag'
@@ -511,8 +511,8 @@ function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
 export class ApiError extends Error {
   readonly statusCode: number
 
-  constructor(statusCode: number, message: string) {
-    super(message)
+  constructor(statusCode: number, message?: string) {
+    super(message || STATUS_CODES[statusCode])
     this.statusCode = statusCode
   }
 }
