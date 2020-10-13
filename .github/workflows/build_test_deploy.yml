@@ -1,6 +1,6 @@
 on:
   push:
-    branches: [canary, mael/yarn2-nm]
+    branches: [canary]
   pull_request:
     types: [opened, synchronize]
 
