@@ -62,7 +62,10 @@ const {
   dynamicIds,
   isFallback,
   head: initialHeadData,
+  locales,
 } = data
+
+let { locale, defaultLocale } = data
 
 const prefix = assetPrefix || ''
 
@@ -82,7 +85,27 @@ function getAsPath(relativePath: string) {
   return formatUrl(url)
 }
 
+
 const asPath = getAsPath(getURL())
+
+if (process.env.__NEXT_i18n_SUPPORT) {
+  const {
+    normalizeLocalePath,
+  } = require('../next-server/lib/i18n/normalize-locale-path')
+
+  if (locales) {
+    const localePathResult = normalizeLocalePath(asPath, locales)
+
+    if (localePathResult.detectedLocale) {
+      asPath = asPath.substr(localePathResult.detectedLocale.length + 1) || '/'
+    } else {
+      // derive the default locale if it wasn't detected in the asPath
+      // since we don't prerender static pages with all possible default
+      // locales
+      defaultLocale = locale
+    }
+  }
+}
 
 type RegisterFn = (input: [string, () => void]) => void
 
@@ -295,6 +318,9 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     isFallback: Boolean(isFallback),
     subscription: ({ Component, styleSheets, props, err }, App) =>
       render({ App, Component, styleSheets, props, err }),
+    locale,
+    locales,
+    defaultLocale,
   })
 
   // call init-client middleware

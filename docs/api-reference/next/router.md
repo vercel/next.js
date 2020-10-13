@@ -120,7 +120,7 @@ export default function Page() {
 
 #### With URL object
 
-You can use an URL object in the same way you can use it for [`next/link`](/docs/api-reference/next/link.md#with-url-object). Works for both the `url` and `as` parameters:
+You can use a URL object in the same way you can use it for [`next/link`](/docs/api-reference/next/link.md#with-url-object). Works for both the `url` and `as` parameters:
 
 ```jsx
 import { useRouter } from 'next/router'
