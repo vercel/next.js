@@ -12,7 +12,7 @@ let sharp: typeof import('sharp')
 const WEBP = 'image/webp'
 const PNG = 'image/png'
 const JPEG = 'image/jpeg'
-const MEDIA_TYPES = [/* AVIF, */ WEBP, PNG, JPEG]
+const MIME_TYPES = [/* AVIF, */ WEBP, PNG, JPEG]
 const CACHE_VERSION = 1
 
 export async function imageOptimizer(
@@ -27,7 +27,7 @@ export async function imageOptimizer(
   const { url, w, q } = query
   const proto = headers['x-forwarded-proto'] || 'http'
   const host = headers['x-forwarded-host'] || headers.host
-  const mimeType = mediaType(req.headers.accept, MEDIA_TYPES) || JPEG
+  const mimeType = mediaType(req.headers.accept, MIME_TYPES) || ''
 
   if (!url) {
     res.statusCode = 400
@@ -114,33 +114,17 @@ export async function imageOptimizer(
   if (await fileExists(hashDir, 'directory')) {
     const files = await promises.readdir(hashDir)
     for (let file of files) {
-      const expireAt = Number(file)
+      const [filename, extension] = file.split('.')
+      const expireAt = Number(filename)
+      const contentType = `image/${extension}`
       if (now < expireAt) {
-        res.setHeader('Content-Type', mimeType)
+        res.setHeader('Content-Type', contentType)
         createReadStream(join(hashDir, file)).pipe(res)
         return { finished: true }
       } else {
         await promises.unlink(join(hashDir, file))
       }
     }
-  }
-
-  if (!sharp) {
-    // Lazy load per https://github.com/vercel/next.js/discussions/17141
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    sharp = require('sharp')
-  }
-  const transformer = sharp().resize(width)
-
-  //if (mimeType === AVIF) {
-  // Soon https://github.com/lovell/sharp/issues/2289
-  //}
-  if (mimeType === WEBP) {
-    transformer.webp({ quality })
-  } else if (mimeType === PNG) {
-    transformer.png({ quality })
-  } else if (mimeType === JPEG) {
-    transformer.jpeg({ quality })
   }
 
   const fetchResponse = await fetch(href)
@@ -151,16 +135,48 @@ export async function imageOptimizer(
   if (!fetchResponse.body) {
     throw new Error(`No body from ${href}`)
   }
+
+  const upstreamType = fetchResponse.headers.get('Content-Type')
   const maxAge = getMaxAge(fetchResponse.headers.get('Cache-Control'))
   const expireAt = maxAge * 1000 + now
+  let contentType: string
+
+  if (mimeType) {
+    contentType = mimeType
+  } else if (upstreamType?.startsWith('image/')) {
+    contentType = upstreamType
+  } else {
+    contentType = JPEG
+  }
 
   await promises.mkdir(hashDir, { recursive: true })
 
   // We know this code only runs server-side so use Node Streams
   const body = (fetchResponse.body as any) as NodeJS.ReadableStream
+
+  if (!sharp) {
+    // Lazy load per https://github.com/vercel/next.js/discussions/17141
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    sharp = require('sharp')
+  }
+  const transformer = sharp().resize(width)
+
+  //if (contentType === AVIF) {
+  // Soon https://github.com/lovell/sharp/issues/2289
+  //}
+  if (contentType === WEBP) {
+    transformer.webp({ quality })
+  } else if (contentType === PNG) {
+    transformer.png({ quality })
+  } else if (contentType === JPEG) {
+    transformer.jpeg({ quality })
+  }
+
   const imageTransform = body.pipe(transformer)
-  imageTransform.pipe(createWriteStream(join(hashDir, expireAt.toString())))
-  res.setHeader('Content-Type', mimeType)
+  const extension = contentType.slice('image/'.length)
+  const filename = join(hashDir, `${expireAt}.${extension}`)
+  imageTransform.pipe(createWriteStream(filename))
+  res.setHeader('Content-Type', contentType)
   imageTransform.pipe(res)
   return { finished: true }
 }
