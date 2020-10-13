@@ -26,3 +26,33 @@ The included helpers are:
 - `res.json(json)` - Sends a JSON response. `json` must be a valid JSON object
 - `res.send(body)` - Sends the HTTP response. `body` can be a `string`, an `object` or a `Buffer`
 - `res.redirect([status,] path)` - Redirects to a specified path or URL. `status` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes). If not specified, `status` defaults to "307" "Found".
+
+Additionally, a custom error may be thrown from a handler as follows:
+
+```js
+import { NextApiError } from 'next'
+
+export default async function handler(req, res) {
+  function authorize() {
+    if (!req.headers.authorization) {
+      res.setHeader('WWW-Authenticate', 'Basic')
+      throw new NextApiError(401, 'Authentication required')
+    }
+
+    // Example from: https://tools.ietf.org/html/rfc7617
+    // user-id: 'Aladdin', password: 'open sesame'
+    if (req.headers.authorization !== 'Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==') {
+      throw NextApiError(403) // Message gets set to 'Forbidden', as in RFC 7231
+    }
+  }
+
+  if (req.method === 'DELETE') {
+    authorize() // Can be reused across mutating HTTP methods
+    database.delete(/* Custom business logic... */)
+    res.status(204).end()
+  } else if (req.method === 'GET') {
+    // No authorization is necessary here
+    res.json({ hello: 'world' })
+  }
+}
+```
