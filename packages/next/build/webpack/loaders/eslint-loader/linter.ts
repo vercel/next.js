@@ -8,6 +8,7 @@ import { CLIEngine, Linter as ESLinter, ESLint } from 'eslint'
 import { loader } from 'webpack'
 import { createConfigDataFromOptions } from './utils'
 import { ParseResult } from '@babel/core'
+import { getBaseRules } from './base-rules'
 const {
   CascadingConfigArrayFactory,
 } = require('eslint/lib/cli-engine/cascading-config-array-factory')
@@ -25,15 +26,30 @@ export class Linter {
   private resourcePath: string
   private linter: ESLinter
   private config: any
+  private isTypescript: Boolean = false
+
   constructor(loaderContext: loader.LoaderContext, options: any) {
     this.loaderContext = loaderContext
     this.options = options
     this.resourcePath = this.parseResourcePath()
     this.linter = new ESLinter({ cwd: options.cwd })
+    // fixes for typescript
+    if (this.resourcePath.endsWith('ts') || this.resourcePath.endsWith('tsx')) {
+      this.isTypescript = true
+      options.parserOptions = options.parserOptions || {}
+      options.parserOptions.plugins = options.parserOptions.plugins || []
+      if (!options.parserOptions.plugins.includes('typescript')) {
+        options.parserOptions.plugins.push('typescript')
+      }
+    }
     this.config = new CascadingConfigArrayFactory({
       additionalPluginPool: new Map(),
       baseConfig: {
-        extends: ['eslint:recommended', 'plugin:@next/next/recommended'],
+        extends: [
+          'plugin:react-hooks/recommended',
+          'plugin:@next/next/recommended',
+        ],
+        rules: getBaseRules(this.isTypescript),
       },
       cliConfig: createConfigDataFromOptions(options),
       cwd: options.cwd,

@@ -875,7 +875,7 @@ export default async function getBaseWebpackConfig(
                   distDir,
                   dev,
                   cache: true,
-                  parser: 'babel-eslint',
+                  parser: '@babel/eslint-parser',
                   failOnWarning: false,
                   env: {
                     es6: true,
