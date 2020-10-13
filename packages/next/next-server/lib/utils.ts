@@ -1,4 +1,4 @@
-import { IncomingMessage, ServerResponse } from 'http'
+import { IncomingMessage, ServerResponse, STATUS_CODES } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
 import { UrlObject } from 'url'
@@ -266,6 +266,18 @@ export type NextApiHandler<T = any> = (
   req: NextApiRequest,
   res: NextApiResponse<T>
 ) => void | Promise<void>
+
+/**
+ * Next `API` route error
+ */
+export class NextApiError extends Error {
+  readonly statusCode: number
+
+  constructor(statusCode: number, message?: string) {
+    super(message || STATUS_CODES[statusCode])
+    this.statusCode = statusCode
+  }
+}
 
 /**
  * Utils

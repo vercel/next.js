@@ -1,4 +1,4 @@
-import { IncomingMessage, ServerResponse, STATUS_CODES } from 'http'
+import { IncomingMessage, ServerResponse } from 'http'
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import generateETag from 'next/dist/compiled/etag'
@@ -6,7 +6,12 @@ import fresh from 'next/dist/compiled/fresh'
 import getRawBody from 'next/dist/compiled/raw-body'
 import { PageConfig } from 'next/types'
 import { Stream } from 'stream'
-import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
+import {
+  isResSent,
+  NextApiRequest,
+  NextApiResponse,
+  NextApiError,
+} from '../lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
 import { Params } from './router'
@@ -96,7 +101,7 @@ export async function apiResolver(
       )
     }
   } catch (err) {
-    if (err instanceof ApiError) {
+    if (err instanceof NextApiError) {
       sendError(apiRes, err.statusCode, err.message)
     } else {
       console.error(err)
@@ -127,9 +132,9 @@ export async function parseBody(
     buffer = await getRawBody(req, { encoding, limit })
   } catch (e) {
     if (e.type === 'entity.too.large') {
-      throw new ApiError(413, `Body exceeded ${limit} limit`)
+      throw new NextApiError(413, `Body exceeded ${limit} limit`)
     } else {
-      throw new ApiError(400, 'Invalid body')
+      throw new NextApiError(400, 'Invalid body')
     }
   }
 
@@ -158,7 +163,7 @@ function parseJson(str: string): object {
   try {
     return JSON.parse(str)
   } catch (e) {
-    throw new ApiError(400, 'Invalid JSON')
+    throw new NextApiError(400, 'Invalid JSON')
   }
 }
 
@@ -503,18 +508,6 @@ function clearPreviewData<T>(res: NextApiResponse<T>): NextApiResponse<T> {
     enumerable: false,
   })
   return res
-}
-
-/**
- * Custom error class
- */
-export class ApiError extends Error {
-  readonly statusCode: number
-
-  constructor(statusCode: number, message?: string) {
-    super(message || STATUS_CODES[statusCode])
-    this.statusCode = statusCode
-  }
 }
 
 /**

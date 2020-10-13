@@ -12,6 +12,7 @@ import {
   NextApiResponse,
   NextApiRequest,
   NextApiHandler,
+  NextApiError,
   // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/next-server/lib/utils'
 
@@ -70,6 +71,7 @@ export {
   NextApiResponse,
   NextApiRequest,
   NextApiHandler,
+  NextApiError,
 }
 
 type Redirect = {
