@@ -26,7 +26,46 @@ let appPort
 
 const locales = ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en']
 
-function runTests() {
+function runTests(isDev) {
+  it('should update asPath on the client correctly', async () => {
+    for (const check of ['en', 'En']) {
+      const browser = await webdriver(appPort, `/${check}`)
+
+      expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+      expect(await browser.elementByCss('#router-locale').text()).toBe('en')
+      expect(
+        JSON.parse(await browser.elementByCss('#router-locales').text())
+      ).toEqual(locales)
+      expect(await browser.elementByCss('#router-as-path').text()).toBe('/')
+      expect(await browser.elementByCss('#router-pathname').text()).toBe('/')
+    }
+  })
+
+  if (!isDev) {
+    it('should handle fallback correctly after generating', async () => {
+      const browser = await webdriver(
+        appPort,
+        '/en/gsp/fallback/hello-fallback'
+      )
+
+      // wait for the fallback to be generated/stored to ISR cache
+      browser.waitForElementByCss('#gsp')
+
+      // now make sure we're serving the previously generated file from the cache
+      const html = await renderViaHTTP(
+        appPort,
+        '/en/gsp/fallback/hello-fallback'
+      )
+      const $ = cheerio.load(html)
+
+      expect($('#gsp').text()).toBe('gsp page')
+      expect($('#router-locale').text()).toBe('en')
+      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+      expect($('#router-pathname').text()).toBe('/gsp/fallback/[slug]')
+      expect($('#router-as-path').text()).toBe('/gsp/fallback/hello-fallback')
+    })
+  }
+
   it('should use correct default locale for locale domains', async () => {
     const res = await fetchViaHTTP(appPort, '/', undefined, {
       headers: {
@@ -729,7 +768,7 @@ describe('i18n Support', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests()
+    runTests(true)
   })
 
   describe('production mode', () => {
