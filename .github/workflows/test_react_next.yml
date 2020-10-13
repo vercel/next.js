@@ -43,9 +43,9 @@ jobs:
 
       - uses: actions/checkout@v2
 
-      - run: yarn install --frozen-lockfile --check-files
+      - run: yarn install --immutable
 
-      - run: yarn upgrade react@next react-dom@next -W --dev
+      - run: yarn up react@next react-dom@next -W --dev
 
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p

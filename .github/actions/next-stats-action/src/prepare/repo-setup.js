@@ -70,7 +70,7 @@ module.exports = (actionInfo) => {
         const pkgPath = path.join(repoDir, 'packages', pkg)
         const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
         // pack the package with yarn
-        await exec(`cd ${pkgPath} && yarn pack -f ${pkg}-packed.tgz`)
+        await exec(`cd ${pkgPath} && yarn pack --out ${pkg}-packed.tgz`)
 
         const pkgDataPath = path.join(pkgPath, 'package.json')
         const pkgData = require(pkgDataPath)
