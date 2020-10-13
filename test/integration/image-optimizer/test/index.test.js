@@ -128,9 +128,41 @@ function runTests() {
     )
   })
 
-  it('should resize relative url', async () => {
-    const query = { url: '/vercel-logo.png', w: 64, q: 100 }
+  it('should resize relative url and webp accept header', async () => {
+    const query = { url: '/vercel-logo.png', w: 64, q: 80 }
     const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/webp')
+  })
+
+  it('should resize relative url and jpeg accept header', async () => {
+    const query = { url: '/vercel-logo.png', w: 64, q: 80 }
+    const opts = { headers: { accept: 'image/jpeg' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/jpeg')
+  })
+
+  it('should resize relative url and png accept header', async () => {
+    const query = { url: '/vercel-logo.png', w: 64, q: 80 }
+    const opts = { headers: { accept: 'image/png' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/png')
+  })
+
+  it('should resize relative url and invalid accept header as jpeg', async () => {
+    const query = { url: '/vercel-logo.png', w: 64, q: 80 }
+    const opts = { headers: { accept: 'image/invalid' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/jpeg')
+  })
+
+  it('should resize relative url and wildcard accept header as webp', async () => {
+    const query = { url: '/vercel-logo.png', w: 64, q: 80 }
+    const opts = { headers: { accept: 'image/*' } }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('image/webp')

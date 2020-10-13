@@ -1,7 +1,7 @@
 import { parse } from 'url'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join } from 'path'
-import accept from '@hapi/accept'
+import { mediaType } from '@hapi/accept'
 import { createReadStream, createWriteStream, promises } from 'fs'
 import { createHash } from 'crypto'
 import Server from './next-server'
@@ -10,7 +10,9 @@ import { fileExists } from '../../lib/file-exists'
 let sharp: typeof import('sharp')
 //const AVIF = 'image/avif'
 const WEBP = 'image/webp'
-const MEDIA_TYPES = [/* AVIF, */ WEBP]
+const PNG = 'image/png'
+const JPEG = 'image/jpeg'
+const MEDIA_TYPES = [/* AVIF, */ WEBP, PNG, JPEG]
 const CACHE_VERSION = 1
 
 export async function imageOptimizer(
@@ -25,7 +27,7 @@ export async function imageOptimizer(
   const { url, w, q } = query
   const proto = headers['x-forwarded-proto'] || 'http'
   const host = headers['x-forwarded-host'] || headers.host
-  const mediaType = accept.mediaType(req.headers.accept, MEDIA_TYPES)
+  const mimeType = mediaType(req.headers.accept, MEDIA_TYPES) || JPEG
 
   if (!url) {
     res.statusCode = 400
@@ -104,7 +106,7 @@ export async function imageOptimizer(
   }
 
   const { href } = absoluteUrl
-  const hash = getHash([CACHE_VERSION, href, width, quality, mediaType])
+  const hash = getHash([CACHE_VERSION, href, width, quality, mimeType])
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
   const now = Date.now()
@@ -114,7 +116,7 @@ export async function imageOptimizer(
     for (let file of files) {
       const expireAt = Number(file)
       if (now < expireAt) {
-        res.setHeader('Content-Type', mediaType)
+        res.setHeader('Content-Type', mimeType)
         createReadStream(join(hashDir, file)).pipe(res)
         return { finished: true }
       } else {
@@ -130,11 +132,15 @@ export async function imageOptimizer(
   }
   const transformer = sharp().resize(width)
 
-  //if (mediaType === AVIF) {
+  //if (mimeType === AVIF) {
   // Soon https://github.com/lovell/sharp/issues/2289
   //}
-  if (mediaType === WEBP) {
+  if (mimeType === WEBP) {
     transformer.webp({ quality })
+  } else if (mimeType === PNG) {
+    transformer.png({ quality })
+  } else if (mimeType === JPEG) {
+    transformer.jpeg({ quality })
   }
 
   const fetchResponse = await fetch(href)
@@ -146,7 +152,7 @@ export async function imageOptimizer(
     throw new Error(`No body from ${href}`)
   }
   const maxAge = getMaxAge(fetchResponse.headers.get('Cache-Control'))
-  const expireAt = now + maxAge * 1000
+  const expireAt = maxAge * 1000 + now
 
   await promises.mkdir(hashDir, { recursive: true })
 
@@ -154,7 +160,7 @@ export async function imageOptimizer(
   const body = (fetchResponse.body as any) as NodeJS.ReadableStream
   const imageTransform = body.pipe(transformer)
   imageTransform.pipe(createWriteStream(join(hashDir, expireAt.toString())))
-  res.setHeader('Content-Type', mediaType)
+  res.setHeader('Content-Type', mimeType)
   imageTransform.pipe(res)
   return { finished: true }
 }
