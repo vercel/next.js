@@ -85,8 +85,7 @@ function getAsPath(relativePath: string) {
   return formatUrl(url)
 }
 
-
-const asPath = getAsPath(getURL())
+let asPath = getAsPath(getURL())
 
 if (process.env.__NEXT_i18n_SUPPORT) {
   const {
