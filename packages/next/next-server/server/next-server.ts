@@ -1359,9 +1359,9 @@ export default class Server {
         !staticPaths ||
         // static paths always includes locale so make sure it's prefixed
         // with it
-        !staticPaths.includes(
-          `${locale ? '/' + locale : ''}${resolvedUrlPathname}`
-        ))
+        !staticPaths
+          .map(encodeURI)
+          .includes(`${locale ? '/' + locale : ''}${resolvedUrlPathname}`))
     ) {
       if (
         // In development, fall through to render to handle missing
