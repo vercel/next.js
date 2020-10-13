@@ -44,6 +44,7 @@ The `Component` prop is the active `page`, so whenever you navigate between rout
 
 - If your app is running and you just added a custom `App`, you'll need to restart the development server. Only required if `pages/_app.js` didn't exist before.
 - Adding a custom `getInitialProps` in your `App` will disable [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) in pages without [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation).
+- `App` currently does not support Next.js [Data Fetching methods](/docs/basic-features/data-fetching.md) like [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) or [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering).
 
 ### TypeScript
 
