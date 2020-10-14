@@ -19,8 +19,6 @@ export const VALID_MIDDLEWARE = [
   'document-head-tags-server',
   'on-init-client',
   'on-init-server',
-  'on-error-server',
-  'on-error-client',
   'on-error-client',
   'on-error-server',
   'babel-preset-build',
