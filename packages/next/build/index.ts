@@ -504,8 +504,7 @@ export default async function build(
     (await hasCustomGetInitialProps(
       getPagePath('/_error', distDir, isLikeServerless),
       runtimeEnvConfig,
-      false,
-      isLikeServerless
+      false
     ))
 
   const analysisBegin = process.hrtime()
@@ -537,8 +536,7 @@ export default async function build(
               ? serverBundle
               : getPagePath('/_app', distDir, isLikeServerless),
             runtimeEnvConfig,
-            true,
-            isLikeServerless
+            true
           )
 
           namedExports = getNamedExports(
