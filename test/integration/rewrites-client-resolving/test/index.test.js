@@ -25,6 +25,31 @@ const runTests = () => {
     expect(await browser.elementByCss('#product').text()).toBe('product: first')
   })
 
+  it('ensure rewrites work without the need to provide destination params', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#item-link').click()
+    await browser.waitForElementByCss('#product')
+
+    expect(await browser.elementByCss('#product').text()).toBe('item: 1')
+  })
+
+  it('ensure rewrites work with interpolation', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#item-link-interpolate').click()
+    await browser.waitForElementByCss('#product')
+
+    expect(await browser.elementByCss('#product').text()).toBe('item: 2')
+  })
+
+  it('ensure correct URL appears with rewrites interpolation', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#item-link-interpolate-query').click()
+    await browser.waitForElementByCss('#product')
+
+    expect(await browser.elementByCss('#product').text()).toBe('item: 3')
+    expect(await browser.url()).toBe(`http://localhost:${appPort}/item/3`)
+  })
+
   it('should break rewrites chain when normal page matches', async () => {
     const browser = await webdriver(appPort, '/')
     await browser.elementByCss('#products-link').click()

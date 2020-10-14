@@ -2,6 +2,10 @@ module.exports = {
   rewrites() {
     return [
       {
+        source: '/item/:itemId',
+        destination: '/product/[productId]',
+      },
+      {
         source: '/:path*',
         destination: '/:path*',
       },

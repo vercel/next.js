@@ -668,9 +668,10 @@ export default class Router implements BaseRouter {
     // we need to resolve the as value using rewrites for dynamic SSG
     // pages to allow building the data URL correctly
     let resolvedAs = as
+    let resolvedSource = ''
 
     if (process.env.__NEXT_HAS_REWRITES) {
-      resolvedAs = resolveRewrites(
+      ;[resolvedAs, resolvedSource] = resolveRewrites(
         parseRelativeUrl(as).pathname,
         pages,
         basePath,
@@ -703,13 +704,19 @@ export default class Router implements BaseRouter {
     if (isDynamicRoute(route)) {
       const parsedAs = parseRelativeUrl(resolvedAs)
       const asPathname = parsedAs.pathname
+      const parsedSource = parseRelativeUrl(as)
+      const asSource = parsedSource.pathname
 
       const routeRegex = getRouteRegex(route)
       const routeMatch = getRouteMatcher(routeRegex)(asPathname)
-      const shouldInterpolate = route === asPathname
-      const interpolatedAs = shouldInterpolate
-        ? interpolateAs(route, asPathname, query)
-        : ({} as { result: undefined; params: undefined })
+      const shouldInterpolate = resolvedSource
+        ? resolvedSource === asSource && isDynamicRoute(resolvedSource)
+        : route === asPathname
+      const interpolatedAs = !shouldInterpolate
+        ? ({} as { result: undefined; params: undefined })
+        : resolvedSource
+        ? interpolateAs(resolvedSource, asSource, query)
+        : interpolateAs(route, asPathname, query)
 
       if (!routeMatch || (shouldInterpolate && !interpolatedAs.result)) {
         const missingParams = Object.keys(routeRegex.groups).filter(

@@ -14,6 +14,7 @@ export default function resolveRewrites(
   query: ParsedUrlQuery,
   resolveHref: (path: string) => string
 ) {
+  let resolvedSource = ''
   if (!pages.includes(asPath)) {
     for (const rewrite of rewrites) {
       const matcher = customRouteMatcher(rewrite.source)
@@ -32,6 +33,15 @@ export default function resolveRewrites(
           rewrite.basePath === false ? '' : basePath
         )
         asPath = destRes.parsedDestination.pathname!
+
+        const sourceRes = prepareDestination(
+          rewrite.source,
+          params,
+          query,
+          true,
+          rewrite.basePath === false ? '' : basePath
+        )
+        resolvedSource = sourceRes.parsedDestination.pathname!
         Object.assign(query, destRes.parsedDestination.query)
 
         if (pages.includes(removePathTrailingSlash(asPath))) {
@@ -49,5 +59,5 @@ export default function resolveRewrites(
       }
     }
   }
-  return asPath
+  return [asPath, resolvedSource]
 }
