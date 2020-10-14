@@ -113,6 +113,7 @@ jobs:
       - run: yarn install --check-files
       - run: node run-tests.js test/integration/production/test/index.test.js
       - run: node run-tests.js test/integration/basic/test/index.test.js
+      - run: node run-tests.js test/integration/async-modules/test/index.test.js
       - run: node run-tests.js test/integration/font-optimization/test/index.test.js
       - run: node run-tests.js test/acceptance/*
 
