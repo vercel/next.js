@@ -80,6 +80,7 @@ import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
 import { detectLocaleCookie } from '../lib/i18n/detect-locale-cookie'
 import * as Log from '../../build/output/log'
 import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
+import cookie from 'next/dist/compiled/cookie'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -310,6 +311,10 @@ export default class Server {
       const { pathname, ...parsed } = parseUrl(req.url || '/')
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
+      let acceptPreferredLocale = accept.language(
+        req.headers['accept-language'],
+        i18n.locales
+      )
 
       const detectedDomain = detectDomainLocale(i18n.domains, req)
       if (detectedDomain) {
@@ -317,12 +322,8 @@ export default class Server {
         detectedLocale = defaultLocale
       }
 
-      if (!detectedLocale) {
-        detectedLocale = accept.language(
-          req.headers['accept-language'],
-          i18n.locales
-        )
-      }
+      // if not domain specific locale use accept-language preferred
+      detectedLocale = detectedLocale || acceptPreferredLocale
 
       let localeDomainRedirect: string | undefined
       const localePathResult = normalizeLocalePath(pathname!, i18n.locales)
@@ -360,6 +361,7 @@ export default class Server {
         detectedDefaultLocale &&
         denormalizedPagePath.toLowerCase() ===
           `/${i18n.defaultLocale.toLowerCase()}`
+
       const shouldAddLocalePrefix =
         !detectedDefaultLocale && denormalizedPagePath === '/'
 
@@ -371,6 +373,28 @@ export default class Server {
           shouldAddLocalePrefix ||
           shouldStripDefaultLocale)
       ) {
+        // set the NEXT_LOCALE cookie when a user visits the default locale
+        // with the locale prefix so that they aren't redirected back to
+        // their accept-language preferred locale
+        if (
+          shouldStripDefaultLocale &&
+          acceptPreferredLocale !== defaultLocale
+        ) {
+          const previous = res.getHeader('set-cookie')
+
+          res.setHeader('set-cookie', [
+            ...(typeof previous === 'string'
+              ? [previous]
+              : Array.isArray(previous)
+              ? previous
+              : []),
+            cookie.serialize('NEXT_LOCALE', defaultLocale, {
+              httpOnly: true,
+              path: '/',
+            }),
+          ])
+        }
+
         res.setHeader(
           'Location',
           formatUrl({

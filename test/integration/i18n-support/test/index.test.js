@@ -132,6 +132,43 @@ function runTests(isDev) {
     expect(result2.query).toEqual({})
   })
 
+  it('should set locale cookie when removing default locale and accept-lang doesnt match', async () => {
+    const res = await fetchViaHTTP(appPort, '/en-US', undefined, {
+      headers: {
+        'accept-language': 'nl',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(307)
+
+    const parsedUrl = url.parse(res.headers.get('location'), true)
+    expect(parsedUrl.pathname).toBe('/')
+    expect(parsedUrl.query).toEqual({})
+    expect(res.headers.get('set-cookie')).toContain('NEXT_LOCALE=en-US')
+  })
+
+  it('should not redirect to accept-lang preferred locale with locale cookie', async () => {
+    const res = await fetchViaHTTP(appPort, '/', undefined, {
+      headers: {
+        'accept-language': 'nl',
+        cookie: 'NEXT_LOCALE=en-US',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect($('#router-locale').text()).toBe('en-US')
+    expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+    expect($('html').attr('lang')).toBe('en-US')
+    expect($('#router-pathname').text()).toBe('/')
+    expect($('#router-as-path').text()).toBe('/')
+  })
+
   it('should redirect to correct locale domain', async () => {
     const checks = [
       // test domain, locale prefix, redirect result
