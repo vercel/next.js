@@ -1,0 +1,39 @@
+{
+  "extends": [
+    "airbnb-typescript",
+    "prettier",
+    "prettier/react",
+    "plugin:import/errors",
+    "plugin:import/typescript"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": ["./tsconfig.eslint.json"]
+  },
+  "plugins": ["import", "react", "prettier"],
+  "rules": {
+    "comma-spacing": "off",
+    "sort-keys": "error",
+    "sort-imports": "off",
+    "import/no-cycle": "off",
+    "import/no-internal-modules": "off",
+    "import/no-named-as-default": "off",
+    "import/prefer-default-export": "off",
+    "import/order": "error",
+    "prettier/prettier": ["error"],
+    "react/jsx-one-expression-per-line": "off",
+    "react/jsx-props-no-spreading": "off",
+    "react/jsx-wrap-multilines": "off",
+    "react/prop-types": "off",
+    "react/react-in-jsx-scope": "off",
+    "@typescript-eslint/camelcase": "off",
+    "@typescript-eslint/indent": "off",
+    "@typescript-eslint/quotes": "off",
+    "no-nested-ternary": "off",
+    "no-async-promise-executor": "warn",
+    "import/no-extraneous-dependencies": [
+      "error",
+      { "devDependencies": ["testUtils/*.ts", "**/*.test.ts", "**/*.test.tsx"] }
+    ]
+  }
+}
