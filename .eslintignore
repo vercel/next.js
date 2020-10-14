@@ -4,6 +4,15 @@ node_modules
 **/dist/**
 examples/with-typescript-eslint-jest/**
 examples/with-kea/**
+examples/with-supabase-auth-realtime-db/**
+examples/with-mobx/**
+examples/with-mobx-state-tree/**
+examples/with-algolia-react-instantsearch/**
+examples/with-custom-babel-config/**
+examples/with-draft-js/**
+examples/with-google-analytics/**
+examples/with-google-analytics-amp/**
+examples/with-flow/**
 packages/next/compiled/**/*
 packages/react-refresh-utils/**/*.js
 packages/react-dev-overlay/lib/**
