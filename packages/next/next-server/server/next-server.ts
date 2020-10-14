@@ -866,7 +866,7 @@ export default class Server {
       throw err
     }
 
-    const pageModule = require(builtPagePath)
+    const pageModule = await require(builtPagePath)
     query = { ...query, ...params }
 
     if (!this.renderOpts.dev && this._isLikeServerless) {
