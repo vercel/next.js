@@ -84,10 +84,10 @@ import { getPostBySlug, getAllPosts } from '../lib/blog'
 
 export async function getStaticProps({ params }) {
   const post = getPostBySlug(params.slug)
-  const content = await remark()
+  const markdown = await remark()
     .use(html)
     .process(post.content || '')
-    .toString()
+  const content = markdown.toString()
 
   return {
     props: {
