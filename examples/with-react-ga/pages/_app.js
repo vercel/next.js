@@ -7,7 +7,7 @@ const MyApp = ({ Component, pageProps }) => {
 
   useEffect(() => {
     initGA()
-    // workaround for the issue #11639
+    // in case of query in the url the routeChangeComplete event is triggered on load too
     if (!router.asPath.includes('?')) {
       logPageView()
     }
