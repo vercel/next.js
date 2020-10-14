@@ -79,7 +79,7 @@ import accept from '@hapi/accept'
 import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
 import { detectLocaleCookie } from '../lib/i18n/detect-locale-cookie'
 import * as Log from '../../build/output/log'
-import { detectDomainLocales } from '../lib/i18n/detect-domain-locales'
+import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -306,52 +306,24 @@ export default class Server {
     if (i18n && !parsedUrl.pathname?.startsWith('/_next')) {
       // get pathname from URL with basePath stripped for locale detection
       const { pathname, ...parsed } = parseUrl(req.url || '/')
+      let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
 
-      const { defaultLocale, locales } = detectDomainLocales(
-        req,
-        i18n.domains,
-        i18n.locales,
-        i18n.defaultLocale
-      )
+      const detectedDomain = detectDomainLocale(i18n.domains, req)
+      if (detectedDomain) {
+        defaultLocale = detectedDomain.defaultLocale
+        detectedLocale = defaultLocale
+      }
 
       if (!detectedLocale) {
         detectedLocale = accept.language(
           req.headers['accept-language'],
-          locales
+          i18n.locales
         )
       }
 
-      const denormalizedPagePath = denormalizePagePath(pathname || '/')
-      const detectedDefaultLocale =
-        !detectedLocale ||
-        detectedLocale.toLowerCase() === defaultLocale.toLowerCase()
-      const shouldStripDefaultLocale =
-        detectedDefaultLocale &&
-        denormalizedPagePath.toLowerCase() === `/${defaultLocale.toLowerCase()}`
-      const shouldAddLocalePrefix =
-        !detectedDefaultLocale && denormalizedPagePath === '/'
-
-      detectedLocale = detectedLocale || defaultLocale
-
-      if (
-        i18n.localeDetection !== false &&
-        (shouldAddLocalePrefix || shouldStripDefaultLocale)
-      ) {
-        res.setHeader(
-          'Location',
-          formatUrl({
-            // make sure to include any query values when redirecting
-            ...parsed,
-            pathname: shouldStripDefaultLocale ? '/' : `/${detectedLocale}`,
-          })
-        )
-        res.statusCode = 307
-        res.end()
-        return
-      }
-
-      const localePathResult = normalizeLocalePath(pathname!, locales)
+      let localeDomainRedirect: string | undefined
+      const localePathResult = normalizeLocalePath(pathname!, i18n.locales)
 
       if (localePathResult.detectedLocale) {
         detectedLocale = localePathResult.detectedLocale
@@ -360,13 +332,59 @@ export default class Server {
           pathname: localePathResult.pathname,
         })
         parsedUrl.pathname = localePathResult.pathname
+
+        // check if the locale prefix matches a domain's defaultLocale
+        // and we're on a locale specific domain if so redirect to that domain
+        if (detectedDomain) {
+          const matchedDomain = detectDomainLocale(
+            i18n.domains,
+            undefined,
+            detectedLocale
+          )
+
+          if (matchedDomain) {
+            localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
+              matchedDomain?.domain
+            }`
+          }
+        }
       }
 
-      // TODO: render with domain specific locales and defaultLocale also?
-      // Currently locale specific domains will have all locales populated
-      // under router.locales instead of only the domain specific ones
-      parsedUrl.query.__nextLocales = i18n.locales
-      // parsedUrl.query.__nextDefaultLocale = defaultLocale
+      const denormalizedPagePath = denormalizePagePath(pathname || '/')
+      const detectedDefaultLocale =
+        !detectedLocale ||
+        detectedLocale.toLowerCase() === defaultLocale.toLowerCase()
+      const shouldStripDefaultLocale =
+        detectedDefaultLocale &&
+        denormalizedPagePath.toLowerCase() ===
+          `/${i18n.defaultLocale.toLowerCase()}`
+      const shouldAddLocalePrefix =
+        !detectedDefaultLocale && denormalizedPagePath === '/'
+
+      detectedLocale = detectedLocale || i18n.defaultLocale
+
+      if (
+        i18n.localeDetection !== false &&
+        (localeDomainRedirect ||
+          shouldAddLocalePrefix ||
+          shouldStripDefaultLocale)
+      ) {
+        res.setHeader(
+          'Location',
+          formatUrl({
+            // make sure to include any query values when redirecting
+            ...parsed,
+            pathname: localeDomainRedirect
+              ? localeDomainRedirect
+              : shouldStripDefaultLocale
+              ? '/'
+              : `/${detectedLocale}`,
+          })
+        )
+        res.statusCode = 307
+        res.end()
+        return
+      }
       parsedUrl.query.__nextLocale = detectedLocale || defaultLocale
     }
 
@@ -517,21 +535,15 @@ export default class Server {
 
           if (i18n) {
             const localePathResult = normalizeLocalePath(pathname, i18n.locales)
-            const { defaultLocale } = detectDomainLocales(
-              req,
-              i18n.domains,
-              i18n.locales,
-              i18n.defaultLocale
-            )
+            const { defaultLocale } =
+              detectDomainLocale(i18n.domains, req) || {}
             let detectedLocale = defaultLocale
 
             if (localePathResult.detectedLocale) {
               pathname = localePathResult.pathname
               detectedLocale = localePathResult.detectedLocale
             }
-            _parsedUrl.query.__nextLocales = i18n.locales
-            _parsedUrl.query.__nextLocale = detectedLocale
-            // _parsedUrl.query.__nextDefaultLocale = defaultLocale
+            _parsedUrl.query.__nextLocale = detectedLocale!
           }
           pathname = getRouteFromAssetPath(pathname, '.json')
 
@@ -1078,8 +1090,6 @@ export default class Server {
                   amp: query.amp,
                   _nextDataReq: query._nextDataReq,
                   __nextLocale: query.__nextLocale,
-                  __nextLocales: query.__nextLocales,
-                  // __nextDefaultLocale: query.__nextDefaultLocale,
                 }
               : query),
             ...(params || {}),
@@ -1151,11 +1161,10 @@ export default class Server {
     delete query._nextDataReq
 
     const locale = query.__nextLocale as string
-    const locales = query.__nextLocales as string[]
-    // const defaultLocale = query.__nextDefaultLocale as string
     delete query.__nextLocale
-    delete query.__nextLocales
-    // delete query.__nextDefaultLocale
+
+    const { i18n } = this.nextConfig.experimental
+    const locales = i18n.locales as string[]
 
     let previewData: string | false | object | undefined
     let isPreviewMode = false

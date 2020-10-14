@@ -6,13 +6,15 @@ module.exports = {
       defaultLocale: 'en-US',
       domains: [
         {
+          // used for testing, this should not be needed in most cases
+          // as production domains should always use https
+          http: true,
           domain: 'example.be',
           defaultLocale: 'nl-BE',
-          locales: ['nl-BE', 'fr-BE'],
         },
         {
+          http: true,
           domain: 'example.fr',
-          locales: ['fr', 'fr-BE'],
           defaultLocale: 'fr',
         },
       ],

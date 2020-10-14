@@ -238,22 +238,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         if (!item || typeof item !== 'object') return true
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
-        if (!item.locales || !Array.isArray(item.locales)) return true
 
-        const invalidLocales = item.locales.filter(
-          (locale: string) => !i18n.locales.includes(locale)
-        )
-
-        if (invalidLocales.length > 0) {
-          console.error(
-            `i18n.domains item "${
-              item.domain
-            }" has the following locales (${invalidLocales.join(
-              ', '
-            )}) that aren't provided in the main i18n.locales. Add them to the i18n.locales list or remove them from the domains item locales to continue.\n`
-          )
-          return true
-        }
         return false
       })
 

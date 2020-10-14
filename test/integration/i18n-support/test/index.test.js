@@ -132,13 +132,38 @@ function runTests(isDev) {
     expect(result2.query).toEqual({})
   })
 
-  it('should only handle the domain specific locales', async () => {
-    const checkDomainLocales = async (
-      domainLocales = [],
-      domainDefault = '',
-      domain = ''
-    ) => {
+  it('should redirect to correct locale domain', async () => {
+    const checks = [
+      // test domain, locale prefix, redirect result
+      ['example.be', 'nl-BE', 'http://example.be/'],
+      ['example.be', 'fr', 'http://example.fr/'],
+      ['example.fr', 'nl-BE', 'http://example.be/'],
+      ['example.fr', 'fr', 'http://example.fr/'],
+    ]
+
+    for (const check of checks) {
+      const [domain, localePath, location] = check
+
+      const res = await fetchViaHTTP(appPort, `/${localePath}`, undefined, {
+        headers: {
+          host: domain,
+        },
+        redirect: 'manual',
+      })
+
+      expect(res.status).toBe(307)
+      expect(res.headers.get('location')).toBe(location)
+    }
+  })
+
+  it('should handle locales with domain', async () => {
+    const checkDomainLocales = async (domainDefault = '', domain = '') => {
       for (const locale of locales) {
+        // skip other domains' default locale since we redirect these
+        if (['fr', 'nl-BE'].includes(locale) && locale !== domainDefault) {
+          continue
+        }
+
         const res = await fetchViaHTTP(
           appPort,
           `/${locale === domainDefault ? '' : locale}`,
@@ -151,25 +176,19 @@ function runTests(isDev) {
           }
         )
 
-        const isDomainLocale = domainLocales.includes(locale)
+        expect(res.status).toBe(200)
 
-        expect(res.status).toBe(isDomainLocale ? 200 : 404)
+        const html = await res.text()
+        const $ = cheerio.load(html)
 
-        if (isDomainLocale) {
-          const html = await res.text()
-          const $ = cheerio.load(html)
-
-          expect($('html').attr('lang')).toBe(locale)
-          expect($('#router-locale').text()).toBe(locale)
-          // expect(JSON.parse($('#router-locales').text())).toEqual(domainLocales)
-          expect(JSON.parse($('#router-locales').text())).toEqual(locales)
-        }
+        expect($('html').attr('lang')).toBe(locale)
+        expect($('#router-locale').text()).toBe(locale)
+        expect(JSON.parse($('#router-locales').text())).toEqual(locales)
       }
     }
 
-    await checkDomainLocales(['nl-BE', 'fr-BE'], 'nl-BE', 'example.be')
-
-    await checkDomainLocales(['fr', 'fr-BE'], 'fr', 'example.fr')
+    await checkDomainLocales('nl-BE', 'example.be')
+    await checkDomainLocales('fr', 'example.fr')
   })
 
   it('should generate fallbacks with all locales', async () => {
