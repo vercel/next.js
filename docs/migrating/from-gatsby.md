@@ -84,10 +84,10 @@ import { getPostBySlug, getAllPosts } from '../lib/blog'
 
 export async function getStaticProps({ params }) {
   const post = getPostBySlug(params.slug)
-  const content = await remark()
+  const markdown = await remark()
     .use(html)
     .process(post.content || '')
-    .toString()
+  const content = markdown.toString()
 
   return {
     props: {
@@ -128,7 +128,7 @@ import { join } from 'path'
 const postsDirectory = join(process.cwd(), 'src', 'content', 'blog')
 
 export function getPostBySlug(slug) {
-  const realSlug = slug.replace(/\\.md$/, '')
+  const realSlug = slug.replace(/\.md$/, '')
   const fullPath = join(postsDirectory, `${realSlug}.md`)
   const fileContents = fs.readFileSync(fullPath, 'utf8')
   const { data, content } = matter(fileContents)
