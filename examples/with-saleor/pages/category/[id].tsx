@@ -1,42 +1,21 @@
-import { GetStaticPaths, GetStaticProps, InferGetStaticPropsType } from "next";
-import Error from "next/error";
-import Head from "next/head";
-import Link from "next/link";
-import { useRouter } from "next/router";
-import saleor from "../../data/saleor";
-import styles from "../../styles/Home.module.css";
-
-export const getStaticProps: GetStaticProps = async ({ params: { id } }) => {
-  const { api } = await saleor.connect();
-  const { data: category } = await api.categories.getDetails({
-    id: id.toString(),
-  });
-  const { data: products } = await api.products.getList({
-    filter: {
-      categories: [category.id],
-    },
-    first: 100,
-  });
-  return { props: { category, products }, revalidate: 5 };
-};
-
-export const getStaticPaths: GetStaticPaths = async () => {
-  return {
-    fallback: true,
-    paths: [],
-  };
-};
+import { GetStaticPaths, GetStaticProps, InferGetStaticPropsType } from 'next'
+import Error from 'next/error'
+import Head from 'next/head'
+import Link from 'next/link'
+import { useRouter } from 'next/router'
+import saleor from '../../data/saleor'
+import styles from '../../styles/Home.module.css'
 
 export default function Category({
   category,
   products,
 }: InferGetStaticPropsType<typeof getStaticProps>) {
-  const { isFallback } = useRouter();
+  const { isFallback } = useRouter()
   if (isFallback && !category) {
-    return "Loading...";
+    return 'Loading...'
   }
   if (!category) {
-    return <Error statusCode={404} title="Category not found" />;
+    return <Error statusCode={404} title="Category not found" />
   }
   return (
     <div className={styles.container}>
@@ -51,7 +30,7 @@ export default function Category({
           alt={category.backgroundImage.alt}
         />
         <div className={styles.grid}>
-          {products?.map(product => (
+          {products?.map((product) => (
             <div key={product.id} className={styles.card}>
               <h3>
                 <Link href={`/product/${product.slug}`}>{product.name}</Link>
@@ -67,10 +46,31 @@ export default function Category({
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{" "}
+          Powered by{' '}
           <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
         </a>
       </footer>
     </div>
-  );
+  )
+}
+
+export const getStaticProps: GetStaticProps = async ({ params: { id } }) => {
+  const { api } = await saleor.connect()
+  const { data: category } = await api.categories.getDetails({
+    id: id.toString(),
+  })
+  const { data: products } = await api.products.getList({
+    filter: {
+      categories: [category.id],
+    },
+    first: 100,
+  })
+  return { props: { category, products }, revalidate: 5 }
+}
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  return {
+    fallback: true,
+    paths: [],
+  }
 }

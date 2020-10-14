@@ -1,34 +1,19 @@
-import { GetStaticPaths, GetStaticProps, InferGetStaticPropsType } from "next";
-import Error from "next/error";
-import Head from "next/head";
-import { useRouter } from "next/router";
-import saleor from "../../data/saleor";
-import styles from "../../styles/Home.module.css";
-
-export const getStaticProps: GetStaticProps = async ({ params: { slug } }) => {
-  const { api } = await saleor.connect();
-  const { data: product } = await api.products.getDetails({
-    slug: slug.toString(),
-  });
-  return { props: { product }, revalidate: 5 };
-};
-
-export const getStaticPaths: GetStaticPaths = async () => {
-  return {
-    fallback: true,
-    paths: [],
-  };
-};
+import { GetStaticPaths, GetStaticProps, InferGetStaticPropsType } from 'next'
+import Error from 'next/error'
+import Head from 'next/head'
+import { useRouter } from 'next/router'
+import saleor from '../../data/saleor'
+import styles from '../../styles/Home.module.css'
 
 export default function Category({
   product,
 }: InferGetStaticPropsType<typeof getStaticProps>) {
-  const { isFallback } = useRouter();
+  const { isFallback } = useRouter()
   if (isFallback && !product) {
-    return "Loading...";
+    return 'Loading...'
   }
   if (!product) {
-    return <Error statusCode={404} title="Product not found" />;
+    return <Error statusCode={404} title="Product not found" />
   }
   return (
     <div className={styles.container}>
@@ -50,10 +35,25 @@ export default function Category({
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{" "}
+          Powered by{' '}
           <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
         </a>
       </footer>
     </div>
-  );
+  )
+}
+
+export const getStaticProps: GetStaticProps = async ({ params: { slug } }) => {
+  const { api } = await saleor.connect()
+  const { data: product } = await api.products.getDetails({
+    slug: slug.toString(),
+  })
+  return { props: { product }, revalidate: 5 }
+}
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  return {
+    fallback: true,
+    paths: [],
+  }
 }

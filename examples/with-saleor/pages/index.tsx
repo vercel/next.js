@@ -1,22 +1,8 @@
-import { GetStaticPaths, GetStaticProps, InferGetStaticPropsType } from "next";
-import Head from "next/head";
-import Link from "next/link";
-import styles from "../styles/Home.module.css";
-import saleor from "../data/saleor";
-
-export const getStaticProps: GetStaticProps = async () => {
-  const { api } = await saleor.connect();
-  const { data: categories } = await api.categories.getList({ first: 10 });
-
-  return { props: { categories }, revalidate: 5 };
-};
-
-export const getStaticPaths: GetStaticPaths = async () => {
-  return {
-    fallback: false,
-    paths: ["/"],
-  };
-};
+import { GetStaticPaths, GetStaticProps, InferGetStaticPropsType } from 'next'
+import Head from 'next/head'
+import Link from 'next/link'
+import styles from '../styles/Home.module.css'
+import saleor from '../data/saleor'
 
 export default function Home({
   categories,
@@ -32,7 +18,7 @@ export default function Home({
           Welcome to <a href="https://nextjs.org">Next.js!</a>
         </h1>
         <div className={styles.grid}>
-          {categories?.map(category => (
+          {categories?.map((category) => (
             <div key={category.id} className={styles.card}>
               <h3>
                 <Link href={`/category/${category.id}`}>{category.name}</Link>
@@ -48,10 +34,24 @@ export default function Home({
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{" "}
+          Powered by{' '}
           <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
         </a>
       </footer>
     </div>
-  );
+  )
+}
+
+export const getStaticProps: GetStaticProps = async () => {
+  const { api } = await saleor.connect()
+  const { data: categories } = await api.categories.getList({ first: 10 })
+
+  return { props: { categories }, revalidate: 5 }
+}
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  return {
+    fallback: false,
+    paths: ['/'],
+  }
 }
