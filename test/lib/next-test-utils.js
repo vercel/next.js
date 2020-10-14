@@ -70,8 +70,8 @@ export function renderViaAPI(app, pathname, query) {
   return app.renderToHTML({ url }, {}, pathname, query)
 }
 
-export function renderViaHTTP(appPort, pathname, query) {
-  return fetchViaHTTP(appPort, pathname, query).then((res) => res.text())
+export function renderViaHTTP(appPort, pathname, query, opts) {
+  return fetchViaHTTP(appPort, pathname, query, opts).then((res) => res.text())
 }
 
 export function fetchViaHTTP(appPort, pathname, query, opts) {
