@@ -33,6 +33,7 @@ import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
 import { eventCliSession } from '../telemetry/events'
+import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
 import {
   normalizePagePath,
@@ -165,6 +166,22 @@ export default async function exportApp(
     )
   }
 
+  const customRoutesDetected = ['rewrites', 'redirects', 'headers'].filter(
+    (config) => typeof nextConfig[config] === 'function'
+  )
+
+  if (
+    !hasNextSupport &&
+    !options.buildExport &&
+    customRoutesDetected.length > 0
+  ) {
+    Log.warn(
+      `rewrites, redirects, and headers are not applied when exporting your application, detected (${customRoutesDetected.join(
+        ', '
+      )}). See more info here: https://err.sh/next.js/export-no-custom-routes`
+    )
+  }
+
   const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
   const pagesManifest =
     !options.pages &&
@@ -266,6 +283,8 @@ export default async function exportApp(
     }
   }
 
+  const { i18n } = nextConfig.experimental
+
   // Start the rendering process
   const renderOpts = {
     dir,
@@ -281,6 +300,9 @@ export default async function exportApp(
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
+    locales: i18n?.locales,
+    locale: i18n.defaultLocale,
+    defaultLocale: i18n.defaultLocale,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
