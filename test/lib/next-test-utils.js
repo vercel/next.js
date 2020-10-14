@@ -78,7 +78,9 @@ export function fetchViaHTTP(appPort, pathname, query, opts) {
   const url = `http://localhost:${appPort}${pathname}${
     query ? `?${qs.stringify(query)}` : ''
   }`
-  return fetch(url, opts)
+  // node-fetch can't use a URL string containing full-width characters directly
+  const u = new URL(url)
+  return fetch(u, opts)
 }
 
 export function findPort() {

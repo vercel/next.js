@@ -20,5 +20,5 @@ export function normalizePagePath(page: string): string {
       `Requested and resolved page mismatch: ${page} ${resolvedPage}`
     )
   }
-  return page
+  return decodeURI(page)
 }

@@ -1359,9 +1359,11 @@ export default class Server {
         !staticPaths ||
         // static paths always includes locale so make sure it's prefixed
         // with it
-        !staticPaths
-          .map(encodeURI)
-          .includes(`${locale ? '/' + locale : ''}${resolvedUrlPathname}`))
+        !staticPaths.includes(
+          `${locale ? '/' + locale : ''}${decodeURIComponent(
+            resolvedUrlPathname
+          )}`
+        ))
     ) {
       if (
         // In development, fall through to render to handle missing
@@ -1379,7 +1381,7 @@ export default class Server {
         // Production already emitted the fallback as static HTML.
         if (isProduction) {
           html = await this.incrementalCache.getFallback(
-            locale ? `/${locale}${pathname}` : pathname
+            `${locale ? '/' + locale : ''}${decodeURIComponent(pathname)}`
           )
         }
         // We need to generate the fallback on-demand for development.
