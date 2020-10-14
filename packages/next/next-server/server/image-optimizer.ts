@@ -1,4 +1,4 @@
-import { parse } from 'url'
+import { UrlWithParsedQuery } from 'url'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join } from 'path'
 import { mediaType } from '@hapi/accept'
@@ -18,13 +18,13 @@ const CACHE_VERSION = 1
 export async function imageOptimizer(
   server: Server,
   req: IncomingMessage,
-  res: ServerResponse
+  res: ServerResponse,
+  parsedUrl: UrlWithParsedQuery
 ) {
   const { nextConfig, distDir } = server
   const { sizes = [], domains = [] } = nextConfig?.experimental?.images || {}
-  const { url: reqUrl = '/', headers } = req
-  const { query } = parse(reqUrl, true)
-  const { url, w, q } = query
+  const { headers } = req
+  const { url, w, q } = parsedUrl.query
   const proto = headers['x-forwarded-proto'] || 'http'
   const host = headers['x-forwarded-host'] || headers.host
   const mimeType = mediaType(req.headers.accept, MIME_TYPES) || ''
