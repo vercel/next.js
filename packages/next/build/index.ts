@@ -334,7 +334,7 @@ export default async function build(
         }
       }),
     dataRoutes: [],
-    i18n: config.experimental.i18n,
+    i18n: config.experimental.i18n || undefined,
   }
 
   await promises.mkdir(distDir, { recursive: true })
