@@ -23,6 +23,7 @@ const defaultConfig: { [key: string]: any } = {
   target: 'server',
   poweredByHeader: true,
   compress: true,
+  images: { hosts: { default: { path: 'defaultconfig' } } },
   devIndicators: {
     buildActivity: true,
     autoPrerender: true,
