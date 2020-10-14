@@ -23,6 +23,7 @@ const defaultConfig: { [key: string]: any } = {
   target: 'server',
   poweredByHeader: true,
   compress: true,
+  images: { hosts: { default: { path: 'defaultconfig' } } },
   devIndicators: {
     buildActivity: true,
     autoPrerender: true,
@@ -225,6 +226,32 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
     if (!i18n.defaultLocale || defaultLocaleType !== 'string') {
       throw new Error(`Specified i18n.defaultLocale should be a string`)
+    }
+
+    if (typeof i18n.domains !== 'undefined' && !Array.isArray(i18n.domains)) {
+      throw new Error(
+        `Specified i18n.domains must be an array of domain objects e.g. [ { domain: 'example.fr', defaultLocale: 'fr', locales: ['fr'] } ] received ${typeof i18n.domains}`
+      )
+    }
+
+    if (i18n.domains) {
+      const invalidDomainItems = i18n.domains.filter((item: any) => {
+        if (!item || typeof item !== 'object') return true
+        if (!item.defaultLocale) return true
+        if (!item.domain || typeof item.domain !== 'string') return true
+
+        return false
+      })
+
+      if (invalidDomainItems.length > 0) {
+        throw new Error(
+          `Invalid i18n.domains values:\n${invalidDomainItems
+            .map((item: any) => JSON.stringify(item))
+            .join(
+              '\n'
+            )}\n\ndomains value must follow format { domain: 'example.fr', defaultLocale: 'fr', locales: ['fr'] }`
+        )
+      }
     }
 
     if (!Array.isArray(i18n.locales)) {
