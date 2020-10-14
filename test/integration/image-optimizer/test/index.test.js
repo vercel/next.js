@@ -34,7 +34,7 @@ async function fsToJson(dir, output = {}) {
   return output
 }
 
-function runTests({ w, checkExternAbsUrl, isDev }) {
+function runTests({ w, isDev }) {
   it('should return home page', async () => {
     const res = await fetchViaHTTP(appPort, '/', null, {})
     expect(await res.text()).toMatch(/Image Optimizer Home/m)
@@ -191,34 +191,32 @@ function runTests({ w, checkExternAbsUrl, isDev }) {
     expect(res.headers.get('Content-Type')).toBe('image/webp')
   })
 
-  if (checkExternAbsUrl) {
-    it('should resize absolute url from localhost', async () => {
-      const url = `http://localhost:${appPort}/test.png`
-      const query = { url, w, q: 80 }
-      const opts = { headers: { accept: 'image/webp' } }
-      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-      expect(res.status).toBe(200)
-      expect(res.headers.get('Content-Type')).toBe('image/webp')
-    })
+  it('should resize absolute url from localhost', async () => {
+    const url = `http://localhost:${appPort}/test.png`
+    const query = { url, w, q: 80 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toBe('image/webp')
+  })
 
-    it('should fail when url has file protocol', async () => {
-      const url = `file://localhost:${appPort}/test.png`
-      const query = { url, w, q: 80 }
-      const opts = { headers: { accept: 'image/webp' } }
-      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-      expect(res.status).toBe(400)
-      expect(await res.text()).toBe(`"url" parameter is invalid`)
-    })
+  it('should fail when url has file protocol', async () => {
+    const url = `file://localhost:${appPort}/test.png`
+    const query = { url, w, q: 80 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe(`"url" parameter is invalid`)
+  })
 
-    it('should fail when url has ftp protocol', async () => {
-      const url = `ftp://localhost:${appPort}/test.png`
-      const query = { url, w, q: 80 }
-      const opts = { headers: { accept: 'image/webp' } }
-      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-      expect(res.status).toBe(400)
-      expect(await res.text()).toBe(`"url" parameter is invalid`)
-    })
-  }
+  it('should fail when url has ftp protocol', async () => {
+    const url = `ftp://localhost:${appPort}/test.png`
+    const query = { url, w, q: 80 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe(`"url" parameter is invalid`)
+  })
 
   it('should use cached image file when parameters are the same', async () => {
     await fs.remove(imagesDir)
@@ -255,7 +253,8 @@ function runTests({ w, checkExternAbsUrl, isDev }) {
 }
 
 describe('Image Optimizer', () => {
-  describe('dev support', () => {
+  describe('dev support w/o next.config.js', () => {
+    const size = 768 // defaults defined in server/config.ts
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -265,26 +264,45 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    runTests({ w: 64, checkExternAbsUrl: true, isDev: true })
+    runTests({ w: size, isDev: true })
   })
 
-  describe('Server support', () => {
+  describe('dev support with next.config.js', () => {
+    const size = 64
     beforeAll(async () => {
-      await nextBuild(appDir)
+      const json = JSON.stringify({
+        experimental: {
+          images: {
+            sizes: [size],
+            domains: ['localhost', 'example.com'],
+          },
+        },
+      })
+      nextConfig.replace('{ /* replaceme */ }', json)
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await launchApp(appDir, appPort)
     })
     afterAll(async () => {
       await killApp(app)
+      nextConfig.restore()
       await fs.remove(imagesDir)
     })
 
-    runTests({ w: 64, checkExternAbsUrl: true, isDev: false })
+    runTests({ w: size, isDev: true })
   })
 
-  describe('Serverless support', () => {
+  describe('Server support with next.config.js', () => {
+    const size = 128
     beforeAll(async () => {
-      nextConfig.replace('// target', 'target')
+      const json = JSON.stringify({
+        experimental: {
+          images: {
+            sizes: [128],
+            domains: ['localhost', 'example.com'],
+          },
+        },
+      })
+      nextConfig.replace('{ /* replaceme */ }', json)
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
@@ -295,20 +313,32 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    runTests({ w: 64, checkExternAbsUrl: true, isDev: false })
+    runTests({ w: size, isDev: false })
   })
 
-  describe('dev support w/o next.config.js', () => {
+  describe('Serverless support with next.config.js', () => {
+    const size = 256
     beforeAll(async () => {
-      nextConfig.delete()
+      const json = JSON.stringify({
+        target: 'experimental-serverless-trace',
+        experimental: {
+          images: {
+            sizes: [size],
+            domains: ['localhost', 'example.com'],
+          },
+        },
+      })
+      nextConfig.replace('{ /* replaceme */ }', json)
+      await nextBuild(appDir)
       appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+      app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
       await killApp(app)
+      nextConfig.restore()
       await fs.remove(imagesDir)
     })
 
-    runTests({ w: 768, checkExternAbsUrl: false, isDev: true })
+    runTests({ w: size, isDev: false })
   })
 })
