@@ -569,7 +569,8 @@ export default class Server {
         match: route('/_next/image'),
         type: 'route',
         name: '_next/image catchall',
-        fn: (req, res, _params, parsedUrl) => imageOptimizer(server, req, res, parsedUrl),
+        fn: (req, res, _params, parsedUrl) =>
+          imageOptimizer(server, req, res, parsedUrl),
       },
       {
         match: route('/_next/:path*'),
