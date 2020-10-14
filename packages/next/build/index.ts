@@ -504,7 +504,8 @@ export default async function build(
     (await hasCustomGetInitialProps(
       getPagePath('/_error', distDir, isLikeServerless),
       runtimeEnvConfig,
-      false
+      false,
+      isLikeServerless
     ))
 
   const analysisBegin = process.hrtime()
@@ -536,7 +537,8 @@ export default async function build(
               ? serverBundle
               : getPagePath('/_app', distDir, isLikeServerless),
             runtimeEnvConfig,
-            true
+            true,
+            isLikeServerless
           )
 
           namedExports = getNamedExports(
@@ -565,7 +567,8 @@ export default async function build(
             serverBundle,
             runtimeEnvConfig,
             config.experimental.i18n?.locales,
-            config.experimental.i18n?.defaultLocale
+            config.experimental.i18n?.defaultLocale,
+            isLikeServerless
           )
 
           if (workerResult.isHybridAmp) {

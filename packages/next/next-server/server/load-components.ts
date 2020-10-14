@@ -40,17 +40,12 @@ export async function loadComponents(
   serverless: boolean
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
-    const Component = await requirePage(pathname, distDir, serverless)
-    let { getStaticProps, getStaticPaths, getServerSideProps } = Component
-
-    getStaticProps = await getStaticProps
-    getStaticPaths = await getStaticPaths
-    getServerSideProps = await getServerSideProps
-    const pageConfig = (await Component.config) || {}
+    const Component = await requirePage(pathname, distDir, serverless)._page
+    const { getStaticProps, getStaticPaths, getServerSideProps } = Component
 
     return {
       Component,
-      pageConfig,
+      pageConfig: Component.config || {},
       getStaticProps,
       getStaticPaths,
       getServerSideProps,
