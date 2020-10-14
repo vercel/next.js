@@ -41,20 +41,27 @@ export async function loadComponents(
 ): Promise<LoadComponentsReturnType> {
   if (serverless) {
     const Component = await requirePage(pathname, distDir, serverless)
-    const { getStaticProps, getStaticPaths, getServerSideProps } = Component
+    let { getStaticProps, getStaticPaths, getServerSideProps } = Component
+
+    getStaticProps = await getStaticProps
+    getStaticPaths = await getStaticPaths
+    getServerSideProps = await getServerSideProps
+    const pageConfig = (await Component.config) || {}
 
     return {
       Component,
-      pageConfig: Component.config || {},
+      pageConfig,
       getStaticProps,
       getStaticPaths,
       getServerSideProps,
     } as LoadComponentsReturnType
   }
 
-  const DocumentMod = requirePage('/_document', distDir, serverless)
-  const AppMod = requirePage('/_app', distDir, serverless)
-  const ComponentMod = requirePage(pathname, distDir, serverless)
+  const [DocumentMod, AppMod, ComponentMod] = await Promise.all([
+    requirePage('/_document', distDir, serverless),
+    requirePage('/_app', distDir, serverless),
+    requirePage(pathname, distDir, serverless),
+  ])
 
   const [
     buildManifest,

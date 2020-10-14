@@ -704,21 +704,21 @@ export async function isPageStatic(
 }> {
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
-    const mod = require(serverBundle)
-    const Comp = mod.default || mod
+    const mod = await require(serverBundle)
+    const Comp = await (mod.default || mod)
 
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
       throw new Error('INVALID_DEFAULT_EXPORT')
     }
 
     const hasGetInitialProps = !!(Comp as any).getInitialProps
-    const hasStaticProps = !!mod.getStaticProps
-    const hasStaticPaths = !!mod.getStaticPaths
-    const hasServerProps = !!mod.getServerSideProps
-    const hasLegacyServerProps = !!mod.unstable_getServerProps
-    const hasLegacyStaticProps = !!mod.unstable_getStaticProps
-    const hasLegacyStaticPaths = !!mod.unstable_getStaticPaths
-    const hasLegacyStaticParams = !!mod.unstable_getStaticParams
+    const hasStaticProps = !!(await mod.getStaticProps)
+    const hasStaticPaths = !!(await mod.getStaticPaths)
+    const hasServerProps = !!(await mod.getServerSideProps)
+    const hasLegacyServerProps = !!(await mod.unstable_getServerProps)
+    const hasLegacyStaticProps = !!(await mod.unstable_getStaticProps)
+    const hasLegacyStaticPaths = !!(await mod.unstable_getStaticPaths)
+    const hasLegacyStaticParams = !!(await mod.unstable_getStaticParams)
 
     if (hasLegacyStaticParams) {
       throw new Error(
@@ -804,19 +804,20 @@ export async function isPageStatic(
   }
 }
 
-export function hasCustomGetInitialProps(
+export async function hasCustomGetInitialProps(
   bundle: string,
   runtimeEnvConfig: any,
   checkingApp: boolean
-): boolean {
+): Promise<boolean> {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
   let mod = require(bundle)
 
   if (checkingApp) {
-    mod = mod._app || mod.default || mod
+    mod = (await mod._app) || mod.default || mod
   } else {
     mod = mod.default || mod
   }
+  mod = await mod
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 

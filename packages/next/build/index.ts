@@ -531,7 +531,7 @@ export default async function build(
         const serverBundle = getPagePath(page, distDir, isLikeServerless)
 
         if (customAppGetInitialProps === undefined) {
-          customAppGetInitialProps = hasCustomGetInitialProps(
+          customAppGetInitialProps = await hasCustomGetInitialProps(
             isLikeServerless
               ? serverBundle
               : getPagePath('/_app', distDir, isLikeServerless),

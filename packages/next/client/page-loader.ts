@@ -340,9 +340,9 @@ export default class PageLoader {
 
   // This method if called by the route code.
   registerPage(route: string, regFn: () => any) {
-    const register = (styleSheets: StyleSheetTuple[]) => {
+    const register = async (styleSheets: StyleSheetTuple[]) => {
       try {
-        const mod = regFn()
+        const mod = await regFn()
         const pageData: PageCacheEntry = {
           page: mod.default || mod,
           mod,

@@ -339,7 +339,7 @@ const nextServerlessLoader: loader.Loader = function () {
               : `{}`
           }
 
-          const resolver = require('${absolutePagePath}')
+          const resolver = await require('${absolutePagePath}')
           await apiResolver(
             req,
             res,
@@ -386,35 +386,57 @@ const nextServerlessLoader: loader.Loader = function () {
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
-    const Document = require('${absoluteDocumentPath}').default;
-    const Error = require('${absoluteErrorPath}').default;
-    const App = require('${absoluteAppPath}').default;
+
+    const appMod = require('${absoluteAppPath}')
+    let App = appMod.default || appMod.then && appMod.then(mod => mod.default);
 
     ${dynamicRouteImports}
     ${rewriteImports}
 
-    const ComponentInfo = require('${absolutePagePath}')
+    const compMod = require('${absolutePagePath}')
 
-    const Component = ComponentInfo.default
+    let Component = compMod.default || compMod.then && compMod.then(mod => mod.default)
     export default Component
-    export const unstable_getStaticParams = ComponentInfo['unstable_getStaticParam' + 's']
-    export const getStaticProps = ComponentInfo['getStaticProp' + 's']
-    export const getStaticPaths = ComponentInfo['getStaticPath' + 's']
-    export const getServerSideProps = ComponentInfo['getServerSideProp' + 's']
+    export let getStaticProps = compMod['getStaticProp' + 's'] || compMod.then && compMod.then(mod => mod['getStaticProp' + 's'])
+    export let getStaticPaths = compMod['getStaticPath' + 's'] || compMod.then && compMod.then(mod => mod['getStaticPath' + 's'])
+    export let getServerSideProps = compMod['getServerSideProp' + 's'] || compMod.then && compMod.then(mod => mod['getServerSideProp' + 's'])
 
     // kept for detecting legacy exports
-    export const unstable_getStaticProps = ComponentInfo['unstable_getStaticProp' + 's']
-    export const unstable_getStaticPaths = ComponentInfo['unstable_getStaticPath' + 's']
-    export const unstable_getServerProps = ComponentInfo['unstable_getServerProp' + 's']
+    export const unstable_getStaticParams = compMod['unstable_getStaticParam' + 's'] || compMod.then && compMod.then(mod => mod['unstable_getStaticParam' + 's'])
+    export const unstable_getStaticProps = compMod['unstable_getStaticProp' + 's'] || compMod.then && compMod.then(mod => mod['unstable_getStaticProp' + 's'])
+    export const unstable_getStaticPaths = compMod['unstable_getStaticPath' + 's'] || compMod.then && compMod.then(mod => mod['unstable_getStaticPath' + 's'])
+    export const unstable_getServerProps = compMod['unstable_getServerProp' + 's'] || compMod.then && compMod.then(mod => mod['unstable_getServerProp' + 's'])
 
     ${dynamicRouteMatcher}
     ${defaultRouteRegex}
     ${normalizeDynamicRouteParams}
     ${handleRewrites}
 
-    export const config = ComponentInfo['confi' + 'g'] || {}
+    export let config = compMod['confi' + 'g'] || (compMod.then && compMod.then(mod => mod['confi' + 'g'])) || {}
     export const _app = App
     export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
+      let Document
+      let Error
+      ;[
+        getStaticProps,
+        getServerSideProps,
+        getStaticPaths,
+        Component,
+        App,
+        config,
+        { default: Document },
+        { default: Error }
+      ] = await Promise.all([
+        getStaticProps,
+        getServerSideProps,
+        getStaticPaths,
+        Component,
+        App,
+        config,
+        require('${absoluteDocumentPath}'),
+        require('${absoluteErrorPath}')
+      ])
+
       const fromExport = renderMode === 'export' || renderMode === true;
       const nextStartMode = renderMode === 'passthrough'
 
