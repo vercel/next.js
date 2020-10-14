@@ -1,4 +1,7 @@
-export const getBaseRules = (isTypescript: Boolean) => ({
+const generalRules = {
+  'react-hooks/exhaustive-deps': 'off',
+}
+const jsOnlyRules = {
   'array-callback-return': 'warn',
   'default-case': ['warn', { commentPattern: '^no default$' }],
   'dot-location': ['warn', 'property'],
@@ -68,7 +71,7 @@ export const getBaseRules = (isTypescript: Boolean) => ({
    * TS handles no-undef on its own.
    * Enabling this would throw random errors at enums etc
    */
-  'no-undef': isTypescript ? 'off' : 'error',
+  'no-undef': 'error',
   'no-restricted-globals': ['error'],
   'no-unreachable': 'warn',
   'no-unused-expressions': [
@@ -109,7 +112,6 @@ export const getBaseRules = (isTypescript: Boolean) => ({
   ],
   'no-with': 'warn',
   'no-whitespace-before-property': 'warn',
-  'react-hooks/exhaustive-deps': 'warn',
   'require-yield': 'warn',
   'rest-spread-spacing': ['warn', 'never'],
   strict: ['warn', 'never'],
@@ -132,4 +134,12 @@ export const getBaseRules = (isTypescript: Boolean) => ({
     },
   ],
   'getter-return': 'warn',
-})
+}
+
+export const getBaseRules = (isTypescript: Boolean) =>
+  isTypescript
+    ? generalRules
+    : {
+        ...generalRules,
+        ...jsOnlyRules,
+      }
