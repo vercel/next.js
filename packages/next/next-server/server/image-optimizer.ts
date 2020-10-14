@@ -1,6 +1,6 @@
 import { UrlWithParsedQuery } from 'url'
 import { IncomingMessage, ServerResponse } from 'http'
-import { join, normalize, sep } from 'path'
+import { join } from 'path'
 import { mediaType } from '@hapi/accept'
 import { createReadStream, promises } from 'fs'
 import { createHash } from 'crypto'
@@ -26,6 +26,8 @@ export async function imageOptimizer(
   const { sizes = [], domains = [] } = nextConfig?.experimental?.images || {}
   const { headers } = req
   const { url, w, q } = parsedUrl.query
+  const proto = headers['x-forwarded-proto'] || 'http'
+  const host = headers['x-forwarded-host'] || headers.host
   const mimeType = mediaType(headers.accept, MIME_TYPES) || ''
 
   if (!url) {
@@ -38,34 +40,30 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  let urlOrFile: {
-    kind: 'url' | 'file'
-    path: string
-  }
+  let absoluteUrl: URL
   try {
-    const absoluteUrl = new URL(url)
-    if (!['http:', 'https:'].includes(absoluteUrl.protocol)) {
-      res.statusCode = 400
-      res.end('"url" parameter is invalid')
-      return { finished: true }
-    }
-    if (!domains.includes(absoluteUrl.hostname)) {
-      res.statusCode = 400
-      res.end('"url" parameter is not allowed')
-      return { finished: true }
-    }
-    urlOrFile = { kind: 'url', path: absoluteUrl.href }
+    absoluteUrl = new URL(url)
   } catch (_error) {
     // url was not absolute so assuming relative url
-    const { publicDir } = server
-    const path = normalize(join(publicDir, url))
-    if (path.startsWith(publicDir + sep) && (await fileExists(path, 'file'))) {
-      urlOrFile = { kind: 'file', path }
-    } else {
+    try {
+      absoluteUrl = new URL(url, `${proto}://${host}`)
+    } catch (__error) {
       res.statusCode = 400
       res.end('"url" parameter is invalid')
       return { finished: true }
     }
+  }
+
+  if (!['http:', 'https:'].includes(absoluteUrl.protocol)) {
+    res.statusCode = 400
+    res.end('"url" parameter is invalid')
+    return { finished: true }
+  }
+
+  if (!server.renderOpts.dev && !domains.includes(absoluteUrl.hostname)) {
+    res.statusCode = 400
+    res.end('"url" parameter is not allowed')
+    return { finished: true }
   }
 
   if (!w) {
@@ -110,8 +108,8 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  const { kind, path } = urlOrFile
-  const hash = getHash([CACHE_VERSION, path, width, quality, mimeType])
+  const { href } = absoluteUrl
+  const hash = getHash([CACHE_VERSION, href, width, quality, mimeType])
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
   const now = Date.now()
@@ -134,34 +132,18 @@ export async function imageOptimizer(
     }
   }
 
-  let upstreamBuffer: Buffer
-  let upstreamType: string | null
-  let maxAge: number
+  const upstreamRes = await fetch(href)
 
-  if (kind === 'file') {
-    upstreamBuffer = await promises.readFile(path)
-    const extension = path.split('.').pop()
-    upstreamType = extension ? getContentType(extension) : null
-    maxAge = getMaxAge(null)
-  } else if (kind === 'url') {
-    const upstreamRes = await fetch(path)
-    if (!upstreamRes.ok) {
-      server.logError(
-        new Error(
-          `Unexpected status ${upstreamRes.status} from upstream ${path}`
-        )
-      )
-      return { finished: true }
-    }
-    upstreamBuffer = Buffer.from(await upstreamRes.arrayBuffer())
-    upstreamType = upstreamRes.headers.get('Content-Type')
-    maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
-  } else {
-    let k: never = kind
-    server.logError(new Error(`Unhandled kind: ${k}`))
+  if (!upstreamRes.ok) {
+    server.logError(
+      new Error(`Unexpected status ${upstreamRes.status} from upstream ${href}`)
+    )
     return { finished: true }
   }
 
+  const upstreamBuffer = Buffer.from(await upstreamRes.arrayBuffer())
+  const upstreamType = upstreamRes.headers.get('Content-Type')
+  const maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
   const expireAt = maxAge * 1000 + now
   let contentType: string
 

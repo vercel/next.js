@@ -34,7 +34,7 @@ async function fsToJson(dir, output = {}) {
   return output
 }
 
-function runTests(w, checkExternAbsUrl) {
+function runTests({ w, checkExternAbsUrl, isDev }) {
   it('should return home page', async () => {
     const res = await fetchViaHTTP(appPort, '/', null, {})
     expect(await res.text()).toMatch(/Image Optimizer Home/m)
@@ -106,14 +106,16 @@ function runTests(w, checkExternAbsUrl) {
     )
   })
 
-  it('should fail when domain is not defined in next.config.js', async () => {
-    const url = `http://vercel.com/button`
-    const query = { url, w, q: 100 }
-    const opts = { headers: { accept: 'image/webp' } }
-    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-    expect(res.status).toBe(400)
-    expect(await res.text()).toBe(`"url" parameter is not allowed`)
-  })
+  if (!isDev) {
+    it('should fail when domain is not defined in next.config.js', async () => {
+      const url = `http://vercel.com/button`
+      const query = { url, w, q: 100 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(400)
+      expect(await res.text()).toBe(`"url" parameter is not allowed`)
+    })
+  }
 
   it('should fail when width is not in next.config.js', async () => {
     const query = { url: '/test.png', w: 1000, q: 100 }
@@ -263,7 +265,7 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    runTests(64, true)
+    runTests({ w: 64, checkExternAbsUrl: true, isDev: true })
   })
 
   describe('Server support', () => {
@@ -277,7 +279,7 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    runTests(128, true)
+    runTests({ w: 64, checkExternAbsUrl: true, isDev: false })
   })
 
   describe('Serverless support', () => {
@@ -293,22 +295,20 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    runTests(128, true)
+    runTests({ w: 64, checkExternAbsUrl: true, isDev: false })
   })
 
-  describe('No next.config.js - use defaults from next-server/server/config.ts', () => {
+  describe('dev support w/o next.config.js', () => {
     beforeAll(async () => {
       nextConfig.delete()
-      await nextBuild(appDir)
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await launchApp(appDir, appPort)
     })
     afterAll(async () => {
       await killApp(app)
-      nextConfig.restore()
       await fs.remove(imagesDir)
     })
 
-    runTests(768, false)
+    runTests({ w: 768, checkExternAbsUrl: false, isDev: true })
   })
 })
