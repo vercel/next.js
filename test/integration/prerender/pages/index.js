@@ -69,6 +69,9 @@ const Page = ({ world, time }) => {
       <Link href="/dynamic/[slug]" as="/dynamic/[second]">
         <a id="dynamic-second">to dynamic [second] page</a>
       </Link>
+      <Link href="/dynamic/[slug]" as="/dynamic/ｆｕｌｌｗｉｄｔｈ">
+        <a id="dynamic-fullwidth">to dynamic ｆｕｌｌｗｉｄｔｈ page</a>
+      </Link>
       <br />
       <Link
         href="/catchall-explicit/[...slug]"

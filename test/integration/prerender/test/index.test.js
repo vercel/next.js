@@ -177,6 +177,11 @@ const expectedManifestRoutes = () => ({
     initialRevalidateSeconds: false,
     srcRoute: '/dynamic/[slug]',
   },
+  '/dynamic/ｆｕｌｌｗｉｄｔｈ': {
+    dataRoute: `/_next/data/${buildId}/dynamic/ｆｕｌｌｗｉｄｔｈ.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/dynamic/[slug]',
+  },
   '/index': {
     dataRoute: `/_next/data/${buildId}/index/index.json`,
     initialRevalidateSeconds: false,
@@ -358,6 +363,17 @@ const navigateTest = (dev = false) => {
     await browser.waitForElementByCss('#home')
     text = await browser.elementByCss('#param').text()
     expect(text).toMatch(/Hi \[second\]!/)
+    expect(await browser.eval('window.didTransition')).toBe(1)
+
+    // go to /
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#comment-1')
+
+    // go to /dynamic/ｆｕｌｌｗｉｄｔｈ
+    await browser.elementByCss('#dynamic-fullwidth').click()
+    await browser.waitForElementByCss('#home')
+    text = await browser.elementByCss('#param').text()
+    expect(text).toMatch(/Hi ｆｕｌｌｗｉｄｔｈ!/)
     expect(await browser.eval('window.didTransition')).toBe(1)
 
     // go to /
@@ -571,6 +587,12 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     const html = await renderViaHTTP(appPort, '/dynamic/[second]')
     const $ = cheerio.load(html)
     expect($('#param').text()).toMatch(/Hi \[second\]!/)
+  })
+
+  it('should SSR dynamic page with fullwidth forms in param as string', async () => {
+    const html = await renderViaHTTP(appPort, '/dynamic/ｆｕｌｌｗｉｄｔｈ')
+    const $ = cheerio.load(html)
+    expect($('#param').text()).toMatch(/Hi ｆｕｌｌｗｉｄｔｈ!/)
   })
 
   it('should navigate to dynamic page with brackets in param as string', async () => {

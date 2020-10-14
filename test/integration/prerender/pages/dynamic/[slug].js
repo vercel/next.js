@@ -8,7 +8,11 @@ export async function getStaticProps({ params: { slug } }) {
 
 export async function getStaticPaths() {
   return {
-    paths: [{ params: { slug: '[first]' } }, '/dynamic/[second]'],
+    paths: [
+      { params: { slug: '[first]' } },
+      '/dynamic/[second]',
+      '/dynamic/ｆｕｌｌｗｉｄｔｈ',
+    ],
     fallback: false,
   }
 }
