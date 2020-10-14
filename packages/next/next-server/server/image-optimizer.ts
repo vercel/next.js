@@ -1,10 +1,11 @@
 import { UrlWithParsedQuery } from 'url'
 import { IncomingMessage, ServerResponse } from 'http'
-import { join } from 'path'
+import { join, normalize, sep } from 'path'
 import { mediaType } from '@hapi/accept'
 import { createReadStream, promises } from 'fs'
 import { createHash } from 'crypto'
 import Server from './next-server'
+import { getContentType, getExtension } from './serve-static'
 import { fileExists } from '../../lib/file-exists'
 
 let sharp: typeof import('sharp')
@@ -25,8 +26,6 @@ export async function imageOptimizer(
   const { sizes = [], domains = [] } = nextConfig?.experimental?.images || {}
   const { headers } = req
   const { url, w, q } = parsedUrl.query
-  const proto = headers['x-forwarded-proto'] || 'http'
-  const host = headers['x-forwarded-host'] || headers.host
   const mimeType = mediaType(headers.accept, MIME_TYPES) || ''
 
   if (!url) {
@@ -39,20 +38,30 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  let absoluteUrl: URL
+  let urlOrFile: {
+    kind: 'url' | 'file'
+    path: string
+  }
   try {
-    absoluteUrl = new URL(url)
-
+    const absoluteUrl = new URL(url)
+    if (!['http:', 'https:'].includes(absoluteUrl.protocol)) {
+      res.statusCode = 400
+      res.end('"url" parameter is invalid')
+      return { finished: true }
+    }
     if (!domains.includes(absoluteUrl.hostname)) {
       res.statusCode = 400
       res.end('"url" parameter is not allowed')
       return { finished: true }
     }
+    urlOrFile = { kind: 'url', path: absoluteUrl.href }
   } catch (_error) {
     // url was not absolute so assuming relative url
-    try {
-      absoluteUrl = new URL(url, `${proto}://${host}`)
-    } catch (__error) {
+    const { publicDir } = server
+    const path = normalize(join(publicDir, url))
+    if (path.startsWith(publicDir + sep) && (await fileExists(path, 'file'))) {
+      urlOrFile = { kind: 'file', path }
+    } else {
       res.statusCode = 400
       res.end('"url" parameter is invalid')
       return { finished: true }
@@ -101,8 +110,8 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  const { href } = absoluteUrl
-  const hash = getHash([CACHE_VERSION, href, width, quality, mimeType])
+  const { kind, path } = urlOrFile
+  const hash = getHash([CACHE_VERSION, path, width, quality, mimeType])
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
   const now = Date.now()
@@ -112,9 +121,11 @@ export async function imageOptimizer(
     for (let file of files) {
       const [filename, extension] = file.split('.')
       const expireAt = Number(filename)
-      const contentType = `image/${extension}`
+      const contentType = getContentType(extension)
       if (now < expireAt) {
-        res.setHeader('Content-Type', contentType)
+        if (contentType) {
+          res.setHeader('Content-Type', contentType)
+        }
         createReadStream(join(hashDir, file)).pipe(res)
         return { finished: true }
       } else {
@@ -123,24 +134,40 @@ export async function imageOptimizer(
     }
   }
 
-  const upstreamRes = await fetch(href)
+  let upstreamBuffer: Buffer
+  let upstreamType: string | null
+  let maxAge: number
 
-  if (!upstreamRes.ok) {
-    server.logError(
-      new Error(`Unexpected status ${upstreamRes.status} from upstream ${href}`)
-    )
+  if (kind === 'file') {
+    upstreamBuffer = await promises.readFile(path)
+    const extension = path.split('.').pop()
+    upstreamType = extension ? getContentType(extension) : null
+    maxAge = getMaxAge(null)
+  } else if (kind === 'url') {
+    const upstreamRes = await fetch(path)
+    if (!upstreamRes.ok) {
+      server.logError(
+        new Error(
+          `Unexpected status ${upstreamRes.status} from upstream ${path}`
+        )
+      )
+      return { finished: true }
+    }
+    upstreamBuffer = Buffer.from(await upstreamRes.arrayBuffer())
+    upstreamType = upstreamRes.headers.get('Content-Type')
+    maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
+  } else {
+    let k: never = kind
+    server.logError(new Error(`Unhandled kind: ${k}`))
     return { finished: true }
   }
 
-  const upstreamBuffer = Buffer.from(await upstreamRes.arrayBuffer())
-  const upstreamType = upstreamRes.headers.get('Content-Type')
-  const maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
   const expireAt = maxAge * 1000 + now
   let contentType: string
 
   if (mimeType) {
     contentType = mimeType
-  } else if (upstreamType?.startsWith('image/')) {
+  } else if (upstreamType?.startsWith('image/') && getExtension(upstreamType)) {
     contentType = upstreamType
   } else {
     contentType = JPEG
@@ -168,7 +195,7 @@ export async function imageOptimizer(
   try {
     const optimizedBuffer = await transformer.toBuffer()
     await promises.mkdir(hashDir, { recursive: true })
-    const extension = contentType.slice('image/'.length)
+    const extension = getExtension(contentType)
     const filename = join(hashDir, `${expireAt}.${extension}`)
     await promises.writeFile(filename, optimizedBuffer)
     res.setHeader('Content-Type', contentType)

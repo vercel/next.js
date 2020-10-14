@@ -192,11 +192,29 @@ function runTests(w, checkExternAbsUrl) {
   if (checkExternAbsUrl) {
     it('should resize absolute url from localhost', async () => {
       const url = `http://localhost:${appPort}/test.png`
-      const query = { url, w: 64, q: 80 }
+      const query = { url, w, q: 80 }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
+    })
+
+    it('should fail when url has file protocol', async () => {
+      const url = `file://localhost:${appPort}/test.png`
+      const query = { url, w, q: 80 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(400)
+      expect(await res.text()).toBe(`"url" parameter is invalid`)
+    })
+
+    it('should fail when url has ftp protocol', async () => {
+      const url = `ftp://localhost:${appPort}/test.png`
+      const query = { url, w, q: 80 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(400)
+      expect(await res.text()).toBe(`"url" parameter is invalid`)
     })
   }
 
