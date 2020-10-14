@@ -25,7 +25,12 @@ export default function Category({
         <h1 className={styles.title}>{product.name}</h1>
         <div className={styles.grid}>
           {product.images?.map((image, index) => (
-            <img key={index} src={image.url} alt={image.alt} />
+            <img
+              key={index}
+              src={image.url}
+              alt={image.alt}
+              className={styles.image}
+            />
           ))}
         </div>
       </main>

@@ -19,12 +19,12 @@ export default function Home({
         </h1>
         <div className={styles.grid}>
           {categories?.map((category) => (
-            <div key={category.id} className={styles.card}>
-              <h3>
-                <Link href={`/category/${category.id}`}>{category.name}</Link>
-              </h3>
-              <p>{category.seoDescription}</p>
-            </div>
+            <Link href={`/category/${category.id}`}>
+              <div key={category.id} className={styles.card}>
+                <h3>{category.name}</h3>
+                <p>{category.seoDescription}</p>
+              </div>
+            </Link>
           ))}
         </div>
       </main>

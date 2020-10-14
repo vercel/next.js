@@ -28,15 +28,16 @@ export default function Category({
         <img
           src={category.backgroundImage.url}
           alt={category.backgroundImage.alt}
+          className={styles.header}
         />
         <div className={styles.grid}>
           {products?.map((product) => (
-            <div key={product.id} className={styles.card}>
-              <h3>
-                <Link href={`/product/${product.slug}`}>{product.name}</Link>
-              </h3>
-              <p>{product.seoDescription}</p>
-            </div>
+            <Link href={`/product/${product.slug}`}>
+              <div key={product.id} className={styles.card}>
+                <h3>{product.name}</h3>
+                <p>{product.seoDescription}</p>
+              </div>
+            </Link>
           ))}
         </div>
       </main>

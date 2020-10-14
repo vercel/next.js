@@ -47,7 +47,7 @@
 }
 
 .title {
-  margin: 0;
+  margin: 0 0 3rem 0;
   line-height: 1.15;
   font-size: 4rem;
 }
@@ -60,6 +60,15 @@
 .description {
   line-height: 1.5;
   font-size: 1.5rem;
+}
+
+.header {
+  width: 100%;
+  margin-bottom: 2rem;
+}
+
+.image {
+  width: 100%;
 }
 
 .code {
@@ -77,7 +86,6 @@
   justify-content: center;
   flex-wrap: wrap;
   max-width: 800px;
-  margin-top: 3rem;
 }
 
 .card {
@@ -90,6 +98,7 @@
   border: 1px solid #eaeaea;
   border-radius: 10px;
   transition: color 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
 }
 
 .card:hover,
