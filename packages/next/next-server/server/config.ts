@@ -44,6 +44,9 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
+    images: {
+      sizes: [320, 420, 768, 1024, 1200],
+    },
     modern: false,
     plugins: false,
     profiling: false,
@@ -208,6 +211,41 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
+  if (result?.experimental?.images) {
+    const { images } = result.experimental
+    if (typeof images !== 'object') {
+      throw new Error(
+        `Specified images should be an object received ${typeof images}`
+      )
+    }
+    if (images.domains) {
+      if (!Array.isArray(images.domains)) {
+        throw new Error(
+          `Specified images.domains should be an Array received ${typeof images.domains}`
+        )
+      }
+      const invalid = images.domains.find((d: unknown) => typeof d !== 'string')
+      if (invalid) {
+        throw new Error(
+          `Specified images.domains should be an Array of strings received Array of ${typeof invalid}s`
+        )
+      }
+    }
+    if (images.sizes) {
+      if (!Array.isArray(images.sizes)) {
+        throw new Error(
+          `Specified images.sizes should be an Array received ${typeof images.sizes}`
+        )
+      }
+      const invalid = images.sizes.find((d: unknown) => typeof d !== 'number')
+      if (invalid) {
+        throw new Error(
+          `Specified images.sizes should be an Array of numbers received Array of ${typeof invalid}s`
+        )
+      }
+    }
+  }
+
   if (result.experimental?.i18n) {
     const { i18n } = result.experimental
     const i18nType = typeof i18n
@@ -218,7 +256,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
     if (!Array.isArray(i18n.locales)) {
       throw new Error(
-        `Specified i18n.locales should be an Array received ${typeof i18n.lcoales}`
+        `Specified i18n.locales should be an Array received ${typeof i18n.locales}`
       )
     }
 

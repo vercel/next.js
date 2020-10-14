@@ -34,14 +34,14 @@ async function fsToJson(dir, output = {}) {
   return output
 }
 
-function runTests() {
+function runTests(w, checkExternAbsUrl) {
   it('should return home page', async () => {
     const res = await fetchViaHTTP(appPort, '/', null, {})
     expect(await res.text()).toMatch(/Image Optimizer Home/m)
   })
 
   it('should fail when url is missing', async () => {
-    const query = { w: 64, q: 100 }
+    const query = { w, q: 100 }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(`"url" parameter is required`)
@@ -55,14 +55,14 @@ function runTests() {
   })
 
   it('should fail when q is missing', async () => {
-    const query = { url: '/test.png', w: 64 }
+    const query = { url: '/test.png', w }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(`"q" parameter (quality) is required`)
   })
 
   it('should fail when q is greater than 100', async () => {
-    const query = { url: '/test.png', w: 64, q: 101 }
+    const query = { url: '/test.png', w, q: 101 }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(
@@ -71,7 +71,7 @@ function runTests() {
   })
 
   it('should fail when q is less than 1', async () => {
-    const query = { url: '/test.png', w: 64, q: 0 }
+    const query = { url: '/test.png', w, q: 0 }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(
@@ -98,7 +98,7 @@ function runTests() {
   })
 
   it('should fail when q is not a number', async () => {
-    const query = { url: '/test.png', w: 64, q: 'foo' }
+    const query = { url: '/test.png', w, q: 'foo' }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(
@@ -107,11 +107,8 @@ function runTests() {
   })
 
   it('should fail when domain is not defined in next.config.js', async () => {
-    const query = {
-      url: `http://vercel.com/button`,
-      w: 64,
-      q: 100,
-    }
+    const url = `http://vercel.com/button`
+    const query = { url, w, q: 100 }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(400)
@@ -129,7 +126,7 @@ function runTests() {
   })
 
   it('should resize relative url and webp accept header', async () => {
-    const query = { url: '/test.png', w: 64, q: 80 }
+    const query = { url: '/test.png', w, q: 80 }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -137,7 +134,7 @@ function runTests() {
   })
 
   it('should resize relative url and jpeg accept header', async () => {
-    const query = { url: '/test.png', w: 64, q: 80 }
+    const query = { url: '/test.png', w, q: 80 }
     const opts = { headers: { accept: 'image/jpeg' } }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -145,7 +142,7 @@ function runTests() {
   })
 
   it('should resize relative url and png accept header', async () => {
-    const query = { url: '/test.png', w: 64, q: 80 }
+    const query = { url: '/test.png', w, q: 80 }
     const opts = { headers: { accept: 'image/png' } }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -153,7 +150,7 @@ function runTests() {
   })
 
   it('should resize relative url with invalid accept header as png', async () => {
-    const query = { url: '/test.png', w: 64, q: 80 }
+    const query = { url: '/test.png', w, q: 80 }
     const opts = { headers: { accept: 'image/invalid' } }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -161,7 +158,7 @@ function runTests() {
   })
 
   it('should resize relative url with invalid accept header as gif', async () => {
-    const query = { url: '/test.gif', w: 64, q: 80 }
+    const query = { url: '/test.gif', w, q: 80 }
     const opts = { headers: { accept: 'image/invalid' } }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -169,7 +166,7 @@ function runTests() {
   })
 
   it('should resize relative url with invalid accept header as svg', async () => {
-    const query = { url: '/test.svg', w: 64, q: 80 }
+    const query = { url: '/test.svg', w, q: 80 }
     const opts = { headers: { accept: 'image/invalid' } }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -177,7 +174,7 @@ function runTests() {
   })
 
   it('should resize relative url with invalid accept header as tiff', async () => {
-    const query = { url: '/test.tiff', w: 64, q: 80 }
+    const query = { url: '/test.tiff', w, q: 80 }
     const opts = { headers: { accept: 'image/invalid' } }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -185,26 +182,28 @@ function runTests() {
   })
 
   it('should resize relative url and wildcard accept header as webp', async () => {
-    const query = { url: '/test.png', w: 64, q: 80 }
+    const query = { url: '/test.png', w, q: 80 }
     const opts = { headers: { accept: 'image/*' } }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
   })
 
-  it('should resize absolute url from localhost', async () => {
-    const url = `http://localhost:${appPort}/test.png`
-    const query = { url, w: 64, q: 80 }
-    const opts = { headers: { accept: 'image/webp' } }
-    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-    expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Type')).toBe('image/webp')
-  })
+  if (checkExternAbsUrl) {
+    it('should resize absolute url from localhost', async () => {
+      const url = `http://localhost:${appPort}/test.png`
+      const query = { url, w: 64, q: 80 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/webp')
+    })
+  }
 
   it('should use cached image file when parameters are the same', async () => {
     await fs.remove(imagesDir)
 
-    const query = { url: '/test.png', w: 64, q: 80 }
+    const query = { url: '/test.png', w, q: 80 }
     const opts = { headers: { accept: 'image/webp' } }
 
     const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
@@ -224,7 +223,7 @@ function runTests() {
     const json1 = await fsToJson(imagesDir)
     expect(json1).toBeTruthy()
 
-    const query = { url: '/test.bmp', w: 64, q: 80 }
+    const query = { url: '/test.bmp', w, q: 80 }
     const opts = { headers: { accept: 'image/invalid' } }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -246,7 +245,7 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    runTests()
+    runTests(64, true)
   })
 
   describe('Server support', () => {
@@ -260,7 +259,7 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    runTests()
+    runTests(128, true)
   })
 
   describe('Serverless support', () => {
@@ -276,6 +275,22 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    runTests()
+    runTests(128, true)
+  })
+
+  describe('No next.config.js - use defaults from next-server/server/config.ts', () => {
+    beforeAll(async () => {
+      nextConfig.delete()
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+      await fs.remove(imagesDir)
+    })
+
+    runTests(768, false)
   })
 })

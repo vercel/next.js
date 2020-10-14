@@ -27,7 +27,7 @@ export async function imageOptimizer(
   const { url, w, q } = parsedUrl.query
   const proto = headers['x-forwarded-proto'] || 'http'
   const host = headers['x-forwarded-host'] || headers.host
-  const mimeType = mediaType(req.headers.accept, MIME_TYPES) || ''
+  const mimeType = mediaType(headers.accept, MIME_TYPES) || ''
 
   if (!url) {
     res.statusCode = 400
@@ -43,11 +43,7 @@ export async function imageOptimizer(
   try {
     absoluteUrl = new URL(url)
 
-    if (
-      Array.isArray(domains) &&
-      domains.length > 0 &&
-      !domains.includes(absoluteUrl.hostname)
-    ) {
+    if (!domains.includes(absoluteUrl.hostname)) {
       res.statusCode = 400
       res.end('"url" parameter is not allowed')
       return { finished: true }
@@ -91,7 +87,7 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  if (Array.isArray(sizes) && sizes.length > 0 && !sizes.includes(width)) {
+  if (!sizes.includes(width)) {
     res.statusCode = 400
     res.end(`"w" parameter (width) of ${width} is not allowed`)
     return { finished: true }
