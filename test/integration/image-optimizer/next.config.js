@@ -1,4 +1,5 @@
 module.exports = {
+  // target: 'experimental-serverless-trace',
   experimental: {
     images: {
       sizes: [64, 128],

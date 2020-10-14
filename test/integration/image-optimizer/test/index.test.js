@@ -8,14 +8,14 @@ import {
   fetchViaHTTP,
   nextBuild,
   nextStart,
+  File
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '../')
 const imagesDir = join(appDir, '.next', 'cache', 'images')
-const nextConfig = join(appDir, 'next.config.js')
-const nextConfigContent = fs.readFileSync(nextConfig, 'utf8')
+const nextConfig = new File(join(appDir, 'next.config.js'))
 let appPort
 let app
 
@@ -263,17 +263,14 @@ describe('Image Optimizer', () => {
 
   describe('Serverless support', () => {
     beforeAll(async () => {
-      const target = 'target: "serverless",'
-      const [first, ...rest] = nextConfigContent.split('\n')
-      const content = [first, target, ...rest].join('\n')
-      await fs.writeFile(nextConfig, content)
+      nextConfig.replace('// target', 'target')
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
       await killApp(app)
-      await fs.writeFile(nextConfig, nextConfigContent)
+      nextConfig.restore()
       await fs.remove(imagesDir)
     })
 
