@@ -1,7 +1,7 @@
 import { codeFrameColumns } from '@babel/code-frame'
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import crypto from 'crypto'
-import { readFileSync } from 'fs'
+import { readFileSync, realpathSync } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import semver from 'next/dist/compiled/semver'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
@@ -685,7 +685,12 @@ export default async function getBaseWebpackConfig(
       // Same as above: if the package, when required from the root,
       // would be different from what the real resolution would use, we
       // cannot externalize it.
-      if (baseRes !== res) {
+      if (
+        !baseRes ||
+        (baseRes !== res &&
+          // if res and baseRes are symlinks they could point to the the same file
+          realpathSync(baseRes) !== realpathSync(res))
+      ) {
         return callback()
       }
     }
