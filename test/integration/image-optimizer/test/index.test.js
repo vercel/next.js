@@ -8,7 +8,7 @@ import {
   fetchViaHTTP,
   nextBuild,
   nextStart,
-  File
+  File,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -202,6 +202,8 @@ function runTests() {
   })
 
   it('should use cached image file when parameters are the same', async () => {
+    await fs.remove(imagesDir)
+
     const query = { url: '/test.png', w: 64, q: 80 }
     const opts = { headers: { accept: 'image/webp' } }
 
@@ -209,7 +211,7 @@ function runTests() {
     expect(res1.status).toBe(200)
     expect(res1.headers.get('Content-Type')).toBe('image/webp')
     const json1 = await fsToJson(imagesDir)
-    expect(json1).toBeTruthy()
+    expect(Object.keys(json1).length).toBe(1)
 
     const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res2.status).toBe(200)
