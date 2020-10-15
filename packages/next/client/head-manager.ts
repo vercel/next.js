@@ -36,12 +36,12 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
 }
 
 function updateElements(
-  elements: Set<Element>,
+  elements: Element[],
   components: JSX.Element[],
   removeOldTags: boolean
 ) {
   const headEl = document.getElementsByTagName('head')[0]
-  const oldTags = new Set(elements)
+  const oldIndices: number[] = []
 
   components.forEach((tag) => {
     if (tag.type === 'title') {
@@ -60,36 +60,34 @@ function updateElements(
     }
 
     const newTag = reactElementToDOM(tag)
-    const elementIter = elements.values()
-
-    while (true) {
-      // Note: We don't use for-of here to avoid needing to polyfill it.
-      const { done, value } = elementIter.next()
-      if (value?.isEqualNode(newTag)) {
-        oldTags.delete(value)
-        return
-      }
-
-      if (done) {
-        break
+    for (let i = 0; i < elements.length; i++) {
+      const elem = elements[i]
+      if (elem.isEqualNode(newTag)) {
+        oldIndices.push(i)
+        // Keep scanning in case there are multiple matching instances
+        continue
       }
     }
 
-    elements.add(newTag)
+    elements.push(newTag)
     headEl.appendChild(newTag)
   })
 
-  oldTags.forEach((oldTag) => {
-    if (removeOldTags) {
-      oldTag.parentNode!.removeChild(oldTag)
-    }
-    elements.delete(oldTag)
-  })
+  // Sort in reverse order so we can remove from back to front
+  oldIndices
+    .sort((a, b) => b - a)
+    .forEach((oldIndex) => {
+      const oldTag = elements[oldIndex]
+      if (removeOldTags) {
+        oldTag.parentNode!.removeChild(oldTag)
+      }
+      elements.splice(oldIndex, 1)
+    })
 }
 
 export default function initHeadManager(initialHeadEntries: HeadEntry[]) {
   const headEl = document.getElementsByTagName('head')[0]
-  const elements = new Set<Element>(headEl.children)
+  const elements = [...headEl.children]
 
   updateElements(
     elements,
