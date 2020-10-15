@@ -359,7 +359,13 @@ export default async function exportPage({
           req.url += (req.url!.includes('?') ? '&' : '?') + 'amp=1'
           // @ts-ignore
           ampHtml = (
-            await renderMethod(req, res, 'export', curRenderOpts, params)
+            await (renderMethod as any)(
+              req,
+              res,
+              'export',
+              curRenderOpts,
+              params
+            )
           ).html
         } else {
           ampHtml = await renderMethod(
@@ -368,7 +374,7 @@ export default async function exportPage({
             page,
             // @ts-ignore
             { ...query, amp: '1' },
-            curRenderOpts
+            curRenderOpts as any
           )
         }
 
