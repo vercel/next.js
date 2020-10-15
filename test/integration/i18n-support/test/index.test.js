@@ -14,6 +14,7 @@ import {
   nextStart,
   renderViaHTTP,
   File,
+  waitFor,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -22,6 +23,7 @@ const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 let app
 let appPort
+let buildPagesDir
 // let buildId
 
 const locales = ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en']
@@ -447,7 +449,7 @@ function runTests(isDev) {
     }
   })
 
-  it('should generate non-dynamic SSG page with all locales', async () => {
+  it('should generate non-dynamic GSP page with all locales', async () => {
     for (const locale of locales) {
       const html = await renderViaHTTP(appPort, `/${locale}/gsp`)
       const $ = cheerio.load(html)
@@ -468,8 +470,85 @@ function runTests(isDev) {
     }
   })
 
-  // TODO: SSG 404 behavior to opt-out of generating specific locale
-  // for non-dynamic SSG pages
+  if (!isDev) {
+    it('should not output GSP pages that returned notFound', async () => {
+      const skippedLocales = ['en', 'nl']
+
+      for (const locale of locales) {
+        const pagePath = join(buildPagesDir, locale, 'not-found.html')
+        const dataPath = join(buildPagesDir, locale, 'not-found.json')
+        console.log(pagePath)
+        expect(await fs.exists(pagePath)).toBe(!skippedLocales.includes(locale))
+        expect(await fs.exists(dataPath)).toBe(!skippedLocales.includes(locale))
+      }
+    })
+  }
+
+  it('should 404 for GSP pages that returned notFound', async () => {
+    const skippedLocales = ['en', 'nl']
+
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(appPort, `/${locale}/not-found`)
+      expect(res.status).toBe(skippedLocales.includes(locale) ? 404 : 200)
+
+      if (skippedLocales.includes(locale)) {
+        const browser = await webdriver(appPort, `/${locale}/not-found`)
+        expect(await browser.elementByCss('html').getAttribute('lang')).toBe(
+          locale
+        )
+        expect(
+          await browser.eval('document.documentElement.innerHTML')
+        ).toContain('This page could not be found')
+
+        const parsedUrl = url.parse(
+          await browser.eval('window.location.href'),
+          true
+        )
+        expect(parsedUrl.pathname).toBe(`/${locale}/not-found`)
+        expect(parsedUrl.query).toEqual({})
+      }
+    }
+  })
+
+  it('should 404 for GSP that returned notFound on client-transition', async () => {
+    const browser = await webdriver(appPort, '/en')
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/not-found')
+    })()`)
+
+    await browser.waitForElementByCss('h1')
+
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(null)
+  })
+
+  it('should render 404 for fallback page that returned 404', async () => {
+    const browser = await webdriver(appPort, '/en/not-found/fallback/first')
+    await browser.waitForElementByCss('h1')
+    await browser.eval('window.beforeNav = 1')
+
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+
+    const parsedUrl = url.parse(
+      await browser.eval('window.location.href'),
+      true
+    )
+    expect(parsedUrl.pathname).toBe('/en/not-found/fallback/first')
+    expect(parsedUrl.query).toEqual(isDev ? { __next404: '1' } : {})
+
+    if (isDev) {
+      // make sure page doesn't reload un-necessarily in development
+      await waitFor(10 * 1000)
+    }
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
 
   it('should remove un-necessary locale prefix for default locale', async () => {
     const res = await fetchViaHTTP(appPort, '/en-US', undefined, {
@@ -1018,6 +1097,7 @@ describe('i18n Support', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
+      buildPagesDir = join(appDir, '.next/server/pages')
       // buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))
@@ -1033,6 +1113,7 @@ describe('i18n Support', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
+      buildPagesDir = join(appDir, '.next/serverless/pages')
       // buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {

@@ -89,6 +89,7 @@ export type GetStaticPropsResult<P> = {
   props?: P
   revalidate?: number | boolean
   unstable_redirect?: Redirect
+  unstable_notFound?: true
 }
 
 export type GetStaticProps<

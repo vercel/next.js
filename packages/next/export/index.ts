@@ -473,13 +473,17 @@ export default async function exportApp(
       renderError = renderError || !!result.error
       if (!!result.error) errorPaths.push(path)
 
-      if (
-        options.buildExport &&
-        typeof result.fromBuildExportRevalidate !== 'undefined'
-      ) {
-        configuration.initialPageRevalidationMap[path] =
-          result.fromBuildExportRevalidate
+      if (options.buildExport) {
+        if (typeof result.fromBuildExportRevalidate !== 'undefined') {
+          configuration.initialPageRevalidationMap[path] =
+            result.fromBuildExportRevalidate
+        }
+
+        if (result.ssgNotFound === true) {
+          configuration.ssgNotFoundPaths.push(path)
+        }
       }
+
       if (progress) progress()
     })
   )

@@ -96,6 +96,7 @@ export type PrerenderManifest = {
   version: 2
   routes: { [route: string]: SsgRoute }
   dynamicRoutes: { [route: string]: DynamicSsgRoute }
+  notFoundRoutes: string[]
   preview: __ApiPreviewProps
 }
 
@@ -713,6 +714,7 @@ export default async function build(
 
   const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
   const tbdPrerenderRoutes: string[] = []
+  let ssgNotFoundPaths: string[] = []
 
   if (postCompileSpinner) postCompileSpinner.stopAndPersist()
 
@@ -730,6 +732,7 @@ export default async function build(
     const exportConfig: any = {
       ...config,
       initialPageRevalidationMap: {},
+      ssgNotFoundPaths: [] as string[],
       // Default map will be the collection of automatic statically exported
       // pages and incremental pages.
       // n.b. we cannot handle this above in combinedPages because the dynamic
@@ -821,6 +824,7 @@ export default async function build(
     const postBuildSpinner = createSpinner({
       prefixText: `${Log.prefixes.info} Finalizing page optimization`,
     })
+    ssgNotFoundPaths = exportConfig.ssgNotFoundPaths
 
     // remove server bundles that were exported
     for (const page of staticPages) {
@@ -874,11 +878,12 @@ export default async function build(
       }
 
       const { i18n } = config.experimental
+      const isNotFound = ssgNotFoundPaths.includes(page)
 
       // for SSG files with i18n the non-prerendered variants are
       // output with the locale prefixed so don't attempt moving
       // without the prefix
-      if (!i18n || additionalSsgFile) {
+      if ((!i18n || additionalSsgFile) && !isNotFound) {
         await promises.mkdir(path.dirname(dest), { recursive: true })
         await promises.rename(orig, dest)
       } else if (i18n && !isSsg) {
@@ -891,8 +896,13 @@ export default async function build(
         if (additionalSsgFile) return
 
         for (const locale of i18n.locales) {
+          const curPath = `/${locale}${page === '/' ? '' : page}`
           const localeExt = page === '/' ? path.extname(file) : ''
           const relativeDestNoPages = relativeDest.substr('pages/'.length)
+
+          if (isSsg && ssgNotFoundPaths.includes(curPath)) {
+            continue
+          }
 
           const updatedRelativeDest = path.join(
             'pages',
@@ -913,9 +923,7 @@ export default async function build(
           )
 
           if (!isSsg) {
-            pagesManifest[
-              `/${locale}${page === '/' ? '' : page}`
-            ] = updatedRelativeDest
+            pagesManifest[curPath] = updatedRelativeDest
           }
           await promises.mkdir(path.dirname(updatedDest), { recursive: true })
           await promises.rename(updatedOrig, updatedDest)
@@ -1066,6 +1074,7 @@ export default async function build(
       version: 2,
       routes: finalPrerenderRoutes,
       dynamicRoutes: finalDynamicRoutes,
+      notFoundRoutes: ssgNotFoundPaths,
       preview: previewProps,
     }
 
@@ -1085,6 +1094,7 @@ export default async function build(
       routes: {},
       dynamicRoutes: {},
       preview: previewProps,
+      notFoundRoutes: [],
     }
     await promises.writeFile(
       path.join(distDir, PRERENDER_MANIFEST),

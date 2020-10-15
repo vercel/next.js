@@ -699,7 +699,7 @@ export default class Server {
           )
 
           const { query } = parsedDestination
-          delete parsedDestination.query
+          delete (parsedDestination as any).query
 
           parsedDestination.search = stringifyQs(query, undefined, undefined, {
             encodeURIComponent: (str: string) => str,
@@ -744,7 +744,7 @@ export default class Server {
           // external rewrite, proxy it
           if (parsedDestination.protocol) {
             const { query } = parsedDestination
-            delete parsedDestination.query
+            delete (parsedDestination as any).query
             parsedDestination.search = stringifyQs(
               query,
               undefined,
@@ -1115,6 +1115,7 @@ export default class Server {
             ...(components.getStaticProps
               ? {
                   amp: query.amp,
+                  __next404: query.__next404,
                   _nextDataReq: query._nextDataReq,
                   __nextLocale: query.__nextLocale,
                 }
@@ -1240,12 +1241,27 @@ export default class Server {
             query.amp ? '.amp' : ''
           }`
 
+    // In development we use a __next404 query to allow signaling we should
+    // render the 404 page after attempting to fetch the _next/data for a
+    // fallback page since the fallback page will always be available after
+    // reload and we don't want to re-serve it and instead want to 404.
+    if (this.renderOpts.dev && isSSG && query.__next404) {
+      delete query.__next404
+      throw new NoFallbackError()
+    }
+
     // Complete the response with cached data if its present
     const cachedData = ssgCacheKey
       ? await this.incrementalCache.get(ssgCacheKey)
       : undefined
 
     if (cachedData) {
+      if (cachedData.isNotFound) {
+        // we don't currently revalidate when notFound is returned
+        // so trigger rendering 404 here
+        throw new NoFallbackError()
+      }
+
       const data = isDataReq
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
@@ -1290,10 +1306,12 @@ export default class Server {
         html: string | null
         pageData: any
         sprRevalidate: number | false
+        isNotFound?: boolean
       }> => {
         let pageData: any
         let html: string | null
         let sprRevalidate: number | false
+        let isNotFound: boolean | undefined
 
         let renderResult
         // handle serverless
@@ -1313,6 +1331,7 @@ export default class Server {
           html = renderResult.html
           pageData = renderResult.renderOpts.pageData
           sprRevalidate = renderResult.renderOpts.revalidate
+          isNotFound = renderResult.renderOpts.ssgNotFound
         } else {
           const origQuery = parseUrl(req.url || '', true).query
           const resolvedUrl = formatUrl({
@@ -1354,9 +1373,10 @@ export default class Server {
           // TODO: change this to a different passing mechanism
           pageData = (renderOpts as any).pageData
           sprRevalidate = (renderOpts as any).revalidate
+          isNotFound = (renderOpts as any).ssgNotFound
         }
 
-        return { html, pageData, sprRevalidate }
+        return { html, pageData, sprRevalidate, isNotFound }
       }
     )
 
@@ -1438,10 +1458,15 @@ export default class Server {
 
     const {
       isOrigin,
-      value: { html, pageData, sprRevalidate },
+      value: { html, pageData, sprRevalidate, isNotFound },
     } = await doRender()
     let resHtml = html
-    if (!isResSent(res) && (isSSG || isDataReq || isServerProps)) {
+
+    if (
+      !isResSent(res) &&
+      !isNotFound &&
+      (isSSG || isDataReq || isServerProps)
+    ) {
       sendPayload(
         req,
         res,
@@ -1466,11 +1491,14 @@ export default class Server {
     if (isOrigin && ssgCacheKey) {
       await this.incrementalCache.set(
         ssgCacheKey,
-        { html: html!, pageData },
+        { html: html!, pageData, isNotFound },
         sprRevalidate
       )
     }
 
+    if (isNotFound) {
+      throw new NoFallbackError()
+    }
     return resHtml
   }
 
