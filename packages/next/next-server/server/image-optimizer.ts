@@ -167,7 +167,7 @@ export async function imageOptimizer(
           '\nRun `npm i sharp` or `yarn add sharp` inside your workspace.'
         error.message += '\n\nLearn more: https://err.sh/next.js/install-sharp'
       }
-      server.logError(error)
+      throw error
     }
   }
 
