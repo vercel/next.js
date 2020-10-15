@@ -258,6 +258,7 @@ function renderDocument(
             locales,
             defaultLocale,
             head: React.Children.toArray(docProps.head || [])
+              .filter((elem) => typeof elem?.type === 'string')
               .map((elem) => {
                 const { children } = elem?.props
                 return [
