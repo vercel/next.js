@@ -127,7 +127,7 @@ export default () => (
         />
       ))}
     </Head>
-    <h1>I can have meta tags</h1>
+    <h1 id="head-h1">I can have meta tags</h1>
   </div>
 )
 

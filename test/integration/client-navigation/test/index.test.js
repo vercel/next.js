@@ -1249,6 +1249,30 @@ describe('Client Navigation', () => {
         ).toBe('Head Three')
         expect(await browser.eval('document.title')).toBe('')
 
+        // test routing to main head page displays header tags
+        await browser
+          .elementByCss('#to-head')
+          .click()
+          .waitForElementByCss('#head-h1', 3000)
+        expect(await browser.elementByCss('#head-h1').text()).toBe(
+          'I can have meta tags'
+        )
+        expect(
+          await browser.elementByCss('meta[content="meta fragment"]')
+        ).toBeTruthy()
+        // PWATags functional component
+        expect(
+          await browser.elementByCss('meta[name="theme-color"]')
+        ).toBeTruthy()
+        // Fonts class component
+        expect(
+          await browser.elementByCss('link[href="Boing-Regular.woff"]')
+        ).toBeTruthy()
+        // Links as a function
+        expect(await browser.elementByCss('link[href="link1"]')).toBeTruthy()
+        // go back to nav/head-3
+        await browser.back().waitForElementByCss('#head-3', 3000)
+
         await browser
           .elementByCss('#to-head-1')
           .click()

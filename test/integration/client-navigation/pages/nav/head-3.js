@@ -11,5 +11,8 @@ export default (props) => (
     <Link href="/nav/head-1">
       <a id="to-head-1">to head 1</a>
     </Link>
+    <Link href="/head">
+      <a id="to-head">to head</a>
+    </Link>
   </div>
 )
