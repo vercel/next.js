@@ -101,6 +101,9 @@ export type NEXT_DATA = {
   gip?: boolean
   appGip?: boolean
   head: HeadEntry[]
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
 }
 
 /**
@@ -187,6 +190,7 @@ export type DocumentProps = DocumentInitialProps & {
   unstable_runtimeJS?: false
   devOnlyCacheBusterQueryString: string
   scriptLoader: { defer?: string[]; eager?: any[] }
+  locale?: string
 }
 
 /**

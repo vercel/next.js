@@ -67,6 +67,9 @@ class ServerRouter implements NextRouter {
   basePath: string
   events: any
   isFallback: boolean
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
@@ -75,7 +78,10 @@ class ServerRouter implements NextRouter {
     query: ParsedUrlQuery,
     as: string,
     { isFallback }: { isFallback: boolean },
-    basePath: string
+    basePath: string,
+    locale?: string,
+    locales?: string[],
+    defaultLocale?: string
   ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
@@ -83,6 +89,9 @@ class ServerRouter implements NextRouter {
     this.asPath = as
     this.isFallback = isFallback
     this.basePath = basePath
+    this.locale = locale
+    this.locales = locales
+    this.defaultLocale = defaultLocale
   }
   push(): any {
     noRouter()
@@ -156,6 +165,9 @@ export type RenderOptsPartial = {
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -194,6 +206,9 @@ function renderDocument(
     unstable_runtimeJS,
     devOnlyCacheBusterQueryString,
     scriptLoader,
+    locale,
+    locales,
+    defaultLocale,
   }: RenderOpts & {
     props: any
     docComponentsRendered: DocumentProps['docComponentsRendered']
@@ -241,6 +256,9 @@ function renderDocument(
             customServer, // whether the user is using a custom server
             gip, // whether the page has getInitialProps
             appGip, // whether the _app has getInitialProps
+            locale,
+            locales,
+            defaultLocale,
             head: React.Children.toArray(docProps.head || [])
               .map((elem) => {
                 const { children } = elem?.props
@@ -272,6 +290,7 @@ function renderDocument(
           unstable_runtimeJS,
           devOnlyCacheBusterQueryString,
           scriptLoader,
+          locale,
           ...docProps,
         })}
       </AmpStateContext.Provider>
@@ -397,6 +416,7 @@ export async function renderToHTML(
 
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
+  delete query.__nextLocale
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -502,7 +522,10 @@ export async function renderToHTML(
     {
       isFallback: isFallback,
     },
-    basePath
+    basePath,
+    renderOpts.locale,
+    renderOpts.locales,
+    renderOpts.defaultLocale
   )
   const ctx = {
     err,
@@ -590,6 +613,8 @@ export async function renderToHTML(
           ...(previewData !== false
             ? { preview: true, previewData: previewData }
             : undefined),
+          locales: renderOpts.locales,
+          locale: renderOpts.locale,
         })
       } catch (staticPropsError) {
         // remove not found error code to prevent triggering legacy
@@ -705,6 +730,8 @@ export async function renderToHTML(
           ...(previewData !== false
             ? { preview: true, previewData: previewData }
             : undefined),
+          locales: renderOpts.locales,
+          locale: renderOpts.locale,
         })
       } catch (serverSidePropsError) {
         // remove not found error code to prevent triggering legacy
