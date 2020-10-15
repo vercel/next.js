@@ -156,9 +156,14 @@ export async function imageOptimizer(
   }
 
   if (!sharp) {
-    // Lazy load per https://github.com/vercel/next.js/discussions/17141
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    sharp = require('sharp')
+    try {
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      sharp = require('sharp')
+    } catch (error) {
+      error.message +=
+        '\nDid you forget to add it to "dependencies" in `package.json`?'
+      server.logError(error)
+    }
   }
 
   const transformer = sharp(upstreamBuffer).resize(width)
