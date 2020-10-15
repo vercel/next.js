@@ -61,8 +61,7 @@ function updateElements(
 
     const newTag = reactElementToDOM(tag)
     for (let i = 0; i < elements.length; i++) {
-      const elem = elements[i]
-      if (elem.isEqualNode(newTag)) {
+      if (elements[i].isEqualNode(newTag)) {
         oldIndices.push(i)
         // Keep scanning in case there are multiple matching instances
         continue
@@ -77,8 +76,8 @@ function updateElements(
   oldIndices
     .sort((a, b) => b - a)
     .forEach((oldIndex) => {
-      const oldTag = elements[oldIndex]
       if (removeOldTags) {
+        const oldTag = elements[oldIndex]
         oldTag.parentNode!.removeChild(oldTag)
       }
       elements.splice(oldIndex, 1)
@@ -87,7 +86,7 @@ function updateElements(
 
 export default function initHeadManager(initialHeadEntries: HeadEntry[]) {
   const headEl = document.getElementsByTagName('head')[0]
-  const elements = [...headEl.children]
+  const elements = Array.prototype.concat.call([], headEl.children)
 
   updateElements(
     elements,
