@@ -8,6 +8,26 @@ const DOMAttributeNames: Record<string, string> = {
   httpEquiv: 'http-equiv',
 }
 
+function reactComponentToDOM(tag: JSX.Element): HTMLElement[] {
+  let newTags = [] as HTMLElement[]
+  let elTag: JSX.Element
+  try {
+    elTag = tag.type() as JSX.Element
+  } catch (e) {
+    // it's a class, invoke differently
+    elTag = new tag.type().render() as JSX.Element
+  }
+
+  if (elTag.props?.children) {
+    newTags = elTag.props.children.map(
+      (t: JSX.Element): HTMLElement => reactElementToDOM(t)
+    )
+  } else {
+    newTags.push(reactElementToDOM(elTag))
+  }
+  return newTags
+}
+
 function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
   const el = document.createElement(type)
   for (const p in props) {
@@ -58,7 +78,13 @@ function updateElements(
       if (title !== document.title) document.title = title
       return
     }
+    // handle react components as a function, functional component, or a class component
     if (typeof tag.type === 'function') {
+      const newTags = reactComponentToDOM(tag)
+      newTags.forEach((nt: HTMLElement) => {
+        elements.add(nt)
+        headEl.appendChild(nt)
+      })
       return
     }
 
