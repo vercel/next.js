@@ -197,6 +197,7 @@ export default class Server {
           ? requireFontManifest(this.distDir, this._isLikeServerless)
           : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
+      defaultLocale: this.nextConfig.experimental.i18n?.defaultLocale,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side

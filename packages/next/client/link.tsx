@@ -26,6 +26,7 @@ export type LinkProps = {
   shallow?: boolean
   passHref?: boolean
   prefetch?: boolean
+  locale?: string
 }
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<LinkProps>
@@ -125,7 +126,8 @@ function linkClicked(
   as: string,
   replace?: boolean,
   shallow?: boolean,
-  scroll?: boolean
+  scroll?: boolean,
+  locale?: string
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -142,7 +144,7 @@ function linkClicked(
   }
 
   // replace state instead of push if prop is present
-  router[replace ? 'replace' : 'push'](href, as, { shallow }).then(
+  router[replace ? 'replace' : 'push'](href, as, { shallow, locale }).then(
     (success: boolean) => {
       if (!success) return
       if (scroll) {
@@ -202,21 +204,28 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       shallow: true,
       passHref: true,
       prefetch: true,
+      locale: true,
     } as const
     const optionalProps: LinkPropsOptional[] = Object.keys(
       optionalPropsGuard
     ) as LinkPropsOptional[]
     optionalProps.forEach((key: LinkPropsOptional) => {
+      const valType = typeof props[key]
+
       if (key === 'as') {
-        if (
-          props[key] &&
-          typeof props[key] !== 'string' &&
-          typeof props[key] !== 'object'
-        ) {
+        if (props[key] && valType !== 'string' && valType !== 'object') {
           throw createPropError({
             key,
             expected: '`string` or `object`',
-            actual: typeof props[key],
+            actual: valType,
+          })
+        }
+      } else if (key === 'locale') {
+        if (props[key] && valType !== 'string') {
+          throw createPropError({
+            key,
+            expected: '`string`',
+            actual: valType,
           })
         }
       } else if (
@@ -226,11 +235,11 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         key === 'passHref' ||
         key === 'prefetch'
       ) {
-        if (props[key] != null && typeof props[key] !== 'boolean') {
+        if (props[key] != null && valType !== 'boolean') {
           throw createPropError({
             key,
             expected: '`boolean`',
-            actual: typeof props[key],
+            actual: valType,
           })
         }
       } else {
@@ -285,7 +294,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     }
   }, [p, childElm, href, as, router])
 
-  let { children, replace, shallow, scroll } = props
+  let { children, replace, shallow, scroll, locale } = props
   // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
   if (typeof children === 'string') {
     children = <a>{children}</a>
@@ -314,7 +323,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         child.props.onClick(e)
       }
       if (!e.defaultPrevented) {
-        linkClicked(e, router, href, as, replace, shallow, scroll)
+        linkClicked(e, router, href, as, replace, shallow, scroll, locale)
       }
     },
   }
@@ -333,7 +342,11 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   // defined, we specify the current 'href', so that repetition is not needed by the user
   if (props.passHref || (child.type === 'a' && !('href' in child.props))) {
     childProps.href = addBasePath(
-      addLocale(as, router && router.locale, router && router.defaultLocale)
+      addLocale(
+        as,
+        locale || (router && router.locale),
+        router && router.defaultLocale
+      )
     )
   }
 
