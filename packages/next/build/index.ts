@@ -798,7 +798,7 @@ export default async function build(
               const outputPath = `/${locale}${page === '/' ? '' : page}`
 
               defaultMap[outputPath] = {
-                page: defaultMap[page].page,
+                page: defaultMap[page]?.page || page,
                 query: { __nextLocale: locale },
               }
 

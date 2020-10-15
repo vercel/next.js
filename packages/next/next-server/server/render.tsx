@@ -909,6 +909,10 @@ export async function renderToHTML(
 
   let html = renderDocument(Document, {
     ...renderOpts,
+    canonicalBase:
+      !renderOpts.ampPath && (req as any).__nextStrippedLocale
+        ? `${renderOpts.canonicalBase || ''}/${renderOpts.locale}`
+        : renderOpts.canonicalBase,
     docComponentsRendered,
     buildManifest: filteredBuildManifest,
     // Only enabled in production as development mode has features relying on HMR (style injection for example)
