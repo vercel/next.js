@@ -271,11 +271,9 @@ describe('Image Optimizer', () => {
     const size = 64
     beforeAll(async () => {
       const json = JSON.stringify({
-        experimental: {
-          images: {
-            sizes: [size],
-            domains: ['localhost', 'example.com'],
-          },
+        images: {
+          sizes: [size],
+          domains: ['localhost', 'example.com'],
         },
       })
       nextConfig.replace('{ /* replaceme */ }', json)
@@ -295,11 +293,9 @@ describe('Image Optimizer', () => {
     const size = 128
     beforeAll(async () => {
       const json = JSON.stringify({
-        experimental: {
-          images: {
-            sizes: [128],
-            domains: ['localhost', 'example.com'],
-          },
+        images: {
+          sizes: [128],
+          domains: ['localhost', 'example.com'],
         },
       })
       nextConfig.replace('{ /* replaceme */ }', json)
@@ -321,11 +317,9 @@ describe('Image Optimizer', () => {
     beforeAll(async () => {
       const json = JSON.stringify({
         target: 'experimental-serverless-trace',
-        experimental: {
-          images: {
-            sizes: [size],
-            domains: ['localhost', 'example.com'],
-          },
+        images: {
+          sizes: [size],
+          domains: ['localhost', 'example.com'],
         },
       })
       nextConfig.replace('{ /* replaceme */ }', json)

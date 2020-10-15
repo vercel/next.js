@@ -23,7 +23,7 @@ export async function imageOptimizer(
   parsedUrl: UrlWithParsedQuery
 ) {
   const { nextConfig, distDir } = server
-  const { sizes = [], domains = [] } = nextConfig?.experimental?.images || {}
+  const { sizes = [], domains = [] } = nextConfig?.images || {}
   const { headers } = req
   const { url, w, q } = parsedUrl.query
   const proto = headers['x-forwarded-proto'] || 'http'

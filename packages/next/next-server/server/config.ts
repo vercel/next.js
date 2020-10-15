@@ -23,7 +23,11 @@ const defaultConfig: { [key: string]: any } = {
   target: 'server',
   poweredByHeader: true,
   compress: true,
-  images: { hosts: { default: { path: 'defaultconfig' } } },
+  images: {
+    sizes: [320, 420, 768, 1024, 1200],
+    domains: [],
+    hosts: { default: { path: 'defaultconfig' } },
+  },
   devIndicators: {
     buildActivity: true,
     autoPrerender: true,
@@ -44,9 +48,6 @@ const defaultConfig: { [key: string]: any } = {
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    images: {
-      sizes: [320, 420, 768, 1024, 1200],
-    },
     modern: false,
     plugins: false,
     profiling: false,
@@ -211,8 +212,8 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
-  if (result?.experimental?.images) {
-    const { images } = result.experimental
+  if (result?.images) {
+    const { images } = result
     if (typeof images !== 'object') {
       throw new Error(
         `Specified images should be an object received ${typeof images}`
