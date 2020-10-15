@@ -1088,7 +1088,7 @@ export default async function build(
     path.join(distDir, IMAGES_MANIFEST),
     JSON.stringify({
       version: 1,
-      images: config.experimental.images,
+      images: config.images,
     }),
     'utf8'
   )
