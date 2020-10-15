@@ -6,6 +6,7 @@ examples/with-typescript-eslint-jest/**
 examples/with-kea/**
 examples/with-supabase-auth-realtime-db/**
 examples/with-mobx/**
+examples/with-mobx-react-lite/**
 examples/with-mobx-state-tree/**
 examples/with-algolia-react-instantsearch/**
 examples/with-custom-babel-config/**
