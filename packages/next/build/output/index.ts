@@ -12,11 +12,6 @@ export function startedDevelopmentServer(appUrl: string) {
 let previousClient: import('webpack').Compiler | null = null
 let previousServer: import('webpack').Compiler | null = null
 
-type CompilerDiagnosticsWithFile = {
-  errors: { file: string | undefined; message: string }[] | null
-  warnings: { file: string | undefined; message: string }[] | null
-}
-
 type CompilerDiagnostics = {
   errors: string[] | null
   warnings: string[] | null

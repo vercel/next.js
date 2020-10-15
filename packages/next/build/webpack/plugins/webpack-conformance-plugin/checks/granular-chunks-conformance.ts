@@ -10,11 +10,6 @@ import {
 } from '../TestInterface'
 import { deepEqual } from '../utils/utils'
 
-export interface GranularChunksConformanceCheck
-  extends IWebpackConformanceTest {
-  granularChunksConfig: any
-}
-
 function getWarningMessage(modifiedProp: string) {
   return (
     `${CONFORMANCE_WARNING_PREFIX}: The splitChunks config has been carefully ` +
@@ -33,7 +28,9 @@ function getErrorMessage(message: string) {
   )
 }
 
-export class GranularChunksConformanceCheck {
+export class GranularChunksConformanceCheck implements IWebpackConformanceTest {
+  granularChunksConfig: any
+
   constructor(granularChunksConfig: any) {
     this.granularChunksConfig = granularChunksConfig
   }

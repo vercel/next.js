@@ -6,15 +6,6 @@ const loaders: { [key: string]: (props: LoaderProps) => string } = {
   cloudinary: cloudinaryLoader,
   default: defaultLoader,
 }
-type ImageData = {
-  hosts: {
-    [key: string]: {
-      path: string
-      loader: string
-    }
-  }
-  breakpoints?: number[]
-}
 
 type ImageProps = {
   src: string
@@ -113,7 +104,7 @@ export default function Image({
   // Sanity Checks:
   if (process.env.NODE_ENV !== 'production') {
     if (unoptimized && host) {
-      console.error(`Image tag used specifying both a host and the unoptimized attribute--these are mutually exclusive. 
+      console.error(`Image tag used specifying both a host and the unoptimized attribute--these are mutually exclusive.
           With the unoptimized attribute, no host will be used, so specify an absolute URL.`)
     }
   }

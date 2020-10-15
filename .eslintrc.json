@@ -122,6 +122,8 @@
     {
       "files": ["packages/**/*.tsx", "packages/**/*.ts"],
       "rules": {
+        "no-shadow": "off",
+        "@typescript-eslint/no-shadow": ["warn"],
         "@typescript-eslint/no-unused-vars": [
           "warn",
           {
