@@ -306,6 +306,15 @@ export default async function build(
       dataRouteRegex: string
       namedDataRouteRegex?: string
     }>
+    i18n?: {
+      locales: string[]
+      defaultLocale: string[]
+      domains: Array<{
+        domain: string
+        defaultLocale: string
+        locales: string[]
+      }>
+    }
   } = {
     version: 3,
     pages404: true,
@@ -325,6 +334,7 @@ export default async function build(
         }
       }),
     dataRoutes: [],
+    i18n: config.experimental.i18n || undefined,
   }
 
   await promises.mkdir(distDir, { recursive: true })
