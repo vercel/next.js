@@ -224,10 +224,14 @@ function assignDefaults(userConfig: { [key: string]: any }) {
           `Specified images.domains should be an Array received ${typeof images.domains}`
         )
       }
-      const invalid = images.domains.filter((d: unknown) => typeof d !== 'string')
+      const invalid = images.domains.filter(
+        (d: unknown) => typeof d !== 'string'
+      )
       if (invalid.length > 0) {
         throw new Error(
-          `Specified images.domains should be an Array of strings received invalid values (${invalid.join(', ')})`
+          `Specified images.domains should be an Array of strings received invalid values (${invalid.join(
+            ', '
+          )})`
         )
       }
     }
@@ -240,7 +244,9 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       const invalid = images.sizes.filter((d: unknown) => typeof d !== 'number')
       if (invalid.length > 0) {
         throw new Error(
-          `Specified images.sizes should be an Array of numbers received invalid values (${invalid.join(', ')})`
+          `Specified images.sizes should be an Array of numbers received invalid values (${invalid.join(
+            ', '
+          )})`
         )
       }
     }
