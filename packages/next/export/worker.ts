@@ -352,7 +352,8 @@ export default async function exportPage({
         if (serverless) {
           req.url += (req.url!.includes('?') ? '&' : '?') + 'amp=1'
           // @ts-ignore
-          ampHtml = (await renderMethod(req, res, 'export')).html
+          ampHtml = (await renderMethod(req, res, 'export', undefined, params))
+            .html
         } else {
           ampHtml = await renderMethod(
             req,
