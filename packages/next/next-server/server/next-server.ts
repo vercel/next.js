@@ -79,6 +79,8 @@ import accept from '@hapi/accept'
 import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
 import { detectLocaleCookie } from '../lib/i18n/detect-locale-cookie'
 import * as Log from '../../build/output/log'
+import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
+import cookie from 'next/dist/compiled/cookie'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -136,6 +138,7 @@ export default class Server {
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
     optimizeFonts: boolean
+    images: string
     fontManifest: FontManifest
     optimizeImages: boolean
     locale?: string
@@ -187,13 +190,13 @@ export default class Server {
       customServer: customServer === true ? true : undefined,
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
+      images: JSON.stringify(this.nextConfig.images),
       optimizeFonts: this.nextConfig.experimental.optimizeFonts && !dev,
       fontManifest:
         this.nextConfig.experimental.optimizeFonts && !dev
           ? requireFontManifest(this.distDir, this._isLikeServerless)
           : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
-      locales: this.nextConfig.experimental.i18n?.locales,
       defaultLocale: this.nextConfig.experimental.i18n?.defaultLocale,
     }
 
@@ -307,42 +310,23 @@ export default class Server {
     if (i18n && !parsedUrl.pathname?.startsWith('/_next')) {
       // get pathname from URL with basePath stripped for locale detection
       const { pathname, ...parsed } = parseUrl(req.url || '/')
+      let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
+      let acceptPreferredLocale = accept.language(
+        req.headers['accept-language'],
+        i18n.locales
+      )
 
-      if (!detectedLocale) {
-        detectedLocale = accept.language(
-          req.headers['accept-language'],
-          i18n.locales
-        )
+      const detectedDomain = detectDomainLocale(i18n.domains, req)
+      if (detectedDomain) {
+        defaultLocale = detectedDomain.defaultLocale
+        detectedLocale = defaultLocale
       }
 
-      const denormalizedPagePath = denormalizePagePath(pathname || '/')
-      const detectedDefaultLocale = detectedLocale === i18n.defaultLocale
-      const shouldStripDefaultLocale =
-        detectedDefaultLocale &&
-        denormalizedPagePath === `/${i18n.defaultLocale}`
-      const shouldAddLocalePrefix =
-        !detectedDefaultLocale && denormalizedPagePath === '/'
-      detectedLocale = detectedLocale || i18n.defaultLocale
+      // if not domain specific locale use accept-language preferred
+      detectedLocale = detectedLocale || acceptPreferredLocale
 
-      if (
-        i18n.localeDetection !== false &&
-        (shouldAddLocalePrefix || shouldStripDefaultLocale)
-      ) {
-        res.setHeader(
-          'Location',
-          formatUrl({
-            // make sure to include any query values when redirecting
-            ...parsed,
-            pathname: shouldStripDefaultLocale ? '/' : `/${detectedLocale}`,
-          })
-        )
-        res.statusCode = 307
-        res.end()
-        return
-      }
-
-      // TODO: domain based locales (domain to locale mapping needs to be provided in next.config.js)
+      let localeDomainRedirect: string | undefined
       const localePathResult = normalizeLocalePath(pathname!, i18n.locales)
 
       if (localePathResult.detectedLocale) {
@@ -352,9 +336,83 @@ export default class Server {
           pathname: localePathResult.pathname,
         })
         parsedUrl.pathname = localePathResult.pathname
+
+        // check if the locale prefix matches a domain's defaultLocale
+        // and we're on a locale specific domain if so redirect to that domain
+        if (detectedDomain) {
+          const matchedDomain = detectDomainLocale(
+            i18n.domains,
+            undefined,
+            detectedLocale
+          )
+
+          if (matchedDomain) {
+            localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
+              matchedDomain?.domain
+            }`
+          }
+        }
       }
 
-      ;(req as any)._nextLocale = detectedLocale || i18n.defaultLocale
+      const denormalizedPagePath = denormalizePagePath(pathname || '/')
+      const detectedDefaultLocale =
+        !detectedLocale ||
+        detectedLocale.toLowerCase() === defaultLocale.toLowerCase()
+      const shouldStripDefaultLocale =
+        detectedDefaultLocale &&
+        denormalizedPagePath.toLowerCase() ===
+          `/${i18n.defaultLocale.toLowerCase()}`
+
+      const shouldAddLocalePrefix =
+        !detectedDefaultLocale && denormalizedPagePath === '/'
+
+      detectedLocale = detectedLocale || i18n.defaultLocale
+
+      if (
+        i18n.localeDetection !== false &&
+        (localeDomainRedirect ||
+          shouldAddLocalePrefix ||
+          shouldStripDefaultLocale)
+      ) {
+        // set the NEXT_LOCALE cookie when a user visits the default locale
+        // with the locale prefix so that they aren't redirected back to
+        // their accept-language preferred locale
+        if (
+          shouldStripDefaultLocale &&
+          acceptPreferredLocale !== defaultLocale
+        ) {
+          const previous = res.getHeader('set-cookie')
+
+          res.setHeader('set-cookie', [
+            ...(typeof previous === 'string'
+              ? [previous]
+              : Array.isArray(previous)
+              ? previous
+              : []),
+            cookie.serialize('NEXT_LOCALE', defaultLocale, {
+              httpOnly: true,
+              path: '/',
+            }),
+          ])
+        }
+
+        res.setHeader(
+          'Location',
+          formatUrl({
+            // make sure to include any query values when redirecting
+            ...parsed,
+            pathname: localeDomainRedirect
+              ? localeDomainRedirect
+              : shouldStripDefaultLocale
+              ? '/'
+              : `/${detectedLocale}`,
+          })
+        )
+        res.statusCode = 307
+        res.end()
+        return
+      }
+      parsedUrl.query.__nextLocale = detectedLocale || defaultLocale
     }
 
     res.statusCode = 200
@@ -504,13 +562,15 @@ export default class Server {
 
           if (i18n) {
             const localePathResult = normalizeLocalePath(pathname, i18n.locales)
-            let detectedLocale = detectLocaleCookie(req, i18n.locales)
+            const { defaultLocale } =
+              detectDomainLocale(i18n.domains, req) || {}
+            let detectedLocale = defaultLocale
 
             if (localePathResult.detectedLocale) {
               pathname = localePathResult.pathname
               detectedLocale = localePathResult.detectedLocale
             }
-            ;(req as any)._nextLocale = detectedLocale || i18n.defaultLocale
+            _parsedUrl.query.__nextLocale = detectedLocale!
           }
           pathname = getRouteFromAssetPath(pathname, '.json')
 
@@ -845,7 +905,7 @@ export default class Server {
       throw err
     }
 
-    const pageModule = require(builtPagePath)
+    const pageModule = await require(builtPagePath)
     query = { ...query, ...params }
 
     if (!this.renderOpts.dev && this._isLikeServerless) {
@@ -1015,11 +1075,21 @@ export default class Server {
     query: ParsedUrlQuery = {},
     params: Params | null = null
   ): Promise<FindComponentsResult | null> {
-    const paths = [
+    let paths = [
       // try serving a static AMP version first
       query.amp ? normalizePagePath(pathname) + '.amp' : null,
       pathname,
     ].filter(Boolean)
+
+    if (query.__nextLocale) {
+      paths = [
+        ...paths.map(
+          (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
+        ),
+        ...paths,
+      ]
+    }
+
     for (const pagePath of paths) {
       try {
         const components = await loadComponents(
@@ -1027,11 +1097,27 @@ export default class Server {
           pagePath!,
           !this.renderOpts.dev && this._isLikeServerless
         )
+        // if loading an static HTML file the locale is required
+        // to be present since all HTML files are output under their locale
+        if (
+          query.__nextLocale &&
+          typeof components.Component === 'string' &&
+          !pagePath?.startsWith(`/${query.__nextLocale}`)
+        ) {
+          const err = new Error('NOT_FOUND')
+          ;(err as any).code = 'ENOENT'
+          throw err
+        }
+
         return {
           components,
           query: {
             ...(components.getStaticProps
-              ? { _nextDataReq: query._nextDataReq, amp: query.amp }
+              ? {
+                  amp: query.amp,
+                  _nextDataReq: query._nextDataReq,
+                  __nextLocale: query.__nextLocale,
+                }
               : query),
             ...(params || {}),
           },
@@ -1101,6 +1187,12 @@ export default class Server {
     const isDataReq = !!query._nextDataReq && (isSSG || isServerProps)
     delete query._nextDataReq
 
+    const locale = query.__nextLocale as string
+    delete query.__nextLocale
+
+    const { i18n } = this.nextConfig.experimental
+    const locales = i18n.locales as string[]
+
     let previewData: string | false | object | undefined
     let isPreviewMode = false
 
@@ -1129,7 +1221,7 @@ export default class Server {
       }
 
       if (this.nextConfig.experimental.i18n) {
-        return normalizeLocalePath(path, this.renderOpts.locales).pathname
+        return normalizeLocalePath(path, locales).pathname
       }
       return path
     }
@@ -1140,8 +1232,6 @@ export default class Server {
       resolvedUrlPathname = stripNextDataPath(resolvedUrlPathname)
       urlPathname = stripNextDataPath(urlPathname)
     }
-
-    const locale = (req as any)._nextLocale
 
     const ssgCacheKey =
       isPreviewMode || !isSSG
@@ -1214,8 +1304,9 @@ export default class Server {
             'passthrough',
             {
               fontManifest: this.renderOpts.fontManifest,
-              locale: (req as any)._nextLocale,
-              locales: this.renderOpts.locales,
+              locale,
+              locales,
+              // defaultLocale,
             }
           )
 
@@ -1235,7 +1326,9 @@ export default class Server {
             ...opts,
             isDataReq,
             resolvedUrl,
-            locale: (req as any)._nextLocale,
+            locale,
+            locales,
+            // defaultLocale,
             // For getServerSideProps we need to ensure we use the original URL
             // and not the resolved URL to prevent a hydration mismatch on
             // asPath
@@ -1321,7 +1414,9 @@ export default class Server {
 
         // Production already emitted the fallback as static HTML.
         if (isProduction) {
-          html = await this.incrementalCache.getFallback(pathname)
+          html = await this.incrementalCache.getFallback(
+            locale ? `/${locale}${pathname}` : pathname
+          )
         }
         // We need to generate the fallback on-demand for development.
         else {
@@ -1442,7 +1537,6 @@ export default class Server {
       res.statusCode = 500
       return await this.renderErrorToHTML(err, req, res, pathname, query)
     }
-
     res.statusCode = 404
     return await this.renderErrorToHTML(null, req, res, pathname, query)
   }
@@ -1488,7 +1582,7 @@ export default class Server {
 
     // use static 404 page if available and is 404 response
     if (is404) {
-      result = await this.findPageComponents('/404')
+      result = await this.findPageComponents('/404', query)
       using404Page = result !== null
     }
 

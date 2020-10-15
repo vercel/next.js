@@ -29,6 +29,7 @@ import escapePathDelimiters from './utils/escape-path-delimiters'
 
 interface TransitionOptions {
   shallow?: boolean
+  locale?: string
 }
 
 interface NextHistoryState {
@@ -592,6 +593,7 @@ export default class Router implements BaseRouter {
       window.location.href = url
       return false
     }
+    this.locale = options.locale || this.locale
 
     if (!(options as any)._h) {
       this.isSsr = false
@@ -974,8 +976,7 @@ export default class Router implements BaseRouter {
           formatWithValidation({ pathname, query }),
           delBasePath(as),
           __N_SSG,
-          this.locale,
-          this.defaultLocale
+          this.locale
         )
       }
 
