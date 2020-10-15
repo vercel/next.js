@@ -135,9 +135,8 @@ export async function imageOptimizer(
   const upstreamRes = await fetch(href)
 
   if (!upstreamRes.ok) {
-    server.logError(
-      new Error(`Unexpected status ${upstreamRes.status} from upstream ${href}`)
-    )
+    res.statusCode = upstreamRes.status
+    res.end('"url" parameter is valid but upstream response is invalid')
     return { finished: true }
   }
 

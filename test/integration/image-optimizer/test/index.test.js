@@ -218,6 +218,16 @@ function runTests({ w, isDev }) {
     expect(await res.text()).toBe(`"url" parameter is invalid`)
   })
 
+  it('should fail when url fails to load an image', async () => {
+    const url = `http://localhost:${appPort}/not-an-image`
+    const query = { w, url, q: 100 }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
+    expect(res.status).toBe(404)
+    expect(await res.text()).toBe(
+      `"url" parameter is valid but upstream response is invalid`
+    )
+  })
+
   it('should use cached image file when parameters are the same', async () => {
     await fs.remove(imagesDir)
 
