@@ -418,6 +418,53 @@ function runTests(isDev) {
     await checkDomainLocales('fr', 'example.fr')
   })
 
+  it('should generate AMP pages with all locales', async () => {
+    for (const locale of locales) {
+      const localePath = locale !== 'en-US' ? `/${locale}` : ''
+      const html = await renderViaHTTP(appPort, `${localePath}/amp/amp-hybrid`)
+      const $ = cheerio.load(html)
+      expect($('html').attr('lang')).toBe(locale)
+      expect($('#is-amp').text()).toBe('no')
+      expect($('#router-locale').text()).toBe(locale)
+      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+      expect($('#router-pathname').text()).toBe('/amp/amp-hybrid')
+      expect($('#router-as-path').text()).toBe('/amp/amp-hybrid')
+      expect(JSON.parse($('#router-query').text())).toEqual({})
+
+      const amphtmlPath = `${localePath}/amp/amp-hybrid${
+        isDev ? '?amp=1' : '.amp'
+      }`
+      expect($('link[rel=amphtml]').attr('href')).toBe(amphtmlPath)
+
+      const html2 = await renderViaHTTP(appPort, amphtmlPath)
+      const $2 = cheerio.load(html2)
+      expect($2('html').attr('lang')).toBe(locale)
+      expect($2('#is-amp').text()).toBe('yes')
+      expect($2('#router-locale').text()).toBe(locale)
+      expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
+      expect($2('#router-pathname').text()).toBe('/amp/amp-hybrid')
+      expect($2('#router-as-path').text()).toBe('/amp/amp-hybrid')
+      expect(JSON.parse($2('#router-query').text())).toEqual({ amp: '1' })
+      expect($2('link[rel=amphtml]').attr('href')).toBeFalsy()
+    }
+  })
+
+  it('should work with AMP first page with all locales', async () => {
+    for (const locale of locales) {
+      const localePath = locale !== 'en-US' ? `/${locale}` : ''
+      const html = await renderViaHTTP(appPort, `${localePath}/amp/amp-first`)
+      const $ = cheerio.load(html)
+      expect($('html').attr('lang')).toBe(locale)
+      expect($('#is-amp').text()).toBe('yes')
+      expect($('#router-locale').text()).toBe(locale)
+      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+      expect($('#router-pathname').text()).toBe('/amp/amp-first')
+      expect($('#router-as-path').text()).toBe('/amp/amp-first')
+      expect(JSON.parse($('#router-query').text())).toEqual({})
+      expect($('link[rel=amphtml]').attr('href')).toBeFalsy()
+    }
+  })
+
   it('should generate fallbacks with all locales', async () => {
     for (const locale of locales) {
       const html = await renderViaHTTP(

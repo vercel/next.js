@@ -335,6 +335,7 @@ export default class Server {
           ...parsed,
           pathname: localePathResult.pathname,
         })
+        ;(req as any).__nextStrippedLocale = true
         parsedUrl.pathname = localePathResult.pathname
 
         // check if the locale prefix matches a domain's defaultLocale
