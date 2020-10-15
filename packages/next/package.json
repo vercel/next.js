@@ -89,7 +89,7 @@
     "cacache": "15.0.5",
     "caniuse-lite": "^1.0.30001113",
     "chokidar": "2.1.8",
-    "critters": "0.0.5",
+    "critters": "0.0.6",
     "crypto-browserify": "3.12.0",
     "css-loader": "4.3.0",
     "cssnano-simple": "1.2.0",
