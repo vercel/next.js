@@ -70,6 +70,7 @@ interface RenderOpts {
   fontManifest?: FontManifest
   locales?: string[]
   locale?: string
+  defaultLocale?: string
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -99,8 +100,9 @@ export default async function exportPage({
     const { query: originalQuery = {} } = pathMap
     const { page } = pathMap
     const filePath = normalizePagePath(path)
-    const ampPath = `${filePath}.amp`
     const isDynamic = isDynamicRoute(page)
+    const ampPath = `${filePath}.amp`
+    let renderAmpPath = ampPath
     let query = { ...originalQuery }
     let params: { [key: string]: string | string[] } | undefined
 
@@ -114,6 +116,10 @@ export default async function exportPage({
       if (localePathResult.detectedLocale) {
         updatedPath = localePathResult.pathname
         locale = localePathResult.detectedLocale
+
+        if (locale === renderOpts.defaultLocale) {
+          renderAmpPath = `${normalizePagePath(updatedPath)}.amp`
+        }
       }
     }
 
@@ -238,7 +244,7 @@ export default async function exportPage({
           res,
           'export',
           {
-            ampPath,
+            ampPath: renderAmpPath,
             /// @ts-ignore
             optimizeFonts,
             /// @ts-ignore
@@ -298,7 +304,7 @@ export default async function exportPage({
         curRenderOpts = {
           ...components,
           ...renderOpts,
-          ampPath,
+          ampPath: renderAmpPath,
           params,
           optimizeFonts,
           optimizeImages,
@@ -352,15 +358,16 @@ export default async function exportPage({
         if (serverless) {
           req.url += (req.url!.includes('?') ? '&' : '?') + 'amp=1'
           // @ts-ignore
-          ampHtml = (await renderMethod(req, res, 'export', undefined, params))
-            .html
+          ampHtml = (
+            await renderMethod(req, res, 'export', curRenderOpts, params)
+          ).html
         } else {
           ampHtml = await renderMethod(
             req,
             res,
             page,
             // @ts-ignore
-            { ...query, amp: 1 },
+            { ...query, amp: '1' },
             curRenderOpts
           )
         }
