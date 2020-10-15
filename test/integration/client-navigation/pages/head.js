@@ -95,6 +95,11 @@ export default () => (
         <meta content="meta fragment" />
       </React.Fragment>
 
+      {/* handle react class/function components */}
+      <PWATags />
+      <Fonts />
+      {Links()}
+
       {/* the following 2 links tag will be rendered both */}
       <link rel="stylesheet" href="/dup-style.css" />
       <link rel="stylesheet" href="/dup-style.css" />
@@ -125,3 +130,28 @@ export default () => (
     <h1>I can have meta tags</h1>
   </div>
 )
+
+function PWATags() {
+  return (
+    <React.Fragment>
+      <meta name="theme-color" content="#000000" />
+      <meta name="mobile-web-app-capable" content="yes" />
+      <link rel="manifest" href="manifest.json" />
+    </React.Fragment>
+  )
+}
+
+class Fonts extends React.Component {
+  render() {
+    return <link rel="preload" href="Boing-Regular.woff" />
+  }
+}
+
+function Links() {
+  return (
+    <React.Fragment>
+      <link rel="alternate" href="link1" />
+      <link rel="alternate" href="link2" />
+    </React.Fragment>
+  )
+}

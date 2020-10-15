@@ -1381,6 +1381,23 @@ describe('Client Navigation', () => {
     expect(value).toBe(false)
   })
 
+  it('should render react components in head client-side', async () => {
+    const browser = await webdriver(context.appPort, '/head')
+    // PWATags functional component
+    expect(await browser.elementByCss('meta[name="theme-color"]')).toBeTruthy()
+    expect(
+      await browser.elementByCss('meta[name="mobile-web-app-capable"]')
+    ).toBeTruthy()
+    expect(await browser.elementByCss('link[rel="manifest"]')).toBeTruthy()
+    // Fonts class component
+    expect(
+      await browser.elementByCss('link[href="Boing-Regular.woff"]')
+    ).toBeTruthy()
+    // Links as a function
+    expect(await browser.elementByCss('link[href="link1"]')).toBeTruthy()
+    expect(await browser.elementByCss('link[href="link2"]')).toBeTruthy()
+  })
+
   renderingSuite(
     (p, q) => renderViaHTTP(context.appPort, p, q),
     (p, q) => fetchViaHTTP(context.appPort, p, q),
