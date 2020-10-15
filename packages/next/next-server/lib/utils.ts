@@ -186,7 +186,7 @@ export type DocumentProps = DocumentInitialProps & {
   headTags: any[]
   unstable_runtimeJS?: false
   devOnlyCacheBusterQueryString: string
-  scriptLoader: { after1P?: string[]; before1P?: any[] }
+  scriptLoader: { defer?: string[]; eager?: any[] }
 }
 
 /**

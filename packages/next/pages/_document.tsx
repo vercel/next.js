@@ -262,7 +262,7 @@ export class Head extends Component<
     })
 
     return [
-      ...(scriptLoader.before1P || []).map((file) => (
+      ...(scriptLoader.eager || []).map((file) => (
         <link
           key={file.src}
           nonce={this.props.nonce}
@@ -288,7 +288,7 @@ export class Head extends Component<
           }
         />
       )),
-      ...(scriptLoader.after1P || []).map((file: string) => (
+      ...(scriptLoader.defer || []).map((file: string) => (
         <link
           key={file}
           nonce={this.props.nonce}
@@ -610,7 +610,7 @@ export class NextScript extends Component<OriginProps> {
   getPreNextScripts() {
     const { scriptLoader } = this.context
 
-    return (scriptLoader.before1P || []).map((file: string) => {
+    return (scriptLoader.eager || []).map((file: string) => {
       return (
         <script
           {...file}

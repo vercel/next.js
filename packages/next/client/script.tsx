@@ -12,7 +12,7 @@ const DOMAttributeNames: Record<string, string> = {
 }
 
 interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
-  strategy?: 'after1P' | 'lazy' | 'renderBlocking' | 'before1P'
+  strategy?: 'defer' | 'lazy' | 'dangerousRenderBlocking' | 'eager'
   key?: string
   onLoad?: () => void
   onError?: () => void
@@ -83,10 +83,10 @@ export default function Script(props: Props) {
     onLoad = () => {},
     dangerouslySetInnerHTML,
     children = '',
-    strategy = 'after1P',
+    strategy = 'defer',
     key,
     onError,
-    preload = true,
+    preload = false,
     ...restProps
   } = props
 
@@ -94,7 +94,7 @@ export default function Script(props: Props) {
   const { updateScripts, scripts } = useContext(HeadManagerContext)
 
   useEffect(() => {
-    if (strategy === 'after1P') {
+    if (strategy === 'defer') {
       loadScript(props)
     } else if (strategy === 'lazy') {
       window.addEventListener('load', () => {
@@ -109,7 +109,7 @@ export default function Script(props: Props) {
     }
   }, [strategy, props])
 
-  if (strategy === 'renderBlocking') {
+  if (strategy === 'dangerousRenderBlocking') {
     const syncProps: Props = { ...restProps }
 
     for (const [k, value] of Object.entries({
@@ -132,14 +132,14 @@ export default function Script(props: Props) {
     }
 
     return <script {...syncProps} />
-  } else if (strategy === 'after1P') {
+  } else if (strategy === 'defer') {
     if (updateScripts && preload) {
-      scripts.after1P = (scripts.after1P || []).concat([src])
+      scripts.defer = (scripts.defer || []).concat([src])
       updateScripts(scripts)
     }
-  } else if (strategy === 'before1P') {
+  } else if (strategy === 'eager') {
     if (updateScripts) {
-      scripts.before1P = (scripts.before1P || []).concat([
+      scripts.eager = (scripts.eager || []).concat([
         {
           src,
           onLoad,

@@ -34,7 +34,7 @@ describe('Script Loader', () => {
     stopApp(server)
   })
 
-  it('priority default', async () => {
+  it('priority defer', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
@@ -55,7 +55,7 @@ describe('Script Loader', () => {
       // Renders script tag
       expect(script).toBeDefined()
       // Renders preload
-      expect(scriptPreload).toBeDefined()
+      expect(scriptPreload.length).toBeGreaterThan(0)
       // Script is inserted at the end
       expect(endScripts.length).toBe(0)
       //Preload is defined at the end
@@ -65,7 +65,29 @@ describe('Script Loader', () => {
     }
   })
 
-  it('priority beforeHydrate', async () => {
+  it('priority lazy', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/page3')
+
+      await browser.waitForElementByCss('#onload-div')
+      await waitFor(1000)
+
+      const script = await browser.elementById('script')
+      const endScripts = await browser.elementsByCss(
+        '#script ~ script[src^="/_next/static/"]'
+      )
+
+      // Renders script tag
+      expect(script).toBeDefined()
+      // Script is inserted at the end
+      expect(endScripts.length).toBe(0)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('priority eager', async () => {
     const html = await renderViaHTTP(appPort, '/page1')
     const $ = cheerio.load(html)
 
@@ -83,6 +105,19 @@ describe('Script Loader', () => {
           `link[rel=preload][href^="/_next/static/chunks/main"] ~ link[rel=preload][href="${src}"]`
         ).length
     ).toBeTruthy()
+
+    // Preload is inserted after fonts and CSS
+    expect(
+      $(
+        `link[rel=stylesheet][href^="/_next/static/css"] ~ link[rel=preload][href="${src}"]`
+      ).length
+    ).toBeGreaterThan(0)
+    expect(
+      $(
+        `link[rel=stylesheet][href="https://fonts.googleapis.com/css?family=Voces"] ~ link[rel=preload][href="${src}"]`
+      ).length
+    ).toBeGreaterThan(0)
+
     // Script is inserted before NextScripts
     expect(
       $('#__NEXT_DATA__ ~ #script ~ script[src^="/_next/static/chunks/main"]')
@@ -90,7 +125,7 @@ describe('Script Loader', () => {
     ).toBeGreaterThan(0)
   })
 
-  it('priority renderBlocking', async () => {
+  it('priority dangerousRenderBlocking', async () => {
     const html = await renderViaHTTP(appPort, '/page2')
     const $ = cheerio.load(html)
 
