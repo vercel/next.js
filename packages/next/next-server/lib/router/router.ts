@@ -830,6 +830,7 @@ export default class Router implements BaseRouter {
           window.scrollTo((options as any)._N_X, (options as any)._N_Y)
         }
       }
+      this.updateLazyObserver()
       Router.events.emit('routeChangeComplete', as)
 
       return true
@@ -1213,6 +1214,38 @@ export default class Router implements BaseRouter {
       router: this,
       ctx,
     })
+  }
+
+  updateLazyObserver(): void {
+    // @ts-ignore This has to be global since it's initially set before hydration
+    window.__NEXT_lazy_observer.disconnect()
+    var lazyImages = [].slice.call(document.querySelectorAll('img.__lazy'))
+    if ('IntersectionObserver' in window) {
+      let lazyImageObserver = new IntersectionObserver(
+        function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              let lazyImage = entry.target as HTMLImageElement
+              if (lazyImage.dataset.src) {
+                lazyImage.src = lazyImage.dataset.src
+              }
+              if (lazyImage.dataset.srcset) {
+                lazyImage.srcset = lazyImage.dataset.srcset
+              }
+              lazyImage.classList.remove('__lazy')
+              lazyImageObserver.unobserve(lazyImage)
+            }
+          })
+        },
+        { rootMargin: '0px 0px 200px 0px' }
+      )
+
+      lazyImages.forEach(function (lazyImage) {
+        lazyImageObserver.observe(lazyImage)
+      })
+      // @ts-ignore see above
+      window.__NEXT_lazy_observer = lazyImageObserver
+    }
   }
 
   abortComponentLoad(as: string): void {

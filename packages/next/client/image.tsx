@@ -22,6 +22,8 @@ type ImageProps = {
   sizes: string
   breakpoints: number[]
   priority: boolean
+  lazy: boolean
+  className: string
   unoptimized: boolean
   rest: any[]
 }
@@ -108,6 +110,8 @@ export default function Image({
   sizes,
   unoptimized,
   priority,
+  lazy,
+  className,
   ...rest
 }: ImageProps) {
   // Sanity Checks:
@@ -124,6 +128,15 @@ export default function Image({
     }
     host = 'default'
   }
+  // If priority and lazy are present, log an error and use priority only.
+  if (priority && lazy) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(
+        `Image with src ${src} has both priority and lazy tags. Only one should be used.`
+      )
+    }
+    lazy = false
+  }
 
   host = host || 'default'
 
@@ -134,17 +147,46 @@ export default function Image({
 
   // Generate attribute values
   const imgSrc = computeSrc(src, host, unoptimized)
-  const imgAttributes: { src: string; srcSet?: string } = { src: imgSrc }
+  let imgSrcset = null
   if (!unoptimized) {
-    imgAttributes.srcSet = generateSrcSet({
+    imgSrcset = generateSrcSet({
       src,
       host: host,
       widths: breakpoints,
     })
   }
+
+  const imgAttributes: {
+    src?: string
+    srcSet?: string
+    'data-src'?: string
+    'data-srcset'?: string
+  } = {}
+  if (!lazy) {
+    imgAttributes.src = imgSrc
+    if (imgSrcset) {
+      imgAttributes.srcSet = imgSrcset
+    }
+  } else {
+    imgAttributes['data-src'] = imgSrc
+    if (imgSrcset) {
+      imgAttributes['data-srcset'] = imgSrcset
+    }
+    className = className ? className + ' __lazy' : '__lazy'
+  }
+
   // No need to add preloads on the client side--by the time the application is hydrated,
   // it's too late for preloads
   const shouldPreload = priority && typeof window === 'undefined'
+
+  let imgElement
+  if (className) {
+    imgElement = (
+      <img {...rest} {...imgAttributes} className={className} sizes={sizes} />
+    )
+  } else {
+    imgElement = <img {...rest} {...imgAttributes} sizes={sizes} />
+  }
 
   return (
     <div>
@@ -157,7 +199,7 @@ export default function Image({
             sizes,
           })
         : ''}
-      <img {...rest} {...imgAttributes} sizes={sizes} />
+      {imgElement}
     </div>
   )
 }
