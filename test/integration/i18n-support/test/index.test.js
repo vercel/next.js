@@ -34,6 +34,31 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 function runTests(isDev) {
+  if (!isDev) {
+    it('should add i18n config to routes-manifest', async () => {
+      const routesManifest = await fs.readJSON(
+        join(appDir, '.next/routes-manifest.json')
+      )
+
+      expect(routesManifest.i18n).toEqual({
+        locales: ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en'],
+        defaultLocale: 'en-US',
+        domains: [
+          {
+            http: true,
+            domain: 'example.be',
+            defaultLocale: 'nl-BE',
+          },
+          {
+            http: true,
+            domain: 'example.fr',
+            defaultLocale: 'fr',
+          },
+        ],
+      })
+    })
+  }
+
   it('should navigate with locale prop correctly', async () => {
     const browser = await webdriver(appPort, '/links?nextLocale=fr')
     await addDefaultLocaleCookie(browser)

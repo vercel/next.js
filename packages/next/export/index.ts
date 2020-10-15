@@ -285,6 +285,12 @@ export default async function exportApp(
 
   const { i18n } = nextConfig.experimental
 
+  if (i18n && !options.buildExport) {
+    throw new Error(
+      `i18n support is not compatible with next export. See here for more info on deploying: https://nextjs.org/docs/deployment`
+    )
+  }
+
   // Start the rendering process
   const renderOpts = {
     dir,
