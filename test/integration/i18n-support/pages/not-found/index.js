@@ -22,6 +22,12 @@ export default function Page(props) {
 }
 
 export const getStaticProps = ({ locale, locales }) => {
+  if (locale === 'en' || locale === 'nl') {
+    return {
+      unstable_notFound: true,
+    }
+  }
+
   return {
     props: {
       locale,
