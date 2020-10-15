@@ -54,7 +54,6 @@ const externals = {
   'jest-worker': 'jest-worker',
   cacache: 'cacache',
 }
-
 // eslint-disable-next-line camelcase
 externals['amphtml-validator'] = 'next/dist/compiled/amphtml-validator'
 export async function ncc_amphtml_validator(task, opts) {
@@ -174,22 +173,6 @@ export async function ncc_devalue(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('devalue')))
     .ncc({ packageName: 'devalue', externals })
     .target('compiled/devalue')
-}
-// eslint-disable-next-line camelcase
-externals['dotenv'] = 'next/dist/compiled/dotenv'
-export async function ncc_dotenv(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('dotenv')))
-    .ncc({ packageName: 'dotenv', externals })
-    .target('compiled/dotenv')
-}
-// eslint-disable-next-line camelcase
-externals['dotenv-expand'] = 'next/dist/compiled/dotenv-expand'
-export async function ncc_dotenv_expand(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('dotenv-expand')))
-    .ncc({ packageName: 'dotenv-expand', externals })
-    .target('compiled/dotenv-expand')
 }
 externals['escape-string-regexp'] = 'next/dist/compiled/escape-string-regexp'
 // eslint-disable-next-line camelcase
@@ -513,8 +496,6 @@ export async function ncc(task) {
       'ncc_cookie',
       'ncc_debug',
       'ncc_devalue',
-      'ncc_dotenv',
-      'ncc_dotenv_expand',
       'ncc_escape_string_regexp',
       'ncc_etag',
       'ncc_file_loader',

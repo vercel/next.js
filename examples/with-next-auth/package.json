@@ -9,9 +9,9 @@
   "license": "MIT",
   "dependencies": {
     "next": "latest",
-    "next-auth": "^2.1.0",
+    "next-auth": "^3.1.0",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
-    "sqlite3": "^4.2.0"
+    "sqlite3": "^5.0.0"
   }
 }

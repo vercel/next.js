@@ -33,12 +33,13 @@ import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
 import { eventCliSession } from '../telemetry/events'
+import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
 import {
   normalizePagePath,
   denormalizePagePath,
 } from '../next-server/server/normalize-page-path'
-import { loadEnvConfig } from '../lib/load-env-config'
+import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
 import type exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -57,7 +58,7 @@ function divideSegments(number: number, segments: number): number[] {
   return result
 }
 
-const createProgress = (total: number, label = 'Exporting') => {
+const createProgress = (total: number, label: string) => {
   const segments = divideSegments(total, 4)
 
   let currentSegmentTotal = segments.shift()
@@ -133,7 +134,7 @@ export default async function exportApp(
   dir = resolve(dir)
 
   // attempt to load global env values so they are available in next.config.js
-  loadEnvConfig(dir)
+  loadEnvConfig(dir, false, Log)
 
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
@@ -162,6 +163,22 @@ export default async function exportApp(
   if (!existsSync(distDir)) {
     throw new Error(
       `Build directory ${distDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`
+    )
+  }
+
+  const customRoutesDetected = ['rewrites', 'redirects', 'headers'].filter(
+    (config) => typeof nextConfig[config] === 'function'
+  )
+
+  if (
+    !hasNextSupport &&
+    !options.buildExport &&
+    customRoutesDetected.length > 0
+  ) {
+    Log.warn(
+      `rewrites, redirects, and headers are not applied when exporting your application, detected (${customRoutesDetected.join(
+        ', '
+      )}). See more info here: https://err.sh/next.js/export-no-custom-routes`
     )
   }
 
@@ -266,6 +283,8 @@ export default async function exportApp(
     }
   }
 
+  const { i18n } = nextConfig.experimental
+
   // Start the rendering process
   const renderOpts = {
     dir,
@@ -281,6 +300,9 @@ export default async function exportApp(
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
+    locales: i18n?.locales,
+    locale: i18n.defaultLocale,
+    defaultLocale: i18n.defaultLocale,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -381,7 +403,7 @@ export default async function exportApp(
     !options.silent &&
     createProgress(
       filteredPaths.length,
-      `${Log.prefixes.info} ${options.statusMessage}`
+      `${Log.prefixes.info} ${options.statusMessage || 'Exporting'}`
     )
   const pagesDataDir = options.buildExport
     ? outDir

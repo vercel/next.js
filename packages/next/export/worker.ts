@@ -15,6 +15,7 @@ import { ComponentType } from 'react'
 import { GetStaticProps } from '../types'
 import { requireFontManifest } from '../next-server/server/require'
 import { FontManifest } from '../next-server/server/font-utils'
+import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 
 const envConfig = require('../next-server/lib/runtime-config')
 
@@ -67,6 +68,8 @@ interface RenderOpts {
   optimizeFonts?: boolean
   optimizeImages?: boolean
   fontManifest?: FontManifest
+  locales?: string[]
+  locale?: string
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -97,8 +100,22 @@ export default async function exportPage({
     const { page } = pathMap
     const filePath = normalizePagePath(path)
     const ampPath = `${filePath}.amp`
+    const isDynamic = isDynamicRoute(page)
     let query = { ...originalQuery }
     let params: { [key: string]: string | string[] } | undefined
+
+    let updatedPath = path
+    let locale = query.__nextLocale || renderOpts.locale
+    delete query.__nextLocale
+
+    if (renderOpts.locale) {
+      const localePathResult = normalizeLocalePath(path, renderOpts.locales)
+
+      if (localePathResult.detectedLocale) {
+        updatedPath = localePathResult.pathname
+        locale = localePathResult.detectedLocale
+      }
+    }
 
     // We need to show a warning if they try to provide query values
     // for an auto-exported page since they won't be available
@@ -112,8 +129,8 @@ export default async function exportPage({
     }
 
     // Check if the page is a specified dynamic route
-    if (isDynamicRoute(page) && page !== path) {
-      params = getRouteMatcher(getRouteRegex(page))(path) || undefined
+    if (isDynamic && page !== path) {
+      params = getRouteMatcher(getRouteRegex(page))(updatedPath) || undefined
       if (params) {
         // we have to pass these separately for serverless
         if (!serverless) {
@@ -124,7 +141,7 @@ export default async function exportPage({
         }
       } else {
         throw new Error(
-          `The provided export path '${path}' doesn't match the '${page}' page.\nRead more: https://err.sh/vercel/next.js/export-path-mismatch`
+          `The provided export path '${updatedPath}' doesn't match the '${page}' page.\nRead more: https://err.sh/vercel/next.js/export-path-mismatch`
         )
       }
     }
@@ -139,7 +156,7 @@ export default async function exportPage({
     }
 
     const req = ({
-      url: path,
+      url: updatedPath,
       ...headerMocks,
     } as unknown) as IncomingMessage
     const res = ({
@@ -229,6 +246,8 @@ export default async function exportPage({
             fontManifest: optimizeFonts
               ? requireFontManifest(distDir, serverless)
               : null,
+            locale: locale!,
+            locales: renderOpts.locales!,
           },
           // @ts-ignore
           params
@@ -286,6 +305,7 @@ export default async function exportPage({
           fontManifest: optimizeFonts
             ? requireFontManifest(distDir, serverless)
             : null,
+          locale: locale as string,
         }
         // @ts-ignore
         html = await renderMethod(req, res, page, query, curRenderOpts)
@@ -332,7 +352,8 @@ export default async function exportPage({
         if (serverless) {
           req.url += (req.url!.includes('?') ? '&' : '?') + 'amp=1'
           // @ts-ignore
-          ampHtml = (await renderMethod(req, res, 'export')).html
+          ampHtml = (await renderMethod(req, res, 'export', undefined, params))
+            .html
         } else {
           ampHtml = await renderMethod(
             req,

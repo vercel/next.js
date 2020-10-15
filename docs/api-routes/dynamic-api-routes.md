@@ -16,7 +16,7 @@ API routes support [dynamic routes](/docs/routing/dynamic-routes.md), and follow
 For example, the API route `pages/api/post/[pid].js` has the following code:
 
 ```js
-export default (req, res) => {
+export default function handler(req, res) {
   const {
     query: { pid },
   } = req
@@ -68,7 +68,7 @@ And in the case of `/api/post/a/b`, and any other matching path, new parameters 
 An API route for `pages/api/post/[...slug].js` could look like this:
 
 ```js
-export default (req, res) => {
+export default function handler(req, res) {
   const {
     query: { slug },
   } = req

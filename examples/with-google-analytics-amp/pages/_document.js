@@ -1,4 +1,4 @@
-import Document, { Html, Main, NextScript } from 'next/document'
+import Document, { Html, Head, Main, NextScript } from 'next/document'
 import { useAmp } from 'next/amp'
 
 import { GA_TRACKING_ID } from '../lib/gtag'
@@ -14,6 +14,7 @@ export default class MyDocument extends Document {
   render() {
     return (
       <Html>
+        <Head />
         <body>
           <Main />
           <NextScript />
