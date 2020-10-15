@@ -7,7 +7,7 @@ export const config = {
 export const getStaticProps = (ctx) => {
   return {
     props: {
-      slug: (ctx && ctx.params && ctx.params.slug) || null,
+      slug: ctx.params?.slug || null,
       hello: 'hello',
       random: Math.random(),
     },
