@@ -122,9 +122,7 @@ export default function initHeadManager(initialHeadEntries: HeadEntry[]) {
 
   updateElements(
     elements,
-    initialHeadEntries
-      .filter(([type]) => type)
-      .map(([type, props]) => createElement(type, props)),
+    initialHeadEntries.map(([type, props]) => createElement(type, props)),
     false
   )
 
