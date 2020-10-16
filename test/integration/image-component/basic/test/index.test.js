@@ -126,7 +126,6 @@ function lazyLoadingTests() {
     await browser.eval(
       `window.scrollTo(0, ${topOfBottomImage - (viewportHeight + buffer)})`
     )
-    await waitFor(5000)
     expect(await browser.elementById('lazy-bottom').getAttribute('src')).toBe(
       'https://www.otherhost.com/foo3.jpg'
     )

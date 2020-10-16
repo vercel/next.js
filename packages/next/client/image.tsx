@@ -1,4 +1,4 @@
-import React, { ReactElement } from 'react'
+import React, { ReactElement, useEffect } from 'react'
 import Head from '../next-server/lib/head'
 
 const loaders: { [key: string]: (props: LoaderProps) => string } = {
@@ -30,6 +30,41 @@ type ImageProps = {
 
 let imageData: any = process.env.__NEXT_IMAGE_OPTS
 const breakpoints = imageData.breakpoints || [640, 1024, 1600]
+
+let cachedObserver: IntersectionObserver
+const IntersectionObserver =
+  typeof window !== 'undefined' ? window.IntersectionObserver : null
+
+function getObserver(): IntersectionObserver | undefined {
+  // Return shared instance of IntersectionObserver if already created
+  if (cachedObserver) {
+    return cachedObserver
+  }
+
+  // Only create shared IntersectionObserver if supported in browser
+  if (!IntersectionObserver) {
+    return undefined
+  }
+
+  return (cachedObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          let lazyImage = entry.target as HTMLImageElement
+          if (lazyImage.dataset.src) {
+            lazyImage.src = lazyImage.dataset.src
+          }
+          if (lazyImage.dataset.srcset) {
+            lazyImage.srcset = lazyImage.dataset.srcset
+          }
+          lazyImage.classList.remove('__lazy')
+          cachedObserver.unobserve(lazyImage)
+        }
+      })
+    },
+    { rootMargin: '200px' }
+  ))
+}
 
 function computeSrc(src: string, host: string, unoptimized: boolean): string {
   if (unoptimized) {
@@ -145,6 +180,21 @@ export default function Image({
     src = src.slice(1)
   }
 
+  let thisEl: any
+
+  useEffect(() => {
+    if (!lazy) {
+      return () => {}
+    }
+    const observer = getObserver()
+    if (observer) {
+      observer.observe(thisEl)
+      return () => {
+        observer.unobserve(thisEl)
+      }
+    }
+  }, [thisEl, lazy])
+
   // Generate attribute values
   const imgSrc = computeSrc(src, host, unoptimized)
   let imgSrcset = null
@@ -182,10 +232,27 @@ export default function Image({
   let imgElement
   if (className) {
     imgElement = (
-      <img {...rest} {...imgAttributes} className={className} sizes={sizes} />
+      <img
+        {...rest}
+        ref={(el) => {
+          thisEl = el
+        }}
+        {...imgAttributes}
+        className={className}
+        sizes={sizes}
+      />
     )
   } else {
-    imgElement = <img {...rest} {...imgAttributes} sizes={sizes} />
+    imgElement = (
+      <img
+        ref={(el) => {
+          thisEl = el
+        }}
+        {...rest}
+        {...imgAttributes}
+        sizes={sizes}
+      />
+    )
   }
 
   return (

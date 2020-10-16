@@ -544,10 +544,6 @@ export class NextScript extends Component<OriginProps> {
   static safariNomoduleFix =
     '!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()},!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();'
 
-  // Source: https://gist.github.com/atcastle/046c0f416dc69c84cca20a173fb0344e
-  static lazyImageScript = `
-    document.addEventListener("DOMContentLoaded",function(){var e=[].slice.call(document.querySelectorAll("img.__lazy"));if("IntersectionObserver"in window){let t=new IntersectionObserver(function(e,n){e.forEach(function(e){if(e.isIntersecting){let n=e.target;n.src=n.dataset.src,n.dataset.srcset&&(n.srcset=n.dataset.srcset),n.classList.remove("__lazy"),t.unobserve(n)}})},{rootMargin:"0px 0px 200px 0px"});e.forEach(function(e){t.observe(e)}),window.__NEXT_lazy_observer=t}});
-  `
   getDynamicChunks(files: DocumentFiles) {
     const {
       dynamicImports,
@@ -758,11 +754,6 @@ export class NextScript extends Component<OriginProps> {
             }}
           />
         )}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: NextScript.lazyImageScript,
-          }}
-        />
         {process.env.__NEXT_MODERN_BUILD && !disableRuntimeJS ? (
           <script
             nonce={this.props.nonce}
