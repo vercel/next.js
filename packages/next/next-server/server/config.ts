@@ -60,6 +60,7 @@ const defaultConfig: { [key: string]: any } = {
     optimizeImages: false,
     scrollRestoration: false,
     i18n: false,
+    analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
   },
   future: {
     excludeDefaultMomentLocales: false,

@@ -1159,6 +1159,15 @@ export default async function build(
     printCustomRoutes({ redirects, rewrites, headers })
   }
 
+  if (config.experimental.analyticsId) {
+    console.log(
+      chalk.bold.green('Next.js Analytics') +
+        ' is enabled for this production build. ' +
+        "You'll receive a Real Experience Score computed by all of your visitors."
+    )
+    console.log('')
+  }
+
   if (tracer) {
     const parsedResults = await tracer.profiler.stopProfiling()
     await new Promise((resolve) => {
