@@ -29,6 +29,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
+  IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
@@ -1108,6 +1109,15 @@ export default async function build(
       'utf8'
     )
   }
+
+  await promises.writeFile(
+    path.join(distDir, IMAGES_MANIFEST),
+    JSON.stringify({
+      version: 1,
+      images: config.images,
+    }),
+    'utf8'
+  )
 
   await promises.writeFile(
     path.join(distDir, EXPORT_MARKER),
