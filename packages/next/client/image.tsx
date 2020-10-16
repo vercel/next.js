@@ -52,7 +52,7 @@ function computeSrc(src: string, host: string, unoptimized: boolean): string {
 
 function callLoader(src: string, host: string, width?: number): string {
   let loader = loaders[imageData.hosts[host].loader || 'default']
-  return loader({ root: imageData.hosts[host].path, filename: src, width })
+  return loader({ root: imageData.hosts[host].path, src, width })
 }
 
 type SrcSetData = {
@@ -166,18 +166,19 @@ export default function Image({
 
 type LoaderProps = {
   root: string
-  filename: string
+  src: string
   width?: number
 }
 
-function imgixLoader({ root, filename, width }: LoaderProps): string {
-  return `${root}${filename}${width ? '?w=' + width : ''}`
+function imgixLoader({ root, src, width }: LoaderProps): string {
+  return `${root}${src}${width ? '?w=' + width : ''}`
 }
 
-function cloudinaryLoader({ root, filename, width }: LoaderProps): string {
-  return `${root}${width ? 'w_' + width + '/' : ''}${filename}`
+function cloudinaryLoader({ root, src, width }: LoaderProps): string {
+  return `${root}${width ? 'w_' + width + '/' : ''}${src}`
 }
 
-function defaultLoader({ root, filename }: LoaderProps): string {
-  return `${root}${filename}`
+function defaultLoader({ root, src, width }: LoaderProps): string {
+  // TODO: change quality parameter to be configurable
+  return `${root}?url=${encodeURIComponent(src)}&width=${width}&q=100`
 }
