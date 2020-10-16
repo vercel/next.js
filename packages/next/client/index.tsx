@@ -743,9 +743,7 @@ function Root({
   // We should ask to measure the Web Vitals after rendering completes so we
   // don't cause any hydration delay:
   React.useEffect(() => {
-    if (onPerfEntry) {
-      measureWebVitals(onPerfEntry)
-    }
+    measureWebVitals(onPerfEntry)
   }, [])
   return children as React.ReactElement
 }
