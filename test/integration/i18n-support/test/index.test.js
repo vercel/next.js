@@ -5,6 +5,7 @@ import fs from 'fs-extra'
 import cheerio from 'cheerio'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
+import escapeRegex from 'escape-string-regexp'
 import {
   fetchViaHTTP,
   findPort,
@@ -15,6 +16,7 @@ import {
   renderViaHTTP,
   File,
   waitFor,
+  normalizeRegEx,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -24,7 +26,7 @@ const nextConfig = new File(join(appDir, 'next.config.js'))
 let app
 let appPort
 let buildPagesDir
-// let buildId
+let buildId
 
 const locales = ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en']
 
@@ -57,6 +59,102 @@ function runTests(isDev) {
             defaultLocale: 'fr',
           },
         ],
+      })
+    })
+
+    it('should output correct prerender-manifest', async () => {
+      const prerenderManifest = await fs.readJSON(
+        join(appDir, '.next/prerender-manifest.json')
+      )
+
+      for (const key of Object.keys(prerenderManifest.dynamicRoutes)) {
+        const item = prerenderManifest.dynamicRoutes[key]
+        item.routeRegex = normalizeRegEx(item.routeRegex)
+        item.dataRouteRegex = normalizeRegEx(item.dataRouteRegex)
+      }
+
+      expect(prerenderManifest.routes).toEqual({
+        '/en-US/gsp/fallback/first': {
+          dataRoute: `/_next/data/${buildId}/en-US/gsp/fallback/first.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
+        },
+        '/en-US/gsp/fallback/second': {
+          dataRoute: `/_next/data/${buildId}/en-US/gsp/fallback/second.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
+        },
+        '/en-US/gsp/no-fallback/first': {
+          dataRoute: `/_next/data/${buildId}/en-US/gsp/no-fallback/first.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/no-fallback/[slug]',
+        },
+        '/en-US/gsp/no-fallback/second': {
+          dataRoute: `/_next/data/${buildId}/en-US/gsp/no-fallback/second.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/no-fallback/[slug]',
+        },
+        '/en-US/not-found/fallback/first': {
+          dataRoute: `/_next/data/${buildId}/en-US/not-found/fallback/first.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/not-found/fallback/[slug]',
+        },
+        '/en-US/not-found/fallback/second': {
+          dataRoute: `/_next/data/${buildId}/en-US/not-found/fallback/second.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/not-found/fallback/[slug]',
+        },
+        '/gsp': {
+          dataRoute: `/_next/data/${buildId}/gsp.json`,
+          srcRoute: null,
+          initialRevalidateSeconds: false,
+        },
+        '/nl-NL/gsp/no-fallback/second': {
+          dataRoute: `/_next/data/${buildId}/nl-NL/gsp/no-fallback/second.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/no-fallback/[slug]',
+        },
+        '/not-found': {
+          dataRoute: `/_next/data/${buildId}/not-found.json`,
+          srcRoute: null,
+          initialRevalidateSeconds: false,
+        },
+      })
+      expect(prerenderManifest.dynamicRoutes).toEqual({
+        '/gsp/fallback/[slug]': {
+          routeRegex: normalizeRegEx(
+            '^\\/gsp\\/fallback\\/([^\\/]+?)(?:\\/)?$'
+          ),
+          dataRoute: `/_next/data/${buildId}/gsp/fallback/[slug].json`,
+          fallback: '/gsp/fallback/[slug].html',
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/gsp\\/fallback\\/([^\\/]+?)\\.json$`
+          ),
+        },
+        '/gsp/no-fallback/[slug]': {
+          routeRegex: normalizeRegEx(
+            '^\\/gsp\\/no\\-fallback\\/([^\\/]+?)(?:\\/)?$'
+          ),
+          dataRoute: `/_next/data/${buildId}/gsp/no-fallback/[slug].json`,
+          fallback: false,
+          dataRouteRegex: normalizeRegEx(
+            `^/_next/data/${escapeRegex(
+              buildId
+            )}/gsp/no\\-fallback/([^/]+?)\\.json$`
+          ),
+        },
+        '/not-found/fallback/[slug]': {
+          dataRoute: `/_next/data/${buildId}/not-found/fallback/[slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/not\\-found\\/fallback\\/([^\\/]+?)\\.json$`
+          ),
+          fallback: '/not-found/fallback/[slug].html',
+          routeRegex: normalizeRegEx('^/not\\-found/fallback/([^/]+?)(?:/)?$'),
+        },
       })
     })
   }
@@ -1145,7 +1243,7 @@ describe('i18n Support', () => {
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
       buildPagesDir = join(appDir, '.next/server/pages')
-      // buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))
 
@@ -1161,7 +1259,7 @@ describe('i18n Support', () => {
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
       buildPagesDir = join(appDir, '.next/serverless/pages')
-      // buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
       nextConfig.restore()

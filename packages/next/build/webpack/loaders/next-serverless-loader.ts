@@ -248,6 +248,8 @@ const nextServerlessLoader: loader.Loader = function () {
       let localeDomainRedirect
       const localePathResult = normalizeLocalePath(parsedUrl.pathname, i18n.locales)
 
+      routeNoAssetPath = normalizeLocalePath(routeNoAssetPath, i18n.locales).pathname
+
       if (localePathResult.detectedLocale) {
         detectedLocale = localePathResult.detectedLocale
         req.url = formatUrl({
@@ -337,6 +339,7 @@ const nextServerlessLoader: loader.Loader = function () {
         res.end()
         return
       }
+
       detectedLocale = detectedLocale || defaultLocale
     `
     : `
@@ -547,10 +550,10 @@ const nextServerlessLoader: loader.Loader = function () {
 
         if (parsedUrl.pathname.match(/_next\\/data/)) {
           const {
-            default: getrouteNoAssetPath,
+            default: getRouteNoAssetPath,
           } = require('next/dist/next-server/lib/router/utils/get-route-from-asset-path');
           _nextData = true;
-          parsedUrl.pathname = getrouteNoAssetPath(
+          parsedUrl.pathname = getRouteNoAssetPath(
             parsedUrl.pathname.replace(
               new RegExp('/_next/data/${escapedBuildId}/'),
               '/'
@@ -609,12 +612,24 @@ const nextServerlessLoader: loader.Loader = function () {
             ? `const nowParams = req.headers && req.headers["x-now-route-matches"]
               ? getRouteMatcher(
                   (function() {
-                    const { re, groups } = getRouteRegex("${page}");
+                    const { re, groups, routeKeys } = getRouteRegex("${page}");
                     return {
                       re: {
                         // Simulate a RegExp match from the \`req.url\` input
                         exec: str => {
                           const obj = parseQs(str);
+
+                          // favor named matches if available
+                          const routeKeyNames = Object.keys(routeKeys)
+
+                          if (routeKeyNames.every(name => obj[name])) {
+                            return routeKeyNames.reduce((prev, keyName) => {
+                              const paramName = routeKeys[keyName]
+                              prev[groups[paramName].pos] = obj[keyName]
+                              return prev
+                            }, {})
+                          }
+
                           return Object.keys(obj).reduce(
                             (prev, key) =>
                               Object.assign(prev, {
