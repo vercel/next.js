@@ -79,6 +79,7 @@ import accept from '@hapi/accept'
 import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
 import { detectLocaleCookie } from '../lib/i18n/detect-locale-cookie'
 import * as Log from '../../build/output/log'
+import { imageOptimizer } from './image-optimizer'
 import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
 
@@ -271,7 +272,7 @@ export default class Server {
     return PHASE_PRODUCTION_SERVER
   }
 
-  private logError(err: Error): void {
+  public logError(err: Error): void {
     if (this.onErrorMiddleware) {
       this.onErrorMiddleware({ err })
     }
@@ -472,6 +473,7 @@ export default class Server {
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
   } {
+    const server: Server = this
     const publicRoutes = fs.existsSync(this.publicDir)
       ? this.generatePublicRoutes()
       : []
@@ -588,6 +590,13 @@ export default class Server {
             finished: true,
           }
         },
+      },
+      {
+        match: route('/_next/image'),
+        type: 'route',
+        name: '_next/image catchall',
+        fn: (req, res, _params, parsedUrl) =>
+          imageOptimizer(server, req, res, parsedUrl),
       },
       {
         match: route('/_next/:path*'),

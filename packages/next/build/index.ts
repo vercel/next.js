@@ -29,6 +29,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
+  IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
@@ -959,13 +960,19 @@ export default async function build(
       }
 
       if (isSsg) {
+        const { i18n } = config.experimental
+
         // For a non-dynamic SSG page, we must copy its data file from export.
         if (!isDynamic) {
           await moveExportedPage(page, page, file, true, 'json')
 
+          const revalidationMapPath = i18n
+            ? `/${i18n.defaultLocale}${page}`
+            : page
+
           finalPrerenderRoutes[page] = {
             initialRevalidateSeconds:
-              exportConfig.initialPageRevalidationMap[page],
+              exportConfig.initialPageRevalidationMap[revalidationMapPath],
             srcRoute: null,
             dataRoute: path.posix.join('/_next/data', buildId, `${file}.json`),
           }
@@ -973,7 +980,7 @@ export default async function build(
           const pageInfo = pageInfos.get(page)
           if (pageInfo) {
             pageInfo.initialRevalidateSeconds =
-              exportConfig.initialPageRevalidationMap[page]
+              exportConfig.initialPageRevalidationMap[revalidationMapPath]
             pageInfos.set(page, pageInfo)
           }
         } else {
@@ -1102,6 +1109,15 @@ export default async function build(
       'utf8'
     )
   }
+
+  await promises.writeFile(
+    path.join(distDir, IMAGES_MANIFEST),
+    JSON.stringify({
+      version: 1,
+      images: config.images,
+    }),
+    'utf8'
+  )
 
   await promises.writeFile(
     path.join(distDir, EXPORT_MARKER),
