@@ -672,7 +672,12 @@ function runTests(isDev) {
   })
 
   it('should render 404 for fallback page that returned 404', async () => {
-    const browser = await webdriver(appPort, '/en/not-found/fallback/first')
+    const browser = await webdriver(
+      appPort,
+      '/en/not-found/fallback/first',
+      true,
+      true
+    )
     await browser.waitForElementByCss('h1')
     await browser.eval('window.beforeNav = 1')
 
