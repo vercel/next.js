@@ -24,5 +24,6 @@ interface Chain {
 export default function (
   appPort: number,
   path: string,
-  waitHydration?: boolean
+  waitHydration?: boolean,
+  allowHydrationRetry?: boolean
 ): Promise<Chain>
