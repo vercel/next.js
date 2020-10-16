@@ -14,6 +14,7 @@ import {
   nextStart,
   renderViaHTTP,
   File,
+  waitFor,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -22,11 +23,200 @@ const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 let app
 let appPort
+let buildPagesDir
 // let buildId
 
 const locales = ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en']
 
+async function addDefaultLocaleCookie(browser) {
+  // make sure default locale is used in case browser isn't set to
+  // favor en-US by default, (we use all caps to ensure it's case-insensitive)
+  await browser.manage().addCookie({ name: 'NEXT_LOCALE', value: 'EN-US' })
+  await browser.get(browser.initUrl)
+}
+
 function runTests(isDev) {
+  if (!isDev) {
+    it('should add i18n config to routes-manifest', async () => {
+      const routesManifest = await fs.readJSON(
+        join(appDir, '.next/routes-manifest.json')
+      )
+
+      expect(routesManifest.i18n).toEqual({
+        locales: ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en'],
+        defaultLocale: 'en-US',
+        domains: [
+          {
+            http: true,
+            domain: 'example.be',
+            defaultLocale: 'nl-BE',
+          },
+          {
+            http: true,
+            domain: 'example.fr',
+            defaultLocale: 'fr',
+          },
+        ],
+      })
+    })
+  }
+
+  it('should navigate with locale prop correctly', async () => {
+    const browser = await webdriver(appPort, '/links?nextLocale=fr')
+    await addDefaultLocaleCookie(browser)
+
+    expect(await browser.elementByCss('#router-pathname').text()).toBe('/links')
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/links?nextLocale=fr'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({ nextLocale: 'fr' })
+
+    await browser.elementByCss('#to-another').click()
+    await browser.waitForElementByCss('#another')
+
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/another'
+    )
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/another'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({})
+
+    let parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    expect(parsedUrl.pathname).toBe('/fr/another')
+    expect(parsedUrl.query).toEqual({})
+
+    await browser.eval('window.history.back()')
+    await browser.waitForElementByCss('#links')
+
+    expect(await browser.elementByCss('#router-pathname').text()).toBe('/links')
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/links?nextLocale=fr'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({ nextLocale: 'fr' })
+
+    parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    expect(parsedUrl.pathname).toBe('/fr/links')
+    expect(parsedUrl.query).toEqual({ nextLocale: 'fr' })
+
+    await browser.eval('window.history.forward()')
+    await browser.waitForElementByCss('#another')
+
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/another'
+    )
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/another'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({})
+
+    parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    expect(parsedUrl.pathname).toBe('/fr/another')
+    expect(parsedUrl.query).toEqual({})
+  })
+
+  it('should navigate with locale prop correctly GSP', async () => {
+    const browser = await webdriver(appPort, '/links?nextLocale=nl')
+    await addDefaultLocaleCookie(browser)
+
+    expect(await browser.elementByCss('#router-pathname').text()).toBe('/links')
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/links?nextLocale=nl'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({ nextLocale: 'nl' })
+
+    await browser.elementByCss('#to-fallback-first').click()
+    await browser.waitForElementByCss('#gsp')
+
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/gsp/fallback/[slug]'
+    )
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/gsp/fallback/first'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('nl')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({ slug: 'first' })
+
+    let parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    expect(parsedUrl.pathname).toBe('/nl/gsp/fallback/first')
+    expect(parsedUrl.query).toEqual({})
+
+    await browser.eval('window.history.back()')
+    await browser.waitForElementByCss('#links')
+
+    expect(await browser.elementByCss('#router-pathname').text()).toBe('/links')
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/links?nextLocale=nl'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('nl')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({ nextLocale: 'nl' })
+
+    parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    expect(parsedUrl.pathname).toBe('/nl/links')
+    expect(parsedUrl.query).toEqual({ nextLocale: 'nl' })
+
+    await browser.eval('window.history.forward()')
+    await browser.waitForElementByCss('#gsp')
+
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/gsp/fallback/[slug]'
+    )
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/gsp/fallback/first'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('nl')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({ slug: 'first' })
+
+    parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    expect(parsedUrl.pathname).toBe('/nl/gsp/fallback/first')
+    expect(parsedUrl.query).toEqual({})
+  })
+
   it('should update asPath on the client correctly', async () => {
     for (const check of ['en', 'En']) {
       const browser = await webdriver(appPort, `/${check}`)
@@ -228,6 +418,53 @@ function runTests(isDev) {
     await checkDomainLocales('fr', 'example.fr')
   })
 
+  it('should generate AMP pages with all locales', async () => {
+    for (const locale of locales) {
+      const localePath = locale !== 'en-US' ? `/${locale}` : ''
+      const html = await renderViaHTTP(appPort, `${localePath}/amp/amp-hybrid`)
+      const $ = cheerio.load(html)
+      expect($('html').attr('lang')).toBe(locale)
+      expect($('#is-amp').text()).toBe('no')
+      expect($('#router-locale').text()).toBe(locale)
+      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+      expect($('#router-pathname').text()).toBe('/amp/amp-hybrid')
+      expect($('#router-as-path').text()).toBe('/amp/amp-hybrid')
+      expect(JSON.parse($('#router-query').text())).toEqual({})
+
+      const amphtmlPath = `${localePath}/amp/amp-hybrid${
+        isDev ? '?amp=1' : '.amp'
+      }`
+      expect($('link[rel=amphtml]').attr('href')).toBe(amphtmlPath)
+
+      const html2 = await renderViaHTTP(appPort, amphtmlPath)
+      const $2 = cheerio.load(html2)
+      expect($2('html').attr('lang')).toBe(locale)
+      expect($2('#is-amp').text()).toBe('yes')
+      expect($2('#router-locale').text()).toBe(locale)
+      expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
+      expect($2('#router-pathname').text()).toBe('/amp/amp-hybrid')
+      expect($2('#router-as-path').text()).toBe('/amp/amp-hybrid')
+      expect(JSON.parse($2('#router-query').text())).toEqual({ amp: '1' })
+      expect($2('link[rel=amphtml]').attr('href')).toBeFalsy()
+    }
+  })
+
+  it('should work with AMP first page with all locales', async () => {
+    for (const locale of locales) {
+      const localePath = locale !== 'en-US' ? `/${locale}` : ''
+      const html = await renderViaHTTP(appPort, `${localePath}/amp/amp-first`)
+      const $ = cheerio.load(html)
+      expect($('html').attr('lang')).toBe(locale)
+      expect($('#is-amp').text()).toBe('yes')
+      expect($('#router-locale').text()).toBe(locale)
+      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+      expect($('#router-pathname').text()).toBe('/amp/amp-first')
+      expect($('#router-as-path').text()).toBe('/amp/amp-first')
+      expect(JSON.parse($('#router-query').text())).toEqual({})
+      expect($('link[rel=amphtml]').attr('href')).toBeFalsy()
+    }
+  })
+
   it('should generate fallbacks with all locales', async () => {
     for (const locale of locales) {
       const html = await renderViaHTTP(
@@ -259,7 +496,7 @@ function runTests(isDev) {
     }
   })
 
-  it('should generate non-dynamic SSG page with all locales', async () => {
+  it('should generate non-dynamic GSP page with all locales', async () => {
     for (const locale of locales) {
       const html = await renderViaHTTP(appPort, `/${locale}/gsp`)
       const $ = cheerio.load(html)
@@ -280,8 +517,85 @@ function runTests(isDev) {
     }
   })
 
-  // TODO: SSG 404 behavior to opt-out of generating specific locale
-  // for non-dynamic SSG pages
+  if (!isDev) {
+    it('should not output GSP pages that returned notFound', async () => {
+      const skippedLocales = ['en', 'nl']
+
+      for (const locale of locales) {
+        const pagePath = join(buildPagesDir, locale, 'not-found.html')
+        const dataPath = join(buildPagesDir, locale, 'not-found.json')
+        console.log(pagePath)
+        expect(await fs.exists(pagePath)).toBe(!skippedLocales.includes(locale))
+        expect(await fs.exists(dataPath)).toBe(!skippedLocales.includes(locale))
+      }
+    })
+  }
+
+  it('should 404 for GSP pages that returned notFound', async () => {
+    const skippedLocales = ['en', 'nl']
+
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(appPort, `/${locale}/not-found`)
+      expect(res.status).toBe(skippedLocales.includes(locale) ? 404 : 200)
+
+      if (skippedLocales.includes(locale)) {
+        const browser = await webdriver(appPort, `/${locale}/not-found`)
+        expect(await browser.elementByCss('html').getAttribute('lang')).toBe(
+          locale
+        )
+        expect(
+          await browser.eval('document.documentElement.innerHTML')
+        ).toContain('This page could not be found')
+
+        const parsedUrl = url.parse(
+          await browser.eval('window.location.href'),
+          true
+        )
+        expect(parsedUrl.pathname).toBe(`/${locale}/not-found`)
+        expect(parsedUrl.query).toEqual({})
+      }
+    }
+  })
+
+  it('should 404 for GSP that returned notFound on client-transition', async () => {
+    const browser = await webdriver(appPort, '/en')
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/not-found')
+    })()`)
+
+    await browser.waitForElementByCss('h1')
+
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(null)
+  })
+
+  it('should render 404 for fallback page that returned 404', async () => {
+    const browser = await webdriver(appPort, '/en/not-found/fallback/first')
+    await browser.waitForElementByCss('h1')
+    await browser.eval('window.beforeNav = 1')
+
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+
+    const parsedUrl = url.parse(
+      await browser.eval('window.location.href'),
+      true
+    )
+    expect(parsedUrl.pathname).toBe('/en/not-found/fallback/first')
+    expect(parsedUrl.query).toEqual(isDev ? { __next404: '1' } : {})
+
+    if (isDev) {
+      // make sure page doesn't reload un-necessarily in development
+      await waitFor(10 * 1000)
+    }
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
 
   it('should remove un-necessary locale prefix for default locale', async () => {
     const res = await fetchViaHTTP(appPort, '/en-US', undefined, {
@@ -509,10 +823,7 @@ function runTests(isDev) {
 
   it('should navigate client side for default locale with no prefix', async () => {
     const browser = await webdriver(appPort, '/')
-    // make sure default locale is used in case browser isn't set to
-    // favor en-US by default, (we use all caps to ensure it's case-insensitive)
-    await browser.manage().addCookie({ name: 'NEXT_LOCALE', value: 'EN-US' })
-    await browser.get(browser.initUrl)
+    await addDefaultLocaleCookie(browser)
 
     const checkIndexValues = async () => {
       expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
@@ -833,6 +1144,7 @@ describe('i18n Support', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
+      buildPagesDir = join(appDir, '.next/server/pages')
       // buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))
@@ -848,6 +1160,7 @@ describe('i18n Support', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
+      buildPagesDir = join(appDir, '.next/serverless/pages')
       // buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
