@@ -462,10 +462,6 @@ function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
     if (isInitialRender) {
       ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
       isInitialRender = false
-
-      if (onPerfEntry && ST) {
-        measureWebVitals(onPerfEntry)
-      }
     } else {
       ReactDOM.render(reactEl, domEl, markRenderComplete)
     }
@@ -744,5 +740,10 @@ function Root({
       }
     }, [])
   }
+  // We should ask to measure the Web Vitals after rendering completes so we
+  // don't cause any hydration delay:
+  React.useEffect(() => {
+    measureWebVitals(onPerfEntry)
+  }, [])
   return children as React.ReactElement
 }
