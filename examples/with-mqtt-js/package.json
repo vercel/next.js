@@ -1,0 +1,16 @@
+{
+  "name": "with-mqtt-js",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "mqtt": "^4.2.1",
+    "next": "latest",
+    "react": "^16.14.0",
+    "react-dom": "^16.14.0"
+  },
+  "license": "MIT"
+}
