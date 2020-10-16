@@ -23,7 +23,11 @@ const defaultConfig: { [key: string]: any } = {
   target: 'server',
   poweredByHeader: true,
   compress: true,
-  images: { hosts: { default: { path: 'defaultconfig' } } },
+  images: {
+    sizes: [320, 420, 768, 1024, 1200],
+    domains: [],
+    hosts: { default: { path: 'defaultconfig' } },
+  },
   devIndicators: {
     buildActivity: true,
     autoPrerender: true,
@@ -208,6 +212,47 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
+  if (result?.images) {
+    const { images } = result
+    if (typeof images !== 'object') {
+      throw new Error(
+        `Specified images should be an object received ${typeof images}`
+      )
+    }
+    if (images.domains) {
+      if (!Array.isArray(images.domains)) {
+        throw new Error(
+          `Specified images.domains should be an Array received ${typeof images.domains}`
+        )
+      }
+      const invalid = images.domains.filter(
+        (d: unknown) => typeof d !== 'string'
+      )
+      if (invalid.length > 0) {
+        throw new Error(
+          `Specified images.domains should be an Array of strings received invalid values (${invalid.join(
+            ', '
+          )})`
+        )
+      }
+    }
+    if (images.sizes) {
+      if (!Array.isArray(images.sizes)) {
+        throw new Error(
+          `Specified images.sizes should be an Array received ${typeof images.sizes}`
+        )
+      }
+      const invalid = images.sizes.filter((d: unknown) => typeof d !== 'number')
+      if (invalid.length > 0) {
+        throw new Error(
+          `Specified images.sizes should be an Array of numbers received invalid values (${invalid.join(
+            ', '
+          )})`
+        )
+      }
+    }
+  }
+
   if (result.experimental?.i18n) {
     const { i18n } = result.experimental
     const i18nType = typeof i18n
@@ -218,7 +263,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
     if (!Array.isArray(i18n.locales)) {
       throw new Error(
-        `Specified i18n.locales should be an Array received ${typeof i18n.lcoales}`
+        `Specified i18n.locales should be an Array received ${typeof i18n.locales}`
       )
     }
 
