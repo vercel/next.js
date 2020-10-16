@@ -1015,6 +1015,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_i18n_SUPPORT': JSON.stringify(
           !!config.experimental.i18n
         ),
+        'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(
+          config.experimental.analyticsId
+        ),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
