@@ -1262,14 +1262,20 @@ describe('Client Navigation', () => {
         ).toBeTruthy()
         // PWATags functional component
         expect(
-          await browser.elementByCss('meta[name="theme-color"]')
-        ).toBeTruthy()
+          await browser.eval(
+            `document.querySelectorAll('meta[name="theme-color"]')`
+          )
+        ).toHaveLength(1)
         // Fonts class component
         expect(
-          await browser.elementByCss('link[href="Boing-Regular.woff"]')
-        ).toBeTruthy()
+          await browser.eval(
+            `document.querySelectorAll('link[href="Boing-Regular.woff"]')`
+          )
+        ).toHaveLength(1)
         // Links as a function
-        expect(await browser.elementByCss('link[href="link1"]')).toBeTruthy()
+        expect(
+          await browser.eval(`document.querySelectorAll('link[href="link1"]')`)
+        ).toHaveLength(1)
         // go back to nav/head-3
         await browser.back().waitForElementByCss('#head-3', 3000)
 
@@ -1408,18 +1414,32 @@ describe('Client Navigation', () => {
   it('should render react components in head client-side', async () => {
     const browser = await webdriver(context.appPort, '/head')
     // PWATags functional component
-    expect(await browser.elementByCss('meta[name="theme-color"]')).toBeTruthy()
     expect(
-      await browser.elementByCss('meta[name="mobile-web-app-capable"]')
-    ).toBeTruthy()
-    expect(await browser.elementByCss('link[rel="manifest"]')).toBeTruthy()
+      await browser.eval(
+        `document.querySelectorAll('meta[name="theme-color"]')`
+      )
+    ).toHaveLength(1)
+    expect(
+      await browser.eval(
+        `document.querySelectorAll('meta[name="mobile-web-app-capable"]')`
+      )
+    ).toHaveLength(1)
+    expect(
+      await browser.eval(`document.querySelectorAll('link[rel="manifest"]')`)
+    ).toHaveLength(1)
     // Fonts class component
     expect(
-      await browser.elementByCss('link[href="Boing-Regular.woff"]')
-    ).toBeTruthy()
+      await browser.eval(
+        `document.querySelectorAll('link[href="Boing-Regular.woff"]')`
+      )
+    ).toHaveLength(1)
     // Links as a function
-    expect(await browser.elementByCss('link[href="link1"]')).toBeTruthy()
-    expect(await browser.elementByCss('link[href="link2"]')).toBeTruthy()
+    expect(
+      await browser.eval(`document.querySelectorAll('link[href="link1"]')`)
+    ).toHaveLength(1)
+    expect(
+      await browser.eval(`document.querySelectorAll('link[href="link2"]')`)
+    ).toHaveLength(1)
   })
 
   renderingSuite(
