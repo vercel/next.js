@@ -533,6 +533,18 @@ const nextServerlessLoader: loader.Loader = function () {
 
         ${handleBasePath}
 
+        // remove ?amp=1 from request URL if rendering for export
+        if (fromExport && parsedUrl.query.amp) {
+          const queryNoAmp = Object.assign({}, origQuery)
+          delete queryNoAmp.amp
+
+          req.url = formatUrl({
+            ...parsedUrl,
+            search: undefined,
+            query: queryNoAmp
+          })
+        }
+
         if (parsedUrl.pathname.match(/_next\\/data/)) {
           const {
             default: getrouteNoAssetPath,
