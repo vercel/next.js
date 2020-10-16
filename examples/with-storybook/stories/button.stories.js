@@ -6,7 +6,7 @@ export default {
   argTypes: { onClick: { action: 'clicked' } },
 }
 
-const TemplateWithText = (args) => <Button {...args}>Hello Button</Button>;
+const TemplateWithText = (args) => <Button {...args}>Hello Button</Button>
 
 const TemplateWithEmoji = (args) => (
   <Button {...args}>
@@ -14,12 +14,12 @@ const TemplateWithEmoji = (args) => (
       😀 😎 👍 💯
     </span>
   </Button>
-);
+)
 
-export const withText = TemplateWithText.bind({});
+export const withText = TemplateWithText.bind({})
 
-withText.args = {};
+withText.args = {}
 
-export const withSomeEmoji = TemplateWithEmoji.bind({});
+export const withSomeEmoji = TemplateWithEmoji.bind({})
 
-withSomeEmoji.args = {};
+withSomeEmoji.args = {}
