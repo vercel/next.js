@@ -17,7 +17,6 @@ import {
   File,
   waitFor,
   normalizeRegEx,
-  check,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -673,15 +672,18 @@ function runTests(isDev) {
   })
 
   it('should render 404 for fallback page that returned 404', async () => {
-    const browser = await webdriver(appPort, '/en/not-found/fallback/first')
-    await browser.waitForElementByCss('h1')
-
-    await check(
-      () => browser.elementByCss('html').text(),
-      /This page could not be found/
+    const browser = await webdriver(
+      appPort,
+      '/en/not-found/fallback/first',
+      true,
+      true
     )
+    await browser.waitForElementByCss('h1')
     await browser.eval('window.beforeNav = 1')
 
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
 
     const parsedUrl = url.parse(
