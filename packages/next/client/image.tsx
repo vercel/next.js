@@ -16,14 +16,12 @@ type ImageData = {
   breakpoints?: number[]
 }
 
-type ImageProps = {
+type ImageProps = Omit<JSX.IntrinsicElements['img'], 'src' | 'sizes'> & {
   src: string
-  host: string
-  sizes: string
-  breakpoints: number[]
-  priority: boolean
-  unoptimized: boolean
-  rest: any[]
+  host?: string
+  sizes?: string
+  priority?: boolean
+  unoptimized?: boolean
 }
 
 let imageData: any = process.env.__NEXT_IMAGE_OPTS
@@ -73,15 +71,15 @@ type PreloadData = {
   src: string
   host: string
   widths: number[]
-  sizes: string
-  unoptimized: boolean
+  sizes?: string
+  unoptimized?: boolean
 }
 
 function generatePreload({
   src,
   host,
   widths,
-  unoptimized,
+  unoptimized = false,
   sizes,
 }: PreloadData): ReactElement {
   // This function generates an image preload that makes use of the "imagesrcset" and "imagesizes"
@@ -106,8 +104,8 @@ export default function Image({
   src,
   host,
   sizes,
-  unoptimized,
-  priority,
+  unoptimized = false,
+  priority = false,
   ...rest
 }: ImageProps) {
   // Sanity Checks:
