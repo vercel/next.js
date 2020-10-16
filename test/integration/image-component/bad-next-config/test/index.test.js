@@ -16,13 +16,13 @@ describe('Next.config.js images prop without default host', () => {
       nextConfig,
       `module.exports = {
         images: {
+          sizes: [480, 1024, 1600],
           hosts: {
             secondary: {
               path: 'https://examplesecondary.com/images/',
               loader: 'cloudinary',
             },
           },
-          breakpoints: [480, 1024, 1600],
         },
       }`,
       'utf8'
@@ -46,6 +46,7 @@ describe('Next.config.js images prop without path', () => {
       nextConfig,
       `module.exports = {
         images: {
+          sizes: [480, 1024, 1600],
           hosts: {
             default: {
               path: 'https://examplesecondary.com/images/',
@@ -55,7 +56,6 @@ describe('Next.config.js images prop without path', () => {
               loader: 'cloudinary',
             },
           },
-          breakpoints: [480, 1024, 1600],
         },
       }`,
       'utf8'

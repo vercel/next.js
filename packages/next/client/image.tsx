@@ -27,7 +27,7 @@ type ImageProps = {
 }
 
 let imageData: any = process.env.__NEXT_IMAGE_OPTS
-const breakpoints = imageData.breakpoints || [640, 1024, 1600]
+const breakpoints = imageData.sizes || [640, 1024, 1600]
 
 function computeSrc(src: string, host: string, unoptimized: boolean): string {
   if (unoptimized) {

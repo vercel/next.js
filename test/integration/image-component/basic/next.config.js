@@ -1,5 +1,6 @@
 module.exports = {
   images: {
+    sizes: [480, 1024, 1600],
     hosts: {
       default: {
         path: 'https://example.com/myaccount/',
@@ -10,6 +11,5 @@ module.exports = {
         loader: 'cloudinary',
       },
     },
-    breakpoints: [480, 1024, 1600],
   },
 }
