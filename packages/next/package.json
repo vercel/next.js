@@ -30,6 +30,8 @@
     "error.d.ts",
     "head.js",
     "head.d.ts",
+    "image.js",
+    "image.d.ts",
     "link.js",
     "link.d.ts",
     "router.js",
