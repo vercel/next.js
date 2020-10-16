@@ -180,5 +180,5 @@ function cloudinaryLoader({ root, src, width }: LoaderProps): string {
 
 function defaultLoader({ root, src, width }: LoaderProps): string {
   // TODO: change quality parameter to be configurable
-  return `${root}?url=${encodeURIComponent(src)}&width=${width}&q=100`
+  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=100`
 }
