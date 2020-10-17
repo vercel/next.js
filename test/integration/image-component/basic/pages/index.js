@@ -36,6 +36,9 @@ const Page = () => {
       <Link href="/client-side">
         <a id="clientlink">Client Side</a>
       </Link>
+      <Link href="/lazy">
+        <a id="lazylink">lazy</a>
+      </Link>
       <p id="stubtext">This is the index page</p>
     </div>
   )

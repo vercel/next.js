@@ -71,6 +71,70 @@ function runTests() {
   })
 }
 
+function lazyLoadingTests() {
+  it('should have loaded the first image immediately', async () => {
+    expect(await browser.elementById('lazy-top').getAttribute('src')).toBe(
+      'https://example.com/myaccount/foo1.jpg'
+    )
+    expect(await browser.elementById('lazy-top').getAttribute('srcset')).toBe(
+      'https://example.com/myaccount/foo1.jpg?w=480 480w, https://example.com/myaccount/foo1.jpg?w=1024 1024w, https://example.com/myaccount/foo1.jpg?w=1600 1600w'
+    )
+  })
+  it('should not have loaded the second image immediately', async () => {
+    expect(
+      await browser.elementById('lazy-mid').getAttribute('src')
+    ).toBeFalsy()
+    expect(
+      await browser.elementById('lazy-mid').getAttribute('srcset')
+    ).toBeFalsy()
+  })
+  it('should pass through classes on a lazy loaded image', async () => {
+    expect(await browser.elementById('lazy-mid').getAttribute('class')).toBe(
+      'exampleclass __lazy'
+    )
+  })
+  it('should load the second image after scrolling down', async () => {
+    let viewportHeight = await browser.eval(`window.innerHeight`)
+    let topOfMidImage = await browser.eval(
+      `document.getElementById('lazy-mid').offsetTop`
+    )
+    let buffer = 150
+    await browser.eval(
+      `window.scrollTo(0, ${topOfMidImage - (viewportHeight + buffer)})`
+    )
+    expect(await browser.elementById('lazy-mid').getAttribute('src')).toBe(
+      'https://example.com/myaccount/foo2.jpg'
+    )
+    expect(await browser.elementById('lazy-mid').getAttribute('srcset')).toBe(
+      'https://example.com/myaccount/foo2.jpg?w=480 480w, https://example.com/myaccount/foo2.jpg?w=1024 1024w, https://example.com/myaccount/foo2.jpg?w=1600 1600w'
+    )
+  })
+  it('should not have loaded the third image after scrolling down', async () => {
+    expect(
+      await browser.elementById('lazy-bottom').getAttribute('src')
+    ).toBeFalsy()
+    expect(
+      await browser.elementById('lazy-bottom').getAttribute('srcset')
+    ).toBeFalsy()
+  })
+  it('should load the third image, which is unoptimized, after scrolling further down', async () => {
+    let viewportHeight = await browser.eval(`window.innerHeight`)
+    let topOfBottomImage = await browser.eval(
+      `document.getElementById('lazy-bottom').offsetTop`
+    )
+    let buffer = 150
+    await browser.eval(
+      `window.scrollTo(0, ${topOfBottomImage - (viewportHeight + buffer)})`
+    )
+    expect(await browser.elementById('lazy-bottom').getAttribute('src')).toBe(
+      'https://www.otherhost.com/foo3.jpg'
+    )
+    expect(
+      await browser.elementById('lazy-bottom').getAttribute('srcset')
+    ).toBeFalsy()
+  })
+}
+
 async function hasPreloadLinkMatchingUrl(url) {
   const links = await browser.elementsByCss('link')
   let foundMatch = false
@@ -164,5 +228,25 @@ describe('Image Component Tests', () => {
         expect(foundError).toBe(false)
       })
     })
+  })
+  describe('SSR Lazy Loading Tests', () => {
+    beforeAll(async () => {
+      browser = await webdriver(appPort, '/lazy')
+    })
+    afterAll(async () => {
+      browser = null
+    })
+    lazyLoadingTests()
+  })
+  describe('Client-side Lazy Loading Tests', () => {
+    beforeAll(async () => {
+      browser = await webdriver(appPort, '/')
+      await browser.waitForElementByCss('#lazylink').click()
+      await waitFor(500)
+    })
+    afterAll(async () => {
+      browser = null
+    })
+    lazyLoadingTests()
   })
 })
