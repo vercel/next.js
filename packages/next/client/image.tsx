@@ -183,14 +183,13 @@ export default function Image({
   let thisEl: any
 
   useEffect(() => {
-    if (!lazy) {
-      return () => {}
-    }
-    const observer = getObserver()
-    if (observer) {
-      observer.observe(thisEl)
-      return () => {
-        observer.unobserve(thisEl)
+    if (lazy) {
+      const observer = getObserver()
+      if (observer) {
+        observer.observe(thisEl)
+        return () => {
+          observer.unobserve(thisEl)
+        }
       }
     }
   }, [thisEl, lazy])
