@@ -73,7 +73,7 @@ The `context` parameter is an object containing the following keys:
 >
 > Fetching from an external API is fine!
 
-### Simple Example
+### Simple Examples
 
 Here’s an example which uses `getStaticProps` to fetch a list of blog posts from a CMS (content management system). This example is also in the [Pages documentation](/docs/basic-features/pages.md).
 
@@ -108,6 +108,30 @@ export async function getStaticProps() {
 }
 
 export default Blog
+```
+
+
+Here's an example how you can use your own API in `getStaticProps` or `getStaticPaths`
+
+```jsx
+export default async function functionName() {
+  const handler = await fetch(//...'); // Fetch or do something else
+  const response = await handler.json();
+  
+  return response;
+}
+```
+
+```jsx
+import functionName from './api/functionName'
+
+//...
+
+export default async function getStatticProps() {
+  const response = await functionName();
+
+  //...
+}
 ```
 
 ### When should I use `getStaticProps`?
