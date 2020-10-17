@@ -16,20 +16,18 @@ type ImageData = {
   breakpoints?: number[]
 }
 
-type ImageProps = {
+type ImageProps = Omit<JSX.IntrinsicElements['img'], 'src' | 'sizes'> & {
   src: string
-  host: string
-  sizes: string
-  breakpoints: number[]
-  priority: boolean
+  host?: string
+  sizes?: string
+  priority?: boolean
   lazy: boolean
   className: string
-  unoptimized: boolean
-  rest: any[]
+  unoptimized?: boolean
 }
 
 let imageData: any = process.env.__NEXT_IMAGE_OPTS
-const breakpoints = imageData.breakpoints || [640, 1024, 1600]
+const breakpoints = imageData.sizes || [640, 1024, 1600]
 
 let cachedObserver: IntersectionObserver
 const IntersectionObserver =
@@ -89,7 +87,7 @@ function computeSrc(src: string, host: string, unoptimized: boolean): string {
 
 function callLoader(src: string, host: string, width?: number): string {
   let loader = loaders[imageData.hosts[host].loader || 'default']
-  return loader({ root: imageData.hosts[host].path, filename: src, width })
+  return loader({ root: imageData.hosts[host].path, src, width })
 }
 
 type SrcSetData = {
@@ -110,15 +108,15 @@ type PreloadData = {
   src: string
   host: string
   widths: number[]
-  sizes: string
-  unoptimized: boolean
+  sizes?: string
+  unoptimized?: boolean
 }
 
 function generatePreload({
   src,
   host,
   widths,
-  unoptimized,
+  unoptimized = false,
   sizes,
 }: PreloadData): ReactElement {
   // This function generates an image preload that makes use of the "imagesrcset" and "imagesizes"
@@ -143,8 +141,8 @@ export default function Image({
   src,
   host,
   sizes,
-  unoptimized,
-  priority,
+  unoptimized = false,
+  priority = false,
   lazy,
   className,
   ...rest
@@ -274,18 +272,21 @@ export default function Image({
 
 type LoaderProps = {
   root: string
-  filename: string
+  src: string
   width?: number
 }
 
-function imgixLoader({ root, filename, width }: LoaderProps): string {
-  return `${root}${filename}${width ? '?w=' + width : ''}`
+function imgixLoader({ root, src, width }: LoaderProps): string {
+  return `${root}${src}${width ? '?w=' + width : ''}`
 }
 
-function cloudinaryLoader({ root, filename, width }: LoaderProps): string {
-  return `${root}${width ? 'w_' + width + '/' : ''}${filename}`
+function cloudinaryLoader({ root, src, width }: LoaderProps): string {
+  return `${root}${width ? 'w_' + width + '/' : ''}${src}`
 }
 
-function defaultLoader({ root, filename }: LoaderProps): string {
-  return `${root}${filename}`
+function defaultLoader({ root, src, width }: LoaderProps): string {
+  // TODO: change quality parameter to be configurable
+  return `${root}?url=${encodeURIComponent(src)}&${
+    width ? `w=${width}&` : ''
+  }q=100`
 }
