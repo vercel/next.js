@@ -62,6 +62,7 @@ function updateElements(
 ) {
   const headEl = document.getElementsByTagName('head')[0]
   const oldTags = new Set(elements)
+  const newTags = new Set() as Set<HTMLElement>
 
   components.forEach((tag) => {
     if (tag.type === 'title') {
@@ -80,32 +81,30 @@ function updateElements(
     }
     // handle react components as a function, functional component, or a class component
     if (typeof tag.type === 'function') {
-      const newTags = reactComponentToDOM(tag)
-      newTags.forEach((nt: HTMLElement) => {
-        elements.add(nt)
-        headEl.appendChild(nt)
-      })
-      return
+      reactComponentToDOM(tag).forEach((t) => newTags.add(t))
+    } else {
+      newTags.add(reactElementToDOM(tag))
     }
 
-    const newTag = reactElementToDOM(tag)
-    const elementIter = elements.values()
+    newTags.forEach((newTag) => {
+      const elementIter = elements.values()
 
-    while (true) {
-      // Note: We don't use for-of here to avoid needing to polyfill it.
-      const { done, value } = elementIter.next()
-      if (value?.isEqualNode(newTag)) {
-        oldTags.delete(value)
-        return
+      while (true) {
+        // Note: We don't use for-of here to avoid needing to polyfill it.
+        const { done, value } = elementIter.next()
+        if (value?.isEqualNode(newTag)) {
+          oldTags.delete(value)
+          return
+        }
+
+        if (done) {
+          break
+        }
       }
 
-      if (done) {
-        break
-      }
-    }
-
-    elements.add(newTag)
-    headEl.appendChild(newTag)
+      elements.add(newTag)
+      headEl.appendChild(newTag)
+    })
   })
 
   oldTags.forEach((oldTag) => {
