@@ -123,7 +123,13 @@
   },
   "peerDependencies": {
     "react": "^16.6.0",
-    "react-dom": "^16.6.0"
+    "react-dom": "^16.6.0",
+    "sharp": "0.26.2"
+  },
+  "peerDependenciesMeta": {
+    "sharp": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@next/polyfill-nomodule": "9.5.6-canary.4",
