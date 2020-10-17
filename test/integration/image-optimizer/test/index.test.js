@@ -1,6 +1,7 @@
 /* eslint-env jest */
 import fs from 'fs-extra'
 import { join } from 'path'
+import isAnimated from 'next/dist/compiled/is-animated'
 import {
   killApp,
   findPort,
@@ -38,6 +39,30 @@ function runTests({ w, isDev }) {
   it('should return home page', async () => {
     const res = await fetchViaHTTP(appPort, '/', null, {})
     expect(await res.text()).toMatch(/Image Optimizer Home/m)
+  })
+
+  it('should maintain animated gif', async () => {
+    const query = { w, q: 90, url: '/animated.gif' }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/gif')
+    expect(isAnimated(await res.buffer())).toBe(true)
+  })
+
+  it('should maintain animated png', async () => {
+    const query = { w, q: 90, url: '/animated.png' }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/png')
+    expect(isAnimated(await res.buffer())).toBe(true)
+  })
+
+  it('should maintain animated webp', async () => {
+    const query = { w, q: 90, url: '/animated.webp' }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('image/webp')
+    expect(isAnimated(await res.buffer())).toBe(true)
   })
 
   it('should fail when url is missing', async () => {
