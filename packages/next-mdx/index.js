@@ -8,7 +8,7 @@ module.exports = (pluginOptions = {}) => (nextConfig = {}) => {
         use: [
           options.defaultLoaders.babel,
           {
-            loader: '@mdx-js/loader',
+            loader: require.resolve('@mdx-js/loader'),
             options: pluginOptions.options,
           },
         ],
