@@ -86,6 +86,4 @@ describe('Image Component Tests', () => {
 
     runTests('serverless')
   })
-
-  runTests()
 })
