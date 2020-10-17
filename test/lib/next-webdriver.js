@@ -152,7 +152,12 @@ const freshWindow = async () => {
   await browser.switchTo().window(newWindow)
 }
 
-export default async (appPort, path, waitHydration = true) => {
+export default async (
+  appPort,
+  path,
+  waitHydration = true,
+  allowHydrationRetry = false
+) => {
   if (!initialWindow) {
     initialWindow = await browser.getWindowHandle()
   }
@@ -176,24 +181,41 @@ export default async (appPort, path, waitHydration = true) => {
   // Wait for application to hydrate
   if (waitHydration) {
     console.log(`\n> Waiting hydration for ${url}\n`)
-    await browser.executeAsyncScript(function () {
-      var callback = arguments[arguments.length - 1]
 
-      // if it's not a Next.js app return
-      if (document.documentElement.innerHTML.indexOf('__NEXT_DATA__') === -1) {
-        callback()
-      }
+    const checkHydrated = async () => {
+      await browser.executeAsyncScript(function () {
+        var callback = arguments[arguments.length - 1]
 
-      if (window.__NEXT_HYDRATED) {
-        callback()
-      } else {
-        var timeout = setTimeout(callback, 10 * 1000)
-        window.__NEXT_HYDRATED_CB = function () {
-          clearTimeout(timeout)
+        // if it's not a Next.js app return
+        if (
+          document.documentElement.innerHTML.indexOf('__NEXT_DATA__') === -1
+        ) {
           callback()
         }
+
+        if (window.__NEXT_HYDRATED) {
+          callback()
+        } else {
+          var timeout = setTimeout(callback, 10 * 1000)
+          window.__NEXT_HYDRATED_CB = function () {
+            clearTimeout(timeout)
+            callback()
+          }
+        }
+      })
+    }
+
+    try {
+      await checkHydrated()
+    } catch (err) {
+      if (allowHydrationRetry) {
+        // re-try in case the page reloaded during check
+        await checkHydrated()
+      } else {
+        throw err
       }
-    })
+    }
+
     console.log(`\n> Hydration complete for ${url}\n`)
   }
 
