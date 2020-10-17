@@ -1411,8 +1411,13 @@ describe('Client Navigation', () => {
     expect(value).toBe(false)
   })
 
-  it('should render react components in head client-side', async () => {
+  it('should render components only once in head client-side', async () => {
     const browser = await webdriver(context.appPort, '/head')
+    expect(
+      await browser.eval(
+        `document.querySelectorAll('meta[content="ogImageTag1"]')`
+      )
+    ).toHaveLength(1)
     // PWATags functional component
     expect(
       await browser.eval(
