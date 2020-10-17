@@ -1,4 +1,4 @@
-import React, { ReactElement } from 'react'
+import React, { ReactElement, useEffect } from 'react'
 import Head from '../next-server/lib/head'
 
 const loaders: { [key: string]: (props: LoaderProps) => string } = {
@@ -21,11 +21,48 @@ type ImageProps = Omit<JSX.IntrinsicElements['img'], 'src' | 'sizes'> & {
   host?: string
   sizes?: string
   priority?: boolean
+  lazy: boolean
+  className: string
   unoptimized?: boolean
 }
 
 let imageData: any = process.env.__NEXT_IMAGE_OPTS
 const breakpoints = imageData.sizes || [640, 1024, 1600]
+
+let cachedObserver: IntersectionObserver
+const IntersectionObserver =
+  typeof window !== 'undefined' ? window.IntersectionObserver : null
+
+function getObserver(): IntersectionObserver | undefined {
+  // Return shared instance of IntersectionObserver if already created
+  if (cachedObserver) {
+    return cachedObserver
+  }
+
+  // Only create shared IntersectionObserver if supported in browser
+  if (!IntersectionObserver) {
+    return undefined
+  }
+
+  return (cachedObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          let lazyImage = entry.target as HTMLImageElement
+          if (lazyImage.dataset.src) {
+            lazyImage.src = lazyImage.dataset.src
+          }
+          if (lazyImage.dataset.srcset) {
+            lazyImage.srcset = lazyImage.dataset.srcset
+          }
+          lazyImage.classList.remove('__lazy')
+          cachedObserver.unobserve(lazyImage)
+        }
+      })
+    },
+    { rootMargin: '200px' }
+  ))
+}
 
 function computeSrc(src: string, host: string, unoptimized: boolean): string {
   if (unoptimized) {
@@ -106,6 +143,8 @@ export default function Image({
   sizes,
   unoptimized = false,
   priority = false,
+  lazy,
+  className,
   ...rest
 }: ImageProps) {
   // Sanity Checks:
@@ -122,6 +161,15 @@ export default function Image({
     }
     host = 'default'
   }
+  // If priority and lazy are present, log an error and use priority only.
+  if (priority && lazy) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(
+        `Image with src ${src} has both priority and lazy tags. Only one should be used.`
+      )
+    }
+    lazy = false
+  }
 
   host = host || 'default'
 
@@ -130,19 +178,79 @@ export default function Image({
     src = src.slice(1)
   }
 
+  let thisEl: any
+
+  useEffect(() => {
+    if (lazy) {
+      const observer = getObserver()
+      if (observer) {
+        observer.observe(thisEl)
+        return () => {
+          observer.unobserve(thisEl)
+        }
+      }
+    }
+  }, [thisEl, lazy])
+
   // Generate attribute values
   const imgSrc = computeSrc(src, host, unoptimized)
-  const imgAttributes: { src: string; srcSet?: string } = { src: imgSrc }
+  let imgSrcset = null
   if (!unoptimized) {
-    imgAttributes.srcSet = generateSrcSet({
+    imgSrcset = generateSrcSet({
       src,
       host: host,
       widths: breakpoints,
     })
   }
+
+  const imgAttributes: {
+    src?: string
+    srcSet?: string
+    'data-src'?: string
+    'data-srcset'?: string
+  } = {}
+  if (!lazy) {
+    imgAttributes.src = imgSrc
+    if (imgSrcset) {
+      imgAttributes.srcSet = imgSrcset
+    }
+  } else {
+    imgAttributes['data-src'] = imgSrc
+    if (imgSrcset) {
+      imgAttributes['data-srcset'] = imgSrcset
+    }
+    className = className ? className + ' __lazy' : '__lazy'
+  }
+
   // No need to add preloads on the client side--by the time the application is hydrated,
   // it's too late for preloads
   const shouldPreload = priority && typeof window === 'undefined'
+
+  let imgElement
+  if (className) {
+    imgElement = (
+      <img
+        {...rest}
+        ref={(el) => {
+          thisEl = el
+        }}
+        {...imgAttributes}
+        className={className}
+        sizes={sizes}
+      />
+    )
+  } else {
+    imgElement = (
+      <img
+        ref={(el) => {
+          thisEl = el
+        }}
+        {...rest}
+        {...imgAttributes}
+        sizes={sizes}
+      />
+    )
+  }
 
   return (
     <div>
@@ -155,7 +263,7 @@ export default function Image({
             sizes,
           })
         : ''}
-      <img {...rest} {...imgAttributes} sizes={sizes} />
+      {imgElement}
     </div>
   )
 }
