@@ -377,6 +377,11 @@ function normalizeSrc(src: string) {
 }
 
 function imgixLoader({ root, src, width, quality }: LoaderProps): string {
+  const normalizedSrc = normalizeSrc(src)
+  const path = /^https?:\/\//.test(normalizedSrc)
+    ? encodeURIComponent(normalizedSrc)
+    : encodeURI(normalizedSrc).replace(/[#?:]/g, encodeURIComponent)
+
   const params = ['auto=format', 'w=' + width]
   let paramsString = ''
   if (quality) {
@@ -386,7 +391,8 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
   if (params.length) {
     paramsString = '?' + params.join('&')
   }
-  return `${root}${normalizeSrc(src)}${paramsString}`
+
+  return `${root}${path}${paramsString}`
 }
 
 function akamaiLoader({ root, src, width }: LoaderProps): string {
@@ -394,6 +400,11 @@ function akamaiLoader({ root, src, width }: LoaderProps): string {
 }
 
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
+  const normalizedSrc = normalizeSrc(src)
+  const publicId = encodeURIComponent(normalizedSrc)
+    .replace(/%3A/g, ':')
+    .replace(/%2F/g, '/')
+
   const params = ['f_auto', 'w_' + width]
   let paramsString = ''
   if (quality) {
@@ -402,7 +413,8 @@ function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
   if (params.length) {
     paramsString = params.join(',') + '/'
   }
-  return `${root}${paramsString}${normalizeSrc(src)}`
+
+  return `${root}${paramsString}${publicId}`
 }
 
 function defaultLoader({ root, src, width, quality }: LoaderProps): string {
