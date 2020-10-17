@@ -26,7 +26,7 @@ const defaultConfig: { [key: string]: any } = {
   images: {
     sizes: [320, 420, 768, 1024, 1200],
     domains: [],
-    hosts: { default: { path: 'defaultconfig' } },
+    hosts: { default: { path: '/_next/image' } },
   },
   devIndicators: {
     buildActivity: true,
@@ -60,6 +60,7 @@ const defaultConfig: { [key: string]: any } = {
     optimizeImages: false,
     scrollRestoration: false,
     i18n: false,
+    analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
   },
   future: {
     excludeDefaultMomentLocales: false,
