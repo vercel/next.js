@@ -241,6 +241,14 @@ export async function ncc_ignore_loader(task, opts) {
     .target('compiled/ignore-loader')
 }
 // eslint-disable-next-line camelcase
+externals['is-animated'] = 'next/dist/compiled/is-animated'
+export async function ncc_is_animated(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('is-animated')))
+    .ncc({ packageName: 'is-animated', externals })
+    .target('compiled/is-animated')
+}
+// eslint-disable-next-line camelcase
 externals['is-docker'] = 'next/dist/compiled/is-docker'
 export async function ncc_is_docker(task, opts) {
   await task
@@ -504,6 +512,7 @@ export async function ncc(task) {
       'ncc_gzip_size',
       'ncc_http_proxy',
       'ncc_ignore_loader',
+      'ncc_is_animated',
       'ncc_is_docker',
       'ncc_is_wsl',
       'ncc_json5',
