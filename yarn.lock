@@ -8878,6 +8878,11 @@ is-alphanumerical@^1.0.0:
     is-alphabetical "^1.0.0"
     is-decimal "^1.0.0"
 
+is-animated@2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/is-animated/-/is-animated-2.0.0.tgz#ffb1f180ff10782b8442dcb0955b5fc915e1a111"
+  integrity sha512-ZsfhGnSRUjto9owW5WpaDL7z/03H77Ny9JgP/BSyOQ/mAPAKNbdX30WNYbg2R5NhvT5VqKs2KL38znj5OG8tDg==
+
 is-arguments@^1.0.4:
   version "1.0.4"
   resolved "https://registry.yarnpkg.com/is-arguments/-/is-arguments-1.0.4.tgz#3faf966c7cba0ff437fb31f6250082fcf0448cf3"
