@@ -1,4 +1,7 @@
 module.exports = {
+  future: {
+    purgeLayersByDefault: true,
+  },
   purge: ['./components/**/*.js', './pages/**/*.js'],
   theme: {
     extend: {
