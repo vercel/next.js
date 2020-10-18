@@ -177,11 +177,6 @@ export default function Image({
 
   host = host || 'default'
 
-  // Normalize provided src
-  if (src[0] === '/') {
-    src = src.slice(1)
-  }
-
   useEffect(() => {
     const target = thisEl.current
 
@@ -268,12 +263,16 @@ type LoaderProps = {
   width?: number
 }
 
+function normalizeSrc(src: string) {
+  return src[0] === '/' ? src.slice(1) : src
+}
+
 function imgixLoader({ root, src, width }: LoaderProps): string {
-  return `${root}${src}${width ? '?w=' + width : ''}`
+  return `${root}${normalizeSrc(src)}${width ? '?w=' + width : ''}`
 }
 
 function cloudinaryLoader({ root, src, width }: LoaderProps): string {
-  return `${root}${width ? 'w_' + width + '/' : ''}${src}`
+  return `${root}${width ? 'w_' + width + '/' : ''}${normalizeSrc(src)}`
 }
 
 function defaultLoader({ root, src, width }: LoaderProps): string {
