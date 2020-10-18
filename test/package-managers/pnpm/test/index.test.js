@@ -14,15 +14,7 @@ const pnpmExecutable = path.join(
   '.bin',
   'pnpm'
 )
-const nextPackageDir = path.join(
-  __dirname,
-  '..',
-  '..',
-  '..',
-  '..',
-  'packages',
-  'next'
-)
+const packagesDir = path.join(__dirname, '..', '..', '..', '..', 'packages')
 const appDir = path.join(__dirname, '..', 'app')
 
 jest.setTimeout(1000 * 60 * 5)
@@ -40,18 +32,27 @@ async function usingTempDir(fn) {
   }
 }
 
-async function packNextTarball(cwd) {
+/**
+ * Using 'npm pack', create a tarball of the given package in
+ * directory `pkg` and write it to `cwd`.
+ *
+ * `pkg` is relative to the monorepo 'packages/' directory.
+ *
+ * Return the absolute path to the tarball.
+ */
+async function pack(cwd, pkg) {
+  const pkgDir = path.join(packagesDir, pkg)
   const { stdout } = await runNpm(
     cwd,
     'pack',
     '--ignore-scripts', // Skip the prepublish script
-    nextPackageDir
+    path.join(packagesDir, pkg)
   )
   const tarballFilename = stdout.match(/.*\.tgz/)[0]
 
   if (!tarballFilename) {
     throw new Error(
-      `pnpm failed to pack "next" package tarball in directory ${nextPackageDir}.`
+      `pnpm failed to pack "next" package tarball in directory ${pkgDir}.`
     )
   }
 
@@ -61,16 +62,65 @@ async function packNextTarball(cwd) {
 describe('pnpm support', () => {
   it('should build with dependencies installed via pnpm', async () => {
     // Create a Next.js app in a temporary directory, and install dependencies with pnpm.
-    // "next" is installed by packing a tarball from 'next.js/packages/next', because installing
-    // "next" directly via `pnpm add path/to/next.js/packages/next` results in a symlink:
-    // 'app/node_modules/next' -> 'path/to/next.js/packages/next'. This is undesired since modules
-    // inside "next" would be resolved to the next.js monorepo 'node_modules'; installing from a
-    // tarball avoids this issue.
+
+    // "next" and its monorepo dependencies are installed by `npm pack`-ing tarballs from
+    // 'next.js/packages/*', because installing "next" directly via
+    // `pnpm add path/to/next.js/packages/next` results in a symlink:
+    // 'app/node_modules/next' -> 'path/to/next.js/packages/next'.
+    // This is undesired since modules inside "next" would be resolved to the
+    // next.js monorepo 'node_modules' and lead to false test results;
+    // installing from a tarball avoids this issue.
+
+    // The "next" package's monorepo dependencies (e.g. "@next/env", "@next/polyfill-module")
+    // are not bundled with `npm pack next.js/packages/next`,
+    // so they need to be packed individually.
+    // To ensure that they are installed upon installing "next", a pnpmfile.js hook is used to
+    // override these dependency paths at install time.
     await usingTempDir(async (tempDir) => {
-      const nextTarballPath = await packNextTarball(tempDir)
+      const nextTarballPath = await pack(tempDir, 'next')
+      const dependencyTarballPaths = {
+        '@next/env': await pack(tempDir, 'next-env'),
+        '@next/polyfill-module': await pack(tempDir, 'next-polyfill-module'),
+        '@next/react-dev-overlay': await pack(tempDir, 'react-dev-overlay'),
+        '@next/react-refresh-utils': await pack(tempDir, 'react-refresh-utils'),
+      }
 
       const tempAppDir = path.join(tempDir, 'app')
       await fs.copy(appDir, tempAppDir)
+
+      // Inject dependency tarball paths into a `readPackage` hook in pnpmfile.js,
+      // so that they are installed from packed tarballs rather than from the npm registry.
+      //
+      // e.g.
+      //  function readPackage(pkg) {
+      //    // Any package which depends on '@next/env' will install it from the tarball.
+      //    if (pkg.dependencies['@next/env']) {
+      //      pkg.dependencies['@next/env'] = 'file:/var/folders/bq/gy0sgbn11513qmnjxq2c_3c80000gn/T/keivzvsujfb/next-env-9.5.6-canary.0.tgz'
+      //    }
+      //    ...etc
+      //    return pkg
+      //  }
+      //
+      // See https://pnpm.js.org/en/pnpmfile
+      const pnpmfileContent = `
+function readPackage(pkg) {
+  ${Object.keys(dependencyTarballPaths)
+    .map(
+      (packageName) => `
+    if (pkg.dependencies['${packageName}']) {
+      pkg.dependencies['${packageName}'] = 'file:${dependencyTarballPaths[packageName]}'
+    }
+  `
+    )
+    .join('\n')}
+  
+  return pkg
+}
+
+module.exports = { hooks: { readPackage } }
+      `
+      await fs.writeFile(path.join(tempAppDir, 'pnpmfile.js'), pnpmfileContent)
+
       await runPnpm(tempAppDir, 'install')
       await runPnpm(tempAppDir, 'add', nextTarballPath)
 
