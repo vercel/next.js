@@ -79,7 +79,9 @@ import accept from '@hapi/accept'
 import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
 import { detectLocaleCookie } from '../lib/i18n/detect-locale-cookie'
 import * as Log from '../../build/output/log'
+import { imageOptimizer } from './image-optimizer'
 import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
+import cookie from 'next/dist/compiled/cookie'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -196,6 +198,7 @@ export default class Server {
           ? requireFontManifest(this.distDir, this._isLikeServerless)
           : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
+      defaultLocale: this.nextConfig.experimental.i18n?.defaultLocale,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -269,7 +272,7 @@ export default class Server {
     return PHASE_PRODUCTION_SERVER
   }
 
-  private logError(err: Error): void {
+  public logError(err: Error): void {
     if (this.onErrorMiddleware) {
       this.onErrorMiddleware({ err })
     }
@@ -310,6 +313,10 @@ export default class Server {
       const { pathname, ...parsed } = parseUrl(req.url || '/')
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
+      let acceptPreferredLocale = accept.language(
+        req.headers['accept-language'],
+        i18n.locales
+      )
 
       const detectedDomain = detectDomainLocale(i18n.domains, req)
       if (detectedDomain) {
@@ -317,12 +324,8 @@ export default class Server {
         detectedLocale = defaultLocale
       }
 
-      if (!detectedLocale) {
-        detectedLocale = accept.language(
-          req.headers['accept-language'],
-          i18n.locales
-        )
-      }
+      // if not domain specific locale use accept-language preferred
+      detectedLocale = detectedLocale || acceptPreferredLocale
 
       let localeDomainRedirect: string | undefined
       const localePathResult = normalizeLocalePath(pathname!, i18n.locales)
@@ -333,6 +336,7 @@ export default class Server {
           ...parsed,
           pathname: localePathResult.pathname,
         })
+        ;(req as any).__nextStrippedLocale = true
         parsedUrl.pathname = localePathResult.pathname
 
         // check if the locale prefix matches a domain's defaultLocale
@@ -360,6 +364,7 @@ export default class Server {
         detectedDefaultLocale &&
         denormalizedPagePath.toLowerCase() ===
           `/${i18n.defaultLocale.toLowerCase()}`
+
       const shouldAddLocalePrefix =
         !detectedDefaultLocale && denormalizedPagePath === '/'
 
@@ -371,6 +376,28 @@ export default class Server {
           shouldAddLocalePrefix ||
           shouldStripDefaultLocale)
       ) {
+        // set the NEXT_LOCALE cookie when a user visits the default locale
+        // with the locale prefix so that they aren't redirected back to
+        // their accept-language preferred locale
+        if (
+          shouldStripDefaultLocale &&
+          acceptPreferredLocale !== defaultLocale
+        ) {
+          const previous = res.getHeader('set-cookie')
+
+          res.setHeader('set-cookie', [
+            ...(typeof previous === 'string'
+              ? [previous]
+              : Array.isArray(previous)
+              ? previous
+              : []),
+            cookie.serialize('NEXT_LOCALE', defaultLocale, {
+              httpOnly: true,
+              path: '/',
+            }),
+          ])
+        }
+
         res.setHeader(
           'Location',
           formatUrl({
@@ -446,6 +473,7 @@ export default class Server {
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
   } {
+    const server: Server = this
     const publicRoutes = fs.existsSync(this.publicDir)
       ? this.generatePublicRoutes()
       : []
@@ -564,6 +592,13 @@ export default class Server {
         },
       },
       {
+        match: route('/_next/image'),
+        type: 'route',
+        name: '_next/image catchall',
+        fn: (req, res, _params, parsedUrl) =>
+          imageOptimizer(server, req, res, parsedUrl),
+      },
+      {
         match: route('/_next/:path*'),
         type: 'route',
         name: '_next catchall',
@@ -674,7 +709,7 @@ export default class Server {
           )
 
           const { query } = parsedDestination
-          delete parsedDestination.query
+          delete (parsedDestination as any).query
 
           parsedDestination.search = stringifyQs(query, undefined, undefined, {
             encodeURIComponent: (str: string) => str,
@@ -719,7 +754,7 @@ export default class Server {
           // external rewrite, proxy it
           if (parsedDestination.protocol) {
             const { query } = parsedDestination
-            delete parsedDestination.query
+            delete (parsedDestination as any).query
             parsedDestination.search = stringifyQs(
               query,
               undefined,
@@ -1090,6 +1125,7 @@ export default class Server {
             ...(components.getStaticProps
               ? {
                   amp: query.amp,
+                  __next404: query.__next404,
                   _nextDataReq: query._nextDataReq,
                   __nextLocale: query.__nextLocale,
                 }
@@ -1215,12 +1251,27 @@ export default class Server {
             query.amp ? '.amp' : ''
           }`
 
+    // In development we use a __next404 query to allow signaling we should
+    // render the 404 page after attempting to fetch the _next/data for a
+    // fallback page since the fallback page will always be available after
+    // reload and we don't want to re-serve it and instead want to 404.
+    if (this.renderOpts.dev && isSSG && query.__next404) {
+      delete query.__next404
+      throw new NoFallbackError()
+    }
+
     // Complete the response with cached data if its present
     const cachedData = ssgCacheKey
       ? await this.incrementalCache.get(ssgCacheKey)
       : undefined
 
     if (cachedData) {
+      if (cachedData.isNotFound) {
+        // we don't currently revalidate when notFound is returned
+        // so trigger rendering 404 here
+        throw new NoFallbackError()
+      }
+
       const data = isDataReq
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
@@ -1265,10 +1316,12 @@ export default class Server {
         html: string | null
         pageData: any
         sprRevalidate: number | false
+        isNotFound?: boolean
       }> => {
         let pageData: any
         let html: string | null
         let sprRevalidate: number | false
+        let isNotFound: boolean | undefined
 
         let renderResult
         // handle serverless
@@ -1288,6 +1341,7 @@ export default class Server {
           html = renderResult.html
           pageData = renderResult.renderOpts.pageData
           sprRevalidate = renderResult.renderOpts.revalidate
+          isNotFound = renderResult.renderOpts.ssgNotFound
         } else {
           const origQuery = parseUrl(req.url || '', true).query
           const resolvedUrl = formatUrl({
@@ -1329,9 +1383,10 @@ export default class Server {
           // TODO: change this to a different passing mechanism
           pageData = (renderOpts as any).pageData
           sprRevalidate = (renderOpts as any).revalidate
+          isNotFound = (renderOpts as any).ssgNotFound
         }
 
-        return { html, pageData, sprRevalidate }
+        return { html, pageData, sprRevalidate, isNotFound }
       }
     )
 
@@ -1413,10 +1468,15 @@ export default class Server {
 
     const {
       isOrigin,
-      value: { html, pageData, sprRevalidate },
+      value: { html, pageData, sprRevalidate, isNotFound },
     } = await doRender()
     let resHtml = html
-    if (!isResSent(res) && (isSSG || isDataReq || isServerProps)) {
+
+    if (
+      !isResSent(res) &&
+      !isNotFound &&
+      (isSSG || isDataReq || isServerProps)
+    ) {
       sendPayload(
         req,
         res,
@@ -1441,11 +1501,14 @@ export default class Server {
     if (isOrigin && ssgCacheKey) {
       await this.incrementalCache.set(
         ssgCacheKey,
-        { html: html!, pageData },
+        { html: html!, pageData, isNotFound },
         sprRevalidate
       )
     }
 
+    if (isNotFound) {
+      throw new NoFallbackError()
+    }
     return resHtml
   }
 

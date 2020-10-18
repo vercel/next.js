@@ -221,12 +221,17 @@ const nextServerlessLoader: loader.Loader = function () {
       // get pathname from URL with basePath stripped for locale detection
       const i18n = ${i18n}
       const accept = require('@hapi/accept')
+      const cookie = require('next/dist/compiled/cookie')
       const { detectLocaleCookie } = require('next/dist/next-server/lib/i18n/detect-locale-cookie')
       const { detectDomainLocale } = require('next/dist/next-server/lib/i18n/detect-domain-locale')
       const { normalizeLocalePath } = require('next/dist/next-server/lib/i18n/normalize-locale-path')
       let locales = i18n.locales
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
+      let acceptPreferredLocale = accept.language(
+        req.headers['accept-language'],
+        i18n.locales
+      )
 
       const detectedDomain = detectDomainLocale(
         i18n.domains,
@@ -237,15 +242,13 @@ const nextServerlessLoader: loader.Loader = function () {
         detectedLocale = defaultLocale
       }
 
-      if (!detectedLocale) {
-        detectedLocale = accept.language(
-          req.headers['accept-language'],
-          i18n.locales
-        )
-      }
+      // if not domain specific locale use accept-language preferred
+      detectedLocale = detectedLocale || acceptPreferredLocale
 
       let localeDomainRedirect
       const localePathResult = normalizeLocalePath(parsedUrl.pathname, i18n.locales)
+
+      routeNoAssetPath = normalizeLocalePath(routeNoAssetPath, i18n.locales).pathname
 
       if (localePathResult.detectedLocale) {
         detectedLocale = localePathResult.detectedLocale
@@ -279,6 +282,7 @@ const nextServerlessLoader: loader.Loader = function () {
       const shouldStripDefaultLocale =
         detectedDefaultLocale &&
         denormalizedPagePath.toLowerCase() === \`/\${i18n.defaultLocale.toLowerCase()}\`
+
       const shouldAddLocalePrefix =
         !detectedDefaultLocale && denormalizedPagePath === '/'
 
@@ -294,6 +298,30 @@ const nextServerlessLoader: loader.Loader = function () {
           shouldStripDefaultLocale
         )
       ) {
+        // set the NEXT_LOCALE cookie when a user visits the default locale
+        // with the locale prefix so that they aren't redirected back to
+        // their accept-language preferred locale
+        if (
+          shouldStripDefaultLocale &&
+          acceptPreferredLocale !== defaultLocale
+        ) {
+          const previous = res.getHeader('set-cookie')
+
+          res.setHeader(
+            'set-cookie',
+            [
+            ...(typeof previous === 'string'
+              ? [previous]
+              : Array.isArray(previous)
+              ? previous
+              : []),
+            cookie.serialize('NEXT_LOCALE', defaultLocale, {
+              httpOnly: true,
+              path: '/',
+            })
+          ])
+        }
+
         res.setHeader(
           'Location',
           formatUrl({
@@ -311,6 +339,7 @@ const nextServerlessLoader: loader.Loader = function () {
         res.end()
         return
       }
+
       detectedLocale = detectedLocale || defaultLocale
     `
     : `
@@ -507,12 +536,24 @@ const nextServerlessLoader: loader.Loader = function () {
 
         ${handleBasePath}
 
+        // remove ?amp=1 from request URL if rendering for export
+        if (fromExport && parsedUrl.query.amp) {
+          const queryNoAmp = Object.assign({}, origQuery)
+          delete queryNoAmp.amp
+
+          req.url = formatUrl({
+            ...parsedUrl,
+            search: undefined,
+            query: queryNoAmp
+          })
+        }
+
         if (parsedUrl.pathname.match(/_next\\/data/)) {
           const {
-            default: getrouteNoAssetPath,
+            default: getRouteNoAssetPath,
           } = require('next/dist/next-server/lib/router/utils/get-route-from-asset-path');
           _nextData = true;
-          parsedUrl.pathname = getrouteNoAssetPath(
+          parsedUrl.pathname = getRouteNoAssetPath(
             parsedUrl.pathname.replace(
               new RegExp('/_next/data/${escapedBuildId}/'),
               '/'
@@ -532,7 +573,7 @@ const nextServerlessLoader: loader.Loader = function () {
             isDataReq: _nextData,
             locale: detectedLocale,
             locales,
-            defaultLocale,
+            defaultLocale: i18n.defaultLocale,
           },
           options,
         )
@@ -571,12 +612,24 @@ const nextServerlessLoader: loader.Loader = function () {
             ? `const nowParams = req.headers && req.headers["x-now-route-matches"]
               ? getRouteMatcher(
                   (function() {
-                    const { re, groups } = getRouteRegex("${page}");
+                    const { re, groups, routeKeys } = getRouteRegex("${page}");
                     return {
                       re: {
                         // Simulate a RegExp match from the \`req.url\` input
                         exec: str => {
                           const obj = parseQs(str);
+
+                          // favor named matches if available
+                          const routeKeyNames = Object.keys(routeKeys)
+
+                          if (routeKeyNames.every(name => obj[name])) {
+                            return routeKeyNames.reduce((prev, keyName) => {
+                              const paramName = routeKeys[keyName]
+                              prev[groups[paramName].pos] = obj[keyName]
+                              return prev
+                            }, {})
+                          }
+
                           return Object.keys(obj).reduce(
                             (prev, key) =>
                               Object.assign(prev, {
