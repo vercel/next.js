@@ -1,4 +1,4 @@
-import { UrlWithParsedQuery } from 'url'
+import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join } from 'path'
 import { mediaType } from '@hapi/accept'
@@ -9,6 +9,7 @@ import { getContentType, getExtension } from './serve-static'
 import { fileExists } from '../../lib/file-exists'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
+import Stream from 'stream'
 
 let sharp: typeof import('sharp')
 //const AVIF = 'image/avif'
@@ -30,8 +31,6 @@ export async function imageOptimizer(
   const { sizes = [], domains = [] } = nextConfig?.images || {}
   const { headers } = req
   const { url, w, q } = parsedUrl.query
-  const proto = headers['x-forwarded-proto'] || 'http'
-  const host = headers['x-forwarded-host'] || headers.host
   const mimeType = mediaType(headers.accept, MIME_TYPES) || ''
 
   if (!url) {
@@ -44,30 +43,31 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  let absoluteUrl: URL
-  try {
-    absoluteUrl = new URL(url)
-  } catch (_error) {
-    // url was not absolute so assuming relative url
+  let absoluteUrl: URL | undefined
+  let relativeUrl: string | undefined
+
+  if (url.startsWith('/')) {
+    relativeUrl = url
+  } else {
     try {
-      absoluteUrl = new URL(url, `${proto}://${host}`)
-    } catch (__error) {
+      absoluteUrl = new URL(url)
+    } catch (_error) {
       res.statusCode = 400
       res.end('"url" parameter is invalid')
       return { finished: true }
     }
-  }
 
-  if (!['http:', 'https:'].includes(absoluteUrl.protocol)) {
-    res.statusCode = 400
-    res.end('"url" parameter is invalid')
-    return { finished: true }
-  }
+    if (!['http:', 'https:'].includes(absoluteUrl.protocol)) {
+      res.statusCode = 400
+      res.end('"url" parameter is invalid')
+      return { finished: true }
+    }
 
-  if (!server.renderOpts.dev && !domains.includes(absoluteUrl.hostname)) {
-    res.statusCode = 400
-    res.end('"url" parameter is not allowed')
-    return { finished: true }
+    if (!server.renderOpts.dev && !domains.includes(absoluteUrl.hostname)) {
+      res.statusCode = 400
+      res.end('"url" parameter is not allowed')
+      return { finished: true }
+    }
   }
 
   if (!w) {
@@ -112,7 +112,7 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  const { href } = absoluteUrl
+  const href = (absoluteUrl || relativeUrl) as string
   const hash = getHash([CACHE_VERSION, href, width, quality, mimeType])
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
@@ -136,17 +136,74 @@ export async function imageOptimizer(
     }
   }
 
-  const upstreamRes = await fetch(href)
+  let upstreamBuffer: Buffer
+  let upstreamType: any
+  let maxAge: any
 
-  if (!upstreamRes.ok) {
+  if (absoluteUrl) {
+    const upstreamRes = await fetch(href)
+
+    if (!upstreamRes.ok) {
+      res.statusCode = upstreamRes.status
+      res.end('"url" parameter is valid but upstream response is invalid')
+      return { finished: true }
+    }
+
     res.statusCode = upstreamRes.status
-    res.end('"url" parameter is valid but upstream response is invalid')
-    return { finished: true }
+    upstreamBuffer = Buffer.from(await upstreamRes.arrayBuffer())
+    upstreamType = upstreamRes.headers.get('Content-Type')
+    maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
+  } else {
+    try {
+      const _req: any = {
+        headers: req.headers,
+        method: req.method,
+        url: relativeUrl,
+      }
+      const resBuffers: Buffer[] = []
+      const mockRes: any = new Stream.Writable()
+
+      mockRes.write = (chunk: Buffer | string) => {
+        resBuffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
+      }
+      mockRes._write = (chunk: Buffer | string) => {
+        mockRes.write(chunk)
+      }
+
+      const mockHeaders: Record<string, string | string[]> = {}
+
+      mockRes.writeHead = (_status: any, _headers: any) =>
+        Object.assign(mockHeaders, _headers)
+      mockRes.getHeader = (name: string) => mockHeaders[name.toLowerCase()]
+      mockRes.getHeaders = () => mockHeaders
+      mockRes.getHeaderNames = () => Object.keys(mockHeaders)
+      mockRes.setHeader = (name: string, value: string | string[]) =>
+        (mockHeaders[name.toLowerCase()] = value)
+      mockRes._implicitHeader = () => {}
+      mockRes.finished = false
+      mockRes.statusCode = 200
+
+      await server.getRequestHandler()(
+        _req,
+        mockRes,
+        nodeUrl.parse(relativeUrl!, true)
+      )
+      res.statusCode = mockRes.statusCode
+
+      // make sure to 404 for non-static file requests
+      if (!mockRes.servedStatic) {
+        throw new Error('non-static file requested')
+      }
+      upstreamBuffer = Buffer.concat(resBuffers)
+      upstreamType = mockRes.getHeader('Content-Type')
+      maxAge = getMaxAge(mockRes.getHeader('Cache-Control'))
+    } catch (err) {
+      res.statusCode = 500
+      res.end('"url" parameter is valid but upstream response is invalid')
+      return { finished: true }
+    }
   }
 
-  const upstreamBuffer = Buffer.from(await upstreamRes.arrayBuffer())
-  const upstreamType = upstreamRes.headers.get('Content-Type')
-  const maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
   const expireAt = maxAge * 1000 + now
   let contentType: string
 
