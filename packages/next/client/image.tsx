@@ -1,4 +1,4 @@
-import React, { ReactElement, useEffect } from 'react'
+import React, { ReactElement, useEffect, useRef } from 'react'
 import Head from '../next-server/lib/head'
 
 const loaders: { [key: string]: (props: LoaderProps) => string } = {
@@ -6,23 +6,25 @@ const loaders: { [key: string]: (props: LoaderProps) => string } = {
   cloudinary: cloudinaryLoader,
   default: defaultLoader,
 }
+
 type ImageData = {
+  sizes?: number[]
   hosts: {
     [key: string]: {
       path: string
       loader: string
     }
   }
-  breakpoints?: number[]
 }
 
-type ImageProps = Omit<JSX.IntrinsicElements['img'], 'src' | 'sizes'> & {
+type ImageProps = Omit<
+  JSX.IntrinsicElements['img'],
+  'src' | 'srcSet' | 'ref'
+> & {
   src: string
   host?: string
-  sizes?: string
   priority?: boolean
-  lazy: boolean
-  className: string
+  lazy?: boolean
   unoptimized?: boolean
 }
 
@@ -143,10 +145,12 @@ export default function Image({
   sizes,
   unoptimized = false,
   priority = false,
-  lazy,
+  lazy = false,
   className,
   ...rest
 }: ImageProps) {
+  const thisEl = useRef<HTMLImageElement>(null)
+
   // Sanity Checks:
   if (process.env.NODE_ENV !== 'production') {
     if (unoptimized && host) {
@@ -178,15 +182,17 @@ export default function Image({
     src = src.slice(1)
   }
 
-  let thisEl: any
-
   useEffect(() => {
-    if (lazy) {
+    const target = thisEl.current
+
+    if (target && lazy) {
       const observer = getObserver()
+
       if (observer) {
-        observer.observe(thisEl)
+        observer.observe(target)
+
         return () => {
-          observer.unobserve(thisEl)
+          observer.unobserve(target)
         }
       }
     }
@@ -194,30 +200,36 @@ export default function Image({
 
   // Generate attribute values
   const imgSrc = computeSrc(src, host, unoptimized)
-  let imgSrcset = null
-  if (!unoptimized) {
-    imgSrcset = generateSrcSet({
-      src,
-      host: host,
-      widths: breakpoints,
-    })
-  }
+  const imgSrcSet = !unoptimized
+    ? generateSrcSet({
+        src,
+        host: host,
+        widths: breakpoints,
+      })
+    : undefined
 
-  const imgAttributes: {
-    src?: string
-    srcSet?: string
-    'data-src'?: string
-    'data-srcset'?: string
-  } = {}
+  let imgAttributes:
+    | {
+        src: string
+        srcSet?: string
+      }
+    | {
+        'data-src': string
+        'data-srcset'?: string
+      }
   if (!lazy) {
-    imgAttributes.src = imgSrc
-    if (imgSrcset) {
-      imgAttributes.srcSet = imgSrcset
+    imgAttributes = {
+      src: imgSrc,
+    }
+    if (imgSrcSet) {
+      imgAttributes.srcSet = imgSrcSet
     }
   } else {
-    imgAttributes['data-src'] = imgSrc
-    if (imgSrcset) {
-      imgAttributes['data-srcset'] = imgSrcset
+    imgAttributes = {
+      'data-src': imgSrc,
+    }
+    if (imgSrcSet) {
+      imgAttributes['data-srcset'] = imgSrcSet
     }
     className = className ? className + ' __lazy' : '__lazy'
   }
@@ -225,32 +237,6 @@ export default function Image({
   // No need to add preloads on the client side--by the time the application is hydrated,
   // it's too late for preloads
   const shouldPreload = priority && typeof window === 'undefined'
-
-  let imgElement
-  if (className) {
-    imgElement = (
-      <img
-        {...rest}
-        ref={(el) => {
-          thisEl = el
-        }}
-        {...imgAttributes}
-        className={className}
-        sizes={sizes}
-      />
-    )
-  } else {
-    imgElement = (
-      <img
-        ref={(el) => {
-          thisEl = el
-        }}
-        {...rest}
-        {...imgAttributes}
-        sizes={sizes}
-      />
-    )
-  }
 
   return (
     <div>
@@ -263,7 +249,13 @@ export default function Image({
             sizes,
           })
         : ''}
-      {imgElement}
+      <img
+        {...rest}
+        {...imgAttributes}
+        className={className}
+        sizes={sizes}
+        ref={thisEl}
+      />
     </div>
   )
 }
