@@ -1,4 +1,4 @@
-import { FacebookPixel } from '../components'
+import FacebookPixel from '../components/FacebookPixel'
 
 function MyApp({ Component, pageProps }) {
   return (

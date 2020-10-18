@@ -3,7 +3,7 @@ import { useRouter } from 'next/router'
 
 const pixelId = process.env.NEXT_PUBLIC_FACEBOOK_PIXEL_ID
 
-export function FacebookPixel({ children }) {
+export default function FacebookPixel({ children }) {
   const router = useRouter()
   useEffect(() => {
     if (!pixelId) return
