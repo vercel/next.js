@@ -1009,7 +1009,10 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),
-        'process.env.__NEXT_IMAGE_OPTS': JSON.stringify(config.images),
+        'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
+          hosts: config.images.hosts,
+          sizes: config.images.sizes,
+        }),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
         'process.env.__NEXT_i18n_SUPPORT': JSON.stringify(

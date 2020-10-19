@@ -22,13 +22,15 @@ type ImageProps = Omit<
   'src' | 'srcSet' | 'ref'
 > & {
   src: string
+  width: number
+  height: number
   host?: string
   priority?: boolean
   lazy?: boolean
   unoptimized?: boolean
 }
 
-let imageData: any = process.env.__NEXT_IMAGE_OPTS
+const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
 const breakpoints = imageData.sizes || [640, 1024, 1600]
 
 let cachedObserver: IntersectionObserver
@@ -143,6 +145,8 @@ export default function Image({
   src,
   host,
   sizes,
+  width,
+  height,
   unoptimized = false,
   priority = false,
   lazy = false,
@@ -238,8 +242,10 @@ export default function Image({
   // it's too late for preloads
   const shouldPreload = priority && typeof window === 'undefined'
 
+  const aspectRatio = String((height / width) * 100) + '%'
+
   return (
-    <div>
+    <div style={{ position: 'relative', paddingBottom: aspectRatio }}>
       {shouldPreload
         ? generatePreload({
             src,
@@ -255,6 +261,13 @@ export default function Image({
         className={className}
         sizes={sizes}
         ref={thisEl}
+        style={{
+          height: '100%',
+          left: '0',
+          position: 'absolute',
+          top: '0',
+          width: '100%',
+        }}
       />
     </div>
   )
