@@ -753,12 +753,13 @@ export default class Router implements BaseRouter {
           )
         }
       } else if (shouldInterpolate) {
-        as = formatWithValidation(
-          Object.assign({}, parsedAs, {
-            pathname: interpolatedAs.result,
-            query: omitParmsFromQuery(query, interpolatedAs.params!),
-          })
-        )
+        let interpolatedURL = Object.assign({}, parsedAs, {
+          pathname: interpolatedAs.result,
+          query: omitParmsFromQuery(query, interpolatedAs.params!),
+        })
+        interpolatedURL.search = ''
+
+        as = formatWithValidation(interpolatedURL)
       } else {
         // Merge params into `query`, overwriting any specified in search
         Object.assign(query, routeMatch)
