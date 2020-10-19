@@ -112,7 +112,7 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  const href = absoluteUrl || relativeUrl
+  const href = (absoluteUrl && absoluteUrl.toString()) || relativeUrl
   const hash = getHash([CACHE_VERSION, href, width, quality, mimeType])
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
@@ -141,7 +141,7 @@ export async function imageOptimizer(
   let maxAge: number
 
   if (absoluteUrl) {
-    const upstreamRes = await fetch(absoluteUrl)
+    const upstreamRes = await fetch(absoluteUrl.toString())
 
     if (!upstreamRes.ok) {
       res.statusCode = upstreamRes.status
