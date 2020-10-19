@@ -92,7 +92,7 @@ if (process.env.__NEXT_i18n_SUPPORT) {
     const localePathResult = normalizeLocalePath(asPath, locales)
 
     if (localePathResult.detectedLocale) {
-      asPath = asPath.substr(localePathResult.detectedLocale.length + 1)
+      asPath = asPath.substr(localePathResult.detectedLocale.length + 1) || '/'
     } else {
       // derive the default locale if it wasn't detected in the asPath
       // since we don't prerender static pages with all possible default
@@ -462,10 +462,6 @@ function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
     if (isInitialRender) {
       ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
       isInitialRender = false
-
-      if (onPerfEntry && ST) {
-        measureWebVitals(onPerfEntry)
-      }
     } else {
       ReactDOM.render(reactEl, domEl, markRenderComplete)
     }
@@ -744,5 +740,10 @@ function Root({
       }
     }, [])
   }
+  // We should ask to measure the Web Vitals after rendering completes so we
+  // don't cause any hydration delay:
+  React.useEffect(() => {
+    measureWebVitals(onPerfEntry)
+  }, [])
   return children as React.ReactElement
 }

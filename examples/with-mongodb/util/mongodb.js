@@ -1,37 +1,45 @@
 import { MongoClient } from 'mongodb'
 
-let uri = process.env.MONGODB_URI
-let dbName = process.env.MONGODB_DB
+const { MONGODB_URI, MONGODB_DB } = process.env
 
-let cachedClient = null
-let cachedDb = null
-
-if (!uri) {
+if (!MONGODB_URI) {
   throw new Error(
     'Please define the MONGODB_URI environment variable inside .env.local'
   )
 }
 
-if (!dbName) {
+if (!MONGODB_DB) {
   throw new Error(
     'Please define the MONGODB_DB environment variable inside .env.local'
   )
 }
 
+/**
+ * Global is used here to maintain a cached connection across hot reloads
+ * in development. This prevents connections growing exponentiatlly
+ * during API Route usage.
+ */
+let cached = global.mongo
+if (!cached) cached = global.mongo = {}
+
 export async function connectToDatabase() {
-  if (cachedClient && cachedDb) {
-    return { client: cachedClient, db: cachedDb }
+  if (cached.conn) return cached.conn
+  if (!cached.promise) {
+    const conn = {}
+    const opts = {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    }
+    cached.promise = MongoClient.connect(MONGODB_URI, opts)
+      .then((client) => {
+        conn.client = client
+        return client.db(MONGODB_DB)
+      })
+      .then((db) => {
+        conn.db = db
+        cached.conn = conn
+      })
   }
-
-  const client = await MongoClient.connect(uri, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-
-  const db = await client.db(dbName)
-
-  cachedClient = client
-  cachedDb = db
-
-  return { client, db }
+  await cached.promise
+  return cached.conn
 }
