@@ -1,6 +1,6 @@
 import Head from 'next/head'
 
-import { gettProfileData } from '../../fetchData/getProfileData'
+import { getProfileData } from '../../fetchData/getProfileData'
 
 export default function SSRPage({ data }) {
   const { username, profileDataJson } = data
@@ -24,6 +24,6 @@ export default function SSRPage({ data }) {
 
 export const getServerSideProps = async ({ params }) => {
   const { username } = params
-  const profileDataJson = await gettProfileData(username)
+  const profileDataJson = await getProfileData(username)
   return { props: { data: { username, profileDataJson } } }
 }
