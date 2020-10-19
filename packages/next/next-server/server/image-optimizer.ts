@@ -7,14 +7,18 @@ import { createHash } from 'crypto'
 import Server from './next-server'
 import { getContentType, getExtension } from './serve-static'
 import { fileExists } from '../../lib/file-exists'
+// @ts-ignore no types for is-animated
+import isAnimated from 'next/dist/compiled/is-animated'
 
 let sharp: typeof import('sharp')
 //const AVIF = 'image/avif'
 const WEBP = 'image/webp'
 const PNG = 'image/png'
 const JPEG = 'image/jpeg'
+const GIF = 'image/gif'
 const MIME_TYPES = [/* AVIF, */ WEBP, PNG, JPEG]
 const CACHE_VERSION = 1
+const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 
 export async function imageOptimizer(
   server: Server,
@@ -145,6 +149,18 @@ export async function imageOptimizer(
   const maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
   const expireAt = maxAge * 1000 + now
   let contentType: string
+
+  if (
+    upstreamType &&
+    ANIMATABLE_TYPES.includes(upstreamType) &&
+    isAnimated(upstreamBuffer)
+  ) {
+    if (upstreamType) {
+      res.setHeader('Content-Type', upstreamType)
+    }
+    res.end(upstreamBuffer)
+    return { finished: true }
+  }
 
   if (mimeType) {
     contentType = mimeType
