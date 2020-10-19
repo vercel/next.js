@@ -1,10 +1,16 @@
 import Head from 'next/head'
+import Error from "next/error";
 
 import { getProfileData } from '../../fetchData/getProfileData'
 
 export default function SSRPage({ data }) {
   const { username, profileDataJson } = data
   const profileData = JSON.parse(profileDataJson)
+
+  if (!profileData) {
+    return <Error statusCode={404} />;
+  }
+
   console.log(profileData)
 
   return (

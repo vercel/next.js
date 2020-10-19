@@ -19,6 +19,11 @@ export default function Home() {
     console.log(firebase)
   }, [loadingUser, user])
 
+  const createUser = async() => {
+    const db = firebase.firestore();
+    await db.collection("profile").doc(username).set({username})
+  }
+
   return (
     <div className="container">
       <Head>
@@ -29,6 +34,10 @@ export default function Home() {
       <main>
         <h1 className="title">Next.js w/ Firebase Client-Side</h1>
         <p className="description">Fill in your credentials to get started</p>
+
+        <button onClick={() => createUser()}>
+          Create 'nextjs_user'
+        </button>
 
         <Link href={`/profile/${username}`} passHref>
           <a>Go to SSR Page</a>
@@ -71,6 +80,11 @@ export default function Home() {
           display: flex;
           justify-content: center;
           align-items: center;
+        }
+
+        button {
+          font-size: 1.5em;
+          margin: 1em 0 ;
         }
 
         a {
