@@ -190,7 +190,7 @@ export async function imageOptimizer(
       await server.getRequestHandler()(
         _req,
         mockRes,
-        nodeUrl.parse(href!, true)
+        nodeUrl.parse(href, true)
       )
       res.statusCode = mockRes.statusCode
 
