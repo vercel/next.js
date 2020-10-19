@@ -237,10 +237,11 @@ export default function Image({
   // it's too late for preloads
   const shouldPreload = priority && typeof window === 'undefined'
 
-  const aspectRatio = String((height / width) * 100) + '%'
+  const ratio = (height / width) * 100
+  const paddingBottom = `${isNaN(ratio) ? 100 : ratio}%`
 
   return (
-    <div style={{ position: 'relative', paddingBottom: aspectRatio }}>
+    <div style={{ position: 'relative', paddingBottom }}>
       {shouldPreload
         ? generatePreload({
             src,
