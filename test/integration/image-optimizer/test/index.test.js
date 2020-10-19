@@ -131,16 +131,14 @@ function runTests({ w, isDev, domains }) {
     )
   })
 
-  if (!isDev) {
-    it('should fail when domain is not defined in next.config.js', async () => {
-      const url = `http://vercel.com/button`
-      const query = { url, w, q: 100 }
-      const opts = { headers: { accept: 'image/webp' } }
-      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-      expect(res.status).toBe(400)
-      expect(await res.text()).toBe(`"url" parameter is not allowed`)
-    })
-  }
+  it('should fail when domain is not defined in next.config.js', async () => {
+    const url = `http://vercel.com/button`
+    const query = { url, w, q: 100 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe(`"url" parameter is not allowed`)
+  })
 
   it('should fail when width is not in next.config.js', async () => {
     const query = { url: '/test.png', w: 1000, q: 100 }
