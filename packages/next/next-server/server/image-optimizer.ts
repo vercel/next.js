@@ -190,10 +190,6 @@ export async function imageOptimizer(
       )
       res.statusCode = mockRes.statusCode
 
-      // make sure to 404 for non-static file requests
-      if (!mockRes.servedStatic) {
-        throw new Error('non-static file requested')
-      }
       upstreamBuffer = Buffer.concat(resBuffers)
       upstreamType = mockRes.getHeader('Content-Type')
       maxAge = getMaxAge(mockRes.getHeader('Cache-Control'))
