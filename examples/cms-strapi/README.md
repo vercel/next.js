@@ -94,7 +94,7 @@ Next, add these fields (you don't have to modify the settings unless specified):
 
 ### Step 5. Set permissions
 
-From **Roles & Permissions**, edit the **Public** role.
+From **Settings, Users & Permissions, Roles**, edit the **Public** role.
 
 Then select: `count`, `find`, and `findone` permissions for both **Author** and **Post**. Click **Save**.
 
