@@ -40,8 +40,7 @@ export function getGlobalCssLoader(
   loaders.push({
     loader: require.resolve('next/dist/compiled/postcss-loader'),
     options: {
-      ident: '__nextjs_postcss',
-      plugins: postCssPlugins,
+      postcssOptions: { plugins: postCssPlugins, config: false },
       sourceMap: true,
     },
   })
