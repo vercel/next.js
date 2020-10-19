@@ -126,7 +126,7 @@ To match a regex path you can wrap the regex in parenthesis after a parameter, f
 
 ```js
 module.exports = {
-  async rewrites() {
+  async headers() {
     return [
       {
         source: '/blog/:post(\\d{1,})',
