@@ -225,7 +225,6 @@ export async function imageOptimizer(
 
   if (!sharp) {
     try {
-      // eslint-disable-next-line import/no-extraneous-dependencies
       sharp = require('sharp')
     } catch (error) {
       if (error.code === 'MODULE_NOT_FOUND') {
