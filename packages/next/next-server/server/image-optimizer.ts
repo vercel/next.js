@@ -32,6 +32,7 @@ export async function imageOptimizer(
   const { headers } = req
   const { url, w, q } = parsedUrl.query
   const mimeType = mediaType(headers.accept, MIME_TYPES) || ''
+  let href: string
 
   if (!url) {
     res.statusCode = 400
@@ -43,27 +44,31 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  let absoluteUrl: URL | undefined
-  let relativeUrl: string | undefined
+  let isAbsolute: boolean
 
   if (url.startsWith('/')) {
-    relativeUrl = url
+    href = url
+    isAbsolute = false
   } else {
+    let hrefParsed: URL
+
     try {
-      absoluteUrl = new URL(url)
+      hrefParsed = new URL(url)
+      isAbsolute = true
+      href = hrefParsed.toString()
     } catch (_error) {
       res.statusCode = 400
       res.end('"url" parameter is invalid')
       return { finished: true }
     }
 
-    if (!['http:', 'https:'].includes(absoluteUrl.protocol)) {
+    if (!['http:', 'https:'].includes(hrefParsed.protocol)) {
       res.statusCode = 400
       res.end('"url" parameter is invalid')
       return { finished: true }
     }
 
-    if (!domains.includes(absoluteUrl.hostname)) {
+    if (!domains.includes(hrefParsed.hostname)) {
       res.statusCode = 400
       res.end('"url" parameter is not allowed')
       return { finished: true }
@@ -112,7 +117,6 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  const href = (absoluteUrl && absoluteUrl.toString()) || relativeUrl
   const hash = getHash([CACHE_VERSION, href, width, quality, mimeType])
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
@@ -140,8 +144,8 @@ export async function imageOptimizer(
   let upstreamType: string | null
   let maxAge: number
 
-  if (absoluteUrl) {
-    const upstreamRes = await fetch(absoluteUrl.toString())
+  if (isAbsolute) {
+    const upstreamRes = await fetch(href)
 
     if (!upstreamRes.ok) {
       res.statusCode = upstreamRes.status
@@ -158,7 +162,7 @@ export async function imageOptimizer(
       const _req: any = {
         headers: req.headers,
         method: req.method,
-        url: relativeUrl,
+        url: href,
       }
       const resBuffers: Buffer[] = []
       const mockRes: any = new Stream.Writable()
@@ -186,7 +190,7 @@ export async function imageOptimizer(
       await server.getRequestHandler()(
         _req,
         mockRes,
-        nodeUrl.parse(relativeUrl!, true)
+        nodeUrl.parse(href!, true)
       )
       res.statusCode = mockRes.statusCode
 
