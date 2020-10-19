@@ -1,7 +1,8 @@
 {
-  "name": "with-react-native-web",
+  "name": "with-facebook-pixel",
+  "version": "0.1.0",
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
@@ -9,10 +10,7 @@
     "next": "latest",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
-    "react-native-web": "^0.13.14"
-  },
-  "devDependencies": {
-    "babel-plugin-react-native-web": "^0.13.14"
+    "react-facebook-pixel": "^1.0.3"
   },
   "license": "MIT"
 }
