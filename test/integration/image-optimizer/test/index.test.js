@@ -329,6 +329,21 @@ describe('Image Optimizer', () => {
     runTests({ w: size, isDev: true, domains })
   })
 
+  describe('Server support w/o next.config.js', () => {
+    const size = 768 // defaults defined in server/config.ts
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      await fs.remove(imagesDir)
+    })
+
+    runTests({ w: size, isDev: false, domains: [] })
+  })
+
   describe('Server support with next.config.js', () => {
     const size = 128
     beforeAll(async () => {
