@@ -54,8 +54,8 @@ export async function imageOptimizer(
 
     try {
       hrefParsed = new URL(url)
-      isAbsolute = true
       href = hrefParsed.toString()
+      isAbsolute = true
     } catch (_error) {
       res.statusCode = 400
       res.end('"url" parameter is invalid')
@@ -187,11 +187,7 @@ export async function imageOptimizer(
       mockRes.finished = false
       mockRes.statusCode = 200
 
-      await server.getRequestHandler()(
-        _req,
-        mockRes,
-        nodeUrl.parse(href, true)
-      )
+      await server.getRequestHandler()(_req, mockRes, nodeUrl.parse(href, true))
       res.statusCode = mockRes.statusCode
 
       upstreamBuffer = Buffer.concat(resBuffers)
