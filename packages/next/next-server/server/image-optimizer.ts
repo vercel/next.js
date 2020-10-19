@@ -63,7 +63,7 @@ export async function imageOptimizer(
       return { finished: true }
     }
 
-    if (!server.renderOpts.dev && !domains.includes(absoluteUrl.hostname)) {
+    if (!domains.includes(absoluteUrl.hostname)) {
       res.statusCode = 400
       res.end('"url" parameter is not allowed')
       return { finished: true }
@@ -112,7 +112,7 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  const href = (absoluteUrl || relativeUrl) as string
+  const href = absoluteUrl || relativeUrl
   const hash = getHash([CACHE_VERSION, href, width, quality, mimeType])
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
@@ -137,11 +137,11 @@ export async function imageOptimizer(
   }
 
   let upstreamBuffer: Buffer
-  let upstreamType: any
-  let maxAge: any
+  let upstreamType: string | null
+  let maxAge: number
 
   if (absoluteUrl) {
-    const upstreamRes = await fetch(href)
+    const upstreamRes = await fetch(absoluteUrl)
 
     if (!upstreamRes.ok) {
       res.statusCode = upstreamRes.status
