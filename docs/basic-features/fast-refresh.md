@@ -77,7 +77,7 @@ local state being reset on every edit to a file:
 - Sometimes, a file would export the result of calling higher-order component
   like `HOC(WrappedComponent)`. If the returned component is a
   class, state will be reset.
-- Anonymous arrow functions like `export default () => <div />;` cause Fast Refresh to not preserve local component state
+- Anonymous arrow functions like `export default () => <div />;` cause Fast Refresh to not preserve local component state.
 
 As more of your codebase moves to function components and Hooks, you can expect
 state to be preserved in more cases.
