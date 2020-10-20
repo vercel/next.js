@@ -83,10 +83,14 @@ if (hasBasePath(asPath)) {
   asPath = delBasePath(asPath)
 }
 
-if (process.env.__NEXT_i18n_SUPPORT) {
+if (process.env.__NEXT_I18N_SUPPORT) {
   const {
     normalizeLocalePath,
   } = require('../next-server/lib/i18n/normalize-locale-path')
+
+  const {
+    detectDomainLocale,
+  } = require('../next-server/lib/i18n/detect-domain-locale')
 
   if (locales) {
     const localePathResult = normalizeLocalePath(asPath, locales)
@@ -98,6 +102,18 @@ if (process.env.__NEXT_i18n_SUPPORT) {
       // since we don't prerender static pages with all possible default
       // locales
       defaultLocale = locale
+    }
+
+    // attempt detecting default locale based on hostname
+    const detectedDomain = detectDomainLocale(
+      process.env.__NEXT_I18N_DOMAINS,
+      window.location.hostname
+    )
+
+    // TODO: investigate if defaultLocale needs to be populated after
+    // hydration to prevent mismatched renders
+    if (detectedDomain) {
+      defaultLocale = detectedDomain.defaultLocale
     }
   }
 }
