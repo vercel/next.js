@@ -4,7 +4,7 @@ description: learn more about the configuration file used by Next.js to handle y
 
 # next.config.js
 
-For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `package.json`).
+For custom advanced behavior of Next.js, you can create a `next.config.js` in the root of your project directory (next to `package.json`). Also make sure to copy this file when deploying your Next distribution inside a container.
 
 `next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next.js server and build phases, and it's not included in the browser build.
 
