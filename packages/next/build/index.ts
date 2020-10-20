@@ -970,12 +970,6 @@ export default async function build(
             ? `/${i18n.defaultLocale}${page === '/' ? '' : page}`
             : page
 
-          console.log({
-            revalidationMapPath,
-            page,
-            map: exportConfig.initialPageRevalidationMap,
-          })
-
           finalPrerenderRoutes[page] = {
             initialRevalidateSeconds:
               exportConfig.initialPageRevalidationMap[revalidationMapPath],
