@@ -318,7 +318,11 @@ export default class Server {
         i18n.locales
       )
 
-      const detectedDomain = detectDomainLocale(i18n.domains, req)
+      const { host } = req?.headers || {}
+      // remove port from host and remove port if present
+      const hostname = host?.split(':')[0].toLowerCase()
+
+      const detectedDomain = detectDomainLocale(i18n.domains, hostname)
       if (detectedDomain) {
         defaultLocale = detectedDomain.defaultLocale
         detectedLocale = defaultLocale
@@ -564,9 +568,12 @@ export default class Server {
           const { i18n } = this.nextConfig.experimental
 
           if (i18n) {
+            const { host } = req?.headers || {}
+            // remove port from host and remove port if present
+            const hostname = host?.split(':')[0].toLowerCase()
             const localePathResult = normalizeLocalePath(pathname, i18n.locales)
             const { defaultLocale } =
-              detectDomainLocale(i18n.domains, req) || {}
+              detectDomainLocale(i18n.domains, hostname) || {}
             let detectedLocale = defaultLocale
 
             if (localePathResult.detectedLocale) {
