@@ -41,4 +41,4 @@ export const fetchUserEpic = (action$, state$) =>
     )
   )
 
-export const rootEpic = combineEpics(fetchUsersEpic, fetchUserEpic)
+export const userEpic = combineEpics(fetchUsersEpic, fetchUserEpic)
