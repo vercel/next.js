@@ -85,7 +85,7 @@ type CallLoaderProps = {
 
 function callLoader(loaderProps: CallLoaderProps) {
   let loader = loaders[imageData.loader || 'default']
-  return loader({ root: imageData.path, ...loaderProps })
+  return loader({ root: imageData.path || '/_next/image', ...loaderProps })
 }
 
 type SrcSetData = {
@@ -158,11 +158,6 @@ export default function Image({
       )
     }
     lazy = false
-  }
-
-  // Normalize provided src
-  if (src[0] === '/') {
-    src = src.slice(1)
   }
 
   useEffect(() => {
