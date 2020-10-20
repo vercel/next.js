@@ -6,7 +6,7 @@ const ClientSide = () => {
   return (
     <div>
       <p id="stubtext">This is a client side page</p>
-      <Image id="basic-image" src="foo.jpg" width={300} height={400}></Image>
+      <Image id="basic-image" src="foo.jpg" width={300} height={400} quality={60}></Image>
       <Image
         id="attribute-test"
         data-demo="demo-value"

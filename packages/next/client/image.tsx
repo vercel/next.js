@@ -9,12 +9,6 @@ const loaders: { [key: string]: (props: LoaderProps) => string } = {
 
 type ImageData = {
   sizes?: number[]
-  hosts: {
-    [key: string]: {
-      path: string
-      loader: string
-    }
-  }
 }
 
 type ImageProps = Omit<
@@ -25,6 +19,7 @@ type ImageProps = Omit<
   width: number
   height: number
   host?: string
+  quality?: string
   priority?: boolean
   lazy?: boolean
   unoptimized?: boolean
@@ -32,6 +27,10 @@ type ImageProps = Omit<
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
 const breakpoints = imageData.sizes || [640, 1024, 1600]
+// Auto optimize defaults to on if not specified
+if (imageData.autoOptimize === undefined) {
+  imageData.autoOptimize = true
+}
 
 let cachedObserver: IntersectionObserver
 const IntersectionObserver =
@@ -68,60 +67,56 @@ function getObserver(): IntersectionObserver | undefined {
   ))
 }
 
-function computeSrc(src: string, host: string, unoptimized: boolean): string {
+function computeSrc(
+  src: string,
+  unoptimized: boolean,
+  quality?: string
+): string {
   if (unoptimized) {
     return src
   }
-  if (!host) {
-    // No host provided, use default
-    return callLoader(src, 'default')
-  } else {
-    let selectedHost = imageData.hosts[host]
-    if (!selectedHost) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.error(
-          `Image tag is used specifying host ${host}, but that host is not defined in next.config`
-        )
-      }
-      return src
-    }
-    return callLoader(src, host)
-  }
+  return callLoader({ src, quality })
 }
 
-function callLoader(src: string, host: string, width?: number): string {
-  let loader = loaders[imageData.hosts[host].loader || 'default']
-  return loader({ root: imageData.hosts[host].path, src, width })
+type CallLoaderProps = {
+  src: string
+  width?: number
+  quality?: string
+}
+
+function callLoader(loaderProps: CallLoaderProps) {
+  let loader = loaders[imageData.loader || 'default']
+  return loader({ root: imageData.path, ...loaderProps })
 }
 
 type SrcSetData = {
   src: string
-  host: string
   widths: number[]
+  quality?: string
 }
 
-function generateSrcSet({ src, host, widths }: SrcSetData): string {
+function generateSrcSet({ src, widths, quality }: SrcSetData): string {
   // At each breakpoint, generate an image url using the loader, such as:
   // ' www.example.com/foo.jpg?w=480 480w, '
   return widths
-    .map((width: number) => `${callLoader(src, host, width)} ${width}w`)
+    .map((width: number) => `${callLoader({ src, width, quality })} ${width}w`)
     .join(', ')
 }
 
 type PreloadData = {
   src: string
-  host: string
   widths: number[]
   sizes?: string
   unoptimized?: boolean
+  quality?: string
 }
 
 function generatePreload({
   src,
-  host,
   widths,
   unoptimized = false,
   sizes,
+  quality,
 }: PreloadData): ReactElement {
   // This function generates an image preload that makes use of the "imagesrcset" and "imagesizes"
   // attributes for preloading responsive images. They're still experimental, but fully backward
@@ -132,9 +127,9 @@ function generatePreload({
       <link
         rel="preload"
         as="image"
-        href={computeSrc(src, host, unoptimized)}
+        href={computeSrc(src, unoptimized, quality)}
         // @ts-ignore: imagesrcset and imagesizes not yet in the link element type
-        imagesrcset={generateSrcSet({ src, host, widths })}
+        imagesrcset={generateSrcSet({ src, widths, quality })}
         imagesizes={sizes}
       />
     </Head>
@@ -143,7 +138,6 @@ function generatePreload({
 
 export default function Image({
   src,
-  host,
   sizes,
   width,
   height,
@@ -151,24 +145,12 @@ export default function Image({
   priority = false,
   lazy = false,
   className,
+  quality,
   ...rest
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
 
   // Sanity Checks:
-  if (process.env.NODE_ENV !== 'production') {
-    if (unoptimized && host) {
-      console.error(`Image tag used specifying both a host and the unoptimized attribute--these are mutually exclusive. 
-          With the unoptimized attribute, no host will be used, so specify an absolute URL.`)
-    }
-  }
-  if (host && !imageData.hosts[host]) {
-    // If unregistered host is selected, log an error and use the default instead
-    if (process.env.NODE_ENV !== 'production') {
-      console.error(`Image host identifier ${host} could not be resolved.`)
-    }
-    host = 'default'
-  }
   // If priority and lazy are present, log an error and use priority only.
   if (priority && lazy) {
     if (process.env.NODE_ENV !== 'production') {
@@ -180,6 +162,11 @@ export default function Image({
   }
 
   host = host || 'default'
+  
+  // Normalize provided src
+  if (src[0] === '/') {
+    src = src.slice(1)
+  }
 
   useEffect(() => {
     const target = thisEl.current
@@ -198,12 +185,12 @@ export default function Image({
   }, [thisEl, lazy])
 
   // Generate attribute values
-  const imgSrc = computeSrc(src, host, unoptimized)
+  const imgSrc = computeSrc(src, unoptimized, quality)
   const imgSrcSet = !unoptimized
     ? generateSrcSet({
         src,
-        host: host,
         widths: breakpoints,
+        quality,
       })
     : undefined
 
@@ -245,7 +232,6 @@ export default function Image({
       {shouldPreload
         ? generatePreload({
             src,
-            host,
             widths: breakpoints,
             unoptimized,
             sizes,
@@ -271,27 +257,50 @@ export default function Image({
 
 //BUILT IN LOADERS
 
-type LoaderProps = {
-  root: string
-  src: string
-  width?: number
-}
+type LoaderProps = CallLoaderProps & { root: string }
 
 function normalizeSrc(src: string) {
   return src[0] === '/' ? src.slice(1) : src
 }
 
-function imgixLoader({ root, src, width }: LoaderProps): string {
-  return `${root}${normalizeSrc(src)}${width ? '?w=' + width : ''}`
+function imgixLoader({ root, src, width, quality }: LoaderProps): string {
+  const params = []
+  let paramsString = ''
+  if (width) {
+    params.push('w=' + width)
+  }
+  if (quality) {
+    params.push('q=' + quality)
+  }
+  if (imageData.autoOptimize) {
+    params.push('auto=compress')
+  }
+  if (params.length) {
+    paramsString = '?' + params.join('&')
+  }
+  return `${root}${normalizeSrc(src)}${paramsString}`
 }
 
-function cloudinaryLoader({ root, src, width }: LoaderProps): string {
-  return `${root}${width ? 'w_' + width + '/' : ''}${normalizeSrc(src)}`
+function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
+  const params = []
+  let paramsString = ''
+  if (!quality && imageData.autoOptimize) {
+    quality = 'auto'
+  }
+  if (width) {
+    params.push('w_' + width)
+  }
+  if (quality) {
+    params.push('q_' + quality)
+  }
+  if (params.length) {
+    paramsString = params.join(',') + '/'
+  }
+  return `${root}${paramsString}${normalizeSrc(src)}`
 }
 
-function defaultLoader({ root, src, width }: LoaderProps): string {
-  // TODO: change quality parameter to be configurable
+function defaultLoader({ root, src, width, quality }: LoaderProps): string {
   return `${root}?url=${encodeURIComponent(src)}&${
     width ? `w=${width}&` : ''
-  }q=100`
+  }q=${quality || '100'}`
 }
