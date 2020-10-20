@@ -16,16 +16,14 @@ type ImageData = {
 
 type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref'
+  'src' | 'srcSet' | 'ref' | 'width' | 'height'
 > & {
   src: string
-  width: number
-  height: number
   quality?: string
   priority?: boolean
   lazy?: boolean
   unoptimized?: boolean
-}
+} & ({ width: number; height: number } | { unsized: true })
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
 const breakpoints = imageData.sizes || [640, 1024, 1600]
@@ -141,8 +139,6 @@ function generatePreload({
 export default function Image({
   src,
   sizes,
-  width,
-  height,
   unoptimized = false,
   priority = false,
   lazy = false,
@@ -151,11 +147,12 @@ export default function Image({
   ...rest
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
+  const isProd = process.env.NODE_ENV === 'production'
 
   // Sanity Checks:
   // If priority and lazy are present, log an error and use priority only.
   if (priority && lazy) {
-    if (process.env.NODE_ENV !== 'production') {
+    if (!isProd) {
       console.error(
         `Image with src ${src} has both priority and lazy tags. Only one should be used.`
       )
@@ -219,11 +216,53 @@ export default function Image({
   // it's too late for preloads
   const shouldPreload = priority && typeof window === 'undefined'
 
-  const ratio = (height / width) * 100
-  const paddingBottom = `${isNaN(ratio) ? 1 : ratio}%`
+  const width =
+    'width' in rest && typeof rest.width === 'number' ? rest.width : undefined
+  const height =
+    'height' in rest && typeof rest.height === 'number'
+      ? rest.height
+      : undefined
+  const unsized =
+    'unsized' in rest && typeof rest.unsized === 'boolean'
+      ? rest.unsized
+      : undefined
+  // @ts-ignore
+  delete rest.width
+  // @ts-ignore
+  delete rest.height
+  // @ts-ignore
+  delete rest.unsized
+
+  let ratio = 1
+  if (typeof height === 'number' && typeof width === 'number' && !unsized) {
+    // <Image src="i.png" width=100 height=100 />
+    const quotient = height / width
+    if (!isNaN(quotient)) {
+      ratio = quotient * 100
+    }
+  } else if (
+    typeof height === 'undefined' &&
+    typeof width === 'undefined' &&
+    unsized
+  ) {
+    // <Image src="i.png" unsized />
+    if (!isProd && priority) {
+      // <Image src="i.png" unsized priority />
+      console.warn(
+        `Image with src ${src} has both priority and unsized attributes. Only one should be used.`
+      )
+    }
+    ratio = 1
+  } else {
+    if (!isProd) {
+      console.error(
+        `Image with src ${src} must define width and height attributes or unsized attribute.`
+      )
+    }
+  }
 
   return (
-    <div style={{ position: 'relative', paddingBottom }}>
+    <div style={{ position: 'relative', paddingBottom: `${ratio}%` }}>
       {shouldPreload
         ? generatePreload({
             src,
