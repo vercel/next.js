@@ -16,6 +16,7 @@ type ImageProps = Omit<
   'src' | 'srcSet' | 'ref'
 > & {
   src: string
+  quality?: string
   priority?: boolean
   lazy?: boolean
   unoptimized?: boolean
@@ -23,6 +24,10 @@ type ImageProps = Omit<
 
 let imageData: any = process.env.__NEXT_IMAGE_OPTS
 const breakpoints = imageData.sizes || [640, 1024, 1600]
+// Auto optimize defaults to on if not specified
+if (imageData.autoOptimize === undefined) {
+  imageData.autoOptimize = true
+}
 
 let cachedObserver: IntersectionObserver
 const IntersectionObserver =
@@ -59,28 +64,39 @@ function getObserver(): IntersectionObserver | undefined {
   ))
 }
 
-function computeSrc(src: string, unoptimized: boolean): string {
+function computeSrc(
+  src: string,
+  unoptimized: boolean,
+  quality?: string
+): string {
   if (unoptimized) {
     return src
   }
-  return callLoader(src)
+  return callLoader({ src, quality })
 }
 
-function callLoader(src: string, width?: number): string {
+type CallLoaderProps = {
+  src: string
+  width?: number
+  quality?: string
+}
+
+function callLoader(loaderProps: CallLoaderProps) {
   let loader = loaders[imageData.loader || 'default']
-  return loader({ root: imageData.path, src, width })
+  return loader({ root: imageData.path, ...loaderProps })
 }
 
 type SrcSetData = {
   src: string
   widths: number[]
+  quality?: string
 }
 
-function generateSrcSet({ src, widths }: SrcSetData): string {
+function generateSrcSet({ src, widths, quality }: SrcSetData): string {
   // At each breakpoint, generate an image url using the loader, such as:
   // ' www.example.com/foo.jpg?w=480 480w, '
   return widths
-    .map((width: number) => `${callLoader(src, width)} ${width}w`)
+    .map((width: number) => `${callLoader({ src, width, quality })} ${width}w`)
     .join(', ')
 }
 
@@ -89,6 +105,7 @@ type PreloadData = {
   widths: number[]
   sizes?: string
   unoptimized?: boolean
+  quality?: string
 }
 
 function generatePreload({
@@ -96,6 +113,7 @@ function generatePreload({
   widths,
   unoptimized = false,
   sizes,
+  quality,
 }: PreloadData): ReactElement {
   // This function generates an image preload that makes use of the "imagesrcset" and "imagesizes"
   // attributes for preloading responsive images. They're still experimental, but fully backward
@@ -106,9 +124,9 @@ function generatePreload({
       <link
         rel="preload"
         as="image"
-        href={computeSrc(src, unoptimized)}
+        href={computeSrc(src, unoptimized, quality)}
         // @ts-ignore: imagesrcset and imagesizes not yet in the link element type
-        imagesrcset={generateSrcSet({ src, widths })}
+        imagesrcset={generateSrcSet({ src, widths, quality })}
         imagesizes={sizes}
       />
     </Head>
@@ -122,6 +140,7 @@ export default function Image({
   priority = false,
   lazy = false,
   className,
+  quality,
   ...rest
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
@@ -159,11 +178,12 @@ export default function Image({
   }, [thisEl, lazy])
 
   // Generate attribute values
-  const imgSrc = computeSrc(src, unoptimized)
+  const imgSrc = computeSrc(src, unoptimized, quality)
   const imgSrcSet = !unoptimized
     ? generateSrcSet({
         src,
         widths: breakpoints,
+        quality,
       })
     : undefined
 
@@ -220,23 +240,46 @@ export default function Image({
 
 //BUILT IN LOADERS
 
-type LoaderProps = {
-  root: string
-  src: string
-  width?: number
+type LoaderProps = CallLoaderProps & { root: string }
+
+function imgixLoader({ root, src, width, quality }: LoaderProps): string {
+  const params = []
+  let paramsString = ''
+  if (width) {
+    params.push('w=' + width)
+  }
+  if (quality) {
+    params.push('q=' + quality)
+  }
+  if (imageData.autoOptimize) {
+    params.push('auto=compress')
+  }
+  if (params.length) {
+    paramsString = '?' + params.join('&')
+  }
+  return `${root}${src}${paramsString}`
 }
 
-function imgixLoader({ root, src, width }: LoaderProps): string {
-  return `${root}${src}${width ? '?w=' + width : ''}`
+function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
+  const params = []
+  let paramsString = ''
+  if (!quality && imageData.autoOptimize) {
+    quality = 'auto'
+  }
+  if (width) {
+    params.push('w_' + width)
+  }
+  if (quality) {
+    params.push('q_' + quality)
+  }
+  if (params.length) {
+    paramsString = params.join(',') + '/'
+  }
+  return `${root}${paramsString}${src}`
 }
 
-function cloudinaryLoader({ root, src, width }: LoaderProps): string {
-  return `${root}${width ? 'w_' + width + '/' : ''}${src}`
-}
-
-function defaultLoader({ root, src, width }: LoaderProps): string {
-  // TODO: change quality parameter to be configurable
+function defaultLoader({ root, src, width, quality }: LoaderProps): string {
   return `${root}?url=${encodeURIComponent(src)}&${
     width ? `w=${width}&` : ''
-  }q=100`
+  }q=${quality || '100'}`
 }

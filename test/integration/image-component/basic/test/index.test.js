@@ -32,7 +32,7 @@ function runTests() {
   })
   it('should modify src with the loader', async () => {
     expect(await browser.elementById('basic-image').getAttribute('src')).toBe(
-      'https://example.com/myaccount/foo.jpg'
+      'https://example.com/myaccount/foo.jpg?q=60'
     )
   })
   it('should correctly generate src even if preceding slash is included in prop', async () => {
@@ -44,7 +44,7 @@ function runTests() {
     expect(
       await browser.elementById('basic-image').getAttribute('srcset')
     ).toBe(
-      'https://example.com/myaccount/foo.jpg?w=480 480w, https://example.com/myaccount/foo.jpg?w=1024 1024w, https://example.com/myaccount/foo.jpg?w=1600 1600w'
+      'https://example.com/myaccount/foo.jpg?w=480&q=60 480w, https://example.com/myaccount/foo.jpg?w=1024&q=60 1024w, https://example.com/myaccount/foo.jpg?w=1600&q=60 1600w'
     )
   })
   it('should add a srcset even with preceding slash in prop', async () => {
