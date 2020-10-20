@@ -9,6 +9,9 @@ const loaders: { [key: string]: (props: LoaderProps) => string } = {
 
 type ImageData = {
   sizes?: number[]
+  loader?: string
+  path?: string
+  autoOptimize?: boolean
 }
 
 type ImageProps = Omit<
@@ -16,13 +19,15 @@ type ImageProps = Omit<
   'src' | 'srcSet' | 'ref'
 > & {
   src: string
+  width: number
+  height: number
   quality?: string
   priority?: boolean
   lazy?: boolean
   unoptimized?: boolean
 }
 
-let imageData: any = process.env.__NEXT_IMAGE_OPTS
+const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
 const breakpoints = imageData.sizes || [640, 1024, 1600]
 // Auto optimize defaults to on if not specified
 if (imageData.autoOptimize === undefined) {
@@ -83,7 +88,7 @@ type CallLoaderProps = {
 
 function callLoader(loaderProps: CallLoaderProps) {
   let loader = loaders[imageData.loader || 'default']
-  return loader({ root: imageData.path, ...loaderProps })
+  return loader({ root: imageData.path || '/_next/image', ...loaderProps })
 }
 
 type SrcSetData = {
@@ -136,6 +141,8 @@ function generatePreload({
 export default function Image({
   src,
   sizes,
+  width,
+  height,
   unoptimized = false,
   priority = false,
   lazy = false,
@@ -154,11 +161,6 @@ export default function Image({
       )
     }
     lazy = false
-  }
-
-  // Normalize provided src
-  if (src[0] === '/') {
-    src = src.slice(1)
   }
 
   useEffect(() => {
@@ -217,8 +219,11 @@ export default function Image({
   // it's too late for preloads
   const shouldPreload = priority && typeof window === 'undefined'
 
+  const ratio = (height / width) * 100
+  const paddingBottom = `${isNaN(ratio) ? 1 : ratio}%`
+
   return (
-    <div>
+    <div style={{ position: 'relative', paddingBottom }}>
       {shouldPreload
         ? generatePreload({
             src,
@@ -233,6 +238,13 @@ export default function Image({
         className={className}
         sizes={sizes}
         ref={thisEl}
+        style={{
+          height: '100%',
+          left: '0',
+          position: 'absolute',
+          top: '0',
+          width: '100%',
+        }}
       />
     </div>
   )
@@ -241,6 +253,10 @@ export default function Image({
 //BUILT IN LOADERS
 
 type LoaderProps = CallLoaderProps & { root: string }
+
+function normalizeSrc(src: string) {
+  return src[0] === '/' ? src.slice(1) : src
+}
 
 function imgixLoader({ root, src, width, quality }: LoaderProps): string {
   const params = []
@@ -257,7 +273,7 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
   if (params.length) {
     paramsString = '?' + params.join('&')
   }
-  return `${root}${src}${paramsString}`
+  return `${root}${normalizeSrc(src)}${paramsString}`
 }
 
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
@@ -275,7 +291,7 @@ function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
   if (params.length) {
     paramsString = params.join(',') + '/'
   }
-  return `${root}${paramsString}${src}`
+  return `${root}${paramsString}${normalizeSrc(src)}`
 }
 
 function defaultLoader({ root, src, width, quality }: LoaderProps): string {

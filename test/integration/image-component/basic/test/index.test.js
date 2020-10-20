@@ -7,6 +7,7 @@ import {
   nextStart,
   nextBuild,
   waitFor,
+  check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
@@ -91,19 +92,20 @@ function lazyLoadingTests() {
   it('should load the second image after scrolling down', async () => {
     let viewportHeight = await browser.eval(`window.innerHeight`)
     let topOfMidImage = await browser.eval(
-      `document.getElementById('lazy-mid').offsetTop`
+      `document.getElementById('lazy-mid').parentElement.offsetTop`
     )
     let buffer = 150
     await browser.eval(
       `window.scrollTo(0, ${topOfMidImage - (viewportHeight + buffer)})`
     )
-    await waitFor(200)
-    expect(await browser.elementById('lazy-mid').getAttribute('src')).toBe(
-      'https://example.com/myaccount/foo2.jpg'
-    )
-    expect(await browser.elementById('lazy-mid').getAttribute('srcset')).toBe(
-      'https://example.com/myaccount/foo2.jpg?w=480 480w, https://example.com/myaccount/foo2.jpg?w=1024 1024w, https://example.com/myaccount/foo2.jpg?w=1600 1600w'
-    )
+
+    await check(() => {
+      return browser.elementById('lazy-mid').getAttribute('src')
+    }, 'https://example.com/myaccount/foo2.jpg')
+
+    await check(() => {
+      return browser.elementById('lazy-mid').getAttribute('srcset')
+    }, 'https://example.com/myaccount/foo2.jpg?w=480 480w, https://example.com/myaccount/foo2.jpg?w=1024 1024w, https://example.com/myaccount/foo2.jpg?w=1600 1600w')
   })
   it('should not have loaded the third image after scrolling down', async () => {
     expect(
@@ -116,7 +118,7 @@ function lazyLoadingTests() {
   it('should load the third image, which is unoptimized, after scrolling further down', async () => {
     let viewportHeight = await browser.eval(`window.innerHeight`)
     let topOfBottomImage = await browser.eval(
-      `document.getElementById('lazy-bottom').offsetTop`
+      `document.getElementById('lazy-bottom').parentElement.offsetTop`
     )
     let buffer = 150
     await browser.eval(

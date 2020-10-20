@@ -215,6 +215,14 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
   if (result?.images) {
     const { images } = result
+
+    // Normalize defined image host to end in slash
+    if (images?.path) {
+      if (images.path[images.path.length - 1] !== '/') {
+        images.path += '/'
+      }
+    }
+
     if (typeof images !== 'object') {
       throw new Error(
         `Specified images should be an object received ${typeof images}`
