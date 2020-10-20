@@ -967,8 +967,14 @@ export default async function build(
           await moveExportedPage(page, page, file, true, 'json')
 
           const revalidationMapPath = i18n
-            ? `/${i18n.defaultLocale}${page}`
+            ? `/${i18n.defaultLocale}${page === '/' ? '' : page}`
             : page
+
+          console.log({
+            revalidationMapPath,
+            page,
+            map: exportConfig.initialPageRevalidationMap,
+          })
 
           finalPrerenderRoutes[page] = {
             initialRevalidateSeconds:
