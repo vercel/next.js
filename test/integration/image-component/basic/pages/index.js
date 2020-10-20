@@ -6,18 +6,34 @@ const Page = () => {
   return (
     <div>
       <p>Hello World</p>
-      <Image id="basic-image" src="foo.jpg" quality="60"></Image>
-      <Image id="attribute-test" data-demo="demo-value" src="bar.jpg" />
+      <Image
+        id="basic-image"
+        src="foo.jpg"
+        width={300}
+        height={400}
+        quality={60}
+      ></Image>
+      <Image
+        id="attribute-test"
+        data-demo="demo-value"
+        src="bar.jpg"
+        width={300}
+        height={400}
+      />
       <Image
         id="secondary-image"
         data-demo="demo-value"
         host="secondary"
         src="foo2.jpg"
+        width={300}
+        height={400}
       />
       <Image
         id="unoptimized-image"
         unoptimized
         src="https://arbitraryurl.com/foo.jpg"
+        width={300}
+        height={400}
       />
       <Image id="priority-image" priority src="withpriority.png" />
       <Image
@@ -25,14 +41,24 @@ const Page = () => {
         priority
         host="secondary"
         src="withpriority2.png"
+        width={300}
+        height={400}
       />
       <Image
         id="priority-image"
         priority
         unoptimized
         src="https://arbitraryurl.com/withpriority3.png"
+        width={300}
+        height={400}
       />
-      <Image id="preceding-slash-image" src="/fooslash.jpg" priority />
+      <Image
+        id="preceding-slash-image"
+        src="/fooslash.jpg"
+        priority
+        width={300}
+        height={400}
+      />
       <Link href="/client-side">
         <a id="clientlink">Client Side</a>
       </Link>
