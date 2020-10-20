@@ -102,6 +102,7 @@ function lazyLoadingTests() {
     await browser.eval(
       `window.scrollTo(0, ${topOfMidImage - (viewportHeight + buffer)})`
     )
+    await waitFor(200)
     expect(await browser.elementById('lazy-mid').getAttribute('src')).toBe(
       'https://example.com/myaccount/foo2.jpg'
     )
@@ -126,6 +127,7 @@ function lazyLoadingTests() {
     await browser.eval(
       `window.scrollTo(0, ${topOfBottomImage - (viewportHeight + buffer)})`
     )
+    await waitFor(200)
     expect(await browser.elementById('lazy-bottom').getAttribute('src')).toBe(
       'https://www.otherhost.com/foo3.jpg'
     )
