@@ -233,9 +233,13 @@ const nextServerlessLoader: loader.Loader = function () {
         i18n.locales
       )
 
+      const { host } = req.headers || {}
+      // remove port from host and remove port if present
+      const hostname = host && host.split(':')[0].toLowerCase()
+
       const detectedDomain = detectDomainLocale(
         i18n.domains,
-        req,
+        hostname,
       )
       if (detectedDomain) {
         defaultLocale = detectedDomain.defaultLocale
@@ -291,6 +295,7 @@ const nextServerlessLoader: loader.Loader = function () {
       if (
         !fromExport &&
         !nextStartMode &&
+        !req.headers["${vercelHeader}"] &&
         i18n.localeDetection !== false &&
         (
           localeDomainRedirect ||

@@ -1,5 +1,3 @@
-import { IncomingMessage } from 'http'
-
 export function detectDomainLocale(
   domainItems:
     | Array<{
@@ -8,7 +6,7 @@ export function detectDomainLocale(
         defaultLocale: string
       }>
     | undefined,
-  req?: IncomingMessage,
+  hostname?: string,
   detectedLocale?: string
 ) {
   let domainItem:
@@ -20,10 +18,6 @@ export function detectDomainLocale(
     | undefined
 
   if (domainItems) {
-    const { host } = req?.headers || {}
-    // remove port from host and remove port if present
-    const hostname = host?.split(':')[0].toLowerCase()
-
     for (const item of domainItems) {
       // remove port if present
       const domainHostname = item.domain?.split(':')[0].toLowerCase()

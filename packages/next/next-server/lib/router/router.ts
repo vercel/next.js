@@ -61,7 +61,7 @@ export function addLocale(
   locale?: string,
   defaultLocale?: string
 ) {
-  if (process.env.__NEXT_i18n_SUPPORT) {
+  if (process.env.__NEXT_I18N_SUPPORT) {
     return locale && locale !== defaultLocale && !path.startsWith('/' + locale)
       ? addPathPrefix(path, '/' + locale)
       : path
@@ -70,7 +70,7 @@ export function addLocale(
 }
 
 export function delLocale(path: string, locale?: string) {
-  if (process.env.__NEXT_i18n_SUPPORT) {
+  if (process.env.__NEXT_I18N_SUPPORT) {
     return locale && path.startsWith('/' + locale)
       ? path.substr(locale.length + 1) || '/'
       : path
@@ -453,7 +453,7 @@ export default class Router implements BaseRouter {
 
     this.isFallback = isFallback
 
-    if (process.env.__NEXT_i18n_SUPPORT) {
+    if (process.env.__NEXT_I18N_SUPPORT) {
       this.locale = locale
       this.locales = locales
       this.defaultLocale = defaultLocale
