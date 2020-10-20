@@ -40,11 +40,6 @@ function runTests() {
       await browser.elementById('preceding-slash-image').getAttribute('src')
     ).toBe('https://example.com/myaccount/fooslash.jpg')
   })
-  it('should support manually selecting a different host', async () => {
-    expect(
-      await browser.elementById('secondary-image').getAttribute('src')
-    ).toBe('https://examplesecondary.com/images/foo2.jpg')
-  })
   it('should add a srcset based on the loader', async () => {
     expect(
       await browser.elementById('basic-image').getAttribute('srcset')
@@ -177,13 +172,6 @@ describe('Image Component Tests', () => {
       expect(
         await hasPreloadLinkMatchingUrl(
           'https://example.com/myaccount/fooslash.jpg'
-        )
-      ).toBe(true)
-    })
-    it('should add a preload tag for a priority image, with secondary host', async () => {
-      expect(
-        await hasPreloadLinkMatchingUrl(
-          'https://examplesecondary.com/images/withpriority2.png'
         )
       ).toBe(true)
     })

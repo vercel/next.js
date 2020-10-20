@@ -9,12 +9,6 @@ const loaders: { [key: string]: (props: LoaderProps) => string } = {
 
 type ImageData = {
   sizes?: number[]
-  hosts: {
-    [key: string]: {
-      path: string
-      loader: string
-    }
-  }
 }
 
 type ImageProps = Omit<
@@ -22,7 +16,6 @@ type ImageProps = Omit<
   'src' | 'srcSet' | 'ref'
 > & {
   src: string
-  host?: string
   priority?: boolean
   lazy?: boolean
   unoptimized?: boolean
@@ -66,49 +59,33 @@ function getObserver(): IntersectionObserver | undefined {
   ))
 }
 
-function computeSrc(src: string, host: string, unoptimized: boolean): string {
+function computeSrc(src: string, unoptimized: boolean): string {
   if (unoptimized) {
     return src
   }
-  if (!host) {
-    // No host provided, use default
-    return callLoader(src, 'default')
-  } else {
-    let selectedHost = imageData.hosts[host]
-    if (!selectedHost) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.error(
-          `Image tag is used specifying host ${host}, but that host is not defined in next.config`
-        )
-      }
-      return src
-    }
-    return callLoader(src, host)
-  }
+  return callLoader(src)
 }
 
-function callLoader(src: string, host: string, width?: number): string {
-  let loader = loaders[imageData.hosts[host].loader || 'default']
-  return loader({ root: imageData.hosts[host].path, src, width })
+function callLoader(src: string, width?: number): string {
+  let loader = loaders[imageData.loader || 'default']
+  return loader({ root: imageData.path, src, width })
 }
 
 type SrcSetData = {
   src: string
-  host: string
   widths: number[]
 }
 
-function generateSrcSet({ src, host, widths }: SrcSetData): string {
+function generateSrcSet({ src, widths }: SrcSetData): string {
   // At each breakpoint, generate an image url using the loader, such as:
   // ' www.example.com/foo.jpg?w=480 480w, '
   return widths
-    .map((width: number) => `${callLoader(src, host, width)} ${width}w`)
+    .map((width: number) => `${callLoader(src, width)} ${width}w`)
     .join(', ')
 }
 
 type PreloadData = {
   src: string
-  host: string
   widths: number[]
   sizes?: string
   unoptimized?: boolean
@@ -116,7 +93,6 @@ type PreloadData = {
 
 function generatePreload({
   src,
-  host,
   widths,
   unoptimized = false,
   sizes,
@@ -130,9 +106,9 @@ function generatePreload({
       <link
         rel="preload"
         as="image"
-        href={computeSrc(src, host, unoptimized)}
+        href={computeSrc(src, unoptimized)}
         // @ts-ignore: imagesrcset and imagesizes not yet in the link element type
-        imagesrcset={generateSrcSet({ src, host, widths })}
+        imagesrcset={generateSrcSet({ src, widths })}
         imagesizes={sizes}
       />
     </Head>
@@ -141,7 +117,6 @@ function generatePreload({
 
 export default function Image({
   src,
-  host,
   sizes,
   unoptimized = false,
   priority = false,
@@ -152,19 +127,6 @@ export default function Image({
   const thisEl = useRef<HTMLImageElement>(null)
 
   // Sanity Checks:
-  if (process.env.NODE_ENV !== 'production') {
-    if (unoptimized && host) {
-      console.error(`Image tag used specifying both a host and the unoptimized attribute--these are mutually exclusive. 
-          With the unoptimized attribute, no host will be used, so specify an absolute URL.`)
-    }
-  }
-  if (host && !imageData.hosts[host]) {
-    // If unregistered host is selected, log an error and use the default instead
-    if (process.env.NODE_ENV !== 'production') {
-      console.error(`Image host identifier ${host} could not be resolved.`)
-    }
-    host = 'default'
-  }
   // If priority and lazy are present, log an error and use priority only.
   if (priority && lazy) {
     if (process.env.NODE_ENV !== 'production') {
@@ -174,8 +136,6 @@ export default function Image({
     }
     lazy = false
   }
-
-  host = host || 'default'
 
   // Normalize provided src
   if (src[0] === '/') {
@@ -199,11 +159,10 @@ export default function Image({
   }, [thisEl, lazy])
 
   // Generate attribute values
-  const imgSrc = computeSrc(src, host, unoptimized)
+  const imgSrc = computeSrc(src, unoptimized)
   const imgSrcSet = !unoptimized
     ? generateSrcSet({
         src,
-        host: host,
         widths: breakpoints,
       })
     : undefined
@@ -243,7 +202,6 @@ export default function Image({
       {shouldPreload
         ? generatePreload({
             src,
-            host,
             widths: breakpoints,
             unoptimized,
             sizes,
