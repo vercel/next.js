@@ -23,7 +23,10 @@ type ImageProps = Omit<
   priority?: boolean
   lazy?: boolean
   unoptimized?: boolean
-} & ({ width: number; height: number } | { unsized: true })
+} & (
+    | { width: number; height: number; unsized?: false }
+    | { width?: number; height?: number; unsized: true }
+  )
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
 const breakpoints = imageData.sizes || [640, 1024, 1600]
@@ -144,15 +147,17 @@ export default function Image({
   lazy = false,
   className,
   quality,
+  width,
+  height,
+  unsized,
   ...rest
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
-  const isProd = process.env.NODE_ENV === 'production'
 
   // Sanity Checks:
   // If priority and lazy are present, log an error and use priority only.
   if (priority && lazy) {
-    if (!isProd) {
+    if (process.env.NODE_ENV !== 'production') {
       console.error(
         `Image with src ${src} has both priority and lazy tags. Only one should be used.`
       )
@@ -216,23 +221,6 @@ export default function Image({
   // it's too late for preloads
   const shouldPreload = priority && typeof window === 'undefined'
 
-  const width =
-    'width' in rest && typeof rest.width === 'number' ? rest.width : undefined
-  const height =
-    'height' in rest && typeof rest.height === 'number'
-      ? rest.height
-      : undefined
-  const unsized =
-    'unsized' in rest && typeof rest.unsized === 'boolean'
-      ? rest.unsized
-      : undefined
-  // @ts-ignore
-  delete rest.width
-  // @ts-ignore
-  delete rest.height
-  // @ts-ignore
-  delete rest.unsized
-
   let ratio = 1
   if (typeof height === 'number' && typeof width === 'number' && !unsized) {
     // <Image src="i.png" width=100 height=100 />
@@ -246,17 +234,18 @@ export default function Image({
     unsized
   ) {
     // <Image src="i.png" unsized />
-    if (!isProd && priority) {
-      // <Image src="i.png" unsized priority />
-      console.warn(
-        `Image with src ${src} has both priority and unsized attributes. Only one should be used.`
-      )
+    if (process.env.NODE_ENV !== 'production') {
+      if (priority) {
+        // <Image src="i.png" unsized priority />
+        console.warn(
+          `Image with src ${src} has both priority and unsized attributes. Only one should be used.`
+        )
+      }
     }
-    ratio = 1
   } else {
-    if (!isProd) {
+    if (process.env.NODE_ENV !== 'production') {
       console.error(
-        `Image with src ${src} must define width and height attributes or unsized attribute.`
+        `Image with src ${src} must use width and height attributes or unsized attribute.`
       )
     }
   }
