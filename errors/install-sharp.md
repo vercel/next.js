@@ -4,11 +4,11 @@
 
 Using Next.js' built-in Image Optimization requires that you install `sharp`.
 
-Since, `sharp` is optional, it may have been skipped if you install `next` with the [`--no-optional`](https://docs.npmjs.com/cli/install) flag or your platform does not support `sharp`.
+Since `sharp` is optional, it may have been skipped if you installed `next` with the [`--no-optional`](https://docs.npmjs.com/cli/install) flag or it may have been skipped if your platform does not support `sharp`.
 
 #### Possible Ways to Fix It
 
-Please install the `sharp` package in your project.
+Option 1: Install the `sharp` package in your project.
 
 ```bash
 npm i sharp
@@ -16,7 +16,7 @@ npm i sharp
 yarn add sharp
 ```
 
-Or you can configure an external loader in `next.config.js` such as:
+Option 2: Configure an external loader in `next.config.js` such as [imgix](https://imgix.com).
 
 ```js
 module.exports = {
