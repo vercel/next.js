@@ -13,7 +13,9 @@ export async function loadStaticPaths(
   distDir: string,
   pathname: string,
   serverless: boolean,
-  config: RuntimeConfig
+  config: RuntimeConfig,
+  locales?: string[],
+  defaultLocale?: string
 ) {
   // we only want to use each worker once to prevent any invalid
   // caches
@@ -35,5 +37,10 @@ export async function loadStaticPaths(
   }
 
   workerWasUsed = true
-  return buildStaticPaths(pathname, components.getStaticPaths)
+  return buildStaticPaths(
+    pathname,
+    components.getStaticPaths,
+    locales,
+    defaultLocale
+  )
 }

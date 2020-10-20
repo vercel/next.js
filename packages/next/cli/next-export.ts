@@ -29,7 +29,6 @@ const nextExport: cliCommand = (argv) => {
     throw error
   }
   if (args['--help']) {
-    // tslint:disable-next-line
     console.log(`
       Description
         Exports the application for production deployment

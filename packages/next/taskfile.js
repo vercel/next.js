@@ -11,14 +11,6 @@ export async function next__polyfill_nomodule(task, opts) {
     .target('dist/build/polyfills')
 }
 
-export async function finally_polyfill(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('finally-polyfill'))
-    )
-    .target('dist/build/polyfills')
-}
-
 export async function unfetch(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('unfetch')))
@@ -26,11 +18,7 @@ export async function unfetch(task, opts) {
 }
 
 export async function browser_polyfills(task) {
-  await task.parallel([
-    'next__polyfill_nomodule',
-    'finally_polyfill',
-    'unfetch',
-  ])
+  await task.parallel(['next__polyfill_nomodule', 'unfetch'])
 }
 
 const externals = {
@@ -66,7 +54,6 @@ const externals = {
   'jest-worker': 'jest-worker',
   cacache: 'cacache',
 }
-
 // eslint-disable-next-line camelcase
 externals['amphtml-validator'] = 'next/dist/compiled/amphtml-validator'
 export async function ncc_amphtml_validator(task, opts) {
@@ -187,22 +174,6 @@ export async function ncc_devalue(task, opts) {
     .ncc({ packageName: 'devalue', externals })
     .target('compiled/devalue')
 }
-// eslint-disable-next-line camelcase
-externals['dotenv'] = 'next/dist/compiled/dotenv'
-export async function ncc_dotenv(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('dotenv')))
-    .ncc({ packageName: 'dotenv', externals })
-    .target('compiled/dotenv')
-}
-// eslint-disable-next-line camelcase
-externals['dotenv-expand'] = 'next/dist/compiled/dotenv-expand'
-export async function ncc_dotenv_expand(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('dotenv-expand')))
-    .ncc({ packageName: 'dotenv-expand', externals })
-    .target('compiled/dotenv-expand')
-}
 externals['escape-string-regexp'] = 'next/dist/compiled/escape-string-regexp'
 // eslint-disable-next-line camelcase
 export async function ncc_escape_string_regexp(task, opts) {
@@ -270,6 +241,14 @@ export async function ncc_ignore_loader(task, opts) {
     .target('compiled/ignore-loader')
 }
 // eslint-disable-next-line camelcase
+externals['is-animated'] = 'next/dist/compiled/is-animated'
+export async function ncc_is_animated(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('is-animated')))
+    .ncc({ packageName: 'is-animated', externals })
+    .target('compiled/is-animated')
+}
+// eslint-disable-next-line camelcase
 externals['is-docker'] = 'next/dist/compiled/is-docker'
 export async function ncc_is_docker(task, opts) {
   await task
@@ -300,14 +279,6 @@ export async function ncc_jsonwebtoken(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('jsonwebtoken')))
     .ncc({ packageName: 'jsonwebtoken', externals })
     .target('compiled/jsonwebtoken')
-}
-// eslint-disable-next-line camelcase
-externals['launch-editor'] = 'next/dist/compiled/launch-editor'
-export async function ncc_launch_editor(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('launch-editor')))
-    .ncc({ packageName: 'launch-editor', externals })
-    .target('compiled/launch-editor')
 }
 // eslint-disable-next-line camelcase
 externals['lodash.curry'] = 'next/dist/compiled/lodash.curry'
@@ -533,8 +504,6 @@ export async function ncc(task) {
       'ncc_cookie',
       'ncc_debug',
       'ncc_devalue',
-      'ncc_dotenv',
-      'ncc_dotenv_expand',
       'ncc_escape_string_regexp',
       'ncc_etag',
       'ncc_file_loader',
@@ -543,11 +512,11 @@ export async function ncc(task) {
       'ncc_gzip_size',
       'ncc_http_proxy',
       'ncc_ignore_loader',
+      'ncc_is_animated',
       'ncc_is_docker',
       'ncc_is_wsl',
       'ncc_json5',
       'ncc_jsonwebtoken',
-      'ncc_launch_editor',
       'ncc_lodash_curry',
       'ncc_lru_cache',
       'ncc_nanoid',

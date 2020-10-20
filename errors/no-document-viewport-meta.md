@@ -9,9 +9,8 @@ The viewport tag should be handled by `next/head` in `pages/_app.js`.
 
 Set your viewport `meta` tag in `pages/_app.js` instead:
 
-```jsx
+```tsx
 // pages/_app.js
-import React from 'react'
 import Head from 'next/head'
 
 function MyApp({ Component, pageProps }) {

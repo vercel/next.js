@@ -1,17 +1,18 @@
 import { useEffect } from 'react'
-import Router from 'next/router'
+import { useRouter } from 'next/router'
 import * as gtag from '../lib/gtag'
 
 const App = ({ Component, pageProps }) => {
+  const router = useRouter()
   useEffect(() => {
     const handleRouteChange = (url) => {
       gtag.pageview(url)
     }
-    Router.events.on('routeChangeComplete', handleRouteChange)
+    router.events.on('routeChangeComplete', handleRouteChange)
     return () => {
-      Router.events.off('routeChangeComplete', handleRouteChange)
+      router.events.off('routeChangeComplete', handleRouteChange)
     }
-  }, [])
+  }, [router.events])
 
   return <Component {...pageProps} />
 }

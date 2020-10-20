@@ -27,7 +27,6 @@ module.exports = {
           },
         ],
       },
-      ,
     ]
   },
 }
@@ -37,6 +36,37 @@ module.exports = {
 
 - `source` is the incoming request path pattern.
 - `headers` is an array of header objects with the `key` and `value` properties.
+
+## Header Overriding Behavior
+
+If two headers match the same path and set the same header key, the last header key will override the first. Using the below headers, the path `/hello` will result in the header `x-hello` being `world` due to the last header value set being `world`.
+
+```js
+module.exports = {
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'x-hello',
+            value: 'there',
+          },
+        ],
+      },
+      {
+        source: '/hello',
+        headers: [
+          {
+            key: 'x-hello',
+            value: 'world',
+          },
+        ],
+      },
+    ],
+  },
+}
+```
 
 ## Path Matching
 
@@ -59,8 +89,7 @@ module.exports = {
           },
         ],
       },
-      ,
-    ]
+    ],
   },
 }
 ```
@@ -86,8 +115,7 @@ module.exports = {
           },
         ],
       },
-      ,
-    ]
+    ],
   },
 }
 ```
@@ -98,7 +126,7 @@ To match a regex path you can wrap the regex in parenthesis after a parameter, f
 
 ```js
 module.exports = {
-  async rewrites() {
+  async headers() {
     return [
       {
         source: '/blog/:post(\\d{1,})',
@@ -109,7 +137,7 @@ module.exports = {
           },
         ],
       },
-    ]
+    ],
   },
 }
 ```
@@ -129,19 +157,19 @@ module.exports = {
         headers: [
           {
             key: 'x-hello',
-            value: 'world'
-          }
-        ]
+            value: 'world',
+          },
+        ],
       },
       {
         source: '/without-basePath', // is not modified since basePath: false is set
         headers: [
           {
             key: 'x-hello',
-            value: 'world'
-          }
-        ]
-        basePath: false
+            value: 'world',
+          },
+        ],
+        basePath: false,
       },
     ]
   },

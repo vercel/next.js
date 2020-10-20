@@ -1,8 +1,8 @@
 import { IncomingMessage, ServerResponse } from 'http'
-import { parse as parseUrl, UrlWithParsedQuery } from 'url'
-import { ParsedUrlQuery } from 'querystring'
-import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
-import pathMatch from './lib/path-match'
+import { UrlWithParsedQuery } from 'url'
+
+import pathMatch from '../lib/router/utils/path-match'
+import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
 
 export const route = pathMatch()
 
@@ -37,87 +37,8 @@ export type PageChecker = (pathname: string) => Promise<boolean>
 
 const customRouteTypes = new Set(['rewrite', 'redirect', 'header'])
 
-export const prepareDestination = (
-  destination: string,
-  params: Params,
-  query: ParsedUrlQuery,
-  appendParamsToQuery: boolean,
-  basePath: string
-) => {
-  const parsedDestination = parseUrl(destination, true)
-  const destQuery = parsedDestination.query
-  let destinationCompiler = compilePathToRegex(
-    `${parsedDestination.pathname!}${parsedDestination.hash || ''}`,
-    // we don't validate while compiling the destination since we should
-    // have already validated before we got to this point and validating
-    // breaks compiling destinations with named pattern params from the source
-    // e.g. /something:hello(.*) -> /another/:hello is broken with validation
-    // since compile validation is meant for reversing and not for inserting
-    // params from a separate path-regex into another
-    { validate: false }
-  )
-  let newUrl
-
-  // update any params in query values
-  for (const [key, strOrArray] of Object.entries(destQuery)) {
-    let value = Array.isArray(strOrArray) ? strOrArray[0] : strOrArray
-    if (value) {
-      // the value needs to start with a forward-slash to be compiled
-      // correctly
-      value = `/${value}`
-      const queryCompiler = compilePathToRegex(value, { validate: false })
-      value = queryCompiler(params).substr(1)
-    }
-    destQuery[key] = value
-  }
-
-  // add path params to query if it's not a redirect and not
-  // already defined in destination query
-  if (appendParamsToQuery) {
-    for (const [name, value] of Object.entries(params)) {
-      if (!(name in destQuery)) {
-        destQuery[name] = value
-      }
-    }
-  }
-
-  const shouldAddBasePath = destination.startsWith('/') && basePath
-
-  try {
-    newUrl = `${shouldAddBasePath ? basePath : ''}${encodeURI(
-      destinationCompiler(params)
-    )}`
-
-    const [pathname, hash] = newUrl.split('#')
-    parsedDestination.pathname = pathname
-    parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
-    parsedDestination.path = `${pathname}${parsedDestination.search}`
-    delete parsedDestination.search
-  } catch (err) {
-    if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
-      throw new Error(
-        `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://err.sh/vercel/next.js/invalid-multi-match`
-      )
-    }
-    throw err
-  }
-
-  // Query merge order lowest priority to highest
-  // 1. initial URL query values
-  // 2. path segment values
-  // 3. destination specified query values
-  parsedDestination.query = {
-    ...query,
-    ...parsedDestination.query,
-  }
-
-  return {
-    newUrl,
-    parsedDestination,
-  }
-}
-
 function replaceBasePath(basePath: string, pathname: string) {
+  // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
   return pathname!.replace(basePath, '') || '/'
 }
 
@@ -212,11 +133,13 @@ export default class Router {
               requireBasePath: false,
               match: route('/:path*'),
               fn: async (checkerReq, checkerRes, params, parsedCheckerUrl) => {
-                const { pathname } = parsedCheckerUrl
+                let { pathname } = parsedCheckerUrl
+                pathname = removePathTrailingSlash(pathname || '/')
 
                 if (!pathname) {
                   return { finished: false }
                 }
+
                 if (await memoizedPageChecker(pathname)) {
                   return this.catchAllRoute.fn(
                     checkerReq,
@@ -247,9 +170,10 @@ export default class Router {
       const originalPathname = currentPathname
       const requireBasePath = testRoute.requireBasePath !== false
       const isCustomRoute = customRouteTypes.has(testRoute.type)
+      const isPublicFolderCatchall = testRoute.name === 'public folder catchall'
+      const keepBasePath = isCustomRoute || isPublicFolderCatchall
 
-      if (!isCustomRoute) {
-        // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
+      if (!keepBasePath) {
         currentPathname = replaceBasePath(this.basePath, currentPathname!)
       }
 
@@ -259,7 +183,7 @@ export default class Router {
       if (newParams) {
         // since we require basePath be present for non-custom-routes we
         // 404 here when we matched an fs route
-        if (!isCustomRoute) {
+        if (!keepBasePath) {
           if (!originallyHadBasePath && !(req as any)._nextDidRewrite) {
             if (requireBasePath) {
               // consider this a non-match so the 404 renders
@@ -282,7 +206,7 @@ export default class Router {
 
         // since the fs route didn't match we need to re-add the basePath
         // to continue checking rewrites with the basePath present
-        if (!isCustomRoute) {
+        if (!keepBasePath) {
           parsedUrlUpdated.pathname = originalPathname
         }
 
@@ -353,7 +277,6 @@ export default class Router {
         }
       }
     }
-
     return false
   }
 }

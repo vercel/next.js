@@ -14,7 +14,7 @@
               "path": "/docs/basic-features/pages.md"
             },
             {
-              "title": "Data fetching",
+              "title": "Data Fetching",
               "path": "/docs/basic-features/data-fetching.md"
             },
             {
@@ -176,12 +176,25 @@
             {
               "title": "Debugging",
               "path": "/docs/advanced-features/debugging.md"
+            },
+            {
+              "title": "Codemods",
+              "path": "/docs/advanced-features/codemods.md"
             }
           ]
         },
         {
           "title": "Upgrade Guide",
           "path": "/docs/upgrading.md"
+        },
+        {
+          "title": "Migrating to Next.js",
+          "routes": [
+            {
+              "title": "Migrating from Gatsby",
+              "path": "/docs/migrating/from-gatsby.md"
+            }
+          ]
         },
         { "title": "FAQ", "path": "/docs/faq.md" }
       ]
