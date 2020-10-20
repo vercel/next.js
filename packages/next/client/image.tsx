@@ -221,12 +221,22 @@ export default function Image({
   // it's too late for preloads
   const shouldPreload = priority && typeof window === 'undefined'
 
-  let ratio = 1
+  let divStyle: React.CSSProperties | undefined
+  let imgStyle: React.CSSProperties | undefined
   if (typeof height === 'number' && typeof width === 'number' && !unsized) {
     // <Image src="i.png" width=100 height=100 />
     const quotient = height / width
-    if (!isNaN(quotient)) {
-      ratio = quotient * 100
+    const ratio = isNaN(quotient) ? 1 : quotient * 100
+    divStyle = {
+      position: 'relative',
+      paddingBottom: `${ratio}%`,
+    }
+    imgStyle = {
+      height: '100%',
+      left: '0',
+      position: 'absolute',
+      top: '0',
+      width: '100%',
     }
   } else if (
     typeof height === 'undefined' &&
@@ -251,7 +261,7 @@ export default function Image({
   }
 
   return (
-    <div style={{ position: 'relative', paddingBottom: `${ratio}%` }}>
+    <div style={divStyle}>
       {shouldPreload
         ? generatePreload({
             src,
@@ -266,13 +276,7 @@ export default function Image({
         className={className}
         sizes={sizes}
         ref={thisEl}
-        style={{
-          height: '100%',
-          left: '0',
-          position: 'absolute',
-          top: '0',
-          width: '100%',
-        }}
+        style={imgStyle}
       />
     </div>
   )
