@@ -9,6 +9,9 @@ const loaders: { [key: string]: (props: LoaderProps) => string } = {
 
 type ImageData = {
   sizes?: number[]
+  loader?: string
+  path?: string
+  autoOptimize?: boolean
 }
 
 type ImageProps = Omit<
