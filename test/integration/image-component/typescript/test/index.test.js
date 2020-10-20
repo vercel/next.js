@@ -22,9 +22,10 @@ const handleOutput = (msg) => {
 
 describe('TypeScript Image Component', () => {
   describe('next build', () => {
-    it('should fail to build with the valid Image usage', async () => {
+    it('should fail to build invalid usage of the Image component', async () => {
       const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-      expect(stderr).toMatch(/boom/)
+      expect(stderr).toMatch(/Failed to compile/)
+      expect(stderr).toMatch(/is not assignable to type/)
       expect(code).toBe(1)
     })
   })
@@ -40,12 +41,15 @@ describe('TypeScript Image Component', () => {
     })
     afterAll(() => killApp(app))
 
-    it('should render the valid Image usage', async () => {
+    it('should render the valid Image usage and not print error', async () => {
       const html = await renderViaHTTP(appPort, '/valid', {})
-      expect(html).toMatch(/This is valid usage for the Image component/)
+      expect(html).toMatch(/This is valid usage of the Image component/)
+      expect(output).not.toMatch(
+        /must use width and height attributes or unsized attribute/
+      )
     })
 
-    it('should show error when invalid Image usage', async () => {
+    it('should print error when invalid Image usage', async () => {
       await renderViaHTTP(appPort, '/invalid', {})
       expect(output).toMatch(
         /must use width and height attributes or unsized attribute/

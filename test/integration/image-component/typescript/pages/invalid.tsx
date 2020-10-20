@@ -4,7 +4,7 @@ import Image from 'next/image'
 const Invalid = () => {
   return (
     <div>
-      <p>Hello World</p>
+      <h1>Hello World</h1>
       <Image
         id="no-width-or-height"
         src="https://via.placeholder.com/500"

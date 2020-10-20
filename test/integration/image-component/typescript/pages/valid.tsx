@@ -6,17 +6,17 @@ const Page = () => {
     <div>
       <p>Hello World</p>
       <Image
-        id="basic-image"
+        id="with-and-height"
         src="https://via.placeholder.com/500"
-        width={400}
-        height={400}
+        width={500}
+        height={500}
       ></Image>
       <Image
         id="unsized-image"
-        src="https://via.placeholder.com/500"
+        src="https://via.placeholder.com/100"
         unsized
       ></Image>
-      <p id="stubtext">This is valid usage for the Image component</p>
+      <p id="stubtext">This is valid usage of the Image component</p>
     </div>
   )
 }
