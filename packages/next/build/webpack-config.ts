@@ -229,13 +229,6 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  // Normalize defined image host to end in slash
-  if (config.images?.path) {
-    if (config.images.path[config.images.path.length - 1] !== '/') {
-      config.images.path += '/'
-    }
-  }
-
   const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })
   const hasReactRefresh: boolean = dev && !isServer
   const hasJsxRuntime: boolean =

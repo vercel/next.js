@@ -18,7 +18,6 @@ type ImageProps = Omit<
   src: string
   width: number
   height: number
-  host?: string
   quality?: string
   priority?: boolean
   lazy?: boolean
@@ -161,8 +160,6 @@ export default function Image({
     lazy = false
   }
 
-  host = host || 'default'
-  
   // Normalize provided src
   if (src[0] === '/') {
     src = src.slice(1)
@@ -225,7 +222,7 @@ export default function Image({
   const shouldPreload = priority && typeof window === 'undefined'
 
   const ratio = (height / width) * 100
-  const paddingBottom = `${isNaN(ratio) ? 100 : ratio}%`
+  const paddingBottom = `${isNaN(ratio) ? 1 : ratio}%`
 
   return (
     <div style={{ position: 'relative', paddingBottom }}>

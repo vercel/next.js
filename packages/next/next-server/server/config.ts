@@ -214,30 +214,15 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   }
 
   if (result?.images) {
-    if (result.images.hosts) {
-      if (!result.images.hosts.default) {
-        // If the image component is being used, a default host must be provided
-        throw new Error(
-          'If the image configuration property is present in next.config.js, it must have a host named "default"'
-        )
+    const { images } = result
+
+    // Normalize defined image host to end in slash
+    if (images?.path) {
+      if (images.path[images.path.length - 1] !== '/') {
+        images.path += '/'
       }
-      Object.values(result.images.hosts).forEach((host: any) => {
-        if (!host.path) {
-          throw new Error(
-            'All hosts defined in the image configuration property of next.config.js must define a path'
-          )
-        }
-        // Normalize hosts so all paths have trailing slash
-        if (
-          (host.loader === 'imgix' || host.loader === 'cloudinary') &&
-          host.path[host.path.length - 1] !== '/'
-        ) {
-          host.path += '/'
-        }
-      })
     }
 
-    const { images } = result
     if (typeof images !== 'object') {
       throw new Error(
         `Specified images should be an object received ${typeof images}`
