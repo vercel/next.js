@@ -6,7 +6,13 @@ const Page = () => {
   return (
     <div>
       <p>Hello World</p>
-      <Image id="basic-image" src="foo.jpg" width={300} height={400} quality={60}></Image>
+      <Image
+        id="basic-image"
+        src="foo.jpg"
+        width={300}
+        height={400}
+        quality={60}
+      ></Image>
       <Image
         id="attribute-test"
         data-demo="demo-value"
