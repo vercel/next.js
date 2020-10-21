@@ -812,13 +812,11 @@ test('css syntax errors', async () => {
   await session.patch('index.module.css', `.button {`)
   expect(await session.hasRedbox(true)).toBe(true)
   const source = await session.getRedboxSource()
-  expect(source).toMatchInlineSnapshot(`
-    "./index.module.css:1:1
-    Syntax error: Unclosed block
-
-    > 1 | .button {
-        | ^"
-  `)
+  expect(source).toMatch('./index.module.css:1:1')
+  expect(source).toMatch('Syntax error: ')
+  expect(source).toMatch('Unclosed block')
+  expect(source).toMatch('> 1 | .button {')
+  expect(source).toMatch('    | ^')
 
   // Not local error
   await session.patch('index.module.css', `button {}`)

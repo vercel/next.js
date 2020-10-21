@@ -1,4 +1,4 @@
-import postcss from 'postcss'
+import { AcceptedPlugin } from 'postcss'
 import webpack from 'webpack'
 import { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
@@ -7,7 +7,7 @@ import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
 
 export function getCssModuleLoader(
   ctx: ConfigurationContext,
-  postCssPlugins: readonly postcss.AcceptedPlugin[],
+  postCssPlugins: readonly AcceptedPlugin[],
   preProcessors: readonly webpack.RuleSetUseItem[] = []
 ): webpack.RuleSetUseItem[] {
   const loaders: webpack.RuleSetUseItem[] = []
@@ -56,8 +56,7 @@ export function getCssModuleLoader(
   loaders.push({
     loader: require.resolve('next/dist/compiled/postcss-loader'),
     options: {
-      ident: '__nextjs_postcss',
-      plugins: postCssPlugins,
+      postcssOptions: { plugins: postCssPlugins, config: false },
       sourceMap: true,
     },
   })

@@ -318,7 +318,11 @@ export default class Server {
         i18n.locales
       )
 
-      const detectedDomain = detectDomainLocale(i18n.domains, req)
+      const { host } = req?.headers || {}
+      // remove port from host and remove port if present
+      const hostname = host?.split(':')[0].toLowerCase()
+
+      const detectedDomain = detectDomainLocale(i18n.domains, hostname)
       if (detectedDomain) {
         defaultLocale = detectedDomain.defaultLocale
         detectedLocale = defaultLocale
@@ -341,18 +345,30 @@ export default class Server {
 
         // check if the locale prefix matches a domain's defaultLocale
         // and we're on a locale specific domain if so redirect to that domain
-        if (detectedDomain) {
-          const matchedDomain = detectDomainLocale(
-            i18n.domains,
-            undefined,
-            detectedLocale
-          )
+        // if (detectedDomain) {
+        //   const matchedDomain = detectDomainLocale(
+        //     i18n.domains,
+        //     undefined,
+        //     detectedLocale
+        //   )
 
-          if (matchedDomain) {
-            localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
-              matchedDomain?.domain
-            }`
-          }
+        //   if (matchedDomain) {
+        //     localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
+        //       matchedDomain?.domain
+        //     }`
+        //   }
+        // }
+      } else if (detectedDomain) {
+        const matchedDomain = detectDomainLocale(
+          i18n.domains,
+          undefined,
+          acceptPreferredLocale
+        )
+
+        if (matchedDomain && matchedDomain.domain !== detectedDomain.domain) {
+          localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
+            matchedDomain.domain
+          }`
         }
       }
 
@@ -360,10 +376,10 @@ export default class Server {
       const detectedDefaultLocale =
         !detectedLocale ||
         detectedLocale.toLowerCase() === defaultLocale.toLowerCase()
-      const shouldStripDefaultLocale =
-        detectedDefaultLocale &&
-        denormalizedPagePath.toLowerCase() ===
-          `/${i18n.defaultLocale.toLowerCase()}`
+      const shouldStripDefaultLocale = false
+      // detectedDefaultLocale &&
+      // denormalizedPagePath.toLowerCase() ===
+      //   `/${i18n.defaultLocale.toLowerCase()}`
 
       const shouldAddLocalePrefix =
         !detectedDefaultLocale && denormalizedPagePath === '/'
@@ -564,9 +580,12 @@ export default class Server {
           const { i18n } = this.nextConfig.experimental
 
           if (i18n) {
+            const { host } = req?.headers || {}
+            // remove port from host and remove port if present
+            const hostname = host?.split(':')[0].toLowerCase()
             const localePathResult = normalizeLocalePath(pathname, i18n.locales)
             const { defaultLocale } =
-              detectDomainLocale(i18n.domains, req) || {}
+              detectDomainLocale(i18n.domains, hostname) || {}
             let detectedLocale = defaultLocale
 
             if (localePathResult.detectedLocale) {
