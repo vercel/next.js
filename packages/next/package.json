@@ -60,7 +60,7 @@
     ]
   },
   "dependencies": {
-    "@ampproject/toolbox-optimizer": "2.6.0",
+    "@ampproject/toolbox-optimizer": "2.7.0-alpha.1",
     "@babel/code-frame": "7.10.4",
     "@babel/core": "7.7.7",
     "@babel/plugin-proposal-class-properties": "7.10.4",
