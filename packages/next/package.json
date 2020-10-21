@@ -103,7 +103,7 @@
     "node-html-parser": "^1.2.19",
     "path-browserify": "1.0.1",
     "pnp-webpack-plugin": "1.6.4",
-    "postcss": "7.0.32",
+    "postcss": "8.1.1",
     "process": "0.11.10",
     "prop-types": "15.7.2",
     "react-is": "16.13.1",
