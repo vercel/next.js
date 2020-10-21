@@ -1,4 +1,4 @@
-# i18n (internationalize) Routing
+# Internationalized Routing
 
 <details>
   <summary><b>Examples</b></summary>
