@@ -1,17 +1,18 @@
 import React, { ReactElement, useEffect, useRef } from 'react'
 import Head from '../next-server/lib/head'
 
-const loaders: { [key: string]: (props: LoaderProps) => string } = {
-  imgix: imgixLoader,
-  cloudinary: cloudinaryLoader,
-  default: defaultLoader,
-}
+const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
+  ['imgix', imgixLoader],
+  ['cloudinary', cloudinaryLoader],
+  ['default', defaultLoader],
+])
+
+type LoaderKey = 'default' | 'imgix' | 'cloudinary'
 
 type ImageData = {
-  sizes?: number[]
-  loader?: string
-  path?: string
-  autoOptimize?: boolean
+  sizes: number[]
+  loader: LoaderKey
+  path: string
 }
 
 type ImageProps = Omit<
@@ -29,11 +30,7 @@ type ImageProps = Omit<
   )
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
-const breakpoints = imageData.sizes || [640, 1024, 1600]
-// Auto optimize defaults to on if not specified
-if (imageData.autoOptimize === undefined) {
-  imageData.autoOptimize = true
-}
+const { sizes: configSizes, loader: configLoader, path: configPath } = imageData
 
 let cachedObserver: IntersectionObserver
 const IntersectionObserver =
@@ -88,8 +85,8 @@ type CallLoaderProps = {
 }
 
 function callLoader(loaderProps: CallLoaderProps) {
-  let loader = loaders[imageData.loader || 'default']
-  return loader({ root: imageData.path || '/_next/image', ...loaderProps })
+  let load = loaders.get(configLoader) || defaultLoader
+  return load({ root: configPath, ...loaderProps })
 }
 
 type SrcSetData = {
@@ -186,7 +183,7 @@ export default function Image({
   const imgSrcSet = !unoptimized
     ? generateSrcSet({
         src,
-        widths: breakpoints,
+        widths: configSizes,
         quality,
       })
     : undefined
@@ -265,7 +262,7 @@ export default function Image({
       {shouldPreload
         ? generatePreload({
             src,
-            widths: breakpoints,
+            widths: configSizes,
             unoptimized,
             sizes,
           })
@@ -291,7 +288,7 @@ function normalizeSrc(src: string) {
 }
 
 function imgixLoader({ root, src, width, quality }: LoaderProps): string {
-  const params = []
+  const params = ['auto=format']
   let paramsString = ''
   if (width) {
     params.push('w=' + width)
@@ -299,9 +296,7 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
   if (quality) {
     params.push('q=' + quality)
   }
-  if (imageData.autoOptimize) {
-    params.push('auto=compress')
-  }
+
   if (params.length) {
     paramsString = '?' + params.join('&')
   }
@@ -309,11 +304,8 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
 }
 
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
-  const params = []
+  const params = ['f_auto']
   let paramsString = ''
-  if (!quality && imageData.autoOptimize) {
-    quality = 'auto'
-  }
   if (width) {
     params.push('w_' + width)
   }
