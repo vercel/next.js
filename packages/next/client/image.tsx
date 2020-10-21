@@ -4,6 +4,7 @@ import Head from '../next-server/lib/head'
 const loaders: { [key: string]: (props: LoaderProps) => string } = {
   imgix: imgixLoader,
   cloudinary: cloudinaryLoader,
+  akamai: akamaiLoader,
   default: defaultLoader,
 }
 
@@ -306,6 +307,10 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
     paramsString = '?' + params.join('&')
   }
   return `${root}${normalizeSrc(src)}${paramsString}`
+}
+
+function akamaiLoader({ root, src, width }: LoaderProps): string {
+  return `${root}${normalizeSrc(src)}${width ? '?imwidth=' + width : ''}`
 }
 
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
