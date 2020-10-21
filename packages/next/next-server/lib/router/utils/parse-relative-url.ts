@@ -1,6 +1,8 @@
 import { getLocationOrigin } from '../../utils'
 import { searchParamsToUrlQuery } from './querystring'
 
+const PROTOCOLS = ['http:', 'https:', 'file:']
+
 const DUMMY_BASE = new URL(
   typeof window === 'undefined' ? 'http://n' : getLocationOrigin()
 )
@@ -22,12 +24,12 @@ export function parseRelativeUrl(url: string, base?: string) {
     origin,
     protocol,
   } = new URL(url, resolvedBase)
-  if (
-    origin !== DUMMY_BASE.origin ||
-    (protocol !== 'http:' && protocol !== 'https:')
-  ) {
+  const hasValidProtocol = PROTOCOLS.includes(protocol)
+
+  if (origin !== DUMMY_BASE.origin || !hasValidProtocol) {
     throw new Error('invariant: invalid relative URL')
   }
+
   return {
     pathname,
     query: searchParamsToUrlQuery(searchParams),
