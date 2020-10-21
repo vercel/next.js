@@ -4,10 +4,11 @@ import Head from '../next-server/lib/head'
 const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
+  ['akamai', akamaiLoader]
   ['default', defaultLoader],
 ])
 
-type LoaderKey = 'default' | 'imgix' | 'cloudinary'
+type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
 
 type ImageData = {
   sizes: number[]
@@ -301,6 +302,10 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
     paramsString = '?' + params.join('&')
   }
   return `${root}${normalizeSrc(src)}${paramsString}`
+}
+
+function akamaiLoader({ root, src, width }: LoaderProps): string {
+  return `${root}${normalizeSrc(src)}${width ? '?imwidth=' + width : ''}`
 }
 
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
