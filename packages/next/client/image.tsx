@@ -16,16 +16,17 @@ type ImageData = {
 
 type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref'
+  'src' | 'srcSet' | 'ref' | 'width' | 'height'
 > & {
   src: string
-  width: number
-  height: number
   quality?: string
   priority?: boolean
   lazy?: boolean
   unoptimized?: boolean
-}
+} & (
+    | { width: number; height: number; unsized?: false }
+    | { width?: number; height?: number; unsized: true }
+  )
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
 const breakpoints = imageData.sizes || [640, 1024, 1600]
@@ -141,13 +142,14 @@ function generatePreload({
 export default function Image({
   src,
   sizes,
-  width,
-  height,
   unoptimized = false,
   priority = false,
   lazy = false,
   className,
   quality,
+  width,
+  height,
+  unsized,
   ...rest
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
@@ -219,11 +221,47 @@ export default function Image({
   // it's too late for preloads
   const shouldPreload = priority && typeof window === 'undefined'
 
-  const ratio = (height / width) * 100
-  const paddingBottom = `${isNaN(ratio) ? 1 : ratio}%`
+  let divStyle: React.CSSProperties | undefined
+  let imgStyle: React.CSSProperties | undefined
+  if (typeof height === 'number' && typeof width === 'number' && !unsized) {
+    // <Image src="i.png" width=100 height=100 />
+    const quotient = height / width
+    const ratio = isNaN(quotient) ? 1 : quotient * 100
+    divStyle = {
+      position: 'relative',
+      paddingBottom: `${ratio}%`,
+    }
+    imgStyle = {
+      height: '100%',
+      left: '0',
+      position: 'absolute',
+      top: '0',
+      width: '100%',
+    }
+  } else if (
+    typeof height === 'undefined' &&
+    typeof width === 'undefined' &&
+    unsized
+  ) {
+    // <Image src="i.png" unsized />
+    if (process.env.NODE_ENV !== 'production') {
+      if (priority) {
+        // <Image src="i.png" unsized priority />
+        console.warn(
+          `Image with src ${src} has both priority and unsized attributes. Only one should be used.`
+        )
+      }
+    }
+  } else {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(
+        `Image with src ${src} must use width and height attributes or unsized attribute.`
+      )
+    }
+  }
 
   return (
-    <div style={{ position: 'relative', paddingBottom }}>
+    <div style={divStyle}>
       {shouldPreload
         ? generatePreload({
             src,
@@ -238,13 +276,7 @@ export default function Image({
         className={className}
         sizes={sizes}
         ref={thisEl}
-        style={{
-          height: '100%',
-          left: '0',
-          position: 'absolute',
-          top: '0',
-          width: '100%',
-        }}
+        style={imgStyle}
       />
     </div>
   )
