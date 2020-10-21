@@ -55,8 +55,7 @@ function getDocumentFiles(
   pathname: string
 ): DocumentFiles {
   const sharedFiles: readonly string[] = getPageFiles(buildManifest, '/_app')
-  const pageFiles: readonly string[] =
-    pathname !== '/_error' ? getPageFiles(buildManifest, pathname) : []
+  const pageFiles: readonly string[] = getPageFiles(buildManifest, pathname)
 
   return {
     sharedFiles,
