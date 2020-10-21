@@ -1,4 +1,5 @@
-import { process as minify } from 'cssnano-simple'
+import cssnanoSimple from 'cssnano-simple'
+import postcss from 'postcss'
 import webpack from 'webpack'
 import sources from 'webpack-sources'
 
@@ -41,13 +42,15 @@ export class CssMinimizerPlugin {
       input = asset.source()
     }
 
-    return minify(input, postcssOptions).then((res) => {
-      if (res.map) {
-        return new SourceMapSource(res.css, file, res.map.toJSON())
-      } else {
-        return new RawSource(res.css)
-      }
-    })
+    return postcss([cssnanoSimple])
+      .process(input, postcssOptions)
+      .then((res) => {
+        if (res.map) {
+          return new SourceMapSource(res.css, file, res.map.toJSON())
+        } else {
+          return new RawSource(res.css)
+        }
+      })
   }
 
   apply(compiler: webpack.Compiler) {
