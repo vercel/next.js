@@ -827,7 +827,7 @@ test('css syntax errors', async () => {
     Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
 
     > 1 | button {}
-        | ^"
+        |         ^"
   `)
 
   await cleanup()
