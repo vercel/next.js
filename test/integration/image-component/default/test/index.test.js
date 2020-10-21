@@ -21,13 +21,24 @@ let appPort
 let app
 
 function runTests() {
-  it('should load the image', async () => {
+  it('should load the images', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
       await check(async () => {
         const result = await browser.eval(
           `document.getElementById('basic-image').naturalWidth`
+        )
+        if (result === 0) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('unsized-image').naturalWidth`
         )
         if (result === 0) {
           throw new Error('Incorrectly loaded image')
