@@ -26,7 +26,8 @@ const defaultConfig: { [key: string]: any } = {
   images: {
     sizes: [320, 420, 768, 1024, 1200],
     domains: [],
-    hosts: { default: { path: '/_next/image' } },
+    path: '/_next/image',
+    loader: 'default',
   },
   devIndicators: {
     buildActivity: true,
