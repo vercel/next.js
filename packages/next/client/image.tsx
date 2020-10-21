@@ -4,7 +4,7 @@ import Head from '../next-server/lib/head'
 const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
-  ['akamai', akamaiLoader]
+  ['akamai', akamaiLoader],
   ['default', defaultLoader],
 ])
 
