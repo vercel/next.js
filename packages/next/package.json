@@ -122,8 +122,8 @@
     "webpack-sources": "1.4.3"
   },
   "peerDependencies": {
-    "react": "^16.6.0",
-    "react-dom": "^16.6.0"
+    "react": "^16.6.0 || ^17",
+    "react-dom": "^16.6.0 || ^17"
   },
   "optionalDependencies": {
     "sharp": "0.26.2"
