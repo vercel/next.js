@@ -265,9 +265,9 @@ function renderDocument(
                   {
                     ...elem?.props,
                     children: children
-                      ? typeof children === 'string'
-                        ? children
-                        : children.join('')
+                      ? Array.isArray(children)
+                        ? children.join('')
+                        : children
                       : undefined,
                   },
                 ]
