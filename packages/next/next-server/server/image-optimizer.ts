@@ -229,11 +229,12 @@ export async function imageOptimizer(
       sharp = require('sharp')
     } catch (error) {
       if (error.code === 'MODULE_NOT_FOUND') {
-        error.message +=
-          "\nTo use Next.js' built-in Image Optimization, you first need to install `sharp`."
-        error.message +=
-          '\nRun `npm i sharp` or `yarn add sharp` inside your workspace.'
         error.message += '\n\nLearn more: https://err.sh/next.js/install-sharp'
+        server.logError(error)
+        if (upstreamType) {
+          res.setHeader('Content-Type', upstreamType)
+        }
+        res.end(upstreamBuffer)
       }
       throw error
     }
