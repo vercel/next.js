@@ -23,6 +23,11 @@ const defaultConfig: { [key: string]: any } = {
   target: 'server',
   poweredByHeader: true,
   compress: true,
+  images: {
+    sizes: [320, 420, 768, 1024, 1200],
+    domains: [],
+    hosts: { default: { path: '/_next/image' } },
+  },
   devIndicators: {
     buildActivity: true,
     autoPrerender: true,
@@ -54,6 +59,8 @@ const defaultConfig: { [key: string]: any } = {
     optimizeFonts: false,
     optimizeImages: false,
     scrollRestoration: false,
+    i18n: false,
+    analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -203,6 +210,142 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       if (result.amp.canonicalBase === '') {
         result.amp.canonicalBase = result.basePath
       }
+    }
+  }
+
+  if (result?.images) {
+    const { images } = result
+
+    // Normalize defined image host to end in slash
+    if (images?.path) {
+      if (images.path[images.path.length - 1] !== '/') {
+        images.path += '/'
+      }
+    }
+
+    if (typeof images !== 'object') {
+      throw new Error(
+        `Specified images should be an object received ${typeof images}`
+      )
+    }
+    if (images.domains) {
+      if (!Array.isArray(images.domains)) {
+        throw new Error(
+          `Specified images.domains should be an Array received ${typeof images.domains}`
+        )
+      }
+      const invalid = images.domains.filter(
+        (d: unknown) => typeof d !== 'string'
+      )
+      if (invalid.length > 0) {
+        throw new Error(
+          `Specified images.domains should be an Array of strings received invalid values (${invalid.join(
+            ', '
+          )})`
+        )
+      }
+    }
+    if (images.sizes) {
+      if (!Array.isArray(images.sizes)) {
+        throw new Error(
+          `Specified images.sizes should be an Array received ${typeof images.sizes}`
+        )
+      }
+      const invalid = images.sizes.filter((d: unknown) => typeof d !== 'number')
+      if (invalid.length > 0) {
+        throw new Error(
+          `Specified images.sizes should be an Array of numbers received invalid values (${invalid.join(
+            ', '
+          )})`
+        )
+      }
+    }
+  }
+
+  if (result.experimental?.i18n) {
+    const { i18n } = result.experimental
+    const i18nType = typeof i18n
+
+    if (i18nType !== 'object') {
+      throw new Error(`Specified i18n should be an object received ${i18nType}`)
+    }
+
+    if (!Array.isArray(i18n.locales)) {
+      throw new Error(
+        `Specified i18n.locales should be an Array received ${typeof i18n.locales}`
+      )
+    }
+
+    const defaultLocaleType = typeof i18n.defaultLocale
+
+    if (!i18n.defaultLocale || defaultLocaleType !== 'string') {
+      throw new Error(`Specified i18n.defaultLocale should be a string`)
+    }
+
+    if (typeof i18n.domains !== 'undefined' && !Array.isArray(i18n.domains)) {
+      throw new Error(
+        `Specified i18n.domains must be an array of domain objects e.g. [ { domain: 'example.fr', defaultLocale: 'fr', locales: ['fr'] } ] received ${typeof i18n.domains}`
+      )
+    }
+
+    if (i18n.domains) {
+      const invalidDomainItems = i18n.domains.filter((item: any) => {
+        if (!item || typeof item !== 'object') return true
+        if (!item.defaultLocale) return true
+        if (!item.domain || typeof item.domain !== 'string') return true
+
+        return false
+      })
+
+      if (invalidDomainItems.length > 0) {
+        throw new Error(
+          `Invalid i18n.domains values:\n${invalidDomainItems
+            .map((item: any) => JSON.stringify(item))
+            .join(
+              '\n'
+            )}\n\ndomains value must follow format { domain: 'example.fr', defaultLocale: 'fr', locales: ['fr'] }`
+        )
+      }
+    }
+
+    if (!Array.isArray(i18n.locales)) {
+      throw new Error(
+        `Specified i18n.locales must be an array of locale strings e.g. ["en-US", "nl-NL"] received ${typeof i18n.locales}`
+      )
+    }
+
+    const invalidLocales = i18n.locales.filter(
+      (locale: any) => typeof locale !== 'string'
+    )
+
+    if (invalidLocales.length > 0) {
+      throw new Error(
+        `Specified i18n.locales contains invalid values, locales must be valid locale tags provided as strings e.g. "en-US".\n` +
+          `See here for list of valid language sub-tags: http://www.iana.org/assignments/language-subtag-registry/language-subtag-registry`
+      )
+    }
+
+    if (!i18n.locales.includes(i18n.defaultLocale)) {
+      throw new Error(
+        `Specified i18n.defaultLocale should be included in i18n.locales`
+      )
+    }
+
+    // make sure default Locale is at the front
+    i18n.locales = [
+      i18n.defaultLocale,
+      ...i18n.locales.filter((locale: string) => locale !== i18n.defaultLocale),
+    ]
+
+    const localeDetectionType = typeof i18n.locales.localeDetection
+
+    if (
+      localeDetectionType !== 'boolean' &&
+      localeDetectionType !== 'undefined'
+    ) {
+      throw new Error(
+        `Specified i18n.localeDetection should be undefined or a boolean received ${localeDetectionType}`
+      )
     }
   }
 
