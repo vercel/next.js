@@ -3,6 +3,15 @@ module.exports = {
     // Make sure entries are not getting disposed.
     maxInactiveAge: 1000 * 60 * 60,
   },
+  rewrites() {
+    // add a rewrite so the code isn't dead-code eliminated
+    return [
+      {
+        source: '/some-rewrite',
+        destination: '/',
+      },
+    ]
+  },
   redirects() {
     return [
       {

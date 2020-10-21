@@ -25,9 +25,9 @@ export type OriginProps = {
   crossOrigin?: string
 }
 
-function dedupe(bundles: any[]): any[] {
-  const files = new Set()
-  const kept = []
+function dedupe<T extends { file: string }>(bundles: T[]): T[] {
+  const files = new Set<string>()
+  const kept: T[] = []
 
   for (const bundle of bundles) {
     if (files.has(bundle.file)) continue
@@ -123,10 +123,16 @@ export function Html(
     HTMLHtmlElement
   >
 ) {
-  const { inAmpMode } = useContext(DocumentComponentContext)
+  const { inAmpMode, docComponentsRendered, locale } = useContext(
+    DocumentComponentContext
+  )
+
+  docComponentsRendered.Html = true
+
   return (
     <html
       {...props}
+      lang={props.lang || locale || undefined}
       amp={inAmpMode ? '' : undefined}
       data-ampdevmode={
         inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
@@ -152,11 +158,29 @@ export class Head extends Component<
   context!: React.ContextType<typeof DocumentComponentContext>
 
   getCssLinks(files: DocumentFiles): JSX.Element[] | null {
-    const { assetPrefix, devOnlyCacheBusterQueryString } = this.context
+    const {
+      assetPrefix,
+      devOnlyCacheBusterQueryString,
+      dynamicImports,
+    } = this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
+    const sharedFiles = new Set(files.sharedFiles)
+
+    let dynamicCssFiles = dedupe(
+      dynamicImports.filter((f) => f.file.endsWith('.css'))
+    ).map((f) => f.file)
+    if (dynamicCssFiles.length) {
+      const existing = new Set(cssFiles)
+      dynamicCssFiles = dynamicCssFiles.filter(
+        (f) => !(existing.has(f) || sharedFiles.has(f))
+      )
+      cssFiles.push(...dynamicCssFiles)
+    }
 
     const cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
+      const isSharedFile = sharedFiles.has(file)
+
       cssLinkElements.push(
         <link
           key={`${file}-preload`}
@@ -180,10 +204,11 @@ export class Head extends Component<
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
           }
+          data-n-g={isSharedFile ? '' : undefined}
+          data-n-p={isSharedFile ? undefined : ''}
         />
       )
     })
-
     return cssLinkElements.length === 0 ? null : cssLinkElements
   }
 
@@ -196,7 +221,7 @@ export class Head extends Component<
 
     return (
       dedupe(dynamicImports)
-        .map((bundle: any) => {
+        .map((bundle) => {
           // `dynamicImports` will contain both `.js` and `.module.js` when the
           // feature is enabled. This clause will filter down to the modern
           // variants only.
@@ -283,6 +308,8 @@ export class Head extends Component<
     } = this.context
     const disableRuntimeJS = unstable_runtimeJS === false
 
+    this.context.docComponentsRendered.Head = true
+
     let { head } = this.context
     let children = this.props.children
     // show a warning if Head contains <title> (only in development)
@@ -311,7 +338,7 @@ export class Head extends Component<
         )
     }
 
-    if (process.env.__NEXT_OPTIMIZE_FONTS) {
+    if (process.env.__NEXT_OPTIMIZE_FONTS && !inAmpMode) {
       children = this.makeStylesheetInert(children)
     }
 
@@ -415,10 +442,6 @@ export class Head extends Component<
         )}
         {children}
         {head}
-        <meta
-          name="next-head-count"
-          content={React.Children.count(head || []).toString()}
-        />
         {inAmpMode && (
           <>
             <meta
@@ -478,6 +501,7 @@ export class Head extends Component<
             {process.env.__NEXT_OPTIMIZE_FONTS
               ? this.makeStylesheetInert(this.getCssLinks(files))
               : this.getCssLinks(files)}
+            <noscript data-n-css />
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks(files)}
             {this.context.isDevelopment && (
@@ -496,7 +520,12 @@ export class Head extends Component<
 }
 
 export function Main() {
-  const { inAmpMode, html } = useContext(DocumentComponentContext)
+  const { inAmpMode, html, docComponentsRendered } = useContext(
+    DocumentComponentContext
+  )
+
+  docComponentsRendered.Main = true
+
   if (inAmpMode) return <>{AMP_RENDER_TARGET}</>
   return <div id="__next" dangerouslySetInnerHTML={{ __html: html }} />
 }
@@ -523,7 +552,7 @@ export class NextScript extends Component<OriginProps> {
       devOnlyCacheBusterQueryString,
     } = this.context
 
-    return dedupe(dynamicImports).map((bundle: any) => {
+    return dedupe(dynamicImports).map((bundle) => {
       let modernProps = {}
       if (process.env.__NEXT_MODERN_BUILD) {
         modernProps = bundle.file.endsWith('.module.js')
@@ -637,9 +666,12 @@ export class NextScript extends Component<OriginProps> {
       inAmpMode,
       buildManifest,
       unstable_runtimeJS,
+      docComponentsRendered,
       devOnlyCacheBusterQueryString,
     } = this.context
     const disableRuntimeJS = unstable_runtimeJS === false
+
+    docComponentsRendered.NextScript = true
 
     if (inAmpMode) {
       if (process.env.NODE_ENV === 'production') {

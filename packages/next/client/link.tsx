@@ -1,15 +1,22 @@
 import React, { Children } from 'react'
 import { UrlObject } from 'url'
 import {
-  PrefetchOptions,
-  NextRouter,
+  addBasePath,
+  addLocale,
   isLocalURL,
+  NextRouter,
+  PrefetchOptions,
+  resolveHref,
 } from '../next-server/lib/router/router'
-import { execOnce } from '../next-server/lib/utils'
 import { useRouter } from './router'
-import { addBasePath, resolveHref } from '../next-server/lib/router/router'
 
 type Url = string | UrlObject
+type RequiredKeys<T> = {
+  [K in keyof T]-?: {} extends Pick<T, K> ? never : K
+}[keyof T]
+type OptionalKeys<T> = {
+  [K in keyof T]-?: {} extends Pick<T, K> ? K : never
+}[keyof T]
 
 export type LinkProps = {
   href: Url
@@ -19,7 +26,10 @@ export type LinkProps = {
   shallow?: boolean
   passHref?: boolean
   prefetch?: boolean
+  locale?: string
 }
+type LinkPropsRequired = RequiredKeys<LinkProps>
+type LinkPropsOptional = OptionalKeys<LinkProps>
 
 let cachedObserver: IntersectionObserver
 const listeners = new Map<Element, () => void>()
@@ -116,7 +126,8 @@ function linkClicked(
   as: string,
   replace?: boolean,
   shallow?: boolean,
-  scroll?: boolean
+  scroll?: boolean,
+  locale?: string
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -133,7 +144,7 @@ function linkClicked(
   }
 
   // replace state instead of push if prop is present
-  router[replace ? 'replace' : 'push'](href, as, { shallow }).then(
+  router[replace ? 'replace' : 'push'](href, as, { shallow, locale }).then(
     (success: boolean) => {
       if (!success) return
       if (scroll) {
@@ -146,6 +157,98 @@ function linkClicked(
 
 function Link(props: React.PropsWithChildren<LinkProps>) {
   if (process.env.NODE_ENV !== 'production') {
+    function createPropError(args: {
+      key: string
+      expected: string
+      actual: string
+    }) {
+      return new Error(
+        `Failed prop type: The prop \`${args.key}\` expects a ${args.expected} in \`<Link>\`, but got \`${args.actual}\` instead.` +
+          (typeof window !== 'undefined'
+            ? "\nOpen your browser's console to view the Component stack trace."
+            : '')
+      )
+    }
+
+    // TypeScript trick for type-guarding:
+    const requiredPropsGuard: Record<LinkPropsRequired, true> = {
+      href: true,
+    } as const
+    const requiredProps: LinkPropsRequired[] = Object.keys(
+      requiredPropsGuard
+    ) as LinkPropsRequired[]
+    requiredProps.forEach((key: LinkPropsRequired) => {
+      if (key === 'href') {
+        if (
+          props[key] == null ||
+          (typeof props[key] !== 'string' && typeof props[key] !== 'object')
+        ) {
+          throw createPropError({
+            key,
+            expected: '`string` or `object`',
+            actual: props[key] === null ? 'null' : typeof props[key],
+          })
+        }
+      } else {
+        // TypeScript trick for type-guarding:
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _: never = key
+      }
+    })
+
+    // TypeScript trick for type-guarding:
+    const optionalPropsGuard: Record<LinkPropsOptional, true> = {
+      as: true,
+      replace: true,
+      scroll: true,
+      shallow: true,
+      passHref: true,
+      prefetch: true,
+      locale: true,
+    } as const
+    const optionalProps: LinkPropsOptional[] = Object.keys(
+      optionalPropsGuard
+    ) as LinkPropsOptional[]
+    optionalProps.forEach((key: LinkPropsOptional) => {
+      const valType = typeof props[key]
+
+      if (key === 'as') {
+        if (props[key] && valType !== 'string' && valType !== 'object') {
+          throw createPropError({
+            key,
+            expected: '`string` or `object`',
+            actual: valType,
+          })
+        }
+      } else if (key === 'locale') {
+        if (props[key] && valType !== 'string') {
+          throw createPropError({
+            key,
+            expected: '`string`',
+            actual: valType,
+          })
+        }
+      } else if (
+        key === 'replace' ||
+        key === 'scroll' ||
+        key === 'shallow' ||
+        key === 'passHref' ||
+        key === 'prefetch'
+      ) {
+        if (props[key] != null && valType !== 'boolean') {
+          throw createPropError({
+            key,
+            expected: '`boolean`',
+            actual: valType,
+          })
+        }
+      } else {
+        // TypeScript trick for type-guarding:
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _: never = key
+      }
+    })
+
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const hasWarned = React.useRef(false)
@@ -164,10 +267,12 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   const pathname = (router && router.pathname) || '/'
 
   const { href, as } = React.useMemo(() => {
-    const resolvedHref = resolveHref(pathname, props.href)
+    const [resolvedHref, resolvedAs] = resolveHref(pathname, props.href, true)
     return {
       href: resolvedHref,
-      as: props.as ? resolveHref(pathname, props.as) : resolvedHref,
+      as: props.as
+        ? resolveHref(pathname, props.as)
+        : resolvedAs || resolvedHref,
     }
   }, [pathname, props.href, props.as])
 
@@ -189,7 +294,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     }
   }, [p, childElm, href, as, router])
 
-  let { children, replace, shallow, scroll } = props
+  let { children, replace, shallow, scroll, locale } = props
   // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
   if (typeof children === 'string') {
     children = <a>{children}</a>
@@ -218,7 +323,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         child.props.onClick(e)
       }
       if (!e.defaultPrevented) {
-        linkClicked(e, router, href, as, replace, shallow, scroll)
+        linkClicked(e, router, href, as, replace, shallow, scroll, locale)
       }
     },
   }
@@ -236,42 +341,16 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
   // defined, we specify the current 'href', so that repetition is not needed by the user
   if (props.passHref || (child.type === 'a' && !('href' in child.props))) {
-    childProps.href = addBasePath(as)
+    childProps.href = addBasePath(
+      addLocale(
+        as,
+        locale || (router && router.locale),
+        router && router.defaultLocale
+      )
+    )
   }
 
   return React.cloneElement(child, childProps)
-}
-
-if (process.env.NODE_ENV === 'development') {
-  const warn = execOnce(console.error)
-
-  // This module gets removed by webpack.IgnorePlugin
-  const PropTypes = require('prop-types')
-  const exact = require('prop-types-exact')
-  // @ts-ignore the property is supported, when declaring it on the class it outputs an extra bit of code which is not needed.
-  Link.propTypes = exact({
-    href: PropTypes.oneOfType([PropTypes.string, PropTypes.object]).isRequired,
-    as: PropTypes.oneOfType([PropTypes.string, PropTypes.object]),
-    prefetch: PropTypes.bool,
-    replace: PropTypes.bool,
-    shallow: PropTypes.bool,
-    passHref: PropTypes.bool,
-    scroll: PropTypes.bool,
-    children: PropTypes.oneOfType([
-      PropTypes.element,
-      (props: any, propName: string) => {
-        const value = props[propName]
-
-        if (typeof value === 'string') {
-          warn(
-            `Warning: You're using a string directly inside <Link>. This usage has been deprecated. Please add an <a> tag as child of <Link>`
-          )
-        }
-
-        return null
-      },
-    ]).isRequired,
-  })
 }
 
 export default Link
