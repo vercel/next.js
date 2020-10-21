@@ -229,25 +229,6 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  if (config.images?.hosts) {
-    if (!config.images.hosts.default) {
-      // If the image component is being used, a default host must be provided
-      throw new Error(
-        'If the image configuration property is present in next.config.js, it must have a host named "default"'
-      )
-    }
-    Object.values(config.images.hosts).forEach((host: any) => {
-      if (!host.path) {
-        throw new Error(
-          'All hosts defined in the image configuration property of next.config.js must define a path'
-        )
-      }
-      // Normalize hosts so all paths have trailing slash
-      if (host.path[host.path.length - 1] !== '/') {
-        host.path += '/'
-      }
-    })
-  }
   const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })
   const hasReactRefresh: boolean = dev && !isServer
   const hasJsxRuntime: boolean =
@@ -1009,7 +990,12 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),
-        'process.env.__NEXT_IMAGE_OPTS': JSON.stringify(config.images),
+        'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
+          sizes: config.images.sizes,
+          path: config.images.path,
+          loader: config.images.loader,
+          autoOptimize: config.images.autoOptimize,
+        }),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
         'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(
