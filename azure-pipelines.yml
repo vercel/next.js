@@ -2,6 +2,7 @@ variables:
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
   NEXT_TELEMETRY_DISABLED: '1'
   node_version: ^10.10.0
+  HEADLESS: 'true'
 
 jobs:
   - job: test_ie11
