@@ -345,18 +345,30 @@ export default class Server {
 
         // check if the locale prefix matches a domain's defaultLocale
         // and we're on a locale specific domain if so redirect to that domain
-        if (detectedDomain) {
-          const matchedDomain = detectDomainLocale(
-            i18n.domains,
-            undefined,
-            detectedLocale
-          )
+        // if (detectedDomain) {
+        //   const matchedDomain = detectDomainLocale(
+        //     i18n.domains,
+        //     undefined,
+        //     detectedLocale
+        //   )
 
-          if (matchedDomain) {
-            localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
-              matchedDomain?.domain
-            }`
-          }
+        //   if (matchedDomain) {
+        //     localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
+        //       matchedDomain?.domain
+        //     }`
+        //   }
+        // }
+      } else if (detectedDomain) {
+        const matchedDomain = detectDomainLocale(
+          i18n.domains,
+          undefined,
+          acceptPreferredLocale
+        )
+
+        if (matchedDomain && matchedDomain.domain !== detectedDomain.domain) {
+          localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
+            matchedDomain.domain
+          }`
         }
       }
 
@@ -364,10 +376,10 @@ export default class Server {
       const detectedDefaultLocale =
         !detectedLocale ||
         detectedLocale.toLowerCase() === defaultLocale.toLowerCase()
-      const shouldStripDefaultLocale =
-        detectedDefaultLocale &&
-        denormalizedPagePath.toLowerCase() ===
-          `/${i18n.defaultLocale.toLowerCase()}`
+      const shouldStripDefaultLocale = false
+      // detectedDefaultLocale &&
+      // denormalizedPagePath.toLowerCase() ===
+      //   `/${i18n.defaultLocale.toLowerCase()}`
 
       const shouldAddLocalePrefix =
         !detectedDefaultLocale && denormalizedPagePath === '/'
