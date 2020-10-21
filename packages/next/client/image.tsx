@@ -1,38 +1,37 @@
 import React, { ReactElement, useEffect, useRef } from 'react'
 import Head from '../next-server/lib/head'
 
-const loaders: { [key: string]: (props: LoaderProps) => string } = {
-  imgix: imgixLoader,
-  cloudinary: cloudinaryLoader,
-  default: defaultLoader,
-}
+const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
+  ['imgix', imgixLoader],
+  ['cloudinary', cloudinaryLoader],
+  ['akamai', akamaiLoader],
+  ['default', defaultLoader],
+])
+
+type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
 
 type ImageData = {
-  sizes?: number[]
-  loader?: string
-  path?: string
-  autoOptimize?: boolean
+  sizes: number[]
+  loader: LoaderKey
+  path: string
 }
 
 type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref'
+  'src' | 'srcSet' | 'ref' | 'width' | 'height'
 > & {
   src: string
-  width: number
-  height: number
   quality?: string
   priority?: boolean
   lazy?: boolean
   unoptimized?: boolean
-}
+} & (
+    | { width: number; height: number; unsized?: false }
+    | { width?: number; height?: number; unsized: true }
+  )
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
-const breakpoints = imageData.sizes || [640, 1024, 1600]
-// Auto optimize defaults to on if not specified
-if (imageData.autoOptimize === undefined) {
-  imageData.autoOptimize = true
-}
+const { sizes: configSizes, loader: configLoader, path: configPath } = imageData
 
 let cachedObserver: IntersectionObserver
 const IntersectionObserver =
@@ -87,8 +86,8 @@ type CallLoaderProps = {
 }
 
 function callLoader(loaderProps: CallLoaderProps) {
-  let loader = loaders[imageData.loader || 'default']
-  return loader({ root: imageData.path || '/_next/image', ...loaderProps })
+  let load = loaders.get(configLoader) || defaultLoader
+  return load({ root: configPath, ...loaderProps })
 }
 
 type SrcSetData = {
@@ -141,13 +140,14 @@ function generatePreload({
 export default function Image({
   src,
   sizes,
-  width,
-  height,
   unoptimized = false,
   priority = false,
   lazy = false,
   className,
   quality,
+  width,
+  height,
+  unsized,
   ...rest
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
@@ -184,7 +184,7 @@ export default function Image({
   const imgSrcSet = !unoptimized
     ? generateSrcSet({
         src,
-        widths: breakpoints,
+        widths: configSizes,
         quality,
       })
     : undefined
@@ -219,15 +219,51 @@ export default function Image({
   // it's too late for preloads
   const shouldPreload = priority && typeof window === 'undefined'
 
-  const ratio = (height / width) * 100
-  const paddingBottom = `${isNaN(ratio) ? 1 : ratio}%`
+  let divStyle: React.CSSProperties | undefined
+  let imgStyle: React.CSSProperties | undefined
+  if (typeof height === 'number' && typeof width === 'number' && !unsized) {
+    // <Image src="i.png" width=100 height=100 />
+    const quotient = height / width
+    const ratio = isNaN(quotient) ? 1 : quotient * 100
+    divStyle = {
+      position: 'relative',
+      paddingBottom: `${ratio}%`,
+    }
+    imgStyle = {
+      height: '100%',
+      left: '0',
+      position: 'absolute',
+      top: '0',
+      width: '100%',
+    }
+  } else if (
+    typeof height === 'undefined' &&
+    typeof width === 'undefined' &&
+    unsized
+  ) {
+    // <Image src="i.png" unsized />
+    if (process.env.NODE_ENV !== 'production') {
+      if (priority) {
+        // <Image src="i.png" unsized priority />
+        console.warn(
+          `Image with src ${src} has both priority and unsized attributes. Only one should be used.`
+        )
+      }
+    }
+  } else {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(
+        `Image with src ${src} must use width and height attributes or unsized attribute.`
+      )
+    }
+  }
 
   return (
-    <div style={{ position: 'relative', paddingBottom }}>
+    <div style={divStyle}>
       {shouldPreload
         ? generatePreload({
             src,
-            widths: breakpoints,
+            widths: configSizes,
             unoptimized,
             sizes,
           })
@@ -238,13 +274,7 @@ export default function Image({
         className={className}
         sizes={sizes}
         ref={thisEl}
-        style={{
-          height: '100%',
-          left: '0',
-          position: 'absolute',
-          top: '0',
-          width: '100%',
-        }}
+        style={imgStyle}
       />
     </div>
   )
@@ -259,7 +289,7 @@ function normalizeSrc(src: string) {
 }
 
 function imgixLoader({ root, src, width, quality }: LoaderProps): string {
-  const params = []
+  const params = ['auto=format']
   let paramsString = ''
   if (width) {
     params.push('w=' + width)
@@ -267,21 +297,20 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
   if (quality) {
     params.push('q=' + quality)
   }
-  if (imageData.autoOptimize) {
-    params.push('auto=compress')
-  }
+
   if (params.length) {
     paramsString = '?' + params.join('&')
   }
   return `${root}${normalizeSrc(src)}${paramsString}`
 }
 
+function akamaiLoader({ root, src, width }: LoaderProps): string {
+  return `${root}${normalizeSrc(src)}${width ? '?imwidth=' + width : ''}`
+}
+
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
-  const params = []
+  const params = ['f_auto']
   let paramsString = ''
-  if (!quality && imageData.autoOptimize) {
-    quality = 'auto'
-  }
   if (width) {
     params.push('w_' + width)
   }
