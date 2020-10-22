@@ -221,6 +221,7 @@ export default function Image({
 
   let divStyle: React.CSSProperties | undefined
   let imgStyle: React.CSSProperties | undefined
+
   if (typeof height === 'number' && typeof width === 'number' && !unsized) {
     // <Image src="i.png" width=100 height=100 />
     const quotient = height / width
@@ -236,25 +237,20 @@ export default function Image({
       top: '0',
       width: '100%',
     }
-  } else if (
-    typeof height === 'undefined' &&
-    typeof width === 'undefined' &&
-    unsized
-  ) {
-    // <Image src="i.png" unsized />
-    if (process.env.NODE_ENV !== 'production') {
-      if (priority) {
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    if (typeof height === 'undefined' && typeof width === 'undefined') {
+      if (!unsized) {
+        console.error(
+          `Image with src ${src} must use width and height attributes or unsized attribute.`
+        )
+      } else if (priority) {
         // <Image src="i.png" unsized priority />
         console.warn(
           `Image with src ${src} has both priority and unsized attributes. Only one should be used.`
         )
       }
-    }
-  } else {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error(
-        `Image with src ${src} must use width and height attributes or unsized attribute.`
-      )
     }
   }
 
