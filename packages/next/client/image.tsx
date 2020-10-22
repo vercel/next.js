@@ -228,6 +228,8 @@ export default function Image({
     divStyle = {
       position: 'relative',
       paddingBottom: `${ratio}%`,
+      maxWidth: '100%',
+      width,
     }
     imgStyle = {
       height: '100%',
