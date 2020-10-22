@@ -1,6 +1,9 @@
 import React, { ReactElement, useEffect, useRef } from 'react'
 import Head from '../next-server/lib/head'
 
+const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
+type LoadingValue = typeof VALID_LOADING_VALUES[number]
+
 const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
@@ -23,7 +26,7 @@ type ImageProps = Omit<
   src: string
   quality?: string
   priority?: boolean
-  loading?: 'lazy' | 'eager'
+  loading?: LoadingValue
   unoptimized?: boolean
 } & (
     | { width: number; height: number; unsized?: false }
@@ -152,8 +155,15 @@ export default function Image({
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
 
-  if (priority && loading === 'lazy') {
-    if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production') {
+    if (!VALID_LOADING_VALUES.includes(loading)) {
+      throw new Error(
+        `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.join(
+          ','
+        )}.`
+      )
+    }
+    if (priority && loading === 'lazy') {
       throw new Error(
         `Image with src "${src}" has both "priority" and "loading=lazy" properties. Only one should be used.`
       )
