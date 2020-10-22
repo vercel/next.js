@@ -11,12 +11,14 @@ import {
   nextStart,
   File,
 } from 'next-test-utils'
+import sharp from 'sharp'
 
 jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '../')
 const imagesDir = join(appDir, '.next', 'cache', 'images')
 const nextConfig = new File(join(appDir, 'next.config.js'))
+const largeSize = 1024
 let appPort
 let app
 
@@ -33,6 +35,12 @@ async function fsToJson(dir, output = {}) {
     }
   }
   return output
+}
+
+async function expectWidth(res, w) {
+  const buffer = await res.buffer()
+  const meta = await sharp(buffer).metadata()
+  expect(meta.width).toBe(w)
 }
 
 function runTests({ w, isDev, domains }) {
@@ -156,6 +164,7 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
+    await expectWidth(res, w)
   })
 
   it('should resize relative url and jpeg accept header', async () => {
@@ -164,6 +173,7 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/jpeg')
+    await expectWidth(res, w)
   })
 
   it('should resize relative url and png accept header', async () => {
@@ -172,6 +182,7 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
+    await expectWidth(res, w)
   })
 
   it('should resize relative url with invalid accept header as png', async () => {
@@ -180,6 +191,7 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
+    await expectWidth(res, w)
   })
 
   it('should resize relative url with invalid accept header as gif', async () => {
@@ -188,6 +200,7 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/gif')
+    await expectWidth(res, w)
   })
 
   it('should resize relative url with invalid accept header as svg', async () => {
@@ -196,6 +209,7 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/svg+xml')
+    await expectWidth(res, w)
   })
 
   it('should resize relative url with invalid accept header as tiff', async () => {
@@ -204,6 +218,7 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/tiff')
+    await expectWidth(res, w)
   })
 
   it('should resize relative url and wildcard accept header as webp', async () => {
@@ -212,6 +227,7 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
+    await expectWidth(res, w)
   })
 
   if (domains.includes('localhost')) {
@@ -222,6 +238,7 @@ function runTests({ w, isDev, domains }) {
       const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
+      await expectWidth(res, w)
     })
   }
 
@@ -287,6 +304,15 @@ function runTests({ w, isDev, domains }) {
     const json2 = await fsToJson(imagesDir)
     expect(json2).toStrictEqual(json1)
   })
+
+  it('should not resize if requested width is larger than original source image', async () => {
+    const query = { url: '/test.jpg', w: largeSize, q: 80 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toBe('image/webp')
+    await expectWidth(res, 400)
+  })
 }
 
 describe('Image Optimizer', () => {
@@ -294,7 +320,7 @@ describe('Image Optimizer', () => {
   const domains = ['localhost', 'example.com']
 
   describe('dev support w/o next.config.js', () => {
-    const size = 768 // defaults defined in server/config.ts
+    const size = 320 // defaults defined in server/config.ts
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -312,7 +338,7 @@ describe('Image Optimizer', () => {
     beforeAll(async () => {
       const json = JSON.stringify({
         images: {
-          sizes: [size],
+          sizes: [size, largeSize],
           domains,
         },
       })
@@ -330,7 +356,7 @@ describe('Image Optimizer', () => {
   })
 
   describe('Server support w/o next.config.js', () => {
-    const size = 768 // defaults defined in server/config.ts
+    const size = 320 // defaults defined in server/config.ts
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()
@@ -349,7 +375,7 @@ describe('Image Optimizer', () => {
     beforeAll(async () => {
       const json = JSON.stringify({
         images: {
-          sizes: [128],
+          sizes: [size, largeSize],
           domains,
         },
       })
@@ -373,7 +399,7 @@ describe('Image Optimizer', () => {
       const json = JSON.stringify({
         target: 'experimental-serverless-trace',
         images: {
-          sizes: [size],
+          sizes: [size, largeSize],
           domains,
         },
       })

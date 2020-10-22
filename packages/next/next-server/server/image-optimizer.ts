@@ -240,20 +240,25 @@ export async function imageOptimizer(
     }
   }
 
-  const transformer = sharp(upstreamBuffer).resize(width)
-
-  //if (contentType === AVIF) {
-  // Soon https://github.com/lovell/sharp/issues/2289
-  //}
-  if (contentType === WEBP) {
-    transformer.webp({ quality })
-  } else if (contentType === PNG) {
-    transformer.png({ quality })
-  } else if (contentType === JPEG) {
-    transformer.jpeg({ quality })
-  }
-
   try {
+    const transformer = sharp(upstreamBuffer)
+    const { width: metaWidth } = await transformer.metadata()
+
+    if (metaWidth && metaWidth > width) {
+      transformer.resize(width)
+    }
+
+    //if (contentType === AVIF) {
+    // Soon https://github.com/lovell/sharp/issues/2289
+    //}
+    if (contentType === WEBP) {
+      transformer.webp({ quality })
+    } else if (contentType === PNG) {
+      transformer.png({ quality })
+    } else if (contentType === JPEG) {
+      transformer.jpeg({ quality })
+    }
+
     const optimizedBuffer = await transformer.toBuffer()
     await promises.mkdir(hashDir, { recursive: true })
     const extension = getExtension(contentType)
