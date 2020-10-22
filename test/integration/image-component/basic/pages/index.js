@@ -9,7 +9,7 @@ const Page = () => {
       <Image
         id="basic-image"
         src="foo.jpg"
-        lazy={false}
+        loading="eager"
         width={300}
         height={400}
         quality={60}
@@ -18,7 +18,7 @@ const Page = () => {
         id="attribute-test"
         data-demo="demo-value"
         src="bar.jpg"
-        lazy={false}
+        loading="eager"
         width={300}
         height={400}
       />
@@ -27,7 +27,7 @@ const Page = () => {
         data-demo="demo-value"
         host="secondary"
         src="foo2.jpg"
-        lazy={false}
+        loading="eager"
         width={300}
         height={400}
       />
@@ -35,7 +35,7 @@ const Page = () => {
         id="unoptimized-image"
         unoptimized
         src="https://arbitraryurl.com/foo.jpg"
-        lazy={false}
+        loading="eager"
         width={300}
         height={400}
       />
