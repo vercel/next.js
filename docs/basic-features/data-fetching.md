@@ -61,7 +61,7 @@ The `context` parameter is an object containing the following keys:
 
 - `props` - A **required** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
 - `revalidate` - An **optional** amount in seconds after which a page re-generation can occur. More on [Incremental Static Regeneration](#incremental-static-regeneration)
-- `notFound` - An **optional** boolean value specifying the page should render the 404 page with a 404 status code. More on [Incremental Static Regeneration](#incremental-static-regeneration)
+- `notFound` - An optional boolean value to allow the page to return a 404 status and page. More on [Incremental Static Regeneration](#incremental-static-regeneration)
 
 > **Note**: You can import modules in top-level scope for use in `getStaticProps`.
 > Imports used in `getStaticProps` will [not be bundled for the client-side](#write-server-side-code-directly).
