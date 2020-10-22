@@ -1,0 +1,15 @@
+{
+  "name": "amp",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
+  },
+  "license": "MIT"
+}
