@@ -697,7 +697,7 @@ function runTests(isDev) {
       true
     )
     expect(parsedUrl.pathname).toBe('/en/not-found/fallback/first')
-    expect(parsedUrl.query).toEqual(isDev ? { __next404: '1' } : {})
+    expect(parsedUrl.query).toEqual({})
 
     if (isDev) {
       // make sure page doesn't reload un-necessarily in development
