@@ -142,7 +142,7 @@ export default function Image({
   sizes,
   unoptimized = false,
   priority = false,
-  lazy = false,
+  lazy,
   className,
   quality,
   width,
@@ -156,11 +156,14 @@ export default function Image({
   // If priority and lazy are present, log an error and use priority only.
   if (priority && lazy) {
     if (process.env.NODE_ENV !== 'production') {
-      console.error(
-        `Image with src ${src} has both priority and lazy tags. Only one should be used.`
+      throw new Error(
+        `Image with src "${src}" has both "priority" and "lazy" properties. Only one should be used.`
       )
     }
-    lazy = false
+  }
+
+  if (!priority && typeof lazy === 'undefined') {
+    lazy = true
   }
 
   useEffect(() => {
@@ -221,10 +224,15 @@ export default function Image({
 
   let divStyle: React.CSSProperties | undefined
   let imgStyle: React.CSSProperties | undefined
+  let wrapperStyle: React.CSSProperties | undefined
   if (typeof height === 'number' && typeof width === 'number' && !unsized) {
     // <Image src="i.png" width=100 height=100 />
     const quotient = height / width
     const ratio = isNaN(quotient) ? 1 : quotient * 100
+    wrapperStyle = {
+      maxWidth: '100%',
+      width,
+    }
     divStyle = {
       position: 'relative',
       paddingBottom: `${ratio}%`,
@@ -246,36 +254,39 @@ export default function Image({
       if (priority) {
         // <Image src="i.png" unsized priority />
         console.warn(
-          `Image with src ${src} has both priority and unsized attributes. Only one should be used.`
+          `Image with src "${src}" has both "priority" and "unsized" properties. Only one should be used.`
         )
       }
     }
   } else {
+    // <Image src="i.png" />
     if (process.env.NODE_ENV !== 'production') {
-      console.error(
-        `Image with src ${src} must use width and height attributes or unsized attribute.`
+      throw new Error(
+        `Image with src "${src}" must use "width" and "height" properties or "unsized" property.`
       )
     }
   }
 
   return (
-    <div style={divStyle}>
-      {shouldPreload
-        ? generatePreload({
-            src,
-            widths: configSizes,
-            unoptimized,
-            sizes,
-          })
-        : ''}
-      <img
-        {...rest}
-        {...imgAttributes}
-        className={className}
-        sizes={sizes}
-        ref={thisEl}
-        style={imgStyle}
-      />
+    <div style={wrapperStyle}>
+      <div style={divStyle}>
+        {shouldPreload
+          ? generatePreload({
+              src,
+              widths: configSizes,
+              unoptimized,
+              sizes,
+            })
+          : ''}
+        <img
+          {...rest}
+          {...imgAttributes}
+          className={className}
+          sizes={sizes}
+          ref={thisEl}
+          style={imgStyle}
+        />
+      </div>
     </div>
   )
 }
