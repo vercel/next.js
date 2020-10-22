@@ -45,6 +45,14 @@ let customHmrEventHandler
 export default function connect(options) {
   DevOverlay.register()
 
+  if (window.nextImageErrors) {
+    window.nextImageErrors.forEach((err) =>
+      setTimeout(() => {
+        throw err
+      }, 1)
+    )
+  }
+
   getEventSourceWrapper(options).addMessageListener((event) => {
     // This is the heartbeat event
     if (event.data === '\uD83D\uDC93') {

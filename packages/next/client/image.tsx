@@ -239,6 +239,8 @@ export default function Image({
     }
   }
 
+  let errorListener = null
+
   if (process.env.NODE_ENV !== 'production') {
     if (typeof height === 'undefined' && typeof width === 'undefined') {
       if (!unsized) {
@@ -252,6 +254,79 @@ export default function Image({
         )
       }
     }
+
+    errorListener = (
+      <>
+        <Head>
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+              window.nextImageErrorHandler = function nextImageErrorHandler(scriptEl) {
+                var parentEl = scriptEl.parentElement
+                var children = [].slice.call(parentEl.children)
+                var imgEl
+
+                for (var i = 0; i < children.length; i++) {
+                  if (children[i] === scriptEl) {
+                    imgEl = children[i - 1]
+                    break
+                  }
+                }
+
+                if (imgEl) {
+                  imgEl.addEventListener('error', function imgErrorHandler(err) {
+                    var src = err.target.currentSrc || err.target.src
+                    fetch(src).then(function (res) {
+                      // don't act on 404 since this is already
+                      // logged in the user's console
+                      if (res.status === 404) {
+                        return
+                      }
+
+                      // let's reload the image?
+                      if (res.ok) {
+                        err.target.src = ""
+                        err.target.src = src
+                        return
+                      }
+
+                      return res.text().then(function (text) {
+                        const err = new Error(
+                          "Image loading error occurred\\n" +
+                          "src url: " + src + " \\n" +
+                          "response status: " + res.status + "\\n\\n" +
+                          "response body: " + text
+                        )
+                        err.formatted = true
+                        throw err
+                      })
+                    }).catch(function (error) {
+                      if (error.formatted) {
+                        if (window.next) {
+                          throw error
+                        } else {
+                          if (!window.nextImageErrors) {
+                            window.nextImageErrors = []
+                          }
+                          window.nextImageErrors.push(error)
+                        }
+                      }
+                    })
+                  })
+                }
+              }
+            `,
+            }}
+            key="next-image-error-handler"
+          />
+        </Head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.nextImageErrorHandler(document.currentScript)`,
+          }}
+        />
+      </>
+    )
   }
 
   return (
@@ -272,6 +347,7 @@ export default function Image({
         ref={thisEl}
         style={imgStyle}
       />
+      {errorListener}
     </div>
   )
 }
