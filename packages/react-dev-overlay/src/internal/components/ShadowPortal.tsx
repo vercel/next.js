@@ -1,6 +1,10 @@
 import * as React from 'react'
 import { createPortal } from 'react-dom'
 
+if (typeof window !== 'undefined') {
+  require('@webcomponents/shadydom')
+}
+
 export type ShadowPortalProps = {
   children: React.ReactNode
 }
