@@ -142,7 +142,7 @@ export default function Image({
   sizes,
   unoptimized = false,
   priority = false,
-  lazy = false,
+  lazy,
   className,
   quality,
   width,
@@ -156,11 +156,14 @@ export default function Image({
   // If priority and lazy are present, log an error and use priority only.
   if (priority && lazy) {
     if (process.env.NODE_ENV !== 'production') {
-      console.error(
-        `Image with src ${src} has both priority and lazy tags. Only one should be used.`
+      throw new Error(
+        `Image with src ${src} has both priority and lazy properties. Only one should be used.`
       )
     }
-    lazy = false
+  }
+
+  if (!priority && typeof lazy === 'undefined') {
+    lazy = true
   }
 
   useEffect(() => {
