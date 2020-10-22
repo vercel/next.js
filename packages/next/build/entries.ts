@@ -79,6 +79,7 @@ export function createEntrypoints(
     absoluteAppPath: pages['/_app'],
     absoluteDocumentPath: pages['/_document'],
     absoluteErrorPath: pages['/_error'],
+    absolute404Path: pages['/404'] || '',
     distDir: DOT_NEXT_ALIAS,
     buildId,
     assetPrefix: config.assetPrefix,

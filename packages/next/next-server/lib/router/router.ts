@@ -337,7 +337,7 @@ function fetchNextData(dataHref: string, isServerRender: boolean) {
     // on a client-side transition. Otherwise, we'd get into an infinite
     // loop.
 
-    if (!isServerRender || err.message === 'SSG Data NOT_FOUND') {
+    if (!isServerRender) {
       markLoadingError(err)
     }
     throw err
@@ -907,13 +907,6 @@ export default class Router implements BaseRouter {
       //  3. Internal error while loading the page
 
       // So, doing a hard reload is the proper way to deal with this.
-      if (process.env.NODE_ENV === 'development') {
-        // append __next404 query to prevent fallback from being re-served
-        // on reload in development
-        if (err.message === SSG_DATA_NOT_FOUND_ERROR && this.isSsr) {
-          as += `${as.indexOf('?') > -1 ? '&' : '?'}__next404=1`
-        }
-      }
       window.location.href = as
 
       // Changing the URL doesn't block executing the current code path.
@@ -922,14 +915,34 @@ export default class Router implements BaseRouter {
     }
 
     try {
-      const { page: Component, styleSheets } = await this.fetchComponent(
-        '/_error'
-      )
+      let Component: ComponentType
+      let styleSheets: StyleSheetTuple[]
+      const ssg404 = err.message === SSG_DATA_NOT_FOUND_ERROR
+
+      if (ssg404) {
+        try {
+          ;({ page: Component, styleSheets } = await this.fetchComponent(
+            '/404'
+          ))
+        } catch (_err) {
+          // non-fatal fallback to _error
+        }
+      }
+
+      if (
+        typeof Component! === 'undefined' ||
+        typeof styleSheets! === 'undefined'
+      ) {
+        ;({ page: Component, styleSheets } = await this.fetchComponent(
+          '/_error'
+        ))
+      }
+
       const routeInfo: PrivateRouteInfo = {
         Component,
         styleSheets,
-        err,
-        error: err,
+        err: ssg404 ? undefined : err,
+        error: ssg404 ? undefined : err,
       }
 
       try {
@@ -938,6 +951,11 @@ export default class Router implements BaseRouter {
           pathname,
           query,
         } as any)
+
+        if (ssg404 && routeInfo.props && routeInfo.props.pageProps) {
+          routeInfo.props.pageProps.statusCode = 404
+        }
+        console.log(routeInfo)
       } catch (gipErr) {
         console.error('Error in error page `getInitialProps`: ', gipErr)
         routeInfo.props = {}
