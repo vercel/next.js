@@ -35,7 +35,7 @@ async function fsToJson(dir, output = {}) {
   return output
 }
 
-function runTests({ w, isDev }) {
+function runTests({ w, isDev, domains }) {
   it('should return home page', async () => {
     const res = await fetchViaHTTP(appPort, '/', null, {})
     expect(await res.text()).toMatch(/Image Optimizer Home/m)
@@ -131,16 +131,14 @@ function runTests({ w, isDev }) {
     )
   })
 
-  if (!isDev) {
-    it('should fail when domain is not defined in next.config.js', async () => {
-      const url = `http://vercel.com/button`
-      const query = { url, w, q: 100 }
-      const opts = { headers: { accept: 'image/webp' } }
-      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-      expect(res.status).toBe(400)
-      expect(await res.text()).toBe(`"url" parameter is not allowed`)
-    })
-  }
+  it('should fail when domain is not defined in next.config.js', async () => {
+    const url = `http://vercel.com/button`
+    const query = { url, w, q: 100 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe(`"url" parameter is not allowed`)
+  })
 
   it('should fail when width is not in next.config.js', async () => {
     const query = { url: '/test.png', w: 1000, q: 100 }
@@ -216,14 +214,16 @@ function runTests({ w, isDev }) {
     expect(res.headers.get('Content-Type')).toBe('image/webp')
   })
 
-  it('should resize absolute url from localhost', async () => {
-    const url = `http://localhost:${appPort}/test.png`
-    const query = { url, w, q: 80 }
-    const opts = { headers: { accept: 'image/webp' } }
-    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-    expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Type')).toBe('image/webp')
-  })
+  if (domains.includes('localhost')) {
+    it('should resize absolute url from localhost', async () => {
+      const url = `http://localhost:${appPort}/test.png`
+      const query = { url, w, q: 80 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/webp')
+    })
+  }
 
   it('should fail when url has file protocol', async () => {
     const url = `file://localhost:${appPort}/test.png`
@@ -243,15 +243,17 @@ function runTests({ w, isDev }) {
     expect(await res.text()).toBe(`"url" parameter is invalid`)
   })
 
-  it('should fail when url fails to load an image', async () => {
-    const url = `http://localhost:${appPort}/not-an-image`
-    const query = { w, url, q: 100 }
-    const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
-    expect(res.status).toBe(404)
-    expect(await res.text()).toBe(
-      `"url" parameter is valid but upstream response is invalid`
-    )
-  })
+  if (domains.includes('localhost')) {
+    it('should fail when url fails to load an image', async () => {
+      const url = `http://localhost:${appPort}/not-an-image`
+      const query = { w, url, q: 100 }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
+      expect(res.status).toBe(404)
+      expect(await res.text()).toBe(
+        `"url" parameter is valid but upstream response is invalid`
+      )
+    })
+  }
 
   it('should use cached image file when parameters are the same', async () => {
     await fs.remove(imagesDir)
@@ -288,6 +290,9 @@ function runTests({ w, isDev }) {
 }
 
 describe('Image Optimizer', () => {
+  // domains for testing
+  const domains = ['localhost', 'example.com']
+
   describe('dev support w/o next.config.js', () => {
     const size = 768 // defaults defined in server/config.ts
     beforeAll(async () => {
@@ -299,7 +304,7 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    runTests({ w: size, isDev: true })
+    runTests({ w: size, isDev: true, domains: [] })
   })
 
   describe('dev support with next.config.js', () => {
@@ -308,7 +313,7 @@ describe('Image Optimizer', () => {
       const json = JSON.stringify({
         images: {
           sizes: [size],
-          domains: ['localhost', 'example.com'],
+          domains,
         },
       })
       nextConfig.replace('{ /* replaceme */ }', json)
@@ -321,7 +326,22 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    runTests({ w: size, isDev: true })
+    runTests({ w: size, isDev: true, domains })
+  })
+
+  describe('Server support w/o next.config.js', () => {
+    const size = 768 // defaults defined in server/config.ts
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      await fs.remove(imagesDir)
+    })
+
+    runTests({ w: size, isDev: false, domains: [] })
   })
 
   describe('Server support with next.config.js', () => {
@@ -330,7 +350,7 @@ describe('Image Optimizer', () => {
       const json = JSON.stringify({
         images: {
           sizes: [128],
-          domains: ['localhost', 'example.com'],
+          domains,
         },
       })
       nextConfig.replace('{ /* replaceme */ }', json)
@@ -344,7 +364,7 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    runTests({ w: size, isDev: false })
+    runTests({ w: size, isDev: false, domains })
   })
 
   describe('Serverless support with next.config.js', () => {
@@ -354,7 +374,7 @@ describe('Image Optimizer', () => {
         target: 'experimental-serverless-trace',
         images: {
           sizes: [size],
-          domains: ['localhost', 'example.com'],
+          domains,
         },
       })
       nextConfig.replace('{ /* replaceme */ }', json)
@@ -368,6 +388,6 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
 
-    runTests({ w: size, isDev: false })
+    runTests({ w: size, isDev: false, domains })
   })
 })
