@@ -158,9 +158,9 @@ export default function Image({
   if (process.env.NODE_ENV !== 'production') {
     if (!VALID_LOADING_VALUES.includes(loading)) {
       throw new Error(
-        `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.join(
-          ','
-        )}.`
+        `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(
+          String
+        ).join(',')}.`
       )
     }
     if (priority && loading === 'lazy') {
