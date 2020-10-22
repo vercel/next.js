@@ -15,7 +15,7 @@ const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
 const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
-const OUTPUT_TIMEOUT = 2 * 60 * 1000
+const OUTPUT_TIMEOUT = 5 * 60 * 1000
 
 ;(async () => {
   let concurrencyIdx = process.argv.indexOf('-c')
@@ -127,6 +127,20 @@ const OUTPUT_TIMEOUT = 2 * 60 * 1000
       let outputTimeout
       let timedOut = false
 
+      const startOutputTimeout = () => {
+        outputTimeout = setTimeout(() => {
+          timedOut = true
+          child.kill('SIGINT')
+          children.delete(child)
+
+          console.log(
+            `${test} timed out from no output within ${OUTPUT_TIMEOUT}ms`
+          )
+          const err = new Error(`test timed out`)
+          err.output = output
+          reject(err)
+        }, OUTPUT_TIMEOUT)
+      }
       console.log('Starting test', test)
 
       const start = new Date().getTime()
@@ -159,6 +173,7 @@ const OUTPUT_TIMEOUT = 2 * 60 * 1000
         }
       )
       children.add(child)
+      startOutputTimeout()
 
       const outputHandler = (type = 'stdout') => (data) => {
         clearTimeout(outputTimeout)
@@ -171,18 +186,7 @@ const OUTPUT_TIMEOUT = 2 * 60 * 1000
 
         // If we don't receive any output from the test in the timeframe
         // assume stalled and consider it failed
-        outputTimeout = setTimeout(() => {
-          timedOut = true
-          child.kill('SIGINT')
-          children.delete(child)
-
-          console.log(
-            `${test} timed out from no output within ${OUTPUT_TIMEOUT}ms`
-          )
-          const err = new Error(`test timed out`)
-          err.output = output
-          reject(err)
-        }, OUTPUT_TIMEOUT)
+        startOutputTimeout()
       }
 
       child.stdout.on('data', outputHandler('stdout'))
@@ -190,8 +194,10 @@ const OUTPUT_TIMEOUT = 2 * 60 * 1000
 
       child.on('exit', (code) => {
         if (timedOut) return
-        console.log(`${test} exited with code`, code)
         children.delete(child)
+        clearTimeout(outputTimeout)
+
+        console.log(`${test} exited with code`, code)
         if (code) {
           const err = new Error(`failed with code: ${code}`)
           err.output = output
