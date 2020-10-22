@@ -52,6 +52,27 @@ function runTests() {
       }
     }
   })
+
+  it('should work when using flexbox', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/flex')
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('basic-image').width`
+        )
+        if (result === 0) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
 }
 
 describe('Image Component Tests', () => {
