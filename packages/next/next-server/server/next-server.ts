@@ -730,9 +730,7 @@ export default class Server {
           const { query } = parsedDestination
           delete (parsedDestination as any).query
 
-          parsedDestination.search = stringifyQs(query, undefined, undefined, {
-            encodeURIComponent: (str: string) => str,
-          } as any)
+          parsedDestination.search = stringifyQs(query)
 
           const updatedDestination = formatUrl(parsedDestination)
 
@@ -774,12 +772,7 @@ export default class Server {
           if (parsedDestination.protocol) {
             const { query } = parsedDestination
             delete (parsedDestination as any).query
-            parsedDestination.search = stringifyQs(
-              query,
-              undefined,
-              undefined,
-              { encodeURIComponent: (str) => str }
-            )
+            parsedDestination.search = stringifyQs(query)
 
             const target = formatUrl(parsedDestination)
             const proxy = new Proxy({
