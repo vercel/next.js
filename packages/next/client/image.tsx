@@ -224,15 +224,18 @@ export default function Image({
 
   let divStyle: React.CSSProperties | undefined
   let imgStyle: React.CSSProperties | undefined
+  let wrapperStyle: React.CSSProperties | undefined
   if (typeof height === 'number' && typeof width === 'number' && !unsized) {
     // <Image src="i.png" width=100 height=100 />
     const quotient = height / width
     const ratio = isNaN(quotient) ? 1 : quotient * 100
+    wrapperStyle = {
+      maxWidth: '100%',
+      width,
+    }
     divStyle = {
       position: 'relative',
       paddingBottom: `${ratio}%`,
-      maxWidth: '100%',
-      width,
     }
     imgStyle = {
       height: '100%',
@@ -264,23 +267,25 @@ export default function Image({
   }
 
   return (
-    <div style={divStyle}>
-      {shouldPreload
-        ? generatePreload({
-            src,
-            widths: configSizes,
-            unoptimized,
-            sizes,
-          })
-        : ''}
-      <img
-        {...rest}
-        {...imgAttributes}
-        className={className}
-        sizes={sizes}
-        ref={thisEl}
-        style={imgStyle}
-      />
+    <div style={wrapperStyle}>
+      <div style={divStyle}>
+        {shouldPreload
+          ? generatePreload({
+              src,
+              widths: configSizes,
+              unoptimized,
+              sizes,
+            })
+          : ''}
+        <img
+          {...rest}
+          {...imgAttributes}
+          className={className}
+          sizes={sizes}
+          ref={thisEl}
+          style={imgStyle}
+        />
+      </div>
     </div>
   )
 }
