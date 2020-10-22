@@ -5,10 +5,11 @@ const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
+  ['bigCommerce', bigCommerceLoader],
   ['default', defaultLoader],
 ])
 
-type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
+type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'bigCommerce' | 'default'
 
 type ImageData = {
   sizes: number[]
@@ -306,6 +307,12 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
 
 function akamaiLoader({ root, src, width }: LoaderProps): string {
   return `${root}${normalizeSrc(src)}${width ? '?imwidth=' + width : ''}`
+}
+
+function bigCommerceLoader({ root, src, width }: LoaderProps): string {
+  return `${root}${normalizeSrc(
+    width ? src.replace('/original/', `/${width}w/`) : src
+  )}`
 }
 
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
