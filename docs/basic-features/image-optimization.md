@@ -1,5 +1,5 @@
 ---
-description: Next.js supports built-in image optimization as well as 3rd party loaders for Imgix, Cloudinary, and more! Learn more here.
+description: Next.js supports built-in image optimization, as well as third party loaders for Imgix, Cloudinary, and more! Learn more here.
 ---
 
 # Image Optimization
@@ -11,9 +11,9 @@ description: Next.js supports built-in image optimization as well as 3rd party l
   </ul>
 </details>
 
-Since version **10.0.0**, Next.js provides an Image component that will automatically optimize the source image based on the browser. The optimization includes resizing the image based on the browser's viewport as well as selecting the best format, such as [WebP](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types), based on the browser's [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header.
+Since version **10.0.0**, Next.js provides an Image component to automatically optimize the source image. The optimization includes resizing the image based on the browser's viewport, as well as selecting the best format (such as [WebP](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types)) based on the browser's [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header.
 
-The objective of the Image component is to improve performance of Next.js applications, with a particular focus on improving their Core Web Vitals scores.
+The objective of the Image component is to improve the performance of Next.js applications, with a particular focus on improving their [Core Web Vitals](https://web.dev/vitals/) scores.
 
 ## Default Behavior
 
@@ -26,7 +26,7 @@ function Home() {
   return (
     <>
       <h1>My Homepage</h1>
-      <Image src="/me.png" width={200} height={200} />
+      <Image src="/me.png" alt="me" width={200} height={200} />
       <p>Welcome to my homepage!</p>
     </>
   )
@@ -37,11 +37,11 @@ export default Home
 
 ## Configuration
 
-If you want to configure Image Optimization you can do so by using `images` in `next.config.js`.
+You can configure Image Optimization by using the `images` property in `next.config.js`.
 
 ### Sizes
 
-You can specify which size widths you wish to allow using the `sizes` property. Since images will maintain aspect ratio using the `width` and `height` of the source image, there is no need to specify height, only the width. You can think of these as breakpoints.
+You can specify a list of image widths to allow using the `sizes` property. Since images maintain their aspect ratio using the `width` and `height` attributes of the source image, there is no need to specify height in `next.config.js` – only the width. You can think of these as breakpoints.
 
 ```js
 module.exports = {
@@ -53,7 +53,7 @@ module.exports = {
 
 ### Domains
 
-If you want to optimize images hosted on an external website, you would use an absolute url for the Image `src` and specify which
+To enable Image Optimization for images hosted on an external website, use an absolute url for the Image `src` and specify which
 `domains` are allowed to be optimized.
 
 ```js
@@ -81,12 +81,12 @@ module.exports = {
 
 ### Can I bring my own cloud provider?
 
-The following image optimization cloud providers are supported:
+The following Image Optimization cloud providers are supported:
 
 - Imgix: `loader: 'imgix'`
 - Cloudinary: `loader: 'cloudinary'`
 - Akamai: `loader: 'akamai'`
-- Vercel: no configuration necesary
+- Vercel: No configuration necessary
 
 ## Related
 

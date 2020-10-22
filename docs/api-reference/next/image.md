@@ -29,7 +29,7 @@ function Home() {
   return (
     <>
       <h1>My Homepage</h1>
-      <Image src="/me.png" width={200} height={200} />
+      <Image src="/me.png" alt="me" width={200} height={200} />
       <p>Welcome to my homepage!</p>
     </>
   )
