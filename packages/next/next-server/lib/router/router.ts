@@ -29,7 +29,7 @@ import escapePathDelimiters from './utils/escape-path-delimiters'
 
 interface TransitionOptions {
   shallow?: boolean
-  locale?: string
+  locale?: string | false
 }
 
 interface NextHistoryState {
@@ -58,7 +58,7 @@ function addPathPrefix(path: string, prefix?: string) {
 
 export function addLocale(
   path: string,
-  locale?: string,
+  locale?: string | false,
   defaultLocale?: string
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
@@ -553,6 +553,7 @@ export default class Router implements BaseRouter {
       as,
       Object.assign({}, options, {
         shallow: options.shallow && this._shallow,
+        locale: options.locale || this.defaultLocale,
       })
     )
   }
@@ -600,7 +601,25 @@ export default class Router implements BaseRouter {
       window.location.href = url
       return false
     }
-    this.locale = options.locale || this.locale
+
+    if (process.env.__NEXT_I18N_SUPPORT) {
+      this.locale = options.locale || this.locale
+
+      if (typeof options.locale === 'undefined') {
+        options.locale = this.locale
+      }
+
+      const {
+        normalizeLocalePath,
+      } = require('../i18n/normalize-locale-path') as typeof import('../i18n/normalize-locale-path')
+
+      const localePathResult = normalizeLocalePath(as, this.locales)
+
+      if (localePathResult.detectedLocale) {
+        this.locale = localePathResult.detectedLocale
+        url = localePathResult.pathname
+      }
+    }
 
     if (!(options as any)._h) {
       this.isSsr = false
@@ -614,7 +633,7 @@ export default class Router implements BaseRouter {
       this.abortComponentLoad(this._inFlightRoute)
     }
 
-    as = addLocale(as, this.locale, this.defaultLocale)
+    as = addLocale(as, options.locale, this.defaultLocale)
     const cleanedAs = delLocale(
       hasBasePath(as) ? delBasePath(as) : as,
       this.locale
@@ -811,7 +830,7 @@ export default class Router implements BaseRouter {
       this.changeState(
         method,
         url,
-        addLocale(as, this.locale, this.defaultLocale),
+        addLocale(as, options.locale, this.defaultLocale),
         options
       )
 
