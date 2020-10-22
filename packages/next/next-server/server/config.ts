@@ -26,7 +26,8 @@ const defaultConfig: { [key: string]: any } = {
   images: {
     sizes: [320, 420, 768, 1024, 1200],
     domains: [],
-    hosts: { default: { path: '/_next/image' } },
+    path: '/_next/image',
+    loader: 'default',
   },
   devIndicators: {
     buildActivity: true,
@@ -215,6 +216,14 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
   if (result?.images) {
     const { images } = result
+
+    // Normalize defined image host to end in slash
+    if (images?.path) {
+      if (images.path[images.path.length - 1] !== '/') {
+        images.path += '/'
+      }
+    }
+
     if (typeof images !== 'object') {
       throw new Error(
         `Specified images should be an object received ${typeof images}`

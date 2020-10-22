@@ -1,33 +1,37 @@
-import React, { ReactElement, useEffect } from 'react'
+import React, { ReactElement, useEffect, useRef } from 'react'
 import Head from '../next-server/lib/head'
 
-const loaders: { [key: string]: (props: LoaderProps) => string } = {
-  imgix: imgixLoader,
-  cloudinary: cloudinaryLoader,
-  default: defaultLoader,
-}
+const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
+  ['imgix', imgixLoader],
+  ['cloudinary', cloudinaryLoader],
+  ['akamai', akamaiLoader],
+  ['default', defaultLoader],
+])
+
+type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
+
 type ImageData = {
-  hosts: {
-    [key: string]: {
-      path: string
-      loader: string
-    }
-  }
-  breakpoints?: number[]
+  sizes: number[]
+  loader: LoaderKey
+  path: string
 }
 
-type ImageProps = Omit<JSX.IntrinsicElements['img'], 'src' | 'sizes'> & {
+type ImageProps = Omit<
+  JSX.IntrinsicElements['img'],
+  'src' | 'srcSet' | 'ref' | 'width' | 'height'
+> & {
   src: string
-  host?: string
-  sizes?: string
+  quality?: string
   priority?: boolean
-  lazy: boolean
-  className: string
+  lazy?: boolean
   unoptimized?: boolean
-}
+} & (
+    | { width: number; height: number; unsized?: false }
+    | { width?: number; height?: number; unsized: true }
+  )
 
-let imageData: any = process.env.__NEXT_IMAGE_OPTS
-const breakpoints = imageData.sizes || [640, 1024, 1600]
+const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
+const { sizes: configSizes, loader: configLoader, path: configPath } = imageData
 
 let cachedObserver: IntersectionObserver
 const IntersectionObserver =
@@ -64,60 +68,56 @@ function getObserver(): IntersectionObserver | undefined {
   ))
 }
 
-function computeSrc(src: string, host: string, unoptimized: boolean): string {
+function computeSrc(
+  src: string,
+  unoptimized: boolean,
+  quality?: string
+): string {
   if (unoptimized) {
     return src
   }
-  if (!host) {
-    // No host provided, use default
-    return callLoader(src, 'default')
-  } else {
-    let selectedHost = imageData.hosts[host]
-    if (!selectedHost) {
-      if (process.env.NODE_ENV !== 'production') {
-        console.error(
-          `Image tag is used specifying host ${host}, but that host is not defined in next.config`
-        )
-      }
-      return src
-    }
-    return callLoader(src, host)
-  }
+  return callLoader({ src, quality })
 }
 
-function callLoader(src: string, host: string, width?: number): string {
-  let loader = loaders[imageData.hosts[host].loader || 'default']
-  return loader({ root: imageData.hosts[host].path, src, width })
+type CallLoaderProps = {
+  src: string
+  width?: number
+  quality?: string
+}
+
+function callLoader(loaderProps: CallLoaderProps) {
+  let load = loaders.get(configLoader) || defaultLoader
+  return load({ root: configPath, ...loaderProps })
 }
 
 type SrcSetData = {
   src: string
-  host: string
   widths: number[]
+  quality?: string
 }
 
-function generateSrcSet({ src, host, widths }: SrcSetData): string {
+function generateSrcSet({ src, widths, quality }: SrcSetData): string {
   // At each breakpoint, generate an image url using the loader, such as:
   // ' www.example.com/foo.jpg?w=480 480w, '
   return widths
-    .map((width: number) => `${callLoader(src, host, width)} ${width}w`)
+    .map((width: number) => `${callLoader({ src, width, quality })} ${width}w`)
     .join(', ')
 }
 
 type PreloadData = {
   src: string
-  host: string
   widths: number[]
   sizes?: string
   unoptimized?: boolean
+  quality?: string
 }
 
 function generatePreload({
   src,
-  host,
   widths,
   unoptimized = false,
   sizes,
+  quality,
 }: PreloadData): ReactElement {
   // This function generates an image preload that makes use of the "imagesrcset" and "imagesizes"
   // attributes for preloading responsive images. They're still experimental, but fully backward
@@ -128,9 +128,9 @@ function generatePreload({
       <link
         rel="preload"
         as="image"
-        href={computeSrc(src, host, unoptimized)}
+        href={computeSrc(src, unoptimized, quality)}
         // @ts-ignore: imagesrcset and imagesizes not yet in the link element type
-        imagesrcset={generateSrcSet({ src, host, widths })}
+        imagesrcset={generateSrcSet({ src, widths, quality })}
         imagesizes={sizes}
       />
     </Head>
@@ -139,28 +139,20 @@ function generatePreload({
 
 export default function Image({
   src,
-  host,
   sizes,
   unoptimized = false,
   priority = false,
-  lazy,
+  lazy = false,
   className,
+  quality,
+  width,
+  height,
+  unsized,
   ...rest
 }: ImageProps) {
+  const thisEl = useRef<HTMLImageElement>(null)
+
   // Sanity Checks:
-  if (process.env.NODE_ENV !== 'production') {
-    if (unoptimized && host) {
-      console.error(`Image tag used specifying both a host and the unoptimized attribute--these are mutually exclusive. 
-          With the unoptimized attribute, no host will be used, so specify an absolute URL.`)
-    }
-  }
-  if (host && !imageData.hosts[host]) {
-    // If unregistered host is selected, log an error and use the default instead
-    if (process.env.NODE_ENV !== 'production') {
-      console.error(`Image host identifier ${host} could not be resolved.`)
-    }
-    host = 'default'
-  }
   // If priority and lazy are present, log an error and use priority only.
   if (priority && lazy) {
     if (process.env.NODE_ENV !== 'production') {
@@ -171,53 +163,54 @@ export default function Image({
     lazy = false
   }
 
-  host = host || 'default'
-
-  // Normalize provided src
-  if (src[0] === '/') {
-    src = src.slice(1)
-  }
-
-  let thisEl: any
-
   useEffect(() => {
-    if (lazy) {
+    const target = thisEl.current
+
+    if (target && lazy) {
       const observer = getObserver()
+
       if (observer) {
-        observer.observe(thisEl)
+        observer.observe(target)
+
         return () => {
-          observer.unobserve(thisEl)
+          observer.unobserve(target)
         }
       }
     }
   }, [thisEl, lazy])
 
   // Generate attribute values
-  const imgSrc = computeSrc(src, host, unoptimized)
-  let imgSrcset = null
-  if (!unoptimized) {
-    imgSrcset = generateSrcSet({
-      src,
-      host: host,
-      widths: breakpoints,
-    })
-  }
+  const imgSrc = computeSrc(src, unoptimized, quality)
+  const imgSrcSet = !unoptimized
+    ? generateSrcSet({
+        src,
+        widths: configSizes,
+        quality,
+      })
+    : undefined
 
-  const imgAttributes: {
-    src?: string
-    srcSet?: string
-    'data-src'?: string
-    'data-srcset'?: string
-  } = {}
+  let imgAttributes:
+    | {
+        src: string
+        srcSet?: string
+      }
+    | {
+        'data-src': string
+        'data-srcset'?: string
+      }
   if (!lazy) {
-    imgAttributes.src = imgSrc
-    if (imgSrcset) {
-      imgAttributes.srcSet = imgSrcset
+    imgAttributes = {
+      src: imgSrc,
+    }
+    if (imgSrcSet) {
+      imgAttributes.srcSet = imgSrcSet
     }
   } else {
-    imgAttributes['data-src'] = imgSrc
-    if (imgSrcset) {
-      imgAttributes['data-srcset'] = imgSrcset
+    imgAttributes = {
+      'data-src': imgSrc,
+    }
+    if (imgSrcSet) {
+      imgAttributes['data-srcset'] = imgSrcSet
     }
     className = className ? className + ' __lazy' : '__lazy'
   }
@@ -226,67 +219,112 @@ export default function Image({
   // it's too late for preloads
   const shouldPreload = priority && typeof window === 'undefined'
 
-  let imgElement
-  if (className) {
-    imgElement = (
-      <img
-        {...rest}
-        ref={(el) => {
-          thisEl = el
-        }}
-        {...imgAttributes}
-        className={className}
-        sizes={sizes}
-      />
-    )
+  let divStyle: React.CSSProperties | undefined
+  let imgStyle: React.CSSProperties | undefined
+  if (typeof height === 'number' && typeof width === 'number' && !unsized) {
+    // <Image src="i.png" width=100 height=100 />
+    const quotient = height / width
+    const ratio = isNaN(quotient) ? 1 : quotient * 100
+    divStyle = {
+      position: 'relative',
+      paddingBottom: `${ratio}%`,
+    }
+    imgStyle = {
+      height: '100%',
+      left: '0',
+      position: 'absolute',
+      top: '0',
+      width: '100%',
+    }
+  } else if (
+    typeof height === 'undefined' &&
+    typeof width === 'undefined' &&
+    unsized
+  ) {
+    // <Image src="i.png" unsized />
+    if (process.env.NODE_ENV !== 'production') {
+      if (priority) {
+        // <Image src="i.png" unsized priority />
+        console.warn(
+          `Image with src ${src} has both priority and unsized attributes. Only one should be used.`
+        )
+      }
+    }
   } else {
-    imgElement = (
-      <img
-        ref={(el) => {
-          thisEl = el
-        }}
-        {...rest}
-        {...imgAttributes}
-        sizes={sizes}
-      />
-    )
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(
+        `Image with src ${src} must use width and height attributes or unsized attribute.`
+      )
+    }
   }
 
   return (
-    <div>
+    <div style={divStyle}>
       {shouldPreload
         ? generatePreload({
             src,
-            host,
-            widths: breakpoints,
+            widths: configSizes,
             unoptimized,
             sizes,
           })
         : ''}
-      {imgElement}
+      <img
+        {...rest}
+        {...imgAttributes}
+        className={className}
+        sizes={sizes}
+        ref={thisEl}
+        style={imgStyle}
+      />
     </div>
   )
 }
 
 //BUILT IN LOADERS
 
-type LoaderProps = {
-  root: string
-  src: string
-  width?: number
+type LoaderProps = CallLoaderProps & { root: string }
+
+function normalizeSrc(src: string) {
+  return src[0] === '/' ? src.slice(1) : src
 }
 
-function imgixLoader({ root, src, width }: LoaderProps): string {
-  return `${root}${src}${width ? '?w=' + width : ''}`
+function imgixLoader({ root, src, width, quality }: LoaderProps): string {
+  const params = ['auto=format']
+  let paramsString = ''
+  if (width) {
+    params.push('w=' + width)
+  }
+  if (quality) {
+    params.push('q=' + quality)
+  }
+
+  if (params.length) {
+    paramsString = '?' + params.join('&')
+  }
+  return `${root}${normalizeSrc(src)}${paramsString}`
 }
 
-function cloudinaryLoader({ root, src, width }: LoaderProps): string {
-  return `${root}${width ? 'w_' + width + '/' : ''}${src}`
+function akamaiLoader({ root, src, width }: LoaderProps): string {
+  return `${root}${normalizeSrc(src)}${width ? '?imwidth=' + width : ''}`
 }
 
-function defaultLoader({ root, src, width }: LoaderProps): string {
-  // TODO: change quality parameter to be configurable
+function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
+  const params = ['f_auto']
+  let paramsString = ''
+  if (width) {
+    params.push('w_' + width)
+  }
+  if (quality) {
+    params.push('q_' + quality)
+  }
+  if (params.length) {
+    paramsString = params.join(',') + '/'
+  }
+  return `${root}${paramsString}${normalizeSrc(src)}`
+}
+
+function defaultLoader({ root, src, width, quality }: LoaderProps): string {
   return `${root}?url=${encodeURIComponent(src)}&${
     width ? `w=${width}&` : ''
-  }q=100`
+  }q=${quality || '100'}`
 }
