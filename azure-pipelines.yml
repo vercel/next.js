@@ -63,5 +63,5 @@ jobs:
         displayName: 'Install dependencies'
 
       - script: |
-          node run-tests.js -g $(group) --timings --azure
+          node run-tests.js -g $(group) --timings --azure --hide-test-output
         displayName: 'Run tests'

@@ -15,6 +15,7 @@ const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
 const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
+const OUTPUT_TIMEOUT = 2 * 60 * 1000
 
 ;(async () => {
   let concurrencyIdx = process.argv.indexOf('-c')
@@ -25,6 +26,8 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
   const isAzure = process.argv.indexOf('--azure') !== -1
   const groupIdx = process.argv.indexOf('-g')
   const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
+
+  const hideTestOutput = process.argv.indexOf('--hide-test-output')
 
   console.log('Running tests with concurrency:', concurrency)
   let tests = process.argv.filter((arg) => arg.endsWith('.test.js'))
@@ -120,6 +123,12 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
 
   const runTest = (test = '', usePolling) =>
     new Promise((resolve, reject) => {
+      let output = ''
+      let outputTimeout
+      let timedOut = false
+
+      console.log('Starting test', test)
+
       const start = new Date().getTime()
       const child = spawn(
         'node',
@@ -134,7 +143,7 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
           test,
         ],
         {
-          stdio: 'inherit',
+          stdio: 'pipe',
           env: {
             JEST_RETRY_TIMES: 0,
             ...process.env,
@@ -150,9 +159,44 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
         }
       )
       children.add(child)
+
+      const outputHandler = (type = 'stdout') => (data) => {
+        clearTimeout(outputTimeout)
+
+        if (hideTestOutput) {
+          output += data.toString()
+        } else {
+          process[type].write(data)
+        }
+
+        // If we don't receive any output from the test in the timeframe
+        // assume stalled and consider it failed
+        outputTimeout = setTimeout(() => {
+          timedOut = true
+          child.kill('SIGINT')
+          children.delete(child)
+
+          console.log(
+            `${test} timed out from no output within ${OUTPUT_TIMEOUT}ms`
+          )
+          const err = new Error(`test timed out`)
+          err.output = output
+          reject(err)
+        }, OUTPUT_TIMEOUT)
+      }
+
+      child.stdout.on('data', outputHandler('stdout'))
+      child.stdout.on('data', outputHandler('stderr'))
+
       child.on('exit', (code) => {
+        if (timedOut) return
+        console.log(`${test} exited with code`, code)
         children.delete(child)
-        if (code) reject(new Error(`failed with code: ${code}`))
+        if (code) {
+          const err = new Error(`failed with code: ${code}`)
+          err.output = output
+          reject(err)
+        }
         resolve(new Date().getTime() - start)
       })
     })
@@ -179,6 +223,8 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
               await exec(`git clean -fdx "${testDir}"`)
               await exec(`git checkout "${testDir}"`)
             } catch (err) {}
+          } else {
+            console.error(err.output)
           }
         }
       }
