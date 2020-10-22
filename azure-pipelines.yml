@@ -144,3 +144,35 @@ stages:
           - script: |
               node run-tests.js -g $(group) --timings --azure
             displayName: 'Run tests'
+
+      - job: test_ie11_integration
+        pool:
+          vmImage: 'windows-2019'
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(node_version)
+            displayName: 'Install Node.js'
+
+          - task: Cache@2
+            inputs:
+              key: yarn | $(Agent.OS) | yarn.lock
+              path: $(YARN_CACHE_FOLDER)
+            displayName: Cache Yarn packages
+
+          - script: |
+              yarn install --frozen-lockfile --check-files
+            displayName: 'Install dependencies'
+
+          - script: |
+              node run-tests.js -g 1/4 --timings --azure
+            displayName: 'Run tests'
+          - script: |
+              node run-tests.js -g 2/4 --timings --azure
+            displayName: 'Run tests'
+          - script: |
+              node run-tests.js -g 3/4 --timings --azure
+            displayName: 'Run tests'
+          - script: |
+              node run-tests.js -g 4/4 --timings --azure
+            displayName: 'Run tests'
