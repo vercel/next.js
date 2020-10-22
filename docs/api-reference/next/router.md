@@ -392,3 +392,26 @@ function Page({ router }) {
 
 export default withRouter(Page)
 ```
+
+### Typescript
+
+To use class components with `withRouter`, the component needs to accept a router prop like so
+
+```tsx
+import React from 'react'
+import { withRouter, SingletonRouter } from 'next/router'
+
+interface WithRouterComponent {
+  router: SingletonRouter
+}
+
+interface MyComponentProps extends WithRouterComponent {}
+
+class MyComponent extends React.Component<MyComponentProps> {
+  render() {
+    return <p>{this.props.router.pathname}</p>
+  }
+}
+
+export default withRouter(MyComponent)
+```
