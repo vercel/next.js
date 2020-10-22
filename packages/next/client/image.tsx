@@ -157,7 +157,7 @@ export default function Image({
   if (priority && lazy) {
     if (process.env.NODE_ENV !== 'production') {
       throw new Error(
-        `Image with src ${src} has both priority and lazy properties. Only one should be used.`
+        `Image with src "${src}" has both "priority" and "lazy" properties. Only one should be used.`
       )
     }
   }
@@ -254,14 +254,15 @@ export default function Image({
       if (priority) {
         // <Image src="i.png" unsized priority />
         console.warn(
-          `Image with src ${src} has both priority and unsized attributes. Only one should be used.`
+          `Image with src "${src}" has both "priority" and "unsized" properties. Only one should be used.`
         )
       }
     }
   } else {
+    // <Image src="i.png" />
     if (process.env.NODE_ENV !== 'production') {
-      console.error(
-        `Image with src ${src} must use width and height attributes or unsized attribute.`
+      throw new Error(
+        `Image with src "${src}" must use "width" and "height" properties or "unsized" property.`
       )
     }
   }
