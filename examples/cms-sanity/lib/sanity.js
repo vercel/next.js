@@ -1,5 +1,7 @@
 import sanityClient from '@sanity/client'
-import sanityImage from '@sanity/image-url'
+import {
+  createImageUrlBuilder,
+} from 'next-sanity'
 
 const options = {
   // Find your project ID and dataset in `sanity.json` in your studio project
@@ -22,3 +24,8 @@ export const previewClient = sanityClient({
 })
 
 export default client
+export const imageBuilder = createImageUrlBuilder(options)
+
+export const urlForImage = (source) =>
+  imageBuilder.image(source).auto('format').fit('max')
+

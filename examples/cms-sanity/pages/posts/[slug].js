@@ -11,6 +11,9 @@ import { getAllPostsWithSlug, getPostAndMorePosts } from '../../lib/api'
 import PostTitle from '../../components/post-title'
 import Head from 'next/head'
 import { CMS_NAME } from '../../lib/constants'
+import {
+  urlForImage
+} from '../../lib/sanity'
 
 export default function Post({ post, morePosts, preview }) {
   const router = useRouter()
@@ -30,7 +33,17 @@ export default function Post({ post, morePosts, preview }) {
                 <title>
                   {post.title} | Next.js Blog Example with {CMS_NAME}
                 </title>
-                {/* <meta property="og:image" content={post.ogImage.url} /> */}
+                {post.coverImage && (
+                  <meta
+                    key="ogImage"
+                    property="og:image"
+                    content={urlForImage(post.coverImage)
+                      .width(1200)
+                      .height(627)
+                      .fit('crop')
+                      .url()}
+                  />
+                )}
               </Head>
               <PostHeader
                 title={post.title}
