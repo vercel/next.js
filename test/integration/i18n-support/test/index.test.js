@@ -167,6 +167,7 @@ function runTests(isDev) {
   it('should navigate with locale prop correctly', async () => {
     const browser = await webdriver(appPort, '/links?nextLocale=fr')
     await addDefaultLocaleCookie(browser)
+    await browser.eval('window.beforeNav = 1')
 
     expect(await browser.elementByCss('#router-pathname').text()).toBe('/links')
     expect(await browser.elementByCss('#router-as-path').text()).toBe(
@@ -208,7 +209,7 @@ function runTests(isDev) {
     expect(await browser.elementByCss('#router-as-path').text()).toBe(
       '/links?nextLocale=fr'
     )
-    expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
+    expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
     expect(
       JSON.parse(await browser.elementByCss('#router-locales').text())
     ).toEqual(locales)
@@ -217,7 +218,7 @@ function runTests(isDev) {
     ).toEqual({ nextLocale: 'fr' })
 
     parsedUrl = url.parse(await browser.eval('window.location.href'), true)
-    expect(parsedUrl.pathname).toBe('/fr/links')
+    expect(parsedUrl.pathname).toBe('/links')
     expect(parsedUrl.query).toEqual({ nextLocale: 'fr' })
 
     await browser.eval('window.history.forward()')
@@ -240,6 +241,7 @@ function runTests(isDev) {
     parsedUrl = url.parse(await browser.eval('window.location.href'), true)
     expect(parsedUrl.pathname).toBe('/fr/another')
     expect(parsedUrl.query).toEqual({})
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should navigate with locale prop correctly GSP', async () => {
@@ -286,7 +288,7 @@ function runTests(isDev) {
     expect(await browser.elementByCss('#router-as-path').text()).toBe(
       '/links?nextLocale=nl'
     )
-    expect(await browser.elementByCss('#router-locale').text()).toBe('nl')
+    expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
     expect(
       JSON.parse(await browser.elementByCss('#router-locales').text())
     ).toEqual(locales)
@@ -295,7 +297,173 @@ function runTests(isDev) {
     ).toEqual({ nextLocale: 'nl' })
 
     parsedUrl = url.parse(await browser.eval('window.location.href'), true)
-    expect(parsedUrl.pathname).toBe('/nl/links')
+    expect(parsedUrl.pathname).toBe('/links')
+    expect(parsedUrl.query).toEqual({ nextLocale: 'nl' })
+
+    await browser.eval('window.history.forward()')
+    await browser.waitForElementByCss('#gsp')
+
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/gsp/fallback/[slug]'
+    )
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/gsp/fallback/first'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('nl')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({ slug: 'first' })
+
+    parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    expect(parsedUrl.pathname).toBe('/nl/gsp/fallback/first')
+    expect(parsedUrl.query).toEqual({})
+  })
+
+  it('should navigate with locale false correctly', async () => {
+    const browser = await webdriver(appPort, '/locale-false?nextLocale=fr')
+    await addDefaultLocaleCookie(browser)
+    await browser.eval('window.beforeNav = 1')
+
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/locale-false'
+    )
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/locale-false?nextLocale=fr'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({ nextLocale: 'fr' })
+
+    await browser.elementByCss('#to-another').click()
+    await browser.waitForElementByCss('#another')
+
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/another'
+    )
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/another'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({})
+
+    let parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    expect(parsedUrl.pathname).toBe('/fr/another')
+    expect(parsedUrl.query).toEqual({})
+
+    await browser.eval('window.history.back()')
+    await browser.waitForElementByCss('#links')
+
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/locale-false'
+    )
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/locale-false?nextLocale=fr'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({ nextLocale: 'fr' })
+
+    parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    expect(parsedUrl.pathname).toBe('/locale-false')
+    expect(parsedUrl.query).toEqual({ nextLocale: 'fr' })
+
+    await browser.eval('window.history.forward()')
+    await browser.waitForElementByCss('#another')
+
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/another'
+    )
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/another'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({})
+
+    parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    expect(parsedUrl.pathname).toBe('/fr/another')
+    expect(parsedUrl.query).toEqual({})
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
+  it('should navigate with locale false correctly GSP', async () => {
+    const browser = await webdriver(appPort, '/locale-false?nextLocale=nl')
+    await addDefaultLocaleCookie(browser)
+
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/locale-false'
+    )
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/locale-false?nextLocale=nl'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({ nextLocale: 'nl' })
+
+    await browser.elementByCss('#to-fallback-first').click()
+    await browser.waitForElementByCss('#gsp')
+
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/gsp/fallback/[slug]'
+    )
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/gsp/fallback/first'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('nl')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({ slug: 'first' })
+
+    let parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    expect(parsedUrl.pathname).toBe('/nl/gsp/fallback/first')
+    expect(parsedUrl.query).toEqual({})
+
+    await browser.eval('window.history.back()')
+    await browser.waitForElementByCss('#links')
+
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/locale-false'
+    )
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/locale-false?nextLocale=nl'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({ nextLocale: 'nl' })
+
+    parsedUrl = url.parse(await browser.eval('window.location.href'), true)
+    expect(parsedUrl.pathname).toBe('/locale-false')
     expect(parsedUrl.query).toEqual({ nextLocale: 'nl' })
 
     await browser.eval('window.history.forward()')

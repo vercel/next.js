@@ -26,7 +26,7 @@ export type LinkProps = {
   shallow?: boolean
   passHref?: boolean
   prefetch?: boolean
-  locale?: string
+  locale?: string | false
 }
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<LinkProps>
@@ -127,7 +127,7 @@ function linkClicked(
   replace?: boolean,
   shallow?: boolean,
   scroll?: boolean,
-  locale?: string
+  locale?: string | false
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -344,7 +344,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     childProps.href = addBasePath(
       addLocale(
         as,
-        locale || (router && router.locale),
+        typeof locale !== 'undefined' ? locale : router && router.locale,
         router && router.defaultLocale
       )
     )
