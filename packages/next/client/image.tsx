@@ -344,6 +344,24 @@ function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
 }
 
 function defaultLoader({ root, src, width, quality }: LoaderProps): string {
+  if (process.env.NODE_ENV !== 'production') {
+    const missingValues = []
+
+    // these should always be provided but make sure they are
+    if (!src) missingValues.push('src')
+    if (!width) missingValues.push('width')
+
+    if (missingValues.length > 0) {
+      throw new Error(
+        `Next Image optimizer requires ${missingValues.join(
+          ', '
+        )} to be provided. Make sure you pass them as props to the \`next/image\` component. Received: ${JSON.stringify(
+          { src, width, quality }
+        )}`
+      )
+    }
+  }
+
   return `${root}?url=${encodeURIComponent(src)}&${
     width ? `w=${width}&` : ''
   }q=${quality || '100'}`
