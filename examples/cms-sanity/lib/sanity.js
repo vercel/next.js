@@ -1,6 +1,7 @@
-import sanityClient from '@sanity/client'
 import {
+  createClient,
   createImageUrlBuilder,
+  createPreviewSubscriptionHook,
 } from 'next-sanity'
 
 const options = {
@@ -13,19 +14,34 @@ const options = {
   // data always (potentially slightly slower and a bit more expensive).
 }
 
-const client = sanityClient(options)
+export const sanityClient = createClient(options)
 
-export const imageBuilder = sanityImage(client)
-
-export const previewClient = sanityClient({
+export const previewClient = createClient({
   ...options,
   useCdn: false,
   token: process.env.SANITY_API_TOKEN,
 })
 
-export default client
+export const getClient = (preview) => (preview ? previewClient : sanityClient)
+
 export const imageBuilder = createImageUrlBuilder(options)
 
 export const urlForImage = (source) =>
   imageBuilder.image(source).auto('format').fit('max')
 
+export const usePreviewSubscription = createPreviewSubscriptionHook(options)
+
+export function overlayDrafts(docs) {
+  const documents = docs || []
+  const overlayed = documents.reduce((map, doc) => {
+    if (!doc._id) {
+      throw new Error('Ensure that `_id` is included in query projection')
+    }
+
+    const isDraft = doc._id.startsWith('drafts.')
+    const id = isDraft ? doc._id.slice(7) : doc._id
+    return isDraft || !map.has(id) ? map.set(id, doc) : map
+  }, new Map())
+
+  return Array.from(overlayed.values())
+}

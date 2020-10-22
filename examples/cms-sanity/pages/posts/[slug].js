@@ -1,3 +1,4 @@
+import Head from 'next/head'
 import { useRouter } from 'next/router'
 import ErrorPage from 'next/error'
 import Container from '../../components/container'
@@ -7,19 +8,31 @@ import Header from '../../components/header'
 import PostHeader from '../../components/post-header'
 import SectionSeparator from '../../components/section-separator'
 import Layout from '../../components/layout'
-import { getAllPostsWithSlug, getPostAndMorePosts } from '../../lib/api'
 import PostTitle from '../../components/post-title'
-import Head from 'next/head'
 import { CMS_NAME } from '../../lib/constants'
+import { postQuery, postSlugsQuery } from '../../lib/queries'
 import {
-  urlForImage
+  sanityClient,
+  getClient,
+  overlayDrafts,
+  urlForImage,
+  usePreviewSubscription,
 } from '../../lib/sanity'
 
-export default function Post({ post, morePosts, preview }) {
+export default function Post({ data, preview }) {
   const router = useRouter()
-  if (!router.isFallback && !post?.slug) {
+  if (!router.isFallback && !data.post?.slug) {
     return <ErrorPage statusCode={404} />
   }
+
+  const {
+    data: { post, morePosts },
+  } = usePreviewSubscription(postQuery, {
+    params: { slug: data.post.slug },
+    initialData: data,
+    enabled: preview,
+  })
+
   return (
     <Layout preview={preview}>
       <Container>
@@ -63,25 +76,25 @@ export default function Post({ post, morePosts, preview }) {
 }
 
 export async function getStaticProps({ params, preview = false }) {
-  const data = await getPostAndMorePosts(params.slug, preview)
+  const { post, morePosts } = await getClient(preview).fetch(postQuery, {
+    slug: params.slug,
+  })
+
   return {
     props: {
       preview,
-      post: data?.post || null,
-      morePosts: data?.morePosts || null,
+      data: {
+        post,
+        morePosts: overlayDrafts(morePosts),
+      },
     },
   }
 }
 
 export async function getStaticPaths() {
-  const allPosts = await getAllPostsWithSlug()
+  const paths = await sanityClient.fetch(postSlugsQuery)
   return {
-    paths:
-      allPosts?.map((post) => ({
-        params: {
-          slug: post.slug,
-        },
-      })) || [],
+    paths: paths.map((slug) => ({ params: { slug } })),
     fallback: true,
   }
 }
