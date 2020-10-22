@@ -183,8 +183,19 @@ async function _collectPlugins(
 
     // find packages with the naming convention
     // @next/plugin-[name]
+    // @<scope>/next-plugin-[name]
+    // next-plugin-[name]
     const filteredDeps = dependencies.filter((name) => {
-      return name.match(/^@next\/plugin/)
+      return (
+        name.match(/^@next\/plugin-[a-z0-9\.-_]+/) ||
+        name.match(/^next-plugin-[a-z0-9\.-_]+/) ||
+        /**
+         * URL-safe characters (dot, dash, underscore), lower-case only, no leading dots or underscores.
+         * https://docs.npmjs.com/using-npm/scope.html
+         * https://docs.npmjs.com/files/package.json
+         */
+        name.match(/^@[a-z0-9-][a-z0-9\.-_]*\/next-plugin-[a-z0-9\.-_]+/)
+      )
     })
 
     if (nextPluginConfigNames) {
