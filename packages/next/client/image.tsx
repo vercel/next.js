@@ -18,12 +18,12 @@ type ImageData = {
 
 type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'width' | 'height'
+  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
 > & {
   src: string
   quality?: string
   priority?: boolean
-  lazy?: boolean
+  loading?: 'lazy' | 'eager'
   unoptimized?: boolean
 } & (
     | { width: number; height: number; unsized?: false }
@@ -142,7 +142,7 @@ export default function Image({
   sizes,
   unoptimized = false,
   priority = false,
-  lazy,
+  loading,
   className,
   quality,
   width,
@@ -152,17 +152,16 @@ export default function Image({
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
 
-  // Sanity Checks:
-  // If priority and lazy are present, log an error and use priority only.
-  if (priority && lazy) {
+  if (priority && loading === 'lazy') {
     if (process.env.NODE_ENV !== 'production') {
       throw new Error(
-        `Image with src "${src}" has both "priority" and "lazy" properties. Only one should be used.`
+        `Image with src "${src}" has both "priority" and "loading=lazy" properties. Only one should be used.`
       )
     }
   }
 
-  if (!priority && typeof lazy === 'undefined') {
+  let lazy = loading === 'lazy'
+  if (!priority && typeof loading === 'undefined') {
     lazy = true
   }
 
