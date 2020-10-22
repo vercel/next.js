@@ -7,7 +7,7 @@
   </ul>
 </details>
 
-Next.js has built-in support for internationalized (i18n) routing since `v9.5.7`. You can provide a list of locales, the default locale, and domain-specific locales and Next.js will automatically handle the routing.
+Next.js has built-in support for internationalized ([i18n](https://en.wikipedia.org/wiki/Internationalization_and_localization#Naming)) routing since `v9.5.7`. You can provide a list of locales, the default locale, and domain-specific locales and Next.js will automatically handle the routing.
 
 The i18n routing support is currently meant to complement existing i18n library solutions like react-intl, react-i18next, lingui, rosetta, and others by streamlining the routes and locale parsing.
 
@@ -59,13 +59,15 @@ If we did not have the `example.fr` domain configured, then the user would inste
 
 ## Accessing the locale information
 
-The detected locale information is provided in multiple places to ensure it's available where it might be needed.
+On the `next/router` instance available via the [`useRouter()`](https://nextjs.org/docs/api-reference/next/router#userouter) hook. It has the following fields:
 
-On the `next/router` instance available via the [`useRouter()`](https://nextjs.org/docs/api-reference/next/router#userouter) hook, we expose the active locale under `router.locale`, all of the supported locales under `router.locales`, and the current default locale under `router.defaultLocale`.
+- `locale` contains the active locale.
+- `locales` contains all supported locales.
+- `defaultLocale` contains the current default locale.
 
-When prerendering pages with `getStaticProps`, the locale information is provided in [the context](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) provided to the function as `locale` for the active locale and `locales` for all supported locales.
+When [prerendering](/docs/basic-features/pages#static-generation-recommended) pages with `getStaticProps`, the locale information is provided in [the context](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) provided to the function.
 
-When leveraging `getStaticPaths`, the supported locales are also provided in the context provided to the function under `locales`.
+When leveraging `getStaticPaths`, the supported locales are provided in the context provided to the function under `locales`.
 
 ## Transition between locales
 
