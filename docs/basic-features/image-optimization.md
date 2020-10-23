@@ -7,7 +7,7 @@ description: Next.js supports built-in image optimization, as well as third part
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/basic-image-optimization">Basic Image Optimization</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/image-component">Image Component</a></li>
   </ul>
 </details>
 
@@ -89,6 +89,23 @@ module.exports = {
 
 The following Image Optimization cloud providers are supported:
 
+- Imgix: `loader: 'imgix'`
+- Cloudinary: `loader: 'cloudinary'`
+- Akamai: `loader: 'akamai'`
+- Vercel: No configuration necessary
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/basic-features/built-in-css-support.md">
+    <b>CSS Support:</b>
+    <small>Use the built-in CSS support to add custom styles to your app.</small>
+  </a>
+</div>
+
+<div class="card">
 - When using `next start` or a custom server image optimization works automatically.
 - [Vercel](https://vercel.com): Works automatically when you deploy on Vercel
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
