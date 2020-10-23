@@ -11,13 +11,15 @@ description: Next.js supports built-in image optimization, as well as third part
   </ul>
 </details>
 
-Since version **10.0.0**, Next.js provides an Image component to automatically optimize the source image. The optimization includes resizing the image based on the browser's viewport, as well as selecting the best format (such as [WebP](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types)) based on the browser's [`Accept`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept) header.
+Since version **10.0.0** Next.js has a built-in Image Component and Automatic Image Optimization.
 
-The objective of the Image component is to improve the performance of Next.js applications, with a particular focus on improving their [Core Web Vitals](https://web.dev/vitals/) scores.
+The Next.js Image Component (`next/image`) is an extension of the HTML `<img>` element, evolved for the modern web.
 
-## Default Behavior
+The Automatic Image Optimization allows for resizing, optimizing, and serving images in modern formats like [WebP](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types). This avoids shipping large images to devices with a smaller viewport.
 
-To add an image to your application, import the Image component on your [page](./pages).
+## Image Component
+
+To add an image to your application, import the `next/image` component:
 
 ```jsx
 import Image from 'next/image'
@@ -26,7 +28,12 @@ function Home() {
   return (
     <>
       <h1>My Homepage</h1>
-      <Image src="/me.png" alt="me" width={200} height={200} />
+      <Image
+        src="/me.png"
+        alt="Picture of the author"
+        width={200}
+        height={200}
+      />
       <p>Welcome to my homepage!</p>
     </>
   )
@@ -34,6 +41,9 @@ function Home() {
 
 export default Home
 ```
+
+- `width` and `height` are required to prevent [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google is going to [use in their search ranking](https://webmasters.googleblog.com/2020/05/evaluating-page-experience.html)
+- `width` and `height` are automatically responsive, unlike the HTML `<img>` element
 
 ## Configuration
 
@@ -54,7 +64,7 @@ module.exports = {
 ### Domains
 
 To enable Image Optimization for images hosted on an external website, use an absolute url for the Image `src` and specify which
-`domains` are allowed to be optimized.
+`domains` are allowed to be optimized. This is needed to ensure that external urls can't be abused.
 
 ```js
 module.exports = {
@@ -66,7 +76,7 @@ module.exports = {
 
 ### Loader
 
-If you want to use a cloud provider to optimize images instead of using the Next.js API, you can configure the loader and path prefix. This allows you to use relative urls for the Image `src` and automatically generate the correct absolute url for your provider.
+If you want to use a cloud image provider to optimize images instead of using the Next.js' built-in image optimization, you can configure the loader and path prefix. This allows you to use relative urls for the Image `src` and automatically generate the correct absolute url for your provider.
 
 ```js
 module.exports = {
@@ -77,24 +87,10 @@ module.exports = {
 }
 ```
 
-## FAQ
-
-### Can I bring my own cloud provider?
-
 The following Image Optimization cloud providers are supported:
 
-- Imgix: `loader: 'imgix'`
-- Cloudinary: `loader: 'cloudinary'`
-- Akamai: `loader: 'akamai'`
-- Vercel: No configuration necessary
-
-## Related
-
-For more information on what to do next, we recommend the following sections:
-
-<div class="card">
-  <a href="/docs/advanced-features/customizing-postcss-config.md">
-    <b>Customizing PostCSS Config:</b>
-    <small>Extend the PostCSS config and plugins added by Next.js with your own.</small>
-  </a>
-</div>
+- When using `next start` or a custom server image optimization works automatically.
+- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel
+- [Imgix](https://www.imgix.com): `loader: 'imgix'`
+- [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
+- [Akamai](https://www.akamai.com): `loader: 'akamai'`
