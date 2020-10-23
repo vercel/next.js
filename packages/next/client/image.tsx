@@ -358,6 +358,16 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
         )}`
       )
     }
+
+    if (src && !src.startsWith('/') && imageData.domains) {
+      const parsedSrc = new URL(src)
+
+      if (!imageData.domains.includes(parsedSrc.hostname)) {
+        throw new Error(
+          `Invalid src prop (${src}) on \`next/image\`, hostname is not configured under images in your \`next.config.js\``
+        )
+      }
+    }
   }
 
   return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${
