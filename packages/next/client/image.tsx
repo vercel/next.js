@@ -35,6 +35,8 @@ type ImageProps = Omit<
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
 const { sizes: configSizes, loader: configLoader, path: configPath } = imageData
+configSizes.sort((a, b) => a - b) // smallest to largest
+const largestSize = configSizes[configSizes.length - 1]
 
 let cachedObserver: IntersectionObserver
 const IntersectionObserver =
@@ -79,17 +81,17 @@ function computeSrc(
   if (unoptimized) {
     return src
   }
-  return callLoader({ src, quality })
+  return callLoader({ src, width: largestSize, quality })
 }
 
 type CallLoaderProps = {
   src: string
-  width?: number
+  width: number
   quality?: string
 }
 
 function callLoader(loaderProps: CallLoaderProps) {
-  let load = loaders.get(configLoader) || defaultLoader
+  const load = loaders.get(configLoader) || defaultLoader
   return load({ root: configPath, ...loaderProps })
 }
 
@@ -310,11 +312,8 @@ function normalizeSrc(src: string) {
 }
 
 function imgixLoader({ root, src, width, quality }: LoaderProps): string {
-  const params = ['auto=format']
+  const params = ['auto=format', 'w=' + width]
   let paramsString = ''
-  if (width) {
-    params.push('w=' + width)
-  }
   if (quality) {
     params.push('q=' + quality)
   }
@@ -326,15 +325,12 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
 }
 
 function akamaiLoader({ root, src, width }: LoaderProps): string {
-  return `${root}${normalizeSrc(src)}${width ? '?imwidth=' + width : ''}`
+  return `${root}${normalizeSrc(src)}?imwidth=${width}`
 }
 
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
-  const params = ['f_auto']
+  const params = ['f_auto', 'w_' + width]
   let paramsString = ''
-  if (width) {
-    params.push('w_' + width)
-  }
   if (quality) {
     params.push('q_' + quality)
   }
@@ -345,7 +341,7 @@ function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
 }
 
 function defaultLoader({ root, src, width, quality }: LoaderProps): string {
-  return `${root}?url=${encodeURIComponent(src)}&${
-    width ? `w=${width}&` : ''
-  }q=${quality || '100'}`
+  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${
+    quality || '100'
+  }`
 }
