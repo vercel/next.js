@@ -462,16 +462,13 @@ describe('Telemetry CLI', () => {
     const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
       .exec(stderr)
       .pop()
+
     expect(event1).toMatch(/"i18nEnabled": true/)
-    expect(event1).toMatch(
-      /"locales":.*?\[\s{0,}"en",\s{0,}"nl",\s{0,}"fr"\s{0,}\]/m
-    )
+    expect(event1).toMatch(/"locales": "en,nl,fr"/)
     expect(event1).toMatch(/"localeDomainsCount": 2/)
     expect(event1).toMatch(/"localeDetectionEnabled": true/)
     expect(event1).toMatch(/"imageDomainsCount": 1/)
-    expect(event1).toMatch(
-      /"imageSizes":.*?\[\s{0,}64,\s{0,}128,\s{0,}256,\s{0,}512,\s{0,}1024\s{0,}\]/m
-    )
+    expect(event1).toMatch(/"imageSizes": "64,128,256,512,1024"/)
     expect(event1).toMatch(/"trailingSlashEnabled": false/)
     expect(event1).toMatch(/"reactStrictMode": false/)
 
@@ -502,15 +499,11 @@ describe('Telemetry CLI', () => {
       .exec(stderr2)
       .pop()
     expect(event2).toMatch(/"i18nEnabled": true/)
-    expect(event2).toMatch(
-      /"locales":.*?\[\s{0,}"en",\s{0,}"nl",\s{0,}"fr"\s{0,}\]/m
-    )
+    expect(event2).toMatch(/"locales": "en,nl,fr"/)
     expect(event2).toMatch(/"localeDomainsCount": 2/)
     expect(event2).toMatch(/"localeDetectionEnabled": true/)
     expect(event2).toMatch(/"imageDomainsCount": 1/)
-    expect(event2).toMatch(
-      /"imageSizes":.*?\[\s{0,}64,\s{0,}128,\s{0,}256,\s{0,}512,\s{0,}1024\s{0,}\]/m
-    )
+    expect(event2).toMatch(/"imageSizes": "64,128,256,512,1024"/)
     expect(event2).toMatch(/"trailingSlashEnabled": false/)
     expect(event2).toMatch(/"reactStrictMode": false/)
   })

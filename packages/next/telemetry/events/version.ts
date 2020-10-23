@@ -24,11 +24,11 @@ type EventCliSessionStarted = {
   basePathEnabled: boolean
   i18nEnabled: boolean
   imageEnabled: boolean
-  locales: string[] | null
+  locales: string | null
   localeDomainsCount: number | null
   localeDetectionEnabled: boolean | null
   imageDomainsCount: number | null
-  imageSizes: number[] | null
+  imageSizes: string | null
   imageLoader: string | null
   trailingSlashEnabled: boolean
   reactStrictMode: boolean
@@ -131,11 +131,11 @@ export function eventCliSession(
     imageEnabled: !!images,
     basePathEnabled: !!userConfiguration?.basePath,
     i18nEnabled: !!i18n,
-    locales: i18n?.locales || null,
+    locales: i18n?.locales ? i18n.locales.join(',') : null,
     localeDomainsCount: i18n?.domains ? i18n.domains.length : null,
     localeDetectionEnabled: !i18n ? null : i18n.localeDetection !== false,
     imageDomainsCount: images?.domains ? images.domains.length : null,
-    imageSizes: images?.sizes || null,
+    imageSizes: images?.sizes ? images.sizes.join(',') : null,
     imageLoader: images?.loader,
     trailingSlashEnabled: !!userConfiguration?.trailingSlash,
     reactStrictMode: !!userConfiguration?.reactStrictMode,
