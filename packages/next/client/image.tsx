@@ -36,7 +36,6 @@ type ImageProps = Omit<
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
 const { sizes: configSizes, loader: configLoader, path: configPath } = imageData
 configSizes.sort((a, b) => a - b) // smallest to largest
-const largestSize = configSizes[configSizes.length - 1]
 
 let cachedObserver: IntersectionObserver
 const IntersectionObserver =
@@ -81,7 +80,28 @@ function computeSrc(
   if (unoptimized) {
     return src
   }
-  return callLoader({ src, width: largestSize, quality })
+  const width = getWidthForLegacyBrowser()
+  return callLoader({ src, width, quality })
+}
+
+function getWidthForLegacyBrowser() {
+  let browserWidth: number
+  if (typeof window !== 'undefined') {
+    browserWidth =
+      window.innerWidth ||
+      document.documentElement.clientWidth ||
+      document.body.clientWidth
+  } else {
+    browserWidth = configSizes[configSizes.length - 1]
+  }
+
+  let width = configSizes[0]
+  for (let size of configSizes) {
+    if (size < browserWidth) {
+      width = size
+    }
+  }
+  return width
 }
 
 type CallLoaderProps = {
