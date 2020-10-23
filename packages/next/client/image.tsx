@@ -1,6 +1,9 @@
 import React, { ReactElement, useEffect, useRef } from 'react'
 import Head from '../next-server/lib/head'
 
+const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
+type LoadingValue = typeof VALID_LOADING_VALUES[number]
+
 const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
@@ -18,12 +21,12 @@ type ImageData = {
 
 type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'width' | 'height'
+  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
 > & {
   src: string
   quality?: string
   priority?: boolean
-  lazy?: boolean
+  loading?: LoadingValue
   unoptimized?: boolean
 } & (
     | { width: number; height: number; unsized?: false }
@@ -32,6 +35,8 @@ type ImageProps = Omit<
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
 const { sizes: configSizes, loader: configLoader, path: configPath } = imageData
+configSizes.sort((a, b) => a - b) // smallest to largest
+const largestSize = configSizes[configSizes.length - 1]
 
 let cachedObserver: IntersectionObserver
 const IntersectionObserver =
@@ -76,17 +81,17 @@ function computeSrc(
   if (unoptimized) {
     return src
   }
-  return callLoader({ src, quality })
+  return callLoader({ src, width: largestSize, quality })
 }
 
 type CallLoaderProps = {
   src: string
-  width?: number
+  width: number
   quality?: string
 }
 
 function callLoader(loaderProps: CallLoaderProps) {
-  let load = loaders.get(configLoader) || defaultLoader
+  const load = loaders.get(configLoader) || defaultLoader
   return load({ root: configPath, ...loaderProps })
 }
 
@@ -142,7 +147,7 @@ export default function Image({
   sizes,
   unoptimized = false,
   priority = false,
-  lazy = false,
+  loading,
   className,
   quality,
   width,
@@ -152,15 +157,24 @@ export default function Image({
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
 
-  // Sanity Checks:
-  // If priority and lazy are present, log an error and use priority only.
-  if (priority && lazy) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error(
-        `Image with src ${src} has both priority and lazy tags. Only one should be used.`
+  if (process.env.NODE_ENV !== 'production') {
+    if (!VALID_LOADING_VALUES.includes(loading)) {
+      throw new Error(
+        `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(
+          String
+        ).join(',')}.`
       )
     }
-    lazy = false
+    if (priority && loading === 'lazy') {
+      throw new Error(
+        `Image with src "${src}" has both "priority" and "loading=lazy" properties. Only one should be used.`
+      )
+    }
+  }
+
+  let lazy = loading === 'lazy'
+  if (!priority && typeof loading === 'undefined') {
+    lazy = true
   }
 
   useEffect(() => {
@@ -221,10 +235,15 @@ export default function Image({
 
   let divStyle: React.CSSProperties | undefined
   let imgStyle: React.CSSProperties | undefined
+  let wrapperStyle: React.CSSProperties | undefined
   if (typeof height === 'number' && typeof width === 'number' && !unsized) {
     // <Image src="i.png" width=100 height=100 />
     const quotient = height / width
     const ratio = isNaN(quotient) ? 1 : quotient * 100
+    wrapperStyle = {
+      maxWidth: '100%',
+      width,
+    }
     divStyle = {
       position: 'relative',
       paddingBottom: `${ratio}%`,
@@ -246,36 +265,40 @@ export default function Image({
       if (priority) {
         // <Image src="i.png" unsized priority />
         console.warn(
-          `Image with src ${src} has both priority and unsized attributes. Only one should be used.`
+          `Image with src "${src}" has both "priority" and "unsized" properties. Only one should be used.`
         )
       }
     }
   } else {
+    // <Image src="i.png" />
     if (process.env.NODE_ENV !== 'production') {
-      console.error(
-        `Image with src ${src} must use width and height attributes or unsized attribute.`
+      throw new Error(
+        `Image with src "${src}" must use "width" and "height" properties or "unsized" property.`
       )
     }
   }
 
   return (
-    <div style={divStyle}>
-      {shouldPreload
-        ? generatePreload({
-            src,
-            widths: configSizes,
-            unoptimized,
-            sizes,
-          })
-        : ''}
-      <img
-        {...rest}
-        {...imgAttributes}
-        className={className}
-        sizes={sizes}
-        ref={thisEl}
-        style={imgStyle}
-      />
+    <div style={wrapperStyle}>
+      <div style={divStyle}>
+        {shouldPreload
+          ? generatePreload({
+              src,
+              widths: configSizes,
+              unoptimized,
+              sizes,
+              quality,
+            })
+          : ''}
+        <img
+          {...rest}
+          {...imgAttributes}
+          className={className}
+          sizes={sizes}
+          ref={thisEl}
+          style={imgStyle}
+        />
+      </div>
     </div>
   )
 }
@@ -289,11 +312,8 @@ function normalizeSrc(src: string) {
 }
 
 function imgixLoader({ root, src, width, quality }: LoaderProps): string {
-  const params = ['auto=format']
+  const params = ['auto=format', 'w=' + width]
   let paramsString = ''
-  if (width) {
-    params.push('w=' + width)
-  }
   if (quality) {
     params.push('q=' + quality)
   }
@@ -305,15 +325,12 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
 }
 
 function akamaiLoader({ root, src, width }: LoaderProps): string {
-  return `${root}${normalizeSrc(src)}${width ? '?imwidth=' + width : ''}`
+  return `${root}${normalizeSrc(src)}?imwidth=${width}`
 }
 
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
-  const params = ['f_auto']
+  const params = ['f_auto', 'w_' + width]
   let paramsString = ''
-  if (width) {
-    params.push('w_' + width)
-  }
   if (quality) {
     params.push('q_' + quality)
   }
@@ -324,7 +341,7 @@ function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
 }
 
 function defaultLoader({ root, src, width, quality }: LoaderProps): string {
-  return `${root}?url=${encodeURIComponent(src)}&${
-    width ? `w=${width}&` : ''
-  }q=${quality || '100'}`
+  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${
+    quality || '100'
+  }`
 }

@@ -730,9 +730,7 @@ export default class Server {
           const { query } = parsedDestination
           delete (parsedDestination as any).query
 
-          parsedDestination.search = stringifyQs(query, undefined, undefined, {
-            encodeURIComponent: (str: string) => str,
-          } as any)
+          parsedDestination.search = stringifyQs(query)
 
           const updatedDestination = formatUrl(parsedDestination)
 
@@ -774,12 +772,7 @@ export default class Server {
           if (parsedDestination.protocol) {
             const { query } = parsedDestination
             delete (parsedDestination as any).query
-            parsedDestination.search = stringifyQs(
-              query,
-              undefined,
-              undefined,
-              { encodeURIComponent: (str) => str }
-            )
+            parsedDestination.search = stringifyQs(query)
 
             const target = formatUrl(parsedDestination)
             const proxy = new Proxy({
@@ -1144,7 +1137,6 @@ export default class Server {
             ...(components.getStaticProps
               ? {
                   amp: query.amp,
-                  __next404: query.__next404,
                   _nextDataReq: query._nextDataReq,
                   __nextLocale: query.__nextLocale,
                 }
@@ -1269,15 +1261,6 @@ export default class Server {
         : `${locale ? `/${locale}` : ''}${resolvedUrlPathname}${
             query.amp ? '.amp' : ''
           }`
-
-    // In development we use a __next404 query to allow signaling we should
-    // render the 404 page after attempting to fetch the _next/data for a
-    // fallback page since the fallback page will always be available after
-    // reload and we don't want to re-serve it and instead want to 404.
-    if (this.renderOpts.dev && isSSG && query.__next404) {
-      delete query.__next404
-      throw new NoFallbackError()
-    }
 
     // Complete the response with cached data if its present
     const cachedData = ssgCacheKey

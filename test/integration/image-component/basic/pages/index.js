@@ -9,6 +9,7 @@ const Page = () => {
       <Image
         id="basic-image"
         src="foo.jpg"
+        loading="eager"
         width={300}
         height={400}
         quality={60}
@@ -17,6 +18,7 @@ const Page = () => {
         id="attribute-test"
         data-demo="demo-value"
         src="bar.jpg"
+        loading="eager"
         width={300}
         height={400}
       />
@@ -25,6 +27,7 @@ const Page = () => {
         data-demo="demo-value"
         host="secondary"
         src="foo2.jpg"
+        loading="eager"
         width={300}
         height={400}
       />
@@ -32,6 +35,7 @@ const Page = () => {
         id="unoptimized-image"
         unoptimized
         src="https://arbitraryurl.com/foo.jpg"
+        loading="eager"
         width={300}
         height={400}
       />
@@ -51,6 +55,14 @@ const Page = () => {
         src="https://arbitraryurl.com/withpriority3.png"
         width={300}
         height={400}
+      />
+      <Image
+        id="priority-image"
+        priority
+        src="withpriority.png"
+        width={300}
+        height={400}
+        quality={60}
       />
       <Image
         id="preceding-slash-image"
