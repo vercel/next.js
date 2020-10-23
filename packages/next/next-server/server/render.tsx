@@ -622,7 +622,10 @@ export async function renderToHTML(
 
       const invalidKeys = Object.keys(data).filter(
         (key) =>
-          key !== 'revalidate' && key !== 'props' && key !== 'unstable_redirect'
+          key !== 'revalidate' &&
+          key !== 'props' &&
+          key !== 'unstable_redirect' &&
+          key !== 'unstable_notFound'
       )
 
       if (invalidKeys.includes('unstable_revalidate')) {
@@ -631,6 +634,12 @@ export async function renderToHTML(
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
+      }
+
+      if (data.unstable_notFound) {
+        ;(renderOpts as any).ssgNotFound = true
+        ;(renderOpts as any).revalidate = false
+        return null
       }
 
       if (
@@ -899,6 +908,10 @@ export async function renderToHTML(
 
   let html = renderDocument(Document, {
     ...renderOpts,
+    canonicalBase:
+      !renderOpts.ampPath && (req as any).__nextStrippedLocale
+        ? `${renderOpts.canonicalBase || ''}/${renderOpts.locale}`
+        : renderOpts.canonicalBase,
     docComponentsRendered,
     buildManifest: filteredBuildManifest,
     // Only enabled in production as development mode has features relying on HMR (style injection for example)
