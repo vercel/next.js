@@ -57,6 +57,14 @@ const Page = () => {
         height={400}
       />
       <Image
+        id="priority-image"
+        priority
+        src="withpriority.png"
+        width={300}
+        height={400}
+        quality={60}
+      />
+      <Image
         id="preceding-slash-image"
         src="/fooslash.jpg"
         priority
