@@ -420,4 +420,98 @@ describe('Telemetry CLI', () => {
     event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(build.stderr).pop()
     expect(event1).toMatch(/hasReportWebVitals.*?false/)
   })
+
+  it('detects rewrites, headers, and redirects for next build', async () => {
+    await fs.rename(
+      path.join(appDir, 'next.config.custom-routes'),
+      path.join(appDir, 'next.config.js')
+    )
+
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    await fs.rename(
+      path.join(appDir, 'next.config.js'),
+      path.join(appDir, 'next.config.custom-routes')
+    )
+
+    const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
+    expect(event1).toMatch(/"headersCount": 1/)
+    expect(event1).toMatch(/"rewritesCount": 2/)
+    expect(event1).toMatch(/"redirectsCount": 1/)
+  })
+
+  it('detects i18n and image configs for session start', async () => {
+    await fs.rename(
+      path.join(appDir, 'next.config.i18n-images'),
+      path.join(appDir, 'next.config.js')
+    )
+
+    const { stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    await fs.rename(
+      path.join(appDir, 'next.config.js'),
+      path.join(appDir, 'next.config.i18n-images')
+    )
+
+    const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+      .exec(stderr)
+      .pop()
+    expect(event1).toMatch(/"i18nEnabled": true/)
+    expect(event1).toMatch(
+      /"locales":.*?\[\s{0,}"en",\s{0,}"nl",\s{0,}"fr"\s{0,}\]/m
+    )
+    expect(event1).toMatch(/"localeDomainsCount": 2/)
+    expect(event1).toMatch(/"localeDetectionEnabled": true/)
+    expect(event1).toMatch(/"imageDomainsCount": 1/)
+    expect(event1).toMatch(
+      /"imageSizes":.*?\[\s{0,}64,\s{0,}128,\s{0,}256,\s{0,}512,\s{0,}1024\s{0,}\]/m
+    )
+    expect(event1).toMatch(/"trailingSlashEnabled": false/)
+    expect(event1).toMatch(/"reactStrictMode": false/)
+
+    await fs.rename(
+      path.join(appDir, 'next.config.i18n-images'),
+      path.join(appDir, 'next.config.js')
+    )
+
+    let stderr2 = ''
+
+    let app = await launchApp(appDir, await findPort(), {
+      onStderr(msg) {
+        stderr2 += msg || ''
+      },
+      env: {
+        NEXT_TELEMETRY_DEBUG: 1,
+      },
+    })
+    await waitFor(1000)
+    await killApp(app)
+
+    await fs.rename(
+      path.join(appDir, 'next.config.js'),
+      path.join(appDir, 'next.config.i18n-images')
+    )
+
+    const event2 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+      .exec(stderr2)
+      .pop()
+    expect(event2).toMatch(/"i18nEnabled": true/)
+    expect(event2).toMatch(
+      /"locales":.*?\[\s{0,}"en",\s{0,}"nl",\s{0,}"fr"\s{0,}\]/m
+    )
+    expect(event2).toMatch(/"localeDomainsCount": 2/)
+    expect(event2).toMatch(/"localeDetectionEnabled": true/)
+    expect(event2).toMatch(/"imageDomainsCount": 1/)
+    expect(event2).toMatch(
+      /"imageSizes":.*?\[\s{0,}64,\s{0,}128,\s{0,}256,\s{0,}512,\s{0,}1024\s{0,}\]/m
+    )
+    expect(event2).toMatch(/"trailingSlashEnabled": false/)
+    expect(event2).toMatch(/"reactStrictMode": false/)
+  })
 })

@@ -1048,6 +1048,9 @@ export default async function build(
         (staticPages.size + ssgPages.size + serverPropsPages.size),
       hasStatic404: useStatic404,
       hasReportWebVitals: namedExports?.includes('reportWebVitals') ?? false,
+      rewritesCount: rewrites.length,
+      headersCount: headers.length,
+      redirectsCount: redirects.length - 1, // reduce one for trailing slash
     })
   )
 
