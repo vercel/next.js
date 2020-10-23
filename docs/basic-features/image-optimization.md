@@ -7,7 +7,7 @@ description: Next.js supports built-in image optimization, as well as third part
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/basic-image-optimization">Basic Image Optimization</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/image-component">Image Component</a></li>
   </ul>
 </details>
 
