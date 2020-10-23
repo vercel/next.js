@@ -17,7 +17,7 @@ The objective of the Image component is to improve the performance of Next.js ap
 
 ## Default Behavior
 
-To add an image to your application, import the Image component on your [page](./pages).
+To add an image to your application, import the Image component on your [page](/docs/basic-features/pages).
 
 ```jsx
 import Image from 'next/image'
@@ -93,8 +93,15 @@ The following Image Optimization cloud providers are supported:
 For more information on what to do next, we recommend the following sections:
 
 <div class="card">
-  <a href="/docs/advanced-features/customizing-postcss-config.md">
-    <b>Customizing PostCSS Config:</b>
-    <small>Extend the PostCSS config and plugins added by Next.js with your own.</small>
+  <a href="/docs/basic-features/built-in-css-support.md">
+    <b>CSS Support:</b>
+    <small>Use the built-in CSS support to add custom styles to your app.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/basic-features/data-fetching.md">
+    <b>Data Fetching:</b>
+    <small>Learn more about data fetching in Next.js.</small>
   </a>
 </div>
