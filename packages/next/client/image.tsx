@@ -285,6 +285,7 @@ export default function Image({
               widths: configSizes,
               unoptimized,
               sizes,
+              quality,
             })
           : ''}
         <img
