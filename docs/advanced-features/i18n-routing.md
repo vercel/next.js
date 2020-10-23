@@ -7,25 +7,34 @@
   </ul>
 </details>
 
-Next.js has built-in support for internationalized ([i18n](https://en.wikipedia.org/wiki/Internationalization_and_localization#Naming)) routing since `v9.5.7`. You can provide a list of locales, the default locale, and domain-specific locales and Next.js will automatically handle the routing.
+Next.js has built-in support for internationalized ([i18n](https://en.wikipedia.org/wiki/Internationalization_and_localization#Naming)) routing since `v10.0.0`. You can provide a list of locales, the default locale, and domain-specific locales and Next.js will automatically handle the routing.
 
-The i18n routing support is currently meant to complement existing i18n library solutions like react-intl, react-i18next, lingui, rosetta, and others by streamlining the routes and locale parsing.
+The i18n routing support is currently meant to complement existing i18n library solutions like `react-intl`, `react-i18next`, `lingui`, `rosetta`, and others by streamlining the routes and locale parsing.
 
 ## Getting started
 
 To get started, add the `i18n` config to your `next.config.js` file.
 
+Locales are [UTS Locale Identifiers](https://www.unicode.org/reports/tr35/tr35-59/tr35.html#Identifiers), a standardized format for defining locales.
+
+Generally a Locale Identifier is made up of a language, region, and script separated by a dash: `language-region-script`. The region and script are optional. An example:
+
+- `en-US` - English as spoken in the United States
+- `nl-NL` - Dutch as spoken in the Netherlands
+- `nl` - Dutch, no specific region
+
 ```js
+// next.config.js
 module.exports = {
   i18n: {
     // These are all the locales you want to support in
     // your application
     locales: ['en-US', 'fr', 'nl-NL'],
     // This is the default locale you want to be used when visiting
-    // a non-local prefixed path e.g. `/hello`
+    // a non-locale prefixed path e.g. `/hello`
     defaultLocale: 'en-US',
-    // These are a list of locale domains and the default locale they
-    // should handle (these are not required)
+    // This is a list of locale domains and the default locale they
+    // should handle (these are only required when setting up domain routing)
     domains: [
       {
         domain: 'example.com',
@@ -44,30 +53,91 @@ module.exports = {
 }
 ```
 
-## How are the routes handled
+## Locale Strategies
 
-When a user visits `/`, Next.js will try to automatically detect which locale the user prefers with the [`Accept-Language`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Language) header and the current domain.
+There are two locale handling strategies: Sub-path Routing and Domain Routing.
+
+### Sub-path Routing
+
+Sub-path Routing puts the locale in the url path.
+
+```js
+// next.config.js
+module.exports = {
+  i18n: {
+    locales: ['en-US', 'fr', 'nl-NL'],
+    defaultLocale: 'en-US',
+  },
+}
+```
+
+With the above configuration `en-US`, `fr`, and `nl-NL` will be available to be routed to, and `en-US` is the default locale. If you have a `pages/blog.js` the following urls would be available:
+
+- `/blog`
+- `/fr/blog`
+- `/nl-nl/blog`
+
+The default locale does not have a prefix.
+
+### Domain Routing
+
+By using domain routing you can configure locales to be served from different domains:
+
+```js
+// next.config.js
+module.exports = {
+  i18n: {
+    locales: ['en-US', 'fr', 'nl-NL'],
+    defaultLocale: 'en-US',
+
+    domains: [
+      {
+        domain: 'example.com',
+        defaultLocale: 'en-US',
+      },
+      {
+        domain: 'example.fr',
+        defaultLocale: 'fr',
+      },
+      {
+        domain: 'example.nl',
+        defaultLocale: 'nl-NL',
+      },
+    ],
+  },
+}
+```
+
+For example if you have `pages/blog.js` the following urls will be available:
+
+- `example.com/blog`
+- `example.fr/blog`
+- `example.nl/blog`
+
+## Automatic Locale Detection
+
+When a user visits the application root (generally `/`), Next.js will try to automatically detect which locale the user prefers based on the [`Accept-Language`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Language) header and the current domain.
 
 If a locale other than the default locale is detected, the user will be redirected to either:
 
-A) The domain with that locale specified as the default.
-B) The locale prefixed path if no domain matched.
+- **When using Sub-path Routing:** The locale prefixed path
+- **When using Domain Routing:** The domain with that locale specified as the default
 
-For example, if a user with the `Accept-Language` header `fr;q=0.9` visits `example.com`, they will be redirected to `example.fr` since that domain handles the `fr` locale by default.
+When using Domain Routing, if a user with the `Accept-Language` header `fr;q=0.9` visits `example.com`, they will be redirected to `example.fr` since that domain handles the `fr` locale by default.
 
-If we did not have the `example.fr` domain configured, then the user would instead be redirected to `/fr`.
+When using Sub-path Routing, the user would be redirected to `/fr`.
 
 ## Accessing the locale information
 
-On the `next/router` instance available via the [`useRouter()`](https://nextjs.org/docs/api-reference/next/router#userouter) hook. It has the following fields:
+You can access the locale information via the Next.js router. For example, using the [`useRouter()`](https://nextjs.org/docs/api-reference/next/router#userouter) hook the following properties are available:
 
-- `locale` contains the active locale.
-- `locales` contains all supported locales.
-- `defaultLocale` contains the current default locale.
+- `locale` contains the currently active locale.
+- `locales` contains all configured locales.
+- `defaultLocale` contains the configured default locale.
 
-When [prerendering](/docs/basic-features/pages#static-generation-recommended) pages with `getStaticProps`, the locale information is provided in [the context](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) provided to the function.
+When [pre-rendering](/docs/basic-features/pages#static-generation-recommended) pages with `getStaticProps` or `getServerSideProps`, the locale information is provided in [the context](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) provided to the function.
 
-When leveraging `getStaticPaths`, the supported locales are provided in the context provided to the function under `locales`.
+When leveraging `getStaticPaths`, the supported locales are provided in the context parameter of the function under `locales`.
 
 ## Transition between locales
 
@@ -107,15 +177,58 @@ export default function IndexPage(props) {
 }
 ```
 
-## How does this work with static generation?
+If you have a `href` that already includes the locale you can opt-out of automatically handling the locale prefixing:
+
+```jsx
+import Link from 'next/link'
+
+export default function IndexPage(props) {
+  return (
+    <Link href="/fr/another" locale={false}>
+      <a>To /fr/another</a>
+    </Link>
+  )
+}
+```
+
+## Search Engine Optimization
+
+Since Next.js knows what language the user is visiting it will automatically add the `lang` attribute to the `<html>` tag.
+
+Next.js doesn't know about variants of a page so it's up to you to add the `hreflang` meta tags using [`next/head`](/docs/api-reference/next/head.md). You can learn more about `hreflang` in the [Google Webmasters documentation](https://support.google.com/webmasters/answer/189077).
+
+## How does this work with Static Generation?
 
 ### Automatically Statically Optimized Pages
 
-For pages that are automatically statically optimized, a version of the page will be generated for each locale. This ensures the `lang` HTML attribute and `router.locale` value have the correct initial values for each locale.
+For pages that are automatically statically optimized, a version of the page will be generated for each locale.
 
 ### Non-dynamic getStaticProps Pages
 
-For non-dynamic `getStaticProps` pages, a version is generated for each locale like above. `getStaticProps` is also called with each `locale` that is being rendered. If you would like to opt-out of a certain locale from being pre-rendered, you can return `notFound: true` from `getStaticProps` and this variant of the page will not be generated.
+For non-dynamic `getStaticProps` pages, a version is generated for each locale like above. `getStaticProps` is called with each `locale` that is being rendered. If you would like to opt-out of a certain locale from being pre-rendered, you can return `notFound: true` from `getStaticProps` and this variant of the page will not be generated.
+
+```js
+export async function getStaticProps({ locale }) {
+  // Call an external API endpoint to get posts.
+  // You can use any data fetching library
+  const res = await fetch(`https://.../posts?locale=${locale}`)
+  const posts = await res.json()
+
+  if (posts.length === 0) {
+    return {
+      notFound: true,
+    }
+  }
+
+  // By returning { props: posts }, the Blog component
+  // will receive `posts` as a prop at build time
+  return {
+    props: {
+      posts,
+    },
+  }
+}
+```
 
 ### Dynamic getStaticProps Pages
 
