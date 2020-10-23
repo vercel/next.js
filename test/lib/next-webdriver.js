@@ -13,6 +13,7 @@ const {
   BROWSERSTACK,
   BROWSERSTACK_USERNAME,
   BROWSERSTACK_ACCESS_KEY,
+  HEADLESS,
   CHROME_BIN,
   LEGACY_SAFARI,
 } = process.env
@@ -75,9 +76,11 @@ let chromeOptions = new ChromeOptions()
 let firefoxOptions = new FireFoxOptions()
 let safariOptions = new SafariOptions()
 
-const screenSize = { width: 1280, height: 720 }
-chromeOptions = chromeOptions.headless().windowSize(screenSize)
-firefoxOptions = firefoxOptions.headless().windowSize(screenSize)
+if (HEADLESS) {
+  const screenSize = { width: 1280, height: 720 }
+  chromeOptions = chromeOptions.headless().windowSize(screenSize)
+  firefoxOptions = firefoxOptions.headless().windowSize(screenSize)
+}
 
 if (CHROME_BIN) {
   chromeOptions = chromeOptions.setChromeBinaryPath(path.resolve(CHROME_BIN))
