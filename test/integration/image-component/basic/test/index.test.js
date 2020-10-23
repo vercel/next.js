@@ -219,7 +219,7 @@ describe('Image Component Tests', () => {
     it('should add a preload tag for a priority image, with quality', async () => {
       expect(
         await hasPreloadLinkMatchingUrl(
-          'https://example.com/myaccount/withpriority.png?auto=format&q=60'
+          'https://example.com/myaccount/withpriority.png?auto=format&w=1600&q=60'
         )
       ).toBe(true)
     })
