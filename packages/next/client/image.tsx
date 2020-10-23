@@ -238,7 +238,7 @@ export default function Image({
     !unsized
   ) {
     // <Image src="i.png" width={100} height={100} />
-    // <Image src="i.png" width="100"" height="100" />
+    // <Image src="i.png" width="100" height="100" />
     const quotient =
       parseInt(height as string, 10) / parseInt(width as string, 10)
     const ratio = isNaN(quotient) ? 1 : quotient * 100
