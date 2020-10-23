@@ -71,3 +71,4 @@ By default, `next export` will generate an `out` directory, which can be served 
 - The [`fallback: true`](/docs/basic-features/data-fetching.md#fallback-true) mode of `getStaticPaths` is not supported when using `next export`.
 - [API Routes](/docs/api-routes/introduction.md) are not supported by this method because they can't be prerendered to HTML.
 - [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) cannot be used within pages because the method requires a server. Consider using [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) instead.
+- The `out` directory may cause your linter, such as `eslint`, to stall out. If this is the case be sure to ignore the folder by, for example, adding `/out/**` to `.eslintignore`
