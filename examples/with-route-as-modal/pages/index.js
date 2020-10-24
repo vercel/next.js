@@ -17,7 +17,6 @@ const Index = () => {
       >
         <Post id={router.query.postId} pathname={router.pathname} />
       </Modal>
-      <Grid />
     </>
   )
 }
