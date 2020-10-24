@@ -6,10 +6,16 @@ const Page = () => {
     <div>
       <p>Hello World</p>
       <Image
-        id="with-and-height"
+        id="width-and-height-num"
         src="https://via.placeholder.com/500"
         width={500}
         height={500}
+      ></Image>
+      <Image
+        id="width-and-height-str"
+        src="https://via.placeholder.com/500"
+        width="500"
+        height="500"
       ></Image>
       <Image
         id="unsized-image"

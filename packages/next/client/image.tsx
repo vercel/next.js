@@ -29,8 +29,8 @@ type ImageProps = Omit<
   loading?: LoadingValue
   unoptimized?: boolean
 } & (
-    | { width: number; height: number; unsized?: false }
-    | { width?: number; height?: number; unsized: true }
+    | { width: number | string; height: number | string; unsized?: false }
+    | { width?: number | string; height?: number | string; unsized: true }
   )
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
@@ -229,16 +229,18 @@ export default function Image({
     className = className ? className + ' __lazy' : '__lazy'
   }
 
-  // No need to add preloads on the client side--by the time the application is hydrated,
-  // it's too late for preloads
-  const shouldPreload = priority && typeof window === 'undefined'
-
   let divStyle: React.CSSProperties | undefined
   let imgStyle: React.CSSProperties | undefined
   let wrapperStyle: React.CSSProperties | undefined
-  if (typeof height === 'number' && typeof width === 'number' && !unsized) {
-    // <Image src="i.png" width=100 height=100 />
-    const quotient = height / width
+  if (
+    typeof height !== 'undefined' &&
+    typeof width !== 'undefined' &&
+    !unsized
+  ) {
+    // <Image src="i.png" width={100} height={100} />
+    // <Image src="i.png" width="100" height="100" />
+    const quotient =
+      parseInt(height as string, 10) / parseInt(width as string, 10)
     const ratio = isNaN(quotient) ? 1 : quotient * 100
     wrapperStyle = {
       maxWidth: '100%',
@@ -277,6 +279,10 @@ export default function Image({
       )
     }
   }
+
+  // No need to add preloads on the client side--by the time the application is hydrated,
+  // it's too late for preloads
+  const shouldPreload = priority && typeof window === 'undefined'
 
   return (
     <div style={wrapperStyle}>

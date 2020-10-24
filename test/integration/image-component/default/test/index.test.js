@@ -29,6 +29,7 @@ function runTests() {
         const result = await browser.eval(
           `document.getElementById('basic-image').naturalWidth`
         )
+
         if (result === 0) {
           throw new Error('Incorrectly loaded image')
         }
@@ -36,10 +37,15 @@ function runTests() {
         return 'result-correct'
       }, /result-correct/)
 
+      await browser.eval(
+        'document.getElementById("unsized-image").scrollIntoView()'
+      )
+
       await check(async () => {
         const result = await browser.eval(
           `document.getElementById('unsized-image').naturalWidth`
         )
+
         if (result === 0) {
           throw new Error('Incorrectly loaded image')
         }
