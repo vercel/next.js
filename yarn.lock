@@ -12231,10 +12231,10 @@ pnp-webpack-plugin@1.6.4:
   dependencies:
     ts-pnp "^1.1.6"
 
-pnpm@5.9.0:
-  version "5.9.0"
-  resolved "https://registry.yarnpkg.com/pnpm/-/pnpm-5.9.0.tgz#b0cf1b45d39d247f235d757b2601601f0a8de2eb"
-  integrity sha512-VrR/ISB3qCLGmw4xioqMdkWlyirdoah377rYKM+1FMUjuwgHa0481VYv/lUP4lRxaSEVsgTBCjV1v6HUsv270A==
+pnpm@5.10.1:
+  version "5.10.1"
+  resolved "https://registry.yarnpkg.com/pnpm/-/pnpm-5.10.1.tgz#23dc61a7caba44c9300171e8729a6284cae22129"
+  integrity sha512-XJ41/VU6cwFFugFi6V9y8WUO6S/eF3YRtOpX82xx25p3jW25cLHnvGn/TtC4XHwO/OZkCWOWkEV/AtDE5YKiSQ==
 
 posix-character-classes@^0.1.0:
   version "0.1.1"
