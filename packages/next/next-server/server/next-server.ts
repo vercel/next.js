@@ -1188,6 +1188,8 @@ export default class Server {
       res.statusCode = 404
     }
 
+    const isErrorPage = pathname === '/404' || pathname === '/_error'
+
     // handle static page
     if (typeof components.Component === 'string') {
       return components.Component
@@ -1255,15 +1257,21 @@ export default class Server {
       urlPathname = stripNextDataPath(urlPathname)
     }
 
-    const ssgCacheKey =
+    let ssgCacheKey =
       isPreviewMode || !isSSG
         ? undefined // Preview mode bypasses the cache
         : `${locale ? `/${locale}` : ''}${resolvedUrlPathname}${
             query.amp ? '.amp' : ''
           }`
 
+    if (isErrorPage) {
+      ssgCacheKey = `${locale ? `/${locale}` : ''}${pathname}${
+        query.amp ? '.amp' : ''
+      }`
+    }
+
     // Complete the response with cached data if its present
-    const cachedData = ssgCacheKey
+    let cachedData = ssgCacheKey
       ? await this.incrementalCache.get(ssgCacheKey)
       : undefined
 
