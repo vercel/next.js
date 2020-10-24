@@ -1,6 +1,6 @@
 {
   "name": "@next/plugin-sentry",
-  "version": "9.5.6-canary.13",
+  "version": "9.5.6-canary.14",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/next-plugin-sentry"
