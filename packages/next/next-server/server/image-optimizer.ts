@@ -17,9 +17,11 @@ const WEBP = 'image/webp'
 const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
+const SVG = 'image/svg+xml'
 const MIME_TYPES = [/* AVIF, */ WEBP, PNG, JPEG]
 const CACHE_VERSION = 1
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
+const VECTOR_TYPES = [SVG]
 
 export async function imageOptimizer(
   server: Server,
@@ -200,20 +202,19 @@ export async function imageOptimizer(
     }
   }
 
+  if (upstreamType) {
+    const vector = VECTOR_TYPES.includes(upstreamType)
+    const animate =
+      ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
+    if (vector || animate) {
+      res.setHeader('Content-Type', upstreamType)
+      res.end(upstreamBuffer)
+      return { finished: true }
+    }
+  }
+
   const expireAt = maxAge * 1000 + now
   let contentType: string
-
-  if (
-    upstreamType &&
-    ANIMATABLE_TYPES.includes(upstreamType) &&
-    isAnimated(upstreamBuffer)
-  ) {
-    if (upstreamType) {
-      res.setHeader('Content-Type', upstreamType)
-    }
-    res.end(upstreamBuffer)
-    return { finished: true }
-  }
 
   if (mimeType) {
     contentType = mimeType

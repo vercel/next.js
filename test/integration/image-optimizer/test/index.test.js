@@ -73,6 +73,20 @@ function runTests({ w, isDev, domains }) {
     expect(isAnimated(await res.buffer())).toBe(true)
   })
 
+  it('should maintain vector svg', async () => {
+    const query = { w, q: 90, url: '/test.svg' }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/svg+xml')
+    const actual = await res.text()
+    const expected = await fs.readFile(
+      join(__dirname, '..', 'public', 'test.svg'),
+      'utf8'
+    )
+    expect(actual).toMatch(expected)
+  })
+
   it('should fail when url is missing', async () => {
     const query = { w, q: 100 }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
@@ -200,15 +214,6 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/gif')
-    await expectWidth(res, w)
-  })
-
-  it('should resize relative url with invalid accept header as svg', async () => {
-    const query = { url: '/test.svg', w, q: 80 }
-    const opts = { headers: { accept: 'image/invalid' } }
-    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-    expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Type')).toBe('image/svg+xml')
     await expectWidth(res, w)
   })
 
