@@ -88,7 +88,7 @@ function runTests(mode) {
 
       await hasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
-        'Next Image optimizer requires src to be provided. Make sure you pass them as props to the `next/image` component. Received: {"width":1200}'
+        'Next Image Optimization requires src to be provided. Make sure you pass them as props to the `next/image` component. Received: {"width":1200}'
       )
     })
 
