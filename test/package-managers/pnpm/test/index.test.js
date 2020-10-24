@@ -62,7 +62,7 @@ async function pack(cwd, pkg) {
 describe('pnpm support', () => {
   it('should build with dependencies installed via pnpm', async () => {
     // Create a Next.js app in a temporary directory, and install dependencies with pnpm.
-
+    //
     // "next" and its monorepo dependencies are installed by `npm pack`-ing tarballs from
     // 'next.js/packages/*', because installing "next" directly via
     // `pnpm add path/to/next.js/packages/next` results in a symlink:
@@ -70,12 +70,12 @@ describe('pnpm support', () => {
     // This is undesired since modules inside "next" would be resolved to the
     // next.js monorepo 'node_modules' and lead to false test results;
     // installing from a tarball avoids this issue.
-
+    //
     // The "next" package's monorepo dependencies (e.g. "@next/env", "@next/polyfill-module")
     // are not bundled with `npm pack next.js/packages/next`,
     // so they need to be packed individually.
-    // To ensure that they are installed upon installing "next", a pnpmfile.js hook is used to
-    // override these dependency paths at install time.
+    // To ensure that they are installed upon installing "next", a package.json "pnpm.overrides"
+    // field is used to override these dependency paths at install time.
     await usingTempDir(async (tempDir) => {
       const nextTarballPath = await pack(tempDir, 'next')
       const dependencyTarballPaths = {
@@ -88,38 +88,26 @@ describe('pnpm support', () => {
       const tempAppDir = path.join(tempDir, 'app')
       await fs.copy(appDir, tempAppDir)
 
-      // Inject dependency tarball paths into a `readPackage` hook in pnpmfile.js,
+      // Inject dependency tarball paths into a "pnpm.overrides" field in package.json,
       // so that they are installed from packed tarballs rather than from the npm registry.
-      //
-      // e.g.
-      //  function readPackage(pkg) {
-      //    // Any package which depends on '@next/env' will install it from the tarball.
-      //    if (pkg.dependencies['@next/env']) {
-      //      pkg.dependencies['@next/env'] = 'file:/var/folders/bq/gy0sgbn11513qmnjxq2c_3c80000gn/T/keivzvsujfb/next-env-9.5.6-canary.0.tgz'
-      //    }
-      //    ...etc
-      //    return pkg
-      //  }
-      //
-      // See https://pnpm.js.org/en/pnpmfile
-      const pnpmfileContent = `
-function readPackage(pkg) {
-  ${Object.keys(dependencyTarballPaths)
-    .map(
-      (packageName) => `
-    if (pkg.dependencies['${packageName}']) {
-      pkg.dependencies['${packageName}'] = 'file:${dependencyTarballPaths[packageName]}'
-    }
-  `
-    )
-    .join('\n')}
-  
-  return pkg
-}
-
-module.exports = { hooks: { readPackage } }
-      `
-      await fs.writeFile(path.join(tempAppDir, 'pnpmfile.js'), pnpmfileContent)
+      const packageJsonPath = path.join(tempAppDir, 'package.json')
+      const packageJsonWithOverrides = {
+        ...(await fs.readJson(packageJsonPath)),
+        pnpm: {
+          overrides: Object.fromEntries(
+            Object.entries(
+              dependencyTarballPaths
+            ).map(([dependency, tarballPath]) => [
+              dependency,
+              `file:${tarballPath}`,
+            ])
+          ),
+        },
+      }
+      await fs.writeFile(
+        packageJsonPath,
+        JSON.stringify(packageJsonWithOverrides, null, 2)
+      )
 
       await runPnpm(tempAppDir, 'install')
       await runPnpm(tempAppDir, 'add', nextTarballPath)
@@ -127,9 +115,12 @@ module.exports = { hooks: { readPackage } }
       expect(
         await fs.pathExists(path.join(tempAppDir, 'pnpm-lock.yaml'))
       ).toBeTruthy()
-      expect(
-        require(path.join(tempAppDir, 'package.json')).dependencies['next']
-      ).toMatch(/^file:/)
+
+      const packageJson = await fs.readJson(packageJsonPath)
+      expect(packageJson.dependencies['next']).toMatch(/^file:/)
+      for (const dependency of Object.keys(dependencyTarballPaths)) {
+        expect(packageJson.pnpm.overrides[dependency]).toMatch(/^file:/)
+      }
 
       const { stdout, stderr } = await runPnpm(tempAppDir, 'run', 'build')
       console.log(stdout, stderr)
