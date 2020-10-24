@@ -5,12 +5,7 @@ const Page = () => {
   return (
     <div>
       <p>Hello World</p>
-      <Image
-        id="unsized-image"
-        src="https://google.com/test.png"
-        unsized
-      ></Image>
-      <p id="stubtext">This is the index page</p>
+      <Image src="https://google.com/test.png" unsized></Image>
     </div>
   )
 }

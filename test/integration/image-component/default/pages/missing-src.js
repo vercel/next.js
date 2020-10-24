@@ -4,9 +4,7 @@ import Image from 'next/image'
 const Page = () => {
   return (
     <div>
-      <p>Hello World</p>
-      <Image id="unsized-image" width={200}></Image>
-      <p id="stubtext">This is the index page</p>
+      <Image width={200}></Image>
     </div>
   )
 }

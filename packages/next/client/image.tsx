@@ -35,7 +35,12 @@ type ImageProps = Omit<
   )
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
-const { sizes: configSizes, loader: configLoader, path: configPath } = imageData
+const {
+  sizes: configSizes,
+  loader: configLoader,
+  path: configPath,
+  domains: configDomains,
+} = imageData
 configSizes.sort((a, b) => a - b) // smallest to largest
 const largestSize = configSizes[configSizes.length - 1]
 
@@ -351,7 +356,7 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
 
     if (missingValues.length > 0) {
       throw new Error(
-        `Next Image optimizer requires ${missingValues.join(
+        `Next Image Optimization requires ${missingValues.join(
           ', '
         )} to be provided. Make sure you pass them as props to the \`next/image\` component. Received: ${JSON.stringify(
           { src, width, quality }
@@ -359,10 +364,18 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
       )
     }
 
-    if (src && !src.startsWith('/') && imageData.domains) {
-      const parsedSrc = new URL(src)
+    if (src && !src.startsWith('/') && configDomains) {
+      let parsedSrc: URL
+      try {
+        parsedSrc = new URL(src)
+      } catch (err) {
+        console.error(err)
+        throw new Error(
+          `Failed to parse "${src}" if using relative image it must start with a leading slash "/" or be an absolute URL`
+        )
+      }
 
-      if (!imageData.domains.includes(parsedSrc.hostname)) {
+      if (!configDomains.includes(parsedSrc.hostname)) {
         throw new Error(
           `Invalid src prop (${src}) on \`next/image\`, hostname is not configured under images in your \`next.config.js\``
         )
