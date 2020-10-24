@@ -79,6 +79,11 @@ function runTests(isDev) {
           initialRevalidateSeconds: false,
           srcRoute: null,
         },
+        '/404': {
+          dataRoute: `/_next/data/${buildId}/404.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: null,
+        },
         '/en-US/gsp/fallback/first': {
           dataRoute: `/_next/data/${buildId}/en-US/gsp/fallback/first.json`,
           initialRevalidateSeconds: false,
