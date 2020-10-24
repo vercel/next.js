@@ -1183,12 +1183,12 @@ export default class Server {
     { components, query }: FindComponentsResult,
     opts: RenderOptsPartial
   ): Promise<string | null> {
+    const is404Page = pathname === '/404'
+
     // we need to ensure the status code if /404 is visited directly
-    if (pathname === '/404') {
+    if (is404Page) {
       res.statusCode = 404
     }
-
-    const isErrorPage = pathname === '/404' || pathname === '/_error'
 
     // handle static page
     if (typeof components.Component === 'string') {
@@ -1264,7 +1264,7 @@ export default class Server {
             query.amp ? '.amp' : ''
           }`
 
-    if (isErrorPage) {
+    if (is404Page && isSSG) {
       ssgCacheKey = `${locale ? `/${locale}` : ''}${pathname}${
         query.amp ? '.amp' : ''
       }`
@@ -1315,7 +1315,7 @@ export default class Server {
 
     // If we're here, that means data is missing or it's stale.
     const maybeCoalesceInvoke = ssgCacheKey
-      ? (fn: any) => withCoalescedInvoke(fn).bind(null, ssgCacheKey, [])
+      ? (fn: any) => withCoalescedInvoke(fn).bind(null, ssgCacheKey!, [])
       : (fn: any) => async () => {
           const value = await fn()
           return { isOrigin: true, value }
