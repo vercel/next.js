@@ -252,7 +252,7 @@ export default function Image({
       paddingBottom: `${ratio}%`,
     }
     imgStyle = {
-      visibility: 'hidden',
+      visibility: lazy ? 'hidden' : 'visible',
       height: '100%',
       left: '0',
       position: 'absolute',
