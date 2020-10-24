@@ -1271,7 +1271,7 @@ export default class Server {
     }
 
     // Complete the response with cached data if its present
-    let cachedData = ssgCacheKey
+    const cachedData = ssgCacheKey
       ? await this.incrementalCache.get(ssgCacheKey)
       : undefined
 
