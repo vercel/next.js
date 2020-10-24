@@ -64,6 +64,7 @@ function getObserver(): IntersectionObserver | undefined {
           if (lazyImage.dataset.srcset) {
             lazyImage.srcset = lazyImage.dataset.srcset
           }
+          lazyImage.style.visibility = 'visible'
           lazyImage.classList.remove('__lazy')
           cachedObserver.unobserve(lazyImage)
         }
@@ -251,6 +252,7 @@ export default function Image({
       paddingBottom: `${ratio}%`,
     }
     imgStyle = {
+      visibility: lazy ? 'hidden' : 'visible',
       height: '100%',
       left: '0',
       position: 'absolute',
