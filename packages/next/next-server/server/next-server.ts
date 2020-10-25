@@ -147,7 +147,15 @@ export default class Server {
     defaultLocale?: string
   }
   private compression?: Middleware
-  private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
+  private onErrorMiddleware?: ({
+    err,
+    req,
+    res,
+  }: {
+    err: Error
+    req: IncomingMessage
+    res: ServerResponse
+  }) => Promise<void>
   private incrementalCache: IncrementalCache
   router: Router
   protected dynamicRoutes?: DynamicRoutes
@@ -273,9 +281,6 @@ export default class Server {
   }
 
   public logError(err: Error): void {
-    if (this.onErrorMiddleware) {
-      this.onErrorMiddleware({ err })
-    }
     if (this.quiet) return
     console.error(err)
   }
@@ -437,6 +442,9 @@ export default class Server {
     try {
       return await this.run(req, res, parsedUrl)
     } catch (err) {
+      if (this.onErrorMiddleware) {
+        this.onErrorMiddleware({ err, req, res })
+      }
       this.logError(err)
       res.statusCode = 500
       res.end('Internal Server Error')
@@ -1585,6 +1593,9 @@ export default class Server {
         }
       }
     } catch (err) {
+      if (this.onErrorMiddleware) {
+        this.onErrorMiddleware({ err, req, res })
+      }
       this.logError(err)
 
       if (err && err.code === 'DECODE_FAILED') {

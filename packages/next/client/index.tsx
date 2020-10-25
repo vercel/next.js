@@ -9,6 +9,7 @@ import type Router from '../next-server/lib/router/router'
 import type {
   AppComponent,
   AppProps,
+  ErrorInfo,
   PrivateRouteInfo,
 } from '../next-server/lib/router/router'
 import { delBasePath, hasBasePath } from '../next-server/lib/router/router'
@@ -142,10 +143,10 @@ let cachedStyleSheets: StyleSheetTuple[]
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 
 class Container extends React.Component<{
-  fn: (err: Error, info?: any) => void
+  fn: (err: Error, errorInfo?: any) => void
 }> {
-  componentDidCatch(componentErr: Error, info: any) {
-    this.props.fn(componentErr, info)
+  componentDidCatch(componentErr: Error, errorInfo: ErrorInfo) {
+    this.props.fn(componentErr, errorInfo)
   }
 
   componentDidMount() {
@@ -391,7 +392,7 @@ export async function render(renderingProps: RenderRouteInfo) {
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
 export function renderError(renderErrorProps: RenderErrorProps) {
-  const { App, err } = renderErrorProps
+  const { App, err, errorInfo } = renderErrorProps
 
   // In development runtime errors are caught by our overlay
   // In production we catch runtime errors using componentDidCatch which will trigger renderError
@@ -409,12 +410,19 @@ export function renderError(renderErrorProps: RenderErrorProps) {
       styleSheets: [],
     })
   }
+
   if (process.env.__NEXT_PLUGINS) {
     // @ts-ignore
     // eslint-disable-next-line
     import('next-plugin-loader?middleware=on-error-client!')
       .then((onClientErrorModule) => {
-        return onClientErrorModule.default({ err })
+        return onClientErrorModule.default({
+          err,
+          errorInfo,
+          renderErrorProps,
+          data,
+          version,
+        })
       })
       .catch((onClientErrorErr) => {
         console.error(
@@ -437,7 +445,7 @@ export function renderError(renderErrorProps: RenderErrorProps) {
         Component: ErrorComponent,
         AppTree,
         router,
-        ctx: { err, pathname: page, query, asPath, AppTree },
+        ctx: { err, errorInfo, pathname: page, query, asPath, AppTree },
       }
       return Promise.resolve(
         renderErrorProps.props
@@ -447,6 +455,7 @@ export function renderError(renderErrorProps: RenderErrorProps) {
         doRender({
           ...renderErrorProps,
           err,
+          errorInfo,
           Component: ErrorComponent,
           styleSheets,
           props: initProps,
@@ -544,8 +553,8 @@ function AppContainer({
 }: React.PropsWithChildren<{}>): React.ReactElement {
   return (
     <Container
-      fn={(error) =>
-        renderError({ App: CachedApp, err: error }).catch((err) =>
+      fn={(error, errorInfo) =>
+        renderError({ App: CachedApp, err: error, errorInfo }).catch((err) =>
           console.error('Error rendering page: ', err)
         )
       }
@@ -580,6 +589,7 @@ function doRender({
   Component,
   props,
   err,
+  errorInfo,
   styleSheets,
 }: RenderRouteInfo): Promise<any> {
   Component = Component || lastAppProps.Component
@@ -589,6 +599,7 @@ function doRender({
     ...props,
     Component,
     err,
+    errorInfo,
     router,
   }
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.

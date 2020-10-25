@@ -271,6 +271,10 @@ export type PrefetchOptions = {
   priority?: boolean
 }
 
+export type ErrorInfo = {
+  componentStack?: string
+}
+
 export type PrivateRouteInfo = {
   Component: ComponentType
   styleSheets: StyleSheetTuple[]
@@ -279,6 +283,7 @@ export type PrivateRouteInfo = {
   props?: Record<string, any>
   err?: Error
   error?: any
+  errorInfo?: ErrorInfo
 }
 
 export type AppProps = Pick<PrivateRouteInfo, 'Component' | 'err'> & {

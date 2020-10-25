@@ -428,7 +428,7 @@ const nextServerlessLoader: loader.Loader = function () {
           )
         } catch (err) {
           console.error(err)
-          await onError(err)
+          await onError({ err, req, res })
 
           // TODO: better error for DECODE_FAILED?
           if (err.code === 'DECODE_FAILED') {
@@ -846,7 +846,7 @@ const nextServerlessLoader: loader.Loader = function () {
         }
       } catch(err) {
         console.error(err)
-        await onError(err)
+        await onError({ err, req, res })
         // Throw the error to crash the serverless function
         throw err
       }
