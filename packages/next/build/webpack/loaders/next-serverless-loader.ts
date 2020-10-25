@@ -19,6 +19,7 @@ export type ServerlessLoaderQuery = {
   absoluteAppPath: string
   absoluteDocumentPath: string
   absoluteErrorPath: string
+  absolute404Path: string
   buildId: string
   assetPrefix: string
   generateEtags: string
@@ -44,6 +45,7 @@ const nextServerlessLoader: loader.Loader = function () {
     absoluteAppPath,
     absoluteDocumentPath,
     absoluteErrorPath,
+    absolute404Path,
     generateEtags,
     poweredByHeader,
     basePath,
@@ -233,9 +235,13 @@ const nextServerlessLoader: loader.Loader = function () {
         i18n.locales
       )
 
+      const { host } = req.headers || {}
+      // remove port from host and remove port if present
+      const hostname = host && host.split(':')[0].toLowerCase()
+
       const detectedDomain = detectDomainLocale(
         i18n.domains,
-        req,
+        hostname,
       )
       if (detectedDomain) {
         defaultLocale = detectedDomain.defaultLocale
@@ -260,18 +266,30 @@ const nextServerlessLoader: loader.Loader = function () {
 
         // check if the locale prefix matches a domain's defaultLocale
         // and we're on a locale specific domain if so redirect to that domain
-        if (detectedDomain) {
-          const matchedDomain = detectDomainLocale(
-            i18n.domains,
-            undefined,
-            detectedLocale
-          )
+        // if (detectedDomain) {
+        //   const matchedDomain = detectDomainLocale(
+        //     i18n.domains,
+        //     undefined,
+        //     detectedLocale
+        //   )
 
-          if (matchedDomain) {
-            localeDomainRedirect = \`http\${
-              matchedDomain.http ? '' : 's'
-            }://\${matchedDomain.domain}\`
-          }
+        //   if (matchedDomain) {
+        //     localeDomainRedirect = \`http\${
+        //       matchedDomain.http ? '' : 's'
+        //     }://\${matchedDomain.domain}\`
+        //   }
+        // }
+      } else if (detectedDomain) {
+        const matchedDomain = detectDomainLocale(
+          i18n.domains,
+          undefined,
+          acceptPreferredLocale
+        )
+
+        if (matchedDomain && matchedDomain.domain !== detectedDomain.domain) {
+          localeDomainRedirect = \`http\${matchedDomain.http ? '' : 's'}://\${
+            matchedDomain.domain
+          }\`
         }
       }
 
@@ -279,9 +297,9 @@ const nextServerlessLoader: loader.Loader = function () {
       const detectedDefaultLocale =
         !detectedLocale ||
         detectedLocale.toLowerCase() === defaultLocale.toLowerCase()
-      const shouldStripDefaultLocale =
-        detectedDefaultLocale &&
-        denormalizedPagePath.toLowerCase() === \`/\${i18n.defaultLocale.toLowerCase()}\`
+      const shouldStripDefaultLocale = false
+        // detectedDefaultLocale &&
+        // denormalizedPagePath.toLowerCase() === \`/\${i18n.defaultLocale.toLowerCase()}\`
 
       const shouldAddLocalePrefix =
         !detectedDefaultLocale && denormalizedPagePath === '/'
@@ -291,6 +309,7 @@ const nextServerlessLoader: loader.Loader = function () {
       if (
         !fromExport &&
         !nextStartMode &&
+        !req.headers["${vercelHeader}"] &&
         i18n.localeDetection !== false &&
         (
           localeDomainRedirect ||
@@ -477,6 +496,7 @@ const nextServerlessLoader: loader.Loader = function () {
     export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
       let Document
       let Error
+      let NotFound
       ;[
         getStaticProps,
         getServerSideProps,
@@ -485,7 +505,8 @@ const nextServerlessLoader: loader.Loader = function () {
         App,
         config,
         { default: Document },
-        { default: Error }
+        { default: Error },
+        ${absolute404Path ? `{ default: NotFound }, ` : ''}
       ] = await Promise.all([
         getStaticProps,
         getServerSideProps,
@@ -494,7 +515,8 @@ const nextServerlessLoader: loader.Loader = function () {
         App,
         config,
         require('${absoluteDocumentPath}'),
-        require('${absoluteErrorPath}')
+        require('${absoluteErrorPath}'),
+        ${absolute404Path ? `require("${absolute404Path}"),` : ''}
       ])
 
       const fromExport = renderMode === 'export' || renderMode === true;
@@ -750,14 +772,41 @@ const nextServerlessLoader: loader.Loader = function () {
 
         if (!renderMode) {
           if (_nextData || getStaticProps || getServerSideProps) {
-            sendPayload(req, res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', ${
-              generateEtags === 'true' ? true : false
-            }, {
-              private: isPreviewMode,
-              stateful: !!getServerSideProps,
-              revalidate: renderOpts.revalidate,
-            })
-            return null
+            if (renderOpts.ssgNotFound) {
+              res.statusCode = 404
+
+              const NotFoundComponent = ${
+                absolute404Path ? 'NotFound' : 'Error'
+              }
+
+              const errPathname = "${absolute404Path ? '/404' : '/_error'}"
+
+              const result = await renderToHTML(req, res, errPathname, parsedUrl.query, Object.assign({}, options, {
+                getStaticProps: undefined,
+                getStaticPaths: undefined,
+                getServerSideProps: undefined,
+                Component: NotFoundComponent,
+                err: undefined
+              }))
+
+              sendPayload(req, res, result, 'html', ${
+                generateEtags === 'true' ? true : false
+              }, {
+                private: isPreviewMode,
+                stateful: !!getServerSideProps,
+                revalidate: renderOpts.revalidate,
+              })
+              return null
+            } else {
+              sendPayload(req, res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', ${
+                generateEtags === 'true' ? true : false
+              }, {
+                private: isPreviewMode,
+                stateful: !!getServerSideProps,
+                revalidate: renderOpts.revalidate,
+              })
+              return null
+            }
           }
         } else if (isPreviewMode) {
           res.setHeader(
