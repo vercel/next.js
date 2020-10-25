@@ -445,50 +445,59 @@ export default async function exportApp(
   let renderError = false
   const errorPaths: string[] = []
 
-  await Promise.all(
-    filteredPaths.map(async (path) => {
-      const result = await worker.default({
-        path,
-        pathMap: exportPathMap[path],
-        distDir,
-        outDir,
-        pagesDataDir,
-        renderOpts,
-        serverRuntimeConfig,
-        subFolders,
-        buildExport: options.buildExport,
-        serverless: isTargetLikeServerless(nextConfig.target),
-        optimizeFonts: nextConfig.experimental.optimizeFonts,
-        optimizeImages: nextConfig.experimental.optimizeImages,
+  try {
+    await Promise.all(
+      filteredPaths.map(async (path) => {
+        const result = await worker.default({
+          path,
+          pathMap: exportPathMap[path],
+          distDir,
+          outDir,
+          pagesDataDir,
+          renderOpts,
+          serverRuntimeConfig,
+          subFolders,
+          buildExport: options.buildExport,
+          serverless: isTargetLikeServerless(nextConfig.target),
+          optimizeFonts: nextConfig.experimental.optimizeFonts,
+          optimizeImages: nextConfig.experimental.optimizeImages,
+        })
+
+        for (const validation of result.ampValidations || []) {
+          const { page, result: ampValidationResult } = validation
+          ampValidations[page] = ampValidationResult
+          hadValidationError =
+            hadValidationError ||
+            (Array.isArray(ampValidationResult?.errors) &&
+              ampValidationResult.errors.length > 0)
+        }
+        if (result.error) {
+          const { fatal, message } = result.error
+          if (fatal) {
+            throw new Error(message)
+          }
+          renderError = true
+          console.error(message)
+          errorPaths.push(path)
+        }
+
+        if (options.buildExport) {
+          if (typeof result.fromBuildExportRevalidate !== 'undefined') {
+            configuration.initialPageRevalidationMap[path] =
+              result.fromBuildExportRevalidate
+          }
+
+          if (result.ssgNotFound === true) {
+            configuration.ssgNotFoundPaths.push(path)
+          }
+        }
+
+        if (progress) progress()
       })
-
-      for (const validation of result.ampValidations || []) {
-        const { page, result: ampValidationResult } = validation
-        ampValidations[page] = ampValidationResult
-        hadValidationError =
-          hadValidationError ||
-          (Array.isArray(ampValidationResult?.errors) &&
-            ampValidationResult.errors.length > 0)
-      }
-      renderError = renderError || !!result.error
-      if (!!result.error) errorPaths.push(path)
-
-      if (options.buildExport) {
-        if (typeof result.fromBuildExportRevalidate !== 'undefined') {
-          configuration.initialPageRevalidationMap[path] =
-            result.fromBuildExportRevalidate
-        }
-
-        if (result.ssgNotFound === true) {
-          configuration.ssgNotFoundPaths.push(path)
-        }
-      }
-
-      if (progress) progress()
-    })
-  )
-
-  worker.end()
+    )
+  } finally {
+    worker.end()
+  }
 
   // copy prerendered routes to outDir
   if (!options.buildExport && prerenderManifest) {

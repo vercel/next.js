@@ -51,10 +51,15 @@ interface ExportPageInput {
   optimizeImages: boolean
 }
 
+interface RenderError {
+  message: string
+  fatal: boolean
+}
+
 interface ExportPageResults {
   ampValidations: AmpValidation[]
   fromBuildExportRevalidate?: number
-  error?: boolean
+  error?: RenderError
   ssgNotFound?: boolean
 }
 
@@ -420,10 +425,16 @@ export default async function exportPage({
     await promises.writeFile(htmlFilepath, html, 'utf8')
     return results
   } catch (error) {
-    console.error(
-      `\nError occurred prerendering page "${path}". Read more: https://err.sh/next.js/prerender-error\n` +
+    let message: string, fatal: boolean
+    if (error.code === 'ENOSPC') {
+      message = 'There is not enough disk space to complete the export'
+      fatal = true
+    } else {
+      message =
+        `\nError occurred prerendering page "${path}". Read more: https://err.sh/next.js/prerender-error\n` +
         error.stack
-    )
-    return { ...results, error: true }
+      fatal = false
+    }
+    return { ...results, error: { message, fatal } }
   }
 }
