@@ -30,7 +30,13 @@ export async function imageOptimizer(
   parsedUrl: UrlWithParsedQuery
 ) {
   const { nextConfig, distDir } = server
-  const { sizes = [], domains = [] } = nextConfig?.images || {}
+  const { sizes = [], domains = [], loader } = nextConfig?.images || {}
+
+  if (loader !== 'default') {
+    await server.render404(req, res, parsedUrl)
+    return { finished: true }
+  }
+
   const { headers } = req
   const { url, w, q } = parsedUrl.query
   const mimeType = mediaType(headers.accept, MIME_TYPES) || ''

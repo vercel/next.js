@@ -421,4 +421,29 @@ describe('Image Optimizer', () => {
 
     runTests({ w: size, isDev: false, domains })
   })
+
+  describe('dev support next.config.js cloudinary loader', () => {
+    beforeAll(async () => {
+      const json = JSON.stringify({
+        images: {
+          loader: 'cloudinary',
+          path: 'https://example.com/act123/',
+        },
+      })
+      nextConfig.replace('{ /* replaceme */ }', json)
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+      await fs.remove(imagesDir)
+    })
+    it('should 404 when loader is not default', async () => {
+      const query = { w: 320, q: 90, url: '/test.svg' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(404)
+    })
+  })
 })
