@@ -606,6 +606,7 @@ export async function renderToHTML(
             : undefined),
           locales: renderOpts.locales,
           locale: renderOpts.locale,
+          defaultLocale: renderOpts.defaultLocale,
         })
       } catch (staticPropsError) {
         // remove not found error code to prevent triggering legacy
@@ -738,6 +739,7 @@ export async function renderToHTML(
             : undefined),
           locales: renderOpts.locales,
           locale: renderOpts.locale,
+          defaultLocale: renderOpts.defaultLocale,
         })
       } catch (serverSidePropsError) {
         // remove not found error code to prevent triggering legacy

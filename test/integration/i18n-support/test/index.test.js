@@ -917,6 +917,7 @@ function runTests(isDev) {
     expect(JSON.parse($('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
@@ -933,6 +934,7 @@ function runTests(isDev) {
       params: {
         slug: 'first',
       },
+      defaultLocale: 'en-US',
     })
     expect(JSON.parse($('#router-query').text())).toEqual({
       slug: 'first',
@@ -953,6 +955,7 @@ function runTests(isDev) {
       params: {
         slug: 'another',
       },
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1039,6 +1042,7 @@ function runTests(isDev) {
     expect(JSON.parse($('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
@@ -1055,6 +1059,7 @@ function runTests(isDev) {
       params: {
         slug: 'first',
       },
+      defaultLocale: 'en-US',
     })
     expect(JSON.parse($('#router-query').text())).toEqual({
       slug: 'first',
@@ -1075,6 +1080,7 @@ function runTests(isDev) {
       params: {
         slug: 'another',
       },
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1096,6 +1102,7 @@ function runTests(isDev) {
     expect(JSON.parse($('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
@@ -1130,6 +1137,7 @@ function runTests(isDev) {
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
     expect(
@@ -1159,6 +1167,7 @@ function runTests(isDev) {
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
     expect(
@@ -1192,6 +1201,7 @@ function runTests(isDev) {
       params: {
         slug: 'another',
       },
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1215,6 +1225,7 @@ function runTests(isDev) {
       params: {
         slug: 'first',
       },
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1241,6 +1252,7 @@ function runTests(isDev) {
       params: {
         slug: 'second',
       },
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1275,6 +1287,7 @@ function runTests(isDev) {
       params: {
         slug: 'second',
       },
+      defaultLocale: 'en-US',
     })
     expect(JSON.parse($('#router-query').text())).toEqual({
       slug: 'second',
@@ -1291,6 +1304,7 @@ function runTests(isDev) {
     expect(JSON.parse($('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
@@ -1303,6 +1317,7 @@ function runTests(isDev) {
     expect(JSON.parse($2('#props').text())).toEqual({
       locale: 'nl-NL',
       locales,
+      defaultLocale: 'en-US',
     })
     expect($2('#router-locale').text()).toBe('nl-NL')
     expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
@@ -1320,6 +1335,7 @@ function runTests(isDev) {
       params: {
         slug: 'first',
       },
+      defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
@@ -1335,6 +1351,7 @@ function runTests(isDev) {
       params: {
         slug: 'first',
       },
+      defaultLocale: 'en-US',
     })
     expect($2('#router-locale').text()).toBe('nl-NL')
     expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
@@ -1365,6 +1382,7 @@ function runTests(isDev) {
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       locale: 'en',
       locales,
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1393,6 +1411,7 @@ function runTests(isDev) {
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       locale: 'en',
       locales,
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())

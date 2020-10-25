@@ -83,6 +83,7 @@ export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
   previewData?: any
   locale?: string
   locales?: string[]
+  defaultLocale?: string
 }
 
 export type GetStaticPropsResult<P> = {
@@ -107,6 +108,7 @@ export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
 
 export type GetStaticPathsContext = {
   locales?: string[]
+  defaultLocale?: string
 }
 
 export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
@@ -130,6 +132,7 @@ export type GetServerSidePropsContext<
   resolvedUrl: string
   locale?: string
   locales?: string[]
+  defaultLocale?: string
 }
 
 export type GetServerSidePropsResult<P> = {
