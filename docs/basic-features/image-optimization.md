@@ -89,10 +89,10 @@ module.exports = {
 
 The following Image Optimization cloud providers are supported:
 
-- Imgix: `loader: 'imgix'`
-- Cloudinary: `loader: 'cloudinary'`
-- Akamai: `loader: 'akamai'`
-- Vercel: No configuration necessary
+- [Imgix](https://www.imgix.com): `loader: 'imgix'`
+- [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
+- [Akamai](https://www.akamai.com): `loader: 'akamai'`
+- [Vercel](https://vercel.com): No configuration necessary
 
 ## Related
 
@@ -104,9 +104,3 @@ For more information on what to do next, we recommend the following sections:
     <small>Use the built-in CSS support to add custom styles to your app.</small>
   </a>
 </div>
-
-- When using `next start` or a custom server image optimization works automatically.
-- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel
-- [Imgix](https://www.imgix.com): `loader: 'imgix'`
-- [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
-- [Akamai](https://www.akamai.com): `loader: 'akamai'`
