@@ -137,7 +137,7 @@ You can access the locale information via the Next.js router. For example, using
 
 When [pre-rendering](/docs/basic-features/pages#static-generation-recommended) pages with `getStaticProps` or `getServerSideProps`, the locale information is provided in [the context](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) provided to the function.
 
-When leveraging `getStaticPaths`, the supported locales are provided in the context parameter of the function under `locales`.
+When leveraging `getStaticPaths`, the configured locales are provided in the context parameter of the function under `locales` and the configured defaultLocale under `defaultLocale`.
 
 ## Transition between locales
 
