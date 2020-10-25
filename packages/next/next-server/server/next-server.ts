@@ -730,9 +730,7 @@ export default class Server {
           const { query } = parsedDestination
           delete (parsedDestination as any).query
 
-          parsedDestination.search = stringifyQs(query, undefined, undefined, {
-            encodeURIComponent: (str: string) => str,
-          } as any)
+          parsedDestination.search = stringifyQs(query)
 
           const updatedDestination = formatUrl(parsedDestination)
 
@@ -774,12 +772,7 @@ export default class Server {
           if (parsedDestination.protocol) {
             const { query } = parsedDestination
             delete (parsedDestination as any).query
-            parsedDestination.search = stringifyQs(
-              query,
-              undefined,
-              undefined,
-              { encodeURIComponent: (str) => str }
-            )
+            parsedDestination.search = stringifyQs(query)
 
             const target = formatUrl(parsedDestination)
             const proxy = new Proxy({
@@ -1190,8 +1183,10 @@ export default class Server {
     { components, query }: FindComponentsResult,
     opts: RenderOptsPartial
   ): Promise<string | null> {
+    const is404Page = pathname === '/404'
+
     // we need to ensure the status code if /404 is visited directly
-    if (pathname === '/404') {
+    if (is404Page) {
       res.statusCode = 404
     }
 
@@ -1262,12 +1257,18 @@ export default class Server {
       urlPathname = stripNextDataPath(urlPathname)
     }
 
-    const ssgCacheKey =
+    let ssgCacheKey =
       isPreviewMode || !isSSG
         ? undefined // Preview mode bypasses the cache
         : `${locale ? `/${locale}` : ''}${resolvedUrlPathname}${
             query.amp ? '.amp' : ''
           }`
+
+    if (is404Page && isSSG) {
+      ssgCacheKey = `${locale ? `/${locale}` : ''}${pathname}${
+        query.amp ? '.amp' : ''
+      }`
+    }
 
     // Complete the response with cached data if its present
     const cachedData = ssgCacheKey
@@ -1314,7 +1315,7 @@ export default class Server {
 
     // If we're here, that means data is missing or it's stale.
     const maybeCoalesceInvoke = ssgCacheKey
-      ? (fn: any) => withCoalescedInvoke(fn).bind(null, ssgCacheKey, [])
+      ? (fn: any) => withCoalescedInvoke(fn).bind(null, ssgCacheKey!, [])
       : (fn: any) => async () => {
           const value = await fn()
           return { isOrigin: true, value }
