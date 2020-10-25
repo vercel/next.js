@@ -9,7 +9,7 @@ const Lazy = () => {
         id="lazy-top"
         src="foo1.jpg"
         height={400}
-        width={300}
+        width={1024}
         loading="lazy"
       ></Image>
       <div style={{ height: '2000px' }}></div>

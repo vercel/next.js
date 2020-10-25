@@ -19,7 +19,7 @@ const Page = () => {
         data-demo="demo-value"
         src="bar.jpg"
         loading="eager"
-        width={300}
+        width={1024}
         height={400}
       />
       <Image

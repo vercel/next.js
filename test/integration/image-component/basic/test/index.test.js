@@ -44,15 +44,13 @@ function runTests() {
   it('should add a srcset based on the loader', async () => {
     expect(
       await browser.elementById('basic-image').getAttribute('srcset')
-    ).toBe(
-      'https://example.com/myaccount/foo.jpg?auto=format&w=480&q=60 480w, https://example.com/myaccount/foo.jpg?auto=format&w=1024&q=60 1024w, https://example.com/myaccount/foo.jpg?auto=format&w=1600&q=60 1600w'
-    )
+    ).toBe('https://example.com/myaccount/foo.jpg?auto=format&w=480&q=60 480w')
   })
   it('should add a srcset even with preceding slash in prop', async () => {
     expect(
       await browser.elementById('preceding-slash-image').getAttribute('srcset')
     ).toBe(
-      'https://example.com/myaccount/fooslash.jpg?auto=format&w=480 480w, https://example.com/myaccount/fooslash.jpg?auto=format&w=1024 1024w, https://example.com/myaccount/fooslash.jpg?auto=format&w=1600 1600w'
+      'https://example.com/myaccount/fooslash.jpg?auto=format&w=480 480w, https://example.com/myaccount/fooslash.jpg?auto=format&w=1024 1024w'
     )
   })
   it('should support the unoptimized attribute', async () => {
@@ -73,7 +71,7 @@ function lazyLoadingTests() {
       'https://example.com/myaccount/foo1.jpg?auto=format&w=1600'
     )
     expect(await browser.elementById('lazy-top').getAttribute('srcset')).toBe(
-      'https://example.com/myaccount/foo1.jpg?auto=format&w=480 480w, https://example.com/myaccount/foo1.jpg?auto=format&w=1024 1024w, https://example.com/myaccount/foo1.jpg?auto=format&w=1600 1600w'
+      'https://example.com/myaccount/foo1.jpg?auto=format&w=480 480w, https://example.com/myaccount/foo1.jpg?auto=format&w=1024 1024w'
     )
   })
   it('should not have loaded the second image immediately', async () => {
@@ -105,7 +103,7 @@ function lazyLoadingTests() {
 
     await check(() => {
       return browser.elementById('lazy-mid').getAttribute('srcset')
-    }, 'https://example.com/myaccount/foo2.jpg?auto=format&w=480 480w, https://example.com/myaccount/foo2.jpg?auto=format&w=1024 1024w, https://example.com/myaccount/foo2.jpg?auto=format&w=1600 1600w')
+    }, 'https://example.com/myaccount/foo2.jpg?auto=format&w=480 480w')
   })
   it('should not have loaded the third image after scrolling down', async () => {
     expect(
@@ -153,7 +151,9 @@ function lazyLoadingTests() {
     ).toBe('https://example.com/myaccount/foo4.jpg?auto=format&w=1600')
     expect(
       await browser.elementById('lazy-without-attribute').getAttribute('srcset')
-    ).toBeTruthy()
+    ).toBe(
+      'https://example.com/myaccount/foo4.jpg?auto=format&w=480&q=60 480w, https://example.com/myaccount/foo4.jpg?auto=format&w=1024&q=60 1024w, https://example.com/myaccount/foo4.jpg?auto=format&w=1600&q=60 1600w'
+    )
   })
 
   it('should load the fifth image eagerly, without scrolling', async () => {
