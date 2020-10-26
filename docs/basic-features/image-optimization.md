@@ -50,14 +50,26 @@ export default Home
 
 You can configure Image Optimization by using the `images` property in `next.config.js`.
 
-### Sizes
+### Device Sizes
 
-You can specify a list of image widths to allow using the `sizes` property. Since images maintain their aspect ratio using the `width` and `height` attributes of the source image, there is no need to specify height in `next.config.js` – only the width. You can think of these as breakpoints.
+You can specify a list of device width breakpoints using the `deviceSizes` property. Since images maintain their aspect ratio using the `width` and `height` attributes of the source image, there is no need to specify height in `next.config.js` – only the width. These values will be used by the browser to determine which size image should load.
 
 ```js
 module.exports = {
   images: {
-    sizes: [320, 420, 768, 1024, 1200],
+    deviceSizes: [320, 420, 768, 1024, 1200],
+  },
+}
+```
+
+### Icon Sizes
+
+You can specify a list of icon image widths using the `iconSizes` property. These widths should be smaller than the smallest value in `deviceSizes`. The purpose is for images that don't scale with the browser window, such as icons or badges. If `iconSizes` is not defined, then `deviceSizes` will be used.
+
+```js
+module.exports = {
+  images: {
+    iconSizes: [16, 32, 64],
   },
 }
 ```
@@ -96,7 +108,6 @@ The following Image Optimization cloud providers are supported:
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
 
-
 ## Related
 
 For more information on what to do next, we recommend the following sections:
@@ -107,4 +118,3 @@ For more information on what to do next, we recommend the following sections:
     <small>See all available properties for the Image component</small>
   </a>
 </div>
-
