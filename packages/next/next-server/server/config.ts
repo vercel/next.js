@@ -24,7 +24,8 @@ const defaultConfig: { [key: string]: any } = {
   poweredByHeader: true,
   compress: true,
   images: {
-    sizes: [320, 420, 768, 1024, 1200],
+    deviceSizes: [320, 420, 768, 1024, 1200],
+    additionalSizes: [],
     domains: [],
     path: '/_next/image',
     loader: 'default',

@@ -991,7 +991,8 @@ export default async function getBaseWebpackConfig(
           config.experimental.scrollRestoration
         ),
         'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
-          sizes: config.images.sizes,
+          deviceSizes: config.images.deviceSizes,
+          additionalSizes: config.images.additionalSizes,
           path: config.images.path,
           loader: config.images.loader,
           ...(dev
