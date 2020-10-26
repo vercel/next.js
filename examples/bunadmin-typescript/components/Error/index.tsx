@@ -2,9 +2,8 @@ import React from "react"
 import { Box, Button, Typography } from "@material-ui/core"
 import errorMessages from "./errorMessages"
 import { ErrorGetProps, ErrorMsg } from "./types"
-import { useRouter } from "next/router"
 import DefaultLayout from "../DefaultLayout"
-import { ErrorProps } from "@bunred/bunadmin"
+import { ErrorProps, useRouter } from "@bunred/bunadmin"
 
 function Error({ statusCode, hasLayout, message, redirect }: ErrorProps) {
   const router = useRouter()

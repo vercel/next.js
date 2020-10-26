@@ -1,11 +1,5 @@
 import React, { useEffect, useState } from "react"
-import {
-  TopBar,
-  LeftMenu,
-  DefaultHead,
-  DefaultLayoutProps,
-  ENV
-} from "@bunred/bunadmin"
+import { TopBar, LeftMenu, DefaultLayoutProps, ENV } from "@bunred/bunadmin"
 import { Box, Drawer } from "@material-ui/core"
 import clsx from "clsx"
 import { useTheme } from "@material-ui/core/styles"
@@ -26,7 +20,7 @@ export default function DefaultLayout(props: DefaultLayoutProps) {
       const customNotificationPath = ENV.NOTIFICATION_PLUGIN
       const { NotificationTable, notificationCount } = await import(
         `../../plugins/${customNotificationPath}`
-      )
+        )
       if (!NotificationTable || !notificationCount) return
       setNtCount(notificationCount)
     })()
@@ -34,7 +28,6 @@ export default function DefaultLayout(props: DefaultLayoutProps) {
 
   return (
     <div className={classes.root}>
-      <DefaultHead />
       <TopBar menuClick={handleDrawerToggle} notificationCount={NtCount} />
       <nav aria-label="mailbox folders">
         <Drawer

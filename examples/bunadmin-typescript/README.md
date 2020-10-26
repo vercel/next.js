@@ -7,9 +7,9 @@ This is a really simple project that shows the usage of Next.js with [Bunadmin](
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example bunadmin-typescript
+npx create-next-app --example bunadmin-typescript my-bunadmin
 # or
-yarn create next-app --example bunadmin-typescript
+yarn create next-app --example bunadmin-typescript my-bunadmin
 ```
 
 ## Notes
@@ -18,14 +18,6 @@ Login with any user below
 
 - Username: `admin`, `reviewer`, `user`
 - Password: `bunadmin`
-
-If it shows
-`React Invalid Hook Call Warning`, please delete yarn.lock and execute `yarn install` again. This problem is still waiting to be resolved.
-
-*temporary command*
-```
-yarn run "yarn force"
-```
 
 Includes a sample plugin: `myblog`
 

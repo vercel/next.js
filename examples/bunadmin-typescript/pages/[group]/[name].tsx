@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react"
-import { useRouter } from "next/router"
 import { ParsedUrlQuery } from "querystring"
 import {
+  useRouter,
   CoreContainer,
   SchemaContainer,
   withoutLayout,
@@ -23,7 +23,7 @@ const DynamicGroupNamePage = () => {
       const customNotificationPath = ENV.NOTIFICATION_PLUGIN
       const { NotificationTable, notificationCount } = await import(
         `../../plugins/${customNotificationPath}`
-      )
+        )
       if (!NotificationTable || !notificationCount) return
       setNtTable(NotificationTable)
       setNtCount(notificationCount)

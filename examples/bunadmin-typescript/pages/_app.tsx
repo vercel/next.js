@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react"
 import { Provider } from "react-redux"
 import { useTranslation } from "react-i18next"
 import { AppProps } from "next/app"
-import { useRouter } from "next/router"
+import { useRouter } from "@bunred/bunadmin"
 import Head from "next/head"
 import { ThemeProvider, CssBaseline } from "@material-ui/core"
 import { SnackbarProvider } from "notistack"
@@ -17,9 +17,11 @@ import {
   DynamicRoute,
   IAuthPlugin,
   DEFAULT_AUTH_PLUGIN,
-  PluginData
+  PluginData,
+  UserRoute
 } from "@bunred/bunadmin"
 import "@bunred/bunadmin/lib/utils/i18n"
+import '../public/index.css'
 
 const App = ({ Component, pageProps }: AppProps) => {
   const { i18n } = useTranslation()
@@ -27,6 +29,7 @@ const App = ({ Component, pageProps }: AppProps) => {
   const { asPath } = router
   const [ready, setReady] = useState(false)
   const [initialized, setInitialized] = useState(false)
+  const [isProtected, setIsProtected] = useState(false)
 
   function requirePlugin(path: string) {
     try {
@@ -51,14 +54,14 @@ const App = ({ Component, pageProps }: AppProps) => {
      * Waiting for dynamic route
      */
     if (asPath === DynamicRoute || asPath === DynamicDocRoute) return
-    ;(async () => {
+      ;(async () => {
       const authPluginName =
         process.env.NEXT_PUBLIC_AUTH_PLUGIN || DEFAULT_AUTH_PLUGIN
       const authPlugin: IAuthPlugin = await import(
         `../.bunadmin/dynamic/${authPluginName}`
-      )
-      let pluginsData: PluginData[] = require("../.bunadmin/dynamic/pluginsData")
-      const plugins = require("../plugins/pluginsData")
+        )
+      let pluginsData: PluginData[] = require("../.bunadmin/dynamic/pluginsData.json")
+      const plugins = require("../.bunadmin/dynamic/pluginsData")
       if (plugins && plugins.data)
         pluginsData = [...pluginsData, ...plugins.data]
 
@@ -68,15 +71,28 @@ const App = ({ Component, pageProps }: AppProps) => {
       await initData({
         i18n,
         authPlugin,
+        setIsProtected,
         pluginsData,
         requirePlugin,
-        router,
         setReady,
         initialized,
         setInitialized
       })
     })()
   }, [asPath])
+
+  useEffect(() => {
+    if (!isProtected) return
+
+    const path = window.location.pathname
+    if (path.indexOf(UserRoute.signIn) >= 0) return
+
+    let toUrl = `${UserRoute.signIn}?redirect=${asPath}`
+    toUrl = toUrl.replace(`?redirect=${UserRoute.signIn}`, "")
+    toUrl = toUrl.replace(`?redirect=${DynamicRoute}`, "/")
+    toUrl = toUrl.replace(`?redirect=${DynamicDocRoute}`, "/")
+    window.location.replace(toUrl)
+  }, [isProtected, asPath])
 
   if (!ready) return <CubeSpinner />
 
