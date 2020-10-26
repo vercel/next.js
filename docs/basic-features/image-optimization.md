@@ -2,7 +2,7 @@
 description: Next.js supports built-in image optimization, as well as third party loaders for Imgix, Cloudinary, and more! Learn more here.
 ---
 
-# Image Optimization
+# Image Component and Image Optimization
 
 <details open>
   <summary><b>Examples</b></summary>
