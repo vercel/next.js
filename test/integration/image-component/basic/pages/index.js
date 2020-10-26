@@ -71,11 +71,18 @@ const Page = () => {
         height={400}
       />
       <Image
-        id="icon-image"
+        id="icon-image-64"
         src="/icon.png"
         loading="eager"
         width={64}
         height={64}
+      />
+      <Image
+        id="icon-image-16"
+        src="/icon.png"
+        loading="eager"
+        width={16}
+        height={16}
       />
       <Link href="/client-side">
         <a id="clientlink">Client Side</a>
