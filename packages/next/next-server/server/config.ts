@@ -267,12 +267,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
 
       const invalid = images.sizes.filter((d: unknown) => {
-        return typeof d !== 'number' || d < 0 || d > 10000
+        return typeof d !== 'number' || d < 1 || d > 10000
       })
 
       if (invalid.length > 0) {
         throw new Error(
-          `Specified images.sizes should be an Array of numbers that are between 0 and 10,000, received invalid values (${invalid.join(
+          `Specified images.sizes should be an Array of numbers that are between 1 and 10000, received invalid values (${invalid.join(
             ', '
           )})`
         )

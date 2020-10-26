@@ -378,7 +378,7 @@ describe('Image Optimizer', () => {
         '{ /* replaceme */ }',
         JSON.stringify({
           images: {
-            sizes: [-1, 12000, 64, 128, 256],
+            sizes: [0, 12000, 64, 128, 256],
           },
         })
       )
@@ -394,7 +394,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.sizes should be an Array of numbers that are between 0 and 10,000, received invalid values (-1, 12000)'
+        'Specified images.sizes should be an Array of numbers that are between 1 and 10000, received invalid values (0, 12000)'
       )
     })
   })
