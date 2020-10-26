@@ -1,5 +1,9 @@
 import Router from '../router'
-import { localStorageGetItem, localStorageSetItem } from '../storage'
+import {
+  canUseLocalStorage,
+  localStorageGetItem,
+  localStorageSetItem,
+} from '../storage'
 
 export default function initializeBuildWatcher() {
   const shadowHost = document.createElement('div')
@@ -62,7 +66,8 @@ export default function initializeBuildWatcher() {
     toggleTimeout = setTimeout(() => {
       if (expand) {
         expandEl.classList.add(expandedClass)
-        closeEl.style.display = 'flex'
+        // the 'hide indicator' functionality requires local storage
+        if (canUseLocalStorage()) closeEl.style.display = 'flex'
       } else {
         expandEl.classList.remove(expandedClass)
         closeEl.style.display = 'none'
