@@ -22,6 +22,10 @@
               "path": "/docs/basic-features/built-in-css-support.md"
             },
             {
+              "title": "Image Optimization",
+              "path": "/docs/basic-features/image-optimization.md"
+            },
+            {
               "title": "Fast Refresh",
               "path": "/docs/basic-features/fast-refresh.md"
             },
@@ -215,6 +219,10 @@
         {
           "title": "next/link",
           "path": "/docs/api-reference/next/link.md"
+        },
+        {
+          "title": "next/image",
+          "path": "/docs/api-reference/next/image.md"
         },
         {
           "title": "next/head",

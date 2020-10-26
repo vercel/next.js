@@ -19,7 +19,7 @@ The Automatic Image Optimization allows for resizing, optimizing, and serving im
 
 ## Image Component
 
-To add an image to your application, import the `next/image` component:
+To add an image to your application, import the [`next/image`](/docs/api-reference/next/image.md) component:
 
 ```jsx
 import Image from 'next/image'
@@ -31,8 +31,8 @@ function Home() {
       <Image
         src="/me.png"
         alt="Picture of the author"
-        width={200}
-        height={200}
+        width={500}
+        height={500}
       />
       <p>Welcome to my homepage!</p>
     </>
@@ -44,6 +44,7 @@ export default Home
 
 - `width` and `height` are required to prevent [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google is going to [use in their search ranking](https://webmasters.googleblog.com/2020/05/evaluating-page-experience.html)
 - `width` and `height` are automatically responsive, unlike the HTML `<img>` element
+- See [`next/image`](/docs/api-reference/next/image.md) for list of available props.
 
 ## Configuration
 
@@ -89,19 +90,19 @@ module.exports = {
 
 The following Image Optimization cloud providers are supported:
 
-- Imgix: `loader: 'imgix'`
-- Cloudinary: `loader: 'cloudinary'`
-- Akamai: `loader: 'akamai'`
-- Vercel: No configuration necessary
+- Imgix - `loader: 'imgix'`
+- Cloudinary - `loader: 'cloudinary'`
+- Akamai - `loader: 'akamai'`
+- Vercel - No configuration necessary
 
 ## Related
 
 For more information on what to do next, we recommend the following sections:
 
 <div class="card">
-  <a href="/docs/basic-features/built-in-css-support.md">
-    <b>CSS Support:</b>
-    <small>Use the built-in CSS support to add custom styles to your app.</small>
+  <a href="/docs/api-reference/next/image.md">
+    <b>next/image</b>
+    <small>See all available properties for the Image component</small>
   </a>
 </div>
 

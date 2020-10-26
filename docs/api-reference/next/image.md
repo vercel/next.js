@@ -1,5 +1,5 @@
 ---
-description: Enable image optimization with the built-in Image component.
+description: Enable Image Optimization with the built-in Image component.
 ---
 
 # next/image
@@ -29,7 +29,12 @@ function Home() {
   return (
     <>
       <h1>My Homepage</h1>
-      <Image src="/me.png" alt="me" width={200} height={200} />
+      <Image
+        src="/me.png"
+        alt="Picture of the author"
+        width={500}
+        height={500}
+      />
       <p>Welcome to my homepage!</p>
     </>
   )
@@ -48,6 +53,6 @@ export default Home
 - `loading` - The loading behavior. When `lazy`, defer loading the image until it reaches a calculated distance from the viewport. When `eager`, load the image immediately. Default `lazy`. [More info](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-loading)
 - `priority` - When true, the image will be considered high priority and [preload](https://web.dev/preload-responsive-images/).
 - `unoptimized` - When true, the source image will be served as-is instead of resizing and changing quality.
-- `unsized` - When true, the `width` and `height` requirement can by bypassed. Should _not_ be used with `priority` or above-the-fold images.
+- `unsized` - When true, the `width` and `height` requirement can by bypassed. Should _not_ be used with above-the-fold images. Should _not_ be used with `priority`.
 
-Another other properties on the `<Image>` component be passed to the underlying `<img>` element.
+All other properties on the `<Image>` component will be passed to the underlying `<img>` element.
