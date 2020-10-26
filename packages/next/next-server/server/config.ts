@@ -295,6 +295,32 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
 
+        if (Array.isArray(item.locales)) {
+          const invalidLocaleItems = item.locales.filter((locale: any) => {
+            if (typeof locale !== 'string') return true
+
+            // automatically add the locale to the main locales config
+            // so pre-rendering and such can use this as the source of all
+            // configured locales
+            if (!i18n.locales.includes(locale)) {
+              i18n.locales.push(locale)
+            }
+            return false
+          })
+
+          if (invalidLocaleItems.length > 0) {
+            console.error(
+              `Invalid domain locales for ${
+                item.domain
+              }, received (${invalidLocaleItems.map(String).join(', ')}). ` +
+                `Items must be valid locale strings`
+            )
+            return true
+          }
+        } else {
+          item.locales = []
+        }
+
         return false
       })
 

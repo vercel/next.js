@@ -52,11 +52,13 @@ function runTests(isDev) {
             http: true,
             domain: 'example.be',
             defaultLocale: 'nl-BE',
+            locales: ['nl', 'nl-NL', 'nl-BE'],
           },
           {
             http: true,
             domain: 'example.fr',
             defaultLocale: 'fr',
+            locales: ['fr', 'fr-BE'],
           },
         ],
       })
@@ -661,12 +663,17 @@ function runTests(isDev) {
   })
 
   it('should handle locales with domain', async () => {
-    const checkDomainLocales = async (domainDefault = '', domain = '') => {
+    const checkDomainLocales = async (
+      domainDefault = '',
+      domainLocales = [],
+      domain = ''
+    ) => {
       for (const locale of locales) {
-        // skip other domains' default locale since we redirect these
-        if (['fr', 'nl-BE'].includes(locale) && locale !== domainDefault) {
-          continue
-        }
+        // other domains' default locale is redirected
+        const isRedirected =
+          ['fr', 'nl-BE'].includes(locale) && locale !== domainDefault
+
+        if (isRedirected) continue
 
         const res = await fetchViaHTTP(
           appPort,
@@ -680,19 +687,28 @@ function runTests(isDev) {
           }
         )
 
-        expect(res.status).toBe(200)
+        const isDomain404 = !domainLocales.includes(locale)
 
-        const html = await res.text()
-        const $ = cheerio.load(html)
+        expect(res.status).toBe(isDomain404 ? 404 : 200)
 
-        expect($('html').attr('lang')).toBe(locale)
-        expect($('#router-locale').text()).toBe(locale)
-        expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+        if (!isRedirected) {
+          const html = await res.text()
+          const $ = cheerio.load(html)
+
+          expect($('html').attr('lang')).toBe(
+            isDomain404 ? domainDefault : locale
+          )
+
+          if (!isDomain404) {
+            expect($('#router-locale').text()).toBe(locale)
+            expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+          }
+        }
       }
     }
 
-    await checkDomainLocales('nl-BE', 'example.be')
-    await checkDomainLocales('fr', 'example.fr')
+    await checkDomainLocales('nl-BE', ['nl', 'nl-NL', 'nl-BE'], 'example.be')
+    await checkDomainLocales('fr', ['fr', 'fr-BE'], 'example.fr')
   })
 
   it('should generate AMP pages with all locales', async () => {

@@ -264,6 +264,18 @@ const nextServerlessLoader: loader.Loader = function () {
         })
         parsedUrl.pathname = localePathResult.pathname
 
+        // if we are on a locale domain and a locale path is detected
+        // but isn't configured for that domain render the 404
+        if (
+          detectedDomain &&
+          !detectedDomain.locales.includes(localePathResult.detectedLocale)
+        ) {
+          // TODO: should this 404 for the default locale until we provide
+          // redirecting to strip default locale from the path?
+          parsedUrl.query.__nextLocale = detectedDomain.defaultLocale
+          return this.render404(req, res, parsedUrl)
+        }
+
         // check if the locale prefix matches a domain's defaultLocale
         // and we're on a locale specific domain if so redirect to that domain
         // if (detectedDomain) {

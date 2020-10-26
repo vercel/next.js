@@ -39,14 +39,17 @@ module.exports = {
       {
         domain: 'example.com',
         defaultLocale: 'en-US',
+        locales: ['en-US'],
       },
       {
         domain: 'example.nl',
         defaultLocale: 'nl-NL',
+        locales: ['nl-NL'],
       },
       {
         domain: 'example.fr',
         defaultLocale: 'fr',
+        locales: ['fr'],
       },
     ],
   },

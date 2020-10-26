@@ -3,6 +3,7 @@ export function detectDomainLocale(
     | Array<{
         http?: boolean
         domain: string
+        locales: string[]
         defaultLocale: string
       }>
     | undefined,
@@ -13,6 +14,7 @@ export function detectDomainLocale(
     | {
         http?: boolean
         domain: string
+        locales: string[]
         defaultLocale: string
       }
     | undefined
