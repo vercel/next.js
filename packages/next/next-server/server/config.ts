@@ -235,6 +235,13 @@ function assignDefaults(userConfig: { [key: string]: any }) {
           `Specified images.domains should be an Array received ${typeof images.domains}`
         )
       }
+
+      if (images.domains.length > 50) {
+        throw new Error(
+          `Specified images.domains exceeds length of 50, received length (${images.domains.length}), please reduce the length of the array to continue`
+        )
+      }
+
       const invalid = images.domains.filter(
         (d: unknown) => typeof d !== 'string'
       )
@@ -252,10 +259,20 @@ function assignDefaults(userConfig: { [key: string]: any }) {
           `Specified images.sizes should be an Array received ${typeof images.sizes}`
         )
       }
-      const invalid = images.sizes.filter((d: unknown) => typeof d !== 'number')
+
+      if (images.sizes.length > 50) {
+        throw new Error(
+          `Specified images.sizes exceeds length of 50, received length (${images.sizes.length}), please reduce the length of the array to continue`
+        )
+      }
+
+      const invalid = images.sizes.filter((d: unknown) => {
+        return typeof d !== 'number' || d < 1 || d > 10000
+      })
+
       if (invalid.length > 0) {
         throw new Error(
-          `Specified images.sizes should be an Array of numbers received invalid values (${invalid.join(
+          `Specified images.sizes should be an Array of numbers that are between 1 and 10000, received invalid values (${invalid.join(
             ', '
           )})`
         )

@@ -10,6 +10,7 @@ import {
   nextBuild,
   nextStart,
   File,
+  waitFor,
 } from 'next-test-utils'
 import sharp from 'sharp'
 
@@ -321,6 +322,83 @@ function runTests({ w, isDev, domains }) {
 }
 
 describe('Image Optimizer', () => {
+  describe('config checks', () => {
+    it('should error when domains length exceeds 50', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            domains: new Array(51).fill('google.com'),
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Specified images.domains exceeds length of 50, received length (51), please reduce the length of the array to continue'
+      )
+    })
+
+    it('should error when sizes length exceeds 50', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            sizes: new Array(51).fill(1024),
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Specified images.sizes exceeds length of 50, received length (51), please reduce the length of the array to continue'
+      )
+    })
+
+    it('should error when sizes contains invalid sizes', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            sizes: [0, 12000, 64, 128, 256],
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Specified images.sizes should be an Array of numbers that are between 1 and 10000, received invalid values (0, 12000)'
+      )
+    })
+  })
+
   // domains for testing
   const domains = ['localhost', 'example.com']
 
