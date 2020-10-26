@@ -53,6 +53,13 @@ const ClientSide = () => {
         width={300}
         height={400}
       />
+      <Image
+        id="icon-image"
+        src="/icon.png"
+        loading="eager"
+        width={64}
+        height={64}
+      />
       <Link href="/errors">
         <a id="errorslink">Errors</a>
       </Link>

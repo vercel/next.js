@@ -51,6 +51,14 @@ function runTests() {
       await browser.elementById('preceding-slash-image').getAttribute('srcset')
     ).toBe('https://example.com/myaccount/fooslash.jpg?auto=format&w=480 480w')
   })
+  it('should use iconSizes when width matches, not deviceSizes from next.config.js', async () => {
+    expect(await browser.elementById('icon-image').getAttribute('src')).toBe(
+      'https://example.com/myaccount/icon.png?auto=format&w=64'
+    )
+    expect(await browser.elementById('icon-image').getAttribute('srcset')).toBe(
+      'https://example.com/myaccount/icon.png?auto=format&w=64 64w'
+    )
+  })
   it('should support the unoptimized attribute', async () => {
     expect(
       await browser.elementById('unoptimized-image').getAttribute('src')

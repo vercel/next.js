@@ -70,6 +70,13 @@ const Page = () => {
         width={300}
         height={400}
       />
+      <Image
+        id="icon-image"
+        src="/icon.png"
+        loading="eager"
+        width={64}
+        height={64}
+      />
       <Link href="/client-side">
         <a id="clientlink">Client Side</a>
       </Link>
