@@ -52,7 +52,7 @@ You can configure Image Optimization by using the `images` property in `next.con
 
 ### Device Sizes
 
-You can specify a list of device widths breakpoints using the `deviceSizes` property. Since images maintain their aspect ratio using the `width` and `height` attributes of the source image, there is no need to specify height in `next.config.js` – only the width. These values will be used by the browser to determine which size image should load.
+You can specify a list of device width breakpoints using the `deviceSizes` property. Since images maintain their aspect ratio using the `width` and `height` attributes of the source image, there is no need to specify height in `next.config.js` – only the width. These values will be used by the browser to determine which size image should load.
 
 ```js
 module.exports = {
