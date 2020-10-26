@@ -106,7 +106,6 @@ For more information on what to do next, we recommend the following sections:
   </a>
 </div>
 
-<div class="card">
 - When using `next start` or a custom server image optimization works automatically.
 - [Vercel](https://vercel.com): Works automatically when you deploy on Vercel
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
