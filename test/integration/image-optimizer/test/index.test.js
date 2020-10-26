@@ -348,12 +348,12 @@ describe('Image Optimizer', () => {
       )
     })
 
-    it('should error when sizes length exceeds 50', async () => {
+    it('should error when sizes length exceeds 25', async () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
         JSON.stringify({
           images: {
-            sizes: new Array(51).fill(1024),
+            deviceSizes: new Array(51).fill(1024),
           },
         })
       )
@@ -369,16 +369,16 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.sizes exceeds length of 50, received length (51), please reduce the length of the array to continue'
+        'Specified images.deviceSizes exceeds length of 25, received length (51), please reduce the length of the array to continue'
       )
     })
 
-    it('should error when sizes contains invalid sizes', async () => {
+    it('should error when deviceSizes contains invalid widths', async () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
         JSON.stringify({
           images: {
-            sizes: [0, 12000, 64, 128, 256],
+            deviceSizes: [0, 12000, 64, 128, 256],
           },
         })
       )
@@ -394,7 +394,32 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.sizes should be an Array of numbers that are between 1 and 10000, received invalid values (0, 12000)'
+        'Specified images.deviceSizes should be an Array of numbers that are between 1 and 10000, received invalid values (0, 12000)'
+      )
+    })
+
+    it('should error when iconSizes contains invalid widths', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            iconSizes: [0, 16, 64, 12000],
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Specified images.iconSizes should be an Array of numbers that are between 1 and 10000, received invalid values (0, 12000)'
       )
     })
   })
@@ -421,7 +446,8 @@ describe('Image Optimizer', () => {
     beforeAll(async () => {
       const json = JSON.stringify({
         images: {
-          sizes: [size, largeSize],
+          deviceSizes: [largeSize],
+          iconSizes: [size],
           domains,
         },
       })
@@ -458,7 +484,7 @@ describe('Image Optimizer', () => {
     beforeAll(async () => {
       const json = JSON.stringify({
         images: {
-          sizes: [size, largeSize],
+          deviceSizes: [size, largeSize],
           domains,
         },
       })
@@ -482,7 +508,7 @@ describe('Image Optimizer', () => {
       const json = JSON.stringify({
         target: 'experimental-serverless-trace',
         images: {
-          sizes: [size, largeSize],
+          deviceSizes: [size, largeSize],
           domains,
         },
       })
