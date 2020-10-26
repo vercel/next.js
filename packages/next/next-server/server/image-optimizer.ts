@@ -40,7 +40,7 @@ export async function imageOptimizer(
   const { nextConfig, distDir } = server
   const imageData: ImageData = nextConfig.images
   const { deviceSizes = [], iconSizes = [], domains = [], loader } = imageData
-  const sizes = deviceSizes.concat(iconSizes)
+  const sizes = [...deviceSizes, ...iconSizes]
 
   if (loader !== 'default') {
     await server.render404(req, res, parsedUrl)
