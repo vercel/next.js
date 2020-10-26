@@ -14,7 +14,8 @@ const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
 type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
 
 type ImageData = {
-  sizes: number[]
+  deviceSizes: number[]
+  iconSizes: number[]
   loader: LoaderKey
   path: string
   domains?: string[]
@@ -36,12 +37,15 @@ type ImageProps = Omit<
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
 const {
-  sizes: configSizes,
+  deviceSizes: configDeviceSizes,
+  iconSizes: configIconSizes,
   loader: configLoader,
   path: configPath,
   domains: configDomains,
 } = imageData
-configSizes.sort((a, b) => a - b) // smallest to largest
+// sort smallest to largest
+configDeviceSizes.sort((a, b) => a - b)
+configIconSizes.sort((a, b) => a - b)
 
 let cachedObserver: IntersectionObserver
 const IntersectionObserver =
@@ -79,12 +83,16 @@ function getObserver(): IntersectionObserver | undefined {
   ))
 }
 
-function getWidthsFromConfig(width: number | undefined) {
+function getDeviceSizes(width: number | undefined): number[] {
   if (typeof width !== 'number') {
-    return configSizes
+    return configDeviceSizes
+  }
+  const smallest = configDeviceSizes[0]
+  if (width < smallest && configIconSizes.includes(width)) {
+    return [width]
   }
   const widths: number[] = []
-  for (let size of configSizes) {
+  for (let size of configDeviceSizes) {
     widths.push(size)
     if (size >= width) {
       break
@@ -102,7 +110,7 @@ function computeSrc(
   if (unoptimized) {
     return src
   }
-  const widths = getWidthsFromConfig(width)
+  const widths = getDeviceSizes(width)
   const largest = widths[widths.length - 1]
   return callLoader({ src, width: largest, quality })
 }
@@ -136,7 +144,8 @@ function generateSrcSet({
   if (unoptimized) {
     return undefined
   }
-  return getWidthsFromConfig(width)
+
+  return getDeviceSizes(width)
     .map((w) => `${callLoader({ src, width: w, quality })} ${w}w`)
     .join(', ')
 }
