@@ -64,7 +64,7 @@ module.exports = {
 
 ### Icon Sizes
 
-Your can specify a list of icon image widths using the `iconSizes` property. These widths should be smaller than the smallest value in `deviceSizes`. The purpose is for images that don't scale with the browser window, such as icons or badges. If `iconSizes` is not defined, then `deviceSizes` will be used.
+You can specify a list of icon image widths using the `iconSizes` property. These widths should be smaller than the smallest value in `deviceSizes`. The purpose is for images that don't scale with the browser window, such as icons or badges. If `iconSizes` is not defined, then `deviceSizes` will be used.
 
 ```js
 module.exports = {
