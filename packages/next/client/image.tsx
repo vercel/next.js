@@ -17,6 +17,7 @@ type ImageData = {
   sizes: number[]
   loader: LoaderKey
   path: string
+  domains?: string[]
 }
 
 type ImageProps = Omit<
@@ -34,7 +35,12 @@ type ImageProps = Omit<
   )
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
-const { sizes: configSizes, loader: configLoader, path: configPath } = imageData
+const {
+  sizes: configSizes,
+  loader: configLoader,
+  path: configPath,
+  domains: configDomains,
+} = imageData
 configSizes.sort((a, b) => a - b) // smallest to largest
 const largestSize = configSizes[configSizes.length - 1]
 
@@ -349,6 +355,42 @@ function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
 }
 
 function defaultLoader({ root, src, width, quality }: LoaderProps): string {
+  if (process.env.NODE_ENV !== 'production') {
+    const missingValues = []
+
+    // these should always be provided but make sure they are
+    if (!src) missingValues.push('src')
+    if (!width) missingValues.push('width')
+
+    if (missingValues.length > 0) {
+      throw new Error(
+        `Next Image Optimization requires ${missingValues.join(
+          ', '
+        )} to be provided. Make sure you pass them as props to the \`next/image\` component. Received: ${JSON.stringify(
+          { src, width, quality }
+        )}`
+      )
+    }
+
+    if (src && !src.startsWith('/') && configDomains) {
+      let parsedSrc: URL
+      try {
+        parsedSrc = new URL(src)
+      } catch (err) {
+        console.error(err)
+        throw new Error(
+          `Failed to parse "${src}" if using relative image it must start with a leading slash "/" or be an absolute URL`
+        )
+      }
+
+      if (!configDomains.includes(parsedSrc.hostname)) {
+        throw new Error(
+          `Invalid src prop (${src}) on \`next/image\`, hostname is not configured under images in your \`next.config.js\``
+        )
+      }
+    }
+  }
+
   return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${
     quality || '100'
   }`
