@@ -1,48 +1,47 @@
-import MQTT from 'mqtt';
-import { useEffect, useRef } from 'react';
+import MQTT from 'mqtt'
+import { useEffect, useRef } from 'react'
 
 function useMqtt(
   uri,
   options = {},
-  topicHandlers = [{ topic: '', handler: () => {} }],
+  topicHandlers = [{ topic: '', handler: () => {} }]
 ) {
-  const clientRef = useRef({});
+  const clientRef = useRef({})
 
   useEffect(() => {
     try {
       clientRef.current = options
         ? MQTT.connect(uri, options)
-        : MQTT.connect(uri);
+        : MQTT.connect(uri)
     } catch (error) {
-      console.error('error', error);
+      console.error('error', error)
     }
-    const client = clientRef.current;
+    const client = clientRef.current
     topicHandlers.forEach((th) => {
-      client.subscribe(th.topic);
-    });
+      client.subscribe(th.topic)
+    })
     client.on('message', (topic, rawPayload, packet) => {
-      const th = topicHandlers.find((t) => t.topic === topic);
-      let payload;
-      try{
-        payload = JSON.parse(rawPayload);
+      const th = topicHandlers.find((t) => t.topic === topic)
+      let payload
+      try {
+        payload = JSON.parse(rawPayload)
+      } catch {
+        payload = rawPayload
       }
-      catch {
-        payload = rawPayload;
-      }
-      th?.handler({ topic, payload, packet });
-    });
+      if (th) th.handler({ topic, payload, packet })
+    })
 
     return () => {
       if (client) {
         topicHandlers.forEach((th) => {
-          client.unsubscribe(th.topic);
-        });
-        client.end();
+          client.unsubscribe(th.topic)
+        })
+        client.end()
       }
-    };
-  }, []);
+    }
+  }, [uri, options, topicHandlers])
 
-  return clientRef.current;
+  return clientRef.current
 }
 
-export default useMqtt;
+export default useMqtt

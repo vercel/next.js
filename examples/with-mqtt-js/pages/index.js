@@ -1,48 +1,48 @@
-import { useState } from 'react';
-import useMqtt from '../lib/useMqtt';
+import { useState } from 'react'
+import useMqtt from '../lib/useMqtt'
 
-const mqttUri = 'wss://test.mosquitto.org:8081';
+const mqttUri = 'wss://test.mosquitto.org:8081'
 const mqttOptions = {
   username: '',
   password: '',
   clientId: `next_mqtt_${Math.random().toString(16).substr(2, 8)}`,
-};
+}
 
 export default function Home() {
-  const [incommingMessages, setIncommingMessages] = useState([]);
+  const [incommingMessages, setIncommingMessages] = useState([])
 
   const addMessage = (message) => {
-    setIncommingMessages((currentMessages) => [...currentMessages, message]);
-  };
+    setIncommingMessages((currentMessages) => [...currentMessages, message])
+  }
 
   const incommingMessageHandlers = [
     {
       topic: 'topic1',
       handler: (msg) => {
-        addMessage(msg);
+        addMessage(msg)
       },
     },
     {
       topic: 'topic2',
       handler: (msg) => {
-        addMessage(msg);
+        addMessage(msg)
       },
     },
-  ];
-  const mqttClient = useMqtt(mqttUri, mqttOptions, incommingMessageHandlers);
+  ]
+  const mqttClient = useMqtt(mqttUri, mqttOptions, incommingMessageHandlers)
 
   const publishMessages = () => {
-    if(!mqttClient.publish){
-      return;
+    if (!mqttClient.publish) {
+      return
     }
 
-    mqttClient.publish('topic1', '1st message from component');
-    mqttClient.publish('topic2', '2nd message from component');
-  };
+    mqttClient.publish('topic1', '1st message from component')
+    mqttClient.publish('topic2', '2nd message from component')
+  }
 
   const clearMessages = () => {
-    setIncommingMessages([]);
-  };
+    setIncommingMessages([])
+  }
 
   return (
     <div>
@@ -57,5 +57,5 @@ export default function Home() {
       <button onClick={() => publishMessages()}>Publish Test Messages</button>
       <button onClick={() => clearMessages()}>Clear Test Messages</button>
     </div>
-  );
+  )
 }
