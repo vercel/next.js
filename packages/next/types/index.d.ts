@@ -135,6 +135,7 @@ export type GetServerSidePropsContext<
 export type GetServerSidePropsResult<P> = {
   props?: P
   unstable_redirect?: Redirect
+  unstable_notFound?: true
 }
 
 export type GetServerSideProps<

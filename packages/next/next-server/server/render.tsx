@@ -643,7 +643,7 @@ export async function renderToHTML(
           )
         }
 
-        ;(renderOpts as any).ssgNotFound = true
+        ;(renderOpts as any).isNotFound = true
         ;(renderOpts as any).revalidate = false
         return null
       }
@@ -753,11 +753,25 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        (key) => key !== 'props' && key !== 'unstable_redirect'
+        (key) =>
+          key !== 'props' &&
+          key !== 'unstable_redirect' &&
+          key !== 'unstable_notFound'
       )
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
+      }
+
+      if (data.unstable_notFound) {
+        if (pathname === '/404') {
+          throw new Error(
+            `The /404 page can not return unstable_notFound in "getStaticProps", please remove it to continue!`
+          )
+        }
+
+        ;(renderOpts as any).isNotFound = true
+        return null
       }
 
       if (

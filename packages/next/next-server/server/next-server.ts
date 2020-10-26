@@ -1393,7 +1393,7 @@ export default class Server {
           // TODO: change this to a different passing mechanism
           pageData = (renderOpts as any).pageData
           sprRevalidate = (renderOpts as any).revalidate
-          isNotFound = (renderOpts as any).ssgNotFound
+          isNotFound = (renderOpts as any).isNotFound
         }
 
         return { html, pageData, sprRevalidate, isNotFound }
