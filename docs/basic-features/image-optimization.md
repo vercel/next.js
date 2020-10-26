@@ -90,10 +90,10 @@ module.exports = {
 
 The following Image Optimization cloud providers are supported:
 
+- Vercel - No configuration necessary
 - Imgix - `loader: 'imgix'`
 - Cloudinary - `loader: 'cloudinary'`
 - Akamai - `loader: 'akamai'`
-- Vercel - No configuration necessary
 
 ## Related
 
