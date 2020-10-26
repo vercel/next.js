@@ -15,7 +15,7 @@ type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
 
 type ImageData = {
   deviceSizes: number[]
-  additionalSizes: number[]
+  iconSizes: number[]
   loader: LoaderKey
   path: string
   domains?: string[]
@@ -38,14 +38,14 @@ type ImageProps = Omit<
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
 const {
   deviceSizes: configDeviceSizes,
-  additionalSizes: configAdditionalSizes,
+  iconSizes: configIconSizes,
   loader: configLoader,
   path: configPath,
   domains: configDomains,
 } = imageData
 // sort smallest to largest
 configDeviceSizes.sort((a, b) => a - b)
-configAdditionalSizes.sort((a, b) => a - b)
+configIconSizes.sort((a, b) => a - b)
 
 let cachedObserver: IntersectionObserver
 const IntersectionObserver =
@@ -88,7 +88,7 @@ function getDeviceSizes(width: number | undefined): number[] {
     return configDeviceSizes
   }
   const smallest = configDeviceSizes[0]
-  if (width < smallest && configAdditionalSizes.includes(width)) {
+  if (width < smallest && configIconSizes.includes(width)) {
     return [width]
   }
   const widths: number[] = []

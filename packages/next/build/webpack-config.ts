@@ -992,7 +992,7 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
           deviceSizes: config.images.deviceSizes,
-          additionalSizes: config.images.additionalSizes,
+          iconSizes: config.images.iconSizes,
           path: config.images.path,
           loader: config.images.loader,
           ...(dev
