@@ -19,7 +19,7 @@ const Page = () => {
         data-demo="demo-value"
         src="bar.jpg"
         loading="eager"
-        width={300}
+        width={1024}
         height={400}
       />
       <Image
@@ -39,7 +39,6 @@ const Page = () => {
         width={300}
         height={400}
       />
-      <Image id="priority-image" priority src="withpriority.png" />
       <Image
         id="priority-image"
         priority
