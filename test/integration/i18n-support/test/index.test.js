@@ -688,21 +688,19 @@ function runTests(isDev) {
       domain = '',
       locale = ''
     ) => {
-      const res = await fetchViaHTTP(
-        appPort,
-        `/${locale === domainDefault ? '' : locale}`,
-        undefined,
-        {
-          headers: {
-            host: domain,
-          },
-          redirect: 'manual',
-        }
-      )
+      const res = await fetchViaHTTP(appPort, `/`, undefined, {
+        headers: {
+          host: domain,
+          'accept-language': locale,
+        },
+        redirect: 'manual',
+      })
       const expectedDomainItem = domainItems.find(
         (item) => item.defaultLocale === locale || item.locales.includes(locale)
       )
-      const shouldRedirect = expectedDomainItem.domain !== domain
+      const shouldRedirect =
+        expectedDomainItem.domain !== domain ||
+        locale !== expectedDomainItem.defaultLocale
 
       expect(res.status).toBe(shouldRedirect ? 307 : 200)
 

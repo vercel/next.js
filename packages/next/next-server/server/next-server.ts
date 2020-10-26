@@ -347,10 +347,11 @@ export default class Server {
       // If a detected locale is a domain specific locale and we aren't already
       // on that domain and path prefix redirect to it to prevent duplicate
       // content from multiple domains
-      if (detectedDomain) {
-        const localeToCheck = localePathResult.detectedLocale
-          ? detectedLocale
-          : acceptPreferredLocale
+      if (detectedDomain && parsedUrl.pathname === '/') {
+        const localeToCheck = acceptPreferredLocale
+        // const localeToCheck = localePathResult.detectedLocale
+        //   ? detectedLocale
+        //   : acceptPreferredLocale
 
         const matchedDomain = detectDomainLocale(
           i18n.domains,
@@ -358,7 +359,11 @@ export default class Server {
           localeToCheck
         )
 
-        if (matchedDomain && matchedDomain.domain !== detectedDomain.domain) {
+        if (
+          matchedDomain &&
+          (matchedDomain.domain !== detectedDomain.domain ||
+            localeToCheck !== matchedDomain.defaultLocale)
+        ) {
           localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
             matchedDomain.domain
           }/${

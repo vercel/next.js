@@ -271,8 +271,8 @@ const nextServerlessLoader: loader.Loader = function () {
       // content from multiple domains
       if (detectedDomain) {
         const localeToCheck = localePathResult.detectedLocale
-            ? detectedLocale
-            : acceptPreferredLocale
+          ? detectedLocale
+          : acceptPreferredLocale
 
         const matchedDomain = detectDomainLocale(
           i18n.domains,
@@ -283,9 +283,8 @@ const nextServerlessLoader: loader.Loader = function () {
         if (matchedDomain && matchedDomain.domain !== detectedDomain.domain) {
           localeDomainRedirect = \`http\${matchedDomain.http ? '' : 's'}://\${
             matchedDomain.domain
-          }/\${localeToCheck === matchedDomain.defaultLocale
-            ? ''
-            : localeToCheck
+          }/\${
+            localeToCheck === matchedDomain.defaultLocale ? '' : localeToCheck
           }\`
         }
       }
