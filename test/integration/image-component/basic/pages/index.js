@@ -39,7 +39,6 @@ const Page = () => {
         width={300}
         height={400}
       />
-      <Image id="priority-image" priority src="withpriority.png" />
       <Image
         id="priority-image"
         priority

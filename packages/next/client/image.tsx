@@ -42,7 +42,6 @@ const {
   domains: configDomains,
 } = imageData
 configSizes.sort((a, b) => a - b) // smallest to largest
-const largestSize = configSizes[configSizes.length - 1]
 
 let cachedObserver: IntersectionObserver
 const IntersectionObserver =
@@ -83,12 +82,21 @@ function getObserver(): IntersectionObserver | undefined {
 function computeSrc(
   src: string,
   unoptimized: boolean,
+  width: number | undefined,
   quality?: string
 ): string {
   if (unoptimized) {
     return src
   }
-  return callLoader({ src, width: largestSize, quality })
+  let widths = configSizes
+  if (typeof width === 'number') {
+    widths = configSizes.filter((size) => size <= width)
+    if (widths.length === 0) {
+      widths = [configSizes[0]]
+    }
+  }
+  const largest = widths[widths.length - 1]
+  return callLoader({ src, width: largest, quality })
 }
 
 type CallLoaderProps = {
@@ -156,7 +164,7 @@ function generatePreload({
       <link
         rel="preload"
         as="image"
-        href={computeSrc(src, unoptimized, quality)}
+        href={computeSrc(src, unoptimized, width, quality)}
         // @ts-ignore: imagesrcset and imagesizes not yet in the link element type
         imagesrcset={generateSrcSet({ src, unoptimized, width, quality })}
         imagesizes={sizes}
@@ -287,7 +295,7 @@ export default function Image({
   }
 
   // Generate attribute values
-  const imgSrc = computeSrc(src, unoptimized, quality)
+  const imgSrc = computeSrc(src, unoptimized, widthInt, quality)
   const imgSrcSet = generateSrcSet({
     src,
     width: widthInt,

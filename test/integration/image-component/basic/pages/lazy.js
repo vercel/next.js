@@ -35,7 +35,7 @@ const Lazy = () => {
         id="lazy-without-attribute"
         src="foo4.jpg"
         height={400}
-        width={300}
+        width={1500}
       ></Image>
       <div style={{ height: '2000px' }}></div>
       <Image
@@ -43,7 +43,7 @@ const Lazy = () => {
         src="foo5.jpg"
         loading="eager"
         height={400}
-        width={300}
+        width={2500}
       ></Image>
     </div>
   )
