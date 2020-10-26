@@ -7,16 +7,15 @@
   },
   "nextjs": {
     "name": "Sentry",
-    "required-env": [
-      "SENTRY_DSN",
-      "SENTRY_RELEASE"
-    ]
+    "required-env": []
   },
   "peerDependencies": {
     "next": "*"
   },
   "dependencies": {
-    "@sentry/browser": "5.7.1",
-    "@sentry/node": "5.7.1"
+    "@sentry/integrations": "5.27.0",
+    "@sentry/node": "5.27.0",
+    "@sentry/browser": "5.27.0",
+    "@sentry/minimal": "5.27.0"
   }
 }
