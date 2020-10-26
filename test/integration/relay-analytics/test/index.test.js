@@ -10,9 +10,13 @@ let server
 jest.setTimeout(1000 * 60 * 2)
 
 describe('Analytics relayer', () => {
+  let stdout
   beforeAll(async () => {
     appPort = await findPort()
-    await nextBuild(appDir)
+    ;({ stdout } = await nextBuild(appDir, [], {
+      env: { VERCEL_ANALYTICS_ID: 'test' },
+      stdout: true,
+    }))
     server = await nextStart(appDir, appPort)
   })
   afterAll(() => killApp(server))
@@ -54,6 +58,35 @@ describe('Analytics relayer', () => {
     expect(cls).not.toBeNull()
     expect(largestContentfulPaint).not.toBeNaN()
     expect(largestContentfulPaint).toBeGreaterThan(0)
+
+    const beacons = (await browser.eval('window.__BEACONS')).map(([, value]) =>
+      Object.fromEntries(new URLSearchParams(value))
+    )
+
+    beacons.sort((a, b) => a.event_name.localeCompare(b.event_name))
+
+    expect(beacons.length).toBe(2)
+    expect(beacons[0]).toMatchObject({
+      dsn: 'test',
+      event_name: 'FCP',
+      href: expect.stringMatching('http://'),
+      id: expect.stringContaining('-'),
+      page: '/',
+      speed: '4g',
+      value: expect.stringContaining('.'),
+    })
+    expect(beacons[1]).toMatchObject({
+      dsn: 'test',
+      event_name: 'TTFB',
+      href: expect.stringMatching('http://'),
+      id: expect.stringContaining('-'),
+      page: '/',
+      speed: '4g',
+      value: expect.stringContaining('.'),
+    })
+
+    expect(stdout).toMatch('Next.js Analytics')
+
     await browser.close()
   })
 })

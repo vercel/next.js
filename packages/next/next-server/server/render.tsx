@@ -414,7 +414,6 @@ export async function renderToHTML(
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
   delete query.__nextLocale
-  delete query.__next404
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -638,6 +637,12 @@ export async function renderToHTML(
       }
 
       if (data.unstable_notFound) {
+        if (pathname === '/404') {
+          throw new Error(
+            `The /404 page can not return unstable_notFound in "getStaticProps", please remove it to continue!`
+          )
+        }
+
         ;(renderOpts as any).ssgNotFound = true
         ;(renderOpts as any).revalidate = false
         return null
