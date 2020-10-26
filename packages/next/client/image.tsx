@@ -144,8 +144,8 @@ function generateSrcSet({
   if (unoptimized) {
     return undefined
   }
-  let widths = getDeviceSizes(width)
-  return widths
+
+  return getDeviceSizes(width)
     .map((w) => `${callLoader({ src, width: w, quality })} ${w}w`)
     .join(', ')
 }
