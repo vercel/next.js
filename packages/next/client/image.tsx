@@ -79,6 +79,20 @@ function getObserver(): IntersectionObserver | undefined {
   ))
 }
 
+function getWidthsFromConfig(width: number | undefined) {
+  if (typeof width !== 'number') {
+    return configSizes
+  }
+  const widths: number[] = []
+  for (let size of configSizes) {
+    widths.push(size)
+    if (size >= width) {
+      break
+    }
+  }
+  return widths
+}
+
 function computeSrc(
   src: string,
   unoptimized: boolean,
@@ -88,13 +102,7 @@ function computeSrc(
   if (unoptimized) {
     return src
   }
-  let widths = configSizes
-  if (typeof width === 'number') {
-    widths = configSizes.filter((size) => size <= width)
-    if (widths.length === 0) {
-      widths = [configSizes[0]]
-    }
-  }
+  const widths = getWidthsFromConfig(width)
   const largest = widths[widths.length - 1]
   return callLoader({ src, width: largest, quality })
 }
@@ -128,14 +136,7 @@ function generateSrcSet({
   if (unoptimized) {
     return undefined
   }
-  let widths = configSizes
-  if (typeof width === 'number') {
-    widths = configSizes.filter((size) => size <= width)
-    if (widths.length === 0) {
-      widths = [configSizes[0]]
-    }
-  }
-  return widths
+  return getWidthsFromConfig(width)
     .map((w) => `${callLoader({ src, width: w, quality })} ${w}w`)
     .join(', ')
 }
