@@ -1110,6 +1110,10 @@ export default async function build(
     )
   }
 
+  const imagesManifest = { ...config.images }
+  const { deviceSizes, iconSizes } = imagesManifest
+  imagesManifest.sizes = deviceSizes.concat(iconSizes)
+
   await promises.writeFile(
     path.join(distDir, IMAGES_MANIFEST),
     JSON.stringify({
