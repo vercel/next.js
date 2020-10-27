@@ -62,14 +62,14 @@ module.exports = {
 }
 ```
 
-### Icon Sizes
+### Image Sizes
 
-You can specify a list of icon image widths using the `iconSizes` property. These widths should be smaller than the smallest value in `deviceSizes`. The purpose is for images that don't scale with the browser window, such as icons or badges. If `iconSizes` is not defined, then `deviceSizes` will be used.
+You can specify a list of exact image widths using the `imageSizes` property. These widths should be different than the widths defined in `deviceSizes`. The purpose is for images that don't scale with the browser window, such as icons, badges, or profile images. If the `width` property of a [`next/image`](/docs/api-reference/next/image.md) component matches a value in `imageSizes`, the image will be rendered at that exact width.
 
 ```js
 module.exports = {
   images: {
-    iconSizes: [16, 32, 64],
+    imageSizes: [16, 32, 64],
   },
 }
 ```

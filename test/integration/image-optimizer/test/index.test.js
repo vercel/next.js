@@ -398,12 +398,12 @@ describe('Image Optimizer', () => {
       )
     })
 
-    it('should error when iconSizes contains invalid widths', async () => {
+    it('should error when imageSizes contains invalid widths', async () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
         JSON.stringify({
           images: {
-            iconSizes: [0, 16, 64, 12000],
+            imageSizes: [0, 16, 64, 12000],
           },
         })
       )
@@ -419,7 +419,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'Specified images.iconSizes should be an Array of numbers that are between 1 and 10000, received invalid values (0, 12000)'
+        'Specified images.imageSizes should be an Array of numbers that are between 1 and 10000, received invalid values (0, 12000)'
       )
     })
   })
@@ -447,7 +447,7 @@ describe('Image Optimizer', () => {
       const json = JSON.stringify({
         images: {
           deviceSizes: [largeSize],
-          iconSizes: [size],
+          imageSizes: [size],
           domains,
         },
       })
