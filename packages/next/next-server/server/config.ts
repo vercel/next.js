@@ -45,6 +45,7 @@ const defaultConfig: { [key: string]: any } = {
   basePath: '',
   sassOptions: {},
   trailingSlash: false,
+  i18n: false,
   experimental: {
     cpus: Math.max(
       1,
@@ -62,7 +63,6 @@ const defaultConfig: { [key: string]: any } = {
     optimizeFonts: false,
     optimizeImages: false,
     scrollRestoration: false,
-    i18n: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -310,8 +310,8 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
   }
 
-  if (result.experimental?.i18n) {
-    const { i18n } = result.experimental
+  if (result.i18n) {
+    const { i18n } = result
     const i18nType = typeof i18n
 
     if (i18nType !== 'object') {
