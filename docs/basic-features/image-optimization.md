@@ -44,11 +44,30 @@ export default Home
 
 - `width` and `height` are required to prevent [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google is going to [use in their search ranking](https://webmasters.googleblog.com/2020/05/evaluating-page-experience.html)
 - `width` and `height` are automatically responsive, unlike the HTML `<img>` element
+- `quality` can be configured per image, default 75
 - See [`next/image`](/docs/api-reference/next/image.md) for list of available props.
 
 ## Configuration
 
-You can configure Image Optimization by using the `images` property in `next.config.js`.
+You can optionally configure Image Optimization by using the `images` property in `next.config.js`.
+
+If no configuration is provided, the following default configuration will be used.
+
+```js
+module.exports = {
+  images: {
+    deviceSizes: [320, 420, 768, 1024, 1200],
+    iconSizes: [],
+    domains: [],
+    path: '/_next/image',
+    loader: 'default',
+  },
+}
+```
+
+If a specific property is omitted, such as `deviceSizes`, that property will use the default above.
+
+This means you only need to configure the properties you wish to change.
 
 ### Device Sizes
 
