@@ -1185,8 +1185,19 @@ export default class Server {
   ): Promise<string | null> {
     const is404Page = pathname === '/404'
 
+    const isLikeServerless =
+      typeof components.Component === 'object' &&
+      typeof (components.Component as any).renderReqToHTML === 'function'
+    const isSSG = !!components.getStaticProps
+    const isServerProps = !!components.getServerSideProps
+    const hasStaticPaths = !!components.getStaticPaths
+
+    // Toggle whether or not this is a Data request
+    const isDataReq = !!query._nextDataReq && (isSSG || isServerProps)
+    delete query._nextDataReq
+
     // we need to ensure the status code if /404 is visited directly
-    if (is404Page) {
+    if (is404Page && !isDataReq) {
       res.statusCode = 404
     }
 
@@ -1195,21 +1206,9 @@ export default class Server {
       return components.Component
     }
 
-    // check request state
-    const isLikeServerless =
-      typeof components.Component === 'object' &&
-      typeof (components.Component as any).renderReqToHTML === 'function'
-    const isSSG = !!components.getStaticProps
-    const isServerProps = !!components.getServerSideProps
-    const hasStaticPaths = !!components.getStaticPaths
-
     if (!query.amp) {
       delete query.amp
     }
-
-    // Toggle whether or not this is a Data request
-    const isDataReq = !!query._nextDataReq && (isSSG || isServerProps)
-    delete query._nextDataReq
 
     const locale = query.__nextLocale as string
     delete query.__nextLocale
