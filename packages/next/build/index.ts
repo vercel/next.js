@@ -29,6 +29,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
+  IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
@@ -966,7 +967,7 @@ export default async function build(
           await moveExportedPage(page, page, file, true, 'json')
 
           const revalidationMapPath = i18n
-            ? `/${i18n.defaultLocale}${page}`
+            ? `/${i18n.defaultLocale}${page === '/' ? '' : page}`
             : page
 
           finalPrerenderRoutes[page] = {
@@ -1109,6 +1110,19 @@ export default async function build(
     )
   }
 
+  const images = { ...config.images }
+  const { deviceSizes, iconSizes } = images
+  images.sizes = [...deviceSizes, ...iconSizes]
+
+  await promises.writeFile(
+    path.join(distDir, IMAGES_MANIFEST),
+    JSON.stringify({
+      version: 1,
+      images,
+    }),
+    'utf8'
+  )
+
   await promises.writeFile(
     path.join(distDir, EXPORT_MARKER),
     JSON.stringify({
@@ -1147,6 +1161,15 @@ export default async function build(
 
   if (debugOutput) {
     printCustomRoutes({ redirects, rewrites, headers })
+  }
+
+  if (config.experimental.analyticsId) {
+    console.log(
+      chalk.bold.green('Next.js Analytics') +
+        ' is enabled for this production build. ' +
+        "You'll receive a Real Experience Score computed by all of your visitors."
+    )
+    console.log('')
   }
 
   if (tracer) {

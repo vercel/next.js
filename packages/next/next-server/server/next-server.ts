@@ -79,6 +79,7 @@ import accept from '@hapi/accept'
 import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
 import { detectLocaleCookie } from '../lib/i18n/detect-locale-cookie'
 import * as Log from '../../build/output/log'
+import { imageOptimizer } from './image-optimizer'
 import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
 
@@ -271,7 +272,7 @@ export default class Server {
     return PHASE_PRODUCTION_SERVER
   }
 
-  private logError(err: Error): void {
+  public logError(err: Error): void {
     if (this.onErrorMiddleware) {
       this.onErrorMiddleware({ err })
     }
@@ -317,7 +318,11 @@ export default class Server {
         i18n.locales
       )
 
-      const detectedDomain = detectDomainLocale(i18n.domains, req)
+      const { host } = req?.headers || {}
+      // remove port from host and remove port if present
+      const hostname = host?.split(':')[0].toLowerCase()
+
+      const detectedDomain = detectDomainLocale(i18n.domains, hostname)
       if (detectedDomain) {
         defaultLocale = detectedDomain.defaultLocale
         detectedLocale = defaultLocale
@@ -340,18 +345,30 @@ export default class Server {
 
         // check if the locale prefix matches a domain's defaultLocale
         // and we're on a locale specific domain if so redirect to that domain
-        if (detectedDomain) {
-          const matchedDomain = detectDomainLocale(
-            i18n.domains,
-            undefined,
-            detectedLocale
-          )
+        // if (detectedDomain) {
+        //   const matchedDomain = detectDomainLocale(
+        //     i18n.domains,
+        //     undefined,
+        //     detectedLocale
+        //   )
 
-          if (matchedDomain) {
-            localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
-              matchedDomain?.domain
-            }`
-          }
+        //   if (matchedDomain) {
+        //     localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
+        //       matchedDomain?.domain
+        //     }`
+        //   }
+        // }
+      } else if (detectedDomain) {
+        const matchedDomain = detectDomainLocale(
+          i18n.domains,
+          undefined,
+          acceptPreferredLocale
+        )
+
+        if (matchedDomain && matchedDomain.domain !== detectedDomain.domain) {
+          localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
+            matchedDomain.domain
+          }`
         }
       }
 
@@ -359,10 +376,10 @@ export default class Server {
       const detectedDefaultLocale =
         !detectedLocale ||
         detectedLocale.toLowerCase() === defaultLocale.toLowerCase()
-      const shouldStripDefaultLocale =
-        detectedDefaultLocale &&
-        denormalizedPagePath.toLowerCase() ===
-          `/${i18n.defaultLocale.toLowerCase()}`
+      const shouldStripDefaultLocale = false
+      // detectedDefaultLocale &&
+      // denormalizedPagePath.toLowerCase() ===
+      //   `/${i18n.defaultLocale.toLowerCase()}`
 
       const shouldAddLocalePrefix =
         !detectedDefaultLocale && denormalizedPagePath === '/'
@@ -472,6 +489,7 @@ export default class Server {
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
   } {
+    const server: Server = this
     const publicRoutes = fs.existsSync(this.publicDir)
       ? this.generatePublicRoutes()
       : []
@@ -562,9 +580,12 @@ export default class Server {
           const { i18n } = this.nextConfig.experimental
 
           if (i18n) {
+            const { host } = req?.headers || {}
+            // remove port from host and remove port if present
+            const hostname = host?.split(':')[0].toLowerCase()
             const localePathResult = normalizeLocalePath(pathname, i18n.locales)
             const { defaultLocale } =
-              detectDomainLocale(i18n.domains, req) || {}
+              detectDomainLocale(i18n.domains, hostname) || {}
             let detectedLocale = defaultLocale
 
             if (localePathResult.detectedLocale) {
@@ -588,6 +609,13 @@ export default class Server {
             finished: true,
           }
         },
+      },
+      {
+        match: route('/_next/image'),
+        type: 'route',
+        name: '_next/image catchall',
+        fn: (req, res, _params, parsedUrl) =>
+          imageOptimizer(server, req, res, parsedUrl),
       },
       {
         match: route('/_next/:path*'),
@@ -702,9 +730,7 @@ export default class Server {
           const { query } = parsedDestination
           delete (parsedDestination as any).query
 
-          parsedDestination.search = stringifyQs(query, undefined, undefined, {
-            encodeURIComponent: (str: string) => str,
-          } as any)
+          parsedDestination.search = stringifyQs(query)
 
           const updatedDestination = formatUrl(parsedDestination)
 
@@ -746,12 +772,7 @@ export default class Server {
           if (parsedDestination.protocol) {
             const { query } = parsedDestination
             delete (parsedDestination as any).query
-            parsedDestination.search = stringifyQs(
-              query,
-              undefined,
-              undefined,
-              { encodeURIComponent: (str) => str }
-            )
+            parsedDestination.search = stringifyQs(query)
 
             const target = formatUrl(parsedDestination)
             const proxy = new Proxy({
@@ -1116,7 +1137,6 @@ export default class Server {
             ...(components.getStaticProps
               ? {
                   amp: query.amp,
-                  __next404: query.__next404,
                   _nextDataReq: query._nextDataReq,
                   __nextLocale: query.__nextLocale,
                 }
@@ -1163,8 +1183,10 @@ export default class Server {
     { components, query }: FindComponentsResult,
     opts: RenderOptsPartial
   ): Promise<string | null> {
+    const is404Page = pathname === '/404'
+
     // we need to ensure the status code if /404 is visited directly
-    if (pathname === '/404') {
+    if (is404Page) {
       res.statusCode = 404
     }
 
@@ -1235,20 +1257,17 @@ export default class Server {
       urlPathname = stripNextDataPath(urlPathname)
     }
 
-    const ssgCacheKey =
+    let ssgCacheKey =
       isPreviewMode || !isSSG
         ? undefined // Preview mode bypasses the cache
         : `${locale ? `/${locale}` : ''}${resolvedUrlPathname}${
             query.amp ? '.amp' : ''
           }`
 
-    // In development we use a __next404 query to allow signaling we should
-    // render the 404 page after attempting to fetch the _next/data for a
-    // fallback page since the fallback page will always be available after
-    // reload and we don't want to re-serve it and instead want to 404.
-    if (this.renderOpts.dev && isSSG && query.__next404) {
-      delete query.__next404
-      throw new NoFallbackError()
+    if (is404Page && isSSG) {
+      ssgCacheKey = `${locale ? `/${locale}` : ''}${pathname}${
+        query.amp ? '.amp' : ''
+      }`
     }
 
     // Complete the response with cached data if its present
@@ -1296,7 +1315,7 @@ export default class Server {
 
     // If we're here, that means data is missing or it's stale.
     const maybeCoalesceInvoke = ssgCacheKey
-      ? (fn: any) => withCoalescedInvoke(fn).bind(null, ssgCacheKey, [])
+      ? (fn: any) => withCoalescedInvoke(fn).bind(null, ssgCacheKey!, [])
       : (fn: any) => async () => {
           const value = await fn()
           return { isOrigin: true, value }
