@@ -7,7 +7,7 @@ description: Configure module path aliases that allow you to remap certain impor
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-absolute-imports">With env</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-absolute-imports">Absolute Imports</a></li>
   </ul>
 </details>
 
