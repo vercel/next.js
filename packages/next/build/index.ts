@@ -1163,7 +1163,7 @@ export default async function build(
     printCustomRoutes({ redirects, rewrites, headers })
   }
 
-  if (config.experimental.analyticsId) {
+  if (config.analyticsId) {
     console.log(
       chalk.bold.green('Next.js Analytics') +
         ' is enabled for this production build. ' +
