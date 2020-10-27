@@ -12,7 +12,7 @@ Add the `hostname` to your `images` config in `next.config.js`:
 // next.config.js
 module.exports = {
   images: {
-    domains: [HOSTNAME_FROM_ERROR],
+    domains: ['assets.example.com'],
   },
 }
 ```
