@@ -754,6 +754,12 @@ export async function renderToHTML(
           key !== 'props' && key !== 'redirect' && key !== 'unstable_notFound'
       )
 
+      if ((data as any).unstable_redirect) {
+        throw new Error(
+          `unstable_redirect has been renamed to redirect, please update the field to continue. Page: ${pathname}`
+        )
+      }
+
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
       }
