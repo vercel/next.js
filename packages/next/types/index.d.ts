@@ -111,7 +111,7 @@ export type GetStaticPathsContext = {
 
 export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
   paths: Array<string | { params: P; locale?: string }>
-  fallback: boolean | 'unstable_blocking'
+  fallback: boolean | 'blocking'
 }
 
 export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
