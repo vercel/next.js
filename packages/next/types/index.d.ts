@@ -88,7 +88,7 @@ export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
 export type GetStaticPropsResult<P> = {
   props?: P
   revalidate?: number | boolean
-  unstable_redirect?: Redirect
+  redirect?: Redirect
   unstable_notFound?: true
 }
 
@@ -137,7 +137,7 @@ export type GetServerSidePropsResult<P> =
       props: P
     }
   | {
-      unstable_redirect: Redirect
+      redirect: Redirect
     }
   | {
       unstable_notFound: true
