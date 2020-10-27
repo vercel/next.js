@@ -44,6 +44,7 @@ export default Home
 
 - `width` and `height` are required to prevent [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google is going to [use in their search ranking](https://webmasters.googleblog.com/2020/05/evaluating-page-experience.html)
 - `width` and `height` are automatically responsive, unlike the HTML `<img>` element
+- `quality` can be configured per image, default 75
 - See [`next/image`](/docs/api-reference/next/image.md) for list of available props.
 
 ## Configuration
@@ -64,7 +65,7 @@ module.exports = {
 }
 ```
 
-If a specific property is ommitted, such as `deviceSizes`, that property will use the default above.
+If a specific property is omitted, such as `deviceSizes`, that property will use the default above.
 
 This means you only need to configure the properties you wish to change.
 
