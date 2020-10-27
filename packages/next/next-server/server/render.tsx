@@ -624,7 +624,7 @@ export async function renderToHTML(
         (key) =>
           key !== 'revalidate' &&
           key !== 'props' &&
-          key !== 'unstable_redirect' &&
+          key !== 'redirect' &&
           key !== 'notFound'
       )
 
@@ -649,11 +649,11 @@ export async function renderToHTML(
       }
 
       if (
-        'unstable_redirect' in data &&
-        data.unstable_redirect &&
-        typeof data.unstable_redirect === 'object'
+        'redirect' in data &&
+        data.redirect &&
+        typeof data.redirect === 'object'
       ) {
-        checkRedirectValues(data.unstable_redirect, req)
+        checkRedirectValues(data.redirect, req)
 
         if (isBuildTimeSSG) {
           throw new Error(
@@ -664,10 +664,10 @@ export async function renderToHTML(
 
         if (isDataReq) {
           ;(data as any).props = {
-            __N_REDIRECT: data.unstable_redirect.destination,
+            __N_REDIRECT: data.redirect.destination,
           }
         } else {
-          handleRedirect(res, data.unstable_redirect)
+          handleRedirect(res, data.redirect)
           return null
         }
       }
@@ -768,6 +768,11 @@ export async function renderToHTML(
           `unstable_notFound has been renamed to notFound, please update the field to continue. Page: ${pathname}`
         )
       }
+      if ((data as any).unstable_redirect) {
+        throw new Error(
+          `unstable_redirect has been renamed to redirect, please update the field to continue. Page: ${pathname}`
+        )
+      }
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
@@ -784,18 +789,15 @@ export async function renderToHTML(
         return null
       }
 
-      if (
-        'unstable_redirect' in data &&
-        typeof data.unstable_redirect === 'object'
-      ) {
-        checkRedirectValues(data.unstable_redirect, req)
+      if ('redirect' in data && typeof data.redirect === 'object') {
+        checkRedirectValues(data.redirect, req)
 
         if (isDataReq) {
           ;(data as any).props = {
-            __N_REDIRECT: data.unstable_redirect.destination,
+            __N_REDIRECT: data.redirect.destination,
           }
         } else {
-          handleRedirect(res, data.unstable_redirect)
+          handleRedirect(res, data.redirect)
           return null
         }
       }
