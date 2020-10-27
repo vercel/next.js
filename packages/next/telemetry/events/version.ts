@@ -21,6 +21,17 @@ type EventCliSessionStarted = {
   buildTarget: string
   hasWebpackConfig: boolean
   hasBabelConfig: boolean
+  basePathEnabled: boolean
+  i18nEnabled: boolean
+  imageEnabled: boolean
+  locales: string | null
+  localeDomainsCount: number | null
+  localeDetectionEnabled: boolean | null
+  imageDomainsCount: number | null
+  imageSizes: string | null
+  imageLoader: string | null
+  trailingSlashEnabled: boolean
+  reactStrictMode: boolean
 }
 
 function hasBabelConfig(dir: string): boolean {
@@ -83,6 +94,17 @@ export function eventCliSession(
     | 'buildTarget'
     | 'hasWebpackConfig'
     | 'hasBabelConfig'
+    | 'basePathEnabled'
+    | 'i18nEnabled'
+    | 'imageEnabled'
+    | 'locales'
+    | 'localeDomainsCount'
+    | 'localeDetectionEnabled'
+    | 'imageDomainsCount'
+    | 'imageSizes'
+    | 'imageLoader'
+    | 'trailingSlashEnabled'
+    | 'reactStrictMode'
   >
 ): { eventName: string; payload: EventCliSessionStarted }[] {
   // This should be an invariant, if it fails our build tooling is broken.
@@ -91,6 +113,9 @@ export function eventCliSession(
   }
 
   const userConfiguration = getNextConfig(phase, dir)
+
+  const { images, experimental } = userConfiguration || {}
+  const { i18n } = experimental || {}
 
   const payload: EventCliSessionStarted = {
     nextVersion: process.env.__NEXT_VERSION,
@@ -103,6 +128,17 @@ export function eventCliSession(
     buildTarget: userConfiguration?.target ?? 'default',
     hasWebpackConfig: typeof userConfiguration?.webpack === 'function',
     hasBabelConfig: hasBabelConfig(dir),
+    imageEnabled: !!images,
+    basePathEnabled: !!userConfiguration?.basePath,
+    i18nEnabled: !!i18n,
+    locales: i18n?.locales ? i18n.locales.join(',') : null,
+    localeDomainsCount: i18n?.domains ? i18n.domains.length : null,
+    localeDetectionEnabled: !i18n ? null : i18n.localeDetection !== false,
+    imageDomainsCount: images?.domains ? images.domains.length : null,
+    imageSizes: images?.sizes ? images.sizes.join(',') : null,
+    imageLoader: images?.loader,
+    trailingSlashEnabled: !!userConfiguration?.trailingSlash,
+    reactStrictMode: !!userConfiguration?.reactStrictMode,
   }
   return [{ eventName: EVENT_VERSION, payload }]
 }
