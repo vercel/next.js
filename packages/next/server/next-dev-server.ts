@@ -556,7 +556,7 @@ export default class DevServer extends Server {
     return {
       staticPaths,
       fallbackMode:
-        fallback === 'unstable_blocking'
+        fallback === 'blocking'
           ? 'blocking'
           : fallback === true
           ? 'static'
