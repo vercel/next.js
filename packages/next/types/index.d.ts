@@ -89,6 +89,7 @@ export type GetStaticPropsResult<P> = {
   props?: P
   revalidate?: number | boolean
   unstable_redirect?: Redirect
+  unstable_notFound?: true
 }
 
 export type GetStaticProps<
@@ -104,14 +105,18 @@ export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
   ? P
   : never
 
-export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
-  paths: Array<string | { params: P; locale?: string }>
-  fallback: boolean | 'unstable_blocking'
+export type GetStaticPathsContext = {
+  locales?: string[]
 }
 
-export type GetStaticPaths<
-  P extends ParsedUrlQuery = ParsedUrlQuery
-> = () => Promise<GetStaticPathsResult<P>>
+export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
+  paths: Array<string | { params: P; locale?: string }>
+  fallback: boolean | 'blocking'
+}
+
+export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
+  context: GetStaticPathsContext
+) => Promise<GetStaticPathsResult<P>>
 
 export type GetServerSidePropsContext<
   Q extends ParsedUrlQuery = ParsedUrlQuery
