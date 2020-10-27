@@ -44,3 +44,13 @@ export default function Page(props) {
     </>
   )
 }
+
+export const getStaticProps = ({ locale, locales, defaultLocale }) => {
+  return {
+    props: {
+      locale,
+      locales,
+      defaultLocale,
+    },
+  }
+}

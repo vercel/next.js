@@ -1,15 +1,8 @@
 module.exports = {
   images: {
-    sizes: [480, 1024, 1600],
-    hosts: {
-      default: {
-        path: 'https://example.com/myaccount/',
-        loader: 'imgix',
-      },
-      secondary: {
-        path: 'https://examplesecondary.com/images/',
-        loader: 'cloudinary',
-      },
-    },
+    deviceSizes: [480, 1024, 1600, 2000],
+    imageSizes: [16, 64],
+    path: 'https://example.com/myaccount/',
+    loader: 'imgix',
   },
 }
