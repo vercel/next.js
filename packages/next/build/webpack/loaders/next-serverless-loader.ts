@@ -768,7 +768,7 @@ const nextServerlessLoader: loader.Loader = function () {
 
         if (!renderMode) {
           if (_nextData || getStaticProps || getServerSideProps) {
-            if (renderOpts.ssgNotFound) {
+            if (renderOpts.isNotFound) {
               res.statusCode = 404
 
               const NotFoundComponent = ${

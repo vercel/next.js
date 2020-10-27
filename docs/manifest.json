@@ -184,6 +184,10 @@
             {
               "title": "Codemods",
               "path": "/docs/advanced-features/codemods.md"
+            },
+            {
+              "title": "Internationalized Routing",
+              "path": "/docs/advanced-features/i18n-routing.md"
             }
           ]
         },
