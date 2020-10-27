@@ -48,7 +48,25 @@ export default Home
 
 ## Configuration
 
-You can configure Image Optimization by using the `images` property in `next.config.js`.
+You can optionally configure Image Optimization by using the `images` property in `next.config.js`.
+
+If no configuration is provided, the following default configuration will be used.
+
+```js
+module.exports = {
+  images: {
+    deviceSizes: [320, 420, 768, 1024, 1200],
+    iconSizes: [],
+    domains: [],
+    path: '/_next/image',
+    loader: 'default',
+  },
+}
+```
+
+If a specific property is ommitted, such as `deviceSizes`, that property will use the default above.
+
+This means you only need to configure the properties you wish to change.
 
 ### Device Sizes
 
