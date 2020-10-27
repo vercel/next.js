@@ -106,6 +106,16 @@ function runTests(isDev) {
           initialRevalidateSeconds: false,
           srcRoute: '/gsp/no-fallback/[slug]',
         },
+        '/en-US/not-found/blocking-fallback/first': {
+          dataRoute: `/_next/data/${buildId}/en-US/not-found/blocking-fallback/first.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/not-found/blocking-fallback/[slug]',
+        },
+        '/en-US/not-found/blocking-fallback/second': {
+          dataRoute: `/_next/data/${buildId}/en-US/not-found/blocking-fallback/second.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/not-found/blocking-fallback/[slug]',
+        },
         '/en-US/not-found/fallback/first': {
           dataRoute: `/_next/data/${buildId}/en-US/not-found/fallback/first.json`,
           initialRevalidateSeconds: false,
@@ -155,6 +165,18 @@ function runTests(isDev) {
             `^/_next/data/${escapeRegex(
               buildId
             )}/gsp/no\\-fallback/([^/]+?)\\.json$`
+          ),
+        },
+        '/not-found/blocking-fallback/[slug]': {
+          dataRoute: `/_next/data/${buildId}/not-found/blocking-fallback/[slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)\\.json$`
+          ),
+          fallback: null,
+          routeRegex: normalizeRegEx(
+            `^\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)(?:\\/)?$`
           ),
         },
         '/not-found/fallback/[slug]': {
