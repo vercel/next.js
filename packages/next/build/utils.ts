@@ -575,7 +575,7 @@ export async function buildStaticPaths(
   if (
     !(
       typeof staticPathsResult.fallback === 'boolean' ||
-      staticPathsResult.fallback === 'unstable_blocking'
+      staticPathsResult.fallback === 'blocking'
     )
   ) {
     throw new Error(
@@ -700,7 +700,7 @@ export async function isPageStatic(
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[] | undefined
-  prerenderFallback?: boolean | 'unstable_blocking' | undefined
+  prerenderFallback?: boolean | 'blocking' | undefined
 }> {
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
@@ -775,7 +775,7 @@ export async function isPageStatic(
     }
 
     let prerenderRoutes: Array<string> | undefined
-    let prerenderFallback: boolean | 'unstable_blocking' | undefined
+    let prerenderFallback: boolean | 'blocking' | undefined
     if (hasStaticProps && hasStaticPaths) {
       ;({
         paths: prerenderRoutes,

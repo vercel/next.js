@@ -23,8 +23,10 @@ const defaultConfig: { [key: string]: any } = {
   target: 'server',
   poweredByHeader: true,
   compress: true,
+  analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
   images: {
-    sizes: [320, 420, 768, 1024, 1200],
+    deviceSizes: [320, 420, 768, 1024, 1200],
+    iconSizes: [],
     domains: [],
     path: '/_next/image',
     loader: 'default',
@@ -61,7 +63,6 @@ const defaultConfig: { [key: string]: any } = {
     optimizeImages: false,
     scrollRestoration: false,
     i18n: false,
-    analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -235,6 +236,13 @@ function assignDefaults(userConfig: { [key: string]: any }) {
           `Specified images.domains should be an Array received ${typeof images.domains}`
         )
       }
+
+      if (images.domains.length > 50) {
+        throw new Error(
+          `Specified images.domains exceeds length of 50, received length (${images.domains.length}), please reduce the length of the array to continue`
+        )
+      }
+
       const invalid = images.domains.filter(
         (d: unknown) => typeof d !== 'string'
       )
@@ -246,16 +254,53 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )
       }
     }
-    if (images.sizes) {
-      if (!Array.isArray(images.sizes)) {
+    if (images.deviceSizes) {
+      const { deviceSizes } = images
+      if (!Array.isArray(deviceSizes)) {
         throw new Error(
-          `Specified images.sizes should be an Array received ${typeof images.sizes}`
+          `Specified images.deviceSizes should be an Array received ${typeof deviceSizes}`
         )
       }
-      const invalid = images.sizes.filter((d: unknown) => typeof d !== 'number')
+
+      if (deviceSizes.length > 25) {
+        throw new Error(
+          `Specified images.deviceSizes exceeds length of 25, received length (${deviceSizes.length}), please reduce the length of the array to continue`
+        )
+      }
+
+      const invalid = deviceSizes.filter((d: unknown) => {
+        return typeof d !== 'number' || d < 1 || d > 10000
+      })
+
       if (invalid.length > 0) {
         throw new Error(
-          `Specified images.sizes should be an Array of numbers received invalid values (${invalid.join(
+          `Specified images.deviceSizes should be an Array of numbers that are between 1 and 10000, received invalid values (${invalid.join(
+            ', '
+          )})`
+        )
+      }
+    }
+    if (images.iconSizes) {
+      const { iconSizes } = images
+      if (!Array.isArray(iconSizes)) {
+        throw new Error(
+          `Specified images.iconSizes should be an Array received ${typeof iconSizes}`
+        )
+      }
+
+      if (iconSizes.length > 25) {
+        throw new Error(
+          `Specified images.iconSizes exceeds length of 25, received length (${iconSizes.length}), please reduce the length of the array to continue`
+        )
+      }
+
+      const invalid = iconSizes.filter((d: unknown) => {
+        return typeof d !== 'number' || d < 1 || d > 10000
+      })
+
+      if (invalid.length > 0) {
+        throw new Error(
+          `Specified images.iconSizes should be an Array of numbers that are between 1 and 10000, received invalid values (${invalid.join(
             ', '
           )})`
         )
