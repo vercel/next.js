@@ -763,7 +763,7 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
       }
 
-      if (data.unstable_notFound) {
+      if ('unstable_notFound' in data) {
         if (pathname === '/404') {
           throw new Error(
             `The /404 page can not return unstable_notFound in "getStaticProps", please remove it to continue!`
@@ -775,13 +775,13 @@ export async function renderToHTML(
       }
 
       if (
-        data.unstable_redirect &&
+        'unstable_redirect' in data &&
         typeof data.unstable_redirect === 'object'
       ) {
         checkRedirectValues(data.unstable_redirect, req)
 
         if (isDataReq) {
-          data.props = {
+          ;(data as any).props = {
             __N_REDIRECT: data.unstable_redirect.destination,
           }
         } else {
@@ -792,7 +792,11 @@ export async function renderToHTML(
 
       if (
         (dev || isBuildTimeSSG) &&
-        !isSerializableProps(pathname, 'getServerSideProps', data.props)
+        !isSerializableProps(
+          pathname,
+          'getServerSideProps',
+          (data as any).props
+        )
       ) {
         // this fn should throw an error instead of ever returning `false`
         throw new Error(
@@ -800,7 +804,7 @@ export async function renderToHTML(
         )
       }
 
-      props.pageProps = Object.assign({}, props.pageProps, data.props)
+      props.pageProps = Object.assign({}, props.pageProps, (data as any).props)
       ;(renderOpts as any).pageData = props
     }
   } catch (dataFetchError) {
