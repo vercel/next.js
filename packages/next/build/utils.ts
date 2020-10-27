@@ -544,7 +544,7 @@ export async function buildStaticPaths(
   // Get the default list of allowed params.
   const _validParamKeys = Object.keys(_routeMatcher(page))
 
-  const staticPathsResult = await getStaticPaths({ locales })
+  const staticPathsResult = await getStaticPaths({ locales, defaultLocale })
 
   const expectedReturnVal =
     `Expected: { paths: [], fallback: boolean }\n` +
