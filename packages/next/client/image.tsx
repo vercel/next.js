@@ -7,11 +7,12 @@ type LoadingValue = typeof VALID_LOADING_VALUES[number]
 const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
+  ['gumlet', gumletLoader],
   ['akamai', akamaiLoader],
   ['default', defaultLoader],
 ])
 
-type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
+type LoaderKey = 'imgix' | 'cloudinary' | 'gumlet' | 'akamai' | 'default'
 
 type ImageData = {
   deviceSizes: number[]
@@ -379,6 +380,19 @@ function normalizeSrc(src: string) {
 
 function imgixLoader({ root, src, width, quality }: LoaderProps): string {
   const params = ['auto=format', 'w=' + width]
+  let paramsString = ''
+  if (quality) {
+    params.push('q=' + quality)
+  }
+
+  if (params.length) {
+    paramsString = '?' + params.join('&')
+  }
+  return `${root}${normalizeSrc(src)}${paramsString}`
+}
+
+function gumletLoader({ root, src, width, quality }: LoaderProps): string {
+  const params = ['format=auto', 'w=' + width]
   let paramsString = ''
   if (quality) {
     params.push('q=' + quality)
