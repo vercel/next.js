@@ -444,5 +444,5 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
     }
   }
 
-  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 100}`
+  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
 }
