@@ -75,7 +75,7 @@ function getObserver(): IntersectionObserver | undefined {
   ))
 }
 
-function unLazifyImage(lazyImage: HTMLImageElement) {
+function unLazifyImage(lazyImage: HTMLImageElement): void {
   if (lazyImage.dataset.src) {
     lazyImage.src = lazyImage.dataset.src
   }
