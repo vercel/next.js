@@ -26,7 +26,7 @@ type ImageProps = Omit<
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
 > & {
   src: string
-  quality?: string
+  quality?: number | string
   priority?: boolean
   loading?: LoadingValue
   unoptimized?: boolean
@@ -104,8 +104,8 @@ function getDeviceSizes(width: number | undefined): number[] {
 function computeSrc(
   src: string,
   unoptimized: boolean,
-  width: number | undefined,
-  quality?: string
+  width?: number,
+  quality?: number
 ): string {
   if (unoptimized) {
     return src
@@ -118,7 +118,7 @@ function computeSrc(
 type CallLoaderProps = {
   src: string
   width: number
-  quality?: string
+  quality?: number
 }
 
 function callLoader(loaderProps: CallLoaderProps) {
@@ -129,8 +129,8 @@ function callLoader(loaderProps: CallLoaderProps) {
 type SrcSetData = {
   src: string
   unoptimized: boolean
-  width: number | undefined
-  quality: string | undefined
+  width?: number
+  quality?: number
 }
 
 function generateSrcSet({
@@ -155,7 +155,7 @@ type PreloadData = {
   unoptimized: boolean
   width: number | undefined
   sizes?: string
-  quality?: string
+  quality?: number
 }
 
 function generatePreload({
@@ -251,8 +251,10 @@ export default function Image({
     }
   }, [thisEl, lazy])
 
-  let widthInt = getInt(width)
-  let heightInt = getInt(height)
+  const widthInt = getInt(width)
+  const heightInt = getInt(height)
+  const qualityInt = getInt(quality)
+
   let divStyle: React.CSSProperties | undefined
   let imgStyle: React.CSSProperties | undefined
   let wrapperStyle: React.CSSProperties | undefined
@@ -305,12 +307,12 @@ export default function Image({
   }
 
   // Generate attribute values
-  const imgSrc = computeSrc(src, unoptimized, widthInt, quality)
+  const imgSrc = computeSrc(src, unoptimized, widthInt, qualityInt)
   const imgSrcSet = generateSrcSet({
     src,
     width: widthInt,
     unoptimized,
-    quality,
+    quality: qualityInt,
   })
 
   let imgAttributes:
@@ -352,7 +354,7 @@ export default function Image({
               width: widthInt,
               unoptimized,
               sizes,
-              quality,
+              quality: qualityInt,
             })
           : ''}
         <img
@@ -442,7 +444,5 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
     }
   }
 
-  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${
-    quality || '75'
-  }`
+  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
 }

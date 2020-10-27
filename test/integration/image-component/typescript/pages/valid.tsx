@@ -22,6 +22,18 @@ const Page = () => {
         src="https://via.placeholder.com/100"
         unsized
       ></Image>
+      <Image
+        id="quality-num"
+        src="https://via.placeholder.com/500"
+        quality={80}
+        unsized
+      ></Image>
+      <Image
+        id="quality-str"
+        src="https://via.placeholder.com/500"
+        quality="80"
+        unsized
+      ></Image>
       <p id="stubtext">This is valid usage of the Image component</p>
     </div>
   )
