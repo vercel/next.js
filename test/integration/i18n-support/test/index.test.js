@@ -957,6 +957,70 @@ function runTests(isDev) {
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
+  it('should render 404 for blocking fallback page that returned 404 on client transition', async () => {
+    const browser = await webdriver(appPort, '/en', true, true)
+    await browser.eval(`(function() {
+      next.router.push('/not-found/blocking-fallback/first')
+    })()`)
+    await browser.waitForElementByCss('h1')
+    await browser.eval('window.beforeNav = 1')
+
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+
+    expect(props.is404).toBe(true)
+    expect(props.locale).toBe('en')
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+
+    const parsedUrl = url.parse(
+      await browser.eval('window.location.href'),
+      true
+    )
+    expect(parsedUrl.pathname).toBe('/en/not-found/blocking-fallback/first')
+    expect(parsedUrl.query).toEqual({})
+
+    if (isDev) {
+      // make sure page doesn't reload un-necessarily in development
+      await waitFor(10 * 1000)
+    }
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
+  it('should render 404 for blocking fallback page that returned 404', async () => {
+    const browser = await webdriver(
+      appPort,
+      '/en/not-found/blocking-fallback/first',
+      true,
+      true
+    )
+    await browser.waitForElementByCss('h1')
+    await browser.eval('window.beforeNav = 1')
+
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+
+    expect(props.is404).toBe(true)
+    expect(props.locale).toBe('en')
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+
+    const parsedUrl = url.parse(
+      await browser.eval('window.location.href'),
+      true
+    )
+    expect(parsedUrl.pathname).toBe('/en/not-found/blocking-fallback/first')
+    expect(parsedUrl.query).toEqual({})
+
+    if (isDev) {
+      // make sure page doesn't reload un-necessarily in development
+      await waitFor(10 * 1000)
+    }
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
   it('should not remove locale prefix for default locale', async () => {
     const res = await fetchViaHTTP(appPort, '/en-US', undefined, {
       redirect: 'manual',
