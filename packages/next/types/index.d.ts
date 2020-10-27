@@ -132,10 +132,16 @@ export type GetServerSidePropsContext<
   locales?: string[]
 }
 
-export type GetServerSidePropsResult<P> = {
-  props?: P
-  unstable_redirect?: Redirect
-}
+export type GetServerSidePropsResult<P> =
+  | {
+      props: P
+    }
+  | {
+      unstable_redirect: Redirect
+    }
+  | {
+      unstable_notFound: true
+    }
 
 export type GetServerSideProps<
   P extends { [key: string]: any } = { [key: string]: any },
