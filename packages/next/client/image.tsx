@@ -425,6 +425,12 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
     }
 
     if (src && !src.startsWith('/') && configDomains) {
+      if (src.startsWith('data:')) {
+        throw new Error(
+          `Failed to use data url "${src}". Image must be relative image path with leading slash "/" or an absolute URL`
+        );
+      }
+
       let parsedSrc: URL
       try {
         parsedSrc = new URL(src)
