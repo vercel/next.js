@@ -1351,7 +1351,7 @@ export default class Server {
           html = renderResult.html
           pageData = renderResult.renderOpts.pageData
           sprRevalidate = renderResult.renderOpts.revalidate
-          isNotFound = renderResult.renderOpts.ssgNotFound
+          isNotFound = renderResult.renderOpts.isNotFound
         } else {
           const origQuery = parseUrl(req.url || '', true).query
           const resolvedUrl = formatUrl({
