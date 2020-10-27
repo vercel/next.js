@@ -71,10 +71,7 @@ function runTests(mode) {
       expect(
         await hasImageMatchingUrl(
           browser,
-          mode === 'serverless'
-            ? // FIXME: this is a bug
-              `http://localhost:${appPort}/_next/image/?url=%2Ftest.jpg&w=420&q=75`
-            : `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=420&q=75`
+          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=420&q=75`
         )
       ).toBe(true)
     } finally {
