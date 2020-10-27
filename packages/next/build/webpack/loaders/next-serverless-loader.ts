@@ -262,33 +262,29 @@ const nextServerlessLoader: loader.Loader = function () {
           ...parsedUrl,
           pathname: localePathResult.pathname,
         })
+        req.__nextStrippedLocale = true
         parsedUrl.pathname = localePathResult.pathname
+      }
 
-        // check if the locale prefix matches a domain's defaultLocale
-        // and we're on a locale specific domain if so redirect to that domain
-        // if (detectedDomain) {
-        //   const matchedDomain = detectDomainLocale(
-        //     i18n.domains,
-        //     undefined,
-        //     detectedLocale
-        //   )
+      // If a detected locale is a domain specific locale and we aren't already
+      // on that domain and path prefix redirect to it to prevent duplicate
+      // content from multiple domains
+      if (detectedDomain) {
+        const localeToCheck = localePathResult.detectedLocale
+          ? detectedLocale
+          : acceptPreferredLocale
 
-        //   if (matchedDomain) {
-        //     localeDomainRedirect = \`http\${
-        //       matchedDomain.http ? '' : 's'
-        //     }://\${matchedDomain.domain}\`
-        //   }
-        // }
-      } else if (detectedDomain) {
         const matchedDomain = detectDomainLocale(
           i18n.domains,
           undefined,
-          acceptPreferredLocale
+          localeToCheck
         )
 
         if (matchedDomain && matchedDomain.domain !== detectedDomain.domain) {
           localeDomainRedirect = \`http\${matchedDomain.http ? '' : 's'}://\${
             matchedDomain.domain
+          }/\${
+            localeToCheck === matchedDomain.defaultLocale ? '' : localeToCheck
           }\`
         }
       }

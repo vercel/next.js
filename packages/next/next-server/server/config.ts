@@ -340,7 +340,26 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
 
-        return false
+        let hasInvalidLocale = false
+
+        if (Array.isArray(item.locales)) {
+          for (const locale of item.locales) {
+            if (typeof locale !== 'string') hasInvalidLocale = true
+
+            for (const domainItem of i18n.domains) {
+              if (domainItem === item) continue
+              if (domainItem.locales && domainItem.locales.includes(locale)) {
+                console.warn(
+                  `Both ${item.domain} and ${domainItem.domain} configured the locale (${locale}) but only one can. Remove it from one i18n.domains config to continue`
+                )
+                hasInvalidLocale = true
+                break
+              }
+            }
+          }
+        }
+
+        return hasInvalidLocale
       })
 
       if (invalidDomainItems.length > 0) {
