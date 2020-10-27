@@ -176,6 +176,17 @@ function lazyLoadingTests() {
       await browser.elementById('eager-loading').getAttribute('srcset')
     ).toBeTruthy()
   })
+  it('should automatically load images if observer does not exist', async () => {
+    browser = await webdriver(appPort, '/missing-observer')
+    expect(
+      await browser.elementById('lazy-no-observer').getAttribute('src')
+    ).toBe('https://example.com/myaccount/foox.jpg?auto=format&w=1024')
+    expect(
+      await browser.elementById('lazy-no-observer').getAttribute('srcset')
+    ).toBe(
+      'https://example.com/myaccount/foox.jpg?auto=format&w=480 480w, https://example.com/myaccount/foox.jpg?auto=format&w=1024 1024w'
+    )
+  })
 }
 
 async function hasPreloadLinkMatchingUrl(url) {
