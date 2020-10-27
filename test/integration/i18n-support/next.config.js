@@ -11,11 +11,13 @@ module.exports = {
           http: true,
           domain: 'example.be',
           defaultLocale: 'nl-BE',
+          locales: ['nl', 'nl-NL', 'nl-BE'],
         },
         {
           http: true,
           domain: 'example.fr',
           defaultLocale: 'fr',
+          locales: ['fr-BE'],
         },
       ],
     },

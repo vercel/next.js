@@ -813,12 +813,7 @@ export default class Router implements BaseRouter {
           this._resolveHref(parsedHref, pages)
 
           if (pages.includes(parsedHref.pathname)) {
-            return this.change(
-              'replaceState',
-              destination,
-              destination,
-              options
-            )
+            return this.change(method, destination, destination, options)
           }
         }
 

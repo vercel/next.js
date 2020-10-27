@@ -594,7 +594,7 @@ export default async function build(
               ssgPageRoutes = workerResult.prerenderRoutes
             }
 
-            if (workerResult.prerenderFallback === 'unstable_blocking') {
+            if (workerResult.prerenderFallback === 'blocking') {
               ssgBlockingFallbackPages.add(page)
             } else if (workerResult.prerenderFallback === true) {
               ssgStaticFallbackPages.add(page)
@@ -1110,11 +1110,15 @@ export default async function build(
     )
   }
 
+  const images = { ...config.images }
+  const { deviceSizes, iconSizes } = images
+  images.sizes = [...deviceSizes, ...iconSizes]
+
   await promises.writeFile(
     path.join(distDir, IMAGES_MANIFEST),
     JSON.stringify({
       version: 1,
-      images: config.images,
+      images,
     }),
     'utf8'
   )
@@ -1159,7 +1163,7 @@ export default async function build(
     printCustomRoutes({ redirects, rewrites, headers })
   }
 
-  if (config.experimental.analyticsId) {
+  if (config.analyticsId) {
     console.log(
       chalk.bold.green('Next.js Analytics') +
         ' is enabled for this production build. ' +

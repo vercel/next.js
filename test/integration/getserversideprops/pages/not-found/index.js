@@ -6,10 +6,8 @@ export default function Page(props) {
 
   return (
     <>
-      <p id="gsp">gsp page</p>
+      <p id="gssp">gssp page</p>
       <p id="props">{JSON.stringify(props)}</p>
-      <p id="router-locale">{router.locale}</p>
-      <p id="router-locales">{JSON.stringify(router.locales)}</p>
       <p id="router-query">{JSON.stringify(router.query)}</p>
       <p id="router-pathname">{router.pathname}</p>
       <p id="router-as-path">{router.asPath}</p>
@@ -21,8 +19,8 @@ export default function Page(props) {
   )
 }
 
-export const getStaticProps = ({ locale, locales }) => {
-  if (locale === 'en' || locale === 'nl') {
+export const getServerSideProps = ({ query }) => {
+  if (query.hiding) {
     return {
       notFound: true,
     }
@@ -30,8 +28,7 @@ export const getStaticProps = ({ locale, locales }) => {
 
   return {
     props: {
-      locale,
-      locales,
+      hello: 'world',
     },
   }
 }
