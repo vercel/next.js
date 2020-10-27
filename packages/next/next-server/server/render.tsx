@@ -759,8 +759,7 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        (key) =>
-          key !== 'props' && key !== 'unstable_redirect' && key !== 'notFound'
+        (key) => key !== 'props' && key !== 'redirect' && key !== 'notFound'
       )
 
       if ((data as any).unstable_notFound) {
