@@ -2,19 +2,19 @@
 import * as snackables from 'snackables'
 
 export type Env = snackables.ProcessEnv
-export type LoadedEnvFiles = snackables.ENVFiles
+export type LoadedEnvFiles = snackables.LoadedEnvFiles
+
+// NOTE: don't reload envs if we already loaded them since this breaks escaped
+// environment values e.g. \$ENV_FILE_KEY
 
 export function processEnv(loadedEnvFiles: LoadedEnvFiles) {
-  // don't reload env if we already have since this breaks escaped
-  // environment values e.g. \$ENV_FILE_KEY
-  if (process.env.__NEXT_PROCESSED_ENV || !loadedEnvFiles.length) {
-    return process.env as Env
-  }
-  // flag that we processed the environment values in case a serverless
-  // function is re-used or we are running in `next start` mode
-  process.env.__NEXT_PROCESSED_ENV = 'true'
+  // parses the loadedEnvFiles.contents Buffer which have already been interpolated
+  const parsed = snackables.parseCache(loadedEnvFiles)
 
-  return snackables.parse(loadedEnvFiles)
+  /// flag to let snackables know not to reload the parsed cache files
+  process.env.PROCESSED_ENV_CACHE = 'true'
+
+  return parsed
 }
 
 export function loadEnvConfig(
@@ -24,31 +24,27 @@ export function loadEnvConfig(
   combinedEnv: Env
   loadedEnvFiles: LoadedEnvFiles
 } {
-  // don't reload env if we already have it loaded since this breaks escaped
-  // environment values e.g. \$ENV_FILE_KEY
-  const cachedENVs = snackables.getCache()
-  if (cachedENVs.length > 0) {
-    return { combinedEnv: process.env as Env, loadedEnvFiles: cachedENVs }
-  }
-
   // flag to let snackables know not to reload the same .env file
   process.env.ENV_CACHE = 'true'
 
   const isTest = process.env.NODE_ENV === 'test'
   const mode = isTest ? 'test' : dev ? 'development' : 'production'
-  const dotenvFiles = [
-    '.env',
-    `.env.${mode}`,
-    // Don't include `.env.local` for `test` environment
-    // since normally you expect tests to produce the same
-    // results for everyone
-    mode !== 'test' && `.env.local`,
-    `.env.${mode}.local`,
-  ].filter(Boolean) as string[]
 
   const { parsed, cachedENVFiles } = snackables.config({
+    // root directory for envs
     dir,
-    path: dotenvFiles,
+    // paths for .env files (can be a single string path, multiple paths as a single
+    // separated by commas, or an array of strings)
+    path: [
+      '.env',
+      `.env.${mode}`,
+      // Don't include `.env.local` for `test` environment
+      // since normally you expect tests to produce the same
+      // results for everyone
+      mode !== 'test' && `.env.local`,
+      `.env.${mode}.local`,
+    ].filter(Boolean) as string[],
+    // displays messages about loaded ENVs or warnings
     debug: Boolean(process.env.ENV_DEBUG) || true,
   })
 
