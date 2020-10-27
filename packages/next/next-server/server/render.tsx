@@ -643,7 +643,7 @@ export async function renderToHTML(
           )
         }
 
-        ;(renderOpts as any).ssgNotFound = true
+        ;(renderOpts as any).isNotFound = true
         ;(renderOpts as any).revalidate = false
         return null
       }
@@ -753,21 +753,35 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        (key) => key !== 'props' && key !== 'unstable_redirect'
+        (key) =>
+          key !== 'props' &&
+          key !== 'unstable_redirect' &&
+          key !== 'unstable_notFound'
       )
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
       }
 
+      if ('unstable_notFound' in data) {
+        if (pathname === '/404') {
+          throw new Error(
+            `The /404 page can not return unstable_notFound in "getStaticProps", please remove it to continue!`
+          )
+        }
+
+        ;(renderOpts as any).isNotFound = true
+        return null
+      }
+
       if (
-        data.unstable_redirect &&
+        'unstable_redirect' in data &&
         typeof data.unstable_redirect === 'object'
       ) {
         checkRedirectValues(data.unstable_redirect, req)
 
         if (isDataReq) {
-          data.props = {
+          ;(data as any).props = {
             __N_REDIRECT: data.unstable_redirect.destination,
           }
         } else {
@@ -778,7 +792,11 @@ export async function renderToHTML(
 
       if (
         (dev || isBuildTimeSSG) &&
-        !isSerializableProps(pathname, 'getServerSideProps', data.props)
+        !isSerializableProps(
+          pathname,
+          'getServerSideProps',
+          (data as any).props
+        )
       ) {
         // this fn should throw an error instead of ever returning `false`
         throw new Error(
@@ -786,7 +804,7 @@ export async function renderToHTML(
         )
       }
 
-      props.pageProps = Object.assign({}, props.pageProps, data.props)
+      props.pageProps = Object.assign({}, props.pageProps, (data as any).props)
       ;(renderOpts as any).pageData = props
     }
   } catch (dataFetchError) {

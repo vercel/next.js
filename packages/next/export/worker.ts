@@ -263,7 +263,7 @@ export default async function exportPage({
         html = (result as any).html
       }
 
-      if (!html && !(curRenderOpts as any).ssgNotFound) {
+      if (!html && !(curRenderOpts as any).isNotFound) {
         throw new Error(`Failed to render serverless page`)
       }
     } else {
@@ -318,7 +318,7 @@ export default async function exportPage({
         html = await renderMethod(req, res, page, query, curRenderOpts)
       }
     }
-    results.ssgNotFound = (curRenderOpts as any).ssgNotFound
+    results.ssgNotFound = (curRenderOpts as any).isNotFound
 
     const validateAmp = async (
       rawAmpHtml: string,

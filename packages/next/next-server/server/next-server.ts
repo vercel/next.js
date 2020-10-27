@@ -1351,7 +1351,7 @@ export default class Server {
           html = renderResult.html
           pageData = renderResult.renderOpts.pageData
           sprRevalidate = renderResult.renderOpts.revalidate
-          isNotFound = renderResult.renderOpts.ssgNotFound
+          isNotFound = renderResult.renderOpts.isNotFound
         } else {
           const origQuery = parseUrl(req.url || '', true).query
           const resolvedUrl = formatUrl({
@@ -1393,7 +1393,7 @@ export default class Server {
           // TODO: change this to a different passing mechanism
           pageData = (renderOpts as any).pageData
           sprRevalidate = (renderOpts as any).revalidate
-          isNotFound = (renderOpts as any).ssgNotFound
+          isNotFound = (renderOpts as any).isNotFound
         }
 
         return { html, pageData, sprRevalidate, isNotFound }
