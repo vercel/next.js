@@ -114,8 +114,7 @@ export function eventCliSession(
 
   const userConfiguration = getNextConfig(phase, dir)
 
-  const { images, experimental } = userConfiguration || {}
-  const { i18n } = experimental || {}
+  const { images, i18n } = userConfiguration || {}
 
   const payload: EventCliSessionStarted = {
     nextVersion: process.env.__NEXT_VERSION,

@@ -1004,12 +1004,8 @@ export default async function getBaseWebpackConfig(
         }),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
-        'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(
-          !!config.experimental.i18n
-        ),
-        'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(
-          config.experimental.i18n.domains
-        ),
+        'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
+        'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n.domains),
         'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
         ...(isServer
           ? {

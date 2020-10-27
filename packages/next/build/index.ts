@@ -336,7 +336,7 @@ export default async function build(
         }
       }),
     dataRoutes: [],
-    i18n: config.experimental.i18n || undefined,
+    i18n: config.i18n || undefined,
   }
 
   await promises.mkdir(distDir, { recursive: true })
@@ -576,8 +576,8 @@ export default async function build(
             page,
             serverBundle,
             runtimeEnvConfig,
-            config.experimental.i18n?.locales,
-            config.experimental.i18n?.defaultLocale
+            config.i18n?.locales,
+            config.i18n?.defaultLocale
           )
 
           if (workerResult.isHybridAmp) {
@@ -739,7 +739,7 @@ export default async function build(
       // n.b. we cannot handle this above in combinedPages because the dynamic
       // page must be in the `pages` array, but not in the mapping.
       exportPathMap: (defaultMap: any) => {
-        const { i18n } = config.experimental
+        const { i18n } = config
 
         // Dynamically routed pages should be prerendered to be used as
         // a client-side skeleton (fallback) while data is being fetched.
@@ -878,7 +878,7 @@ export default async function build(
         pagesManifest[page] = relativeDest
       }
 
-      const { i18n } = config.experimental
+      const { i18n } = config
       const isNotFound = ssgNotFoundPaths.includes(page)
 
       // for SSG files with i18n the non-prerendered variants are
@@ -960,7 +960,7 @@ export default async function build(
       }
 
       if (isSsg) {
-        const { i18n } = config.experimental
+        const { i18n } = config
 
         // For a non-dynamic SSG page, we must copy its data file from export.
         if (!isDynamic) {
