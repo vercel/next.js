@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "9.5.6-canary.18",
+  "version": "10.0.0",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -79,10 +79,10 @@
     "@babel/runtime": "7.11.2",
     "@babel/types": "7.11.5",
     "@hapi/accept": "5.0.1",
-    "@next/env": "9.5.6-canary.18",
-    "@next/polyfill-module": "9.5.6-canary.18",
-    "@next/react-dev-overlay": "9.5.6-canary.18",
-    "@next/react-refresh-utils": "9.5.6-canary.18",
+    "@next/env": "10.0.0",
+    "@next/polyfill-module": "10.0.0",
+    "@next/react-dev-overlay": "10.0.0",
+    "@next/react-refresh-utils": "10.0.0",
     "ast-types": "0.13.2",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
@@ -129,7 +129,7 @@
     "sharp": "0.26.2"
   },
   "devDependencies": {
-    "@next/polyfill-nomodule": "9.5.6-canary.18",
+    "@next/polyfill-nomodule": "10.0.0",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
