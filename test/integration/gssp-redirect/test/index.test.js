@@ -123,6 +123,10 @@ const runTests = () => {
       window.next.router.push('/gssp-blog/redirect-dest-_another')
     })()`)
     await browser.waitForElementByCss('#another')
+
+    const text = await browser.elementByCss('#another').text()
+
+    expect(text).toEqual('another Page')
   })
 
   it('should apply redirect when GSSP page is navigated to client-side (external)', async () => {
@@ -149,6 +153,10 @@ const runTests = () => {
       window.next.router.push('/gsp-blog/redirect-dest-_another')
     })()`)
     await browser.waitForElementByCss('#another')
+
+    const text = await browser.elementByCss('#another').text()
+
+    expect(text).toEqual('another Page')
   })
 
   it('should apply redirect when GSP page is navigated to client-side (external)', async () => {
@@ -166,6 +174,94 @@ const runTests = () => {
         post: 'first',
       },
     })
+  })
+
+  it('should not replace history of the origin page when GSSP page is navigated to client-side (internal normal)', async () => {
+    const browser = await webdriver(appPort, '/another?mark_as=root')
+
+    await browser.eval(`(function () {
+      window.location.href = '/'
+    })()`)
+    await browser.waitForElementByCss('#index')
+
+    await browser.eval(`(function () {
+      window.next.router.push('/gssp-blog/redirect-dest-_another')
+    })()`)
+    await browser.waitForElementByCss('#another')
+
+    await browser.eval(`(function () {
+      window.history.back()
+    })()`)
+
+    const curUrl = await browser.url()
+    const { path } = url.parse(curUrl)
+    expect(path).toEqual('/')
+  })
+
+  it('should not replace history of the origin page when GSSP page is navigated to client-side (external)', async () => {
+    const browser = await webdriver(appPort, '/another?mark_as=root')
+
+    await browser.eval(`(function () {
+      window.location.href = '/'
+    })()`)
+    await browser.waitForElementByCss('#index')
+
+    await browser.eval(`(function () {
+      window.next.router.push('/gssp-blog/redirect-dest-_gssp-blog_first')
+    })()`)
+    await browser.waitForElementByCss('#gssp')
+
+    await browser.eval(`(function () {
+      window.history.back()
+    })()`)
+
+    const curUrl = await browser.url()
+    const { path } = url.parse(curUrl)
+    expect(path).toEqual('/')
+  })
+
+  it('should not replace history of the origin page when GSP page is navigated to client-side (internal)', async () => {
+    const browser = await webdriver(appPort, '/another?mark_as=root')
+
+    await browser.eval(`(function () {
+      window.location.href = '/'
+    })()`)
+    await browser.waitForElementByCss('#index')
+
+    await browser.eval(`(function () {
+      window.next.router.push('/gsp-blog/redirect-dest-_another')
+    })()`)
+    await browser.waitForElementByCss('#another')
+
+    await browser.eval(`(function () {
+      window.history.back()
+    })()`)
+
+    const curUrl = await browser.url()
+    const { path } = url.parse(curUrl)
+    expect(path).toEqual('/')
+  })
+
+  it('should not replace history of the origin page when GSP page is navigated to client-side (external)', async () => {
+    const browser = await webdriver(appPort, '/another?mark_as=root')
+
+    await browser.eval(`(function () {
+      window.location.href = '/'
+    })()`)
+    await browser.waitForElementByCss('#index')
+
+    await browser.eval(`(function () {
+      window.next.router.push('/gsp-blog/redirect-dest-_gsp-blog_first')
+    })()`)
+    await browser.waitForElementByCss('#gsp')
+
+    await browser.eval(`(function () {
+      window.history.back()
+    })()`)
+
+    const curUrl = await browser.url()
+    const { path } = url.parse(curUrl)
+    expect(path).toEqual('/')
   })
 }
 
