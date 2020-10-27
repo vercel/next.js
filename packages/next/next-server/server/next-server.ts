@@ -342,32 +342,32 @@ export default class Server {
         })
         ;(req as any).__nextStrippedLocale = true
         parsedUrl.pathname = localePathResult.pathname
+      }
 
-        // check if the locale prefix matches a domain's defaultLocale
-        // and we're on a locale specific domain if so redirect to that domain
-        // if (detectedDomain) {
-        //   const matchedDomain = detectDomainLocale(
-        //     i18n.domains,
-        //     undefined,
-        //     detectedLocale
-        //   )
+      // If a detected locale is a domain specific locale and we aren't already
+      // on that domain and path prefix redirect to it to prevent duplicate
+      // content from multiple domains
+      if (detectedDomain && parsedUrl.pathname === '/') {
+        const localeToCheck = acceptPreferredLocale
+        // const localeToCheck = localePathResult.detectedLocale
+        //   ? detectedLocale
+        //   : acceptPreferredLocale
 
-        //   if (matchedDomain) {
-        //     localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
-        //       matchedDomain?.domain
-        //     }`
-        //   }
-        // }
-      } else if (detectedDomain) {
         const matchedDomain = detectDomainLocale(
           i18n.domains,
           undefined,
-          acceptPreferredLocale
+          localeToCheck
         )
 
-        if (matchedDomain && matchedDomain.domain !== detectedDomain.domain) {
+        if (
+          matchedDomain &&
+          (matchedDomain.domain !== detectedDomain.domain ||
+            localeToCheck !== matchedDomain.defaultLocale)
+        ) {
           localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
             matchedDomain.domain
+          }/${
+            localeToCheck === matchedDomain.defaultLocale ? '' : localeToCheck
           }`
         }
       }
@@ -1183,8 +1183,21 @@ export default class Server {
     { components, query }: FindComponentsResult,
     opts: RenderOptsPartial
   ): Promise<string | null> {
+    const is404Page = pathname === '/404'
+
+    const isLikeServerless =
+      typeof components.Component === 'object' &&
+      typeof (components.Component as any).renderReqToHTML === 'function'
+    const isSSG = !!components.getStaticProps
+    const isServerProps = !!components.getServerSideProps
+    const hasStaticPaths = !!components.getStaticPaths
+
+    // Toggle whether or not this is a Data request
+    const isDataReq = !!query._nextDataReq && (isSSG || isServerProps)
+    delete query._nextDataReq
+
     // we need to ensure the status code if /404 is visited directly
-    if (pathname === '/404') {
+    if (is404Page && !isDataReq) {
       res.statusCode = 404
     }
 
@@ -1193,21 +1206,9 @@ export default class Server {
       return components.Component
     }
 
-    // check request state
-    const isLikeServerless =
-      typeof components.Component === 'object' &&
-      typeof (components.Component as any).renderReqToHTML === 'function'
-    const isSSG = !!components.getStaticProps
-    const isServerProps = !!components.getServerSideProps
-    const hasStaticPaths = !!components.getStaticPaths
-
     if (!query.amp) {
       delete query.amp
     }
-
-    // Toggle whether or not this is a Data request
-    const isDataReq = !!query._nextDataReq && (isSSG || isServerProps)
-    delete query._nextDataReq
 
     const locale = query.__nextLocale as string
     delete query.__nextLocale
@@ -1255,12 +1256,18 @@ export default class Server {
       urlPathname = stripNextDataPath(urlPathname)
     }
 
-    const ssgCacheKey =
+    let ssgCacheKey =
       isPreviewMode || !isSSG
         ? undefined // Preview mode bypasses the cache
         : `${locale ? `/${locale}` : ''}${resolvedUrlPathname}${
             query.amp ? '.amp' : ''
           }`
+
+    if (is404Page && isSSG) {
+      ssgCacheKey = `${locale ? `/${locale}` : ''}${pathname}${
+        query.amp ? '.amp' : ''
+      }`
+    }
 
     // Complete the response with cached data if its present
     const cachedData = ssgCacheKey
@@ -1307,7 +1314,7 @@ export default class Server {
 
     // If we're here, that means data is missing or it's stale.
     const maybeCoalesceInvoke = ssgCacheKey
-      ? (fn: any) => withCoalescedInvoke(fn).bind(null, ssgCacheKey, [])
+      ? (fn: any) => withCoalescedInvoke(fn).bind(null, ssgCacheKey!, [])
       : (fn: any) => async () => {
           const value = await fn()
           return { isOrigin: true, value }
@@ -1343,7 +1350,7 @@ export default class Server {
           html = renderResult.html
           pageData = renderResult.renderOpts.pageData
           sprRevalidate = renderResult.renderOpts.revalidate
-          isNotFound = renderResult.renderOpts.ssgNotFound
+          isNotFound = renderResult.renderOpts.isNotFound
         } else {
           const origQuery = parseUrl(req.url || '', true).query
           const resolvedUrl = formatUrl({
@@ -1385,7 +1392,7 @@ export default class Server {
           // TODO: change this to a different passing mechanism
           pageData = (renderOpts as any).pageData
           sprRevalidate = (renderOpts as any).revalidate
-          isNotFound = (renderOpts as any).ssgNotFound
+          isNotFound = (renderOpts as any).isNotFound
         }
 
         return { html, pageData, sprRevalidate, isNotFound }
