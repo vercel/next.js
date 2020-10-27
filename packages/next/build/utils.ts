@@ -788,6 +788,12 @@ export async function isPageStatic(
       ))
     }
 
+    if ((prerenderFallback as any) === 'unstable_blocking') {
+      throw new Error(
+        `unstable_blocking has been renamed to blocking, please update the field to continue. Page: ${page}`
+      )
+    }
+
     const config = mod.config || {}
     return {
       isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
