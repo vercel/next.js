@@ -931,13 +931,23 @@ export default class Router implements BaseRouter {
     try {
       let Component: ComponentType
       let styleSheets: StyleSheetTuple[]
+      let props: Record<string, any> | undefined
       const ssg404 = err.message === SSG_DATA_NOT_FOUND_ERROR
 
       if (ssg404) {
         try {
-          ;({ page: Component, styleSheets } = await this.fetchComponent(
+          let mod: any
+          ;({ page: Component, styleSheets, mod } = await this.fetchComponent(
             '/404'
           ))
+
+          // TODO: should we tolerate these props missing and still render the
+          // page instead of falling back to _error?
+          if (mod && mod.__N_SSG) {
+            props = await this._getStaticData(
+              this.pageLoader.getDataHref('/404', '/404', true, this.locale)
+            )
+          }
         } catch (_err) {
           // non-fatal fallback to _error
         }
@@ -953,26 +963,24 @@ export default class Router implements BaseRouter {
       }
 
       const routeInfo: PrivateRouteInfo = {
+        props,
         Component,
         styleSheets,
         err: ssg404 ? undefined : err,
         error: ssg404 ? undefined : err,
       }
 
-      try {
-        routeInfo.props = await this.getInitialProps(Component, {
-          err,
-          pathname,
-          query,
-        } as any)
-
-        if (ssg404 && routeInfo.props && routeInfo.props.pageProps) {
-          routeInfo.props.pageProps.statusCode = 404
+      if (!routeInfo.props) {
+        try {
+          routeInfo.props = await this.getInitialProps(Component, {
+            err,
+            pathname,
+            query,
+          } as any)
+        } catch (gipErr) {
+          console.error('Error in error page `getInitialProps`: ', gipErr)
+          routeInfo.props = {}
         }
-        console.log(routeInfo)
-      } catch (gipErr) {
-        console.error('Error in error page `getInitialProps`: ', gipErr)
-        routeInfo.props = {}
       }
 
       return routeInfo
