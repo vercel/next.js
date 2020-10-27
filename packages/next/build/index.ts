@@ -1111,8 +1111,8 @@ export default async function build(
   }
 
   const images = { ...config.images }
-  const { deviceSizes, iconSizes } = images
-  images.sizes = [...deviceSizes, ...iconSizes]
+  const { deviceSizes, imageSizes } = images
+  images.sizes = [...deviceSizes, ...imageSizes]
 
   await promises.writeFile(
     path.join(distDir, IMAGES_MANIFEST),
