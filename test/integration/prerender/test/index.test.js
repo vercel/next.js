@@ -2101,7 +2101,7 @@ describe('SSG Prerender', () => {
         await fs.writeFile(
           pagePath,
           fallbackBlockingPageContents[page].replace(
-            "fallback: 'unstable_blocking'",
+            "fallback: 'blocking'",
             'fallback: false'
           )
         )

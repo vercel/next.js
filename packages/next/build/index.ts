@@ -594,7 +594,7 @@ export default async function build(
               ssgPageRoutes = workerResult.prerenderRoutes
             }
 
-            if (workerResult.prerenderFallback === 'unstable_blocking') {
+            if (workerResult.prerenderFallback === 'blocking') {
               ssgBlockingFallbackPages.add(page)
             } else if (workerResult.prerenderFallback === true) {
               ssgStaticFallbackPages.add(page)
