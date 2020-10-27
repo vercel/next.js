@@ -33,8 +33,8 @@ For [Vercel](https://vercel.com/), you can use a single `vercel.json` to deploy 
 {
   "version": 2,
   "builds": [
-    { "src": "blog/package.json", "use": "@now/next" },
-    { "src": "home/package.json", "use": "@now/next" }
+    { "src": "blog/package.json", "use": "@vercel/next" },
+    { "src": "home/package.json", "use": "@vercel/next" }
   ],
   "routes": [
     { "src": "/blog/_next(.*)", "dest": "blog/_next$1" },
