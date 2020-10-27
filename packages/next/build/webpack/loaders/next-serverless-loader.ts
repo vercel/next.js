@@ -19,6 +19,7 @@ export type ServerlessLoaderQuery = {
   absoluteAppPath: string
   absoluteDocumentPath: string
   absoluteErrorPath: string
+  absolute404Path: string
   buildId: string
   assetPrefix: string
   generateEtags: string
@@ -44,6 +45,7 @@ const nextServerlessLoader: loader.Loader = function () {
     absoluteAppPath,
     absoluteDocumentPath,
     absoluteErrorPath,
+    absolute404Path,
     generateEtags,
     poweredByHeader,
     basePath,
@@ -221,46 +223,38 @@ const nextServerlessLoader: loader.Loader = function () {
       // get pathname from URL with basePath stripped for locale detection
       const i18n = ${i18n}
       const accept = require('@hapi/accept')
+      const cookie = require('next/dist/compiled/cookie')
       const { detectLocaleCookie } = require('next/dist/next-server/lib/i18n/detect-locale-cookie')
+      const { detectDomainLocale } = require('next/dist/next-server/lib/i18n/detect-domain-locale')
       const { normalizeLocalePath } = require('next/dist/next-server/lib/i18n/normalize-locale-path')
+      let locales = i18n.locales
+      let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
+      let acceptPreferredLocale = accept.language(
+        req.headers['accept-language'],
+        i18n.locales
+      )
 
-      if (!detectedLocale) {
-        detectedLocale = accept.language(
-          req.headers['accept-language'],
-          i18n.locales
-        )
+      const { host } = req.headers || {}
+      // remove port from host and remove port if present
+      const hostname = host && host.split(':')[0].toLowerCase()
+
+      const detectedDomain = detectDomainLocale(
+        i18n.domains,
+        hostname,
+      )
+      if (detectedDomain) {
+        defaultLocale = detectedDomain.defaultLocale
+        detectedLocale = defaultLocale
       }
 
-      const denormalizedPagePath = denormalizePagePath(parsedUrl.pathname || '/')
-      const detectedDefaultLocale = detectedLocale === i18n.defaultLocale
-      const shouldStripDefaultLocale =
-        detectedDefaultLocale &&
-        denormalizedPagePath === \`/\${i18n.defaultLocale}\`
-      const shouldAddLocalePrefix =
-        !detectedDefaultLocale && denormalizedPagePath === '/'
-      detectedLocale = detectedLocale || i18n.defaultLocale
+      // if not domain specific locale use accept-language preferred
+      detectedLocale = detectedLocale || acceptPreferredLocale
 
-      if (
-        !nextStartMode &&
-        i18n.localeDetection !== false &&
-        (shouldAddLocalePrefix || shouldStripDefaultLocale)
-      ) {
-        res.setHeader(
-          'Location',
-          formatUrl({
-            // make sure to include any query values when redirecting
-            ...parsedUrl,
-            pathname: shouldStripDefaultLocale ? '/' : \`/\${detectedLocale}\`,
-          })
-        )
-        res.statusCode = 307
-        res.end()
-        return
-      }
-
-      // TODO: domain based locales (domain to locale mapping needs to be provided in next.config.js)
+      let localeDomainRedirect
       const localePathResult = normalizeLocalePath(parsedUrl.pathname, i18n.locales)
+
+      routeNoAssetPath = normalizeLocalePath(routeNoAssetPath, i18n.locales).pathname
 
       if (localePathResult.detectedLocale) {
         detectedLocale = localePathResult.detectedLocale
@@ -269,13 +263,109 @@ const nextServerlessLoader: loader.Loader = function () {
           pathname: localePathResult.pathname,
         })
         parsedUrl.pathname = localePathResult.pathname
+
+        // check if the locale prefix matches a domain's defaultLocale
+        // and we're on a locale specific domain if so redirect to that domain
+        // if (detectedDomain) {
+        //   const matchedDomain = detectDomainLocale(
+        //     i18n.domains,
+        //     undefined,
+        //     detectedLocale
+        //   )
+
+        //   if (matchedDomain) {
+        //     localeDomainRedirect = \`http\${
+        //       matchedDomain.http ? '' : 's'
+        //     }://\${matchedDomain.domain}\`
+        //   }
+        // }
+      } else if (detectedDomain) {
+        const matchedDomain = detectDomainLocale(
+          i18n.domains,
+          undefined,
+          acceptPreferredLocale
+        )
+
+        if (matchedDomain && matchedDomain.domain !== detectedDomain.domain) {
+          localeDomainRedirect = \`http\${matchedDomain.http ? '' : 's'}://\${
+            matchedDomain.domain
+          }\`
+        }
       }
 
+      const denormalizedPagePath = denormalizePagePath(parsedUrl.pathname || '/')
+      const detectedDefaultLocale =
+        !detectedLocale ||
+        detectedLocale.toLowerCase() === defaultLocale.toLowerCase()
+      const shouldStripDefaultLocale = false
+        // detectedDefaultLocale &&
+        // denormalizedPagePath.toLowerCase() === \`/\${i18n.defaultLocale.toLowerCase()}\`
+
+      const shouldAddLocalePrefix =
+        !detectedDefaultLocale && denormalizedPagePath === '/'
+
       detectedLocale = detectedLocale || i18n.defaultLocale
+
+      if (
+        !fromExport &&
+        !nextStartMode &&
+        !req.headers["${vercelHeader}"] &&
+        i18n.localeDetection !== false &&
+        (
+          localeDomainRedirect ||
+          shouldAddLocalePrefix ||
+          shouldStripDefaultLocale
+        )
+      ) {
+        // set the NEXT_LOCALE cookie when a user visits the default locale
+        // with the locale prefix so that they aren't redirected back to
+        // their accept-language preferred locale
+        if (
+          shouldStripDefaultLocale &&
+          acceptPreferredLocale !== defaultLocale
+        ) {
+          const previous = res.getHeader('set-cookie')
+
+          res.setHeader(
+            'set-cookie',
+            [
+            ...(typeof previous === 'string'
+              ? [previous]
+              : Array.isArray(previous)
+              ? previous
+              : []),
+            cookie.serialize('NEXT_LOCALE', defaultLocale, {
+              httpOnly: true,
+              path: '/',
+            })
+          ])
+        }
+
+        res.setHeader(
+          'Location',
+          formatUrl({
+            // make sure to include any query values when redirecting
+            ...parsedUrl,
+            pathname:
+              localeDomainRedirect
+                ? localeDomainRedirect
+                : shouldStripDefaultLocale
+                  ? '/'
+                  : \`/\${detectedLocale}\`,
+          })
+        )
+        res.statusCode = 307
+        res.end()
+        return
+      }
+
+      detectedLocale = detectedLocale || defaultLocale
     `
     : `
       const i18n = {}
       const detectedLocale = undefined
+      const defaultLocale = undefined
+      const locales = undefined
     `
 
   if (page.match(API_ROUTE)) {
@@ -328,7 +418,7 @@ const nextServerlessLoader: loader.Loader = function () {
               : `{}`
           }
 
-          const resolver = require('${absolutePagePath}')
+          const resolver = await require('${absolutePagePath}')
           await apiResolver(
             req,
             res,
@@ -375,35 +465,60 @@ const nextServerlessLoader: loader.Loader = function () {
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
-    const Document = require('${absoluteDocumentPath}').default;
-    const Error = require('${absoluteErrorPath}').default;
-    const App = require('${absoluteAppPath}').default;
+
+    const appMod = require('${absoluteAppPath}')
+    let App = appMod.default || appMod.then && appMod.then(mod => mod.default);
 
     ${dynamicRouteImports}
     ${rewriteImports}
 
-    const ComponentInfo = require('${absolutePagePath}')
+    const compMod = require('${absolutePagePath}')
 
-    const Component = ComponentInfo.default
+    let Component = compMod.default || compMod.then && compMod.then(mod => mod.default)
     export default Component
-    export const unstable_getStaticParams = ComponentInfo['unstable_getStaticParam' + 's']
-    export const getStaticProps = ComponentInfo['getStaticProp' + 's']
-    export const getStaticPaths = ComponentInfo['getStaticPath' + 's']
-    export const getServerSideProps = ComponentInfo['getServerSideProp' + 's']
+    export let getStaticProps = compMod['getStaticProp' + 's'] || compMod.then && compMod.then(mod => mod['getStaticProp' + 's'])
+    export let getStaticPaths = compMod['getStaticPath' + 's'] || compMod.then && compMod.then(mod => mod['getStaticPath' + 's'])
+    export let getServerSideProps = compMod['getServerSideProp' + 's'] || compMod.then && compMod.then(mod => mod['getServerSideProp' + 's'])
 
     // kept for detecting legacy exports
-    export const unstable_getStaticProps = ComponentInfo['unstable_getStaticProp' + 's']
-    export const unstable_getStaticPaths = ComponentInfo['unstable_getStaticPath' + 's']
-    export const unstable_getServerProps = ComponentInfo['unstable_getServerProp' + 's']
+    export const unstable_getStaticParams = compMod['unstable_getStaticParam' + 's'] || compMod.then && compMod.then(mod => mod['unstable_getStaticParam' + 's'])
+    export const unstable_getStaticProps = compMod['unstable_getStaticProp' + 's'] || compMod.then && compMod.then(mod => mod['unstable_getStaticProp' + 's'])
+    export const unstable_getStaticPaths = compMod['unstable_getStaticPath' + 's'] || compMod.then && compMod.then(mod => mod['unstable_getStaticPath' + 's'])
+    export const unstable_getServerProps = compMod['unstable_getServerProp' + 's'] || compMod.then && compMod.then(mod => mod['unstable_getServerProp' + 's'])
 
     ${dynamicRouteMatcher}
     ${defaultRouteRegex}
     ${normalizeDynamicRouteParams}
     ${handleRewrites}
 
-    export const config = ComponentInfo['confi' + 'g'] || {}
+    export let config = compMod['confi' + 'g'] || (compMod.then && compMod.then(mod => mod['confi' + 'g'])) || {}
     export const _app = App
     export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
+      let Document
+      let Error
+      let NotFound
+      ;[
+        getStaticProps,
+        getServerSideProps,
+        getStaticPaths,
+        Component,
+        App,
+        config,
+        { default: Document },
+        { default: Error },
+        ${absolute404Path ? `{ default: NotFound }, ` : ''}
+      ] = await Promise.all([
+        getStaticProps,
+        getServerSideProps,
+        getStaticPaths,
+        Component,
+        App,
+        config,
+        require('${absoluteDocumentPath}'),
+        require('${absoluteErrorPath}'),
+        ${absolute404Path ? `require("${absolute404Path}"),` : ''}
+      ])
+
       const fromExport = renderMode === 'export' || renderMode === true;
       const nextStartMode = renderMode === 'passthrough'
 
@@ -443,12 +558,24 @@ const nextServerlessLoader: loader.Loader = function () {
 
         ${handleBasePath}
 
+        // remove ?amp=1 from request URL if rendering for export
+        if (fromExport && parsedUrl.query.amp) {
+          const queryNoAmp = Object.assign({}, origQuery)
+          delete queryNoAmp.amp
+
+          req.url = formatUrl({
+            ...parsedUrl,
+            search: undefined,
+            query: queryNoAmp
+          })
+        }
+
         if (parsedUrl.pathname.match(/_next\\/data/)) {
           const {
-            default: getrouteNoAssetPath,
+            default: getRouteNoAssetPath,
           } = require('next/dist/next-server/lib/router/utils/get-route-from-asset-path');
           _nextData = true;
-          parsedUrl.pathname = getrouteNoAssetPath(
+          parsedUrl.pathname = getRouteNoAssetPath(
             parsedUrl.pathname.replace(
               new RegExp('/_next/data/${escapedBuildId}/'),
               '/'
@@ -467,7 +594,7 @@ const nextServerlessLoader: loader.Loader = function () {
             nextExport: fromExport,
             isDataReq: _nextData,
             locale: detectedLocale,
-            locales: i18n.locales,
+            locales,
             defaultLocale: i18n.defaultLocale,
           },
           options,
@@ -507,12 +634,24 @@ const nextServerlessLoader: loader.Loader = function () {
             ? `const nowParams = req.headers && req.headers["x-now-route-matches"]
               ? getRouteMatcher(
                   (function() {
-                    const { re, groups } = getRouteRegex("${page}");
+                    const { re, groups, routeKeys } = getRouteRegex("${page}");
                     return {
                       re: {
                         // Simulate a RegExp match from the \`req.url\` input
                         exec: str => {
                           const obj = parseQs(str);
+
+                          // favor named matches if available
+                          const routeKeyNames = Object.keys(routeKeys)
+
+                          if (routeKeyNames.every(name => obj[name])) {
+                            return routeKeyNames.reduce((prev, keyName) => {
+                              const paramName = routeKeys[keyName]
+                              prev[groups[paramName].pos] = obj[keyName]
+                              return prev
+                            }, {})
+                          }
+
                           return Object.keys(obj).reduce(
                             (prev, key) =>
                               Object.assign(prev, {
@@ -620,7 +759,6 @@ const nextServerlessLoader: loader.Loader = function () {
 
         const previewData = tryGetPreviewData(req, res, options.previewProps)
         const isPreviewMode = previewData !== false
-
         if (process.env.__NEXT_OPTIMIZE_FONTS) {
           renderOpts.optimizeFonts = true
           /**
@@ -634,14 +772,41 @@ const nextServerlessLoader: loader.Loader = function () {
 
         if (!renderMode) {
           if (_nextData || getStaticProps || getServerSideProps) {
-            sendPayload(req, res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', ${
-              generateEtags === 'true' ? true : false
-            }, {
-              private: isPreviewMode,
-              stateful: !!getServerSideProps,
-              revalidate: renderOpts.revalidate,
-            })
-            return null
+            if (renderOpts.ssgNotFound) {
+              res.statusCode = 404
+
+              const NotFoundComponent = ${
+                absolute404Path ? 'NotFound' : 'Error'
+              }
+
+              const errPathname = "${absolute404Path ? '/404' : '/_error'}"
+
+              const result = await renderToHTML(req, res, errPathname, parsedUrl.query, Object.assign({}, options, {
+                getStaticProps: undefined,
+                getStaticPaths: undefined,
+                getServerSideProps: undefined,
+                Component: NotFoundComponent,
+                err: undefined
+              }))
+
+              sendPayload(req, res, result, 'html', ${
+                generateEtags === 'true' ? true : false
+              }, {
+                private: isPreviewMode,
+                stateful: !!getServerSideProps,
+                revalidate: renderOpts.revalidate,
+              })
+              return null
+            } else {
+              sendPayload(req, res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', ${
+                generateEtags === 'true' ? true : false
+              }, {
+                private: isPreviewMode,
+                stateful: !!getServerSideProps,
+                revalidate: renderOpts.revalidate,
+              })
+              return null
+            }
           }
         } else if (isPreviewMode) {
           res.setHeader(

@@ -10,9 +10,10 @@ function toRoute(pathname: string): string {
 }
 
 type IncrementalCacheValue = {
-  html: string
-  pageData: any
+  html?: string
+  pageData?: any
   isStale?: boolean
+  isNotFound?: boolean
   curRevalidate?: number | false
   // milliseconds to revalidate after
   revalidateAfter: number | false
@@ -55,6 +56,7 @@ export class IncrementalCache {
         version: -1 as any, // letting us know this doesn't conform to spec
         routes: {},
         dynamicRoutes: {},
+        notFoundRoutes: [],
         preview: null as any, // `preview` is special case read in next-dev-server
       }
     } else {
@@ -67,8 +69,9 @@ export class IncrementalCache {
       // default to 50MB limit
       max: max || 50 * 1024 * 1024,
       length(val) {
+        if (val.isNotFound) return 25
         // rough estimate of size of cache value
-        return val.html.length + JSON.stringify(val.pageData).length
+        return val.html!.length + JSON.stringify(val.pageData).length
       },
     })
   }
@@ -112,6 +115,10 @@ export class IncrementalCache {
 
     // let's check the disk for seed data
     if (!data) {
+      if (this.prerenderManifest.notFoundRoutes.includes(pathname)) {
+        return { isNotFound: true, revalidateAfter: false }
+      }
+
       try {
         const html = await promises.readFile(
           this.getSeedPath(pathname, 'html'),
@@ -151,8 +158,9 @@ export class IncrementalCache {
   async set(
     pathname: string,
     data: {
-      html: string
-      pageData: any
+      html?: string
+      pageData?: any
+      isNotFound?: boolean
     },
     revalidateSeconds?: number | false
   ) {
@@ -178,7 +186,7 @@ export class IncrementalCache {
 
     // TODO: This option needs to cease to exist unless it stops mutating the
     // `next build` output's manifest.
-    if (this.incrementalOptions.flushToDisk) {
+    if (this.incrementalOptions.flushToDisk && !data.isNotFound) {
       try {
         const seedPath = this.getSeedPath(pathname, 'html')
         await promises.mkdir(path.dirname(seedPath), { recursive: true })

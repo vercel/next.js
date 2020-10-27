@@ -413,6 +413,7 @@ export async function renderToHTML(
 
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
+  delete query.__nextLocale
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -506,9 +507,6 @@ export async function renderToHTML(
   }
   if (isAutoExport) renderOpts.autoExport = true
   if (isSSG) renderOpts.nextExport = false
-  // don't set default locale for fallback pages since this needs to be
-  // handled at request time
-  if (isFallback) renderOpts.locale = undefined
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
@@ -624,7 +622,10 @@ export async function renderToHTML(
 
       const invalidKeys = Object.keys(data).filter(
         (key) =>
-          key !== 'revalidate' && key !== 'props' && key !== 'unstable_redirect'
+          key !== 'revalidate' &&
+          key !== 'props' &&
+          key !== 'unstable_redirect' &&
+          key !== 'unstable_notFound'
       )
 
       if (invalidKeys.includes('unstable_revalidate')) {
@@ -633,6 +634,18 @@ export async function renderToHTML(
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
+      }
+
+      if (data.unstable_notFound) {
+        if (pathname === '/404') {
+          throw new Error(
+            `The /404 page can not return unstable_notFound in "getStaticProps", please remove it to continue!`
+          )
+        }
+
+        ;(renderOpts as any).ssgNotFound = true
+        ;(renderOpts as any).revalidate = false
+        return null
       }
 
       if (
@@ -901,6 +914,10 @@ export async function renderToHTML(
 
   let html = renderDocument(Document, {
     ...renderOpts,
+    canonicalBase:
+      !renderOpts.ampPath && (req as any).__nextStrippedLocale
+        ? `${renderOpts.canonicalBase || ''}/${renderOpts.locale}`
+        : renderOpts.canonicalBase,
     docComponentsRendered,
     buildManifest: filteredBuildManifest,
     // Only enabled in production as development mode has features relying on HMR (style injection for example)

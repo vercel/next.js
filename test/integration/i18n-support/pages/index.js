@@ -45,7 +45,7 @@ export default function Page(props) {
   )
 }
 
-export const getServerSideProps = ({ locale, locales }) => {
+export const getStaticProps = ({ locale, locales }) => {
   return {
     props: {
       locale,
