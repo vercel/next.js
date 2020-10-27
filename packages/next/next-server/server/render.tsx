@@ -606,6 +606,7 @@ export async function renderToHTML(
             : undefined),
           locales: renderOpts.locales,
           locale: renderOpts.locale,
+          defaultLocale: renderOpts.defaultLocale,
         })
       } catch (staticPropsError) {
         // remove not found error code to prevent triggering legacy
@@ -624,8 +625,8 @@ export async function renderToHTML(
         (key) =>
           key !== 'revalidate' &&
           key !== 'props' &&
-          key !== 'unstable_redirect' &&
-          key !== 'unstable_notFound'
+          key !== 'redirect' &&
+          key !== 'notFound'
       )
 
       if (invalidKeys.includes('unstable_revalidate')) {
@@ -636,10 +637,10 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
       }
 
-      if ('unstable_notFound' in data && data.unstable_notFound) {
+      if ('notFound' in data && data.notFound) {
         if (pathname === '/404') {
           throw new Error(
-            `The /404 page can not return unstable_notFound in "getStaticProps", please remove it to continue!`
+            `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
           )
         }
 
@@ -649,11 +650,11 @@ export async function renderToHTML(
       }
 
       if (
-        'unstable_redirect' in data &&
-        data.unstable_redirect &&
-        typeof data.unstable_redirect === 'object'
+        'redirect' in data &&
+        data.redirect &&
+        typeof data.redirect === 'object'
       ) {
-        checkRedirectValues(data.unstable_redirect, req)
+        checkRedirectValues(data.redirect, req)
 
         if (isBuildTimeSSG) {
           throw new Error(
@@ -664,10 +665,10 @@ export async function renderToHTML(
 
         if (isDataReq) {
           ;(data as any).props = {
-            __N_REDIRECT: data.unstable_redirect.destination,
+            __N_REDIRECT: data.redirect.destination,
           }
         } else {
-          handleRedirect(res, data.unstable_redirect)
+          handleRedirect(res, data.redirect)
           return null
         }
       }
@@ -744,6 +745,7 @@ export async function renderToHTML(
             : undefined),
           locales: renderOpts.locales,
           locale: renderOpts.locale,
+          defaultLocale: renderOpts.defaultLocale,
         })
       } catch (serverSidePropsError) {
         // remove not found error code to prevent triggering legacy
@@ -759,20 +761,28 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        (key) =>
-          key !== 'props' &&
-          key !== 'unstable_redirect' &&
-          key !== 'unstable_notFound'
+        (key) => key !== 'props' && key !== 'redirect' && key !== 'notFound'
       )
+
+      if ((data as any).unstable_notFound) {
+        throw new Error(
+          `unstable_notFound has been renamed to notFound, please update the field to continue. Page: ${pathname}`
+        )
+      }
+      if ((data as any).unstable_redirect) {
+        throw new Error(
+          `unstable_redirect has been renamed to redirect, please update the field to continue. Page: ${pathname}`
+        )
+      }
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
       }
 
-      if ('unstable_notFound' in data) {
+      if ('notFound' in data) {
         if (pathname === '/404') {
           throw new Error(
-            `The /404 page can not return unstable_notFound in "getStaticProps", please remove it to continue!`
+            `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
           )
         }
 
@@ -780,18 +790,15 @@ export async function renderToHTML(
         return null
       }
 
-      if (
-        'unstable_redirect' in data &&
-        typeof data.unstable_redirect === 'object'
-      ) {
-        checkRedirectValues(data.unstable_redirect, req)
+      if ('redirect' in data && typeof data.redirect === 'object') {
+        checkRedirectValues(data.redirect, req)
 
         if (isDataReq) {
           ;(data as any).props = {
-            __N_REDIRECT: data.unstable_redirect.destination,
+            __N_REDIRECT: data.redirect.destination,
           }
         } else {
-          handleRedirect(res, data.unstable_redirect)
+          handleRedirect(res, data.redirect)
           return null
         }
       }

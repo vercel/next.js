@@ -52,11 +52,13 @@ function runTests(isDev) {
             http: true,
             domain: 'example.be',
             defaultLocale: 'nl-BE',
+            locales: ['nl', 'nl-NL', 'nl-BE'],
           },
           {
             http: true,
             domain: 'example.fr',
             defaultLocale: 'fr',
+            locales: ['fr-BE'],
           },
         ],
       })
@@ -661,27 +663,56 @@ function runTests(isDev) {
   })
 
   it('should handle locales with domain', async () => {
-    const checkDomainLocales = async (domainDefault = '', domain = '') => {
-      for (const locale of locales) {
-        // skip other domains' default locale since we redirect these
-        if (['fr', 'nl-BE'].includes(locale) && locale !== domainDefault) {
-          continue
-        }
+    const domainItems = [
+      {
+        // used for testing, this should not be needed in most cases
+        // as production domains should always use https
+        http: true,
+        domain: 'example.be',
+        defaultLocale: 'nl-BE',
+        locales: ['nl', 'nl-NL', 'nl-BE'],
+      },
+      {
+        http: true,
+        domain: 'example.fr',
+        defaultLocale: 'fr',
+        locales: ['fr-BE'],
+      },
+    ]
+    const domainLocales = domainItems.reduce((prev, cur) => {
+      return [...prev, ...cur.locales]
+    }, [])
 
-        const res = await fetchViaHTTP(
-          appPort,
-          `/${locale === domainDefault ? '' : locale}`,
-          undefined,
-          {
-            headers: {
-              host: domain,
-            },
-            redirect: 'manual',
-          }
+    const checkDomainLocales = async (
+      domainDefault = '',
+      domain = '',
+      locale = ''
+    ) => {
+      const res = await fetchViaHTTP(appPort, `/`, undefined, {
+        headers: {
+          host: domain,
+          'accept-language': locale,
+        },
+        redirect: 'manual',
+      })
+      const expectedDomainItem = domainItems.find(
+        (item) => item.defaultLocale === locale || item.locales.includes(locale)
+      )
+      const shouldRedirect =
+        expectedDomainItem.domain !== domain ||
+        locale !== expectedDomainItem.defaultLocale
+
+      expect(res.status).toBe(shouldRedirect ? 307 : 200)
+
+      if (shouldRedirect) {
+        const parsedUrl = url.parse(res.headers.get('location'), true)
+
+        expect(parsedUrl.pathname).toBe(
+          `/${expectedDomainItem.defaultLocale === locale ? '' : locale}`
         )
-
-        expect(res.status).toBe(200)
-
+        expect(parsedUrl.query).toEqual({})
+        expect(parsedUrl.hostname).toBe(expectedDomainItem.domain)
+      } else {
         const html = await res.text()
         const $ = cheerio.load(html)
 
@@ -691,8 +722,11 @@ function runTests(isDev) {
       }
     }
 
-    await checkDomainLocales('nl-BE', 'example.be')
-    await checkDomainLocales('fr', 'example.fr')
+    for (const item of domainItems) {
+      for (const locale of domainLocales) {
+        await checkDomainLocales(item.defaultLocale, item.domain, locale)
+      }
+    }
   })
 
   it('should generate AMP pages with all locales', async () => {
@@ -824,6 +858,11 @@ function runTests(isDev) {
           await browser.eval('document.documentElement.innerHTML')
         ).toContain('This page could not be found')
 
+        const props = JSON.parse(await browser.elementByCss('#props').text())
+
+        expect(props.is404).toBe(true)
+        expect(props.locale).toBe(locale)
+
         const parsedUrl = url.parse(
           await browser.eval('window.location.href'),
           true
@@ -847,7 +886,42 @@ function runTests(isDev) {
     expect(await browser.elementByCss('html').text()).toContain(
       'This page could not be found'
     )
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+
+    expect(props.is404).toBe(true)
+    expect(props.locale).toBe('en')
     expect(await browser.eval('window.beforeNav')).toBe(null)
+  })
+
+  it('should render 404 for fallback page that returned 404 on client transition', async () => {
+    const browser = await webdriver(appPort, '/en', true, true)
+    await browser.eval(`(function() {
+      next.router.push('/not-found/fallback/first')
+    })()`)
+    await browser.waitForElementByCss('h1')
+    await browser.eval('window.beforeNav = 1')
+
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+
+    expect(props.is404).toBe(true)
+    expect(props.locale).toBe('en')
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+
+    const parsedUrl = url.parse(
+      await browser.eval('window.location.href'),
+      true
+    )
+    expect(parsedUrl.pathname).toBe('/en/not-found/fallback/first')
+    expect(parsedUrl.query).toEqual({})
+
+    if (isDev) {
+      // make sure page doesn't reload un-necessarily in development
+      await waitFor(10 * 1000)
+    }
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should render 404 for fallback page that returned 404', async () => {
@@ -863,6 +937,10 @@ function runTests(isDev) {
     expect(await browser.elementByCss('html').text()).toContain(
       'This page could not be found'
     )
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+
+    expect(props.is404).toBe(true)
+    expect(props.locale).toBe('en')
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
 
     const parsedUrl = url.parse(
@@ -917,6 +995,7 @@ function runTests(isDev) {
     expect(JSON.parse($('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
@@ -933,6 +1012,7 @@ function runTests(isDev) {
       params: {
         slug: 'first',
       },
+      defaultLocale: 'en-US',
     })
     expect(JSON.parse($('#router-query').text())).toEqual({
       slug: 'first',
@@ -953,6 +1033,7 @@ function runTests(isDev) {
       params: {
         slug: 'another',
       },
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1039,6 +1120,7 @@ function runTests(isDev) {
     expect(JSON.parse($('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
@@ -1055,6 +1137,7 @@ function runTests(isDev) {
       params: {
         slug: 'first',
       },
+      defaultLocale: 'en-US',
     })
     expect(JSON.parse($('#router-query').text())).toEqual({
       slug: 'first',
@@ -1075,6 +1158,7 @@ function runTests(isDev) {
       params: {
         slug: 'another',
       },
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1096,6 +1180,7 @@ function runTests(isDev) {
     expect(JSON.parse($('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
@@ -1130,6 +1215,7 @@ function runTests(isDev) {
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
     expect(
@@ -1159,6 +1245,7 @@ function runTests(isDev) {
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
     expect(
@@ -1192,6 +1279,7 @@ function runTests(isDev) {
       params: {
         slug: 'another',
       },
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1215,6 +1303,7 @@ function runTests(isDev) {
       params: {
         slug: 'first',
       },
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1241,6 +1330,7 @@ function runTests(isDev) {
       params: {
         slug: 'second',
       },
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1275,6 +1365,7 @@ function runTests(isDev) {
       params: {
         slug: 'second',
       },
+      defaultLocale: 'en-US',
     })
     expect(JSON.parse($('#router-query').text())).toEqual({
       slug: 'second',
@@ -1291,6 +1382,7 @@ function runTests(isDev) {
     expect(JSON.parse($('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
@@ -1303,6 +1395,7 @@ function runTests(isDev) {
     expect(JSON.parse($2('#props').text())).toEqual({
       locale: 'nl-NL',
       locales,
+      defaultLocale: 'en-US',
     })
     expect($2('#router-locale').text()).toBe('nl-NL')
     expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
@@ -1320,6 +1413,7 @@ function runTests(isDev) {
       params: {
         slug: 'first',
       },
+      defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
@@ -1335,6 +1429,7 @@ function runTests(isDev) {
       params: {
         slug: 'first',
       },
+      defaultLocale: 'en-US',
     })
     expect($2('#router-locale').text()).toBe('nl-NL')
     expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
@@ -1365,6 +1460,7 @@ function runTests(isDev) {
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       locale: 'en',
       locales,
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1393,6 +1489,7 @@ function runTests(isDev) {
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       locale: 'en',
       locales,
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
