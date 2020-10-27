@@ -431,13 +431,14 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
       } catch (err) {
         console.error(err)
         throw new Error(
-          `Failed to parse "${src}" if using relative image it must start with a leading slash "/" or be an absolute URL`
+          `Failed to parse "${src}" in "next/image", if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
         )
       }
 
       if (!configDomains.includes(parsedSrc.hostname)) {
         throw new Error(
-          `Invalid src prop (${src}) on \`next/image\`, hostname is not configured under images in your \`next.config.js\``
+          `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
+            `See more info: https://err.sh/nextjs/next-image-unconfigured-host`
         )
       }
     }
