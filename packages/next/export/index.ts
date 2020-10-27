@@ -134,7 +134,7 @@ export default async function exportApp(
   dir = resolve(dir)
 
   // attempt to load global env values so they are available in next.config.js
-  loadEnvConfig(dir, false, Log)
+  loadEnvConfig(dir, false)
 
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)

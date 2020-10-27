@@ -1,5 +1,5 @@
 module.exports = {
-  // update me
+  target: 'experimental-serverless-trace',
   async redirects() {
     return [
       {
