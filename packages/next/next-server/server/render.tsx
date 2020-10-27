@@ -636,19 +636,20 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
       }
 
-      if (data.unstable_notFound) {
+      if ('unstable_notFound' in data && data.unstable_notFound) {
         if (pathname === '/404') {
           throw new Error(
             `The /404 page can not return unstable_notFound in "getStaticProps", please remove it to continue!`
           )
         }
 
-        ;(renderOpts as any).ssgNotFound = true
+        ;(renderOpts as any).isNotFound = true
         ;(renderOpts as any).revalidate = false
         return null
       }
 
       if (
+        'unstable_redirect' in data &&
         data.unstable_redirect &&
         typeof data.unstable_redirect === 'object'
       ) {
@@ -662,7 +663,7 @@ export async function renderToHTML(
         }
 
         if (isDataReq) {
-          data.props = {
+          ;(data as any).props = {
             __N_REDIRECT: data.unstable_redirect.destination,
           }
         } else {
@@ -673,7 +674,7 @@ export async function renderToHTML(
 
       if (
         (dev || isBuildTimeSSG) &&
-        !isSerializableProps(pathname, 'getStaticProps', data.props)
+        !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
       ) {
         // this fn should throw an error instead of ever returning `false`
         throw new Error(
@@ -681,7 +682,7 @@ export async function renderToHTML(
         )
       }
 
-      if (typeof data.revalidate === 'number') {
+      if ('revalidate' in data && typeof data.revalidate === 'number') {
         if (!Number.isInteger(data.revalidate)) {
           throw new Error(
             `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
@@ -702,20 +703,25 @@ export async function renderToHTML(
               `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
-      } else if (data.revalidate === true) {
+      } else if ('revalidate' in data && data.revalidate === true) {
         // When enabled, revalidate after 1 second. This value is optimal for
         // the most up-to-date page possible, but without a 1-to-1
         // request-refresh ratio.
         data.revalidate = 1
       } else {
         // By default, we never revalidate.
-        data.revalidate = false
+        ;(data as any).revalidate = false
       }
 
-      props.pageProps = Object.assign({}, props.pageProps, data.props)
+      props.pageProps = Object.assign(
+        {},
+        props.pageProps,
+        'props' in data ? data.props : undefined
+      )
       // pass up revalidate and props for export
       // TODO: change this to a different passing mechanism
-      ;(renderOpts as any).revalidate = data.revalidate
+      ;(renderOpts as any).revalidate =
+        'revalidate' in data ? data.revalidate : undefined
       ;(renderOpts as any).pageData = props
     }
 
@@ -753,21 +759,35 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        (key) => key !== 'props' && key !== 'unstable_redirect'
+        (key) =>
+          key !== 'props' &&
+          key !== 'unstable_redirect' &&
+          key !== 'unstable_notFound'
       )
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
       }
 
+      if ('unstable_notFound' in data) {
+        if (pathname === '/404') {
+          throw new Error(
+            `The /404 page can not return unstable_notFound in "getStaticProps", please remove it to continue!`
+          )
+        }
+
+        ;(renderOpts as any).isNotFound = true
+        return null
+      }
+
       if (
-        data.unstable_redirect &&
+        'unstable_redirect' in data &&
         typeof data.unstable_redirect === 'object'
       ) {
         checkRedirectValues(data.unstable_redirect, req)
 
         if (isDataReq) {
-          data.props = {
+          ;(data as any).props = {
             __N_REDIRECT: data.unstable_redirect.destination,
           }
         } else {
@@ -778,7 +798,11 @@ export async function renderToHTML(
 
       if (
         (dev || isBuildTimeSSG) &&
-        !isSerializableProps(pathname, 'getServerSideProps', data.props)
+        !isSerializableProps(
+          pathname,
+          'getServerSideProps',
+          (data as any).props
+        )
       ) {
         // this fn should throw an error instead of ever returning `false`
         throw new Error(
@@ -786,7 +810,7 @@ export async function renderToHTML(
         )
       }
 
-      props.pageProps = Object.assign({}, props.pageProps, data.props)
+      props.pageProps = Object.assign({}, props.pageProps, (data as any).props)
       ;(renderOpts as any).pageData = props
     }
   } catch (dataFetchError) {
