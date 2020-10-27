@@ -52,11 +52,13 @@ function runTests(isDev) {
             http: true,
             domain: 'example.be',
             defaultLocale: 'nl-BE',
+            locales: ['nl', 'nl-NL', 'nl-BE'],
           },
           {
             http: true,
             domain: 'example.fr',
             defaultLocale: 'fr',
+            locales: ['fr-BE'],
           },
         ],
       })
@@ -661,27 +663,56 @@ function runTests(isDev) {
   })
 
   it('should handle locales with domain', async () => {
-    const checkDomainLocales = async (domainDefault = '', domain = '') => {
-      for (const locale of locales) {
-        // skip other domains' default locale since we redirect these
-        if (['fr', 'nl-BE'].includes(locale) && locale !== domainDefault) {
-          continue
-        }
+    const domainItems = [
+      {
+        // used for testing, this should not be needed in most cases
+        // as production domains should always use https
+        http: true,
+        domain: 'example.be',
+        defaultLocale: 'nl-BE',
+        locales: ['nl', 'nl-NL', 'nl-BE'],
+      },
+      {
+        http: true,
+        domain: 'example.fr',
+        defaultLocale: 'fr',
+        locales: ['fr-BE'],
+      },
+    ]
+    const domainLocales = domainItems.reduce((prev, cur) => {
+      return [...prev, ...cur.locales]
+    }, [])
 
-        const res = await fetchViaHTTP(
-          appPort,
-          `/${locale === domainDefault ? '' : locale}`,
-          undefined,
-          {
-            headers: {
-              host: domain,
-            },
-            redirect: 'manual',
-          }
+    const checkDomainLocales = async (
+      domainDefault = '',
+      domain = '',
+      locale = ''
+    ) => {
+      const res = await fetchViaHTTP(appPort, `/`, undefined, {
+        headers: {
+          host: domain,
+          'accept-language': locale,
+        },
+        redirect: 'manual',
+      })
+      const expectedDomainItem = domainItems.find(
+        (item) => item.defaultLocale === locale || item.locales.includes(locale)
+      )
+      const shouldRedirect =
+        expectedDomainItem.domain !== domain ||
+        locale !== expectedDomainItem.defaultLocale
+
+      expect(res.status).toBe(shouldRedirect ? 307 : 200)
+
+      if (shouldRedirect) {
+        const parsedUrl = url.parse(res.headers.get('location'), true)
+
+        expect(parsedUrl.pathname).toBe(
+          `/${expectedDomainItem.defaultLocale === locale ? '' : locale}`
         )
-
-        expect(res.status).toBe(200)
-
+        expect(parsedUrl.query).toEqual({})
+        expect(parsedUrl.hostname).toBe(expectedDomainItem.domain)
+      } else {
         const html = await res.text()
         const $ = cheerio.load(html)
 
@@ -691,8 +722,11 @@ function runTests(isDev) {
       }
     }
 
-    await checkDomainLocales('nl-BE', 'example.be')
-    await checkDomainLocales('fr', 'example.fr')
+    for (const item of domainItems) {
+      for (const locale of domainLocales) {
+        await checkDomainLocales(item.defaultLocale, item.domain, locale)
+      }
+    }
   })
 
   it('should generate AMP pages with all locales', async () => {
