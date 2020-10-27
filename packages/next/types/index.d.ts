@@ -85,12 +85,10 @@ export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
   locales?: string[]
 }
 
-export type GetStaticPropsResult<P> = {
-  props?: P
-  revalidate?: number | boolean
-  unstable_redirect?: Redirect
-  unstable_notFound?: true
-}
+export type GetStaticPropsResult<P> =
+  | { props: P; revalidate?: number | boolean }
+  | { unstable_redirect: Redirect; revalidate?: number | boolean }
+  | { unstable_notFound: true }
 
 export type GetStaticProps<
   P extends { [key: string]: any } = { [key: string]: any },
@@ -133,15 +131,9 @@ export type GetServerSidePropsContext<
 }
 
 export type GetServerSidePropsResult<P> =
-  | {
-      props: P
-    }
-  | {
-      unstable_redirect: Redirect
-    }
-  | {
-      unstable_notFound: true
-    }
+  | { props: P }
+  | { unstable_redirect: Redirect }
+  | { unstable_notFound: true }
 
 export type GetServerSideProps<
   P extends { [key: string]: any } = { [key: string]: any },
