@@ -45,6 +45,9 @@ type EventBuildOptimized = {
   hasTestPages: boolean
   hasStatic404: boolean
   hasReportWebVitals: boolean
+  headersCount: number
+  rewritesCount: number
+  redirectsCount: number
 }
 
 export function eventBuildOptimize(
