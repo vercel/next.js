@@ -23,6 +23,14 @@ const CACHE_VERSION = 1
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 
+type ImageData = {
+  deviceSizes: number[]
+  imageSizes: number[]
+  loader: string
+  path: string
+  domains?: string[]
+}
+
 export async function imageOptimizer(
   server: Server,
   req: IncomingMessage,
@@ -30,7 +38,9 @@ export async function imageOptimizer(
   parsedUrl: UrlWithParsedQuery
 ) {
   const { nextConfig, distDir } = server
-  const { sizes = [], domains = [], loader } = nextConfig?.images || {}
+  const imageData: ImageData = nextConfig.images
+  const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
+  const sizes = [...deviceSizes, ...imageSizes]
 
   if (loader !== 'default') {
     await server.render404(req, res, parsedUrl)

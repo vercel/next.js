@@ -44,20 +44,51 @@ export default Home
 
 - `width` and `height` are required to prevent [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google is going to [use in their search ranking](https://webmasters.googleblog.com/2020/05/evaluating-page-experience.html)
 - `width` and `height` are automatically responsive, unlike the HTML `<img>` element
+- `quality` can be configured per image, default 75
 - See [`next/image`](/docs/api-reference/next/image.md) for list of available props.
 
 ## Configuration
 
-You can configure Image Optimization by using the `images` property in `next.config.js`.
+You can optionally configure Image Optimization by using the `images` property in `next.config.js`.
 
-### Sizes
-
-You can specify a list of image widths to allow using the `sizes` property. Since images maintain their aspect ratio using the `width` and `height` attributes of the source image, there is no need to specify height in `next.config.js` – only the width. You can think of these as breakpoints.
+If no configuration is provided, the following default configuration will be used.
 
 ```js
 module.exports = {
   images: {
-    sizes: [320, 420, 768, 1024, 1200],
+    deviceSizes: [320, 420, 768, 1024, 1200],
+    imageSizes: [],
+    domains: [],
+    path: '/_next/image',
+    loader: 'default',
+  },
+}
+```
+
+If a specific property is omitted, such as `deviceSizes`, that property will use the default above.
+
+This means you only need to configure the properties you wish to change.
+
+### Device Sizes
+
+You can specify a list of device width breakpoints using the `deviceSizes` property. Since images maintain their aspect ratio using the `width` and `height` attributes of the source image, there is no need to specify height in `next.config.js` – only the width. These values will be used by the browser to determine which size image should load.
+
+```js
+module.exports = {
+  images: {
+    deviceSizes: [320, 420, 768, 1024, 1200],
+  },
+}
+```
+
+### Image Sizes
+
+You can specify a list of exact image widths using the `imageSizes` property. These widths should be different than the widths defined in `deviceSizes`. The purpose is for images that don't scale with the browser window, such as icons, badges, or profile images. If the `width` property of a [`next/image`](/docs/api-reference/next/image.md) component matches a value in `imageSizes`, the image will be rendered at that exact width.
+
+```js
+module.exports = {
+  images: {
+    imageSizes: [16, 32, 64],
   },
 }
 ```
@@ -96,7 +127,6 @@ The following Image Optimization cloud providers are supported:
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
 
-
 ## Related
 
 For more information on what to do next, we recommend the following sections:
@@ -107,4 +137,3 @@ For more information on what to do next, we recommend the following sections:
     <small>See all available properties for the Image component</small>
   </a>
 </div>
-

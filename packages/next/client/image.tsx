@@ -14,7 +14,8 @@ const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
 type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
 
 type ImageData = {
-  sizes: number[]
+  deviceSizes: number[]
+  imageSizes: number[]
   loader: LoaderKey
   path: string
   domains?: string[]
@@ -25,7 +26,7 @@ type ImageProps = Omit<
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
 > & {
   src: string
-  quality?: string
+  quality?: number | string
   priority?: boolean
   loading?: LoadingValue
   unoptimized?: boolean
@@ -36,12 +37,15 @@ type ImageProps = Omit<
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
 const {
-  sizes: configSizes,
+  deviceSizes: configDeviceSizes,
+  imageSizes: configImageSizes,
   loader: configLoader,
   path: configPath,
   domains: configDomains,
 } = imageData
-configSizes.sort((a, b) => a - b) // smallest to largest
+// sort smallest to largest
+configDeviceSizes.sort((a, b) => a - b)
+configImageSizes.sort((a, b) => a - b)
 
 let cachedObserver: IntersectionObserver
 const IntersectionObserver =
@@ -79,12 +83,15 @@ function getObserver(): IntersectionObserver | undefined {
   ))
 }
 
-function getWidthsFromConfig(width: number | undefined) {
+function getDeviceSizes(width: number | undefined): number[] {
   if (typeof width !== 'number') {
-    return configSizes
+    return configDeviceSizes
+  }
+  if (configImageSizes.includes(width)) {
+    return [width]
   }
   const widths: number[] = []
-  for (let size of configSizes) {
+  for (let size of configDeviceSizes) {
     widths.push(size)
     if (size >= width) {
       break
@@ -96,13 +103,13 @@ function getWidthsFromConfig(width: number | undefined) {
 function computeSrc(
   src: string,
   unoptimized: boolean,
-  width: number | undefined,
-  quality?: string
+  width?: number,
+  quality?: number
 ): string {
   if (unoptimized) {
     return src
   }
-  const widths = getWidthsFromConfig(width)
+  const widths = getDeviceSizes(width)
   const largest = widths[widths.length - 1]
   return callLoader({ src, width: largest, quality })
 }
@@ -110,7 +117,7 @@ function computeSrc(
 type CallLoaderProps = {
   src: string
   width: number
-  quality?: string
+  quality?: number
 }
 
 function callLoader(loaderProps: CallLoaderProps) {
@@ -121,8 +128,8 @@ function callLoader(loaderProps: CallLoaderProps) {
 type SrcSetData = {
   src: string
   unoptimized: boolean
-  width: number | undefined
-  quality: string | undefined
+  width?: number
+  quality?: number
 }
 
 function generateSrcSet({
@@ -136,7 +143,8 @@ function generateSrcSet({
   if (unoptimized) {
     return undefined
   }
-  return getWidthsFromConfig(width)
+
+  return getDeviceSizes(width)
     .map((w) => `${callLoader({ src, width: w, quality })} ${w}w`)
     .join(', ')
 }
@@ -146,7 +154,7 @@ type PreloadData = {
   unoptimized: boolean
   width: number | undefined
   sizes?: string
-  quality?: string
+  quality?: number
 }
 
 function generatePreload({
@@ -242,8 +250,10 @@ export default function Image({
     }
   }, [thisEl, lazy])
 
-  let widthInt = getInt(width)
-  let heightInt = getInt(height)
+  const widthInt = getInt(width)
+  const heightInt = getInt(height)
+  const qualityInt = getInt(quality)
+
   let divStyle: React.CSSProperties | undefined
   let imgStyle: React.CSSProperties | undefined
   let wrapperStyle: React.CSSProperties | undefined
@@ -296,12 +306,12 @@ export default function Image({
   }
 
   // Generate attribute values
-  const imgSrc = computeSrc(src, unoptimized, widthInt, quality)
+  const imgSrc = computeSrc(src, unoptimized, widthInt, qualityInt)
   const imgSrcSet = generateSrcSet({
     src,
     width: widthInt,
     unoptimized,
-    quality,
+    quality: qualityInt,
   })
 
   let imgAttributes:
@@ -343,7 +353,7 @@ export default function Image({
               width: widthInt,
               unoptimized,
               sizes,
-              quality,
+              quality: qualityInt,
             })
           : ''}
         <img
@@ -421,19 +431,18 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
       } catch (err) {
         console.error(err)
         throw new Error(
-          `Failed to parse "${src}" if using relative image it must start with a leading slash "/" or be an absolute URL`
+          `Failed to parse "${src}" in "next/image", if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
         )
       }
 
       if (!configDomains.includes(parsedSrc.hostname)) {
         throw new Error(
-          `Invalid src prop (${src}) on \`next/image\`, hostname is not configured under images in your \`next.config.js\``
+          `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
+            `See more info: https://err.sh/nextjs/next-image-unconfigured-host`
         )
       }
     }
   }
 
-  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${
-    quality || '100'
-  }`
+  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
 }

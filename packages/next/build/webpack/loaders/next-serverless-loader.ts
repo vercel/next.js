@@ -263,33 +263,29 @@ const nextServerlessLoader: loader.Loader = function () {
           ...parsedUrl,
           pathname: localePathResult.pathname,
         })
+        req.__nextStrippedLocale = true
         parsedUrl.pathname = localePathResult.pathname
+      }
 
-        // check if the locale prefix matches a domain's defaultLocale
-        // and we're on a locale specific domain if so redirect to that domain
-        // if (detectedDomain) {
-        //   const matchedDomain = detectDomainLocale(
-        //     i18n.domains,
-        //     undefined,
-        //     detectedLocale
-        //   )
+      // If a detected locale is a domain specific locale and we aren't already
+      // on that domain and path prefix redirect to it to prevent duplicate
+      // content from multiple domains
+      if (detectedDomain) {
+        const localeToCheck = localePathResult.detectedLocale
+          ? detectedLocale
+          : acceptPreferredLocale
 
-        //   if (matchedDomain) {
-        //     localeDomainRedirect = \`http\${
-        //       matchedDomain.http ? '' : 's'
-        //     }://\${matchedDomain.domain}\`
-        //   }
-        // }
-      } else if (detectedDomain) {
         const matchedDomain = detectDomainLocale(
           i18n.domains,
           undefined,
-          acceptPreferredLocale
+          localeToCheck
         )
 
         if (matchedDomain && matchedDomain.domain !== detectedDomain.domain) {
           localeDomainRedirect = \`http\${matchedDomain.http ? '' : 's'}://\${
             matchedDomain.domain
+          }/\${
+            localeToCheck === matchedDomain.defaultLocale ? '' : localeToCheck
           }\`
         }
       }
@@ -497,7 +493,7 @@ const nextServerlessLoader: loader.Loader = function () {
     export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
       let Document
       let Error
-      let NotFound
+      let notFoundMod
       ;[
         getStaticProps,
         getServerSideProps,
@@ -507,7 +503,7 @@ const nextServerlessLoader: loader.Loader = function () {
         config,
         { default: Document },
         { default: Error },
-        ${absolute404Path ? `{ default: NotFound }, ` : ''}
+        ${absolute404Path ? `notFoundMod, ` : ''}
       ] = await Promise.all([
         getStaticProps,
         getServerSideProps,
@@ -773,17 +769,19 @@ const nextServerlessLoader: loader.Loader = function () {
 
         if (!renderMode) {
           if (_nextData || getStaticProps || getServerSideProps) {
-            if (renderOpts.ssgNotFound) {
+            if (renderOpts.isNotFound) {
               res.statusCode = 404
 
               const NotFoundComponent = ${
-                absolute404Path ? 'NotFound' : 'Error'
+                absolute404Path ? 'notFoundMod.default' : 'Error'
               }
 
               const errPathname = "${absolute404Path ? '/404' : '/_error'}"
 
               const result = await renderToHTML(req, res, errPathname, parsedUrl.query, Object.assign({}, options, {
-                getStaticProps: undefined,
+                getStaticProps: ${
+                  absolute404Path ? `notFoundMod.getStaticProps` : 'undefined'
+                },
                 getStaticPaths: undefined,
                 getServerSideProps: undefined,
                 Component: NotFoundComponent,
