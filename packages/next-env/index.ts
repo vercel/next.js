@@ -8,8 +8,9 @@ export type LoadedEnvFiles = snackables.LoadedEnvFiles
 // environment values e.g. \$ENV_FILE_KEY
 
 export function processEnv(loadedEnvFiles: LoadedEnvFiles) {
-  // parses the loadedEnvFiles.contents Buffer which have already been interpolated
-  const parsed = snackables.parseCache(loadedEnvFiles)
+  // parses the loadedEnvFiles.contents Buffer which has already been interpolated
+  // if PROCESSED_ENV_CACHE is true it just returns the process.env as is
+  const parsed = snackables.parse(loadedEnvFiles)
 
   /// flag to let snackables know not to reload the parsed cache files
   process.env.PROCESSED_ENV_CACHE = 'true'
@@ -30,11 +31,14 @@ export function loadEnvConfig(
   const isTest = process.env.NODE_ENV === 'test'
   const mode = isTest ? 'test' : dev ? 'development' : 'production'
 
-  const { parsed, cachedENVFiles } = snackables.config({
+  // parses and extracts .env files where the lower the .env is positioned
+  // within the 'path' argument, the more important it is
+  // if ENV_CACHE is true and the file has already been loaded, it just returns the process.env
+  const { parsed, cachedEnvFiles } = snackables.config({
     // root directory for envs
     dir,
-    // paths for .env files (can be a single string path, multiple paths as a single
-    // separated by commas, or an array of strings)
+    // paths for .env files (can be a single string path, multiple paths
+    // as a single string separated by commas, or an array of strings)
     path: [
       '.env',
       `.env.${mode}`,
@@ -48,5 +52,5 @@ export function loadEnvConfig(
     debug: Boolean(process.env.ENV_DEBUG) || true,
   })
 
-  return { combinedEnv: parsed, loadedEnvFiles: cachedENVFiles }
+  return { combinedEnv: parsed, loadedEnvFiles: cachedEnvFiles }
 }
