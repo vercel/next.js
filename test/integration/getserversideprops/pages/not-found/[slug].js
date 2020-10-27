@@ -22,7 +22,7 @@ export default function Page(props) {
 export const getServerSideProps = ({ query }) => {
   if (query.hiding) {
     return {
-      unstable_notFound: true,
+      notFound: true,
     }
   }
 
