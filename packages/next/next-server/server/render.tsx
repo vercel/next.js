@@ -625,7 +625,7 @@ export async function renderToHTML(
           key !== 'revalidate' &&
           key !== 'props' &&
           key !== 'unstable_redirect' &&
-          key !== 'unstable_notFound'
+          key !== 'notFound'
       )
 
       if (invalidKeys.includes('unstable_revalidate')) {
@@ -636,10 +636,10 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
       }
 
-      if (data.unstable_notFound) {
+      if (data.notFound) {
         if (pathname === '/404') {
           throw new Error(
-            `The /404 page can not return unstable_notFound in "getStaticProps", please remove it to continue!`
+            `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
           )
         }
 
@@ -754,19 +754,23 @@ export async function renderToHTML(
 
       const invalidKeys = Object.keys(data).filter(
         (key) =>
-          key !== 'props' &&
-          key !== 'unstable_redirect' &&
-          key !== 'unstable_notFound'
+          key !== 'props' && key !== 'unstable_redirect' && key !== 'notFound'
       )
+
+      if ((data as any).unstable_notFound) {
+        throw new Error(
+          `unstable_notFound has been renamed to notFound, please update the field to continue. Page: ${pathname}`
+        )
+      }
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
       }
 
-      if ('unstable_notFound' in data) {
+      if ('notFound' in data) {
         if (pathname === '/404') {
           throw new Error(
-            `The /404 page can not return unstable_notFound in "getStaticProps", please remove it to continue!`
+            `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
           )
         }
 
