@@ -23,6 +23,7 @@ const defaultConfig: { [key: string]: any } = {
   target: 'server',
   poweredByHeader: true,
   compress: true,
+  analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
   images: {
     deviceSizes: [320, 420, 768, 1024, 1200],
     iconSizes: [],
@@ -62,7 +63,6 @@ const defaultConfig: { [key: string]: any } = {
     optimizeImages: false,
     scrollRestoration: false,
     i18n: false,
-    analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
   },
   future: {
     excludeDefaultMomentLocales: false,

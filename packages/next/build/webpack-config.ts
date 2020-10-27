@@ -1010,9 +1010,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(
           config.experimental.i18n.domains
         ),
-        'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(
-          config.experimental.analyticsId
-        ),
+        'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
