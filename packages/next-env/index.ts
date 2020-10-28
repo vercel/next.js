@@ -2,18 +2,18 @@
 import * as snackables from 'snackables'
 
 export type Env = snackables.ProcessEnv
-export type LoadedEnvFiles = snackables.LoadedEnvFiles
+export type LoadedEnvFiles = snackables.CachedEnvFiles
 
 // NOTE: don't reload envs if we already loaded them since this breaks escaped
 // environment values e.g. \$ENV_FILE_KEY
 
 export function processEnv(loadedEnvFiles: LoadedEnvFiles) {
   // parses the loadedEnvFiles.contents Buffer which has already been interpolated
-  // if PROCESSED_ENV_CACHE is true it just returns the process.env as is
+  // if LOADED_CACHE is true it just returns the process.env as is
   const parsed = snackables.parse(loadedEnvFiles)
 
   /// flag to let snackables know not to reload the parsed cache files
-  process.env.PROCESSED_ENV_CACHE = 'true'
+  process.env.LOADED_CACHE = 'true'
 
   return parsed
 }
