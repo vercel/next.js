@@ -410,9 +410,6 @@ function fastlyLoader({ root, src, width, quality }: LoaderProps): string {
   if (quality) {
     url.searchParams.set('quality', quality.toFixed(2))
   }
-  if (typeof window !== 'undefined' && window.devicePixelRatio > 1) {
-    url.searchParams.set('dpr', window.devicePixelRatio.toFixed(1))
-  }
   return url.href
 }
 
