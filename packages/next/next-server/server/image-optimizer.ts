@@ -113,13 +113,14 @@ export async function imageOptimizer(
   }
 
   const width = parseInt(w, 10)
-  const sizes = [...deviceSizes, ...imageSizes]
 
   if (!width || isNaN(width)) {
     res.statusCode = 400
     res.end('"w" parameter (width) must be a number greater than 0')
     return { finished: true }
   }
+
+  const sizes = [...deviceSizes, ...imageSizes]
 
   if (!sizes.includes(width)) {
     res.statusCode = 400
