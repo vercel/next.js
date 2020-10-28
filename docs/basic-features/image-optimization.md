@@ -137,6 +137,8 @@ The expiration (or rather Max Age) is defined by the upstream server's `Cache-Co
 
 If `s-maxage` is found in `Cache-Control`, it is used. If no `s-maxage` is found, then `max-age` is used. If no `max-age` is found, then 60 seconds is used.
 
+You can configure [`deviceSizes`](#device-sizes) to reduce the total number of possible generated images.
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:
