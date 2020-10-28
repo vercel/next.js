@@ -991,21 +991,22 @@ export default async function getBaseWebpackConfig(
           config.experimental.scrollRestoration
         ),
         'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
-          sizes: config.images.sizes,
+          deviceSizes: config.images.deviceSizes,
+          imageSizes: config.images.imageSizes,
           path: config.images.path,
           loader: config.images.loader,
+          ...(dev
+            ? {
+                // pass domains in development to allow validating on the client
+                domains: config.images.domains,
+              }
+            : {}),
         }),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
-        'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(
-          !!config.experimental.i18n
-        ),
-        'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(
-          config.experimental.i18n.domains
-        ),
-        'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(
-          config.experimental.analyticsId
-        ),
+        'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
+        'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n.domains),
+        'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)

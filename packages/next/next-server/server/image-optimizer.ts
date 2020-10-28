@@ -17,9 +17,19 @@ const WEBP = 'image/webp'
 const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
+const SVG = 'image/svg+xml'
 const MIME_TYPES = [/* AVIF, */ WEBP, PNG, JPEG]
 const CACHE_VERSION = 1
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
+const VECTOR_TYPES = [SVG]
+
+type ImageData = {
+  deviceSizes: number[]
+  imageSizes: number[]
+  loader: string
+  path: string
+  domains?: string[]
+}
 
 export async function imageOptimizer(
   server: Server,
@@ -28,7 +38,15 @@ export async function imageOptimizer(
   parsedUrl: UrlWithParsedQuery
 ) {
   const { nextConfig, distDir } = server
-  const { sizes = [], domains = [] } = nextConfig?.images || {}
+  const imageData: ImageData = nextConfig.images
+  const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
+  const sizes = [...deviceSizes, ...imageSizes]
+
+  if (loader !== 'default') {
+    await server.render404(req, res, parsedUrl)
+    return { finished: true }
+  }
+
   const { headers } = req
   const { url, w, q } = parsedUrl.query
   const mimeType = mediaType(headers.accept, MIME_TYPES) || ''
@@ -200,20 +218,19 @@ export async function imageOptimizer(
     }
   }
 
+  if (upstreamType) {
+    const vector = VECTOR_TYPES.includes(upstreamType)
+    const animate =
+      ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
+    if (vector || animate) {
+      res.setHeader('Content-Type', upstreamType)
+      res.end(upstreamBuffer)
+      return { finished: true }
+    }
+  }
+
   const expireAt = maxAge * 1000 + now
   let contentType: string
-
-  if (
-    upstreamType &&
-    ANIMATABLE_TYPES.includes(upstreamType) &&
-    isAnimated(upstreamBuffer)
-  ) {
-    if (upstreamType) {
-      res.setHeader('Content-Type', upstreamType)
-    }
-    res.end(upstreamBuffer)
-    return { finished: true }
-  }
 
   if (mimeType) {
     contentType = mimeType
@@ -240,20 +257,25 @@ export async function imageOptimizer(
     }
   }
 
-  const transformer = sharp(upstreamBuffer).resize(width)
-
-  //if (contentType === AVIF) {
-  // Soon https://github.com/lovell/sharp/issues/2289
-  //}
-  if (contentType === WEBP) {
-    transformer.webp({ quality })
-  } else if (contentType === PNG) {
-    transformer.png({ quality })
-  } else if (contentType === JPEG) {
-    transformer.jpeg({ quality })
-  }
-
   try {
+    const transformer = sharp(upstreamBuffer)
+    const { width: metaWidth } = await transformer.metadata()
+
+    if (metaWidth && metaWidth > width) {
+      transformer.resize(width)
+    }
+
+    //if (contentType === AVIF) {
+    // Soon https://github.com/lovell/sharp/issues/2289
+    //}
+    if (contentType === WEBP) {
+      transformer.webp({ quality })
+    } else if (contentType === PNG) {
+      transformer.png({ quality })
+    } else if (contentType === JPEG) {
+      transformer.jpeg({ quality })
+    }
+
     const optimizedBuffer = await transformer.toBuffer()
     await promises.mkdir(hashDir, { recursive: true })
     const extension = getExtension(contentType)

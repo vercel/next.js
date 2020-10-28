@@ -9,6 +9,7 @@ const ClientSide = () => {
       <Image
         id="basic-image"
         src="foo.jpg"
+        loading="eager"
         width={300}
         height={400}
         quality={60}
@@ -17,6 +18,7 @@ const ClientSide = () => {
         id="attribute-test"
         data-demo="demo-value"
         src="bar.jpg"
+        loading="eager"
         width={300}
         height={400}
       />
@@ -25,6 +27,7 @@ const ClientSide = () => {
         data-demo="demo-value"
         host="secondary"
         src="foo2.jpg"
+        loading="eager"
         width={300}
         height={400}
       />
@@ -32,6 +35,7 @@ const ClientSide = () => {
         id="unoptimized-image"
         unoptimized
         src="https://arbitraryurl.com/foo.jpg"
+        loading="eager"
         width={300}
         height={400}
       />
@@ -48,6 +52,20 @@ const ClientSide = () => {
         priority
         width={300}
         height={400}
+      />
+      <Image
+        id="icon-image-64"
+        src="/icon.png"
+        loading="eager"
+        width={64}
+        height={64}
+      />
+      <Image
+        id="icon-image-16"
+        src="/icon.png"
+        loading="eager"
+        width={16}
+        height={16}
       />
       <Link href="/errors">
         <a id="errorslink">Errors</a>

@@ -10,13 +10,16 @@ import {
   nextBuild,
   nextStart,
   File,
+  waitFor,
 } from 'next-test-utils'
+import sharp from 'sharp'
 
 jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '../')
 const imagesDir = join(appDir, '.next', 'cache', 'images')
 const nextConfig = new File(join(appDir, 'next.config.js'))
+const largeSize = 1024
 let appPort
 let app
 
@@ -33,6 +36,12 @@ async function fsToJson(dir, output = {}) {
     }
   }
   return output
+}
+
+async function expectWidth(res, w) {
+  const buffer = await res.buffer()
+  const meta = await sharp(buffer).metadata()
+  expect(meta.width).toBe(w)
 }
 
 function runTests({ w, isDev, domains }) {
@@ -63,6 +72,20 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/webp')
     expect(isAnimated(await res.buffer())).toBe(true)
+  })
+
+  it('should maintain vector svg', async () => {
+    const query = { w, q: 90, url: '/test.svg' }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/svg+xml')
+    const actual = await res.text()
+    const expected = await fs.readFile(
+      join(__dirname, '..', 'public', 'test.svg'),
+      'utf8'
+    )
+    expect(actual).toMatch(expected)
   })
 
   it('should fail when url is missing', async () => {
@@ -156,6 +179,7 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
+    await expectWidth(res, w)
   })
 
   it('should resize relative url and jpeg accept header', async () => {
@@ -164,6 +188,7 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/jpeg')
+    await expectWidth(res, w)
   })
 
   it('should resize relative url and png accept header', async () => {
@@ -172,6 +197,7 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
+    await expectWidth(res, w)
   })
 
   it('should resize relative url with invalid accept header as png', async () => {
@@ -180,6 +206,7 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
+    await expectWidth(res, w)
   })
 
   it('should resize relative url with invalid accept header as gif', async () => {
@@ -188,14 +215,7 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/gif')
-  })
-
-  it('should resize relative url with invalid accept header as svg', async () => {
-    const query = { url: '/test.svg', w, q: 80 }
-    const opts = { headers: { accept: 'image/invalid' } }
-    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-    expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Type')).toBe('image/svg+xml')
+    await expectWidth(res, w)
   })
 
   it('should resize relative url with invalid accept header as tiff', async () => {
@@ -204,6 +224,7 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/tiff')
+    await expectWidth(res, w)
   })
 
   it('should resize relative url and wildcard accept header as webp', async () => {
@@ -212,6 +233,7 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
+    await expectWidth(res, w)
   })
 
   if (domains.includes('localhost')) {
@@ -222,6 +244,7 @@ function runTests({ w, isDev, domains }) {
       const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
+      await expectWidth(res, w)
     })
   }
 
@@ -287,14 +310,125 @@ function runTests({ w, isDev, domains }) {
     const json2 = await fsToJson(imagesDir)
     expect(json2).toStrictEqual(json1)
   })
+
+  it('should not resize if requested width is larger than original source image', async () => {
+    const query = { url: '/test.jpg', w: largeSize, q: 80 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toBe('image/webp')
+    await expectWidth(res, 400)
+  })
 }
 
 describe('Image Optimizer', () => {
+  describe('config checks', () => {
+    it('should error when domains length exceeds 50', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            domains: new Array(51).fill('google.com'),
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Specified images.domains exceeds length of 50, received length (51), please reduce the length of the array to continue'
+      )
+    })
+
+    it('should error when sizes length exceeds 25', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            deviceSizes: new Array(51).fill(1024),
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Specified images.deviceSizes exceeds length of 25, received length (51), please reduce the length of the array to continue'
+      )
+    })
+
+    it('should error when deviceSizes contains invalid widths', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            deviceSizes: [0, 12000, 64, 128, 256],
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Specified images.deviceSizes should be an Array of numbers that are between 1 and 10000, received invalid values (0, 12000)'
+      )
+    })
+
+    it('should error when imageSizes contains invalid widths', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            imageSizes: [0, 16, 64, 12000],
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Specified images.imageSizes should be an Array of numbers that are between 1 and 10000, received invalid values (0, 12000)'
+      )
+    })
+  })
+
   // domains for testing
   const domains = ['localhost', 'example.com']
 
   describe('dev support w/o next.config.js', () => {
-    const size = 768 // defaults defined in server/config.ts
+    const size = 320 // defaults defined in server/config.ts
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -312,7 +446,8 @@ describe('Image Optimizer', () => {
     beforeAll(async () => {
       const json = JSON.stringify({
         images: {
-          sizes: [size],
+          deviceSizes: [largeSize],
+          imageSizes: [size],
           domains,
         },
       })
@@ -330,7 +465,7 @@ describe('Image Optimizer', () => {
   })
 
   describe('Server support w/o next.config.js', () => {
-    const size = 768 // defaults defined in server/config.ts
+    const size = 320 // defaults defined in server/config.ts
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()
@@ -349,7 +484,7 @@ describe('Image Optimizer', () => {
     beforeAll(async () => {
       const json = JSON.stringify({
         images: {
-          sizes: [128],
+          deviceSizes: [size, largeSize],
           domains,
         },
       })
@@ -373,7 +508,7 @@ describe('Image Optimizer', () => {
       const json = JSON.stringify({
         target: 'experimental-serverless-trace',
         images: {
-          sizes: [size],
+          deviceSizes: [size, largeSize],
           domains,
         },
       })
@@ -389,5 +524,30 @@ describe('Image Optimizer', () => {
     })
 
     runTests({ w: size, isDev: false, domains })
+  })
+
+  describe('dev support next.config.js cloudinary loader', () => {
+    beforeAll(async () => {
+      const json = JSON.stringify({
+        images: {
+          loader: 'cloudinary',
+          path: 'https://example.com/act123/',
+        },
+      })
+      nextConfig.replace('{ /* replaceme */ }', json)
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+      await fs.remove(imagesDir)
+    })
+    it('should 404 when loader is not default', async () => {
+      const query = { w: 320, q: 90, url: '/test.svg' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(404)
+    })
   })
 })

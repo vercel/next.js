@@ -23,22 +23,27 @@ export default function Page(props) {
   )
 }
 
-export const getStaticProps = ({ params, locale, locales }) => {
+export const getStaticProps = ({ params, locale, locales, defaultLocale }) => {
   return {
     props: {
       params,
       locale,
       locales,
+      defaultLocale,
     },
   }
 }
 
-export const getStaticPaths = ({ locales }) => {
+export const getStaticPaths = ({ locales, defaultLocale }) => {
   // make sure locales were provided correctly
   if (!locales || locales.length !== 7) {
     throw new Error(
       'locales missing in getStaticPaths!! got: ' + JSON.stringify(locales)
     )
+  }
+
+  if (!defaultLocale) {
+    throw new Error('missing defaultLocale in getStaticPaths')
   }
 
   return {
