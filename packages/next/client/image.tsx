@@ -408,8 +408,8 @@ function fastlyLoader({ root, src, width, quality }: LoaderProps): string {
   if (quality) {
     params.push('quality=' + quality)
   }
-  if (typeof window !== 'undefined' && window.devicePixelRatio) {
-    params.push(`dpr=${window.devicePixelRatio}`)
+  if (typeof window !== 'undefined' && window.devicePixelRatio > 1) {
+    params.push('dpr=' + window.devicePixelRatio)
   }
   if (params.length) {
     paramsString = '?' + params.join('&')
