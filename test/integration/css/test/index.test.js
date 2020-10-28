@@ -287,6 +287,35 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('Valid Global CSS from npm', () => {
+    const appDir = join(fixturesDir, 'import-global-from-module')
+
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it(`should've emitted a single CSS file`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(`".red-text{color:\\"red\\"}"`)
+    })
+  })
+
   describe('Invalid Global CSS with Custom App', () => {
     const appDir = join(fixturesDir, 'invalid-global-with-app')
 
@@ -737,7 +766,7 @@ describe('CSS Support', () => {
     })
   })
 
-  describe('Bad CSS Import from node_modules', () => {
+  describe('CSS Import from node_modules', () => {
     const appDir = join(fixturesDir, 'npm-import-bad')
 
     beforeAll(async () => {
@@ -747,9 +776,9 @@ describe('CSS Support', () => {
     it('should fail the build', async () => {
       const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
 
-      expect(code).not.toBe(0)
-      expect(stderr).toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
-      expect(stderr).toMatch(/Build error occurred/)
+      expect(code).toBe(0)
+      expect(stderr).not.toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
+      expect(stderr).not.toMatch(/Build error occurred/)
     })
   })
 
@@ -1501,6 +1530,39 @@ describe('CSS Support', () => {
       })
 
       tests()
+    })
+  })
+
+  describe('should handle unresolved files gracefully', () => {
+    const workDir = join(fixturesDir, 'unresolved-css-url')
+
+    it('should build correctly', async () => {
+      await remove(join(workDir, '.next'))
+      const { code } = await nextBuild(workDir)
+      expect(code).toBe(0)
+    })
+
+    it('should have correct file references in CSS output', async () => {
+      const cssFiles = await readdir(join(workDir, '.next/static/css'))
+
+      for (const file of cssFiles) {
+        if (file.endsWith('.css.map')) continue
+
+        const content = await readFile(
+          join(workDir, '.next/static/css', file),
+          'utf8'
+        )
+        console.log(file, content)
+
+        // if it is the combined global CSS file there are double the expected
+        // results
+        const howMany = content.includes('p{') ? 4 : 2
+
+        expect(content.match(/\(\/vercel\.svg/g).length).toBe(howMany)
+        // expect(content.match(/\(vercel\.svg/g).length).toBe(howMany)
+        expect(content.match(/\(\/_next\/static\/media/g).length).toBe(2)
+        expect(content.match(/\(https:\/\//g).length).toBe(howMany)
+      }
     })
   })
 })

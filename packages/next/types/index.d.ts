@@ -72,16 +72,24 @@ export {
   NextApiHandler,
 }
 
+type Redirect = {
+  permanent: boolean
+  destination: string
+}
+
 export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
   params?: Q
   preview?: boolean
   previewData?: any
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
 }
 
-export type GetStaticPropsResult<P> = {
-  props: P
-  revalidate?: number | boolean
-}
+export type GetStaticPropsResult<P> =
+  | { props: P; revalidate?: number | boolean }
+  | { redirect: Redirect; revalidate?: number | boolean }
+  | { notFound: true }
 
 export type GetStaticProps<
   P extends { [key: string]: any } = { [key: string]: any },
@@ -96,14 +104,19 @@ export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
   ? P
   : never
 
-export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
-  paths: Array<string | { params: P }>
-  fallback: boolean | 'unstable_blocking'
+export type GetStaticPathsContext = {
+  locales?: string[]
+  defaultLocale?: string
 }
 
-export type GetStaticPaths<
-  P extends ParsedUrlQuery = ParsedUrlQuery
-> = () => Promise<GetStaticPathsResult<P>>
+export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
+  paths: Array<string | { params: P; locale?: string }>
+  fallback: boolean | 'blocking'
+}
+
+export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
+  context: GetStaticPathsContext
+) => Promise<GetStaticPathsResult<P>>
 
 export type GetServerSidePropsContext<
   Q extends ParsedUrlQuery = ParsedUrlQuery
@@ -114,11 +127,16 @@ export type GetServerSidePropsContext<
   query: ParsedUrlQuery
   preview?: boolean
   previewData?: any
+  resolvedUrl: string
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
 }
 
-export type GetServerSidePropsResult<P> = {
-  props: P
-}
+export type GetServerSidePropsResult<P> =
+  | { props: P }
+  | { redirect: Redirect }
+  | { notFound: true }
 
 export type GetServerSideProps<
   P extends { [key: string]: any } = { [key: string]: any },
