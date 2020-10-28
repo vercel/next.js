@@ -40,7 +40,6 @@ export async function imageOptimizer(
   const { nextConfig, distDir } = server
   const imageData: ImageData = nextConfig.images
   const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
-  const sizes = [...deviceSizes, ...imageSizes]
 
   if (loader !== 'default') {
     await server.render404(req, res, parsedUrl)
@@ -114,6 +113,7 @@ export async function imageOptimizer(
   }
 
   const width = parseInt(w, 10)
+  const sizes = [...deviceSizes, ...imageSizes]
 
   if (!width || isNaN(width)) {
     res.statusCode = 400
