@@ -1,3 +1,4 @@
+import sayHello from '@/sayHello'
 export default function Home() {
-  return <div>Hello World</div>
+  return <div>{sayHello()}</div>
 }
