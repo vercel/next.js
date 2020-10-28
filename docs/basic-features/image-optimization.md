@@ -129,6 +129,8 @@ The following Image Optimization cloud providers are supported:
 
 ## Caching
 
+The following describes the caching algorithm for the default [loader](#loader). For all other loaders, please refer to your cloud provider documentation.
+
 Images are optimzed dynamically when requested and stored in the `<distDir>/cache/images` directory. The optimized image file will be served for subsequent requests until the expiration is reached. When a request is made that matches a cached but expired file, the cached file is deleted before generating a new optimize image and caching the new file.
 
 The expiration (or rather Max Age) is defined by the upstream server's `Cache-Control` header.
