@@ -29,7 +29,7 @@ import escapePathDelimiters from './utils/escape-path-delimiters'
 
 interface TransitionOptions {
   shallow?: boolean
-  locale?: string
+  locale?: string | false
 }
 
 interface NextHistoryState {
@@ -58,10 +58,10 @@ function addPathPrefix(path: string, prefix?: string) {
 
 export function addLocale(
   path: string,
-  locale?: string,
+  locale?: string | false,
   defaultLocale?: string
 ) {
-  if (process.env.__NEXT_i18n_SUPPORT) {
+  if (process.env.__NEXT_I18N_SUPPORT) {
     return locale && locale !== defaultLocale && !path.startsWith('/' + locale)
       ? addPathPrefix(path, '/' + locale)
       : path
@@ -70,7 +70,7 @@ export function addLocale(
 }
 
 export function delLocale(path: string, locale?: string) {
-  if (process.env.__NEXT_i18n_SUPPORT) {
+  if (process.env.__NEXT_I18N_SUPPORT) {
     return locale && path.startsWith('/' + locale)
       ? path.substr(locale.length + 1) || '/'
       : path
@@ -337,7 +337,7 @@ function fetchNextData(dataHref: string, isServerRender: boolean) {
     // on a client-side transition. Otherwise, we'd get into an infinite
     // loop.
 
-    if (!isServerRender || err.message === 'SSG Data NOT_FOUND') {
+    if (!isServerRender) {
       markLoadingError(err)
     }
     throw err
@@ -453,7 +453,7 @@ export default class Router implements BaseRouter {
 
     this.isFallback = isFallback
 
-    if (process.env.__NEXT_i18n_SUPPORT) {
+    if (process.env.__NEXT_I18N_SUPPORT) {
       this.locale = locale
       this.locales = locales
       this.defaultLocale = defaultLocale
@@ -553,6 +553,7 @@ export default class Router implements BaseRouter {
       as,
       Object.assign({}, options, {
         shallow: options.shallow && this._shallow,
+        locale: options.locale || this.defaultLocale,
       })
     )
   }
@@ -600,7 +601,25 @@ export default class Router implements BaseRouter {
       window.location.href = url
       return false
     }
-    this.locale = options.locale || this.locale
+
+    if (process.env.__NEXT_I18N_SUPPORT) {
+      this.locale = options.locale || this.locale
+
+      if (typeof options.locale === 'undefined') {
+        options.locale = this.locale
+      }
+
+      const {
+        normalizeLocalePath,
+      } = require('../i18n/normalize-locale-path') as typeof import('../i18n/normalize-locale-path')
+
+      const localePathResult = normalizeLocalePath(as, this.locales)
+
+      if (localePathResult.detectedLocale) {
+        this.locale = localePathResult.detectedLocale
+        url = localePathResult.pathname
+      }
+    }
 
     if (!(options as any)._h) {
       this.isSsr = false
@@ -614,7 +633,7 @@ export default class Router implements BaseRouter {
       this.abortComponentLoad(this._inFlightRoute)
     }
 
-    as = addLocale(as, this.locale, this.defaultLocale)
+    as = addLocale(as, options.locale, this.defaultLocale)
     const cleanedAs = delLocale(
       hasBasePath(as) ? delBasePath(as) : as,
       this.locale
@@ -794,12 +813,7 @@ export default class Router implements BaseRouter {
           this._resolveHref(parsedHref, pages)
 
           if (pages.includes(parsedHref.pathname)) {
-            return this.change(
-              'replaceState',
-              destination,
-              destination,
-              options
-            )
+            return this.change(method, destination, destination, options)
           }
         }
 
@@ -811,7 +825,7 @@ export default class Router implements BaseRouter {
       this.changeState(
         method,
         url,
-        addLocale(as, this.locale, this.defaultLocale),
+        addLocale(as, options.locale, this.defaultLocale),
         options
       )
 
@@ -907,13 +921,6 @@ export default class Router implements BaseRouter {
       //  3. Internal error while loading the page
 
       // So, doing a hard reload is the proper way to deal with this.
-      if (process.env.NODE_ENV === 'development') {
-        // append __next404 query to prevent fallback from being re-served
-        // on reload in development
-        if (err.message === SSG_DATA_NOT_FOUND_ERROR && this.isSsr) {
-          as += `${as.indexOf('?') > -1 ? '&' : '?'}__next404=1`
-        }
-      }
       window.location.href = as
 
       // Changing the URL doesn't block executing the current code path.
@@ -922,25 +929,58 @@ export default class Router implements BaseRouter {
     }
 
     try {
-      const { page: Component, styleSheets } = await this.fetchComponent(
-        '/_error'
-      )
-      const routeInfo: PrivateRouteInfo = {
-        Component,
-        styleSheets,
-        err,
-        error: err,
+      let Component: ComponentType
+      let styleSheets: StyleSheetTuple[]
+      let props: Record<string, any> | undefined
+      const ssg404 = err.message === SSG_DATA_NOT_FOUND_ERROR
+
+      if (ssg404) {
+        try {
+          let mod: any
+          ;({ page: Component, styleSheets, mod } = await this.fetchComponent(
+            '/404'
+          ))
+
+          // TODO: should we tolerate these props missing and still render the
+          // page instead of falling back to _error?
+          if (mod && mod.__N_SSG) {
+            props = await this._getStaticData(
+              this.pageLoader.getDataHref('/404', '/404', true, this.locale)
+            )
+          }
+        } catch (_err) {
+          // non-fatal fallback to _error
+        }
       }
 
-      try {
-        routeInfo.props = await this.getInitialProps(Component, {
-          err,
-          pathname,
-          query,
-        } as any)
-      } catch (gipErr) {
-        console.error('Error in error page `getInitialProps`: ', gipErr)
-        routeInfo.props = {}
+      if (
+        typeof Component! === 'undefined' ||
+        typeof styleSheets! === 'undefined'
+      ) {
+        ;({ page: Component, styleSheets } = await this.fetchComponent(
+          '/_error'
+        ))
+      }
+
+      const routeInfo: PrivateRouteInfo = {
+        props,
+        Component,
+        styleSheets,
+        err: ssg404 ? undefined : err,
+        error: ssg404 ? undefined : err,
+      }
+
+      if (!routeInfo.props) {
+        try {
+          routeInfo.props = await this.getInitialProps(Component, {
+            err,
+            pathname,
+            query,
+          } as any)
+        } catch (gipErr) {
+          console.error('Error in error page `getInitialProps`: ', gipErr)
+          routeInfo.props = {}
+        }
       }
 
       return routeInfo
