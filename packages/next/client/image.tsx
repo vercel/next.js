@@ -48,10 +48,10 @@ configDeviceSizes.sort((a, b) => a - b)
 configImageSizes.sort((a, b) => a - b)
 
 let cachedObserver: IntersectionObserver
-const IntersectionObserver =
-  typeof window !== 'undefined' ? window.IntersectionObserver : null
 
 function getObserver(): IntersectionObserver | undefined {
+  const IntersectionObserver =
+    typeof window !== 'undefined' ? window.IntersectionObserver : null
   // Return shared instance of IntersectionObserver if already created
   if (cachedObserver) {
     return cachedObserver
@@ -61,26 +61,29 @@ function getObserver(): IntersectionObserver | undefined {
   if (!IntersectionObserver) {
     return undefined
   }
-
   return (cachedObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           let lazyImage = entry.target as HTMLImageElement
-          if (lazyImage.dataset.src) {
-            lazyImage.src = lazyImage.dataset.src
-          }
-          if (lazyImage.dataset.srcset) {
-            lazyImage.srcset = lazyImage.dataset.srcset
-          }
-          lazyImage.style.visibility = 'visible'
-          lazyImage.classList.remove('__lazy')
+          unLazifyImage(lazyImage)
           cachedObserver.unobserve(lazyImage)
         }
       })
     },
     { rootMargin: '200px' }
   ))
+}
+
+function unLazifyImage(lazyImage: HTMLImageElement): void {
+  if (lazyImage.dataset.src) {
+    lazyImage.src = lazyImage.dataset.src
+  }
+  if (lazyImage.dataset.srcset) {
+    lazyImage.srcset = lazyImage.dataset.srcset
+  }
+  lazyImage.style.visibility = 'visible'
+  lazyImage.classList.remove('__lazy')
 }
 
 function getDeviceSizes(width: number | undefined): number[] {
@@ -234,6 +237,11 @@ export default function Image({
     lazy = true
   }
 
+  if (typeof window !== 'undefined' && !window.IntersectionObserver) {
+    // Rendering client side on browser without intersection observer
+    lazy = false
+  }
+
   useEffect(() => {
     const target = thisEl.current
 
@@ -246,6 +254,9 @@ export default function Image({
         return () => {
           observer.unobserve(target)
         }
+      } else {
+        //browsers without intersection observer
+        unLazifyImage(target)
       }
     }
   }, [thisEl, lazy])
