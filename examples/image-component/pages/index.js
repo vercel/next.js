@@ -1,5 +1,6 @@
-import styles from '../styles.module.css'
 import Image from 'next/image'
+import { Blurhash } from "react-blurhash";
+import styles from '../styles.module.css'
 
 const Code = (p) => <code className={styles.inlineCode} {...p} />
 
@@ -43,6 +44,37 @@ const Index = () => (
         src="https://assets.vercel.com/image/upload/v1538361091/repositories/next-js/next-js.png"
         width={1200}
         height={400}
+      />
+      <hr className={styles.hr} />
+      <p>
+        Passing a placeholder
+      </p>
+      <Image
+        alt="Next.js logo"
+        src="https://assets.vercel.com/image/upload/v1538361091/repositories/next-js/next-js.png"
+        width={1200}
+        height={400}
+        placeholder={<h2>Loading...</h2>}
+      />
+      <hr className={styles.hr} />
+      <p>
+        Passing Blurhash as placeholder
+      </p>
+      <Image
+        alt="Next.js logo"
+        src="https://assets.vercel.com/image/upload/v1538361091/repositories/next-js/next-js.png"
+        width={1200}
+        height={400}
+        placeholder={
+          <Blurhash
+            hash="LEHLk~WB2yk8pyoJadR*.8kCIAnj"
+            width={600}
+            height={600}
+            resolutionX={32}
+            resolutionY={32}
+            punch={1}
+          />
+        }
       />
       <hr className={styles.hr} />
       Checkout the documentation for{' '}
