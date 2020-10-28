@@ -46,7 +46,7 @@ const Index = () => (
       />
       <hr className={styles.hr} />
       Checkout the documentation for{' '}
-      <a href="https://nextjs.org/docs/basic-features/data-fetching">
+      <a href="https://nextjs.org/docs/basic-features/image-optimization">
         Image Optimization
       </a>{' '}
       to learn more.
