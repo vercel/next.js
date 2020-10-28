@@ -54,5 +54,6 @@ export default Home
 - `priority` - When true, the image will be considered high priority and [preload](https://web.dev/preload-responsive-images/).
 - `unoptimized` - When true, the source image will be served as-is instead of resizing and changing quality.
 - `unsized` - When true, the `width` and `height` requirement can by bypassed. Should _not_ be used with above-the-fold images. Should _not_ be used with `priority`.
+- `key` - Unique key use to differentiate different images when using client-side transitions (next/link).
 
 All other properties on the `<Image>` component will be passed to the underlying `<img>` element.
