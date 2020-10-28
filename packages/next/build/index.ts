@@ -29,6 +29,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
+  IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
@@ -96,6 +97,7 @@ export type PrerenderManifest = {
   version: 2
   routes: { [route: string]: SsgRoute }
   dynamicRoutes: { [route: string]: DynamicSsgRoute }
+  notFoundRoutes: string[]
   preview: __ApiPreviewProps
 }
 
@@ -306,6 +308,15 @@ export default async function build(
       dataRouteRegex: string
       namedDataRouteRegex?: string
     }>
+    i18n?: {
+      locales: string[]
+      defaultLocale: string[]
+      domains: Array<{
+        domain: string
+        defaultLocale: string
+        locales: string[]
+      }>
+    }
   } = {
     version: 3,
     pages404: true,
@@ -325,6 +336,7 @@ export default async function build(
         }
       }),
     dataRoutes: [],
+    i18n: config.i18n || undefined,
   }
 
   await promises.mkdir(distDir, { recursive: true })
@@ -531,7 +543,7 @@ export default async function build(
         const serverBundle = getPagePath(page, distDir, isLikeServerless)
 
         if (customAppGetInitialProps === undefined) {
-          customAppGetInitialProps = hasCustomGetInitialProps(
+          customAppGetInitialProps = await hasCustomGetInitialProps(
             isLikeServerless
               ? serverBundle
               : getPagePath('/_app', distDir, isLikeServerless),
@@ -563,7 +575,9 @@ export default async function build(
           let workerResult = await staticCheckWorkers.isPageStatic(
             page,
             serverBundle,
-            runtimeEnvConfig
+            runtimeEnvConfig,
+            config.i18n?.locales,
+            config.i18n?.defaultLocale
           )
 
           if (workerResult.isHybridAmp) {
@@ -580,7 +594,7 @@ export default async function build(
               ssgPageRoutes = workerResult.prerenderRoutes
             }
 
-            if (workerResult.prerenderFallback === 'unstable_blocking') {
+            if (workerResult.prerenderFallback === 'blocking') {
               ssgBlockingFallbackPages.add(page)
             } else if (workerResult.prerenderFallback === true) {
               ssgStaticFallbackPages.add(page)
@@ -701,6 +715,7 @@ export default async function build(
 
   const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
   const tbdPrerenderRoutes: string[] = []
+  let ssgNotFoundPaths: string[] = []
 
   if (postCompileSpinner) postCompileSpinner.stopAndPersist()
 
@@ -718,11 +733,14 @@ export default async function build(
     const exportConfig: any = {
       ...config,
       initialPageRevalidationMap: {},
+      ssgNotFoundPaths: [] as string[],
       // Default map will be the collection of automatic statically exported
       // pages and incremental pages.
       // n.b. we cannot handle this above in combinedPages because the dynamic
       // page must be in the `pages` array, but not in the mapping.
       exportPathMap: (defaultMap: any) => {
+        const { i18n } = config
+
         // Dynamically routed pages should be prerendered to be used as
         // a client-side skeleton (fallback) while data is being fetched.
         // This ensures the end-user never sees a 500 or slow response from the
@@ -736,7 +754,14 @@ export default async function build(
             if (ssgStaticFallbackPages.has(page)) {
               // Override the rendering for the dynamic page to be treated as a
               // fallback render.
-              defaultMap[page] = { page, query: { __nextFallback: true } }
+              if (i18n) {
+                defaultMap[`/${i18n.defaultLocale}${page}`] = {
+                  page,
+                  query: { __nextFallback: true },
+                }
+              } else {
+                defaultMap[page] = { page, query: { __nextFallback: true } }
+              }
             } else {
               // Remove dynamically routed pages from the default path map when
               // fallback behavior is disabled.
@@ -758,6 +783,38 @@ export default async function build(
           }
         }
 
+        if (i18n) {
+          for (const page of [
+            ...staticPages,
+            ...ssgPages,
+            ...(useStatic404 ? ['/404'] : []),
+          ]) {
+            const isSsg = ssgPages.has(page)
+            const isDynamic = isDynamicRoute(page)
+            const isFallback = isSsg && ssgStaticFallbackPages.has(page)
+
+            for (const locale of i18n.locales) {
+              // skip fallback generation for SSG pages without fallback mode
+              if (isSsg && isDynamic && !isFallback) continue
+              const outputPath = `/${locale}${page === '/' ? '' : page}`
+
+              defaultMap[outputPath] = {
+                page: defaultMap[page]?.page || page,
+                query: { __nextLocale: locale },
+              }
+
+              if (isFallback) {
+                defaultMap[outputPath].query.__nextFallback = true
+              }
+            }
+
+            if (isSsg && !isFallback) {
+              // remove non-locale prefixed variant from defaultMap
+              delete defaultMap[page]
+            }
+          }
+        }
+
         return defaultMap
       },
       trailingSlash: false,
@@ -768,6 +825,7 @@ export default async function build(
     const postBuildSpinner = createSpinner({
       prefixText: `${Log.prefixes.info} Finalizing page optimization`,
     })
+    ssgNotFoundPaths = exportConfig.ssgNotFoundPaths
 
     // remove server bundles that were exported
     for (const page of staticPages) {
@@ -784,7 +842,8 @@ export default async function build(
       page: string,
       file: string,
       isSsg: boolean,
-      ext: 'html' | 'json'
+      ext: 'html' | 'json',
+      additionalSsgFile = false
     ) => {
       file = `${file}.${ext}`
       const orig = path.join(exportOptions.outdir, file)
@@ -818,8 +877,59 @@ export default async function build(
       if (!isSsg) {
         pagesManifest[page] = relativeDest
       }
-      await promises.mkdir(path.dirname(dest), { recursive: true })
-      await promises.rename(orig, dest)
+
+      const { i18n } = config
+      const isNotFound = ssgNotFoundPaths.includes(page)
+
+      // for SSG files with i18n the non-prerendered variants are
+      // output with the locale prefixed so don't attempt moving
+      // without the prefix
+      if ((!i18n || additionalSsgFile) && !isNotFound) {
+        await promises.mkdir(path.dirname(dest), { recursive: true })
+        await promises.rename(orig, dest)
+      } else if (i18n && !isSsg) {
+        // this will be updated with the locale prefixed variant
+        // since all files are output with the locale prefix
+        delete pagesManifest[page]
+      }
+
+      if (i18n) {
+        if (additionalSsgFile) return
+
+        for (const locale of i18n.locales) {
+          const curPath = `/${locale}${page === '/' ? '' : page}`
+          const localeExt = page === '/' ? path.extname(file) : ''
+          const relativeDestNoPages = relativeDest.substr('pages/'.length)
+
+          if (isSsg && ssgNotFoundPaths.includes(curPath)) {
+            continue
+          }
+
+          const updatedRelativeDest = path.join(
+            'pages',
+            locale + localeExt,
+            // if it's the top-most index page we want it to be locale.EXT
+            // instead of locale/index.html
+            page === '/' ? '' : relativeDestNoPages
+          )
+          const updatedOrig = path.join(
+            exportOptions.outdir,
+            locale + localeExt,
+            page === '/' ? '' : file
+          )
+          const updatedDest = path.join(
+            distDir,
+            isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+            updatedRelativeDest
+          )
+
+          if (!isSsg) {
+            pagesManifest[curPath] = updatedRelativeDest
+          }
+          await promises.mkdir(path.dirname(updatedDest), { recursive: true })
+          await promises.rename(updatedOrig, updatedDest)
+        }
+      }
     }
 
     // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
@@ -850,13 +960,19 @@ export default async function build(
       }
 
       if (isSsg) {
+        const { i18n } = config
+
         // For a non-dynamic SSG page, we must copy its data file from export.
         if (!isDynamic) {
           await moveExportedPage(page, page, file, true, 'json')
 
+          const revalidationMapPath = i18n
+            ? `/${i18n.defaultLocale}${page === '/' ? '' : page}`
+            : page
+
           finalPrerenderRoutes[page] = {
             initialRevalidateSeconds:
-              exportConfig.initialPageRevalidationMap[page],
+              exportConfig.initialPageRevalidationMap[revalidationMapPath],
             srcRoute: null,
             dataRoute: path.posix.join('/_next/data', buildId, `${file}.json`),
           }
@@ -864,7 +980,7 @@ export default async function build(
           const pageInfo = pageInfos.get(page)
           if (pageInfo) {
             pageInfo.initialRevalidateSeconds =
-              exportConfig.initialPageRevalidationMap[page]
+              exportConfig.initialPageRevalidationMap[revalidationMapPath]
             pageInfos.set(page, pageInfo)
           }
         } else {
@@ -875,13 +991,13 @@ export default async function build(
           const extraRoutes = additionalSsgPaths.get(page) || []
           for (const route of extraRoutes) {
             const pageFile = normalizePagePath(route)
-            await moveExportedPage(page, route, pageFile, true, 'html')
-            await moveExportedPage(page, route, pageFile, true, 'json')
+            await moveExportedPage(page, route, pageFile, true, 'html', true)
+            await moveExportedPage(page, route, pageFile, true, 'json', true)
 
             if (hasAmp) {
               const ampPage = `${pageFile}.amp`
-              await moveExportedPage(page, ampPage, ampPage, true, 'html')
-              await moveExportedPage(page, ampPage, ampPage, true, 'json')
+              await moveExportedPage(page, ampPage, ampPage, true, 'html', true)
+              await moveExportedPage(page, ampPage, ampPage, true, 'json', true)
             }
 
             finalPrerenderRoutes[route] = {
@@ -932,6 +1048,9 @@ export default async function build(
         (staticPages.size + ssgPages.size + serverPropsPages.size),
       hasStatic404: useStatic404,
       hasReportWebVitals: namedExports?.includes('reportWebVitals') ?? false,
+      rewritesCount: rewrites.length,
+      headersCount: headers.length,
+      redirectsCount: redirects.length - 1, // reduce one for trailing slash
     })
   )
 
@@ -965,6 +1084,7 @@ export default async function build(
       version: 2,
       routes: finalPrerenderRoutes,
       dynamicRoutes: finalDynamicRoutes,
+      notFoundRoutes: ssgNotFoundPaths,
       preview: previewProps,
     }
 
@@ -984,6 +1104,7 @@ export default async function build(
       routes: {},
       dynamicRoutes: {},
       preview: previewProps,
+      notFoundRoutes: [],
     }
     await promises.writeFile(
       path.join(distDir, PRERENDER_MANIFEST),
@@ -991,6 +1112,19 @@ export default async function build(
       'utf8'
     )
   }
+
+  const images = { ...config.images }
+  const { deviceSizes, imageSizes } = images
+  images.sizes = [...deviceSizes, ...imageSizes]
+
+  await promises.writeFile(
+    path.join(distDir, IMAGES_MANIFEST),
+    JSON.stringify({
+      version: 1,
+      images,
+    }),
+    'utf8'
+  )
 
   await promises.writeFile(
     path.join(distDir, EXPORT_MARKER),
@@ -1030,6 +1164,15 @@ export default async function build(
 
   if (debugOutput) {
     printCustomRoutes({ redirects, rewrites, headers })
+  }
+
+  if (config.analyticsId) {
+    console.log(
+      chalk.bold.green('Next.js Analytics') +
+        ' is enabled for this production build. ' +
+        "You'll receive a Real Experience Score computed by all of your visitors."
+    )
+    console.log('')
   }
 
   if (tracer) {

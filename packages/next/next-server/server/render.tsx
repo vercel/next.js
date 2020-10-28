@@ -67,6 +67,9 @@ class ServerRouter implements NextRouter {
   basePath: string
   events: any
   isFallback: boolean
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
@@ -75,7 +78,10 @@ class ServerRouter implements NextRouter {
     query: ParsedUrlQuery,
     as: string,
     { isFallback }: { isFallback: boolean },
-    basePath: string
+    basePath: string,
+    locale?: string,
+    locales?: string[],
+    defaultLocale?: string
   ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
@@ -83,6 +89,9 @@ class ServerRouter implements NextRouter {
     this.asPath = as
     this.isFallback = isFallback
     this.basePath = basePath
+    this.locale = locale
+    this.locales = locales
+    this.defaultLocale = defaultLocale
   }
   push(): any {
     noRouter()
@@ -156,6 +165,9 @@ export type RenderOptsPartial = {
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -193,6 +205,9 @@ function renderDocument(
     appGip,
     unstable_runtimeJS,
     devOnlyCacheBusterQueryString,
+    locale,
+    locales,
+    defaultLocale,
   }: RenderOpts & {
     props: any
     docComponentsRendered: DocumentProps['docComponentsRendered']
@@ -239,6 +254,9 @@ function renderDocument(
             customServer, // whether the user is using a custom server
             gip, // whether the page has getInitialProps
             appGip, // whether the _app has getInitialProps
+            locale,
+            locales,
+            defaultLocale,
             head: React.Children.toArray(docProps.head || [])
               .map((elem) => {
                 const { children } = elem?.props
@@ -269,6 +287,7 @@ function renderDocument(
           headTags,
           unstable_runtimeJS,
           devOnlyCacheBusterQueryString,
+          locale,
           ...docProps,
         })}
       </AmpStateContext.Provider>
@@ -394,6 +413,7 @@ export async function renderToHTML(
 
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
+  delete query.__nextLocale
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -499,7 +519,10 @@ export async function renderToHTML(
     {
       isFallback: isFallback,
     },
-    basePath
+    basePath,
+    renderOpts.locale,
+    renderOpts.locales,
+    renderOpts.defaultLocale
   )
   const ctx = {
     err,
@@ -581,6 +604,9 @@ export async function renderToHTML(
           ...(previewData !== false
             ? { preview: true, previewData: previewData }
             : undefined),
+          locales: renderOpts.locales,
+          locale: renderOpts.locale,
+          defaultLocale: renderOpts.defaultLocale,
         })
       } catch (staticPropsError) {
         // remove not found error code to prevent triggering legacy
@@ -597,7 +623,10 @@ export async function renderToHTML(
 
       const invalidKeys = Object.keys(data).filter(
         (key) =>
-          key !== 'revalidate' && key !== 'props' && key !== 'unstable_redirect'
+          key !== 'revalidate' &&
+          key !== 'props' &&
+          key !== 'redirect' &&
+          key !== 'notFound'
       )
 
       if (invalidKeys.includes('unstable_revalidate')) {
@@ -608,11 +637,24 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
       }
 
+      if ('notFound' in data && data.notFound) {
+        if (pathname === '/404') {
+          throw new Error(
+            `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
+          )
+        }
+
+        ;(renderOpts as any).isNotFound = true
+        ;(renderOpts as any).revalidate = false
+        return null
+      }
+
       if (
-        data.unstable_redirect &&
-        typeof data.unstable_redirect === 'object'
+        'redirect' in data &&
+        data.redirect &&
+        typeof data.redirect === 'object'
       ) {
-        checkRedirectValues(data.unstable_redirect, req)
+        checkRedirectValues(data.redirect, req)
 
         if (isBuildTimeSSG) {
           throw new Error(
@@ -622,18 +664,18 @@ export async function renderToHTML(
         }
 
         if (isDataReq) {
-          data.props = {
-            __N_REDIRECT: data.unstable_redirect.destination,
+          ;(data as any).props = {
+            __N_REDIRECT: data.redirect.destination,
           }
         } else {
-          handleRedirect(res, data.unstable_redirect)
+          handleRedirect(res, data.redirect)
           return null
         }
       }
 
       if (
         (dev || isBuildTimeSSG) &&
-        !isSerializableProps(pathname, 'getStaticProps', data.props)
+        !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
       ) {
         // this fn should throw an error instead of ever returning `false`
         throw new Error(
@@ -641,7 +683,7 @@ export async function renderToHTML(
         )
       }
 
-      if (typeof data.revalidate === 'number') {
+      if ('revalidate' in data && typeof data.revalidate === 'number') {
         if (!Number.isInteger(data.revalidate)) {
           throw new Error(
             `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
@@ -662,20 +704,25 @@ export async function renderToHTML(
               `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
-      } else if (data.revalidate === true) {
+      } else if ('revalidate' in data && data.revalidate === true) {
         // When enabled, revalidate after 1 second. This value is optimal for
         // the most up-to-date page possible, but without a 1-to-1
         // request-refresh ratio.
         data.revalidate = 1
       } else {
         // By default, we never revalidate.
-        data.revalidate = false
+        ;(data as any).revalidate = false
       }
 
-      props.pageProps = Object.assign({}, props.pageProps, data.props)
+      props.pageProps = Object.assign(
+        {},
+        props.pageProps,
+        'props' in data ? data.props : undefined
+      )
       // pass up revalidate and props for export
       // TODO: change this to a different passing mechanism
-      ;(renderOpts as any).revalidate = data.revalidate
+      ;(renderOpts as any).revalidate =
+        'revalidate' in data ? data.revalidate : undefined
       ;(renderOpts as any).pageData = props
     }
 
@@ -696,6 +743,9 @@ export async function renderToHTML(
           ...(previewData !== false
             ? { preview: true, previewData: previewData }
             : undefined),
+          locales: renderOpts.locales,
+          locale: renderOpts.locale,
+          defaultLocale: renderOpts.defaultLocale,
         })
       } catch (serverSidePropsError) {
         // remove not found error code to prevent triggering legacy
@@ -711,32 +761,55 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        (key) => key !== 'props' && key !== 'unstable_redirect'
+        (key) => key !== 'props' && key !== 'redirect' && key !== 'notFound'
       )
+
+      if ((data as any).unstable_notFound) {
+        throw new Error(
+          `unstable_notFound has been renamed to notFound, please update the field to continue. Page: ${pathname}`
+        )
+      }
+      if ((data as any).unstable_redirect) {
+        throw new Error(
+          `unstable_redirect has been renamed to redirect, please update the field to continue. Page: ${pathname}`
+        )
+      }
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
       }
 
-      if (
-        data.unstable_redirect &&
-        typeof data.unstable_redirect === 'object'
-      ) {
-        checkRedirectValues(data.unstable_redirect, req)
+      if ('notFound' in data) {
+        if (pathname === '/404') {
+          throw new Error(
+            `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
+          )
+        }
+
+        ;(renderOpts as any).isNotFound = true
+        return null
+      }
+
+      if ('redirect' in data && typeof data.redirect === 'object') {
+        checkRedirectValues(data.redirect, req)
 
         if (isDataReq) {
-          data.props = {
-            __N_REDIRECT: data.unstable_redirect.destination,
+          ;(data as any).props = {
+            __N_REDIRECT: data.redirect.destination,
           }
         } else {
-          handleRedirect(res, data.unstable_redirect)
+          handleRedirect(res, data.redirect)
           return null
         }
       }
 
       if (
         (dev || isBuildTimeSSG) &&
-        !isSerializableProps(pathname, 'getServerSideProps', data.props)
+        !isSerializableProps(
+          pathname,
+          'getServerSideProps',
+          (data as any).props
+        )
       ) {
         // this fn should throw an error instead of ever returning `false`
         throw new Error(
@@ -744,7 +817,7 @@ export async function renderToHTML(
         )
       }
 
-      props.pageProps = Object.assign({}, props.pageProps, data.props)
+      props.pageProps = Object.assign({}, props.pageProps, (data as any).props)
       ;(renderOpts as any).pageData = props
     }
   } catch (dataFetchError) {
@@ -872,6 +945,10 @@ export async function renderToHTML(
 
   let html = renderDocument(Document, {
     ...renderOpts,
+    canonicalBase:
+      !renderOpts.ampPath && (req as any).__nextStrippedLocale
+        ? `${renderOpts.canonicalBase || ''}/${renderOpts.locale}`
+        : renderOpts.canonicalBase,
     docComponentsRendered,
     buildManifest: filteredBuildManifest,
     // Only enabled in production as development mode has features relying on HMR (style injection for example)

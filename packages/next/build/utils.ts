@@ -27,6 +27,7 @@ import { denormalizePagePath } from '../next-server/server/normalize-page-path'
 import { BuildManifest } from '../next-server/server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import type { UnwrapPromise } from '../lib/coalesced-function'
+import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
 const fsStatGzip = (file: string) => {
@@ -530,7 +531,9 @@ export async function getJsPageSizeInKb(
 
 export async function buildStaticPaths(
   page: string,
-  getStaticPaths: GetStaticPaths
+  getStaticPaths: GetStaticPaths,
+  locales?: string[],
+  defaultLocale?: string
 ): Promise<
   Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & { paths: string[] }
 > {
@@ -541,7 +544,7 @@ export async function buildStaticPaths(
   // Get the default list of allowed params.
   const _validParamKeys = Object.keys(_routeMatcher(page))
 
-  const staticPathsResult = await getStaticPaths()
+  const staticPathsResult = await getStaticPaths({ locales, defaultLocale })
 
   const expectedReturnVal =
     `Expected: { paths: [], fallback: boolean }\n` +
@@ -572,7 +575,7 @@ export async function buildStaticPaths(
   if (
     !(
       typeof staticPathsResult.fallback === 'boolean' ||
-      staticPathsResult.fallback === 'unstable_blocking'
+      staticPathsResult.fallback === 'blocking'
     )
   ) {
     throw new Error(
@@ -595,7 +598,17 @@ export async function buildStaticPaths(
     // route.
     if (typeof entry === 'string') {
       entry = removePathTrailingSlash(entry)
-      const result = _routeMatcher(entry)
+
+      const localePathResult = normalizeLocalePath(entry, locales)
+      let cleanedEntry = entry
+
+      if (localePathResult.detectedLocale) {
+        cleanedEntry = entry.substr(localePathResult.detectedLocale.length + 1)
+      } else if (defaultLocale) {
+        entry = `/${defaultLocale}${entry}`
+      }
+
+      const result = _routeMatcher(cleanedEntry)
       if (!result) {
         throw new Error(
           `The provided path \`${entry}\` does not match the page: \`${page}\`.`
@@ -607,7 +620,10 @@ export async function buildStaticPaths(
     // For the object-provided path, we must make sure it specifies all
     // required keys.
     else {
-      const invalidKeys = Object.keys(entry).filter((key) => key !== 'params')
+      const invalidKeys = Object.keys(entry).filter(
+        (key) => key !== 'params' && key !== 'locale'
+      )
+
       if (invalidKeys.length) {
         throw new Error(
           `Additional keys were returned from \`getStaticPaths\` in page "${page}". ` +
@@ -657,7 +673,14 @@ export async function buildStaticPaths(
           .replace(/(?!^)\/$/, '')
       })
 
-      prerenderPaths?.add(builtPage)
+      if (entry.locale && !locales?.includes(entry.locale)) {
+        throw new Error(
+          `Invalid locale returned from getStaticPaths for ${page}, the locale ${entry.locale} is not specified in next.config.js`
+        )
+      }
+      const curLocale = entry.locale || defaultLocale || ''
+
+      prerenderPaths?.add(`${curLocale ? `/${curLocale}` : ''}${builtPage}`)
     }
   })
 
@@ -667,7 +690,9 @@ export async function buildStaticPaths(
 export async function isPageStatic(
   page: string,
   serverBundle: string,
-  runtimeEnvConfig: any
+  runtimeEnvConfig: any,
+  locales?: string[],
+  defaultLocale?: string
 ): Promise<{
   isStatic?: boolean
   isAmpOnly?: boolean
@@ -675,25 +700,25 @@ export async function isPageStatic(
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[] | undefined
-  prerenderFallback?: boolean | 'unstable_blocking' | undefined
+  prerenderFallback?: boolean | 'blocking' | undefined
 }> {
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
-    const mod = require(serverBundle)
-    const Comp = mod.default || mod
+    const mod = await require(serverBundle)
+    const Comp = await (mod.default || mod)
 
     if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
       throw new Error('INVALID_DEFAULT_EXPORT')
     }
 
     const hasGetInitialProps = !!(Comp as any).getInitialProps
-    const hasStaticProps = !!mod.getStaticProps
-    const hasStaticPaths = !!mod.getStaticPaths
-    const hasServerProps = !!mod.getServerSideProps
-    const hasLegacyServerProps = !!mod.unstable_getServerProps
-    const hasLegacyStaticProps = !!mod.unstable_getStaticProps
-    const hasLegacyStaticPaths = !!mod.unstable_getStaticPaths
-    const hasLegacyStaticParams = !!mod.unstable_getStaticParams
+    const hasStaticProps = !!(await mod.getStaticProps)
+    const hasStaticPaths = !!(await mod.getStaticPaths)
+    const hasServerProps = !!(await mod.getServerSideProps)
+    const hasLegacyServerProps = !!(await mod.unstable_getServerProps)
+    const hasLegacyStaticProps = !!(await mod.unstable_getStaticProps)
+    const hasLegacyStaticPaths = !!(await mod.unstable_getStaticPaths)
+    const hasLegacyStaticParams = !!(await mod.unstable_getStaticParams)
 
     if (hasLegacyStaticParams) {
       throw new Error(
@@ -750,12 +775,17 @@ export async function isPageStatic(
     }
 
     let prerenderRoutes: Array<string> | undefined
-    let prerenderFallback: boolean | 'unstable_blocking' | undefined
+    let prerenderFallback: boolean | 'blocking' | undefined
     if (hasStaticProps && hasStaticPaths) {
       ;({
         paths: prerenderRoutes,
         fallback: prerenderFallback,
-      } = await buildStaticPaths(page, mod.getStaticPaths))
+      } = await buildStaticPaths(
+        page,
+        mod.getStaticPaths,
+        locales,
+        defaultLocale
+      ))
     }
 
     const config = mod.config || {}
@@ -774,19 +804,20 @@ export async function isPageStatic(
   }
 }
 
-export function hasCustomGetInitialProps(
+export async function hasCustomGetInitialProps(
   bundle: string,
   runtimeEnvConfig: any,
   checkingApp: boolean
-): boolean {
+): Promise<boolean> {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
   let mod = require(bundle)
 
   if (checkingApp) {
-    mod = mod._app || mod.default || mod
+    mod = (await mod._app) || mod.default || mod
   } else {
     mod = mod.default || mod
   }
+  mod = await mod
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 
