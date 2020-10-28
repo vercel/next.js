@@ -55,8 +55,7 @@ function getDocumentFiles(
   pathname: string
 ): DocumentFiles {
   const sharedFiles: readonly string[] = getPageFiles(buildManifest, '/_app')
-  const pageFiles: readonly string[] =
-    pathname !== '/_error' ? getPageFiles(buildManifest, pathname) : []
+  const pageFiles: readonly string[] = getPageFiles(buildManifest, pathname)
 
   return {
     sharedFiles,
@@ -123,7 +122,7 @@ export function Html(
     HTMLHtmlElement
   >
 ) {
-  const { inAmpMode, docComponentsRendered } = useContext(
+  const { inAmpMode, docComponentsRendered, locale } = useContext(
     DocumentComponentContext
   )
 
@@ -132,6 +131,7 @@ export function Html(
   return (
     <html
       {...props}
+      lang={props.lang || locale || undefined}
       amp={inAmpMode ? '' : undefined}
       data-ampdevmode={
         inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined

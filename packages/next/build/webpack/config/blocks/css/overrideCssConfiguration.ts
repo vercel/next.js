@@ -12,9 +12,9 @@ export async function __overrideCssConfiguration(
     if (
       rule.options &&
       typeof rule.options === 'object' &&
-      rule.options['ident'] === '__nextjs_postcss'
+      typeof rule.options.postcssOptions === 'object'
     ) {
-      rule.options.plugins = postCssPlugins
+      rule.options.postcssOptions.plugins = postCssPlugins
     } else if (Array.isArray(rule.oneOf)) {
       rule.oneOf.forEach(patch)
     } else if (Array.isArray(rule.use)) {
