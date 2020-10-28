@@ -122,10 +122,22 @@ module.exports = {
 The following Image Optimization cloud providers are supported:
 
 - When using `next start` or a custom server image optimization works automatically.
-- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel
+- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary.
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
+
+## Caching
+
+The following describes the caching algorithm for the default [loader](#loader). For all other loaders, please refer to your cloud provider's documentation.
+
+Images are optimized dynamically upon request and stored in the `<distDir>/cache/images` directory. The optimized image file will be served for subsequent requests until the expiration is reached. When a request is made that matches a cached but expired file, the cached file is deleted before generating a new optimized image and caching the new file.
+
+The expiration (or rather Max Age) is defined by the upstream server's `Cache-Control` header.
+
+If `s-maxage` is found in `Cache-Control`, it is used. If no `s-maxage` is found, then `max-age` is used. If no `max-age` is found, then 60 seconds is used.
+
+You can configure [`deviceSizes`](#device-sizes) to reduce the total number of possible generated images.
 
 ## Related
 
