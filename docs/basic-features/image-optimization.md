@@ -57,7 +57,7 @@ If no configuration is provided, the following default configuration will be use
 module.exports = {
   images: {
     deviceSizes: [320, 420, 768, 1024, 1200],
-    iconSizes: [],
+    imageSizes: [],
     domains: [],
     path: '/_next/image',
     loader: 'default',
