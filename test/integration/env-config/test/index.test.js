@@ -13,6 +13,7 @@ import {
   killApp,
   fetchViaHTTP,
 } from 'next-test-utils'
+import { TEMPORARY_REDIRECT_STATUS } from 'next/constants'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -66,7 +67,7 @@ const runTests = (mode = 'dev') => {
     })
     const { pathname } = url.parse(res.headers.get('location'))
 
-    expect(res.status).toBe(307)
+    expect(res.status).toBe(TEMPORARY_REDIRECT_STATUS)
     expect(pathname).toBe('/another')
   })
 
