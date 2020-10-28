@@ -403,18 +403,17 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
 }
 
 function fastlyLoader({ root, src, width, quality }: LoaderProps): string {
-  const params = ['auto=webp', 'optimize=medium', 'width=' + width]
-  let paramsString = ''
+  const url = new URL(`${root}${normalizeSrc(src)}`)
+  url.searchParams.set('auto', 'webp')
+  url.searchParams.set('optimize', 'medium')
+  url.searchParams.set('width', width.toFixed(0))
   if (quality) {
-    params.push('quality=' + quality)
+    url.searchParams.set('quality', quality.toFixed(2))
   }
   if (typeof window !== 'undefined' && window.devicePixelRatio > 1) {
-    params.push('dpr=' + window.devicePixelRatio)
+    url.searchParams.set('dpr', window.devicePixelRatio.toFixed(1))
   }
-  if (params.length) {
-    paramsString = '?' + params.join('&')
-  }
-  return `${root}${normalizeSrc(src)}${paramsString}`
+  return url.href
 }
 
 function akamaiLoader({ root, src, width }: LoaderProps): string {
