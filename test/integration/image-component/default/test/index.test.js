@@ -22,6 +22,19 @@ const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
 
+async function hasImageMatchingUrl(browser, url) {
+  const links = await browser.elementsByCss('img')
+  let foundMatch = false
+  for (const link of links) {
+    const src = await link.getAttribute('src')
+    if (src === url) {
+      foundMatch = true
+      break
+    }
+  }
+  return foundMatch
+}
+
 function runTests(mode) {
   it('should load the images', async () => {
     let browser
@@ -54,6 +67,13 @@ function runTests(mode) {
 
         return 'result-correct'
       }, /result-correct/)
+
+      expect(
+        await hasImageMatchingUrl(
+          browser,
+          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=420&q=75`
+        )
+      ).toBe(true)
     } finally {
       if (browser) {
         await browser.close()
@@ -97,7 +117,7 @@ function runTests(mode) {
 
       await hasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
-        'Invalid src prop (https://google.com/test.png) on `next/image`, hostname is not configured under images in your `next.config.js`'
+        'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
       )
     })
   }

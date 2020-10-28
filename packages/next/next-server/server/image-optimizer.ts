@@ -25,7 +25,7 @@ const VECTOR_TYPES = [SVG]
 
 type ImageData = {
   deviceSizes: number[]
-  iconSizes: number[]
+  imageSizes: number[]
   loader: string
   path: string
   domains?: string[]
@@ -39,8 +39,8 @@ export async function imageOptimizer(
 ) {
   const { nextConfig, distDir } = server
   const imageData: ImageData = nextConfig.images
-  const { deviceSizes = [], iconSizes = [], domains = [], loader } = imageData
-  const sizes = [...deviceSizes, ...iconSizes]
+  const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
+  const sizes = [...deviceSizes, ...imageSizes]
 
   if (loader !== 'default') {
     await server.render404(req, res, parsedUrl)

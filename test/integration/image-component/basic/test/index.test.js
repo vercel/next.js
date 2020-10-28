@@ -51,7 +51,7 @@ function runTests() {
       await browser.elementById('preceding-slash-image').getAttribute('srcset')
     ).toBe('https://example.com/myaccount/fooslash.jpg?auto=format&w=480 480w')
   })
-  it('should use iconSizes when width matches, not deviceSizes from next.config.js', async () => {
+  it('should use imageSizes when width matches, not deviceSizes from next.config.js', async () => {
     expect(await browser.elementById('icon-image-16').getAttribute('src')).toBe(
       'https://example.com/myaccount/icon.png?auto=format&w=16'
     )
@@ -280,6 +280,17 @@ describe('Image Component Tests', () => {
       browser = null
     })
     lazyLoadingTests()
+    it('should automatically load images if observer does not exist', async () => {
+      browser = await webdriver(appPort, '/missing-observer')
+      expect(
+        await browser.elementById('lazy-no-observer').getAttribute('src')
+      ).toBe('https://example.com/myaccount/foox.jpg?auto=format&w=1024')
+      expect(
+        await browser.elementById('lazy-no-observer').getAttribute('srcset')
+      ).toBe(
+        'https://example.com/myaccount/foox.jpg?auto=format&w=480 480w, https://example.com/myaccount/foox.jpg?auto=format&w=1024 1024w'
+      )
+    })
   })
   describe('Client-side Lazy Loading Tests', () => {
     beforeAll(async () => {
@@ -291,5 +302,18 @@ describe('Image Component Tests', () => {
       browser = null
     })
     lazyLoadingTests()
+    it('should automatically load images if observer does not exist', async () => {
+      await browser.waitForElementByCss('#observerlink').click()
+      await waitFor(500)
+      browser = await webdriver(appPort, '/missing-observer')
+      expect(
+        await browser.elementById('lazy-no-observer').getAttribute('src')
+      ).toBe('https://example.com/myaccount/foox.jpg?auto=format&w=1024')
+      expect(
+        await browser.elementById('lazy-no-observer').getAttribute('srcset')
+      ).toBe(
+        'https://example.com/myaccount/foox.jpg?auto=format&w=480 480w, https://example.com/myaccount/foox.jpg?auto=format&w=1024 1024w'
+      )
+    })
   })
 })

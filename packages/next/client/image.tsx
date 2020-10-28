@@ -15,7 +15,7 @@ type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
 
 type ImageData = {
   deviceSizes: number[]
-  iconSizes: number[]
+  imageSizes: number[]
   loader: LoaderKey
   path: string
   domains?: string[]
@@ -26,7 +26,7 @@ type ImageProps = Omit<
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
 > & {
   src: string
-  quality?: string
+  quality?: number | string
   priority?: boolean
   loading?: LoadingValue
   unoptimized?: boolean
@@ -38,20 +38,20 @@ type ImageProps = Omit<
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
 const {
   deviceSizes: configDeviceSizes,
-  iconSizes: configIconSizes,
+  imageSizes: configImageSizes,
   loader: configLoader,
   path: configPath,
   domains: configDomains,
 } = imageData
 // sort smallest to largest
 configDeviceSizes.sort((a, b) => a - b)
-configIconSizes.sort((a, b) => a - b)
+configImageSizes.sort((a, b) => a - b)
 
 let cachedObserver: IntersectionObserver
-const IntersectionObserver =
-  typeof window !== 'undefined' ? window.IntersectionObserver : null
 
 function getObserver(): IntersectionObserver | undefined {
+  const IntersectionObserver =
+    typeof window !== 'undefined' ? window.IntersectionObserver : null
   // Return shared instance of IntersectionObserver if already created
   if (cachedObserver) {
     return cachedObserver
@@ -61,20 +61,12 @@ function getObserver(): IntersectionObserver | undefined {
   if (!IntersectionObserver) {
     return undefined
   }
-
   return (cachedObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           let lazyImage = entry.target as HTMLImageElement
-          if (lazyImage.dataset.src) {
-            lazyImage.src = lazyImage.dataset.src
-          }
-          if (lazyImage.dataset.srcset) {
-            lazyImage.srcset = lazyImage.dataset.srcset
-          }
-          lazyImage.style.visibility = 'visible'
-          lazyImage.classList.remove('__lazy')
+          unLazifyImage(lazyImage)
           cachedObserver.unobserve(lazyImage)
         }
       })
@@ -83,12 +75,22 @@ function getObserver(): IntersectionObserver | undefined {
   ))
 }
 
+function unLazifyImage(lazyImage: HTMLImageElement): void {
+  if (lazyImage.dataset.src) {
+    lazyImage.src = lazyImage.dataset.src
+  }
+  if (lazyImage.dataset.srcset) {
+    lazyImage.srcset = lazyImage.dataset.srcset
+  }
+  lazyImage.style.visibility = 'visible'
+  lazyImage.classList.remove('__lazy')
+}
+
 function getDeviceSizes(width: number | undefined): number[] {
   if (typeof width !== 'number') {
     return configDeviceSizes
   }
-  const smallest = configDeviceSizes[0]
-  if (width < smallest && configIconSizes.includes(width)) {
+  if (configImageSizes.includes(width)) {
     return [width]
   }
   const widths: number[] = []
@@ -104,8 +106,8 @@ function getDeviceSizes(width: number | undefined): number[] {
 function computeSrc(
   src: string,
   unoptimized: boolean,
-  width: number | undefined,
-  quality?: string
+  width?: number,
+  quality?: number
 ): string {
   if (unoptimized) {
     return src
@@ -118,7 +120,7 @@ function computeSrc(
 type CallLoaderProps = {
   src: string
   width: number
-  quality?: string
+  quality?: number
 }
 
 function callLoader(loaderProps: CallLoaderProps) {
@@ -129,8 +131,8 @@ function callLoader(loaderProps: CallLoaderProps) {
 type SrcSetData = {
   src: string
   unoptimized: boolean
-  width: number | undefined
-  quality: string | undefined
+  width?: number
+  quality?: number
 }
 
 function generateSrcSet({
@@ -155,7 +157,7 @@ type PreloadData = {
   unoptimized: boolean
   width: number | undefined
   sizes?: string
-  quality?: string
+  quality?: number
 }
 
 function generatePreload({
@@ -235,6 +237,11 @@ export default function Image({
     lazy = true
   }
 
+  if (typeof window !== 'undefined' && !window.IntersectionObserver) {
+    // Rendering client side on browser without intersection observer
+    lazy = false
+  }
+
   useEffect(() => {
     const target = thisEl.current
 
@@ -247,12 +254,17 @@ export default function Image({
         return () => {
           observer.unobserve(target)
         }
+      } else {
+        //browsers without intersection observer
+        unLazifyImage(target)
       }
     }
   }, [thisEl, lazy])
 
-  let widthInt = getInt(width)
-  let heightInt = getInt(height)
+  const widthInt = getInt(width)
+  const heightInt = getInt(height)
+  const qualityInt = getInt(quality)
+
   let divStyle: React.CSSProperties | undefined
   let imgStyle: React.CSSProperties | undefined
   let wrapperStyle: React.CSSProperties | undefined
@@ -305,12 +317,12 @@ export default function Image({
   }
 
   // Generate attribute values
-  const imgSrc = computeSrc(src, unoptimized, widthInt, quality)
+  const imgSrc = computeSrc(src, unoptimized, widthInt, qualityInt)
   const imgSrcSet = generateSrcSet({
     src,
     width: widthInt,
     unoptimized,
-    quality,
+    quality: qualityInt,
   })
 
   let imgAttributes:
@@ -352,7 +364,7 @@ export default function Image({
               width: widthInt,
               unoptimized,
               sizes,
-              quality,
+              quality: qualityInt,
             })
           : ''}
         <img
@@ -430,19 +442,18 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
       } catch (err) {
         console.error(err)
         throw new Error(
-          `Failed to parse "${src}" if using relative image it must start with a leading slash "/" or be an absolute URL`
+          `Failed to parse "${src}" in "next/image", if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
         )
       }
 
       if (!configDomains.includes(parsedSrc.hostname)) {
         throw new Error(
-          `Invalid src prop (${src}) on \`next/image\`, hostname is not configured under images in your \`next.config.js\``
+          `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
+            `See more info: https://err.sh/nextjs/next-image-unconfigured-host`
         )
       }
     }
   }
 
-  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${
-    quality || '100'
-  }`
+  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
 }

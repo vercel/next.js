@@ -23,9 +23,10 @@ const defaultConfig: { [key: string]: any } = {
   target: 'server',
   poweredByHeader: true,
   compress: true,
+  analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
   images: {
     deviceSizes: [320, 420, 768, 1024, 1200],
-    iconSizes: [],
+    imageSizes: [],
     domains: [],
     path: '/_next/image',
     loader: 'default',
@@ -44,6 +45,7 @@ const defaultConfig: { [key: string]: any } = {
   basePath: '',
   sassOptions: {},
   trailingSlash: false,
+  i18n: false,
   experimental: {
     cpus: Math.max(
       1,
@@ -61,8 +63,6 @@ const defaultConfig: { [key: string]: any } = {
     optimizeFonts: false,
     optimizeImages: false,
     scrollRestoration: false,
-    i18n: false,
-    analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -218,18 +218,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   if (result?.images) {
     const { images } = result
 
-    // Normalize defined image host to end in slash
-    if (images?.path) {
-      if (images.path[images.path.length - 1] !== '/') {
-        images.path += '/'
-      }
-    }
-
     if (typeof images !== 'object') {
       throw new Error(
         `Specified images should be an object received ${typeof images}`
       )
     }
+
     if (images.domains) {
       if (!Array.isArray(images.domains)) {
         throw new Error(
@@ -280,36 +274,44 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )
       }
     }
-    if (images.iconSizes) {
-      const { iconSizes } = images
-      if (!Array.isArray(iconSizes)) {
+    if (images.imageSizes) {
+      const { imageSizes } = images
+      if (!Array.isArray(imageSizes)) {
         throw new Error(
-          `Specified images.iconSizes should be an Array received ${typeof iconSizes}`
+          `Specified images.imageSizes should be an Array received ${typeof imageSizes}`
         )
       }
 
-      if (iconSizes.length > 25) {
+      if (imageSizes.length > 25) {
         throw new Error(
-          `Specified images.iconSizes exceeds length of 25, received length (${iconSizes.length}), please reduce the length of the array to continue`
+          `Specified images.imageSizes exceeds length of 25, received length (${imageSizes.length}), please reduce the length of the array to continue`
         )
       }
 
-      const invalid = iconSizes.filter((d: unknown) => {
+      const invalid = imageSizes.filter((d: unknown) => {
         return typeof d !== 'number' || d < 1 || d > 10000
       })
 
       if (invalid.length > 0) {
         throw new Error(
-          `Specified images.iconSizes should be an Array of numbers that are between 1 and 10000, received invalid values (${invalid.join(
+          `Specified images.imageSizes should be an Array of numbers that are between 1 and 10000, received invalid values (${invalid.join(
             ', '
           )})`
         )
       }
     }
+
+    // Append trailing slash for non-default loaders
+    if (images.path) {
+      const isDefaultLoader = !images.loader || images.loader === 'default'
+      if (!isDefaultLoader && images.path[images.path.length - 1] !== '/') {
+        images.path += '/'
+      }
+    }
   }
 
-  if (result.experimental?.i18n) {
-    const { i18n } = result.experimental
+  if (result.i18n) {
+    const { i18n } = result
     const i18nType = typeof i18n
 
     if (i18nType !== 'object') {
@@ -340,7 +342,26 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
 
-        return false
+        let hasInvalidLocale = false
+
+        if (Array.isArray(item.locales)) {
+          for (const locale of item.locales) {
+            if (typeof locale !== 'string') hasInvalidLocale = true
+
+            for (const domainItem of i18n.domains) {
+              if (domainItem === item) continue
+              if (domainItem.locales && domainItem.locales.includes(locale)) {
+                console.warn(
+                  `Both ${item.domain} and ${domainItem.domain} configured the locale (${locale}) but only one can. Remove it from one i18n.domains config to continue`
+                )
+                hasInvalidLocale = true
+                break
+              }
+            }
+          }
+        }
+
+        return hasInvalidLocale
       })
 
       if (invalidDomainItems.length > 0) {

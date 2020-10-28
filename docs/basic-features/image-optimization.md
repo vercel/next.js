@@ -44,11 +44,30 @@ export default Home
 
 - `width` and `height` are required to prevent [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google is going to [use in their search ranking](https://webmasters.googleblog.com/2020/05/evaluating-page-experience.html)
 - `width` and `height` are automatically responsive, unlike the HTML `<img>` element
+- `quality` can be configured per image, default 75
 - See [`next/image`](/docs/api-reference/next/image.md) for list of available props.
 
 ## Configuration
 
-You can configure Image Optimization by using the `images` property in `next.config.js`.
+You can optionally configure Image Optimization by using the `images` property in `next.config.js`.
+
+If no configuration is provided, the following default configuration will be used.
+
+```js
+module.exports = {
+  images: {
+    deviceSizes: [320, 420, 768, 1024, 1200],
+    imageSizes: [],
+    domains: [],
+    path: '/_next/image',
+    loader: 'default',
+  },
+}
+```
+
+If a specific property is omitted, such as `deviceSizes`, that property will use the default above.
+
+This means you only need to configure the properties you wish to change.
 
 ### Device Sizes
 
@@ -62,14 +81,14 @@ module.exports = {
 }
 ```
 
-### Icon Sizes
+### Image Sizes
 
-You can specify a list of icon image widths using the `iconSizes` property. These widths should be smaller than the smallest value in `deviceSizes`. The purpose is for images that don't scale with the browser window, such as icons or badges. If `iconSizes` is not defined, then `deviceSizes` will be used.
+You can specify a list of exact image widths using the `imageSizes` property. These widths should be different than the widths defined in `deviceSizes`. The purpose is for images that don't scale with the browser window, such as icons, badges, or profile images. If the `width` property of a [`next/image`](/docs/api-reference/next/image.md) component matches a value in `imageSizes`, the image will be rendered at that exact width.
 
 ```js
 module.exports = {
   images: {
-    iconSizes: [16, 32, 64],
+    imageSizes: [16, 32, 64],
   },
 }
 ```
