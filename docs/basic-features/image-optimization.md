@@ -11,11 +11,17 @@ description: Next.js supports built-in image optimization, as well as third part
   </ul>
 </details>
 
-Since version **10.0.0** Next.js has a built-in Image Component and Automatic Image Optimization.
+Since version **10.0.0**, Next.js has a built-in Image Component and Automatic Image Optimization.
 
-The Next.js Image Component (`next/image`) is an extension of the HTML `<img>` element, evolved for the modern web.
+The Next.js Image Component, [`next/image`](/docs/api-reference/next/image.md), is an extension of the HTML `<img>` element, evolved for the modern web.
 
-The Automatic Image Optimization allows for resizing, optimizing, and serving images in modern formats like [WebP](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types). This avoids shipping large images to devices with a smaller viewport.
+The Automatic Image Optimization allows for resizing, optimizing, and serving images in modern formats like [WebP](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types) when the browser supports it. This avoids shipping large images to devices with a smaller viewport. It also allows Next.js to automatically adopt future image formats and serve them to browsers that support those formats.
+
+Automatic Image Optimization works with any image source. Even if the image is hosted by an external data source, like a CMS, it can still be optimized.
+
+Instead of optimizing images at build time, Next.js optimizes images on-demand, as users request them. Unlike static site generators and static-only solutions, your build times aren't increased, whether shipping 10 images or 10 million images.
+
+Images are lazy loaded by default. That means your page speed isn't penalized for images outside the viewport. Images load as they are scrolled into viewport.
 
 ## Image Component
 
