@@ -14,7 +14,8 @@ const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
 type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
 
 type ImageData = {
-  sizes: number[]
+  deviceSizes: number[]
+  iconSizes: number[]
   loader: LoaderKey
   path: string
   domains?: string[]
@@ -36,13 +37,15 @@ type ImageProps = Omit<
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
 const {
-  sizes: configSizes,
+  deviceSizes: configDeviceSizes,
+  iconSizes: configIconSizes,
   loader: configLoader,
   path: configPath,
   domains: configDomains,
 } = imageData
-configSizes.sort((a, b) => a - b) // smallest to largest
-const largestSize = configSizes[configSizes.length - 1]
+// sort smallest to largest
+configDeviceSizes.sort((a, b) => a - b)
+configIconSizes.sort((a, b) => a - b)
 
 let cachedObserver: IntersectionObserver
 const IntersectionObserver =
@@ -80,15 +83,36 @@ function getObserver(): IntersectionObserver | undefined {
   ))
 }
 
+function getDeviceSizes(width: number | undefined): number[] {
+  if (typeof width !== 'number') {
+    return configDeviceSizes
+  }
+  const smallest = configDeviceSizes[0]
+  if (width < smallest && configIconSizes.includes(width)) {
+    return [width]
+  }
+  const widths: number[] = []
+  for (let size of configDeviceSizes) {
+    widths.push(size)
+    if (size >= width) {
+      break
+    }
+  }
+  return widths
+}
+
 function computeSrc(
   src: string,
   unoptimized: boolean,
+  width: number | undefined,
   quality?: string
 ): string {
   if (unoptimized) {
     return src
   }
-  return callLoader({ src, width: largestSize, quality })
+  const widths = getDeviceSizes(width)
+  const largest = widths[widths.length - 1]
+  return callLoader({ src, width: largest, quality })
 }
 
 type CallLoaderProps = {
@@ -104,29 +128,39 @@ function callLoader(loaderProps: CallLoaderProps) {
 
 type SrcSetData = {
   src: string
-  widths: number[]
-  quality?: string
+  unoptimized: boolean
+  width: number | undefined
+  quality: string | undefined
 }
 
-function generateSrcSet({ src, widths, quality }: SrcSetData): string {
+function generateSrcSet({
+  src,
+  unoptimized,
+  width,
+  quality,
+}: SrcSetData): string | undefined {
   // At each breakpoint, generate an image url using the loader, such as:
   // ' www.example.com/foo.jpg?w=480 480w, '
-  return widths
-    .map((width: number) => `${callLoader({ src, width, quality })} ${width}w`)
+  if (unoptimized) {
+    return undefined
+  }
+
+  return getDeviceSizes(width)
+    .map((w) => `${callLoader({ src, width: w, quality })} ${w}w`)
     .join(', ')
 }
 
 type PreloadData = {
   src: string
-  widths: number[]
+  unoptimized: boolean
+  width: number | undefined
   sizes?: string
-  unoptimized?: boolean
   quality?: string
 }
 
 function generatePreload({
   src,
-  widths,
+  width,
   unoptimized = false,
   sizes,
   quality,
@@ -140,13 +174,23 @@ function generatePreload({
       <link
         rel="preload"
         as="image"
-        href={computeSrc(src, unoptimized, quality)}
+        href={computeSrc(src, unoptimized, width, quality)}
         // @ts-ignore: imagesrcset and imagesizes not yet in the link element type
-        imagesrcset={generateSrcSet({ src, widths, quality })}
+        imagesrcset={generateSrcSet({ src, unoptimized, width, quality })}
         imagesizes={sizes}
       />
     </Head>
   )
+}
+
+function getInt(x: unknown): number | undefined {
+  if (typeof x === 'number') {
+    return x
+  }
+  if (typeof x === 'string') {
+    return parseInt(x, 10)
+  }
+  return undefined
 }
 
 export default function Image({
@@ -165,6 +209,13 @@ export default function Image({
   const thisEl = useRef<HTMLImageElement>(null)
 
   if (process.env.NODE_ENV !== 'production') {
+    if (!src) {
+      throw new Error(
+        `Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify(
+          { width, height, quality, unsized }
+        )}`
+      )
+    }
     if (!VALID_LOADING_VALUES.includes(loading)) {
       throw new Error(
         `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(
@@ -200,15 +251,67 @@ export default function Image({
     }
   }, [thisEl, lazy])
 
+  let widthInt = getInt(width)
+  let heightInt = getInt(height)
+  let divStyle: React.CSSProperties | undefined
+  let imgStyle: React.CSSProperties | undefined
+  let wrapperStyle: React.CSSProperties | undefined
+  if (
+    typeof widthInt !== 'undefined' &&
+    typeof heightInt !== 'undefined' &&
+    !unsized
+  ) {
+    // <Image src="i.png" width={100} height={100} />
+    // <Image src="i.png" width="100" height="100" />
+    const quotient = heightInt / widthInt
+    const ratio = isNaN(quotient) ? 1 : quotient * 100
+    wrapperStyle = {
+      maxWidth: '100%',
+      width: widthInt,
+    }
+    divStyle = {
+      position: 'relative',
+      paddingBottom: `${ratio}%`,
+    }
+    imgStyle = {
+      visibility: lazy ? 'hidden' : 'visible',
+      height: '100%',
+      left: '0',
+      position: 'absolute',
+      top: '0',
+      width: '100%',
+    }
+  } else if (
+    typeof widthInt === 'undefined' &&
+    typeof heightInt === 'undefined' &&
+    unsized
+  ) {
+    // <Image src="i.png" unsized />
+    if (process.env.NODE_ENV !== 'production') {
+      if (priority) {
+        // <Image src="i.png" unsized priority />
+        console.warn(
+          `Image with src "${src}" has both "priority" and "unsized" properties. Only one should be used.`
+        )
+      }
+    }
+  } else {
+    // <Image src="i.png" />
+    if (process.env.NODE_ENV !== 'production') {
+      throw new Error(
+        `Image with src "${src}" must use "width" and "height" properties or "unsized" property.`
+      )
+    }
+  }
+
   // Generate attribute values
-  const imgSrc = computeSrc(src, unoptimized, quality)
-  const imgSrcSet = !unoptimized
-    ? generateSrcSet({
-        src,
-        widths: configSizes,
-        quality,
-      })
-    : undefined
+  const imgSrc = computeSrc(src, unoptimized, widthInt, quality)
+  const imgSrcSet = generateSrcSet({
+    src,
+    width: widthInt,
+    unoptimized,
+    quality,
+  })
 
   let imgAttributes:
     | {
@@ -236,58 +339,6 @@ export default function Image({
     className = className ? className + ' __lazy' : '__lazy'
   }
 
-  let divStyle: React.CSSProperties | undefined
-  let imgStyle: React.CSSProperties | undefined
-  let wrapperStyle: React.CSSProperties | undefined
-  if (
-    typeof height !== 'undefined' &&
-    typeof width !== 'undefined' &&
-    !unsized
-  ) {
-    // <Image src="i.png" width={100} height={100} />
-    // <Image src="i.png" width="100" height="100" />
-    const quotient =
-      parseInt(height as string, 10) / parseInt(width as string, 10)
-    const ratio = isNaN(quotient) ? 1 : quotient * 100
-    wrapperStyle = {
-      maxWidth: '100%',
-      width,
-    }
-    divStyle = {
-      position: 'relative',
-      paddingBottom: `${ratio}%`,
-    }
-    imgStyle = {
-      visibility: lazy ? 'hidden' : 'visible',
-      height: '100%',
-      left: '0',
-      position: 'absolute',
-      top: '0',
-      width: '100%',
-    }
-  } else if (
-    typeof height === 'undefined' &&
-    typeof width === 'undefined' &&
-    unsized
-  ) {
-    // <Image src="i.png" unsized />
-    if (process.env.NODE_ENV !== 'production') {
-      if (priority) {
-        // <Image src="i.png" unsized priority />
-        console.warn(
-          `Image with src "${src}" has both "priority" and "unsized" properties. Only one should be used.`
-        )
-      }
-    }
-  } else {
-    // <Image src="i.png" />
-    if (process.env.NODE_ENV !== 'production') {
-      throw new Error(
-        `Image with src "${src}" must use "width" and "height" properties or "unsized" property.`
-      )
-    }
-  }
-
   // No need to add preloads on the client side--by the time the application is hydrated,
   // it's too late for preloads
   const shouldPreload = priority && typeof window === 'undefined'
@@ -298,7 +349,7 @@ export default function Image({
         {shouldPreload
           ? generatePreload({
               src,
-              widths: configSizes,
+              width: widthInt,
               unoptimized,
               sizes,
               quality,
