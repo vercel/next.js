@@ -874,7 +874,9 @@ export default async function build(
         relativeDest
       )
 
-      if (!isSsg) {
+      const isDynamic = isDynamicRoute(originPage)
+      const isAmp = file.endsWith('.amp.html')
+      if (!isSsg || (isAmp && !isDynamic)) {
         pagesManifest[page] = relativeDest
       }
 
