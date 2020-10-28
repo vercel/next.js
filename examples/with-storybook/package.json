@@ -16,6 +16,7 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@next/plugin-storybook": "10.0.0",
     "@storybook/addon-actions": "6.0.5",
     "@storybook/addon-links": "6.0.5",
     "@storybook/addons": "6.0.5",
