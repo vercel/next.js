@@ -8,10 +8,11 @@ const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
+  ['fastly', fastlyLoader],
   ['default', defaultLoader],
 ])
 
-type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
+type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'fastly' | 'default'
 
 type ImageData = {
   deviceSizes: number[]
@@ -395,6 +396,21 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
     params.push('q=' + quality)
   }
 
+  if (params.length) {
+    paramsString = '?' + params.join('&')
+  }
+  return `${root}${normalizeSrc(src)}${paramsString}`
+}
+
+function fastlyLoader({ root, src, width, quality }: LoaderProps): string {
+  const params = ['auto=webp', 'optimize=medium', 'width=' + width]
+  let paramsString = ''
+  if (quality) {
+    params.push('quality=' + quality)
+  }
+  if (typeof window !== 'undefined' && window.devicePixelRatio) {
+    params.push(`dpr=${window.devicePixelRatio}`)
+  }
   if (params.length) {
     paramsString = '?' + params.join('&')
   }
