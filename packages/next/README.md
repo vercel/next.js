@@ -39,3 +39,9 @@ Please see our [contributing.md](/contributing.md).
 - Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – [Vercel](https://vercel.com)
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – [Vercel](https://vercel.com/about/rauchg)
 - Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
+
+## Communities
+
+- Russia ([@nextjs_ru](https://t.me/nextjs_ru))
+- Uzbekistan ([@nextjsuz](https://t.me/nextjsuz))
+- US ([@nextjsuz](https://t.me/nextjs))
