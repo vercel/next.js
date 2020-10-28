@@ -9,6 +9,7 @@ const Page = () => {
       <Image
         id="basic-image"
         src="foo.jpg"
+        loading="eager"
         width={300}
         height={400}
         quality={60}
@@ -17,7 +18,8 @@ const Page = () => {
         id="attribute-test"
         data-demo="demo-value"
         src="bar.jpg"
-        width={300}
+        loading="eager"
+        width={1024}
         height={400}
       />
       <Image
@@ -25,6 +27,7 @@ const Page = () => {
         data-demo="demo-value"
         host="secondary"
         src="foo2.jpg"
+        loading="eager"
         width={300}
         height={400}
       />
@@ -32,10 +35,10 @@ const Page = () => {
         id="unoptimized-image"
         unoptimized
         src="https://arbitraryurl.com/foo.jpg"
+        loading="eager"
         width={300}
         height={400}
       />
-      <Image id="priority-image" priority src="withpriority.png" />
       <Image
         id="priority-image"
         priority
@@ -53,11 +56,33 @@ const Page = () => {
         height={400}
       />
       <Image
+        id="priority-image"
+        priority
+        src="withpriority.png"
+        width={300}
+        height={400}
+        quality={60}
+      />
+      <Image
         id="preceding-slash-image"
         src="/fooslash.jpg"
         priority
         width={300}
         height={400}
+      />
+      <Image
+        id="icon-image-64"
+        src="/icon.png"
+        loading="eager"
+        width={64}
+        height={64}
+      />
+      <Image
+        id="icon-image-16"
+        src="/icon.png"
+        loading="eager"
+        width={16}
+        height={16}
       />
       <Link href="/client-side">
         <a id="clientlink">Client Side</a>
