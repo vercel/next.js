@@ -1,5 +1,8 @@
 {
   "name": "@next/plugin-storybook",
+  "exports": {
+    "./": "./dist/"
+  },
   "version": "10.0.0",
   "repository": {
     "url": "vercel/next.js",
@@ -7,5 +10,9 @@
   },
   "peerDependencies": {
     "next": "*"
-  }
+  },
+  "scripts": {
+    "build": "yarn tsc -d -w -p tsconfig.json"
+  },
+  "dependencies": {}
 }
