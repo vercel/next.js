@@ -1,7 +1,7 @@
 # MQTT Client example
 
 This example shows how to use the MQTT.js client with next.js.
-Thanks @ [jamesmosier](https://github.com/jamesmosier) for the startup advice.
+Thanks @jamesmosier for the startup advice.
 
 ## How to use
 
