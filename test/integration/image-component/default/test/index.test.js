@@ -8,6 +8,8 @@ import {
   nextStart,
   nextBuild,
   check,
+  hasRedbox,
+  getRedboxHeader,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import fs from 'fs-extra'
@@ -20,7 +22,20 @@ const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
 
-function runTests() {
+async function hasImageMatchingUrl(browser, url) {
+  const links = await browser.elementsByCss('img')
+  let foundMatch = false
+  for (const link of links) {
+    const src = await link.getAttribute('src')
+    if (src === url) {
+      foundMatch = true
+      break
+    }
+  }
+  return foundMatch
+}
+
+function runTests(mode) {
   it('should load the images', async () => {
     let browser
     try {
@@ -29,23 +44,36 @@ function runTests() {
         const result = await browser.eval(
           `document.getElementById('basic-image').naturalWidth`
         )
+
         if (result === 0) {
           throw new Error('Incorrectly loaded image')
         }
 
         return 'result-correct'
       }, /result-correct/)
+
+      await browser.eval(
+        'document.getElementById("unsized-image").scrollIntoView()'
+      )
 
       await check(async () => {
         const result = await browser.eval(
           `document.getElementById('unsized-image').naturalWidth`
         )
+
         if (result === 0) {
           throw new Error('Incorrectly loaded image')
         }
 
         return 'result-correct'
       }, /result-correct/)
+
+      expect(
+        await hasImageMatchingUrl(
+          browser,
+          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=420&q=75`
+        )
+      ).toBe(true)
     } finally {
       if (browser) {
         await browser.close()
@@ -73,6 +101,26 @@ function runTests() {
       }
     }
   })
+
+  if (mode === 'dev') {
+    it('should show missing src error', async () => {
+      const browser = await webdriver(appPort, '/missing-src')
+
+      await hasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Image is missing required "src" property. Make sure you pass "src" in props to the `next/image` component. Received: {"width":200}'
+      )
+    })
+
+    it('should show invalid src error', async () => {
+      const browser = await webdriver(appPort, '/invalid-src')
+
+      await hasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
+      )
+    })
+  }
 }
 
 describe('Image Component Tests', () => {
