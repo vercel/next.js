@@ -4,7 +4,7 @@ description: Customize the pages that will be exported as HTML files when using 
 
 # exportPathMap
 
-> This feature is exclusive of `next export`. Please refer to [Static HTML export](/docs/advanced-features/static-html-export.md) if you want to learn more about it.
+> This feature is meant to be used in conjunction with `next export`. Please refer to [Static HTML export](/docs/advanced-features/static-html-export.md) if you want to learn more about it.
 
 <details>
   <summary><b>Examples</b></summary>
@@ -13,7 +13,7 @@ description: Customize the pages that will be exported as HTML files when using 
   </ul>
 </details>
 
-`exportPathMap` allows you to specify a mapping of request paths to page destinations, to be used during export.
+`exportPathMap` allows you to specify a mapping of request paths to page destinations, to be used during export. Paths defined in `exportPathMap` will also be available when running `yarn develop`.
 
 Let's start with an example, to create a custom `exportPathMap` for an app with the following pages:
 
