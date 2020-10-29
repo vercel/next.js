@@ -90,6 +90,7 @@ function runTests(dev = false) {
       if (browser) await browser.close()
     }
   })
+
   ;(dev ? it.skip : it)('can render async error page', async () => {
     let browser
     try {
@@ -100,6 +101,18 @@ function runTests(dev = false) {
     } finally {
       if (browser) await browser.close()
     }
+  })
+
+  ;(dev ? it.skip : it)('compiles the source to es5', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+
+    const appScriptMatch = html.match(/\/_next\/static\/chunks\/pages\/_app-.+?\.js/)
+    expect(appScriptMatch).toBeTruthy()
+
+    const appScript = appScriptMatch[0]
+    const appScriptContent = await renderViaHTTP(appPort, appScript)
+    expect(appScriptContent).not.toMatch(/async\(\)=>/)
+    expect(appScriptContent).not.toMatch(/await\s/)
   })
 }
 
