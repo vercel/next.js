@@ -13,6 +13,14 @@ const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
 
 type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
 
+const VALID_LAYOUT_VALUES = [
+  'fixed',
+  'intrinsic',
+  'responsive',
+  undefined,
+] as const
+type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
+
 type ImageData = {
   deviceSizes: number[]
   imageSizes: number[]
@@ -29,6 +37,7 @@ type ImageProps = Omit<
   quality?: number | string
   priority?: boolean
   loading?: LoadingValue
+  layout?: LayoutValue
   unoptimized?: boolean
 } & (
     | { width: number | string; height: number | string; unsized?: false }
@@ -201,6 +210,7 @@ export default function Image({
   unoptimized = false,
   priority = false,
   loading,
+  layout,
   className,
   quality,
   width,
@@ -216,6 +226,13 @@ export default function Image({
         `Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify(
           { width, height, quality, unsized }
         )}`
+      )
+    }
+    if (!VALID_LAYOUT_VALUES.includes(layout)) {
+      throw new Error(
+        `Image with src "${src}" has invalid "layout" property. Provided "${layout}" should be one of ${VALID_LAYOUT_VALUES.map(
+          String
+        ).join(',')}.`
       )
     }
     if (!VALID_LOADING_VALUES.includes(loading)) {
@@ -265,7 +282,7 @@ export default function Image({
   const heightInt = getInt(height)
   const qualityInt = getInt(quality)
 
-  let divStyle: React.CSSProperties | undefined
+  let sizerStyle: React.CSSProperties | undefined
   let imgStyle: React.CSSProperties | undefined
   let wrapperStyle: React.CSSProperties | undefined
   if (
@@ -273,17 +290,17 @@ export default function Image({
     typeof heightInt !== 'undefined' &&
     !unsized
   ) {
-    // <Image src="i.png" width={100} height={100} />
     // <Image src="i.png" width="100" height="100" />
-    const quotient = heightInt / widthInt
-    const ratio = isNaN(quotient) ? 1 : quotient * 100
+    //const quotient = heightInt / widthInt
+    //const ratio = isNaN(quotient) ? 1 : quotient * 100
     wrapperStyle = {
+      display: 'inline-block',
+      position: 'relative',
+    }
+    sizerStyle = {
       maxWidth: '100%',
       width: widthInt,
-    }
-    divStyle = {
-      position: 'relative',
-      paddingBottom: `${ratio}%`,
+      height: heightInt,
     }
     imgStyle = {
       visibility: lazy ? 'hidden' : 'visible',
@@ -357,25 +374,25 @@ export default function Image({
 
   return (
     <div style={wrapperStyle}>
-      <div style={divStyle}>
-        {shouldPreload
-          ? generatePreload({
-              src,
-              width: widthInt,
-              unoptimized,
-              sizes,
-              quality: qualityInt,
-            })
-          : ''}
-        <img
-          {...rest}
-          {...imgAttributes}
-          className={className}
-          sizes={sizes}
-          ref={thisEl}
-          style={imgStyle}
-        />
-      </div>
+      {shouldPreload
+        ? generatePreload({
+            src,
+            width: widthInt,
+            unoptimized,
+            sizes,
+            quality: qualityInt,
+          })
+        : null}
+      {sizerStyle ? <div style={sizerStyle}></div> : null}
+      <img
+        {...rest}
+        {...imgAttributes}
+        decoding="async"
+        className={className}
+        sizes={sizes}
+        ref={thisEl}
+        style={imgStyle}
+      />
     </div>
   )
 }
