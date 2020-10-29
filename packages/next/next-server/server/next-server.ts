@@ -198,7 +198,7 @@ export default class Server {
           ? requireFontManifest(this.distDir, this._isLikeServerless)
           : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
-      defaultLocale: this.nextConfig.experimental.i18n?.defaultLocale,
+      defaultLocale: this.nextConfig.i18n?.defaultLocale,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -298,8 +298,7 @@ export default class Server {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
 
-    const { basePath } = this.nextConfig
-    const { i18n } = this.nextConfig.experimental
+    const { basePath, i18n } = this.nextConfig
 
     if (basePath && req.url?.startsWith(basePath)) {
       // store original URL to allow checking if basePath was
@@ -577,7 +576,7 @@ export default class Server {
           // re-create page's pathname
           let pathname = `/${params.path.join('/')}`
 
-          const { i18n } = this.nextConfig.experimental
+          const { i18n } = this.nextConfig
 
           if (i18n) {
             const { host } = req?.headers || {}
@@ -1213,7 +1212,7 @@ export default class Server {
     const locale = query.__nextLocale as string
     delete query.__nextLocale
 
-    const { i18n } = this.nextConfig.experimental
+    const { i18n } = this.nextConfig
     const locales = i18n.locales as string[]
 
     let previewData: string | false | object | undefined
@@ -1243,7 +1242,7 @@ export default class Server {
         )
       }
 
-      if (this.nextConfig.experimental.i18n) {
+      if (this.nextConfig.i18n) {
         return normalizeLocalePath(path, locales).pathname
       }
       return path

@@ -71,10 +71,7 @@ function runTests(mode) {
       expect(
         await hasImageMatchingUrl(
           browser,
-          mode === 'serverless'
-            ? // FIXME: this is a bug
-              `http://localhost:${appPort}/_next/image/?url=%2Ftest.jpg&w=420&q=75`
-            : `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=420&q=75`
+          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=420&q=75`
         )
       ).toBe(true)
     } finally {
@@ -120,7 +117,7 @@ function runTests(mode) {
 
       await hasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
-        'Invalid src prop (https://google.com/test.png) on `next/image`, hostname is not configured under images in your `next.config.js`'
+        'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
       )
     })
   }

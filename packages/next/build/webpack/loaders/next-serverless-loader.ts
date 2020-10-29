@@ -492,7 +492,7 @@ const nextServerlessLoader: loader.Loader = function () {
     export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
       let Document
       let Error
-      let NotFound
+      let notFoundMod
       ;[
         getStaticProps,
         getServerSideProps,
@@ -502,7 +502,7 @@ const nextServerlessLoader: loader.Loader = function () {
         config,
         { default: Document },
         { default: Error },
-        ${absolute404Path ? `{ default: NotFound }, ` : ''}
+        ${absolute404Path ? `notFoundMod, ` : ''}
       ] = await Promise.all([
         getStaticProps,
         getServerSideProps,
@@ -772,13 +772,15 @@ const nextServerlessLoader: loader.Loader = function () {
               res.statusCode = 404
 
               const NotFoundComponent = ${
-                absolute404Path ? 'NotFound' : 'Error'
+                absolute404Path ? 'notFoundMod.default' : 'Error'
               }
 
               const errPathname = "${absolute404Path ? '/404' : '/_error'}"
 
               const result = await renderToHTML(req, res, errPathname, parsedUrl.query, Object.assign({}, options, {
-                getStaticProps: undefined,
+                getStaticProps: ${
+                  absolute404Path ? `notFoundMod.getStaticProps` : 'undefined'
+                },
                 getStaticPaths: undefined,
                 getServerSideProps: undefined,
                 Component: NotFoundComponent,
