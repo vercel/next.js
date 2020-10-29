@@ -16,11 +16,15 @@ npm i sharp
 yarn add sharp
 ```
 
-Option 2: Use a different OS.
+Option 2: If using macOS, ensure XCode Build Tools are installed and try to install `sharp` again.
+
+For example, see [macOS Catalina instructions](https://github.com/nodejs/node-gyp/blob/66c0f0446749caa591ad841cd029b6d5b5c8da42/macOS_Catalina.md).
+
+Option 3: Use a different OS and try to install `sharp` again.
 
 For example, if you're using Windows, try Linux.
 
-Option 3: Configure the [loader](https://nextjs.org/docs/basic-features/image-optimization#loader) in `next.config.js` to use a cloud provider, such as [imgix](https://imgix.com).
+Option 4: Configure the [loader](https://nextjs.org/docs/basic-features/image-optimization#loader) in `next.config.js` to use a cloud provider, such as [imgix](https://imgix.com).
 
 ```js
 module.exports = {
