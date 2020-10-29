@@ -1,11 +1,15 @@
 export default function Avatar({ author }) {
-  const name =
+  const name = author ?
     author.firstName && author.lastName
       ? `${author.firstName} ${author.lastName}`
-      : author.name
+      :
+      author.name
+      : null
 
   return (
-    <div className="flex items-center">
+    <>
+    {author && (
+      <div className="flex items-center">
       <img
         src={author.avatar.url}
         className="w-12 h-12 rounded-full mr-4"
@@ -13,5 +17,7 @@ export default function Avatar({ author }) {
       />
       <div className="text-xl font-bold">{name}</div>
     </div>
-  )
+    )}
+  </>
+    )
 }
