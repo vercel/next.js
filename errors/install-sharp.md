@@ -2,13 +2,13 @@
 
 #### Why This Error Occurred
 
-Using Next.js' built-in Image Optimization requires that you install `sharp`.
+Using Next.js' built-in [Image Optimization](https://nextjs.org/docs/basic-features/image-optimization) requires `sharp` as a dependency.
 
-Since `sharp` is optional, it may have been skipped if you installed `next` with the [`--no-optional`](https://docs.npmjs.com/cli/install) flag or it may have been skipped if your platform does not support `sharp`.
+You are seeing this error because your OS was unable to install `sharp` properly, either using pre-build binaries or building from source.
 
 #### Possible Ways to Fix It
 
-Option 1: Install the `sharp` package in your project.
+Option 1: Use a different version of Node.js and try to install `sharp` again.
 
 ```bash
 npm i sharp
@@ -16,7 +16,11 @@ npm i sharp
 yarn add sharp
 ```
 
-Option 2: Configure an external loader in `next.config.js` such as [imgix](https://imgix.com).
+Option 2: Use a different OS.
+
+For example, if you're using Windows, try Linux.
+
+Option 3: Configure the [loader](https://nextjs.org/docs/basic-features/image-optimization#loader) in `next.config.js` to use a cloud provider, such as [imgix](https://imgix.com).
 
 ```js
 module.exports = {
