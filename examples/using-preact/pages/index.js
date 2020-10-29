@@ -7,6 +7,12 @@ export default function Home() {
       <Link href="/about">
         <a>About</a>
       </Link>
+      <Link href="/ssr">
+        <a>SSR</a>
+      </Link>
+      <Link href="/ssg">
+        <a>SSG</a>
+      </Link>
     </div>
   )
 }
