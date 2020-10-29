@@ -71,7 +71,7 @@ export function addLocale(
   return path
 }
 
-export function delLocale(path: string, locale?: string) {
+export function delLocale(path: string, locale?: string): string {
   if (process.env.__NEXT_I18N_SUPPORT) {
     if (hasBasePath(path)) {
       return addBasePath(delLocale(delBasePath(path), locale))
