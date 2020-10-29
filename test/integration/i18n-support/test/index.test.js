@@ -193,6 +193,61 @@ function runTests(isDev) {
     })
   }
 
+  it('should apply redirects correctly', async () => {
+    for (const path of ['/redirect', '/en-US/redirect', '/nl/redirect']) {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(307)
+
+      const parsed = url.parse(res.headers.get('location'), true)
+      expect(parsed.pathname).toBe('/somewhere-else')
+      expect(parsed.query).toEqual({})
+    }
+  })
+
+  it('should apply headers correctly', async () => {
+    for (const path of ['/add-header', '/en-US/add-header', '/nl/add-header']) {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(404)
+      expect(res.headers.get('x-hello')).toBe('world')
+    }
+  })
+
+  it('should apply rewrites correctly', async () => {
+    const checks = [
+      {
+        locale: 'en-US',
+        path: '/rewrite',
+      },
+      {
+        locale: 'en-US',
+        path: '/en-US/rewrite',
+      },
+      {
+        locale: 'nl',
+        path: '/nl/rewrite',
+      },
+    ]
+
+    for (const check of checks) {
+      const res = await fetchViaHTTP(appPort, check.path, undefined, {
+        redirect: 'manual',
+      })
+
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+      expect($('html').attr('lang')).toBe(check.locale)
+      expect($('#router-locale').text()).toBe(check.locale)
+      expect($('#router-pathname').text()).toBe('/another')
+      expect($('#router-as-path').text()).toBe('/rewrite')
+    }
+  })
+
   it('should navigate with locale prop correctly', async () => {
     const browser = await webdriver(appPort, '/links?nextLocale=fr')
     await addDefaultLocaleCookie(browser)
