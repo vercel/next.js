@@ -249,6 +249,14 @@ export default function Image({
     }
   }
 
+  if (!layout) {
+    if (sizes) {
+      layout = 'responsive'
+    } else {
+      layout = 'intrinsic'
+    }
+  }
+
   let lazy = loading === 'lazy'
   if (!priority && typeof loading === 'undefined') {
     lazy = true
@@ -291,16 +299,32 @@ export default function Image({
     !unsized
   ) {
     // <Image src="i.png" width="100" height="100" />
-    //const quotient = heightInt / widthInt
-    //const ratio = isNaN(quotient) ? 1 : quotient * 100
-    wrapperStyle = {
-      display: 'inline-block',
-      position: 'relative',
-    }
-    sizerStyle = {
-      maxWidth: '100%',
-      width: widthInt,
-      height: heightInt,
+    if (layout === 'responsive') {
+      // <Image src="i.png" width="100" height="100" layout="responsive" />
+      const quotient = heightInt / widthInt
+      const paddingTop = isNaN(quotient) ? '100%' : `${quotient * 100}%`
+      wrapperStyle = { position: 'relative' }
+      sizerStyle = { paddingTop }
+    } else if (layout === 'intrinsic') {
+      // <Image src="i.png" width="100" height="100" layout="intrinsic" />
+      wrapperStyle = {
+        display: 'inline-block',
+        position: 'relative',
+        maxWidth: '100%',
+      }
+      sizerStyle = {
+        width: widthInt,
+        height: heightInt,
+        maxWidth: '100%',
+      }
+    } else if (layout === 'fixed') {
+      // <Image src="i.png" width="100" height="100" layout="fixed" />
+      wrapperStyle = {
+        display: 'inline-block',
+        position: 'relative',
+        width: widthInt,
+        height: heightInt,
+      }
     }
     imgStyle = {
       visibility: lazy ? 'hidden' : 'visible',
