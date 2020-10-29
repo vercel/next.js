@@ -102,7 +102,7 @@ module.exports = {
 ### Domains
 
 To enable Image Optimization for images hosted on an external website, use an absolute url for the Image `src` and specify which
-`domains` are allowed to be optimized. This is needed to ensure that external urls can't be abused. When `loader` is set, this option is ignored.
+`domains` are allowed to be optimized. This is needed to ensure that external urls can't be abused. When `loader` is set to an external image service, this option is ignored.
 
 ```js
 module.exports = {
