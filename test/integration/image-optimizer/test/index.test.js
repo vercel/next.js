@@ -425,7 +425,7 @@ describe('Image Optimizer', () => {
   })
 
   // domains for testing
-  const domains = ['localhost', 'example.com']
+  const domains = ['localhost', 'example.com', /^example\.com/]
 
   describe('dev support w/o next.config.js', () => {
     const size = 320 // defaults defined in server/config.ts
