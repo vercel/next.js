@@ -18,7 +18,7 @@ type ImageData = {
   imageSizes: number[]
   loader: LoaderKey
   path: string
-  domains?: string[]
+  domains?: (string | RegExp)[]
 }
 
 type ImageProps = Omit<
@@ -447,8 +447,10 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
       }
 
       if (
-        !configDomains.some((allowDomain) =>
-          new RegExp(allowDomain).test(parsedSrc.hostname)
+        !configDomains.some(
+          (domain) =>
+            (typeof domain === 'string' && domain === parsedSrc.hostname) ||
+            (domain instanceof RegExp && domain.test(parsedSrc.hostname))
         )
       ) {
         throw new Error(
