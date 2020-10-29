@@ -19,6 +19,7 @@ type LoadingValue = typeof VALID_LOADING_VALUES[number]
 const loaders = new Map<LoaderValue, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
+  ['imageengine', imageengineLoader],
   ['akamai', akamaiLoader],
   ['default', defaultLoader],
 ])
@@ -466,6 +467,35 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
 
 function akamaiLoader({ root, src, width }: LoaderProps): string {
   return `${root}${normalizeSrc(src)}?imwidth=${width}`
+}
+
+function imageengineLoader({ root, src, width, quality }: LoaderProps): string {
+  // No auto parameter is needed here since ImageEngine automatically chooses the best image format by default
+  // Parameters/directives docs: https://imageengine.io/docs/implementation/directives/#list-of-supported-directives
+  const params = ['w_' + width]
+  if (quality) {
+    params.push('cmpr_' + (100 - quality))
+  }
+
+  // ImageEngine uses path separators "/" to delimit parameters so all image optimization commands are in the "imgeng"
+  // query parameter.  This avoids stomping on query parameters that should go back to the origin.
+  const paramsString = params.join('/')
+
+  src = normalizeSrc(src)
+  let newSrc = src
+  // Use string matching to quickly check if it's possible that there is an existing ImageEngine directive set.
+  // This is usually false, unless a specific image processing directives have been overridden by the user in the URL.
+  if (src.includes('imgeng=')) {
+    newSrc = src.replace(/([?&]imgeng)=\/?([^&]+)/, `$1=/${paramsString}/$2`)
+  }
+
+  if (newSrc === src) {
+    // The regex failed to replace an existing "imgeng=" directive set, we need to append it
+    const separator = src.includes('?') ? '&' : '?'
+    newSrc = `${newSrc}${separator}imgeng=/${paramsString}`
+  }
+
+  return `${root}${newSrc}`
 }
 
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
