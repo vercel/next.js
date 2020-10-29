@@ -422,7 +422,7 @@ export default class Server {
               ? localeDomainRedirect
               : shouldStripDefaultLocale
               ? '/'
-              : `/${detectedLocale}`,
+              : `${basePath}/${detectedLocale}`,
           })
         )
         res.statusCode = 307
