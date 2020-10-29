@@ -19,6 +19,10 @@ export default function prepareDestination(
     port?: string
   } & ReturnType<typeof parseRelativeUrl> = {} as any
 
+  // clone query so we don't modify the original
+  query = Object.assign({}, query)
+  delete query.__nextLocale
+
   if (destination.startsWith('/')) {
     parsedDestination = parseRelativeUrl(destination)
   } else {

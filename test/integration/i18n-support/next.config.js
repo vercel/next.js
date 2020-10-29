@@ -20,4 +20,70 @@ module.exports = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/en-US/redirect',
+        destination: '/somewhere-else',
+        permanent: false,
+      },
+      {
+        source: '/nl/redirect',
+        destination: '/somewhere-else',
+        permanent: false,
+      },
+      {
+        source: '/redirect',
+        destination: '/somewhere-else',
+        permanent: false,
+      },
+    ]
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/en-US/rewrite',
+        destination: '/another',
+      },
+      {
+        source: '/nl/rewrite',
+        destination: '/another',
+      },
+      {
+        source: '/rewrite',
+        destination: '/another',
+      },
+    ]
+  },
+  async headers() {
+    return [
+      {
+        source: '/en-US/add-header',
+        headers: [
+          {
+            key: 'x-hello',
+            value: 'world',
+          },
+        ],
+      },
+      {
+        source: '/nl/add-header',
+        headers: [
+          {
+            key: 'x-hello',
+            value: 'world',
+          },
+        ],
+      },
+      {
+        source: '/add-header',
+        headers: [
+          {
+            key: 'x-hello',
+            value: 'world',
+          },
+        ],
+      },
+    ]
+  },
 }
