@@ -7,7 +7,7 @@ export default function GspPage(props) {
 
   return (
     <div>
-      <h1>getServerSideProps page</h1>
+      <h1>getStaticProps page</h1>
       <p>Current locale: {props.locale}</p>
       <p>Default locale: {defaultLocale}</p>
       <p>Configured locales: {JSON.stringify(props.locales)}</p>
