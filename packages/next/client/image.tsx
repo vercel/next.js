@@ -253,7 +253,7 @@ export default function Image({
     if (sizes) {
       layout = 'responsive'
     } else {
-      layout = 'intrinsic'
+      layout = 'fixed'
     }
   }
 
