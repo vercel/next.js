@@ -290,9 +290,10 @@ export default function Image({
   const heightInt = getInt(height)
   const qualityInt = getInt(quality)
 
-  let sizerStyle: React.CSSProperties | undefined
-  let imgStyle: React.CSSProperties | undefined
   let wrapperStyle: React.CSSProperties | undefined
+  let sizerStyle: React.CSSProperties | undefined
+  let sizerSvg: string | undefined
+  let imgStyle: React.CSSProperties | undefined
   if (
     typeof widthInt !== 'undefined' &&
     typeof heightInt !== 'undefined' &&
@@ -313,9 +314,9 @@ export default function Image({
         maxWidth: '100%',
       }
       sizerStyle = {
-        paddingTop,
-        width: widthInt,
+        maxWidth: '100%',
       }
+      sizerSvg = `<svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
     } else if (layout === 'fixed') {
       // <Image src="i.png" width="100" height="100" layout="fixed" />
       wrapperStyle = {
@@ -406,7 +407,19 @@ export default function Image({
             quality: qualityInt,
           })
         : null}
-      {sizerStyle ? <div style={sizerStyle}></div> : null}
+      {sizerStyle ? (
+        <div style={sizerStyle}>
+          {sizerSvg ? (
+            <img
+              style={{ maxWidth: '100%', display: 'block' }}
+              alt=""
+              aria-hidden={true}
+              role="presentation"
+              src={`data:image/svg+xml;charset=utf-8,${sizerSvg}`}
+            />
+          ) : null}
+        </div>
+      ) : null}
       <img
         {...rest}
         {...imgAttributes}
