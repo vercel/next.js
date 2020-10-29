@@ -45,6 +45,10 @@ async function getComputed(browser, id, prop) {
   return null
 }
 
+function getRatio(width, height) {
+  return Math.round((height / width) * 1000)
+}
+
 function runTests(mode) {
   it('should load the images', async () => {
     let browser
@@ -119,16 +123,17 @@ function runTests(mode) {
       browser = await webdriver(appPort, '/layout-fixed')
       const width = 1200
       const height = 700
+      const delta = 250
       const id = 'fixed1'
       await browser.setDimensions({
-        width: width + 200,
-        height: height + 200,
+        width: width + delta,
+        height: height + delta,
       })
       expect(await getComputed(browser, id, 'width')).toBe(width)
       expect(await getComputed(browser, id, 'height')).toBe(height)
       await browser.setDimensions({
-        width: width - 200,
-        height: height - 200,
+        width: width - delta,
+        height: height - delta,
       })
       expect(await getComputed(browser, id, 'width')).toBe(width)
       expect(await getComputed(browser, id, 'height')).toBe(height)
@@ -145,19 +150,23 @@ function runTests(mode) {
       browser = await webdriver(appPort, '/layout-intrinsic')
       const width = 1200
       const height = 700
+      const delta = 250
       const id = 'intrinsic1'
       await browser.setDimensions({
-        width: width + 200,
-        height: height + 200,
+        width: width + delta,
+        height: height + delta,
       })
       expect(await getComputed(browser, id, 'width')).toBe(width)
       expect(await getComputed(browser, id, 'height')).toBe(height)
       await browser.setDimensions({
-        width: width - 200,
-        height: height - 200,
+        width: width - delta,
+        height: height - delta,
       })
-      expect(await getComputed(browser, id, 'width')).toBeLessThan(width)
-      expect(await getComputed(browser, id, 'height')).toBeLessThan(height)
+      const newWidth = await getComputed(browser, id, 'width')
+      const newHeight = await getComputed(browser, id, 'height')
+      expect(newWidth).toBeLessThan(width)
+      expect(newHeight).toBeLessThan(height)
+      expect(getRatio(newWidth, newHeight)).toBe(getRatio(width, height))
     } finally {
       if (browser) {
         await browser.close()
@@ -171,19 +180,23 @@ function runTests(mode) {
       browser = await webdriver(appPort, '/layout-responsive')
       const width = 1200
       const height = 700
+      const delta = 250
       const id = 'responsive1'
       await browser.setDimensions({
-        width: width + 200,
-        height: height + 200,
+        width: width + delta,
+        height: height + delta,
       })
       expect(await getComputed(browser, id, 'width')).toBeGreaterThan(width)
       expect(await getComputed(browser, id, 'height')).toBeGreaterThan(height)
       await browser.setDimensions({
-        width: width - 200,
-        height: height - 200,
+        width: width - delta,
+        height: height - delta,
       })
-      expect(await getComputed(browser, id, 'width')).toBeLessThan(width)
-      expect(await getComputed(browser, id, 'height')).toBeLessThan(height)
+      const newWidth = await getComputed(browser, id, 'width')
+      const newHeight = await getComputed(browser, id, 'height')
+      expect(newWidth).toBeLessThan(width)
+      expect(newHeight).toBeLessThan(height)
+      expect(getRatio(newWidth, newHeight)).toBe(getRatio(width, height))
     } finally {
       if (browser) {
         await browser.close()
