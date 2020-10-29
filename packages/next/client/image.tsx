@@ -446,13 +446,7 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
         )
       }
 
-      if (
-        !configDomains.some(
-          (domain) =>
-            (typeof domain === 'string' && domain === parsedSrc.hostname) ||
-            (domain instanceof RegExp && domain.test(parsedSrc.hostname))
-        )
-      ) {
+      if (!isAllowedHost(parsedSrc.hostname, configDomains)) {
         throw new Error(
           `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
             `See more info: https://err.sh/nextjs/next-image-unconfigured-host`
@@ -462,4 +456,12 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
   }
 
   return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
+}
+
+function isAllowedHost(hostname: string, domains: (string | RegExp)[]) {
+  return domains.some(
+    (domain) =>
+      (typeof domain === 'string' && domain === hostname) ||
+      (domain instanceof RegExp && domain.test(hostname))
+  )
 }
