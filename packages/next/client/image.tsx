@@ -256,6 +256,10 @@ export default function Image({
     lazy = false
   }
 
+  if ('unsized' in rest) {
+    dangerouslyUseUnsizedImage = (rest as any).unsized
+  }
+
   useEffect(() => {
     const target = thisEl.current
 
