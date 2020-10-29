@@ -35,11 +35,22 @@ async function hasImageMatchingUrl(browser, url) {
   return foundMatch
 }
 
+async function getComputed(browser, id, prop) {
+  const style = await browser.eval(
+    `getComputedStyle(document.getElementById('${id}')).${prop}`
+  )
+  if (typeof style === 'string') {
+    return parseInt(style.replace(/px$/, ''), 10)
+  }
+  return null
+}
+
 function runTests(mode) {
   it('should load the images', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+
       await check(async () => {
         const result = await browser.eval(
           `document.getElementById('basic-image').naturalWidth`
@@ -95,6 +106,84 @@ function runTests(mode) {
 
         return 'result-correct'
       }, /result-correct/)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should work with layout-fixed so resizing window does not resize image', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/layout-fixed')
+      const width = 1200
+      const height = 700
+      const id = 'fixed1'
+      await browser.setDimensions({
+        width: width + 200,
+        height: height + 200,
+      })
+      expect(await getComputed(browser, id, 'width')).toBe(width)
+      expect(await getComputed(browser, id, 'height')).toBe(height)
+      await browser.setDimensions({
+        width: width - 200,
+        height: height - 200,
+      })
+      expect(await getComputed(browser, id, 'width')).toBe(width)
+      expect(await getComputed(browser, id, 'height')).toBe(height)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should work with layout-intrinsic so resizing window maintains image aspect ratio', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/layout-intrinsic')
+      const width = 1200
+      const height = 700
+      const id = 'intrinsic1'
+      await browser.setDimensions({
+        width: width + 200,
+        height: height + 200,
+      })
+      expect(await getComputed(browser, id, 'width')).toBe(width)
+      expect(await getComputed(browser, id, 'height')).toBe(height)
+      await browser.setDimensions({
+        width: width - 200,
+        height: height - 200,
+      })
+      expect(await getComputed(browser, id, 'width')).toBeLessThan(width)
+      expect(await getComputed(browser, id, 'height')).toBeLessThan(height)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should work with layout-responsive so resizing window maintains image aspect ratio', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/layout-responsive')
+      const width = 1200
+      const height = 700
+      const id = 'responsive1'
+      await browser.setDimensions({
+        width: width + 200,
+        height: height + 200,
+      })
+      expect(await getComputed(browser, id, 'width')).toBeGreaterThan(width)
+      expect(await getComputed(browser, id, 'height')).toBeGreaterThan(height)
+      await browser.setDimensions({
+        width: width - 200,
+        height: height - 200,
+      })
+      expect(await getComputed(browser, id, 'width')).toBeLessThan(width)
+      expect(await getComputed(browser, id, 'height')).toBeLessThan(height)
     } finally {
       if (browser) {
         await browser.close()
