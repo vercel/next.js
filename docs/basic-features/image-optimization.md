@@ -1,5 +1,5 @@
 ---
-description: Next.js supports built-in image optimization, as well as third party loaders for Imgix, Cloudinary, and more! Learn more here.
+description: Next.js supports built-in image optimization, as well as third party loaders for Imgix, Cloudinary, ImageEngine, and more! Learn more here.
 ---
 
 # Image Component and Image Optimization
@@ -87,6 +87,7 @@ The following Image Optimization cloud providers are supported:
 - [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/next.js/image-optimization)
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
+- [ImageEngine](https://imageengine.io): `loader: 'imageengine'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
 - Default: Works automatically with `next dev`, `next start`, or a custom server
 
