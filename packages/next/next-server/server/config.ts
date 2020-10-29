@@ -220,20 +220,20 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
     if (typeof images !== 'object') {
       throw new Error(
-        `Specified images should be an object received ${typeof images}`
+        `Specified images should be an object received ${typeof images}.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
       )
     }
 
     if (images.domains) {
       if (!Array.isArray(images.domains)) {
         throw new Error(
-          `Specified images.domains should be an Array received ${typeof images.domains}`
+          `Specified images.domains should be an Array received ${typeof images.domains}.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
         )
       }
 
       if (images.domains.length > 50) {
         throw new Error(
-          `Specified images.domains exceeds length of 50, received length (${images.domains.length}), please reduce the length of the array to continue`
+          `Specified images.domains exceeds length of 50, received length (${images.domains.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
         )
       }
 
@@ -244,7 +244,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         throw new Error(
           `Specified images.domains should be an Array of strings received invalid values (${invalid.join(
             ', '
-          )})`
+          )}).\nSee more info here: https://err.sh/nextjs/invalid-images-config`
         )
       }
     }
@@ -252,13 +252,13 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       const { deviceSizes } = images
       if (!Array.isArray(deviceSizes)) {
         throw new Error(
-          `Specified images.deviceSizes should be an Array received ${typeof deviceSizes}`
+          `Specified images.deviceSizes should be an Array received ${typeof deviceSizes}.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
         )
       }
 
       if (deviceSizes.length > 25) {
         throw new Error(
-          `Specified images.deviceSizes exceeds length of 25, received length (${deviceSizes.length}), please reduce the length of the array to continue`
+          `Specified images.deviceSizes exceeds length of 25, received length (${deviceSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
         )
       }
 
@@ -270,7 +270,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         throw new Error(
           `Specified images.deviceSizes should be an Array of numbers that are between 1 and 10000, received invalid values (${invalid.join(
             ', '
-          )})`
+          )}).\nSee more info here: https://err.sh/nextjs/invalid-images-config`
         )
       }
     }
@@ -278,13 +278,13 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       const { imageSizes } = images
       if (!Array.isArray(imageSizes)) {
         throw new Error(
-          `Specified images.imageSizes should be an Array received ${typeof imageSizes}`
+          `Specified images.imageSizes should be an Array received ${typeof imageSizes}.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
         )
       }
 
       if (imageSizes.length > 25) {
         throw new Error(
-          `Specified images.imageSizes exceeds length of 25, received length (${imageSizes.length}), please reduce the length of the array to continue`
+          `Specified images.imageSizes exceeds length of 25, received length (${imageSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
         )
       }
 
@@ -296,7 +296,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         throw new Error(
           `Specified images.imageSizes should be an Array of numbers that are between 1 and 10000, received invalid values (${invalid.join(
             ', '
-          )})`
+          )}).\nSee more info here: https://err.sh/nextjs/invalid-images-config`
         )
       }
     }
