@@ -126,6 +126,7 @@ The following Image Optimization cloud providers are supported:
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
+- [Fastly](https://www.fastly.com): `loader: 'fastly'`
 
 ## Related
 
