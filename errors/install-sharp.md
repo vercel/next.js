@@ -2,9 +2,9 @@
 
 #### Why This Error Occurred
 
-Using Next.js' built-in [Image Optimization](https://nextjs.org/docs/basic-features/image-optimization) requires `sharp` as a dependency.
+Using Next.js' built-in [Image Optimization](https://nextjs.org/docs/basic-features/image-optimization) requires [sharp](https://www.npmjs.com/package/sharp) as a dependency.
 
-You are seeing this error because your OS was unable to install `sharp` properly, either using pre-build binaries or building from source.
+You are seeing this error because your OS was unable to [install sharp](https://sharp.pixelplumbing.com/install) properly, either using pre-built binaries or building from source.
 
 #### Possible Ways to Fix It
 
