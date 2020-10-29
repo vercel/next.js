@@ -1,5 +1,6 @@
 import React from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 
 const Lazy = () => {
   return (
@@ -45,6 +46,9 @@ const Lazy = () => {
         height={400}
         width={1900}
       ></Image>
+      <Link href="/missing-observer">
+        <a id="observerlink">observer</a>
+      </Link>
     </div>
   )
 }
