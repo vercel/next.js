@@ -299,10 +299,10 @@ export default function Image({
     !unsized
   ) {
     // <Image src="i.png" width="100" height="100" />
+    const quotient = heightInt / widthInt
+    const paddingTop = isNaN(quotient) ? '100%' : `${quotient * 100}%`
     if (layout === 'responsive') {
       // <Image src="i.png" width="100" height="100" layout="responsive" />
-      const quotient = heightInt / widthInt
-      const paddingTop = isNaN(quotient) ? '100%' : `${quotient * 100}%`
       wrapperStyle = { position: 'relative' }
       sizerStyle = { paddingTop }
     } else if (layout === 'intrinsic') {
@@ -313,9 +313,8 @@ export default function Image({
         maxWidth: '100%',
       }
       sizerStyle = {
+        paddingTop,
         width: widthInt,
-        height: heightInt,
-        maxWidth: '100%',
       }
     } else if (layout === 'fixed') {
       // <Image src="i.png" width="100" height="100" layout="fixed" />

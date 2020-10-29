@@ -7,30 +7,30 @@ const Page = () => {
       <p>Layout Fixed</p>
       <Image
         id="fixed1"
-        src="/test.jpg"
-        width="400"
-        height="400"
+        src="/wide.png"
+        width="1200"
+        height="700"
         layout="fixed"
       ></Image>
       <Image
         id="fixed2"
-        src="/test.png"
-        width="400"
-        height="400"
+        src="/wide.png"
+        width="1200"
+        height="700"
         layout="fixed"
       ></Image>
       <Image
         id="fixed3"
-        src="/test.png"
-        width="400"
-        height="400"
+        src="/wide.png"
+        width="1200"
+        height="700"
         layout="fixed"
       ></Image>
       <Image
         id="fixed4"
-        src="/test.png"
-        width="400"
-        height="400"
+        src="/wide.png"
+        width="1200"
+        height="700"
         layout="fixed"
       ></Image>
       <p>Layout Fixed</p>

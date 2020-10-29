@@ -7,30 +7,30 @@ const Page = () => {
       <p>Layout Intrinsic</p>
       <Image
         id="intrinsic1"
-        src="/test.jpg"
-        width="400"
-        height="400"
+        src="/wide.png"
+        width="1200"
+        height="700"
         layout="intrinsic"
       ></Image>
       <Image
         id="intrinsic2"
-        src="/test.png"
-        width="400"
-        height="400"
+        src="/wide.png"
+        width="1200"
+        height="700"
         layout="intrinsic"
       ></Image>
       <Image
         id="intrinsic3"
-        src="/test.png"
-        width="400"
-        height="400"
+        src="/wide.png"
+        width="1200"
+        height="700"
         layout="intrinsic"
       ></Image>
       <Image
         id="intrinsic4"
-        src="/test.png"
-        width="400"
-        height="400"
+        src="/wide.png"
+        width="1200"
+        height="700"
         layout="intrinsic"
       ></Image>
       <p>Layout Intrinsic</p>
