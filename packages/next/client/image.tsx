@@ -408,7 +408,7 @@ function fastlyLoader({ root, src, width, quality }: LoaderProps): string {
   url.searchParams.set('optimize', 'medium')
   url.searchParams.set('width', width.toFixed(0))
   if (quality) {
-    url.searchParams.set('quality', quality.toFixed(2))
+    url.searchParams.set('quality', quality.toFixed(0))
   }
   return url.href
 }
