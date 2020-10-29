@@ -63,7 +63,9 @@ export function addLocale(
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
     return locale && locale !== defaultLocale && !path.startsWith('/' + locale)
-      ? addPathPrefix(path, '/' + locale)
+      ? hasBasePath(path)
+        ? addBasePath(addPathPrefix(delBasePath(path), '/' + locale))
+        : addPathPrefix(path, '/' + locale)
       : path
   }
   return path
@@ -71,6 +73,9 @@ export function addLocale(
 
 export function delLocale(path: string, locale?: string) {
   if (process.env.__NEXT_I18N_SUPPORT) {
+    if (hasBasePath(path)) {
+      return addBasePath(delLocale(delBasePath(path), locale))
+    }
     return locale && path.startsWith('/' + locale)
       ? path.substr(locale.length + 1) || '/'
       : path
@@ -79,7 +84,9 @@ export function delLocale(path: string, locale?: string) {
 }
 
 export function hasBasePath(path: string): boolean {
-  return path === basePath || path.startsWith(basePath + '/')
+  return (
+    path === basePath || (basePath !== '' && path.startsWith(basePath + '/'))
+  )
 }
 
 export function addBasePath(path: string): string {
@@ -614,6 +621,7 @@ export default class Router implements BaseRouter {
       } = require('../i18n/normalize-locale-path') as typeof import('../i18n/normalize-locale-path')
 
       const localePathResult = normalizeLocalePath(as, this.locales)
+      as = localePathResult.pathname
 
       if (localePathResult.detectedLocale) {
         this.locale = localePathResult.detectedLocale

@@ -10,9 +10,12 @@ export function normalizeLocalePath(
   const pathnameParts = pathname.split('/')
 
   ;(locales || []).some((locale) => {
-    if (pathnameParts[1].toLowerCase() === locale.toLowerCase()) {
+    const partIndex = pathnameParts.findIndex(
+      (part) => part.toLowerCase() === locale.toLowerCase()
+    )
+    if (partIndex !== -1) {
       detectedLocale = locale
-      pathnameParts.splice(1, 1)
+      pathnameParts.splice(partIndex, 1)
       pathname = pathnameParts.join('/') || '/'
       return true
     }
