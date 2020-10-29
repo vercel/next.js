@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { ApolloClient, HttpLink, InMemoryCache } from '@apollo/client'
 import { concatPagination } from '@apollo/client/utilities'
 
+export const APOLLO_STATE_PROP_NAME = '__APOLLO_STATE__'
+
 let apolloClient
 
 function createApolloClient() {
@@ -43,7 +45,20 @@ export function initializeApollo(initialState = null) {
   return _apolloClient
 }
 
-export function useApollo(initialState) {
-  const store = useMemo(() => initializeApollo(initialState), [initialState])
+export function addApolloState(client, pageProps) {
+  return {
+    ...pageProps,
+    props: {
+      ...pageProps.props,
+      [APOLLO_STATE_PROP_NAME]: client.cache.extract(),
+    },
+  }
+}
+
+export function useApollo(pageProps) {
+  const store = useMemo(
+    () => initializeApollo(pageProps[APOLLO_STATE_PROP_NAME]),
+    [pageProps]
+  )
   return store
 }
