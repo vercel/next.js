@@ -1,3 +1,7 @@
+---
+description: Next.js supports built-in support for internationalized routing and language detection. Learn more here.
+---
+
 # Internationalized Routing
 
 <details>
