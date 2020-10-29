@@ -120,6 +120,15 @@ function runTests(mode) {
         'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
       )
     })
+
+    it('should show invalid unsized error', async () => {
+      const browser = await webdriver(appPort, '/invalid-unsized')
+
+      await hasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Image with src "/test.png" is using the deprecated "unsized" property. Please use "dangerouslyUseUnsizedImage" instead.'
+      )
+    })
   }
 }
 

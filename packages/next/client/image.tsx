@@ -31,8 +31,16 @@ type ImageProps = Omit<
   loading?: LoadingValue
   unoptimized?: boolean
 } & (
-    | { width: number | string; height: number | string; unsized?: false }
-    | { width?: number | string; height?: number | string; unsized: true }
+    | {
+        width: number | string
+        height: number | string
+        dangerouslyUseUnsizedImage?: false
+      }
+    | {
+        width?: number | string
+        height?: number | string
+        dangerouslyUseUnsizedImage: true
+      }
   )
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
@@ -205,7 +213,7 @@ export default function Image({
   quality,
   width,
   height,
-  unsized,
+  dangerouslyUseUnsizedImage,
   ...rest
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
@@ -214,7 +222,7 @@ export default function Image({
     if (!src) {
       throw new Error(
         `Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify(
-          { width, height, quality, unsized }
+          { width, height, quality }
         )}`
       )
     }
@@ -228,6 +236,12 @@ export default function Image({
     if (priority && loading === 'lazy') {
       throw new Error(
         `Image with src "${src}" has both "priority" and "loading=lazy" properties. Only one should be used.`
+      )
+    }
+
+    if ('unsized' in rest) {
+      throw new Error(
+        `Image with src "${src}" is using the deprecated "unsized" property. Please use "dangerouslyUseUnsizedImage" instead.`
       )
     }
   }
@@ -271,7 +285,7 @@ export default function Image({
   if (
     typeof widthInt !== 'undefined' &&
     typeof heightInt !== 'undefined' &&
-    !unsized
+    !dangerouslyUseUnsizedImage
   ) {
     // <Image src="i.png" width={100} height={100} />
     // <Image src="i.png" width="100" height="100" />
@@ -296,14 +310,14 @@ export default function Image({
   } else if (
     typeof widthInt === 'undefined' &&
     typeof heightInt === 'undefined' &&
-    unsized
+    dangerouslyUseUnsizedImage
   ) {
-    // <Image src="i.png" unsized />
+    // <Image src="i.png" dangerouslyUseUnsizedImage />
     if (process.env.NODE_ENV !== 'production') {
       if (priority) {
-        // <Image src="i.png" unsized priority />
+        // <Image src="i.png" dangerouslyUseUnsizedImage priority />
         console.warn(
-          `Image with src "${src}" has both "priority" and "unsized" properties. Only one should be used.`
+          `Image with src "${src}" has both "priority" and "dangerouslyUseUnsizedImage" properties. Only one should be used.`
         )
       }
     }
@@ -311,7 +325,7 @@ export default function Image({
     // <Image src="i.png" />
     if (process.env.NODE_ENV !== 'production') {
       throw new Error(
-        `Image with src "${src}" must use "width" and "height" properties or "unsized" property.`
+        `Image with src "${src}" must use "width" and "height" properties or "dangerouslyUseUnsizedImage" property.`
       )
     }
   }

@@ -4,11 +4,8 @@ import Image from 'next/image'
 const Page = () => {
   return (
     <div>
-      <p>Hello World</p>
-      <Image
-        src="https://google.com/test.png"
-        dangerouslyUseUnsizedImage
-      ></Image>
+      <p>Deprecated use of "unsized"</p>
+      <Image src="/test.png" unsized></Image>
     </div>
   )
 }
