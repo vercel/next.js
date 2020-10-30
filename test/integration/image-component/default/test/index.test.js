@@ -67,22 +67,6 @@ function runTests(mode) {
         return 'result-correct'
       }, /result-correct/)
 
-      await browser.eval(
-        'document.getElementById("unsized-image").scrollIntoView()'
-      )
-
-      await check(async () => {
-        const result = await browser.eval(
-          `document.getElementById('unsized-image').naturalWidth`
-        )
-
-        if (result === 0) {
-          throw new Error('Incorrectly loaded image')
-        }
-
-        return 'result-correct'
-      }, /result-correct/)
-
       expect(
         await hasImageMatchingUrl(
           browser,
@@ -220,6 +204,15 @@ function runTests(mode) {
       await hasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
+      )
+    })
+
+    it('should show invalid unsized error', async () => {
+      const browser = await webdriver(appPort, '/invalid-unsized')
+
+      await hasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Image with src "/test.png" has invalid "unsized" property, which was removed in favor of the "layout" property'
       )
     })
   }
