@@ -784,7 +784,10 @@ const nextServerlessLoader: loader.Loader = function () {
                 getStaticPaths: undefined,
                 getServerSideProps: undefined,
                 Component: NotFoundComponent,
-                err: undefined
+                err: undefined,
+                locale: detectedLocale,
+                locales,
+                defaultLocale: i18n.defaultLocale,
               }))
 
               sendPayload(req, res, result, 'html', ${
