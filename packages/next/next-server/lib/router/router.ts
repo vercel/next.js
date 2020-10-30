@@ -28,6 +28,7 @@ import { getRouteRegex } from './utils/route-regex'
 import escapePathDelimiters from './utils/escape-path-delimiters'
 
 interface TransitionOptions {
+  fetchPropsAfter?: boolean
   shallow?: boolean
   locale?: string | false
 }
@@ -230,6 +231,7 @@ export function resolveHref(
 }
 
 const PAGE_LOAD_ERROR = Symbol('PAGE_LOAD_ERROR')
+
 export function markLoadingError(err: Error): Error {
   return Object.defineProperty(err, PAGE_LOAD_ERROR, {})
 }
@@ -276,7 +278,7 @@ export type PrivateRouteInfo = {
   styleSheets: StyleSheetTuple[]
   __N_SSG?: boolean
   __N_SSP?: boolean
-  props?: Record<string, any>
+  props?: Record<string, any> | Promise<Record<string, any>>
   err?: Error
   error?: any
 }
@@ -691,7 +693,7 @@ export default class Router implements BaseRouter {
     }
 
     let route = removePathTrailingSlash(pathname)
-    const { shallow = false } = options
+    const { shallow = false, fetchPropsAfter = false } = options
 
     // we need to resolve the as value using rewrites for dynamic SSG
     // pages to allow building the data URL correctly
@@ -792,12 +794,14 @@ export default class Router implements BaseRouter {
         pathname,
         query,
         as,
-        shallow
+        shallow,
+        fetchPropsAfter
       )
       let { error, props, __N_SSG, __N_SSP } = routeInfo
 
       // handle redirect on client-transition
       if (
+        !fetchPropsAfter &&
         (__N_SSG || __N_SSP) &&
         props &&
         (props as any).pageProps &&
@@ -994,7 +998,8 @@ export default class Router implements BaseRouter {
     pathname: string,
     query: any,
     as: string,
-    shallow: boolean = false
+    shallow: boolean = false,
+    fetchPropsAfter: boolean = false
   ): Promise<PrivateRouteInfo> {
     try {
       const cachedRouteInfo = this.components[route]
@@ -1034,7 +1039,7 @@ export default class Router implements BaseRouter {
         )
       }
 
-      const props = await this._getData<PrivateRouteInfo>(() =>
+      const propsPromise = this._getData<PrivateRouteInfo>(() =>
         __N_SSG
           ? this._getStaticData(dataHref!)
           : __N_SSP
@@ -1049,6 +1054,8 @@ export default class Router implements BaseRouter {
               } as any
             )
       )
+
+      const props = fetchPropsAfter ? propsPromise : await propsPromise
 
       routeInfo.props = props
       this.components[route] = routeInfo
@@ -1071,7 +1078,15 @@ export default class Router implements BaseRouter {
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    return this.notify(data)
+
+    // If props aren't there yet
+    const { props, ...rest } = data
+    if (!!props && typeof props.then === 'function') {
+      props.then((p: Record<string, any>) => this.notify({ ...rest, props: p }))
+      return this.notify({ ...rest, props: {} })
+    } else {
+      return this.notify(data)
+    }
   }
 
   /**

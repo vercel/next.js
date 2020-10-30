@@ -27,6 +27,7 @@ export type LinkProps = {
   passHref?: boolean
   prefetch?: boolean
   locale?: string | false
+  fetchPropsAfter?: boolean
 }
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<LinkProps>
@@ -126,6 +127,7 @@ function linkClicked(
   as: string,
   replace?: boolean,
   shallow?: boolean,
+  fetchPropsAfter?: boolean,
   scroll?: boolean,
   locale?: string | false
 ): void {
@@ -144,15 +146,17 @@ function linkClicked(
   }
 
   // replace state instead of push if prop is present
-  router[replace ? 'replace' : 'push'](href, as, { shallow, locale }).then(
-    (success: boolean) => {
-      if (!success) return
-      if (scroll) {
-        window.scrollTo(0, 0)
-        document.body.focus()
-      }
+  router[replace ? 'replace' : 'push'](href, as, {
+    shallow,
+    locale,
+    fetchPropsAfter,
+  }).then((success: boolean) => {
+    if (!success) return
+    if (scroll) {
+      window.scrollTo(0, 0)
+      document.body.focus()
     }
-  )
+  })
 }
 
 function Link(props: React.PropsWithChildren<LinkProps>) {
@@ -202,6 +206,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       replace: true,
       scroll: true,
       shallow: true,
+      fetchPropsAfter: true,
       passHref: true,
       prefetch: true,
       locale: true,
@@ -233,6 +238,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         key === 'scroll' ||
         key === 'shallow' ||
         key === 'passHref' ||
+        key === 'fetchPropsAfter' ||
         key === 'prefetch'
       ) {
         if (props[key] != null && valType !== 'boolean') {
@@ -294,7 +300,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     }
   }, [p, childElm, href, as, router])
 
-  let { children, replace, shallow, scroll, locale } = props
+  let { children, replace, shallow, fetchPropsAfter, scroll, locale } = props
   // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
   if (typeof children === 'string') {
     children = <a>{children}</a>
@@ -323,7 +329,17 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         child.props.onClick(e)
       }
       if (!e.defaultPrevented) {
-        linkClicked(e, router, href, as, replace, shallow, scroll, locale)
+        linkClicked(
+          e,
+          router,
+          href,
+          as,
+          replace,
+          shallow,
+          fetchPropsAfter,
+          scroll,
+          locale
+        )
       }
     },
   }
