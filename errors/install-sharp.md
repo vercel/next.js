@@ -22,4 +22,4 @@ For example, see [macOS Catalina instructions](https://github.com/nodejs/node-gy
 
 Option 3: Use a different OS and try to install `sharp` again.
 
-For example, if you're using Windows, try Linux.
+For example, if you're using Windows, try using [WSL](https://docs.microsoft.com/en-us/windows/wsl/about) (Windows Subsystem for Linux).
