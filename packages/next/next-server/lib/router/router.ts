@@ -1172,26 +1172,24 @@ export default class Router implements BaseRouter {
 
     let { pathname } = parsed
 
-    let normalizeLocalePath: typeof import('../i18n/normalize-locale-path').normalizeLocalePath
-
     if (process.env.__NEXT_I18N_SUPPORT) {
-      normalizeLocalePath = require('../i18n/normalize-locale-path')
-        .normalizeLocalePath
-    }
+      const normalizeLocalePath = require('../i18n/normalize-locale-path')
+        .normalizeLocalePath as typeof import('../i18n/normalize-locale-path').normalizeLocalePath
 
-    if (options.locale === false) {
-      pathname = normalizeLocalePath!(pathname, this.locales).pathname
-      parsed.pathname = pathname
-      url = formatWithValidation(parsed)
+      if (options.locale === false) {
+        pathname = normalizeLocalePath!(pathname, this.locales).pathname
+        parsed.pathname = pathname
+        url = formatWithValidation(parsed)
 
-      let parsedAs = parseRelativeUrl(asPath)
-      const localePathResult = normalizeLocalePath!(
-        parsedAs.pathname,
-        this.locales
-      )
-      parsedAs.pathname = localePathResult.pathname
-      options.locale = localePathResult.detectedLocale || options.locale
-      asPath = formatWithValidation(parsedAs)
+        let parsedAs = parseRelativeUrl(asPath)
+        const localePathResult = normalizeLocalePath!(
+          parsedAs.pathname,
+          this.locales
+        )
+        parsedAs.pathname = localePathResult.pathname
+        options.locale = localePathResult.detectedLocale || options.locale
+        asPath = formatWithValidation(parsedAs)
+      }
     }
 
     const pages = await this.pageLoader.getPageList()
