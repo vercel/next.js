@@ -183,7 +183,7 @@ function createCss(prefix) {
     }
 
     #${prefix}container.${prefix}visible {
-      display: flex;
+      display: ${prefix ? 'block' : 'flex'};
       bottom: 10px;
       opacity: 1;
     }
