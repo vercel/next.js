@@ -1,5 +1,6 @@
 /* eslint-env jest */
 
+import http from 'http'
 import url from 'url'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
@@ -17,6 +18,7 @@ import {
   File,
   waitFor,
   normalizeRegEx,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -1686,6 +1688,48 @@ describe('i18n Support', () => {
     afterAll(async () => {
       nextConfig.restore()
       await killApp(app)
+    })
+
+    it('should have correct props for blocking notFound', async () => {
+      const serverFile = getPageFileFromPagesManifest(
+        appDir,
+        '/not-found/blocking-fallback/[slug]'
+      )
+      const appPort = await findPort()
+      const mod = require(join(appDir, '.next/serverless', serverFile))
+
+      const server = http.createServer(async (req, res) => {
+        try {
+          await mod.render(req, res)
+        } catch (err) {
+          res.statusCode = 500
+          res.end('internal err')
+        }
+      })
+
+      await new Promise((resolve, reject) => {
+        server.listen(appPort, (err) => (err ? reject(err) : resolve()))
+      })
+      console.log('listening on', appPort)
+
+      const res = await fetchViaHTTP(
+        appPort,
+        '/nl/not-found/blocking-fallback/first'
+      )
+      server.close()
+
+      expect(res.status).toBe(404)
+
+      const $ = cheerio.load(await res.text())
+      const props = JSON.parse($('#props').text())
+
+      expect($('#not-found').text().length > 0).toBe(true)
+      expect(props).toEqual({
+        is404: true,
+        locale: 'nl',
+        locales,
+        defaultLocale: 'en-US',
+      })
     })
 
     runTests()
