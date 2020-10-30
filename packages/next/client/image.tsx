@@ -14,6 +14,7 @@ const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
 type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
 
 const VALID_LAYOUT_VALUES = [
+  'fill',
   'fixed',
   'intrinsic',
   'responsive',
@@ -37,11 +38,14 @@ type ImageProps = Omit<
   quality?: number | string
   priority?: boolean
   loading?: LoadingValue
-  layout?: LayoutValue
   unoptimized?: boolean
 } & (
-    | { width: number | string; height: number | string; unsized?: false }
-    | { width?: number | string; height?: number | string; unsized: true }
+    | {
+        width: number | string
+        height: number | string
+        layout?: Exclude<LayoutValue, 'fill'>
+      }
+    | { width?: never; height?: never; layout: 'fill' }
   )
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
@@ -215,16 +219,24 @@ export default function Image({
   quality,
   width,
   height,
-  unsized,
   ...rest
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
 
   if (process.env.NODE_ENV !== 'production') {
+    if ('unsized' in rest) {
+      throw new Error(
+        `Image is used the "unsized" property, which was removed in favor of the "layout" property.\n` +
+          `Please replace "unsized" with "layout='responsive'" or "layout='fill'" based on your objective.\n\n` +
+          `<---> inline examples\n\n` +
+          `Read more: <docs link>`
+      )
+    }
+
     if (!src) {
       throw new Error(
         `Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify(
-          { width, height, quality, unsized }
+          { width, height, quality, layout }
         )}`
       )
     }
@@ -244,7 +256,7 @@ export default function Image({
     }
     if (priority && loading === 'lazy') {
       throw new Error(
-        `Image with src "${src}" has both "priority" and "loading=lazy" properties. Only one should be used.`
+        `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
   }
@@ -297,7 +309,7 @@ export default function Image({
   if (
     typeof widthInt !== 'undefined' &&
     typeof heightInt !== 'undefined' &&
-    !unsized
+    layout !== 'fill'
   ) {
     // <Image src="i.png" width="100" height="100" />
     const quotient = heightInt / widthInt
@@ -337,22 +349,44 @@ export default function Image({
   } else if (
     typeof widthInt === 'undefined' &&
     typeof heightInt === 'undefined' &&
-    unsized
+    layout === 'fill'
   ) {
-    // <Image src="i.png" unsized />
-    if (process.env.NODE_ENV !== 'production') {
-      if (priority) {
-        // <Image src="i.png" unsized priority />
-        console.warn(
-          `Image with src "${src}" has both "priority" and "unsized" properties. Only one should be used.`
-        )
-      }
+    // <Image src="i.png" layout="fill" />
+    wrapperStyle = {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      bottom: 0,
+      right: 0,
+      boxSizing: 'border-box',
+      display: 'block',
+      margin: 0,
+      overflow: 'hidden',
+    }
+
+    imgStyle = {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      bottom: 0,
+      right: 0,
+      boxSizing: 'border-box',
+      display: 'block',
+      width: 0,
+      height: 0,
+      maxHeight: '100%',
+      maxWidth: '100%',
+      minHeight: '100%',
+      minWidth: '100%',
+      margin: 'auto',
+      border: 'none',
+      padding: 0,
     }
   } else {
     // <Image src="i.png" />
     if (process.env.NODE_ENV !== 'production') {
       throw new Error(
-        `Image with src "${src}" must use "width" and "height" properties or "unsized" property.`
+        `Image with src "${src}" must use "width" and "height" properties or "layout='fill'" property.`
       )
     }
   }
