@@ -4,7 +4,7 @@ import Image from 'next/image'
 const Page = () => {
   return (
     <div>
-      <p>Hello World</p>
+      <p>Valid TS</p>
       <Image
         id="width-and-height-num"
         src="https://via.placeholder.com/500"
