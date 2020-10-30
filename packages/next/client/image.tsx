@@ -224,20 +224,19 @@ export default function Image({
   const thisEl = useRef<HTMLImageElement>(null)
 
   if (process.env.NODE_ENV !== 'production') {
-    if ('unsized' in rest) {
-      throw new Error(
-        `Image is used the "unsized" property, which was removed in favor of the "layout" property.\n` +
-          `Please replace "unsized" with "layout='responsive'" or "layout='fill'" based on your objective.\n\n` +
-          `<---> inline examples\n\n` +
-          `Read more: <docs link>`
-      )
-    }
-
     if (!src) {
       throw new Error(
         `Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify(
           { width, height, quality, layout }
         )}`
+      )
+    }
+    if ('unsized' in rest) {
+      throw new Error(
+        `Image with src "${src}" has invalid "unsized" property, which was removed in favor of the "layout" property.\n` +
+          `Please replace "unsized" with "layout='responsive'" or "layout='fill'" based on your objective.\n\n` +
+          `<---> TODO: inline examples\n\n` +
+          `Read more: https://nextjs.org/docs/api-reference/next/image`
       )
     }
     if (!VALID_LAYOUT_VALUES.includes(layout)) {
