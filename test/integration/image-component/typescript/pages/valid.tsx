@@ -10,30 +10,34 @@ const Page = () => {
         src="https://via.placeholder.com/500"
         width={500}
         height={500}
-      ></Image>
+      />
       <Image
         id="width-and-height-str"
         src="https://via.placeholder.com/500"
         width="500"
         height="500"
-      ></Image>
-      <Image
-        id="unsized-image"
-        src="https://via.placeholder.com/100"
-        unsized
-      ></Image>
+      />
+      <div style={{ position: 'relative', width: 100, height: 100 }}>
+        <Image
+          id="layout-fill"
+          src="https://via.placeholder.com/100"
+          layout="fill"
+        />
+      </div>
       <Image
         id="quality-num"
         src="https://via.placeholder.com/500"
         quality={80}
-        unsized
-      ></Image>
+        width={500}
+        height={500}
+      />
       <Image
         id="quality-str"
         src="https://via.placeholder.com/500"
         quality="80"
-        unsized
-      ></Image>
+        width={500}
+        height={500}
+      />
       <p id="stubtext">This is valid usage of the Image component</p>
     </div>
   )

@@ -5,13 +5,13 @@ const Page = () => {
   return (
     <div>
       <p>Layout Fill</p>
-      <div style={{ position: 'relative', minHeight: '10vh' }}>
-        <Image id="fill1" src="/wide.png" layout="fill" unsized></Image>
+      <div style={{ position: 'relative', width: '10vw', height: '10vh' }}>
+        <Image id="fill1" src="/wide.png" layout="fill" />
       </div>
-      <div style={{ position: 'relative' }}>
-        <Image id="fill2" src="/wide.png" layout="fill" unsized></Image>
-        <Image id="fill3" src="/wide.png" layout="fill" unsized></Image>
-        <Image id="fill4" src="/wide.png" layout="fill" unsized></Image>
+      <div
+        style={{ position: 'relative', minWidth: '20vw', minHeight: '20vh' }}
+      >
+        <Image id="fill2" src="/wide.png" layout="fill" />
       </div>
       <p>Layout Fill</p>
     </div>
