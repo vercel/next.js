@@ -13,6 +13,14 @@ const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
 
 type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
 
+const VALID_LAYOUT_VALUES = [
+  'fixed',
+  'intrinsic',
+  'responsive',
+  undefined,
+] as const
+type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
+
 type ImageData = {
   deviceSizes: number[]
   imageSizes: number[]
@@ -29,6 +37,7 @@ type ImageProps = Omit<
   quality?: number | string
   priority?: boolean
   loading?: LoadingValue
+  layout?: LayoutValue
   unoptimized?: boolean
 } & (
     | { width: number | string; height: number | string; unsized?: false }
@@ -201,6 +210,7 @@ export default function Image({
   unoptimized = false,
   priority = false,
   loading,
+  layout,
   className,
   quality,
   width,
@@ -218,6 +228,13 @@ export default function Image({
         )}`
       )
     }
+    if (!VALID_LAYOUT_VALUES.includes(layout)) {
+      throw new Error(
+        `Image with src "${src}" has invalid "layout" property. Provided "${layout}" should be one of ${VALID_LAYOUT_VALUES.map(
+          String
+        ).join(',')}.`
+      )
+    }
     if (!VALID_LOADING_VALUES.includes(loading)) {
       throw new Error(
         `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(
@@ -229,6 +246,14 @@ export default function Image({
       throw new Error(
         `Image with src "${src}" has both "priority" and "loading=lazy" properties. Only one should be used.`
       )
+    }
+  }
+
+  if (!layout) {
+    if (sizes) {
+      layout = 'responsive'
+    } else {
+      layout = 'intrinsic'
     }
   }
 
@@ -265,25 +290,41 @@ export default function Image({
   const heightInt = getInt(height)
   const qualityInt = getInt(quality)
 
-  let divStyle: React.CSSProperties | undefined
-  let imgStyle: React.CSSProperties | undefined
   let wrapperStyle: React.CSSProperties | undefined
+  let sizerStyle: React.CSSProperties | undefined
+  let sizerSvg: string | undefined
+  let imgStyle: React.CSSProperties | undefined
   if (
     typeof widthInt !== 'undefined' &&
     typeof heightInt !== 'undefined' &&
     !unsized
   ) {
-    // <Image src="i.png" width={100} height={100} />
     // <Image src="i.png" width="100" height="100" />
     const quotient = heightInt / widthInt
-    const ratio = isNaN(quotient) ? 1 : quotient * 100
-    wrapperStyle = {
-      maxWidth: '100%',
-      width: widthInt,
-    }
-    divStyle = {
-      position: 'relative',
-      paddingBottom: `${ratio}%`,
+    const paddingTop = isNaN(quotient) ? '100%' : `${quotient * 100}%`
+    if (layout === 'responsive') {
+      // <Image src="i.png" width="100" height="100" layout="responsive" />
+      wrapperStyle = { position: 'relative' }
+      sizerStyle = { paddingTop }
+    } else if (layout === 'intrinsic') {
+      // <Image src="i.png" width="100" height="100" layout="intrinsic" />
+      wrapperStyle = {
+        display: 'inline-block',
+        position: 'relative',
+        maxWidth: '100%',
+      }
+      sizerStyle = {
+        maxWidth: '100%',
+      }
+      sizerSvg = `<svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
+    } else if (layout === 'fixed') {
+      // <Image src="i.png" width="100" height="100" layout="fixed" />
+      wrapperStyle = {
+        display: 'inline-block',
+        position: 'relative',
+        width: widthInt,
+        height: heightInt,
+      }
     }
     imgStyle = {
       visibility: lazy ? 'hidden' : 'visible',
@@ -357,25 +398,37 @@ export default function Image({
 
   return (
     <div style={wrapperStyle}>
-      <div style={divStyle}>
-        {shouldPreload
-          ? generatePreload({
-              src,
-              width: widthInt,
-              unoptimized,
-              sizes,
-              quality: qualityInt,
-            })
-          : ''}
-        <img
-          {...rest}
-          {...imgAttributes}
-          className={className}
-          sizes={sizes}
-          ref={thisEl}
-          style={imgStyle}
-        />
-      </div>
+      {shouldPreload
+        ? generatePreload({
+            src,
+            width: widthInt,
+            unoptimized,
+            sizes,
+            quality: qualityInt,
+          })
+        : null}
+      {sizerStyle ? (
+        <div style={sizerStyle}>
+          {sizerSvg ? (
+            <img
+              style={{ maxWidth: '100%', display: 'block' }}
+              alt=""
+              aria-hidden={true}
+              role="presentation"
+              src={`data:image/svg+xml;charset=utf-8,${sizerSvg}`}
+            />
+          ) : null}
+        </div>
+      ) : null}
+      <img
+        {...rest}
+        {...imgAttributes}
+        decoding="async"
+        className={className}
+        sizes={sizes}
+        ref={thisEl}
+        style={imgStyle}
+      />
     </div>
   )
 }

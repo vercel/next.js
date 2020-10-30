@@ -17,6 +17,7 @@ interface Chain {
   back: () => Chain
   forward: () => Chain
   refresh: () => Chain
+  setDimensions: (opts: { height: number; width: number }) => Chain
   close: () => Chain
   quit: () => Chain
 }
