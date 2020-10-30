@@ -648,7 +648,7 @@ function doRender({
     return true
   }
 
-  function onCommit() {
+  function onBeforeCommit() {
     if (
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
@@ -710,12 +710,14 @@ function doRender({
       // unstyled content:
       getComputedStyle(document.body, 'height')
     }
+  }
 
+  function onCommit() {
     resolvePromise()
   }
 
   const elem = (
-    <Root callback={onCommit}>
+    <Root onCommit={onCommit} onBeforeCommit={onBeforeCommit}>
       <AppContainer>
         <App {...appProps} />
       </AppContainer>
@@ -738,14 +740,16 @@ function doRender({
 }
 
 function Root({
-  callback,
+  onBeforeCommit,
+  onCommit,
   children,
 }: React.PropsWithChildren<{
-  callback: () => void
+  onBeforeCommit: () => void
+  onCommit: () => void
 }>): React.ReactElement {
   // We use `useLayoutEffect` to guarantee the callback is executed
   // as soon as React flushes the update.
-  React.useLayoutEffect(() => callback(), [callback])
+  React.useLayoutEffect(() => onCommit(), [onCommit])
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -761,5 +765,25 @@ function Root({
   React.useEffect(() => {
     measureWebVitals(onPerfEntry)
   }, [])
-  return children as React.ReactElement
+
+  // TODO: React doesn't currently expose any hooks for the before mutation
+  // phase, so we need to use a class component with `getSnapshotBeforeUpdate`.
+  return <BeforeCommit onBeforeCommit={onBeforeCommit}>{children}</BeforeCommit>
+}
+
+class BeforeCommit extends React.PureComponent<{
+  onBeforeCommit: () => void
+}> {
+  getSnapshotBeforeUpdate() {
+    this.props.onBeforeCommit()
+    return null
+  }
+
+  componentDidUpdate() {
+    // noop
+  }
+
+  render() {
+    return this.props.children
+  }
 }
