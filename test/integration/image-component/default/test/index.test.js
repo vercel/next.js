@@ -188,6 +188,70 @@ function runTests(mode) {
     }
   })
 
+  it('should work with layout-fill to fill the parent but NOT stretch with viewport', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/layout-fill')
+      const width = 600
+      const height = 350
+      const delta = 150
+      const id = 'fill1'
+      await browser.setDimensions({
+        width: width + delta,
+        height: height + delta,
+      })
+      expect(await getComputed(browser, id, 'width')).toBe(width)
+      expect(await getComputed(browser, id, 'height')).toBe(height)
+      await browser.setDimensions({
+        width: width - delta,
+        height: height - delta,
+      })
+      const newWidth = await getComputed(browser, id, 'width')
+      const newHeight = await getComputed(browser, id, 'height')
+      expect(newWidth).toBe(width)
+      expect(newHeight).toBe(height)
+      expect(getRatio(newWidth, newHeight)).toBe(getRatio(width, height))
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should work with layout-fill to fill the parent and stretch with viewport', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/layout-fill')
+      const id = 'fill2'
+      const width = await getComputed(browser, id, 'width')
+      const height = await getComputed(browser, id, 'height')
+      await browser.eval(`document.getElementById("${id}").scrollIntoView()`)
+      expect(await getComputed(browser, id, 'width')).toBe(width)
+      expect(await getComputed(browser, id, 'height')).toBe(height)
+      const delta = 150
+      const largeWidth = width + delta
+      const largeHeight = height + delta
+      await browser.setDimensions({
+        width: largeWidth,
+        height: largeHeight,
+      })
+      expect(await getComputed(browser, id, 'width')).toBe(largeWidth)
+      expect(await getComputed(browser, id, 'height')).toBe(largeHeight)
+      const smallWidth = width - delta
+      const smallHeight = height - delta
+      await browser.setDimensions({
+        width: smallWidth,
+        height: smallHeight,
+      })
+      expect(await getComputed(browser, id, 'width')).toBe(smallWidth)
+      expect(await getComputed(browser, id, 'height')).toBe(smallHeight)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
   if (mode === 'dev') {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/missing-src')
