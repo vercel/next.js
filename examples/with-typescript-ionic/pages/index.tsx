@@ -5,7 +5,7 @@ export default function Home() {
     <ion-grid>
       <ion-row>
           {new Array(8).fill('').map((k, i) => (
-            <ion-col key="aaa" size="3">
+            <ion-col key={i} size="3">
               <ion-card>
                 <Image
                   src="/cat.jpg"
