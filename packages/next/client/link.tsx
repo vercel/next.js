@@ -276,6 +276,8 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     }
   }, [pathname, props.href, props.as])
 
+  let { children, replace, shallow, scroll, locale } = props
+
   React.useEffect(() => {
     if (
       p &&
@@ -288,13 +290,15 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       const isPrefetched = prefetched[href + '%' + as]
       if (!isPrefetched) {
         return listenToIntersections(childElm, () => {
-          prefetch(router, href, as)
+          prefetch(router, href, as, {
+            locale:
+              typeof locale !== 'undefined' ? locale : router && router.locale,
+          })
         })
       }
     }
-  }, [p, childElm, href, as, router])
+  }, [p, childElm, href, as, router, locale])
 
-  let { children, replace, shallow, scroll, locale } = props
   // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
   if (typeof children === 'string') {
     children = <a>{children}</a>
