@@ -8,10 +8,11 @@ const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
+  ['thumbor', thumborLoader],
   ['default', defaultLoader],
 ])
 
-type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
+type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'thumbor' | 'default'
 
 const VALID_LAYOUT_VALUES = [
   'fixed',
@@ -466,6 +467,18 @@ function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
   }
   if (params.length) {
     paramsString = params.join(',') + '/'
+  }
+  return `${root}${paramsString}${normalizeSrc(src)}`
+}
+
+function thumborLoader({ root, src, width, quality }: LoaderProps): string {
+  const params = [`${width}x0`]
+  let paramsString = ''
+  if (quality) {
+    params.push(`filters:quality(${quality})`)
+  }
+  if (params.length) {
+    paramsString = params.join('/') + '/'
   }
   return `${root}${paramsString}${normalizeSrc(src)}`
 }
