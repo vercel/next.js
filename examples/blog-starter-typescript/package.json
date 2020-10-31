@@ -12,8 +12,8 @@
     "date-fns": "2.10.0",
     "gray-matter": "4.0.2",
     "next": "latest",
-    "react": "^16.13.0",
-    "react-dom": "^16.13.0",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1",
     "remark": "11.0.2",
     "remark-html": "10.0.0",
     "typescript": "^3.9.2"
@@ -21,7 +21,7 @@
   "devDependencies": {
     "@types/classnames": "^2.2.10",
     "@types/jest": "^25.2.2",
-    "@types/node": "^14.0.1",
+    "@types/node": "^14.14.6",
     "@types/react": "^16.9.35",
     "@types/react-dom": "^16.9.8",
     "postcss-preset-env": "^6.7.0",

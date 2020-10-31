@@ -11,8 +11,8 @@
     "firebase-admin": "^8.12.1",
     "js-cookie": "2.2.1",
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1",
     "react-firebaseui": "4.1.0",
     "swr": "0.2.3"
   },

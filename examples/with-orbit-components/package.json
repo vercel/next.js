@@ -9,8 +9,8 @@
   "dependencies": {
     "@kiwicom/orbit-components": "latest",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1",
     "styled-components": "^4.0.0"
   },
   "devDependencies": {

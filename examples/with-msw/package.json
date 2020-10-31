@@ -10,7 +10,7 @@
   "dependencies": {
     "msw": "^0.21.2",
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1"
   }
 }

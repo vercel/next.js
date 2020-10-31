@@ -8,8 +8,8 @@
   "dependencies": {
     "@welldone-software/why-did-you-render": "^4.0.4",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1"
   },
   "license": "MIT"
 }

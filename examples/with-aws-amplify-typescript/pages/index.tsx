@@ -1,6 +1,6 @@
 import { Reducer, useReducer, Dispatch } from 'react'
 import { API, graphqlOperation } from 'aws-amplify'
-import nanoid from 'nanoid'
+import { nanoid } from 'nanoid'
 import produce from 'immer'
 
 import { ListTodosQuery, GetTodoListQuery } from '../src/API'

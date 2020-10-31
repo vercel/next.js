@@ -10,7 +10,7 @@
   "dependencies": {
     "@auth0/nextjs-auth0": "^0.8.0",
     "next": "latest",
-    "react": "^16.12.0",
-    "react-dom": "^16.12.0"
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1"
   }
 }

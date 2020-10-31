@@ -10,8 +10,8 @@
     "babel-plugin-transform-object-assign": "^6.22.0",
     "babel-plugin-transform-object-set-prototype-of-to-assign": "^6.22.0",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1",
     "rebass": "1.0.0-1",
     "styled-components": "^2.1.1"
   },

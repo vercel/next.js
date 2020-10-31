@@ -7,9 +7,9 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "sass": "1.26.3"
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1",
+    "sass": "1.28.0"
   },
   "license": "MIT"
 }

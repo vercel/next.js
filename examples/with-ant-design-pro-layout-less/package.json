@@ -17,13 +17,13 @@
     "less-vars-to-js": "1.3.0",
     "next": "latest",
     "null-loader": "4.0.0",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1",
     "webpack-filter-warnings-plugin": "1.2.1"
   },
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "13.13.4",
+    "@types/node": "14.14.6",
     "@types/react": "^16.9.36",
     "typescript": "4.0"
   }

@@ -9,8 +9,8 @@
   "dependencies": {
     "aphrodite": "^2.3.1",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1"
   },
   "author": "",
   "license": "MIT"

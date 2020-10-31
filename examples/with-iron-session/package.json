@@ -11,8 +11,8 @@
     "next": "^9.4.4",
     "next-iron-session": "4.1.7",
     "prop-types": "15.7.2",
-    "react": "16.13.1",
-    "react-dom": "16.13.1",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1",
     "swr": "0.2.3"
   },
   "license": "MIT"
