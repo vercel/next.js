@@ -1,5 +1,6 @@
 /* eslint-env jest */
 
+import http from 'http'
 import url from 'url'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
@@ -17,6 +18,7 @@ import {
   File,
   waitFor,
   normalizeRegEx,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -52,11 +54,13 @@ function runTests(isDev) {
             http: true,
             domain: 'example.be',
             defaultLocale: 'nl-BE',
+            locales: ['nl', 'nl-NL', 'nl-BE'],
           },
           {
             http: true,
             domain: 'example.fr',
             defaultLocale: 'fr',
+            locales: ['fr-BE'],
           },
         ],
       })
@@ -103,6 +107,16 @@ function runTests(isDev) {
           dataRoute: `/_next/data/${buildId}/en-US/gsp/no-fallback/second.json`,
           initialRevalidateSeconds: false,
           srcRoute: '/gsp/no-fallback/[slug]',
+        },
+        '/en-US/not-found/blocking-fallback/first': {
+          dataRoute: `/_next/data/${buildId}/en-US/not-found/blocking-fallback/first.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/not-found/blocking-fallback/[slug]',
+        },
+        '/en-US/not-found/blocking-fallback/second': {
+          dataRoute: `/_next/data/${buildId}/en-US/not-found/blocking-fallback/second.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/not-found/blocking-fallback/[slug]',
         },
         '/en-US/not-found/fallback/first': {
           dataRoute: `/_next/data/${buildId}/en-US/not-found/fallback/first.json`,
@@ -155,6 +169,18 @@ function runTests(isDev) {
             )}/gsp/no\\-fallback/([^/]+?)\\.json$`
           ),
         },
+        '/not-found/blocking-fallback/[slug]': {
+          dataRoute: `/_next/data/${buildId}/not-found/blocking-fallback/[slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)\\.json$`
+          ),
+          fallback: null,
+          routeRegex: normalizeRegEx(
+            `^\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)(?:\\/)?$`
+          ),
+        },
         '/not-found/fallback/[slug]': {
           dataRoute: `/_next/data/${buildId}/not-found/fallback/[slug].json`,
           dataRouteRegex: normalizeRegEx(
@@ -168,6 +194,61 @@ function runTests(isDev) {
       })
     })
   }
+
+  it('should apply redirects correctly', async () => {
+    for (const path of ['/redirect', '/en-US/redirect', '/nl/redirect']) {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(307)
+
+      const parsed = url.parse(res.headers.get('location'), true)
+      expect(parsed.pathname).toBe('/somewhere-else')
+      expect(parsed.query).toEqual({})
+    }
+  })
+
+  it('should apply headers correctly', async () => {
+    for (const path of ['/add-header', '/en-US/add-header', '/nl/add-header']) {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(404)
+      expect(res.headers.get('x-hello')).toBe('world')
+    }
+  })
+
+  it('should apply rewrites correctly', async () => {
+    const checks = [
+      {
+        locale: 'en-US',
+        path: '/rewrite',
+      },
+      {
+        locale: 'en-US',
+        path: '/en-US/rewrite',
+      },
+      {
+        locale: 'nl',
+        path: '/nl/rewrite',
+      },
+    ]
+
+    for (const check of checks) {
+      const res = await fetchViaHTTP(appPort, check.path, undefined, {
+        redirect: 'manual',
+      })
+
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+      expect($('html').attr('lang')).toBe(check.locale)
+      expect($('#router-locale').text()).toBe(check.locale)
+      expect($('#router-pathname').text()).toBe('/another')
+      expect($('#router-as-path').text()).toBe('/rewrite')
+    }
+  })
 
   it('should navigate with locale prop correctly', async () => {
     const browser = await webdriver(appPort, '/links?nextLocale=fr')
@@ -661,27 +742,56 @@ function runTests(isDev) {
   })
 
   it('should handle locales with domain', async () => {
-    const checkDomainLocales = async (domainDefault = '', domain = '') => {
-      for (const locale of locales) {
-        // skip other domains' default locale since we redirect these
-        if (['fr', 'nl-BE'].includes(locale) && locale !== domainDefault) {
-          continue
-        }
+    const domainItems = [
+      {
+        // used for testing, this should not be needed in most cases
+        // as production domains should always use https
+        http: true,
+        domain: 'example.be',
+        defaultLocale: 'nl-BE',
+        locales: ['nl', 'nl-NL', 'nl-BE'],
+      },
+      {
+        http: true,
+        domain: 'example.fr',
+        defaultLocale: 'fr',
+        locales: ['fr-BE'],
+      },
+    ]
+    const domainLocales = domainItems.reduce((prev, cur) => {
+      return [...prev, ...cur.locales]
+    }, [])
 
-        const res = await fetchViaHTTP(
-          appPort,
-          `/${locale === domainDefault ? '' : locale}`,
-          undefined,
-          {
-            headers: {
-              host: domain,
-            },
-            redirect: 'manual',
-          }
+    const checkDomainLocales = async (
+      domainDefault = '',
+      domain = '',
+      locale = ''
+    ) => {
+      const res = await fetchViaHTTP(appPort, `/`, undefined, {
+        headers: {
+          host: domain,
+          'accept-language': locale,
+        },
+        redirect: 'manual',
+      })
+      const expectedDomainItem = domainItems.find(
+        (item) => item.defaultLocale === locale || item.locales.includes(locale)
+      )
+      const shouldRedirect =
+        expectedDomainItem.domain !== domain ||
+        locale !== expectedDomainItem.defaultLocale
+
+      expect(res.status).toBe(shouldRedirect ? 307 : 200)
+
+      if (shouldRedirect) {
+        const parsedUrl = url.parse(res.headers.get('location'), true)
+
+        expect(parsedUrl.pathname).toBe(
+          `/${expectedDomainItem.defaultLocale === locale ? '' : locale}`
         )
-
-        expect(res.status).toBe(200)
-
+        expect(parsedUrl.query).toEqual({})
+        expect(parsedUrl.hostname).toBe(expectedDomainItem.domain)
+      } else {
         const html = await res.text()
         const $ = cheerio.load(html)
 
@@ -691,8 +801,11 @@ function runTests(isDev) {
       }
     }
 
-    await checkDomainLocales('nl-BE', 'example.be')
-    await checkDomainLocales('fr', 'example.fr')
+    for (const item of domainItems) {
+      for (const locale of domainLocales) {
+        await checkDomainLocales(item.defaultLocale, item.domain, locale)
+      }
+    }
   })
 
   it('should generate AMP pages with all locales', async () => {
@@ -824,6 +937,11 @@ function runTests(isDev) {
           await browser.eval('document.documentElement.innerHTML')
         ).toContain('This page could not be found')
 
+        const props = JSON.parse(await browser.elementByCss('#props').text())
+
+        expect(props.is404).toBe(true)
+        expect(props.locale).toBe(locale)
+
         const parsedUrl = url.parse(
           await browser.eval('window.location.href'),
           true
@@ -847,7 +965,42 @@ function runTests(isDev) {
     expect(await browser.elementByCss('html').text()).toContain(
       'This page could not be found'
     )
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+
+    expect(props.is404).toBe(true)
+    expect(props.locale).toBe('en')
     expect(await browser.eval('window.beforeNav')).toBe(null)
+  })
+
+  it('should render 404 for fallback page that returned 404 on client transition', async () => {
+    const browser = await webdriver(appPort, '/en', true, true)
+    await browser.eval(`(function() {
+      next.router.push('/not-found/fallback/first')
+    })()`)
+    await browser.waitForElementByCss('h1')
+    await browser.eval('window.beforeNav = 1')
+
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+
+    expect(props.is404).toBe(true)
+    expect(props.locale).toBe('en')
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+
+    const parsedUrl = url.parse(
+      await browser.eval('window.location.href'),
+      true
+    )
+    expect(parsedUrl.pathname).toBe('/en/not-found/fallback/first')
+    expect(parsedUrl.query).toEqual({})
+
+    if (isDev) {
+      // make sure page doesn't reload un-necessarily in development
+      await waitFor(10 * 1000)
+    }
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should render 404 for fallback page that returned 404', async () => {
@@ -863,6 +1016,10 @@ function runTests(isDev) {
     expect(await browser.elementByCss('html').text()).toContain(
       'This page could not be found'
     )
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+
+    expect(props.is404).toBe(true)
+    expect(props.locale).toBe('en')
     expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
 
     const parsedUrl = url.parse(
@@ -870,6 +1027,70 @@ function runTests(isDev) {
       true
     )
     expect(parsedUrl.pathname).toBe('/en/not-found/fallback/first')
+    expect(parsedUrl.query).toEqual({})
+
+    if (isDev) {
+      // make sure page doesn't reload un-necessarily in development
+      await waitFor(10 * 1000)
+    }
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
+  it('should render 404 for blocking fallback page that returned 404 on client transition', async () => {
+    const browser = await webdriver(appPort, '/en', true, true)
+    await browser.eval(`(function() {
+      next.router.push('/not-found/blocking-fallback/first')
+    })()`)
+    await browser.waitForElementByCss('h1')
+    await browser.eval('window.beforeNav = 1')
+
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+
+    expect(props.is404).toBe(true)
+    expect(props.locale).toBe('en')
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+
+    const parsedUrl = url.parse(
+      await browser.eval('window.location.href'),
+      true
+    )
+    expect(parsedUrl.pathname).toBe('/en/not-found/blocking-fallback/first')
+    expect(parsedUrl.query).toEqual({})
+
+    if (isDev) {
+      // make sure page doesn't reload un-necessarily in development
+      await waitFor(10 * 1000)
+    }
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
+  it('should render 404 for blocking fallback page that returned 404', async () => {
+    const browser = await webdriver(
+      appPort,
+      '/en/not-found/blocking-fallback/first',
+      true,
+      true
+    )
+    await browser.waitForElementByCss('h1')
+    await browser.eval('window.beforeNav = 1')
+
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+
+    expect(props.is404).toBe(true)
+    expect(props.locale).toBe('en')
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+
+    const parsedUrl = url.parse(
+      await browser.eval('window.location.href'),
+      true
+    )
+    expect(parsedUrl.pathname).toBe('/en/not-found/blocking-fallback/first')
     expect(parsedUrl.query).toEqual({})
 
     if (isDev) {
@@ -917,6 +1138,7 @@ function runTests(isDev) {
     expect(JSON.parse($('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
@@ -933,6 +1155,7 @@ function runTests(isDev) {
       params: {
         slug: 'first',
       },
+      defaultLocale: 'en-US',
     })
     expect(JSON.parse($('#router-query').text())).toEqual({
       slug: 'first',
@@ -953,6 +1176,7 @@ function runTests(isDev) {
       params: {
         slug: 'another',
       },
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1039,6 +1263,7 @@ function runTests(isDev) {
     expect(JSON.parse($('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
@@ -1055,6 +1280,7 @@ function runTests(isDev) {
       params: {
         slug: 'first',
       },
+      defaultLocale: 'en-US',
     })
     expect(JSON.parse($('#router-query').text())).toEqual({
       slug: 'first',
@@ -1075,6 +1301,7 @@ function runTests(isDev) {
       params: {
         slug: 'another',
       },
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1096,6 +1323,7 @@ function runTests(isDev) {
     expect(JSON.parse($('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
@@ -1130,6 +1358,7 @@ function runTests(isDev) {
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
     expect(
@@ -1159,6 +1388,7 @@ function runTests(isDev) {
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
     expect(
@@ -1192,6 +1422,7 @@ function runTests(isDev) {
       params: {
         slug: 'another',
       },
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1215,6 +1446,7 @@ function runTests(isDev) {
       params: {
         slug: 'first',
       },
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1241,6 +1473,7 @@ function runTests(isDev) {
       params: {
         slug: 'second',
       },
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1275,6 +1508,7 @@ function runTests(isDev) {
       params: {
         slug: 'second',
       },
+      defaultLocale: 'en-US',
     })
     expect(JSON.parse($('#router-query').text())).toEqual({
       slug: 'second',
@@ -1291,6 +1525,7 @@ function runTests(isDev) {
     expect(JSON.parse($('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
@@ -1303,6 +1538,7 @@ function runTests(isDev) {
     expect(JSON.parse($2('#props').text())).toEqual({
       locale: 'nl-NL',
       locales,
+      defaultLocale: 'en-US',
     })
     expect($2('#router-locale').text()).toBe('nl-NL')
     expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
@@ -1320,6 +1556,7 @@ function runTests(isDev) {
       params: {
         slug: 'first',
       },
+      defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
@@ -1335,6 +1572,7 @@ function runTests(isDev) {
       params: {
         slug: 'first',
       },
+      defaultLocale: 'en-US',
     })
     expect($2('#router-locale').text()).toBe('nl-NL')
     expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
@@ -1365,6 +1603,7 @@ function runTests(isDev) {
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       locale: 'en',
       locales,
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1393,6 +1632,7 @@ function runTests(isDev) {
     expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
       locale: 'en',
       locales,
+      defaultLocale: 'en-US',
     })
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
@@ -1448,6 +1688,48 @@ describe('i18n Support', () => {
     afterAll(async () => {
       nextConfig.restore()
       await killApp(app)
+    })
+
+    it('should have correct props for blocking notFound', async () => {
+      const serverFile = getPageFileFromPagesManifest(
+        appDir,
+        '/not-found/blocking-fallback/[slug]'
+      )
+      const appPort = await findPort()
+      const mod = require(join(appDir, '.next/serverless', serverFile))
+
+      const server = http.createServer(async (req, res) => {
+        try {
+          await mod.render(req, res)
+        } catch (err) {
+          res.statusCode = 500
+          res.end('internal err')
+        }
+      })
+
+      await new Promise((resolve, reject) => {
+        server.listen(appPort, (err) => (err ? reject(err) : resolve()))
+      })
+      console.log('listening on', appPort)
+
+      const res = await fetchViaHTTP(
+        appPort,
+        '/nl/not-found/blocking-fallback/first'
+      )
+      server.close()
+
+      expect(res.status).toBe(404)
+
+      const $ = cheerio.load(await res.text())
+      const props = JSON.parse($('#props').text())
+
+      expect($('#not-found').text().length > 0).toBe(true)
+      expect(props).toEqual({
+        is404: true,
+        locale: 'nl',
+        locales,
+        defaultLocale: 'en-US',
+      })
     })
 
     runTests()

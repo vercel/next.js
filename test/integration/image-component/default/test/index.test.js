@@ -22,11 +22,39 @@ const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
 
+async function hasImageMatchingUrl(browser, url) {
+  const links = await browser.elementsByCss('img')
+  let foundMatch = false
+  for (const link of links) {
+    const src = await link.getAttribute('src')
+    if (src === url) {
+      foundMatch = true
+      break
+    }
+  }
+  return foundMatch
+}
+
+async function getComputed(browser, id, prop) {
+  const style = await browser.eval(
+    `getComputedStyle(document.getElementById('${id}')).${prop}`
+  )
+  if (typeof style === 'string') {
+    return parseInt(style.replace(/px$/, ''), 10)
+  }
+  return null
+}
+
+function getRatio(width, height) {
+  return Math.round((height / width) * 1000)
+}
+
 function runTests(mode) {
   it('should load the images', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+
       await check(async () => {
         const result = await browser.eval(
           `document.getElementById('basic-image').naturalWidth`
@@ -54,6 +82,13 @@ function runTests(mode) {
 
         return 'result-correct'
       }, /result-correct/)
+
+      expect(
+        await hasImageMatchingUrl(
+          browser,
+          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=420&q=75`
+        )
+      ).toBe(true)
     } finally {
       if (browser) {
         await browser.close()
@@ -82,13 +117,100 @@ function runTests(mode) {
     }
   })
 
+  it('should work with layout-fixed so resizing window does not resize image', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/layout-fixed')
+      const width = 1200
+      const height = 700
+      const delta = 250
+      const id = 'fixed1'
+      await browser.setDimensions({
+        width: width + delta,
+        height: height + delta,
+      })
+      expect(await getComputed(browser, id, 'width')).toBe(width)
+      expect(await getComputed(browser, id, 'height')).toBe(height)
+      await browser.setDimensions({
+        width: width - delta,
+        height: height - delta,
+      })
+      expect(await getComputed(browser, id, 'width')).toBe(width)
+      expect(await getComputed(browser, id, 'height')).toBe(height)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should work with layout-intrinsic so resizing window maintains image aspect ratio', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/layout-intrinsic')
+      const width = 1200
+      const height = 700
+      const delta = 250
+      const id = 'intrinsic1'
+      await browser.setDimensions({
+        width: width + delta,
+        height: height + delta,
+      })
+      expect(await getComputed(browser, id, 'width')).toBe(width)
+      expect(await getComputed(browser, id, 'height')).toBe(height)
+      await browser.setDimensions({
+        width: width - delta,
+        height: height - delta,
+      })
+      const newWidth = await getComputed(browser, id, 'width')
+      const newHeight = await getComputed(browser, id, 'height')
+      expect(newWidth).toBeLessThan(width)
+      expect(newHeight).toBeLessThan(height)
+      expect(getRatio(newWidth, newHeight)).toBe(getRatio(width, height))
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should work with layout-responsive so resizing window maintains image aspect ratio', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/layout-responsive')
+      const width = 1200
+      const height = 700
+      const delta = 250
+      const id = 'responsive1'
+      await browser.setDimensions({
+        width: width + delta,
+        height: height + delta,
+      })
+      expect(await getComputed(browser, id, 'width')).toBeGreaterThan(width)
+      expect(await getComputed(browser, id, 'height')).toBeGreaterThan(height)
+      await browser.setDimensions({
+        width: width - delta,
+        height: height - delta,
+      })
+      const newWidth = await getComputed(browser, id, 'width')
+      const newHeight = await getComputed(browser, id, 'height')
+      expect(newWidth).toBeLessThan(width)
+      expect(newHeight).toBeLessThan(height)
+      expect(getRatio(newWidth, newHeight)).toBe(getRatio(width, height))
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
   if (mode === 'dev') {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/missing-src')
 
       await hasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
-        'Next Image Optimization requires src to be provided. Make sure you pass them as props to the `next/image` component. Received: {"width":1200}'
+        'Image is missing required "src" property. Make sure you pass "src" in props to the `next/image` component. Received: {"width":200}'
       )
     })
 
@@ -97,7 +219,7 @@ function runTests(mode) {
 
       await hasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
-        'Invalid src prop (https://google.com/test.png) on `next/image`, hostname is not configured under images in your `next.config.js`'
+        'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
       )
     })
   }
