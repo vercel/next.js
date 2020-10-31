@@ -44,8 +44,6 @@ const externals = {
   'loader-runner': 'loader-runner',
   // dependents: thread-loader, babel-loader
   'loader-utils': 'loader-utils',
-  // dependents: babel-loader
-  mkdirp: 'mkdirp',
   // dependents: thread-loader, cache-loader
   'neo-async': 'neo-async',
   // dependents: cache-loader, style-loader, file-loader
@@ -284,7 +282,7 @@ export async function ncc_jsonwebtoken(task, opts) {
 externals['lodash.curry'] = 'next/dist/compiled/lodash.curry'
 export async function ncc_lodash_curry(task, opts) {
   await task
-    .source(opts.src || relative(__dirname, require.resolve('lodash.curry')))
+    .source(opts.src || relative(__dirname, require.resolve('lodash/curry')))
     .ncc({ packageName: 'lodash.curry', externals })
     .target('compiled/lodash.curry')
 }
