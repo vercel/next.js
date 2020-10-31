@@ -13,3 +13,11 @@ yarn create next-app --example using-preact using-preact-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+
+### Aliasing react -> preact
+
+Using `preact` with `next.js` (and many other libs) depends on aliasing react packages to preact ones (especially `@preact/compat`), this example do this directly on the [`package.json`](https://github.com/vercel/next.js/blob/canary/examples/using-preact/package.json#L16-L18) dependencies.
+
+### next-plugin-preact
+
+This example was [updated](https://github.com/vercel/next.js/pull/18588) to use [`next-plugin-preact`](https://github.com/preactjs/next-plugin-preact) and now requires minimal configuration, if you want to use it without, or see how it works, head to the previous [`next.config.js`](https://github.com/vercel/next.js/blob/629884af7d3ced97b8c2ec7aebdfb1a3a5d808f0/examples/using-preact/next.config.js).
