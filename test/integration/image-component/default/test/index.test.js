@@ -276,7 +276,7 @@ function runTests(mode) {
 
       await hasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
-        'Image with src "/test.png" has invalid "unsized" property, which was removed in favor of the "layout=\'fill\'" property'
+        'Image with src "/test.png" has deprecated "unsized" property, which was removed in favor of the "layout=\'fill\'" property'
       )
     })
   }
