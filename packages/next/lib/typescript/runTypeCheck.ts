@@ -11,7 +11,6 @@ export interface TypeCheckResult {
   warnings?: string[]
 }
 
-// TODO: filter out `unsized` errors during `next build`
 export async function runTypeCheck(
   ts: typeof import('typescript'),
   baseDir: string,
