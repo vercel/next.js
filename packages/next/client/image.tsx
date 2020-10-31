@@ -40,7 +40,12 @@ type ImageProps = Omit<
   loading?: LoadingValue
   unoptimized?: boolean
 } & (
-    | { width?: never; height?: never; unsized?: true }
+    | {
+        width?: never
+        height?: never
+        /** @deprecated Use `layout="fill"` instead */
+        unsized?: true
+      }
     | { width?: never; height?: never; layout: 'fill' }
     | {
         width: number | string
