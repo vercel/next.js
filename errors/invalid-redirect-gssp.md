@@ -13,7 +13,7 @@ export const getStaticProps = ({ params }) => {
   if (params.slug === 'deleted-post') {
     return {
       redirect: {
-        permanent: true // or false
+        permanent: true, // or false
         destination: '/some-location'
       }
     }
