@@ -14,6 +14,7 @@ const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
 type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
 
 const VALID_LAYOUT_VALUES = [
+  'fill',
   'fixed',
   'intrinsic',
   'responsive',
@@ -37,11 +38,20 @@ type ImageProps = Omit<
   quality?: number | string
   priority?: boolean
   loading?: LoadingValue
-  layout?: LayoutValue
   unoptimized?: boolean
 } & (
-    | { width: number | string; height: number | string; unsized?: false }
-    | { width?: number | string; height?: number | string; unsized: true }
+    | {
+        width?: never
+        height?: never
+        /** @deprecated Use `layout="fill"` instead */
+        unsized: true
+      }
+    | { width?: never; height?: never; layout: 'fill' }
+    | {
+        width: number | string
+        height: number | string
+        layout?: Exclude<LayoutValue, 'fill'>
+      }
   )
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
@@ -210,21 +220,34 @@ export default function Image({
   unoptimized = false,
   priority = false,
   loading,
-  layout,
   className,
   quality,
   width,
   height,
-  unsized,
-  ...rest
+  ...all
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
+
+  let rest: Partial<ImageProps> = all
+  let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
+  let unsized = false
+  if ('unsized' in rest) {
+    unsized = Boolean(rest.unsized)
+    // Remove property so it's not spread into image:
+    delete rest['unsized']
+  } else if ('layout' in rest) {
+    // Override default layout if the user specified one:
+    if (rest.layout) layout = rest.layout
+
+    // Remove property so it's not spread into image:
+    delete rest['layout']
+  }
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
       throw new Error(
         `Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify(
-          { width, height, quality, unsized }
+          { width, height, quality }
         )}`
       )
     }
@@ -244,16 +267,13 @@ export default function Image({
     }
     if (priority && loading === 'lazy') {
       throw new Error(
-        `Image with src "${src}" has both "priority" and "loading=lazy" properties. Only one should be used.`
+        `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
-  }
-
-  if (!layout) {
-    if (sizes) {
-      layout = 'responsive'
-    } else {
-      layout = 'intrinsic'
+    if (unsized) {
+      throw new Error(
+        `Image with src "${src}" has deprecated "unsized" property, which was removed in favor of the "layout='fill'" property`
+      )
     }
   }
 
@@ -290,69 +310,101 @@ export default function Image({
   const heightInt = getInt(height)
   const qualityInt = getInt(quality)
 
-  let wrapperStyle: React.CSSProperties | undefined
-  let sizerStyle: React.CSSProperties | undefined
+  let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
+  let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerSvg: string | undefined
-  let imgStyle: React.CSSProperties | undefined
+  let imgStyle: JSX.IntrinsicElements['img']['style'] = {
+    visibility: lazy ? 'hidden' : 'visible',
+
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    right: 0,
+
+    boxSizing: 'border-box',
+    padding: 0,
+    border: 'none',
+    margin: 'auto',
+
+    display: 'block',
+    width: 0,
+    height: 0,
+    minWidth: '100%',
+    maxWidth: '100%',
+    minHeight: '100%',
+    maxHeight: '100%',
+  }
   if (
     typeof widthInt !== 'undefined' &&
     typeof heightInt !== 'undefined' &&
-    !unsized
+    layout !== 'fill'
   ) {
     // <Image src="i.png" width="100" height="100" />
     const quotient = heightInt / widthInt
     const paddingTop = isNaN(quotient) ? '100%' : `${quotient * 100}%`
     if (layout === 'responsive') {
       // <Image src="i.png" width="100" height="100" layout="responsive" />
-      wrapperStyle = { position: 'relative' }
-      sizerStyle = { paddingTop }
+      wrapperStyle = {
+        display: 'block',
+        overflow: 'hidden',
+        position: 'relative',
+
+        boxSizing: 'border-box',
+        margin: 0,
+      }
+      sizerStyle = { display: 'block', boxSizing: 'border-box', paddingTop }
     } else if (layout === 'intrinsic') {
       // <Image src="i.png" width="100" height="100" layout="intrinsic" />
       wrapperStyle = {
         display: 'inline-block',
-        position: 'relative',
         maxWidth: '100%',
+        overflow: 'hidden',
+        position: 'relative',
+        boxSizing: 'border-box',
+        margin: 0,
       }
       sizerStyle = {
+        boxSizing: 'border-box',
+        display: 'block',
         maxWidth: '100%',
       }
       sizerSvg = `<svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
     } else if (layout === 'fixed') {
       // <Image src="i.png" width="100" height="100" layout="fixed" />
       wrapperStyle = {
+        overflow: 'hidden',
+        boxSizing: 'border-box',
         display: 'inline-block',
         position: 'relative',
         width: widthInt,
         height: heightInt,
       }
     }
-    imgStyle = {
-      visibility: lazy ? 'hidden' : 'visible',
-      height: '100%',
-      left: '0',
-      position: 'absolute',
-      top: '0',
-      width: '100%',
-    }
   } else if (
     typeof widthInt === 'undefined' &&
     typeof heightInt === 'undefined' &&
-    unsized
+    layout === 'fill'
   ) {
-    // <Image src="i.png" unsized />
-    if (process.env.NODE_ENV !== 'production') {
-      if (priority) {
-        // <Image src="i.png" unsized priority />
-        console.warn(
-          `Image with src "${src}" has both "priority" and "unsized" properties. Only one should be used.`
-        )
-      }
+    // <Image src="i.png" layout="fill" />
+    wrapperStyle = {
+      display: 'block',
+      overflow: 'hidden',
+
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      bottom: 0,
+      right: 0,
+
+      boxSizing: 'border-box',
+      margin: 0,
     }
   } else {
     // <Image src="i.png" />
     if (process.env.NODE_ENV !== 'production') {
       throw new Error(
-        `Image with src "${src}" must use "width" and "height" properties or "unsized" property.`
+        `Image with src "${src}" must use "width" and "height" properties or "layout='fill'" property.`
       )
     }
   }
@@ -396,6 +448,11 @@ export default function Image({
   // it's too late for preloads
   const shouldPreload = priority && typeof window === 'undefined'
 
+  if (unsized) {
+    wrapperStyle = undefined
+    sizerStyle = undefined
+    imgStyle = undefined
+  }
   return (
     <div style={wrapperStyle}>
       {shouldPreload
