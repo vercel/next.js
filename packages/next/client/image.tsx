@@ -305,10 +305,31 @@ export default function Image({
   const heightInt = getInt(height)
   const qualityInt = getInt(quality)
 
-  let wrapperStyle: React.CSSProperties | undefined
-  let sizerStyle: React.CSSProperties | undefined
+  let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
+  let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerSvg: string | undefined
-  let imgStyle: React.CSSProperties | undefined
+  const imgStyle: JSX.IntrinsicElements['img']['style'] = {
+    visibility: lazy ? 'hidden' : 'visible',
+
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    right: 0,
+
+    boxSizing: 'border-box',
+    padding: 0,
+    border: 'none',
+    margin: 'auto',
+
+    display: 'block',
+    width: 0,
+    height: 0,
+    minWidth: '100%',
+    maxWidth: '100%',
+    minHeight: '100%',
+    maxHeight: '100%',
+  }
   if (
     typeof widthInt !== 'undefined' &&
     typeof heightInt !== 'undefined' &&
@@ -319,35 +340,41 @@ export default function Image({
     const paddingTop = isNaN(quotient) ? '100%' : `${quotient * 100}%`
     if (layout === 'responsive') {
       // <Image src="i.png" width="100" height="100" layout="responsive" />
-      wrapperStyle = { position: 'relative' }
-      sizerStyle = { paddingTop }
+      wrapperStyle = {
+        display: 'block',
+        overflow: 'hidden',
+        position: 'relative',
+
+        boxSizing: 'border-box',
+        margin: 0,
+      }
+      sizerStyle = { display: 'block', boxSizing: 'border-box', paddingTop }
     } else if (layout === 'intrinsic') {
       // <Image src="i.png" width="100" height="100" layout="intrinsic" />
       wrapperStyle = {
         display: 'inline-block',
-        position: 'relative',
         maxWidth: '100%',
+        overflow: 'hidden',
+        position: 'relative',
+        boxSizing: 'border-box',
+        margin: 0,
       }
       sizerStyle = {
+        boxSizing: 'border-box',
+        display: 'block',
         maxWidth: '100%',
       }
       sizerSvg = `<svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
     } else if (layout === 'fixed') {
       // <Image src="i.png" width="100" height="100" layout="fixed" />
       wrapperStyle = {
+        overflow: 'hidden',
+        boxSizing: 'border-box',
         display: 'inline-block',
         position: 'relative',
         width: widthInt,
         height: heightInt,
       }
-    }
-    imgStyle = {
-      visibility: lazy ? 'hidden' : 'visible',
-      height: '100%',
-      left: '0',
-      position: 'absolute',
-      top: '0',
-      width: '100%',
     }
   } else if (
     typeof widthInt === 'undefined' &&
@@ -356,34 +383,17 @@ export default function Image({
   ) {
     // <Image src="i.png" layout="fill" />
     wrapperStyle = {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      bottom: 0,
-      right: 0,
-      boxSizing: 'border-box',
       display: 'block',
-      margin: 0,
       overflow: 'hidden',
-    }
 
-    imgStyle = {
       position: 'absolute',
       top: 0,
       left: 0,
       bottom: 0,
       right: 0,
+
       boxSizing: 'border-box',
-      display: 'block',
-      width: 0,
-      height: 0,
-      maxHeight: '100%',
-      maxWidth: '100%',
-      minHeight: '100%',
-      minWidth: '100%',
-      margin: 'auto',
-      border: 'none',
-      padding: 0,
+      margin: 0,
     }
   } else {
     // <Image src="i.png" />
