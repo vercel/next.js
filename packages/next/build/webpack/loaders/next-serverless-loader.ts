@@ -92,7 +92,7 @@ const nextServerlessLoader: loader.Loader = function () {
               ? value.every((val, idx) => val === defaultRouteMatches[key][idx])
               : value === defaultRouteMatches[key]
 
-            if (isDefaultValue) {
+            if (isDefaultValue || typeof value === 'undefined') {
               hasValidParams = false
             }
 
