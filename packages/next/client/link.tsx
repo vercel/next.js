@@ -282,11 +282,17 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
 
   // This will return the first child, if multiple are provided it will throw an error
   const child: any = Children.only(children)
+  const childRef: any = child && typeof child === 'object' && child.ref
 
-  const cleanup = React.useRef(() => {})
+  const cleanup = React.useRef<() => void>()
   const setRef = React.useCallback(
     (el: Element) => {
-      cleanup.current()
+      // cleanup previous event handlers
+      if (cleanup.current) {
+        cleanup.current()
+        cleanup.current = undefined
+      }
+
       if (p && IntersectionObserver && el && el.tagName && isLocalURL(href)) {
         // Join on an invalid URI character
         const isPrefetched = prefetched[href + '%' + as]
@@ -295,18 +301,16 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
             prefetch(router, href, as)
           })
         }
-      } else {
-        cleanup.current = () => {}
       }
 
-      if (child && typeof child === 'object' && child.ref) {
-        if (typeof child.ref === 'function') child.ref(el)
-        else if (typeof child.ref === 'object') {
-          child.ref.current = el
+      if (childRef) {
+        if (typeof childRef === 'function') childRef(el)
+        else if (typeof childRef === 'object') {
+          childRef.current = el
         }
       }
     },
-    [p, child, href, as, router]
+    [p, childRef, href, as, router]
   )
 
   const childProps: {
