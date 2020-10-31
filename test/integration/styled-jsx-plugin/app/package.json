@@ -7,12 +7,12 @@
     "start": "next start"
   },
   "dependencies": {
-    "lost": "8.2.0",
+    "lost": "8.3.1",
     "next": "latest",
     "postcss-nested": "2.1.2",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "styled-jsx-plugin-postcss": "0.1.0"
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1",
+    "styled-jsx-plugin-postcss": "3.0.2"
   },
   "license": "ISC",
   "postcss": {

@@ -14,8 +14,8 @@
   },
   "devDependencies": {
     "core-js": "3.6.5",
-    "microbundle": "0.11.0",
+    "microbundle": "0.12.4",
     "object-assign": "4.1.1",
-    "whatwg-fetch": "3.0.0"
+    "whatwg-fetch": "3.4.1"
   }
 }

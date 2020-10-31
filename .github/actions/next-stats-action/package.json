@@ -5,7 +5,7 @@
   "license": "MIT",
   "dependencies": {
     "async-sema": "^3.1.0",
-    "fs-extra": "^8.1.0",
+    "fs-extra": "^9.0.1",
     "get-port": "^5.0.0",
     "glob": "^7.1.4",
     "gzip-size": "^5.1.1",

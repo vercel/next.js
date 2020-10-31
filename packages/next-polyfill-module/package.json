@@ -13,6 +13,6 @@
     "build": "microbundle watch src/index.js -f iife --no-sourcemap --external none"
   },
   "devDependencies": {
-    "microbundle": "0.11.0"
+    "microbundle": "0.12.4"
   }
 }
