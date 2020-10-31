@@ -44,7 +44,7 @@ type ImageProps = Omit<
         width?: never
         height?: never
         /** @deprecated Use `layout="fill"` instead */
-        unsized?: true
+        unsized: true
       }
     | { width?: never; height?: never; layout: 'fill' }
     | {
@@ -224,10 +224,11 @@ export default function Image({
   quality,
   width,
   height,
-  ...rest
+  ...all
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
 
+  let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
   if ('unsized' in rest) {
     // Unsized images default to the fill layout mode:
