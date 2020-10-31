@@ -230,10 +230,9 @@ export default function Image({
 
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
+  let unsized = false
   if ('unsized' in rest) {
-    // Unsized images default to the fill layout mode:
-    layout = 'fill'
-
+    unsized = Boolean(rest.unsized)
     // Remove property so it's not spread into image:
     delete rest['unsized']
   } else if ('layout' in rest) {
@@ -269,6 +268,11 @@ export default function Image({
     if (priority && loading === 'lazy') {
       throw new Error(
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
+      )
+    }
+    if (unsized) {
+      throw new Error(
+        `Image with src "${src}" has deprecated "unsized" property, which was removed in favor of the "layout='fill'" property`
       )
     }
   }
@@ -309,7 +313,7 @@ export default function Image({
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerSvg: string | undefined
-  const imgStyle: JSX.IntrinsicElements['img']['style'] = {
+  let imgStyle: JSX.IntrinsicElements['img']['style'] = {
     visibility: lazy ? 'hidden' : 'visible',
 
     position: 'absolute',
@@ -444,6 +448,11 @@ export default function Image({
   // it's too late for preloads
   const shouldPreload = priority && typeof window === 'undefined'
 
+  if (unsized) {
+    wrapperStyle = undefined
+    sizerStyle = undefined
+    imgStyle = undefined
+  }
   return (
     <div style={wrapperStyle}>
       {shouldPreload
