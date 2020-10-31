@@ -1273,13 +1273,8 @@ export default class Server {
       ? await this.incrementalCache.get(ssgCacheKey)
       : undefined
 
-    if (cachedData) {
-      if (cachedData.isNotFound) {
-        // we don't currently revalidate when notFound is returned
-        // so trigger rendering 404 here
-        throw new NoFallbackError()
-      }
-
+    // Revalidate whenever notFound is returned to get up-to-date data
+    if (cachedData && !cachedData.isNotFound) {
       const data = isDataReq
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
