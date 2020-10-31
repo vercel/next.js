@@ -30,6 +30,6 @@
   },
   "devDependencies": {
     "@zeit/ncc": "^0.20.4",
-    "snackables": "1.0.0"
+    "snackables": "1.0.1"
   }
 }
