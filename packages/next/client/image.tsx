@@ -248,7 +248,7 @@ export default function Image({
     if (!src) {
       throw new Error(
         `Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify(
-          { width, height, quality, layout }
+          { width, height, quality }
         )}`
       )
     }
