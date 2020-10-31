@@ -7,6 +7,7 @@ import {
   nextStart,
   nextBuild,
   waitFor,
+  check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
@@ -32,32 +33,37 @@ function runTests() {
   })
   it('should modify src with the loader', async () => {
     expect(await browser.elementById('basic-image').getAttribute('src')).toBe(
-      'https://example.com/myaccount/foo.jpg'
+      'https://example.com/myaccount/foo.jpg?auto=format&w=480&q=60'
     )
   })
   it('should correctly generate src even if preceding slash is included in prop', async () => {
     expect(
       await browser.elementById('preceding-slash-image').getAttribute('src')
-    ).toBe('https://example.com/myaccount/fooslash.jpg')
-  })
-  it('should support manually selecting a different host', async () => {
-    expect(
-      await browser.elementById('secondary-image').getAttribute('src')
-    ).toBe('https://examplesecondary.com/images/foo2.jpg')
+    ).toBe('https://example.com/myaccount/fooslash.jpg?auto=format&w=480')
   })
   it('should add a srcset based on the loader', async () => {
     expect(
       await browser.elementById('basic-image').getAttribute('srcset')
-    ).toBe(
-      'https://example.com/myaccount/foo.jpg?w=480 480w, https://example.com/myaccount/foo.jpg?w=1024 1024w, https://example.com/myaccount/foo.jpg?w=1600 1600w'
-    )
+    ).toBe('https://example.com/myaccount/foo.jpg?auto=format&w=480&q=60 480w')
   })
   it('should add a srcset even with preceding slash in prop', async () => {
     expect(
       await browser.elementById('preceding-slash-image').getAttribute('srcset')
-    ).toBe(
-      'https://example.com/myaccount/fooslash.jpg?w=480 480w, https://example.com/myaccount/fooslash.jpg?w=1024 1024w, https://example.com/myaccount/fooslash.jpg?w=1600 1600w'
+    ).toBe('https://example.com/myaccount/fooslash.jpg?auto=format&w=480 480w')
+  })
+  it('should use imageSizes when width matches, not deviceSizes from next.config.js', async () => {
+    expect(await browser.elementById('icon-image-16').getAttribute('src')).toBe(
+      'https://example.com/myaccount/icon.png?auto=format&w=16'
     )
+    expect(
+      await browser.elementById('icon-image-16').getAttribute('srcset')
+    ).toBe('https://example.com/myaccount/icon.png?auto=format&w=16 16w')
+    expect(await browser.elementById('icon-image-64').getAttribute('src')).toBe(
+      'https://example.com/myaccount/icon.png?auto=format&w=64'
+    )
+    expect(
+      await browser.elementById('icon-image-64').getAttribute('srcset')
+    ).toBe('https://example.com/myaccount/icon.png?auto=format&w=64 64w')
   })
   it('should support the unoptimized attribute', async () => {
     expect(
@@ -74,10 +80,10 @@ function runTests() {
 function lazyLoadingTests() {
   it('should have loaded the first image immediately', async () => {
     expect(await browser.elementById('lazy-top').getAttribute('src')).toBe(
-      'https://example.com/myaccount/foo1.jpg'
+      'https://example.com/myaccount/foo1.jpg?auto=format&w=1024'
     )
     expect(await browser.elementById('lazy-top').getAttribute('srcset')).toBe(
-      'https://example.com/myaccount/foo1.jpg?w=480 480w, https://example.com/myaccount/foo1.jpg?w=1024 1024w, https://example.com/myaccount/foo1.jpg?w=1600 1600w'
+      'https://example.com/myaccount/foo1.jpg?auto=format&w=480 480w, https://example.com/myaccount/foo1.jpg?auto=format&w=1024 1024w'
     )
   })
   it('should not have loaded the second image immediately', async () => {
@@ -96,18 +102,20 @@ function lazyLoadingTests() {
   it('should load the second image after scrolling down', async () => {
     let viewportHeight = await browser.eval(`window.innerHeight`)
     let topOfMidImage = await browser.eval(
-      `document.getElementById('lazy-mid').offsetTop`
+      `document.getElementById('lazy-mid').parentElement.offsetTop`
     )
     let buffer = 150
     await browser.eval(
       `window.scrollTo(0, ${topOfMidImage - (viewportHeight + buffer)})`
     )
-    expect(await browser.elementById('lazy-mid').getAttribute('src')).toBe(
-      'https://example.com/myaccount/foo2.jpg'
-    )
-    expect(await browser.elementById('lazy-mid').getAttribute('srcset')).toBe(
-      'https://example.com/myaccount/foo2.jpg?w=480 480w, https://example.com/myaccount/foo2.jpg?w=1024 1024w, https://example.com/myaccount/foo2.jpg?w=1600 1600w'
-    )
+
+    await check(() => {
+      return browser.elementById('lazy-mid').getAttribute('src')
+    }, 'https://example.com/myaccount/foo2.jpg?auto=format&w=480')
+
+    await check(() => {
+      return browser.elementById('lazy-mid').getAttribute('srcset')
+    }, 'https://example.com/myaccount/foo2.jpg?auto=format&w=480 480w')
   })
   it('should not have loaded the third image after scrolling down', async () => {
     expect(
@@ -120,18 +128,53 @@ function lazyLoadingTests() {
   it('should load the third image, which is unoptimized, after scrolling further down', async () => {
     let viewportHeight = await browser.eval(`window.innerHeight`)
     let topOfBottomImage = await browser.eval(
-      `document.getElementById('lazy-bottom').offsetTop`
+      `document.getElementById('lazy-bottom').parentElement.offsetTop`
     )
     let buffer = 150
     await browser.eval(
       `window.scrollTo(0, ${topOfBottomImage - (viewportHeight + buffer)})`
     )
+    await waitFor(200)
     expect(await browser.elementById('lazy-bottom').getAttribute('src')).toBe(
       'https://www.otherhost.com/foo3.jpg'
     )
     expect(
       await browser.elementById('lazy-bottom').getAttribute('srcset')
     ).toBeFalsy()
+  })
+  it('should load the fourth image lazily after scrolling down', async () => {
+    expect(
+      await browser.elementById('lazy-without-attribute').getAttribute('src')
+    ).toBeFalsy()
+    expect(
+      await browser.elementById('lazy-without-attribute').getAttribute('srcset')
+    ).toBeFalsy()
+    let viewportHeight = await browser.eval(`window.innerHeight`)
+    let topOfBottomImage = await browser.eval(
+      `document.getElementById('lazy-without-attribute').parentElement.offsetTop`
+    )
+    let buffer = 150
+    await browser.eval(
+      `window.scrollTo(0, ${topOfBottomImage - (viewportHeight + buffer)})`
+    )
+    await waitFor(200)
+    expect(
+      await browser.elementById('lazy-without-attribute').getAttribute('src')
+    ).toBe('https://example.com/myaccount/foo4.jpg?auto=format&w=1024')
+    expect(
+      await browser.elementById('lazy-without-attribute').getAttribute('srcset')
+    ).toBe(
+      'https://example.com/myaccount/foo4.jpg?auto=format&w=480 480w, https://example.com/myaccount/foo4.jpg?auto=format&w=1024 1024w'
+    )
+  })
+
+  it('should load the fifth image eagerly, without scrolling', async () => {
+    expect(await browser.elementById('eager-loading').getAttribute('src')).toBe(
+      'https://example.com/myaccount/foo5.jpg?auto=format&w=2000'
+    )
+    expect(
+      await browser.elementById('eager-loading').getAttribute('srcset')
+    ).toBeTruthy()
   })
 }
 
@@ -167,21 +210,14 @@ describe('Image Component Tests', () => {
     it('should add a preload tag for a priority image', async () => {
       expect(
         await hasPreloadLinkMatchingUrl(
-          'https://example.com/myaccount/withpriority.png'
+          'https://example.com/myaccount/withpriority.png?auto=format&w=480&q=60'
         )
       ).toBe(true)
     })
     it('should add a preload tag for a priority image with preceding slash', async () => {
       expect(
         await hasPreloadLinkMatchingUrl(
-          'https://example.com/myaccount/fooslash.jpg'
-        )
-      ).toBe(true)
-    })
-    it('should add a preload tag for a priority image, with secondary host', async () => {
-      expect(
-        await hasPreloadLinkMatchingUrl(
-          'https://examplesecondary.com/images/withpriority2.png'
+          'https://example.com/myaccount/fooslash.jpg?auto=format&w=480'
         )
       ).toBe(true)
     })
@@ -189,6 +225,13 @@ describe('Image Component Tests', () => {
       expect(
         await hasPreloadLinkMatchingUrl(
           'https://arbitraryurl.com/withpriority3.png'
+        )
+      ).toBe(true)
+    })
+    it('should add a preload tag for a priority image, with quality', async () => {
+      expect(
+        await hasPreloadLinkMatchingUrl(
+          'https://example.com/myaccount/withpriority.png?auto=format&w=480&q=60'
         )
       ).toBe(true)
     })
@@ -205,7 +248,7 @@ describe('Image Component Tests', () => {
     it('should NOT add a preload tag for a priority image', async () => {
       expect(
         await hasPreloadLinkMatchingUrl(
-          'https://example.com/myaccount/withpriorityclient.png'
+          'https://example.com/myaccount/withpriorityclient.png?auto=format'
         )
       ).toBe(false)
     })
@@ -237,6 +280,17 @@ describe('Image Component Tests', () => {
       browser = null
     })
     lazyLoadingTests()
+    it('should automatically load images if observer does not exist', async () => {
+      browser = await webdriver(appPort, '/missing-observer')
+      expect(
+        await browser.elementById('lazy-no-observer').getAttribute('src')
+      ).toBe('https://example.com/myaccount/foox.jpg?auto=format&w=1024')
+      expect(
+        await browser.elementById('lazy-no-observer').getAttribute('srcset')
+      ).toBe(
+        'https://example.com/myaccount/foox.jpg?auto=format&w=480 480w, https://example.com/myaccount/foox.jpg?auto=format&w=1024 1024w'
+      )
+    })
   })
   describe('Client-side Lazy Loading Tests', () => {
     beforeAll(async () => {
@@ -248,5 +302,18 @@ describe('Image Component Tests', () => {
       browser = null
     })
     lazyLoadingTests()
+    it('should automatically load images if observer does not exist', async () => {
+      await browser.waitForElementByCss('#observerlink').click()
+      await waitFor(500)
+      browser = await webdriver(appPort, '/missing-observer')
+      expect(
+        await browser.elementById('lazy-no-observer').getAttribute('src')
+      ).toBe('https://example.com/myaccount/foox.jpg?auto=format&w=1024')
+      expect(
+        await browser.elementById('lazy-no-observer').getAttribute('srcset')
+      ).toBe(
+        'https://example.com/myaccount/foox.jpg?auto=format&w=480 480w, https://example.com/myaccount/foox.jpg?auto=format&w=1024 1024w'
+      )
+    })
   })
 })
