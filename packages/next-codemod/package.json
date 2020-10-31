@@ -1,6 +1,6 @@
 {
   "name": "@next/codemod",
-  "version": "10.0.1-canary.1",
+  "version": "10.0.1-canary.2",
   "license": "MIT",
   "dependencies": {
     "chalk": "4.1.0",
