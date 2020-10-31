@@ -40,12 +40,13 @@ type ImageProps = Omit<
   loading?: LoadingValue
   unoptimized?: boolean
 } & (
+    | { width?: never; height?: never; unsized?: true }
+    | { width?: never; height?: never; layout: 'fill' }
     | {
         width: number | string
         height: number | string
         layout?: Exclude<LayoutValue, 'fill'>
       }
-    | { width?: never; height?: never; layout: 'fill' }
   )
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
@@ -214,7 +215,6 @@ export default function Image({
   unoptimized = false,
   priority = false,
   loading,
-  layout,
   className,
   quality,
   width,
@@ -223,20 +223,27 @@ export default function Image({
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
 
+  let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
+  if ('unsized' in rest) {
+    // Unsized images default to the fill layout mode:
+    layout = 'fill'
+
+    // Remove property so it's not spread into image:
+    delete rest['unsized']
+  } else if ('layout' in rest) {
+    // Override default layout if the user specified one:
+    if (rest.layout) layout = rest.layout
+
+    // Remove property so it's not spread into image:
+    delete rest['layout']
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
       throw new Error(
         `Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify(
           { width, height, quality, layout }
         )}`
-      )
-    }
-    if ('unsized' in rest) {
-      throw new Error(
-        `Image with src "${src}" has invalid "unsized" property, which was removed in favor of the "layout" property.\n` +
-          `Please replace "unsized" with "layout='responsive'" or "layout='fill'" based on your objective.\n\n` +
-          `<---> TODO: inline examples\n\n` +
-          `Read more: https://nextjs.org/docs/api-reference/next/image`
       )
     }
     if (!VALID_LAYOUT_VALUES.includes(layout)) {
@@ -257,14 +264,6 @@ export default function Image({
       throw new Error(
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
-    }
-  }
-
-  if (!layout) {
-    if (sizes) {
-      layout = 'responsive'
-    } else {
-      layout = 'intrinsic'
     }
   }
 
