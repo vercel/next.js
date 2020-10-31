@@ -54,6 +54,6 @@ export default Home
 - `loading` - The loading behavior. When `lazy`, defer loading the image until it reaches a calculated distance from the viewport. When `eager`, load the image immediately. Default `lazy`. [More info](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-loading)
 - `priority` - When true, the image will be considered high priority and [preload](https://web.dev/preload-responsive-images/).
 - `unoptimized` - When true, the source image will be served as-is instead of resizing and changing quality.
-- `unsized` - **Deprecated** When true, the `width` and `height` requirement can by bypassed. Should _not_ be used with above-the-fold images. Should _not_ be used with `priority`.
+- `unsized` - **Deprecated** When true, the `width` and `height` requirement can by bypassed. Use the `layout` property instead!
 
 All other properties on the `<Image>` component will be passed to the underlying `<img>` element.
