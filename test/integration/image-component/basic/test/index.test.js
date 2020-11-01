@@ -33,37 +33,47 @@ function runTests() {
   })
   it('should modify src with the loader', async () => {
     expect(await browser.elementById('basic-image').getAttribute('src')).toBe(
-      'https://example.com/myaccount/foo.jpg?auto=format&w=480&q=60'
+      'https://example.com/myaccount/foo.jpg?auto=format&fit=max&w=480&q=60'
     )
   })
   it('should correctly generate src even if preceding slash is included in prop', async () => {
     expect(
       await browser.elementById('preceding-slash-image').getAttribute('src')
-    ).toBe('https://example.com/myaccount/fooslash.jpg?auto=format&w=480')
+    ).toBe(
+      'https://example.com/myaccount/fooslash.jpg?auto=format&fit=max&w=480'
+    )
   })
   it('should add a srcset based on the loader', async () => {
     expect(
       await browser.elementById('basic-image').getAttribute('srcset')
-    ).toBe('https://example.com/myaccount/foo.jpg?auto=format&w=480&q=60 480w')
+    ).toBe(
+      'https://example.com/myaccount/foo.jpg?auto=format&fit=max&w=480&q=60 480w'
+    )
   })
   it('should add a srcset even with preceding slash in prop', async () => {
     expect(
       await browser.elementById('preceding-slash-image').getAttribute('srcset')
-    ).toBe('https://example.com/myaccount/fooslash.jpg?auto=format&w=480 480w')
+    ).toBe(
+      'https://example.com/myaccount/fooslash.jpg?auto=format&fit=max&w=480 480w'
+    )
   })
   it('should use imageSizes when width matches, not deviceSizes from next.config.js', async () => {
     expect(await browser.elementById('icon-image-16').getAttribute('src')).toBe(
-      'https://example.com/myaccount/icon.png?auto=format&w=16'
+      'https://example.com/myaccount/icon.png?auto=format&fit=max&w=16'
     )
     expect(
       await browser.elementById('icon-image-16').getAttribute('srcset')
-    ).toBe('https://example.com/myaccount/icon.png?auto=format&w=16 16w')
+    ).toBe(
+      'https://example.com/myaccount/icon.png?auto=format&fit=max&w=16 16w'
+    )
     expect(await browser.elementById('icon-image-64').getAttribute('src')).toBe(
-      'https://example.com/myaccount/icon.png?auto=format&w=64'
+      'https://example.com/myaccount/icon.png?auto=format&fit=max&w=64'
     )
     expect(
       await browser.elementById('icon-image-64').getAttribute('srcset')
-    ).toBe('https://example.com/myaccount/icon.png?auto=format&w=64 64w')
+    ).toBe(
+      'https://example.com/myaccount/icon.png?auto=format&fit=max&w=64 64w'
+    )
   })
   it('should support the unoptimized attribute', async () => {
     expect(
@@ -80,10 +90,10 @@ function runTests() {
 function lazyLoadingTests() {
   it('should have loaded the first image immediately', async () => {
     expect(await browser.elementById('lazy-top').getAttribute('src')).toBe(
-      'https://example.com/myaccount/foo1.jpg?auto=format&w=1024'
+      'https://example.com/myaccount/foo1.jpg?auto=format&fit=max&w=1024'
     )
     expect(await browser.elementById('lazy-top').getAttribute('srcset')).toBe(
-      'https://example.com/myaccount/foo1.jpg?auto=format&w=480 480w, https://example.com/myaccount/foo1.jpg?auto=format&w=1024 1024w'
+      'https://example.com/myaccount/foo1.jpg?auto=format&fit=max&w=480 480w, https://example.com/myaccount/foo1.jpg?auto=format&fit=max&w=1024 1024w'
     )
   })
   it('should not have loaded the second image immediately', async () => {
@@ -111,11 +121,11 @@ function lazyLoadingTests() {
 
     await check(() => {
       return browser.elementById('lazy-mid').getAttribute('src')
-    }, 'https://example.com/myaccount/foo2.jpg?auto=format&w=480')
+    }, 'https://example.com/myaccount/foo2.jpg?auto=format&fit=max&w=480')
 
     await check(() => {
       return browser.elementById('lazy-mid').getAttribute('srcset')
-    }, 'https://example.com/myaccount/foo2.jpg?auto=format&w=480 480w')
+    }, 'https://example.com/myaccount/foo2.jpg?auto=format&fit=max&w=480 480w')
   })
   it('should not have loaded the third image after scrolling down', async () => {
     expect(
@@ -160,17 +170,17 @@ function lazyLoadingTests() {
     await waitFor(200)
     expect(
       await browser.elementById('lazy-without-attribute').getAttribute('src')
-    ).toBe('https://example.com/myaccount/foo4.jpg?auto=format&w=1024')
+    ).toBe('https://example.com/myaccount/foo4.jpg?auto=format&fit=max&w=1024')
     expect(
       await browser.elementById('lazy-without-attribute').getAttribute('srcset')
     ).toBe(
-      'https://example.com/myaccount/foo4.jpg?auto=format&w=480 480w, https://example.com/myaccount/foo4.jpg?auto=format&w=1024 1024w'
+      'https://example.com/myaccount/foo4.jpg?auto=format&fit=max&w=480 480w, https://example.com/myaccount/foo4.jpg?auto=format&fit=max&w=1024 1024w'
     )
   })
 
   it('should load the fifth image eagerly, without scrolling', async () => {
     expect(await browser.elementById('eager-loading').getAttribute('src')).toBe(
-      'https://example.com/myaccount/foo5.jpg?auto=format&w=2000'
+      'https://example.com/myaccount/foo5.jpg?auto=format&fit=max&w=2000'
     )
     expect(
       await browser.elementById('eager-loading').getAttribute('srcset')
@@ -210,14 +220,14 @@ describe('Image Component Tests', () => {
     it('should add a preload tag for a priority image', async () => {
       expect(
         await hasPreloadLinkMatchingUrl(
-          'https://example.com/myaccount/withpriority.png?auto=format&w=480&q=60'
+          'https://example.com/myaccount/withpriority.png?auto=format&fit=max&w=480&q=60'
         )
       ).toBe(true)
     })
     it('should add a preload tag for a priority image with preceding slash', async () => {
       expect(
         await hasPreloadLinkMatchingUrl(
-          'https://example.com/myaccount/fooslash.jpg?auto=format&w=480'
+          'https://example.com/myaccount/fooslash.jpg?auto=format&fit=max&w=480'
         )
       ).toBe(true)
     })
@@ -231,7 +241,7 @@ describe('Image Component Tests', () => {
     it('should add a preload tag for a priority image, with quality', async () => {
       expect(
         await hasPreloadLinkMatchingUrl(
-          'https://example.com/myaccount/withpriority.png?auto=format&w=480&q=60'
+          'https://example.com/myaccount/withpriority.png?auto=format&fit=max&w=480&q=60'
         )
       ).toBe(true)
     })
@@ -248,7 +258,7 @@ describe('Image Component Tests', () => {
     it('should NOT add a preload tag for a priority image', async () => {
       expect(
         await hasPreloadLinkMatchingUrl(
-          'https://example.com/myaccount/withpriorityclient.png?auto=format'
+          'https://example.com/myaccount/withpriorityclient.png?auto=format&fit=max'
         )
       ).toBe(false)
     })
@@ -284,11 +294,13 @@ describe('Image Component Tests', () => {
       browser = await webdriver(appPort, '/missing-observer')
       expect(
         await browser.elementById('lazy-no-observer').getAttribute('src')
-      ).toBe('https://example.com/myaccount/foox.jpg?auto=format&w=1024')
+      ).toBe(
+        'https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=1024'
+      )
       expect(
         await browser.elementById('lazy-no-observer').getAttribute('srcset')
       ).toBe(
-        'https://example.com/myaccount/foox.jpg?auto=format&w=480 480w, https://example.com/myaccount/foox.jpg?auto=format&w=1024 1024w'
+        'https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=480 480w, https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=1024 1024w'
       )
     })
   })
@@ -308,11 +320,13 @@ describe('Image Component Tests', () => {
       browser = await webdriver(appPort, '/missing-observer')
       expect(
         await browser.elementById('lazy-no-observer').getAttribute('src')
-      ).toBe('https://example.com/myaccount/foox.jpg?auto=format&w=1024')
+      ).toBe(
+        'https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=1024'
+      )
       expect(
         await browser.elementById('lazy-no-observer').getAttribute('srcset')
       ).toBe(
-        'https://example.com/myaccount/foox.jpg?auto=format&w=480 480w, https://example.com/myaccount/foox.jpg?auto=format&w=1024 1024w'
+        'https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=480 480w, https://example.com/myaccount/foox.jpg?auto=format&fit=max&w=1024 1024w'
       )
     })
   })

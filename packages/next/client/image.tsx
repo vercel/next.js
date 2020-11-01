@@ -519,7 +519,8 @@ function normalizeSrc(src: string) {
 }
 
 function imgixLoader({ root, src, width, quality }: LoaderProps): string {
-  const params = ['auto=format', 'w=' + width]
+  // Demo: https://static.imgix.net/daisy.png?format=auto&fit=max&w=300
+  const params = ['auto=format', 'fit=max', 'w=' + width]
   let paramsString = ''
   if (quality) {
     params.push('q=' + quality)
@@ -536,7 +537,8 @@ function akamaiLoader({ root, src, width }: LoaderProps): string {
 }
 
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
-  const params = ['f_auto', 'w_' + width]
+  // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit/turtles.jpg
+  const params = ['f_auto', 'c_limit', 'w_' + width]
   let paramsString = ''
   if (quality) {
     params.push('q_' + quality)
