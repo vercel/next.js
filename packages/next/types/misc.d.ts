@@ -3,8 +3,8 @@ declare module '@babel/plugin-transform-modules-commonjs'
 declare module '@babel/plugin-syntax-jsx'
 declare module 'browserslist'
 declare module 'cssnano-simple' {
-  import { Plugin } from 'postcss'
-  const cssnanoSimple: Plugin<{}>
+  import { OldPlugin } from 'postcss'
+  const cssnanoSimple: OldPlugin<{}>
   export = cssnanoSimple
 }
 declare module 'styled-jsx/server'
@@ -79,15 +79,6 @@ declare module 'next/dist/compiled/debug' {
 }
 declare module 'next/dist/compiled/devalue' {
   import m from 'devalue'
-  export = m
-}
-declare module 'next/dist/compiled/dotenv' {
-  import m from 'dotenv'
-  export = m
-}
-
-declare module 'next/dist/compiled/dotenv-expand' {
-  import m from 'dotenv-expand'
   export = m
 }
 declare module 'next/dist/compiled/escape-string-regexp' {

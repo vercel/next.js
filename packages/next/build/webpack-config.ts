@@ -1,7 +1,7 @@
 import { codeFrameColumns } from '@babel/code-frame'
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import crypto from 'crypto'
-import { readFileSync } from 'fs'
+import { readFileSync, realpathSync } from 'fs'
 import chalk from 'next/dist/compiled/chalk'
 import semver from 'next/dist/compiled/semver'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
@@ -583,6 +583,7 @@ export default async function getBaseWebpackConfig(
       'next/app',
       'next/document',
       'next/link',
+      'next/image',
       'next/error',
       'string-hash',
       'next/constants',
@@ -665,7 +666,12 @@ export default async function getBaseWebpackConfig(
       // Same as above: if the package, when required from the root,
       // would be different from what the real resolution would use, we
       // cannot externalize it.
-      if (baseRes !== res) {
+      if (
+        !baseRes ||
+        (baseRes !== res &&
+          // if res and baseRes are symlinks they could point to the the same file
+          realpathSync(baseRes) !== realpathSync(res))
+      ) {
         return callback()
       }
     }
@@ -984,8 +990,23 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),
+        'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
+          deviceSizes: config.images.deviceSizes,
+          imageSizes: config.images.imageSizes,
+          path: config.images.path,
+          loader: config.images.loader,
+          ...(dev
+            ? {
+                // pass domains in development to allow validating on the client
+                domains: config.images.domains,
+              }
+            : {}),
+        }),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
+        'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
+        'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n.domains),
+        'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)

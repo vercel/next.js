@@ -60,7 +60,10 @@ const {
   dynamicIds,
   isFallback,
   head: initialHeadData,
+  locales,
 } = data
+
+let { locale, defaultLocale } = data
 
 const prefix = assetPrefix || ''
 
@@ -78,6 +81,41 @@ let asPath = getURL()
 // make sure not to attempt stripping basePath for 404s
 if (hasBasePath(asPath)) {
   asPath = delBasePath(asPath)
+}
+
+if (process.env.__NEXT_I18N_SUPPORT) {
+  const {
+    normalizeLocalePath,
+  } = require('../next-server/lib/i18n/normalize-locale-path') as typeof import('../next-server/lib/i18n/normalize-locale-path')
+
+  const {
+    detectDomainLocale,
+  } = require('../next-server/lib/i18n/detect-domain-locale') as typeof import('../next-server/lib/i18n/detect-domain-locale')
+
+  if (locales) {
+    const localePathResult = normalizeLocalePath(asPath, locales)
+
+    if (localePathResult.detectedLocale) {
+      asPath = asPath.substr(localePathResult.detectedLocale.length + 1) || '/'
+    } else {
+      // derive the default locale if it wasn't detected in the asPath
+      // since we don't prerender static pages with all possible default
+      // locales
+      defaultLocale = locale
+    }
+
+    // attempt detecting default locale based on hostname
+    const detectedDomain = detectDomainLocale(
+      process.env.__NEXT_I18N_DOMAINS as any,
+      window.location.hostname
+    )
+
+    // TODO: investigate if defaultLocale needs to be populated after
+    // hydration to prevent mismatched renders
+    if (detectedDomain) {
+      defaultLocale = detectedDomain.defaultLocale
+    }
+  }
 }
 
 type RegisterFn = (input: [string, () => void]) => void
@@ -291,6 +329,9 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     isFallback: Boolean(isFallback),
     subscription: ({ Component, styleSheets, props, err }, App) =>
       render({ App, Component, styleSheets, props, err }),
+    locale,
+    locales,
+    defaultLocale,
   })
 
   // call init-client middleware
@@ -437,10 +478,6 @@ function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
     if (isInitialRender) {
       ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
       isInitialRender = false
-
-      if (onPerfEntry && ST) {
-        measureWebVitals(onPerfEntry)
-      }
     } else {
       ReactDOM.render(reactEl, domEl, markRenderComplete)
     }
@@ -719,5 +756,10 @@ function Root({
       }
     }, [])
   }
+  // We should ask to measure the Web Vitals after rendering completes so we
+  // don't cause any hydration delay:
+  React.useEffect(() => {
+    measureWebVitals(onPerfEntry)
+  }, [])
   return children as React.ReactElement
 }
