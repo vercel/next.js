@@ -17,6 +17,7 @@ interface Chain {
   back: () => Chain
   forward: () => Chain
   refresh: () => Chain
+  setDimensions: (opts: { height: number; width: number }) => Chain
   close: () => Chain
   quit: () => Chain
 }
@@ -24,5 +25,6 @@ interface Chain {
 export default function (
   appPort: number,
   path: string,
-  waitHydration?: boolean
+  waitHydration?: boolean,
+  allowHydrationRetry?: boolean
 ): Promise<Chain>

@@ -2,6 +2,8 @@ import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
 import { PageConfig } from 'next/types'
 import { STRING_LITERAL_DROP_BUNDLE } from '../../../next-server/lib/constants'
 
+const CONFIG_KEY = 'config'
+
 // replace program path with just a variable with the drop identifier
 function replaceBundle(path: any, t: typeof BabelTypes): void {
   path.parentPath.replaceWith(
@@ -41,26 +43,85 @@ export default function nextPageConfig({
         enter(path, state: ConfigState) {
           path.traverse(
             {
+              ExportDeclaration(exportPath, exportState) {
+                if (
+                  BabelTypes.isExportNamedDeclaration(exportPath) &&
+                  (exportPath.node as BabelTypes.ExportNamedDeclaration).specifiers?.some(
+                    (specifier) => {
+                      return specifier.exported.name === CONFIG_KEY
+                    }
+                  ) &&
+                  BabelTypes.isStringLiteral(
+                    (exportPath.node as BabelTypes.ExportNamedDeclaration)
+                      .source
+                  )
+                ) {
+                  throw new Error(
+                    errorMessage(
+                      exportState,
+                      'Expected object but got export from'
+                    )
+                  )
+                }
+              },
               ExportNamedDeclaration(
                 exportPath: NodePath<BabelTypes.ExportNamedDeclaration>,
                 exportState: any
               ) {
-                if (exportState.bundleDropped || !exportPath.node.declaration) {
-                  return
-                }
-
                 if (
-                  !BabelTypes.isVariableDeclaration(exportPath.node.declaration)
+                  exportState.bundleDropped ||
+                  (!exportPath.node.declaration &&
+                    exportPath.node.specifiers.length === 0)
                 ) {
                   return
                 }
 
-                const { declarations } = exportPath.node.declaration
                 const config: PageConfig = {}
+                const declarations = [
+                  ...(exportPath.node.declaration?.declarations || []),
+                  exportPath.scope.getBinding(CONFIG_KEY)?.path.node,
+                ].filter(Boolean)
+
+                for (const specifier of exportPath.node.specifiers) {
+                  if (specifier.exported.name === CONFIG_KEY) {
+                    // export {} from 'somewhere'
+                    if (BabelTypes.isStringLiteral(exportPath.node.source)) {
+                      throw new Error(
+                        errorMessage(
+                          exportState,
+                          `Expected object but got import`
+                        )
+                      )
+                      // import hello from 'world'
+                      // export { hello as config }
+                    } else if (
+                      BabelTypes.isIdentifier(
+                        (specifier as BabelTypes.ExportSpecifier).local
+                      )
+                    ) {
+                      if (
+                        BabelTypes.isImportSpecifier(
+                          exportPath.scope.getBinding(
+                            (specifier as BabelTypes.ExportSpecifier).local.name
+                          )?.path.node
+                        )
+                      ) {
+                        throw new Error(
+                          errorMessage(
+                            exportState,
+                            `Expected object but got import`
+                          )
+                        )
+                      }
+                    }
+                  }
+                }
 
                 for (const declaration of declarations) {
                   if (
-                    !BabelTypes.isIdentifier(declaration.id, { name: 'config' })
+                    !BabelTypes.isIdentifier(declaration.id, {
+                      name: CONFIG_KEY,
+                    })
                   ) {
                     continue
                   }

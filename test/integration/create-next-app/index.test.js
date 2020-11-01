@@ -23,9 +23,9 @@ const runStarter = (cwd, ...args) => {
   return res
 }
 
-async function usingTempDir(fn) {
+async function usingTempDir(fn, options) {
   const folder = path.join(os.tmpdir(), Math.random().toString(36).substring(2))
-  await fs.mkdirp(folder)
+  await fs.mkdirp(folder, options)
   try {
     return await fn(folder)
   } finally {
@@ -249,6 +249,42 @@ describe('create next app', () => {
         // eslint-disable-next-line jest/no-try-expect
         expect(e.exitCode).toBe(1)
       }
+    })
+  })
+
+  it('should exit if the folder is not writable', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'not-writable'
+      expect.assertions(2)
+      try {
+        const res = await runStarter(cwd, projectName)
+
+        if (process.platform === 'win32') {
+          expect(res.exitCode).toBe(0)
+          expect(
+            fs.existsSync(path.join(cwd, projectName, 'package.json'))
+          ).toBeTruthy()
+        }
+      } catch (e) {
+        // eslint-disable-next-line jest/no-try-expect
+        expect(e.exitCode).toBe(1)
+        // eslint-disable-next-line jest/no-try-expect
+        expect(e.stderr).toMatch(
+          /you do not have write permissions for this folder/
+        )
+      }
+    }, 0o500)
+  })
+
+  it('should create a project in the current directory', async () => {
+    await usingTempDir(async (cwd) => {
+      const res = await run(cwd, '.')
+      expect(res.exitCode).toBe(0)
+
+      const files = ['package.json', 'pages/index.js', '.gitignore']
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, file))).toBeTruthy()
+      )
     })
   })
 })
