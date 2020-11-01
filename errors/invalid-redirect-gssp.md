@@ -14,15 +14,15 @@ export const getStaticProps = ({ params }) => {
     return {
       redirect: {
         permanent: true, // or false
-        destination: '/some-location'
-      }
+        destination: '/some-location',
+      },
     }
   }
 
   return {
     props: {
       // data
-    }
+    },
   }
 }
 ```
