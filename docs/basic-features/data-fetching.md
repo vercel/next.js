@@ -535,6 +535,7 @@ If you export an `async` function called `getServerSideProps` from a page, Next.
 export async function getServerSideProps(context) {
   return {
     props: {}, // will be passed to the page component as props
+    // or you can return a { redirect: {...} }, see below.
   }
 }
 ```
@@ -551,6 +552,11 @@ The `context` parameter is an object containing the following keys:
 - `locale` contains the active locale (if enabled).
 - `locales` contains all supported locales (if enabled).
 - `defaultLocale` contains the configured default locale (if enabled).
+
+You can either return `props` or a `redirect` object to redirect the user to another page. This object containing the following keys:
+
+- `permanent`: If the redirection is permanent.
+- `destination`: The destination of the redirection.
 
 > **Note**: You can import modules in top-level scope for use in `getServerSideProps`.
 > Imports used in `getServerSideProps` will not be bundled for the client-side.
