@@ -3,6 +3,7 @@ import execa from 'execa'
 import fs from 'fs-extra'
 import os from 'os'
 import path from 'path'
+import runTest, { ENTER } from 'cli-prompts-test'
 
 const cli = require.resolve('create-next-app/dist/index.js')
 
@@ -21,6 +22,11 @@ const runStarter = (cwd, ...args) => {
   })
 
   return res
+}
+const runPromptWithAnswers = (answers, testPath) => {
+  return runTest([cli], answers, {
+    testPath,
+  })
 }
 
 async function usingTempDir(fn, options) {
@@ -284,6 +290,18 @@ describe('create next app', () => {
       const files = ['package.json', 'pages/index.js', '.gitignore']
       files.forEach((file) =>
         expect(fs.existsSync(path.join(cwd, file))).toBeTruthy()
+      )
+    })
+  })
+
+  it('should ask the user for a name for the project if none supplied', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'test-project'
+      // simulate user input
+      await runPromptWithAnswers(['test-project', ENTER], cwd)
+      const files = ['package.json', 'pages/index.js', '.gitignore']
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
       )
     })
   })
