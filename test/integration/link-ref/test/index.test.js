@@ -49,6 +49,15 @@ const didPrefetch = async (pathname) => {
   await browser.close()
 }
 
+function runCommonTests() {
+  // See https://github.com/vercel/next.js/issues/18437
+  it('should not have a race condition with a click handler', async () => {
+    const browser = await webdriver(appPort, '/click-away-race-condition')
+    await browser.elementByCss('#click-me').click()
+    await browser.waitForElementByCss('#the-menu')
+  })
+}
+
 describe('Invalid hrefs', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
@@ -56,6 +65,8 @@ describe('Invalid hrefs', () => {
       app = await launchApp(appDir, appPort)
     })
     afterAll(() => killApp(app))
+
+    runCommonTests()
 
     it('should not show error for function component with forwardRef', async () => {
       await noError('/function')
@@ -81,6 +92,8 @@ describe('Invalid hrefs', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(() => killApp(app))
+
+    runCommonTests()
 
     it('should preload with forwardRef', async () => {
       await didPrefetch('/function')

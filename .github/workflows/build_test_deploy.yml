@@ -107,10 +107,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-      - run: cat packages/next/package.json | jq '.resolutions.webpack = "^5.0.0-beta.30"' > package.json.tmp && mv package.json.tmp packages/next/package.json
-      - run: cat packages/next/package.json | jq '.resolutions.react = "^17.0.0-rc.1"' > package.json.tmp && mv package.json.tmp packages/next/package.json
-      - run: cat packages/next/package.json | jq '.resolutions."react-dom" = "^17.0.0-rc.1"' > package.json.tmp && mv package.json.tmp packages/next/package.json
+      - run: cat package.json | jq '.resolutions.webpack = "^5.0.0-beta.30"' > package.json.tmp && mv package.json.tmp package.json
+      - run: cat package.json | jq '.resolutions.react = "^17.0.1"' > package.json.tmp && mv package.json.tmp package.json
+      - run: cat package.json | jq '.resolutions."react-dom" = "^17.0.1"' > package.json.tmp && mv package.json.tmp package.json
       - run: yarn install --check-files
+      - run: yarn list webpack react react-dom
+      - run: node run-tests.js test/integration/link-ref/test/index.test.js
       - run: node run-tests.js test/integration/production/test/index.test.js
       - run: node run-tests.js test/integration/basic/test/index.test.js
       - run: node run-tests.js test/integration/async-modules/test/index.test.js
