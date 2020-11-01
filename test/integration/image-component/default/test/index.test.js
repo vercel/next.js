@@ -36,13 +36,22 @@ async function hasImageMatchingUrl(browser, url) {
 }
 
 async function getComputed(browser, id, prop) {
-  const style = await browser.eval(
-    `getComputedStyle(document.getElementById('${id}')).${prop}`
-  )
-  if (typeof style === 'string') {
-    return parseInt(style.replace(/px$/, ''), 10)
+  const val = await browser.eval(`document.getElementById('${id}').${prop}`)
+  if (typeof val === 'number') {
+    return val
+  }
+  if (typeof val === 'string') {
+    return parseInt(val, 10)
   }
   return null
+}
+
+async function getSrc(browser, id) {
+  const src = await browser.elementById(id).getAttribute('src')
+  if (src) {
+    const url = new URL(src)
+    return url.href.slice(url.origin.length)
+  }
 }
 
 function getRatio(width, height) {
@@ -109,6 +118,12 @@ function runTests(mode) {
       const height = 700
       const delta = 250
       const id = 'fixed1'
+      expect(await getSrc(browser, id)).toBe(
+        '/_next/image?url=%2Fwide.png&w=1200&q=75'
+      )
+      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&w=320&q=75 320w, /_next/image?url=%2Fwide.png&w=420&q=75 420w, /_next/image?url=%2Fwide.png&w=768&q=75 768w, /_next/image?url=%2Fwide.png&w=1024&q=75 1024w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w'
+      )
       await browser.setDimensions({
         width: width + delta,
         height: height + delta,
@@ -136,6 +151,12 @@ function runTests(mode) {
       const height = 700
       const delta = 250
       const id = 'intrinsic1'
+      expect(await getSrc(browser, id)).toBe(
+        '/_next/image?url=%2Fwide.png&w=1200&q=75'
+      )
+      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&w=320&q=75 320w, /_next/image?url=%2Fwide.png&w=420&q=75 420w, /_next/image?url=%2Fwide.png&w=768&q=75 768w, /_next/image?url=%2Fwide.png&w=1024&q=75 1024w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w'
+      )
       await browser.setDimensions({
         width: width + delta,
         height: height + delta,
@@ -166,6 +187,12 @@ function runTests(mode) {
       const height = 700
       const delta = 250
       const id = 'responsive1'
+      expect(await getSrc(browser, id)).toBe(
+        '/_next/image?url=%2Fwide.png&w=1200&q=75'
+      )
+      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&w=320&q=75 320w, /_next/image?url=%2Fwide.png&w=420&q=75 420w, /_next/image?url=%2Fwide.png&w=768&q=75 768w, /_next/image?url=%2Fwide.png&w=1024&q=75 1024w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w'
+      )
       await browser.setDimensions({
         width: width + delta,
         height: height + delta,
@@ -196,6 +223,12 @@ function runTests(mode) {
       const height = 350
       const delta = 150
       const id = 'fill1'
+      expect(await getSrc(browser, id)).toBe(
+        '/_next/image?url=%2Fwide.png&w=1200&q=75'
+      )
+      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&w=320&q=75 320w, /_next/image?url=%2Fwide.png&w=420&q=75 420w, /_next/image?url=%2Fwide.png&w=768&q=75 768w, /_next/image?url=%2Fwide.png&w=1024&q=75 1024w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w'
+      )
       await browser.setDimensions({
         width: width + delta,
         height: height + delta,
@@ -226,6 +259,12 @@ function runTests(mode) {
       const width = await getComputed(browser, id, 'width')
       const height = await getComputed(browser, id, 'height')
       await browser.eval(`document.getElementById("${id}").scrollIntoView()`)
+      expect(await getSrc(browser, id)).toBe(
+        '/_next/image?url=%2Fwide.png&w=1200&q=75'
+      )
+      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&w=320&q=75 320w, /_next/image?url=%2Fwide.png&w=420&q=75 420w, /_next/image?url=%2Fwide.png&w=768&q=75 768w, /_next/image?url=%2Fwide.png&w=1024&q=75 1024w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w'
+      )
       expect(await getComputed(browser, id, 'width')).toBe(width)
       expect(await getComputed(browser, id, 'height')).toBe(height)
       const delta = 150
