@@ -105,8 +105,15 @@ function unLazifyImage(lazyImage: HTMLImageElement): void {
   lazyImage.classList.remove('__lazy')
 }
 
-function getDeviceSizes(width: number | undefined): number[] {
-  if (typeof width !== 'number') {
+function getDeviceSizes(
+  width: number | undefined,
+  layout: LayoutValue
+): number[] {
+  if (
+    typeof width !== 'number' ||
+    layout === 'fill' ||
+    layout === 'responsive'
+  ) {
     return configDeviceSizes
   }
   if (configImageSizes.includes(width)) {
@@ -125,13 +132,14 @@ function getDeviceSizes(width: number | undefined): number[] {
 function computeSrc(
   src: string,
   unoptimized: boolean,
+  layout: LayoutValue,
   width?: number,
   quality?: number
 ): string {
   if (unoptimized) {
     return src
   }
-  const widths = getDeviceSizes(width)
+  const widths = getDeviceSizes(width, layout)
   const largest = widths[widths.length - 1]
   return callLoader({ src, width: largest, quality })
 }
@@ -150,6 +158,7 @@ function callLoader(loaderProps: CallLoaderProps) {
 type SrcSetData = {
   src: string
   unoptimized: boolean
+  layout: LayoutValue
   width?: number
   quality?: number
 }
@@ -157,6 +166,7 @@ type SrcSetData = {
 function generateSrcSet({
   src,
   unoptimized,
+  layout,
   width,
   quality,
 }: SrcSetData): string | undefined {
@@ -166,7 +176,7 @@ function generateSrcSet({
     return undefined
   }
 
-  return getDeviceSizes(width)
+  return getDeviceSizes(width, layout)
     .map((w) => `${callLoader({ src, width: w, quality })} ${w}w`)
     .join(', ')
 }
@@ -174,6 +184,7 @@ function generateSrcSet({
 type PreloadData = {
   src: string
   unoptimized: boolean
+  layout: LayoutValue
   width: number | undefined
   sizes?: string
   quality?: number
@@ -181,8 +192,9 @@ type PreloadData = {
 
 function generatePreload({
   src,
-  width,
   unoptimized = false,
+  layout,
+  width,
   sizes,
   quality,
 }: PreloadData): ReactElement {
@@ -195,9 +207,15 @@ function generatePreload({
       <link
         rel="preload"
         as="image"
-        href={computeSrc(src, unoptimized, width, quality)}
+        href={computeSrc(src, unoptimized, layout, width, quality)}
         // @ts-ignore: imagesrcset and imagesizes not yet in the link element type
-        imagesrcset={generateSrcSet({ src, unoptimized, width, quality })}
+        imagesrcset={generateSrcSet({
+          src,
+          unoptimized,
+          layout,
+          width,
+          quality,
+        })}
         imagesizes={sizes}
       />
     </Head>
@@ -410,11 +428,12 @@ export default function Image({
   }
 
   // Generate attribute values
-  const imgSrc = computeSrc(src, unoptimized, widthInt, qualityInt)
+  const imgSrc = computeSrc(src, unoptimized, layout, widthInt, qualityInt)
   const imgSrcSet = generateSrcSet({
     src,
-    width: widthInt,
     unoptimized,
+    layout,
+    width: widthInt,
     quality: qualityInt,
   })
 
@@ -458,8 +477,9 @@ export default function Image({
       {shouldPreload
         ? generatePreload({
             src,
-            width: widthInt,
+            layout,
             unoptimized,
+            width: widthInt,
             sizes,
             quality: qualityInt,
           })
