@@ -68,6 +68,17 @@ function testShouldResolve(expectations) {
   )
 }
 
+function testExternalLinkShouldRewriteTo(expectations) {
+  it.each(expectations)(
+    '%s should have href %s',
+    async (linkPage, expectedHref) => {
+      const content = await renderViaHTTP(appPort, linkPage)
+      const $ = cheerio.load(content)
+      expect($('#link').attr('href')).toBe(expectedHref)
+    }
+  )
+}
+
 function testLinkShouldRewriteTo(expectations) {
   it.each(expectations)(
     '%s should have href %s',
@@ -143,6 +154,17 @@ function testWithoutTrailingSlash() {
     ['/linker?href=/catch-all/hello/', '/catch-all/hello'],
     ['/linker?href=/catch-all/hello.world/', '/catch-all/hello.world'],
   ])
+
+  testExternalLinkShouldRewriteTo([
+    [
+      `/external-linker?href=${encodeURI('https://nextjs.org')}`,
+      'https://nextjs.org',
+    ],
+    [
+      `/external-linker?href=${encodeURI('https://nextjs.org/')}`,
+      'https://nextjs.org/',
+    ],
+  ])
 }
 
 function testWithTrailingSlash() {
@@ -172,6 +194,17 @@ function testWithTrailingSlash() {
     ['/linker?href=/about/?hello=world', '/about/?hello=world'],
     ['/linker?href=/catch-all/hello/', '/catch-all/hello/'],
     ['/linker?href=/catch-all/hello.world/', '/catch-all/hello.world'],
+  ])
+
+  testExternalLinkShouldRewriteTo([
+    [
+      `/external-linker?href=${encodeURI('https://nextjs.org')}`,
+      'https://nextjs.org',
+    ],
+    [
+      `/external-linker?href=${encodeURI('https://nextjs.org/')}`,
+      'https://nextjs.org/',
+    ],
   ])
 }
 
