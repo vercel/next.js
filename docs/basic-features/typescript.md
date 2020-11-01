@@ -23,7 +23,7 @@ Next.js will automatically configure this file with default values. Providing yo
 
 > Next.js uses Babel to handle TypeScript, which has some [caveats](https://babeljs.io/docs/en/babel-plugin-transform-typescript#caveats), and some [compiler options are handled differently](https://babeljs.io/docs/en/babel-plugin-transform-typescript#typescript-compiler-options).
 
-Then, run `next` (normally `npm run dev`) and Next.js will guide you through the installation of the required packages to finish the setup:
+Then, run `next` (normally `npm run dev` or `yarn dev`) and Next.js will guide you through the installation of the required packages to finish the setup:
 
 ```bash
 npm run dev
@@ -41,9 +41,9 @@ You're now ready to start converting files from `.js` to `.tsx` and leveraging t
 
 > A file named `next-env.d.ts` will be created in the root of your project. This file ensures Next.js types are picked up by the TypeScript compiler. **You cannot remove it**, however, you can edit it (but you don't need to).
 
-> Next.js `strict` mode is turned off by default. When you feel comfortable with TypeScript, it's recommended to turn it on in your `tsconfig.json`.
+> TypeScript `strict` mode is turned off by default. When you feel comfortable with TypeScript, it's recommended to turn it on in your `tsconfig.json`.
 
-By default, Next.js reports TypeScript errors during development for pages you are actively working on. TypeScript errors for inactive pages **do not** block the development process.
+By default, Next.js will do type checking as part of `next build`. We recommend using code editor type checking during development.
 
 If you want to silence the error reports, refer to the documentation for [Ignoring TypeScript errors](/docs/api-reference/next.config.js/ignoring-typescript-errors.md).
 
@@ -97,7 +97,7 @@ export default (req: NextApiRequest, res: NextApiResponse<Data>) => {
 
 ## Custom `App`
 
-If you have a [custom `App`](/docs/advanced-features/custom-app), you can use the built-in type `AppProps` and change file name to `./pages/_app.tsx` like so:
+If you have a [custom `App`](/docs/advanced-features/custom-app.md), you can use the built-in type `AppProps` and change file name to `./pages/_app.tsx` like so:
 
 ```ts
 // import App from "next/app";

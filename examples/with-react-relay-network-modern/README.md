@@ -2,7 +2,7 @@
 
 [Relay Modern](https://relay.dev/) is a new version of Relay designed from the ground up to be easier to use, more extensible and, most of all, able to improve performance on mobile devices. Relay Modern accomplishes this with static queries and ahead-of-time code generation.
 
-This example relies on [graph.cool](https://www.graph.cool) for its GraphQL backend.
+This example relies on [Prisma + Nexus](https://github.com/prisma-labs/nextjs-graphql-api-examples) for its GraphQL backend.
 
 ## Deploy your own
 
@@ -12,31 +12,12 @@ Deploy the example using [Vercel](https://vercel.com):
 
 ## How to use
 
-### Using `create-next-app`
-
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-react-relay-network-modern with-react-relay-network-modern-app
 # or
 yarn create next-app --example with-react-relay-network-modern with-react-relay-network-modern-app
-```
-
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-relay-modern
-cd with-relay-modern
-```
-
-Install it:
-
-```bash
-npm install
-# or
-yarn
 ```
 
 Download schema introspection data from configured Relay endpoint

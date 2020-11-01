@@ -1,3 +1,4 @@
+const preact = require('preact')
 const withPrefresh = require('@prefresh/next')
 
 module.exports = withPrefresh({
@@ -14,18 +15,43 @@ module.exports = withPrefresh({
       }
     }
 
+    if (isServer) {
+      // mark `preact` stuffs as external for server bundle to prevent duplicate copies of preact
+      config.externals.push(
+        /^(preact|preact-render-to-string|preact-context-provider)([\\/]|$)/
+      )
+    }
+
     // Install webpack aliases:
     const aliases = config.resolve.alias || (config.resolve.alias = {})
     aliases.react = aliases['react-dom'] = 'preact/compat'
 
-    // Automatically inject Preact DevTools:
-    if (dev && !isServer) {
-      const entry = config.entry
-      config.entry = () =>
-        entry().then((entries) => {
-          entries['main.js'] = ['preact/debug'].concat(entries['main.js'] || [])
-          return entries
-        })
+    if (dev) {
+      if (isServer) {
+        // Remove circular `__self` and `__source` props only meant for development
+        let oldVNodeHook = preact.options.vnode
+        preact.options.vnode = (vnode) => {
+          const props = vnode.props
+          if (props != null) {
+            if ('__self' in props) props.__self = null
+            if ('__source' in props) props.__source = null
+          }
+
+          if (oldVNodeHook) {
+            oldVNodeHook(vnode)
+          }
+        }
+      } else {
+        // Automatically inject Preact DevTools:
+        const entry = config.entry
+        config.entry = () =>
+          entry().then((entries) => {
+            entries['main.js'] = ['preact/debug'].concat(
+              entries['main.js'] || []
+            )
+            return entries
+          })
+      }
     }
 
     return config

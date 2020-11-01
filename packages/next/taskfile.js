@@ -11,14 +11,6 @@ export async function next__polyfill_nomodule(task, opts) {
     .target('dist/build/polyfills')
 }
 
-export async function finally_polyfill(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('finally-polyfill'))
-    )
-    .target('dist/build/polyfills')
-}
-
 export async function unfetch(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('unfetch')))
@@ -26,11 +18,7 @@ export async function unfetch(task, opts) {
 }
 
 export async function browser_polyfills(task) {
-  await task.parallel([
-    'next__polyfill_nomodule',
-    'finally_polyfill',
-    'unfetch',
-  ])
+  await task.parallel(['next__polyfill_nomodule', 'unfetch'])
 }
 
 const externals = {
@@ -39,6 +27,7 @@ const externals = {
 
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
+  'caniuse-lite': 'caniuse-lite',
 
   // Webpack indirect and direct dependencies:
   webpack: 'webpack',
@@ -65,7 +54,6 @@ const externals = {
   'jest-worker': 'jest-worker',
   cacache: 'cacache',
 }
-
 // eslint-disable-next-line camelcase
 externals['amphtml-validator'] = 'next/dist/compiled/amphtml-validator'
 export async function ncc_amphtml_validator(task, opts) {
@@ -171,14 +159,6 @@ export async function ncc_cookie(task, opts) {
     .target('compiled/cookie')
 }
 // eslint-disable-next-line camelcase
-externals['cssnano-simple'] = 'next/dist/compiled/cssnano-simple'
-export async function ncc_cssnano_simple(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('cssnano-simple')))
-    .ncc({ packageName: 'cssnano-simple', externals })
-    .target('compiled/cssnano-simple')
-}
-// eslint-disable-next-line camelcase
 externals['debug'] = 'next/dist/compiled/debug'
 export async function ncc_debug(task, opts) {
   await task
@@ -193,22 +173,6 @@ export async function ncc_devalue(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('devalue')))
     .ncc({ packageName: 'devalue', externals })
     .target('compiled/devalue')
-}
-// eslint-disable-next-line camelcase
-externals['dotenv'] = 'next/dist/compiled/dotenv'
-export async function ncc_dotenv(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('dotenv')))
-    .ncc({ packageName: 'dotenv', externals })
-    .target('compiled/dotenv')
-}
-// eslint-disable-next-line camelcase
-externals['dotenv-expand'] = 'next/dist/compiled/dotenv-expand'
-export async function ncc_dotenv_expand(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('dotenv-expand')))
-    .ncc({ packageName: 'dotenv-expand', externals })
-    .target('compiled/dotenv-expand')
 }
 externals['escape-string-regexp'] = 'next/dist/compiled/escape-string-regexp'
 // eslint-disable-next-line camelcase
@@ -277,6 +241,14 @@ export async function ncc_ignore_loader(task, opts) {
     .target('compiled/ignore-loader')
 }
 // eslint-disable-next-line camelcase
+externals['is-animated'] = 'next/dist/compiled/is-animated'
+export async function ncc_is_animated(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('is-animated')))
+    .ncc({ packageName: 'is-animated', externals })
+    .target('compiled/is-animated')
+}
+// eslint-disable-next-line camelcase
 externals['is-docker'] = 'next/dist/compiled/is-docker'
 export async function ncc_is_docker(task, opts) {
   await task
@@ -307,14 +279,6 @@ export async function ncc_jsonwebtoken(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('jsonwebtoken')))
     .ncc({ packageName: 'jsonwebtoken', externals })
     .target('compiled/jsonwebtoken')
-}
-// eslint-disable-next-line camelcase
-externals['launch-editor'] = 'next/dist/compiled/launch-editor'
-export async function ncc_launch_editor(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('launch-editor')))
-    .ncc({ packageName: 'launch-editor', externals })
-    .target('compiled/launch-editor')
 }
 // eslint-disable-next-line camelcase
 externals['lodash.curry'] = 'next/dist/compiled/lodash.curry'
@@ -478,17 +442,6 @@ export async function ncc_unistore(task, opts) {
     .target('compiled/unistore')
 }
 
-// eslint-disable-next-line camelcase
-externals['webpack-hot-middleware'] =
-  'next/dist/compiled/webpack-hot-middleware'
-export async function ncc_webpack_hot_middleware(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('webpack-hot-middleware'))
-    )
-    .ncc({ packageName: 'webpack-hot-middleware', externals })
-    .target('compiled/webpack-hot-middleware')
-}
 externals['terser-webpack-plugin'] = 'next/dist/compiled/terser-webpack-plugin'
 export async function ncc_terser_webpack_plugin(task, opts) {
   await task
@@ -505,6 +458,14 @@ export async function ncc_comment_json(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('comment-json')))
     .ncc({ packageName: 'comment-json', externals })
     .target('compiled/comment-json')
+}
+
+externals['semver'] = 'next/dist/compiled/semver'
+export async function ncc_semver(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('semver')))
+    .ncc({ packageName: 'semver', externals })
+    .target('compiled/semver')
 }
 
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
@@ -526,61 +487,59 @@ export async function copy_ncced(task) {
 }
 
 export async function ncc(task) {
-  await task.clear('compiled').parallel([
-    'ncc_amphtml_validator',
-    'ncc_arg',
-    'ncc_async_retry',
-    'ncc_async_sema',
-    'ncc_babel_loader',
-    'ncc_cache_loader',
-    'ncc_chalk',
-    'ncc_ci_info',
-    'ncc_compression',
-    'ncc_conf',
-    'ncc_content_type',
-    'ncc_cookie',
-    'ncc_cssnano_simple',
-    'ncc_debug',
-    'ncc_devalue',
-    'ncc_dotenv',
-    'ncc_dotenv_expand',
-    'ncc_escape_string_regexp',
-    'ncc_etag',
-    'ncc_file_loader',
-    'ncc_find_up',
-    'ncc_fresh',
-    'ncc_gzip_size',
-    'ncc_http_proxy',
-    'ncc_ignore_loader',
-    'ncc_is_docker',
-    'ncc_is_wsl',
-    'ncc_json5',
-    'ncc_jsonwebtoken',
-    'ncc_launch_editor',
-    'ncc_lodash_curry',
-    'ncc_lru_cache',
-    'ncc_nanoid',
-    'ncc_node_fetch',
-    'ncc_ora',
-    'ncc_postcss_flexbugs_fixes',
-    'ncc_postcss_loader',
-    'ncc_postcss_preset_env',
-    'ncc_raw_body',
-    'ncc_recast',
-    'ncc_resolve',
-    'ncc_send',
-    'ncc_source_map',
-    'ncc_string_hash',
-    'ncc_strip_ansi',
-    'ncc_terser',
-    'ncc_text_table',
-    'ncc_thread_loader',
-    'ncc_unistore',
-    // 'ncc_webpack_dev_middleware',
-    'ncc_webpack_hot_middleware',
-    'ncc_terser_webpack_plugin',
-    'ncc_comment_json',
-  ])
+  await task
+    .clear('compiled')
+    .parallel([
+      'ncc_amphtml_validator',
+      'ncc_arg',
+      'ncc_async_retry',
+      'ncc_async_sema',
+      'ncc_babel_loader',
+      'ncc_cache_loader',
+      'ncc_chalk',
+      'ncc_ci_info',
+      'ncc_compression',
+      'ncc_conf',
+      'ncc_content_type',
+      'ncc_cookie',
+      'ncc_debug',
+      'ncc_devalue',
+      'ncc_escape_string_regexp',
+      'ncc_etag',
+      'ncc_file_loader',
+      'ncc_find_up',
+      'ncc_fresh',
+      'ncc_gzip_size',
+      'ncc_http_proxy',
+      'ncc_ignore_loader',
+      'ncc_is_animated',
+      'ncc_is_docker',
+      'ncc_is_wsl',
+      'ncc_json5',
+      'ncc_jsonwebtoken',
+      'ncc_lodash_curry',
+      'ncc_lru_cache',
+      'ncc_nanoid',
+      'ncc_node_fetch',
+      'ncc_ora',
+      'ncc_postcss_flexbugs_fixes',
+      'ncc_postcss_loader',
+      'ncc_postcss_preset_env',
+      'ncc_raw_body',
+      'ncc_recast',
+      'ncc_resolve',
+      'ncc_send',
+      'ncc_source_map',
+      'ncc_string_hash',
+      'ncc_strip_ansi',
+      'ncc_terser',
+      'ncc_text_table',
+      'ncc_thread_loader',
+      'ncc_unistore',
+      'ncc_terser_webpack_plugin',
+      'ncc_comment_json',
+      'ncc_semver',
+    ])
 }
 
 export async function compile(task) {

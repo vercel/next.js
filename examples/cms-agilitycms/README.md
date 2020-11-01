@@ -28,11 +28,10 @@ Once you have access to [the environment variables you'll need](#step-15-set-up-
 - [ButterCMS](/examples/cms-buttercms)
 - [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
+- [Kontent](/examples/cms-kontent)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use
-
-### Using `create-next-app`
 
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
@@ -42,22 +41,13 @@ npx create-next-app --example cms-agilitycms cms-agilitycms-app
 yarn create next-app --example cms-agilitycms cms-agilitycms-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-agilitycms
-cd cms-agilitycms
-```
-
 ## Configuration
 
 ### How is this Different from Other CMS Examples?
 
 The key principle behind Agility CMS is that **Editors** should have full control of their pages and what content is on each page without getting into code.
 
-This means you'll not only be definining **Content** for your `Posts` and `Authors`, but you'll also be defining UI Components to compose your pages. This site will consist of a single **Page Template** and a collection of **Modules** that represent the UI components you see on the page.
+This means you'll not only be defining **Content** for your `Posts` and `Authors`, but you'll also be defining UI Components to compose your pages. This site will consist of a single **Page Template** and a collection of **Modules** that represent the UI components you see on the page.
 
 > **NOTE** - `Modules` and `Page Templates` in Agility CMS simply correspond to `React Components` in your website.
 
@@ -90,7 +80,7 @@ From within the Agility CMS Content Manager, navigate to **Shared Content** and 
 - **Content Definition** should be **Author**
 - **Display Name** should be set to **Authors**. This will also pre-populate **Reference Name** for you.
 
-### Step 4. Create a `Post` Content Definiton
+### Step 4. Create a `Post` Content Definition
 
 From within the Agility CMS Content Manager, navigate to **Settings** > **Content Definitions** and click **New** to create a new **Content Definition**.
 
@@ -150,7 +140,7 @@ Navigate to **Settings** > **Module Definitions** and click **New** to create a 
 - Set **Title** to `Intro`
 - Set **Description** to `Displays an intro message.`
 
-In this case, we are not adding any fields to control the output or behaviour, since the content is actually hard-coded in the template.
+In this case, we are not adding any fields to control the output or behavior, since the content is actually hard-coded in the template.
 
 Click **Save & Close** to save the definition.
 
@@ -161,7 +151,7 @@ Navigate to **Settings** > **Module Definitions** and click **New** to create a 
 - Set **Title** to `Hero Post`
 - Set **Description** to `Displays the latest Post.`
 
-In this case, we are not adding any fields to control the output or behaviour, since the latest post will be used by default and all of the data is associated to the post itself.
+In this case, we are not adding any fields to control the output or behavior, since the latest post will be used by default and all of the data is associated to the post itself.
 
 Click **Save & Close** to save the definition.
 
@@ -185,7 +175,7 @@ Navigate to **Settings** > **Module Definitions** and click **New** to create a 
 - Set **Title** to `Post Details`
 - Set **Description** to `Displays the details of a Post.`
 
-In this case, we are not adding any fields to control the output or behaviour, since the data is associated to the post itself.
+In this case, we are not adding any fields to control the output or behavior, since the data is associated to the post itself.
 
 Click **Save & Close** to save the definition.
 

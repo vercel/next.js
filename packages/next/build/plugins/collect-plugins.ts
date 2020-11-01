@@ -19,14 +19,9 @@ export const VALID_MIDDLEWARE = [
   'document-head-tags-server',
   'on-init-client',
   'on-init-server',
-  'on-error-server',
-  'on-error-client',
   'on-error-client',
   'on-error-server',
   'babel-preset-build',
-  'unstable-post-hydration',
-  'unstable-get-styles-server',
-  'unstable-enhance-app-server',
 ]
 
 type ENV_OPTIONS = { [name: string]: string }
@@ -187,11 +182,9 @@ async function _collectPlugins(
     }
 
     // find packages with the naming convention
-    // @scope/next-plugin-[name]
     // @next/plugin-[name]
-    // next-plugin-[name]
     const filteredDeps = dependencies.filter((name) => {
-      return name.match(/(^@next\/plugin|next-plugin-)/)
+      return name.match(/^@next\/plugin/)
     })
 
     if (nextPluginConfigNames) {

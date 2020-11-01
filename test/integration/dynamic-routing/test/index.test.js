@@ -1,8 +1,9 @@
 /* eslint-env jest */
 
 import webdriver from 'next-webdriver'
-import { join } from 'path'
+import { join, dirname } from 'path'
 import fs from 'fs-extra'
+import url from 'url'
 import {
   renderViaHTTP,
   fetchViaHTTP,
@@ -13,6 +14,9 @@ import {
   nextBuild,
   nextStart,
   normalizeRegEx,
+  check,
+  hasRedbox,
+  getRedboxHeader,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
@@ -26,6 +30,12 @@ const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
 function runTests(dev) {
+  it('should not have any query values when not defined', async () => {
+    const html = await renderViaHTTP(appPort, '/')
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#query').text())).toEqual([])
+  })
+
   it('should render normal route', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(/my blog/i)
@@ -76,15 +86,118 @@ function runTests(dev) {
     expect(url).toBe('?fromHome=true')
   })
 
+  if (dev) {
+    it('should not have any console warnings on initial load', async () => {
+      const browser = await webdriver(appPort, '/')
+      expect(await browser.eval('window.caughtWarns')).toEqual([])
+    })
+
+    it('should not have any console warnings when navigating to dynamic route', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+        await browser.eval('window.beforeNav = 1')
+        await browser.elementByCss('#dynamic-route-no-as').click()
+        await browser.waitForElementByCss('#asdf')
+
+        expect(await browser.eval('window.beforeNav')).toBe(1)
+
+        const text = await browser.elementByCss('#asdf').text()
+        expect(text).toMatch(/this is.*?dynamic-1/i)
+        expect(await browser.eval('window.caughtWarns')).toEqual([])
+      } finally {
+        if (browser) await browser.close()
+      }
+    })
+  }
+
   it('should navigate to a dynamic page successfully', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#view-post-1').click()
-      await browser.waitForElementByCss('p')
+      await browser.waitForElementByCss('#asdf')
 
-      const text = await browser.elementByCss('p').text()
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/this is.*?post-1/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should navigate to a dynamic page successfully no as', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+      await browser.elementByCss('#view-post-1-no-as').click()
+      await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/this is.*?post-1/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should navigate to a dynamic page successfully interpolated', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+
+      const href = await browser
+        .elementByCss('#view-post-1-interpolated')
+        .getAttribute('href')
+
+      const parsedHref = url.parse(href, true)
+      expect(parsedHref.pathname).toBe('/post-1')
+      expect(parsedHref.query).toEqual({})
+
+      await browser.elementByCss('#view-post-1-interpolated').click()
+      await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/this is.*?post-1/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should navigate to a dynamic page successfully interpolated with additional query values', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+
+      const href = await browser
+        .elementByCss('#view-post-1-interpolated-more-query')
+        .getAttribute('href')
+
+      const parsedHref = url.parse(href, true)
+      expect(parsedHref.pathname).toBe('/post-1')
+      expect(parsedHref.query).toEqual({ another: 'value' })
+
+      await browser.elementByCss('#view-post-1-interpolated-more-query').click()
+      await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/this is.*?post-1/i)
+
+      const query = JSON.parse(await browser.elementByCss('#query').text())
+      expect(query).toEqual({
+        name: 'post-1',
+        another: 'value',
+      })
     } finally {
       if (browser) await browser.close()
     }
@@ -92,19 +205,22 @@ function runTests(dev) {
 
   it('should allow calling Router.push on mount successfully', async () => {
     const browser = await webdriver(appPort, '/post-1/on-mount-redir')
-    waitFor(2000)
-    expect(await browser.elementByCss('h3').text()).toBe('My blog')
+    try {
+      expect(await browser.waitForElementByCss('h3').text()).toBe('My blog')
+    } finally {
+      browser.close()
+    }
   })
 
-  it.skip('should navigate optional dynamic page', async () => {
+  it('should navigate optional dynamic page', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
-      await browser.elementByCss('#view-blog-post-1-comments').click()
-      await browser.waitForElementByCss('p')
+      await browser.elementByCss('#view-post-1-comments').click()
+      await browser.waitForElementByCss('#asdf')
 
-      const text = await browser.elementByCss('p').text()
-      expect(text).toMatch(/blog post.*543.*comment.*\(all\)/i)
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/comments for post-1 here/i)
     } finally {
       if (browser) await browser.close()
     }
@@ -115,9 +231,9 @@ function runTests(dev) {
     try {
       browser = await webdriver(appPort, '/')
       await browser.elementByCss('#view-nested-dynamic-cmnt').click()
-      await browser.waitForElementByCss('p')
+      await browser.waitForElementByCss('#asdf')
 
-      const text = await browser.elementByCss('p').text()
+      const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/blog post.*321.*comment.*123/i)
     } finally {
       if (browser) await browser.close()
@@ -128,10 +244,54 @@ function runTests(dev) {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#view-post-1-comment-1').click()
-      await browser.waitForElementByCss('p')
+      await browser.waitForElementByCss('#asdf')
 
-      const text = await browser.elementByCss('p').text()
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/i am.*comment-1.*on.*post-1/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should navigate to a nested dynamic page successfully no as', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+      await browser.elementByCss('#view-post-1-comment-1-no-as').click()
+      await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
+      expect(text).toMatch(/i am.*comment-1.*on.*post-1/i)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should navigate to a nested dynamic page successfully interpolated', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+
+      const href = await browser
+        .elementByCss('#view-post-1-comment-1-interpolated')
+        .getAttribute('href')
+
+      expect(url.parse(href).pathname).toBe('/post-1/comment-1')
+
+      await browser.elementByCss('#view-post-1-comment-1-interpolated').click()
+      await browser.waitForElementByCss('#asdf')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#asdf').text()
       expect(text).toMatch(/i am.*comment-1.*on.*post-1/i)
     } finally {
       if (browser) await browser.close()
@@ -331,8 +491,35 @@ function runTests(dev) {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#ssg-catch-all-single').click()
       await browser.waitForElementByCss('#all-ssg-content')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[ssg: catch-all] should pass params in getStaticProps during client navigation (single interpolated)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+
+      const href = await browser
+        .elementByCss('#ssg-catch-all-single-interpolated')
+        .getAttribute('href')
+
+      expect(url.parse(href).pathname).toBe('/p1/p2/all-ssg/hello')
+
+      await browser.elementByCss('#ssg-catch-all-single-interpolated').click()
+      await browser.waitForElementByCss('#all-ssg-content')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
 
       const text = await browser.elementByCss('#all-ssg-content').text()
       expect(text).toBe('{"rest":["hello"]}')
@@ -345,8 +532,52 @@ function runTests(dev) {
     let browser
     try {
       browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
       await browser.elementByCss('#ssg-catch-all-multi').click()
       await browser.waitForElementByCss('#all-ssg-content')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello1","hello2"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[ssg: catch-all] should pass params in getStaticProps during client navigation (multi) no as', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+      await browser.elementByCss('#ssg-catch-all-multi-no-as').click()
+      await browser.waitForElementByCss('#all-ssg-content')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      const text = await browser.elementByCss('#all-ssg-content').text()
+      expect(text).toBe('{"rest":["hello1","hello2"]}')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('[ssg: catch-all] should pass params in getStaticProps during client navigation (multi interpolated)', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/')
+      await browser.eval('window.beforeNav = 1')
+
+      const href = await browser
+        .elementByCss('#ssg-catch-all-multi-interpolated')
+        .getAttribute('href')
+
+      expect(url.parse(href).pathname).toBe('/p1/p2/all-ssg/hello1/hello2')
+
+      await browser.elementByCss('#ssg-catch-all-multi-interpolated').click()
+      await browser.waitForElementByCss('#all-ssg-content')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
 
       const text = await browser.elementByCss('#all-ssg-content').text()
       expect(text).toBe('{"rest":["hello1","hello2"]}')
@@ -416,9 +647,9 @@ function runTests(dev) {
   it('should scroll to a hash on client-side navigation', async () => {
     const browser = await webdriver(appPort, '/')
     await browser.elementByCss('#view-dynamic-with-hash').click()
-    await browser.waitForElementByCss('p')
+    await browser.waitForElementByCss('#asdf')
 
-    const text = await browser.elementByCss('p').text()
+    const text = await browser.elementByCss('#asdf').text()
     expect(text).toMatch(/onmpost:.*test-w-hash/)
 
     const scrollPosition = await browser.eval('window.pageYOffset')
@@ -491,7 +722,86 @@ function runTests(dev) {
     expect(res.status).toBe(400)
   })
 
+  it('should preload buildManifest for auto-export dynamic pages', async () => {
+    const html = await renderViaHTTP(appPort, '/on-mount/hello')
+    const $ = cheerio.load(html)
+    let found = 0
+
+    for (const el of Array.from($('link[rel="preload"]'))) {
+      const { href } = el.attribs
+      if (
+        href.includes('_buildManifest.js') ||
+        href.includes('_buildManifest.module.js')
+      ) {
+        found++
+      }
+    }
+    expect(found).toBe(dev ? 2 : 1)
+  })
+
+  it('should not preload buildManifest for non-auto export dynamic pages', async () => {
+    const html = await renderViaHTTP(appPort, '/hello')
+    const $ = cheerio.load(html)
+    let found = 0
+
+    for (const el of Array.from($('link[rel="preload"]'))) {
+      const { href } = el.attribs
+      if (
+        href.includes('_buildManifest.js') ||
+        href.includes('_buildManifest.module.js')
+      ) {
+        found++
+      }
+    }
+    expect(found).toBe(0)
+  })
+
   if (dev) {
+    it('should resolve dynamic route href for page added later', async () => {
+      const browser = await webdriver(appPort, '/')
+      const addLaterPage = join(appDir, 'pages/added-later/[slug].js')
+
+      await fs.mkdir(dirname(addLaterPage)).catch(() => {})
+      await fs.writeFile(
+        addLaterPage,
+        `
+        import { useRouter } from 'next/router'
+
+        export default function Page() {
+          return <p id='added-later'>slug: {useRouter().query.slug}</p>
+        }
+      `
+      )
+
+      await check(async () => {
+        const contents = await renderViaHTTP(
+          appPort,
+          '/_next/static/development/_devPagesManifest.json'
+        )
+        return contents.includes('added-later') ? 'success' : 'fail'
+      }, 'success')
+
+      await browser.elementByCss('#added-later-link').click()
+      await browser.waitForElementByCss('#added-later')
+
+      const text = await browser.elementByCss('#added-later').text()
+
+      await fs.remove(dirname(addLaterPage))
+      expect(text).toBe('slug: first')
+    })
+
+    it('should show error when interpolating fails for href', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser
+        .elementByCss('#view-post-1-interpolated-incorrectly')
+        .click()
+      await hasRedbox(browser)
+      const header = await getRedboxHeader(browser)
+      expect(header).toContain(
+        'The provided `href` (/[name]?another=value) value is missing query values (name) to be interpolated properly.'
+      )
+    })
+
     it('should work with HMR correctly', async () => {
       const browser = await webdriver(appPort, '/post-1/comments')
       let text = await browser.eval(`document.documentElement.innerHTML`)
@@ -513,7 +823,8 @@ function runTests(dev) {
       }
     })
   } else {
-    it('should output modern bundles with dynamic route correctly', async () => {
+    // TODO: Make webpack 5 work with nest-esm-plugin
+    it.skip('should output modern bundles with dynamic route correctly', async () => {
       const buildManifest = require(join('../.next', 'build-manifest.json'))
 
       const files = buildManifest.pages[
@@ -552,6 +863,30 @@ function runTests(dev) {
         rewrites: [],
         redirects: expect.arrayContaining([]),
         dataRoutes: [
+          {
+            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/b\\/([^\\/]+?)\\.json$`,
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/b/(?<a>[^/]+?)\\.json$`,
+            page: '/b/[123]',
+            routeKeys: {
+              a: '123',
+            },
+          },
+          {
+            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/c\\/([^\\/]+?)\\.json$`,
+            namedDataRouteRegex: `^/_next/data/${escapeRegex(
+              buildId
+            )}/c/(?<a>[^/]+?)\\.json$`,
+            page: '/c/[alongparamnameshouldbeallowedeventhoughweird]',
+            routeKeys: {
+              a: 'alongparamnameshouldbeallowedeventhoughweird',
+            },
+          },
           {
             namedDataRouteRegex: `^/_next/data/${escapeRegex(
               buildId
@@ -597,6 +932,14 @@ function runTests(dev) {
         ],
         dynamicRoutes: [
           {
+            namedRegex: '^/b/(?<a>[^/]+?)(?:/)?$',
+            page: '/b/[123]',
+            regex: normalizeRegEx('^\\/b\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              a: '123',
+            },
+          },
+          {
             namedRegex: `^/blog/(?<name>[^/]+?)/comment/(?<id>[^/]+?)(?:/)?$`,
             page: '/blog/[name]/comment/[id]',
             regex: normalizeRegEx(
@@ -608,11 +951,27 @@ function runTests(dev) {
             },
           },
           {
+            namedRegex: '^/c/(?<a>[^/]+?)(?:/)?$',
+            page: '/c/[alongparamnameshouldbeallowedeventhoughweird]',
+            regex: normalizeRegEx('^\\/c\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              a: 'alongparamnameshouldbeallowedeventhoughweird',
+            },
+          },
+          {
             namedRegex: '^/catchall\\-dash/(?<helloworld>.+?)(?:/)?$',
             page: '/catchall-dash/[...hello-world]',
             regex: normalizeRegEx('^\\/catchall\\-dash\\/(.+?)(?:\\/)?$'),
             routeKeys: {
               helloworld: 'hello-world',
+            },
+          },
+          {
+            namedRegex: '^/d/(?<id>[^/]+?)(?:/)?$',
+            page: '/d/[id]',
+            regex: normalizeRegEx('^\\/d\\/([^\\/]+?)(?:\\/)?$'),
+            routeKeys: {
+              id: 'id',
             },
           },
           {

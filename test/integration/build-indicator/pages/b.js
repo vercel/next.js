@@ -1,1 +1,3 @@
-export default () => <p>Hello from b</p>
+export default function Page() {
+  return <p>Hello from b</p>
+}

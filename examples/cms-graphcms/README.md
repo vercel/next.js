@@ -22,6 +22,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [Cosmic](/examples/cms-cosmic)
 - [ButterCMS](/examples/cms-buttercms)
 - [Storyblok](/examples/cms-storyblok)
+- [Kontent](/examples/cms-kontent)
 - [Blog Starter](/examples/blog-starter)
 
 ## Deploy your own
@@ -32,23 +33,12 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 
 ## How to use
 
-### Using `create-next-app`
-
 Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-graphcms cms-graphcms-app
 # or
 yarn create next-app --example cms-graphcms cms-graphcms-app
-```
-
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-graphcms
-cd cms-graphcms
 ```
 
 ## Configuration

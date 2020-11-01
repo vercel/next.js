@@ -12,6 +12,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  File,
 } from 'next-test-utils'
 import { join } from 'path'
 
@@ -20,7 +21,7 @@ jest.setTimeout(1000 * 60 * 2)
 let app
 let appPort
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
+const nextConfig = new File(join(appDir, 'next.config.js'))
 
 function testShouldRedirect(expectations) {
   it.each(expectations)(
@@ -70,8 +71,8 @@ function testShouldResolve(expectations) {
 function testLinkShouldRewriteTo(expectations) {
   it.each(expectations)(
     '%s should have href %s',
-    async (href, expectedHref) => {
-      const content = await renderViaHTTP(appPort, `/linker?href=${href}`)
+    async (linkPage, expectedHref) => {
+      const content = await renderViaHTTP(appPort, linkPage)
       const $ = cheerio.load(content)
       expect($('#link').attr('href')).toBe(expectedHref)
     }
@@ -79,14 +80,15 @@ function testLinkShouldRewriteTo(expectations) {
 
   it.each(expectations)(
     '%s should navigate to %s',
-    async (href, expectedHref) => {
+    async (linkPage, expectedHref) => {
       let browser
       try {
-        browser = await webdriver(appPort, `/linker?href=${href}`)
+        browser = await webdriver(appPort, linkPage)
         await browser.elementByCss('#link').click()
 
         await browser.waitForElementByCss('#hydration-marker')
-        const { pathname } = new URL(await browser.eval('window.location.href'))
+        const url = new URL(await browser.eval('window.location.href'))
+        const pathname = url.href.slice(url.origin.length)
         expect(pathname).toBe(expectedHref)
       } finally {
         if (browser) await browser.close()
@@ -96,14 +98,15 @@ function testLinkShouldRewriteTo(expectations) {
 
   it.each(expectations)(
     '%s should push route to %s',
-    async (href, expectedHref) => {
+    async (linkPage, expectedHref) => {
       let browser
       try {
-        browser = await webdriver(appPort, `/linker?href=${href}`)
+        browser = await webdriver(appPort, linkPage)
         await browser.elementByCss('#route-pusher').click()
 
         await browser.waitForElementByCss('#hydration-marker')
-        const { pathname } = new URL(await browser.eval('window.location.href'))
+        const url = new URL(await browser.eval('window.location.href'))
+        const pathname = url.href.slice(url.origin.length)
         expect(pathname).toBe(expectedHref)
       } finally {
         if (browser) await browser.close()
@@ -112,10 +115,11 @@ function testLinkShouldRewriteTo(expectations) {
   )
 }
 
-function testWithTrailingSlash() {
+function testWithoutTrailingSlash() {
   testShouldRedirect([
     ['/about/', '/about'],
     ['/catch-all/hello/world/', '/catch-all/hello/world'],
+    ['/catch-all/hello.world/', '/catch-all/hello.world'],
   ])
 
   testShouldResolve([
@@ -127,19 +131,25 @@ function testWithTrailingSlash() {
       '/catch-all/[...slug].js',
       '/catch-all/[...slug]',
     ],
+    ['/about?hello=world', '/about.js', '/about'],
   ])
 
   testLinkShouldRewriteTo([
-    ['/', '/'],
-    ['/about', '/about'],
-    ['/about/', '/about'],
+    ['/linker?href=/', '/'],
+    ['/linker?href=/about', '/about'],
+    ['/linker?href=/about/', '/about'],
+    ['/linker?href=/about?hello=world', '/about?hello=world'],
+    ['/linker?href=/about/?hello=world', '/about?hello=world'],
+    ['/linker?href=/catch-all/hello/', '/catch-all/hello'],
+    ['/linker?href=/catch-all/hello.world/', '/catch-all/hello.world'],
   ])
 }
 
-function testWithoutTrailingSlash() {
+function testWithTrailingSlash() {
   testShouldRedirect([
     ['/about', '/about/'],
     ['/catch-all/hello/world', '/catch-all/hello/world/'],
+    ['/catch-all/hello.world/', '/catch-all/hello.world'],
   ])
 
   testShouldResolve([
@@ -151,73 +161,62 @@ function testWithoutTrailingSlash() {
       '/catch-all/[...slug].js',
       '/catch-all/[...slug]',
     ],
+    ['/about/?hello=world', '/about.js', '/about'],
   ])
 
   testLinkShouldRewriteTo([
-    ['/', '/'],
-    ['/about', '/about/'],
-    ['/about/', '/about/'],
+    ['/linker?href=/', '/'],
+    ['/linker?href=/about', '/about/'],
+    ['/linker?href=/about/', '/about/'],
+    ['/linker?href=/about?hello=world', '/about/?hello=world'],
+    ['/linker?href=/about/?hello=world', '/about/?hello=world'],
+    ['/linker?href=/catch-all/hello/', '/catch-all/hello/'],
+    ['/linker?href=/catch-all/hello.world/', '/catch-all/hello.world'],
   ])
 }
 
 describe('Trailing slashes', () => {
   describe('dev mode, trailingSlash: false', () => {
-    let origNextConfig
     beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        origNextConfig.replace('// <placeholder>', 'trailingSlash: false')
-      )
+      nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: false')
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
-      await killApp(app)
-    })
-
-    testWithTrailingSlash()
-  })
-
-  describe('dev mode, trailingSlash: true', () => {
-    let origNextConfig
-    beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        origNextConfig.replace('// <placeholder>', 'trailingSlash: true')
-      )
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
+      nextConfig.restore()
       await killApp(app)
     })
 
     testWithoutTrailingSlash()
   })
 
-  describe('production mode, trailingSlash: false', () => {
-    let origNextConfig
+  describe('dev mode, trailingSlash: true', () => {
     beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        origNextConfig.replace('// <placeholder>', 'trailingSlash: false')
-      )
-      await nextBuild(appDir)
-
+      nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: true')
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await launchApp(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
+      nextConfig.restore()
       await killApp(app)
     })
 
     testWithTrailingSlash()
+  })
+
+  describe('production mode, trailingSlash: false', () => {
+    beforeAll(async () => {
+      nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: false')
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      nextConfig.restore()
+      await killApp(app)
+    })
+
+    testWithoutTrailingSlash()
 
     it('should have a redirect in the routesmanifest', async () => {
       const manifest = await fs.readJSON(
@@ -238,24 +237,18 @@ describe('Trailing slashes', () => {
   })
 
   describe('production mode, trailingSlash: true', () => {
-    let origNextConfig
     beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
-      await fs.writeFile(
-        nextConfig,
-        origNextConfig.replace('// <placeholder>', 'trailingSlash: true')
-      )
+      nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: true')
       await nextBuild(appDir)
-
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
+      nextConfig.restore()
       await killApp(app)
     })
 
-    testWithoutTrailingSlash()
+    testWithTrailingSlash()
 
     it('should have a redirect in the routesmanifest', async () => {
       const manifest = await fs.readJSON(
@@ -265,13 +258,69 @@ describe('Trailing slashes', () => {
         expect.objectContaining({
           redirects: expect.arrayContaining([
             expect.objectContaining({
-              source: '/:path+',
-              destination: '/:path+/',
+              source: '/:file((?:[^/]+/)*[^/]+\\.\\w+)/',
+              destination: '/:file',
+              statusCode: 308,
+            }),
+            expect.objectContaining({
+              source: '/:notfile((?:[^/]+/)*[^/\\.]+)',
+              destination: '/:notfile/',
               statusCode: 308,
             }),
           ]),
         })
       )
     })
+  })
+
+  describe('dev mode, with basepath, trailingSlash: true', () => {
+    beforeAll(async () => {
+      nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: true')
+      nextConfig.replace('// basePath:', 'basePath:')
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      nextConfig.restore()
+      await killApp(app)
+    })
+
+    testShouldRedirect([
+      ['/docs/about', '/docs/about/'],
+      ['/docs', '/docs/'],
+      ['/docs/catch-all/hello/world', '/docs/catch-all/hello/world/'],
+      ['/docs/catch-all/hello.world/', '/docs/catch-all/hello.world'],
+    ])
+
+    testLinkShouldRewriteTo([
+      ['/docs/linker?href=/about', '/docs/about/'],
+      ['/docs/linker?href=/', '/docs/'],
+    ])
+  })
+
+  describe('production mode, with basepath, trailingSlash: true', () => {
+    beforeAll(async () => {
+      nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: true')
+      nextConfig.replace('// basePath:', 'basePath:')
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      nextConfig.restore()
+      await killApp(app)
+    })
+
+    testShouldRedirect([
+      ['/docs/about', '/docs/about/'],
+      ['/docs', '/docs/'],
+      ['/docs/catch-all/hello/world', '/docs/catch-all/hello/world/'],
+      ['/docs/catch-all/hello.world/', '/docs/catch-all/hello.world'],
+    ])
+
+    testLinkShouldRewriteTo([
+      ['/docs/linker?href=/about', '/docs/about/'],
+      ['/docs/linker?href=/', '/docs/'],
+    ])
   })
 })

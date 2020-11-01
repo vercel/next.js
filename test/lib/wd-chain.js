@@ -10,9 +10,8 @@ export default class Chain {
       this.promise = Promise.resolve()
     }
     this.promise = this.promise.then(nextCall)
-    this.then = (cb) => this.promise.then(cb)
-    this.catch = (cb) => this.promise.catch(cb)
-    this.finally = (cb) => this.promise.finally(cb)
+    this.then = (...args) => this.promise.then(...args)
+    this.catch = (...args) => this.promise.catch(...args)
     return this
   }
 
@@ -92,6 +91,14 @@ export default class Chain {
     )
   }
 
+  waitForCondition(condition) {
+    return this.updateChain(() =>
+      this.browser.wait(async (driver) => {
+        return driver.executeScript('return ' + condition).catch(() => false)
+      })
+    )
+  }
+
   eval(snippet) {
     if (typeof snippet === 'string' && !snippet.startsWith('return')) {
       snippet = `return ${snippet}`
@@ -117,6 +124,12 @@ export default class Chain {
 
   refresh() {
     return this.updateChain(() => this.browser.navigate().refresh())
+  }
+
+  setDimensions({ height, width }) {
+    return this.updateChain(() =>
+      this.browser.manage().window().setRect({ width, height, x: 0, y: 0 })
+    )
   }
 
   close() {

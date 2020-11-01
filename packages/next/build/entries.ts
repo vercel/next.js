@@ -1,5 +1,5 @@
 import chalk from 'next/dist/compiled/chalk'
-import { join } from 'path'
+import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
@@ -8,7 +8,7 @@ import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import { warn } from './output/log'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
-import { LoadedEnvFiles } from '../lib/load-env-config'
+import { LoadedEnvFiles } from '@next/env'
 
 type PagesMapping = {
   [page: string]: string
@@ -79,10 +79,12 @@ export function createEntrypoints(
     absoluteAppPath: pages['/_app'],
     absoluteDocumentPath: pages['/_document'],
     absoluteErrorPath: pages['/_error'],
+    absolute404Path: pages['/404'] || '',
     distDir: DOT_NEXT_ALIAS,
     buildId,
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags,
+    poweredByHeader: config.poweredByHeader,
     canonicalBase: config.canonicalBase,
     basePath: config.basePath,
     runtimeConfig: hasRuntimeConfig
@@ -92,7 +94,11 @@ export function createEntrypoints(
         })
       : '',
     previewProps: JSON.stringify(previewMode),
-    loadedEnvFiles: JSON.stringify(loadedEnvFiles),
+    // base64 encode to make sure contents don't break webpack URL loading
+    loadedEnvFiles: Buffer.from(JSON.stringify(loadedEnvFiles)).toString(
+      'base64'
+    ),
+    i18n: config.i18n ? JSON.stringify(config.i18n) : '',
   }
 
   Object.keys(pages).forEach((page) => {
@@ -100,8 +106,8 @@ export function createEntrypoints(
     const bundleFile = normalizePagePath(page)
     const isApiRoute = page.match(API_ROUTE)
 
-    const clientBundlePath = join('static', 'pages', bundleFile)
-    const serverBundlePath = join('pages', bundleFile)
+    const clientBundlePath = posix.join('pages', bundleFile)
+    const serverBundlePath = posix.join('pages', bundleFile)
 
     const isLikeServerless = isTargetLikeServerless(target)
 
