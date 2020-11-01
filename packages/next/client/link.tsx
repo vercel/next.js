@@ -261,8 +261,6 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   }
   const p = props.prefetch !== false
 
-  const [childElm, setChildElm] = React.useState<Element>()
-
   const router = useRouter()
   const pathname = (router && router.pathname) || '/'
 
@@ -276,24 +274,6 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     }
   }, [pathname, props.href, props.as])
 
-  React.useEffect(() => {
-    if (
-      p &&
-      IntersectionObserver &&
-      childElm &&
-      childElm.tagName &&
-      isLocalURL(href)
-    ) {
-      // Join on an invalid URI character
-      const isPrefetched = prefetched[href + '%' + as]
-      if (!isPrefetched) {
-        return listenToIntersections(childElm, () => {
-          prefetch(router, href, as)
-        })
-      }
-    }
-  }, [p, childElm, href, as, router])
-
   let { children, replace, shallow, scroll, locale } = props
   // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
   if (typeof children === 'string') {
@@ -302,22 +282,44 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
 
   // This will return the first child, if multiple are provided it will throw an error
   const child: any = Children.only(children)
+  const childRef: any = child && typeof child === 'object' && child.ref
+
+  const cleanup = React.useRef<() => void>()
+  const setRef = React.useCallback(
+    (el: Element) => {
+      // cleanup previous event handlers
+      if (cleanup.current) {
+        cleanup.current()
+        cleanup.current = undefined
+      }
+
+      if (p && IntersectionObserver && el && el.tagName && isLocalURL(href)) {
+        // Join on an invalid URI character
+        const isPrefetched = prefetched[href + '%' + as]
+        if (!isPrefetched) {
+          cleanup.current = listenToIntersections(el, () => {
+            prefetch(router, href, as)
+          })
+        }
+      }
+
+      if (childRef) {
+        if (typeof childRef === 'function') childRef(el)
+        else if (typeof childRef === 'object') {
+          childRef.current = el
+        }
+      }
+    },
+    [p, childRef, href, as, router]
+  )
+
   const childProps: {
     onMouseEnter?: React.MouseEventHandler
     onClick: React.MouseEventHandler
     href?: string
     ref?: any
   } = {
-    ref: (el: any) => {
-      if (el) setChildElm(el)
-
-      if (child && typeof child === 'object' && child.ref) {
-        if (typeof child.ref === 'function') child.ref(el)
-        else if (typeof child.ref === 'object') {
-          child.ref.current = el
-        }
-      }
-    },
+    ref: setRef,
     onClick: (e: React.MouseEvent) => {
       if (child.props && typeof child.props.onClick === 'function') {
         child.props.onClick(e)
