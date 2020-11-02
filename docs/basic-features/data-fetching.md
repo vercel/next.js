@@ -63,6 +63,7 @@ The `context` parameter is an object containing the following keys:
 - `props` - A **required** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
 - `revalidate` - An **optional** amount in seconds after which a page re-generation can occur. More on [Incremental Static Regeneration](#incremental-static-regeneration)
 - `notFound` - An optional boolean value to allow the page to return a 404 status and page. More on [Incremental Static Regeneration](#incremental-static-regeneration)
+- `redirect` - An optional redirect value to allow redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean }`
 
 > **Note**: You can import modules in top-level scope for use in `getStaticProps`.
 > Imports used in `getStaticProps` will [not be bundled for the client-side](#write-server-side-code-directly).
@@ -551,6 +552,12 @@ The `context` parameter is an object containing the following keys:
 - `locale` contains the active locale (if enabled).
 - `locales` contains all supported locales (if enabled).
 - `defaultLocale` contains the configured default locale (if enabled).
+
+`getServerSideProps` should return an object with:
+
+- `props` - A **required** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
+- `notFound` - An optional boolean value to allow the page to return a 404 status and page. More on [Incremental Static Regeneration](#incremental-static-regeneration)
+- `redirect` - An optional redirect value to allow redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean }`
 
 > **Note**: You can import modules in top-level scope for use in `getServerSideProps`.
 > Imports used in `getServerSideProps` will not be bundled for the client-side.
