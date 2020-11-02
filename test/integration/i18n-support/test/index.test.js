@@ -19,6 +19,7 @@ import {
   waitFor,
   normalizeRegEx,
   getPageFileFromPagesManifest,
+  check,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -262,23 +263,25 @@ function runTests(isDev) {
         document.querySelector('#to-no-fallback-first').scrollIntoView()
       })()`)
 
-      for (const dataPath of [
-        '/fr/gsp.json',
-        '/fr/gsp/fallback/first.json',
-        '/fr/gsp/fallback/hello.json',
-      ]) {
-        const found = await browser.eval(`(function() {
-          const links = [].slice.call(document.querySelectorAll('link'))
+      await check(async () => {
+        for (const dataPath of [
+          '/fr/gsp.json',
+          '/fr/gsp/fallback/first.json',
+          '/fr/gsp/fallback/hello.json',
+        ]) {
+          const found = await browser.eval(`(function() {
+            const links = [].slice.call(document.querySelectorAll('link'))
 
-          for (var i = 0; i < links.length; i++) {
-            if (links[i].href.indexOf("${dataPath}") > -1) {
-              return true
+            for (var i = 0; i < links.length; i++) {
+              if (links[i].href.indexOf("${dataPath}") > -1) {
+                return true
+              }
             }
-          }
-          return false
-        })()`)
-        expect(found).toBe(true)
-      }
+            return false
+          })()`)
+          return found ? 'yes' : 'no'
+        }
+      }, 'yes')
     }
 
     expect(await browser.elementByCss('#router-pathname').text()).toBe('/links')
@@ -292,6 +295,9 @@ function runTests(isDev) {
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
     ).toEqual({ nextLocale: 'fr' })
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe(
+      'en-US'
+    )
 
     await browser.elementByCss('#to-another').click()
     await browser.waitForElementByCss('#another')
@@ -309,6 +315,7 @@ function runTests(isDev) {
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
     ).toEqual({})
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('fr')
 
     let parsedUrl = url.parse(await browser.eval('window.location.href'), true)
     expect(parsedUrl.pathname).toBe('/fr/another')
@@ -328,6 +335,9 @@ function runTests(isDev) {
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
     ).toEqual({ nextLocale: 'fr' })
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe(
+      'en-US'
+    )
 
     parsedUrl = url.parse(await browser.eval('window.location.href'), true)
     expect(parsedUrl.pathname).toBe('/links')
@@ -349,6 +359,7 @@ function runTests(isDev) {
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
     ).toEqual({})
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('fr')
 
     parsedUrl = url.parse(await browser.eval('window.location.href'), true)
     expect(parsedUrl.pathname).toBe('/fr/another')
@@ -371,6 +382,9 @@ function runTests(isDev) {
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
     ).toEqual({ nextLocale: 'nl' })
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe(
+      'en-US'
+    )
 
     await browser.elementByCss('#to-fallback-first').click()
     await browser.waitForElementByCss('#gsp')
@@ -388,6 +402,7 @@ function runTests(isDev) {
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
     ).toEqual({ slug: 'first' })
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('nl')
 
     let parsedUrl = url.parse(await browser.eval('window.location.href'), true)
     expect(parsedUrl.pathname).toBe('/nl/gsp/fallback/first')
@@ -407,6 +422,9 @@ function runTests(isDev) {
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
     ).toEqual({ nextLocale: 'nl' })
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe(
+      'en-US'
+    )
 
     parsedUrl = url.parse(await browser.eval('window.location.href'), true)
     expect(parsedUrl.pathname).toBe('/links')
@@ -428,6 +446,7 @@ function runTests(isDev) {
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
     ).toEqual({ slug: 'first' })
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('nl')
 
     parsedUrl = url.parse(await browser.eval('window.location.href'), true)
     expect(parsedUrl.pathname).toBe('/nl/gsp/fallback/first')
@@ -446,23 +465,25 @@ function runTests(isDev) {
         document.querySelector('#to-no-fallback-first').scrollIntoView()
       })()`)
 
-      for (const dataPath of [
-        '/fr/gsp.json',
-        '/fr/gsp/fallback/first.json',
-        '/fr/gsp/fallback/hello.json',
-      ]) {
-        const found = await browser.eval(`(function() {
-          const links = [].slice.call(document.querySelectorAll('link'))
+      await check(async () => {
+        for (const dataPath of [
+          '/fr/gsp.json',
+          '/fr/gsp/fallback/first.json',
+          '/fr/gsp/fallback/hello.json',
+        ]) {
+          const found = await browser.eval(`(function() {
+            const links = [].slice.call(document.querySelectorAll('link'))
 
-          for (var i = 0; i < links.length; i++) {
-            if (links[i].href.indexOf("${dataPath}") > -1) {
-              return true
+            for (var i = 0; i < links.length; i++) {
+              if (links[i].href.indexOf("${dataPath}") > -1) {
+                return true
+              }
             }
-          }
-          return false
-        })()`)
-        expect(found).toBe(true)
-      }
+            return false
+          })()`)
+          return found ? 'yes' : 'no'
+        }
+      }, 'yes')
     }
 
     expect(await browser.elementByCss('#router-pathname').text()).toBe(
@@ -478,6 +499,9 @@ function runTests(isDev) {
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
     ).toEqual({ nextLocale: 'fr' })
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe(
+      'en-US'
+    )
 
     await browser.elementByCss('#to-another').click()
     await browser.waitForElementByCss('#another')
@@ -495,6 +519,7 @@ function runTests(isDev) {
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
     ).toEqual({})
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('fr')
 
     let parsedUrl = url.parse(await browser.eval('window.location.href'), true)
     expect(parsedUrl.pathname).toBe('/fr/another')
@@ -516,6 +541,9 @@ function runTests(isDev) {
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
     ).toEqual({ nextLocale: 'fr' })
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe(
+      'en-US'
+    )
 
     parsedUrl = url.parse(await browser.eval('window.location.href'), true)
     expect(parsedUrl.pathname).toBe('/locale-false')
@@ -537,6 +565,7 @@ function runTests(isDev) {
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
     ).toEqual({})
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('fr')
 
     parsedUrl = url.parse(await browser.eval('window.location.href'), true)
     expect(parsedUrl.pathname).toBe('/fr/another')
@@ -561,6 +590,9 @@ function runTests(isDev) {
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
     ).toEqual({ nextLocale: 'nl' })
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe(
+      'en-US'
+    )
 
     await browser.elementByCss('#to-fallback-first').click()
     await browser.waitForElementByCss('#gsp')
@@ -578,6 +610,7 @@ function runTests(isDev) {
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
     ).toEqual({ slug: 'first' })
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('nl')
 
     let parsedUrl = url.parse(await browser.eval('window.location.href'), true)
     expect(parsedUrl.pathname).toBe('/nl/gsp/fallback/first')
@@ -599,6 +632,9 @@ function runTests(isDev) {
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
     ).toEqual({ nextLocale: 'nl' })
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe(
+      'en-US'
+    )
 
     parsedUrl = url.parse(await browser.eval('window.location.href'), true)
     expect(parsedUrl.pathname).toBe('/locale-false')
@@ -620,6 +656,7 @@ function runTests(isDev) {
     expect(
       JSON.parse(await browser.elementByCss('#router-query').text())
     ).toEqual({ slug: 'first' })
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('nl')
 
     parsedUrl = url.parse(await browser.eval('window.location.href'), true)
     expect(parsedUrl.pathname).toBe('/nl/gsp/fallback/first')
