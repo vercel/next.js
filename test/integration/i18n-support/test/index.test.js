@@ -42,18 +42,20 @@ async function addDefaultLocaleCookie(browser) {
 
 function runTests(isDev) {
   it('should have correct values for non-prefixed path', async () => {
-    for (const path of ['/', '/links', '/another', '/gsp/fallback/another']) {
-      const res = await fetchViaHTTP(
-        appPort,
-        path,
-        {},
-        {
-          redirect: 'manual',
-          headers: {
-            'accept-language': 'fr',
-          },
-        }
-      )
+    for (const paths of [
+      ['/links', '/links'],
+      ['/another', '/another'],
+      ['/gsp/fallback/first', '/gsp/fallback/[slug]'],
+      ['/gsp/no-fallback/first', '/gsp/no-fallback/[slug]'],
+    ]) {
+      const [asPath, pathname] = paths
+
+      const res = await fetchViaHTTP(appPort, asPath, undefined, {
+        redirect: 'manual',
+        headers: {
+          'accept-language': 'fr',
+        },
+      })
 
       expect(res.status).toBe(200)
       const $ = cheerio.load(await res.text())
@@ -61,8 +63,8 @@ function runTests(isDev) {
       expect($('#router-locale').text()).toBe('en-US')
       expect($('#router-default-locale').text()).toBe('en-US')
       expect(JSON.parse($('#router-locales').text())).toEqual(locales)
-      expect($('#router-pathname').text()).toBe(path)
-      expect($('#router-as-path').text()).toBe(path)
+      expect($('#router-pathname').text()).toBe(pathname)
+      expect($('#router-as-path').text()).toBe(asPath)
     }
   })
 
@@ -1606,7 +1608,7 @@ function runTests(isDev) {
   it('should load getStaticProps non-fallback correctly another locale via cookie', async () => {
     const html = await renderViaHTTP(
       appPort,
-      '/gsp/no-fallback/second',
+      '/nl-NL/gsp/no-fallback/second',
       {},
       {
         headers: {
