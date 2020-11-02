@@ -59,7 +59,6 @@ const {
   runtimeConfig,
   dynamicIds,
   isFallback,
-  head: initialHeadData,
   locales,
 } = data
 
@@ -130,7 +129,7 @@ if (window.__NEXT_P) {
 window.__NEXT_P = []
 ;(window.__NEXT_P as any).push = register
 
-const headManager = initHeadManager(initialHeadData)
+const headManager = initHeadManager()
 const appElement = document.getElementById('__next')
 
 let lastAppProps: AppProps
