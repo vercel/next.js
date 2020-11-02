@@ -41,6 +41,31 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 function runTests(isDev) {
+  it('should have correct values for non-prefixed path', async () => {
+    for (const path of ['/', '/links', '/another', '/gsp/fallback/another']) {
+      const res = await fetchViaHTTP(
+        appPort,
+        path,
+        {},
+        {
+          redirect: 'manual',
+          headers: {
+            'accept-language': 'fr',
+          },
+        }
+      )
+
+      expect(res.status).toBe(200)
+      const $ = cheerio.load(await res.text())
+      expect($('html').attr('lang')).toBe('en-US')
+      expect($('#router-locale').text()).toBe('en-US')
+      expect($('#router-default-locale').text()).toBe('en-US')
+      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+      expect($('#router-pathname').text()).toBe(path)
+      expect($('#router-as-path').text()).toBe(path)
+    }
+  })
+
   if (!isDev) {
     it('should add i18n config to routes-manifest', async () => {
       const routesManifest = await fs.readJSON(
