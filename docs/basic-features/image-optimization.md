@@ -1,5 +1,5 @@
 ---
-description: Next.js supports built-in image optimization, as well as third party loaders for Imgix, Cloudinary, and more! Learn more here.
+description: Next.js supports built-in image optimization, as well as third party loaders for Imgix, Cloudinary, Uploadcare, and more! Learn more here.
 ---
 
 # Image Component and Image Optimization
@@ -132,6 +132,33 @@ The following Image Optimization cloud providers are supported:
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
+- [Uploadcare](https://uploadcare.com): `loader: 'uploadcare'`. See more info [here](#uploadcare-loader).
+
+### Uploadcare loader
+
+Before all, you need to create an Uploadcare [account](https://uploadcare.com/accounts/signup/).
+
+Then, to enable Uploadcare loader you need to configure your `next.config.js` in the following way:
+
+```js
+module.exports = {
+  images: {
+    loader: 'uploadcare',
+    path: 'https://YOUR_PUBLIC_KEY.ucr.io', // optional
+  },
+}
+```
+
+`path` is the Uploadcare [Media Proxy](https://uploadcare.com/docs/delivery/media_proxy/) endpoint. It is optional and not needed unless you are going to optimize images hosted on external sites.
+
+Uploadcare loader supports following types of image sources:
+
+- Images hosted on Uploadcare CDN (like `https://ucarecdn.com/:uuid/`).
+- Images hosted on external sites. They are automatically proxied through Media Proxy. `path` is required.
+
+Relative images, statically served by Next.js, are not supported.
+
+By default, loader uses `smart` quality. You can override it using `quality` property for Image component. Integer quality values are mapped onto Uploadcare ones. All available quality transformations described [here](https://uploadcare.com/docs/transformations/compression/#operation-quality).
 
 ## Caching
 
