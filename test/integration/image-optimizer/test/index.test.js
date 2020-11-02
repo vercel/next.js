@@ -88,6 +88,26 @@ function runTests({ w, isDev, domains }) {
     expect(actual).toMatch(expected)
   })
 
+  it('should maintain jpg format for old Safari', async () => {
+    const accept =
+      'image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5'
+    const query = { w, q: 90, url: '/test.jpg' }
+    const opts = { headers: { accept } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/jpeg')
+  })
+
+  it('should maintain png format for old Safari', async () => {
+    const accept =
+      'image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5'
+    const query = { w, q: 75, url: '/test.png' }
+    const opts = { headers: { accept } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/png')
+  })
+
   it('should fail when url is missing', async () => {
     const query = { w, q: 100 }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
@@ -173,21 +193,12 @@ function runTests({ w, isDev, domains }) {
     )
   })
 
-  it('should resize relative url and webp accept header', async () => {
+  it('should resize relative url and webp Firefox accept header', async () => {
     const query = { url: '/test.png', w, q: 80 }
-    const opts = { headers: { accept: 'image/webp' } }
+    const opts = { headers: { accept: 'image/webp,*/*' } }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
-    await expectWidth(res, w)
-  })
-
-  it('should resize relative url and jpeg accept header', async () => {
-    const query = { url: '/test.png', w, q: 80 }
-    const opts = { headers: { accept: 'image/jpeg' } }
-    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-    expect(res.status).toBe(200)
-    expect(res.headers.get('Content-Type')).toBe('image/jpeg')
     await expectWidth(res, w)
   })
 
@@ -227,9 +238,11 @@ function runTests({ w, isDev, domains }) {
     await expectWidth(res, w)
   })
 
-  it('should resize relative url and wildcard accept header as webp', async () => {
+  it('should resize relative url and Chrome accept header as webp', async () => {
     const query = { url: '/test.png', w, q: 80 }
-    const opts = { headers: { accept: 'image/*' } }
+    const opts = {
+      headers: { accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8' },
+    }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
