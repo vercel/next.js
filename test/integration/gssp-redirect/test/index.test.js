@@ -55,6 +55,40 @@ const runTests = () => {
     expect(res.headers.get('refresh')).toMatch(/url=\/404/)
   })
 
+  it('should apply statusCode 301 redirect when visited directly for GSSP page', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/gssp-blog/redirect-statusCode-301',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(301)
+
+    const { pathname } = url.parse(res.headers.get('location'))
+
+    expect(pathname).toBe('/404')
+    expect(res.headers.get('refresh')).toBe(null)
+  })
+
+  it('should apply statusCode 303 redirect when visited directly for GSSP page', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/gssp-blog/redirect-statusCode-303',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(303)
+
+    const { pathname } = url.parse(res.headers.get('location'))
+
+    expect(pathname).toBe('/404')
+    expect(res.headers.get('refresh')).toBe(null)
+  })
+
   it('should apply redirect when fallback GSP page is visited directly (internal dynamic)', async () => {
     const browser = await webdriver(
       appPort,
