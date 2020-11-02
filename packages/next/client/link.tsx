@@ -276,27 +276,6 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
 
   let { children, replace, shallow, scroll, locale } = props
 
-  React.useEffect(() => {
-    if (
-      p &&
-      IntersectionObserver &&
-      childElm &&
-      childElm.tagName &&
-      isLocalURL(href)
-    ) {
-      // Join on an invalid URI character
-      const isPrefetched = prefetched[href + '%' + as]
-      if (!isPrefetched) {
-        return listenToIntersections(childElm, () => {
-          prefetch(router, href, as, {
-            locale:
-              typeof locale !== 'undefined' ? locale : router && router.locale,
-          })
-        })
-      }
-    }
-  }, [p, href, as, router, locale])
-
   // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
   if (typeof children === 'string') {
     children = <a>{children}</a>
@@ -320,7 +299,12 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         const isPrefetched = prefetched[href + '%' + as]
         if (!isPrefetched) {
           cleanup.current = listenToIntersections(el, () => {
-            prefetch(router, href, as)
+            prefetch(router, href, as, {
+              locale:
+                typeof locale !== 'undefined'
+                  ? locale
+                  : router && router.locale,
+            })
           })
         }
       }
@@ -332,7 +316,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         }
       }
     },
-    [p, childRef, href, as, router]
+    [p, childRef, href, as, router, locale]
   )
 
   const childProps: {
