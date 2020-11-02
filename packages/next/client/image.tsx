@@ -119,14 +119,10 @@ function getDeviceSizes(
   if (configImageSizes.includes(width)) {
     return [width]
   }
-  const widths: number[] = []
-  for (let size of configDeviceSizes) {
-    widths.push(size)
-    if (size >= width) {
-      break
-    }
-  }
-  return widths
+  const largestIndex = configDeviceSizes.findIndex((size) => size >= width)
+  return largestIndex === -1
+    ? configDeviceSizes
+    : configDeviceSizes.slice(0, largestIndex + 1)
 }
 
 function computeSrc(
