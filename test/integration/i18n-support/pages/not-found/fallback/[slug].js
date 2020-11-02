@@ -24,6 +24,11 @@ export default function Page(props) {
 }
 
 export const getStaticProps = ({ params, locale, locales }) => {
+  // ensure getStaticProps isn't called without params
+  if (!params || !params.slug) {
+    throw new Error(`missing params ${JSON.stringify(params)}`)
+  }
+
   if (locale === 'en' || locale === 'nl') {
     return {
       notFound: true,
