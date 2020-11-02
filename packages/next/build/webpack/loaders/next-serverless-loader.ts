@@ -368,7 +368,10 @@ const nextServerlessLoader: loader.Loader = function () {
         return
       }
 
-      detectedLocale = detectedLocale || defaultLocale
+      detectedLocale =
+        localePathResult.detectedLocale ||
+        (detectedDomain && detectedDomain.defaultLocale) ||
+        defaultLocale
     `
     : `
       const i18n = {}
