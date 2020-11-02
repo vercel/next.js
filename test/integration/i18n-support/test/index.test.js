@@ -41,6 +41,49 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 function runTests(isDev) {
+  it('should have correct values for non-prefixed path', async () => {
+    for (const paths of [
+      ['/links', '/links'],
+      ['/another', '/another'],
+      ['/gsp/fallback/first', '/gsp/fallback/[slug]'],
+      ['/gsp/no-fallback/first', '/gsp/no-fallback/[slug]'],
+    ]) {
+      const [asPath, pathname] = paths
+
+      const res = await fetchViaHTTP(appPort, asPath, undefined, {
+        redirect: 'manual',
+        headers: {
+          'accept-language': 'fr',
+        },
+      })
+
+      expect(res.status).toBe(200)
+      const $ = cheerio.load(await res.text())
+      expect($('html').attr('lang')).toBe('en-US')
+      expect($('#router-locale').text()).toBe('en-US')
+      expect($('#router-default-locale').text()).toBe('en-US')
+      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+      expect($('#router-pathname').text()).toBe(pathname)
+      expect($('#router-as-path').text()).toBe(asPath)
+    }
+  })
+
+  it('should not have hydration mis-match from hash', async () => {
+    const browser = await webdriver(appPort, '/en#')
+
+    expect(await browser.elementByCss('html').getAttribute('lang')).toBe('en')
+    expect(await browser.elementByCss('#router-locale').text()).toBe('en')
+    expect(await browser.elementByCss('#router-default-locale').text()).toBe(
+      'en-US'
+    )
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(await browser.elementByCss('#router-pathname').text()).toBe('/')
+    expect(await browser.elementByCss('#router-as-path').text()).toBe('/')
+    expect(await browser.eval('window.caughtWarns')).toEqual([])
+  })
+
   if (!isDev) {
     it('should add i18n config to routes-manifest', async () => {
       const routesManifest = await fs.readJSON(
@@ -370,11 +413,13 @@ function runTests(isDev) {
     expect(parsedUrl.pathname).toBe('/fr/another')
     expect(parsedUrl.query).toEqual({})
     expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(await browser.eval('window.caughtWarns')).toEqual([])
   })
 
   it('should navigate with locale prop correctly GSP', async () => {
     const browser = await webdriver(appPort, '/links?nextLocale=nl')
     await addDefaultLocaleCookie(browser)
+    await browser.eval('window.beforeNav = 1')
 
     expect(await browser.elementByCss('#router-pathname').text()).toBe('/links')
     expect(await browser.elementByCss('#router-as-path').text()).toBe(
@@ -456,6 +501,8 @@ function runTests(isDev) {
     parsedUrl = url.parse(await browser.eval('window.location.href'), true)
     expect(parsedUrl.pathname).toBe('/nl/gsp/fallback/first')
     expect(parsedUrl.query).toEqual({})
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(await browser.eval('window.caughtWarns')).toEqual([])
   })
 
   it('should navigate with locale false correctly', async () => {
@@ -576,11 +623,13 @@ function runTests(isDev) {
     expect(parsedUrl.pathname).toBe('/fr/another')
     expect(parsedUrl.query).toEqual({})
     expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(await browser.eval('window.caughtWarns')).toEqual([])
   })
 
   it('should navigate with locale false correctly GSP', async () => {
     const browser = await webdriver(appPort, '/locale-false?nextLocale=nl')
     await addDefaultLocaleCookie(browser)
+    await browser.eval('window.beforeNav = 1')
 
     expect(await browser.elementByCss('#router-pathname').text()).toBe(
       '/locale-false'
@@ -666,6 +715,8 @@ function runTests(isDev) {
     parsedUrl = url.parse(await browser.eval('window.location.href'), true)
     expect(parsedUrl.pathname).toBe('/nl/gsp/fallback/first')
     expect(parsedUrl.query).toEqual({})
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(await browser.eval('window.caughtWarns')).toEqual([])
   })
 
   it('should update asPath on the client correctly', async () => {
@@ -1610,7 +1661,7 @@ function runTests(isDev) {
   it('should load getStaticProps non-fallback correctly another locale via cookie', async () => {
     const html = await renderViaHTTP(
       appPort,
-      '/gsp/no-fallback/second',
+      '/nl-NL/gsp/no-fallback/second',
       {},
       {
         headers: {

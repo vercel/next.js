@@ -429,7 +429,11 @@ export default class Server {
         res.end()
         return
       }
-      parsedUrl.query.__nextLocale = detectedLocale || defaultLocale
+
+      parsedUrl.query.__nextLocale =
+        localePathResult.detectedLocale ||
+        detectedDomain?.defaultLocale ||
+        defaultLocale
     }
 
     res.statusCode = 200
