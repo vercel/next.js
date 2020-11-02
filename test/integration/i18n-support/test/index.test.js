@@ -255,6 +255,32 @@ function runTests(isDev) {
     await addDefaultLocaleCookie(browser)
     await browser.eval('window.beforeNav = 1')
 
+    if (!isDev) {
+      await browser.eval(`(function() {
+        document.querySelector('#to-gsp').scrollIntoView()
+        document.querySelector('#to-fallback-first').scrollIntoView()
+        document.querySelector('#to-no-fallback-first').scrollIntoView()
+      })()`)
+
+      for (const dataPath of [
+        '/fr/gsp.json',
+        '/fr/gsp/fallback/first.json',
+        '/fr/gsp/fallback/hello.json',
+      ]) {
+        const found = await browser.eval(`(function() {
+          const links = [].slice.call(document.querySelectorAll('link'))
+
+          for (var i = 0; i < links.length; i++) {
+            if (links[i].href.indexOf("${dataPath}") > -1) {
+              return true
+            }
+          }
+          return false
+        })()`)
+        expect(found).toBe(true)
+      }
+    }
+
     expect(await browser.elementByCss('#router-pathname').text()).toBe('/links')
     expect(await browser.elementByCss('#router-as-path').text()).toBe(
       '/links?nextLocale=fr'
@@ -412,6 +438,32 @@ function runTests(isDev) {
     const browser = await webdriver(appPort, '/locale-false?nextLocale=fr')
     await addDefaultLocaleCookie(browser)
     await browser.eval('window.beforeNav = 1')
+
+    if (!isDev) {
+      await browser.eval(`(function() {
+        document.querySelector('#to-gsp').scrollIntoView()
+        document.querySelector('#to-fallback-first').scrollIntoView()
+        document.querySelector('#to-no-fallback-first').scrollIntoView()
+      })()`)
+
+      for (const dataPath of [
+        '/fr/gsp.json',
+        '/fr/gsp/fallback/first.json',
+        '/fr/gsp/fallback/hello.json',
+      ]) {
+        const found = await browser.eval(`(function() {
+          const links = [].slice.call(document.querySelectorAll('link'))
+
+          for (var i = 0; i < links.length; i++) {
+            if (links[i].href.indexOf("${dataPath}") > -1) {
+              return true
+            }
+          }
+          return false
+        })()`)
+        expect(found).toBe(true)
+      }
+    }
 
     expect(await browser.elementByCss('#router-pathname').text()).toBe(
       '/locale-false'
