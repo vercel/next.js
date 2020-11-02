@@ -63,8 +63,9 @@ const {
   domains: configDomains,
 } = imageData
 // sort smallest to largest
+const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)
-configImageSizes.sort((a, b) => a - b)
+allSizes.sort((a, b) => a - b)
 
 let cachedObserver: IntersectionObserver
 
@@ -105,28 +106,26 @@ function unLazifyImage(lazyImage: HTMLImageElement): void {
   lazyImage.classList.remove('__lazy')
 }
 
-function getDeviceSizes(
+function getSizes(
   width: number | undefined,
   layout: LayoutValue
-): number[] {
+): { sizes: number[]; kind: 'w' | 'x' } {
   if (
     typeof width !== 'number' ||
     layout === 'fill' ||
     layout === 'responsive'
   ) {
-    return configDeviceSizes
+    return { sizes: configDeviceSizes, kind: 'w' }
   }
-  if (configImageSizes.includes(width)) {
-    return [width]
-  }
-  const widths: number[] = []
-  for (let size of configDeviceSizes) {
-    widths.push(size)
-    if (size >= width) {
-      break
-    }
-  }
-  return widths
+
+  const sizes = [
+    ...new Set(
+      [width, width * 2, width * 3].map(
+        (w) => allSizes.find((p) => p >= w) || allSizes[allSizes.length - 1]
+      )
+    ),
+  ]
+  return { sizes, kind: 'x' }
 }
 
 function computeSrc(
@@ -139,8 +138,8 @@ function computeSrc(
   if (unoptimized) {
     return src
   }
-  const widths = getDeviceSizes(width, layout)
-  const largest = widths[widths.length - 1]
+  const { sizes } = getSizes(width, layout)
+  const largest = sizes[sizes.length - 1]
   return callLoader({ src, width: largest, quality })
 }
 
@@ -176,8 +175,14 @@ function generateSrcSet({
     return undefined
   }
 
-  return getDeviceSizes(width, layout)
-    .map((w) => `${callLoader({ src, width: w, quality })} ${w}w`)
+  const { sizes, kind } = getSizes(width, layout)
+  return sizes
+    .map(
+      (size, i) =>
+        `${callLoader({ src, width: size, quality })} ${
+          kind === 'w' ? size : i + 1
+        }${kind}`
+    )
     .join(', ')
 }
 
