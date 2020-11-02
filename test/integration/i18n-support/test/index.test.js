@@ -1,5 +1,6 @@
 /* eslint-env jest */
 
+import http from 'http'
 import url from 'url'
 import fs from 'fs-extra'
 import cheerio from 'cheerio'
@@ -17,6 +18,7 @@ import {
   File,
   waitFor,
   normalizeRegEx,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -192,6 +194,61 @@ function runTests(isDev) {
       })
     })
   }
+
+  it('should apply redirects correctly', async () => {
+    for (const path of ['/redirect', '/en-US/redirect', '/nl/redirect']) {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(307)
+
+      const parsed = url.parse(res.headers.get('location'), true)
+      expect(parsed.pathname).toBe('/somewhere-else')
+      expect(parsed.query).toEqual({})
+    }
+  })
+
+  it('should apply headers correctly', async () => {
+    for (const path of ['/add-header', '/en-US/add-header', '/nl/add-header']) {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(404)
+      expect(res.headers.get('x-hello')).toBe('world')
+    }
+  })
+
+  it('should apply rewrites correctly', async () => {
+    const checks = [
+      {
+        locale: 'en-US',
+        path: '/rewrite',
+      },
+      {
+        locale: 'en-US',
+        path: '/en-US/rewrite',
+      },
+      {
+        locale: 'nl',
+        path: '/nl/rewrite',
+      },
+    ]
+
+    for (const check of checks) {
+      const res = await fetchViaHTTP(appPort, check.path, undefined, {
+        redirect: 'manual',
+      })
+
+      expect(res.status).toBe(200)
+
+      const html = await res.text()
+      const $ = cheerio.load(html)
+      expect($('html').attr('lang')).toBe(check.locale)
+      expect($('#router-locale').text()).toBe(check.locale)
+      expect($('#router-pathname').text()).toBe('/another')
+      expect($('#router-as-path').text()).toBe('/rewrite')
+    }
+  })
 
   it('should navigate with locale prop correctly', async () => {
     const browser = await webdriver(appPort, '/links?nextLocale=fr')
@@ -1631,6 +1688,48 @@ describe('i18n Support', () => {
     afterAll(async () => {
       nextConfig.restore()
       await killApp(app)
+    })
+
+    it('should have correct props for blocking notFound', async () => {
+      const serverFile = getPageFileFromPagesManifest(
+        appDir,
+        '/not-found/blocking-fallback/[slug]'
+      )
+      const appPort = await findPort()
+      const mod = require(join(appDir, '.next/serverless', serverFile))
+
+      const server = http.createServer(async (req, res) => {
+        try {
+          await mod.render(req, res)
+        } catch (err) {
+          res.statusCode = 500
+          res.end('internal err')
+        }
+      })
+
+      await new Promise((resolve, reject) => {
+        server.listen(appPort, (err) => (err ? reject(err) : resolve()))
+      })
+      console.log('listening on', appPort)
+
+      const res = await fetchViaHTTP(
+        appPort,
+        '/nl/not-found/blocking-fallback/first'
+      )
+      server.close()
+
+      expect(res.status).toBe(404)
+
+      const $ = cheerio.load(await res.text())
+      const props = JSON.parse($('#props').text())
+
+      expect($('#not-found').text().length > 0).toBe(true)
+      expect(props).toEqual({
+        is404: true,
+        locale: 'nl',
+        locales,
+        defaultLocale: 'en-US',
+      })
     })
 
     runTests()
