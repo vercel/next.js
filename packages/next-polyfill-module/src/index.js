@@ -31,6 +31,7 @@ if (!('trimEnd' in String.prototype)) {
  */
 if (!('description' in Symbol.prototype)) {
   Object.defineProperty(Symbol.prototype, 'description', {
+    configurable: true,
     get: function get() {
       var m = /\((.*)\)/.exec(this.toString())
       return m ? m[1] : undefined

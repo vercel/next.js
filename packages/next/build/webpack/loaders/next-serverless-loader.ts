@@ -85,6 +85,17 @@ const nextServerlessLoader: loader.Loader = function () {
           .reduce((prev, key) => {
             let value = query[key]
 
+            // if the value matches the default value we can't rely
+            // on the parsed params, this is used to signal if we need
+            // to parse x-now-route-matches or not
+            const isDefaultValue = Array.isArray(value)
+              ? value.every((val, idx) => val === defaultRouteMatches[key][idx])
+              : value === defaultRouteMatches[key]
+
+            if (isDefaultValue || typeof value === 'undefined') {
+              hasValidParams = false
+            }
+
             ${
               ''
               // non-provided optional values should be undefined so normalize
@@ -127,6 +138,7 @@ const nextServerlessLoader: loader.Loader = function () {
       }
     `
     : ''
+
   const envLoading = `
     const { processEnv } = require('@next/env')
     processEnv(${Buffer.from(loadedEnvFiles, 'base64').toString()})
@@ -155,6 +167,7 @@ const nextServerlessLoader: loader.Loader = function () {
   const dynamicRouteMatcher = pageIsDynamicRoute
     ? `
     const dynamicRouteMatcher = getRouteMatcher(getRouteRegex("${page}"))
+    const defaultRouteMatches = dynamicRouteMatcher("${page}")
   `
     : ''
 
@@ -387,8 +400,6 @@ const nextServerlessLoader: loader.Loader = function () {
 
       ${defaultRouteRegex}
 
-      ${normalizeDynamicRouteParams}
-
       ${handleRewrites}
 
       export default async (req, res) => {
@@ -399,7 +410,9 @@ const nextServerlessLoader: loader.Loader = function () {
           // to ensure we are using the correct values
           const trustQuery = req.headers['${vercelHeader}']
           const parsedUrl = handleRewrites(parseUrl(req.url, true))
+          let hasValidParams = true
 
+          ${normalizeDynamicRouteParams}
           ${handleBasePath}
 
           const params = ${
@@ -484,7 +497,6 @@ const nextServerlessLoader: loader.Loader = function () {
 
     ${dynamicRouteMatcher}
     ${defaultRouteRegex}
-    ${normalizeDynamicRouteParams}
     ${handleRewrites}
 
     export let config = compMod['confi' + 'g'] || (compMod.then && compMod.then(mod => mod['confi' + 'g'])) || {}
@@ -517,6 +529,9 @@ const nextServerlessLoader: loader.Loader = function () {
 
       const fromExport = renderMode === 'export' || renderMode === true;
       const nextStartMode = renderMode === 'passthrough'
+      let hasValidParams = true
+
+      ${normalizeDynamicRouteParams}
 
       setLazyProp({ req }, 'cookies', getCookieParser(req))
 
@@ -620,6 +635,7 @@ const nextServerlessLoader: loader.Loader = function () {
             `
             : `const params = {};`
         }
+
         ${
           // Temporary work around: `x-now-route-matches` is a platform header
           // _only_ set for `Prerender` requests. We should move this logic
@@ -627,7 +643,7 @@ const nextServerlessLoader: loader.Loader = function () {
           // removing reliance on `req.url` and using `req.query` instead
           // (which is needed for "custom routes" anyway).
           pageIsDynamicRoute
-            ? `const nowParams = req.headers && req.headers["x-now-route-matches"]
+            ? `const nowParams = !hasValidParams && req.headers && req.headers["x-now-route-matches"]
               ? getRouteMatcher(
                   (function() {
                     const { re, groups, routeKeys } = getRouteRegex("${page}");
