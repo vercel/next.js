@@ -92,11 +92,21 @@ if (process.env.__NEXT_I18N_SUPPORT) {
     detectDomainLocale,
   } = require('../next-server/lib/i18n/detect-domain-locale') as typeof import('../next-server/lib/i18n/detect-domain-locale')
 
+  const {
+    parseRelativeUrl,
+  } = require('../next-server/lib/router/utils/parse-relative-url') as typeof import('../next-server/lib/router/utils/parse-relative-url')
+
+  const {
+    formatUrl,
+  } = require('../next-server/lib/router/utils/format-url') as typeof import('../next-server/lib/router/utils/format-url')
+
   if (locales) {
-    const localePathResult = normalizeLocalePath(asPath, locales)
+    const parsedAs = parseRelativeUrl(asPath)
+    const localePathResult = normalizeLocalePath(parsedAs.pathname, locales)
 
     if (localePathResult.detectedLocale) {
-      asPath = asPath.substr(localePathResult.detectedLocale.length + 1) || '/'
+      parsedAs.pathname = localePathResult.pathname
+      asPath = formatUrl(parsedAs)
     } else {
       // derive the default locale if it wasn't detected in the asPath
       // since we don't prerender static pages with all possible default
