@@ -411,7 +411,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       ...i18n.locales.filter((locale: string) => locale !== i18n.defaultLocale),
     ]
 
-    const localeDetectionType = typeof i18n.locales.localeDetection
+    const localeDetectionType = typeof i18n.localeDetection
 
     if (
       localeDetectionType !== 'boolean' &&

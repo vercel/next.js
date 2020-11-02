@@ -243,10 +243,12 @@ const nextServerlessLoader: loader.Loader = function () {
       let locales = i18n.locales
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
-      let acceptPreferredLocale = accept.language(
-        req.headers['accept-language'],
-        i18n.locales
-      )
+      let acceptPreferredLocale = i18n.localeDetection !== false
+        ? accept.language(
+          req.headers['accept-language'],
+          i18n.locales
+        )
+        : detectedLocale
 
       const { host } = req.headers || {}
       // remove port from host and remove port if present

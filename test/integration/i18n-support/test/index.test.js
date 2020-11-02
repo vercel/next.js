@@ -1823,4 +1823,91 @@ describe('i18n Support', () => {
 
     runTests()
   })
+
+  describe('with localeDetection disabled', () => {
+    beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
+      nextConfig.replace('// localeDetection', 'localeDetection')
+
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      nextConfig.restore()
+      await killApp(app)
+    })
+
+    it('should have localeDetection in routes-manifest', async () => {
+      const routesManifest = await fs.readJSON(
+        join(appDir, '.next/routes-manifest.json')
+      )
+
+      expect(routesManifest.i18n).toEqual({
+        localeDetection: false,
+        locales: ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en'],
+        defaultLocale: 'en-US',
+        domains: [
+          {
+            http: true,
+            domain: 'example.be',
+            defaultLocale: 'nl-BE',
+            locales: ['nl', 'nl-NL', 'nl-BE'],
+          },
+          {
+            http: true,
+            domain: 'example.fr',
+            defaultLocale: 'fr',
+            locales: ['fr-BE'],
+          },
+        ],
+      })
+    })
+
+    it('should not detect locale from accept-language', async () => {
+      const res = await fetchViaHTTP(
+        appPort,
+        '/',
+        {},
+        {
+          redirect: 'manual',
+          headers: {
+            'accept-language': 'fr',
+          },
+        }
+      )
+
+      expect(res.status).toBe(200)
+      const $ = cheerio.load(await res.text())
+      expect($('html').attr('lang')).toBe('en-US')
+      expect($('#router-locale').text()).toBe('en-US')
+      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+      expect($('#router-pathname').text()).toBe('/')
+      expect($('#router-as-path').text()).toBe('/')
+    })
+
+    it('should set locale from detected path', async () => {
+      for (const locale of locales) {
+        const res = await fetchViaHTTP(
+          appPort,
+          `/${locale}`,
+          {},
+          {
+            redirect: 'manual',
+            headers: {
+              'accept-language': 'en-US,en;q=0.9',
+            },
+          }
+        )
+
+        expect(res.status).toBe(200)
+        const $ = cheerio.load(await res.text())
+        expect($('html').attr('lang')).toBe(locale)
+        expect($('#router-locale').text()).toBe(locale)
+        expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+        expect($('#router-pathname').text()).toBe('/')
+        expect($('#router-as-path').text()).toBe('/')
+      }
+    })
+  })
 })
