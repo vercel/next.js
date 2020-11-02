@@ -269,6 +269,7 @@ export type NextRouter = BaseRouter &
 
 export type PrefetchOptions = {
   priority?: boolean
+  locale?: string | false
 }
 
 export type PrivateRouteInfo = {
@@ -1171,6 +1172,26 @@ export default class Router implements BaseRouter {
 
     let { pathname } = parsed
 
+    if (process.env.__NEXT_I18N_SUPPORT) {
+      const normalizeLocalePath = require('../i18n/normalize-locale-path')
+        .normalizeLocalePath as typeof import('../i18n/normalize-locale-path').normalizeLocalePath
+
+      if (options.locale === false) {
+        pathname = normalizeLocalePath!(pathname, this.locales).pathname
+        parsed.pathname = pathname
+        url = formatWithValidation(parsed)
+
+        let parsedAs = parseRelativeUrl(asPath)
+        const localePathResult = normalizeLocalePath!(
+          parsedAs.pathname,
+          this.locales
+        )
+        parsedAs.pathname = localePathResult.pathname
+        options.locale = localePathResult.detectedLocale || options.locale
+        asPath = formatWithValidation(parsedAs)
+      }
+    }
+
     const pages = await this.pageLoader.getPageList()
 
     parsed = this._resolveHref(parsed, pages) as typeof parsed
@@ -1190,7 +1211,7 @@ export default class Router implements BaseRouter {
       this.pageLoader.prefetchData(
         url,
         asPath,
-        this.locale,
+        typeof options.locale !== 'undefined' ? options.locale : this.locale,
         this.defaultLocale
       ),
       this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
