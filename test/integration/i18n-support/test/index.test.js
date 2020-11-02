@@ -172,6 +172,11 @@ function runTests(isDev) {
           initialRevalidateSeconds: false,
           srcRoute: '/not-found/fallback/[slug]',
         },
+        '/frank': {
+          dataRoute: `/_next/data/${buildId}/frank.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: null,
+        },
         '/gsp': {
           dataRoute: `/_next/data/${buildId}/gsp.json`,
           srcRoute: null,
@@ -1090,6 +1095,30 @@ function runTests(isDev) {
         expect(parsedUrl.query).toEqual({})
       }
     }
+  })
+
+  it('should transition on client properly for page that starts with locale', async () => {
+    const browser = await webdriver(appPort, '/fr')
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/frank')
+    })()`)
+
+    await browser.waitForElementByCss('#frank')
+
+    expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
+    expect(
+      JSON.parse(await browser.elementByCss('#router-locales').text())
+    ).toEqual(locales)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({})
+    expect(await browser.elementByCss('#router-pathname').text()).toBe('/frank')
+    expect(await browser.elementByCss('#router-as-path').text()).toBe('/frank')
+    expect(
+      url.parse(await browser.eval(() => window.location.href)).pathname
+    ).toBe('/fr/frank')
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should 404 for GSP that returned notFound on client-transition', async () => {
