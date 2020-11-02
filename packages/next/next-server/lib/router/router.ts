@@ -854,6 +854,12 @@ export default class Router implements BaseRouter {
           window.scrollTo((options as any)._N_X, (options as any)._N_Y)
         }
       }
+
+      if (process.env.__NEXT_I18N_SUPPORT) {
+        if (this.locale) {
+          document.documentElement.lang = this.locale
+        }
+      }
       Router.events.emit('routeChangeComplete', as)
 
       return true
