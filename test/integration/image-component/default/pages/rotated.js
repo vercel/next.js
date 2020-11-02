@@ -6,7 +6,7 @@ const Page = () => {
     <div>
       <p>Hello World</p>
       <Image id="exif-rotation-image" src="/exif-rotation.jpg" unsized />
-      <p id="stubtext">This is the index page</p>
+      <p id="stubtext">This is the rotated page</p>
     </div>
   )
 }
