@@ -220,14 +220,14 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
     if (typeof images !== 'object') {
       throw new Error(
-        `Specified images should be an object received ${typeof images}.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
+        `Specified images should be an object received ${typeof images}.\nSee more info here: https://err.sh/next.js/invalid-images-config`
       )
     }
 
     if (images.domains) {
       if (!Array.isArray(images.domains)) {
         throw new Error(
-          `Specified images.domains should be an Array received ${typeof images.domains}.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
+          `Specified images.domains should be an Array received ${typeof images.domains}.\nSee more info here: https://err.sh/next.js/invalid-images-config`
         )
       }
 
@@ -244,7 +244,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         throw new Error(
           `Specified images.domains should be an Array of strings received invalid values (${invalid.join(
             ', '
-          )}).\nSee more info here: https://err.sh/nextjs/invalid-images-config`
+          )}).\nSee more info here: https://err.sh/next.js/invalid-images-config`
         )
       }
     }
@@ -252,7 +252,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       const { deviceSizes } = images
       if (!Array.isArray(deviceSizes)) {
         throw new Error(
-          `Specified images.deviceSizes should be an Array received ${typeof deviceSizes}.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
+          `Specified images.deviceSizes should be an Array received ${typeof deviceSizes}.\nSee more info here: https://err.sh/next.js/invalid-images-config`
         )
       }
 
@@ -270,7 +270,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         throw new Error(
           `Specified images.deviceSizes should be an Array of numbers that are between 1 and 10000, received invalid values (${invalid.join(
             ', '
-          )}).\nSee more info here: https://err.sh/nextjs/invalid-images-config`
+          )}).\nSee more info here: https://err.sh/next.js/invalid-images-config`
         )
       }
     }
@@ -278,7 +278,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       const { imageSizes } = images
       if (!Array.isArray(imageSizes)) {
         throw new Error(
-          `Specified images.imageSizes should be an Array received ${typeof imageSizes}.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
+          `Specified images.imageSizes should be an Array received ${typeof imageSizes}.\nSee more info here: https://err.sh/next.js/invalid-images-config`
         )
       }
 
@@ -296,7 +296,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         throw new Error(
           `Specified images.imageSizes should be an Array of numbers that are between 1 and 10000, received invalid values (${invalid.join(
             ', '
-          )}).\nSee more info here: https://err.sh/nextjs/invalid-images-config`
+          )}).\nSee more info here: https://err.sh/next.js/invalid-images-config`
         )
       }
     }
@@ -316,13 +316,13 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
     if (i18nType !== 'object') {
       throw new Error(
-        `Specified i18n should be an object received ${i18nType}.\nSee more info here: https://err.sh/nextjs/invalid-i18n-config`
+        `Specified i18n should be an object received ${i18nType}.\nSee more info here: https://err.sh/next.js/invalid-i18n-config`
       )
     }
 
     if (!Array.isArray(i18n.locales)) {
       throw new Error(
-        `Specified i18n.locales should be an Array received ${typeof i18n.locales}.\nSee more info here: https://err.sh/nextjs/invalid-i18n-config`
+        `Specified i18n.locales should be an Array received ${typeof i18n.locales}.\nSee more info here: https://err.sh/next.js/invalid-i18n-config`
       )
     }
 
@@ -330,7 +330,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
     if (!i18n.defaultLocale || defaultLocaleType !== 'string') {
       throw new Error(
-        `Specified i18n.defaultLocale should be a string.\nSee more info here: https://err.sh/nextjs/invalid-i18n-config`
+        `Specified i18n.defaultLocale should be a string.\nSee more info here: https://err.sh/next.js/invalid-i18n-config`
       )
     }
 
@@ -374,14 +374,14 @@ function assignDefaults(userConfig: { [key: string]: any }) {
             .map((item: any) => JSON.stringify(item))
             .join(
               '\n'
-            )}\n\ndomains value must follow format { domain: 'example.fr', defaultLocale: 'fr', locales: ['fr'] }.\nSee more info here: https://err.sh/nextjs/invalid-i18n-config`
+            )}\n\ndomains value must follow format { domain: 'example.fr', defaultLocale: 'fr', locales: ['fr'] }.\nSee more info here: https://err.sh/next.js/invalid-i18n-config`
         )
       }
     }
 
     if (!Array.isArray(i18n.locales)) {
       throw new Error(
-        `Specified i18n.locales must be an array of locale strings e.g. ["en-US", "nl-NL"] received ${typeof i18n.locales}.\nSee more info here: https://err.sh/nextjs/invalid-i18n-config`
+        `Specified i18n.locales must be an array of locale strings e.g. ["en-US", "nl-NL"] received ${typeof i18n.locales}.\nSee more info here: https://err.sh/next.js/invalid-i18n-config`
       )
     }
 
@@ -402,7 +402,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
     if (!i18n.locales.includes(i18n.defaultLocale)) {
       throw new Error(
-        `Specified i18n.defaultLocale should be included in i18n.locales.\nSee more info here: https://err.sh/nextjs/invalid-i18n-config`
+        `Specified i18n.defaultLocale should be included in i18n.locales.\nSee more info here: https://err.sh/next.js/invalid-i18n-config`
       )
     }
 
@@ -419,7 +419,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       localeDetectionType !== 'undefined'
     ) {
       throw new Error(
-        `Specified i18n.localeDetection should be undefined or a boolean received ${localeDetectionType}.\nSee more info here: https://err.sh/nextjs/invalid-i18n-config`
+        `Specified i18n.localeDetection should be undefined or a boolean received ${localeDetectionType}.\nSee more info here: https://err.sh/next.js/invalid-i18n-config`
       )
     }
   }
