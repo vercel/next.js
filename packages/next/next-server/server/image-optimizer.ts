@@ -259,6 +259,8 @@ export async function imageOptimizer(
 
   try {
     const transformer = sharp(upstreamBuffer)
+    transformer.rotate() // auto rotate based on EXIF data
+
     const { width: metaWidth } = await transformer.metadata()
 
     if (metaWidth && metaWidth > width) {

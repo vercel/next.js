@@ -10,6 +10,7 @@ import {
   check,
   hasRedbox,
   getRedboxHeader,
+  waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import fs from 'fs-extra'
@@ -317,6 +318,44 @@ function runTests(mode) {
       expect(await getRedboxHeader(browser)).toContain(
         'Image with src "/test.png" has deprecated "unsized" property, which was removed in favor of the "layout=\'fill\'" property'
       )
+    })
+  }
+
+  // Tests that use the `unsized` attribute:
+  if (mode !== 'dev') {
+    it('should correctly rotate image', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/rotated')
+
+        const id = 'exif-rotation-image'
+
+        // Wait for image to load:
+        await check(async () => {
+          const result = await browser.eval(
+            `document.getElementById(${JSON.stringify(id)}).naturalWidth`
+          )
+
+          if (result < 1) {
+            throw new Error('Image not ready')
+          }
+
+          return 'result-correct'
+        }, /result-correct/)
+
+        await waitFor(1000)
+
+        const computedWidth = await getComputed(browser, id, 'width')
+        const computedHeight = await getComputed(browser, id, 'height')
+        expect(getRatio(computedWidth, computedHeight) / 1000.0).toBeCloseTo(
+          1.333,
+          1
+        )
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
     })
   }
 }
