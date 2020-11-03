@@ -163,8 +163,11 @@ export class Head extends Component<
       dynamicImports,
     } = this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
-    const sharedFiles = new Set(files.sharedFiles)
+    const sharedFiles: Set<string> = new Set(files.sharedFiles)
 
+    // Unmanaged files are CSS files that will be handled directly by the
+    // webpack runtime (`mini-css-extract-plugin`).
+    let unmangedFiles: Set<string> = new Set([])
     let dynamicCssFiles = dedupe(
       dynamicImports.filter((f) => f.file.endsWith('.css'))
     ).map((f) => f.file)
@@ -173,13 +176,14 @@ export class Head extends Component<
       dynamicCssFiles = dynamicCssFiles.filter(
         (f) => !(existing.has(f) || sharedFiles.has(f))
       )
+      unmangedFiles = new Set(dynamicCssFiles)
       cssFiles.push(...dynamicCssFiles)
     }
 
     const cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
       const isSharedFile = sharedFiles.has(file)
-
+      const isUnmanagedFile = unmangedFiles.has(file)
       cssLinkElements.push(
         <link
           key={`${file}-preload`}
@@ -203,8 +207,8 @@ export class Head extends Component<
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
           }
-          data-n-g={isSharedFile ? '' : undefined}
-          data-n-p={isSharedFile ? undefined : ''}
+          data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
+          data-n-p={isUnmanagedFile ? undefined : isSharedFile ? undefined : ''}
         />
       )
     })

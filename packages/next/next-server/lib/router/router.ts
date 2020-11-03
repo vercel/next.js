@@ -62,7 +62,10 @@ export function addLocale(
   defaultLocale?: string
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
-    return locale && locale !== defaultLocale && !path.startsWith('/' + locale)
+    return locale &&
+      locale !== defaultLocale &&
+      !path.startsWith('/' + locale + '/') &&
+      path !== '/' + locale
       ? addPathPrefix(path, '/' + locale)
       : path
   }
@@ -71,7 +74,8 @@ export function addLocale(
 
 export function delLocale(path: string, locale?: string) {
   if (process.env.__NEXT_I18N_SUPPORT) {
-    return locale && path.startsWith('/' + locale)
+    return locale &&
+      (path.startsWith('/' + locale + '/') || path === '/' + locale)
       ? path.substr(locale.length + 1) || '/'
       : path
   }
@@ -852,6 +856,12 @@ export default class Router implements BaseRouter {
       if (process.env.__NEXT_SCROLL_RESTORATION) {
         if (manualScrollRestoration && '_N_X' in options) {
           window.scrollTo((options as any)._N_X, (options as any)._N_Y)
+        }
+      }
+
+      if (process.env.__NEXT_I18N_SUPPORT) {
+        if (this.locale) {
+          document.documentElement.lang = this.locale
         }
       }
       Router.events.emit('routeChangeComplete', as)
