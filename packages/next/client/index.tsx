@@ -658,7 +658,7 @@ function doRender({
     return true
   }
 
-  function onHeadLayout() {
+  function onHeadCommit() {
     if (
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
@@ -722,12 +722,13 @@ function doRender({
     }
   }
 
-  function onRootLayout() {
+  function onRootCommit() {
     resolvePromise()
   }
 
   const elem = (
-    <Root onHeadLayout={onHeadLayout} onRootLayout={onRootLayout}>
+    <Root callback={onRootCommit}>
+      <Head callback={onHeadCommit} />
       <AppContainer>
         <App {...appProps} />
       </AppContainer>
@@ -750,16 +751,14 @@ function doRender({
 }
 
 function Root({
-  onRootLayout,
-  onHeadLayout,
+  callback,
   children,
 }: React.PropsWithChildren<{
-  onRootLayout: () => void
-  onHeadLayout: () => void
+  callback: () => void
 }>): React.ReactElement {
   // We use `useLayoutEffect` to guarantee the callback is executed
   // as soon as React flushes the update.
-  React.useLayoutEffect(() => onRootLayout(), [onRootLayout])
+  React.useLayoutEffect(() => callback(), [callback])
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -775,15 +774,12 @@ function Root({
   React.useEffect(() => {
     measureWebVitals(onPerfEntry)
   }, [])
-  return (
-    <>
-      <Head onLayout={onHeadLayout} />
-      {children}
-    </>
-  )
+  return children as React.ReactElement
 }
 
-function Head({ onLayout }: { onLayout: () => void }) {
-  React.useLayoutEffect(() => onLayout(), [onLayout])
+function Head({ callback }: { callback: () => void }) {
+  // We use `useLayoutEffect` to guarantee the callback is executed
+  // as soon as React flushes the update.
+  React.useLayoutEffect(() => callback(), [callback])
   return null
 }
