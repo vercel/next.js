@@ -94,15 +94,18 @@ function Blog({ posts }) {
   )
 }
 
+async function getPosts() {
+  // Call an external API endpoint to get posts.
+  // You can use any data fetching library
+  const res = await fetch('https://.../posts')
+  return res.json()
+}
+
 // This function gets called at build time on server-side.
 // It won't be called on client-side, so you can even do
 // direct database queries. See the "Technical details" section.
 export async function getStaticProps() {
-  // Call an external API endpoint to get posts.
-  // You can use any data fetching library
-  const res = await fetch('https://.../posts')
-  const posts = await res.json()
-
+  const posts = await getPosts()
   // By returning { props: posts }, the Blog component
   // will receive `posts` as a prop at build time
   return {
@@ -146,9 +149,13 @@ type Post = {
   content: string
 }
 
-export const getStaticProps = async () => {
+async function getPosts() {
   const res = await fetch('https://.../posts')
-  const posts: Post[] = await res.json()
+  return res.json()
+}
+
+export const getStaticProps = async () => {
+  const posts: Post[] = await getPosts()
 
   return {
     props: {
@@ -192,12 +199,16 @@ function Blog({ posts }) {
   )
 }
 
+async function getPosts() {
+  const res = await fetch('https://.../posts')
+  return res.json()
+}
+
 // This function gets called at build time on server-side.
 // It may be called again, on a serverless function, if
 // revalidation is enabled and a new request comes in
 export async function getStaticProps() {
-  const res = await fetch('https://.../posts')
-  const posts = await res.json()
+  const posts = await getPosts()
 
   return {
     props: {
@@ -376,11 +387,15 @@ function Post({ post }) {
   // Render post...
 }
 
+async function getPosts() {
+  const res = await fetch('https://.../posts')
+  return res.json()
+}
+
 // This function gets called at build time
 export async function getStaticPaths() {
   // Call an external API endpoint to get posts
-  const res = await fetch('https://.../posts')
-  const posts = await res.json()
+  const posts = await getPosts()
 
   // Get the paths we want to pre-render based on posts
   const paths = posts.map((post) => ({
@@ -396,8 +411,13 @@ export async function getStaticPaths() {
 export async function getStaticProps({ params }) {
   // params contains the post `id`.
   // If the route is like /posts/1, then params.id is 1
-  const res = await fetch(`https://.../posts/${params.id}`)
-  const post = await res.json()
+
+  async function getPostById(id) {
+    const res = await fetch(`https://.../posts/${id}`)
+    return res.json()
+  }
+
+  const post = await getPostById(params.id)
 
   // Pass post data to the page via props
   return { props: { post } }
@@ -461,12 +481,16 @@ export async function getStaticPaths() {
   }
 }
 
+async function getPostById(id) {
+  const res = await fetch(`https://.../posts/${id}`)
+  return res.json()
+}
+
 // This also gets called at build time
 export async function getStaticProps({ params }) {
   // params contains the post `id`.
   // If the route is like /posts/1, then params.id is 1
-  const res = await fetch(`https://.../posts/${params.id}`)
-  const post = await res.json()
+  const post = await getPostById(params.id)
 
   // Pass post data to the page via props
   return {
@@ -581,11 +605,15 @@ function Page({ data }) {
   // Render data...
 }
 
+async function getData() {
+  const res = await fetch(`https://.../data`)
+  return res.json()
+}
+
 // This gets called on every request
 export async function getServerSideProps() {
   // Fetch data from external API
-  const res = await fetch(`https://.../data`)
-  const data = await res.json()
+  const data = await getData()
 
   // Pass data to the page via props
   return { props: { data } }
@@ -619,9 +647,13 @@ import { InferGetServerSidePropsType } from 'next'
 
 type Data = { ... }
 
+async function getData() {
+  const res = await fetch(`https://.../data`);
+  return res.json();
+}
+
 export const getServerSideProps = async () => {
-  const res = await fetch('https://.../data')
-  const data: Data = await res.json()
+  const data: Data = await getData();
 
   return {
     props: {
