@@ -862,9 +862,9 @@ export async function renderToHTML(
     )
   }
 
-  // We only need to do this if we want to support calling
-  // _app's getInitialProps for getServerSideProps if not this can be removed
-  if (isDataReq && !isSSG) return props
+  // Avoid rendering page un-necessarily for getServerSideProps data request
+  // and getServerSideProps/getStaticProps redirects
+  if (isDataReq && (!isSSG || props.pageProps.__N_REDIRECT)) return props
 
   // We don't call getStaticProps or getServerSideProps while generating
   // the fallback so make sure to set pageProps to an empty object
