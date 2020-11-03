@@ -23,6 +23,8 @@ Instead of optimizing images at build time, Next.js optimizes images on-demand, 
 
 Images are lazy loaded by default. That means your page speed isn't penalized for images outside the viewport. Images load as they are scrolled into viewport.
 
+Images are always rendered in such a way as to avoid prevent [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google is going to [use in search ranking](https://webmasters.googleblog.com/2020/05/evaluating-page-experience.html).
+
 ## Image Component
 
 To add an image to your application, import the [`next/image`](/docs/api-reference/next/image.md) component:
@@ -48,14 +50,11 @@ function Home() {
 export default Home
 ```
 
-- `width` and `height` are required to prevent [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google is going to [use in their search ranking](https://webmasters.googleblog.com/2020/05/evaluating-page-experience.html)
-- `width` and `height` are automatically responsive, unlike the HTML `<img>` element
-- `quality` can be configured per image, default 75
-- See [`next/image`](/docs/api-reference/next/image.md) for list of available props.
+[View all properties](/docs/api-reference/next/image.md) available to the `next/image` component.
 
 ## Configuration
 
-You can optionally configure Image Optimization by using the `images` property in `next.config.js`.
+In addition to [using properties](/docs/api-reference/next/image.md) available to the `next/image` component, you can optionally configure Image Optimization for more advanced use cases via `next.config.js`.
 
 If no configuration is provided, the following default configuration will be used.
 
@@ -127,11 +126,11 @@ module.exports = {
 
 The following Image Optimization cloud providers are supported:
 
-- When using `next start` or a custom server image optimization works automatically.
-- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary.
+- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/next.js/image-optimization)
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
+- Other: Works automatically with `next dev`, `next start`, or a custom server
 
 ## Caching
 
