@@ -52,8 +52,8 @@ export default Home
 - `sizes` - Defines what proportion of the screen you expect the image to take up. Recommended, as it helps serve the correct sized image to each device. [More info](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
 - `quality` - The quality of the optimized image, an integer between 1 and 100 where 100 is the best quality. Default 75.
 - `loading` - The loading behavior. When `lazy`, defer loading the image until it reaches a calculated distance from the viewport. When `eager`, load the image immediately. Default `lazy`. [More info](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-loading)
-- `priority` - When true, the image will be considered high priority and [preload](https://web.dev/preload-responsive-images/).
-- `unoptimized` - When true, the source image will be served as-is instead of resizing and changing quality.
+- `priority` - When true, the image will be considered high priority and [preload](https://web.dev/preload-responsive-images/). Should only be used when the image is visible above the fold.
+- `unoptimized` - When true, the source image will be served as-is instead of changing quality, size, or format.
 - `unsized` - **Deprecated** When true, the `width` and `height` requirement can by bypassed. Use the `layout` property instead!
 
 All other properties on the `<Image>` component will be passed to the underlying `<img>` element.
