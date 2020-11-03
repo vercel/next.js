@@ -475,6 +475,14 @@ export async function ncc_unistore(task, opts) {
     .ncc({ packageName: 'unistore', externals })
     .target('compiled/unistore')
 }
+// eslint-disable-next-line camelcase
+externals['web-vitals'] = 'next/dist/compiled/web-vitals'
+export async function ncc_web_vitals(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('web-vitals')))
+    .ncc({ packageName: 'web-vitals', externals })
+    .target('compiled/web-vitals')
+}
 
 externals['terser-webpack-plugin'] = 'next/dist/compiled/terser-webpack-plugin'
 export async function ncc_terser_webpack_plugin(task, opts) {
@@ -575,6 +583,7 @@ export async function ncc(task) {
       'ncc_text_table',
       'ncc_thread_loader',
       'ncc_unistore',
+      'ncc_web_vitals',
       'ncc_terser_webpack_plugin',
       'ncc_comment_json',
       'ncc_semver',
