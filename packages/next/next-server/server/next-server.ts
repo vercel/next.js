@@ -280,7 +280,10 @@ export default class Server {
     return PHASE_PRODUCTION_SERVER
   }
 
-  public logError(err: Error): void {
+  public logError(err: Error, req: IncomingMessage, res: ServerResponse): void {
+    if (this.onErrorMiddleware) {
+      this.onErrorMiddleware({ err, req, res })
+    }
     if (this.quiet) return
     console.error(err)
   }
@@ -442,10 +445,7 @@ export default class Server {
     try {
       return await this.run(req, res, parsedUrl)
     } catch (err) {
-      if (this.onErrorMiddleware) {
-        this.onErrorMiddleware({ err, req, res })
-      }
-      this.logError(err)
+      this.logError(err, req, res)
       res.statusCode = 500
       res.end('Internal Server Error')
     }
@@ -1593,10 +1593,7 @@ export default class Server {
         }
       }
     } catch (err) {
-      if (this.onErrorMiddleware) {
-        this.onErrorMiddleware({ err, req, res })
-      }
-      this.logError(err)
+      this.logError(err, req, res)
 
       if (err && err.code === 'DECODE_FAILED') {
         res.statusCode = 400
