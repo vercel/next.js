@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@types/dotenv": "8.2.0",
-    "@zeit/ncc": "^0.20.4",
+    "@vercel/ncc": "^0.24.1",
     "dotenv": "8.2.0",
     "dotenv-expand": "5.1.0"
   }
