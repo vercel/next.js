@@ -121,7 +121,7 @@
   }
 }
 
-.language{
+.language {
   display: inline-block;
   padding: 0.5rem 1rem;
   margin: 0 0.5rem 2rem;
@@ -129,7 +129,7 @@
   border-radius: 5px;
 }
 
-.languageActive{
+.languageActive {
   color: white;
   background-color: #0070f3;
   border: none;

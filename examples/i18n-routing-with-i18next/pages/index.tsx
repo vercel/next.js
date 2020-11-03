@@ -5,7 +5,7 @@ import { Trans } from 'react-i18next'
 import styles from '../styles/Home.module.css'
 
 export default function Home() {
-  const {locale} = useRouter();
+  const { locale } = useRouter()
   return (
     <div className={styles.container}>
       <Head>
@@ -16,10 +16,22 @@ export default function Home() {
       <main className={styles.main}>
         <div>
           <Link href="/" locale="de">
-            <a className={`${styles.language} ${locale === 'de' && styles.languageActive}`}>Deutsch</a>
+            <a
+              className={`${styles.language} ${
+                locale === 'de' && styles.languageActive
+              }`}
+            >
+              Deutsch
+            </a>
           </Link>
           <Link href="/" locale="en">
-            <a className={`${styles.language} ${locale === 'en' && styles.languageActive}`}>English</a>
+            <a
+              className={`${styles.language} ${
+                locale === 'en' && styles.languageActive
+              }`}
+            >
+              English
+            </a>
           </Link>
         </div>
         <h1 className={styles.title}>
