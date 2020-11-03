@@ -86,7 +86,23 @@ export async function imageOptimizer(
       return { finished: true }
     }
 
-    if (!domains.includes(hrefParsed.hostname)) {
+    if (
+      !domains.some((domain) => {
+        if (domain.includes('*')) {
+          const domainExpr = new RegExp(
+            '^' +
+              domain
+                .split(/\*+/)
+                .map((s) => s.replace(/[|\\{}()[\]^$+*?.]/g, '\\$&'))
+                .join('.*') +
+              '$'
+          )
+          return domainExpr.test(hrefParsed.hostname)
+        } else {
+          return hrefParsed.hostname === domain
+        }
+      })
+    ) {
       res.statusCode = 400
       res.end('"url" parameter is not allowed')
       return { finished: true }

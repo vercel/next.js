@@ -564,4 +564,37 @@ describe('Image Optimizer', () => {
       expect(res.status).toBe(404)
     })
   })
+
+  describe('dev support next.config.js domains pattern', () => {
+    beforeAll(async () => {
+      const json = JSON.stringify({
+        images: {
+          domains: ['*.placeholder.com'],
+        },
+      })
+      nextConfig.replace('{ /* replaceme */ }', json)
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+      await fs.remove(imagesDir)
+    })
+    it('should 200 when correct domain is used', async () => {
+      const size = 384 // defaults defined in server/config.ts
+      const query = { w: size, q: 90, url: 'https://via.placeholder.com/500' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+    })
+
+    it('should 400 when invalid domain is used', async () => {
+      const size = 384 // defaults defined in server/config.ts
+      const query = { w: size, q: 90, url: 'https://via.invalid.com/500' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(400)
+    })
+  })
 })
