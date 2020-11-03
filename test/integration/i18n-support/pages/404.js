@@ -7,10 +7,12 @@ export default function NotFound(props) {
   )
 }
 
-export const getStaticProps = ({ locale }) => {
+export const getStaticProps = ({ locale, locales, defaultLocale }) => {
   return {
     props: {
       locale,
+      locales,
+      defaultLocale,
       is404: true,
     },
   }
