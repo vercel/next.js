@@ -15,7 +15,7 @@ async function webpackFinal(config) {
     target: 'server',
     config: nextConfig,
     buildId: 'storybook',
-    rewrites: []
+    rewrites: [],
   })
 
   config.plugins = [...config.plugins, ...nextWebpackConfig.plugins]
