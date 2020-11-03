@@ -128,7 +128,7 @@ module.exports = {
 The following Image Optimization cloud providers are supported:
 
 - When using `next start` or a custom server image optimization works automatically.
-- [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary.
+- [Vercel](https://vercel.com): [Works automatically when you deploy on Vercel](https://vercel.com/docs/next.js/image-optimization), no configuration necessary.
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
