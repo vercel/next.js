@@ -80,7 +80,7 @@ function runTests(mode) {
       expect(
         await hasImageMatchingUrl(
           browser,
-          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=420&q=75`
+          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=1200&q=75`
         )
       ).toBe(true)
     } finally {
@@ -120,10 +120,10 @@ function runTests(mode) {
       const delta = 250
       const id = 'fixed1'
       expect(await getSrc(browser, id)).toBe(
-        '/_next/image?url=%2Fwide.png&w=1200&q=75'
+        '/_next/image?url=%2Fwide.png&w=3840&q=75'
       )
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/_next/image?url=%2Fwide.png&w=320&q=75 320w, /_next/image?url=%2Fwide.png&w=420&q=75 420w, /_next/image?url=%2Fwide.png&w=768&q=75 768w, /_next/image?url=%2Fwide.png&w=1024&q=75 1024w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w'
+        '/_next/image?url=%2Fwide.png&w=1200&q=75 1x, /_next/image?url=%2Fwide.png&w=3840&q=75 2x'
       )
       await browser.setDimensions({
         width: width + delta,
@@ -153,10 +153,10 @@ function runTests(mode) {
       const delta = 250
       const id = 'intrinsic1'
       expect(await getSrc(browser, id)).toBe(
-        '/_next/image?url=%2Fwide.png&w=1200&q=75'
+        '/_next/image?url=%2Fwide.png&w=3840&q=75'
       )
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/_next/image?url=%2Fwide.png&w=320&q=75 320w, /_next/image?url=%2Fwide.png&w=420&q=75 420w, /_next/image?url=%2Fwide.png&w=768&q=75 768w, /_next/image?url=%2Fwide.png&w=1024&q=75 1024w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w'
+        '/_next/image?url=%2Fwide.png&w=1200&q=75 1x, /_next/image?url=%2Fwide.png&w=3840&q=75 2x'
       )
       await browser.setDimensions({
         width: width + delta,
@@ -189,10 +189,10 @@ function runTests(mode) {
       const delta = 250
       const id = 'responsive1'
       expect(await getSrc(browser, id)).toBe(
-        '/_next/image?url=%2Fwide.png&w=1200&q=75'
+        '/_next/image?url=%2Fwide.png&w=3840&q=75'
       )
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/_next/image?url=%2Fwide.png&w=320&q=75 320w, /_next/image?url=%2Fwide.png&w=420&q=75 420w, /_next/image?url=%2Fwide.png&w=768&q=75 768w, /_next/image?url=%2Fwide.png&w=1024&q=75 1024w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w'
+        '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
       )
       await browser.setDimensions({
         width: width + delta,
@@ -225,10 +225,10 @@ function runTests(mode) {
       const delta = 150
       const id = 'fill1'
       expect(await getSrc(browser, id)).toBe(
-        '/_next/image?url=%2Fwide.png&w=1200&q=75'
+        '/_next/image?url=%2Fwide.png&w=3840&q=75'
       )
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/_next/image?url=%2Fwide.png&w=320&q=75 320w, /_next/image?url=%2Fwide.png&w=420&q=75 420w, /_next/image?url=%2Fwide.png&w=768&q=75 768w, /_next/image?url=%2Fwide.png&w=1024&q=75 1024w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w'
+        '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
       )
       await browser.setDimensions({
         width: width + delta,
@@ -261,10 +261,10 @@ function runTests(mode) {
       const height = await getComputed(browser, id, 'height')
       await browser.eval(`document.getElementById("${id}").scrollIntoView()`)
       expect(await getSrc(browser, id)).toBe(
-        '/_next/image?url=%2Fwide.png&w=1200&q=75'
+        '/_next/image?url=%2Fwide.png&w=3840&q=75'
       )
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/_next/image?url=%2Fwide.png&w=320&q=75 320w, /_next/image?url=%2Fwide.png&w=420&q=75 420w, /_next/image?url=%2Fwide.png&w=768&q=75 768w, /_next/image?url=%2Fwide.png&w=1024&q=75 1024w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w'
+        '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
       )
       expect(await getComputed(browser, id, 'width')).toBe(width)
       expect(await getComputed(browser, id, 'height')).toBe(height)

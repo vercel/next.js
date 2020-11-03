@@ -62,8 +62,8 @@ If no configuration is provided, the following default configuration will be use
 ```js
 module.exports = {
   images: {
-    deviceSizes: [320, 420, 768, 1024, 1200],
-    imageSizes: [],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     domains: [],
     path: '/_next/image',
     loader: 'default',
@@ -77,24 +77,24 @@ This means you only need to configure the properties you wish to change.
 
 ### Device Sizes
 
-You can specify a list of device width breakpoints using the `deviceSizes` property. Since images maintain their aspect ratio using the `width` and `height` attributes of the source image, there is no need to specify height in `next.config.js` – only the width. These values will be used by the browser to determine which size image should load.
+You can specify a list of device width breakpoints using the `deviceSizes` property. These widths are used when the [`next/image`](/docs/api-reference/next/image.md) component uses `layout="responsive"` or `layout="fill"` so that the correct image is served for the device visiting your website.
 
 ```js
 module.exports = {
   images: {
-    deviceSizes: [320, 420, 768, 1024, 1200],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
   },
 }
 ```
 
 ### Image Sizes
 
-You can specify a list of exact image widths using the `imageSizes` property. These widths should be different than the widths defined in `deviceSizes`. The purpose is for images that don't scale with the browser window, such as icons, badges, or profile images. If the `width` property of a [`next/image`](/docs/api-reference/next/image.md) component matches a value in `imageSizes`, the image will be rendered at that exact width.
+You can specify a list of image widths using the `imageSizes` property. These widths should be different than the widths defined in `deviceSizes` because the arrays will be concatentated. These widths are used when the [`next/image`](/docs/api-reference/next/image.md) component uses `layout="fixed"` or `layout="intrinsic"`.
 
 ```js
 module.exports = {
   images: {
-    imageSizes: [16, 32, 64],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
 }
 ```
@@ -143,7 +143,7 @@ The expiration (or rather Max Age) is defined by the upstream server's `Cache-Co
 
 If `s-maxage` is found in `Cache-Control`, it is used. If no `s-maxage` is found, then `max-age` is used. If no `max-age` is found, then 60 seconds is used.
 
-You can configure [`deviceSizes`](#device-sizes) to reduce the total number of possible generated images.
+You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
 
 ## Related
 

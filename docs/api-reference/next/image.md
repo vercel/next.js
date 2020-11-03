@@ -46,8 +46,8 @@ export default Home
 `Image` accepts the following props:
 
 - `src` - The path or URL to the source image. This is required.
-- `width` - The intrinsic width of the source image in pixels. Must be an integer without a unit. Required unless `layout="fill"`.
-- `height` - The intrinsic height of the source image, in pixels. Must be an integer without a unit. Required unless `layout="fill"`.
+- `width` - The width of the image, in pixels. Must be an integer without a unit. Required unless `layout="fill"`.
+- `height` - The height of the image, in pixels. Must be an integer without a unit. Required unless `layout="fill"`.
 - `layout` - The rendered layout of the image. If `fixed`, the image dimensions will not change as the viewport changes (no responsiveness). If `intrinsic`, the image will scale the dimensions down for smaller viewports but maintain the original dimensions for larger viewports. If `responsive`, the image will scale the dimensions down for smaller viewports and scale up for larger viewports. If `fill`, the image will stretch both width and height to the dimensions of the parent element. Default `intrinsic`.
 - `sizes` - Defines what proportion of the screen you expect the image to take up. Recommended, as it helps serve the correct sized image to each device. [More info](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
 - `quality` - The quality of the optimized image, an integer between 1 and 100 where 100 is the best quality. Default 75.
