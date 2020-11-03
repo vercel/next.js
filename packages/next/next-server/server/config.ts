@@ -25,8 +25,8 @@ const defaultConfig: { [key: string]: any } = {
   compress: true,
   analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
   images: {
-    deviceSizes: [320, 420, 768, 1024, 1200],
-    imageSizes: [],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     domains: [],
     path: '/_next/image',
     loader: 'default',
