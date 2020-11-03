@@ -52,7 +52,6 @@ const externals = {
   'schema-utils': 'schema-utils',
   // dependents: terser-webpack-plugin
   'jest-worker': 'jest-worker',
-  cacache: 'cacache',
 }
 // eslint-disable-next-line camelcase
 externals['amphtml-validator'] = 'next/dist/compiled/amphtml-validator'
@@ -99,6 +98,14 @@ export async function ncc_babel_loader(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('babel-loader')))
     .ncc({ packageName: 'babel-loader', externals })
     .target('compiled/babel-loader')
+}
+// eslint-disable-next-line camelcase
+externals['cacache'] = 'next/dist/compiled/cacache'
+export async function ncc_cacache(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('cacache')))
+    .ncc({ packageName: 'cacache' })
+    .target('compiled/cacache')
 }
 // eslint-disable-next-line camelcase
 externals['cache-loader'] = 'next/dist/compiled/cache-loader'
@@ -495,6 +502,7 @@ export async function ncc(task) {
       'ncc_async_retry',
       'ncc_async_sema',
       'ncc_babel_loader',
+      'ncc_cacache',
       'ncc_cache_loader',
       'ncc_chalk',
       'ncc_ci_info',
