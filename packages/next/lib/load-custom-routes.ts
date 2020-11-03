@@ -22,7 +22,7 @@ export type Header = {
   headers: Array<{ key: string; value: string }>
 }
 
-const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
+export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
 
 export function getRedirectStatus(route: Redirect): number {
   return (
