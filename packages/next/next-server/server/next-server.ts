@@ -311,10 +311,10 @@ export default class Server {
       const { pathname, ...parsed } = parseUrl(req.url || '/')
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
-      let acceptPreferredLocale = accept.language(
-        req.headers['accept-language'],
-        i18n.locales
-      )
+      let acceptPreferredLocale =
+        i18n.localeDetection !== false
+          ? accept.language(req.headers['accept-language'], i18n.locales)
+          : detectedLocale
 
       const { host } = req?.headers || {}
       // remove port from host and remove port if present
@@ -428,7 +428,11 @@ export default class Server {
         res.end()
         return
       }
-      parsedUrl.query.__nextLocale = detectedLocale || defaultLocale
+
+      parsedUrl.query.__nextLocale =
+        localePathResult.detectedLocale ||
+        detectedDomain?.defaultLocale ||
+        defaultLocale
     }
 
     res.statusCode = 200

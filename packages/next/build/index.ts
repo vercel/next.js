@@ -809,7 +809,7 @@ export default async function build(
               }
             }
 
-            if (isSsg && !isFallback) {
+            if (isSsg) {
               // remove non-locale prefixed variant from defaultMap
               delete defaultMap[page]
             }

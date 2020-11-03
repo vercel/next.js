@@ -11,6 +11,7 @@ export default function Page(props) {
       <p id="gsp">gsp page</p>
       <p id="props">{JSON.stringify(props)}</p>
       <p id="router-locale">{router.locale}</p>
+      <p id="router-default-locale">{router.defaultLocale}</p>
       <p id="router-locales">{JSON.stringify(router.locales)}</p>
       <p id="router-query">{JSON.stringify(router.query)}</p>
       <p id="router-pathname">{router.pathname}</p>
@@ -24,6 +25,11 @@ export default function Page(props) {
 }
 
 export const getStaticProps = ({ params, locale, locales, defaultLocale }) => {
+  // ensure getStaticProps isn't called without params
+  if (!params || !params.slug) {
+    throw new Error(`missing params ${JSON.stringify(params)}`)
+  }
+
   return {
     props: {
       params,
