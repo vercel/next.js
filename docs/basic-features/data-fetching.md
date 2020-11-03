@@ -493,16 +493,16 @@ This ensures that users always have a fast experience while preserving fast buil
 
 If `fallback` is `'blocking'`, new paths not returned by `getStaticPaths` will wait for the HTML to be generated, similarly to SSR (hence why _blocking_), and cached for future requests so it only happens once per path.
 
-> You can think of `fallback: 'blocking'` as [`fallback: true`](#fallback-true), but instead of waiting on a [fallback page](#fallback-pages) while the page is generated, the user waits on a blank page for the generated HTML of the page.
+> You can think of `fallback: 'blocking'` as [`fallback: true`](#fallback-true), but instead of rendering a [fallback page](#fallback-pages) while the page is generated, nothing will be rendered until the page is server-side generated.
 
 `getStaticProps` will behave as follows:
 
 - The paths returned from `getStaticPaths` will be rendered to HTML at build time by `getStaticProps`.
 - The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will run a function on the first request (SSR) and return the generated HTML.
-- When that’s done, the browser receives the HTML for the generated path. From the user’s perspective, the page will be swapped from a blank page to the full page.
+- When that’s done, the browser receives the HTML for the generated path. From the user’s perspective, it will transition from "the browser is requesting the page" to "the full page is loaded".
 - At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
 
-`fallback: 'blocking'` will not _update_ generated pages, for that take a look at [Incremental Static Regeneration](#incremental-static-regeneration).
+`fallback: 'blocking'` will not _update_ generated pages. To update generated pages, use [Incremental Static Regeneration](#incremental-static-regeneration).
 
 > `fallback: 'blocking'` is not supported when using [`next export`](/docs/advanced-features/static-html-export.md).
 
