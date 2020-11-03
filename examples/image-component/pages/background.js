@@ -7,6 +7,7 @@ const Background = () => (
         alt="Mountains"
         src="/mountains.jpg"
         layout="fill"
+        quality={100}
         className="cover"
       />
     </div>

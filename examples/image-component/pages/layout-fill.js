@@ -25,6 +25,7 @@ const Fill = () => (
         src="/mountains.jpg"
         layout="fill"
         className="none"
+        quality={100}
       />
     </div>
     <style jsx global>{`
