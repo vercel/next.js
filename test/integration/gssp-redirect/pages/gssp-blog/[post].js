@@ -15,10 +15,27 @@ export const getServerSideProps = ({ params }) => {
       destination = params.post.split('dest-').pop().replace(/_/g, '/')
     }
 
+    let permanent = undefined
+    let statusCode = undefined
+
+    if (params.post.includes('statusCode-')) {
+      statusCode = parseInt(
+        params.post.split('statusCode-').pop().split('-').shift(),
+        10
+      )
+    }
+
+    if (params.post.includes('permanent')) {
+      permanent = true
+    } else if (!statusCode) {
+      permanent = false
+    }
+
     return {
       redirect: {
         destination,
-        permanent: params.post.includes('permanent'),
+        permanent,
+        statusCode,
       },
     }
   }
