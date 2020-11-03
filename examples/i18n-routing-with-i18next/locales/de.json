@@ -1,0 +1,9 @@
+{
+  "welcomeMessage": "Willkommen bei <1>Next.js</1>!",
+  "welcomeSubtitle": "Editiere <2>pages/index.js</2> um loszulegen",
+  "cardDocumentation": "<0>Dokumentation →</0><1>Detaillierte Informationen über Features und API von Next.js.</1>",
+  "cardLearning": "<0>Lernen →</0><1>Erfahre in einem interaktiven Kurs mit Quizzes mehr über Next.js!</1>",
+  "cardExamples": "<0>Beispiele →</0><1>Entdecke und teste Beispielprojekte mit Next.js.</1>",
+  "cardDeploy": "<0>Deployen →</0><1>Deploye dein Projekt mit Vercel direkt auf eine öffentliche URL.</1>",
+  "productPageMessage": "Willkommen auf der Produktseite für: {{productId}}"
+}

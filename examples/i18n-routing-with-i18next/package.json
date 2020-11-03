@@ -1,0 +1,24 @@
+{
+  "name": "i18n-routing-with-i18next",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "extract": "i18next"
+  },
+  "dependencies": {
+    "react": "17.0.1",
+    "react-dom": "17.0.1",
+    "next": "canary",
+    "i18next": "^19.8.3",
+    "react-i18next": "^11.7.3"
+  },
+  "devDependencies": {
+    "i18next-parser": "^3.3.0",
+    "typescript": "^4.0.5",
+    "@types/node": "^14.14.6",
+    "@types/react": "^16.9.55"
+  }
+}
