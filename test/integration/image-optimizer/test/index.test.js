@@ -19,7 +19,7 @@ jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 const imagesDir = join(appDir, '.next', 'cache', 'images')
 const nextConfig = new File(join(appDir, 'next.config.js'))
-const largeSize = 1024
+const largeSize = 1080 // defaults defined in server/config.ts
 let appPort
 let app
 
