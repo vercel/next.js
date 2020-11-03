@@ -27,6 +27,8 @@ function pageLoadError(route: string) {
   return markLoadingError(new Error(`Error loading ${route}`))
 }
 
+export const INITIAL_CSS_LOAD_ERROR = Symbol('INITIAL_CSS_LOAD_ERROR')
+
 const relPrefetch =
   hasRel('preload') && !hasRel('prefetch')
     ? // https://caniuse.com/#feat=link-rel-preload
@@ -394,7 +396,14 @@ export default class PageLoader {
           ).then((cssFiles) =>
             // These files should've already been fetched by now, so this
             // should resolve instantly.
-            Promise.all(cssFiles.map((d) => fetchStyleSheet(d)))
+            Promise.all(cssFiles.map((d) => fetchStyleSheet(d))).catch(
+              (err) => {
+                if (isInitialLoad) {
+                  Object.defineProperty(err, INITIAL_CSS_LOAD_ERROR, {})
+                }
+                throw err
+              }
+            )
           )
     promisedDeps.then(
       (deps) => register(deps),
