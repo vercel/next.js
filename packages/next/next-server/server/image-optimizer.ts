@@ -18,10 +18,18 @@ const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
-const MIME_TYPES = [/* AVIF, */ WEBP, PNG, JPEG]
 const CACHE_VERSION = 1
+const MODERN_TYPES = [/* AVIF, */ WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
+
+type ImageData = {
+  deviceSizes: number[]
+  imageSizes: number[]
+  loader: string
+  path: string
+  domains?: string[]
+}
 
 export async function imageOptimizer(
   server: Server,
@@ -30,7 +38,9 @@ export async function imageOptimizer(
   parsedUrl: UrlWithParsedQuery
 ) {
   const { nextConfig, distDir } = server
-  const { sizes = [], domains = [], loader } = nextConfig?.images || {}
+  const imageData: ImageData = nextConfig.images
+  const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
+  const sizes = [...deviceSizes, ...imageSizes]
 
   if (loader !== 'default') {
     await server.render404(req, res, parsedUrl)
@@ -39,7 +49,7 @@ export async function imageOptimizer(
 
   const { headers } = req
   const { url, w, q } = parsedUrl.query
-  const mimeType = mediaType(headers.accept, MIME_TYPES) || ''
+  const mimeType = getSupportedMimeType(MODERN_TYPES, headers.accept)
   let href: string
 
   if (!url) {
@@ -249,6 +259,8 @@ export async function imageOptimizer(
 
   try {
     const transformer = sharp(upstreamBuffer)
+    transformer.rotate() // auto rotate based on EXIF data
+
     const { width: metaWidth } = await transformer.metadata()
 
     if (metaWidth && metaWidth > width) {
@@ -282,6 +294,11 @@ export async function imageOptimizer(
   }
 
   return { finished: true }
+}
+
+function getSupportedMimeType(options: string[], accept = ''): string {
+  const mimeType = mediaType(accept, options)
+  return accept.includes(mimeType) ? mimeType : ''
 }
 
 function getHash(items: (string | number | undefined)[]) {

@@ -1,3 +1,7 @@
+---
+description: Next.js has built-in support for internationalized routing and language detection. Learn more here.
+---
+
 # Internationalized Routing
 
 <details>
@@ -127,6 +131,21 @@ When using Domain Routing, if a user with the `Accept-Language` header `fr;q=0.9
 
 When using Sub-path Routing, the user would be redirected to `/fr`.
 
+### Disabling Automatic Locale Detection
+
+The automatic locale detection can be disabled with:
+
+```js
+// next.config.js
+module.exports = {
+  i18n: {
+    localeDetection: false,
+  },
+}
+```
+
+When `localeDetection` is set to `false` Next.js will no longer automatically redirect based on the user's preferred locale and will only provide locale information detected from either the locale based domain or locale path as described above.
+
 ## Accessing the locale information
 
 You can access the locale information via the Next.js router. For example, using the [`useRouter()`](https://nextjs.org/docs/api-reference/next/router#userouter) hook the following properties are available:
@@ -137,7 +156,7 @@ You can access the locale information via the Next.js router. For example, using
 
 When [pre-rendering](/docs/basic-features/pages#static-generation-recommended) pages with `getStaticProps` or `getServerSideProps`, the locale information is provided in [the context](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) provided to the function.
 
-When leveraging `getStaticPaths`, the supported locales are provided in the context parameter of the function under `locales`.
+When leveraging `getStaticPaths`, the configured locales are provided in the context parameter of the function under `locales` and the configured defaultLocale under `defaultLocale`.
 
 ## Transition between locales
 

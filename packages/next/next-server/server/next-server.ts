@@ -198,7 +198,7 @@ export default class Server {
           ? requireFontManifest(this.distDir, this._isLikeServerless)
           : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
-      defaultLocale: this.nextConfig.experimental.i18n?.defaultLocale,
+      defaultLocale: this.nextConfig.i18n?.defaultLocale,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -298,8 +298,7 @@ export default class Server {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
 
-    const { basePath } = this.nextConfig
-    const { i18n } = this.nextConfig.experimental
+    const { basePath, i18n } = this.nextConfig
 
     if (basePath && req.url?.startsWith(basePath)) {
       // store original URL to allow checking if basePath was
@@ -313,10 +312,10 @@ export default class Server {
       const { pathname, ...parsed } = parseUrl(req.url || '/')
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
-      let acceptPreferredLocale = accept.language(
-        req.headers['accept-language'],
-        i18n.locales
-      )
+      let acceptPreferredLocale =
+        i18n.localeDetection !== false
+          ? accept.language(req.headers['accept-language'], i18n.locales)
+          : detectedLocale
 
       const { host } = req?.headers || {}
       // remove port from host and remove port if present
@@ -342,32 +341,32 @@ export default class Server {
         })
         ;(req as any).__nextStrippedLocale = true
         parsedUrl.pathname = localePathResult.pathname
+      }
 
-        // check if the locale prefix matches a domain's defaultLocale
-        // and we're on a locale specific domain if so redirect to that domain
-        // if (detectedDomain) {
-        //   const matchedDomain = detectDomainLocale(
-        //     i18n.domains,
-        //     undefined,
-        //     detectedLocale
-        //   )
+      // If a detected locale is a domain specific locale and we aren't already
+      // on that domain and path prefix redirect to it to prevent duplicate
+      // content from multiple domains
+      if (detectedDomain && parsedUrl.pathname === '/') {
+        const localeToCheck = acceptPreferredLocale
+        // const localeToCheck = localePathResult.detectedLocale
+        //   ? detectedLocale
+        //   : acceptPreferredLocale
 
-        //   if (matchedDomain) {
-        //     localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
-        //       matchedDomain?.domain
-        //     }`
-        //   }
-        // }
-      } else if (detectedDomain) {
         const matchedDomain = detectDomainLocale(
           i18n.domains,
           undefined,
-          acceptPreferredLocale
+          localeToCheck
         )
 
-        if (matchedDomain && matchedDomain.domain !== detectedDomain.domain) {
+        if (
+          matchedDomain &&
+          (matchedDomain.domain !== detectedDomain.domain ||
+            localeToCheck !== matchedDomain.defaultLocale)
+        ) {
           localeDomainRedirect = `http${matchedDomain.http ? '' : 's'}://${
             matchedDomain.domain
+          }/${
+            localeToCheck === matchedDomain.defaultLocale ? '' : localeToCheck
           }`
         }
       }
@@ -430,7 +429,11 @@ export default class Server {
         res.end()
         return
       }
-      parsedUrl.query.__nextLocale = detectedLocale || defaultLocale
+
+      parsedUrl.query.__nextLocale =
+        localePathResult.detectedLocale ||
+        detectedDomain?.defaultLocale ||
+        defaultLocale
     }
 
     res.statusCode = 200
@@ -577,7 +580,7 @@ export default class Server {
           // re-create page's pathname
           let pathname = `/${params.path.join('/')}`
 
-          const { i18n } = this.nextConfig.experimental
+          const { i18n } = this.nextConfig
 
           if (i18n) {
             const { host } = req?.headers || {}
@@ -967,8 +970,19 @@ export default class Server {
 
           // if basePath is defined require it be present
           if (basePath) {
-            if (pathParts[0] !== basePath.substr(1)) return { finished: false }
-            pathParts.shift()
+            const basePathParts = basePath.split('/')
+            // remove first empty value
+            basePathParts.shift()
+
+            if (
+              !basePathParts.every((part: string, idx: number) => {
+                return part === pathParts[idx]
+              })
+            ) {
+              return { finished: false }
+            }
+
+            pathParts.splice(0, basePathParts.length)
           }
 
           const path = `/${pathParts.join('/')}`
@@ -1185,8 +1199,19 @@ export default class Server {
   ): Promise<string | null> {
     const is404Page = pathname === '/404'
 
+    const isLikeServerless =
+      typeof components.Component === 'object' &&
+      typeof (components.Component as any).renderReqToHTML === 'function'
+    const isSSG = !!components.getStaticProps
+    const isServerProps = !!components.getServerSideProps
+    const hasStaticPaths = !!components.getStaticPaths
+
+    // Toggle whether or not this is a Data request
+    const isDataReq = !!query._nextDataReq && (isSSG || isServerProps)
+    delete query._nextDataReq
+
     // we need to ensure the status code if /404 is visited directly
-    if (is404Page) {
+    if (is404Page && !isDataReq) {
       res.statusCode = 404
     }
 
@@ -1195,26 +1220,14 @@ export default class Server {
       return components.Component
     }
 
-    // check request state
-    const isLikeServerless =
-      typeof components.Component === 'object' &&
-      typeof (components.Component as any).renderReqToHTML === 'function'
-    const isSSG = !!components.getStaticProps
-    const isServerProps = !!components.getServerSideProps
-    const hasStaticPaths = !!components.getStaticPaths
-
     if (!query.amp) {
       delete query.amp
     }
 
-    // Toggle whether or not this is a Data request
-    const isDataReq = !!query._nextDataReq && (isSSG || isServerProps)
-    delete query._nextDataReq
-
     const locale = query.__nextLocale as string
     delete query.__nextLocale
 
-    const { i18n } = this.nextConfig.experimental
+    const { i18n } = this.nextConfig
     const locales = i18n.locales as string[]
 
     let previewData: string | false | object | undefined
@@ -1244,7 +1257,7 @@ export default class Server {
         )
       }
 
-      if (this.nextConfig.experimental.i18n) {
+      if (this.nextConfig.i18n) {
         return normalizeLocalePath(path, locales).pathname
       }
       return path
@@ -1351,7 +1364,7 @@ export default class Server {
           html = renderResult.html
           pageData = renderResult.renderOpts.pageData
           sprRevalidate = renderResult.renderOpts.revalidate
-          isNotFound = renderResult.renderOpts.ssgNotFound
+          isNotFound = renderResult.renderOpts.isNotFound
         } else {
           const origQuery = parseUrl(req.url || '', true).query
           const resolvedUrl = formatUrl({
@@ -1393,7 +1406,7 @@ export default class Server {
           // TODO: change this to a different passing mechanism
           pageData = (renderOpts as any).pageData
           sprRevalidate = (renderOpts as any).revalidate
-          isNotFound = (renderOpts as any).ssgNotFound
+          isNotFound = (renderOpts as any).isNotFound
         }
 
         return { html, pageData, sprRevalidate, isNotFound }

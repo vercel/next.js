@@ -98,9 +98,7 @@ export function createEntrypoints(
     loadedEnvFiles: Buffer.from(JSON.stringify(loadedEnvFiles)).toString(
       'base64'
     ),
-    i18n: config.experimental.i18n
-      ? JSON.stringify(config.experimental.i18n)
-      : '',
+    i18n: config.i18n ? JSON.stringify(config.i18n) : '',
   }
 
   Object.keys(pages).forEach((page) => {

@@ -283,7 +283,7 @@ export default async function exportApp(
     }
   }
 
-  const { i18n } = nextConfig.experimental
+  const { i18n } = nextConfig
 
   if (i18n && !options.buildExport) {
     throw new Error(
