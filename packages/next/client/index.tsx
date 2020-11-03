@@ -777,6 +777,8 @@ function Root({
   return children as React.ReactElement
 }
 
+// Dummy component that we render as a child of Root so that we can
+// toggle the correct styles before the page is rendered.
 function Head({ callback }: { callback: () => void }) {
   // We use `useLayoutEffect` to guarantee the callback is executed
   // as soon as React flushes the update.
