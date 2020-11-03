@@ -40,12 +40,6 @@ export default (context, render) => {
         expect(cssFiles.length).toBe(1)
       })
 
-      it('should set serverside css as dynamic', async () => {
-        const $ = await get$('/dynamic/nested-css')
-        const cssFiles = $('link[rel=stylesheet][data-n-d]')
-        expect(cssFiles.length).toBe(1)
-      })
-
       it('should not remove css styles for same css file between page transitions', async () => {
         let browser
         try {
@@ -53,6 +47,7 @@ export default (context, render) => {
           await check(() => browser.elementByCss('body').text(), /PageChange1/)
           const firstElement = await browser.elementById('with-css')
           const css1 = await firstElement.getComputedCss('display')
+          expect(css1).toBe('flex')
           await browser.eval(() =>
             window.next.router.push('/dynamic/pagechange2')
           )
