@@ -312,10 +312,10 @@ export default class Server {
       const { pathname, ...parsed } = parseUrl(req.url || '/')
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
-      let acceptPreferredLocale = accept.language(
-        req.headers['accept-language'],
-        i18n.locales
-      )
+      let acceptPreferredLocale =
+        i18n.localeDetection !== false
+          ? accept.language(req.headers['accept-language'], i18n.locales)
+          : detectedLocale
 
       const { host } = req?.headers || {}
       // remove port from host and remove port if present
@@ -429,7 +429,11 @@ export default class Server {
         res.end()
         return
       }
-      parsedUrl.query.__nextLocale = detectedLocale || defaultLocale
+
+      parsedUrl.query.__nextLocale =
+        localePathResult.detectedLocale ||
+        detectedDomain?.defaultLocale ||
+        defaultLocale
     }
 
     res.statusCode = 200
@@ -966,8 +970,19 @@ export default class Server {
 
           // if basePath is defined require it be present
           if (basePath) {
-            if (pathParts[0] !== basePath.substr(1)) return { finished: false }
-            pathParts.shift()
+            const basePathParts = basePath.split('/')
+            // remove first empty value
+            basePathParts.shift()
+
+            if (
+              !basePathParts.every((part: string, idx: number) => {
+                return part === pathParts[idx]
+              })
+            ) {
+              return { finished: false }
+            }
+
+            pathParts.splice(0, basePathParts.length)
           }
 
           const path = `/${pathParts.join('/')}`

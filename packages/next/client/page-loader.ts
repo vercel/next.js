@@ -203,7 +203,12 @@ export default class PageLoader {
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
-  getDataHref(href: string, asPath: string, ssg: boolean, locale?: string) {
+  getDataHref(
+    href: string,
+    asPath: string,
+    ssg: boolean,
+    locale?: string | false
+  ) {
     const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
     const { pathname: asPathname } = parseRelativeUrl(asPath)
     const route = normalizeRoute(hrefPathname)
@@ -229,7 +234,7 @@ export default class PageLoader {
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
-  prefetchData(href: string, asPath: string, locale?: string) {
+  prefetchData(href: string, asPath: string, locale?: string | false) {
     const { pathname: hrefPathname } = parseRelativeUrl(href)
     const route = normalizeRoute(hrefPathname)
     return this.promisedSsgManifest!.then(
