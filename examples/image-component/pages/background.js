@@ -16,13 +16,7 @@ const Background = () => (
       <br />
       as a Background
     </h1>
-    <style jsx global>{`
-      body {
-        margin: 0;
-        padding: 0;
-        background: black;
-        color: white;
-      }
+    <style jsx>{`
       .container {
         position: fixed;
         height: 100vh;

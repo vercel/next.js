@@ -28,13 +28,7 @@ const Fill = () => (
         quality={100}
       />
     </div>
-    <style jsx global>{`
-      body {
-        margin: 0;
-        padding: 0;
-        background: black;
-        color: white;
-      }
+    <style jsx>{`
       .contain {
         object-fit: contain;
       }
