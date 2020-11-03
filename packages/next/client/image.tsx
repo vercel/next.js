@@ -589,7 +589,7 @@ function uploadcareLoader({ root, src, width, quality }: LoaderProps): string {
    */
   const maxResizeWidth = Math.min(Math.max(width, 0), 3000)
   // Demo: https://ucarecdn.com/a6f8abc8-f92e-460a-b7a1-c5cd70a18cdb/-/format/auto/-/resize/300x/vercel.png
-  const params = ['format/auto', `resize/${maxResizeWidth}x`]
+  const params = ['format/auto', 'stretch/off', `resize/${maxResizeWidth}x`]
 
   if (quality) {
     /**
