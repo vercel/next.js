@@ -48,8 +48,6 @@ const externals = {
   mkdirp: 'mkdirp',
   // dependents: thread-loader, cache-loader
   'neo-async': 'neo-async',
-  // dependents: cache-loader, style-loader, file-loader
-  'schema-utils': 'schema-utils',
   // dependents: terser-webpack-plugin
   'jest-worker': 'jest-worker',
 }
@@ -383,6 +381,17 @@ export async function ncc_resolve(task, opts) {
     .target('compiled/resolve')
 }
 // eslint-disable-next-line camelcase
+externals['schema-utils'] = 'next/dist/compiled/schema-utils'
+export async function ncc_schema_utils(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('schema-utils')))
+    .ncc({
+      packageName: 'schema-utils',
+      externals,
+    })
+    .target('compiled/schema-utils')
+}
+// eslint-disable-next-line camelcase
 externals['send'] = 'next/dist/compiled/send'
 export async function ncc_send(task, opts) {
   await task
@@ -536,6 +545,7 @@ export async function ncc(task) {
       'ncc_raw_body',
       'ncc_recast',
       'ncc_resolve',
+      'ncc_schema_utils',
       'ncc_send',
       'ncc_source_map',
       'ncc_string_hash',
