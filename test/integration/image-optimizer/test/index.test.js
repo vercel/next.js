@@ -441,7 +441,7 @@ describe('Image Optimizer', () => {
   const domains = ['localhost', 'example.com']
 
   describe('dev support w/o next.config.js', () => {
-    const size = 320 // defaults defined in server/config.ts
+    const size = 640 // defaults defined in server/config.ts
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -478,7 +478,7 @@ describe('Image Optimizer', () => {
   })
 
   describe('Server support w/o next.config.js', () => {
-    const size = 320 // defaults defined in server/config.ts
+    const size = 640 // defaults defined in server/config.ts
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()
@@ -557,7 +557,7 @@ describe('Image Optimizer', () => {
       await fs.remove(imagesDir)
     })
     it('should 404 when loader is not default', async () => {
-      const query = { w: 320, q: 90, url: '/test.svg' }
+      const query = { w: 640, q: 90, url: '/test.svg' }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res.status).toBe(404)
