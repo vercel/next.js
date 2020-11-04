@@ -45,14 +45,14 @@ describe('TypeScript Image Component', () => {
       const html = await renderViaHTTP(appPort, '/valid', {})
       expect(html).toMatch(/This is valid usage of the Image component/)
       expect(output).not.toMatch(
-        /must use "width" and "height" properties or "unsized" property/
+        /must use "width" and "height" properties or "layout='fill'" property/
       )
     })
 
     it('should print error when invalid Image usage', async () => {
       await renderViaHTTP(appPort, '/invalid', {})
       expect(output).toMatch(
-        /must use "width" and "height" properties or "unsized" property/
+        /must use "width" and "height" properties or "layout='fill'" property/
       )
     })
   })
