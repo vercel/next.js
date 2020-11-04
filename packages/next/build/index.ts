@@ -114,7 +114,7 @@ export default async function build(
   }
 
   // attempt to load global env values so they are available in next.config.js
-  const { loadedEnvFiles } = loadEnvConfig(dir, false, Log)
+  const { loadedEnvFiles } = loadEnvConfig(dir, false)
 
   const config = loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
   const { target } = config

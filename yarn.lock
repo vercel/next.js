@@ -3099,12 +3099,6 @@
   version "4.1.5"
   resolved "https://registry.yarnpkg.com/@types/debug/-/debug-4.1.5.tgz#b14efa8852b7768d898906613c23f688713e02cd"
 
-"@types/dotenv@8.2.0":
-  version "8.2.0"
-  resolved "https://registry.yarnpkg.com/@types/dotenv/-/dotenv-8.2.0.tgz#5cd64710c3c98e82d9d15844375a33bf1b45d053"
-  dependencies:
-    dotenv "*"
-
 "@types/eslint-visitor-keys@^1.0.0":
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/@types/eslint-visitor-keys/-/eslint-visitor-keys-1.0.0.tgz#1ee30d79544ca84d68d4b3cdb0af4f205663dd2d"
@@ -6796,14 +6790,6 @@ dot-prop@^5.0.0:
   resolved "https://registry.yarnpkg.com/dot-prop/-/dot-prop-5.2.0.tgz#c34ecc29556dc45f1f4c22697b6f4904e0cc4fcb"
   dependencies:
     is-obj "^2.0.0"
-
-dotenv-expand@5.1.0:
-  version "5.1.0"
-  resolved "https://registry.yarnpkg.com/dotenv-expand/-/dotenv-expand-5.1.0.tgz#3fbaf020bfd794884072ea26b1e9791d45a629f0"
-
-dotenv@*, dotenv@8.2.0:
-  version "8.2.0"
-  resolved "https://registry.yarnpkg.com/dotenv/-/dotenv-8.2.0.tgz#97e619259ada750eea3e4ea3e26bceea5424b16a"
 
 duplexer3@^0.1.4:
   version "0.1.4"
@@ -15598,6 +15584,11 @@ slide@^1.1.6:
 smart-buffer@^4.1.0:
   version "4.1.0"
   resolved "https://registry.yarnpkg.com/smart-buffer/-/smart-buffer-4.1.0.tgz#91605c25d91652f4661ea69ccf45f1b331ca21ba"
+
+snackables@1.0.4:
+  version "1.0.4"
+  resolved "https://registry.yarnpkg.com/snackables/-/snackables-1.0.4.tgz#10465869fe4064789f2400492a0298c21336df5b"
+  integrity sha512-MjV2Wtd/n1DvKLgqkQdzDhPgfI5h4MBDBJEHZlnAi3RBBTxc7xOVou59RGp6DK7gKJfapn8YIDx6pJkF1WgIjA==
 
 snake-case@^2.1.0:
   version "2.1.0"
