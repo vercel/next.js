@@ -210,24 +210,15 @@ export default async function getBaseWebpackConfig(
 ): Promise<webpack.Configuration> {
   const productionBrowserSourceMaps =
     config.experimental.productionBrowserSourceMaps && !isServer
-  let plugins: PluginMetaData[] = []
-  let babelPresetPlugins: { dir: string; config: any }[] = []
+  let plugins: PluginMetaData[] = await collectPlugins(
+    dir,
+    config.env,
+    config.plugins
+  )
 
   const hasRewrites = rewrites.length > 0 || dev
 
-  if (config.experimental.plugins) {
-    plugins = await collectPlugins(dir, config.env, config.plugins)
-    pluginLoaderOptions.plugins = plugins
-
-    for (const plugin of plugins) {
-      if (plugin.middleware.includes('babel-preset-build')) {
-        babelPresetPlugins.push({
-          dir: plugin.directory,
-          config: plugin.config,
-        })
-      }
-    }
-  }
+  pluginLoaderOptions.plugins = plugins
 
   const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })
   const hasReactRefresh: boolean = dev && !isServer
@@ -248,7 +239,6 @@ export default async function getBaseWebpackConfig(
         cwd: dir,
         // Webpack 5 has a built-in loader cache
         cache: !isWebpack5,
-        babelPresetPlugins,
         hasModern: !!config.experimental.modern,
         development: dev,
         hasReactRefresh,
@@ -266,9 +256,8 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
-    ...(config.experimental.plugins
-      ? VALID_MIDDLEWARE.map((name) => new RegExp(`src(\\\\|/)${name}`))
-      : []),
+    // Compile plugins through babel
+    ...VALID_MIDDLEWARE.map((name) => new RegExp(`src(\\\\|/)${name}`)),
   ]
 
   // Support for NODE_PATH
@@ -969,9 +958,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
           config.devIndicators.buildActivity
         ),
-        'process.env.__NEXT_PLUGINS': JSON.stringify(
-          config.experimental.plugins
-        ),
+        'process.env.__NEXT_PLUGINS': JSON.stringify(true),
         'process.env.__NEXT_STRICT_MODE': JSON.stringify(
           config.reactStrictMode
         ),
@@ -1193,7 +1180,6 @@ export default async function getBaseWebpackConfig(
       trailingSlash: config.trailingSlash,
       modern: config.experimental.modern,
       buildActivity: config.devIndicators.buildActivity,
-      plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
       reactMode: config.experimental.reactMode,
       optimizeFonts: config.experimental.optimizeFonts,

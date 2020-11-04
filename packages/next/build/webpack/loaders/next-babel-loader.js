@@ -58,7 +58,6 @@ module.exports = babelLoader.custom((babel) => {
         isModern: opts.isModern,
         pagesDir: opts.pagesDir,
         hasModern: opts.hasModern,
-        babelPresetPlugins: opts.babelPresetPlugins,
         development: opts.development,
         hasReactRefresh: opts.hasReactRefresh,
         hasJsxRuntime: opts.hasJsxRuntime,
@@ -98,7 +97,6 @@ module.exports = babelLoader.custom((babel) => {
       delete loader.isModern
       delete loader.hasModern
       delete loader.pagesDir
-      delete loader.babelPresetPlugins
       delete loader.development
       delete loader.hasReactRefresh
       delete loader.hasJsxRuntime
@@ -113,7 +111,6 @@ module.exports = babelLoader.custom((babel) => {
           isModern,
           hasModern,
           pagesDir,
-          babelPresetPlugins,
           development,
           hasReactRefresh,
           hasJsxRuntime,
@@ -254,13 +251,6 @@ module.exports = babelLoader.custom((babel) => {
           plugins: [commonJsItem],
         },
       ]
-
-      for (const plugin of babelPresetPlugins) {
-        require(join(plugin.dir, 'src', 'babel-preset-build.js'))(
-          options,
-          plugin.config || {}
-        )
-      }
 
       return options
     },

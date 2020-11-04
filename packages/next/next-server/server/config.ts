@@ -52,7 +52,6 @@ const defaultConfig: { [key: string]: any } = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     modern: false,
-    plugins: false,
     profiling: false,
     sprFlushToDisk: true,
     reactMode: 'legacy',

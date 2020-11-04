@@ -21,7 +21,6 @@ export const VALID_MIDDLEWARE = [
   'on-init-server',
   'on-error-client',
   'on-error-server',
-  'babel-preset-build',
 ]
 
 type ENV_OPTIONS = { [name: string]: string }
