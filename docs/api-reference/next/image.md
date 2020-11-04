@@ -54,6 +54,8 @@ The `Image` component requires the following properties.
 
 The path or URL to the source image. This is required.
 
+When using an external URL, you must add it to [domains](/docs/basic-features/image-optimization.md#domains) in `next.config.js`.
+
 ### width
 
 The width of the image, in pixels. Must be an integer without a unit.
