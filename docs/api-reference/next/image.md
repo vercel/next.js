@@ -11,8 +11,6 @@ description: Enable Image Optimization with the built-in Image component.
   </ul>
 </details>
 
-## Image Optimization
-
 Before moving forward, we recommend you to read [Image Optimization](/docs/basic-features/image-optimization.md) first.
 
 ## Usage
@@ -71,7 +69,7 @@ Required unless [layout="fill"`](#layout).
 
 The layout behavior of the image as the viewport changes size.
 
-When `fixed`, the image dimensions will not change as the viewport changes (no responsiveness) similar to the native `<img>` element.
+When `fixed`, the image dimensions will not change as the viewport changes (no responsiveness) similar to the native `img` element.
 
 When `intrinsic`, the image will scale the dimensions down for smaller viewports but maintain the original dimensions for larger viewports.
 
@@ -79,7 +77,7 @@ When `responsive`, the image will scale the dimensions down for smaller viewport
 
 When `fill`, the image will stretch both width and height to the dimensions of the parent element, usually paired with [object-fit](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit).
 
-Default `intrinsic`.
+Defaults to `intrinsic`.
 
 Try it out:
 
@@ -101,7 +99,7 @@ Recommended, as it helps serve the correct sized image to each device.
 
 The quality of the optimized image, an integer between 1 and 100 where 100 is the best quality.
 
-Default 75.
+Defaults to 75.
 
 ### loading
 
@@ -111,7 +109,7 @@ When `lazy`, defer loading the image until it reaches a calculated distance from
 
 When `eager`, load the image immediately.
 
-Default `lazy`.
+Defaults to `lazy`.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-loading)
 
@@ -133,8 +131,15 @@ When true, the `width` and `height` requirement can by bypassed.
 
 ### Other Properties
 
-All other properties on the `<Image>` component will be passed to the underlying `<img>` element.
+All other properties on the `Image` component will be passed to the underlying `img` element.
 
 ## Related
 
-We recommend you to read [Image Optimization](/docs/basic-features/image-optimization.md).
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/basic-features/image-optimization.md">
+    <b>Image Optimization</b>
+    <small>See how to configure domains and loaders.</small>
+  </a>
+</div>
