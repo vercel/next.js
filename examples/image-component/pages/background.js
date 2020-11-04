@@ -1,40 +1,22 @@
 import Image from 'next/image'
+import { bgWrap, bgText, objectFitCover } from '../styles.module.css'
 
 const Background = () => (
   <div>
-    <div className="container">
+    <div className={bgWrap}>
       <Image
         alt="Mountains"
         src="/mountains.jpg"
         layout="fill"
         quality={100}
-        className="cover"
+        className={objectFitCover}
       />
     </div>
-    <h1>
+    <p className={bgText}>
       Image Component
       <br />
       as a Background
-    </h1>
-    <style jsx>{`
-      .container {
-        position: fixed;
-        height: 100vh;
-        width: 100vw;
-        overflow: hidden;
-        z-index: -1;
-      }
-      .cover {
-        object-fit: cover;
-      }
-      h1 {
-        margin: 0;
-        font-size: 2rem;
-        line-height: 3rem;
-        text-align: center;
-        padding-top: 40vh;
-      }
-    `}</style>
+    </p>
   </div>
 )
 
