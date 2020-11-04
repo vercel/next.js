@@ -109,14 +109,20 @@ export type GetStaticPathsContext = {
   defaultLocale?: string
 }
 
-export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
-  paths: Array<string | { params: P; locale?: string }>
-  fallback: boolean | 'blocking'
+export type GetStaticPathsPath<Q extends ParsedUrlQuery = ParsedUrlQuery> =
+  | string
+  | { params: Q; locale?: string }
+
+export type GetStaticPathsFallback = boolean | 'blocking';
+
+export type GetStaticPathsResult<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
+  paths: Array<GetStaticPathsPath<Q>>;
+  fallback: GetStaticPathsFallback;
 }
 
-export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
+export type GetStaticPaths<Q extends ParsedUrlQuery = ParsedUrlQuery> = (
   context: GetStaticPathsContext
-) => Promise<GetStaticPathsResult<P>>
+) => Promise<GetStaticPathsResult<Q>>
 
 export type GetServerSidePropsContext<
   Q extends ParsedUrlQuery = ParsedUrlQuery
