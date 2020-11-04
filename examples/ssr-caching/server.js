@@ -14,11 +14,7 @@ const ssrCache = cacheableResponse({
     const rawResEnd = res.end
     const data = await new Promise((resolve) => {
       res.end = (payload) => {
-        if (res.statusCode === 200) {
-          resolve(payload)
-        } else {
-          resolve()
-        }
+        resolve(res.statusCode === 200 && payload)
       }
       app.render(req, res, req.path, {
         ...req.query,
@@ -36,9 +32,7 @@ app.prepare().then(() => {
 
   server.get('/', (req, res) => ssrCache({ req, res }))
 
-  server.get('/blog/:id', (req, res) => {
-    return ssrCache({ req, res })
-  })
+  server.get('/blog/:id', (req, res) => ssrCache({ req, res }))
 
   server.get('*', (req, res) => handle(req, res))
 
