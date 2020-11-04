@@ -217,25 +217,12 @@ export default class PageLoader {
 
   /**
    * @param {string} href the route href (file-system path)
-   * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
-  prefetchData(href: string, asPath: string, locale?: string | false) {
+  _isSsg(href: string): Promise<boolean> {
     const { pathname: hrefPathname } = parseRelativeUrl(href)
     const route = normalizeRoute(hrefPathname)
-    return this.promisedSsgManifest!.then(
-      (s: ClientSsgManifest, _dataHref?: string) =>
-        // Check if the route requires a data file
-        s.has(route) &&
-        // Try to generate data href, noop when falsy
-        (_dataHref = this.getDataHref(href, asPath, true, locale)) &&
-        // noop when data has already been prefetched (dedupe)
-        !document.querySelector(
-          `link[rel="${relPrefetch}"][href^="${_dataHref}"]`
-        ) &&
-        // Inject the `<link rel=prefetch>` tag for above computed `href`.
-        appendLink(_dataHref, relPrefetch, 'fetch').catch(() => {
-          /* ignore prefetch error */
-        })
+    return this.promisedSsgManifest!.then((s: ClientSsgManifest) =>
+      s.has(route)
     )
   }
 
