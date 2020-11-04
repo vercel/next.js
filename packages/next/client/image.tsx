@@ -238,7 +238,7 @@ function getInt(x: unknown): number | undefined {
 }
 
 export default function Image({
-  src,
+  src = '',
   sizes,
   unoptimized = false,
   priority = false,
