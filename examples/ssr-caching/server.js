@@ -11,18 +11,21 @@ const handle = app.getRequestHandler()
 const ssrCache = cacheableResponse({
   ttl: 1000 * 60 * 60, // 1hour
   get: async ({ req, res }) => {
-    const data = await app.render(req, res, req.path, {
-      ...req.query,
-      ...req.params,
+    const rawResEnd = res.end
+    const data = await new Promise((resolve) => {
+      res.end = (payload) => {
+        if (res.statusCode === 200) {
+          resolve(payload)
+        } else {
+          resolve()
+        }
+      }
+      app.render(req, res, req.path, {
+        ...req.query,
+        ...req.params,
+      })
     })
-
-    // Add here custom logic for when you do not want to cache the page, for
-    // example when the page returns a 404 status code:
-    if (res.statusCode === 404) {
-      res.end(data)
-      return
-    }
-
+    res.end = rawResEnd
     return { data }
   },
   send: ({ data, res }) => res.send(data),
