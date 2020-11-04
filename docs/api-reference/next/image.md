@@ -71,9 +71,7 @@ The `Image` component optionally accepts the following properties.
 
 ### layout
 
-Defaults to `intrinsic`.
-
-The layout behavior of the image as the viewport changes size.
+The layout behavior of the image as the viewport changes size. Defaults to `intrinsic`.
 
 When `fixed`, the image dimensions will not change as the viewport changes (no responsiveness) similar to the native `img` element.
 
@@ -93,7 +91,7 @@ Try it out:
 
 ### sizes
 
-Defines what proportion of the screen you expect the image to take up.
+Defines what proportion of the screen you expect the image to take up. Defaults to undefined.
 
 Recommended, as it helps serve the correct sized image to each device.
 
@@ -101,15 +99,13 @@ Recommended, as it helps serve the correct sized image to each device.
 
 ### quality
 
-Defaults to 75.
-
-The quality of the optimized image, an integer between 1 and 100 where 100 is the best quality.
+The quality of the optimized image, an integer between 1 and 100 where 100 is the best quality. Defaults to 75.
 
 ### priority
 
 When true, the image will be considered high priority and [preload](https://web.dev/preload-responsive-images/).
 
-Should only be used when the image is visible above the fold.
+Should only be used when the image is visible above the fold. Defaults to false.
 
 ## Advanced Props
 
@@ -117,9 +113,7 @@ In some cases, you may need more advanced usage. The `Image` component optionall
 
 ### loading
 
-Defaults to `lazy`.
-
-The loading behavior of the image.
+The loading behavior of the image. Defaults to `lazy`.
 
 When `lazy`, defer loading the image until it reaches a calculated distance from the viewport.
 
@@ -129,7 +123,7 @@ When `eager`, load the image immediately.
 
 ### unoptimized
 
-When true, the source image will be served as-is instead of changing quality, size, or format.
+When true, the source image will be served as-is instead of changing quality, size, or format. Defaults to false.
 
 ## Other Props
 
