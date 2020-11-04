@@ -238,7 +238,7 @@ function getInt(x: unknown): number | undefined {
 }
 
 export default function Image({
-  src = '',
+  src,
   sizes,
   unoptimized = false,
   priority = false,
@@ -310,7 +310,7 @@ export default function Image({
     lazy = false
   }
 
-  if (src.startsWith('data:')) {
+  if (src && src.startsWith('data:')) {
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
     lazy = false
