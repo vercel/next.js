@@ -275,7 +275,7 @@ const runTests = (isDev) => {
     )
 
     await browser.eval(`(function () {
-      window.location.href = '/'
+      window.next.router.push('/')
     })()`)
     await browser.waitForElementByCss('#index')
 
@@ -329,7 +329,7 @@ const runTests = (isDev) => {
     )
 
     await browser.eval(`(function () {
-      window.location.href = '/'
+      window.next.router.push('/')
     })()`)
     await browser.waitForElementByCss('#index')
 
@@ -356,7 +356,7 @@ const runTests = (isDev) => {
     )
 
     await browser.eval(`(function () {
-      window.location.href = '/'
+      window.next.router.push('/')
     })()`)
     await browser.waitForElementByCss('#index')
 
