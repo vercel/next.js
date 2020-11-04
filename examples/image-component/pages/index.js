@@ -1,5 +1,6 @@
 import styles from '../styles.module.css'
 import Image from 'next/image'
+import Link from 'next/link'
 
 const Code = (p) => <code className={styles.inlineCode} {...p} />
 
@@ -44,6 +45,28 @@ const Index = () => (
         width={1200}
         height={400}
       />
+      <hr className={styles.hr} />
+      <h2>Layouts</h2>
+      <p>
+        The following demonstrate the <Code>layout</Code> property options
+      </p>
+      <ul>
+        <li>
+          <Link href="/layout-intrinsic">intrinsic</Link>
+        </li>
+        <li>
+          <Link href="/layout-responsive">responsive</Link>
+        </li>
+        <li>
+          <Link href="/layout-fixed">fixed</Link>
+        </li>
+        <li>
+          <Link href="/layout-fill">fill</Link>
+        </li>
+        <li>
+          <Link href="/background">background</Link>
+        </li>
+      </ul>
       <hr className={styles.hr} />
       Checkout the documentation for{' '}
       <a href="https://nextjs.org/docs/basic-features/image-optimization">

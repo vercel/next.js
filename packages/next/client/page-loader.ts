@@ -1,37 +1,20 @@
 import { ComponentType } from 'react'
 import type { ClientSsgManifest } from '../build'
 import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
-import mitt from '../next-server/lib/mitt'
 import type { MittEmitter } from '../next-server/lib/mitt'
+import mitt from '../next-server/lib/mitt'
 import {
   addBasePath,
-  markLoadingError,
-  interpolateAs,
   addLocale,
+  interpolateAs,
+  markLoadingError,
 } from '../next-server/lib/router/router'
-
 import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../next-server/lib/router/utils/parse-relative-url'
 
 export const looseToArray = <T extends {}>(input: any): T[] =>
   [].slice.call(input)
-
-function getInitialStylesheets(): StyleSheetTuple[] {
-  return looseToArray<CSSStyleSheet>(document.styleSheets)
-    .filter(
-      (el: CSSStyleSheet) =>
-        el.ownerNode &&
-        (el.ownerNode as Element).tagName === 'LINK' &&
-        (el.ownerNode as Element).hasAttribute('data-n-p')
-    )
-    .map((sheet) => ({
-      href: (sheet.ownerNode as Element).getAttribute('href')!,
-      text: looseToArray<CSSRule>(sheet.cssRules)
-        .map((r) => r.cssText)
-        .join(''),
-    }))
-}
 
 function hasRel(rel: string, link?: HTMLLinkElement) {
   try {
@@ -43,6 +26,8 @@ function hasRel(rel: string, link?: HTMLLinkElement) {
 function pageLoadError(route: string) {
   return markLoadingError(new Error(`Error loading ${route}`))
 }
+
+export const INITIAL_CSS_LOAD_ERROR = Symbol('INITIAL_CSS_LOAD_ERROR')
 
 const relPrefetch =
   hasRel('preload') && !hasRel('prefetch')
@@ -203,7 +188,12 @@ export default class PageLoader {
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
-  getDataHref(href: string, asPath: string, ssg: boolean, locale?: string) {
+  getDataHref(
+    href: string,
+    asPath: string,
+    ssg: boolean,
+    locale?: string | false
+  ) {
     const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
     const { pathname: asPathname } = parseRelativeUrl(asPath)
     const route = normalizeRoute(hrefPathname)
@@ -229,7 +219,7 @@ export default class PageLoader {
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
-  prefetchData(href: string, asPath: string, locale?: string) {
+  prefetchData(href: string, asPath: string, locale?: string | false) {
     const { pathname: hrefPathname } = parseRelativeUrl(href)
     const route = normalizeRoute(hrefPathname)
     return this.promisedSsgManifest!.then(
@@ -408,7 +398,9 @@ export default class PageLoader {
             // should resolve instantly.
             Promise.all(cssFiles.map((d) => fetchStyleSheet(d))).catch(
               (err) => {
-                if (isInitialLoad) return getInitialStylesheets()
+                if (isInitialLoad) {
+                  Object.defineProperty(err, INITIAL_CSS_LOAD_ERROR, {})
+                }
                 throw err
               }
             )
