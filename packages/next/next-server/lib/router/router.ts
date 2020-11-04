@@ -29,6 +29,7 @@ import escapePathDelimiters from './utils/escape-path-delimiters'
 
 interface TransitionOptions {
   shallow?: boolean
+  locale?: string | false
 }
 
 interface NextHistoryState {
@@ -57,11 +58,14 @@ function addPathPrefix(path: string, prefix?: string) {
 
 export function addLocale(
   path: string,
-  locale?: string,
+  locale?: string | false,
   defaultLocale?: string
 ) {
-  if (process.env.__NEXT_i18n_SUPPORT) {
-    return locale && locale !== defaultLocale && !path.startsWith('/' + locale)
+  if (process.env.__NEXT_I18N_SUPPORT) {
+    return locale &&
+      locale !== defaultLocale &&
+      !path.startsWith('/' + locale + '/') &&
+      path !== '/' + locale
       ? addPathPrefix(path, '/' + locale)
       : path
   }
@@ -69,8 +73,9 @@ export function addLocale(
 }
 
 export function delLocale(path: string, locale?: string) {
-  if (process.env.__NEXT_i18n_SUPPORT) {
-    return locale && path.startsWith('/' + locale)
+  if (process.env.__NEXT_I18N_SUPPORT) {
+    return locale &&
+      (path.startsWith('/' + locale + '/') || path === '/' + locale)
       ? path.substr(locale.length + 1) || '/'
       : path
   }
@@ -268,6 +273,7 @@ export type NextRouter = BaseRouter &
 
 export type PrefetchOptions = {
   priority?: boolean
+  locale?: string | false
 }
 
 export type PrivateRouteInfo = {
@@ -298,6 +304,8 @@ const manualScrollRestoration =
   typeof window !== 'undefined' &&
   'scrollRestoration' in window.history
 
+const SSG_DATA_NOT_FOUND_ERROR = 'SSG Data NOT_FOUND'
+
 function fetchRetry(url: string, attempts: number): Promise<any> {
   return fetch(url, {
     // Cookies are required to be present for Next.js' SSG "Preview Mode".
@@ -317,9 +325,13 @@ function fetchRetry(url: string, attempts: number): Promise<any> {
       if (attempts > 1 && res.status >= 500) {
         return fetchRetry(url, attempts - 1)
       }
+      if (res.status === 404) {
+        // TODO: handle reloading in development from fallback returning 200
+        // to on-demand-entry-handler causing it to reload periodically
+        throw new Error(SSG_DATA_NOT_FOUND_ERROR)
+      }
       throw new Error(`Failed to load static props`)
     }
-
     return res.json()
   })
 }
@@ -329,6 +341,7 @@ function fetchNextData(dataHref: string, isServerRender: boolean) {
     // We should only trigger a server-side transition if this was caused
     // on a client-side transition. Otherwise, we'd get into an infinite
     // loop.
+
     if (!isServerRender) {
       markLoadingError(err)
     }
@@ -445,7 +458,7 @@ export default class Router implements BaseRouter {
 
     this.isFallback = isFallback
 
-    if (process.env.__NEXT_i18n_SUPPORT) {
+    if (process.env.__NEXT_I18N_SUPPORT) {
       this.locale = locale
       this.locales = locales
       this.defaultLocale = defaultLocale
@@ -545,6 +558,7 @@ export default class Router implements BaseRouter {
       as,
       Object.assign({}, options, {
         shallow: options.shallow && this._shallow,
+        locale: options.locale || this.defaultLocale,
       })
     )
   }
@@ -593,6 +607,25 @@ export default class Router implements BaseRouter {
       return false
     }
 
+    if (process.env.__NEXT_I18N_SUPPORT) {
+      this.locale = options.locale || this.locale
+
+      if (typeof options.locale === 'undefined') {
+        options.locale = this.locale
+      }
+
+      const {
+        normalizeLocalePath,
+      } = require('../i18n/normalize-locale-path') as typeof import('../i18n/normalize-locale-path')
+
+      const localePathResult = normalizeLocalePath(as, this.locales)
+
+      if (localePathResult.detectedLocale) {
+        this.locale = localePathResult.detectedLocale
+        url = localePathResult.pathname
+      }
+    }
+
     if (!(options as any)._h) {
       this.isSsr = false
     }
@@ -605,7 +638,7 @@ export default class Router implements BaseRouter {
       this.abortComponentLoad(this._inFlightRoute)
     }
 
-    as = addLocale(as, this.locale, this.defaultLocale)
+    as = addLocale(as, options.locale, this.defaultLocale)
     const cleanedAs = delLocale(
       hasBasePath(as) ? delBasePath(as) : as,
       this.locale
@@ -785,12 +818,7 @@ export default class Router implements BaseRouter {
           this._resolveHref(parsedHref, pages)
 
           if (pages.includes(parsedHref.pathname)) {
-            return this.change(
-              'replaceState',
-              destination,
-              destination,
-              options
-            )
+            return this.change(method, destination, destination, options)
           }
         }
 
@@ -802,7 +830,7 @@ export default class Router implements BaseRouter {
       this.changeState(
         method,
         url,
-        addLocale(as, this.locale, this.defaultLocale),
+        addLocale(as, options.locale, this.defaultLocale),
         options
       )
 
@@ -828,6 +856,12 @@ export default class Router implements BaseRouter {
       if (process.env.__NEXT_SCROLL_RESTORATION) {
         if (manualScrollRestoration && '_N_X' in options) {
           window.scrollTo((options as any)._N_X, (options as any)._N_Y)
+        }
+      }
+
+      if (process.env.__NEXT_I18N_SUPPORT) {
+        if (this.locale) {
+          document.documentElement.lang = this.locale
         }
       }
       Router.events.emit('routeChangeComplete', as)
@@ -906,25 +940,58 @@ export default class Router implements BaseRouter {
     }
 
     try {
-      const { page: Component, styleSheets } = await this.fetchComponent(
-        '/_error'
-      )
-      const routeInfo: PrivateRouteInfo = {
-        Component,
-        styleSheets,
-        err,
-        error: err,
+      let Component: ComponentType
+      let styleSheets: StyleSheetTuple[]
+      let props: Record<string, any> | undefined
+      const ssg404 = err.message === SSG_DATA_NOT_FOUND_ERROR
+
+      if (ssg404) {
+        try {
+          let mod: any
+          ;({ page: Component, styleSheets, mod } = await this.fetchComponent(
+            '/404'
+          ))
+
+          // TODO: should we tolerate these props missing and still render the
+          // page instead of falling back to _error?
+          if (mod && mod.__N_SSG) {
+            props = await this._getStaticData(
+              this.pageLoader.getDataHref('/404', '/404', true, this.locale)
+            )
+          }
+        } catch (_err) {
+          // non-fatal fallback to _error
+        }
       }
 
-      try {
-        routeInfo.props = await this.getInitialProps(Component, {
-          err,
-          pathname,
-          query,
-        } as any)
-      } catch (gipErr) {
-        console.error('Error in error page `getInitialProps`: ', gipErr)
-        routeInfo.props = {}
+      if (
+        typeof Component! === 'undefined' ||
+        typeof styleSheets! === 'undefined'
+      ) {
+        ;({ page: Component, styleSheets } = await this.fetchComponent(
+          '/_error'
+        ))
+      }
+
+      const routeInfo: PrivateRouteInfo = {
+        props,
+        Component,
+        styleSheets,
+        err: ssg404 ? undefined : err,
+        error: ssg404 ? undefined : err,
+      }
+
+      if (!routeInfo.props) {
+        try {
+          routeInfo.props = await this.getInitialProps(Component, {
+            err,
+            pathname,
+            query,
+          } as any)
+        } catch (gipErr) {
+          console.error('Error in error page `getInitialProps`: ', gipErr)
+          routeInfo.props = {}
+        }
       }
 
       return routeInfo
@@ -1115,6 +1182,26 @@ export default class Router implements BaseRouter {
 
     let { pathname } = parsed
 
+    if (process.env.__NEXT_I18N_SUPPORT) {
+      const normalizeLocalePath = require('../i18n/normalize-locale-path')
+        .normalizeLocalePath as typeof import('../i18n/normalize-locale-path').normalizeLocalePath
+
+      if (options.locale === false) {
+        pathname = normalizeLocalePath!(pathname, this.locales).pathname
+        parsed.pathname = pathname
+        url = formatWithValidation(parsed)
+
+        let parsedAs = parseRelativeUrl(asPath)
+        const localePathResult = normalizeLocalePath!(
+          parsedAs.pathname,
+          this.locales
+        )
+        parsedAs.pathname = localePathResult.pathname
+        options.locale = localePathResult.detectedLocale || options.locale
+        asPath = formatWithValidation(parsedAs)
+      }
+    }
+
     const pages = await this.pageLoader.getPageList()
 
     parsed = this._resolveHref(parsed, pages) as typeof parsed
@@ -1134,7 +1221,7 @@ export default class Router implements BaseRouter {
       this.pageLoader.prefetchData(
         url,
         asPath,
-        this.locale,
+        typeof options.locale !== 'undefined' ? options.locale : this.locale,
         this.defaultLocale
       ),
       this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),

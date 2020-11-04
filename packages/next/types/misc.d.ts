@@ -3,8 +3,8 @@ declare module '@babel/plugin-transform-modules-commonjs'
 declare module '@babel/plugin-syntax-jsx'
 declare module 'browserslist'
 declare module 'cssnano-simple' {
-  import { Plugin } from 'postcss'
-  const cssnanoSimple: Plugin<{}>
+  import { OldPlugin } from 'postcss'
+  const cssnanoSimple: OldPlugin<{}>
   export = cssnanoSimple
 }
 declare module 'styled-jsx/server'
