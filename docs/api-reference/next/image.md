@@ -11,11 +11,12 @@ description: Enable Image Optimization with the built-in Image component.
   </ul>
 </details>
 
-Before moving forward, we recommend you to read [Image Optimization](/docs/basic-features/image-optimization.md) first.
+> Before moving forward, we recommend you to read [Image Optimization](/docs/basic-features/image-optimization.md) first.
+
+Image Optimization can be enabled via the `Image` component exported by `next/image`.
 
 ## Usage
 
-Image Optimization can be enabled via the `Image` component exported by `next/image`.
 
 For an example, consider a project with the following files:
 
