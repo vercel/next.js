@@ -164,8 +164,12 @@ export class NextEsmPlugin implements Plugin {
 
           if (IS_PRESET_ENV.test(name)) {
             presets.push([
-              require.resolve('@babel/preset-modules'),
-              { loose: true },
+              require.resolve('@babel/preset-env'),
+              {
+                bugfixes: true,
+                loose: true,
+                targets: { esmodules: true },
+              },
             ])
           } else {
             presets.push([name, opts])
