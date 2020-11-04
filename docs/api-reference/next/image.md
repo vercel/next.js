@@ -17,7 +17,6 @@ Image Optimization can be enabled via the `Image` component exported by `next/im
 
 ## Usage
 
-
 For an example, consider a project with the following files:
 
 - `pages/index.js`
