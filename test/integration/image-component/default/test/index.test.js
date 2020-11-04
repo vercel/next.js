@@ -311,6 +311,15 @@ function runTests(mode) {
       )
     })
 
+    it('should show invalid src error when protocol-relative', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-proto-relative')
+
+      await hasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
+      )
+    })
+
     it('should show invalid unsized error', async () => {
       const browser = await webdriver(appPort, '/invalid-unsized')
 
