@@ -129,7 +129,7 @@ When true, the source image will be served as-is instead of changing quality, si
 
 ## Other Props
 
-All other properties on the `Image` component will be passed to the underlying `img` element, except for `style`. Use `className` isntead.
+All other properties on the `Image` component will be passed to the underlying `img` element, except for `style`. Use `className` instead.
 
 ## Related
 
