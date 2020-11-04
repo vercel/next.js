@@ -14,6 +14,7 @@ type IncrementalCacheValue = {
   pageData?: any
   isStale?: boolean
   isNotFound?: boolean
+  isRedirect?: boolean
   curRevalidate?: number | false
   // milliseconds to revalidate after
   revalidateAfter: number | false
@@ -69,7 +70,7 @@ export class IncrementalCache {
       // default to 50MB limit
       max: max || 50 * 1024 * 1024,
       length(val) {
-        if (val.isNotFound) return 25
+        if (val.isNotFound || val.isRedirect) return 25
         // rough estimate of size of cache value
         return val.html!.length + JSON.stringify(val.pageData).length
       },
@@ -161,6 +162,7 @@ export class IncrementalCache {
       html?: string
       pageData?: any
       isNotFound?: boolean
+      isRedirect?: boolean
     },
     revalidateSeconds?: number | false
   ) {

@@ -477,6 +477,8 @@ const nextServerlessLoader: loader.Loader = function () {
     const { denormalizePagePath } = require('next/dist/next-server/server/denormalize-page-path')
     const { setLazyProp, getCookieParser } = require('next/dist/next-server/server/api-utils')
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
+    const {getRedirectStatus} = require('next/dist/lib/load-custom-routes');
+    const {PERMANENT_REDIRECT_STATUS} = require('next/dist/next-server/lib/constants')
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
 
@@ -818,6 +820,21 @@ const nextServerlessLoader: loader.Loader = function () {
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
               })
+              return null
+            } else if (renderOpts.isRedirect && !_nextData) {
+              const redirect = {
+                destination: renderOpts.pageData.pageProps.__N_REDIRECT,
+                statusCode: renderOpts.pageData.pageProps.__N_REDIRECT_STATUS
+              }
+              const statusCode = getRedirectStatus(redirect)
+
+              if (statusCode === PERMANENT_REDIRECT_STATUS) {
+                res.setHeader('Refresh', \`0;url=\${redirect.destination}\`)
+              }
+
+              res.statusCode = statusCode
+              res.setHeader('Location', redirect.destination)
+              res.end()
               return null
             } else {
               sendPayload(req, res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', ${
