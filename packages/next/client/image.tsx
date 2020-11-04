@@ -310,6 +310,12 @@ export default function Image({
     lazy = false
   }
 
+  if (src && src.startsWith('data:')) {
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    unoptimized = true
+    lazy = false
+  }
+
   useEffect(() => {
     const target = thisEl.current
 

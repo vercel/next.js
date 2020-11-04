@@ -56,7 +56,7 @@ async function getSrc(browser, id) {
 }
 
 function getRatio(width, height) {
-  return Math.round((height / width) * 1000)
+  return height / width
 }
 
 function runTests(mode) {
@@ -172,7 +172,10 @@ function runTests(mode) {
       const newHeight = await getComputed(browser, id, 'height')
       expect(newWidth).toBeLessThan(width)
       expect(newHeight).toBeLessThan(height)
-      expect(getRatio(newWidth, newHeight)).toBe(getRatio(width, height))
+      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+        getRatio(width, height),
+        1
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -208,7 +211,10 @@ function runTests(mode) {
       const newHeight = await getComputed(browser, id, 'height')
       expect(newWidth).toBeLessThan(width)
       expect(newHeight).toBeLessThan(height)
-      expect(getRatio(newWidth, newHeight)).toBe(getRatio(width, height))
+      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+        getRatio(width, height),
+        1
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -244,7 +250,10 @@ function runTests(mode) {
       const newHeight = await getComputed(browser, id, 'height')
       expect(newWidth).toBe(width)
       expect(newHeight).toBe(height)
-      expect(getRatio(newWidth, newHeight)).toBe(getRatio(width, height))
+      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+        getRatio(width, height),
+        1
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -356,10 +365,7 @@ function runTests(mode) {
 
         const computedWidth = await getComputed(browser, id, 'width')
         const computedHeight = await getComputed(browser, id, 'height')
-        expect(getRatio(computedWidth, computedHeight) / 1000.0).toBeCloseTo(
-          1.333,
-          1
-        )
+        expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1.333, 1)
       } finally {
         if (browser) {
           await browser.close()
