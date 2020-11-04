@@ -310,6 +310,12 @@ export default function Image({
     lazy = false
   }
 
+  if (src && src.startsWith('data:')) {
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    unoptimized = true
+    lazy = false
+  }
+
   useEffect(() => {
     const target = thisEl.current
 
@@ -572,14 +578,20 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
       )
     }
 
-    if (src && !src.startsWith('/') && configDomains) {
+    if (src.startsWith('//')) {
+      throw new Error(
+        `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
+      )
+    }
+
+    if (!src.startsWith('/') && configDomains) {
       let parsedSrc: URL
       try {
         parsedSrc = new URL(src)
       } catch (err) {
         console.error(err)
         throw new Error(
-          `Failed to parse "${src}" in "next/image", if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
+          `Failed to parse src "${src}" on \`next/image\`, if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
         )
       }
 
