@@ -852,7 +852,7 @@ export async function renderToHTML(
 
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
-  if (isDataReq || (renderOpts as any).isRedirect) {
+  if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
     return props
   }
 
