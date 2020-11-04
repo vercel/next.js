@@ -45,9 +45,9 @@ function Home() {
 export default Home
 ```
 
-## Props
+## Required Props
 
-The `Image` component accepts the following properties.
+The `Image` component requires the following properties.
 
 ### src
 
@@ -65,7 +65,13 @@ The height of the image, in pixels. Must be an integer without a unit.
 
 Required unless [layout="fill"`](#layout).
 
+## Optional Props
+
+The `Image` component optionally accepts the following properties.
+
 ### layout
+
+Defaults to `intrinsic`.
 
 The layout behavior of the image as the viewport changes size.
 
@@ -76,8 +82,6 @@ When `intrinsic`, the image will scale the dimensions down for smaller viewports
 When `responsive`, the image will scale the dimensions down for smaller viewports and scale up for larger viewports.
 
 When `fill`, the image will stretch both width and height to the dimensions of the parent element, usually paired with [object-fit](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit).
-
-Defaults to `intrinsic`.
 
 Try it out:
 
@@ -97,21 +101,9 @@ Recommended, as it helps serve the correct sized image to each device.
 
 ### quality
 
-The quality of the optimized image, an integer between 1 and 100 where 100 is the best quality.
-
 Defaults to 75.
 
-### loading
-
-The loading behavior of the image.
-
-When `lazy`, defer loading the image until it reaches a calculated distance from the viewport.
-
-When `eager`, load the image immediately.
-
-Defaults to `lazy`.
-
-[Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-loading)
+The quality of the optimized image, an integer between 1 and 100 where 100 is the best quality.
 
 ### priority
 
@@ -119,19 +111,29 @@ When true, the image will be considered high priority and [preload](https://web.
 
 Should only be used when the image is visible above the fold.
 
+## Advanced Props
+
+In some cases, you may need more advanced usage. The `Image` component optionally accepts the following advanced properties.
+
+### loading
+
+Defaults to `lazy`.
+
+The loading behavior of the image.
+
+When `lazy`, defer loading the image until it reaches a calculated distance from the viewport.
+
+When `eager`, load the image immediately.
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-loading)
+
 ### unoptimized
 
 When true, the source image will be served as-is instead of changing quality, size, or format.
 
-### unsized
+## Other Props
 
-**Deprecated** - Use the [layout](#layout) property instead.
-
-When true, the `width` and `height` requirement can by bypassed.
-
-### Other Properties
-
-All other properties on the `Image` component will be passed to the underlying `img` element.
+All other properties on the `Image` component will be passed to the underlying `img` element, except for `style`. Use `className` isntead.
 
 ## Related
 
