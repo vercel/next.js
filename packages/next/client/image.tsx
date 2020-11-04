@@ -586,7 +586,7 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
       if (!configDomains.includes(parsedSrc.hostname)) {
         throw new Error(
           `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
-            `See more info: https://err.sh/nextjs/next-image-unconfigured-host`
+            `See more info: https://err.sh/next.js/next-image-unconfigured-host`
         )
       }
     }
