@@ -197,6 +197,10 @@ declare module 'next/dist/compiled/unistore' {
   import m from 'unistore'
   export = m
 }
+declare module 'next/dist/compiled/web-vitals' {
+  import m from 'web-vitals'
+  export = m
+}
 
 declare module 'next/dist/compiled/terser-webpack-plugin'
 declare module 'next/dist/compiled/comment-json' {
