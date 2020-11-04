@@ -10,14 +10,6 @@ const Fixed = () => (
       width={700}
       height={475}
     />
-    <style jsx global>{`
-      body {
-        margin: 0;
-        padding: 0;
-        background: black;
-        color: white;
-      }
-    `}</style>
   </div>
 )
 

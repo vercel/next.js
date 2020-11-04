@@ -11,7 +11,7 @@ const Index = () => (
       <p>
         The images below use the{' '}
         <a href="https://nextjs.org/docs/api-reference/next/image">
-          &lt;Image&gt;
+          next/image
         </a>{' '}
         component to ensure optimal format and size for this browser.
       </p>
@@ -37,34 +37,40 @@ const Index = () => (
       </p>
       <p>
         External domains must be configured in <Code>next.config.js</Code> using
-        the <Code>domains</Code>.
+        the <Code>domains</Code> property.
       </p>
       <Image
         alt="Next.js logo"
-        src="https://assets.vercel.com/image/upload/v1538361091/repositories/next-js/next-js.png"
+        src="https://assets.vercel.com/image/upload/v1538361091/repositories/next-js/next-js-bg.png"
         width={1200}
         height={400}
       />
       <hr className={styles.hr} />
       <h2>Layouts</h2>
       <p>
-        The following demonstrate the <Code>layout</Code> property options
+        The following pages demonstrate possible <Code>layout</Code> property
+        values.
+      </p>
+      <p>
+        Click on one to try it out with your current device and be sure to
+        change the window size or rotate your device to see how the image
+        reacts.
       </p>
       <ul>
         <li>
-          <Link href="/layout-intrinsic">intrinsic</Link>
+          <Link href="/layout-intrinsic">layout="intrinsic"</Link>
         </li>
         <li>
-          <Link href="/layout-responsive">responsive</Link>
+          <Link href="/layout-responsive">layout="responsive"</Link>
         </li>
         <li>
-          <Link href="/layout-fixed">fixed</Link>
+          <Link href="/layout-fixed">layout="fixed"</Link>
         </li>
         <li>
-          <Link href="/layout-fill">fill</Link>
+          <Link href="/layout-fill">layout="fill"</Link>
         </li>
         <li>
-          <Link href="/background">background</Link>
+          <Link href="/background">background demo</Link>
         </li>
       </ul>
       <hr className={styles.hr} />

@@ -56,48 +56,6 @@ export default Home
 
 In addition to [using properties](/docs/api-reference/next/image.md) available to the `next/image` component, you can optionally configure Image Optimization for more advanced use cases via `next.config.js`.
 
-If no configuration is provided, the following default configuration will be used.
-
-```js
-module.exports = {
-  images: {
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    domains: [],
-    path: '/_next/image',
-    loader: 'default',
-  },
-}
-```
-
-If a specific property is omitted, such as `deviceSizes`, that property will use the default above.
-
-This means you only need to configure the properties you wish to change.
-
-### Device Sizes
-
-You can specify a list of device width breakpoints using the `deviceSizes` property. These widths are used when the [`next/image`](/docs/api-reference/next/image.md) component uses `layout="responsive"` or `layout="fill"` so that the correct image is served for the device visiting your website.
-
-```js
-module.exports = {
-  images: {
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-  },
-}
-```
-
-### Image Sizes
-
-You can specify a list of image widths using the `imageSizes` property. These widths should be different than the widths defined in `deviceSizes` because the arrays will be concatentated. These widths are used when the [`next/image`](/docs/api-reference/next/image.md) component uses `layout="fixed"` or `layout="intrinsic"`.
-
-```js
-module.exports = {
-  images: {
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-  },
-}
-```
-
 ### Domains
 
 To enable Image Optimization for images hosted on an external website, use an absolute url for the Image `src` and specify which
@@ -113,7 +71,7 @@ module.exports = {
 
 ### Loader
 
-If you want to use a cloud image provider to optimize images instead of using the Next.js' built-in image optimization, you can configure the loader and path prefix. This allows you to use relative urls for the Image `src` and automatically generate the correct absolute url for your provider.
+If you want to use a cloud provider to optimize images instead of using the Next.js' built-in Image Optimization, you can configure the loader and path prefix. This allows you to use relative urls for the Image `src` and automatically generate the correct absolute url for your provider.
 
 ```js
 module.exports = {
@@ -130,7 +88,7 @@ The following Image Optimization cloud providers are supported:
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
-- Other: Works automatically with `next dev`, `next start`, or a custom server
+- Default: Works automatically with `next dev`, `next start`, or a custom server
 
 ## Caching
 
@@ -143,6 +101,38 @@ The expiration (or rather Max Age) is defined by the upstream server's `Cache-Co
 If `s-maxage` is found in `Cache-Control`, it is used. If no `s-maxage` is found, then `max-age` is used. If no `max-age` is found, then 60 seconds is used.
 
 You can configure [`deviceSizes`](#device-sizes) and [`imageSizes`](#device-sizes) to reduce the total number of possible generated images.
+
+## Advanced
+
+The following configuration is for advanced use cases and is usually not necessary. If you choose to configure the properties below, you will override any changes to the Next.js defaults in future updates.
+
+### Device Sizes
+
+In some cases, where you know the expected device widths from the users of your website, you can specify a list of device width breakpoints using the `deviceSizes` property. These widths are used when the [`next/image`](/docs/api-reference/next/image.md) component uses `layout="responsive"` or `layout="fill"` so that the correct image is served for the device visiting your website.
+
+If no configuration is provided, the default below is used.
+
+```js
+module.exports = {
+  images: {
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+  },
+}
+```
+
+### Image Sizes
+
+You can specify a list of image widths using the `imageSizes` property. These widths should be different (usually smaller) than the widths defined in `deviceSizes` because the arrays will be concatentated. These widths are used when the [`next/image`](/docs/api-reference/next/image.md) component uses `layout="fixed"` or `layout="intrinsic"`.
+
+If no configuration is provided, the default below is used.
+
+```js
+module.exports = {
+  images: {
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  },
+}
+```
 
 ## Related
 
