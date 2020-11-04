@@ -56,7 +56,7 @@ describe('Next.js plugins', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfigPath,
-        `module.exports = { env: { GA_TRACKING_ID: 'my-tracking-id' }, experimental: { plugins: true } }`
+        `module.exports = { env: { GA_TRACKING_ID: 'my-tracking-id' } }`
       )
       appPort = await findPort()
       app = await launchApp(appDir, appPort, {
@@ -79,9 +79,6 @@ describe('Next.js plugins', () => {
           nextConfigPath,
           `
         module.exports = {
-          experimental: {
-            plugins: true
-          },
           plugins: [
             {
               name: '@next/plugin-google-analytics',
@@ -122,7 +119,7 @@ describe('Next.js plugins', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfigPath,
-        `module.exports = { env: { GA_TRACKING_ID: 'my-tracking-id' }, experimental: { plugins: true } }`
+        `module.exports = { env: { GA_TRACKING_ID: 'my-tracking-id' } }`
       )
       const results = await nextBuild(appDir, undefined, {
         stdout: true,
@@ -145,7 +142,7 @@ describe('Next.js plugins', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfigPath,
-        `module.exports = { target: 'serverless', env: { GA_TRACKING_ID: 'my-tracking-id' }, experimental: { plugins: true } }`
+        `module.exports = { target: 'serverless', env: { GA_TRACKING_ID: 'my-tracking-id' } }`
       )
       const results = await nextBuild(appDir, undefined, {
         stdout: true,
