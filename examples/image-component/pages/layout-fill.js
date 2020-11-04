@@ -1,4 +1,9 @@
 import Image from 'next/image'
+import {
+  objectFitContain,
+  objectFitCover,
+  objectFitNone,
+} from '../styles.module.css'
 
 const Fill = () => (
   <div>
@@ -8,7 +13,7 @@ const Fill = () => (
         alt="Mountains"
         src="/mountains.jpg"
         layout="fill"
-        className="cover"
+        className={objectFitCover}
       />
     </div>
     <div style={{ position: 'relative', width: '300px', height: '500px' }}>
@@ -16,7 +21,7 @@ const Fill = () => (
         alt="Mountains"
         src="/mountains.jpg"
         layout="fill"
-        className="contain"
+        className={objectFitContain}
       />
     </div>
     <div style={{ position: 'relative', width: '300px', height: '500px' }}>
@@ -24,27 +29,10 @@ const Fill = () => (
         alt="Mountains"
         src="/mountains.jpg"
         layout="fill"
-        className="none"
+        className={objectFitNone}
         quality={100}
       />
     </div>
-    <style jsx global>{`
-      body {
-        margin: 0;
-        padding: 0;
-        background: black;
-        color: white;
-      }
-      .contain {
-        object-fit: contain;
-      }
-      .cover {
-        object-fit: cover;
-      }
-      .none {
-        object-fit: none;
-      }
-    `}</style>
   </div>
 )
 
