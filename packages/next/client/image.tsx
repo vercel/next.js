@@ -30,7 +30,7 @@ type ImageData = {
   domains?: string[]
 }
 
-type ImageProps = Omit<
+export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
 > & {
@@ -237,7 +237,7 @@ function getInt(x: unknown): number | undefined {
   return undefined
 }
 
-export default function Image({
+function Image({
   src,
   sizes,
   unoptimized = false,
@@ -606,3 +606,5 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
 
   return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
 }
+
+export default Image
