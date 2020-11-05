@@ -12,19 +12,6 @@ const run = (cwd, args, input) => {
   const options = input ? { cwd, input } : { cwd }
   return execa('node', [cli].concat(args), options)
 }
-const runStarter = (cwd, ...args) => {
-  const res = run(cwd, args)
-
-  res.stdout.on('data', (data) => {
-    const stdout = data.toString()
-
-    if (/Pick a template/.test(stdout)) {
-      res.stdin.write('\n')
-    }
-  })
-
-  return res
-}
 
 async function usingTempDir(fn, options) {
   const folder = path.join(os.tmpdir(), Math.random().toString(36).substring(2))
@@ -46,7 +33,7 @@ describe('create next app', () => {
 
       expect.assertions(1)
       try {
-        await runStarter(cwd, projectName)
+        await run(cwd, [projectName])
       } catch (e) {
         // eslint-disable-next-line jest/no-try-expect
         expect(e.stdout).toMatch(/contains files that could conflict/)
@@ -60,7 +47,7 @@ describe('create next app', () => {
     it('empty directory', async () => {
       await usingTempDir(async (cwd) => {
         const projectName = 'empty-directory'
-        const res = await runStarter(cwd, projectName)
+        const res = await run(cwd, [projectName])
 
         expect(res.exitCode).toBe(0)
         expect(
@@ -257,7 +244,7 @@ describe('create next app', () => {
       const projectName = 'not-writable'
       expect.assertions(2)
       try {
-        const res = await runStarter(cwd, projectName)
+        const res = await run(cwd, [projectName])
 
         if (process.platform === 'win32') {
           expect(res.exitCode).toBe(0)
