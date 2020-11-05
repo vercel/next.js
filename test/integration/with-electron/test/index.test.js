@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import electron from 'electron'
 import { nextBuild, nextExport } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -12,6 +11,7 @@ const appdir = join(outdir, 'main.js')
 let app = null
 
 if (process.env.TEST_ELECTRON) {
+  const electron = require('electron')
   const { Application } = require('spectron')
 
   describe('Parse Relative Url', () => {

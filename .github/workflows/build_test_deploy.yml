@@ -91,7 +91,7 @@ jobs:
 
       - run: yarn add -W --dev spectron@7.0.0 electron@5.0.0
 
-      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
+      - run: xvfb-run node run-tests.js test/integration/with-electron/test/index.test.js
 
   testYarnPnP:
     runs-on: ubuntu-latest
