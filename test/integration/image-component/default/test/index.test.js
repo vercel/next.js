@@ -302,7 +302,7 @@ function runTests(mode) {
         `document.getElementById("${id}").style.objectPosition`
       )
       expect(objectFit).toBe('cover')
-      expect(objectPosition).toBe('left')
+      expect(objectPosition).toBe('left center')
     } finally {
       if (browser) {
         await browser.close()

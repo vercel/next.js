@@ -15,7 +15,7 @@ const Page = () => {
           src="/wide.png"
           layout="fill"
           objectFit="cover"
-          objectPosition="left"
+          objectPosition="left center"
         />
       </div>
       <p>Layout Fill</p>
