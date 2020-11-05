@@ -317,7 +317,9 @@ function runTests(isDev) {
         hrefs.sort()
 
         assert.deepEqual(
-          hrefs.map((href) => new URL(href).pathname),
+          hrefs
+            .map((href) => new URL(href).pathname)
+            .replace(/^\/_next\/data\/[^/]+/, ''),
           [
             '/fr/gsp.json',
             '/fr/gsp/fallback/first.json',
@@ -518,7 +520,9 @@ function runTests(isDev) {
         hrefs.sort()
 
         assert.deepEqual(
-          hrefs.map((href) => new URL(href).pathname),
+          hrefs.map((href) =>
+            new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
+          ),
           [
             '/fr/gsp.json',
             '/fr/gsp/fallback/first.json',
