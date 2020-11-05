@@ -311,11 +311,6 @@ export default function Image({
     lazy = true
   }
 
-  if (typeof window !== 'undefined' && !window.IntersectionObserver) {
-    // Rendering client side on browser without intersection observer
-    lazy = false
-  }
-
   if (src && src.startsWith('data:')) {
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
@@ -324,9 +319,8 @@ export default function Image({
 
   useEffect(() => {
     const target = thisEl.current
-
-    if (target && lazy) {
-      const observer = getObserver()
+    if (target) {
+      const observer = lazy && getObserver()
 
       if (observer) {
         observer.observe(target)
@@ -335,7 +329,6 @@ export default function Image({
           observer.unobserve(target)
         }
       } else {
-        //browsers without intersection observer
         unLazifyImage(target)
       }
     }
@@ -407,7 +400,7 @@ export default function Image({
         display: 'block',
         maxWidth: '100%',
       }
-      sizerSvg = `<svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
+      sizerSvg = `&lt;svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/&gt;`
     } else if (layout === 'fixed') {
       // <Image src="i.png" width="100" height="100" layout="fixed" />
       wrapperStyle = {
@@ -508,7 +501,12 @@ export default function Image({
         <div style={sizerStyle}>
           {sizerSvg ? (
             <img
-              style={{ maxWidth: '100%', display: 'block' }}
+              style={{
+                display: 'block',
+                maxWidth: '100%',
+                width: widthInt,
+                height: heightInt,
+              }}
               alt=""
               aria-hidden={true}
               role="presentation"
