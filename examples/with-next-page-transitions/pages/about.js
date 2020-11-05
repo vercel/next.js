@@ -40,4 +40,6 @@ About.defaultProps = {
   pageTransitionReadyToEnter: () => {},
 }
 
+About.pageTransitionDelayEnter = true
+
 export default About

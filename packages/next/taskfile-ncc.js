@@ -39,7 +39,12 @@ module.exports = function (task) {
       })
 
       if (options && options.packageName) {
-        writePackageManifest.call(this, options.packageName, file.base)
+        writePackageManifest.call(
+          this,
+          options.packageName,
+          file.base,
+          options.bundleName
+        )
       }
 
       file.data = Buffer.from(code, 'utf8')
@@ -50,11 +55,14 @@ module.exports = function (task) {
 // This function writes a minimal `package.json` file for a compiled package.
 // It defines `name`, `main`, `author`, and `license`. It also defines `types`.
 // n.b. types intended for development usage only.
-function writePackageManifest(packageName, main) {
+function writePackageManifest(packageName, main, bundleName) {
   const packagePath = require.resolve(packageName + '/package.json')
   let { name, author, license } = require(packagePath)
 
-  const compiledPackagePath = join(__dirname, `compiled/${packageName}`)
+  const compiledPackagePath = join(
+    __dirname,
+    `compiled/${bundleName || packageName}`
+  )
 
   const potentialLicensePath = join(dirname(packagePath), './LICENSE')
   if (existsSync(potentialLicensePath)) {

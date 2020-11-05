@@ -1,6 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
-declare module '@babel/plugin-transform-modules-commonjs'
-declare module '@babel/plugin-syntax-jsx'
+declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
+declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
 declare module 'browserslist'
 declare module 'cssnano-simple' {
   import { OldPlugin } from 'postcss'
@@ -49,6 +49,15 @@ declare module 'next/dist/compiled/arg/index.js' {
   export = arg
 }
 
+declare module 'next/dist/compiled/babel/code-frame' {
+  export * from '@babel/code-frame'
+}
+declare module 'next/dist/compiled/babel/preset-env' {
+  export default any
+}
+declare module 'next/dist/compiled/babel/core' {
+  export * from '@babel/core'
+}
 declare module 'next/dist/compiled/chalk' {
   import m from 'chalk'
   export = m
@@ -195,6 +204,10 @@ declare module 'next/dist/compiled/text-table' {
 }
 declare module 'next/dist/compiled/unistore' {
   import m from 'unistore'
+  export = m
+}
+declare module 'next/dist/compiled/web-vitals' {
+  import m from 'web-vitals'
   export = m
 }
 
