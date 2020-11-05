@@ -122,7 +122,7 @@ module.exports = {
 
 ### Image Sizes
 
-You can specify a list of image widths using the `imageSizes` property. These widths should be different (usually smaller) than the widths defined in `deviceSizes` because the arrays will be concatentated. These widths are used when the [`next/image`](/docs/api-reference/next/image.md) component uses `layout="fixed"` or `layout="intrinsic"`.
+You can specify a list of image widths using the `imageSizes` property. These widths should be different (usually smaller) than the widths defined in `deviceSizes` because the arrays will be concatenated. These widths are used when the [`next/image`](/docs/api-reference/next/image.md) component uses `layout="fixed"` or `layout="intrinsic"`.
 
 If no configuration is provided, the default below is used.
 
