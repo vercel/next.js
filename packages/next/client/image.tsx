@@ -400,7 +400,7 @@ export default function Image({
         display: 'block',
         maxWidth: '100%',
       }
-      sizerSvg = `&lt;svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/&gt;`
+      sizerSvg = `<svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
     } else if (layout === 'fixed') {
       // <Image src="i.png" width="100" height="100" layout="fixed" />
       wrapperStyle = {
@@ -501,12 +501,7 @@ export default function Image({
         <div style={sizerStyle}>
           {sizerSvg ? (
             <img
-              style={{
-                display: 'block',
-                maxWidth: '100%',
-                width: widthInt,
-                height: heightInt,
-              }}
+              style={{ display: 'block', maxWidth: '100%' }}
               alt=""
               aria-hidden={true}
               role="presentation"
