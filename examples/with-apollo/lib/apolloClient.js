@@ -38,7 +38,6 @@ export function initializeApollo(initialState = null) {
 
     // Restore the cache with the merged data
     _apolloClient.cache.restore(data)
-    
   }
   // For SSG and SSR always create a new Apollo Client
   if (typeof window === 'undefined') return _apolloClient
