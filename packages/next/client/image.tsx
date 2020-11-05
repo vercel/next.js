@@ -501,7 +501,7 @@ export default function Image({
         <div style={sizerStyle}>
           {sizerSvg ? (
             <img
-              style={{ display: 'block', maxWidth: '100%' }}
+              style={{ maxWidth: '100%', display: 'block' }}
               alt=""
               aria-hidden={true}
               role="presentation"
