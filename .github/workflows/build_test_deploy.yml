@@ -70,6 +70,29 @@ jobs:
 
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
 
+  testElectron:
+    name: Test Electron
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      HEADLESS: true
+      TEST_ELECTRON: 1
+    steps:
+      - uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
+
+      # TODO: remove after we fix watchpack watching too much
+      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
+
+      - run: yarn add -W --dev spectron@7.0.0 electron@5.0.0
+
+      - run: xvfb-run node run-tests.js test/integration/with-electron/test/index.test.js
+
   testYarnPnP:
     runs-on: ubuntu-latest
     env:
