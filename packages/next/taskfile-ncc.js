@@ -12,7 +12,7 @@ module.exports = function (task) {
     }
     return ncc(join(__dirname, file.dir, file.base), {
       filename: file.base,
-      minify: false,
+      minify: true,
       ...options,
     }).then(({ code, assets }) => {
       Object.keys(assets).forEach((key) => {
