@@ -3051,7 +3051,12 @@
     semver "^7.3.2"
     tsutils "^3.17.1"
 
-"@vercel/ncc@0.24.1", "@vercel/ncc@^0.24.1":
+"@vercel/ncc@0.25.0":
+  version "0.25.0"
+  resolved "https://registry.yarnpkg.com/@vercel/ncc/-/ncc-0.25.0.tgz#c47bda29064cf094ffd4dd6cea45bd21a108ec15"
+  integrity sha512-QDVwcVgahq66ZB11D/KlI1HF+lS0+NRjbOETFKZryZh14rx+zBIVkm6Yu/9tyj2Oz8FIc3PFYORl+mPDjTAiEg==
+
+"@vercel/ncc@^0.24.1":
   version "0.24.1"
   resolved "https://registry.yarnpkg.com/@vercel/ncc/-/ncc-0.24.1.tgz#3ea2932c85ba87f4de6fe550d60e1bf5c005985e"
   integrity sha512-r9m7brz2hNmq5TF3sxrK4qR/FhXn44XIMglQUir4sT7Sh5GOaYXlMYikHFwJStf8rmQGTlvOoBXt4yHVonRG8A==

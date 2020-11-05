@@ -1,1 +1,219 @@
-module.exports=function(t,e){"use strict";var i={};function __webpack_require__(e){if(i[e]){return i[e].exports}var s=i[e]={i:e,l:false,exports:{}};t[e].call(s.exports,s,s.exports,__webpack_require__);s.l=true;return s.exports}__webpack_require__.ab=__dirname+"/";function startup(){return __webpack_require__(624)}return startup()}({614:function(t){t.exports=require("events")},624:function(t,e,i){"use strict";var s=this&&this.__importDefault||function(t){return t&&t.__esModule?t:{default:t}};Object.defineProperty(e,"__esModule",{value:true});const r=s(i(614));function arrayMove(t,e,i,s,r){for(let n=0;n<r;++n){i[n+s]=t[n+e];t[n+e]=void 0}}function pow2AtLeast(t){t=t>>>0;t=t-1;t=t|t>>1;t=t|t>>2;t=t|t>>4;t=t|t>>8;t=t|t>>16;return t+1}function getCapacity(t){return pow2AtLeast(Math.min(Math.max(16,t),1073741824))}class Deque{constructor(t){this._capacity=getCapacity(t);this._length=0;this._front=0;this.arr=[]}push(t){const e=this._length;this.checkCapacity(e+1);const i=this._front+e&this._capacity-1;this.arr[i]=t;this._length=e+1;return e+1}pop(){const t=this._length;if(t===0){return void 0}const e=this._front+t-1&this._capacity-1;const i=this.arr[e];this.arr[e]=void 0;this._length=t-1;return i}shift(){const t=this._length;if(t===0){return void 0}const e=this._front;const i=this.arr[e];this.arr[e]=void 0;this._front=e+1&this._capacity-1;this._length=t-1;return i}get length(){return this._length}checkCapacity(t){if(this._capacity<t){this.resizeTo(getCapacity(this._capacity*1.5+16))}}resizeTo(t){const e=this._capacity;this._capacity=t;const i=this._front;const s=this._length;if(i+s>e){const t=i+s&e-1;arrayMove(this.arr,0,this.arr,e,t)}}}class ReleaseEmitter extends r.default{}function isFn(t){return typeof t==="function"}function defaultInit(){return"1"}class Sema{constructor(t,{initFn:e=defaultInit,pauseFn:i,resumeFn:s,capacity:r=10}={}){if(isFn(i)!==isFn(s)){throw new Error("pauseFn and resumeFn must be both set for pausing")}this.nrTokens=t;this.free=new Deque(t);this.waiting=new Deque(r);this.releaseEmitter=new ReleaseEmitter;this.noTokens=e===defaultInit;this.pauseFn=i;this.resumeFn=s;this.paused=false;this.releaseEmitter.on("release",t=>{const e=this.waiting.shift();if(e){e.resolve(t)}else{if(this.resumeFn&&this.paused){this.paused=false;this.resumeFn()}this.free.push(t)}});for(let i=0;i<t;i++){this.free.push(e())}}async acquire(){let t=this.free.pop();if(t!==void 0){return t}return new Promise((t,e)=>{if(this.pauseFn&&!this.paused){this.paused=true;this.pauseFn()}this.waiting.push({resolve:t,reject:e})})}release(t){this.releaseEmitter.emit("release",this.noTokens?"1":t)}drain(){const t=new Array(this.nrTokens);for(let e=0;e<this.nrTokens;e++){t[e]=this.acquire()}return Promise.all(t)}nrWaiting(){return this.waiting.length}}e.Sema=Sema;function RateLimit(t,{timeUnit:e=1e3,uniformDistribution:i=false}={}){const s=new Sema(i?1:t);const r=i?e/t:e;return async function rl(){await s.acquire();setTimeout(()=>s.release(),r)}}e.RateLimit=RateLimit}});
+module.exports =
+/******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
+/******/ 	var __webpack_modules__ = ({
+
+/***/ 916:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+const events_1 = __importDefault(__webpack_require__(614));
+function arrayMove(src, srcIndex, dst, dstIndex, len) {
+    for (let j = 0; j < len; ++j) {
+        dst[j + dstIndex] = src[j + srcIndex];
+        src[j + srcIndex] = void 0;
+    }
+}
+function pow2AtLeast(n) {
+    n = n >>> 0;
+    n = n - 1;
+    n = n | (n >> 1);
+    n = n | (n >> 2);
+    n = n | (n >> 4);
+    n = n | (n >> 8);
+    n = n | (n >> 16);
+    return n + 1;
+}
+function getCapacity(capacity) {
+    return pow2AtLeast(Math.min(Math.max(16, capacity), 1073741824));
+}
+// Deque is based on https://github.com/petkaantonov/deque/blob/master/js/deque.js
+// Released under the MIT License: https://github.com/petkaantonov/deque/blob/6ef4b6400ad3ba82853fdcc6531a38eb4f78c18c/LICENSE
+class Deque {
+    constructor(capacity) {
+        this._capacity = getCapacity(capacity);
+        this._length = 0;
+        this._front = 0;
+        this.arr = [];
+    }
+    push(item) {
+        const length = this._length;
+        this.checkCapacity(length + 1);
+        const i = (this._front + length) & (this._capacity - 1);
+        this.arr[i] = item;
+        this._length = length + 1;
+        return length + 1;
+    }
+    pop() {
+        const length = this._length;
+        if (length === 0) {
+            return void 0;
+        }
+        const i = (this._front + length - 1) & (this._capacity - 1);
+        const ret = this.arr[i];
+        this.arr[i] = void 0;
+        this._length = length - 1;
+        return ret;
+    }
+    shift() {
+        const length = this._length;
+        if (length === 0) {
+            return void 0;
+        }
+        const front = this._front;
+        const ret = this.arr[front];
+        this.arr[front] = void 0;
+        this._front = (front + 1) & (this._capacity - 1);
+        this._length = length - 1;
+        return ret;
+    }
+    get length() {
+        return this._length;
+    }
+    checkCapacity(size) {
+        if (this._capacity < size) {
+            this.resizeTo(getCapacity(this._capacity * 1.5 + 16));
+        }
+    }
+    resizeTo(capacity) {
+        const oldCapacity = this._capacity;
+        this._capacity = capacity;
+        const front = this._front;
+        const length = this._length;
+        if (front + length > oldCapacity) {
+            const moveItemsCount = (front + length) & (oldCapacity - 1);
+            arrayMove(this.arr, 0, this.arr, oldCapacity, moveItemsCount);
+        }
+    }
+}
+class ReleaseEmitter extends events_1.default {
+}
+function isFn(x) {
+    return typeof x === 'function';
+}
+function defaultInit() {
+    return '1';
+}
+class Sema {
+    constructor(nr, { initFn = defaultInit, pauseFn, resumeFn, capacity = 10 } = {}) {
+        if (isFn(pauseFn) !== isFn(resumeFn)) {
+            throw new Error('pauseFn and resumeFn must be both set for pausing');
+        }
+        this.nrTokens = nr;
+        this.free = new Deque(nr);
+        this.waiting = new Deque(capacity);
+        this.releaseEmitter = new ReleaseEmitter();
+        this.noTokens = initFn === defaultInit;
+        this.pauseFn = pauseFn;
+        this.resumeFn = resumeFn;
+        this.paused = false;
+        this.releaseEmitter.on('release', token => {
+            const p = this.waiting.shift();
+            if (p) {
+                p.resolve(token);
+            }
+            else {
+                if (this.resumeFn && this.paused) {
+                    this.paused = false;
+                    this.resumeFn();
+                }
+                this.free.push(token);
+            }
+        });
+        for (let i = 0; i < nr; i++) {
+            this.free.push(initFn());
+        }
+    }
+    async acquire() {
+        let token = this.free.pop();
+        if (token !== void 0) {
+            return token;
+        }
+        return new Promise((resolve, reject) => {
+            if (this.pauseFn && !this.paused) {
+                this.paused = true;
+                this.pauseFn();
+            }
+            this.waiting.push({ resolve, reject });
+        });
+    }
+    release(token) {
+        this.releaseEmitter.emit('release', this.noTokens ? '1' : token);
+    }
+    drain() {
+        const a = new Array(this.nrTokens);
+        for (let i = 0; i < this.nrTokens; i++) {
+            a[i] = this.acquire();
+        }
+        return Promise.all(a);
+    }
+    nrWaiting() {
+        return this.waiting.length;
+    }
+}
+exports.Sema = Sema;
+function RateLimit(rps, { timeUnit = 1000, uniformDistribution = false } = {}) {
+    const sema = new Sema(uniformDistribution ? 1 : rps);
+    const delay = uniformDistribution ? timeUnit / rps : timeUnit;
+    return async function rl() {
+        await sema.acquire();
+        setTimeout(() => sema.release(), delay);
+    };
+}
+exports.RateLimit = RateLimit;
+
+
+/***/ }),
+
+/***/ 614:
+/***/ ((module) => {
+
+module.exports = require("events");;
+
+/***/ })
+
+/******/ 	});
+/************************************************************************/
+/******/ 	// The module cache
+/******/ 	var __webpack_module_cache__ = {};
+/******/ 	
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/ 		// Check if module is in cache
+/******/ 		if(__webpack_module_cache__[moduleId]) {
+/******/ 			return __webpack_module_cache__[moduleId].exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = __webpack_module_cache__[moduleId] = {
+/******/ 			// no module.id needed
+/******/ 			// no module.loaded needed
+/******/ 			exports: {}
+/******/ 		};
+/******/ 	
+/******/ 		// Execute the module function
+/******/ 		var threw = true;
+/******/ 		try {
+/******/ 			__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 			threw = false;
+/******/ 		} finally {
+/******/ 			if(threw) delete __webpack_module_cache__[moduleId];
+/******/ 		}
+/******/ 	
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/ 	
+/************************************************************************/
+/******/ 	/* webpack/runtime/compat */
+/******/ 	
+/******/ 	__webpack_require__.ab = __dirname + "/";/************************************************************************/
+/******/ 	// module exports must be returned from runtime so entry inlining is disabled
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	return __webpack_require__(916);
+/******/ })()
+;

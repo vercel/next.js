@@ -1,1 +1,89 @@
-module.exports=function(r,e){"use strict";var t={};function __webpack_require__(e){if(t[e]){return t[e].exports}var u=t[e]={i:e,l:false,exports:{}};r[e].call(u.exports,u,u.exports,__webpack_require__);u.l=true;return u.exports}__webpack_require__.ab=__dirname+"/";function startup(){return __webpack_require__(383)}return startup()}({383:function(r,e,t){"use strict";const u=t(747);let n;function hasDockerEnv(){try{u.statSync("/.dockerenv");return true}catch(r){return false}}function hasDockerCGroup(){try{return u.readFileSync("/proc/self/cgroup","utf8").includes("docker")}catch(r){return false}}r.exports=(()=>{if(n===undefined){n=hasDockerEnv()||hasDockerCGroup()}return n})},747:function(r){r.exports=require("fs")}});
+module.exports =
+/******/ (() => { // webpackBootstrap
+/******/ 	"use strict";
+/******/ 	var __webpack_modules__ = ({
+
+/***/ 77:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+
+const fs = __webpack_require__(747);
+
+let isDocker;
+
+function hasDockerEnv() {
+	try {
+		fs.statSync('/.dockerenv');
+		return true;
+	} catch (_) {
+		return false;
+	}
+}
+
+function hasDockerCGroup() {
+	try {
+		return fs.readFileSync('/proc/self/cgroup', 'utf8').includes('docker');
+	} catch (_) {
+		return false;
+	}
+}
+
+module.exports = () => {
+	if (isDocker === undefined) {
+		isDocker = hasDockerEnv() || hasDockerCGroup();
+	}
+
+	return isDocker;
+};
+
+
+/***/ }),
+
+/***/ 747:
+/***/ ((module) => {
+
+module.exports = require("fs");;
+
+/***/ })
+
+/******/ 	});
+/************************************************************************/
+/******/ 	// The module cache
+/******/ 	var __webpack_module_cache__ = {};
+/******/ 	
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/ 		// Check if module is in cache
+/******/ 		if(__webpack_module_cache__[moduleId]) {
+/******/ 			return __webpack_module_cache__[moduleId].exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = __webpack_module_cache__[moduleId] = {
+/******/ 			// no module.id needed
+/******/ 			// no module.loaded needed
+/******/ 			exports: {}
+/******/ 		};
+/******/ 	
+/******/ 		// Execute the module function
+/******/ 		var threw = true;
+/******/ 		try {
+/******/ 			__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 			threw = false;
+/******/ 		} finally {
+/******/ 			if(threw) delete __webpack_module_cache__[moduleId];
+/******/ 		}
+/******/ 	
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/ 	
+/************************************************************************/
+/******/ 	/* webpack/runtime/compat */
+/******/ 	
+/******/ 	__webpack_require__.ab = __dirname + "/";/************************************************************************/
+/******/ 	// module exports must be returned from runtime so entry inlining is disabled
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	return __webpack_require__(77);
+/******/ })()
+;

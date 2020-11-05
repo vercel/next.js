@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
-const ncc = require('@zeit/ncc')
+const ncc = require('@vercel/ncc')
 const { existsSync, readFileSync } = require('fs')
 const { basename, dirname, extname, join } = require('path')
 
@@ -12,7 +12,7 @@ module.exports = function (task) {
     }
     return ncc(join(__dirname, file.dir, file.base), {
       filename: file.base,
-      minify: true,
+      minify: false,
       ...options,
     }).then(({ code, assets }) => {
       Object.keys(assets).forEach((key) => {
