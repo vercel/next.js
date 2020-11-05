@@ -91,7 +91,7 @@ By using domain routing you can configure locales to be served from different do
 // next.config.js
 module.exports = {
   i18n: {
-    locales: ['en-US', 'fr', 'nl-NL'],
+    locales: ['en-US', 'fr', 'nl-NL', 'nl-BE'],
     defaultLocale: 'en-US',
 
     domains: [
@@ -106,6 +106,9 @@ module.exports = {
       {
         domain: 'example.nl',
         defaultLocale: 'nl-NL',
+        // specify other locales that should be redirected
+        // to this domain
+        locales: ['nl-BE'],
       },
     ],
   },
@@ -117,6 +120,7 @@ For example if you have `pages/blog.js` the following urls will be available:
 - `example.com/blog`
 - `example.fr/blog`
 - `example.nl/blog`
+- `example.nl/nl-BE/blog`
 
 ## Automatic Locale Detection
 
