@@ -48,13 +48,3 @@
   padding-top: 40vh;
   text-shadow: 1px 1px 1px #3c5c5e;
 }
-
-.objectFitContain {
-  object-fit: contain;
-}
-.objectFitCover {
-  object-fit: cover;
-}
-.objectFitNone {
-  object-fit: none;
-}

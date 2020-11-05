@@ -1,5 +1,5 @@
 import Image from 'next/image'
-import { bgWrap, bgText, objectFitCover } from '../styles.module.css'
+import { bgWrap, bgText } from '../styles.module.css'
 
 const Background = () => (
   <div>
@@ -8,8 +8,8 @@ const Background = () => (
         alt="Mountains"
         src="/mountains.jpg"
         layout="fill"
+        objectFit="cover"
         quality={100}
-        className={objectFitCover}
       />
     </div>
     <p className={bgText}>

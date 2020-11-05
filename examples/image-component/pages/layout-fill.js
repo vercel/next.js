@@ -1,9 +1,4 @@
 import Image from 'next/image'
-import {
-  objectFitContain,
-  objectFitCover,
-  objectFitNone,
-} from '../styles.module.css'
 
 const Fill = () => (
   <div>
@@ -13,7 +8,7 @@ const Fill = () => (
         alt="Mountains"
         src="/mountains.jpg"
         layout="fill"
-        className={objectFitCover}
+        objectFit="cover"
       />
     </div>
     <div style={{ position: 'relative', width: '300px', height: '500px' }}>
@@ -21,7 +16,7 @@ const Fill = () => (
         alt="Mountains"
         src="/mountains.jpg"
         layout="fill"
-        className={objectFitContain}
+        objectFit="contain"
       />
     </div>
     <div style={{ position: 'relative', width: '300px', height: '500px' }}>
@@ -29,7 +24,7 @@ const Fill = () => (
         alt="Mountains"
         src="/mountains.jpg"
         layout="fill"
-        className={objectFitNone}
+        objectFit="none"
         quality={100}
       />
     </div>
