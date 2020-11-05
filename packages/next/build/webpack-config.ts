@@ -1,4 +1,4 @@
-import { codeFrameColumns } from '@babel/code-frame'
+import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import crypto from 'crypto'
 import { readFileSync, realpathSync } from 'fs'
@@ -969,9 +969,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
           config.devIndicators.buildActivity
         ),
-        'process.env.__NEXT_PRERENDER_INDICATOR': JSON.stringify(
-          config.devIndicators.autoPrerender
-        ),
         'process.env.__NEXT_PLUGINS': JSON.stringify(
           config.experimental.plugins
         ),
@@ -1196,7 +1193,6 @@ export default async function getBaseWebpackConfig(
       trailingSlash: config.trailingSlash,
       modern: config.experimental.modern,
       buildActivity: config.devIndicators.buildActivity,
-      autoPrerender: config.devIndicators.autoPrerender,
       plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
       reactMode: config.experimental.reactMode,
