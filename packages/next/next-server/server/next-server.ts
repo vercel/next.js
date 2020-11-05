@@ -26,6 +26,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
   PAGES_MANIFEST,
+  PERMANENT_REDIRECT_STATUS,
   PHASE_PRODUCTION_SERVER,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
@@ -312,10 +313,10 @@ export default class Server {
       const { pathname, ...parsed } = parseUrl(req.url || '/')
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
-      let acceptPreferredLocale = accept.language(
-        req.headers['accept-language'],
-        i18n.locales
-      )
+      let acceptPreferredLocale =
+        i18n.localeDetection !== false
+          ? accept.language(req.headers['accept-language'], i18n.locales)
+          : detectedLocale
 
       const { host } = req?.headers || {}
       // remove port from host and remove port if present
@@ -429,7 +430,11 @@ export default class Server {
         res.end()
         return
       }
-      parsedUrl.query.__nextLocale = detectedLocale || defaultLocale
+
+      parsedUrl.query.__nextLocale =
+        localePathResult.detectedLocale ||
+        detectedDomain?.defaultLocale ||
+        defaultLocale
     }
 
     res.statusCode = 200
@@ -966,8 +971,19 @@ export default class Server {
 
           // if basePath is defined require it be present
           if (basePath) {
-            if (pathParts[0] !== basePath.substr(1)) return { finished: false }
-            pathParts.shift()
+            const basePathParts = basePath.split('/')
+            // remove first empty value
+            basePathParts.shift()
+
+            if (
+              !basePathParts.every((part: string, idx: number) => {
+                return part === pathParts[idx]
+              })
+            ) {
+              return { finished: false }
+            }
+
+            pathParts.splice(0, basePathParts.length)
           }
 
           const path = `/${pathParts.join('/')}`
@@ -1248,6 +1264,22 @@ export default class Server {
       return path
     }
 
+    const handleRedirect = (pageData: any) => {
+      const redirect = {
+        destination: pageData.pageProps.__N_REDIRECT,
+        statusCode: pageData.pageProps.__N_REDIRECT_STATUS,
+      }
+      const statusCode = getRedirectStatus(redirect)
+
+      if (statusCode === PERMANENT_REDIRECT_STATUS) {
+        res.setHeader('Refresh', `0;url=${redirect.destination}`)
+      }
+
+      res.statusCode = statusCode
+      res.setHeader('Location', redirect.destination)
+      res.end()
+    }
+
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
     if (isDataReq) {
@@ -1284,26 +1316,30 @@ export default class Server {
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
 
-      sendPayload(
-        req,
-        res,
-        data,
-        isDataReq ? 'json' : 'html',
-        {
-          generateEtags: this.renderOpts.generateEtags,
-          poweredByHeader: this.renderOpts.poweredByHeader,
-        },
-        !this.renderOpts.dev
-          ? {
-              private: isPreviewMode,
-              stateful: false, // GSP response
-              revalidate:
-                cachedData.curRevalidate !== undefined
-                  ? cachedData.curRevalidate
-                  : /* default to minimum revalidate (this should be an invariant) */ 1,
-            }
-          : undefined
-      )
+      if (!isDataReq && cachedData.pageData?.pageProps?.__N_REDIRECT) {
+        await handleRedirect(cachedData.pageData)
+      } else {
+        sendPayload(
+          req,
+          res,
+          data,
+          isDataReq ? 'json' : 'html',
+          {
+            generateEtags: this.renderOpts.generateEtags,
+            poweredByHeader: this.renderOpts.poweredByHeader,
+          },
+          !this.renderOpts.dev
+            ? {
+                private: isPreviewMode,
+                stateful: false, // GSP response
+                revalidate:
+                  cachedData.curRevalidate !== undefined
+                    ? cachedData.curRevalidate
+                    : /* default to minimum revalidate (this should be an invariant) */ 1,
+              }
+            : undefined
+        )
+      }
 
       // Stop the request chain here if the data we sent was up-to-date
       if (!cachedData.isStale) {
@@ -1325,11 +1361,13 @@ export default class Server {
         pageData: any
         sprRevalidate: number | false
         isNotFound?: boolean
+        isRedirect?: boolean
       }> => {
         let pageData: any
         let html: string | null
         let sprRevalidate: number | false
         let isNotFound: boolean | undefined
+        let isRedirect: boolean | undefined
 
         let renderResult
         // handle serverless
@@ -1350,6 +1388,7 @@ export default class Server {
           pageData = renderResult.renderOpts.pageData
           sprRevalidate = renderResult.renderOpts.revalidate
           isNotFound = renderResult.renderOpts.isNotFound
+          isRedirect = renderResult.renderOpts.isRedirect
         } else {
           const origQuery = parseUrl(req.url || '', true).query
           const resolvedUrl = formatUrl({
@@ -1392,9 +1431,10 @@ export default class Server {
           pageData = (renderOpts as any).pageData
           sprRevalidate = (renderOpts as any).revalidate
           isNotFound = (renderOpts as any).isNotFound
+          isRedirect = (renderOpts as any).isRedirect
         }
 
-        return { html, pageData, sprRevalidate, isNotFound }
+        return { html, pageData, sprRevalidate, isNotFound, isRedirect }
       }
     )
 
@@ -1476,7 +1516,7 @@ export default class Server {
 
     const {
       isOrigin,
-      value: { html, pageData, sprRevalidate, isNotFound },
+      value: { html, pageData, sprRevalidate, isNotFound, isRedirect },
     } = await doRender()
     let resHtml = html
 
@@ -1485,23 +1525,27 @@ export default class Server {
       !isNotFound &&
       (isSSG || isDataReq || isServerProps)
     ) {
-      sendPayload(
-        req,
-        res,
-        isDataReq ? JSON.stringify(pageData) : html,
-        isDataReq ? 'json' : 'html',
-        {
-          generateEtags: this.renderOpts.generateEtags,
-          poweredByHeader: this.renderOpts.poweredByHeader,
-        },
-        !this.renderOpts.dev || (isServerProps && !isDataReq)
-          ? {
-              private: isPreviewMode,
-              stateful: !isSSG,
-              revalidate: sprRevalidate,
-            }
-          : undefined
-      )
+      if (isRedirect && !isDataReq) {
+        await handleRedirect(pageData)
+      } else {
+        sendPayload(
+          req,
+          res,
+          isDataReq ? JSON.stringify(pageData) : html,
+          isDataReq ? 'json' : 'html',
+          {
+            generateEtags: this.renderOpts.generateEtags,
+            poweredByHeader: this.renderOpts.poweredByHeader,
+          },
+          !this.renderOpts.dev || (isServerProps && !isDataReq)
+            ? {
+                private: isPreviewMode,
+                stateful: !isSSG,
+                revalidate: sprRevalidate,
+              }
+            : undefined
+        )
+      }
       resHtml = null
     }
 
@@ -1509,7 +1553,7 @@ export default class Server {
     if (isOrigin && ssgCacheKey) {
       await this.incrementalCache.set(
         ssgCacheKey,
-        { html: html!, pageData, isNotFound },
+        { html: html!, pageData, isNotFound, isRedirect },
         sprRevalidate
       )
     }

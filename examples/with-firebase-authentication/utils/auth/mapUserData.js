@@ -1,8 +1,9 @@
-export const mapUserData = (user) => {
-  const { uid, email, xa, ya } = user
+export const mapUserData = async (user) => {
+  const { uid, email } = user
+  const token = await user.getIdToken(true)
   return {
     id: uid,
     email,
-    token: xa || ya,
+    token,
   }
 }

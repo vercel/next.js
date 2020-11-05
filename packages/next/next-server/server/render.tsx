@@ -20,10 +20,8 @@ import { isInAmpMode } from '../lib/amp'
 import { AmpStateContext } from '../lib/amp-context'
 import {
   AMP_RENDER_TARGET,
-  PERMANENT_REDIRECT_STATUS,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
-  TEMPORARY_REDIRECT_STATUS,
 } from '../lib/constants'
 import { defaultHead } from '../lib/head'
 import { HeadManagerContext } from '../lib/head-manager-context'
@@ -52,6 +50,10 @@ import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import optimizeAmp from './optimize-amp'
+import {
+  allowedStatusCodes,
+  getRedirectStatus,
+} from '../../lib/load-custom-routes'
 
 function noRouter() {
   const message =
@@ -307,41 +309,47 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
 type Redirect = {
   permanent: boolean
   destination: string
+  statusCode?: number
 }
 
-function checkRedirectValues(redirect: Redirect, req: IncomingMessage) {
-  const { destination, permanent } = redirect
-  let invalidPermanent = typeof permanent !== 'boolean'
-  let invalidDestination = typeof destination !== 'string'
+function checkRedirectValues(
+  redirect: Redirect,
+  req: IncomingMessage,
+  method: 'getStaticProps' | 'getServerSideProps'
+) {
+  const { destination, permanent, statusCode } = redirect
+  let errors: string[] = []
 
-  if (invalidPermanent || invalidDestination) {
+  const hasStatusCode = typeof statusCode !== 'undefined'
+  const hasPermanent = typeof permanent !== 'undefined'
+
+  if (hasPermanent && hasStatusCode) {
+    errors.push(`\`permanent\` and \`statusCode\` can not both be provided`)
+  } else if (hasPermanent && typeof permanent !== 'boolean') {
+    errors.push(`\`permanent\` must be \`true\` or \`false\``)
+  } else if (hasStatusCode && !allowedStatusCodes.has(statusCode!)) {
+    errors.push(
+      `\`statusCode\` must undefined or one of ${[...allowedStatusCodes].join(
+        ', '
+      )}`
+    )
+  }
+  const destinationType = typeof destination
+
+  if (destinationType !== 'string') {
+    errors.push(
+      `\`destination\` should be string but received ${destinationType}`
+    )
+  }
+
+  if (errors.length > 0) {
     throw new Error(
-      `Invalid redirect object returned from getStaticProps for ${req.url}\n` +
-        `Expected${
-          invalidPermanent
-            ? ` \`permanent\` to be boolean but received ${typeof permanent}`
-            : ''
-        }${invalidPermanent && invalidDestination ? ' and' : ''}${
-          invalidDestination
-            ? ` \`destinatino\` to be string but received ${typeof destination}`
-            : ''
-        }\n` +
+      `Invalid redirect object returned from ${method} for ${req.url}\n` +
+        errors.join(' and ') +
+        '\n' +
         `See more info here: https://err.sh/vercel/next.js/invalid-redirect-gssp`
     )
   }
-}
-
-function handleRedirect(res: ServerResponse, redirect: Redirect) {
-  const statusCode = redirect.permanent
-    ? PERMANENT_REDIRECT_STATUS
-    : TEMPORARY_REDIRECT_STATUS
-
-  if (redirect.permanent) {
-    res.setHeader('Refresh', `0;url=${redirect.destination}`)
-  }
-  res.statusCode = statusCode
-  res.setHeader('Location', redirect.destination)
-  res.end()
 }
 
 export async function renderToHTML(
@@ -637,6 +645,16 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
       }
 
+      if (process.env.NODE_ENV !== 'production') {
+        if ('notFound' in data && 'redirect' in data) {
+          throw new Error(
+            `\`redirect\` and \`notFound\` can not both be returned from ${
+              isSSG ? 'getStaticProps' : 'getServerSideProps'
+            } at the same time. Page: ${pathname}`
+          )
+        }
+      }
+
       if ('notFound' in data && data.notFound) {
         if (pathname === '/404') {
           throw new Error(
@@ -654,7 +672,7 @@ export async function renderToHTML(
         data.redirect &&
         typeof data.redirect === 'object'
       ) {
-        checkRedirectValues(data.redirect, req)
+        checkRedirectValues(data.redirect, req, 'getStaticProps')
 
         if (isBuildTimeSSG) {
           throw new Error(
@@ -663,14 +681,11 @@ export async function renderToHTML(
           )
         }
 
-        if (isDataReq) {
-          ;(data as any).props = {
-            __N_REDIRECT: data.redirect.destination,
-          }
-        } else {
-          handleRedirect(res, data.redirect)
-          return null
+        ;(data as any).props = {
+          __N_REDIRECT: data.redirect.destination,
+          __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
         }
+        ;(renderOpts as any).isRedirect = true
       }
 
       if (
@@ -791,16 +806,12 @@ export async function renderToHTML(
       }
 
       if ('redirect' in data && typeof data.redirect === 'object') {
-        checkRedirectValues(data.redirect, req)
-
-        if (isDataReq) {
-          ;(data as any).props = {
-            __N_REDIRECT: data.redirect.destination,
-          }
-        } else {
-          handleRedirect(res, data.redirect)
-          return null
+        checkRedirectValues(data.redirect, req, 'getServerSideProps')
+        ;(data as any).props = {
+          __N_REDIRECT: data.redirect.destination,
+          __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
         }
+        ;(renderOpts as any).isRedirect = true
       }
 
       if (
@@ -839,9 +850,11 @@ export async function renderToHTML(
     )
   }
 
-  // We only need to do this if we want to support calling
-  // _app's getInitialProps for getServerSideProps if not this can be removed
-  if (isDataReq && !isSSG) return props
+  // Avoid rendering page un-necessarily for getServerSideProps data request
+  // and getServerSideProps/getStaticProps redirects
+  if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
+    return props
+  }
 
   // We don't call getStaticProps or getServerSideProps while generating
   // the fallback so make sure to set pageProps to an empty object
