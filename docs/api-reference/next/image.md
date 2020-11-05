@@ -113,6 +113,18 @@ Should only be used when the image is visible above the fold. Defaults to false.
 
 In some cases, you may need more advanced usage. The `Image` component optionally accepts the following advanced properties.
 
+### objectFit
+
+The image fit when using `layout="fill"`.
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit)
+
+### objectPosition
+
+The image position when using `layout="fill"`.
+
+[Learn more](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position)
+
 ### loading
 
 The loading behavior of the image. Defaults to `lazy`.
