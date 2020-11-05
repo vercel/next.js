@@ -30,6 +30,8 @@ type ImageData = {
   domains?: string[]
 }
 
+type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
+
 type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
@@ -39,6 +41,8 @@ type ImageProps = Omit<
   priority?: boolean
   loading?: LoadingValue
   unoptimized?: boolean
+  objectFit?: ImgElementStyle['objectFit']
+  objectPosition?: ImgElementStyle['objectPosition']
 } & (
     | {
         width?: never
@@ -247,6 +251,8 @@ export default function Image({
   quality,
   width,
   height,
+  objectFit,
+  objectPosition,
   ...all
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
@@ -342,7 +348,7 @@ export default function Image({
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerSvg: string | undefined
-  let imgStyle: JSX.IntrinsicElements['img']['style'] = {
+  let imgStyle: ImgElementStyle | undefined = {
     visibility: lazy ? 'hidden' : 'visible',
 
     position: 'absolute',
@@ -363,6 +369,9 @@ export default function Image({
     maxWidth: '100%',
     minHeight: '100%',
     maxHeight: '100%',
+
+    objectFit,
+    objectPosition,
   }
   if (
     typeof widthInt !== 'undefined' &&
