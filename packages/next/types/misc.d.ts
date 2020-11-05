@@ -3,8 +3,8 @@ declare module '@babel/plugin-transform-modules-commonjs'
 declare module '@babel/plugin-syntax-jsx'
 declare module 'browserslist'
 declare module 'cssnano-simple' {
-  import { Plugin } from 'postcss'
-  const cssnanoSimple: Plugin<{}>
+  import { OldPlugin } from 'postcss'
+  const cssnanoSimple: OldPlugin<{}>
   export = cssnanoSimple
 }
 declare module 'styled-jsx/server'
@@ -195,6 +195,10 @@ declare module 'next/dist/compiled/text-table' {
 }
 declare module 'next/dist/compiled/unistore' {
   import m from 'unistore'
+  export = m
+}
+declare module 'next/dist/compiled/web-vitals' {
+  import m from 'web-vitals'
   export = m
 }
 

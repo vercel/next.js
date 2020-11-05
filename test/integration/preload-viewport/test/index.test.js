@@ -10,7 +10,6 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import { readFile } from 'fs-extra'
-import { parse } from 'url'
 
 jest.setTimeout(1000 * 60 * 5)
 
@@ -270,54 +269,38 @@ describe('Prefetching Links in viewport', () => {
     const browser = await webdriver(appPort, '/ssg/fixture')
     await waitFor(2 * 1000) // wait for prefetching to occur
 
-    const links = await browser.elementsByCss('link[rel=prefetch][as=fetch]')
-
-    const hrefs = []
-    for (const link of links) {
-      const href = await link.getAttribute('href')
-      hrefs.push(href)
-    }
+    const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
     hrefs.sort()
 
-    expect(hrefs.map((href) => parse(href).pathname)).toMatchInlineSnapshot(`
-      Array [
-        "/_next/data/test-build/ssg/basic.json",
-        "/_next/data/test-build/ssg/catch-all/foo.json",
-        "/_next/data/test-build/ssg/catch-all/foo/bar.json",
-        "/_next/data/test-build/ssg/catch-all/one.json",
-        "/_next/data/test-build/ssg/catch-all/one/two.json",
-        "/_next/data/test-build/ssg/dynamic-nested/foo/bar.json",
-        "/_next/data/test-build/ssg/dynamic-nested/one/two.json",
-        "/_next/data/test-build/ssg/dynamic/one.json",
-        "/_next/data/test-build/ssg/dynamic/two.json",
-      ]
-    `)
+    expect(hrefs.map((href) => new URL(href).pathname)).toEqual([
+      '/_next/data/test-build/ssg/basic.json',
+      '/_next/data/test-build/ssg/catch-all/foo.json',
+      '/_next/data/test-build/ssg/catch-all/foo/bar.json',
+      '/_next/data/test-build/ssg/catch-all/one.json',
+      '/_next/data/test-build/ssg/catch-all/one/two.json',
+      '/_next/data/test-build/ssg/dynamic-nested/foo/bar.json',
+      '/_next/data/test-build/ssg/dynamic-nested/one/two.json',
+      '/_next/data/test-build/ssg/dynamic/one.json',
+      '/_next/data/test-build/ssg/dynamic/two.json',
+    ])
   })
 
   it('should prefetch data files when mismatched', async () => {
     const browser = await webdriver(appPort, '/ssg/fixture/mismatch')
     await waitFor(2 * 1000) // wait for prefetching to occur
 
-    const links = await browser.elementsByCss('link[rel=prefetch][as=fetch]')
-
-    const hrefs = []
-    for (const link of links) {
-      const href = await link.getAttribute('href')
-      hrefs.push(href)
-    }
+    const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
     hrefs.sort()
 
-    expect(hrefs.map((href) => parse(href).pathname)).toMatchInlineSnapshot(`
-      Array [
-        "/_next/data/test-build/ssg/catch-all/foo.json",
-        "/_next/data/test-build/ssg/catch-all/foo/bar.json",
-        "/_next/data/test-build/ssg/catch-all/one.json",
-        "/_next/data/test-build/ssg/catch-all/one/two.json",
-        "/_next/data/test-build/ssg/dynamic-nested/foo/bar.json",
-        "/_next/data/test-build/ssg/dynamic-nested/one/two.json",
-        "/_next/data/test-build/ssg/dynamic/one.json",
-        "/_next/data/test-build/ssg/dynamic/two.json",
-      ]
-    `)
+    expect(hrefs.map((href) => new URL(href).pathname)).toEqual([
+      '/_next/data/test-build/ssg/catch-all/foo.json',
+      '/_next/data/test-build/ssg/catch-all/foo/bar.json',
+      '/_next/data/test-build/ssg/catch-all/one.json',
+      '/_next/data/test-build/ssg/catch-all/one/two.json',
+      '/_next/data/test-build/ssg/dynamic-nested/foo/bar.json',
+      '/_next/data/test-build/ssg/dynamic-nested/one/two.json',
+      '/_next/data/test-build/ssg/dynamic/one.json',
+      '/_next/data/test-build/ssg/dynamic/two.json',
+    ])
   })
 })
