@@ -529,6 +529,7 @@ function runTests(isDev) {
             '/fr/gsp/fallback/hello.json',
           ]
         )
+        return 'yes'
       }, 'yes')
     }
 
