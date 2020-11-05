@@ -85,7 +85,7 @@
     "ast-types": "0.13.2",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
-    "browserslist": "4.13.0",
+    "browserslist": "4.14.6",
     "buffer": "5.6.0",
     "caniuse-lite": "^1.0.30001113",
     "chokidar": "3.4.2",
