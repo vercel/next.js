@@ -294,6 +294,15 @@ function runTests(mode) {
       })
       expect(await getComputed(browser, id, 'width')).toBe(smallWidth)
       expect(await getComputed(browser, id, 'height')).toBe(smallHeight)
+
+      const objectFit = await browser.eval(
+        `document.getElementById("${id}").style.objectFit`
+      )
+      const objectPosition = await browser.eval(
+        `document.getElementById("${id}").style.objectPosition`
+      )
+      expect(objectFit).toBe('cover')
+      expect(objectPosition).toBe('left')
     } finally {
       if (browser) {
         await browser.close()
