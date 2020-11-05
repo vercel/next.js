@@ -25,31 +25,35 @@ export function loadEnvConfig(
   combinedEnv: Env
   loadedEnvFiles: LoadedEnvFiles
 } {
-  const { ENV_DEBUG, NODE_ENV } = process.env
+  const { ENV_DIR, ENV_LOAD, ENV_DEBUG, ENV_OVERRIDE, NODE_ENV } = process.env
 
   const mode = NODE_ENV === 'test' ? 'test' : dev ? 'development' : 'production'
 
   // parses and extracts .env files where the lower the .env is positioned
   // within the 'path' argument, the more important it is
-  // if ENV_CACHE is true and the file has already been loaded, it just returns the process.env
+  // if cache is true and the file has already been loaded, it just returns the process.env
   const { parsed, cachedEnvFiles } = snackables.config({
     // root directory for envs
-    dir,
+    dir: ENV_DIR || dir,
     // paths for .env files (can be a single string path, multiple paths
     // as a single string separated by commas, or an array of strings)
-    path: [
-      '.env',
-      `.env.${mode}`,
-      // Don't include `.env.local` for `test` environment
-      // since normally you expect tests to produce the same
-      // results for everyone
-      mode !== 'test' && `.env.local`,
-      `.env.${mode}.local`,
-    ].filter(Boolean) as string[],
-    // displays messages about loaded ENVs or warnings
-    debug: ENV_DEBUG || true,
+    path:
+      ENV_LOAD ||
+      ([
+        '.env',
+        `.env.${mode}`,
+        // Don't include `.env.local` for `test` environment
+        // since normally you expect tests to produce the same
+        // results for everyone
+        mode !== 'test' && `.env.local`,
+        `.env.${mode}.local`,
+      ].filter(Boolean) as string[]),
+    // overrides Envs already in process.env (default: false)
+    override: ENV_OVERRIDE,
     // caches ENV files so that they won't be reloaded
     cache: true,
+    // displays messages about loaded ENVs or any warnings
+    debug: ENV_DEBUG || true,
   })
 
   return { combinedEnv: parsed, loadedEnvFiles: cachedEnvFiles }
