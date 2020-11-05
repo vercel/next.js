@@ -417,26 +417,22 @@ export default class PageLoader {
       }
     }
 
-    return Promise.all(
+    return Promise.all([
       url
-        ? [
-            url.endsWith('.css')
-              ? this.fetchStyleSheet(url)
-              : !document.querySelector(
-                  `link[rel="${relPrefetch}"][href^="${url}"]`
-                ) && appendLink(url, relPrefetch, 'script'),
-            process.env.NODE_ENV === 'production' &&
-              !isDependency &&
-              this.getDependencies(route).then((urls) =>
-                Promise.all(
-                  urls.map((dependencyUrl) =>
-                    this.prefetch(dependencyUrl, true)
-                  )
-                )
-              ),
-          ]
-        : []
-    ).then(
+        ? url.endsWith('.css')
+          ? this.fetchStyleSheet(url)
+          : !document.querySelector(
+              `link[rel="${relPrefetch}"][href^="${url}"]`
+            ) && appendLink(url, relPrefetch, 'script')
+        : 0,
+      process.env.NODE_ENV === 'production' &&
+        !isDependency &&
+        this.getDependencies(route).then((urls) =>
+          Promise.all(
+            urls.map((dependencyUrl) => this.prefetch(dependencyUrl, true))
+          )
+        ),
+    ]).then(
       // do not return any data
       () => {},
       // swallow prefetch errors
