@@ -60,13 +60,33 @@ With Gatsby, global CSS imports are included in `gatsby-browser.js`. With Next, 
 
 ## Links
 
-The Gatsby `Link` and Next.js [`Link`](/docs/api-reference/next/link.md) component have a slightly different API. First, you will need to update any import statements referencing `Link` from Gatsby to:
+The Gatsby `Link` and Next.js [`Link`](/docs/api-reference/next/link.md) component have a slightly different API.
 
-```js
-import Link from 'next/link'
+```jsx
+// Gatsby
+
+import { Link } from 'gatsby'
+
+export default function Home() {
+  return <Link to="/blog">blog</Link>
+}
 ```
 
-Next, you can find and replace usages of `to="/route"` with `href="/route"`.
+```jsx
+// Next.js
+
+import Link from 'next/link'
+
+export default function Home() {
+  return (
+    <Link href="/blog">
+      <a>blog</a>
+    </Link>
+  )
+}
+```
+
+Update any import statements, switch `to` to `href`, and add an `<a>` tag as a child of the element.
 
 ## Data Fetching
 
@@ -84,10 +104,10 @@ import { getPostBySlug, getAllPosts } from '../lib/blog'
 
 export async function getStaticProps({ params }) {
   const post = getPostBySlug(params.slug)
-  const content = await remark()
+  const markdown = await remark()
     .use(html)
     .process(post.content || '')
-    .toString()
+  const content = markdown.toString()
 
   return {
     props: {
@@ -128,7 +148,7 @@ import { join } from 'path'
 const postsDirectory = join(process.cwd(), 'src', 'content', 'blog')
 
 export function getPostBySlug(slug) {
-  const realSlug = slug.replace(/\\.md$/, '')
+  const realSlug = slug.replace(/\.md$/, '')
   const fullPath = join(postsDirectory, `${realSlug}.md`)
   const fileContents = fs.readFileSync(fullPath, 'utf8')
   const { data, content } = matter(fileContents)
@@ -142,6 +162,45 @@ export function getAllPosts() {
   const posts = slugs.map((slug) => getPostBySlug(slug))
 
   return posts
+}
+```
+
+## Image Component and Image Optimization
+
+Since version **10.0.0**, Next.js has a built-in [Image Component and Automatic Image Optimization](/docs/basic-features/image-optimization.md).
+
+The Next.js Image Component, [`next/image`](/docs/api-reference/next/image.md), is an extension of the HTML `<img>` element, evolved for the modern web.
+
+The Automatic Image Optimization allows for resizing, optimizing, and serving images in modern formats like [WebP](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Image_types) when the browser supports it. This avoids shipping large images to devices with a smaller viewport. It also allows Next.js to automatically adopt future image formats and serve them to browsers that support those formats.
+
+### Migrating from Gatsby Image
+
+Instead of optimizing images at build time, Next.js optimizes images on-demand, as users request them. Unlike static site generators and static-only solutions, your build times aren't increased, whether shipping 10 images or 10 million images.
+
+This means you can remove common Gatsby plugins like:
+
+- `gatsby-image`
+- `gatsby-transformer-sharp`
+- `gatsby-plugin-sharp`
+
+Instead, use the built-in [`next/image`](/docs/api-reference/next/image.md) component and [Automatic Image Optimization](/docs/basic-features/image-optimization.md).
+
+```jsx
+import Image from 'next/image'
+
+export default function Home() {
+  return (
+    <>
+      <h1>My Homepage</h1>
+      <Image
+        src="/me.png"
+        alt="Picture of the author"
+        width={500}
+        height={500}
+      />
+      <p>Welcome to my homepage!</p>
+    </>
+  )
 }
 ```
 

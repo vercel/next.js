@@ -283,6 +283,14 @@ export default async function exportApp(
     }
   }
 
+  const { i18n } = nextConfig
+
+  if (i18n && !options.buildExport) {
+    throw new Error(
+      `i18n support is not compatible with next export. See here for more info on deploying: https://nextjs.org/docs/deployment`
+    )
+  }
+
   // Start the rendering process
   const renderOpts = {
     dir,
@@ -298,6 +306,9 @@ export default async function exportApp(
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
+    locales: i18n?.locales,
+    locale: i18n.defaultLocale,
+    defaultLocale: i18n.defaultLocale,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -462,13 +473,17 @@ export default async function exportApp(
       renderError = renderError || !!result.error
       if (!!result.error) errorPaths.push(path)
 
-      if (
-        options.buildExport &&
-        typeof result.fromBuildExportRevalidate !== 'undefined'
-      ) {
-        configuration.initialPageRevalidationMap[path] =
-          result.fromBuildExportRevalidate
+      if (options.buildExport) {
+        if (typeof result.fromBuildExportRevalidate !== 'undefined') {
+          configuration.initialPageRevalidationMap[path] =
+            result.fromBuildExportRevalidate
+        }
+
+        if (result.ssgNotFound === true) {
+          configuration.ssgNotFoundPaths.push(path)
+        }
       }
+
       if (progress) progress()
     })
   )
