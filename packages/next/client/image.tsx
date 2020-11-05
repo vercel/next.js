@@ -468,9 +468,7 @@ export default function Image({
     className = className ? className + ' __lazy' : '__lazy'
   }
 
-  // No need to add preloads on the client side--by the time the application is hydrated,
-  // it's too late for preloads
-  const shouldPreload = priority && typeof window === 'undefined'
+  const shouldPreload = priority
 
   if (unsized) {
     wrapperStyle = undefined
