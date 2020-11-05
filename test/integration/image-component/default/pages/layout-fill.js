@@ -10,7 +10,13 @@ const Page = () => {
       </div>
       <p>Layout Fill</p>
       <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
-        <Image id="fill2" src="/wide.png" layout="fill" />
+        <Image
+          id="fill2"
+          src="/wide.png"
+          layout="fill"
+          objectFit="cover"
+          objectPosition="left center"
+        />
       </div>
       <p>Layout Fill</p>
     </div>
