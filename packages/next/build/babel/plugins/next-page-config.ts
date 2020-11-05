@@ -1,4 +1,8 @@
-import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
+import {
+  NodePath,
+  PluginObj,
+  types as BabelTypes,
+} from 'next/dist/compiled/babel/core'
 import { PageConfig } from 'next/types'
 import { STRING_LITERAL_DROP_BUNDLE } from '../../../next-server/lib/constants'
 
@@ -77,9 +81,12 @@ export default function nextPageConfig({
                 }
 
                 const config: PageConfig = {}
-                const declarations = [
-                  ...(exportPath.node.declaration?.declarations || []),
-                  exportPath.scope.getBinding(CONFIG_KEY)?.path.node,
+                const declarations: BabelTypes.VariableDeclarator[] = [
+                  ...((exportPath.node
+                    .declaration as BabelTypes.VariableDeclaration)
+                    ?.declarations || []),
+                  exportPath.scope.getBinding(CONFIG_KEY)?.path
+                    .node as BabelTypes.VariableDeclarator,
                 ].filter(Boolean)
 
                 for (const specifier of exportPath.node.specifiers) {
@@ -147,7 +154,7 @@ export default function nextPageConfig({
                         )
                       )
                     }
-                    const { name } = prop.key
+                    const { name } = prop.key as BabelTypes.Identifier
                     if (BabelTypes.isIdentifier(prop.key, { name: 'amp' })) {
                       if (!BabelTypes.isObjectProperty(prop)) {
                         throw new Error(
