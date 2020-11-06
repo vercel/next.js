@@ -11,7 +11,7 @@
     "apollo-server-micro": "2.16.1",
     "neo4j-driver": "4.1.1",
     "neo4j-graphql-js": "2.15.1",
-    "next": "9.5.2",
+    "next": "latest",
     "react": "16.13.1",
     "react-dom": "16.13.1"
   },
