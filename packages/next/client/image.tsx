@@ -457,22 +457,20 @@ export default function Image({
         srcSet?: string
       }
     | {
+        src: string
         'data-src': string
         'data-srcset'?: string
       }
   if (!lazy) {
     imgAttributes = {
       src: imgSrc,
-    }
-    if (imgSrcSet) {
-      imgAttributes.srcSet = imgSrcSet
+      srcSet: imgSrcSet,
     }
   } else {
     imgAttributes = {
+      src: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=',
       'data-src': imgSrc,
-    }
-    if (imgSrcSet) {
-      imgAttributes['data-srcset'] = imgSrcSet
+      'data-srcset': imgSrcSet,
     }
     className = className ? className + ' __lazy' : '__lazy'
   }
