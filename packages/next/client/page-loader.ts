@@ -38,9 +38,6 @@ const relPrefetch =
       // IE 11, Edge 12+, nearly all evergreen
       'prefetch'
 
-const relPreload = hasRel('preload') ? 'preload' : relPrefetch
-const relPreloadStyle = 'fetch'
-
 const hasNoModule = 'noModule' in document.createElement('script')
 
 function normalizeRoute(route: string) {
@@ -102,6 +99,7 @@ export default class PageLoader {
   private buildId: string
   private assetPrefix: string
   private pageCache: Record<string, PageCacheEntry>
+  private cssc: Record<string, Promise<string>>
   private pageRegisterEvents: MittEmitter
   private loadingRoutes: Record<string, boolean>
   private promisedBuildManifest?: Promise<ClientBuildManifest>
@@ -115,6 +113,7 @@ export default class PageLoader {
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
+    this.cssc = {}
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {
       // By default these 2 pages are being loaded in the initial html
@@ -173,6 +172,16 @@ export default class PageLoader {
         return this.promisedDevPagesManifest
       }
     }
+  }
+
+  private fetchStyleSheet(href: string): Promise<StyleSheetTuple> {
+    if (!this.cssc[href]) {
+      this.cssc[href] = fetch(href).then((res) => {
+        if (!res.ok) throw pageLoadError(href)
+        return res.text()
+      })
+    }
+    return this.cssc[href].then((text) => ({ href, text }))
   }
 
   // Returns a promise for the dependencies for a particular route
@@ -268,25 +277,8 @@ export default class PageLoader {
                 ) {
                   pending.push(loadScript(d))
                 }
-
-                // Prefetch CSS as it'll be needed when the page JavaScript
-                // evaluates. This will only trigger if explicit prefetching is
-                // disabled for a <Link>... prefetching in this case is desirable
-                // because we *know* it's going to be used very soon (page was
-                // loaded).
-                if (
-                  d.endsWith('.css') &&
-                  !document.querySelector(
-                    `link[rel="${relPreload}"][href^="${d}"]`
-                  )
-                ) {
-                  // This is not pushed into `pending` because we don't need to
-                  // wait for these to resolve. To prevent an unhandled
-                  // rejection, we swallow the error which is handled later in
-                  // the rendering cycle (this is just a preload optimization).
-                  appendLink(d, relPreload, relPreloadStyle).catch(() => {
-                    /* ignore preload error */
-                  })
+                if (d.endsWith('.css')) {
+                  pending.push(this.fetchStyleSheet(d))
                 }
               })
               return Promise.all(pending)
@@ -355,13 +347,6 @@ export default class PageLoader {
       }
     }
 
-    function fetchStyleSheet(href: string): Promise<StyleSheetTuple> {
-      return fetch(href).then((res) => {
-        if (!res.ok) throw pageLoadError(href)
-        return res.text().then((text) => ({ href, text }))
-      })
-    }
-
     const isInitialLoad = route === this.initialPage
     const promisedDeps: Promise<StyleSheetTuple[]> =
       // Shared styles will already be on the page:
@@ -383,7 +368,7 @@ export default class PageLoader {
           ).then((cssFiles) =>
             // These files should've already been fetched by now, so this
             // should resolve instantly.
-            Promise.all(cssFiles.map((d) => fetchStyleSheet(d))).catch(
+            Promise.all(cssFiles.map((d) => this.fetchStyleSheet(d))).catch(
               (err) => {
                 if (isInitialLoad) {
                   Object.defineProperty(err, INITIAL_CSS_LOAD_ERROR, {})
@@ -432,27 +417,22 @@ export default class PageLoader {
       }
     }
 
-    return Promise.all(
-      document.querySelector(`link[rel="${relPrefetch}"][href^="${url}"]`)
-        ? []
-        : [
-            url &&
-              appendLink(
-                url,
-                relPrefetch,
-                url.endsWith('.css') ? relPreloadStyle : 'script'
-              ),
-            process.env.NODE_ENV === 'production' &&
-              !isDependency &&
-              this.getDependencies(route).then((urls) =>
-                Promise.all(
-                  urls.map((dependencyUrl) =>
-                    this.prefetch(dependencyUrl, true)
-                  )
-                )
-              ),
-          ]
-    ).then(
+    return Promise.all([
+      url
+        ? url.endsWith('.css')
+          ? this.fetchStyleSheet(url)
+          : !document.querySelector(
+              `link[rel="${relPrefetch}"][href^="${url}"]`
+            ) && appendLink(url, relPrefetch, 'script')
+        : 0,
+      process.env.NODE_ENV === 'production' &&
+        !isDependency &&
+        this.getDependencies(route).then((urls) =>
+          Promise.all(
+            urls.map((dependencyUrl) => this.prefetch(dependencyUrl, true))
+          )
+        ),
+    ]).then(
       // do not return any data
       () => {},
       // swallow prefetch errors
