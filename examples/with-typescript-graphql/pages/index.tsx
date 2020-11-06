@@ -3,8 +3,7 @@ import { useViewerQuery, ViewerDocument } from '../lib/viewer.graphql'
 import { initializeApollo } from '../lib/apollo'
 
 const Index = () => {
-  const { data } = useViewerQuery()
-  const { viewer } = data!
+  const { viewer } = useViewerQuery().data!
 
   return (
     <div>

@@ -12,5 +12,6 @@
     "react-dom": "^16.8.0",
     "styletron-engine-atomic": "^1.1.2",
     "styletron-react": "^5.0.1"
-  }
+  },
+  "license": "MIT"
 }

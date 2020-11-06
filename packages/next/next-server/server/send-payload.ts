@@ -1,6 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { isResSent } from '../lib/utils'
-import generateETag from 'next/dist/compiled/etag'
+import generateETag from 'etag'
 import fresh from 'next/dist/compiled/fresh'
 
 export function sendPayload(

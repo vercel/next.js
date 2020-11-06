@@ -1,8 +1,9 @@
-import { codeFrameColumns } from '@babel/code-frame'
+import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import crypto from 'crypto'
-import { readFileSync } from 'fs'
-import chalk from 'next/dist/compiled/chalk'
+import { readFileSync, realpathSync } from 'fs'
+import chalk from 'chalk'
+import semver from 'next/dist/compiled/semver'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
 import path from 'path'
 import webpack from 'webpack'
@@ -14,6 +15,8 @@ import {
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
+import { getPackageVersion } from '../lib/get-package-version'
+import { Rewrite } from '../lib/load-custom-routes'
 import { resolveRequest } from '../lib/resolve-request'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import {
@@ -54,7 +57,7 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
-import { Rewrite } from '../lib/load-custom-routes'
+
 type ExcludesFalse = <T>(x: T | false) => x is T
 
 const isWebpack5 = parseInt(webpack.version!) === 5
@@ -226,7 +229,13 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  const hasReactRefresh = dev && !isServer
+  const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })
+  const hasReactRefresh: boolean = dev && !isServer
+  const hasJsxRuntime: boolean =
+    Boolean(reactVersion) &&
+    // 17.0.0-rc.0 had a breaking change not compatible with Next.js, but was
+    // fixed in rc.1.
+    semver.gte(reactVersion!, '17.0.0-rc.1')
 
   const distDir = path.join(dir, config.distDir)
   const defaultLoaders = {
@@ -243,6 +252,7 @@ export default async function getBaseWebpackConfig(
         hasModern: !!config.experimental.modern,
         development: dev,
         hasReactRefresh,
+        hasJsxRuntime,
       },
     },
     // Backwards compat
@@ -573,6 +583,7 @@ export default async function getBaseWebpackConfig(
       'next/app',
       'next/document',
       'next/link',
+      'next/image',
       'next/error',
       'string-hash',
       'next/constants',
@@ -655,7 +666,12 @@ export default async function getBaseWebpackConfig(
       // Same as above: if the package, when required from the root,
       // would be different from what the real resolution would use, we
       // cannot externalize it.
-      if (baseRes !== res) {
+      if (
+        !baseRes ||
+        (baseRes !== res &&
+          // if res and baseRes are symlinks they could point to the the same file
+          realpathSync(baseRes) !== realpathSync(res))
+      ) {
         return callback()
       }
     }
@@ -780,7 +796,19 @@ export default async function getBaseWebpackConfig(
       ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
     },
     output: {
-      ...(isWebpack5 ? { ecmaVersion: 5 } : {}),
+      ...(isWebpack5
+        ? {
+            environment: {
+              arrowFunction: false,
+              bigIntLiteral: false,
+              const: false,
+              destructuring: false,
+              dynamicImport: false,
+              forOf: false,
+              module: false,
+            },
+          }
+        : {}),
       path: outputPath,
       // On the server we don't use the chunkhash
       filename: isServer
@@ -830,6 +858,18 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
+        ...(isWebpack5
+          ? [
+              // TODO: FIXME: do NOT webpack 5 support with this
+              // x-ref: https://github.com/webpack/webpack/issues/11467
+              {
+                test: /\.m?js/,
+                resolve: {
+                  fullySpecified: false,
+                },
+              } as any,
+            ]
+          : []),
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, ...babelIncludeRegexes],
@@ -929,9 +969,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
           config.devIndicators.buildActivity
         ),
-        'process.env.__NEXT_PRERENDER_INDICATOR': JSON.stringify(
-          config.devIndicators.autoPrerender
-        ),
         'process.env.__NEXT_PLUGINS': JSON.stringify(
           config.experimental.plugins
         ),
@@ -950,8 +987,23 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),
+        'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
+          deviceSizes: config.images.deviceSizes,
+          imageSizes: config.images.imageSizes,
+          path: config.images.path,
+          loader: config.images.loader,
+          ...(dev
+            ? {
+                // pass domains in development to allow validating on the client
+                domains: config.images.domains,
+              }
+            : {}),
+        }),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
+        'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
+        'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n.domains),
+        'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -1141,7 +1193,6 @@ export default async function getBaseWebpackConfig(
       trailingSlash: config.trailingSlash,
       modern: config.experimental.modern,
       buildActivity: config.devIndicators.buildActivity,
-      autoPrerender: config.devIndicators.autoPrerender,
       plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
       reactMode: config.experimental.reactMode,

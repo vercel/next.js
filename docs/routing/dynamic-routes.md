@@ -54,7 +54,37 @@ Multiple dynamic route segments work the same way. The page `pages/post/[pid]/[c
 { "pid": "abc", "comment": "a-comment" }
 ```
 
-**Note:** Client-side navigations to a dynamic route (including [catch all routes](#catch-all-routes)) can be handled with [`next/link`](/docs/api-reference/next/link.md#dynamic-routes). Read our docs for [Linking between pages](/docs/routing/introduction.md#linking-between-pages) to learn more.
+Client-side navigations to dynamic routes are handled with [`next/link`](/docs/api-reference/next/link.md). If we wanted to have links to the routes used above it will look like this:
+
+```jsx
+import Link from 'next/link'
+
+function Home() {
+  return (
+    <ul>
+      <li>
+        <Link href="/post/abc">
+          <a>Go to pages/post/[pid].js</a>
+        </Link>
+      </li>
+      <li>
+        <Link href="/post/abc?foo=bar">
+          <a>Also goes to pages/post/[pid].js</a>
+        </Link>
+      </li>
+      <li>
+        <Link href="/post/abc/a-comment">
+          <a>Go to pages/post/[pid]/[comment].js</a>
+        </Link>
+      </li>
+    </ul>
+  )
+}
+
+export default Home
+```
+
+Read our docs for [Linking between pages](/docs/routing/introduction.md#linking-between-pages) to learn more.
 
 ### Catch all routes
 
@@ -108,6 +138,23 @@ The `query` objects are as follows:
   - `pages/post/[pid].js` - Will match `/post/1`, `/post/abc`, etc. But not `/post/create`
   - `pages/post/[...slug].js` - Will match `/post/1/2`, `/post/a/b/c`, etc. But not `/post/create`, `/post/abc`
 - Pages that are statically optimized by [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) will be hydrated without their route parameters provided, i.e `query` will be an empty object (`{}`).
-- When routing to a dynamic route using `Link` or `router`, you will need to specify the `href` as the dynamic route, for example `/post/[pid]` and `as` as the decorator for the URL, for example `/post/abc`.
 
   After hydration, Next.js will trigger an update to your application to provide the route parameters in the `query` object.
+
+## Related
+
+For more information on what to do next, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/api-reference/next/link.md">
+    <b>Pages:</b>
+    <small>Enable client-side transitions with next/link.</small>
+  </a>
+</div>
+
+<div class="card">
+  <a href="/docs/routing/introduction.md">
+    <b>Routing:</b>
+    <small>Learn more about routing in Next.js.</small>
+  </a>
+</div>

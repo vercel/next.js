@@ -1,23 +1,28 @@
 /* global location */
+import '@next/polyfill-module'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
 import mitt from '../next-server/lib/mitt'
 import { RouterContext } from '../next-server/lib/router-context'
-import { delBasePath, hasBasePath } from '../next-server/lib/router/router'
 import type Router from '../next-server/lib/router/router'
 import type {
   AppComponent,
   AppProps,
   PrivateRouteInfo,
 } from '../next-server/lib/router/router'
+import { delBasePath, hasBasePath } from '../next-server/lib/router/router'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import * as querystring from '../next-server/lib/router/utils/querystring'
 import * as envConfig from '../next-server/lib/runtime-config'
-import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import type { NEXT_DATA } from '../next-server/lib/utils'
+import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
-import PageLoader, { createLink } from './page-loader'
+import PageLoader, {
+  INITIAL_CSS_LOAD_ERROR,
+  looseToArray,
+  StyleSheetTuple,
+} from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { createRouter, makePublicRouterInstance } from './router'
 
@@ -41,10 +46,6 @@ declare global {
 type RenderRouteInfo = PrivateRouteInfo & { App: AppComponent }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 
-if (!('finally' in Promise.prototype)) {
-  ;(Promise.prototype as PromiseConstructor['prototype']).finally = require('next/dist/build/polyfills/finally-polyfill.min')
-}
-
 const data: typeof window['__NEXT_DATA__'] = JSON.parse(
   document.getElementById('__NEXT_DATA__')!.textContent!
 )
@@ -62,7 +63,11 @@ const {
   runtimeConfig,
   dynamicIds,
   isFallback,
+  head: initialHeadData,
+  locales,
 } = data
+
+let { locale, defaultLocale } = data
 
 const prefix = assetPrefix || ''
 
@@ -82,16 +87,54 @@ if (hasBasePath(asPath)) {
   asPath = delBasePath(asPath)
 }
 
+if (process.env.__NEXT_I18N_SUPPORT) {
+  const {
+    normalizeLocalePath,
+  } = require('../next-server/lib/i18n/normalize-locale-path') as typeof import('../next-server/lib/i18n/normalize-locale-path')
+
+  const {
+    detectDomainLocale,
+  } = require('../next-server/lib/i18n/detect-domain-locale') as typeof import('../next-server/lib/i18n/detect-domain-locale')
+
+  const {
+    parseRelativeUrl,
+  } = require('../next-server/lib/router/utils/parse-relative-url') as typeof import('../next-server/lib/router/utils/parse-relative-url')
+
+  const {
+    formatUrl,
+  } = require('../next-server/lib/router/utils/format-url') as typeof import('../next-server/lib/router/utils/format-url')
+
+  if (locales) {
+    const parsedAs = parseRelativeUrl(asPath)
+    const localePathResult = normalizeLocalePath(parsedAs.pathname, locales)
+
+    if (localePathResult.detectedLocale) {
+      parsedAs.pathname = localePathResult.pathname
+      asPath = formatUrl(parsedAs)
+    } else {
+      // derive the default locale if it wasn't detected in the asPath
+      // since we don't prerender static pages with all possible default
+      // locales
+      defaultLocale = locale
+    }
+
+    // attempt detecting default locale based on hostname
+    const detectedDomain = detectDomainLocale(
+      process.env.__NEXT_I18N_DOMAINS as any,
+      window.location.hostname
+    )
+
+    // TODO: investigate if defaultLocale needs to be populated after
+    // hydration to prevent mismatched renders
+    if (detectedDomain) {
+      defaultLocale = detectedDomain.defaultLocale
+    }
+  }
+}
+
 type RegisterFn = (input: [string, () => void]) => void
 
-const pageLoader = new PageLoader(
-  buildId,
-  prefix,
-  page,
-  [].slice
-    .call(document.querySelectorAll('link[rel=stylesheet][data-n-p]'))
-    .map((e: HTMLLinkElement) => e.getAttribute('href')!)
-)
+const pageLoader = new PageLoader(buildId, prefix, page)
 const register: RegisterFn = ([r, f]) => pageLoader.registerPage(r, f)
 if (window.__NEXT_P) {
   // Defer page registration for another tick. This will increase the overall
@@ -101,7 +144,7 @@ if (window.__NEXT_P) {
 window.__NEXT_P = []
 ;(window.__NEXT_P as any).push = register
 
-const headManager = initHeadManager()
+const headManager = initHeadManager(initialHeadData)
 const appElement = document.getElementById('__next')
 
 let lastAppProps: AppProps
@@ -109,7 +152,7 @@ let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
 let CachedComponent: React.ComponentType
-let cachedStyleSheets: string[]
+let cachedStyleSheets: StyleSheetTuple[]
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 
 class Container extends React.Component<{
@@ -157,14 +200,6 @@ class Container extends React.Component<{
           shallow: !isFallback,
         }
       )
-    }
-
-    if (process.env.__NEXT_TEST_MODE) {
-      window.__NEXT_HYDRATED = true
-
-      if (window.__NEXT_HYDRATED_CB) {
-        window.__NEXT_HYDRATED_CB()
-      }
     }
   }
 
@@ -255,6 +290,9 @@ export default async (opts: { webpackHMR?: any } = {}) => {
       }
     }
   } catch (error) {
+    if (INITIAL_CSS_LOAD_ERROR in error) {
+      throw error
+    }
     // This catches errors like throwing in the top level of a module
     initialErr = error
   }
@@ -308,6 +346,9 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     isFallback: Boolean(isFallback),
     subscription: ({ Component, styleSheets, props, err }, App) =>
       render({ App, Component, styleSheets, props, err }),
+    locale,
+    locales,
+    defaultLocale,
   })
 
   // call init-client middleware
@@ -454,10 +495,6 @@ function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
     if (isInitialRender) {
       ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
       isInitialRender = false
-
-      if (onPerfEntry && ST) {
-        measureWebVitals(onPerfEntry)
-      }
     } else {
       ReactDOM.render(reactEl, domEl, markRenderComplete)
     }
@@ -574,8 +611,8 @@ function doRender({
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
+  let canceled = false
   let resolvePromise: () => void
-  let renderPromiseReject: () => void
   const renderPromise = new Promise((resolve, reject) => {
     if (lastRenderReject) {
       lastRenderReject()
@@ -584,7 +621,8 @@ function doRender({
       lastRenderReject = null
       resolve()
     }
-    renderPromiseReject = lastRenderReject = () => {
+    lastRenderReject = () => {
+      canceled = true
       lastRenderReject = null
 
       const error: any = new Error('Cancel rendering route')
@@ -593,12 +631,9 @@ function doRender({
     }
   })
 
-  // TODO: consider replacing this with real `<style>` tags that have
-  // plain-text CSS content that's provided by RouteInfo. That'd remove the
-  // need for the staging `<link>`s and the ability for CSS to be missing at
-  // this phase, allowing us to remove the error handling flow that reloads the
-  // page.
-  function onStart(): Promise<void[]> {
+  // This function has a return type to ensure it doesn't start returning a
+  // Promise. It should remain synchronous.
+  function onStart(): boolean {
     if (
       // We can skip this during hydration. Running it wont cause any harm, but
       // we may as well save the CPU cycles.
@@ -607,84 +642,89 @@ function doRender({
       // unless we're in production:
       process.env.NODE_ENV !== 'production'
     ) {
-      return Promise.resolve([])
+      return false
     }
 
-    // Clean up previous render if canceling:
-    ;([].slice.call(
-      document.querySelectorAll('link[data-n-staging]')
-    ) as HTMLLinkElement[]).forEach((el) => {
-      el.parentNode!.removeChild(el)
-    })
+    const currentStyleTags = looseToArray<HTMLStyleElement>(
+      document.querySelectorAll('style[data-n-href]')
+    )
+    const currentHrefs = new Set(
+      currentStyleTags.map((tag) => tag.getAttribute('data-n-href'))
+    )
 
-    let referenceNode: HTMLLinkElement | undefined = ([].slice.call(
-      document.querySelectorAll('link[data-n-g], link[data-n-p]')
-    ) as HTMLLinkElement[]).pop()
+    styleSheets.forEach(({ href, text }) => {
+      if (!currentHrefs.has(href)) {
+        const styleTag = document.createElement('style')
+        styleTag.setAttribute('data-n-href', href)
+        styleTag.setAttribute('media', 'x')
 
-    const required: Promise<void>[] = styleSheets.map((href) => {
-      const [link, promise] = createLink(href, 'stylesheet')
-      link.setAttribute('data-n-staging', '')
-      // Media `none` does not work in Firefox, so `print` is more
-      // cross-browser. Since this is so short lived we don't have to worry
-      // about style thrashing in a print view (where no routing is going to be
-      // happening anyway).
-      link.setAttribute('media', 'print')
-      if (referenceNode) {
-        referenceNode.parentNode!.insertBefore(link, referenceNode.nextSibling)
-        referenceNode = link
-      } else {
-        document.head.appendChild(link)
+        document.head.appendChild(styleTag)
+        styleTag.appendChild(document.createTextNode(text))
       }
-      return promise
     })
-    return Promise.all(required).catch(() => {
-      // This is too late in the rendering lifecycle to use the existing
-      // `PAGE_LOAD_ERROR` flow (via `handleRouteInfoError`).
-      // To match that behavior, we request the page to reload with the current
-      // asPath. This is already set at this phase since we "committed" to the
-      // render.
-      // This handles an edge case where a new deployment is rolled during
-      // client-side transition and the CSS assets are missing.
-
-      // This prevents:
-      //   1. An unstyled page from being rendered (old behavior)
-      //   2. The `/_error` page being rendered (we want to reload for the new
-      //      deployment)
-      window.location.href = router.asPath
-
-      // Instead of rethrowing the CSS loading error, we give a promise that
-      // won't resolve. This pauses the rendering process until the page
-      // reloads. Re-throwing the error could result in a flash of error page.
-      // throw cssLoadingError
-      return new Promise(() => {})
-    })
+    return true
   }
 
   function onCommit() {
     if (
-      // We can skip this during hydration. Running it wont cause any harm, but
-      // we may as well save the CPU cycles.
-      !isInitialRender &&
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
-      process.env.NODE_ENV === 'production'
+      process.env.NODE_ENV === 'production' &&
+      // We can skip this during hydration. Running it wont cause any harm, but
+      // we may as well save the CPU cycles:
+      !isInitialRender &&
+      // Ensure this render was not canceled
+      !canceled
     ) {
-      // Remove old stylesheets:
-      ;([].slice.call(
-        document.querySelectorAll('link[data-n-p]')
-      ) as HTMLLinkElement[]).forEach((el) => el.parentNode!.removeChild(el))
+      const desiredHrefs = new Set(styleSheets.map((s) => s.href))
+      const currentStyleTags = looseToArray<HTMLStyleElement>(
+        document.querySelectorAll('style[data-n-href]')
+      )
+      const currentHrefs = currentStyleTags.map(
+        (tag) => tag.getAttribute('data-n-href')!
+      )
 
-      // Activate new stylesheets:
-      ;[].slice
-        .call(document.querySelectorAll('link[data-n-staging]'))
-        .forEach((el: HTMLLinkElement) => {
-          el.removeAttribute('data-n-staging')
-          el.removeAttribute('media')
-          el.setAttribute('data-n-p', '')
+      // Toggle `<style>` tags on or off depending on if they're needed:
+      for (let idx = 0; idx < currentHrefs.length; ++idx) {
+        if (desiredHrefs.has(currentHrefs[idx])) {
+          currentStyleTags[idx].removeAttribute('media')
+        } else {
+          currentStyleTags[idx].setAttribute('media', 'x')
+        }
+      }
+
+      // Reorder styles into intended order:
+      let referenceNode = document.querySelector('noscript[data-n-css]')
+      if (
+        // This should be an invariant:
+        referenceNode
+      ) {
+        styleSheets.forEach(({ href }) => {
+          const targetTag = document.querySelector(
+            `style[data-n-href="${href}"]`
+          )
+          if (
+            // This should be an invariant:
+            targetTag
+          ) {
+            referenceNode!.parentNode!.insertBefore(
+              targetTag,
+              referenceNode!.nextSibling
+            )
+            referenceNode = targetTag
+          }
         })
+      }
 
-      // Force browser to recompute layout, which prevents a flash of unstyled
-      // content:
+      // Finally, clean up server rendered stylesheets:
+      looseToArray<HTMLLinkElement>(
+        document.querySelectorAll('link[data-n-p]')
+      ).forEach((el) => {
+        el.parentNode!.removeChild(el)
+      })
+
+      // Force browser to recompute layout, which should prevent a flash of
+      // unstyled content:
       getComputedStyle(document.body, 'height')
     }
 
@@ -699,33 +739,19 @@ function doRender({
     </Root>
   )
 
-  // We catch runtime errors using componentDidCatch which will trigger renderError
-  return Promise.race([
-    // Download required CSS assets first:
-    onStart()
-      .then(() => {
-        // Ensure a new render has not been started:
-        if (renderPromiseReject === lastRenderReject) {
-          // Queue rendering:
-          renderReactElement(
-            process.env.__NEXT_STRICT_MODE ? (
-              <React.StrictMode>{elem}</React.StrictMode>
-            ) : (
-              elem
-            ),
-            appElement!
-          )
-        }
-      })
-      .then(
-        () =>
-          // Wait for rendering to complete:
-          renderPromise
-      ),
+  onStart()
 
-    // Bail early on route cancelation (rejection):
-    renderPromise,
-  ])
+  // We catch runtime errors using componentDidCatch which will trigger renderError
+  renderReactElement(
+    process.env.__NEXT_STRICT_MODE ? (
+      <React.StrictMode>{elem}</React.StrictMode>
+    ) : (
+      elem
+    ),
+    appElement!
+  )
+
+  return renderPromise
 }
 
 function Root({
@@ -737,5 +763,20 @@ function Root({
   // We use `useLayoutEffect` to guarantee the callback is executed
   // as soon as React flushes the update.
   React.useLayoutEffect(() => callback(), [callback])
+  if (process.env.__NEXT_TEST_MODE) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    React.useEffect(() => {
+      window.__NEXT_HYDRATED = true
+
+      if (window.__NEXT_HYDRATED_CB) {
+        window.__NEXT_HYDRATED_CB()
+      }
+    }, [])
+  }
+  // We should ask to measure the Web Vitals after rendering completes so we
+  // don't cause any hydration delay:
+  React.useEffect(() => {
+    measureWebVitals(onPerfEntry)
+  }, [])
   return children as React.ReactElement
 }

@@ -37,7 +37,6 @@ export async function sandbox(
     env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
   })
   const browser = await webdriver(appPort, '/')
-
   return [
     {
       sandboxDirectory,
