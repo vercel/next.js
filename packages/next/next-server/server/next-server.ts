@@ -1094,6 +1094,8 @@ export default class Server {
       return this.handleRequest(req, res, parsedUrl)
     }
 
+    this.handleCompression(req, res)
+
     if (isBlockedPage(pathname)) {
       return this.render404(req, res, parsedUrl)
     }
