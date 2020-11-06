@@ -26,6 +26,9 @@ const externals = {
   browserslist: 'browserslist',
   'caniuse-lite': 'caniuse-lite',
 
+  chalk: 'chalk',
+  'node-fetch': 'node-fetch',
+
   // Webpack indirect and direct dependencies:
   webpack: 'webpack',
   'webpack-sources': 'webpack-sources',
@@ -153,16 +156,6 @@ export async function ncc_cache_loader(task, opts) {
     .target('compiled/cache-loader')
 }
 // eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Vercel version is a duplicate
-// version so can be inlined anyway (although may change in future)
-externals['chalk'] = 'next/dist/compiled/chalk'
-export async function ncc_chalk(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('chalk')))
-    .ncc({ packageName: 'chalk', externals })
-    .target('compiled/chalk')
-}
-// eslint-disable-next-line camelcase
 externals['ci-info'] = 'next/dist/compiled/ci-info'
 export async function ncc_ci_info(task, opts) {
   await task
@@ -227,14 +220,6 @@ export async function ncc_escape_string_regexp(task, opts) {
     )
     .ncc({ packageName: 'escape-string-regexp', externals })
     .target('compiled/escape-string-regexp')
-}
-// eslint-disable-next-line camelcase
-externals['etag'] = 'next/dist/compiled/etag'
-export async function ncc_etag(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('etag')))
-    .ncc({ packageName: 'etag', externals })
-    .target('compiled/etag')
 }
 // eslint-disable-next-line camelcase
 externals['file-loader'] = 'next/dist/compiled/file-loader'
@@ -373,14 +358,6 @@ export async function ncc_neo_async(task, opts) {
     .target('compiled/neo-async')
 }
 // eslint-disable-next-line camelcase
-externals['node-fetch'] = 'next/dist/compiled/node-fetch'
-export async function ncc_node_fetch(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('node-fetch')))
-    .ncc({ packageName: 'node-fetch', externals })
-    .target('compiled/node-fetch')
-}
-// eslint-disable-next-line camelcase
 externals['ora'] = 'next/dist/compiled/ora'
 export async function ncc_ora(task, opts) {
   await task
@@ -416,14 +393,6 @@ export async function ncc_postcss_preset_env(task, opts) {
     )
     .ncc({ packageName: 'postcss-preset-env', externals })
     .target('compiled/postcss-preset-env')
-}
-// eslint-disable-next-line camelcase
-externals['raw-body'] = 'next/dist/compiled/raw-body'
-export async function ncc_raw_body(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('raw-body')))
-    .ncc({ packageName: 'raw-body', externals })
-    .target('compiled/raw-body')
 }
 // eslint-disable-next-line camelcase
 externals['recast'] = 'next/dist/compiled/recast'
@@ -586,7 +555,6 @@ export async function ncc(task) {
       'ncc_babel_loader',
       'ncc_cacache',
       'ncc_cache_loader',
-      'ncc_chalk',
       'ncc_ci_info',
       'ncc_compression',
       'ncc_conf',
@@ -595,7 +563,6 @@ export async function ncc(task) {
       'ncc_debug',
       'ncc_devalue',
       'ncc_escape_string_regexp',
-      'ncc_etag',
       'ncc_file_loader',
       'ncc_find_cache_dir',
       'ncc_find_up',
@@ -613,12 +580,10 @@ export async function ncc(task) {
       'ncc_mkdirp',
       'ncc_nanoid',
       'ncc_neo_async',
-      'ncc_node_fetch',
       'ncc_ora',
       'ncc_postcss_flexbugs_fixes',
       'ncc_postcss_loader',
       'ncc_postcss_preset_env',
-      'ncc_raw_body',
       'ncc_recast',
       'ncc_resolve',
       'ncc_schema_utils',
