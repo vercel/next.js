@@ -6,6 +6,13 @@ description:
 
 # Fast Refresh
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/fast-refresh-demo">Fast Refresh Demo</a></li>
+  </ul>
+</details>
+
 Fast Refresh is a Next.js feature that gives you instantaneous feedback on
 edits made to your React components. Fast Refresh is enabled by default in all
 Next.js applications on **9.4 or newer**. With Next.js Fast Refresh enabled,
@@ -68,7 +75,7 @@ local state being reset on every edit to a file:
 - The file you're editing might have _other_ exports in addition to a React
   component.
 - Sometimes, a file would export the result of calling higher-order component
-  like `higherOrderComponent(WrappedComponent)`. If the returned component is a
+  like `HOC(WrappedComponent)`. If the returned component is a
   class, state will be reset.
 
 As more of your codebase moves to function components and Hooks, you can expect

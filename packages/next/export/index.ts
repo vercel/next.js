@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import {
   promises,
@@ -33,12 +33,13 @@ import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
 import { eventCliSession } from '../telemetry/events'
+import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
 import {
   normalizePagePath,
   denormalizePagePath,
 } from '../next-server/server/normalize-page-path'
-import { loadEnvConfig } from '../lib/load-env-config'
+import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
 import type exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -46,7 +47,22 @@ import { getPagePath } from '../next-server/server/require'
 
 const exists = promisify(existsOrig)
 
-const createProgress = (total: number, label = 'Exporting') => {
+function divideSegments(number: number, segments: number): number[] {
+  const result = []
+  while (number > 0 && segments > 0) {
+    const dividedNumber = Math.floor(number / segments)
+    number -= dividedNumber
+    segments--
+    result.push(dividedNumber)
+  }
+  return result
+}
+
+const createProgress = (total: number, label: string) => {
+  const segments = divideSegments(total, 4)
+
+  let currentSegmentTotal = segments.shift()
+  let currentSegmentCount = 0
   let curProgress = 0
   let progressSpinner = createSpinner(`${label} (${curProgress}/${total})`, {
     spinner: {
@@ -73,6 +89,15 @@ const createProgress = (total: number, label = 'Exporting') => {
 
   return () => {
     curProgress++
+    currentSegmentCount++
+
+    // Make sure we only log once per fully generated segment
+    if (currentSegmentCount !== currentSegmentTotal) {
+      return
+    }
+
+    currentSegmentTotal = segments.shift()
+    currentSegmentCount = 0
 
     const newText = `${label} (${curProgress}/${total})`
     if (progressSpinner) {
@@ -109,7 +134,7 @@ export default async function exportApp(
   dir = resolve(dir)
 
   // attempt to load global env values so they are available in next.config.js
-  loadEnvConfig(dir)
+  loadEnvConfig(dir, false, Log)
 
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
@@ -138,6 +163,22 @@ export default async function exportApp(
   if (!existsSync(distDir)) {
     throw new Error(
       `Build directory ${distDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`
+    )
+  }
+
+  const customRoutesDetected = ['rewrites', 'redirects', 'headers'].filter(
+    (config) => typeof nextConfig[config] === 'function'
+  )
+
+  if (
+    !hasNextSupport &&
+    !options.buildExport &&
+    customRoutesDetected.length > 0
+  ) {
+    Log.warn(
+      `rewrites, redirects, and headers are not applied when exporting your application, detected (${customRoutesDetected.join(
+        ', '
+      )}). See more info here: https://err.sh/next.js/export-no-custom-routes`
     )
   }
 
@@ -242,6 +283,14 @@ export default async function exportApp(
     }
   }
 
+  const { i18n } = nextConfig
+
+  if (i18n && !options.buildExport) {
+    throw new Error(
+      `i18n support is not compatible with next export. See here for more info on deploying: https://nextjs.org/docs/deployment`
+    )
+  }
+
   // Start the rendering process
   const renderOpts = {
     dir,
@@ -257,6 +306,9 @@ export default async function exportApp(
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
+    locales: i18n?.locales,
+    locale: i18n.defaultLocale,
+    defaultLocale: i18n.defaultLocale,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -357,7 +409,7 @@ export default async function exportApp(
     !options.silent &&
     createProgress(
       filteredPaths.length,
-      `${Log.prefixes.info} ${options.statusMessage}`
+      `${Log.prefixes.info} ${options.statusMessage || 'Exporting'}`
     )
   const pagesDataDir = options.buildExport
     ? outDir
@@ -421,13 +473,17 @@ export default async function exportApp(
       renderError = renderError || !!result.error
       if (!!result.error) errorPaths.push(path)
 
-      if (
-        options.buildExport &&
-        typeof result.fromBuildExportRevalidate !== 'undefined'
-      ) {
-        configuration.initialPageRevalidationMap[path] =
-          result.fromBuildExportRevalidate
+      if (options.buildExport) {
+        if (typeof result.fromBuildExportRevalidate !== 'undefined') {
+          configuration.initialPageRevalidationMap[path] =
+            result.fromBuildExportRevalidate
+        }
+
+        if (result.ssgNotFound === true) {
+          configuration.ssgNotFoundPaths.push(path)
+        }
       }
+
       if (progress) progress()
     })
   )

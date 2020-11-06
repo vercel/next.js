@@ -25,7 +25,6 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { dirname, join } from 'path'
-import url from 'url'
 
 jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
@@ -141,6 +140,11 @@ const expectedManifestRoutes = () => ({
     dataRoute: `/_next/data/${buildId}/another.json`,
     initialRevalidateSeconds: 1,
     srcRoute: null,
+  },
+  '/api-docs/first': {
+    dataRoute: `/_next/data/${buildId}/api-docs/first.json`,
+    initialRevalidateSeconds: false,
+    srcRoute: '/api-docs/[...slug]',
   },
   '/blocking-fallback-some/a': {
     dataRoute: `/_next/data/${buildId}/blocking-fallback-some/a.json`,
@@ -602,6 +606,38 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     })
   }
 
+  it('should server prerendered path correctly for SSG pages that starts with api-docs', async () => {
+    const html = await renderViaHTTP(appPort, '/api-docs/first')
+    const $ = cheerio.load(html)
+
+    expect($('#api-docs').text()).toBe('API Docs')
+    expect(JSON.parse($('#props').text())).toEqual({
+      hello: 'world',
+    })
+  })
+
+  it('should render correctly for SSG pages that starts with api-docs', async () => {
+    const browser = await webdriver(appPort, '/api-docs/second')
+    await browser.waitForElementByCss('#api-docs')
+
+    expect(await browser.elementByCss('#api-docs').text()).toBe('API Docs')
+    expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
+      hello: 'world',
+    })
+  })
+
+  it('should return data correctly for SSG pages that starts with api-docs', async () => {
+    const data = await renderViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/api-docs/first.json`
+    )
+    const { pageProps } = JSON.parse(data)
+
+    expect(pageProps).toEqual({
+      hello: 'world',
+    })
+  })
+
   it('should SSR catch-all page with brackets in param as string', async () => {
     const html = await renderViaHTTP(
       appPort,
@@ -792,28 +828,18 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
           document.querySelector('#to-rewritten-ssg').scrollIntoView()
         )
 
-        await check(
-          async () => {
-            const links = await browser.elementsByCss('link[rel=prefetch]')
-            let found = false
-
-            for (const link of links) {
-              const href = await link.getAttribute('href')
-              const { pathname } = url.parse(href)
-
-              if (pathname.endsWith('/lang/en/about.json')) {
-                found = true
-                break
-              }
-            }
-            return found
-          },
-          {
-            test(result) {
-              return result === true
-            },
-          }
-        )
+        await check(async () => {
+          const hrefs = await browser.eval(
+            `Object.keys(window.next.router.sdc)`
+          )
+          hrefs.sort()
+          expect(
+            hrefs.map((href) =>
+              new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
+            )
+          ).toContainEqual('/lang/en/about.json')
+          return 'yes'
+        }, 'yes')
       }
       await browser.eval('window.beforeNav = "hi"')
       await browser.elementByCss('#to-rewritten-ssg').click()
@@ -1092,7 +1118,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     })
   } else {
     if (!isEmulatedServerless) {
-      it('should should use correct caching headers for a no-revalidate page', async () => {
+      it('should use correct caching headers for a no-revalidate page', async () => {
         const initialRes = await fetchViaHTTP(appPort, '/something')
         expect(initialRes.headers.get('cache-control')).toBe(
           's-maxage=31536000, stale-while-revalidate'
@@ -1135,6 +1161,20 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
             `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/another.json$`
           ),
           page: '/another',
+        },
+        {
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapeRegex(
+              buildId
+            )}\\/api\\-docs\\/(.+?)\\.json$`
+          ),
+          namedDataRouteRegex: `^/_next/data/${escapeRegex(
+            buildId
+          )}/api\\-docs/(?<slug>.+?)\\.json$`,
+          page: '/api-docs/[...slug]',
+          routeKeys: {
+            slug: 'slug',
+          },
         },
         {
           dataRouteRegex: normalizeRegEx(
@@ -1388,6 +1428,14 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
       expect(manifest.version).toBe(2)
       expect(manifest.routes).toEqual(expectedManifestRoutes())
       expect(manifest.dynamicRoutes).toEqual({
+        '/api-docs/[...slug]': {
+          dataRoute: `/_next/data/${buildId}/api-docs/[...slug].json`,
+          dataRouteRegex: normalizeRegEx(
+            `^\\/_next\\/data\\/${escapedBuildId}\\/api\\-docs\\/(.+?)\\.json$`
+          ),
+          fallback: '/api-docs/[...slug].html',
+          routeRegex: normalizeRegEx(`^\\/api\\-docs\\/(.+?)(?:\\/)?$`),
+        },
         '/blocking-fallback-once/[slug]': {
           dataRoute: `/_next/data/${buildId}/blocking-fallback-once/[slug].json`,
           dataRouteRegex: normalizeRegEx(
@@ -1995,6 +2043,7 @@ describe('SSG Prerender', () => {
       '/non-json/[p].js',
       '/blog/[post]/index.js',
       '/fallback-only/[slug].js',
+      '/api-docs/[...slug].js',
     ]
     const fallbackBlockingPages = [
       '/blocking-fallback/[slug].js',
@@ -2041,7 +2090,7 @@ describe('SSG Prerender', () => {
         await fs.writeFile(
           pagePath,
           fallbackBlockingPageContents[page].replace(
-            "fallback: 'unstable_blocking'",
+            "fallback: 'blocking'",
             'fallback: false'
           )
         )

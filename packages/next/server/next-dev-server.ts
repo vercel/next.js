@@ -336,7 +336,17 @@ export default class DevServer extends Server {
     const path = `/${pathParts.join('/')}`
     // check for a public file, throwing error if there's a
     // conflicting page
-    if (await this.hasPublicFile(path)) {
+    let decodedPath: string
+
+    try {
+      decodedPath = decodeURIComponent(path)
+    } catch (_) {
+      const err: Error & { code?: string } = new Error('failed to decode param')
+      err.code = 'DECODE_FAILED'
+      throw err
+    }
+
+    if (await this.hasPublicFile(decodedPath)) {
       if (await this.hasPage(pathname!)) {
         const err = new Error(
           `A conflicting public file and page file was found for path ${pathname} https://err.sh/vercel/next.js/conflicting-public-file-page`
@@ -524,6 +534,7 @@ export default class DevServer extends Server {
 
     const __getStaticPaths = async () => {
       const { publicRuntimeConfig, serverRuntimeConfig } = this.nextConfig
+      const { locales, defaultLocale } = this.nextConfig.i18n || {}
 
       const paths = await this.staticPathsWorker.loadStaticPaths(
         this.distDir,
@@ -532,7 +543,9 @@ export default class DevServer extends Server {
         {
           publicRuntimeConfig,
           serverRuntimeConfig,
-        }
+        },
+        locales,
+        defaultLocale
       )
       return paths
     }
@@ -543,7 +556,7 @@ export default class DevServer extends Server {
     return {
       staticPaths,
       fallbackMode:
-        fallback === 'unstable_blocking'
+        fallback === 'blocking'
           ? 'blocking'
           : fallback === true
           ? 'static'
@@ -660,7 +673,7 @@ export default class DevServer extends Server {
     res: ServerResponse,
     pathParts: string[]
   ): Promise<void> {
-    const p = pathJoin(this.publicDir, ...pathParts.map(encodeURIComponent))
+    const p = pathJoin(this.publicDir, ...pathParts)
     return this.serveStatic(req, res, p)
   }
 

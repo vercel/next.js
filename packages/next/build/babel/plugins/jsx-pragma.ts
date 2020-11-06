@@ -1,4 +1,9 @@
-import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
+import {
+  NodePath,
+  PluginObj,
+  types as BabelTypes,
+} from 'next/dist/compiled/babel/core'
+import jsx from 'next/dist/compiled/babel/plugin-syntax-jsx'
 
 export default function ({
   types: t,
@@ -6,7 +11,7 @@ export default function ({
   types: typeof BabelTypes
 }): PluginObj<any> {
   return {
-    inherits: require('babel-plugin-syntax-jsx'),
+    inherits: jsx,
     visitor: {
       JSXElement(_path, state) {
         state.set('jsx', true)

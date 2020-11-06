@@ -1,9 +1,10 @@
 /* eslint-disable import/no-extraneous-dependencies */
-declare module '@babel/plugin-transform-modules-commonjs'
+declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
+declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
 declare module 'browserslist'
 declare module 'cssnano-simple' {
-  import { Plugin } from 'postcss'
-  const cssnanoSimple: Plugin<{}>
+  import { OldPlugin } from 'postcss'
+  const cssnanoSimple: OldPlugin<{}>
   export = cssnanoSimple
 }
 declare module 'styled-jsx/server'
@@ -48,9 +49,14 @@ declare module 'next/dist/compiled/arg/index.js' {
   export = arg
 }
 
-declare module 'next/dist/compiled/chalk' {
-  import m from 'chalk'
-  export = m
+declare module 'next/dist/compiled/babel/code-frame' {
+  export * from '@babel/code-frame'
+}
+declare module 'next/dist/compiled/babel/preset-env' {
+  export default any
+}
+declare module 'next/dist/compiled/babel/core' {
+  export * from '@babel/core'
 }
 declare module 'next/dist/compiled/ci-info' {
   import m from 'ci-info'
@@ -80,21 +86,8 @@ declare module 'next/dist/compiled/devalue' {
   import m from 'devalue'
   export = m
 }
-declare module 'next/dist/compiled/dotenv' {
-  import m from 'dotenv'
-  export = m
-}
-
-declare module 'next/dist/compiled/dotenv-expand' {
-  import m from 'dotenv-expand'
-  export = m
-}
 declare module 'next/dist/compiled/escape-string-regexp' {
   import m from 'escape-string-regexp'
-  export = m
-}
-declare module 'next/dist/compiled/etag' {
-  import m from 'etag'
   export = m
 }
 declare module 'next/dist/compiled/find-up' {
@@ -141,20 +134,12 @@ declare module 'next/dist/compiled/nanoid/index.js' {
   function nanoid(size?: number): string
   export = nanoid
 }
-declare module 'next/dist/compiled/node-fetch' {
-  import m from 'node-fetch'
-  export = m
-}
 declare module 'next/dist/compiled/ora' {
   import m from 'ora'
   export = m
 }
 declare module 'next/dist/compiled/path-to-regexp' {
   import m from 'path-to-regexp'
-  export = m
-}
-declare module 'next/dist/compiled/raw-body' {
-  import m from 'raw-body'
   export = m
 }
 declare module 'next/dist/compiled/recast' {
@@ -203,6 +188,10 @@ declare module 'next/dist/compiled/text-table' {
 }
 declare module 'next/dist/compiled/unistore' {
   import m from 'unistore'
+  export = m
+}
+declare module 'next/dist/compiled/web-vitals' {
+  import m from 'web-vitals'
   export = m
 }
 

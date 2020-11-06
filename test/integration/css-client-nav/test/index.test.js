@@ -1,16 +1,17 @@
 /* eslint-env jest */
 
-import { join } from 'path'
+import cheerio from 'cheerio'
 import { remove } from 'fs-extra'
 import {
-  nextBuild,
-  nextStart,
+  check,
   findPort,
   killApp,
+  nextBuild,
+  nextStart,
   renderViaHTTP,
 } from 'next-test-utils'
-import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
+import { join } from 'path'
 
 jest.setTimeout(1000 * 60 * 1)
 
@@ -86,21 +87,31 @@ describe('CSS Module client-side navigation in Production', () => {
       )
       expect(redColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
 
-      // Check that Red was preloaded
-      const result = await browser.eval(
-        `[].slice.call(document.querySelectorAll('link[rel="prefetch"][as="style"]')).map(e=>({href:e.href})).sort()`
+      await check(
+        async () => {
+          // Check that Red was preloaded
+          const result = await browser.eval(
+            `Promise.all(Object.entries(window.next.router.pageLoader.cssc).map(v=>v[1]))`
+          )
+          expect(result.length).toBe(2)
+          expect(result).toContainEqual(expect.stringContaining('color:red'))
+          return 'yes'
+        },
+        /yes/,
+        true
       )
-      expect(result.length).toBe(1)
 
       // Check that CSS was not loaded as script
       const cssPreloads = await browser.eval(
         `[].slice.call(document.querySelectorAll('link[rel=preload][href*=".css"]')).map(e=>e.as)`
       )
-      expect(cssPreloads.every((e) => e === 'style')).toBe(true)
+      expect(cssPreloads.every((e) => e === 'style' || e === 'fetch')).toBe(
+        true
+      )
       const cssPreloads2 = await browser.eval(
         `[].slice.call(document.querySelectorAll('link[rel=prefetch][href*=".css"]')).map(e=>e.as)`
       )
-      expect(cssPreloads2.every((e) => e === 'style')).toBe(true)
+      expect(cssPreloads2.every((e) => e === 'fetch')).toBe(true)
 
       await browser.elementByCss('#link-red').click()
 
@@ -245,7 +256,7 @@ describe.skip('CSS Module client-side navigation in Production (Modern)', () => 
 
       // Check that Red was preloaded
       const result = await browser.eval(
-        `[].slice.call(document.querySelectorAll('link[rel="prefetch"][as="style"]')).map(e=>({href:e.href})).sort()`
+        `[].slice.call(document.querySelectorAll('link[rel="prefetch"][as="fetch"]')).map(e=>({href:e.href})).sort()`
       )
       expect(result.length).toBe(1)
 
@@ -253,11 +264,13 @@ describe.skip('CSS Module client-side navigation in Production (Modern)', () => 
       const cssPreloads = await browser.eval(
         `[].slice.call(document.querySelectorAll('link[rel=preload][href*=".css"]')).map(e=>e.as)`
       )
-      expect(cssPreloads.every((e) => e === 'style')).toBe(true)
+      expect(cssPreloads.every((e) => e === 'style' || e === 'fetch')).toBe(
+        true
+      )
       const cssPreloads2 = await browser.eval(
         `[].slice.call(document.querySelectorAll('link[rel=prefetch][href*=".css"]')).map(e=>e.as)`
       )
-      expect(cssPreloads2.every((e) => e === 'style')).toBe(true)
+      expect(cssPreloads2.every((e) => e === 'fetch')).toBe(true)
 
       await browser.elementByCss('#link-red').click()
 

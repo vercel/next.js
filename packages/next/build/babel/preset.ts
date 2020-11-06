@@ -1,4 +1,4 @@
-import { PluginItem } from '@babel/core'
+import { PluginItem } from 'next/dist/compiled/babel/core'
 const env = process.env.NODE_ENV
 const isProduction = env === 'production'
 const isDevelopment = env === 'development'
@@ -65,6 +65,9 @@ module.exports = (
   const supportsESM = api.caller(supportsStaticESM)
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
   const isModern = api.caller((caller: any) => !!caller && caller.isModern)
+  const hasJsxRuntime = Boolean(
+    api.caller((caller: any) => !!caller && caller.hasJsxRuntime)
+  )
 
   const isLaxModern =
     isModern ||
@@ -76,6 +79,10 @@ module.exports = (
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
     modules: 'auto',
     exclude: ['transform-typeof-symbol'],
+    include: [
+      '@babel/plugin-proposal-optional-chaining',
+      '@babel/plugin-proposal-nullish-coalescing-operator',
+    ],
     ...options['preset-env'],
   }
 
@@ -104,26 +111,26 @@ module.exports = (
     sourceType: 'unambiguous',
     presets: [
       customModernPreset || [
-        require('@babel/preset-env').default,
+        require('next/dist/compiled/babel/preset-env'),
         presetEnvConfig,
       ],
       [
-        require('@babel/preset-react'),
+        require('next/dist/compiled/babel/preset-react'),
         {
           // This adds @babel/plugin-transform-react-jsx-source and
           // @babel/plugin-transform-react-jsx-self automatically in development
           development: isDevelopment || isTest,
-          pragma: '__jsx',
+          ...(hasJsxRuntime ? { runtime: 'automatic' } : { pragma: '__jsx' }),
           ...options['preset-react'],
         },
       ],
       [
-        require('@babel/preset-typescript'),
+        require('next/dist/compiled/babel/preset-typescript'),
         { allowNamespaces: true, ...options['preset-typescript'] },
       ],
     ],
     plugins: [
-      [
+      !hasJsxRuntime && [
         require('./plugins/jsx-pragma'),
         {
           // This produces the following injected import for modules containing JSX:
@@ -142,20 +149,20 @@ module.exports = (
           lib: true,
         },
       ],
-      require('@babel/plugin-syntax-dynamic-import'),
+      require('next/dist/compiled/babel/plugin-syntax-dynamic-import'),
       require('./plugins/react-loadable-plugin'),
       [
-        require('@babel/plugin-proposal-class-properties'),
+        require('next/dist/compiled/babel/plugin-proposal-class-properties'),
         options['class-properties'] || {},
       ],
       [
-        require('@babel/plugin-proposal-object-rest-spread'),
+        require('next/dist/compiled/babel/plugin-proposal-object-rest-spread'),
         {
           useBuiltIns: true,
         },
       ],
       !isServer && [
-        require('@babel/plugin-transform-runtime'),
+        require('next/dist/compiled/babel/plugin-transform-runtime'),
         {
           corejs: false,
           helpers: true,
@@ -178,17 +185,11 @@ module.exports = (
           removeImport: true,
         },
       ],
-      require('@babel/plugin-proposal-optional-chaining'),
-      require('@babel/plugin-proposal-nullish-coalescing-operator'),
-      isServer && require('@babel/plugin-syntax-bigint'),
-      [require('@babel/plugin-proposal-numeric-separator').default, false],
-      require('@babel/plugin-proposal-export-namespace-from'),
+      isServer && require('next/dist/compiled/babel/plugin-syntax-bigint'),
+      // Always compile numeric separator because the resulting number is
+      // smaller.
+      require('next/dist/compiled/babel/plugin-proposal-numeric-separator'),
+      require('next/dist/compiled/babel/plugin-proposal-export-namespace-from'),
     ].filter(Boolean),
-    overrides: [
-      {
-        test: /\.tsx?$/,
-        plugins: [require('@babel/plugin-proposal-numeric-separator').default],
-      },
-    ],
   }
 }

@@ -8,12 +8,14 @@
     "start": "next start"
   },
   "dependencies": {
-    "@chakra-ui/core": "^0.5.2",
-    "@emotion/core": "^10.0.27",
+    "@chakra-ui/core": "^1.0.0-rc.8",
+    "@chakra-ui/icons": "^1.0.0-rc.8",
+    "framer-motion": "^2.9.4",
     "@emotion/styled": "^10.0.27",
     "emotion-theming": "^10.0.27",
     "next": "^9.1.7",
     "react": "^16.12.0",
     "react-dom": "^16.12.0"
-  }
+  },
+  "license": "MIT"
 }
