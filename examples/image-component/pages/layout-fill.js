@@ -1,7 +1,9 @@
 import Image from 'next/image'
+import ViewSource from '../components/view-source'
 
 const Fill = () => (
   <div>
+    <ViewSource pathname="pages/layout-fill.js" />
     <h1>Image Component With Layout Fill</h1>
     <div style={{ position: 'relative', width: '300px', height: '500px' }}>
       <Image
