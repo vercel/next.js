@@ -307,7 +307,7 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
 }
 
 type Redirect = {
-  permanent: boolean
+  permanent?: boolean
   destination: string
   statusCode?: number
 }
