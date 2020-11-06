@@ -255,7 +255,12 @@ export default function nextTransformSsg({
                 if (specifiers.length) {
                   specifiers.forEach((s) => {
                     if (
-                      isDataIdentifier(s.node.exported.name, exportNamedState)
+                      isDataIdentifier(
+                        t.isIdentifier(s.node.exported)
+                          ? s.node.exported.name
+                          : s.node.exported.value,
+                        exportNamedState
+                      )
                     ) {
                       s.remove()
                     }
