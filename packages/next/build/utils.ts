@@ -1,5 +1,5 @@
 import '../next-server/server/node-polyfill-fetch'
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import gzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
@@ -544,7 +544,7 @@ export async function buildStaticPaths(
   // Get the default list of allowed params.
   const _validParamKeys = Object.keys(_routeMatcher(page))
 
-  const staticPathsResult = await getStaticPaths({ locales })
+  const staticPathsResult = await getStaticPaths({ locales, defaultLocale })
 
   const expectedReturnVal =
     `Expected: { paths: [], fallback: boolean }\n` +

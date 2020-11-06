@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import {
   promises,
@@ -283,7 +283,7 @@ export default async function exportApp(
     }
   }
 
-  const { i18n } = nextConfig.experimental
+  const { i18n } = nextConfig
 
   if (i18n && !options.buildExport) {
     throw new Error(

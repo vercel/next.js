@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import path from 'path'
 import { fileExists } from '../file-exists'
 import { getOxfordCommaList } from '../oxford-comma-list'

@@ -1,4 +1,8 @@
-import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
+import {
+  NodePath,
+  PluginObj,
+  types as BabelTypes,
+} from 'next/dist/compiled/babel/core'
 
 export default function ({
   types: t,
@@ -14,7 +18,9 @@ export default function ({
         const createHookSpecifier = path.get('specifiers').find((specifier) => {
           return (
             specifier.isImportSpecifier() &&
-            specifier.node.imported.name === 'createHook'
+            (t.isIdentifier(specifier.node.imported)
+              ? specifier.node.imported.name
+              : specifier.node.imported.value) === 'createHook'
           )
         })
 

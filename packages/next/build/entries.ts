@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
@@ -98,9 +98,7 @@ export function createEntrypoints(
     loadedEnvFiles: Buffer.from(JSON.stringify(loadedEnvFiles)).toString(
       'base64'
     ),
-    i18n: config.experimental.i18n
-      ? JSON.stringify(config.experimental.i18n)
-      : '',
+    i18n: config.i18n ? JSON.stringify(config.i18n) : '',
   }
 
   Object.keys(pages).forEach((page) => {

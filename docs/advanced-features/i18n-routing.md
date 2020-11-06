@@ -1,3 +1,7 @@
+---
+description: Next.js has built-in support for internationalized routing and language detection. Learn more here.
+---
+
 # Internationalized Routing
 
 <details>
@@ -87,7 +91,7 @@ By using domain routing you can configure locales to be served from different do
 // next.config.js
 module.exports = {
   i18n: {
-    locales: ['en-US', 'fr', 'nl-NL'],
+    locales: ['en-US', 'fr', 'nl-NL', 'nl-BE'],
     defaultLocale: 'en-US',
 
     domains: [
@@ -102,6 +106,9 @@ module.exports = {
       {
         domain: 'example.nl',
         defaultLocale: 'nl-NL',
+        // specify other locales that should be redirected
+        // to this domain
+        locales: ['nl-BE'],
       },
     ],
   },
@@ -113,6 +120,7 @@ For example if you have `pages/blog.js` the following urls will be available:
 - `example.com/blog`
 - `example.fr/blog`
 - `example.nl/blog`
+- `example.nl/nl-BE/blog`
 
 ## Automatic Locale Detection
 
@@ -127,6 +135,21 @@ When using Domain Routing, if a user with the `Accept-Language` header `fr;q=0.9
 
 When using Sub-path Routing, the user would be redirected to `/fr`.
 
+### Disabling Automatic Locale Detection
+
+The automatic locale detection can be disabled with:
+
+```js
+// next.config.js
+module.exports = {
+  i18n: {
+    localeDetection: false,
+  },
+}
+```
+
+When `localeDetection` is set to `false` Next.js will no longer automatically redirect based on the user's preferred locale and will only provide locale information detected from either the locale based domain or locale path as described above.
+
 ## Accessing the locale information
 
 You can access the locale information via the Next.js router. For example, using the [`useRouter()`](https://nextjs.org/docs/api-reference/next/router#userouter) hook the following properties are available:
@@ -137,7 +160,7 @@ You can access the locale information via the Next.js router. For example, using
 
 When [pre-rendering](/docs/basic-features/pages#static-generation-recommended) pages with `getStaticProps` or `getServerSideProps`, the locale information is provided in [the context](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) provided to the function.
 
-When leveraging `getStaticPaths`, the supported locales are provided in the context parameter of the function under `locales`.
+When leveraging `getStaticPaths`, the configured locales are provided in the context parameter of the function under `locales` and the configured defaultLocale under `defaultLocale`.
 
 ## Transition between locales
 

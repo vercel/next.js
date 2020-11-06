@@ -1,10 +1,6 @@
 import { getLocationOrigin } from '../../utils'
 import { searchParamsToUrlQuery } from './querystring'
 
-const DUMMY_BASE = new URL(
-  typeof window === 'undefined' ? 'http://n' : getLocationOrigin()
-)
-
 /**
  * Parses path-relative urls (e.g. `/hello/world?foo=bar`). If url isn't path-relative
  * (e.g. `./hello`) then at least base must be.
@@ -12,20 +8,15 @@ const DUMMY_BASE = new URL(
  * the current origin will be parsed as relative
  */
 export function parseRelativeUrl(url: string, base?: string) {
-  const resolvedBase = base ? new URL(base, DUMMY_BASE) : DUMMY_BASE
-  const {
-    pathname,
-    searchParams,
-    search,
-    hash,
-    href,
-    origin,
-    protocol,
-  } = new URL(url, resolvedBase)
-  if (
-    origin !== DUMMY_BASE.origin ||
-    (protocol !== 'http:' && protocol !== 'https:')
-  ) {
+  const globalBase = new URL(
+    typeof window === 'undefined' ? 'http://n' : getLocationOrigin()
+  )
+  const resolvedBase = base ? new URL(base, globalBase) : globalBase
+  const { pathname, searchParams, search, hash, href, origin } = new URL(
+    url,
+    resolvedBase
+  )
+  if (origin !== globalBase.origin) {
     throw new Error('invariant: invalid relative URL')
   }
   return {
@@ -33,6 +24,6 @@ export function parseRelativeUrl(url: string, base?: string) {
     query: searchParamsToUrlQuery(searchParams),
     search,
     hash,
-    href: href.slice(DUMMY_BASE.origin.length),
+    href: href.slice(globalBase.origin.length),
   }
 }

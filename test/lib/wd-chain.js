@@ -126,6 +126,12 @@ export default class Chain {
     return this.updateChain(() => this.browser.navigate().refresh())
   }
 
+  setDimensions({ height, width }) {
+    return this.updateChain(() =>
+      this.browser.manage().window().setRect({ width, height, x: 0, y: 0 })
+    )
+  }
+
   close() {
     return this.updateChain(() => Promise.resolve())
   }

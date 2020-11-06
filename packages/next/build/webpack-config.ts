@@ -1,8 +1,8 @@
-import { codeFrameColumns } from '@babel/code-frame'
+import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import crypto from 'crypto'
 import { readFileSync, realpathSync } from 'fs'
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import semver from 'next/dist/compiled/semver'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
 import path from 'path'
@@ -969,9 +969,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
           config.devIndicators.buildActivity
         ),
-        'process.env.__NEXT_PRERENDER_INDICATOR': JSON.stringify(
-          config.devIndicators.autoPrerender
-        ),
         'process.env.__NEXT_PLUGINS': JSON.stringify(
           config.experimental.plugins
         ),
@@ -992,7 +989,7 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
           deviceSizes: config.images.deviceSizes,
-          iconSizes: config.images.iconSizes,
+          imageSizes: config.images.imageSizes,
           path: config.images.path,
           loader: config.images.loader,
           ...(dev
@@ -1004,12 +1001,8 @@ export default async function getBaseWebpackConfig(
         }),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
-        'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(
-          !!config.experimental.i18n
-        ),
-        'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(
-          config.experimental.i18n.domains
-        ),
+        'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
+        'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n.domains),
         'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
         ...(isServer
           ? {
@@ -1200,7 +1193,6 @@ export default async function getBaseWebpackConfig(
       trailingSlash: config.trailingSlash,
       modern: config.experimental.modern,
       buildActivity: config.devIndicators.buildActivity,
-      autoPrerender: config.devIndicators.autoPrerender,
       plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
       reactMode: config.experimental.reactMode,
