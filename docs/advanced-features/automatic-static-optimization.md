@@ -34,8 +34,6 @@ And if you add `getServerSideProps` to the page, it will then be JavaScript, lik
 .next/server/static/${BUILD_ID}/about.js
 ```
 
-In development you'll know if `pages/about.js` is optimized or not thanks to the included [static optimization indicator](/docs/api-reference/next.config.js/static-optimization-indicator.md).
-
 ## Caveats
 
 - If you have a [custom `App`](/docs/advanced-features/custom-app.md) with `getInitialProps` then this optimization will be turned off in pages without [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation).

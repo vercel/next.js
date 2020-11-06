@@ -1,4 +1,4 @@
-import React, { Children } from 'react'
+import React, { Children, useEffect } from 'react'
 import { UrlObject } from 'url'
 import {
   addBasePath,
@@ -9,6 +9,7 @@ import {
   resolveHref,
 } from '../next-server/lib/router/router'
 import { useRouter } from './router'
+import { useIntersection } from './use-intersection'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -26,63 +27,12 @@ export type LinkProps = {
   shallow?: boolean
   passHref?: boolean
   prefetch?: boolean
+  locale?: string | false
 }
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<LinkProps>
 
-let cachedObserver: IntersectionObserver
-const listeners = new Map<Element, () => void>()
-const IntersectionObserver =
-  typeof window !== 'undefined' ? window.IntersectionObserver : null
 const prefetched: { [cacheKey: string]: boolean } = {}
-
-function getObserver(): IntersectionObserver | undefined {
-  // Return shared instance of IntersectionObserver if already created
-  if (cachedObserver) {
-    return cachedObserver
-  }
-
-  // Only create shared IntersectionObserver if supported in browser
-  if (!IntersectionObserver) {
-    return undefined
-  }
-
-  return (cachedObserver = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (!listeners.has(entry.target)) {
-          return
-        }
-
-        const cb = listeners.get(entry.target)!
-        if (entry.isIntersecting || entry.intersectionRatio > 0) {
-          cachedObserver.unobserve(entry.target)
-          listeners.delete(entry.target)
-          cb()
-        }
-      })
-    },
-    { rootMargin: '200px' }
-  ))
-}
-
-const listenToIntersections = (el: Element, cb: () => void) => {
-  const observer = getObserver()
-  if (!observer) {
-    return () => {}
-  }
-
-  observer.observe(el)
-  listeners.set(el, cb)
-  return () => {
-    try {
-      observer.unobserve(el)
-    } catch (err) {
-      console.error(err)
-    }
-    listeners.delete(el)
-  }
-}
 
 function prefetch(
   router: NextRouter,
@@ -125,7 +75,8 @@ function linkClicked(
   as: string,
   replace?: boolean,
   shallow?: boolean,
-  scroll?: boolean
+  scroll?: boolean,
+  locale?: string | false
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -142,7 +93,7 @@ function linkClicked(
   }
 
   // replace state instead of push if prop is present
-  router[replace ? 'replace' : 'push'](href, as, { shallow }).then(
+  router[replace ? 'replace' : 'push'](href, as, { shallow, locale }).then(
     (success: boolean) => {
       if (!success) return
       if (scroll) {
@@ -202,21 +153,28 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       shallow: true,
       passHref: true,
       prefetch: true,
+      locale: true,
     } as const
     const optionalProps: LinkPropsOptional[] = Object.keys(
       optionalPropsGuard
     ) as LinkPropsOptional[]
     optionalProps.forEach((key: LinkPropsOptional) => {
+      const valType = typeof props[key]
+
       if (key === 'as') {
-        if (
-          props[key] &&
-          typeof props[key] !== 'string' &&
-          typeof props[key] !== 'object'
-        ) {
+        if (props[key] && valType !== 'string' && valType !== 'object') {
           throw createPropError({
             key,
             expected: '`string` or `object`',
-            actual: typeof props[key],
+            actual: valType,
+          })
+        }
+      } else if (key === 'locale') {
+        if (props[key] && valType !== 'string') {
+          throw createPropError({
+            key,
+            expected: '`string`',
+            actual: valType,
           })
         }
       } else if (
@@ -226,11 +184,11 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         key === 'passHref' ||
         key === 'prefetch'
       ) {
-        if (props[key] != null && typeof props[key] !== 'boolean') {
+        if (props[key] != null && valType !== 'boolean') {
           throw createPropError({
             key,
             expected: '`boolean`',
-            actual: typeof props[key],
+            actual: valType,
           })
         }
       } else {
@@ -252,8 +210,6 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   }
   const p = props.prefetch !== false
 
-  const [childElm, setChildElm] = React.useState<Element>()
-
   const router = useRouter()
   const pathname = (router && router.pathname) || '/'
 
@@ -267,25 +223,8 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     }
   }, [pathname, props.href, props.as])
 
-  React.useEffect(() => {
-    if (
-      p &&
-      IntersectionObserver &&
-      childElm &&
-      childElm.tagName &&
-      isLocalURL(href)
-    ) {
-      // Join on an invalid URI character
-      const isPrefetched = prefetched[href + '%' + as]
-      if (!isPrefetched) {
-        return listenToIntersections(childElm, () => {
-          prefetch(router, href, as)
-        })
-      }
-    }
-  }, [p, childElm, href, as, router])
+  let { children, replace, shallow, scroll, locale } = props
 
-  let { children, replace, shallow, scroll } = props
   // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
   if (typeof children === 'string') {
     children = <a>{children}</a>
@@ -293,47 +232,68 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
 
   // This will return the first child, if multiple are provided it will throw an error
   const child: any = Children.only(children)
+  const childRef: any = child && typeof child === 'object' && child.ref
+
+  const [setIntersectionRef, isVisible] = useIntersection({
+    rootMargin: '200px',
+  })
+  const setRef = React.useCallback(
+    (el: Element) => {
+      setIntersectionRef(el)
+      if (childRef) {
+        if (typeof childRef === 'function') childRef(el)
+        else if (typeof childRef === 'object') {
+          childRef.current = el
+        }
+      }
+    },
+    [childRef, setIntersectionRef]
+  )
+  useEffect(() => {
+    const shouldPrefetch = isVisible && p && isLocalURL(href)
+    const isPrefetched = prefetched[href + '%' + as]
+    if (shouldPrefetch && !isPrefetched) {
+      prefetch(router, href, as, {
+        locale:
+          typeof locale !== 'undefined' ? locale : router && router.locale,
+      })
+    }
+  }, [as, href, isVisible, locale, p, router])
+
   const childProps: {
     onMouseEnter?: React.MouseEventHandler
     onClick: React.MouseEventHandler
     href?: string
     ref?: any
   } = {
-    ref: (el: any) => {
-      if (el) setChildElm(el)
-
-      if (child && typeof child === 'object' && child.ref) {
-        if (typeof child.ref === 'function') child.ref(el)
-        else if (typeof child.ref === 'object') {
-          child.ref.current = el
-        }
-      }
-    },
+    ref: setRef,
     onClick: (e: React.MouseEvent) => {
       if (child.props && typeof child.props.onClick === 'function') {
         child.props.onClick(e)
       }
       if (!e.defaultPrevented) {
-        linkClicked(e, router, href, as, replace, shallow, scroll)
+        linkClicked(e, router, href, as, replace, shallow, scroll, locale)
       }
     },
   }
 
-  if (p) {
-    childProps.onMouseEnter = (e: React.MouseEvent) => {
-      if (!isLocalURL(href)) return
-      if (child.props && typeof child.props.onMouseEnter === 'function') {
-        child.props.onMouseEnter(e)
-      }
-      prefetch(router, href, as, { priority: true })
+  childProps.onMouseEnter = (e: React.MouseEvent) => {
+    if (!isLocalURL(href)) return
+    if (child.props && typeof child.props.onMouseEnter === 'function') {
+      child.props.onMouseEnter(e)
     }
+    prefetch(router, href, as, { priority: true })
   }
 
   // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
   // defined, we specify the current 'href', so that repetition is not needed by the user
   if (props.passHref || (child.type === 'a' && !('href' in child.props))) {
     childProps.href = addBasePath(
-      addLocale(as, router && router.locale, router && router.defaultLocale)
+      addLocale(
+        as,
+        typeof locale !== 'undefined' ? locale : router && router.locale,
+        router && router.defaultLocale
+      )
     )
   }
 
