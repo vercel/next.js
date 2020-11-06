@@ -48,9 +48,9 @@ export default (context, render) => {
           const firstElement = await browser.elementById('with-css')
           const css1 = await firstElement.getComputedCss('display')
           expect(css1).toBe('flex')
-          await browser.eval(() =>
+          await browser.eval(function () {
             window.next.router.push('/dynamic/pagechange2')
-          )
+          })
           await check(() => browser.elementByCss('body').text(), /PageChange2/)
           const secondElement = await browser.elementById('with-css')
           const css2 = await secondElement.getComputedCss('display')
