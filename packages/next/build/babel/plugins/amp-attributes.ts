@@ -1,4 +1,4 @@
-import { NodePath, PluginObj, types } from '@babel/core'
+import { NodePath, PluginObj, types } from 'next/dist/compiled/babel/core'
 
 export default function AmpAttributePatcher(): PluginObj {
   return {
