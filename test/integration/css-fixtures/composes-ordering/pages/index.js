@@ -4,7 +4,7 @@ import css from './index.module.css'
 export default function Home() {
   return (
     <main>
-      <Link href="/other">
+      <Link href="/other" prefetch={false}>
         <a id="link-other">other</a>
       </Link>
       <br />
