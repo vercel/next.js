@@ -266,19 +266,19 @@ export default function Image({
     }
   }
 
-  const [setRef, isVisible] = useIntersection<HTMLImageElement>({
-    rootMargin: '200px',
-    disabled: priority,
-  })
-  let lazy =
-    !isVisible &&
-    !priority &&
-    (loading === 'lazy' || typeof loading === 'undefined')
+  let isLazy =
+    !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (src && src.startsWith('data:')) {
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
-    lazy = false
+    isLazy = false
   }
+
+  const [setRef, isIntersected] = useIntersection<HTMLImageElement>({
+    rootMargin: '200px',
+    disabled: !isLazy,
+  })
+  const isVisible = !isLazy || isIntersected
 
   const widthInt = getInt(width)
   const heightInt = getInt(height)
@@ -288,7 +288,7 @@ export default function Image({
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerSvg: string | undefined
   let imgStyle: ImgElementStyle | undefined = {
-    visibility: lazy ? 'hidden' : 'visible',
+    visibility: isVisible ? 'visible' : 'hidden',
 
     position: 'absolute',
     top: 0,
@@ -400,15 +400,13 @@ export default function Image({
     | Pick<JSX.IntrinsicElements['img'], 'src' | 'srcSet'>
     | undefined
 
-  if (!lazy) {
+  if (isVisible) {
     imgAttributes = {
       src: imgSrc,
     }
     if (imgSrcSet) {
       imgAttributes.srcSet = imgSrcSet
     }
-  } else if (process.env.__NEXT_TEST_MODE) {
-    className = className ? className + ' __lazy' : '__lazy'
   }
 
   // No need to add preloads on the client side--by the time the application is hydrated,
