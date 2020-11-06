@@ -1,5 +1,5 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
-const ncc = require('@zeit/ncc')
+const ncc = require('@vercel/ncc')
 const { existsSync, readFileSync } = require('fs')
 const { basename, dirname, extname, join } = require('path')
 

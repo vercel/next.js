@@ -52,7 +52,11 @@ export default function nextPageConfig({
                   BabelTypes.isExportNamedDeclaration(exportPath) &&
                   (exportPath.node as BabelTypes.ExportNamedDeclaration).specifiers?.some(
                     (specifier) => {
-                      return specifier.exported.name === CONFIG_KEY
+                      return (
+                        (t.isIdentifier(specifier.exported)
+                          ? specifier.exported.name
+                          : specifier.exported.value) === CONFIG_KEY
+                      )
                     }
                   ) &&
                   BabelTypes.isStringLiteral(
@@ -90,7 +94,11 @@ export default function nextPageConfig({
                 ].filter(Boolean)
 
                 for (const specifier of exportPath.node.specifiers) {
-                  if (specifier.exported.name === CONFIG_KEY) {
+                  if (
+                    (t.isIdentifier(specifier.exported)
+                      ? specifier.exported.name
+                      : specifier.exported.value) === CONFIG_KEY
+                  ) {
                     // export {} from 'somewhere'
                     if (BabelTypes.isStringLiteral(exportPath.node.source)) {
                       throw new Error(
