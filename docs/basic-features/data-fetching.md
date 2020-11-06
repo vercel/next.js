@@ -81,7 +81,7 @@ The `context` parameter is an object containing the following keys:
   }
   ```
 
-  > **Note**: `notFound` doesn't work alongside [`fallback: false`](#fallback-false). In that case only known paths are included and they shouldn't be pre-rendering a 404.
+  > **Note**: `notFound` is not needed for [`fallback: false`](#fallback-false) mode as only paths returned from `getStaticPaths` will be pre-rendered. 
 
 - `redirect` - An **optional** redirect value to allow redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean }`. In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. Below is an example of how it works:
 
@@ -105,7 +105,7 @@ The `context` parameter is an object containing the following keys:
   }
   ```
 
-  > **Note**: Redirecting at build-time during pre-rendering is not allowed. For that same reason, [`fallback: false`](#fallback-false) can't be used alongside `redirect`.
+  > **Note**: Redirecting at build-time is currently not allowed and if the redirects are known at build-time they should be added in [`next.config.js`](/docs/api-reference/next.config.js/redirects.md).
 
 > **Note**: You can import modules in top-level scope for use in `getStaticProps`.
 > Imports used in `getStaticProps` will [not be bundled for the client-side](#write-server-side-code-directly).
