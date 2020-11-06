@@ -3052,11 +3052,6 @@
   resolved "https://registry.yarnpkg.com/@vercel/ncc/-/ncc-0.25.1.tgz#a4aacdb508ac496fc0c63a3c3203d700a619cc0e"
   integrity sha512-dGecC5+1wLof1MQpey4+6i2KZv4Sfs6WfXkl9KfO32GED4ZPiKxRfvtGPjbjZv0IbqMl6CxtcV1RotXYfd5SSA==
 
-"@vercel/next@2.6.37":
-  version "2.6.37"
-  resolved "https://registry.yarnpkg.com/@vercel/next/-/next-2.6.37.tgz#acf6945fc079183fa928afec5f0ce0838a7f0e37"
-  integrity sha512-HqD4t3gtdryAEX5sPmcqZU7588IjD59SBE9AaLp0qTOBO/YQ5LNyJBghI7Fa7VyirjAYmoRrYsaNg6jC4Se4Zg==
-
 "@webassemblyjs/ast@1.9.0":
   version "1.9.0"
   resolved "https://registry.yarnpkg.com/@webassemblyjs/ast/-/ast-1.9.0.tgz#bd850604b4042459a5a41cd7d338cbed695ed964"

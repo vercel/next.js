@@ -31,7 +31,6 @@
   "devDependencies": {
     "@types/dotenv": "8.2.0",
     "@vercel/ncc": "0.25.1",
-    "@vercel/next": "2.6.37",
     "dotenv": "8.2.0",
     "dotenv-expand": "5.1.0"
   }
