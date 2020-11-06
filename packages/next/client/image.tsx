@@ -311,11 +311,6 @@ export default function Image({
     lazy = true
   }
 
-  if (typeof window !== 'undefined' && !window.IntersectionObserver) {
-    // Rendering client side on browser without intersection observer
-    lazy = false
-  }
-
   if (src && src.startsWith('data:')) {
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
@@ -324,9 +319,8 @@ export default function Image({
 
   useEffect(() => {
     const target = thisEl.current
-
-    if (target && lazy) {
-      const observer = getObserver()
+    if (target) {
+      const observer = lazy && getObserver()
 
       if (observer) {
         observer.observe(target)
@@ -335,7 +329,6 @@ export default function Image({
           observer.unobserve(target)
         }
       } else {
-        //browsers without intersection observer
         unLazifyImage(target)
       }
     }
