@@ -31,7 +31,7 @@ export async function getStaticProps({ params }) {
   }
 
   if (params.post === 'post-999') {
-    if (++counter < 3) {
+    if (++counter < 6) {
       throw new Error('try again..')
     }
   }

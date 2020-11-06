@@ -139,6 +139,86 @@ describe('Prefetching Links in viewport', () => {
     }
   })
 
+  it('should inject script on hover with prefetching disabled', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/prefetch-disabled')
+      await waitFor(2 * 1000)
+
+      const links = await browser.elementsByCss('link[rel=prefetch]')
+      let foundLink = false
+
+      for (const link of links) {
+        const href = await link.getAttribute('href')
+        if (href.includes('another')) {
+          foundLink = true
+          break
+        }
+      }
+      expect(foundLink).toBe(false)
+
+      async function hasAnotherScript() {
+        const scripts = await browser.elementsByCss(
+          // Mouse hover is a high-priority fetch
+          'script:not([async])'
+        )
+        let scriptFound = false
+        for (const aScript of scripts) {
+          const href = await aScript.getAttribute('src')
+          if (href.includes('another')) {
+            scriptFound = true
+            break
+          }
+        }
+        return scriptFound
+      }
+
+      expect(await hasAnotherScript()).toBe(false)
+      await browser.elementByCss('#link-another').moveTo()
+      await waitFor(2 * 1000)
+      expect(await hasAnotherScript()).toBe(true)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('should inject script on hover with prefetching disabled and fetch data', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/prefetch-disabled-ssg')
+
+      async function hasSsgScript() {
+        const scripts = await browser.elementsByCss(
+          // Mouse hover is a high-priority fetch
+          'script:not([async])'
+        )
+        let scriptFound = false
+        for (const aScript of scripts) {
+          const href = await aScript.getAttribute('src')
+          if (href.includes('basic')) {
+            scriptFound = true
+            break
+          }
+        }
+        return scriptFound
+      }
+
+      await waitFor(2 * 1000)
+      expect(await hasSsgScript()).toBe(false)
+      const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
+      expect(hrefs.map((href) => new URL(href).pathname)).toEqual([])
+      await browser.elementByCss('#link-ssg').moveTo()
+      await waitFor(2 * 1000)
+      expect(await hasSsgScript()).toBe(true)
+      const hrefs2 = await browser.eval(`Object.keys(window.next.router.sdc)`)
+      expect(hrefs2.map((href) => new URL(href).pathname)).toEqual([
+        '/_next/data/test-build/ssg/basic.json',
+      ])
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
   it('should inject a <script> tag when onMouseEnter (even with invalid ref)', async () => {
     let browser
     try {
