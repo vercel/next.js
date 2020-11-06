@@ -27,6 +27,14 @@ Visit [https://nextjs.org/docs](https://nextjs.org/docs) to view the full docume
 
 Next.js is used by the world's leading companies. Check out the [Next.js Showcase](https://nextjs.org/showcase) to learn more.
 
+## Community
+
+The Next.js community can be found on [GitHub Discussions](https://github.com/vercel/next.js/discussions), where you can ask questions, voice ideas, and share your projects.
+
+To chat with other community members you can join the [Next.js Discord](https://nextjs.org/discord).
+
+Our [Code of Conduct](https://github.com/vercel/next.js/blob/canary/CODE_OF_CONDUCT.md) applies to all Next.js community channels.
+
 ## Contributing
 
 Please see our [contributing.md](/contributing.md).

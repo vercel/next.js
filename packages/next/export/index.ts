@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import {
   promises,
@@ -283,7 +283,13 @@ export default async function exportApp(
     }
   }
 
-  const { i18n } = nextConfig.experimental
+  const { i18n } = nextConfig
+
+  if (i18n && !options.buildExport) {
+    throw new Error(
+      `i18n support is not compatible with next export. See here for more info on deploying: https://nextjs.org/docs/deployment`
+    )
+  }
 
   // Start the rendering process
   const renderOpts = {
@@ -467,13 +473,17 @@ export default async function exportApp(
       renderError = renderError || !!result.error
       if (!!result.error) errorPaths.push(path)
 
-      if (
-        options.buildExport &&
-        typeof result.fromBuildExportRevalidate !== 'undefined'
-      ) {
-        configuration.initialPageRevalidationMap[path] =
-          result.fromBuildExportRevalidate
+      if (options.buildExport) {
+        if (typeof result.fromBuildExportRevalidate !== 'undefined') {
+          configuration.initialPageRevalidationMap[path] =
+            result.fromBuildExportRevalidate
+        }
+
+        if (result.ssgNotFound === true) {
+          configuration.ssgNotFoundPaths.push(path)
+        }
       }
+
       if (progress) progress()
     })
   )

@@ -1,4 +1,4 @@
-import Chalk from 'next/dist/compiled/chalk'
+import Chalk from 'chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 import { createOriginalStackFrame } from '@next/react-dev-overlay/lib/middleware'
 
