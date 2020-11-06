@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@types/dotenv": "8.2.0",
-    "@zeit/ncc": "^0.20.4",
+    "@zeit/ncc": "0.20.4",
     "dotenv": "8.2.0",
     "dotenv-expand": "5.1.0"
   }
