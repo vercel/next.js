@@ -17,7 +17,8 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 let browser
-const emptyImage = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='
+const emptyImage =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 function runTests() {
   it('should render an image tag', async () => {

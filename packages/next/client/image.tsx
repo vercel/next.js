@@ -398,7 +398,8 @@ export default function Image({
   })
 
   const imgAttributes: Pick<JSX.IntrinsicElements['img'], 'src' | 'srcSet'> = {
-    src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' 
+    src:
+      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
   }
 
   if (isVisible) {
