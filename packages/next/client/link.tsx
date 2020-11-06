@@ -1,4 +1,4 @@
-import React, { Children } from 'react'
+import React, { Children, useEffect } from 'react'
 import { UrlObject } from 'url'
 import {
   addBasePath,
@@ -9,6 +9,7 @@ import {
   resolveHref,
 } from '../next-server/lib/router/router'
 import { useRouter } from './router'
+import { useIntersection } from './use-intersection'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -31,59 +32,7 @@ export type LinkProps = {
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<LinkProps>
 
-let cachedObserver: IntersectionObserver
-const listeners = new Map<Element, () => void>()
-const IntersectionObserver =
-  typeof window !== 'undefined' ? window.IntersectionObserver : null
 const prefetched: { [cacheKey: string]: boolean } = {}
-
-function getObserver(): IntersectionObserver | undefined {
-  // Return shared instance of IntersectionObserver if already created
-  if (cachedObserver) {
-    return cachedObserver
-  }
-
-  // Only create shared IntersectionObserver if supported in browser
-  if (!IntersectionObserver) {
-    return undefined
-  }
-
-  return (cachedObserver = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (!listeners.has(entry.target)) {
-          return
-        }
-
-        const cb = listeners.get(entry.target)!
-        if (entry.isIntersecting || entry.intersectionRatio > 0) {
-          cachedObserver.unobserve(entry.target)
-          listeners.delete(entry.target)
-          cb()
-        }
-      })
-    },
-    { rootMargin: '200px' }
-  ))
-}
-
-const listenToIntersections = (el: Element, cb: () => void) => {
-  const observer = getObserver()
-  if (!observer) {
-    return () => {}
-  }
-
-  observer.observe(el)
-  listeners.set(el, cb)
-  return () => {
-    try {
-      observer.unobserve(el)
-    } catch (err) {
-      console.error(err)
-    }
-    listeners.delete(el)
-  }
-}
 
 function prefetch(
   router: NextRouter,
@@ -285,30 +234,12 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   const child: any = Children.only(children)
   const childRef: any = child && typeof child === 'object' && child.ref
 
-  const cleanup = React.useRef<() => void>()
+  const [setIntersectionRef, isVisible] = useIntersection({
+    rootMargin: '200px',
+  })
   const setRef = React.useCallback(
     (el: Element) => {
-      // cleanup previous event handlers
-      if (cleanup.current) {
-        cleanup.current()
-        cleanup.current = undefined
-      }
-
-      if (p && IntersectionObserver && el && el.tagName && isLocalURL(href)) {
-        // Join on an invalid URI character
-        const isPrefetched = prefetched[href + '%' + as]
-        if (!isPrefetched) {
-          cleanup.current = listenToIntersections(el, () => {
-            prefetch(router, href, as, {
-              locale:
-                typeof locale !== 'undefined'
-                  ? locale
-                  : router && router.locale,
-            })
-          })
-        }
-      }
-
+      setIntersectionRef(el)
       if (childRef) {
         if (typeof childRef === 'function') childRef(el)
         else if (typeof childRef === 'object') {
@@ -316,8 +247,18 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         }
       }
     },
-    [p, childRef, href, as, router, locale]
+    [childRef, setIntersectionRef]
   )
+  useEffect(() => {
+    const shouldPrefetch = isVisible && p && isLocalURL(href)
+    const isPrefetched = prefetched[href + '%' + as]
+    if (shouldPrefetch && !isPrefetched) {
+      prefetch(router, href, as, {
+        locale:
+          typeof locale !== 'undefined' ? locale : router && router.locale,
+      })
+    }
+  }, [as, href, isVisible, locale, p, router])
 
   const childProps: {
     onMouseEnter?: React.MouseEventHandler
