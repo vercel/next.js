@@ -4,7 +4,7 @@ type UseIntersectionObserverInit = Pick<IntersectionObserverInit, 'rootMargin'>
 type UseIntersection = { disabled?: boolean } & UseIntersectionObserverInit
 type ObserveCallback = (isVisible: boolean) => void
 
-const hasIntersectionObserver = !!self.IntersectionObserver
+const hasIntersectionObserver = typeof IntersectionObserver !== 'undefined'
 
 export function useIntersection<T extends Element>({
   rootMargin,
