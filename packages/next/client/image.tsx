@@ -1,5 +1,6 @@
 import React, { ReactElement, useEffect, useRef } from 'react'
 import Head from '../next-server/lib/head'
+import { toBase64 } from '../next-server/lib/to-base-64'
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
@@ -505,7 +506,7 @@ export default function Image({
               alt=""
               aria-hidden={true}
               role="presentation"
-              src={`data:image/svg+xml;charset=utf-8,${sizerSvg}`}
+              src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
             />
           ) : null}
         </div>
