@@ -108,7 +108,7 @@ describe('Build Output', () => {
       expect(sharedByAll.endsWith('kB')).toBe(true)
 
       if (_appSize.endsWith('kB')) {
-        expect(parseFloat(_appSize)).toBeLessThanOrEqual(1.01)
+        expect(parseFloat(_appSize)).toBe(1)
         expect(_appSize.endsWith('kB')).toBe(true)
       } else {
         expect(parseFloat(_appSize) - 1000).toBeLessThanOrEqual(0)

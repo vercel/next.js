@@ -2,8 +2,6 @@
 // https://github.com/lukeed/taskr/pull/305
 
 const path = require('path')
-
-// eslint-disable-next-line import/no-extraneous-dependencies
 const transform = require('@babel/core').transform
 
 const babelClientOpts = {
@@ -37,7 +35,6 @@ const babelClientOpts = {
   overrides: [
     {
       test: /\.tsx?$/,
-      // eslint-disable-next-line import/no-extraneous-dependencies
       plugins: [require('@babel/plugin-proposal-numeric-separator').default],
     },
   ],
@@ -71,7 +68,6 @@ const babelServerOpts = {
   overrides: [
     {
       test: /\.tsx?$/,
-      // eslint-disable-next-line import/no-extraneous-dependencies
       plugins: [require('@babel/plugin-proposal-numeric-separator').default],
     },
   ],

@@ -1,4 +1,4 @@
-import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
+import { codeFrameColumns } from '@babel/code-frame'
 import chalk from 'next/dist/compiled/chalk'
 import path from 'path'
 
