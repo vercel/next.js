@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import os from 'os'
 import path from 'path'
 import { FatalTypeScriptError } from './FatalTypeScriptError'

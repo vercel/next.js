@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import Conf from 'next/dist/compiled/conf'
 import { BinaryLike, createHash, randomBytes } from 'crypto'
 import isDockerFunction from 'next/dist/compiled/is-docker'

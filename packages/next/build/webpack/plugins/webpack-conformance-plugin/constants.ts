@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 
 const { red, yellow } = chalk
 

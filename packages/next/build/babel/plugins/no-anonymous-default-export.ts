@@ -1,5 +1,5 @@
-import { PluginObj, types as BabelTypes } from '@babel/core'
-import chalk from 'next/dist/compiled/chalk'
+import { PluginObj, types as BabelTypes } from 'next/dist/compiled/babel/core'
+import chalk from 'chalk'
 
 export default function NoAnonymousDefaultExport({
   types: t,

@@ -1,4 +1,8 @@
-import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
+import {
+  NodePath,
+  PluginObj,
+  types as BabelTypes,
+} from 'next/dist/compiled/babel/core'
 import { SERVER_PROPS_SSG_CONFLICT } from '../../../lib/constants'
 import {
   SERVER_PROPS_ID,
@@ -251,7 +255,12 @@ export default function nextTransformSsg({
                 if (specifiers.length) {
                   specifiers.forEach((s) => {
                     if (
-                      isDataIdentifier(s.node.exported.name, exportNamedState)
+                      isDataIdentifier(
+                        t.isIdentifier(s.node.exported)
+                          ? s.node.exported.name
+                          : s.node.exported.value,
+                        exportNamedState
+                      )
                     ) {
                       s.remove()
                     }

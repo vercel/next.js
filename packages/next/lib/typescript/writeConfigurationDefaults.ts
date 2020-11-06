@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs'
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import * as CommentJson from 'next/dist/compiled/comment-json'
 import os from 'os'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'

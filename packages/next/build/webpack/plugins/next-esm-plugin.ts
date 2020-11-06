@@ -164,7 +164,7 @@ export class NextEsmPlugin implements Plugin {
 
           if (IS_PRESET_ENV.test(name)) {
             presets.push([
-              require.resolve('@babel/preset-env'),
+              require('next/dist/compiled/babel/preset-env'),
               {
                 bugfixes: true,
                 loose: true,
