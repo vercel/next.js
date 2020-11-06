@@ -72,10 +72,9 @@ export {
   NextApiHandler,
 }
 
-type Redirect = {
-  permanent: boolean
-  destination: string
-}
+type Redirect =
+  | { permanent: boolean; destination: string }
+  | { statusCode: 301 | 302 | 303 | 307 | 308; destination: string }
 
 export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
   params?: Q
