@@ -18,20 +18,6 @@ npx create-next-app --example with-neo4j with-neo4j-app
 yarn create next-app --example with-neo4j with-neo4j-app
 ```
 
-Create a database with neo4j desktop or online sandbox and create your credentials. For this example use the sample database containing _Movies_:
-
-```
-:play movie-graph
-```
-
-You'll need to use the Neo4j JavaScript Driver:
-
-```bash
-yarn add neo4j-driver
-```
-
-Also included is a Cypher [movie sample](./movie-sample.md) query if needed.
-
 ## Configuration
 
 ### Step 1. Create a Neo4j database
