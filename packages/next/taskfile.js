@@ -22,12 +22,12 @@ export async function browser_polyfills(task) {
 }
 
 const externals = {
-  // Babel
-  '@babel/core': '@babel/core',
-
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
   'caniuse-lite': 'caniuse-lite',
+
+  chalk: 'chalk',
+  'node-fetch': 'node-fetch',
 
   // Webpack indirect and direct dependencies:
   webpack: 'webpack',
@@ -84,6 +84,54 @@ export async function ncc_async_sema(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function ncc_babel_bundle(task, opts) {
+  const bundleExternals = { ...externals }
+  for (const pkg of Object.keys(babelBundlePackages))
+    delete bundleExternals[pkg]
+  await task
+    .source(opts.src || 'bundles/babel/bundle.js')
+    .ncc({
+      packageName: '@babel/core',
+      bundleName: 'babel',
+      externals: bundleExternals,
+    })
+    .target('compiled/babel')
+}
+
+const babelBundlePackages = {
+  'code-frame': 'next/dist/compiled/babel/code-frame',
+  '@babel/core': 'next/dist/compiled/babel/core',
+  '@babel/plugin-proposal-class-properties':
+    'next/dist/compiled/babel/plugin-proposal-class-properties',
+  '@babel/plugin-proposal-export-namespace-from':
+    'next/dist/compiled/babel/plugin-proposal-export-namespace-from',
+  '@babel/plugin-proposal-numeric-separator':
+    'next/dist/compiled/babel/plugin-proposal-numeric-separator',
+  '@babel/plugin-proposal-object-rest-spread':
+    'next/dist/compiled/babel/plugin-proposal-object-rest-spread',
+  '@babel/plugin-syntax-bigint':
+    'next/dist/compiled/babel/plugin-syntax-bigint',
+  '@babel/plugin-syntax-dynamic-import':
+    'next/dist/compiled/babel/plugin-syntax-dynamic-import',
+  '@babel/plugin-syntax-jsx': 'next/dist/compiled/babel/plugin-syntax-jsx',
+  '@babel/plugin-transform-modules-commonjs':
+    'next/dist/compiled/babel/plugin-transform-modules-commonjs',
+  '@babel/plugin-transform-runtime':
+    'next/dist/compiled/babel/plugin-transform-runtime',
+  '@babel/preset-env': 'next/dist/compiled/babel/preset-env',
+  '@babel/preset-react': 'next/dist/compiled/babel/preset-react',
+  '@babel/preset-typescript': 'next/dist/compiled/babel/preset-typescript',
+}
+
+Object.assign(externals, babelBundlePackages)
+
+export async function ncc_babel_bundle_packages(task, opts) {
+  await task
+    .source(opts.src || 'bundles/babel/packages/*')
+    .target('compiled/babel/')
+}
+
+// eslint-disable-next-line camelcase
 externals['babel-loader'] = 'next/dist/compiled/babel-loader'
 export async function ncc_babel_loader(task, opts) {
   await task
@@ -106,16 +154,6 @@ export async function ncc_cache_loader(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('cache-loader')))
     .ncc({ packageName: 'cache-loader', externals })
     .target('compiled/cache-loader')
-}
-// eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Vercel version is a duplicate
-// version so can be inlined anyway (although may change in future)
-externals['chalk'] = 'next/dist/compiled/chalk'
-export async function ncc_chalk(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('chalk')))
-    .ncc({ packageName: 'chalk', externals })
-    .target('compiled/chalk')
 }
 // eslint-disable-next-line camelcase
 externals['ci-info'] = 'next/dist/compiled/ci-info'
@@ -182,14 +220,6 @@ export async function ncc_escape_string_regexp(task, opts) {
     )
     .ncc({ packageName: 'escape-string-regexp', externals })
     .target('compiled/escape-string-regexp')
-}
-// eslint-disable-next-line camelcase
-externals['etag'] = 'next/dist/compiled/etag'
-export async function ncc_etag(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('etag')))
-    .ncc({ packageName: 'etag', externals })
-    .target('compiled/etag')
 }
 // eslint-disable-next-line camelcase
 externals['file-loader'] = 'next/dist/compiled/file-loader'
@@ -328,14 +358,6 @@ export async function ncc_neo_async(task, opts) {
     .target('compiled/neo-async')
 }
 // eslint-disable-next-line camelcase
-externals['node-fetch'] = 'next/dist/compiled/node-fetch'
-export async function ncc_node_fetch(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('node-fetch')))
-    .ncc({ packageName: 'node-fetch', externals })
-    .target('compiled/node-fetch')
-}
-// eslint-disable-next-line camelcase
 externals['ora'] = 'next/dist/compiled/ora'
 export async function ncc_ora(task, opts) {
   await task
@@ -371,14 +393,6 @@ export async function ncc_postcss_preset_env(task, opts) {
     )
     .ncc({ packageName: 'postcss-preset-env', externals })
     .target('compiled/postcss-preset-env')
-}
-// eslint-disable-next-line camelcase
-externals['raw-body'] = 'next/dist/compiled/raw-body'
-export async function ncc_raw_body(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('raw-body')))
-    .ncc({ packageName: 'raw-body', externals })
-    .target('compiled/raw-body')
 }
 // eslint-disable-next-line camelcase
 externals['recast'] = 'next/dist/compiled/recast'
@@ -536,10 +550,11 @@ export async function ncc(task) {
       'ncc_arg',
       'ncc_async_retry',
       'ncc_async_sema',
+      'ncc_babel_bundle',
+      'ncc_babel_bundle_packages',
       'ncc_babel_loader',
       'ncc_cacache',
       'ncc_cache_loader',
-      'ncc_chalk',
       'ncc_ci_info',
       'ncc_compression',
       'ncc_conf',
@@ -548,7 +563,6 @@ export async function ncc(task) {
       'ncc_debug',
       'ncc_devalue',
       'ncc_escape_string_regexp',
-      'ncc_etag',
       'ncc_file_loader',
       'ncc_find_cache_dir',
       'ncc_find_up',
@@ -566,12 +580,10 @@ export async function ncc(task) {
       'ncc_mkdirp',
       'ncc_nanoid',
       'ncc_neo_async',
-      'ncc_node_fetch',
       'ncc_ora',
       'ncc_postcss_flexbugs_fixes',
       'ncc_postcss_loader',
       'ncc_postcss_preset_env',
-      'ncc_raw_body',
       'ncc_recast',
       'ncc_resolve',
       'ncc_schema_utils',
