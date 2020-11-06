@@ -58,19 +58,29 @@ const Index = () => (
       </p>
       <ul>
         <li>
-          <Link href="/layout-intrinsic">layout="intrinsic"</Link>
+          <Link href="/layout-intrinsic">
+            <a>layout="intrinsic"</a>
+          </Link>
         </li>
         <li>
-          <Link href="/layout-responsive">layout="responsive"</Link>
+          <Link href="/layout-responsive">
+            <a>layout="responsive"</a>
+          </Link>
         </li>
         <li>
-          <Link href="/layout-fixed">layout="fixed"</Link>
+          <Link href="/layout-fixed">
+            <a>layout="fixed"</a>
+          </Link>
         </li>
         <li>
-          <Link href="/layout-fill">layout="fill"</Link>
+          <Link href="/layout-fill">
+            <a>layout="fill"</a>
+          </Link>
         </li>
         <li>
-          <Link href="/background">background demo</Link>
+          <Link href="/background">
+            <a>background demo</a>
+          </Link>
         </li>
       </ul>
       <hr className={styles.hr} />
