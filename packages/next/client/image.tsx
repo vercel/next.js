@@ -6,12 +6,13 @@ type LoadingValue = typeof VALID_LOADING_VALUES[number]
 
 const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
+  ['imagekit', imagekitLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
   ['default', defaultLoader],
 ])
 
-type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
+type LoaderKey = 'imgix' | 'imagekit' | 'cloudinary' | 'akamai' | 'default'
 
 const VALID_LAYOUT_VALUES = [
   'fill',
@@ -541,6 +542,19 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
 
   if (params.length) {
     paramsString = '?' + params.join('&')
+  }
+  return `${root}${normalizeSrc(src)}${paramsString}`
+}
+
+function imagekitLoader({ root, src, width, quality }: LoaderProps): string {
+  // Demo: https://ik.imagekit.io/demo/img/plant.jpeg?tr=w-300,c-at_max
+  const params = ['f-auto', 'c-at_max', 'w-' + width]
+  let paramsString = ''
+  if (quality) {
+    params.push('q-' + quality)
+  }
+  if (params.length) {
+    paramsString = '?tr=' + params.join(',')
   }
   return `${root}${normalizeSrc(src)}${paramsString}`
 }
