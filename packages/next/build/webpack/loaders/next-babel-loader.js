@@ -45,7 +45,7 @@ module.exports = babelLoader.custom((babel) => {
     { type: 'plugin' }
   )
   const commonJsItem = babel.createConfigItem(
-    require('@babel/plugin-transform-modules-commonjs'),
+    require('next/dist/compiled/babel/plugin-transform-modules-commonjs'),
     { type: 'plugin' }
   )
 

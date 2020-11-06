@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 import { promises, writeFileSync } from 'fs'
 import Worker from 'jest-worker'
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import devalue from 'next/dist/compiled/devalue'
 import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
 import findUp from 'next/dist/compiled/find-up'
@@ -336,7 +336,7 @@ export default async function build(
         }
       }),
     dataRoutes: [],
-    i18n: config.experimental.i18n || undefined,
+    i18n: config.i18n || undefined,
   }
 
   await promises.mkdir(distDir, { recursive: true })
@@ -576,8 +576,8 @@ export default async function build(
             page,
             serverBundle,
             runtimeEnvConfig,
-            config.experimental.i18n?.locales,
-            config.experimental.i18n?.defaultLocale
+            config.i18n?.locales,
+            config.i18n?.defaultLocale
           )
 
           if (workerResult.isHybridAmp) {
@@ -594,7 +594,7 @@ export default async function build(
               ssgPageRoutes = workerResult.prerenderRoutes
             }
 
-            if (workerResult.prerenderFallback === 'unstable_blocking') {
+            if (workerResult.prerenderFallback === 'blocking') {
               ssgBlockingFallbackPages.add(page)
             } else if (workerResult.prerenderFallback === true) {
               ssgStaticFallbackPages.add(page)
@@ -739,7 +739,7 @@ export default async function build(
       // n.b. we cannot handle this above in combinedPages because the dynamic
       // page must be in the `pages` array, but not in the mapping.
       exportPathMap: (defaultMap: any) => {
-        const { i18n } = config.experimental
+        const { i18n } = config
 
         // Dynamically routed pages should be prerendered to be used as
         // a client-side skeleton (fallback) while data is being fetched.
@@ -808,7 +808,7 @@ export default async function build(
               }
             }
 
-            if (isSsg && !isFallback) {
+            if (isSsg) {
               // remove non-locale prefixed variant from defaultMap
               delete defaultMap[page]
             }
@@ -878,7 +878,7 @@ export default async function build(
         pagesManifest[page] = relativeDest
       }
 
-      const { i18n } = config.experimental
+      const { i18n } = config
       const isNotFound = ssgNotFoundPaths.includes(page)
 
       // for SSG files with i18n the non-prerendered variants are
@@ -960,7 +960,7 @@ export default async function build(
       }
 
       if (isSsg) {
-        const { i18n } = config.experimental
+        const { i18n } = config
 
         // For a non-dynamic SSG page, we must copy its data file from export.
         if (!isDynamic) {
@@ -1048,6 +1048,9 @@ export default async function build(
         (staticPages.size + ssgPages.size + serverPropsPages.size),
       hasStatic404: useStatic404,
       hasReportWebVitals: namedExports?.includes('reportWebVitals') ?? false,
+      rewritesCount: rewrites.length,
+      headersCount: headers.length,
+      redirectsCount: redirects.length - 1, // reduce one for trailing slash
     })
   )
 
@@ -1110,11 +1113,15 @@ export default async function build(
     )
   }
 
+  const images = { ...config.images }
+  const { deviceSizes, imageSizes } = images
+  images.sizes = [...deviceSizes, ...imageSizes]
+
   await promises.writeFile(
     path.join(distDir, IMAGES_MANIFEST),
     JSON.stringify({
       version: 1,
-      images: config.images,
+      images,
     }),
     'utf8'
   )
@@ -1159,7 +1166,7 @@ export default async function build(
     printCustomRoutes({ redirects, rewrites, headers })
   }
 
-  if (config.experimental.analyticsId) {
+  if (config.analyticsId) {
     console.log(
       chalk.bold.green('Next.js Analytics') +
         ' is enabled for this production build. ' +

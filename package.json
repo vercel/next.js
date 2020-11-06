@@ -39,11 +39,11 @@
   "devDependencies": {
     "@babel/core": "7.11.6",
     "@babel/eslint-parser": "7.11.5",
-    "@babel/plugin-proposal-object-rest-spread": "7.11.0",
+    "@babel/plugin-proposal-object-rest-spread": "7.12.1",
     "@babel/plugin-syntax-jsx": "7.10.4",
     "@babel/plugin-syntax-top-level-await": "7.10.4",
     "@babel/preset-flow": "7.10.4",
-    "@babel/preset-react": "7.10.4",
+    "@babel/preset-react": "7.12.5",
     "@fullhuman/postcss-purgecss": "1.3.0",
     "@mdx-js/loader": "0.18.0",
     "@types/cheerio": "0.22.16",
@@ -60,7 +60,7 @@
     "amphtml-validator": "1.0.33",
     "async-sema": "3.0.1",
     "babel-jest": "24.9.0",
-    "browserslist": "^4.13.0",
+    "browserslist": "^4.14.6",
     "browserstack-local": "1.4.0",
     "caniuse-lite": "^1.0.30001019",
     "cheerio": "0.22.0",
@@ -97,7 +97,7 @@
     "moment": "^2.24.0",
     "node-fetch": "2.6.1",
     "node-notifier": "5.4.0",
-    "node-sass": "4.12.0",
+    "node-sass": "4.13.1",
     "npm-run-all": "4.1.5",
     "nprogress": "0.2.0",
     "pixrem": "5.0.0",
@@ -121,10 +121,10 @@
     "selenium-webdriver": "4.0.0-alpha.7",
     "shell-quote": "1.7.2",
     "styled-components": "5.1.0",
-    "styled-jsx-plugin-postcss": "2.0.1",
+    "styled-jsx-plugin-postcss": "3.0.2",
     "tailwindcss": "1.1.3",
     "taskr": "1.1.0",
-    "tree-kill": "1.2.1",
+    "tree-kill": "1.2.2",
     "typescript": "3.8.3",
     "wait-port": "0.2.2",
     "web-streams-polyfill": "2.1.1",
@@ -132,7 +132,7 @@
     "worker-loader": "2.0.0"
   },
   "resolutions": {
-    "browserslist": "^4.8.3",
+    "browserslist": "^4.14.6",
     "caniuse-lite": "^1.0.30001019"
   },
   "engines": {

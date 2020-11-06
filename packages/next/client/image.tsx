@@ -1,6 +1,9 @@
 import React, { ReactElement, useEffect, useRef } from 'react'
 import Head from '../next-server/lib/head'
 
+const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
+type LoadingValue = typeof VALID_LOADING_VALUES[number]
+
 const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
@@ -10,34 +13,69 @@ const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
 
 type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
 
+const VALID_LAYOUT_VALUES = [
+  'fill',
+  'fixed',
+  'intrinsic',
+  'responsive',
+  undefined,
+] as const
+type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
+
 type ImageData = {
-  sizes: number[]
+  deviceSizes: number[]
+  imageSizes: number[]
   loader: LoaderKey
   path: string
+  domains?: string[]
 }
+
+type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
 type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'width' | 'height'
+  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
 > & {
   src: string
-  quality?: string
+  quality?: number | string
   priority?: boolean
-  lazy?: boolean
+  loading?: LoadingValue
   unoptimized?: boolean
+  objectFit?: ImgElementStyle['objectFit']
+  objectPosition?: ImgElementStyle['objectPosition']
 } & (
-    | { width: number; height: number; unsized?: false }
-    | { width?: number; height?: number; unsized: true }
+    | {
+        width?: never
+        height?: never
+        /** @deprecated Use `layout="fill"` instead */
+        unsized: true
+      }
+    | { width?: never; height?: never; layout: 'fill' }
+    | {
+        width: number | string
+        height: number | string
+        layout?: Exclude<LayoutValue, 'fill'>
+      }
   )
 
 const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
-const { sizes: configSizes, loader: configLoader, path: configPath } = imageData
+const {
+  deviceSizes: configDeviceSizes,
+  imageSizes: configImageSizes,
+  loader: configLoader,
+  path: configPath,
+  domains: configDomains,
+} = imageData
+// sort smallest to largest
+const allSizes = [...configDeviceSizes, ...configImageSizes]
+configDeviceSizes.sort((a, b) => a - b)
+allSizes.sort((a, b) => a - b)
 
 let cachedObserver: IntersectionObserver
-const IntersectionObserver =
-  typeof window !== 'undefined' ? window.IntersectionObserver : null
 
 function getObserver(): IntersectionObserver | undefined {
+  const IntersectionObserver =
+    typeof window !== 'undefined' ? window.IntersectionObserver : null
   // Return shared instance of IntersectionObserver if already created
   if (cachedObserver) {
     return cachedObserver
@@ -47,19 +85,12 @@ function getObserver(): IntersectionObserver | undefined {
   if (!IntersectionObserver) {
     return undefined
   }
-
   return (cachedObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           let lazyImage = entry.target as HTMLImageElement
-          if (lazyImage.dataset.src) {
-            lazyImage.src = lazyImage.dataset.src
-          }
-          if (lazyImage.dataset.srcset) {
-            lazyImage.srcset = lazyImage.dataset.srcset
-          }
-          lazyImage.classList.remove('__lazy')
+          unLazifyImage(lazyImage)
           cachedObserver.unobserve(lazyImage)
         }
       })
@@ -68,54 +99,111 @@ function getObserver(): IntersectionObserver | undefined {
   ))
 }
 
+function unLazifyImage(lazyImage: HTMLImageElement): void {
+  if (lazyImage.dataset.src) {
+    lazyImage.src = lazyImage.dataset.src
+  }
+  if (lazyImage.dataset.srcset) {
+    lazyImage.srcset = lazyImage.dataset.srcset
+  }
+  lazyImage.style.visibility = 'visible'
+  lazyImage.classList.remove('__lazy')
+}
+
+function getSizes(
+  width: number | undefined,
+  layout: LayoutValue
+): { sizes: number[]; kind: 'w' | 'x' } {
+  if (
+    typeof width !== 'number' ||
+    layout === 'fill' ||
+    layout === 'responsive'
+  ) {
+    return { sizes: configDeviceSizes, kind: 'w' }
+  }
+
+  const sizes = [
+    ...new Set(
+      [width, width * 2, width * 3].map(
+        (w) => allSizes.find((p) => p >= w) || allSizes[allSizes.length - 1]
+      )
+    ),
+  ]
+  return { sizes, kind: 'x' }
+}
+
 function computeSrc(
   src: string,
   unoptimized: boolean,
-  quality?: string
+  layout: LayoutValue,
+  width?: number,
+  quality?: number
 ): string {
   if (unoptimized) {
     return src
   }
-  return callLoader({ src, quality })
+  const { sizes } = getSizes(width, layout)
+  const largest = sizes[sizes.length - 1]
+  return callLoader({ src, width: largest, quality })
 }
 
 type CallLoaderProps = {
   src: string
-  width?: number
-  quality?: string
+  width: number
+  quality?: number
 }
 
 function callLoader(loaderProps: CallLoaderProps) {
-  let load = loaders.get(configLoader) || defaultLoader
+  const load = loaders.get(configLoader) || defaultLoader
   return load({ root: configPath, ...loaderProps })
 }
 
 type SrcSetData = {
   src: string
-  widths: number[]
-  quality?: string
+  unoptimized: boolean
+  layout: LayoutValue
+  width?: number
+  quality?: number
 }
 
-function generateSrcSet({ src, widths, quality }: SrcSetData): string {
+function generateSrcSet({
+  src,
+  unoptimized,
+  layout,
+  width,
+  quality,
+}: SrcSetData): string | undefined {
   // At each breakpoint, generate an image url using the loader, such as:
   // ' www.example.com/foo.jpg?w=480 480w, '
-  return widths
-    .map((width: number) => `${callLoader({ src, width, quality })} ${width}w`)
+  if (unoptimized) {
+    return undefined
+  }
+
+  const { sizes, kind } = getSizes(width, layout)
+  return sizes
+    .map(
+      (size, i) =>
+        `${callLoader({ src, width: size, quality })} ${
+          kind === 'w' ? size : i + 1
+        }${kind}`
+    )
     .join(', ')
 }
 
 type PreloadData = {
   src: string
-  widths: number[]
+  unoptimized: boolean
+  layout: LayoutValue
+  width: number | undefined
   sizes?: string
-  unoptimized?: boolean
-  quality?: string
+  quality?: number
 }
 
 function generatePreload({
   src,
-  widths,
   unoptimized = false,
+  layout,
+  width,
   sizes,
   quality,
 }: PreloadData): ReactElement {
@@ -128,13 +216,29 @@ function generatePreload({
       <link
         rel="preload"
         as="image"
-        href={computeSrc(src, unoptimized, quality)}
+        href={computeSrc(src, unoptimized, layout, width, quality)}
         // @ts-ignore: imagesrcset and imagesizes not yet in the link element type
-        imagesrcset={generateSrcSet({ src, widths, quality })}
+        imagesrcset={generateSrcSet({
+          src,
+          unoptimized,
+          layout,
+          width,
+          quality,
+        })}
         imagesizes={sizes}
       />
     </Head>
   )
+}
+
+function getInt(x: unknown): number | undefined {
+  if (typeof x === 'number') {
+    return x
+  }
+  if (typeof x === 'string') {
+    return parseInt(x, 10)
+  }
+  return undefined
 }
 
 export default function Image({
@@ -142,32 +246,81 @@ export default function Image({
   sizes,
   unoptimized = false,
   priority = false,
-  lazy = false,
+  loading,
   className,
   quality,
   width,
   height,
-  unsized,
-  ...rest
+  objectFit,
+  objectPosition,
+  ...all
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
 
-  // Sanity Checks:
-  // If priority and lazy are present, log an error and use priority only.
-  if (priority && lazy) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error(
-        `Image with src ${src} has both priority and lazy tags. Only one should be used.`
+  let rest: Partial<ImageProps> = all
+  let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
+  let unsized = false
+  if ('unsized' in rest) {
+    unsized = Boolean(rest.unsized)
+    // Remove property so it's not spread into image:
+    delete rest['unsized']
+  } else if ('layout' in rest) {
+    // Override default layout if the user specified one:
+    if (rest.layout) layout = rest.layout
+
+    // Remove property so it's not spread into image:
+    delete rest['layout']
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    if (!src) {
+      throw new Error(
+        `Image is missing required "src" property. Make sure you pass "src" in props to the \`next/image\` component. Received: ${JSON.stringify(
+          { width, height, quality }
+        )}`
       )
     }
+    if (!VALID_LAYOUT_VALUES.includes(layout)) {
+      throw new Error(
+        `Image with src "${src}" has invalid "layout" property. Provided "${layout}" should be one of ${VALID_LAYOUT_VALUES.map(
+          String
+        ).join(',')}.`
+      )
+    }
+    if (!VALID_LOADING_VALUES.includes(loading)) {
+      throw new Error(
+        `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(
+          String
+        ).join(',')}.`
+      )
+    }
+    if (priority && loading === 'lazy') {
+      throw new Error(
+        `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
+      )
+    }
+    if (unsized) {
+      throw new Error(
+        `Image with src "${src}" has deprecated "unsized" property, which was removed in favor of the "layout='fill'" property`
+      )
+    }
+  }
+
+  let lazy = loading === 'lazy'
+  if (!priority && typeof loading === 'undefined') {
+    lazy = true
+  }
+
+  if (src && src.startsWith('data:')) {
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    unoptimized = true
     lazy = false
   }
 
   useEffect(() => {
     const target = thisEl.current
-
-    if (target && lazy) {
-      const observer = getObserver()
+    if (target) {
+      const observer = lazy && getObserver()
 
       if (observer) {
         observer.observe(target)
@@ -175,19 +328,127 @@ export default function Image({
         return () => {
           observer.unobserve(target)
         }
+      } else {
+        unLazifyImage(target)
       }
     }
   }, [thisEl, lazy])
 
+  const widthInt = getInt(width)
+  const heightInt = getInt(height)
+  const qualityInt = getInt(quality)
+
+  let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
+  let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
+  let sizerSvg: string | undefined
+  let imgStyle: ImgElementStyle | undefined = {
+    visibility: lazy ? 'hidden' : 'visible',
+
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    right: 0,
+
+    boxSizing: 'border-box',
+    padding: 0,
+    border: 'none',
+    margin: 'auto',
+
+    display: 'block',
+    width: 0,
+    height: 0,
+    minWidth: '100%',
+    maxWidth: '100%',
+    minHeight: '100%',
+    maxHeight: '100%',
+
+    objectFit,
+    objectPosition,
+  }
+  if (
+    typeof widthInt !== 'undefined' &&
+    typeof heightInt !== 'undefined' &&
+    layout !== 'fill'
+  ) {
+    // <Image src="i.png" width="100" height="100" />
+    const quotient = heightInt / widthInt
+    const paddingTop = isNaN(quotient) ? '100%' : `${quotient * 100}%`
+    if (layout === 'responsive') {
+      // <Image src="i.png" width="100" height="100" layout="responsive" />
+      wrapperStyle = {
+        display: 'block',
+        overflow: 'hidden',
+        position: 'relative',
+
+        boxSizing: 'border-box',
+        margin: 0,
+      }
+      sizerStyle = { display: 'block', boxSizing: 'border-box', paddingTop }
+    } else if (layout === 'intrinsic') {
+      // <Image src="i.png" width="100" height="100" layout="intrinsic" />
+      wrapperStyle = {
+        display: 'inline-block',
+        maxWidth: '100%',
+        overflow: 'hidden',
+        position: 'relative',
+        boxSizing: 'border-box',
+        margin: 0,
+      }
+      sizerStyle = {
+        boxSizing: 'border-box',
+        display: 'block',
+        maxWidth: '100%',
+      }
+      sizerSvg = `<svg width="${widthInt}" height="${heightInt}" xmlns="http://www.w3.org/2000/svg" version="1.1"/>`
+    } else if (layout === 'fixed') {
+      // <Image src="i.png" width="100" height="100" layout="fixed" />
+      wrapperStyle = {
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+        display: 'inline-block',
+        position: 'relative',
+        width: widthInt,
+        height: heightInt,
+      }
+    }
+  } else if (
+    typeof widthInt === 'undefined' &&
+    typeof heightInt === 'undefined' &&
+    layout === 'fill'
+  ) {
+    // <Image src="i.png" layout="fill" />
+    wrapperStyle = {
+      display: 'block',
+      overflow: 'hidden',
+
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      bottom: 0,
+      right: 0,
+
+      boxSizing: 'border-box',
+      margin: 0,
+    }
+  } else {
+    // <Image src="i.png" />
+    if (process.env.NODE_ENV !== 'production') {
+      throw new Error(
+        `Image with src "${src}" must use "width" and "height" properties or "layout='fill'" property.`
+      )
+    }
+  }
+
   // Generate attribute values
-  const imgSrc = computeSrc(src, unoptimized, quality)
-  const imgSrcSet = !unoptimized
-    ? generateSrcSet({
-        src,
-        widths: configSizes,
-        quality,
-      })
-    : undefined
+  const imgSrc = computeSrc(src, unoptimized, layout, widthInt, qualityInt)
+  const imgSrcSet = generateSrcSet({
+    src,
+    unoptimized,
+    layout,
+    width: widthInt,
+    quality: qualityInt,
+  })
 
   let imgAttributes:
     | {
@@ -219,58 +480,40 @@ export default function Image({
   // it's too late for preloads
   const shouldPreload = priority && typeof window === 'undefined'
 
-  let divStyle: React.CSSProperties | undefined
-  let imgStyle: React.CSSProperties | undefined
-  if (typeof height === 'number' && typeof width === 'number' && !unsized) {
-    // <Image src="i.png" width=100 height=100 />
-    const quotient = height / width
-    const ratio = isNaN(quotient) ? 1 : quotient * 100
-    divStyle = {
-      position: 'relative',
-      paddingBottom: `${ratio}%`,
-    }
-    imgStyle = {
-      height: '100%',
-      left: '0',
-      position: 'absolute',
-      top: '0',
-      width: '100%',
-    }
-  } else if (
-    typeof height === 'undefined' &&
-    typeof width === 'undefined' &&
-    unsized
-  ) {
-    // <Image src="i.png" unsized />
-    if (process.env.NODE_ENV !== 'production') {
-      if (priority) {
-        // <Image src="i.png" unsized priority />
-        console.warn(
-          `Image with src ${src} has both priority and unsized attributes. Only one should be used.`
-        )
-      }
-    }
-  } else {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error(
-        `Image with src ${src} must use width and height attributes or unsized attribute.`
-      )
-    }
+  if (unsized) {
+    wrapperStyle = undefined
+    sizerStyle = undefined
+    imgStyle = undefined
   }
-
   return (
-    <div style={divStyle}>
+    <div style={wrapperStyle}>
       {shouldPreload
         ? generatePreload({
             src,
-            widths: configSizes,
+            layout,
             unoptimized,
+            width: widthInt,
             sizes,
+            quality: qualityInt,
           })
-        : ''}
+        : null}
+      {sizerStyle ? (
+        <div style={sizerStyle}>
+          {sizerSvg ? (
+            <img
+              style={{ maxWidth: '100%', display: 'block' }}
+              alt=""
+              aria-hidden={true}
+              role="presentation"
+              src={`data:image/svg+xml;charset=utf-8,${sizerSvg}`}
+            />
+          ) : null}
+        </div>
+      ) : null}
       <img
         {...rest}
         {...imgAttributes}
+        decoding="async"
         className={className}
         sizes={sizes}
         ref={thisEl}
@@ -289,11 +532,9 @@ function normalizeSrc(src: string) {
 }
 
 function imgixLoader({ root, src, width, quality }: LoaderProps): string {
-  const params = ['auto=format']
+  // Demo: https://static.imgix.net/daisy.png?format=auto&fit=max&w=300
+  const params = ['auto=format', 'fit=max', 'w=' + width]
   let paramsString = ''
-  if (width) {
-    params.push('w=' + width)
-  }
   if (quality) {
     params.push('q=' + quality)
   }
@@ -305,15 +546,13 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
 }
 
 function akamaiLoader({ root, src, width }: LoaderProps): string {
-  return `${root}${normalizeSrc(src)}${width ? '?imwidth=' + width : ''}`
+  return `${root}${normalizeSrc(src)}?imwidth=${width}`
 }
 
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
-  const params = ['f_auto']
+  // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit/turtles.jpg
+  const params = ['f_auto', 'c_limit', 'w_' + width]
   let paramsString = ''
-  if (width) {
-    params.push('w_' + width)
-  }
   if (quality) {
     params.push('q_' + quality)
   }
@@ -324,7 +563,48 @@ function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
 }
 
 function defaultLoader({ root, src, width, quality }: LoaderProps): string {
-  return `${root}?url=${encodeURIComponent(src)}&${
-    width ? `w=${width}&` : ''
-  }q=${quality || '100'}`
+  if (process.env.NODE_ENV !== 'production') {
+    const missingValues = []
+
+    // these should always be provided but make sure they are
+    if (!src) missingValues.push('src')
+    if (!width) missingValues.push('width')
+
+    if (missingValues.length > 0) {
+      throw new Error(
+        `Next Image Optimization requires ${missingValues.join(
+          ', '
+        )} to be provided. Make sure you pass them as props to the \`next/image\` component. Received: ${JSON.stringify(
+          { src, width, quality }
+        )}`
+      )
+    }
+
+    if (src.startsWith('//')) {
+      throw new Error(
+        `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
+      )
+    }
+
+    if (!src.startsWith('/') && configDomains) {
+      let parsedSrc: URL
+      try {
+        parsedSrc = new URL(src)
+      } catch (err) {
+        console.error(err)
+        throw new Error(
+          `Failed to parse src "${src}" on \`next/image\`, if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
+        )
+      }
+
+      if (!configDomains.includes(parsedSrc.hostname)) {
+        throw new Error(
+          `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
+            `See more info: https://err.sh/next.js/next-image-unconfigured-host`
+        )
+      }
+    }
+  }
+
+  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
 }

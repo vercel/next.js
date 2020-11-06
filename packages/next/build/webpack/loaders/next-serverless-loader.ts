@@ -19,6 +19,7 @@ export type ServerlessLoaderQuery = {
   absoluteAppPath: string
   absoluteDocumentPath: string
   absoluteErrorPath: string
+  absolute404Path: string
   buildId: string
   assetPrefix: string
   generateEtags: string
@@ -44,6 +45,7 @@ const nextServerlessLoader: loader.Loader = function () {
     absoluteAppPath,
     absoluteDocumentPath,
     absoluteErrorPath,
+    absolute404Path,
     generateEtags,
     poweredByHeader,
     basePath,
@@ -82,6 +84,17 @@ const nextServerlessLoader: loader.Loader = function () {
         return Object.keys(defaultRouteRegex.groups)
           .reduce((prev, key) => {
             let value = query[key]
+
+            // if the value matches the default value we can't rely
+            // on the parsed params, this is used to signal if we need
+            // to parse x-now-route-matches or not
+            const isDefaultValue = Array.isArray(value)
+              ? value.every((val, idx) => val === defaultRouteMatches[key][idx])
+              : value === defaultRouteMatches[key]
+
+            if (isDefaultValue || typeof value === 'undefined') {
+              hasValidParams = false
+            }
 
             ${
               ''
@@ -125,6 +138,7 @@ const nextServerlessLoader: loader.Loader = function () {
       }
     `
     : ''
+
   const envLoading = `
     const { processEnv } = require('@next/env')
     processEnv(${Buffer.from(loadedEnvFiles, 'base64').toString()})
@@ -153,6 +167,7 @@ const nextServerlessLoader: loader.Loader = function () {
   const dynamicRouteMatcher = pageIsDynamicRoute
     ? `
     const dynamicRouteMatcher = getRouteMatcher(getRouteRegex("${page}"))
+    const defaultRouteMatches = dynamicRouteMatcher("${page}")
   `
     : ''
 
@@ -228,10 +243,12 @@ const nextServerlessLoader: loader.Loader = function () {
       let locales = i18n.locales
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
-      let acceptPreferredLocale = accept.language(
-        req.headers['accept-language'],
-        i18n.locales
-      )
+      let acceptPreferredLocale = i18n.localeDetection !== false
+        ? accept.language(
+          req.headers['accept-language'],
+          i18n.locales
+        )
+        : detectedLocale
 
       const { host } = req.headers || {}
       // remove port from host and remove port if present
@@ -260,33 +277,29 @@ const nextServerlessLoader: loader.Loader = function () {
           ...parsedUrl,
           pathname: localePathResult.pathname,
         })
+        req.__nextStrippedLocale = true
         parsedUrl.pathname = localePathResult.pathname
+      }
 
-        // check if the locale prefix matches a domain's defaultLocale
-        // and we're on a locale specific domain if so redirect to that domain
-        // if (detectedDomain) {
-        //   const matchedDomain = detectDomainLocale(
-        //     i18n.domains,
-        //     undefined,
-        //     detectedLocale
-        //   )
+      // If a detected locale is a domain specific locale and we aren't already
+      // on that domain and path prefix redirect to it to prevent duplicate
+      // content from multiple domains
+      if (detectedDomain) {
+        const localeToCheck = localePathResult.detectedLocale
+          ? detectedLocale
+          : acceptPreferredLocale
 
-        //   if (matchedDomain) {
-        //     localeDomainRedirect = \`http\${
-        //       matchedDomain.http ? '' : 's'
-        //     }://\${matchedDomain.domain}\`
-        //   }
-        // }
-      } else if (detectedDomain) {
         const matchedDomain = detectDomainLocale(
           i18n.domains,
           undefined,
-          acceptPreferredLocale
+          localeToCheck
         )
 
         if (matchedDomain && matchedDomain.domain !== detectedDomain.domain) {
           localeDomainRedirect = \`http\${matchedDomain.http ? '' : 's'}://\${
             matchedDomain.domain
+          }/\${
+            localeToCheck === matchedDomain.defaultLocale ? '' : localeToCheck
           }\`
         }
       }
@@ -357,7 +370,10 @@ const nextServerlessLoader: loader.Loader = function () {
         return
       }
 
-      detectedLocale = detectedLocale || defaultLocale
+      detectedLocale =
+        localePathResult.detectedLocale ||
+        (detectedDomain && detectedDomain.defaultLocale) ||
+        defaultLocale
     `
     : `
       const i18n = {}
@@ -389,8 +405,6 @@ const nextServerlessLoader: loader.Loader = function () {
 
       ${defaultRouteRegex}
 
-      ${normalizeDynamicRouteParams}
-
       ${handleRewrites}
 
       export default async (req, res) => {
@@ -401,7 +415,9 @@ const nextServerlessLoader: loader.Loader = function () {
           // to ensure we are using the correct values
           const trustQuery = req.headers['${vercelHeader}']
           const parsedUrl = handleRewrites(parseUrl(req.url, true))
+          let hasValidParams = true
 
+          ${normalizeDynamicRouteParams}
           ${handleBasePath}
 
           const params = ${
@@ -461,6 +477,8 @@ const nextServerlessLoader: loader.Loader = function () {
     const { denormalizePagePath } = require('next/dist/next-server/server/denormalize-page-path')
     const { setLazyProp, getCookieParser } = require('next/dist/next-server/server/api-utils')
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
+    const {getRedirectStatus} = require('next/dist/lib/load-custom-routes');
+    const {PERMANENT_REDIRECT_STATUS} = require('next/dist/next-server/lib/constants')
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
 
@@ -486,7 +504,6 @@ const nextServerlessLoader: loader.Loader = function () {
 
     ${dynamicRouteMatcher}
     ${defaultRouteRegex}
-    ${normalizeDynamicRouteParams}
     ${handleRewrites}
 
     export let config = compMod['confi' + 'g'] || (compMod.then && compMod.then(mod => mod['confi' + 'g'])) || {}
@@ -494,6 +511,7 @@ const nextServerlessLoader: loader.Loader = function () {
     export async function renderReqToHTML(req, res, renderMode, _renderOpts, _params) {
       let Document
       let Error
+      let notFoundMod
       ;[
         getStaticProps,
         getServerSideProps,
@@ -502,7 +520,8 @@ const nextServerlessLoader: loader.Loader = function () {
         App,
         config,
         { default: Document },
-        { default: Error }
+        { default: Error },
+        ${absolute404Path ? `notFoundMod, ` : ''}
       ] = await Promise.all([
         getStaticProps,
         getServerSideProps,
@@ -511,11 +530,15 @@ const nextServerlessLoader: loader.Loader = function () {
         App,
         config,
         require('${absoluteDocumentPath}'),
-        require('${absoluteErrorPath}')
+        require('${absoluteErrorPath}'),
+        ${absolute404Path ? `require("${absolute404Path}"),` : ''}
       ])
 
       const fromExport = renderMode === 'export' || renderMode === true;
       const nextStartMode = renderMode === 'passthrough'
+      let hasValidParams = true
+
+      ${normalizeDynamicRouteParams}
 
       setLazyProp({ req }, 'cookies', getCookieParser(req))
 
@@ -619,6 +642,7 @@ const nextServerlessLoader: loader.Loader = function () {
             `
             : `const params = {};`
         }
+
         ${
           // Temporary work around: `x-now-route-matches` is a platform header
           // _only_ set for `Prerender` requests. We should move this logic
@@ -626,7 +650,7 @@ const nextServerlessLoader: loader.Loader = function () {
           // removing reliance on `req.url` and using `req.query` instead
           // (which is needed for "custom routes" anyway).
           pageIsDynamicRoute
-            ? `const nowParams = req.headers && req.headers["x-now-route-matches"]
+            ? `const nowParams = !hasValidParams && req.headers && req.headers["x-now-route-matches"]
               ? getRouteMatcher(
                   (function() {
                     const { re, groups, routeKeys } = getRouteRegex("${page}");
@@ -767,14 +791,61 @@ const nextServerlessLoader: loader.Loader = function () {
 
         if (!renderMode) {
           if (_nextData || getStaticProps || getServerSideProps) {
-            sendPayload(req, res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', ${
-              generateEtags === 'true' ? true : false
-            }, {
-              private: isPreviewMode,
-              stateful: !!getServerSideProps,
-              revalidate: renderOpts.revalidate,
-            })
-            return null
+            if (renderOpts.isNotFound) {
+              res.statusCode = 404
+
+              const NotFoundComponent = ${
+                absolute404Path ? 'notFoundMod.default' : 'Error'
+              }
+
+              const errPathname = "${absolute404Path ? '/404' : '/_error'}"
+
+              const result = await renderToHTML(req, res, errPathname, parsedUrl.query, Object.assign({}, options, {
+                getStaticProps: ${
+                  absolute404Path ? `notFoundMod.getStaticProps` : 'undefined'
+                },
+                getStaticPaths: undefined,
+                getServerSideProps: undefined,
+                Component: NotFoundComponent,
+                err: undefined,
+                locale: detectedLocale,
+                locales,
+                defaultLocale: i18n.defaultLocale,
+              }))
+
+              sendPayload(req, res, result, 'html', ${
+                generateEtags === 'true' ? true : false
+              }, {
+                private: isPreviewMode,
+                stateful: !!getServerSideProps,
+                revalidate: renderOpts.revalidate,
+              })
+              return null
+            } else if (renderOpts.isRedirect && !_nextData) {
+              const redirect = {
+                destination: renderOpts.pageData.pageProps.__N_REDIRECT,
+                statusCode: renderOpts.pageData.pageProps.__N_REDIRECT_STATUS
+              }
+              const statusCode = getRedirectStatus(redirect)
+
+              if (statusCode === PERMANENT_REDIRECT_STATUS) {
+                res.setHeader('Refresh', \`0;url=\${redirect.destination}\`)
+              }
+
+              res.statusCode = statusCode
+              res.setHeader('Location', redirect.destination)
+              res.end()
+              return null
+            } else {
+              sendPayload(req, res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', ${
+                generateEtags === 'true' ? true : false
+              }, {
+                private: isPreviewMode,
+                stateful: !!getServerSideProps,
+                revalidate: renderOpts.revalidate,
+              })
+              return null
+            }
           }
         } else if (isPreviewMode) {
           res.setHeader(
