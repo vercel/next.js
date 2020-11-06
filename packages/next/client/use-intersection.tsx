@@ -37,9 +37,9 @@ export function useIntersection<T extends Element>({
 
   useEffect(() => {
     if (!hasIntersectionObserver) {
-      setVisible(true)
+      if (!visible) setVisible(true)
     }
-  }, [])
+  }, [visible])
 
   return [setRef, visible]
 }
