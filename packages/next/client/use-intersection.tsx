@@ -50,22 +50,11 @@ function observe(
   options: UseIntersectionObserverInit
 ) {
   const { id, observer, elements } = createObserver(options)
-  if (!elements.has(element)) {
-    elements.set(element, [])
-  }
+  elements.set(element, callback)
 
-  const callbacks = elements.get(element)!
-  callbacks.push(callback)
   observer.observe(element)
-
   return function unobserve() {
-    callbacks.splice(callbacks.indexOf(callback), 1)
-
-    // Unobserve element when there are no remaining listeners:
-    if (callbacks.length === 0) {
-      elements.delete(element)
-      observer.unobserve(element)
-    }
+    observer.unobserve(element)
 
     // Destroy observer when there's nothing left to watch:
     if (elements.size === 0) {
@@ -80,7 +69,7 @@ const observers = new Map<
   {
     id: string
     observer: IntersectionObserver
-    elements: Map<Element, Array<ObserveCallback>>
+    elements: Map<Element, ObserveCallback>
   }
 >()
 function createObserver(options: UseIntersectionObserverInit) {
@@ -90,14 +79,13 @@ function createObserver(options: UseIntersectionObserverInit) {
     return instance
   }
 
-  const elements = new Map<Element, Array<ObserveCallback>>()
+  const elements = new Map<Element, ObserveCallback>()
   const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
-      const el = elements.get(entry.target)
-      if (el) {
-        el.forEach((callback) => {
-          callback(entry.isIntersecting || entry.intersectionRatio > 0)
-        })
+      const callback = elements.get(entry.target)
+      const isVisible = entry.isIntersecting || entry.intersectionRatio > 0
+      if (callback && isVisible) {
+        callback(isVisible)
       }
     })
   }, options)
