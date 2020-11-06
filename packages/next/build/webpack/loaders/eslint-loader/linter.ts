@@ -12,7 +12,6 @@ import { getBaseRules } from './base-rules'
 const {
   CascadingConfigArrayFactory,
 } = require('eslint/lib/cli-engine/cascading-config-array-factory')
-const BabelParser = require('@babel/eslint-parser')
 
 export interface NextLintResult {
   report?: CLIEngine.LintReport
@@ -112,9 +111,15 @@ export class Linter {
     const linterConfig: ESLinter.Config<ESLinter.RulesRecord> = this.getConfigForFile(
       resourcePath
     )
-    linterConfig.parser &&
-      this.linter.defineParser(linterConfig.parser, BabelParser)
-    // const { babelAST, espreeTree } = parse(content.toString())
+    let parser
+    if (this.isTypescript) {
+      // @typescript-eslint/parser is only present for typescript projects and not shipped as a part of next.js
+      // eslint-disable-next-line import/no-extraneous-dependencies
+      parser = require('@typescript-eslint/parser')
+    } else {
+      parser = require('@babel/eslint-parser')
+    }
+    linterConfig.parser && this.linter.defineParser(linterConfig.parser, parser)
     try {
       const messages = this.linter.verify(
         content.toString(),

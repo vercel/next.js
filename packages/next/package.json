@@ -61,6 +61,7 @@
   },
   "dependencies": {
     "@ampproject/toolbox-optimizer": "2.7.0-alpha.1",
+    "@babel/core": "7.12.3",
     "@babel/runtime": "7.12.5",
     "@hapi/accept": "5.0.1",
     "@next/env": "10.0.2-canary.2",
@@ -117,7 +118,6 @@
   },
   "devDependencies": {
     "@babel/code-frame": "7.10.4",
-    "@babel/core": "7.12.3",
     "@babel/plugin-proposal-class-properties": "7.12.1",
     "@babel/plugin-proposal-export-namespace-from": "7.12.1",
     "@babel/plugin-proposal-numeric-separator": "7.12.5",
