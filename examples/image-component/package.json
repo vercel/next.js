@@ -1,0 +1,15 @@
+{
+  "name": "image-component",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "canary",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
+  },
+  "license": "MIT"
+}
