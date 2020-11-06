@@ -24,7 +24,7 @@ export function useIntersection<T extends Element>({
 
       if (isDisabled || visible) return
 
-      if (el) {
+      if (el && el.tagName) {
         unobserve.current = observe(
           el,
           (isVisible) => isVisible && setVisible(isVisible),
