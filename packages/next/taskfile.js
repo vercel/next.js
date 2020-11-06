@@ -494,7 +494,7 @@ externals['web-vitals'] = 'next/dist/compiled/web-vitals'
 export async function ncc_web_vitals(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('web-vitals')))
-    .ncc({ packageName: 'web-vitals', externals })
+    .ncc({ packageName: 'web-vitals', externals, target: 'es5' })
     .target('compiled/web-vitals')
 }
 
