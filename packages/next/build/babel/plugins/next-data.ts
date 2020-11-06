@@ -1,8 +1,4 @@
-import {
-  NodePath,
-  PluginObj,
-  types as BabelTypes,
-} from 'next/dist/compiled/babel/core'
+import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
 
 export default function ({
   types: t,

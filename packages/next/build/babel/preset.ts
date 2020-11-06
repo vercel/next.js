@@ -1,4 +1,4 @@
-import { PluginItem } from 'next/dist/compiled/babel/core'
+import { PluginItem } from '@babel/core'
 const env = process.env.NODE_ENV
 const isProduction = env === 'production'
 const isDevelopment = env === 'development'
@@ -111,11 +111,11 @@ module.exports = (
     sourceType: 'unambiguous',
     presets: [
       customModernPreset || [
-        require('next/dist/compiled/babel/preset-env'),
+        require('@babel/preset-env').default,
         presetEnvConfig,
       ],
       [
-        require('next/dist/compiled/babel/preset-react'),
+        require('@babel/preset-react'),
         {
           // This adds @babel/plugin-transform-react-jsx-source and
           // @babel/plugin-transform-react-jsx-self automatically in development
@@ -125,7 +125,7 @@ module.exports = (
         },
       ],
       [
-        require('next/dist/compiled/babel/preset-typescript'),
+        require('@babel/preset-typescript'),
         { allowNamespaces: true, ...options['preset-typescript'] },
       ],
     ],
@@ -149,20 +149,20 @@ module.exports = (
           lib: true,
         },
       ],
-      require('next/dist/compiled/babel/plugin-syntax-dynamic-import'),
+      require('@babel/plugin-syntax-dynamic-import'),
       require('./plugins/react-loadable-plugin'),
       [
-        require('next/dist/compiled/babel/plugin-proposal-class-properties'),
+        require('@babel/plugin-proposal-class-properties'),
         options['class-properties'] || {},
       ],
       [
-        require('next/dist/compiled/babel/plugin-proposal-object-rest-spread'),
+        require('@babel/plugin-proposal-object-rest-spread'),
         {
           useBuiltIns: true,
         },
       ],
       !isServer && [
-        require('next/dist/compiled/babel/plugin-transform-runtime'),
+        require('@babel/plugin-transform-runtime'),
         {
           corejs: false,
           helpers: true,
@@ -185,11 +185,11 @@ module.exports = (
           removeImport: true,
         },
       ],
-      isServer && require('next/dist/compiled/babel/plugin-syntax-bigint'),
+      isServer && require('@babel/plugin-syntax-bigint'),
       // Always compile numeric separator because the resulting number is
       // smaller.
-      require('next/dist/compiled/babel/plugin-proposal-numeric-separator'),
-      require('next/dist/compiled/babel/plugin-proposal-export-namespace-from'),
+      require('@babel/plugin-proposal-numeric-separator'),
+      require('@babel/plugin-proposal-export-namespace-from'),
     ].filter(Boolean),
   }
 }

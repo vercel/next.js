@@ -22,6 +22,9 @@ export async function browser_polyfills(task) {
 }
 
 const externals = {
+  // Babel
+  '@babel/core': '@babel/core',
+
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
   'caniuse-lite': 'caniuse-lite',
@@ -78,54 +81,6 @@ export async function ncc_async_sema(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('async-sema')))
     .ncc({ packageName: 'async-sema', externals })
     .target('compiled/async-sema')
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_babel_bundle(task, opts) {
-  const bundleExternals = { ...externals }
-  for (const pkg of Object.keys(babelBundlePackages))
-    delete bundleExternals[pkg]
-  await task
-    .source(opts.src || 'bundles/babel/bundle.js')
-    .ncc({
-      packageName: '@babel/core',
-      bundleName: 'babel',
-      externals: bundleExternals,
-    })
-    .target('compiled/babel')
-}
-
-const babelBundlePackages = {
-  'code-frame': 'next/dist/compiled/babel/code-frame',
-  '@babel/core': 'next/dist/compiled/babel/core',
-  '@babel/plugin-proposal-class-properties':
-    'next/dist/compiled/babel/plugin-proposal-class-properties',
-  '@babel/plugin-proposal-export-namespace-from':
-    'next/dist/compiled/babel/plugin-proposal-export-namespace-from',
-  '@babel/plugin-proposal-numeric-separator':
-    'next/dist/compiled/babel/plugin-proposal-numeric-separator',
-  '@babel/plugin-proposal-object-rest-spread':
-    'next/dist/compiled/babel/plugin-proposal-object-rest-spread',
-  '@babel/plugin-syntax-bigint':
-    'next/dist/compiled/babel/plugin-syntax-bigint',
-  '@babel/plugin-syntax-dynamic-import':
-    'next/dist/compiled/babel/plugin-syntax-dynamic-import',
-  '@babel/plugin-syntax-jsx': 'next/dist/compiled/babel/plugin-syntax-jsx',
-  '@babel/plugin-transform-modules-commonjs':
-    'next/dist/compiled/babel/plugin-transform-modules-commonjs',
-  '@babel/plugin-transform-runtime':
-    'next/dist/compiled/babel/plugin-transform-runtime',
-  '@babel/preset-env': 'next/dist/compiled/babel/preset-env',
-  '@babel/preset-react': 'next/dist/compiled/babel/preset-react',
-  '@babel/preset-typescript': 'next/dist/compiled/babel/preset-typescript',
-}
-
-Object.assign(externals, babelBundlePackages)
-
-export async function ncc_babel_bundle_packages(task, opts) {
-  await task
-    .source(opts.src || 'bundles/babel/packages/*')
-    .target('compiled/babel/')
 }
 
 // eslint-disable-next-line camelcase
@@ -581,8 +536,6 @@ export async function ncc(task) {
       'ncc_arg',
       'ncc_async_retry',
       'ncc_async_sema',
-      'ncc_babel_bundle',
-      'ncc_babel_bundle_packages',
       'ncc_babel_loader',
       'ncc_cacache',
       'ncc_cache_loader',
