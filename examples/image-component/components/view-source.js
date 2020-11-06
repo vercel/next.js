@@ -2,6 +2,7 @@ import { svg, arm } from './view-source.module.css'
 
 const ViewSource = ({ pathname }) => (
   <a
+    title="View Source"
     href={`https://github.com/vercel/next.js/tree/canary/examples/image-component/${pathname}`}
   >
     <svg
