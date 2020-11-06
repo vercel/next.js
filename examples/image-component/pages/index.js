@@ -1,18 +1,18 @@
-import styles from '../styles.module.css'
-import Image from 'next/image'
-import Link from 'next/link'
+import styles from "../styles.module.css";
+import Image from "next/image";
+import Link from "next/link";
 
-const Code = (p) => <code className={styles.inlineCode} {...p} />
+const Code = (p) => <code className={styles.inlineCode} {...p} />;
 
 const Index = () => (
   <div className={styles.container}>
     <div className={styles.card}>
       <h1>Image Component with Next.js</h1>
       <p>
-        The images below use the{' '}
+        The images below use the{" "}
         <a href="https://nextjs.org/docs/api-reference/next/image">
           next/image
-        </a>{' '}
+        </a>{" "}
         component to ensure optimal format and size for this browser.
       </p>
       <p>
@@ -22,7 +22,7 @@ const Index = () => (
       <p>Try scolling down to try it out!</p>
       <hr className={styles.hr} />
       <p>
-        The following is an example of a reference to an interal image from the{' '}
+        The following is an example of a reference to an interal image from the{" "}
         <Code>public</Code> directory.
       </p>
       <p>
@@ -32,7 +32,7 @@ const Index = () => (
       <Image alt="Vercel logo" src="/vercel.png" width={1000} height={1000} />
       <hr className={styles.hr} />
       <p>
-        The following is an example of a reference to an external image at{' '}
+        The following is an example of a reference to an external image at{" "}
         <Code>assets.vercel.com</Code>.
       </p>
       <p>
@@ -58,29 +58,39 @@ const Index = () => (
       </p>
       <ul>
         <li>
-          <Link href="/layout-intrinsic">layout="intrinsic"</Link>
+          <Link href="/layout-intrinsic">
+            <a>layout="intrinsic"</a>
+          </Link>
         </li>
         <li>
-          <Link href="/layout-responsive">layout="responsive"</Link>
+          <Link href="/layout-responsive">
+            <a>layout="responsive"</a>
+          </Link>
         </li>
         <li>
-          <Link href="/layout-fixed">layout="fixed"</Link>
+          <Link href="/layout-fixed">
+            <a>layout="fixed"</a>
+          </Link>
         </li>
         <li>
-          <Link href="/layout-fill">layout="fill"</Link>
+          <Link href="/layout-fill">
+            <a>layout="fill"</a>
+          </Link>
         </li>
         <li>
-          <Link href="/background">background demo</Link>
+          <Link href="/background">
+            <a>background demo</a>
+          </Link>
         </li>
       </ul>
       <hr className={styles.hr} />
-      Checkout the documentation for{' '}
+      Checkout the documentation for{" "}
       <a href="https://nextjs.org/docs/basic-features/image-optimization">
         Image Optimization
-      </a>{' '}
+      </a>{" "}
       to learn more.
     </div>
   </div>
-)
+);
 
-export default Index
+export default Index;
