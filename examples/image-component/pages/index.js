@@ -1,11 +1,13 @@
 import styles from '../styles.module.css'
 import Image from 'next/image'
 import Link from 'next/link'
+import ViewSource from '../components/view-source'
 
 const Code = (p) => <code className={styles.inlineCode} {...p} />
 
 const Index = () => (
   <div className={styles.container}>
+    <ViewSource pathname="pages/index.js" />
     <div className={styles.card}>
       <h1>Image Component with Next.js</h1>
       <p>
@@ -58,19 +60,29 @@ const Index = () => (
       </p>
       <ul>
         <li>
-          <Link href="/layout-intrinsic">layout="intrinsic"</Link>
+          <Link href="/layout-intrinsic">
+            <a>layout="intrinsic"</a>
+          </Link>
         </li>
         <li>
-          <Link href="/layout-responsive">layout="responsive"</Link>
+          <Link href="/layout-responsive">
+            <a>layout="responsive"</a>
+          </Link>
         </li>
         <li>
-          <Link href="/layout-fixed">layout="fixed"</Link>
+          <Link href="/layout-fixed">
+            <a>layout="fixed"</a>
+          </Link>
         </li>
         <li>
-          <Link href="/layout-fill">layout="fill"</Link>
+          <Link href="/layout-fill">
+            <a>layout="fill"</a>
+          </Link>
         </li>
         <li>
-          <Link href="/background">background demo</Link>
+          <Link href="/background">
+            <a>background demo</a>
+          </Link>
         </li>
       </ul>
       <hr className={styles.hr} />
