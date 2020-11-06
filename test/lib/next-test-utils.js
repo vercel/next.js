@@ -16,6 +16,12 @@ import treeKill from 'tree-kill'
 export const nextServer = server
 export const pkg = _pkg
 
+// polyfill Object.fromEntries for the test/integration/relay-analytics tests
+// on node 10, this can be removed after we no longer support node 10
+if (!Object.fromEntries) {
+  Object.fromEntries = require('core-js/features/object/from-entries')
+}
+
 export function initNextServerScript(
   scriptPath,
   successRegexp,
