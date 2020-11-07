@@ -985,7 +985,10 @@ export default class Server {
     ]
   }
 
-  protected getDynamicRoutes() {
+  protected getDynamicRoutes(): Array<{
+    page: string
+    match: ReturnType<typeof getRouteMatcher>
+  }> {
     const addedPages = new Set<string>()
 
     return getSortedRoutes(Object.keys(this.pagesManifest!))
@@ -999,7 +1002,7 @@ export default class Server {
           match: getRouteMatcher(getRouteRegex(page)),
         }
       })
-      .filter(Boolean)
+      .filter(Boolean) as any
   }
 
   private handleCompression(req: IncomingMessage, res: ServerResponse): void {
