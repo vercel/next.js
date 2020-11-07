@@ -12,8 +12,10 @@ stages:
         steps:
           - script: echo $(Agent.BuildDirectory)
           - script: dir
+          - script: dir $(System.DefaultWorkingDirectory)
           - script: dir $(Agent.BuildDirectory)
-          - script: $(Build.SourceVersion)
+          - script: echo $(Build.SourceVersion)
+          - script: echo $(Build.SourceVersionMessage)
           # - task: NodeTool@0
           # inputs:
           #   versionSpec: $(node_version)
