@@ -28,7 +28,7 @@ const SingleImage = ({ index }) => (
     <motion.div className="single" initial="exit" animate="enter" exit="exit">
       <motion.img
         variants={imageVariants}
-        src={`https://static1.squarespace.com/static/5b475b2c50a54f54f9b4e1dc/t/${images[index]}.jpg?format=1500w`}
+        src={`https://images.unsplash.com/${images[index]}?auto=format&fit=crop&w=1500`}
         alt="The Barbican"
       />
       <motion.div className="back" variants={backVariants}>

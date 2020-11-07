@@ -1,0 +1,21 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Index renders the html we want 1`] = `
+<div>
+  You're signed in as 
+  Baa
+   and you're 
+  Healthy
+   go to the
+   
+  <a
+    href="/about"
+    onClick={[Function]}
+    onMouseEnter={[Function]}
+  >
+    about
+  </a>
+   
+  page.
+</div>
+`;

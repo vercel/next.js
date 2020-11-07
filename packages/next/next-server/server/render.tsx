@@ -2,6 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
+import { warn } from '../../build/output/log'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -27,6 +28,7 @@ import { HeadManagerContext } from '../lib/head-manager-context'
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
 import mitt, { MittEmitter } from '../lib/mitt'
+import postProcess from '../lib/post-process'
 import { RouterContext } from '../lib/router-context'
 import { NextRouter } from '../lib/router/router'
 import { isDynamicRoute } from '../lib/router/utils/is-dynamic'
@@ -34,6 +36,7 @@ import {
   AppType,
   ComponentsEnhancer,
   DocumentInitialProps,
+  DocumentProps,
   DocumentType,
   getDisplayName,
   isResSent,
@@ -42,9 +45,15 @@ import {
   RenderPage,
 } from '../lib/utils'
 import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
-import { getPageFiles } from './get-page-files'
+import { denormalizePagePath } from './denormalize-page-path'
+import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
+import { normalizePagePath } from './normalize-page-path'
 import optimizeAmp from './optimize-amp'
+import {
+  allowedStatusCodes,
+  getRedirectStatus,
+} from '../../lib/load-custom-routes'
 
 function noRouter() {
   const message =
@@ -60,6 +69,9 @@ class ServerRouter implements NextRouter {
   basePath: string
   events: any
   isFallback: boolean
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
@@ -68,7 +80,10 @@ class ServerRouter implements NextRouter {
     query: ParsedUrlQuery,
     as: string,
     { isFallback }: { isFallback: boolean },
-    basePath: string
+    basePath: string,
+    locale?: string,
+    locales?: string[],
+    defaultLocale?: string
   ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
@@ -76,6 +91,9 @@ class ServerRouter implements NextRouter {
     this.asPath = as
     this.isFallback = isFallback
     this.basePath = basePath
+    this.locale = locale
+    this.locales = locales
+    this.defaultLocale = defaultLocale
   }
   push(): any {
     noRouter()
@@ -143,6 +161,15 @@ export type RenderOptsPartial = {
   previewProps: __ApiPreviewProps
   basePath: string
   unstable_runtimeJS?: false
+  optimizeFonts: boolean
+  fontManifest?: FontManifest
+  optimizeImages: boolean
+  devOnlyCacheBusterQueryString?: string
+  resolvedUrl?: string
+  resolvedAsPath?: string
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -151,6 +178,7 @@ function renderDocument(
   Document: DocumentType,
   {
     buildManifest,
+    docComponentsRendered,
     props,
     docProps,
     pathname,
@@ -170,7 +198,6 @@ function renderDocument(
     ampState,
     inAmpMode,
     hybridAmp,
-    files,
     dynamicImports,
     headTags,
     gsp,
@@ -179,8 +206,13 @@ function renderDocument(
     gip,
     appGip,
     unstable_runtimeJS,
+    devOnlyCacheBusterQueryString,
+    locale,
+    locales,
+    defaultLocale,
   }: RenderOpts & {
     props: any
+    docComponentsRendered: DocumentProps['docComponentsRendered']
     docProps: DocumentInitialProps
     pathname: string
     query: ParsedUrlQuery
@@ -191,7 +223,6 @@ function renderDocument(
     hybridAmp: boolean
     dynamicImportsIds: string[]
     dynamicImports: ManifestItem[]
-    files: string[]
     headTags: any
     isFallback?: boolean
     gsp?: boolean
@@ -199,6 +230,7 @@ function renderDocument(
     customServer?: boolean
     gip?: boolean
     appGip?: boolean
+    devOnlyCacheBusterQueryString: string
   }
 ): string {
   return (
@@ -224,19 +256,40 @@ function renderDocument(
             customServer, // whether the user is using a custom server
             gip, // whether the page has getInitialProps
             appGip, // whether the _app has getInitialProps
+            locale,
+            locales,
+            defaultLocale,
+            head: React.Children.toArray(docProps.head || [])
+              .map((elem) => {
+                const { children } = elem?.props
+                return [
+                  elem?.type,
+                  {
+                    ...elem?.props,
+                    children: children
+                      ? typeof children === 'string'
+                        ? children
+                        : children.join('')
+                      : undefined,
+                  },
+                ]
+              })
+              .filter(Boolean) as any,
           },
           buildManifest,
+          docComponentsRendered,
           dangerousAsPath,
           canonicalBase,
           ampPath,
           inAmpMode,
           isDevelopment: !!dev,
           hybridAmp,
-          files,
           dynamicImports,
           assetPrefix,
           headTags,
           unstable_runtimeJS,
+          devOnlyCacheBusterQueryString,
+          locale,
           ...docProps,
         })}
       </AmpStateContext.Provider>
@@ -253,6 +306,52 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
   )
 }
 
+type Redirect = {
+  permanent: boolean
+  destination: string
+  statusCode?: number
+}
+
+function checkRedirectValues(
+  redirect: Redirect,
+  req: IncomingMessage,
+  method: 'getStaticProps' | 'getServerSideProps'
+) {
+  const { destination, permanent, statusCode } = redirect
+  let errors: string[] = []
+
+  const hasStatusCode = typeof statusCode !== 'undefined'
+  const hasPermanent = typeof permanent !== 'undefined'
+
+  if (hasPermanent && hasStatusCode) {
+    errors.push(`\`permanent\` and \`statusCode\` can not both be provided`)
+  } else if (hasPermanent && typeof permanent !== 'boolean') {
+    errors.push(`\`permanent\` must be \`true\` or \`false\``)
+  } else if (hasStatusCode && !allowedStatusCodes.has(statusCode!)) {
+    errors.push(
+      `\`statusCode\` must undefined or one of ${[...allowedStatusCodes].join(
+        ', '
+      )}`
+    )
+  }
+  const destinationType = typeof destination
+
+  if (destinationType !== 'string') {
+    errors.push(
+      `\`destination\` should be string but received ${destinationType}`
+    )
+  }
+
+  if (errors.length > 0) {
+    throw new Error(
+      `Invalid redirect object returned from ${method} for ${req.url}\n` +
+        errors.join(' and ') +
+        '\n' +
+        `See more info here: https://err.sh/vercel/next.js/invalid-redirect-gssp`
+    )
+  }
+}
+
 export async function renderToHTML(
   req: IncomingMessage,
   res: ServerResponse,
@@ -260,6 +359,13 @@ export async function renderToHTML(
   query: ParsedUrlQuery,
   renderOpts: RenderOpts
 ): Promise<string | null> {
+  // In dev we invalidate the cache by appending a timestamp to the resource URL.
+  // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
+  // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+  renderOpts.devOnlyCacheBusterQueryString = renderOpts.dev
+    ? renderOpts.devOnlyCacheBusterQueryString || `?ts=${Date.now()}`
+    : ''
+
   const {
     err,
     dev = false,
@@ -269,6 +375,7 @@ export async function renderToHTML(
     pageConfig = {},
     Component,
     buildManifest,
+    fontManifest,
     reactLoadableManifest,
     ErrorDebug,
     getStaticProps,
@@ -278,7 +385,15 @@ export async function renderToHTML(
     params,
     previewProps,
     basePath,
+    devOnlyCacheBusterQueryString,
   } = renderOpts
+
+  const getFontDefinition = (url: string): string => {
+    if (fontManifest) {
+      return getFontDefinitionFromManifest(url, fontManifest)
+    }
+    return ''
+  }
 
   const callMiddleware = async (method: string, args: any[], props = false) => {
     let results: any = props ? {} : []
@@ -304,9 +419,9 @@ export async function renderToHTML(
 
   const headTags = (...args: any) => callMiddleware('headTags', args)
 
-  const didRewrite = (req as any)._nextDidRewrite
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
+  delete query.__nextLocale
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -333,23 +448,6 @@ export async function renderToHTML(
         `page ${pathname} ${methodName} ${GSSP_COMPONENT_MEMBER_ERROR}`
       )
     }
-  }
-
-  if (
-    process.env.NODE_ENV !== 'production' &&
-    (isAutoExport || isFallback) &&
-    pageIsDynamic &&
-    didRewrite
-  ) {
-    // TODO: If we decide to ship rewrites to the client we could
-    // solve this by running over the rewrites and getting the params.
-    throw new Error(
-      `Rewrites don't support${
-        isFallback ? ' ' : ' auto-exported '
-      }dynamic pages${isFallback ? ' with getStaticProps ' : ' '}yet.\n` +
-        `Using this will cause the page to fail to parse the params on the client\n` +
-        `See more info: https://err.sh/next.js/rewrite-auto-export-fallback`
-    )
   }
 
   if (hasPageGetInitialProps && isSSG) {
@@ -397,7 +495,7 @@ export async function renderToHTML(
       )
     }
 
-    if (isAutoExport) {
+    if (isAutoExport || isFallback) {
       // remove query values except ones that will be set during export
       query = {
         ...(query.amp
@@ -407,6 +505,7 @@ export async function renderToHTML(
           : {}),
       }
       req.url = pathname
+      renderOpts.resolvedAsPath = pathname
       renderOpts.nextExport = true
     }
 
@@ -420,7 +519,7 @@ export async function renderToHTML(
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   // url will always be set
-  const asPath: string = req.url as string
+  const asPath: string = renderOpts.resolvedAsPath || (req.url as string)
   const router = new ServerRouter(
     pathname,
     query,
@@ -428,7 +527,10 @@ export async function renderToHTML(
     {
       isFallback: isFallback,
     },
-    basePath
+    basePath,
+    renderOpts.locale,
+    renderOpts.locales,
+    renderOpts.defaultLocale
   )
   const ctx = {
     err,
@@ -510,6 +612,9 @@ export async function renderToHTML(
           ...(previewData !== false
             ? { preview: true, previewData: previewData }
             : undefined),
+          locales: renderOpts.locales,
+          locale: renderOpts.locale,
+          defaultLocale: renderOpts.defaultLocale,
         })
       } catch (staticPropsError) {
         // remove not found error code to prevent triggering legacy
@@ -525,10 +630,14 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        (key) => key !== 'unstable_revalidate' && key !== 'props'
+        (key) =>
+          key !== 'revalidate' &&
+          key !== 'props' &&
+          key !== 'redirect' &&
+          key !== 'notFound'
       )
 
-      if (invalidKeys.includes('revalidate')) {
+      if (invalidKeys.includes('unstable_revalidate')) {
         throw new Error(UNSTABLE_REVALIDATE_RENAME_ERROR)
       }
 
@@ -536,9 +645,52 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
       }
 
+      if (process.env.NODE_ENV !== 'production') {
+        if ('notFound' in data && 'redirect' in data) {
+          throw new Error(
+            `\`redirect\` and \`notFound\` can not both be returned from ${
+              isSSG ? 'getStaticProps' : 'getServerSideProps'
+            } at the same time. Page: ${pathname}`
+          )
+        }
+      }
+
+      if ('notFound' in data && data.notFound) {
+        if (pathname === '/404') {
+          throw new Error(
+            `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
+          )
+        }
+
+        ;(renderOpts as any).isNotFound = true
+        ;(renderOpts as any).revalidate = false
+        return null
+      }
+
+      if (
+        'redirect' in data &&
+        data.redirect &&
+        typeof data.redirect === 'object'
+      ) {
+        checkRedirectValues(data.redirect, req, 'getStaticProps')
+
+        if (isBuildTimeSSG) {
+          throw new Error(
+            `\`redirect\` can not be returned from getStaticProps during prerendering (${req.url})\n` +
+              `See more info here: https://err.sh/next.js/gsp-redirect-during-prerender`
+          )
+        }
+
+        ;(data as any).props = {
+          __N_REDIRECT: data.redirect.destination,
+          __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
+        }
+        ;(renderOpts as any).isRedirect = true
+      }
+
       if (
         (dev || isBuildTimeSSG) &&
-        !isSerializableProps(pathname, 'getStaticProps', data.props)
+        !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
       ) {
         // this fn should throw an error instead of ever returning `false`
         throw new Error(
@@ -546,41 +698,46 @@ export async function renderToHTML(
         )
       }
 
-      if (typeof data.unstable_revalidate === 'number') {
-        if (!Number.isInteger(data.unstable_revalidate)) {
+      if ('revalidate' in data && typeof data.revalidate === 'number') {
+        if (!Number.isInteger(data.revalidate)) {
           throw new Error(
-            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.unstable_revalidate}', cannot be used.` +
+            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
               `\nTry changing the value to '${Math.ceil(
-                data.unstable_revalidate
+                data.revalidate
               )}' or using \`Math.ceil()\` if you're computing the value.`
           )
-        } else if (data.unstable_revalidate <= 0) {
+        } else if (data.revalidate <= 0) {
           throw new Error(
             `A page's revalidate option can not be less than or equal to zero. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
               `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
               `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
           )
-        } else if (data.unstable_revalidate > 31536000) {
+        } else if (data.revalidate > 31536000) {
           // if it's greater than a year for some reason error
           console.warn(
             `Warning: A page's revalidate option was set to more than a year. This may have been done in error.` +
               `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
           )
         }
-      } else if (data.unstable_revalidate === true) {
+      } else if ('revalidate' in data && data.revalidate === true) {
         // When enabled, revalidate after 1 second. This value is optimal for
         // the most up-to-date page possible, but without a 1-to-1
         // request-refresh ratio.
-        data.unstable_revalidate = 1
+        data.revalidate = 1
       } else {
         // By default, we never revalidate.
-        data.unstable_revalidate = false
+        ;(data as any).revalidate = false
       }
 
-      props.pageProps = Object.assign({}, props.pageProps, data.props)
+      props.pageProps = Object.assign(
+        {},
+        props.pageProps,
+        'props' in data ? data.props : undefined
+      )
       // pass up revalidate and props for export
       // TODO: change this to a different passing mechanism
-      ;(renderOpts as any).revalidate = data.unstable_revalidate
+      ;(renderOpts as any).revalidate =
+        'revalidate' in data ? data.revalidate : undefined
       ;(renderOpts as any).pageData = props
     }
 
@@ -596,10 +753,14 @@ export async function renderToHTML(
           req,
           res,
           query,
+          resolvedUrl: renderOpts.resolvedUrl as string,
           ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
           ...(previewData !== false
             ? { preview: true, previewData: previewData }
             : undefined),
+          locales: renderOpts.locales,
+          locale: renderOpts.locale,
+          defaultLocale: renderOpts.defaultLocale,
         })
       } catch (serverSidePropsError) {
         // remove not found error code to prevent triggering legacy
@@ -614,15 +775,52 @@ export async function renderToHTML(
         throw new Error(GSSP_NO_RETURNED_VALUE)
       }
 
-      const invalidKeys = Object.keys(data).filter((key) => key !== 'props')
+      const invalidKeys = Object.keys(data).filter(
+        (key) => key !== 'props' && key !== 'redirect' && key !== 'notFound'
+      )
+
+      if ((data as any).unstable_notFound) {
+        throw new Error(
+          `unstable_notFound has been renamed to notFound, please update the field to continue. Page: ${pathname}`
+        )
+      }
+      if ((data as any).unstable_redirect) {
+        throw new Error(
+          `unstable_redirect has been renamed to redirect, please update the field to continue. Page: ${pathname}`
+        )
+      }
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
       }
 
+      if ('notFound' in data) {
+        if (pathname === '/404') {
+          throw new Error(
+            `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
+          )
+        }
+
+        ;(renderOpts as any).isNotFound = true
+        return null
+      }
+
+      if ('redirect' in data && typeof data.redirect === 'object') {
+        checkRedirectValues(data.redirect, req, 'getServerSideProps')
+        ;(data as any).props = {
+          __N_REDIRECT: data.redirect.destination,
+          __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
+        }
+        ;(renderOpts as any).isRedirect = true
+      }
+
       if (
         (dev || isBuildTimeSSG) &&
-        !isSerializableProps(pathname, 'getServerSideProps', data.props)
+        !isSerializableProps(
+          pathname,
+          'getServerSideProps',
+          (data as any).props
+        )
       ) {
         // this fn should throw an error instead of ever returning `false`
         throw new Error(
@@ -630,7 +828,7 @@ export async function renderToHTML(
         )
       }
 
-      props.pageProps = Object.assign({}, props.pageProps, data.props)
+      props.pageProps = Object.assign({}, props.pageProps, (data as any).props)
       ;(renderOpts as any).pageData = props
     }
   } catch (dataFetchError) {
@@ -652,9 +850,11 @@ export async function renderToHTML(
     )
   }
 
-  // We only need to do this if we want to support calling
-  // _app's getInitialProps for getServerSideProps if not this can be removed
-  if (isDataReq && !isSSG) return props
+  // Avoid rendering page un-necessarily for getServerSideProps data request
+  // and getServerSideProps/getStaticProps redirects
+  if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
+    return props
+  }
 
   // We don't call getStaticProps or getServerSideProps while generating
   // the fallback so make sure to set pageProps to an empty object
@@ -665,17 +865,32 @@ export async function renderToHTML(
   // the response might be finished on the getInitialProps call
   if (isResSent(res) && !isSSG) return null
 
-  // AMP First pages do not have client-side JavaScript files
-  const files = ampState.ampFirst
-    ? []
-    : [
-        ...new Set([
-          ...getPageFiles(buildManifest, '/_app'),
-          ...(pathname !== '/_error'
-            ? getPageFiles(buildManifest, pathname)
-            : []),
-        ]),
-      ]
+  // we preload the buildManifest for auto-export dynamic pages
+  // to speed up hydrating query values
+  let filteredBuildManifest = buildManifest
+  if (isAutoExport && pageIsDynamic) {
+    const page = denormalizePagePath(normalizePagePath(pathname))
+    // This code would be much cleaner using `immer` and directly pushing into
+    // the result from `getPageFiles`, we could maybe consider that in the
+    // future.
+    if (page in filteredBuildManifest.pages) {
+      filteredBuildManifest = {
+        ...filteredBuildManifest,
+        pages: {
+          ...filteredBuildManifest.pages,
+          [page]: [
+            ...filteredBuildManifest.pages[page],
+            ...filteredBuildManifest.lowPriorityFiles.filter((f) =>
+              f.includes('_buildManifest')
+            ),
+          ],
+        },
+        lowPriorityFiles: filteredBuildManifest.lowPriorityFiles.filter(
+          (f) => !f.includes('_buildManifest')
+        ),
+      }
+    }
+  }
 
   const renderPage: RenderPage = (
     options: ComponentsEnhancer = {}
@@ -739,8 +954,16 @@ export async function renderToHTML(
   renderOpts.inAmpMode = inAmpMode
   renderOpts.hybridAmp = hybridAmp
 
+  const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
+
   let html = renderDocument(Document, {
     ...renderOpts,
+    canonicalBase:
+      !renderOpts.ampPath && (req as any).__nextStrippedLocale
+        ? `${renderOpts.canonicalBase || ''}/${renderOpts.locale}`
+        : renderOpts.canonicalBase,
+    docComponentsRendered,
+    buildManifest: filteredBuildManifest,
     // Only enabled in production as development mode has features relying on HMR (style injection for example)
     unstable_runtimeJS:
       process.env.NODE_ENV === 'production'
@@ -759,12 +982,35 @@ export async function renderToHTML(
     hybridAmp,
     dynamicImportsIds,
     dynamicImports,
-    files,
     gsp: !!getStaticProps ? true : undefined,
     gssp: !!getServerSideProps ? true : undefined,
     gip: hasPageGetInitialProps ? true : undefined,
     appGip: !defaultAppGetInitialProps ? true : undefined,
+    devOnlyCacheBusterQueryString,
   })
+
+  if (process.env.NODE_ENV !== 'production') {
+    const nonRenderedComponents = []
+    const expectedDocComponents = ['Main', 'Head', 'NextScript', 'Html']
+
+    for (const comp of expectedDocComponents) {
+      if (!(docComponentsRendered as any)[comp]) {
+        nonRenderedComponents.push(comp)
+      }
+    }
+    const plural = nonRenderedComponents.length !== 1 ? 's' : ''
+
+    if (nonRenderedComponents.length) {
+      const missingComponentList = nonRenderedComponents
+        .map((e) => `<${e} />`)
+        .join(', ')
+      warn(
+        `Your custom Document (pages/_document) did not render all the required subcomponent${plural}.\n` +
+          `Missing component${plural}: ${missingComponentList}\n` +
+          'Read how to fix here: https://err.sh/next.js/missing-document-component'
+      )
+    }
+  }
 
   if (inAmpMode && html) {
     // inject HTML to AMP_RENDER_TARGET to allow rendering
@@ -780,6 +1026,17 @@ export async function renderToHTML(
       await renderOpts.ampValidator(html, pathname)
     }
   }
+
+  html = await postProcess(
+    html,
+    {
+      getFontDefinition,
+    },
+    {
+      optimizeFonts: renderOpts.optimizeFonts,
+      optimizeImages: renderOpts.optimizeImages,
+    }
+  )
 
   if (inAmpMode || hybridAmp) {
     // fix &amp being escaped for amphtml rel link

@@ -1,10 +1,15 @@
-import { UrlObject } from 'url'
-
+/**
+ * Removes the trailing slash of a path if there is one. Preserves the root path `/`.
+ */
 export function removePathTrailingSlash(path: string): string {
   return path.endsWith('/') && path !== '/' ? path.slice(0, -1) : path
 }
 
-const normalizePathTrailingSlash = process.env.__NEXT_TRAILING_SLASH
+/**
+ * Normalizes the trailing slash of a path according to the `trailingSlash` option
+ * in `next.config.js`.
+ */
+export const normalizePathTrailingSlash = process.env.__NEXT_TRAILING_SLASH
   ? (path: string): string => {
       if (/\.[^/]+\/?$/.test(path)) {
         return removePathTrailingSlash(path)
@@ -15,11 +20,3 @@ const normalizePathTrailingSlash = process.env.__NEXT_TRAILING_SLASH
       }
     }
   : removePathTrailingSlash
-
-export function normalizeTrailingSlash(url: UrlObject): UrlObject {
-  const normalizedPath =
-    url.pathname && normalizePathTrailingSlash(url.pathname)
-  return url.pathname === normalizedPath
-    ? url
-    : Object.assign({}, url, { pathname: normalizedPath })
-}

@@ -109,7 +109,7 @@ describe('3rd Party CSS Module Support', () => {
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
 
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".index_foo__9_fxH{position:relative}.index_foo__9_fxH .bar,.index_foo__9_fxH .baz{height:100%;overflow:hidden}.index_foo__9_fxH .lol,.index_foo__9_fxH>.lel{width:80%}"`
+      `".index_foo__9_fxH{position:relative}.index_foo__9_fxH .bar,.index_foo__9_fxH .baz{height:100%;overflow:hidden}.index_foo__9_fxH .lol{width:80%}.index_foo__9_fxH>.lel{width:80%}"`
     )
   })
 

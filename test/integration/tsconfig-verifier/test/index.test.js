@@ -113,7 +113,7 @@ describe('tsconfig.json verifier', () => {
         "compilerOptions": {
           // in-object comment
           "esModuleInterop": false, // this should be true
-          "module": "commonjs" // should not be commonjs
+          "module": "umd" // should not be umd
           // end-object comment
         }
         // in-object comment 2
@@ -134,7 +134,7 @@ describe('tsconfig.json verifier', () => {
         \\"compilerOptions\\": {
           // in-object comment
           \\"esModuleInterop\\": true, // this should be true
-          \\"module\\": \\"esnext\\" // should not be commonjs
+          \\"module\\": \\"esnext\\" // should not be umd
           // end-object comment
           ,
           \\"target\\": \\"es5\\",
@@ -165,6 +165,96 @@ describe('tsconfig.json verifier', () => {
         ]
       }
       // end comment
+      "
+    `)
+  })
+
+  it('allows you to set commonjs module mode', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+
+    await writeFile(
+      tsConfig,
+      `{ "compilerOptions": { "esModuleInterop": false, "module": "commonjs" } }`
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"esModuleInterop\\": true,
+          \\"module\\": \\"commonjs\\",
+          \\"target\\": \\"es5\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"forceConsistentCasingInFileNames\\": true,
+          \\"noEmit\\": true,
+          \\"moduleResolution\\": \\"node\\",
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\"
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
+  })
+
+  it('allows you to set es2020 module mode', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+
+    await writeFile(
+      tsConfig,
+      `{ "compilerOptions": { "esModuleInterop": false, "module": "es2020" } }`
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"esModuleInterop\\": true,
+          \\"module\\": \\"es2020\\",
+          \\"target\\": \\"es5\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"forceConsistentCasingInFileNames\\": true,
+          \\"noEmit\\": true,
+          \\"moduleResolution\\": \\"node\\",
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\"
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
       "
     `)
   })

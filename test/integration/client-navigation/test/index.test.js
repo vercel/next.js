@@ -10,6 +10,7 @@ import {
   launchApp,
   renderViaHTTP,
   waitFor,
+  check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -43,6 +44,7 @@ describe('Client Navigation', () => {
       '/url-prop-override',
 
       '/dynamic/ssr',
+      '/dynamic/[slug]/route',
 
       '/nav',
       '/nav/about',
@@ -122,6 +124,47 @@ describe('Client Navigation', () => {
 
       expect(counterText).toBe('Counter: 1')
       await browser.close()
+    })
+
+    it('should navigate an absolute url', async () => {
+      const browser = await webdriver(
+        context.appPort,
+        `/absolute-url?port=${context.appPort}`
+      )
+      await browser.waitForElementByCss('#absolute-link').click()
+      await check(
+        () => browser.eval(() => window.location.origin),
+        'https://vercel.com'
+      )
+    })
+
+    it('should navigate an absolute local url', async () => {
+      const browser = await webdriver(
+        context.appPort,
+        `/absolute-url?port=${context.appPort}`
+      )
+      await browser.eval(() => (window._didNotNavigate = true))
+      await browser.waitForElementByCss('#absolute-local-link').click()
+      const text = await browser
+        .waitForElementByCss('.nav-about')
+        .elementByCss('p')
+        .text()
+
+      expect(text).toBe('This is the about page.')
+      expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
+    })
+
+    it('should navigate an absolute local url with as', async () => {
+      const browser = await webdriver(
+        context.appPort,
+        `/absolute-url?port=${context.appPort}`
+      )
+      await browser.eval(() => (window._didNotNavigate = true))
+      await browser.waitForElementByCss('#absolute-local-dynamic-link').click()
+      expect(await browser.waitForElementByCss('#dynamic-page').text()).toBe(
+        'hello'
+      )
+      expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
     })
   })
 
@@ -454,8 +497,6 @@ describe('Client Navigation', () => {
             .click()
             .eval('window.pageYOffset')
 
-          console.log(scrollPosition)
-
           expect(scrollPosition).toBe(16258)
 
           // Scrolls back to top when scrolling to `#` with no value.
@@ -485,6 +526,22 @@ describe('Client Navigation', () => {
 
           const scrollPosition = await browser.eval('window.pageYOffset')
           expect(scrollPosition).toBe(7258)
+        } finally {
+          if (browser) {
+            await browser.close()
+          }
+        }
+      })
+
+      it('Should update asPath', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/nav/hash-changes')
+
+          await browser.elementByCss('#via-link').click()
+
+          const asPath = await browser.elementByCss('div#asPath').text()
+          expect(asPath).toBe('ASPATH: /nav/hash-changes#via-link')
         } finally {
           if (browser) {
             await browser.close()
@@ -744,6 +801,61 @@ describe('Client Navigation', () => {
 
       await browser.close()
     })
+
+    it('should handle undefined in router.push', async () => {
+      const browser = await webdriver(context.appPort, '/nav/query-params')
+      await browser.elementByCss('#click-me').click()
+      const query = JSON.parse(
+        await browser.waitForElementByCss('#query-value').text()
+      )
+      expect(query).toEqual({
+        param1: '',
+        param2: '',
+        param3: '',
+        param4: '0',
+        param5: 'false',
+        param7: '',
+        param8: '',
+        param9: '',
+        param10: '',
+        param11: ['', '', '', '0', 'false', '', '', '', '', ''],
+      })
+    })
+  })
+
+  describe('with querystring relative urls', () => {
+    it('should work with Link', async () => {
+      const browser = await webdriver(context.appPort, '/nav/query-only')
+      try {
+        await browser.elementByCss('#link').click()
+
+        await check(() => browser.waitForElementByCss('#prop').text(), 'foo')
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should work with router.push', async () => {
+      const browser = await webdriver(context.appPort, '/nav/query-only')
+      try {
+        await browser.elementByCss('#router-push').click()
+
+        await check(() => browser.waitForElementByCss('#prop').text(), 'bar')
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should work with router.replace', async () => {
+      const browser = await webdriver(context.appPort, '/nav/query-only')
+      try {
+        await browser.elementByCss('#router-replace').click()
+
+        await check(() => browser.waitForElementByCss('#prop').text(), 'baz')
+      } finally {
+        await browser.close()
+      }
+    })
   })
 
   describe('with getInitialProp redirect', () => {
@@ -870,6 +982,60 @@ describe('Client Navigation', () => {
 
         expect(asPath).toBe('/nav/as-path-using-router')
         await browser.close()
+      })
+
+      it('should navigate an absolute url on push', async () => {
+        const browser = await webdriver(
+          context.appPort,
+          `/absolute-url?port=${context.appPort}`
+        )
+        await browser.waitForElementByCss('#router-push').click()
+        await check(
+          () => browser.eval(() => window.location.origin),
+          'https://vercel.com'
+        )
+      })
+
+      it('should navigate an absolute url on replace', async () => {
+        const browser = await webdriver(
+          context.appPort,
+          `/absolute-url?port=${context.appPort}`
+        )
+        await browser.waitForElementByCss('#router-replace').click()
+        await check(
+          () => browser.eval(() => window.location.origin),
+          'https://vercel.com'
+        )
+      })
+
+      it('should navigate an absolute local url on push', async () => {
+        const browser = await webdriver(
+          context.appPort,
+          `/absolute-url?port=${context.appPort}`
+        )
+        await browser.eval(() => (window._didNotNavigate = true))
+        await browser.waitForElementByCss('#router-local-push').click()
+        const text = await browser
+          .waitForElementByCss('.nav-about')
+          .elementByCss('p')
+          .text()
+        expect(text).toBe('This is the about page.')
+        expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
+      })
+
+      it('should navigate an absolute local url on replace', async () => {
+        const browser = await webdriver(
+          context.appPort,
+          `/absolute-url?port=${context.appPort}`
+        )
+        await browser.eval(() => (window._didNotNavigate = true))
+        await browser.waitForElementByCss('#router-local-replace').click()
+        const text = await browser
+          .waitForElementByCss('.nav-about')
+          .elementByCss('p')
+          .text()
+        expect(text).toBe('This is the about page.')
+        expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
       })
     })
 
@@ -1002,6 +1168,27 @@ describe('Client Navigation', () => {
       await browser.close()
     })
 
+    it('should get url dynamic param', async () => {
+      const browser = await webdriver(
+        context.appPort,
+        '/dynamic/dynamic-part/route'
+      )
+      expect(await browser.elementByCss('p').text()).toBe('dynamic-part')
+      await browser.close()
+    })
+
+    it('should 404 on wrong casing of url dynamic param', async () => {
+      const browser = await webdriver(
+        context.appPort,
+        '/dynamic/dynamic-part/RoUtE'
+      )
+      expect(await browser.elementByCss('h1').text()).toBe('404')
+      expect(await browser.elementByCss('h2').text()).toBe(
+        'This page could not be found.'
+      )
+      await browser.close()
+    })
+
     it('should not 404 for <page>/', async () => {
       const browser = await webdriver(context.appPort, '/nav/about/')
       const text = await browser.elementByCss('p').text()
@@ -1050,6 +1237,27 @@ describe('Client Navigation', () => {
             .elementByCss('meta[name="description"]')
             .getAttribute('content')
         ).toBe('Head One')
+
+        await browser
+          .elementByCss('#to-head-3')
+          .click()
+          .waitForElementByCss('#head-3', 3000)
+        expect(
+          await browser
+            .elementByCss('meta[name="description"]')
+            .getAttribute('content')
+        ).toBe('Head Three')
+        expect(await browser.eval('document.title')).toBe('')
+
+        await browser
+          .elementByCss('#to-head-1')
+          .click()
+          .waitForElementByCss('#head-1', 3000)
+        expect(
+          await browser
+            .elementByCss('meta[name="description"]')
+            .getAttribute('content')
+        ).toBe('Head One')
       } finally {
         if (browser) {
           await browser.close()
@@ -1074,6 +1282,66 @@ describe('Client Navigation', () => {
           .click()
           .waitForElementByCss('#head-1', 3000)
         expect(await browser.eval('document.title')).toBe('this is head-1')
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
+  describe('foreign history manipulation', () => {
+    it('should ignore history state without options', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/nav')
+        // push history object without options
+        await browser.eval(
+          'window.history.pushState({ url: "/whatever" }, "", "/whatever")'
+        )
+        await browser.elementByCss('#about-link').click()
+        await browser.waitForElementByCss('.nav-about')
+        await browser.back()
+        await waitFor(1000)
+        expect(await hasRedbox(browser)).toBe(false)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should ignore history state with an invalid url', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/nav')
+        // push history object wit invalid url (not relative)
+        await browser.eval(
+          'window.history.pushState({ url: "http://google.com" }, "", "/whatever")'
+        )
+        await browser.elementByCss('#about-link').click()
+        await browser.waitForElementByCss('.nav-about')
+        await browser.back()
+        await waitFor(1000)
+        expect(await hasRedbox(browser)).toBe(false)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should ignore foreign history state with missing properties', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/nav')
+        // push empty history state
+        await browser.eval('window.history.pushState({}, "", "/whatever")')
+        await browser.elementByCss('#about-link').click()
+        await browser.waitForElementByCss('.nav-about')
+        await browser.back()
+        await waitFor(1000)
+        expect(await hasRedbox(browser)).toBe(false)
       } finally {
         if (browser) {
           await browser.close()
@@ -1115,6 +1383,7 @@ describe('Client Navigation', () => {
 
   renderingSuite(
     (p, q) => renderViaHTTP(context.appPort, p, q),
-    (p, q) => fetchViaHTTP(context.appPort, p, q)
+    (p, q) => fetchViaHTTP(context.appPort, p, q),
+    context
   )
 })

@@ -1,3 +1,6 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# @generated: @expo/next-adapter@2.1.9
 node_modules/**/*
 .expo/*
 npm-debug.*
@@ -9,11 +12,6 @@ npm-debug.*
 *.orig.*
 web-build/
 web-report/
-
-# macOS
-.DS_Store
-
-# @generated: @expo/next-adapter@2.1.9
 /.expo/*
 # Expo Web
 /web-build/*
@@ -33,3 +31,36 @@ web-report/
 /.pnp
 .pnp.js
 # @end @expo/next-adapter
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# vercel
+.vercel

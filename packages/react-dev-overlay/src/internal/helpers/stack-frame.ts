@@ -47,7 +47,7 @@ export function getOriginalStackFrame(
     const params = new URLSearchParams()
     params.append('isServerSide', String(isServerSide))
     for (const key in source) {
-      params.append(key, (source[key] ?? '').toString())
+      params.append(key, ((source as any)[key] ?? '').toString())
     }
 
     const controller = new AbortController()
@@ -114,7 +114,7 @@ export function getOriginalStackFrame(
 export function getFrameSource(frame: StackFrame): string {
   let str = ''
   try {
-    const u = new URL(frame.file)
+    const u = new URL(frame.file!)
 
     // Strip the origin for same-origin scripts.
     if (

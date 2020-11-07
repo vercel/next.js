@@ -22,7 +22,7 @@ export class DropClientPage implements Plugin {
   apply(compiler: Compiler) {
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
-      (compilation, { normalModuleFactory }) => {
+      (compilation: any, { normalModuleFactory }: any) => {
         // Recursively look up the issuer till it ends up at the root
         function findEntryModule(mod: any): CompilationType.Module | null {
           const queue = new Set([mod])
@@ -102,6 +102,7 @@ export class DropClientPage implements Plugin {
                 // @ts-ignore TODO: webpack 5 types
                 const module = compilation.moduleGraph.getModule(dependency)
                 if (module?.buildInfo?.NEXT_ampFirst) {
+                  ampFirstEntryNamesItem.push(name)
                   // @ts-ignore @types/webpack has outdated types for webpack 5
                   compilation.entries.delete(name)
                 }

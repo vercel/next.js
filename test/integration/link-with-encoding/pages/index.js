@@ -30,6 +30,10 @@ const Home = () => (
     >
       <a id="single-colon">Single: :</a>
     </Link>
+    <br />
+    <Link href="/query?id=http://example.com/">
+      <a id="url-param">Url query param</a>
+    </Link>
   </div>
 )
 

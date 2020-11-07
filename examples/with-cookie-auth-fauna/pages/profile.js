@@ -24,7 +24,7 @@ const Profile = () => {
   return (
     <Layout>
       {error ? (
-        <h1>An error has ocurred: {error.message}</h1>
+        <h1>An error has occurred: {error.message}</h1>
       ) : user ? (
         <h1>Your user id is {user.userId}</h1>
       ) : (

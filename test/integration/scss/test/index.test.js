@@ -217,7 +217,7 @@ describe('SCSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `".red-text{color:purple;color:red;font-weight:bolder}.blue-text{color:orange;color:#00f;font-weight:bolder}"`
+        `".red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:#00f}"`
       )
     })
   })
@@ -640,7 +640,7 @@ describe('SCSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{background-image:url\(\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\);color:red\}\.blue-text\{background-image:url\(\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:orange;color:#00f;font-weight:bolder\}$/
+        /^\.red-text\{color:red;background-image:url\(\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -686,7 +686,7 @@ describe('SCSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\);color:red\}\.blue-text\{background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:orange;color:#00f;font-weight:bolder\}$/
+        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -732,7 +732,7 @@ describe('SCSS Support', () => {
       expect(cssFiles.length).toBe(1)
       const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
       expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-        /^\.red-text\{background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\);color:red\}\.blue-text\{background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:orange;color:#00f;font-weight:bolder\}$/
+        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-z0-9]{32}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-z0-9]{32}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-z0-9]{32}\.svg\);color:#00f\}$/
       )
 
       const mediaFiles = await readdir(mediaFolder)
@@ -809,7 +809,7 @@ describe('SCSS Support', () => {
     })
   })
 
-  describe('Bad CSS Import from node_modules', () => {
+  describe('CSS Import from node_modules', () => {
     const appDir = join(fixturesDir, 'npm-import-bad')
 
     beforeAll(async () => {
@@ -819,9 +819,9 @@ describe('SCSS Support', () => {
     it('should fail the build', async () => {
       const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
 
-      expect(code).not.toBe(0)
-      expect(stderr).toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
-      expect(stderr).toMatch(/Build error occurred/)
+      expect(code).toBe(0)
+      expect(stderr).not.toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
+      expect(stderr).not.toMatch(/Build error occurred/)
     })
   })
 

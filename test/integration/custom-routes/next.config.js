@@ -11,6 +11,10 @@ module.exports = {
           ]
         : []),
       {
+        source: '/rewriting-to-auto-export',
+        destination: '/auto-export/hello',
+      },
+      {
         source: '/to-another',
         destination: '/another/one',
       },
@@ -242,6 +246,47 @@ module.exports = {
           {
             key: 'some:path',
             value: 'hi',
+          },
+          {
+            key: 'x-test',
+            value: 'some:value*',
+          },
+          {
+            key: 'x-test-2',
+            value: 'value*',
+          },
+          {
+            key: 'x-test-3',
+            value: ':value?',
+          },
+          {
+            key: 'x-test-4',
+            value: ':value+',
+          },
+          {
+            key: 'x-test-5',
+            value: 'something https:',
+          },
+          {
+            key: 'x-test-6',
+            value: ':hello(world)',
+          },
+          {
+            key: 'x-test-7',
+            value: 'hello(world)',
+          },
+          {
+            key: 'x-test-8',
+            value: 'hello{1,}',
+          },
+          {
+            key: 'x-test-9',
+            value: ':hello{1,2}',
+          },
+          {
+            key: 'content-security-policy',
+            value:
+              "default-src 'self'; img-src *; media-src media1.com media2.com; script-src userscripts.example.com/:path",
           },
         ],
       },

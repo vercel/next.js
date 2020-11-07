@@ -22,9 +22,12 @@ export type Header = {
   headers: Array<{ key: string; value: string }>
 }
 
-const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
+export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
 
-export function getRedirectStatus(route: Redirect): number {
+export function getRedirectStatus(route: {
+  statusCode?: number
+  permanent?: boolean
+}): number {
   return (
     route.statusCode ||
     (route.permanent ? PERMANENT_REDIRECT_STATUS : TEMPORARY_REDIRECT_STATUS)
@@ -165,6 +168,23 @@ function checkCustomRoutes(
         )} is not a valid object with \`source\` and \`${
           type === 'header' ? 'headers' : 'destination'
         }\``
+      )
+      numInvalidRoutes++
+      continue
+    }
+
+    if (
+      type === 'rewrite' &&
+      (route as Rewrite).basePath === false &&
+      !(
+        (route as Rewrite).destination.startsWith('http://') ||
+        (route as Rewrite).destination.startsWith('https://')
+      )
+    ) {
+      console.error(
+        `The route ${
+          (route as Rewrite).source
+        } rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://err.sh/vercel/next.js/invalid-external-rewrite.md`
       )
       numInvalidRoutes++
       continue
@@ -357,28 +377,42 @@ export default async function loadCustomRoutes(
     loadRedirects(config),
   ])
 
-  redirects.unshift(
-    ...(config.experimental.trailingSlash
-      ? [
-          {
-            source: '/:path*/:file.:ext/',
-            destination: '/:path*/:file.:ext',
-            permanent: true,
-          },
-          {
-            source: '/:path*/:notfile([^/.]+)',
-            destination: '/:path*/:notfile/',
-            permanent: true,
-          },
-        ]
-      : [
-          {
-            source: '/:path+/',
-            destination: '/:path+',
-            permanent: true,
-          },
-        ])
-  )
+  if (config.trailingSlash) {
+    redirects.unshift(
+      {
+        source: '/:file((?:[^/]+/)*[^/]+\\.\\w+)/',
+        destination: '/:file',
+        permanent: true,
+      },
+      {
+        source: '/:notfile((?:[^/]+/)*[^/\\.]+)',
+        destination: '/:notfile/',
+        permanent: true,
+      }
+    )
+    if (config.basePath) {
+      redirects.unshift({
+        source: config.basePath,
+        destination: config.basePath + '/',
+        permanent: true,
+        basePath: false,
+      })
+    }
+  } else {
+    redirects.unshift({
+      source: '/:path+/',
+      destination: '/:path+',
+      permanent: true,
+    })
+    if (config.basePath) {
+      redirects.unshift({
+        source: config.basePath + '/',
+        destination: config.basePath,
+        permanent: true,
+        basePath: false,
+      })
+    }
+  }
 
   return {
     headers,

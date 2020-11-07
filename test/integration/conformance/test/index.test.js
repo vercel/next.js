@@ -7,7 +7,8 @@ import { join } from 'path'
 const appDir = join(__dirname, '../')
 jest.setTimeout(1000 * 60 * 2)
 
-describe('Conformance system', () => {
+// Disabled given that @prateekbh is still reviewing this plugin
+describe.skip('Conformance system', () => {
   let build
   beforeAll(async () => {
     build = await nextBuild(appDir, [], {

@@ -7,7 +7,7 @@ export async function getStaticProps() {
       slugs: ['post-1', 'post-2'],
       time: (await import('perf_hooks')).performance.now(),
     },
-    unstable_revalidate: 10,
+    revalidate: 10,
   }
 }
 

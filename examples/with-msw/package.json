@@ -1,0 +1,16 @@
+{
+  "name": "with-msw",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "msw": "^0.21.2",
+    "next": "latest",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
+  }
+}

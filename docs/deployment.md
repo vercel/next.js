@@ -40,7 +40,7 @@ By using the DPS workflow, in addition to doing _code reviews_, you can do _depl
 For example, the [hybrid pages](/docs/basic-features/pages.md) approach is fully supported out of the box.
 
 - Every page can either use [Static Generation](/docs/basic-features/pages.md#static-generation) or [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering).
-- Pages that use [Static Generation](/docs/basic-features/pages.md#static-generation) and assets (JS, CSS, images, fonts, etc) will automatically be served from the [Vercel Smart CDN](https://vercel.com/smart-cdn), which is blazingly fast.
+- Pages that use [Static Generation](/docs/basic-features/pages.md#static-generation) and assets (JS, CSS, images, fonts, etc) will automatically be served from the [Vercel's Edge Network](https://vercel.com/docs/v2/edge-network/overview), which is blazingly fast.
 - Pages that use [Server-Side Rendering](/docs/basic-features/pages.md#server-side-rendering) and [API routes](/docs/api-routes/introduction.md) will automatically become isolated Serverless Functions. This allows page rendering and API requests to scale infinitely.
 
 ### Custom Domains, Environment Variables, Automatic HTTPS, and more
@@ -72,6 +72,4 @@ Make sure your `package.json` has the `"build"` and `"start"` scripts:
 
 ### Static HTML Export
 
-If you’d like to do a static HTML export of your Next.js app, follow the directions on [our documentation](/docs/advanced-features/static-html-export.md). By default, `next export` will generate an `out` directory, which can be served by any static hosting service or CDN.
-
-> We strongly recommend using [Vercel](https://vercel.com/) even if your Next.js app is fully static. [Vercel](https://vercel.com/) is optimized to make static Next.js apps blazingly fast. `next export` works with Zero Config deployments on Vercel.
+If you’d like to do a static HTML export of your Next.js app, follow the directions on [our documentation](/docs/advanced-features/static-html-export.md).

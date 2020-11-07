@@ -31,7 +31,7 @@ export async function getStaticProps({ params }) {
   }
 
   if (params.post === 'post-999') {
-    if (++counter < 3) {
+    if (++counter < 6) {
       throw new Error('try again..')
     }
   }
@@ -42,7 +42,7 @@ export async function getStaticProps({ params }) {
       post: params.post,
       time: (await import('perf_hooks')).performance.now(),
     },
-    unstable_revalidate: 10,
+    revalidate: 10,
   }
 }
 

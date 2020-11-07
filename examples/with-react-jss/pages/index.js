@@ -1,6 +1,6 @@
-import withStyles from 'react-jss'
+import { createUseStyles } from 'react-jss'
 
-const styles = {
+const useStyles = createUseStyles({
   container: {
     marginTop: 100,
     textAlign: 'center',
@@ -10,16 +10,18 @@ const styles = {
     fontSize: 24,
     lineHeight: 1.25,
   },
-}
+})
 
-function Index(props) {
+function Index() {
+  const classes = useStyles()
+
   return (
-    <div className={props.classes.container}>
-      <h1 className={props.classes.header}>
+    <div className={classes.container}>
+      <h1 className={classes.header}>
         Example on how to use react-jss with Next.js
       </h1>
     </div>
   )
 }
 
-export default withStyles(styles)(Index)
+export default Index

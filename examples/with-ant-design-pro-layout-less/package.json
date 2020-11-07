@@ -21,10 +21,10 @@
     "react-dom": "^16.13.1",
     "webpack-filter-warnings-plugin": "1.2.1"
   },
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@types/node": "13.13.4",
     "@types/react": "^16.9.36",
-    "typescript": "3.8.3"
+    "typescript": "4.0"
   }
 }

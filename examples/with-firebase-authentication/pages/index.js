@@ -51,7 +51,7 @@ const Index = () => {
         </Link>
       </div>
       {error && <div>Failed to fetch food!</div>}
-      {data ? (
+      {data && !error ? (
         <div>Your favorite food is {data.food}.</div>
       ) : (
         <div>Loading...</div>

@@ -5,7 +5,7 @@ export async function getStaticProps() {
   return {
     props: { world: 'world', time: new Date().getTime() },
     // bad-prop
-    unstable_revalidate: 1,
+    revalidate: 1,
   }
 }
 
@@ -61,6 +61,30 @@ const Page = ({ world, time }) => {
       </Link>
       <Link href="/catchall-optional/[[...slug]]" as="/catchall-optional/value">
         <a id="catchall-optional-value">to optional catchall page /value</a>
+      </Link>
+      <br />
+      <Link href="/dynamic/[slug]" as="/dynamic/[first]">
+        <a id="dynamic-first">to dynamic [first] page</a>
+      </Link>
+      <Link href="/dynamic/[slug]" as="/dynamic/[second]">
+        <a id="dynamic-second">to dynamic [second] page</a>
+      </Link>
+      <br />
+      <Link
+        href="/catchall-explicit/[...slug]"
+        as="/catchall-explicit/[first]/[second]"
+      >
+        <a id="catchall-explicit-string">
+          to catchall-explicit [first]/[second] page
+        </a>
+      </Link>
+      <Link
+        href="/catchall-explicit/[...slug]"
+        as="/catchall-explicit/[third]/[fourth]"
+      >
+        <a id="catchall-explicit-object">
+          to catchall-explicit [third]/[fourth] page
+        </a>
       </Link>
     </>
   )

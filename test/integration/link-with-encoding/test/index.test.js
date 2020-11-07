@@ -295,5 +295,19 @@ describe('Link Component with Encoding', () => {
         await browser.close()
       }
     })
+
+    it('should have correct parsing of url query params', async () => {
+      const browser = await webdriver(appPort, '/')
+      try {
+        await browser.waitForElementByCss('#url-param').click()
+        const content = await browser
+          .waitForElementByCss('#query-content')
+          .text()
+        const query = JSON.parse(content)
+        expect(query).toHaveProperty('id', 'http://example.com/')
+      } finally {
+        await browser.close()
+      }
+    })
   })
 })
