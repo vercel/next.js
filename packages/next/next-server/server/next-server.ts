@@ -993,6 +993,7 @@ export default class Server {
       .map((page) => {
         page = normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
         if (addedPages.has(page)) return null
+        addedPages.add(page)
         return {
           page,
           match: getRouteMatcher(getRouteRegex(page)),
