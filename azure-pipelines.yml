@@ -15,10 +15,10 @@ stages:
           # inputs:
           #   versionSpec: $(node_version)
           # displayName: 'Install Node.js'
-          # - task: CacheBeta@0
+          # - task: Cache@2
           # inputs:
-          #   key: yarn | $(Agent.OS) | yarn.lock
-          #   path: $(YARN_CACHE_FOLDER)
+          #   key: $(Build.SourceVersion)
+          #   path: $(Agent.BuildDirectory)
           # displayName: Cache Yarn packages
           # - script: |
           #   yarn install --frozen-lockfile --check-files
