@@ -210,6 +210,18 @@ const runTests = (isDev = false) => {
     })
   })
 
+  it('should have correct encoding for params with catchall rewrite', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/catchall-rewrite/hello%20world%3Fw%3D24%26focalpoint%3Dcenter?a=b'
+    )
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#__NEXT_DATA__').html()).query).toEqual({
+      a: 'b',
+      path: ['hello%20world%3Fw%3D24%26focalpoint%3Dcenter'],
+    })
+  })
+
   it('should have correct query for catchall rewrite', async () => {
     const html = await renderViaHTTP(appPort, '/catchall-query/hello/world?a=b')
     const $ = cheerio.load(html)
@@ -240,6 +252,26 @@ const runTests = (isDev = false) => {
     expect(pathname).toBe('/with-params')
     expect(query).toEqual({
       first: 'hello',
+      second: 'world',
+      a: 'b',
+    })
+  })
+
+  it('should have correctly encoded params in query for redirect', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/query-redirect/hello%20world%3Fw%3D24%26focalpoint%3Dcenter/world?a=b',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    const { pathname, query } = url.parse(res.headers.get('location'), true)
+    expect(res.status).toBe(307)
+    expect(pathname).toBe('/with-params')
+    expect(query).toEqual({
+      // this should be decoded since url.parse decodes query values
+      first: 'hello world?w=24&focalpoint=center',
       second: 'world',
       a: 'b',
     })
@@ -552,6 +584,38 @@ const runTests = (isDev = false) => {
     expect(pathname).toBe('/integrations/-some/thing')
   })
 
+  it('should redirect with URL in query correctly', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/to-external-with-query',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toBe(
+      'https://authserver.example.com/set-password?returnUrl=https://www.example.com/login'
+    )
+  })
+
+  it('should redirect with URL in query correctly non-encoded', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/to-external-with-query',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+
+    expect(res.status).toBe(307)
+    expect(res.headers.get('location')).toBe(
+      'https://authserver.example.com/set-password?returnUrl=https://www.example.com/login'
+    )
+  })
+
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(
@@ -703,6 +767,20 @@ const runTests = (isDev = false) => {
               '^\\/catchall-redirect(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
             ),
             source: '/catchall-redirect/:path*',
+            statusCode: 307,
+          },
+          {
+            destination:
+              'https://authserver.example.com/set-password?returnUrl=https%3A%2F%2Fwww.example.com/login',
+            regex: normalizeRegEx('^\\/to-external-with-query$'),
+            source: '/to-external-with-query',
+            statusCode: 307,
+          },
+          {
+            destination:
+              'https://authserver.example.com/set-password?returnUrl=https://www.example.com/login',
+            regex: normalizeRegEx('^\\/to-external-with-query-2$'),
+            source: '/to-external-with-query-2',
             statusCode: 307,
           },
         ],
