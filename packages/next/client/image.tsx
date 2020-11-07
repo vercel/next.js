@@ -1,5 +1,6 @@
-import React, { ReactElement, useEffect, useRef } from 'react'
+import React, { ReactElement } from 'react'
 import Head from '../next-server/lib/head'
+import { useIntersection } from './use-intersection'
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
@@ -30,6 +31,8 @@ type ImageData = {
   domains?: string[]
 }
 
+type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
+
 type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
@@ -39,6 +42,8 @@ type ImageProps = Omit<
   priority?: boolean
   loading?: LoadingValue
   unoptimized?: boolean
+  objectFit?: ImgElementStyle['objectFit']
+  objectPosition?: ImgElementStyle['objectPosition']
 } & (
     | {
         width?: never
@@ -66,45 +71,6 @@ const {
 const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)
 allSizes.sort((a, b) => a - b)
-
-let cachedObserver: IntersectionObserver
-
-function getObserver(): IntersectionObserver | undefined {
-  const IntersectionObserver =
-    typeof window !== 'undefined' ? window.IntersectionObserver : null
-  // Return shared instance of IntersectionObserver if already created
-  if (cachedObserver) {
-    return cachedObserver
-  }
-
-  // Only create shared IntersectionObserver if supported in browser
-  if (!IntersectionObserver) {
-    return undefined
-  }
-  return (cachedObserver = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          let lazyImage = entry.target as HTMLImageElement
-          unLazifyImage(lazyImage)
-          cachedObserver.unobserve(lazyImage)
-        }
-      })
-    },
-    { rootMargin: '200px' }
-  ))
-}
-
-function unLazifyImage(lazyImage: HTMLImageElement): void {
-  if (lazyImage.dataset.src) {
-    lazyImage.src = lazyImage.dataset.src
-  }
-  if (lazyImage.dataset.srcset) {
-    lazyImage.srcset = lazyImage.dataset.srcset
-  }
-  lazyImage.style.visibility = 'visible'
-  lazyImage.classList.remove('__lazy')
-}
 
 function getSizes(
   width: number | undefined,
@@ -247,10 +213,10 @@ export default function Image({
   quality,
   width,
   height,
+  objectFit,
+  objectPosition,
   ...all
 }: ImageProps) {
-  const thisEl = useRef<HTMLImageElement>(null)
-
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
   let unsized = false
@@ -300,40 +266,19 @@ export default function Image({
     }
   }
 
-  let lazy = loading === 'lazy'
-  if (!priority && typeof loading === 'undefined') {
-    lazy = true
-  }
-
-  if (typeof window !== 'undefined' && !window.IntersectionObserver) {
-    // Rendering client side on browser without intersection observer
-    lazy = false
-  }
-
+  let isLazy =
+    !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (src && src.startsWith('data:')) {
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
-    lazy = false
+    isLazy = false
   }
 
-  useEffect(() => {
-    const target = thisEl.current
-
-    if (target && lazy) {
-      const observer = getObserver()
-
-      if (observer) {
-        observer.observe(target)
-
-        return () => {
-          observer.unobserve(target)
-        }
-      } else {
-        //browsers without intersection observer
-        unLazifyImage(target)
-      }
-    }
-  }, [thisEl, lazy])
+  const [setRef, isIntersected] = useIntersection<HTMLImageElement>({
+    rootMargin: '200px',
+    disabled: !isLazy,
+  })
+  const isVisible = !isLazy || isIntersected
 
   const widthInt = getInt(width)
   const heightInt = getInt(height)
@@ -342,8 +287,8 @@ export default function Image({
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerSvg: string | undefined
-  let imgStyle: JSX.IntrinsicElements['img']['style'] = {
-    visibility: lazy ? 'hidden' : 'visible',
+  let imgStyle: ImgElementStyle | undefined = {
+    visibility: isVisible ? 'visible' : 'hidden',
 
     position: 'absolute',
     top: 0,
@@ -363,6 +308,9 @@ export default function Image({
     maxWidth: '100%',
     minHeight: '100%',
     maxHeight: '100%',
+
+    objectFit,
+    objectPosition,
   }
   if (
     typeof widthInt !== 'undefined' &&
@@ -449,29 +397,16 @@ export default function Image({
   })
 
   let imgAttributes:
-    | {
-        src: string
-        srcSet?: string
-      }
-    | {
-        'data-src': string
-        'data-srcset'?: string
-      }
-  if (!lazy) {
+    | Pick<JSX.IntrinsicElements['img'], 'src' | 'srcSet'>
+    | undefined
+
+  if (isVisible) {
     imgAttributes = {
       src: imgSrc,
     }
     if (imgSrcSet) {
       imgAttributes.srcSet = imgSrcSet
     }
-  } else {
-    imgAttributes = {
-      'data-src': imgSrc,
-    }
-    if (imgSrcSet) {
-      imgAttributes['data-srcset'] = imgSrcSet
-    }
-    className = className ? className + ' __lazy' : '__lazy'
   }
 
   // No need to add preloads on the client side--by the time the application is hydrated,
@@ -514,7 +449,7 @@ export default function Image({
         decoding="async"
         className={className}
         sizes={sizes}
-        ref={thisEl}
+        ref={setRef}
         style={imgStyle}
       />
     </div>

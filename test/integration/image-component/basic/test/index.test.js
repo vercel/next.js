@@ -106,7 +106,7 @@ function lazyLoadingTests() {
   })
   it('should pass through classes on a lazy loaded image', async () => {
     expect(await browser.elementById('lazy-mid').getAttribute('class')).toBe(
-      'exampleclass __lazy'
+      'exampleclass'
     )
   })
   it('should load the second image after scrolling down', async () => {
