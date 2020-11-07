@@ -1,5 +1,6 @@
 import React, { ReactElement } from 'react'
 import Head from '../next-server/lib/head'
+import { toBase64 } from '../next-server/lib/to-base-64'
 import { useIntersection } from './use-intersection'
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
@@ -396,17 +397,14 @@ export default function Image({
     quality: qualityInt,
   })
 
-  let imgAttributes:
-    | Pick<JSX.IntrinsicElements['img'], 'src' | 'srcSet'>
-    | undefined
+  const imgAttributes: Pick<JSX.IntrinsicElements['img'], 'src' | 'srcSet'> = {
+    src:
+      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+  }
 
   if (isVisible) {
-    imgAttributes = {
-      src: imgSrc,
-    }
-    if (imgSrcSet) {
-      imgAttributes.srcSet = imgSrcSet
-    }
+    imgAttributes.src = imgSrc
+    imgAttributes.srcSet = imgSrcSet
   }
 
   // No need to add preloads on the client side--by the time the application is hydrated,
@@ -438,7 +436,7 @@ export default function Image({
               alt=""
               aria-hidden={true}
               role="presentation"
-              src={`data:image/svg+xml;charset=utf-8,${sizerSvg}`}
+              src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
             />
           ) : null}
         </div>
