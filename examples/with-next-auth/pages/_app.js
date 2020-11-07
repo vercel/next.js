@@ -4,7 +4,7 @@ import '../styles.css'
 const App = ({ Component, pageProps }) => {
   const { session } = pageProps
   return (
-    <Provider options={{ site: process.env.SITE }} session={session}>
+    <Provider session={session}>
       <Component {...pageProps} />
     </Provider>
   )

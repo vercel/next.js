@@ -25,7 +25,6 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { dirname, join } from 'path'
-import url from 'url'
 
 jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
@@ -829,28 +828,18 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
           document.querySelector('#to-rewritten-ssg').scrollIntoView()
         )
 
-        await check(
-          async () => {
-            const links = await browser.elementsByCss('link[rel=prefetch]')
-            let found = false
-
-            for (const link of links) {
-              const href = await link.getAttribute('href')
-              const { pathname } = url.parse(href)
-
-              if (pathname.endsWith('/lang/en/about.json')) {
-                found = true
-                break
-              }
-            }
-            return found
-          },
-          {
-            test(result) {
-              return result === true
-            },
-          }
-        )
+        await check(async () => {
+          const hrefs = await browser.eval(
+            `Object.keys(window.next.router.sdc)`
+          )
+          hrefs.sort()
+          expect(
+            hrefs.map((href) =>
+              new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
+            )
+          ).toContainEqual('/lang/en/about.json')
+          return 'yes'
+        }, 'yes')
       }
       await browser.eval('window.beforeNav = "hi"')
       await browser.elementByCss('#to-rewritten-ssg').click()
@@ -1129,7 +1118,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     })
   } else {
     if (!isEmulatedServerless) {
-      it('should should use correct caching headers for a no-revalidate page', async () => {
+      it('should use correct caching headers for a no-revalidate page', async () => {
         const initialRes = await fetchViaHTTP(appPort, '/something')
         expect(initialRes.headers.get('cache-control')).toBe(
           's-maxage=31536000, stale-while-revalidate'
@@ -2101,7 +2090,7 @@ describe('SSG Prerender', () => {
         await fs.writeFile(
           pagePath,
           fallbackBlockingPageContents[page].replace(
-            "fallback: 'unstable_blocking'",
+            "fallback: 'blocking'",
             'fallback: false'
           )
         )
