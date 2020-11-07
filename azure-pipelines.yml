@@ -10,7 +10,10 @@ stages:
         pool:
           vmImage: 'windows-2019'
         steps:
-          - script: echo $(Build.SourceVersion)
+          - script: echo $(Agent.BuildDirectory)
+          - script: dir
+          - script: dir $(Agent.BuildDirectory)
+          - script: $(Build.SourceVersion)
           # - task: NodeTool@0
           # inputs:
           #   versionSpec: $(node_version)
