@@ -36,7 +36,7 @@ export function loadEnvConfig(
   const { parsed, cachedEnvFiles } = snackables.config({
     // root directory for .env files
     dir,
-    // paths for .env files (file importance is determined by the greater array index)
+    // paths for .env files -- file importance is determined by the greater array index
     path: [
       '.env',
       `.env.${mode}`,
@@ -47,9 +47,9 @@ export function loadEnvConfig(
       `.env.${mode}.local`,
     ].filter(Boolean) as string[],
     // caches .env files that have already been loaded
-    // any attempts to reload the same .env file will be skipped
+    // attempts to reload the same .env file will be skipped
     cache: true,
-    // displays messages about loaded ENVs
+    // displays messages about loaded .envs
     debug: true,
   })
 
