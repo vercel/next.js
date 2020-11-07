@@ -270,7 +270,8 @@ const runTests = (isDev = false) => {
     expect(res.status).toBe(307)
     expect(pathname).toBe('/with-params')
     expect(query).toEqual({
-      first: 'hello%20world%3Fw%3D24%26focalpoint%3Dcenter',
+      // this should be decoded since url.parse decodes query values
+      first: 'hello world?w=24&focalpoint=center',
       second: 'world',
       a: 'b',
     })

@@ -299,6 +299,7 @@ export default class Server {
     if (typeof parsedUrl.query === 'string') {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
+    ;(req as any).__NEXT_INIT_QUERY = Object.assign({}, parsedUrl.query)
 
     const { basePath, i18n } = this.nextConfig
 
@@ -676,6 +677,22 @@ export default class Server {
       } as Route
     })
 
+    // since initial query values are decoded by querystring.parse
+    // we need to re-encode them here but still allow passing through
+    // values from rewrites/redirects
+    const stringifyQuery = (req: IncomingMessage, query: ParsedUrlQuery) => {
+      const initialQueryValues = Object.values((req as any).__NEXT_INIT_QUERY)
+
+      return stringifyQs(query, undefined, undefined, {
+        encodeURIComponent(value) {
+          if (initialQueryValues.some((val) => val === value)) {
+            return encodeURIComponent(value)
+          }
+          return value
+        },
+      })
+    }
+
     const redirects = this.customRoutes.redirects.map((redirect) => {
       const redirectRoute = getCustomRoute(redirect, 'redirect')
       return {
@@ -683,7 +700,7 @@ export default class Server {
         match: redirectRoute.match,
         statusCode: redirectRoute.statusCode,
         name: `Redirect route`,
-        fn: async (_req, res, params, parsedUrl) => {
+        fn: async (req, res, params, parsedUrl) => {
           const { parsedDestination } = prepareDestination(
             redirectRoute.destination,
             params,
@@ -695,7 +712,7 @@ export default class Server {
           const { query } = parsedDestination
           delete (parsedDestination as any).query
 
-          parsedDestination.search = stringifyQs(query)
+          parsedDestination.search = stringifyQuery(req, query)
 
           const updatedDestination = formatUrl(parsedDestination)
 
@@ -737,7 +754,7 @@ export default class Server {
           if (parsedDestination.protocol) {
             const { query } = parsedDestination
             delete (parsedDestination as any).query
-            parsedDestination.search = stringifyQs(query)
+            parsedDestination.search = stringifyQuery(req, query)
 
             const target = formatUrl(parsedDestination)
             const proxy = new Proxy({
