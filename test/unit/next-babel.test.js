@@ -65,7 +65,7 @@ describe('next/babel', () => {
       expect(output).toMatch(`__jsx("a",{href:"/"`)
 
       expect(babel(`const a = ()=><a href="/">home</a>`)).toMatch(
-        `var _react=_interopRequireDefault(require(\\"react\\"));var __jsx=_react[\\"default\\"].createElement;var a=function a(){return __jsx(\\"a\\",{href:\\"/\\"},\\"home\\");};"`
+        `var _react=_interopRequireDefault(require("react"));var __jsx=_react["default"].createElement;var a=function a(){return __jsx("a",{href:"/"},"home");};"`
       )
     })
 
