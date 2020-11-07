@@ -91,7 +91,7 @@ describe('Build Output', () => {
       }
 
       // should be no bigger than 265 bytes
-      expect(parseFloat(indexSize) - 265).toBeLessThanOrEqual(0)
+      expect(parseFloat(indexSize) - 266).toBeLessThanOrEqual(0)
       expect(indexSize.endsWith('B')).toBe(true)
 
       // should be no bigger than 60.8 kb
