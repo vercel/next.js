@@ -6,7 +6,7 @@ variables:
 stages:
   - stage: Build
     jobs:
-      - job: install and Build
+      - job: build
         pool:
           vmImage: 'windows-2019'
         steps:
