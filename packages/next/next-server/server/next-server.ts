@@ -986,12 +986,19 @@ export default class Server {
   }
 
   protected getDynamicRoutes() {
+    const addedPages = new Set<string>()
+
     return getSortedRoutes(Object.keys(this.pagesManifest!))
       .filter(isDynamicRoute)
-      .map((page) => ({
-        page,
-        match: getRouteMatcher(getRouteRegex(page)),
-      }))
+      .map((page) => {
+        page = normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
+        if (addedPages.has(page)) return null
+        return {
+          page,
+          match: getRouteMatcher(getRouteRegex(page)),
+        }
+      })
+      .filter(Boolean)
   }
 
   private handleCompression(req: IncomingMessage, res: ServerResponse): void {
