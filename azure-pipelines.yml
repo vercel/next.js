@@ -13,18 +13,17 @@ stages:
           - script: echo $(Agent.BuildDirectory)
           - script: dir
           - script: dir $(System.DefaultWorkingDirectory)
-          - script: dir $(Agent.BuildDirectory)
           - script: echo $(Build.SourceVersion)
           - script: echo $(Build.SourceVersionMessage)
-          # - task: NodeTool@0
-          # inputs:
-          #   versionSpec: $(node_version)
-          # displayName: 'Install Node.js'
-          # - task: Cache@2
-          # inputs:
-          #   key: $(Build.SourceVersion)
-          #   path: $(Agent.BuildDirectory)
-          # displayName: Cache Yarn packages
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(node_version)
+            displayName: 'Install Node.js'
+          - task: Cache@2
+            inputs:
+              key: $(Build.SourceVersion)
+              path: $(System.DefaultWorkingDirectory)
+            displayName: Cache Yarn packages
           # - script: |
           #   yarn install --frozen-lockfile --check-files
           # displayName: 'Install dependencies'
