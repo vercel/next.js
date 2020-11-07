@@ -100,6 +100,11 @@ type FindComponentsResult = {
   query: ParsedUrlQuery
 }
 
+type DynamicRouteItem = {
+  page: string
+  match: ReturnType<typeof getRouteMatcher>
+}
+
 export type ServerConstructor = {
   /**
    * Where the Next project is located - @default '.'
@@ -985,10 +990,7 @@ export default class Server {
     ]
   }
 
-  protected getDynamicRoutes(): Array<{
-    page: string
-    match: ReturnType<typeof getRouteMatcher>
-  }> {
+  protected getDynamicRoutes(): Array<DynamicRouteItem> {
     const addedPages = new Set<string>()
 
     return getSortedRoutes(Object.keys(this.pagesManifest!))
@@ -1002,7 +1004,7 @@ export default class Server {
           match: getRouteMatcher(getRouteRegex(page)),
         }
       })
-      .filter(Boolean) as any
+      .filter((item): item is DynamicRouteItem => Boolean(item))
   }
 
   private handleCompression(req: IncomingMessage, res: ServerResponse): void {
