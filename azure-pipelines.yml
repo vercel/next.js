@@ -28,6 +28,9 @@ stages:
           - script: |
               yarn install --frozen-lockfile --check-files
             displayName: 'Install dependencies'
+          - script: |
+              node run-tests.js --timings --write-timings --azure -g 5/5
+            displayName: 'Fetch test timing data'
 
   - stage: Test
     dependsOn: Build
@@ -89,7 +92,7 @@ stages:
             displayName: Cache Build
 
           - script: |
-              node run-tests.js -g $(group) --azure
+              node run-tests.js -g $(group) --timings --azure
             displayName: 'Run tests'
 # jobs:
 #   - job: test_ie11
