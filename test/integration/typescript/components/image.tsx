@@ -2,22 +2,21 @@ import React from 'react'
 import Image, { ImageProps } from 'next/image'
 
 export default () => {
-  const imageProps: ImageProps = {
+  const props: ImageProps = {
     src: '',
     width: 100,
     height: 100,
-    unsized: false,
   }
 
-  const unsizedImageProps: ImageProps = {
+  const filledProps: ImageProps = {
     src: '',
-    unsized: true,
+    layout: 'fill',
   }
 
   return (
     <>
-      <Image {...imageProps} />
-      <Image {...unsizedImageProps} />
+      <Image {...props} />
+      <Image {...filledProps} />
     </>
   )
 }
