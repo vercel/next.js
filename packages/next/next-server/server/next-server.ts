@@ -100,6 +100,11 @@ type FindComponentsResult = {
   query: ParsedUrlQuery
 }
 
+type DynamicRouteItem = {
+  page: string
+  match: ReturnType<typeof getRouteMatcher>
+}
+
 export type ServerConstructor = {
   /**
    * Where the Next project is located - @default '.'
@@ -985,13 +990,21 @@ export default class Server {
     ]
   }
 
-  protected getDynamicRoutes() {
+  protected getDynamicRoutes(): Array<DynamicRouteItem> {
+    const addedPages = new Set<string>()
+
     return getSortedRoutes(Object.keys(this.pagesManifest!))
       .filter(isDynamicRoute)
-      .map((page) => ({
-        page,
-        match: getRouteMatcher(getRouteRegex(page)),
-      }))
+      .map((page) => {
+        page = normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
+        if (addedPages.has(page)) return null
+        addedPages.add(page)
+        return {
+          page,
+          match: getRouteMatcher(getRouteRegex(page)),
+        }
+      })
+      .filter((item): item is DynamicRouteItem => Boolean(item))
   }
 
   private handleCompression(req: IncomingMessage, res: ServerResponse): void {
