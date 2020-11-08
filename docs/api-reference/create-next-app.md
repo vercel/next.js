@@ -9,7 +9,7 @@ The easiest way to get started with Next.js is by using `create-next-app`. This 
 ```bash
 npx create-next-app
 # or
-yarn create next-app
+yarn create-next-app
 ```
 
 ### Options
