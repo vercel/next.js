@@ -15,7 +15,7 @@ description: API Routes include a set of Express.js-like methods for the respons
 The response (`res`) includes a set of Express.js-like methods to improve the developer experience and increase the speed of creating new API endpoints, take a look at the following example:
 
 ```js
-export default (req, res) => {
+export default function handler(req, res) {
   res.status(200).json({ name: 'Next.js' })
 }
 ```
