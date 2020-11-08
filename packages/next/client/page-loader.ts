@@ -176,10 +176,10 @@ export default class PageLoader {
 
   private fetchStyleSheet(href: string): Promise<StyleSheetTuple> {
     if (!this.cssc[href]) {
-      this.cssc[href] = fetch(href).then((res) => {
+      this.cssc[href] = fetch(href, { mode: "no-cors" }).then((res) => {
         if (!res.ok) throw pageLoadError(href)
         return res.text()
-      })
+      }).catch(() => null))
     }
     return this.cssc[href].then((text) => ({ href, text }))
   }
