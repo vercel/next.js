@@ -29,7 +29,9 @@
     "prepublish": "yarn release && yarn types"
   },
   "devDependencies": {
-    "@zeit/ncc": "^0.20.4",
-    "snackables": "1.0.4"
+    "@zeit/ncc": "^0.20.4"
+  },
+  "dependencies": {
+    "snackables-next": "1.0.1"
   }
 }

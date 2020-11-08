@@ -1,5 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import * as snackables from 'snackables'
+import * as snackables from 'snackables-next'
 
 export type Env = snackables.ProcessEnv
 export type LoadedEnvFiles = snackables.CachedEnvFiles
@@ -37,7 +37,7 @@ export function loadEnvConfig(
     // root directory for .env files
     dir,
     // paths for .env files -- file importance is determined by the greater array index
-    path: [
+    paths: [
       '.env',
       `.env.${mode}`,
       // Don't include `.env.local` for `test` environment
