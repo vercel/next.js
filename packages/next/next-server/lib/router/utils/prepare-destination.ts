@@ -5,6 +5,43 @@ import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
 
 type Params = { [param: string]: any }
 
+export function compileNonPath(value: string, params: Params): string {
+  if (!value.includes(':')) {
+    return value
+  }
+
+  for (const key of Object.keys(params)) {
+    if (value.includes(`:${key}`)) {
+      value = value
+        .replace(
+          new RegExp(`:${key}\\*`, 'g'),
+          `:${key}--ESCAPED_PARAM_ASTERISKS`
+        )
+        .replace(
+          new RegExp(`:${key}\\?`, 'g'),
+          `:${key}--ESCAPED_PARAM_QUESTION`
+        )
+        .replace(new RegExp(`:${key}\\+`, 'g'), `:${key}--ESCAPED_PARAM_PLUS`)
+        .replace(
+          new RegExp(`:${key}(?!\\w)`, 'g'),
+          `--ESCAPED_PARAM_COLON${key}`
+        )
+    }
+  }
+  value = value
+    .replace(/(:|\*|\?|\+|\(|\)|\{|\})/g, '\\$1')
+    .replace(/--ESCAPED_PARAM_PLUS/g, '+')
+    .replace(/--ESCAPED_PARAM_COLON/g, ':')
+    .replace(/--ESCAPED_PARAM_QUESTION/g, '?')
+    .replace(/--ESCAPED_PARAM_ASTERISKS/g, '*')
+
+  // the value needs to start with a forward-slash to be compiled
+  // correctly
+  return pathToRegexp
+    .compile(`/${value}`, { validate: false })(params)
+    .substr(1)
+}
+
 export default function prepareDestination(
   destination: string,
   params: Params,
@@ -76,9 +113,7 @@ export default function prepareDestination(
     if (value) {
       // the value needs to start with a forward-slash to be compiled
       // correctly
-      value = `/${value}`
-      const queryCompiler = pathToRegexp.compile(value, { validate: false })
-      value = queryCompiler(params).substr(1)
+      value = compileNonPath(value, params)
     }
     destQuery[key] = value
   }
