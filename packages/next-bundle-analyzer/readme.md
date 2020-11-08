@@ -48,11 +48,12 @@ From version 2.0.0 of next-compose-plugins you need to call bundle-analyzer in t
 
 ```js
 const withPlugins = require('next-compose-plugins')
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
-  enabled: process.env.ANALYZE === 'true',
-})
+const withBundleAnalyzer = require('@next/bundle-analyzer')
+
 module.exports = withPlugins([
-  [withBundleAnalyzer],
+  [withBundleAnalyzer({
+    enabled: process.env.ANALYZE === 'true',
+  })],
   // your other plugins here
 ])
 ```
