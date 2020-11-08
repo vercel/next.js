@@ -251,6 +251,7 @@ describe('create next app', () => {
         expect(
           fs.existsSync(path.join(cwd, projectName, 'package.json'))
         ).toBeTruthy()
+        return
       }
       expect(res.exitCode).toBe(1)
       expect(res.stderr).toMatch(
