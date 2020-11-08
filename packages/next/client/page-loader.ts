@@ -179,7 +179,7 @@ export default class PageLoader {
       this.cssc[href] = fetch(href, { mode: "no-cors" }).then((res) => {
         if (!res.ok) throw pageLoadError(href)
         return res.text()
-      }).catch(() => null))
+      })
     }
     return this.cssc[href].then((text) => ({ href, text }))
   }
@@ -368,7 +368,7 @@ export default class PageLoader {
           ).then((cssFiles) =>
             // These files should've already been fetched by now, so this
             // should resolve instantly.
-            Promise.all(cssFiles.map((d) => this.fetchStyleSheet(d))).catch(
+            Promise.all(cssFiles.map((d) => document.querySelector(`link[href^="${d}"]`) || this.fetchStyleSheet(d))).catch(
               (err) => {
                 if (isInitialLoad) {
                   Object.defineProperty(err, INITIAL_CSS_LOAD_ERROR, {})
