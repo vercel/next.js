@@ -245,6 +245,64 @@ function runTests(isDev) {
     })
   }
 
+  it('should resolve auto-export dynamic route correctly', async () => {
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(
+        appPort,
+        `/${locale}/dynamic/first`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('dynamic page')
+    }
+  })
+
+  it('should navigate to auto-export dynamic page', async () => {
+    for (const locale of locales) {
+      const browser = await webdriver(appPort, `/${locale}`)
+      await browser.eval('window.beforeNav = 1')
+
+      await browser
+        .elementByCss('#to-dynamic')
+        .click()
+        .waitForElementByCss('#dynamic')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+      expect(await browser.elementByCss('#router-locale').text()).toBe(locale)
+      expect(
+        JSON.parse(await browser.elementByCss('#router-locales').text())
+      ).toEqual(locales)
+      expect(
+        JSON.parse(await browser.elementByCss('#router-query').text())
+      ).toEqual({ slug: 'first' })
+      expect(await browser.elementByCss('#router-pathname').text()).toBe(
+        '/dynamic/[slug]'
+      )
+      expect(await browser.elementByCss('#router-as-path').text()).toBe(
+        '/dynamic/first'
+      )
+      expect(await browser.eval('window.location.pathname')).toBe(
+        `${locale === 'en-US' ? '' : `/${locale}`}/dynamic/first`
+      )
+
+      await browser.back().waitForElementByCss('#index')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+      expect(await browser.elementByCss('#router-locale').text()).toBe(locale)
+      expect(
+        JSON.parse(await browser.elementByCss('#router-locales').text())
+      ).toEqual(locales)
+      expect(
+        JSON.parse(await browser.elementByCss('#router-query').text())
+      ).toEqual({})
+      expect(await browser.elementByCss('#router-pathname').text()).toBe('/')
+      expect(await browser.elementByCss('#router-as-path').text()).toBe('/')
+    }
+  })
+
   it('should apply redirects correctly', async () => {
     for (const path of ['/redirect', '/en-US/redirect', '/nl/redirect']) {
       const res = await fetchViaHTTP(appPort, path, undefined, {

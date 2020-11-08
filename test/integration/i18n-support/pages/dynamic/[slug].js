@@ -6,8 +6,7 @@ export default function Page(props) {
 
   return (
     <>
-      <p id="index">index page</p>
-      <p id="props">{JSON.stringify(props)}</p>
+      <p id="dynamic">dynamic page</p>
       <p id="router-locale">{router.locale}</p>
       <p id="router-default-locale">{router.defaultLocale}</p>
       <p id="router-locales">{JSON.stringify(router.locales)}</p>
@@ -16,10 +15,6 @@ export default function Page(props) {
       <p id="router-as-path">{router.asPath}</p>
       <Link href="/another">
         <a id="to-another">to /another</a>
-      </Link>
-      <br />
-      <Link href="/dynamic/first">
-        <a id="to-dynamic">to /dynamic/first</a>
       </Link>
       <br />
       <Link href="/gsp">
@@ -48,14 +43,4 @@ export default function Page(props) {
       <br />
     </>
   )
-}
-
-export const getStaticProps = ({ locale, locales, defaultLocale }) => {
-  return {
-    props: {
-      locale,
-      locales,
-      defaultLocale,
-    },
-  }
 }
