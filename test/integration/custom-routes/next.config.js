@@ -205,6 +205,18 @@ module.exports = {
         destination: '/somewhere',
         permanent: false,
       },
+      {
+        source: '/to-external-with-query',
+        destination:
+          'https://authserver.example.com/set-password?returnUrl=https%3A%2F%2Fwww.example.com/login',
+        permanent: false,
+      },
+      {
+        source: '/to-external-with-query-2',
+        destination:
+          'https://authserver.example.com/set-password?returnUrl=https://www.example.com/login',
+        permanent: false,
+      },
     ]
   },
 
