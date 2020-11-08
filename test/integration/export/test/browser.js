@@ -55,6 +55,24 @@ export default function (context) {
       expect(link.substr(link.length - 1)).not.toBe('/')
     })
 
+    it('should not add trailing slash on Link when href is external', async () => {
+      const browser = await webdriver(context.port, '/')
+      const link = await browser
+        .elementByCss('#external-about-via-link')
+        .getAttribute('href')
+
+      expect(link.substr(link.length - 1)).not.toBe('/')
+    })
+
+    it('should not remove trailing slash on Link when href is external', async () => {
+      const browser = await webdriver(context.port, '/')
+      const link = await browser
+        .elementByCss('#external-about-via-link-with-slash')
+        .getAttribute('href')
+
+      expect(link.substr(link.length - 1)).toBe('/')
+    })
+
     it('should do navigations via Link', async () => {
       const browser = await webdriver(context.port, '/')
       const text = await browser

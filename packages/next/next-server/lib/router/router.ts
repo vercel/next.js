@@ -194,7 +194,11 @@ export function resolveHref(
     typeof href === 'string' ? href : formatWithValidation(href)
   try {
     const finalUrl = new URL(urlAsString, base)
-    finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
+    // if the origin didn't change, it means we received a relative href
+    const isRelativeHref = finalUrl.origin === base.origin
+    if (isRelativeHref) {
+      finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
+    }
     let interpolatedAs = ''
 
     if (
@@ -219,11 +223,9 @@ export function resolveHref(
       }
     }
 
-    // if the origin didn't change, it means we received a relative href
-    const resolvedHref =
-      finalUrl.origin === base.origin
-        ? finalUrl.href.slice(finalUrl.origin.length)
-        : finalUrl.href
+    const resolvedHref = isRelativeHref
+      ? finalUrl.href.slice(finalUrl.origin.length)
+      : finalUrl.href
 
     return (resolveAs
       ? [resolvedHref, interpolatedAs || resolvedHref]

@@ -12,6 +12,14 @@ export default () => (
       <Link href="/about">
         <a id="about-via-link">About via Link</a>
       </Link>
+      <Link href="https://example.com/example">
+        <a id="external-about-via-link">External about via Link</a>
+      </Link>
+      <Link href="https://example.com/example/">
+        <a id="external-about-via-link-with-slash">
+          External about via Link with slash
+        </a>
+      </Link>
       <a href="#" onClick={routeToAbout} id="about-via-router">
         About via Router
       </a>
