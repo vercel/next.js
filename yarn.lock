@@ -3047,10 +3047,10 @@
     semver "^7.3.2"
     tsutils "^3.17.1"
 
-"@vercel/ncc@0.25.0":
-  version "0.25.0"
-  resolved "https://registry.yarnpkg.com/@vercel/ncc/-/ncc-0.25.0.tgz#c47bda29064cf094ffd4dd6cea45bd21a108ec15"
-  integrity sha512-QDVwcVgahq66ZB11D/KlI1HF+lS0+NRjbOETFKZryZh14rx+zBIVkm6Yu/9tyj2Oz8FIc3PFYORl+mPDjTAiEg==
+"@vercel/ncc@0.25.1":
+  version "0.25.1"
+  resolved "https://registry.yarnpkg.com/@vercel/ncc/-/ncc-0.25.1.tgz#a4aacdb508ac496fc0c63a3c3203d700a619cc0e"
+  integrity sha512-dGecC5+1wLof1MQpey4+6i2KZv4Sfs6WfXkl9KfO32GED4ZPiKxRfvtGPjbjZv0IbqMl6CxtcV1RotXYfd5SSA==
 
 "@webassemblyjs/ast@1.9.0":
   version "1.9.0"
@@ -3187,9 +3187,10 @@
   version "4.2.2"
   resolved "https://registry.yarnpkg.com/@xtuc/long/-/long-4.2.2.tgz#d291c6a4e97989b5c61d9acf396ae4fe133a718d"
 
-"@zeit/ncc@^0.20.4":
-  version "0.20.5"
-  resolved "https://registry.yarnpkg.com/@zeit/ncc/-/ncc-0.20.5.tgz#a41af6e6bcab4a58f4612bae6137f70bce0192e3"
+"@zeit/ncc@0.20.4":
+  version "0.20.4"
+  resolved "https://registry.yarnpkg.com/@zeit/ncc/-/ncc-0.20.4.tgz#00f0a25a88cac3712af4ba66561d9e281c6f05c9"
+  integrity sha512-fmq+F/QxPec+k/zvT7HiVpk7oiGFseS6brfT/AYqmCUp6QFRK7vZf2Ref46MImsg/g2W3g5X6SRvGRmOAvEfdA==
 
 "@zeit/next-css@1.0.2-canary.2":
   version "1.0.2-canary.2"
