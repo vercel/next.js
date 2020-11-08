@@ -29,7 +29,7 @@ stages:
               yarn install --frozen-lockfile --check-files
             displayName: 'Install dependencies'
           - script: |
-              node run-tests.js --timings --write-timings --azure -g 5/5
+              node run-tests.js --timings --write-timings --azure -g 1/4
             displayName: 'Fetch test timing data'
 
   - stage: Test
@@ -63,15 +63,13 @@ stages:
         strategy:
           matrix:
             node-10-1:
-              group: 1/5
+              group: 1/4
             node-10-2:
-              group: 2/5
+              group: 2/4
             node-10-3:
-              group: 3/5
+              group: 3/4
             node-10-4:
-              group: 4/5
-            node-10-5:
-              group: 5/5
+              group: 4/4
         steps:
           - checkout: none
           - script: |
