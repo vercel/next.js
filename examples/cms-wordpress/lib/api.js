@@ -40,7 +40,8 @@ export async function getPreviewPost(id, idType = 'DATABASE_ID') {
       variables: { id, idType },
     }
   )
-  return data.post
+
+  return data?.post
 }
 
 export async function getAllPostsWithSlug() {
@@ -55,6 +56,7 @@ export async function getAllPostsWithSlug() {
       }
     }
   `)
+
   return data?.posts
 }
 
@@ -193,19 +195,21 @@ export async function getPostAndMorePosts(slug, preview, previewData) {
   )
 
   // Draft posts may not have an slug
-  if (isDraft) data.post.slug = postPreview.id
+  if (isDraft && data.post) data.post.slug = postPreview.id
   // Apply a revision (changes in a published post)
-  if (isRevision && data.post.revisions) {
+  if (isRevision && data.post && data.post.revisions) {
     const revision = data.post.revisions.edges[0]?.node
 
     if (revision) Object.assign(data.post, revision)
     delete data.post.revisions
   }
 
-  // Filter out the main post
-  data.posts.edges = data.posts.edges.filter(({ node }) => node.slug !== slug)
-  // If there are still 3 posts, remove the last one
-  if (data.posts.edges.length > 2) data.posts.edges.pop()
+  if (data.posts && data.posts.edges) {
+    // Filter out the main post
+    data.posts.edges = data.posts.edges.filter(({ node }) => node.slug !== slug)
+    // If there are still 3 posts, remove the last one
+    if (data.posts.edges.length > 2) data.posts.edges.pop()
+  }
 
   return data
 }
