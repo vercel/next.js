@@ -90,6 +90,29 @@ function runTests(mode) {
     }
   })
 
+  it('should update the image on src change', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/update')
+
+      await check(
+        () => browser.eval(`document.getElementById("update-image").src`),
+        /test\.jpg/
+      )
+
+      await browser.eval(`document.getElementById("toggle").click()`)
+
+      await check(
+        () => browser.eval(`document.getElementById("update-image").src`),
+        /test\.png/
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
   it('should work when using flexbox', async () => {
     let browser
     try {
