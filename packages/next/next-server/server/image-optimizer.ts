@@ -145,15 +145,14 @@ export async function imageOptimizer(
     const files = await promises.readdir(hashDir)
     for (let file of files) {
       const [prefix, etag, extension] = file.split('.')
-      if (sendEtagResponse(req, res, etag)) {
-        return { finished: true }
-      }
       const expireAt = Number(prefix)
       const contentType = getContentType(extension)
       const fsPath = join(hashDir, file)
       if (now < expireAt) {
         res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
-        res.setHeader('Etag', etag)
+        if (sendEtagResponse(req, res, etag)) {
+          return { finished: true }
+        }
         if (contentType) {
           res.setHeader('Content-Type', contentType)
         }
