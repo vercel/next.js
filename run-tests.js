@@ -22,6 +22,7 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
     parseInt(process.argv[concurrencyIdx + 1], 10) || DEFAULT_CONCURRENCY
 
   const outputTimings = process.argv.indexOf('--timings') !== -1
+  const writeTimings = process.argv.indexOf('--write-timings') !== -1
   const isAzure = process.argv.indexOf('--azure') !== -1
   const groupIdx = process.argv.indexOf('-g')
   const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
@@ -39,15 +40,29 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
     if (outputTimings && groupArg) {
       console.log('Fetching previous timings data')
       try {
-        const timingsRes = await fetch(
-          `${TIMINGS_API}?which=${isAzure ? 'azure' : 'actions'}`
-        )
+        const timingsFile = path.join(__dirname, 'test-timings.json')
+        try {
+          prevTimings = JSON.parse(await fs.readFile(timingsFile, 'utf8'))
+          console.log('Loaded test timings from disk successfully')
+        } catch (_) {}
 
-        if (!timingsRes.ok) {
-          throw new Error(`request status: ${timingsRes.status}`)
+        if (!prevTimings) {
+          const timingsRes = await fetch(
+            `${TIMINGS_API}?which=${isAzure ? 'azure' : 'actions'}`
+          )
+
+          if (!timingsRes.ok) {
+            throw new Error(`request status: ${timingsRes.status}`)
+          }
+          prevTimings = await timingsRes.json()
+          console.log('Fetched previous timings data successfully')
+
+          if (writeTimings) {
+            await fs.writeFile(timingsFile, JSON.stringify(prevTimings))
+            console.log('Wrote previous timings data to', timingsFile)
+            process.exit(0)
+          }
         }
-        prevTimings = await timingsRes.json()
-        console.log('Fetched previous timings data successfully')
       } catch (err) {
         console.log(`Failed to fetch timings data`, err)
       }
