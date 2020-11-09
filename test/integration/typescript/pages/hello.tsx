@@ -1,6 +1,7 @@
 import { useRouter } from 'next/router'
 import React from 'react'
 import { hello } from '../components/hello'
+import Image from '../components/image'
 import Link from '../components/link'
 import Router from '../components/router'
 import { World } from '../components/world'
@@ -25,6 +26,7 @@ export default function HelloPage(): JSX.Element {
       {hello()} <World />
       <Router />
       <Link />
+      <Image />
     </div>
   )
 }
