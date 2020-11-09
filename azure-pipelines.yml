@@ -16,7 +16,7 @@ stages:
           - script: echo $(System.pullRequest.sourceCommitId)
           - powershell: Set-MpPreference -ExclusionPath $(System.DefaultWorkingDirectory)
           - powershell: Set-MpPreference -ExclusionPath $(Pipeline.Workspace)/.yarn
-          - powershell: Remove-WindowsFeature Windows-Defender, Windows-Defender-GUI
+          - powershell: Remove-WindowsFeature Windows-Defender
           - powershell: Get-MpComputerStatus
           # - task: NodeTool@0
           #   inputs:
