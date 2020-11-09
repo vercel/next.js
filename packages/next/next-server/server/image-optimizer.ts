@@ -2,7 +2,7 @@ import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join } from 'path'
 import { mediaType } from '@hapi/accept'
-import { promises } from 'fs'
+import { createReadStream, promises } from 'fs'
 import { createHash } from 'crypto'
 import Server from './next-server'
 import { getContentType, getExtension } from './serve-static'
@@ -11,6 +11,7 @@ import { fileExists } from '../../lib/file-exists'
 import isAnimated from 'next/dist/compiled/is-animated'
 import Stream from 'stream'
 import { sendEtagResponse } from './send-payload'
+import fresh from 'next/dist/compiled/fresh'
 
 let sharp: typeof import('sharp')
 //const AVIF = 'image/avif'
@@ -19,7 +20,7 @@ const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
-const CACHE_VERSION = 1
+const CACHE_VERSION = 2
 const MODERN_TYPES = [/* AVIF, */ WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
@@ -144,7 +145,7 @@ export async function imageOptimizer(
   if (await fileExists(hashDir, 'directory')) {
     const files = await promises.readdir(hashDir)
     for (let file of files) {
-      const [filename, extension] = file.split('.')
+      const [filename, etag, extension] = file.split('.')
       const expireAt = Number(filename)
       const contentType = getContentType(extension)
       const fsPath = join(hashDir, file)
@@ -152,8 +153,8 @@ export async function imageOptimizer(
         if (contentType) {
           res.setHeader('Content-Type', contentType)
         }
-        const buffer = await promises.readFile(fsPath)
-        sendResponse(req, res, contentType, buffer)
+        res.setHeader('Etag', etag)
+        createReadStream(fsPath).pipe(res)
         return { finished: true }
       } else {
         await promises.unlink(fsPath)
@@ -281,9 +282,17 @@ export async function imageOptimizer(
     const optimizedBuffer = await transformer.toBuffer()
     await promises.mkdir(hashDir, { recursive: true })
     const extension = getExtension(contentType)
-    const filename = join(hashDir, `${expireAt}.${extension}`)
+    const etag = getHash([optimizedBuffer])
+    const filename = join(hashDir, `${expireAt}.${etag}.${extension}`)
     await promises.writeFile(filename, optimizedBuffer)
-    sendResponse(req, res, contentType, optimizedBuffer)
+    if (fresh(req.headers, { etag })) {
+      res.statusCode = 304
+      res.end()
+      return true
+    }
+    res.setHeader('ETag', etag)
+    res.setHeader('Content-Type', contentType)
+    res.end(optimizedBuffer)
   } catch (error) {
     sendResponse(req, res, upstreamType, upstreamBuffer)
   }
@@ -312,10 +321,13 @@ function getSupportedMimeType(options: string[], accept = ''): string {
   return accept.includes(mimeType) ? mimeType : ''
 }
 
-function getHash(items: (string | number | undefined)[]) {
+function getHash(items: (string | number | Buffer)[]) {
   const hash = createHash('sha256')
   for (let item of items) {
-    hash.update(String(item))
+    if (typeof item === 'number') hash.update(String(item))
+    else {
+      hash.update(item)
+    }
   }
   // See https://en.wikipedia.org/wiki/Base64#Filenames
   return hash.digest('base64').replace(/\//g, '-')
