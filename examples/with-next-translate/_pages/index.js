@@ -1,4 +1,4 @@
-import Link from 'next-translate/Link'
+import Link from 'next/link'
 import Trans from 'next-translate/Trans'
 import useTranslation from 'next-translate/useTranslation'
 import Layout from '../components/Layout'
@@ -22,14 +22,14 @@ export default function Home() {
         </p>
 
         <div className="grid">
-          <Link href="/" lang="en">
+          <Link href="/" locale="en">
             <div className="card">
               <h3>{t('home:english')}</h3>
               <p>{t('home:change-english')}</p>
             </div>
           </Link>
 
-          <Link href="/" lang="ca">
+          <Link href="/" locale="ca">
             <div className="card">
               <h3>{t('home:catalan')}</h3>
               <p>{t('home:change-catalan')}</p>

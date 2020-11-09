@@ -52,7 +52,7 @@ In production, all CSS files will be automatically concatenated into a single mi
 
 ### Import styles from `node_modules`
 
-Importing a CSS file from `node_modules` is permitted in anywhere your application.
+Since Next.js **9.5.4**, importing a CSS file from `node_modules` is permitted anywhere in your application.
 
 For global stylesheets, like `bootstrap` or `nprogress`, you should import the file inside `pages/_app.js`.
 For example:

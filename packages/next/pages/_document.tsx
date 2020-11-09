@@ -55,8 +55,7 @@ function getDocumentFiles(
   pathname: string
 ): DocumentFiles {
   const sharedFiles: readonly string[] = getPageFiles(buildManifest, '/_app')
-  const pageFiles: readonly string[] =
-    pathname !== '/_error' ? getPageFiles(buildManifest, pathname) : []
+  const pageFiles: readonly string[] = getPageFiles(buildManifest, pathname)
 
   return {
     sharedFiles,
@@ -123,7 +122,7 @@ export function Html(
     HTMLHtmlElement
   >
 ) {
-  const { inAmpMode, docComponentsRendered } = useContext(
+  const { inAmpMode, docComponentsRendered, locale } = useContext(
     DocumentComponentContext
   )
 
@@ -132,6 +131,7 @@ export function Html(
   return (
     <html
       {...props}
+      lang={props.lang || locale || undefined}
       amp={inAmpMode ? '' : undefined}
       data-ampdevmode={
         inAmpMode && process.env.NODE_ENV !== 'production' ? '' : undefined
@@ -163,8 +163,11 @@ export class Head extends Component<
       dynamicImports,
     } = this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
-    const sharedFiles = new Set(files.sharedFiles)
+    const sharedFiles: Set<string> = new Set(files.sharedFiles)
 
+    // Unmanaged files are CSS files that will be handled directly by the
+    // webpack runtime (`mini-css-extract-plugin`).
+    let unmangedFiles: Set<string> = new Set([])
     let dynamicCssFiles = dedupe(
       dynamicImports.filter((f) => f.file.endsWith('.css'))
     ).map((f) => f.file)
@@ -173,13 +176,14 @@ export class Head extends Component<
       dynamicCssFiles = dynamicCssFiles.filter(
         (f) => !(existing.has(f) || sharedFiles.has(f))
       )
+      unmangedFiles = new Set(dynamicCssFiles)
       cssFiles.push(...dynamicCssFiles)
     }
 
     const cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
       const isSharedFile = sharedFiles.has(file)
-
+      const isUnmanagedFile = unmangedFiles.has(file)
       cssLinkElements.push(
         <link
           key={`${file}-preload`}
@@ -203,8 +207,8 @@ export class Head extends Component<
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
           }
-          data-n-g={isSharedFile ? '' : undefined}
-          data-n-p={isSharedFile ? undefined : ''}
+          data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
+          data-n-p={isUnmanagedFile ? undefined : isSharedFile ? undefined : ''}
         />
       )
     })
@@ -644,7 +648,7 @@ export class NextScript extends Component<OriginProps> {
       ))
   }
 
-  static getInlineScriptSource(documentProps: DocumentProps): string {
+  static getInlineScriptSource(documentProps: Readonly<DocumentProps>): string {
     const { __NEXT_DATA__ } = documentProps
     try {
       const data = JSON.stringify(__NEXT_DATA__)

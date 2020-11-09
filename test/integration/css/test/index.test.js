@@ -1104,7 +1104,7 @@ describe('CSS Support', () => {
       async function checkCssPreloadCount(browser) {
         return Number(
           await browser.eval(
-            ` [].slice.call(document.querySelectorAll('link[rel=preload][href$="css"]')).length`
+            `Object.keys(window.next.router.pageLoader.cssc).length`
           )
         )
       }
@@ -1530,6 +1530,39 @@ describe('CSS Support', () => {
       })
 
       tests()
+    })
+  })
+
+  describe('should handle unresolved files gracefully', () => {
+    const workDir = join(fixturesDir, 'unresolved-css-url')
+
+    it('should build correctly', async () => {
+      await remove(join(workDir, '.next'))
+      const { code } = await nextBuild(workDir)
+      expect(code).toBe(0)
+    })
+
+    it('should have correct file references in CSS output', async () => {
+      const cssFiles = await readdir(join(workDir, '.next/static/css'))
+
+      for (const file of cssFiles) {
+        if (file.endsWith('.css.map')) continue
+
+        const content = await readFile(
+          join(workDir, '.next/static/css', file),
+          'utf8'
+        )
+        console.log(file, content)
+
+        // if it is the combined global CSS file there are double the expected
+        // results
+        const howMany = content.includes('p{') ? 4 : 2
+
+        expect(content.match(/\(\/vercel\.svg/g).length).toBe(howMany)
+        // expect(content.match(/\(vercel\.svg/g).length).toBe(howMany)
+        expect(content.match(/\(\/_next\/static\/media/g).length).toBe(2)
+        expect(content.match(/\(https:\/\//g).length).toBe(howMany)
+      }
     })
   })
 })

@@ -8,7 +8,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "msw": "^0.21.0",
+    "msw": "^0.21.2",
     "next": "latest",
     "react": "^16.13.1",
     "react-dom": "^16.13.1"
