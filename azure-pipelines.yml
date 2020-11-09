@@ -13,7 +13,7 @@ stages:
           - script: echo $(Agent.BuildDirectory)
           - script: dir
           - script: dir $(System.DefaultWorkingDirectory)
-          - script: echo $(System.pullRequest.sourceCommitId)
+          - script: echo $(Build.SourceVersion)
           - powershell: Set-MpPreference -ExclusionPath $(System.DefaultWorkingDirectory)
           - powershell: Set-MpPreference -ExclusionPath $(Pipeline.Workspace)/.yarn
           - powershell: Set-MpPreference -DisableIntrusionPreventionSystem $true -DisableIOAVProtection $true -DisableRealtimeMonitoring $true -DisableScriptScanning $true -EnableControlledFolderAccess Disabled -EnableNetworkProtection AuditMode -Force -MAPSReporting Disabled -SubmitSamplesConsent NeverSend
@@ -26,7 +26,7 @@ stages:
             inputs:
               # use deterministic cache key that is specific
               # to this test run
-              key: $(System.pullRequest.sourceCommitId)
+              key: $(Build.SourceVersion)
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
           - script: |
@@ -54,7 +54,7 @@ stages:
             inputs:
               # use deterministic cache key that is specific
               # to this test run
-              key: $(System.pullRequest.sourceCommitId)
+              key: $(Build.SourceVersion)
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
           - script: |
@@ -89,7 +89,7 @@ stages:
             inputs:
               # use deterministic cache key that is specific
               # to this test run
-              key: $(System.pullRequest.sourceCommitId)
+              key: $(Build.SourceVersion)
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
           - script: |
