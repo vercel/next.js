@@ -40,6 +40,28 @@ export default (context, render) => {
         expect(cssFiles.length).toBe(1)
       })
 
+      it('should not remove css styles for same css file between page transitions', async () => {
+        let browser
+        try {
+          browser = await webdriver(context.appPort, '/dynamic/pagechange1')
+          await check(() => browser.elementByCss('body').text(), /PageChange1/)
+          const firstElement = await browser.elementById('with-css')
+          const css1 = await firstElement.getComputedCss('display')
+          expect(css1).toBe('flex')
+          await browser.eval(function () {
+            window.next.router.push('/dynamic/pagechange2')
+          })
+          await check(() => browser.elementByCss('body').text(), /PageChange2/)
+          const secondElement = await browser.elementById('with-css')
+          const css2 = await secondElement.getComputedCss('display')
+          expect(css2).toBe(css1)
+        } finally {
+          if (browser) {
+            await browser.close()
+          }
+        }
+      })
+
       // It seem to be abnormal, dynamic CSS modules are completely self-sufficient, so shared styles are copied across files
       it('should output two css files even in case of three css module files while one is shared across files', async () => {
         const $ = await get$('/dynamic/shared-css-module')
