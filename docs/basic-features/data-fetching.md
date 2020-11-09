@@ -459,7 +459,7 @@ export default Post
 
 If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 
-- The paths returned from `getStaticPaths` will be rendered to HTML at build time.
+- The paths returned from `getStaticPaths` will be rendered to HTML at build time by `getStaticProps`.
 - The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a “fallback” version of the page on the first request to such a path (see [“Fallback pages”](#fallback-pages) below for details).
 - In the background, Next.js will statically generate the requested path HTML and JSON. This includes running `getStaticProps`.
 - When that’s done, the browser receives the JSON for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
@@ -531,6 +531,21 @@ Instead, you may statically generate a small subset of pages and use `fallback: 
 This ensures that users always have a fast experience while preserving fast builds and the benefits of Static Generation.
 
 `fallback: true` will not _update_ generated pages, for that take a look at [Incremental Static Regeneration](#incremental-static-regeneration).
+
+#### `fallback: 'blocking'`
+
+If `fallback` is `'blocking'`, new paths not returned by `getStaticPaths` will wait for the HTML to be generated, identical to SSR (hence why _blocking_), and then be cached for future requests so it only happens once per path.
+
+`getStaticProps` will behave as follows:
+
+- The paths returned from `getStaticPaths` will be rendered to HTML at build time by `getStaticProps`.
+- The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will SSR on the first request and return the generated HTML.
+- When that’s done, the browser receives the HTML for the generated path. From the user’s perspective, it will transition from "the browser is requesting the page" to "the full page is loaded". There is no flash of loading/fallback state.
+- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
+
+`fallback: 'blocking'` will not _update_ generated pages by default. To update generated pages, use [Incremental Static Regeneration](#incremental-static-regeneration) in conjunction with `fallback: 'blocking'`.
+
+> `fallback: 'blocking'` is not supported when using [`next export`](/docs/advanced-features/static-html-export.md).
 
 ### When should I use `getStaticPaths`?
 
