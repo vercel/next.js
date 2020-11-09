@@ -145,9 +145,17 @@ export async function imageOptimizer(
   if (await fileExists(hashDir, 'directory')) {
     const files = await promises.readdir(hashDir)
     for (let file of files) {
-      const [filename, etag, extension] = file.split('.')
-      const expireAt = Number(filename)
+      const [prefix, etag, extension] = file.split('.')
+      const expireAt = Number(prefix)
       const contentType = getContentType(extension)
+      if (fresh(req.headers, { etag })) {
+        if (contentType) {
+          res.setHeader('Content-Type', contentType)
+        }
+        res.statusCode = 304
+        res.end()
+        return { finished: true }
+      }
       const fsPath = join(hashDir, file)
       if (now < expireAt) {
         if (contentType) {
@@ -288,7 +296,7 @@ export async function imageOptimizer(
     if (fresh(req.headers, { etag })) {
       res.statusCode = 304
       res.end()
-      return true
+      return { finished: true }
     }
     res.setHeader('ETag', etag)
     res.setHeader('Content-Type', contentType)
