@@ -1104,7 +1104,7 @@ describe('CSS Support', () => {
       async function checkCssPreloadCount(browser) {
         return Number(
           await browser.eval(
-            ` [].slice.call(document.querySelectorAll('link[rel=preload][href$="css"]')).length`
+            `Object.keys(window.next.router.pageLoader.cssc).length`
           )
         )
       }

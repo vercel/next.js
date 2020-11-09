@@ -293,10 +293,6 @@
               "path": "/docs/api-reference/next.config.js/compression.md"
             },
             {
-              "title": "Static Optimization Indicator",
-              "path": "/docs/api-reference/next.config.js/static-optimization-indicator.md"
-            },
-            {
               "title": "Runtime Configuration",
               "path": "/docs/api-reference/next.config.js/runtime-configuration.md"
             },

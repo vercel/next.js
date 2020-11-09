@@ -12,9 +12,9 @@ Make sure your `images` field follows the allowed config shape and values:
 module.exports = {
   images: {
     // limit of 25 deviceSizes values
-    deviceSizes: [320, 420, 768, 1024, 1200],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     // limit of 25 imageSizes values
-    imageSizes: [],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     // limit of 50 domains values
     domains: [],
     path: '/_next/image',

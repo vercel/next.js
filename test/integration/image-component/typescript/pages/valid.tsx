@@ -38,6 +38,26 @@ const Page = () => {
         width={500}
         height={500}
       />
+      <Image
+        id="data-protocol"
+        src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="
+        width={100}
+        height={100}
+      />
+      <Image
+        id="object-fit-cover-position-right"
+        src="https://via.placeholder.com/500"
+        layout="fill"
+        objectFit="cover"
+        objectPosition="right"
+      />
+      <Image
+        id="object-fit-scale-down-position-50px"
+        src="https://via.placeholder.com/500"
+        layout="fill"
+        objectFit="scale-down"
+        objectPosition="50px"
+      />
       <p id="stubtext">This is valid usage of the Image component</p>
     </div>
   )
