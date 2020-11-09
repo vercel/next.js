@@ -49,7 +49,7 @@ import { denormalizePagePath } from './denormalize-page-path'
 import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
-import optimizeAmp from './optimize-amp'
+import optimizeAmp from '../lib/amp-optimizer'
 import {
   allowedStatusCodes,
   getRedirectStatus,
