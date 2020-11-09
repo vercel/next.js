@@ -1,6 +1,12 @@
-# Example app with [GSAP](https://greensock.com/gsap/)
+# Example app with GSAP
 
 This example features how to use [GSAP](https://greensock.com/gsap/) as the animation library within a Next.js app.
+
+## Deploy your own
+
+Deploy the example using [Vercel](https://vercel.com):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-gsap)
 
 ## How to use
 
