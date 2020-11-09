@@ -7,8 +7,8 @@
     "start": "next start"
   },
   "dependencies": {
-    "mobx": "^5.15.4",
-    "mobx-react": "^6.2.2",
+    "mobx": "^6.0.1",
+    "mobx-react": "^7.0.0",
     "next": "latest",
     "react": "^16.13.1",
     "react-dom": "^16.13.1"
