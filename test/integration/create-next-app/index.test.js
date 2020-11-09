@@ -29,6 +29,7 @@ describe('create next app', () => {
       fs.writeFileSync(pkg, '{ "foo": "bar" }')
 
       const res = await run([projectName], { cwd, reject: false })
+      expect(res.exitCode).toBe(1)
       expect(res.stdout).toMatch(/contains files that could conflict/)
     })
   })
@@ -60,6 +61,7 @@ describe('create next app', () => {
         reject: false,
       })
 
+      expect(res.exitCode).toBe(1)
       expect(res.stderr).toMatch(/Could not locate an example named/i)
       expect(
         fs.existsSync(path.join(cwd, projectName, 'package.json'))
