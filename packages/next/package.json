@@ -94,7 +94,7 @@
     "react-is": "16.13.1",
     "react-refresh": "0.8.3",
     "resolve-url-loader": "3.1.2",
-    "sass-loader": "10.0.2",
+    "sass-loader": "10.0.5",
     "schema-utils": "2.7.1",
     "stream-browserify": "3.0.0",
     "style-loader": "1.2.1",
