@@ -5,6 +5,7 @@
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { IncomingMessage, ServerResponse } from 'http'
+import { Redirect } from '../lib/load-custom-routes'
 
 import {
   NextPageContext,
@@ -70,11 +71,6 @@ export {
   NextApiResponse,
   NextApiRequest,
   NextApiHandler,
-}
-
-type Redirect = {
-  permanent: boolean
-  destination: string
 }
 
 export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {

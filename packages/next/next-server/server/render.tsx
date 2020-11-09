@@ -53,6 +53,7 @@ import optimizeAmp from './optimize-amp'
 import {
   allowedStatusCodes,
   getRedirectStatus,
+  Redirect,
 } from '../../lib/load-custom-routes'
 
 function noRouter() {
@@ -306,18 +307,12 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
   )
 }
 
-type Redirect = {
-  permanent: boolean
-  destination: string
-  statusCode?: number
-}
-
 function checkRedirectValues(
   redirect: Redirect,
   req: IncomingMessage,
   method: 'getStaticProps' | 'getServerSideProps'
 ) {
-  const { destination, permanent, statusCode } = redirect
+  const { destination, permanent, statusCode, basePath } = redirect
   let errors: string[] = []
 
   const hasStatusCode = typeof statusCode !== 'undefined'
@@ -339,6 +334,14 @@ function checkRedirectValues(
   if (destinationType !== 'string') {
     errors.push(
       `\`destination\` should be string but received ${destinationType}`
+    )
+  }
+
+  const basePathType = typeof basePath
+
+  if (basePathType !== 'undefined' && basePathType !== 'boolean') {
+    errors.push(
+      `\`basePath\` should be undefined or a false, received ${basePathType}`
     )
   }
 
@@ -685,6 +688,9 @@ export async function renderToHTML(
           __N_REDIRECT: data.redirect.destination,
           __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
         }
+        if (typeof data.redirect.basePath !== 'undefined') {
+          ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
+        }
         ;(renderOpts as any).isRedirect = true
       }
 
@@ -810,6 +816,9 @@ export async function renderToHTML(
         ;(data as any).props = {
           __N_REDIRECT: data.redirect.destination,
           __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
+        }
+        if (typeof data.redirect.basePath !== 'undefined') {
+          ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
         }
         ;(renderOpts as any).isRedirect = true
       }
