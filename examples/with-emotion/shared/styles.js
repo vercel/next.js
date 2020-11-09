@@ -1,4 +1,4 @@
-import { keyframes, css, Global } from '@emotion/core'
+import { css, Global, keyframes } from '@emotion/core'
 import styled from '@emotion/styled'
 
 export const globalStyles = (
@@ -46,22 +46,22 @@ export const bounce = keyframes`
   }
 `
 
-export const Basic = styled('div')`
+export const Basic = styled.div`
   ${basicStyles};
 `
 
-export const Combined = styled('div')`
+export const Combined = styled.div`
   ${basicStyles};
   ${hoverStyles};
   & code {
     background-color: linen;
   }
 `
-export const Animated = styled('div')`
+export const Animated = styled.div`
   ${basicStyles};
   ${hoverStyles};
   & code {
     background-color: linen;
   }
-  animation: ${(props) => props.animation} 0.2s infinite ease-in-out alternate;
+  animation: ${({ animation }) => animation} 0.2s infinite ease-in-out alternate;
 `

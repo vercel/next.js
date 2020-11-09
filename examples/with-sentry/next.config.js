@@ -24,8 +24,11 @@ process.env.SENTRY_DSN = SENTRY_DSN
 const basePath = ''
 
 module.exports = withSourceMaps({
-  serverRuntimeConfig: {
-    rootDir: __dirname,
+  env: {
+    // Make the COMMIT_SHA available to the client so that Sentry events can be
+    // marked for the release the belong to. It may be undefined if running
+    // outside of Vercel
+    NEXT_PUBLIC_COMMIT_SHA: COMMIT_SHA,
   },
   webpack: (config, options) => {
     // In `pages/_app.js`, Sentry is imported from @sentry/browser. While
@@ -45,6 +48,16 @@ module.exports = withSourceMaps({
     if (!options.isServer) {
       config.resolve.alias['@sentry/node'] = '@sentry/browser'
     }
+
+    // Define an environment variable so source code can check whether or not
+    // it's running on the server so we can correctly initialize Sentry
+    config.plugins.push(
+      new options.webpack.DefinePlugin({
+        'process.env.NEXT_IS_SERVER': JSON.stringify(
+          options.isServer.toString()
+        ),
+      })
+    )
 
     // When all the Sentry configuration env variables are available/configured
     // The Sentry webpack plugin gets pushed to the webpack plugins to build

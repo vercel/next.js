@@ -5,7 +5,11 @@ import theme from '../theme'
 function MyApp({ Component, pageProps }) {
   return (
     <ThemeProvider theme={theme}>
-      <ColorModeProvider>
+      <ColorModeProvider
+        options={{
+          useSystsemColorMode: true,
+        }}
+      >
         <CSSReset />
         <Component {...pageProps} />
       </ColorModeProvider>
