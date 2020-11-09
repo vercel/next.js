@@ -20,4 +20,30 @@ npx create-next-app --example with-reason-relay with-reason-relay
 yarn create next-app --example with-reason-relay with-reason-relay
 ```
 
+Download schema introspection data from configured Relay endpoint:
+
+```bash
+npm run schema
+# or
+yarn schema
+```
+
+Run Relay ahead-of-time compilation (should be re-run after any edits to components that query data with Relay)
+
+```bash
+npm run relay
+# or
+yarn relay
+```
+
+Build and run the Relay project
+
+```bash
+npm run build
+npm run dev
+# or
+yarn build
+yarn dev
+```
+
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

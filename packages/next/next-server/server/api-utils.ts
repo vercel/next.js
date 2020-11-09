@@ -1,9 +1,9 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
-import generateETag from 'next/dist/compiled/etag'
+import generateETag from 'etag'
 import fresh from 'next/dist/compiled/fresh'
-import getRawBody from 'next/dist/compiled/raw-body'
+import getRawBody from 'raw-body'
 import { PageConfig } from 'next/types'
 import { Stream } from 'stream'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
@@ -159,34 +159,6 @@ function parseJson(str: string): object {
     return JSON.parse(str)
   } catch (e) {
     throw new ApiError(400, 'Invalid JSON')
-  }
-}
-
-/**
- * Parsing query arguments from request `url` string
- * @param url of request
- * @returns Object with key name of query argument and its value
- */
-export function getQueryParser({ url }: IncomingMessage) {
-  return function parseQuery(): NextApiRequestQuery {
-    const { URL } = require('url')
-    // we provide a placeholder base url because we only want searchParams
-    const params = new URL(url, 'https://n').searchParams
-
-    const query: { [key: string]: string | string[] } = {}
-    for (const [key, value] of params) {
-      if (query[key]) {
-        if (Array.isArray(query[key])) {
-          ;(query[key] as string[]).push(value)
-        } else {
-          query[key] = [query[key], value]
-        }
-      } else {
-        query[key] = value
-      }
-    }
-
-    return query
   }
 }
 

@@ -51,6 +51,7 @@ const runTests = (isDev = false) => {
     const $ = cheerio.load(html)
     expect($('#use-amp').text()).toContain('no')
     expect($('#hello').text()).toContain('hello')
+    expect($('#slug').text()).toContain('post-1')
   })
 
   it('should load dynamic hybrid SSG/AMP page with trailing slash', async () => {
@@ -58,6 +59,7 @@ const runTests = (isDev = false) => {
     const $ = cheerio.load(html)
     expect($('#use-amp').text()).toContain('no')
     expect($('#hello').text()).toContain('hello')
+    expect($('#slug').text()).toContain('post-1')
   })
 
   it('should load dynamic hybrid SSG/AMP page with query', async () => {
@@ -65,6 +67,7 @@ const runTests = (isDev = false) => {
     const $ = cheerio.load(html)
     expect($('#use-amp').text()).toContain('yes')
     expect($('#hello').text()).toContain('hello')
+    expect($('#slug').text()).toContain('post-1')
   })
 
   it('should load a hybrid amp page with query correctly', async () => {

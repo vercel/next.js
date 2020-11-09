@@ -1,27 +1,30 @@
 /* global location */
+import '@next/polyfill-module'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
 import mitt from '../next-server/lib/mitt'
 import { RouterContext } from '../next-server/lib/router-context'
-import { delBasePath, hasBasePath } from '../next-server/lib/router/router'
 import type Router from '../next-server/lib/router/router'
 import type {
   AppComponent,
   AppProps,
   PrivateRouteInfo,
 } from '../next-server/lib/router/router'
+import { delBasePath, hasBasePath } from '../next-server/lib/router/router'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import * as querystring from '../next-server/lib/router/utils/querystring'
 import * as envConfig from '../next-server/lib/runtime-config'
-import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import type { NEXT_DATA } from '../next-server/lib/utils'
+import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
-import PageLoader, { looseToArray, StyleSheetTuple } from './page-loader'
+import PageLoader, {
+  INITIAL_CSS_LOAD_ERROR,
+  looseToArray,
+  StyleSheetTuple,
+} from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { createRouter, makePublicRouterInstance } from './router'
-
-require('next/dist/build/polyfills/finally-polyfill.min')
 
 /// <reference types="react-dom/experimental" />
 
@@ -60,7 +63,11 @@ const {
   runtimeConfig,
   dynamicIds,
   isFallback,
+  head: initialHeadData,
+  locales,
 } = data
+
+let { locale, defaultLocale } = data
 
 const prefix = assetPrefix || ''
 
@@ -80,6 +87,51 @@ if (hasBasePath(asPath)) {
   asPath = delBasePath(asPath)
 }
 
+if (process.env.__NEXT_I18N_SUPPORT) {
+  const {
+    normalizeLocalePath,
+  } = require('../next-server/lib/i18n/normalize-locale-path') as typeof import('../next-server/lib/i18n/normalize-locale-path')
+
+  const {
+    detectDomainLocale,
+  } = require('../next-server/lib/i18n/detect-domain-locale') as typeof import('../next-server/lib/i18n/detect-domain-locale')
+
+  const {
+    parseRelativeUrl,
+  } = require('../next-server/lib/router/utils/parse-relative-url') as typeof import('../next-server/lib/router/utils/parse-relative-url')
+
+  const {
+    formatUrl,
+  } = require('../next-server/lib/router/utils/format-url') as typeof import('../next-server/lib/router/utils/format-url')
+
+  if (locales) {
+    const parsedAs = parseRelativeUrl(asPath)
+    const localePathResult = normalizeLocalePath(parsedAs.pathname, locales)
+
+    if (localePathResult.detectedLocale) {
+      parsedAs.pathname = localePathResult.pathname
+      asPath = formatUrl(parsedAs)
+    } else {
+      // derive the default locale if it wasn't detected in the asPath
+      // since we don't prerender static pages with all possible default
+      // locales
+      defaultLocale = locale
+    }
+
+    // attempt detecting default locale based on hostname
+    const detectedDomain = detectDomainLocale(
+      process.env.__NEXT_I18N_DOMAINS as any,
+      window.location.hostname
+    )
+
+    // TODO: investigate if defaultLocale needs to be populated after
+    // hydration to prevent mismatched renders
+    if (detectedDomain) {
+      defaultLocale = detectedDomain.defaultLocale
+    }
+  }
+}
+
 type RegisterFn = (input: [string, () => void]) => void
 
 const pageLoader = new PageLoader(buildId, prefix, page)
@@ -92,7 +144,7 @@ if (window.__NEXT_P) {
 window.__NEXT_P = []
 ;(window.__NEXT_P as any).push = register
 
-const headManager = initHeadManager()
+const headManager = initHeadManager(initialHeadData)
 const appElement = document.getElementById('__next')
 
 let lastAppProps: AppProps
@@ -148,14 +200,6 @@ class Container extends React.Component<{
           shallow: !isFallback,
         }
       )
-    }
-
-    if (process.env.__NEXT_TEST_MODE) {
-      window.__NEXT_HYDRATED = true
-
-      if (window.__NEXT_HYDRATED_CB) {
-        window.__NEXT_HYDRATED_CB()
-      }
     }
   }
 
@@ -246,6 +290,9 @@ export default async (opts: { webpackHMR?: any } = {}) => {
       }
     }
   } catch (error) {
+    if (INITIAL_CSS_LOAD_ERROR in error) {
+      throw error
+    }
     // This catches errors like throwing in the top level of a module
     initialErr = error
   }
@@ -299,6 +346,9 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     isFallback: Boolean(isFallback),
     subscription: ({ Component, styleSheets, props, err }, App) =>
       render({ App, Component, styleSheets, props, err }),
+    locale,
+    locales,
+    defaultLocale,
   })
 
   // call init-client middleware
@@ -445,10 +495,6 @@ function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
     if (isInitialRender) {
       ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
       isInitialRender = false
-
-      if (onPerfEntry && ST) {
-        measureWebVitals(onPerfEntry)
-      }
     } else {
       ReactDOM.render(reactEl, domEl, markRenderComplete)
     }
@@ -717,5 +763,20 @@ function Root({
   // We use `useLayoutEffect` to guarantee the callback is executed
   // as soon as React flushes the update.
   React.useLayoutEffect(() => callback(), [callback])
+  if (process.env.__NEXT_TEST_MODE) {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    React.useEffect(() => {
+      window.__NEXT_HYDRATED = true
+
+      if (window.__NEXT_HYDRATED_CB) {
+        window.__NEXT_HYDRATED_CB()
+      }
+    }, [])
+  }
+  // We should ask to measure the Web Vitals after rendering completes so we
+  // don't cause any hydration delay:
+  React.useEffect(() => {
+    measureWebVitals(onPerfEntry)
+  }, [])
   return children as React.ReactElement
 }

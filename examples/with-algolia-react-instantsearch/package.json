@@ -1,5 +1,5 @@
 {
-  "name": "create-next-example-app",
+  "name": "with-algolia-react-instantsearch",
   "scripts": {
     "dev": "next",
     "build": "cross-env NODE_ENV=development next build",

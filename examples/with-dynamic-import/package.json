@@ -8,10 +8,10 @@
     "start": "next start"
   },
   "dependencies": {
+    "fuse.js": "6.4.1",
     "next": "latest",
     "react": "^16.13.1",
     "react-dom": "^16.13.1"
   },
-  "author": "",
   "license": "MIT"
 }

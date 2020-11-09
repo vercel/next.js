@@ -23,7 +23,23 @@ npx create-next-app --example with-firebase-hosting with-firebase-hosting-app
 yarn create next-app --example with-firebase-hosting with-firebase-hosting-app
 ```
 
-Update `.firebaserc`: adding your firebase project ID
+**Important:** Update `.firebaserc` and add your firebase project ID.
+
+To run Firebase locally for testing:
+
+```bash
+npm run serve
+# or
+yarn serve
+```
+
+To deploy it to the cloud with Firebase:
+
+```bash
+npm run deploy
+# or
+yarn deploy
+```
 
 ## Typescript
 

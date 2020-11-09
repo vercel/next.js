@@ -22,7 +22,7 @@ Build it with docker:
 # build
 docker build -t next-app .
 # or, use multi-stage builds to build a smaller docker image
-docker build -t next-app -f ./Dockerfile.multistage .
+docker build --target production -t next-app -f ./Dockerfile.multistage .
 ```
 
 Alternatively you can add these commands as scripts to your package.json and simply run

@@ -801,6 +801,26 @@ describe('Client Navigation', () => {
 
       await browser.close()
     })
+
+    it('should handle undefined in router.push', async () => {
+      const browser = await webdriver(context.appPort, '/nav/query-params')
+      await browser.elementByCss('#click-me').click()
+      const query = JSON.parse(
+        await browser.waitForElementByCss('#query-value').text()
+      )
+      expect(query).toEqual({
+        param1: '',
+        param2: '',
+        param3: '',
+        param4: '0',
+        param5: 'false',
+        param7: '',
+        param8: '',
+        param9: '',
+        param10: '',
+        param11: ['', '', '', '0', 'false', '', '', '', '', ''],
+      })
+    })
   })
 
   describe('with querystring relative urls', () => {
@@ -1217,6 +1237,27 @@ describe('Client Navigation', () => {
             .elementByCss('meta[name="description"]')
             .getAttribute('content')
         ).toBe('Head One')
+
+        await browser
+          .elementByCss('#to-head-3')
+          .click()
+          .waitForElementByCss('#head-3', 3000)
+        expect(
+          await browser
+            .elementByCss('meta[name="description"]')
+            .getAttribute('content')
+        ).toBe('Head Three')
+        expect(await browser.eval('document.title')).toBe('')
+
+        await browser
+          .elementByCss('#to-head-1')
+          .click()
+          .waitForElementByCss('#head-1', 3000)
+        expect(
+          await browser
+            .elementByCss('meta[name="description"]')
+            .getAttribute('content')
+        ).toBe('Head One')
       } finally {
         if (browser) {
           await browser.close()
@@ -1342,6 +1383,7 @@ describe('Client Navigation', () => {
 
   renderingSuite(
     (p, q) => renderViaHTTP(context.appPort, p, q),
-    (p, q) => fetchViaHTTP(context.appPort, p, q)
+    (p, q) => fetchViaHTTP(context.appPort, p, q),
+    context
   )
 })
