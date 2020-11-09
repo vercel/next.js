@@ -5,7 +5,6 @@
 import React from 'react'
 import { ParsedUrlQuery } from 'querystring'
 import { IncomingMessage, ServerResponse } from 'http'
-import { Redirect } from '../lib/load-custom-routes'
 
 import {
   NextPageContext,
@@ -37,6 +36,18 @@ declare module 'react' {
     global?: boolean
   }
 }
+
+export type Redirect =
+  | {
+      statusCode: 301 | 302 | 303 | 307 | 308
+      destination: string
+      basePath?: false
+    }
+  | {
+      permanent: boolean
+      destination: string
+      basePath?: false
+    }
 
 /**
  * `Page` type, use it as a guide to create `pages`.
