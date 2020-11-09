@@ -284,4 +284,13 @@ Reason: Circular references cannot be expressed in JSON (references: \`.k\`)."
     expect(isSerializableProps('/', 'test', { arr })).toBe(true)
     expect(isSerializableProps('/', 'test', { objWithArr })).toBe(true)
   })
+
+  it('allows identical object instances in an array deeply', () => {
+    const obj = { foo: 'bar' }
+    const arr = [obj, [obj]]
+    const objWithArr = { deep: { arr } }
+
+    expect(isSerializableProps('/', 'test', { arr })).toBe(true)
+    expect(isSerializableProps('/', 'test', { objWithArr })).toBe(true)
+  })
 })
