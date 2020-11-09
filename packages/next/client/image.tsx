@@ -10,10 +10,11 @@ const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
+  ['aliyun', aliyunLoader],
   ['default', defaultLoader],
 ])
 
-type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
+type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'aliyun' | 'default'
 
 const VALID_LAYOUT_VALUES = [
   'fill',
@@ -491,6 +492,21 @@ function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
     paramsString = params.join(',') + '/'
   }
   return `${root}${paramsString}${normalizeSrc(src)}`
+}
+
+function aliyunLoader({ root, src, width, quality }: LoaderProps): string {
+  // Demo: http://image-demo.oss-cn-hangzhou.aliyuncs.com/example.jpg?x-oss-process=image/resize,w_300/quality,q_90
+  const params = ['image']
+  if (width) {
+    params.push(`resice,w_${width}`)
+  }
+  if (quality) {
+    params.push(`quality,q_${quality}`)
+  }
+
+  const paramString =
+    params.length > 1 ? `?x-oss-process=${params.join('/')},` : ''
+  return `${root}${normalizeSrc(src)}${paramString}`
 }
 
 function defaultLoader({ root, src, width, quality }: LoaderProps): string {
