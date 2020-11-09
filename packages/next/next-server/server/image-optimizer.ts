@@ -2,7 +2,7 @@ import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join } from 'path'
 import { mediaType } from '@hapi/accept'
-import { createReadStream, promises } from 'fs'
+import { promises } from 'fs'
 import { createHash } from 'crypto'
 import Server from './next-server'
 import { getContentType, getExtension } from './serve-static'
@@ -10,6 +10,7 @@ import { fileExists } from '../../lib/file-exists'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
 import Stream from 'stream'
+import { sendEtagResponse } from './send-payload'
 
 let sharp: typeof import('sharp')
 //const AVIF = 'image/avif'
@@ -146,14 +147,16 @@ export async function imageOptimizer(
       const [filename, extension] = file.split('.')
       const expireAt = Number(filename)
       const contentType = getContentType(extension)
+      const fsPath = join(hashDir, file)
       if (now < expireAt) {
         if (contentType) {
           res.setHeader('Content-Type', contentType)
         }
-        createReadStream(join(hashDir, file)).pipe(res)
+        const buffer = await promises.readFile(fsPath)
+        sendResponse(req, res, contentType, buffer)
         return { finished: true }
       } else {
-        await promises.unlink(join(hashDir, file))
+        await promises.unlink(fsPath)
       }
     }
   }
@@ -223,8 +226,7 @@ export async function imageOptimizer(
     const animate =
       ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
     if (vector || animate) {
-      res.setHeader('Content-Type', upstreamType)
-      res.end(upstreamBuffer)
+      sendResponse(req, res, upstreamType, upstreamBuffer)
       return { finished: true }
     }
   }
@@ -248,10 +250,8 @@ export async function imageOptimizer(
       if (error.code === 'MODULE_NOT_FOUND') {
         error.message += '\n\nLearn more: https://err.sh/next.js/install-sharp'
         server.logError(error)
-        if (upstreamType) {
-          res.setHeader('Content-Type', upstreamType)
-        }
-        res.end(upstreamBuffer)
+        sendResponse(req, res, upstreamType, upstreamBuffer)
+        return { finished: true }
       }
       throw error
     }
@@ -283,17 +283,28 @@ export async function imageOptimizer(
     const extension = getExtension(contentType)
     const filename = join(hashDir, `${expireAt}.${extension}`)
     await promises.writeFile(filename, optimizedBuffer)
-    res.setHeader('Content-Type', contentType)
-    res.end(optimizedBuffer)
+    sendResponse(req, res, contentType, optimizedBuffer)
   } catch (error) {
-    server.logError(error)
-    if (upstreamType) {
-      res.setHeader('Content-Type', upstreamType)
-    }
-    res.end(upstreamBuffer)
+    sendResponse(req, res, upstreamType, upstreamBuffer)
   }
 
   return { finished: true }
+}
+
+function sendResponse(
+  req: IncomingMessage,
+  res: ServerResponse,
+  contentType: string | null,
+  buffer: Buffer
+) {
+  if (contentType) {
+    res.setHeader('Content-Type', contentType)
+  }
+  if (sendEtagResponse(req, res, buffer)) {
+    return
+  }
+  res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+  res.end(buffer)
 }
 
 function getSupportedMimeType(options: string[], accept = ''): string {

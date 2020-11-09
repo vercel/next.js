@@ -25,16 +25,8 @@ export function sendPayload(
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
-  const etag = generateEtags ? generateETag(payload) : undefined
-
-  if (fresh(req.headers, { etag })) {
-    res.statusCode = 304
-    res.end()
+  if (sendEtagResponse(req, res, payload, generateEtags)) {
     return
-  }
-
-  if (etag) {
-    res.setHeader('ETag', etag)
   }
 
   if (!res.getHeader('Content-Type')) {
@@ -71,4 +63,24 @@ export function sendPayload(
     }
   }
   res.end(req.method === 'HEAD' ? null : payload)
+}
+
+export function sendEtagResponse(
+  req: IncomingMessage,
+  res: ServerResponse,
+  body: string | Buffer,
+  generate = true
+): boolean {
+  const etag = generate ? generateETag(body) : undefined
+
+  if (fresh(req.headers, { etag })) {
+    res.statusCode = 304
+    res.end()
+    return true
+  }
+
+  if (etag) {
+    res.setHeader('ETag', etag)
+  }
+  return false
 }
