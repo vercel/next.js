@@ -145,17 +145,18 @@ export async function imageOptimizer(
     const files = await promises.readdir(hashDir)
     for (let file of files) {
       const [prefix, etag, extension] = file.split('.')
-      const expireAt = Number(prefix)
-      const contentType = getContentType(extension)
       if (sendEtagResponse(req, res, etag)) {
         return { finished: true }
       }
+      const expireAt = Number(prefix)
+      const contentType = getContentType(extension)
       const fsPath = join(hashDir, file)
       if (now < expireAt) {
+        res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+        res.setHeader('Etag', etag)
         if (contentType) {
           res.setHeader('Content-Type', contentType)
         }
-        res.setHeader('Etag', etag)
         createReadStream(fsPath).pipe(res)
         return { finished: true }
       } else {
@@ -301,14 +302,14 @@ function sendResponse(
   contentType: string | null,
   buffer: Buffer
 ) {
-  if (contentType) {
-    res.setHeader('Content-Type', contentType)
-  }
   const etag = getHash([buffer])
+  res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
   if (sendEtagResponse(req, res, etag)) {
     return
   }
-  res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+  if (contentType) {
+    res.setHeader('Content-Type', contentType)
+  }
   res.end(buffer)
 }
 
