@@ -1,10 +1,8 @@
-import React, { useState } from 'react'
 import { CSSTransition } from 'react-transition-group'
 import { gsap } from 'gsap'
 import Home from '../components/Home'
 
 function App() {
-  /*credit to https://github.com/wrongakram*/
   const onEnter = (node) => {
     gsap.from(
       [node.children[0].firstElementChild, node.children[0].lastElementChild],
@@ -17,10 +15,9 @@ function App() {
         stagger: {
           amount: 0.6,
         },
-      },
+      }
     )
   }
-
   const onExit = (node) => {
     gsap.to(
       [node.children[0].firstElementChild, node.children[0].lastElementChild],
@@ -31,7 +28,7 @@ function App() {
         stagger: {
           amount: 0.2,
         },
-      },
+      }
     )
   }
 
