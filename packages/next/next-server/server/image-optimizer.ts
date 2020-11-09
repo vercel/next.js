@@ -11,7 +11,6 @@ import { fileExists } from '../../lib/file-exists'
 import isAnimated from 'next/dist/compiled/is-animated'
 import Stream from 'stream'
 import { sendEtagResponse } from './send-payload'
-import fresh from 'next/dist/compiled/fresh'
 
 let sharp: typeof import('sharp')
 //const AVIF = 'image/avif'
@@ -148,12 +147,7 @@ export async function imageOptimizer(
       const [prefix, etag, extension] = file.split('.')
       const expireAt = Number(prefix)
       const contentType = getContentType(extension)
-      if (fresh(req.headers, { etag })) {
-        if (contentType) {
-          res.setHeader('Content-Type', contentType)
-        }
-        res.statusCode = 304
-        res.end()
+      if (sendEtagResponse(req, res, etag)) {
         return { finished: true }
       }
       const fsPath = join(hashDir, file)
@@ -293,14 +287,7 @@ export async function imageOptimizer(
     const etag = getHash([optimizedBuffer])
     const filename = join(hashDir, `${expireAt}.${etag}.${extension}`)
     await promises.writeFile(filename, optimizedBuffer)
-    if (fresh(req.headers, { etag })) {
-      res.statusCode = 304
-      res.end()
-      return { finished: true }
-    }
-    res.setHeader('ETag', etag)
-    res.setHeader('Content-Type', contentType)
-    res.end(optimizedBuffer)
+    sendResponse(req, res, contentType, optimizedBuffer)
   } catch (error) {
     sendResponse(req, res, upstreamType, upstreamBuffer)
   }
@@ -317,7 +304,8 @@ function sendResponse(
   if (contentType) {
     res.setHeader('Content-Type', contentType)
   }
-  if (sendEtagResponse(req, res, buffer)) {
+  const etag = getHash([buffer])
+  if (sendEtagResponse(req, res, etag)) {
     return
   }
   res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')

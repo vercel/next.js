@@ -9,6 +9,7 @@ import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
 import { Params } from './router'
 import { sendEtagResponse } from './send-payload'
+import generateETag from 'etag'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -243,8 +244,8 @@ export function sendData(
 
   const isJSONLike = ['object', 'number', 'boolean'].includes(typeof body)
   const stringifiedBody = isJSONLike ? JSON.stringify(body) : body
-
-  if (sendEtagResponse(req, res, stringifiedBody)) {
+  const etag = generateETag(stringifiedBody)
+  if (sendEtagResponse(req, res, etag)) {
     return
   }
 

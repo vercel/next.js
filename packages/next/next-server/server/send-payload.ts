@@ -25,7 +25,8 @@ export function sendPayload(
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
-  if (sendEtagResponse(req, res, payload, generateEtags)) {
+  const etag = generateEtags ? generateETag(payload) : undefined
+  if (sendEtagResponse(req, res, etag)) {
     return
   }
 
@@ -68,11 +69,8 @@ export function sendPayload(
 export function sendEtagResponse(
   req: IncomingMessage,
   res: ServerResponse,
-  body: string | Buffer,
-  generate = true
+  etag: string | undefined
 ): boolean {
-  const etag = generate ? generateETag(body) : undefined
-
   if (fresh(req.headers, { etag })) {
     res.statusCode = 304
     res.end()
