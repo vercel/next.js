@@ -33,7 +33,7 @@ stages:
               yarn install --frozen-lockfile --check-files
             displayName: 'Install dependencies'
           - script: |
-              node run-tests.js --timings --write-timings --azure -g 1/4
+              node run-tests.js --timings --write-timings --azure -g 1/1
             displayName: 'Fetch test timing data'
 
   - stage: Test
@@ -85,7 +85,7 @@ stages:
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
           - script: |
-              node run-tests.js -g $(group) --timings --azure --type unit
+              node run-tests.js -g 1/1 --timings --azure --type unit
             displayName: 'Run tests'
 
       - job: test_chrome_integration
