@@ -15,6 +15,7 @@ jobs:
       - uses: actions/checkout@v2
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
       - run: yarn install --frozen-lockfile --check-files
+      - run: node run-tests.js --timings --write-timings -g 1/4
       - uses: actions/cache@v2
         id: cache-build
         with:
