@@ -66,7 +66,8 @@ module.exports = (
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
   const isModern = api.caller((caller: any) => !!caller && caller.isModern)
   const hasJsxRuntime = Boolean(
-    api.caller((caller: any) => !!caller && caller.hasJsxRuntime)
+    api.caller((caller: any) => !!caller && caller.hasJsxRuntime) ||
+      options['preset-react']?.runtime === 'automatic'
   )
 
   const isLaxModern =
