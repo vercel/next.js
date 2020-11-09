@@ -25,12 +25,12 @@ yarn create next-app --example with-electron-typescript with-electron-typescript
 Available commands:
 
 ```bash
-"yarn build-renderer": build and transpile Next.js layer
-"yarn build-electron": transpile electron layer
-"yarn build": build both layers
-"yarn start": start dev version
-"yarn dist": create production elctron build
-"yarn type-check": check TypeScript in project
+"build-renderer": build and transpile Next.js layer
+"build-electron": transpile electron layer
+"build": build both layers
+"dev": start dev version
+"dist": create production elctron build
+"type-check": check TypeScript in project
 ```
 
 ## Notes
