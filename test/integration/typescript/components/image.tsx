@@ -3,13 +3,13 @@ import Image, { ImageProps } from 'next/image'
 
 export default () => {
   const props: ImageProps = {
-    src: '',
+    src: '/noop.jpg',
     width: 100,
     height: 100,
   }
 
   const filledProps: ImageProps = {
-    src: '',
+    src: '/noop.jpg',
     layout: 'fill',
   }
 
