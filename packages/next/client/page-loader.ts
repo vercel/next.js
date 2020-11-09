@@ -1,16 +1,20 @@
 import { ComponentType } from 'react'
 import type { ClientSsgManifest } from '../build'
 import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
-import mitt from '../next-server/lib/mitt'
 import type { MittEmitter } from '../next-server/lib/mitt'
-import { addBasePath, markLoadingError } from '../next-server/lib/router/router'
-import escapePathDelimiters from '../next-server/lib/router/utils/escape-path-delimiters'
+import mitt from '../next-server/lib/mitt'
+import {
+  addBasePath,
+  addLocale,
+  interpolateAs,
+  markLoadingError,
+} from '../next-server/lib/router/router'
 import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../next-server/lib/router/utils/parse-relative-url'
-import { searchParamsToUrlQuery } from '../next-server/lib/router/utils/querystring'
-import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
-import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
+
+export const looseToArray = <T extends {}>(input: any): T[] =>
+  [].slice.call(input)
 
 function hasRel(rel: string, link?: HTMLLinkElement) {
   try {
@@ -23,6 +27,8 @@ function pageLoadError(route: string) {
   return markLoadingError(new Error(`Error loading ${route}`))
 }
 
+export const INITIAL_CSS_LOAD_ERROR = Symbol('INITIAL_CSS_LOAD_ERROR')
+
 const relPrefetch =
   hasRel('preload') && !hasRel('prefetch')
     ? // https://caniuse.com/#feat=link-rel-preload
@@ -32,15 +38,7 @@ const relPrefetch =
       // IE 11, Edge 12+, nearly all evergreen
       'prefetch'
 
-const relPreload = hasRel('preload') ? 'preload' : relPrefetch
-
 const hasNoModule = 'noModule' in document.createElement('script')
-
-const requestIdleCallback: (fn: () => void) => void =
-  (window as any).requestIdleCallback ||
-  function (cb: () => void) {
-    return setTimeout(cb, 1)
-  }
 
 function normalizeRoute(route: string) {
   if (route[0] !== '/') {
@@ -51,33 +49,27 @@ function normalizeRoute(route: string) {
   return route.replace(/\/$/, '')
 }
 
-export function createLink(
+function appendLink(
   href: string,
   rel: string,
   as?: string,
   link?: HTMLLinkElement
-): [HTMLLinkElement, Promise<any>] {
-  link = document.createElement('link')
-  return [
-    link,
-    new Promise((res, rej) => {
-      // The order of property assignment here is intentional:
-      if (as) link!.as = as
-      link!.rel = rel
-      link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
-      link!.onload = res
-      link!.onerror = rej
+): Promise<any> {
+  return new Promise((res, rej) => {
+    link = document.createElement('link')
 
-      // `href` should always be last:
-      link!.href = href
-    }),
-  ]
-}
+    // The order of property assignment here is intentional:
+    if (as) link!.as = as
+    link!.rel = rel
+    link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
+    link!.onload = res
+    link!.onerror = rej
 
-function appendLink(href: string, rel: string, as?: string): Promise<any> {
-  const [link, res] = createLink(href, rel, as)
-  document.head.appendChild(link)
-  return res
+    // `href` should always be last:
+    link!.href = href
+
+    document.head.appendChild(link)
+  })
 }
 
 function loadScript(url: string): Promise<any> {
@@ -94,38 +86,34 @@ function loadScript(url: string): Promise<any> {
   })
 }
 
+export type StyleSheetTuple = { href: string; text: string }
 export type GoodPageCache = {
   page: ComponentType
   mod: any
-  styleSheets: string[]
+  styleSheets: StyleSheetTuple[]
 }
 export type PageCacheEntry = { error: any } | GoodPageCache
 
 export default class PageLoader {
   private initialPage: string
-  private initialStyleSheets: string[]
   private buildId: string
   private assetPrefix: string
   private pageCache: Record<string, PageCacheEntry>
+  private cssc: Record<string, Promise<string>>
   private pageRegisterEvents: MittEmitter
   private loadingRoutes: Record<string, boolean>
   private promisedBuildManifest?: Promise<ClientBuildManifest>
   private promisedSsgManifest?: Promise<ClientSsgManifest>
   private promisedDevPagesManifest?: Promise<any>
 
-  constructor(
-    buildId: string,
-    assetPrefix: string,
-    initialPage: string,
-    initialStyleSheets: string[]
-  ) {
+  constructor(buildId: string, assetPrefix: string, initialPage: string) {
     this.initialPage = initialPage
-    this.initialStyleSheets = initialStyleSheets
 
     this.buildId = buildId
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
+    this.cssc = {}
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {
       // By default these 2 pages are being loaded in the initial html
@@ -186,6 +174,16 @@ export default class PageLoader {
     }
   }
 
+  private fetchStyleSheet(href: string): Promise<StyleSheetTuple> {
+    if (!this.cssc[href]) {
+      this.cssc[href] = fetch(href).then((res) => {
+        if (!res.ok) throw pageLoadError(href)
+        return res.text()
+      })
+    }
+    return this.cssc[href].then((text) => ({ href, text }))
+  }
+
   // Returns a promise for the dependencies for a particular route
   private getDependencies(route: string): Promise<string[]> {
     return this.promisedBuildManifest!.then((m) => {
@@ -199,66 +197,27 @@ export default class PageLoader {
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
-  getDataHref(href: string, asPath: string, ssg: boolean) {
-    const { pathname: hrefPathname, searchParams, search } = parseRelativeUrl(
-      href
-    )
-    const query = searchParamsToUrlQuery(searchParams)
+  getDataHref(
+    href: string,
+    asPath: string,
+    ssg: boolean,
+    locale?: string | false
+  ) {
+    const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
     const { pathname: asPathname } = parseRelativeUrl(asPath)
     const route = normalizeRoute(hrefPathname)
 
     const getHrefForSlug = (path: string) => {
-      const dataRoute = getAssetPathFromRoute(path, '.json')
+      const dataRoute = addLocale(getAssetPathFromRoute(path, '.json'), locale)
       return addBasePath(
         `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`
       )
     }
 
-    let isDynamic: boolean = isDynamicRoute(route),
-      interpolatedRoute: string | undefined
-    if (isDynamic) {
-      const dynamicRegex = getRouteRegex(route)
-      const dynamicGroups = dynamicRegex.groups
-      const dynamicMatches =
-        // Try to match the dynamic route against the asPath
-        getRouteMatcher(dynamicRegex)(asPathname) ||
-        // Fall back to reading the values from the href
-        // TODO: should this take priority; also need to change in the router.
-        query
-
-      interpolatedRoute = route
-      if (
-        !Object.keys(dynamicGroups).every((param) => {
-          let value = dynamicMatches[param] || ''
-          const { repeat, optional } = dynamicGroups[param]
-
-          // support single-level catch-all
-          // TODO: more robust handling for user-error (passing `/`)
-          let replaced = `[${repeat ? '...' : ''}${param}]`
-          if (optional) {
-            replaced = `${!value ? '/' : ''}[${replaced}]`
-          }
-          if (repeat && !Array.isArray(value)) value = [value]
-
-          return (
-            (optional || param in dynamicMatches) &&
-            // Interpolate group into data URL if present
-            (interpolatedRoute =
-              interpolatedRoute!.replace(
-                replaced,
-                repeat
-                  ? (value as string[]).map(escapePathDelimiters).join('/')
-                  : escapePathDelimiters(value as string)
-              ) || '/')
-          )
-        })
-      ) {
-        interpolatedRoute = '' // did not satisfy all requirements
-
-        // n.b. We ignore this error because we handle warning for this case in
-        // development in the `<Link>` component directly.
-      }
-    }
+    const isDynamic: boolean = isDynamicRoute(route)
+    const interpolatedRoute = isDynamic
+      ? interpolateAs(hrefPathname, asPathname, query).result
+      : ''
 
     return isDynamic
       ? interpolatedRoute && getHrefForSlug(interpolatedRoute)
@@ -267,26 +226,12 @@ export default class PageLoader {
 
   /**
    * @param {string} href the route href (file-system path)
-   * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
-  prefetchData(href: string, asPath: string) {
+  _isSsg(href: string): Promise<boolean> {
     const { pathname: hrefPathname } = parseRelativeUrl(href)
     const route = normalizeRoute(hrefPathname)
-    return this.promisedSsgManifest!.then(
-      (s: ClientSsgManifest, _dataHref?: string) => {
-        requestIdleCallback(() => {
-          // Check if the route requires a data file
-          s.has(route) &&
-            // Try to generate data href, noop when falsy
-            (_dataHref = this.getDataHref(href, asPath, true)) &&
-            // noop when data has already been prefetched (dedupe)
-            !document.querySelector(
-              `link[rel="${relPrefetch}"][href^="${_dataHref}"]`
-            ) &&
-            // Inject the `<link rel=prefetch>` tag for above computed `href`.
-            appendLink(_dataHref, relPrefetch, 'fetch')
-        })
-      }
+    return this.promisedSsgManifest!.then((s: ClientSsgManifest) =>
+      s.has(route)
     )
   }
 
@@ -332,25 +277,8 @@ export default class PageLoader {
                 ) {
                   pending.push(loadScript(d))
                 }
-
-                // Prefetch CSS as it'll be needed when the page JavaScript
-                // evaluates. This will only trigger if explicit prefetching is
-                // disabled for a <Link>... prefetching in this case is desirable
-                // because we *know* it's going to be used very soon (page was
-                // loaded).
-                if (
-                  d.endsWith('.css') &&
-                  !document.querySelector(
-                    `link[rel="${relPreload}"][href^="${d}"]`
-                  )
-                ) {
-                  // This is not pushed into `pending` because we don't need to
-                  // wait for these to resolve. To prevent an unhandled
-                  // rejection, we swallow the error which is handled later in
-                  // the rendering cycle (this is just a preload optimization).
-                  appendLink(d, relPreload, 'style').catch(() => {
-                    /* ignore preload error */
-                  })
+                if (d.endsWith('.css')) {
+                  pending.push(this.fetchStyleSheet(d))
                 }
               })
               return Promise.all(pending)
@@ -381,9 +309,9 @@ export default class PageLoader {
 
   // This method if called by the route code.
   registerPage(route: string, regFn: () => any) {
-    const register = (styleSheets: string[]) => {
+    const register = async (styleSheets: StyleSheetTuple[]) => {
       try {
-        const mod = regFn()
+        const mod = await regFn()
         const pageData: PageCacheEntry = {
           page: mod.default || mod,
           mod,
@@ -419,19 +347,38 @@ export default class PageLoader {
       }
     }
 
-    const promisedDeps: Promise<string[]> =
+    const isInitialLoad = route === this.initialPage
+    const promisedDeps: Promise<StyleSheetTuple[]> =
       // Shared styles will already be on the page:
       route === '/_app' ||
       // We use `style-loader` in development:
       process.env.NODE_ENV !== 'production'
         ? Promise.resolve([])
-        : route === this.initialPage
-        ? Promise.resolve(this.initialStyleSheets)
         : // Tests that this does not block hydration:
           // test/integration/css-fixtures/hydrate-without-deps/
-          this.getDependencies(route)
+          (isInitialLoad
+            ? Promise.resolve(
+                looseToArray<HTMLLinkElement>(
+                  document.querySelectorAll('link[data-n-p]')
+                ).map((e) => e.getAttribute('href')!)
+              )
+            : this.getDependencies(route).then((deps) =>
+                deps.filter((d) => d.endsWith('.css'))
+              )
+          ).then((cssFiles) =>
+            // These files should've already been fetched by now, so this
+            // should resolve instantly.
+            Promise.all(cssFiles.map((d) => this.fetchStyleSheet(d))).catch(
+              (err) => {
+                if (isInitialLoad) {
+                  Object.defineProperty(err, INITIAL_CSS_LOAD_ERROR, {})
+                }
+                throw err
+              }
+            )
+          )
     promisedDeps.then(
-      (deps) => register(deps.filter((d) => d.endsWith('.css'))),
+      (deps) => register(deps),
       (error) => {
         this.pageCache[route] = { error }
         this.pageRegisterEvents.emit(route, { error })
@@ -470,27 +417,22 @@ export default class PageLoader {
       }
     }
 
-    return Promise.all(
-      document.querySelector(`link[rel="${relPrefetch}"][href^="${url}"]`)
-        ? []
-        : [
-            url &&
-              appendLink(
-                url,
-                relPrefetch,
-                url.endsWith('.css') ? 'style' : 'script'
-              ),
-            process.env.NODE_ENV === 'production' &&
-              !isDependency &&
-              this.getDependencies(route).then((urls) =>
-                Promise.all(
-                  urls.map((dependencyUrl) =>
-                    this.prefetch(dependencyUrl, true)
-                  )
-                )
-              ),
-          ]
-    ).then(
+    return Promise.all([
+      url
+        ? url.endsWith('.css')
+          ? this.fetchStyleSheet(url)
+          : !document.querySelector(
+              `link[rel="${relPrefetch}"][href^="${url}"]`
+            ) && appendLink(url, relPrefetch, 'script')
+        : 0,
+      process.env.NODE_ENV === 'production' &&
+        !isDependency &&
+        this.getDependencies(route).then((urls) =>
+          Promise.all(
+            urls.map((dependencyUrl) => this.prefetch(dependencyUrl, true))
+          )
+        ),
+    ]).then(
       // do not return any data
       () => {},
       // swallow prefetch errors

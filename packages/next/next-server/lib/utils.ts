@@ -5,7 +5,7 @@ import { UrlObject } from 'url'
 import { formatUrl } from './router/utils/format-url'
 import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
-import { Env } from '../../lib/load-env-config'
+import { Env } from '@next/env'
 import { BuildManifest } from '../server/get-page-files'
 
 /**
@@ -81,6 +81,8 @@ export type BaseContext = {
   [k: string]: any
 }
 
+export type HeadEntry = [string, { [key: string]: any }]
+
 export type NEXT_DATA = {
   props: Record<string, any>
   page: string
@@ -98,6 +100,10 @@ export type NEXT_DATA = {
   customServer?: boolean
   gip?: boolean
   appGip?: boolean
+  head: HeadEntry[]
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
 }
 
 /**
@@ -166,6 +172,12 @@ export type DocumentInitialProps = RenderPageResult & {
 export type DocumentProps = DocumentInitialProps & {
   __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
+  docComponentsRendered: {
+    Html?: boolean
+    Main?: boolean
+    Head?: boolean
+    NextScript?: boolean
+  }
   buildManifest: BuildManifest
   ampPath: string
   inAmpMode: boolean
@@ -177,6 +189,7 @@ export type DocumentProps = DocumentInitialProps & {
   headTags: any[]
   unstable_runtimeJS?: false
   devOnlyCacheBusterQueryString: string
+  locale?: string
 }
 
 /**

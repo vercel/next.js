@@ -25,11 +25,10 @@ Once you have access to [the environment variables you'll need](#step-7-set-up-e
 - [ButterCMS](/examples/cms-buttercms)
 - [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
+- [Kontent](/examples/cms-kontent)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use
-
-### Using `create-next-app`
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
@@ -37,15 +36,6 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 npx create-next-app --example cms-strapi cms-strapi-app
 # or
 yarn create next-app --example cms-strapi cms-strapi-app
-```
-
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-strapi
-cd cms-strapi
 ```
 
 ## Configuration
@@ -104,7 +94,7 @@ Next, add these fields (you don't have to modify the settings unless specified):
 
 ### Step 5. Set permissions
 
-From **Roles & Permissions**, edit the **Public** role.
+From **Settings, Users & Permissions, Roles**, edit the **Public** role.
 
 Then select: `count`, `find`, and `findone` permissions for both **Author** and **Post**. Click **Save**.
 

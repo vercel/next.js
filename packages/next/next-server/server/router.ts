@@ -1,7 +1,7 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { UrlWithParsedQuery } from 'url'
 
-import pathMatch from './lib/path-match'
+import pathMatch from '../lib/router/utils/path-match'
 import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
 
 export const route = pathMatch()
@@ -175,6 +175,17 @@ export default class Router {
 
       if (!keepBasePath) {
         currentPathname = replaceBasePath(this.basePath, currentPathname!)
+      }
+
+      // re-add locale for custom-routes to allow matching against
+      if (
+        isCustomRoute &&
+        (req as any).__nextStrippedLocale &&
+        parsedUrl.query.__nextLocale
+      ) {
+        currentPathname = `/${parsedUrl.query.__nextLocale}${
+          currentPathname === '/' ? '' : currentPathname
+        }`
       }
 
       const newParams = testRoute.match(currentPathname)

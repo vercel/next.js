@@ -6,7 +6,8 @@ import sources from 'webpack-sources'
 import CssDependency from './CssDependency'
 import CssModule from './CssModule'
 
-const { ConcatSource, SourceMapSource, OriginalSource } = sources
+const { ConcatSource, SourceMapSource, OriginalSource } =
+  webpack.sources || sources
 const {
   Template,
   util: { createHash },

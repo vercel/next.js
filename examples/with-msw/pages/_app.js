@@ -1,4 +1,6 @@
-if (process.env.NEXT_PUBLIC_API_MOCKING === 'enabled') {
+// Enable API mocking in all environments except production.
+// This is recommended for real-world apps.
+if (process.env.NODE_ENV !== 'production') {
   require('../mocks')
 }
 

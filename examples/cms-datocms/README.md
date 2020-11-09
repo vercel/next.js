@@ -19,6 +19,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [ButterCMS](/examples/cms-buttercms)
 - [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
+- [Kontent](/examples/cms-kontent)
 - [Blog Starter](/examples/blog-starter)
 
 ## Deploy your own
@@ -29,23 +30,12 @@ Once you have access to [the environment variables you'll need](#step-5-set-up-e
 
 ## How to use
 
-### Using `create-next-app`
-
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-datocms cms-datocms-app
 # or
 yarn create next-app --example cms-datocms cms-datocms-app
-```
-
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/cms-datocms
-cd cms-datocms
 ```
 
 ## Configuration

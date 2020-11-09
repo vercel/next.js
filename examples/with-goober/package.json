@@ -8,10 +8,10 @@
     "start": "next start"
   },
   "dependencies": {
+    "goober": "^2.0.2",
+    "goober-autoprefixer": "^1.2.0",
     "next": "latest",
     "react": "^16.13.1",
-    "react-dom": "^16.13.1",
-    "goober": "^2.0.2",
-    "goober-autoprefixer": "^1.2.0"
+    "react-dom": "^16.13.1"
   }
 }
