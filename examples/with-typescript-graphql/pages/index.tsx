@@ -40,7 +40,7 @@ const Index = () => {
 
   return (
     <div>
-      You're signed in as {viewer.name} and you're {viewer.status} go to the{' '}
+      You're signed in as {viewer.name} and you're {viewer.status}. Go to the{' '}
       <Link href="/about">
         <a>about</a>
       </Link>{' '}
