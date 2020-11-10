@@ -134,7 +134,8 @@ if (process.env.__NEXT_I18N_SUPPORT) {
 type RegisterFn = (input: [string, () => void]) => void
 
 const pageLoader = new PageLoader(buildId, prefix)
-const register: RegisterFn = ([r, f]) => pageLoader.registerPage(r, f)
+const register: RegisterFn = ([r, f]) =>
+  pageLoader.routeLoader.onEntrypoint(r, f)
 if (window.__NEXT_P) {
   // Defer page registration for another tick. This will increase the overall
   // latency in hydrating the page, but reduce the total blocking time.

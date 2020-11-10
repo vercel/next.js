@@ -159,11 +159,6 @@ export default class PageLoader {
     throw err
   }
 
-  // This method if called by the route code.
-  registerPage(route: string, regFn: () => any) {
-    this.routeLoader.onEntrypoint(route, regFn)
-  }
-
   prefetch(): Promise<void> {
     // TODO: reimplement
     return Promise.resolve()
