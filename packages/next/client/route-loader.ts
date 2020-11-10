@@ -22,10 +22,6 @@ export interface LoadedEntrypointSuccess {
 export interface LoadedEntrypointFailure {
   error: unknown
 }
-export type RouteEntrypointFuture = {
-  resolve: (entrypoint: RouteEntrypoint) => void
-  future: Promise<RouteEntrypoint>
-}
 export type RouteEntrypoint = LoadedEntrypointSuccess | LoadedEntrypointFailure
 
 export interface RouteStyleSheet {
@@ -40,6 +36,33 @@ export interface LoadedRouteFailure {
   error: unknown
 }
 export type RouteLoaderEntry = LoadedRouteSuccess | LoadedRouteFailure
+
+export type Future<V> = {
+  resolve: (entrypoint: V) => void
+  future: Promise<V>
+}
+function withFuture<T>(
+  key: string,
+  map: Map<string, Future<T> | T>,
+  generator?: () => Promise<T>
+): Promise<T> {
+  let entry: Future<T> | T | undefined = map.get(key)
+  if (entry) {
+    if ('future' in entry) {
+      return entry.future
+    }
+    return Promise.resolve(entry)
+  }
+  let resolver: (entrypoint: T) => void
+  const prom = new Promise<T>((resolve) => {
+    resolver = resolve
+  })
+  map.set(key, (entry = { resolve: resolver!, future: prom }))
+  return generator
+    ? // eslint-disable-next-line no-sequences
+      generator().then((value) => (resolver(value), value))
+    : prom
+}
 
 export interface RouteLoader {
   whenEntrypoint(route: string): Promise<RouteEntrypoint>
@@ -166,10 +189,14 @@ function getFilesForRoute(
 function createRouteLoader(assetPrefix: string): RouteLoader {
   const entrypoints: Map<
     string,
-    RouteEntrypointFuture | RouteEntrypoint
+    Future<RouteEntrypoint> | RouteEntrypoint
   > = new Map()
   const loadedScripts: Map<string, Promise<unknown>> = new Map()
   const styleSheets: Map<string, Promise<RouteStyleSheet>> = new Map()
+  const routes: Map<
+    string,
+    Future<RouteLoaderEntry> | RouteLoaderEntry
+  > = new Map()
 
   function maybeExecuteScript(src: string): Promise<unknown> {
     let prom = loadedScripts.get(src)
@@ -210,23 +237,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
 
   return {
     whenEntrypoint(route: string) {
-      let entry:
-        | RouteEntrypointFuture
-        | RouteEntrypoint
-        | undefined = entrypoints.get(route)
-      if (entry) {
-        if ('future' in entry) {
-          return entry.future
-        }
-        return Promise.resolve(entry)
-      }
-
-      let resolver: (entrypoint: RouteEntrypoint) => void
-      const prom = new Promise<RouteEntrypoint>((resolve) => {
-        resolver = resolve
-      })
-      entrypoints.set(route, (entry = { resolve: resolver!, future: prom }))
-      return prom
+      return withFuture(route, entrypoints)
     },
     async onEntrypoint(route, execute) {
       let input: RouteEntrypoint
@@ -244,31 +255,33 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
       entrypoints.set(route, input)
       if (old && 'resolve' in old) old.resolve(input)
     },
-    async loadRoute(route) {
-      try {
-        const { scripts, css } = await getFilesForRoute(assetPrefix, route)
-        const [, styles] = await Promise.all([
-          entrypoints.has(route)
-            ? []
-            : Promise.all(scripts.map(maybeExecuteScript)),
-          Promise.all(css.map(fetchStyleSheet)),
-        ] as const)
+    loadRoute(route) {
+      return withFuture<RouteLoaderEntry>(route, routes, async () => {
+        try {
+          const { scripts, css } = await getFilesForRoute(assetPrefix, route)
+          const [, styles] = await Promise.all([
+            entrypoints.has(route)
+              ? []
+              : Promise.all(scripts.map(maybeExecuteScript)),
+            Promise.all(css.map(fetchStyleSheet)),
+          ] as const)
 
-        // The await here is intentional:
-        const entrypoint = await Promise.race([
-          this.whenEntrypoint(route),
-          idleTimeout<RouteLoaderEntry>(
-            MS_MAX_IDLE_DELAY,
-            markAssetError(
-              new Error(`Route did not complete loading: ${route}`)
-            )
-          ),
-        ])
-        const res: RouteLoaderEntry = { ...entrypoint, styles }
-        return 'error' in entrypoint ? entrypoint : res
-      } catch (err) {
-        return { error: err }
-      }
+          // The await here is intentional:
+          const entrypoint = await Promise.race([
+            this.whenEntrypoint(route),
+            idleTimeout<RouteLoaderEntry>(
+              MS_MAX_IDLE_DELAY,
+              markAssetError(
+                new Error(`Route did not complete loading: ${route}`)
+              )
+            ),
+          ])
+          const res: RouteLoaderEntry = { ...entrypoint, styles }
+          return 'error' in entrypoint ? entrypoint : res
+        } catch (err) {
+          return { error: err }
+        }
+      })
     },
   }
 }
