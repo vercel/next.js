@@ -1,11 +1,10 @@
-import styles from '../styles.module.css'
 import Link from 'next/link'
 
-const Code = (p) => <code className={styles.inlineCode} {...p} />
+const Code = (p) => <code {...p} />
 
 const Index = () => (
-  <div className={styles.container}>
-    <div className={styles.card}>
+  <div>
+    <div>
       <h1>Image Component with Next.js</h1>
       <p>
         The images below use the{' '}
@@ -19,7 +18,7 @@ const Index = () => (
         scrolled into view.
       </p>
       <p>Try scolling down to try it out!</p>
-      <hr className={styles.hr} />
+      <hr />
       <p>
         The following is an example of a reference to an interal image from the{' '}
         <Code>public</Code> directory.
@@ -29,7 +28,7 @@ const Index = () => (
         different sized image is loaded.
       </p>
       <img alt="Vercel logo" src="/vercel.png" width="1000" height="1000" />
-      <hr className={styles.hr} />
+      <hr />
       <p>
         The following is an example of a reference to an external image at{' '}
         <Code>assets.vercel.com</Code>.
@@ -44,7 +43,7 @@ const Index = () => (
         width="1200"
         height="400"
       />
-      <hr className={styles.hr} />
+      <hr />
       <h2>Layouts</h2>
       <p>
         The following pages demonstrate possible <Code>layout</Code> property
@@ -82,7 +81,7 @@ const Index = () => (
           </Link>
         </li>
       </ul>
-      <hr className={styles.hr} />
+      <hr />
       Checkout the documentation for{' '}
       <a href="https://nextjs.org/docs/basic-features/image-optimization">
         Image Optimization
