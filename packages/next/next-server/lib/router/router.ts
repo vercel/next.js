@@ -1006,13 +1006,17 @@ export default class Router implements BaseRouter {
     shallow: boolean = false
   ): Promise<PrivateRouteInfo> {
     try {
-      const existingRouteInfo = this.components[route]
+      const existingRouteInfo: PrivateRouteInfo | undefined = this.components[
+        route
+      ]
       if (shallow && existingRouteInfo && this.route === route) {
         return existingRouteInfo
       }
 
       const cachedRouteInfo: CompletePrivateRouteInfo | undefined =
-        'initial' in existingRouteInfo ? undefined : existingRouteInfo
+        existingRouteInfo && 'initial' in existingRouteInfo
+          ? undefined
+          : existingRouteInfo
       const routeInfo: CompletePrivateRouteInfo = cachedRouteInfo
         ? cachedRouteInfo
         : await this.fetchComponent(route).then((res) => ({
