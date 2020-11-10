@@ -21,11 +21,12 @@ export default function Page(props) {
   )
 }
 
-export const getServerSideProps = ({ locale, locales }) => {
+export const getServerSideProps = ({ locale, locales, defaultLocale }) => {
   return {
     props: {
       locale,
       locales,
+      defaultLocale,
     },
   }
 }

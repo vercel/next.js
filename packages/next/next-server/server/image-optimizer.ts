@@ -10,6 +10,7 @@ import { fileExists } from '../../lib/file-exists'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
 import Stream from 'stream'
+import { sendEtagResponse } from './send-payload'
 
 let sharp: typeof import('sharp')
 //const AVIF = 'image/avif'
@@ -17,9 +18,19 @@ const WEBP = 'image/webp'
 const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
-const MIME_TYPES = [/* AVIF, */ WEBP, PNG, JPEG]
-const CACHE_VERSION = 1
+const SVG = 'image/svg+xml'
+const CACHE_VERSION = 2
+const MODERN_TYPES = [/* AVIF, */ WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
+const VECTOR_TYPES = [SVG]
+
+type ImageData = {
+  deviceSizes: number[]
+  imageSizes: number[]
+  loader: string
+  path: string
+  domains?: string[]
+}
 
 export async function imageOptimizer(
   server: Server,
@@ -28,10 +39,18 @@ export async function imageOptimizer(
   parsedUrl: UrlWithParsedQuery
 ) {
   const { nextConfig, distDir } = server
-  const { sizes = [], domains = [] } = nextConfig?.images || {}
+  const imageData: ImageData = nextConfig.images
+  const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
+  const sizes = [...deviceSizes, ...imageSizes]
+
+  if (loader !== 'default') {
+    await server.render404(req, res, parsedUrl)
+    return { finished: true }
+  }
+
   const { headers } = req
   const { url, w, q } = parsedUrl.query
-  const mimeType = mediaType(headers.accept, MIME_TYPES) || ''
+  const mimeType = getSupportedMimeType(MODERN_TYPES, headers.accept)
   let href: string
 
   if (!url) {
@@ -125,17 +144,22 @@ export async function imageOptimizer(
   if (await fileExists(hashDir, 'directory')) {
     const files = await promises.readdir(hashDir)
     for (let file of files) {
-      const [filename, extension] = file.split('.')
-      const expireAt = Number(filename)
+      const [prefix, etag, extension] = file.split('.')
+      const expireAt = Number(prefix)
       const contentType = getContentType(extension)
+      const fsPath = join(hashDir, file)
       if (now < expireAt) {
+        res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+        if (sendEtagResponse(req, res, etag)) {
+          return { finished: true }
+        }
         if (contentType) {
           res.setHeader('Content-Type', contentType)
         }
-        createReadStream(join(hashDir, file)).pipe(res)
+        createReadStream(fsPath).pipe(res)
         return { finished: true }
       } else {
-        await promises.unlink(join(hashDir, file))
+        await promises.unlink(fsPath)
       }
     }
   }
@@ -200,20 +224,18 @@ export async function imageOptimizer(
     }
   }
 
+  if (upstreamType) {
+    const vector = VECTOR_TYPES.includes(upstreamType)
+    const animate =
+      ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
+    if (vector || animate) {
+      sendResponse(req, res, upstreamType, upstreamBuffer)
+      return { finished: true }
+    }
+  }
+
   const expireAt = maxAge * 1000 + now
   let contentType: string
-
-  if (
-    upstreamType &&
-    ANIMATABLE_TYPES.includes(upstreamType) &&
-    isAnimated(upstreamBuffer)
-  ) {
-    if (upstreamType) {
-      res.setHeader('Content-Type', upstreamType)
-    }
-    res.end(upstreamBuffer)
-    return { finished: true }
-  }
 
   if (mimeType) {
     contentType = mimeType
@@ -229,52 +251,79 @@ export async function imageOptimizer(
       sharp = require('sharp')
     } catch (error) {
       if (error.code === 'MODULE_NOT_FOUND') {
-        error.message +=
-          "\nTo use Next.js' built-in Image Optimization, you first need to install `sharp`."
-        error.message +=
-          '\nRun `npm i sharp` or `yarn add sharp` inside your workspace.'
         error.message += '\n\nLearn more: https://err.sh/next.js/install-sharp'
+        server.logError(error)
+        sendResponse(req, res, upstreamType, upstreamBuffer)
+        return { finished: true }
       }
       throw error
     }
   }
 
-  const transformer = sharp(upstreamBuffer).resize(width)
-
-  //if (contentType === AVIF) {
-  // Soon https://github.com/lovell/sharp/issues/2289
-  //}
-  if (contentType === WEBP) {
-    transformer.webp({ quality })
-  } else if (contentType === PNG) {
-    transformer.png({ quality })
-  } else if (contentType === JPEG) {
-    transformer.jpeg({ quality })
-  }
-
   try {
+    const transformer = sharp(upstreamBuffer)
+    transformer.rotate() // auto rotate based on EXIF data
+
+    const { width: metaWidth } = await transformer.metadata()
+
+    if (metaWidth && metaWidth > width) {
+      transformer.resize(width)
+    }
+
+    //if (contentType === AVIF) {
+    // Soon https://github.com/lovell/sharp/issues/2289
+    //}
+    if (contentType === WEBP) {
+      transformer.webp({ quality })
+    } else if (contentType === PNG) {
+      transformer.png({ quality })
+    } else if (contentType === JPEG) {
+      transformer.jpeg({ quality })
+    }
+
     const optimizedBuffer = await transformer.toBuffer()
     await promises.mkdir(hashDir, { recursive: true })
     const extension = getExtension(contentType)
-    const filename = join(hashDir, `${expireAt}.${extension}`)
+    const etag = getHash([optimizedBuffer])
+    const filename = join(hashDir, `${expireAt}.${etag}.${extension}`)
     await promises.writeFile(filename, optimizedBuffer)
-    res.setHeader('Content-Type', contentType)
-    res.end(optimizedBuffer)
+    sendResponse(req, res, contentType, optimizedBuffer)
   } catch (error) {
-    server.logError(error)
-    if (upstreamType) {
-      res.setHeader('Content-Type', upstreamType)
-    }
-    res.end(upstreamBuffer)
+    sendResponse(req, res, upstreamType, upstreamBuffer)
   }
 
   return { finished: true }
 }
 
-function getHash(items: (string | number | undefined)[]) {
+function sendResponse(
+  req: IncomingMessage,
+  res: ServerResponse,
+  contentType: string | null,
+  buffer: Buffer
+) {
+  const etag = getHash([buffer])
+  res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+  if (sendEtagResponse(req, res, etag)) {
+    return
+  }
+  if (contentType) {
+    res.setHeader('Content-Type', contentType)
+  }
+  res.end(buffer)
+}
+
+function getSupportedMimeType(options: string[], accept = ''): string {
+  const mimeType = mediaType(accept, options)
+  return accept.includes(mimeType) ? mimeType : ''
+}
+
+function getHash(items: (string | number | Buffer)[]) {
   const hash = createHash('sha256')
   for (let item of items) {
-    hash.update(String(item))
+    if (typeof item === 'number') hash.update(String(item))
+    else {
+      hash.update(item)
+    }
   }
   // See https://en.wikipedia.org/wiki/Base64#Filenames
   return hash.digest('base64').replace(/\//g, '-')
