@@ -1,8 +1,6 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
-import generateETag from 'etag'
-import fresh from 'next/dist/compiled/fresh'
 import getRawBody from 'raw-body'
 import { PageConfig } from 'next/types'
 import { Stream } from 'stream'
@@ -10,6 +8,8 @@ import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
 import { Params } from './router'
+import { sendEtagResponse } from './send-payload'
+import generateETag from 'etag'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -216,23 +216,6 @@ export function redirect(
   return res
 }
 
-function sendEtagResponse(
-  req: NextApiRequest,
-  res: NextApiResponse,
-  body: string | Buffer
-): boolean {
-  const etag = generateETag(body)
-
-  if (fresh(req.headers, { etag })) {
-    res.statusCode = 304
-    res.end()
-    return true
-  }
-
-  res.setHeader('ETag', etag)
-  return false
-}
-
 /**
  * Send `any` body to response
  * @param req request object
@@ -261,8 +244,8 @@ export function sendData(
 
   const isJSONLike = ['object', 'number', 'boolean'].includes(typeof body)
   const stringifiedBody = isJSONLike ? JSON.stringify(body) : body
-
-  if (sendEtagResponse(req, res, stringifiedBody)) {
+  const etag = generateETag(stringifiedBody)
+  if (sendEtagResponse(req, res, etag)) {
     return
   }
 
