@@ -295,12 +295,17 @@ export default async function exportApp(
     )
   }
 
-  const emContent = await promises.readFile(
-    join(distDir, EXPORT_MARKER),
-    'utf8'
-  )
-  const { isNextImageImported } = JSON.parse(emContent)
-  if (isNextImageImported && loader === 'default' && !options.buildExport) {
+  const { isNextImageImported } = await promises
+    .readFile(join(distDir, EXPORT_MARKER), 'utf8')
+    .then((text) => JSON.parse(text))
+    .catch(() => ({}))
+
+  if (
+    isNextImageImported &&
+    loader === 'default' &&
+    !options.buildExport &&
+    !hasNextSupport
+  ) {
     throw new Error(
       `Image Optimization using Next.js' default loader is not compatible with \`next export\`. Use \`next start\` or configure a different loader: https://nextjs.org/docs/basic-features/image-optimization#loader`
     )
