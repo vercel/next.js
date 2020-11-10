@@ -34,7 +34,7 @@ type ImageData = {
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
-type ImageProps = Omit<
+export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
 > & {

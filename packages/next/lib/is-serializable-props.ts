@@ -98,14 +98,9 @@ export function isSerializableProps(
     if (Array.isArray(value)) {
       visit(refs, value, path)
 
-      const seen = new Set<any>()
-      const newRefs = new Map(refs)
       if (
         value.every((nestedValue, index) => {
-          if (seen.has(nestedValue)) {
-            return true
-          }
-          seen.add(nestedValue)
+          const newRefs = new Map(refs)
           return isSerializable(newRefs, nestedValue, `${path}[${index}]`)
         })
       ) {
