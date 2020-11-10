@@ -16,7 +16,7 @@ const Query: Required<QueryResolvers<ResolverContext>> = {
 const Mutation: Required<MutationResolvers<ResolverContext>> = {
   updateName(_parent, _args, _context, _info) {
     userProfile.name = _args.name
-    return _args.name
+    return userProfile
   },
 }
 

@@ -8,5 +8,9 @@ query Viewer {
 }
 
 mutation UpdateName($name: String!) {
-  updateName(name: $name)
+  updateName(name: $name) {
+    id
+    name
+    status
+  }
 }
