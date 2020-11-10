@@ -257,21 +257,21 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
     whenEntrypoint(route: string) {
       return withFuture(route, entrypoints)
     },
-    async onEntrypoint(route, execute) {
-      let input: RouteEntrypoint
-      try {
-        const exports: any = await execute()
-        input = {
-          component: exports.default || exports,
-          exports: exports,
-        }
-      } catch (e) {
-        input = { error: e }
-      }
-
-      const old = entrypoints.get(route)
-      entrypoints.set(route, input)
-      if (old && 'resolve' in old) old.resolve(input)
+    onEntrypoint(route, execute) {
+      Promise.resolve(execute)
+        .then((fn) => fn())
+        .then(
+          (exports: any) => ({
+            component: (exports && exports.default) || exports,
+            exports: exports,
+          }),
+          (err) => ({ error: err })
+        )
+        .then((input: RouteEntrypoint) => {
+          const old = entrypoints.get(route)
+          entrypoints.set(route, input)
+          if (old && 'resolve' in old) old.resolve(input)
+        })
     },
     loadRoute(route) {
       return withFuture<RouteLoaderEntry>(route, routes, async () => {
