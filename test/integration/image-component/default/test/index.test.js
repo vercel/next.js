@@ -56,7 +56,7 @@ async function getSrc(browser, id) {
 }
 
 function getRatio(width, height) {
-  return Math.round((height / width) * 1000)
+  return height / width
 }
 
 function runTests(mode) {
@@ -83,6 +83,29 @@ function runTests(mode) {
           `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=1200&q=75`
         )
       ).toBe(true)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should update the image on src change', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/update')
+
+      await check(
+        () => browser.eval(`document.getElementById("update-image").src`),
+        /test\.jpg/
+      )
+
+      await browser.eval(`document.getElementById("toggle").click()`)
+
+      await check(
+        () => browser.eval(`document.getElementById("update-image").src`),
+        /test\.png/
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -172,7 +195,10 @@ function runTests(mode) {
       const newHeight = await getComputed(browser, id, 'height')
       expect(newWidth).toBeLessThan(width)
       expect(newHeight).toBeLessThan(height)
-      expect(getRatio(newWidth, newHeight)).toBe(getRatio(width, height))
+      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+        getRatio(width, height),
+        1
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -208,7 +234,10 @@ function runTests(mode) {
       const newHeight = await getComputed(browser, id, 'height')
       expect(newWidth).toBeLessThan(width)
       expect(newHeight).toBeLessThan(height)
-      expect(getRatio(newWidth, newHeight)).toBe(getRatio(width, height))
+      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+        getRatio(width, height),
+        1
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -244,7 +273,10 @@ function runTests(mode) {
       const newHeight = await getComputed(browser, id, 'height')
       expect(newWidth).toBe(width)
       expect(newHeight).toBe(height)
-      expect(getRatio(newWidth, newHeight)).toBe(getRatio(width, height))
+      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+        getRatio(width, height),
+        1
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -285,6 +317,15 @@ function runTests(mode) {
       })
       expect(await getComputed(browser, id, 'width')).toBe(smallWidth)
       expect(await getComputed(browser, id, 'height')).toBe(smallHeight)
+
+      const objectFit = await browser.eval(
+        `document.getElementById("${id}").style.objectFit`
+      )
+      const objectPosition = await browser.eval(
+        `document.getElementById("${id}").style.objectPosition`
+      )
+      expect(objectFit).toBe('cover')
+      expect(objectPosition).toBe('left center')
     } finally {
       if (browser) {
         await browser.close()
@@ -308,6 +349,15 @@ function runTests(mode) {
       await hasRedbox(browser)
       expect(await getRedboxHeader(browser)).toContain(
         'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
+      )
+    })
+
+    it('should show invalid src error when protocol-relative', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-proto-relative')
+
+      await hasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
       )
     })
 
@@ -347,10 +397,7 @@ function runTests(mode) {
 
         const computedWidth = await getComputed(browser, id, 'width')
         const computedHeight = await getComputed(browser, id, 'height')
-        expect(getRatio(computedWidth, computedHeight) / 1000.0).toBeCloseTo(
-          1.333,
-          1
-        )
+        expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1.333, 1)
       } finally {
         if (browser) {
           await browser.close()

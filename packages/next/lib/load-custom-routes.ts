@@ -24,7 +24,10 @@ export type Header = {
 
 export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
 
-export function getRedirectStatus(route: Redirect): number {
+export function getRedirectStatus(route: {
+  statusCode?: number
+  permanent?: boolean
+}): number {
   return (
     route.statusCode ||
     (route.permanent ? PERMANENT_REDIRECT_STATUS : TEMPORARY_REDIRECT_STATUS)

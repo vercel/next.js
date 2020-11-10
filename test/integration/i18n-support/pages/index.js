@@ -18,6 +18,10 @@ export default function Page(props) {
         <a id="to-another">to /another</a>
       </Link>
       <br />
+      <Link href="/dynamic/first">
+        <a id="to-dynamic">to /dynamic/first</a>
+      </Link>
+      <br />
       <Link href="/gsp">
         <a id="to-gsp">to /gsp</a>
       </Link>

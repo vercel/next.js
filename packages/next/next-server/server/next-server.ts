@@ -1,6 +1,6 @@
 import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
@@ -26,6 +26,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   CLIENT_STATIC_FILES_RUNTIME,
   PAGES_MANIFEST,
+  PERMANENT_REDIRECT_STATUS,
   PHASE_PRODUCTION_SERVER,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
@@ -61,13 +62,14 @@ import Router, {
   route,
   Route,
 } from './router'
-import prepareDestination from '../lib/router/utils/prepare-destination'
+import prepareDestination, {
+  compileNonPath,
+} from '../lib/router/utils/prepare-destination'
 import { sendPayload } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../lib/utils'
 import { isBlockedPage } from './utils'
-import { compile as compilePathToRegex } from 'next/dist/compiled/path-to-regexp'
 import { loadEnvConfig } from '@next/env'
 import './node-polyfill-fetch'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
@@ -96,6 +98,11 @@ type Middleware = (
 type FindComponentsResult = {
   components: LoadComponentsReturnType
   query: ParsedUrlQuery
+}
+
+type DynamicRouteItem = {
+  page: string
+  match: ReturnType<typeof getRouteMatcher>
 }
 
 export type ServerConstructor = {
@@ -297,6 +304,7 @@ export default class Server {
     if (typeof parsedUrl.query === 'string') {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
+    ;(req as any).__NEXT_INIT_QUERY = Object.assign({}, parsedUrl.query)
 
     const { basePath, i18n } = this.nextConfig
 
@@ -651,46 +659,6 @@ export default class Server {
         fn: async (_req, _res, _params, _parsedUrl) => ({ finished: false }),
       } as Route & Rewrite & Header)
 
-    const updateHeaderValue = (value: string, params: Params): string => {
-      if (!value.includes(':')) {
-        return value
-      }
-
-      for (const key of Object.keys(params)) {
-        if (value.includes(`:${key}`)) {
-          value = value
-            .replace(
-              new RegExp(`:${key}\\*`, 'g'),
-              `:${key}--ESCAPED_PARAM_ASTERISKS`
-            )
-            .replace(
-              new RegExp(`:${key}\\?`, 'g'),
-              `:${key}--ESCAPED_PARAM_QUESTION`
-            )
-            .replace(
-              new RegExp(`:${key}\\+`, 'g'),
-              `:${key}--ESCAPED_PARAM_PLUS`
-            )
-            .replace(
-              new RegExp(`:${key}(?!\\w)`, 'g'),
-              `--ESCAPED_PARAM_COLON${key}`
-            )
-        }
-      }
-      value = value
-        .replace(/(:|\*|\?|\+|\(|\)|\{|\})/g, '\\$1')
-        .replace(/--ESCAPED_PARAM_PLUS/g, '+')
-        .replace(/--ESCAPED_PARAM_COLON/g, ':')
-        .replace(/--ESCAPED_PARAM_QUESTION/g, '?')
-        .replace(/--ESCAPED_PARAM_ASTERISKS/g, '*')
-
-      // the value needs to start with a forward-slash to be compiled
-      // correctly
-      return compilePathToRegex(`/${value}`, { validate: false })(
-        params
-      ).substr(1)
-    }
-
     // Headers come very first
     const headers = this.customRoutes.headers.map((r) => {
       const headerRoute = getCustomRoute(r, 'header')
@@ -704,8 +672,8 @@ export default class Server {
           for (const header of (headerRoute as Header).headers) {
             let { key, value } = header
             if (hasParams) {
-              key = updateHeaderValue(key, params)
-              value = updateHeaderValue(value, params)
+              key = compileNonPath(key, params)
+              value = compileNonPath(value, params)
             }
             res.setHeader(key, value)
           }
@@ -714,6 +682,22 @@ export default class Server {
       } as Route
     })
 
+    // since initial query values are decoded by querystring.parse
+    // we need to re-encode them here but still allow passing through
+    // values from rewrites/redirects
+    const stringifyQuery = (req: IncomingMessage, query: ParsedUrlQuery) => {
+      const initialQueryValues = Object.values((req as any).__NEXT_INIT_QUERY)
+
+      return stringifyQs(query, undefined, undefined, {
+        encodeURIComponent(value) {
+          if (initialQueryValues.some((val) => val === value)) {
+            return encodeURIComponent(value)
+          }
+          return value
+        },
+      })
+    }
+
     const redirects = this.customRoutes.redirects.map((redirect) => {
       const redirectRoute = getCustomRoute(redirect, 'redirect')
       return {
@@ -721,7 +705,7 @@ export default class Server {
         match: redirectRoute.match,
         statusCode: redirectRoute.statusCode,
         name: `Redirect route`,
-        fn: async (_req, res, params, parsedUrl) => {
+        fn: async (req, res, params, parsedUrl) => {
           const { parsedDestination } = prepareDestination(
             redirectRoute.destination,
             params,
@@ -733,7 +717,7 @@ export default class Server {
           const { query } = parsedDestination
           delete (parsedDestination as any).query
 
-          parsedDestination.search = stringifyQs(query)
+          parsedDestination.search = stringifyQuery(req, query)
 
           const updatedDestination = formatUrl(parsedDestination)
 
@@ -775,7 +759,7 @@ export default class Server {
           if (parsedDestination.protocol) {
             const { query } = parsedDestination
             delete (parsedDestination as any).query
-            parsedDestination.search = stringifyQs(query)
+            parsedDestination.search = stringifyQuery(req, query)
 
             const target = formatUrl(parsedDestination)
             const proxy = new Proxy({
@@ -1006,13 +990,21 @@ export default class Server {
     ]
   }
 
-  protected getDynamicRoutes() {
+  protected getDynamicRoutes(): Array<DynamicRouteItem> {
+    const addedPages = new Set<string>()
+
     return getSortedRoutes(Object.keys(this.pagesManifest!))
       .filter(isDynamicRoute)
-      .map((page) => ({
-        page,
-        match: getRouteMatcher(getRouteRegex(page)),
-      }))
+      .map((page) => {
+        page = normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
+        if (addedPages.has(page)) return null
+        addedPages.add(page)
+        return {
+          page,
+          match: getRouteMatcher(getRouteRegex(page)),
+        }
+      })
+      .filter((item): item is DynamicRouteItem => Boolean(item))
   }
 
   private handleCompression(req: IncomingMessage, res: ServerResponse): void {
@@ -1263,6 +1255,22 @@ export default class Server {
       return path
     }
 
+    const handleRedirect = (pageData: any) => {
+      const redirect = {
+        destination: pageData.pageProps.__N_REDIRECT,
+        statusCode: pageData.pageProps.__N_REDIRECT_STATUS,
+      }
+      const statusCode = getRedirectStatus(redirect)
+
+      if (statusCode === PERMANENT_REDIRECT_STATUS) {
+        res.setHeader('Refresh', `0;url=${redirect.destination}`)
+      }
+
+      res.statusCode = statusCode
+      res.setHeader('Location', redirect.destination)
+      res.end()
+    }
+
     // remove /_next/data prefix from urlPathname so it matches
     // for direct page visit and /_next/data visit
     if (isDataReq) {
@@ -1299,26 +1307,30 @@ export default class Server {
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
 
-      sendPayload(
-        req,
-        res,
-        data,
-        isDataReq ? 'json' : 'html',
-        {
-          generateEtags: this.renderOpts.generateEtags,
-          poweredByHeader: this.renderOpts.poweredByHeader,
-        },
-        !this.renderOpts.dev
-          ? {
-              private: isPreviewMode,
-              stateful: false, // GSP response
-              revalidate:
-                cachedData.curRevalidate !== undefined
-                  ? cachedData.curRevalidate
-                  : /* default to minimum revalidate (this should be an invariant) */ 1,
-            }
-          : undefined
-      )
+      if (!isDataReq && cachedData.pageData?.pageProps?.__N_REDIRECT) {
+        await handleRedirect(cachedData.pageData)
+      } else {
+        sendPayload(
+          req,
+          res,
+          data,
+          isDataReq ? 'json' : 'html',
+          {
+            generateEtags: this.renderOpts.generateEtags,
+            poweredByHeader: this.renderOpts.poweredByHeader,
+          },
+          !this.renderOpts.dev
+            ? {
+                private: isPreviewMode,
+                stateful: false, // GSP response
+                revalidate:
+                  cachedData.curRevalidate !== undefined
+                    ? cachedData.curRevalidate
+                    : /* default to minimum revalidate (this should be an invariant) */ 1,
+              }
+            : undefined
+        )
+      }
 
       // Stop the request chain here if the data we sent was up-to-date
       if (!cachedData.isStale) {
@@ -1340,11 +1352,13 @@ export default class Server {
         pageData: any
         sprRevalidate: number | false
         isNotFound?: boolean
+        isRedirect?: boolean
       }> => {
         let pageData: any
         let html: string | null
         let sprRevalidate: number | false
         let isNotFound: boolean | undefined
+        let isRedirect: boolean | undefined
 
         let renderResult
         // handle serverless
@@ -1365,6 +1379,7 @@ export default class Server {
           pageData = renderResult.renderOpts.pageData
           sprRevalidate = renderResult.renderOpts.revalidate
           isNotFound = renderResult.renderOpts.isNotFound
+          isRedirect = renderResult.renderOpts.isRedirect
         } else {
           const origQuery = parseUrl(req.url || '', true).query
           const resolvedUrl = formatUrl({
@@ -1407,9 +1422,10 @@ export default class Server {
           pageData = (renderOpts as any).pageData
           sprRevalidate = (renderOpts as any).revalidate
           isNotFound = (renderOpts as any).isNotFound
+          isRedirect = (renderOpts as any).isRedirect
         }
 
-        return { html, pageData, sprRevalidate, isNotFound }
+        return { html, pageData, sprRevalidate, isNotFound, isRedirect }
       }
     )
 
@@ -1491,7 +1507,7 @@ export default class Server {
 
     const {
       isOrigin,
-      value: { html, pageData, sprRevalidate, isNotFound },
+      value: { html, pageData, sprRevalidate, isNotFound, isRedirect },
     } = await doRender()
     let resHtml = html
 
@@ -1500,23 +1516,27 @@ export default class Server {
       !isNotFound &&
       (isSSG || isDataReq || isServerProps)
     ) {
-      sendPayload(
-        req,
-        res,
-        isDataReq ? JSON.stringify(pageData) : html,
-        isDataReq ? 'json' : 'html',
-        {
-          generateEtags: this.renderOpts.generateEtags,
-          poweredByHeader: this.renderOpts.poweredByHeader,
-        },
-        !this.renderOpts.dev || (isServerProps && !isDataReq)
-          ? {
-              private: isPreviewMode,
-              stateful: !isSSG,
-              revalidate: sprRevalidate,
-            }
-          : undefined
-      )
+      if (isRedirect && !isDataReq) {
+        await handleRedirect(pageData)
+      } else {
+        sendPayload(
+          req,
+          res,
+          isDataReq ? JSON.stringify(pageData) : html,
+          isDataReq ? 'json' : 'html',
+          {
+            generateEtags: this.renderOpts.generateEtags,
+            poweredByHeader: this.renderOpts.poweredByHeader,
+          },
+          !this.renderOpts.dev || (isServerProps && !isDataReq)
+            ? {
+                private: isPreviewMode,
+                stateful: !isSSG,
+                revalidate: sprRevalidate,
+              }
+            : undefined
+        )
+      }
       resHtml = null
     }
 
@@ -1524,7 +1544,7 @@ export default class Server {
     if (isOrigin && ssgCacheKey) {
       await this.incrementalCache.set(
         ssgCacheKey,
-        { html: html!, pageData, isNotFound },
+        { html: html!, pageData, isNotFound, isRedirect },
         sprRevalidate
       )
     }
