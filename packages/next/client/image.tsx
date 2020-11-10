@@ -1,5 +1,7 @@
-import React, { ReactElement, useEffect, useRef } from 'react'
+import React, { ReactElement } from 'react'
 import Head from '../next-server/lib/head'
+import { toBase64 } from '../next-server/lib/to-base-64'
+import { useIntersection } from './use-intersection'
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
@@ -30,15 +32,19 @@ type ImageData = {
   domains?: string[]
 }
 
-type ImageProps = Omit<
+type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
+
+export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
+  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
 > & {
   src: string
   quality?: number | string
   priority?: boolean
   loading?: LoadingValue
   unoptimized?: boolean
+  objectFit?: ImgElementStyle['objectFit']
+  objectPosition?: ImgElementStyle['objectPosition']
 } & (
     | {
         width?: never
@@ -63,70 +69,30 @@ const {
   domains: configDomains,
 } = imageData
 // sort smallest to largest
+const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)
-configImageSizes.sort((a, b) => a - b)
+allSizes.sort((a, b) => a - b)
 
-let cachedObserver: IntersectionObserver
-
-function getObserver(): IntersectionObserver | undefined {
-  const IntersectionObserver =
-    typeof window !== 'undefined' ? window.IntersectionObserver : null
-  // Return shared instance of IntersectionObserver if already created
-  if (cachedObserver) {
-    return cachedObserver
-  }
-
-  // Only create shared IntersectionObserver if supported in browser
-  if (!IntersectionObserver) {
-    return undefined
-  }
-  return (cachedObserver = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          let lazyImage = entry.target as HTMLImageElement
-          unLazifyImage(lazyImage)
-          cachedObserver.unobserve(lazyImage)
-        }
-      })
-    },
-    { rootMargin: '200px' }
-  ))
-}
-
-function unLazifyImage(lazyImage: HTMLImageElement): void {
-  if (lazyImage.dataset.src) {
-    lazyImage.src = lazyImage.dataset.src
-  }
-  if (lazyImage.dataset.srcset) {
-    lazyImage.srcset = lazyImage.dataset.srcset
-  }
-  lazyImage.style.visibility = 'visible'
-  lazyImage.classList.remove('__lazy')
-}
-
-function getDeviceSizes(
+function getSizes(
   width: number | undefined,
   layout: LayoutValue
-): number[] {
+): { sizes: number[]; kind: 'w' | 'x' } {
   if (
     typeof width !== 'number' ||
     layout === 'fill' ||
     layout === 'responsive'
   ) {
-    return configDeviceSizes
+    return { sizes: configDeviceSizes, kind: 'w' }
   }
-  if (configImageSizes.includes(width)) {
-    return [width]
-  }
-  const widths: number[] = []
-  for (let size of configDeviceSizes) {
-    widths.push(size)
-    if (size >= width) {
-      break
-    }
-  }
-  return widths
+
+  const sizes = [
+    ...new Set(
+      [width, width * 2, width * 3].map(
+        (w) => allSizes.find((p) => p >= w) || allSizes[allSizes.length - 1]
+      )
+    ),
+  ]
+  return { sizes, kind: 'x' }
 }
 
 function computeSrc(
@@ -139,8 +105,8 @@ function computeSrc(
   if (unoptimized) {
     return src
   }
-  const widths = getDeviceSizes(width, layout)
-  const largest = widths[widths.length - 1]
+  const { sizes } = getSizes(width, layout)
+  const largest = sizes[sizes.length - 1]
   return callLoader({ src, width: largest, quality })
 }
 
@@ -176,8 +142,14 @@ function generateSrcSet({
     return undefined
   }
 
-  return getDeviceSizes(width, layout)
-    .map((w) => `${callLoader({ src, width: w, quality })} ${w}w`)
+  const { sizes, kind } = getSizes(width, layout)
+  return sizes
+    .map(
+      (size, i) =>
+        `${callLoader({ src, width: size, quality })} ${
+          kind === 'w' ? size : i + 1
+        }${kind}`
+    )
     .join(', ')
 }
 
@@ -242,10 +214,10 @@ export default function Image({
   quality,
   width,
   height,
+  objectFit,
+  objectPosition,
   ...all
 }: ImageProps) {
-  const thisEl = useRef<HTMLImageElement>(null)
-
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
   let unsized = false
@@ -295,34 +267,19 @@ export default function Image({
     }
   }
 
-  let lazy = loading === 'lazy'
-  if (!priority && typeof loading === 'undefined') {
-    lazy = true
+  let isLazy =
+    !priority && (loading === 'lazy' || typeof loading === 'undefined')
+  if (src && src.startsWith('data:')) {
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    unoptimized = true
+    isLazy = false
   }
 
-  if (typeof window !== 'undefined' && !window.IntersectionObserver) {
-    // Rendering client side on browser without intersection observer
-    lazy = false
-  }
-
-  useEffect(() => {
-    const target = thisEl.current
-
-    if (target && lazy) {
-      const observer = getObserver()
-
-      if (observer) {
-        observer.observe(target)
-
-        return () => {
-          observer.unobserve(target)
-        }
-      } else {
-        //browsers without intersection observer
-        unLazifyImage(target)
-      }
-    }
-  }, [thisEl, lazy])
+  const [setRef, isIntersected] = useIntersection<HTMLImageElement>({
+    rootMargin: '200px',
+    disabled: !isLazy,
+  })
+  const isVisible = !isLazy || isIntersected
 
   const widthInt = getInt(width)
   const heightInt = getInt(height)
@@ -331,8 +288,8 @@ export default function Image({
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerSvg: string | undefined
-  let imgStyle: JSX.IntrinsicElements['img']['style'] = {
-    visibility: lazy ? 'hidden' : 'visible',
+  let imgStyle: ImgElementStyle | undefined = {
+    visibility: isVisible ? 'visible' : 'hidden',
 
     position: 'absolute',
     top: 0,
@@ -352,6 +309,9 @@ export default function Image({
     maxWidth: '100%',
     minHeight: '100%',
     maxHeight: '100%',
+
+    objectFit,
+    objectPosition,
   }
   if (
     typeof widthInt !== 'undefined' &&
@@ -437,30 +397,14 @@ export default function Image({
     quality: qualityInt,
   })
 
-  let imgAttributes:
-    | {
-        src: string
-        srcSet?: string
-      }
-    | {
-        'data-src': string
-        'data-srcset'?: string
-      }
-  if (!lazy) {
-    imgAttributes = {
-      src: imgSrc,
-    }
-    if (imgSrcSet) {
-      imgAttributes.srcSet = imgSrcSet
-    }
-  } else {
-    imgAttributes = {
-      'data-src': imgSrc,
-    }
-    if (imgSrcSet) {
-      imgAttributes['data-srcset'] = imgSrcSet
-    }
-    className = className ? className + ' __lazy' : '__lazy'
+  const imgAttributes: Pick<JSX.IntrinsicElements['img'], 'src' | 'srcSet'> = {
+    src:
+      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+  }
+
+  if (isVisible) {
+    imgAttributes.src = imgSrc
+    imgAttributes.srcSet = imgSrcSet
   }
 
   // No need to add preloads on the client side--by the time the application is hydrated,
@@ -492,7 +436,7 @@ export default function Image({
               alt=""
               aria-hidden={true}
               role="presentation"
-              src={`data:image/svg+xml;charset=utf-8,${sizerSvg}`}
+              src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
             />
           ) : null}
         </div>
@@ -503,7 +447,7 @@ export default function Image({
         decoding="async"
         className={className}
         sizes={sizes}
-        ref={thisEl}
+        ref={setRef}
         style={imgStyle}
       />
     </div>
@@ -567,21 +511,27 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
       )
     }
 
-    if (src && !src.startsWith('/') && configDomains) {
+    if (src.startsWith('//')) {
+      throw new Error(
+        `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
+      )
+    }
+
+    if (!src.startsWith('/') && configDomains) {
       let parsedSrc: URL
       try {
         parsedSrc = new URL(src)
       } catch (err) {
         console.error(err)
         throw new Error(
-          `Failed to parse "${src}" in "next/image", if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
+          `Failed to parse src "${src}" on \`next/image\`, if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
         )
       }
 
       if (!configDomains.includes(parsedSrc.hostname)) {
         throw new Error(
           `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
-            `See more info: https://err.sh/nextjs/next-image-unconfigured-host`
+            `See more info: https://err.sh/next.js/next-image-unconfigured-host`
         )
       }
     }
