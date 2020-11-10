@@ -8,25 +8,10 @@ const ViewSource = ({ pathname }) => (
     viewBox="0 0 250 250"
     fill="#151513"
     className={svg}
-    style={{
-      position: 'absolute',
-      top: 0,
-      right: 0,
-      width: '80px',
-      height: '80px',
-    }}
   >
     <a
       title="View Source"
       href={`https://github.com/vercel/next.js/tree/canary/examples/image-component/${pathname}`}
-      style={{
-        display: 'inline-block',
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        width: '80px',
-        height: '80px',
-      }}
     >
       <path d="M0 0l115 115h15l12 27 108 108V0z" fill="#fff" />
       <path

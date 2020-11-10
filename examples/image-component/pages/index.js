@@ -1,10 +1,14 @@
+import styles from '../styles.module.css'
+import Image from 'next/image'
 import Link from 'next/link'
+import ViewSource from '../components/view-source'
 
-const Code = (p) => <code {...p} />
+const Code = (p) => <code className={styles.inlineCode} {...p} />
 
 const Index = () => (
-  <div>
-    <div>
+  <div className={styles.container}>
+    <ViewSource pathname="pages/index.js" />
+    <div className={styles.card}>
       <h1>Image Component with Next.js</h1>
       <p>
         The images below use the{' '}
@@ -18,7 +22,7 @@ const Index = () => (
         scrolled into view.
       </p>
       <p>Try scolling down to try it out!</p>
-      <hr />
+      <hr className={styles.hr} />
       <p>
         The following is an example of a reference to an interal image from the{' '}
         <Code>public</Code> directory.
@@ -27,8 +31,8 @@ const Index = () => (
         Notice that the image is responsive. As you adjust your browser width, a
         different sized image is loaded.
       </p>
-      <img alt="Vercel logo" src="/vercel.png" width="1000" height="1000" />
-      <hr />
+      <Image alt="Vercel logo" src="/vercel.png" width={1000} height={1000} />
+      <hr className={styles.hr} />
       <p>
         The following is an example of a reference to an external image at{' '}
         <Code>assets.vercel.com</Code>.
@@ -37,13 +41,13 @@ const Index = () => (
         External domains must be configured in <Code>next.config.js</Code> using
         the <Code>domains</Code> property.
       </p>
-      <img
+      <Image
         alt="Next.js logo"
         src="https://assets.vercel.com/image/upload/v1538361091/repositories/next-js/next-js-bg.png"
-        width="1200"
-        height="400"
+        width={1200}
+        height={400}
       />
-      <hr />
+      <hr className={styles.hr} />
       <h2>Layouts</h2>
       <p>
         The following pages demonstrate possible <Code>layout</Code> property
@@ -81,7 +85,7 @@ const Index = () => (
           </Link>
         </li>
       </ul>
-      <hr />
+      <hr className={styles.hr} />
       Checkout the documentation for{' '}
       <a href="https://nextjs.org/docs/basic-features/image-optimization">
         Image Optimization
