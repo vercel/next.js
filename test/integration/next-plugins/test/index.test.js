@@ -44,8 +44,6 @@ function runTests() {
 
   it('should list loaded plugins', async () => {
     expect(stdout).toMatch(/loaded plugin: @next\/plugin-google-analytics/i)
-    expect(stdout).toMatch(/loaded plugin: @zeit\/next-plugin-scope/i)
-    expect(stdout).toMatch(/loaded plugin: next-plugin-normal/i)
   })
 
   it('should ignore directories in plugins', async () => {
@@ -111,8 +109,6 @@ describe('Next.js plugins', () => {
 
       it('should disable auto detecting plugins when plugin config is used', async () => {
         expect(stdout).toMatch(/loaded plugin: @next\/plugin-google-analytics/i)
-        expect(stdout).not.toMatch(/loaded plugin: @zeit\/next-plugin-scope/i)
-        expect(stdout).not.toMatch(/loaded plugin: next-plugin-normal/i)
       })
 
       it('should expose a plugins config', async () => {
