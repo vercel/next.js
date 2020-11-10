@@ -291,10 +291,7 @@ export type AppProps = Pick<CompletePrivateRouteInfo, 'Component' | 'err'> & {
 } & Record<string, any>
 export type AppComponent = ComponentType<AppProps>
 
-type Subscription = (
-  data: CompletePrivateRouteInfo,
-  App: AppComponent
-) => Promise<void>
+type Subscription = (data: PrivateRouteInfo, App: AppComponent) => Promise<void>
 
 type BeforePopStateCallback = (state: NextHistoryState) => boolean
 
@@ -1007,16 +1004,15 @@ export default class Router implements BaseRouter {
     query: any,
     as: string,
     shallow: boolean = false
-  ): Promise<CompletePrivateRouteInfo> {
+  ): Promise<PrivateRouteInfo> {
     try {
       const existingRouteInfo = this.components[route]
-      const cachedRouteInfo: CompletePrivateRouteInfo | undefined =
-        'initial' in existingRouteInfo ? undefined : existingRouteInfo
-
-      if (shallow && cachedRouteInfo && this.route === route) {
-        return cachedRouteInfo
+      if (shallow && existingRouteInfo && this.route === route) {
+        return existingRouteInfo
       }
 
+      const cachedRouteInfo: CompletePrivateRouteInfo | undefined =
+        'initial' in existingRouteInfo ? undefined : existingRouteInfo
       const routeInfo: CompletePrivateRouteInfo = cachedRouteInfo
         ? cachedRouteInfo
         : await this.fetchComponent(route).then((res) => ({
@@ -1077,7 +1073,7 @@ export default class Router implements BaseRouter {
     pathname: string,
     query: ParsedUrlQuery,
     as: string,
-    data: CompletePrivateRouteInfo
+    data: PrivateRouteInfo
   ): Promise<void> {
     this.isFallback = false
 
@@ -1321,7 +1317,7 @@ export default class Router implements BaseRouter {
     }
   }
 
-  notify(data: CompletePrivateRouteInfo): Promise<void> {
+  notify(data: PrivateRouteInfo): Promise<void> {
     return this.sub(data, this.components['/_app'].Component as AppComponent)
   }
 }

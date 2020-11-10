@@ -344,8 +344,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     wrapApp,
     err: initialErr,
     isFallback: Boolean(isFallback),
-    subscription: ({ Component, styleSheets, props, err }, App) =>
-      render({ App, Component, styleSheets, props, err }),
+    subscription: (info, App) => render(Object.assign({}, info, { App })),
     locale,
     locales,
     defaultLocale,
