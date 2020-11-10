@@ -293,7 +293,10 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
               )
             ),
           ])
-          const res: RouteLoaderEntry = { ...entrypoint, styles }
+          const res: RouteLoaderEntry = Object.assign<
+            { styles: RouteStyleSheet[] },
+            RouteEntrypoint
+          >({ styles }, entrypoint)
           return 'error' in entrypoint ? entrypoint : res
         } catch (err) {
           return { error: err }
