@@ -30,7 +30,7 @@ export type GoodPageCache = {
 export default class PageLoader {
   private buildId: string
   private assetPrefix: string
-  private cssc: Record<string, Promise<string>>
+
   private promisedBuildManifest?: Promise<ClientBuildManifest>
   private promisedSsgManifest?: Promise<ClientSsgManifest>
   private promisedDevPagesManifest?: Promise<any>
@@ -41,8 +41,6 @@ export default class PageLoader {
 
     this.buildId = buildId
     this.assetPrefix = assetPrefix
-
-    this.cssc = {}
 
     this.promisedBuildManifest = new Promise((resolve) => {
       if (self.__BUILD_MANIFEST) {
