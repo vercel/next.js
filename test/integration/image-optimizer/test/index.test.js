@@ -104,6 +104,24 @@ function runTests({ w, isDev, domains }) {
     expect(actual).toMatch(expected)
   })
 
+  it('should maintain ico format', async () => {
+    const query = { w, q: 90, url: '/test.ico' }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/x-icon')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
+    const actual = await res.text()
+    const expected = await fs.readFile(
+      join(__dirname, '..', 'public', 'test.ico'),
+      'utf8'
+    )
+    expect(actual).toMatch(expected)
+  })
+
   it('should maintain jpg format for old Safari', async () => {
     const accept =
       'image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5'

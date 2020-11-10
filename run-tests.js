@@ -16,6 +16,13 @@ const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
 const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
 
+const UNIT_TEST_EXT = '.unit.test.js'
+const DEV_TEST_EXT = '.dev.test.js'
+const PROD_TEST_EXT = '.prod.test.js'
+
+// which types we have configured to run separate
+const configuredTestTypes = [UNIT_TEST_EXT]
+
 ;(async () => {
   let concurrencyIdx = process.argv.indexOf('-c')
   const concurrency =
@@ -27,14 +34,46 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
   const groupIdx = process.argv.indexOf('-g')
   const groupArg = groupIdx !== -1 && process.argv[groupIdx + 1]
 
+  const testTypeIdx = process.argv.indexOf('--type')
+  const testType = process.argv[testTypeIdx + 1]
+
+  let filterTestsBy
+
+  switch (testType) {
+    case 'unit':
+      filterTestsBy = UNIT_TEST_EXT
+      break
+    case 'dev':
+      filterTestsBy = DEV_TEST_EXT
+      break
+    case 'production':
+      filterTestsBy = PROD_TEST_EXT
+      break
+    case 'all':
+      filterTestsBy = 'none'
+      break
+    default:
+      break
+  }
+
   console.log('Running tests with concurrency:', concurrency)
   let tests = process.argv.filter((arg) => arg.endsWith('.test.js'))
   let prevTimings
 
   if (tests.length === 0) {
-    tests = await glob('**/*.test.js', {
-      nodir: true,
-      cwd: path.join(__dirname, 'test'),
+    tests = (
+      await glob('**/*.test.js', {
+        nodir: true,
+        cwd: path.join(__dirname, 'test'),
+      })
+    ).filter((test) => {
+      // only include the specified type
+      if (filterTestsBy) {
+        return filterTestsBy === 'none' ? true : test.endsWith(filterTestsBy)
+        // include all except the separately configured types
+      } else {
+        return !configuredTestTypes.some((type) => test.endsWith(type))
+      }
     })
 
     if (outputTimings && groupArg) {
@@ -96,7 +135,7 @@ const TIMINGS_API = `https://next-timings.jjsweb.site/api/timings`
         let smallestGroup = groupTimes[0]
         let smallestGroupIdx = 0
 
-        // get the samllest group time to add current one to
+        // get the smallest group time to add current one to
         for (let i = 1; i < groupTotal; i++) {
           if (!groups[i]) {
             groups[i] = []
