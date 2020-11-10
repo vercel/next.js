@@ -36,11 +36,11 @@ async function fetchGraphQL(query, preview = false) {
 }
 
 function extractPost(fetchResponse) {
-  return fetchResponse?.data?.postCollection?.items?.[0]
+  return fetchResponse?.data?.postCollection?.items?.[0] || null
 }
 
 function extractPostEntries(fetchResponse) {
-  return fetchResponse?.data?.postCollection?.items
+  return fetchResponse?.data?.postCollection?.items || []
 }
 
 export async function getPreviewPostBySlug(slug) {
