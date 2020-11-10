@@ -44,7 +44,8 @@ const loadScript = (props: Props) => {
   } = props
 
   if (ScriptCache.has(key || src)) {
-    return
+    // Execute onLoad since the script has already loaded
+    return onLoad()
   }
 
   const el = document.createElement('script')
