@@ -6,24 +6,14 @@ import { interpolateName } from 'loader-utils'
 import ESLintError from './es-lint-error'
 import { CLIEngine, Linter as ESLinter, ESLint } from 'eslint'
 import { loader } from 'webpack'
-import { createConfigDataFromOptions } from './utils'
-import { ParseResult } from '@babel/core'
+import createEngine from './create-engine'
 import { getBaseRules } from './base-rules'
-const {
-  CascadingConfigArrayFactory,
-} = require('eslint/lib/cli-engine/cascading-config-array-factory')
-
-export interface NextLintResult {
-  report?: CLIEngine.LintReport
-  ast?: ParseResult | null
-  src?: String
-}
 
 export class Linter {
   public loaderContext: loader.LoaderContext
   public options: any
   private resourcePath: string
-  private linter: ESLinter
+  private engine: CLIEngine
   private config: any
   private isTypescript: Boolean = false
 
@@ -31,33 +21,35 @@ export class Linter {
     this.loaderContext = loaderContext
     this.options = options
     this.resourcePath = this.parseResourcePath()
-    this.linter = new ESLinter({ cwd: options.cwd })
+
     // fixes for typescript
     if (this.resourcePath.endsWith('ts') || this.resourcePath.endsWith('tsx')) {
       this.isTypescript = true
-      options.parserOptions = options.parserOptions || {}
-      options.parserOptions.plugins = options.parserOptions.plugins || []
       if (!options.parserOptions.plugins.includes('typescript')) {
         options.parserOptions.plugins.push('typescript')
       }
+    } else {
+      options.parserOptions.babelOptions = options.parserOptions
+        .babelOptions || {
+        parserOpts: {
+          plugins: ['estree', 'jsx'],
+        },
+      }
+      options.parserOptions.requireConfigFile =
+        options.parserOptions.requireConfigFile || false
     }
-    this.config = new CascadingConfigArrayFactory({
-      additionalPluginPool: new Map(),
-      baseConfig: {
-        extends: [
-          'plugin:react-hooks/recommended',
-          'plugin:@next/next/recommended',
-        ],
-        rules: getBaseRules(this.isTypescript),
-      },
-      cliConfig: createConfigDataFromOptions(options),
-      cwd: options.cwd,
-      ignorePath: options.ignorePath,
-      resolvePluginsRelativeTo: options.resolvePluginsRelativeTo,
-      rulePaths: options.rulePaths,
-      specificConfigPath: options.configFile,
-      useEslintrc: true,
-    })
+    options.baseConfig = {
+      extends: [
+        'plugin:react-hooks/recommended',
+        'plugin:@next/next/recommended',
+      ],
+      rules: getBaseRules(this.isTypescript),
+    }
+    options.parser = this.isTypescript
+      ? '@typescript-eslint/parser'
+      : '@babel/eslint-parser'
+    const { engine } = createEngine(options)
+    this.engine = engine
   }
 
   parseResourcePath() {
@@ -81,68 +73,14 @@ export class Linter {
     return configArrayFactory.getConfigArrayForFile(absolutePath)
   }
 
-  calculateStatsPerFile(messages: ESLinter.LintMessage[]) {
-    return messages.reduce(
-      (stat, message) => {
-        if (message.fatal || message.severity === 2) {
-          stat.errorCount++
-          if (message.fix) {
-            stat.fixableErrorCount++
-          }
-        } else {
-          stat.warningCount++
-          if (message.fix) {
-            stat.fixableWarningCount++
-          }
-        }
-        return stat
-      },
-      {
-        errorCount: 0,
-        warningCount: 0,
-        fixableErrorCount: 0,
-        fixableWarningCount: 0,
-      }
-    )
-  }
-
-  lint(content: String | Buffer): NextLintResult {
-    const { resourcePath } = this.loaderContext
-    const linterConfig: ESLinter.Config<ESLinter.RulesRecord> = this.getConfigForFile(
-      resourcePath
-    )
-    let parser
-    if (this.isTypescript) {
-      // @typescript-eslint/parser is only present for typescript projects and not shipped as a part of next.js
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      parser = require('@typescript-eslint/parser')
-    } else {
-      parser = require('@babel/eslint-parser')
-    }
-    linterConfig.parser && this.linter.defineParser(linterConfig.parser, parser)
+  lint(content: String | Buffer): CLIEngine.LintReport {
     try {
-      const messages = this.linter.verify(
-        content.toString(),
-        linterConfig,
-        resourcePath
-      )
-      const stats = this.calculateStatsPerFile(messages)
-      const result: CLIEngine.LintResult = {
-        filePath: this.resourcePath,
-        messages,
-        usedDeprecatedRules: [],
-        ...stats,
-      }
-      const report: CLIEngine.LintReport = {
-        results: [result],
-        ...stats,
-        usedDeprecatedRules: [],
-      }
-      return { report }
+      // @ts-ignore
+      return this.engine.executeOnText(content, this.resourcePath, true)
     } catch (_) {
       // @ts-ignore
       this.getEmitter(false)(_)
-
+      // @ts-ignore
       return { src: content.toString() }
     }
   }
@@ -253,6 +191,7 @@ export class Linter {
     }
 
     ensureFileSync(filePath)
+    // @ts-ignore
     writeFileSync(filePath, content)
   }
 

@@ -24,7 +24,7 @@ import { createHash } from 'crypto'
 
 // @ts-ignore
 import findCacheDir from 'find-cache-dir'
-import { NextLintResult } from './linter'
+import { CLIEngine } from 'eslint'
 
 // Lazily instantiated when needed
 let defaultCacheDirectory: string | null = null
@@ -61,7 +61,7 @@ const filename = (source: string, identifier: string, options: any) => {
 const handleCache = async (
   directory: string,
   params: any
-): Promise<NextLintResult> => {
+): Promise<CLIEngine.LintReport> => {
   const {
     source,
     options = {},
@@ -78,7 +78,7 @@ const handleCache = async (
     // we just need to return it
     const report = await read(file, cacheCompression)
 
-    return { report }
+    return report
     // eslint-disable-next-line no-empty
   } catch (err) {}
 
@@ -98,7 +98,7 @@ const handleCache = async (
 
   // Otherwise just transform the file
   // return it to the user asap and write it in cache
-  const { report, ast } = await transform(source, options)
+  const report = await transform(source, options)
 
   try {
     await write(file, cacheCompression, report)
@@ -110,7 +110,7 @@ const handleCache = async (
 
     throw err
   }
-  return { report, ast }
+  return report
 }
 
 /**

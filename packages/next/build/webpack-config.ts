@@ -888,10 +888,11 @@ export default async function getBaseWebpackConfig(
                   },
                   parserOptions: {
                     sourceType: 'module',
-                    ecmaVersion: 2017,
+                    ecmaVersion: 2018,
                     ecmaFeatures: {
                       jsx: true,
                     },
+                    plugins: ['jsx'],
                   },
                 },
                 loader: 'next-eslint-loader',

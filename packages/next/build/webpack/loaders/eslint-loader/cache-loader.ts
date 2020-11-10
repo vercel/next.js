@@ -1,7 +1,7 @@
 import cache from './cache'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { RawSourceMap } from 'source-map'
-import { Linter, NextLintResult } from './linter'
+import { Linter } from './linter'
 import { CLIEngine } from 'eslint'
 import { join } from 'path'
 
@@ -29,7 +29,7 @@ export default function cacheLoader(
       return linter.lint(stringContent)
     },
   })
-    .then(({ report }: NextLintResult) => {
+    .then((report: CLIEngine.LintReport) => {
       try {
         report && linter.printOutput(report)
       } catch (error) {

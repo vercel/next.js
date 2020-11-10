@@ -23,7 +23,7 @@ const fn: loader.Loader = function (
     cacheLoader(linter, content.toString(), map)
     return
   }
-  const { report } = linter.lint(content)
+  const report = linter.lint(content)
   report && linter.printOutput(report)
   let compilationError = null
   // Do not fail build during dev due to lint errors.
