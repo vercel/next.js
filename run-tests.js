@@ -135,7 +135,7 @@ const configuredTestTypes = [UNIT_TEST_EXT]
         let smallestGroup = groupTimes[0]
         let smallestGroupIdx = 0
 
-        // get the samllest group time to add current one to
+        // get the smallest group time to add current one to
         for (let i = 1; i < groupTotal; i++) {
           if (!groups[i]) {
             groups[i] = []

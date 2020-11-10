@@ -14,9 +14,6 @@ stages:
           - script: dir
           - script: dir $(System.DefaultWorkingDirectory)
           - script: echo $(Build.SourceVersion)
-          - powershell: Set-MpPreference -ExclusionPath $(System.DefaultWorkingDirectory)
-          - powershell: Set-MpPreference -ExclusionPath $(Pipeline.Workspace)/.yarn
-          - powershell: Set-MpPreference -DisableIntrusionPreventionSystem $true -DisableIOAVProtection $true -DisableRealtimeMonitoring $true -DisableScriptScanning $true -EnableControlledFolderAccess Disabled -EnableNetworkProtection AuditMode -Force -MAPSReporting Disabled -SubmitSamplesConsent NeverSend
           - powershell: Get-MpComputerStatus
           - task: NodeTool@0
             inputs:
@@ -44,9 +41,6 @@ stages:
           vmImage: 'windows-2019'
         steps:
           - checkout: none
-          - powershell: Set-MpPreference -ExclusionPath $(System.DefaultWorkingDirectory)
-          - powershell: Set-MpPreference -ExclusionPath $(Pipeline.Workspace)/.yarn
-          - powershell: Set-MpPreference -DisableIntrusionPreventionSystem $true -DisableIOAVProtection $true -DisableRealtimeMonitoring $true -DisableScriptScanning $true -EnableControlledFolderAccess Disabled -EnableNetworkProtection AuditMode -Force -MAPSReporting Disabled -SubmitSamplesConsent NeverSend
           - task: NodeTool@0
             inputs:
               versionSpec: $(node_version)
@@ -67,9 +61,6 @@ stages:
           vmImage: 'windows-2019'
         steps:
           - checkout: none
-          - powershell: Set-MpPreference -ExclusionPath $(System.DefaultWorkingDirectory)
-          - powershell: Set-MpPreference -ExclusionPath $(Pipeline.Workspace)/.yarn
-          - powershell: Set-MpPreference -DisableIntrusionPreventionSystem $true -DisableIOAVProtection $true -DisableRealtimeMonitoring $true -DisableScriptScanning $true -EnableControlledFolderAccess Disabled -EnableNetworkProtection AuditMode -Force -MAPSReporting Disabled -SubmitSamplesConsent NeverSend
           - script: |
               wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
             displayName: 'List Chrome version'
@@ -103,9 +94,6 @@ stages:
               group: 4/4
         steps:
           - checkout: none
-          - powershell: Set-MpPreference -ExclusionPath $(System.DefaultWorkingDirectory)
-          - powershell: Set-MpPreference -ExclusionPath $(Pipeline.Workspace)/.yarn
-          - powershell: Set-MpPreference -DisableIntrusionPreventionSystem $true -DisableIOAVProtection $true -DisableRealtimeMonitoring $true -DisableScriptScanning $true -EnableControlledFolderAccess Disabled -EnableNetworkProtection AuditMode -Force -MAPSReporting Disabled -SubmitSamplesConsent NeverSend
           - script: |
               wmic datafile where name="C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe" get Version /value
             displayName: 'List Chrome version'
