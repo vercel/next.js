@@ -251,7 +251,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
             ? []
             : Promise.all(scripts.map(maybeExecuteScript)),
           Promise.all(css.map(fetchStyleSheet)),
-        ])
+        ] as const)
 
         // The await here is intentional:
         const entrypoint = await Promise.race([
@@ -263,7 +263,8 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
             )
           ),
         ])
-        return 'error' in entrypoint ? entrypoint : { ...entrypoint, styles }
+        const res: RouteLoaderEntry = { ...entrypoint, styles }
+        return 'error' in entrypoint ? entrypoint : res
       } catch (err) {
         return { error: err }
       }
