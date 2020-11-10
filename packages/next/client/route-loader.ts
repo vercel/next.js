@@ -172,15 +172,16 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
   const styleSheets: Map<string, Promise<RouteStyleSheet>> = new Map()
 
   function maybeExecuteScript(src: string): Promise<unknown> {
+    let prom = loadedScripts.get(src)
+    if (prom) {
+      return prom
+    }
+
     // Skip executing script if it's already in the DOM:
     if (document.querySelector(`script[src^="${src}"]`)) {
       return Promise.resolve()
     }
 
-    let prom = loadedScripts.get(src)
-    if (prom) {
-      return prom
-    }
     loadedScripts.set(src, (prom = appendScript(src)))
     return prom
   }
