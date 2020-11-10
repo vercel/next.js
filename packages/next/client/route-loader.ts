@@ -1,5 +1,6 @@
 import { ComponentType } from 'react'
 import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
+import requestIdleCallback from './request-idle-callback'
 
 // 3.8s was arbitrarily chosen as it's what https://web.dev/interactive
 // considers as "Good" time-to-interactive. We must assume something went
@@ -7,24 +8,10 @@ import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifes
 // show the user something of value.
 const MS_MAX_IDLE_DELAY = 3800
 
-type RequestIdleCallbackHandle = any
-type RequestIdleCallbackOptions = {
-  timeout: number
-}
-type RequestIdleCallbackDeadline = {
-  readonly didTimeout: boolean
-  timeRemaining: () => number
-}
-
 declare global {
   interface Window {
     __BUILD_MANIFEST?: ClientBuildManifest
     __BUILD_MANIFEST_CB?: Function
-
-    requestIdleCallback: (
-      callback: (deadline: RequestIdleCallbackDeadline) => void,
-      opts?: RequestIdleCallbackOptions
-    ) => RequestIdleCallbackHandle
   }
 }
 
@@ -92,20 +79,6 @@ export interface RouteLoader {
 //     document.head.appendChild(link)
 //   })
 // }
-
-const requestIdleCallback =
-  self.requestIdleCallback ||
-  function (cb: (deadline: RequestIdleCallbackDeadline) => void) {
-    let start = Date.now()
-    return setTimeout(function () {
-      cb({
-        didTimeout: false,
-        timeRemaining: function () {
-          return Math.max(0, 50 - (Date.now() - start))
-        },
-      })
-    }, 1)
-  }
 
 const ASSET_LOAD_ERROR = Symbol('ASSET_LOAD_ERROR')
 function markAssetError(err: Error): Error {
