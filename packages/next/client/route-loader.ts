@@ -252,7 +252,9 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
       try {
         const { scripts } = await getFilesForRoute(assetPrefix, route)
         await Promise.all(scripts.map(executeScript))
-        return Promise.race([
+
+        // The await here is intentional:
+        return await Promise.race([
           this.whenEntrypoint(route),
           idleTimeout<RouteLoaderEntry>(
             MS_MAX_IDLE_DELAY,
