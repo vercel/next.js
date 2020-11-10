@@ -89,6 +89,10 @@ function prefetchViaDom(
   link?: HTMLLinkElement
 ): Promise<any> {
   return new Promise((res, rej) => {
+    if (document.querySelector(`link[rel="prefetch"][href^="${href}"]`)) {
+      return res()
+    }
+
     link = document.createElement('link')
 
     // The order of property assignment here is intentional:
