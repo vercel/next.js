@@ -159,8 +159,7 @@ export default class PageLoader {
     throw err
   }
 
-  prefetch(): Promise<void> {
-    // TODO: reimplement
-    return Promise.resolve()
+  prefetch(route: string): Promise<void> {
+    return this.routeLoader.prefetch(route)
   }
 }

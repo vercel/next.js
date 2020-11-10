@@ -69,40 +69,41 @@ export interface RouteLoader {
   whenEntrypoint(route: string): Promise<RouteEntrypoint>
   onEntrypoint(route: string, execute: () => unknown): void
   loadRoute(route: string): Promise<RouteLoaderEntry>
+  prefetch(route: string): Promise<void>
 }
 
-// function hasPrefetch(link?: HTMLLinkElement): boolean {
-//   try {
-//     link = document.createElement('link')
-//     return link.relList.supports('prefetch')
-//   } catch {
-//     return false
-//   }
-// }
+function hasPrefetch(link?: HTMLLinkElement): boolean {
+  try {
+    link = document.createElement('link')
+    return link.relList.supports('prefetch')
+  } catch {
+    return false
+  }
+}
 
-// const canPrefetch: boolean = hasPrefetch()
+const canPrefetch: boolean = hasPrefetch()
 
-// function prefetchViaDom(
-//   href: string,
-//   as: string,
-//   link?: HTMLLinkElement
-// ): Promise<any> {
-//   return new Promise((res, rej) => {
-//     link = document.createElement('link')
+function prefetchViaDom(
+  href: string,
+  as: string,
+  link?: HTMLLinkElement
+): Promise<any> {
+  return new Promise((res, rej) => {
+    link = document.createElement('link')
 
-//     // The order of property assignment here is intentional:
-//     if (as) link!.as = as
-//     link!.rel = `prefetch`
-//     link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
-//     link!.onload = res
-//     link!.onerror = rej
+    // The order of property assignment here is intentional:
+    if (as) link!.as = as
+    link!.rel = `prefetch`
+    link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
+    link!.onload = res
+    link!.onerror = rej
 
-//     // `href` should always be last:
-//     link!.href = href
+    // `href` should always be last:
+    link!.href = href
 
-//     document.head.appendChild(link)
-//   })
-// }
+    document.head.appendChild(link)
+  })
+}
 
 const ASSET_LOAD_ERROR = Symbol('ASSET_LOAD_ERROR')
 function markAssetError(err: Error): Error {
@@ -293,6 +294,30 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
           return { error: err }
         }
       })
+    },
+    prefetch(route) {
+      // https://github.com/GoogleChromeLabs/quicklink/blob/453a661fa1fa940e2d2e044452398e38c67a98fb/src/index.mjs#L115-L118
+      // License: Apache 2.0
+      let cn
+      if ((cn = (navigator as any).connection)) {
+        // Don't prefetch if using 2G or if Save-Data is enabled.
+        if (cn.saveData || /2g/.test(cn.effectiveType)) return Promise.resolve()
+      }
+      return getFilesForRoute(assetPrefix, route)
+        .then((output) =>
+          Promise.all(
+            canPrefetch
+              ? output.scripts.map((script) => prefetchViaDom(script, 'script'))
+              : []
+          )
+        )
+        .then(() => {
+          requestIdleCallback(() => this.loadRoute(route))
+        })
+        .catch(
+          // swallow prefetch errors
+          () => {}
+        )
     },
   }
 }
