@@ -588,7 +588,7 @@ export async function buildStaticPaths(
 
   if (!Array.isArray(toPrerender)) {
     throw new Error(
-      `Invalid \`paths\` value returned from getStaticProps in ${page}.\n` +
+      `Invalid \`paths\` value returned from getStaticPaths in ${page}.\n` +
         `\`paths\` must be an array of strings or objects of shape { params: [key: string]: string }`
     )
   }
