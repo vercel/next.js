@@ -115,6 +115,8 @@ Uploadcare loader supports following types of image sources:
 
 Relative images, statically served by Next.js, are not supported.
 
+Custom CNAMEs also are not supported.
+
 By default, loader uses `smart` quality. You can override it using `quality` property for Image component. Integer quality values are mapped onto Uploadcare ones. All available quality transformations described [here](https://uploadcare.com/docs/transformations/compression/#operation-quality).
 
 ## Caching
