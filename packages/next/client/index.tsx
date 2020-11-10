@@ -150,7 +150,6 @@ let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
 let CachedComponent: React.ComponentType
-let cachedStyleSheets: StyleSheetTuple[]
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 
 class Container extends React.Component<{
@@ -280,10 +279,11 @@ export default async (opts: { webpackHMR?: any } = {}) => {
   let initialErr = hydrateErr
 
   try {
-    ;({
-      page: CachedComponent,
-      styleSheets: cachedStyleSheets,
-    } = await pageLoader.loadPage(page))
+    const pageEntrypoint = await pageLoader.routeLoader.whenEntrypoint(page)
+    if ('error' in pageEntrypoint) {
+      throw pageEntrypoint.error
+    }
+    CachedComponent = pageEntrypoint.component
 
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('react-is')
@@ -341,7 +341,6 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     pageLoader,
     App: CachedApp,
     Component: CachedComponent,
-    initialStyleSheets: cachedStyleSheets,
     wrapApp,
     err: initialErr,
     isFallback: Boolean(isFallback),
@@ -365,10 +364,10 @@ export default async (opts: { webpackHMR?: any } = {}) => {
       })
   }
 
-  const renderCtx = {
+  const renderCtx: RenderRouteInfo = {
     App: CachedApp,
+    initial: true,
     Component: CachedComponent,
-    styleSheets: cachedStyleSheets,
     props: hydrateProps,
     err: initialErr,
   }
@@ -473,8 +472,6 @@ export function renderError(renderErrorProps: RenderErrorProps) {
     })
 }
 
-// If hydrate does not exist, eg in preact.
-let isInitialRender = typeof ReactDOM.hydrate === 'function'
 let reactRoot: any = null
 function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
@@ -493,9 +490,8 @@ function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
     }
 
     // The check for `.hydrate` is there to support React alternatives like preact
-    if (isInitialRender) {
+    if (typeof ReactDOM.hydrate === 'function') {
       ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
-      isInitialRender = false
     } else {
       ReactDOM.render(reactEl, domEl, markRenderComplete)
     }
@@ -593,13 +589,10 @@ const wrapApp = (App: AppComponent) => (
   )
 }
 
-function doRender({
-  App,
-  Component,
-  props,
-  err,
-  styleSheets,
-}: RenderRouteInfo): Promise<any> {
+function doRender(input: RenderRouteInfo): Promise<any> {
+  let { App, Component, props, err } = input
+  let styleSheets: StyleSheetTuple[] | undefined =
+    'initial' in input ? undefined : input.styleSheets
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
@@ -636,9 +629,7 @@ function doRender({
   // Promise. It should remain synchronous.
   function onStart(): boolean {
     if (
-      // We can skip this during hydration. Running it wont cause any harm, but
-      // we may as well save the CPU cycles.
-      isInitialRender ||
+      !styleSheets ||
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
       process.env.NODE_ENV !== 'production'
@@ -673,7 +664,7 @@ function doRender({
       process.env.NODE_ENV === 'production' &&
       // We can skip this during hydration. Running it wont cause any harm, but
       // we may as well save the CPU cycles:
-      !isInitialRender &&
+      styleSheets &&
       // Ensure this render was not canceled
       !canceled
     ) {

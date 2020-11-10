@@ -272,7 +272,11 @@ export type PrefetchOptions = {
   locale?: string | false
 }
 
-export type PrivateRouteInfo = {
+export type PrivateRouteInfo =
+  | (Omit<CompletePrivateRouteInfo, 'styleSheets'> & { initial: true })
+  | CompletePrivateRouteInfo
+
+export type CompletePrivateRouteInfo = {
   Component: ComponentType
   styleSheets: StyleSheetTuple[]
   __N_SSG?: boolean
@@ -282,12 +286,15 @@ export type PrivateRouteInfo = {
   error?: any
 }
 
-export type AppProps = Pick<PrivateRouteInfo, 'Component' | 'err'> & {
+export type AppProps = Pick<CompletePrivateRouteInfo, 'Component' | 'err'> & {
   router: Router
 } & Record<string, any>
 export type AppComponent = ComponentType<AppProps>
 
-type Subscription = (data: PrivateRouteInfo, App: AppComponent) => Promise<void>
+type Subscription = (
+  data: CompletePrivateRouteInfo,
+  App: AppComponent
+) => Promise<void>
 
 type BeforePopStateCallback = (state: NextHistoryState) => boolean
 
@@ -384,7 +391,6 @@ export default class Router implements BaseRouter {
       App,
       wrapApp,
       Component,
-      initialStyleSheets,
       err,
       subscription,
       isFallback,
@@ -396,7 +402,6 @@ export default class Router implements BaseRouter {
       initialProps: any
       pageLoader: any
       Component: ComponentType
-      initialStyleSheets: StyleSheetTuple[]
       App: AppComponent
       wrapApp: (App: AppComponent) => any
       err?: Error
@@ -417,7 +422,7 @@ export default class Router implements BaseRouter {
     if (pathname !== '/_error') {
       this.components[this.route] = {
         Component,
-        styleSheets: initialStyleSheets,
+        initial: true,
         props: initialProps,
         err,
         __N_SSG: initialProps && initialProps.__N_SSG,
@@ -913,7 +918,7 @@ export default class Router implements BaseRouter {
     query: ParsedUrlQuery,
     as: string,
     loadErrorFail?: boolean
-  ): Promise<PrivateRouteInfo> {
+  ): Promise<CompletePrivateRouteInfo> {
     if (err.cancelled) {
       // bubble up cancellation errors
       throw err
@@ -969,7 +974,7 @@ export default class Router implements BaseRouter {
         ))
       }
 
-      const routeInfo: PrivateRouteInfo = {
+      const routeInfo: CompletePrivateRouteInfo = {
         props,
         Component,
         styleSheets,
@@ -1002,15 +1007,17 @@ export default class Router implements BaseRouter {
     query: any,
     as: string,
     shallow: boolean = false
-  ): Promise<PrivateRouteInfo> {
+  ): Promise<CompletePrivateRouteInfo> {
     try {
-      const cachedRouteInfo = this.components[route]
+      const existingRouteInfo = this.components[route]
+      const cachedRouteInfo: CompletePrivateRouteInfo | undefined =
+        'initial' in existingRouteInfo ? undefined : existingRouteInfo
 
       if (shallow && cachedRouteInfo && this.route === route) {
         return cachedRouteInfo
       }
 
-      const routeInfo: PrivateRouteInfo = cachedRouteInfo
+      const routeInfo: CompletePrivateRouteInfo = cachedRouteInfo
         ? cachedRouteInfo
         : await this.fetchComponent(route).then((res) => ({
             Component: res.page,
@@ -1041,7 +1048,7 @@ export default class Router implements BaseRouter {
         )
       }
 
-      const props = await this._getData<PrivateRouteInfo>(() =>
+      const props = await this._getData<CompletePrivateRouteInfo>(() =>
         __N_SSG
           ? this._getStaticData(dataHref!)
           : __N_SSP
@@ -1070,7 +1077,7 @@ export default class Router implements BaseRouter {
     pathname: string,
     query: ParsedUrlQuery,
     as: string,
-    data: PrivateRouteInfo
+    data: CompletePrivateRouteInfo
   ): Promise<void> {
     this.isFallback = false
 
@@ -1314,7 +1321,7 @@ export default class Router implements BaseRouter {
     }
   }
 
-  notify(data: PrivateRouteInfo): Promise<void> {
+  notify(data: CompletePrivateRouteInfo): Promise<void> {
     return this.sub(data, this.components['/_app'].Component as AppComponent)
   }
 }
