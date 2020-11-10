@@ -1003,6 +1003,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
         'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
         'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n.domains),
+        'process.env.__NEXT_I18N_SHOW_DEFAULT': JSON.stringify(
+          config.i18n?.showDefaultLocale
+        ),
         'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
         ...(isServer
           ? {

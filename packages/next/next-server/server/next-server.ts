@@ -389,7 +389,8 @@ export default class Server {
       //   `/${i18n.defaultLocale.toLowerCase()}`
 
       const shouldAddLocalePrefix =
-        !detectedDefaultLocale && denormalizedPagePath === '/'
+        (!detectedDefaultLocale || i18n.showDefaultLocale) &&
+        denormalizedPagePath === '/'
 
       detectedLocale = detectedLocale || i18n.defaultLocale
 

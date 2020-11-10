@@ -63,7 +63,7 @@ export function addLocale(
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
     return locale &&
-      locale !== defaultLocale &&
+      (locale !== defaultLocale || process.env.__NEXT_I18N_SHOW_DEFAULT) &&
       !path.startsWith('/' + locale + '/') &&
       path !== '/' + locale
       ? addPathPrefix(path, '/' + locale)
