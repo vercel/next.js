@@ -8,7 +8,13 @@ const ViewSource = ({ pathname }) => (
     viewBox="0 0 250 250"
     fill="#151513"
     className={svg}
-    style={{ position: 'absolute', top: 0, right: 0 }}
+    style={{
+      position: 'absolute',
+      top: 0,
+      right: 0,
+      width: '80px',
+      height: '80px',
+    }}
   >
     <a
       title="View Source"
