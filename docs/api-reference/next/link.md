@@ -145,7 +145,7 @@ export default Home
 
 ## With URL Object
 
-`Link` can also receive an URL object and it will automatically format it to create the URL string. Here's how to do it:
+`Link` can also receive a URL object and it will automatically format it to create the URL string. Here's how to do it:
 
 ```jsx
 import Link from 'next/link'

@@ -1,36 +1,20 @@
 import { ComponentType } from 'react'
 import type { ClientSsgManifest } from '../build'
 import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
-import mitt from '../next-server/lib/mitt'
 import type { MittEmitter } from '../next-server/lib/mitt'
+import mitt from '../next-server/lib/mitt'
 import {
   addBasePath,
-  markLoadingError,
+  addLocale,
   interpolateAs,
+  markLoadingError,
 } from '../next-server/lib/router/router'
-
 import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../next-server/lib/router/utils/parse-relative-url'
 
 export const looseToArray = <T extends {}>(input: any): T[] =>
   [].slice.call(input)
-
-function getInitialStylesheets(): StyleSheetTuple[] {
-  return looseToArray<CSSStyleSheet>(document.styleSheets)
-    .filter(
-      (el: CSSStyleSheet) =>
-        el.ownerNode &&
-        (el.ownerNode as Element).tagName === 'LINK' &&
-        (el.ownerNode as Element).hasAttribute('data-n-p')
-    )
-    .map((sheet) => ({
-      href: (sheet.ownerNode as Element).getAttribute('href')!,
-      text: looseToArray<CSSRule>(sheet.cssRules)
-        .map((r) => r.cssText)
-        .join(''),
-    }))
-}
 
 function hasRel(rel: string, link?: HTMLLinkElement) {
   try {
@@ -43,6 +27,8 @@ function pageLoadError(route: string) {
   return markLoadingError(new Error(`Error loading ${route}`))
 }
 
+export const INITIAL_CSS_LOAD_ERROR = Symbol('INITIAL_CSS_LOAD_ERROR')
+
 const relPrefetch =
   hasRel('preload') && !hasRel('prefetch')
     ? // https://caniuse.com/#feat=link-rel-preload
@@ -51,9 +37,6 @@ const relPrefetch =
     : // https://caniuse.com/#feat=link-rel-prefetch
       // IE 11, Edge 12+, nearly all evergreen
       'prefetch'
-
-const relPreload = hasRel('preload') ? 'preload' : relPrefetch
-const relPreloadStyle = 'fetch'
 
 const hasNoModule = 'noModule' in document.createElement('script')
 
@@ -116,6 +99,7 @@ export default class PageLoader {
   private buildId: string
   private assetPrefix: string
   private pageCache: Record<string, PageCacheEntry>
+  private cssc: Record<string, Promise<string>>
   private pageRegisterEvents: MittEmitter
   private loadingRoutes: Record<string, boolean>
   private promisedBuildManifest?: Promise<ClientBuildManifest>
@@ -129,6 +113,7 @@ export default class PageLoader {
     this.assetPrefix = assetPrefix
 
     this.pageCache = {}
+    this.cssc = {}
     this.pageRegisterEvents = mitt()
     this.loadingRoutes = {
       // By default these 2 pages are being loaded in the initial html
@@ -189,6 +174,16 @@ export default class PageLoader {
     }
   }
 
+  private fetchStyleSheet(href: string): Promise<StyleSheetTuple> {
+    if (!this.cssc[href]) {
+      this.cssc[href] = fetch(href).then((res) => {
+        if (!res.ok) throw pageLoadError(href)
+        return res.text()
+      })
+    }
+    return this.cssc[href].then((text) => ({ href, text }))
+  }
+
   // Returns a promise for the dependencies for a particular route
   private getDependencies(route: string): Promise<string[]> {
     return this.promisedBuildManifest!.then((m) => {
@@ -202,13 +197,18 @@ export default class PageLoader {
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
-  getDataHref(href: string, asPath: string, ssg: boolean) {
+  getDataHref(
+    href: string,
+    asPath: string,
+    ssg: boolean,
+    locale?: string | false
+  ) {
     const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
     const { pathname: asPathname } = parseRelativeUrl(asPath)
     const route = normalizeRoute(hrefPathname)
 
     const getHrefForSlug = (path: string) => {
-      const dataRoute = getAssetPathFromRoute(path, '.json')
+      const dataRoute = addLocale(getAssetPathFromRoute(path, '.json'), locale)
       return addBasePath(
         `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`
       )
@@ -226,25 +226,12 @@ export default class PageLoader {
 
   /**
    * @param {string} href the route href (file-system path)
-   * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
    */
-  prefetchData(href: string, asPath: string) {
+  _isSsg(href: string): Promise<boolean> {
     const { pathname: hrefPathname } = parseRelativeUrl(href)
     const route = normalizeRoute(hrefPathname)
-    return this.promisedSsgManifest!.then(
-      (s: ClientSsgManifest, _dataHref?: string) =>
-        // Check if the route requires a data file
-        s.has(route) &&
-        // Try to generate data href, noop when falsy
-        (_dataHref = this.getDataHref(href, asPath, true)) &&
-        // noop when data has already been prefetched (dedupe)
-        !document.querySelector(
-          `link[rel="${relPrefetch}"][href^="${_dataHref}"]`
-        ) &&
-        // Inject the `<link rel=prefetch>` tag for above computed `href`.
-        appendLink(_dataHref, relPrefetch, 'fetch').catch(() => {
-          /* ignore prefetch error */
-        })
+    return this.promisedSsgManifest!.then((s: ClientSsgManifest) =>
+      s.has(route)
     )
   }
 
@@ -290,25 +277,8 @@ export default class PageLoader {
                 ) {
                   pending.push(loadScript(d))
                 }
-
-                // Prefetch CSS as it'll be needed when the page JavaScript
-                // evaluates. This will only trigger if explicit prefetching is
-                // disabled for a <Link>... prefetching in this case is desirable
-                // because we *know* it's going to be used very soon (page was
-                // loaded).
-                if (
-                  d.endsWith('.css') &&
-                  !document.querySelector(
-                    `link[rel="${relPreload}"][href^="${d}"]`
-                  )
-                ) {
-                  // This is not pushed into `pending` because we don't need to
-                  // wait for these to resolve. To prevent an unhandled
-                  // rejection, we swallow the error which is handled later in
-                  // the rendering cycle (this is just a preload optimization).
-                  appendLink(d, relPreload, relPreloadStyle).catch(() => {
-                    /* ignore preload error */
-                  })
+                if (d.endsWith('.css')) {
+                  pending.push(this.fetchStyleSheet(d))
                 }
               })
               return Promise.all(pending)
@@ -339,9 +309,9 @@ export default class PageLoader {
 
   // This method if called by the route code.
   registerPage(route: string, regFn: () => any) {
-    const register = (styleSheets: StyleSheetTuple[]) => {
+    const register = async (styleSheets: StyleSheetTuple[]) => {
       try {
-        const mod = regFn()
+        const mod = await regFn()
         const pageData: PageCacheEntry = {
           page: mod.default || mod,
           mod,
@@ -377,13 +347,6 @@ export default class PageLoader {
       }
     }
 
-    function fetchStyleSheet(href: string): Promise<StyleSheetTuple> {
-      return fetch(href).then((res) => {
-        if (!res.ok) throw pageLoadError(href)
-        return res.text().then((text) => ({ href, text }))
-      })
-    }
-
     const isInitialLoad = route === this.initialPage
     const promisedDeps: Promise<StyleSheetTuple[]> =
       // Shared styles will already be on the page:
@@ -405,9 +368,11 @@ export default class PageLoader {
           ).then((cssFiles) =>
             // These files should've already been fetched by now, so this
             // should resolve instantly.
-            Promise.all(cssFiles.map((d) => fetchStyleSheet(d))).catch(
+            Promise.all(cssFiles.map((d) => this.fetchStyleSheet(d))).catch(
               (err) => {
-                if (isInitialLoad) return getInitialStylesheets()
+                if (isInitialLoad) {
+                  Object.defineProperty(err, INITIAL_CSS_LOAD_ERROR, {})
+                }
                 throw err
               }
             )
@@ -452,27 +417,22 @@ export default class PageLoader {
       }
     }
 
-    return Promise.all(
-      document.querySelector(`link[rel="${relPrefetch}"][href^="${url}"]`)
-        ? []
-        : [
-            url &&
-              appendLink(
-                url,
-                relPrefetch,
-                url.endsWith('.css') ? relPreloadStyle : 'script'
-              ),
-            process.env.NODE_ENV === 'production' &&
-              !isDependency &&
-              this.getDependencies(route).then((urls) =>
-                Promise.all(
-                  urls.map((dependencyUrl) =>
-                    this.prefetch(dependencyUrl, true)
-                  )
-                )
-              ),
-          ]
-    ).then(
+    return Promise.all([
+      url
+        ? url.endsWith('.css')
+          ? this.fetchStyleSheet(url)
+          : !document.querySelector(
+              `link[rel="${relPrefetch}"][href^="${url}"]`
+            ) && appendLink(url, relPrefetch, 'script')
+        : 0,
+      process.env.NODE_ENV === 'production' &&
+        !isDependency &&
+        this.getDependencies(route).then((urls) =>
+          Promise.all(
+            urls.map((dependencyUrl) => this.prefetch(dependencyUrl, true))
+          )
+        ),
+    ]).then(
       // do not return any data
       () => {},
       // swallow prefetch errors

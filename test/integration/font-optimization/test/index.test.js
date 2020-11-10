@@ -104,7 +104,7 @@ function runTests() {
   })
 }
 
-describe('Font optimization for SSR apps', () => {
+describe.skip('Font optimization for SSR apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
@@ -125,7 +125,7 @@ describe('Font optimization for SSR apps', () => {
   runTests()
 })
 
-describe('Font optimization for serverless apps', () => {
+describe.skip('Font optimization for serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
@@ -142,7 +142,7 @@ describe('Font optimization for serverless apps', () => {
   runTests()
 })
 
-describe('Font optimization for emulated serverless apps', () => {
+describe.skip('Font optimization for emulated serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
