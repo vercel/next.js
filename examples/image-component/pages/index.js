@@ -1,5 +1,4 @@
 import styles from '../styles.module.css'
-import Image from 'next/image'
 import Link from 'next/link'
 
 const Code = (p) => <code className={styles.inlineCode} {...p} />
@@ -29,13 +28,7 @@ const Index = () => (
         Notice that the image is responsive. As you adjust your browser width, a
         different sized image is loaded.
       </p>
-      <Image
-        layout="fixed"
-        alt="Vercel logo"
-        src="/vercel.png"
-        width={1000}
-        height={1000}
-      />
+      <img alt="Vercel logo" src="/vercel.png" width="1000" height="1000" />
       <hr className={styles.hr} />
       <p>
         The following is an example of a reference to an external image at{' '}
@@ -45,12 +38,11 @@ const Index = () => (
         External domains must be configured in <Code>next.config.js</Code> using
         the <Code>domains</Code> property.
       </p>
-      <Image
-        layout="fixed"
+      <img
         alt="Next.js logo"
         src="https://assets.vercel.com/image/upload/v1538361091/repositories/next-js/next-js-bg.png"
-        width={1200}
-        height={400}
+        width="1200"
+        height="400"
       />
       <hr className={styles.hr} />
       <h2>Layouts</h2>
