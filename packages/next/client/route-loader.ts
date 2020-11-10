@@ -190,7 +190,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
   > = new Map()
   const loadedScripts: Map<string, Promise<unknown>> = new Map()
 
-  function executeScript(src: string): Promise<unknown> {
+  function maybeExecuteScript(src: string): Promise<unknown> {
     // Skip executing script if it's already in the DOM:
     if (document.querySelector(`script[src^="${src}"]`)) {
       return Promise.resolve()
@@ -251,7 +251,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
 
       try {
         const { scripts } = await getFilesForRoute(assetPrefix, route)
-        await Promise.all(scripts.map(executeScript))
+        await Promise.all(scripts.map(maybeExecuteScript))
 
         // The await here is intentional:
         return await Promise.race([
