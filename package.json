@@ -1,6 +1,6 @@
 {
   "name": "@healthline/next",
-  "version": "25.0.0",
+  "version": "25.0.1",
   "description": "Minimalistic framework for server-rendered React applications",
   "main": "./node/server/next.js",
   "license": "MIT",
@@ -45,7 +45,7 @@
   "dependencies": {
     "del": "^5.1.0",
     "htmlescape": "^1.1.1",
-    "minimist": "^1.2.0",
+    "minimist": "1.2.5",
     "mitt": "^1.2.0",
     "prop-types": "^15.7.0",
     "querystring": "^0.2.0",
