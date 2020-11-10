@@ -2,7 +2,6 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import React from 'react'
 import { renderToStaticMarkup, renderToString } from 'react-dom/server'
-import Critters from 'critters'
 import { warn } from '../../build/output/log'
 import { UnwrapPromise } from '../../lib/coalesced-function'
 import {
@@ -1044,6 +1043,7 @@ export async function renderToHTML(
   }
 
   if (renderOpts.optimizeCss) {
+    const Critters = require('critters')
     const cssOptimizer = new Critters({
       ssrMode: true,
       reduceInlineStyles: false,
