@@ -205,7 +205,6 @@ export default class Server {
           ? requireFontManifest(this.distDir, this._isLikeServerless)
           : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
-      defaultLocale: this.nextConfig.i18n?.defaultLocale,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -438,6 +437,9 @@ export default class Server {
         return
       }
 
+      parsedUrl.query.__nextDefaultLocale =
+        detectedDomain?.defaultLocale || i18n.defaultLocale
+
       parsedUrl.query.__nextLocale =
         localePathResult.detectedLocale ||
         detectedDomain?.defaultLocale ||
@@ -603,7 +605,10 @@ export default class Server {
               pathname = localePathResult.pathname
               detectedLocale = localePathResult.detectedLocale
             }
+
             _parsedUrl.query.__nextLocale = detectedLocale!
+            _parsedUrl.query.__nextDefaultLocale =
+              defaultLocale || i18n.defaultLocale
           }
           pathname = getRouteFromAssetPath(pathname, '.json')
 
@@ -1145,6 +1150,7 @@ export default class Server {
                   amp: query.amp,
                   _nextDataReq: query._nextDataReq,
                   __nextLocale: query.__nextLocale,
+                  __nextDefaultLocale: query.__nextDefaultLocale,
                 }
               : query),
             ...(params || {}),
@@ -1217,7 +1223,9 @@ export default class Server {
     }
 
     const locale = query.__nextLocale as string
+    const defaultLocale = query.__nextDefaultLocale as string
     delete query.__nextLocale
+    delete query.__nextDefaultLocale
 
     const { i18n } = this.nextConfig
     const locales = i18n.locales as string[]
@@ -1371,7 +1379,7 @@ export default class Server {
               fontManifest: this.renderOpts.fontManifest,
               locale,
               locales,
-              // defaultLocale,
+              defaultLocale,
             }
           )
 
@@ -1395,7 +1403,7 @@ export default class Server {
             resolvedUrl,
             locale,
             locales,
-            // defaultLocale,
+            defaultLocale,
             // For getServerSideProps we need to ensure we use the original URL
             // and not the resolved URL to prevent a hydration mismatch on
             // asPath

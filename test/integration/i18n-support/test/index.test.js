@@ -996,6 +996,7 @@ function runTests(isDev) {
         expect($('html').attr('lang')).toBe(locale)
         expect($('#router-locale').text()).toBe(locale)
         expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+        expect($('#router-default-locale').text()).toBe(domainDefault)
       }
     }
 
