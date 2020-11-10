@@ -55,6 +55,10 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/gif')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
     expect(isAnimated(await res.buffer())).toBe(true)
   })
 
@@ -63,6 +67,10 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/png')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
     expect(isAnimated(await res.buffer())).toBe(true)
   })
 
@@ -71,6 +79,10 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/webp')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
     expect(isAnimated(await res.buffer())).toBe(true)
   })
 
@@ -80,6 +92,10 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/svg+xml')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
     const actual = await res.text()
     const expected = await fs.readFile(
       join(__dirname, '..', 'public', 'test.svg'),
@@ -96,6 +112,10 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/jpeg')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
   })
 
   it('should maintain png format for old Safari', async () => {
@@ -106,6 +126,10 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/png')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
   })
 
   it('should fail when url is missing', async () => {
@@ -199,6 +223,10 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, w)
   })
 
@@ -208,6 +236,10 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, w)
   })
 
@@ -217,6 +249,10 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/png')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, w)
   })
 
@@ -226,6 +262,10 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/gif')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, w)
   })
 
@@ -235,6 +275,10 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/tiff')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, w)
   })
 
@@ -246,6 +290,10 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, w)
   })
 
@@ -257,6 +305,10 @@ function runTests({ w, isDev, domains }) {
       const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
       expect(res.headers.get('Content-Type')).toBe('image/webp')
+      expect(res.headers.get('cache-control')).toBe(
+        'public, max-age=0, must-revalidate'
+      )
+      expect(res.headers.get('etag')).toBeTruthy()
       await expectWidth(res, w)
     })
   }
@@ -310,6 +362,39 @@ function runTests({ w, isDev, domains }) {
     expect(json2).toStrictEqual(json1)
   })
 
+  it('should set 304 status without body when etag matches if-none-match', async () => {
+    const query = { url: '/test.jpg', w, q: 80 }
+    const opts1 = { headers: { accept: 'image/webp' } }
+
+    const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts1)
+    expect(res1.status).toBe(200)
+    expect(res1.headers.get('Content-Type')).toBe('image/webp')
+    expect(res1.headers.get('Cache-Control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    const etag = res1.headers.get('Etag')
+    expect(etag).toBeTruthy()
+    await expectWidth(res1, w)
+
+    const opts2 = { headers: { accept: 'image/webp', 'if-none-match': etag } }
+    const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts2)
+    expect(res2.status).toBe(304)
+    expect(res2.headers.get('Content-Type')).toBeFalsy()
+    expect(res2.headers.get('Etag')).toBe(etag)
+    expect((await res2.buffer()).length).toBe(0)
+
+    const query3 = { url: '/test.jpg', w, q: 25 }
+    const res3 = await fetchViaHTTP(appPort, '/_next/image', query3, opts2)
+    expect(res3.status).toBe(200)
+    expect(res3.headers.get('Content-Type')).toBe('image/webp')
+    expect(res3.headers.get('Cache-Control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res3.headers.get('Etag')).toBeTruthy()
+    expect(res3.headers.get('Etag')).not.toBe(etag)
+    await expectWidth(res3, w)
+  })
+
   it('should proxy-pass unsupported image types and should not cache file', async () => {
     const json1 = await fsToJson(imagesDir)
     expect(json1).toBeTruthy()
@@ -319,6 +404,10 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/bmp')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
 
     const json2 = await fsToJson(imagesDir)
     expect(json2).toStrictEqual(json1)
@@ -330,6 +419,10 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, 400)
   })
 }

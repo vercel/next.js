@@ -10,6 +10,7 @@ import { fileExists } from '../../lib/file-exists'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
 import Stream from 'stream'
+import { sendEtagResponse } from './send-payload'
 
 let sharp: typeof import('sharp')
 //const AVIF = 'image/avif'
@@ -18,7 +19,7 @@ const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
-const CACHE_VERSION = 1
+const CACHE_VERSION = 2
 const MODERN_TYPES = [/* AVIF, */ WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
@@ -143,17 +144,22 @@ export async function imageOptimizer(
   if (await fileExists(hashDir, 'directory')) {
     const files = await promises.readdir(hashDir)
     for (let file of files) {
-      const [filename, extension] = file.split('.')
-      const expireAt = Number(filename)
+      const [prefix, etag, extension] = file.split('.')
+      const expireAt = Number(prefix)
       const contentType = getContentType(extension)
+      const fsPath = join(hashDir, file)
       if (now < expireAt) {
+        res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+        if (sendEtagResponse(req, res, etag)) {
+          return { finished: true }
+        }
         if (contentType) {
           res.setHeader('Content-Type', contentType)
         }
-        createReadStream(join(hashDir, file)).pipe(res)
+        createReadStream(fsPath).pipe(res)
         return { finished: true }
       } else {
-        await promises.unlink(join(hashDir, file))
+        await promises.unlink(fsPath)
       }
     }
   }
@@ -223,8 +229,7 @@ export async function imageOptimizer(
     const animate =
       ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
     if (vector || animate) {
-      res.setHeader('Content-Type', upstreamType)
-      res.end(upstreamBuffer)
+      sendResponse(req, res, upstreamType, upstreamBuffer)
       return { finished: true }
     }
   }
@@ -248,10 +253,8 @@ export async function imageOptimizer(
       if (error.code === 'MODULE_NOT_FOUND') {
         error.message += '\n\nLearn more: https://err.sh/next.js/install-sharp'
         server.logError(error)
-        if (upstreamType) {
-          res.setHeader('Content-Type', upstreamType)
-        }
-        res.end(upstreamBuffer)
+        sendResponse(req, res, upstreamType, upstreamBuffer)
+        return { finished: true }
       }
       throw error
     }
@@ -281,19 +284,32 @@ export async function imageOptimizer(
     const optimizedBuffer = await transformer.toBuffer()
     await promises.mkdir(hashDir, { recursive: true })
     const extension = getExtension(contentType)
-    const filename = join(hashDir, `${expireAt}.${extension}`)
+    const etag = getHash([optimizedBuffer])
+    const filename = join(hashDir, `${expireAt}.${etag}.${extension}`)
     await promises.writeFile(filename, optimizedBuffer)
-    res.setHeader('Content-Type', contentType)
-    res.end(optimizedBuffer)
+    sendResponse(req, res, contentType, optimizedBuffer)
   } catch (error) {
-    server.logError(error)
-    if (upstreamType) {
-      res.setHeader('Content-Type', upstreamType)
-    }
-    res.end(upstreamBuffer)
+    sendResponse(req, res, upstreamType, upstreamBuffer)
   }
 
   return { finished: true }
+}
+
+function sendResponse(
+  req: IncomingMessage,
+  res: ServerResponse,
+  contentType: string | null,
+  buffer: Buffer
+) {
+  const etag = getHash([buffer])
+  res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+  if (sendEtagResponse(req, res, etag)) {
+    return
+  }
+  if (contentType) {
+    res.setHeader('Content-Type', contentType)
+  }
+  res.end(buffer)
 }
 
 function getSupportedMimeType(options: string[], accept = ''): string {
@@ -301,10 +317,13 @@ function getSupportedMimeType(options: string[], accept = ''): string {
   return accept.includes(mimeType) ? mimeType : ''
 }
 
-function getHash(items: (string | number | undefined)[]) {
+function getHash(items: (string | number | Buffer)[]) {
   const hash = createHash('sha256')
   for (let item of items) {
-    hash.update(String(item))
+    if (typeof item === 'number') hash.update(String(item))
+    else {
+      hash.update(item)
+    }
   }
   // See https://en.wikipedia.org/wiki/Base64#Filenames
   return hash.digest('base64').replace(/\//g, '-')
