@@ -15,10 +15,6 @@ import createRouteLoader, { isAssetError, RouteLoader } from './route-loader'
 export const looseToArray = <T extends {}>(input: any): T[] =>
   [].slice.call(input)
 
-function pageLoadError(route: string) {
-  return markLoadingError(new Error(`Error loading ${route}`))
-}
-
 export const INITIAL_CSS_LOAD_ERROR = Symbol('INITIAL_CSS_LOAD_ERROR')
 
 function normalizeRoute(route: string) {
@@ -105,16 +101,6 @@ export default class PageLoader {
     }
   }
 
-  private fetchStyleSheet(href: string): Promise<StyleSheetTuple> {
-    if (!this.cssc[href]) {
-      this.cssc[href] = fetch(href).then((res) => {
-        if (!res.ok) throw pageLoadError(href)
-        return res.text()
-      })
-    }
-    return this.cssc[href].then((text) => ({ href, text }))
-  }
-
   /**
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
@@ -160,7 +146,11 @@ export default class PageLoader {
   async loadPage(route: string): Promise<GoodPageCache> {
     const res = await this.routeLoader.loadRoute(route)
     if ('component' in res) {
-      return { page: res.component, mod: res.exports, styleSheets: [] }
+      return {
+        page: res.component,
+        mod: res.exports,
+        styleSheets: res.styles.map((o) => ({ href: o.href, text: o.content })),
+      }
     }
     const err = res.error as any
     if (isAssetError(err)) {

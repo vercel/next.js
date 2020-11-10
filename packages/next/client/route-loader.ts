@@ -41,7 +41,14 @@ export type RouteEntrypointFuture = {
 }
 export type RouteEntrypoint = LoadedEntrypointSuccess | LoadedEntrypointFailure
 
-export interface LoadedRouteSuccess extends LoadedEntrypointSuccess {}
+export interface RouteStyleSheet {
+  href: string
+  content: string
+}
+
+export interface LoadedRouteSuccess extends LoadedEntrypointSuccess {
+  styles: RouteStyleSheet[]
+}
 export interface LoadedRouteFailure {
   error: unknown
 }
@@ -189,6 +196,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
     RouteEntrypointFuture | RouteEntrypoint
   > = new Map()
   const loadedScripts: Map<string, Promise<unknown>> = new Map()
+  const styleSheets: Map<string, Promise<RouteStyleSheet>> = new Map()
 
   function maybeExecuteScript(src: string): Promise<unknown> {
     // Skip executing script if it's already in the DOM:
@@ -201,6 +209,28 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
       return prom
     }
     loadedScripts.set(src, (prom = appendScript(src)))
+    return prom
+  }
+
+  function fetchStyleSheet(href: string): Promise<RouteStyleSheet> {
+    let prom = styleSheets.get(href)
+    if (prom) {
+      return prom
+    }
+
+    styleSheets.set(
+      href,
+      (prom = fetch(href, { credentials: 'include' })
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`Failed to load stylesheet: ${href}`)
+          }
+          return res.text().then((text) => ({ href: href, content: text }))
+        })
+        .catch((err) => {
+          throw markAssetError(err)
+        }))
+    )
     return prom
   }
 
@@ -241,20 +271,17 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
       if (old && 'resolve' in old) old.resolve(input)
     },
     async loadRoute(route) {
-      const entry = entrypoints.get(route)
-      if (entry) {
-        if ('future' in entry) {
-          return entry.future
-        }
-        return entry
-      }
-
       try {
-        const { scripts } = await getFilesForRoute(assetPrefix, route)
-        await Promise.all(scripts.map(maybeExecuteScript))
+        const { scripts, css } = await getFilesForRoute(assetPrefix, route)
+        const [, styles] = await Promise.all([
+          entrypoints.has(route)
+            ? []
+            : Promise.all(scripts.map(maybeExecuteScript)),
+          Promise.all(css.map(fetchStyleSheet)),
+        ])
 
         // The await here is intentional:
-        return await Promise.race([
+        const entrypoint = await Promise.race([
           this.whenEntrypoint(route),
           idleTimeout<RouteLoaderEntry>(
             MS_MAX_IDLE_DELAY,
@@ -263,6 +290,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
             )
           ),
         ])
+        return 'error' in entrypoint ? entrypoint : { ...entrypoint, styles }
       } catch (err) {
         return { error: err }
       }
