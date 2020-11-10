@@ -110,7 +110,8 @@ function prefetchViaDom(
 }
 
 const ASSET_LOAD_ERROR = Symbol('ASSET_LOAD_ERROR')
-function markAssetError(err: Error): Error {
+// TODO: unexport
+export function markAssetError(err: Error): Error {
   return Object.defineProperty(err, ASSET_LOAD_ERROR, {})
 }
 

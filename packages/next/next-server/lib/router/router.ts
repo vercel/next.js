@@ -8,6 +8,7 @@ import {
   removePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
 import { GoodPageCache, StyleSheetTuple } from '../../../client/page-loader'
+import { isAssetError, markAssetError } from '../../../client/route-loader'
 import { denormalizePagePath } from '../../server/denormalize-page-path'
 import mitt, { MittEmitter } from '../mitt'
 import {
@@ -19,13 +20,13 @@ import {
   NextPageContext,
   ST,
 } from '../utils'
+import escapePathDelimiters from './utils/escape-path-delimiters'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import escapePathDelimiters from './utils/escape-path-delimiters'
 
 interface TransitionOptions {
   shallow?: boolean
@@ -233,11 +234,6 @@ export function resolveHref(
   }
 }
 
-const PAGE_LOAD_ERROR = Symbol('PAGE_LOAD_ERROR')
-export function markLoadingError(err: Error): Error {
-  return Object.defineProperty(err, PAGE_LOAD_ERROR, {})
-}
-
 function prepareUrlAs(router: NextRouter, url: Url, as: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
@@ -343,7 +339,7 @@ function fetchNextData(dataHref: string, isServerRender: boolean) {
     // loop.
 
     if (!isServerRender) {
-      markLoadingError(err)
+      markAssetError(err)
     }
     throw err
   })
@@ -923,7 +919,7 @@ export default class Router implements BaseRouter {
       throw err
     }
 
-    if (PAGE_LOAD_ERROR in err || loadErrorFail) {
+    if (isAssetError(err) || loadErrorFail) {
       Router.events.emit('routeChangeError', err, as)
 
       // If we can't load the page it could be one of following reasons

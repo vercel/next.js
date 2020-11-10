@@ -5,12 +5,11 @@ import {
   addBasePath,
   addLocale,
   interpolateAs,
-  markLoadingError,
 } from '../next-server/lib/router/router'
 import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../next-server/lib/router/utils/parse-relative-url'
-import createRouteLoader, { isAssetError, RouteLoader } from './route-loader'
+import createRouteLoader, { RouteLoader } from './route-loader'
 
 export const looseToArray = <T extends {}>(input: any): T[] =>
   [].slice.call(input)
@@ -152,11 +151,7 @@ export default class PageLoader {
         styleSheets: res.styles.map((o) => ({ href: o.href, text: o.content })),
       }
     }
-    const err = res.error as any
-    if (isAssetError(err)) {
-      throw markLoadingError(err)
-    }
-    throw err
+    throw res.error
   }
 
   prefetch(route: string): Promise<void> {
