@@ -1101,13 +1101,6 @@ describe('CSS Support', () => {
         )
         expect(titleColor).toBe('rgb(255, 0, 0)')
       }
-      async function checkCssPreloadCount(browser) {
-        return Number(
-          await browser.eval(
-            `Object.keys(window.next.router.pageLoader.cssc).length`
-          )
-        )
-      }
 
       it('should have correct color on index page (on load)', async () => {
         const browser = await webdriver(appPort, '/')
@@ -1131,14 +1124,13 @@ describe('CSS Support', () => {
       })
 
       if (!isDev) {
-        it('should preload CSS on hover', async () => {
+        it('should not change color on hover', async () => {
           const browser = await webdriver(appPort, '/')
           try {
             await checkBlackTitle(browser)
-            expect(await checkCssPreloadCount(browser)).toBe(1)
             await browser.waitForElementByCss('#link-other').moveTo()
             await waitFor(2000)
-            expect(await checkCssPreloadCount(browser)).toBe(2)
+            await checkBlackTitle(browser)
           } finally {
             await browser.close()
           }
