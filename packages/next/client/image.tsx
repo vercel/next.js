@@ -498,7 +498,7 @@ function aliyunLoader({ root, src, width, quality }: LoaderProps): string {
   // Demo: http://image-demo.oss-cn-hangzhou.aliyuncs.com/example.jpg?x-oss-process=image/resize,w_300/quality,q_90
   const params = ['image']
   if (width) {
-    params.push(`resice,w_${width}`)
+    params.push(`resize,w_${width}`)
   }
   if (quality) {
     params.push(`quality,q_${quality}`)
