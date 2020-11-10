@@ -90,6 +90,29 @@ function runTests(mode) {
     }
   })
 
+  it('should update the image on src change', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/update')
+
+      await check(
+        () => browser.eval(`document.getElementById("update-image").src`),
+        /test\.jpg/
+      )
+
+      await browser.eval(`document.getElementById("toggle").click()`)
+
+      await check(
+        () => browser.eval(`document.getElementById("update-image").src`),
+        /test\.png/
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
   it('should work when using flexbox', async () => {
     let browser
     try {
@@ -294,6 +317,15 @@ function runTests(mode) {
       })
       expect(await getComputed(browser, id, 'width')).toBe(smallWidth)
       expect(await getComputed(browser, id, 'height')).toBe(smallHeight)
+
+      const objectFit = await browser.eval(
+        `document.getElementById("${id}").style.objectFit`
+      )
+      const objectPosition = await browser.eval(
+        `document.getElementById("${id}").style.objectPosition`
+      )
+      expect(objectFit).toBe('cover')
+      expect(objectPosition).toBe('left center')
     } finally {
       if (browser) {
         await browser.close()
