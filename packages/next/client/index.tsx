@@ -18,11 +18,7 @@ import * as envConfig from '../next-server/lib/runtime-config'
 import type { NEXT_DATA } from '../next-server/lib/utils'
 import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
-import PageLoader, {
-  INITIAL_CSS_LOAD_ERROR,
-  looseToArray,
-  StyleSheetTuple,
-} from './page-loader'
+import PageLoader, { looseToArray, StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { createRouter, makePublicRouterInstance } from './router'
 
@@ -296,9 +292,6 @@ export default async (opts: { webpackHMR?: any } = {}) => {
       }
     }
   } catch (error) {
-    if (INITIAL_CSS_LOAD_ERROR in error) {
-      throw error
-    }
     // This catches errors like throwing in the top level of a module
     initialErr = error
   }

@@ -14,8 +14,6 @@ import createRouteLoader, { RouteLoader } from './route-loader'
 export const looseToArray = <T extends {}>(input: any): T[] =>
   [].slice.call(input)
 
-export const INITIAL_CSS_LOAD_ERROR = Symbol('INITIAL_CSS_LOAD_ERROR')
-
 function normalizeRoute(route: string) {
   if (route[0] !== '/') {
     throw new Error(`Route name should start with a "/", got "${route}"`)
