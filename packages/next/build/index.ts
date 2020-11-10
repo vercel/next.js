@@ -1135,9 +1135,9 @@ export default async function build(
     path.join(distDir, EXPORT_MARKER),
     JSON.stringify({
       version: 1,
-      isNextImageImported: isNextImageImported === true,
       hasExportPathMap: typeof config.exportPathMap === 'function',
       exportTrailingSlash: config.trailingSlash === true,
+      isNextImageImported: isNextImageImported === true,
     }),
     'utf8'
   )
