@@ -29,7 +29,13 @@ const Index = () => (
         Notice that the image is responsive. As you adjust your browser width, a
         different sized image is loaded.
       </p>
-      <Image alt="Vercel logo" src="/vercel.png" width={1000} height={1000} />
+      <Image
+        layout="responsive"
+        alt="Vercel logo"
+        src="/vercel.png"
+        width={1000}
+        height={1000}
+      />
       <hr className={styles.hr} />
       <p>
         The following is an example of a reference to an external image at{' '}
@@ -40,6 +46,7 @@ const Index = () => (
         the <Code>domains</Code> property.
       </p>
       <Image
+        layout="responsive"
         alt="Next.js logo"
         src="https://assets.vercel.com/image/upload/v1538361091/repositories/next-js/next-js-bg.png"
         width={1200}
