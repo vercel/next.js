@@ -1,5 +1,6 @@
 import { ComponentType } from 'react'
 import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
+import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
 import requestIdleCallback from './request-idle-callback'
 
 // 3.8s was arbitrarily chosen as it's what https://web.dev/interactive
@@ -172,6 +173,17 @@ function getFilesForRoute(
   assetPrefix: string,
   route: string
 ): Promise<RouteFiles> {
+  if (process.env.NODE_ENV === 'development') {
+    return Promise.resolve({
+      scripts: [
+        assetPrefix +
+          '/_next/static/chunks/pages' +
+          encodeURI(getAssetPathFromRoute(route, '.js')),
+      ],
+      // Styles are handled by `style-loader` in development:
+      css: [],
+    })
+  }
   return getClientBuildManifest().then((manifest) => {
     if (!(route in manifest)) {
       throw markAssetError(new Error(`Failed to lookup route: ${route}`))
