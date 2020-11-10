@@ -278,7 +278,6 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
             Promise.all(css.map(fetchStyleSheet)),
           ] as const)
 
-          // The await here is intentional:
           const entrypoint = await Promise.race([
             this.whenEntrypoint(route),
             idleTimeout<RouteLoaderEntry>(
