@@ -23,6 +23,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   CONFIG_FILE,
   EXPORT_DETAIL,
+  EXPORT_MARKER,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
@@ -283,11 +284,25 @@ export default async function exportApp(
     }
   }
 
-  const { i18n } = nextConfig
+  const {
+    i18n,
+    images: { loader = 'default' },
+  } = nextConfig
 
   if (i18n && !options.buildExport) {
     throw new Error(
       `i18n support is not compatible with next export. See here for more info on deploying: https://nextjs.org/docs/deployment`
+    )
+  }
+
+  const emContent = await promises.readFile(
+    join(distDir, EXPORT_MARKER),
+    'utf8'
+  )
+  const { isNextImageImported } = JSON.parse(emContent)
+  if (isNextImageImported && loader === 'default' && !options.buildExport) {
+    throw new Error(
+      `Image Optimization using Next.js' default loader is not compatible with \`next export\`. Use \`next start\` or configure a different loader: https://nextjs.org/docs/basic-features/image-optimization#loader`
     )
   }
 

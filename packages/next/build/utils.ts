@@ -701,6 +701,7 @@ export async function isPageStatic(
   hasStaticProps?: boolean
   prerenderRoutes?: string[] | undefined
   prerenderFallback?: boolean | 'blocking' | undefined
+  isNextImageImported?: boolean
 }> {
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
@@ -788,6 +789,7 @@ export async function isPageStatic(
       ))
     }
 
+    const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
     const config = mod.config || {}
     return {
       isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
@@ -797,6 +799,7 @@ export async function isPageStatic(
       prerenderFallback,
       hasStaticProps,
       hasServerProps,
+      isNextImageImported,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}
