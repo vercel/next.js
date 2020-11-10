@@ -1,6 +1,3 @@
-import { createElement } from 'react'
-import { HeadEntry } from '../next-server/lib/utils'
-
 const DOMAttributeNames: Record<string, string> = {
   acceptCharset: 'accept-charset',
   className: 'class',
@@ -35,68 +32,51 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
   return el
 }
 
-function updateElements(
-  elements: Set<Element>,
-  components: JSX.Element[],
-  removeOldTags: boolean
-) {
+function updateElements(type: string, components: JSX.Element[]) {
   const headEl = document.getElementsByTagName('head')[0]
-  const oldTags = new Set(elements)
-
-  components.forEach((tag) => {
-    if (tag.type === 'title') {
-      let title = ''
-      if (tag) {
-        const { children } = tag.props
-        title =
-          typeof children === 'string'
-            ? children
-            : Array.isArray(children)
-            ? children.join('')
-            : ''
-      }
-      if (title !== document.title) document.title = title
+  const headCountEl: HTMLMetaElement = headEl.querySelector(
+    'meta[name=next-head-count]'
+  ) as HTMLMetaElement
+  if (process.env.NODE_ENV !== 'production') {
+    if (!headCountEl) {
+      console.error(
+        'Warning: next-head-count is missing. https://err.sh/next.js/next-head-count-missing'
+      )
       return
     }
+  }
 
-    const newTag = reactElementToDOM(tag)
-    const elementIter = elements.values()
+  const headCount = Number(headCountEl.content)
+  const oldTags: Element[] = []
 
-    while (true) {
-      // Note: We don't use for-of here to avoid needing to polyfill it.
-      const { done, value } = elementIter.next()
-      if (value?.isEqualNode(newTag)) {
-        oldTags.delete(value)
-        return
-      }
-
-      if (done) {
-        break
-      }
+  for (
+    let i = 0, j = headCountEl.previousElementSibling;
+    i < headCount;
+    i++, j = j!.previousElementSibling
+  ) {
+    if (j!.tagName.toLowerCase() === type) {
+      oldTags.push(j!)
     }
-
-    elements.add(newTag)
-    headEl.appendChild(newTag)
-  })
-
-  oldTags.forEach((oldTag) => {
-    if (removeOldTags) {
-      oldTag.parentNode!.removeChild(oldTag)
+  }
+  const newTags = (components.map(reactElementToDOM) as HTMLElement[]).filter(
+    (newTag) => {
+      for (let k = 0, len = oldTags.length; k < len; k++) {
+        const oldTag = oldTags[k]
+        if (oldTag.isEqualNode(newTag)) {
+          oldTags.splice(k, 1)
+          return false
+        }
+      }
+      return true
     }
-    elements.delete(oldTag)
-  })
-}
-
-export default function initHeadManager(initialHeadEntries: HeadEntry[]) {
-  const headEl = document.getElementsByTagName('head')[0]
-  const elements = new Set<Element>(headEl.children)
-
-  updateElements(
-    elements,
-    initialHeadEntries.map(([type, props]) => createElement(type, props)),
-    false
   )
 
+  oldTags.forEach((t) => t.parentNode!.removeChild(t))
+  newTags.forEach((t) => headEl.insertBefore(t, headCountEl))
+  headCountEl.content = (headCount - oldTags.length + newTags.length).toString()
+}
+
+export default function initHeadManager() {
   let updatePromise: Promise<void> | null = null
 
   return {
@@ -106,7 +86,29 @@ export default function initHeadManager(initialHeadEntries: HeadEntry[]) {
         if (promise !== updatePromise) return
 
         updatePromise = null
-        updateElements(elements, head, true)
+        const tags: Record<string, JSX.Element[]> = {}
+
+        head.forEach((h) => {
+          const components = tags[h.type] || []
+          components.push(h)
+          tags[h.type] = components
+        })
+
+        const titleComponent = tags.title ? tags.title[0] : null
+        let title = ''
+        if (titleComponent) {
+          const { children } = titleComponent.props
+          title =
+            typeof children === 'string'
+              ? children
+              : Array.isArray(children)
+              ? children.join('')
+              : ''
+        }
+        if (title !== document.title) document.title = title
+        ;['meta', 'base', 'link', 'style', 'script'].forEach((type) => {
+          updateElements(type, tags[type] || [])
+        })
       }))
     },
   }
