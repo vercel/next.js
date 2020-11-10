@@ -30,7 +30,7 @@ const Index = () => (
         different sized image is loaded.
       </p>
       <Image
-        layout="responsive"
+        layout="fixed"
         alt="Vercel logo"
         src="/vercel.png"
         width={1000}
@@ -46,7 +46,7 @@ const Index = () => (
         the <Code>domains</Code> property.
       </p>
       <Image
-        layout="responsive"
+        layout="fixed"
         alt="Next.js logo"
         src="https://assets.vercel.com/image/upload/v1538361091/repositories/next-js/next-js-bg.png"
         width={1200}
