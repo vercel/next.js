@@ -279,7 +279,12 @@ export default async (opts: { webpackHMR?: any } = {}) => {
   let initialErr = hydrateErr
 
   try {
-    const pageEntrypoint = await pageLoader.routeLoader.whenEntrypoint(page)
+    const pageEntrypoint =
+      // The dev server fails to serve script assets when there's a hydration
+      // error, so we need to skip waiting for the entrypoint.
+      process.env.NODE_ENV === 'development' && hydrateErr
+        ? { error: hydrateErr }
+        : await pageLoader.routeLoader.whenEntrypoint(page)
     if ('error' in pageEntrypoint) {
       throw pageEntrypoint.error
     }
