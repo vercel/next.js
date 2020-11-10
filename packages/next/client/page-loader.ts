@@ -11,9 +11,6 @@ import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../next-server/lib/router/utils/parse-relative-url'
 import createRouteLoader, { RouteLoader } from './route-loader'
 
-export const looseToArray = <T extends {}>(input: any): T[] =>
-  [].slice.call(input)
-
 function normalizeRoute(route: string) {
   if (route[0] !== '/') {
     throw new Error(`Route name should start with a "/", got "${route}"`)

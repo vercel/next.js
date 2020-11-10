@@ -18,7 +18,7 @@ import * as envConfig from '../next-server/lib/runtime-config'
 import type { NEXT_DATA } from '../next-server/lib/utils'
 import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
-import PageLoader, { looseToArray, StyleSheetTuple } from './page-loader'
+import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { createRouter, makePublicRouterInstance } from './router'
 
@@ -48,6 +48,8 @@ const data: typeof window['__NEXT_DATA__'] = JSON.parse(
 window.__NEXT_DATA__ = data
 
 export const version = process.env.__NEXT_VERSION
+
+const looseToArray = <T extends {}>(input: any): T[] => [].slice.call(input)
 
 const {
   props: hydrateProps,
