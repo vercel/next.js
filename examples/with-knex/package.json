@@ -1,0 +1,24 @@
+{
+  "name": "with-knex",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "migrate:make": "knex migrate:make",
+    "migrate:latest": "knex migrate:latest",
+    "migrate:up": "knex migrate:up",
+    "migrate:down": "knex migrate:down",
+    "migrate:status": "knex migrate:status",
+    "seed:create": "knex seed:make",
+    "seed:run": "knex seed:run"
+  },
+  "dependencies": {
+    "knex": "0.21.6",
+    "next": "latest",
+    "pg": "8.4.1",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
+  },
+  "license": "MIT"
+}
