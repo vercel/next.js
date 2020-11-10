@@ -1,0 +1,271 @@
+import { ComponentType } from 'react'
+import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
+
+// 3.8s was arbitrarily chosen as it's what https://web.dev/interactive
+// considers as "Good" time-to-interactive. We must assume something went
+// wrong beyond this point, and then fall-back to a full page transition to
+// show the user something of value.
+const MS_MAX_IDLE_DELAY = 3800
+
+type RequestIdleCallbackHandle = any
+type RequestIdleCallbackOptions = {
+  timeout: number
+}
+type RequestIdleCallbackDeadline = {
+  readonly didTimeout: boolean
+  timeRemaining: () => number
+}
+
+declare global {
+  interface Window {
+    __BUILD_MANIFEST?: ClientBuildManifest
+    __BUILD_MANIFEST_CB?: Function
+
+    requestIdleCallback: (
+      callback: (deadline: RequestIdleCallbackDeadline) => void,
+      opts?: RequestIdleCallbackOptions
+    ) => RequestIdleCallbackHandle
+  }
+}
+
+export interface LoadedEntrypointSuccess {
+  component: ComponentType
+  exports: any
+}
+export interface LoadedEntrypointFailure {
+  error: unknown
+}
+export type RouteEntrypointFuture = {
+  resolve: (entrypoint: RouteEntrypoint) => void
+  future: Promise<RouteEntrypoint>
+}
+export type RouteEntrypoint = LoadedEntrypointSuccess | LoadedEntrypointFailure
+
+export interface LoadedRouteSuccess extends LoadedEntrypointSuccess {}
+export interface LoadedRouteFailure {
+  error: unknown
+}
+export type RouteLoaderEntry = LoadedRouteSuccess | LoadedRouteFailure
+
+export interface RouteLoader {
+  whenEntrypoint(route: string): Promise<RouteEntrypoint>
+  onEntrypoint(route: string, execute: () => unknown): void
+  loadRoute(route: string): Promise<RouteLoaderEntry>
+}
+
+// function hasPrefetch(link?: HTMLLinkElement): boolean {
+//   try {
+//     link = document.createElement('link')
+//     return link.relList.supports('prefetch')
+//   } catch {
+//     return false
+//   }
+// }
+
+// const canPrefetch: boolean = hasPrefetch()
+
+// function prefetchViaDom(
+//   href: string,
+//   as: string,
+//   link?: HTMLLinkElement
+// ): Promise<any> {
+//   return new Promise((res, rej) => {
+//     link = document.createElement('link')
+
+//     // The order of property assignment here is intentional:
+//     if (as) link!.as = as
+//     link!.rel = `prefetch`
+//     link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
+//     link!.onload = res
+//     link!.onerror = rej
+
+//     // `href` should always be last:
+//     link!.href = href
+
+//     document.head.appendChild(link)
+//   })
+// }
+
+const requestIdleCallback =
+  self.requestIdleCallback ||
+  function (cb: (deadline: RequestIdleCallbackDeadline) => void) {
+    let start = Date.now()
+    return setTimeout(function () {
+      cb({
+        didTimeout: false,
+        timeRemaining: function () {
+          return Math.max(0, 50 - (Date.now() - start))
+        },
+      })
+    }, 1)
+  }
+
+const ASSET_LOAD_ERROR = Symbol('ASSET_LOAD_ERROR')
+function markAssetError(err: Error): Error {
+  return Object.defineProperty(err, ASSET_LOAD_ERROR, {})
+}
+
+export function isAssetError(err?: Error) {
+  return err && ASSET_LOAD_ERROR in err
+}
+
+function appendScript(
+  src: string,
+  script?: HTMLScriptElement
+): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    script = document.createElement('script')
+
+    // The order of property assignment here is intentional.
+    // 1. Setup success/failure hooks in case the browser synchronously
+    //    executes when `src` is set.
+    script.onload = resolve
+    script.onerror = () =>
+      reject(markAssetError(new Error(`Failed to load script: ${src}`)))
+
+    // 2. Configure the cross-origin attribute before setting `src` in case the
+    //    browser begins to fetch.
+    script.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
+
+    // 3. Finally, set the source and inject into the DOM in case the child
+    //    must be appended for fetching to start.
+    script.src = src
+    document.body.appendChild(script)
+  })
+}
+
+function idleTimeout<T>(ms: number, err: Error): Promise<T> {
+  return new Promise((_resolve, reject) =>
+    requestIdleCallback(() => setTimeout(() => reject(err), ms))
+  )
+}
+
+function getClientBuildManifest(): Promise<ClientBuildManifest> {
+  if (self.__BUILD_MANIFEST) {
+    return Promise.resolve(self.__BUILD_MANIFEST)
+  }
+
+  const onBuildManifest = new Promise<ClientBuildManifest>((resolve) => {
+    const cb = self.__BUILD_MANIFEST_CB
+    self.__BUILD_MANIFEST_CB = () => {
+      resolve(self.__BUILD_MANIFEST)
+      cb && cb()
+    }
+  })
+  return Promise.race([
+    onBuildManifest,
+    idleTimeout<ClientBuildManifest>(
+      MS_MAX_IDLE_DELAY,
+      markAssetError(new Error('Failed to load client build manifest'))
+    ),
+  ])
+}
+
+interface RouteFiles {
+  scripts: string[]
+  css: string[]
+}
+function getFilesForRoute(
+  assetPrefix: string,
+  route: string
+): Promise<RouteFiles> {
+  return getClientBuildManifest().then((manifest) => {
+    if (!(route in manifest)) {
+      throw markAssetError(new Error(`Failed to lookup route: ${route}`))
+    }
+    const allFiles = manifest[route].map(
+      (entry) => assetPrefix + '/_next/' + encodeURI(entry)
+    )
+    return {
+      scripts: allFiles.filter((v) => v.endsWith('.js')),
+      css: allFiles.filter((v) => v.endsWith('.css')),
+    }
+  })
+}
+
+function createRouteLoader(assetPrefix: string): RouteLoader {
+  const entrypoints: Map<
+    string,
+    RouteEntrypointFuture | RouteEntrypoint
+  > = new Map()
+  const loadedScripts: Map<string, Promise<unknown>> = new Map()
+
+  function executeScript(src: string): Promise<unknown> {
+    // Skip executing script if it's already in the DOM:
+    if (document.querySelector(`script[src^="${src}"]`)) {
+      return Promise.resolve()
+    }
+
+    let prom = loadedScripts.get(src)
+    if (prom) {
+      return prom
+    }
+    loadedScripts.set(src, (prom = appendScript(src)))
+    return prom
+  }
+
+  return {
+    whenEntrypoint(route: string) {
+      let entry:
+        | RouteEntrypointFuture
+        | RouteEntrypoint
+        | undefined = entrypoints.get(route)
+      if (entry) {
+        if ('future' in entry) {
+          return entry.future
+        }
+        return Promise.resolve(entry)
+      }
+
+      let resolver: (entrypoint: RouteEntrypoint) => void
+      const prom = new Promise<RouteEntrypoint>((resolve) => {
+        resolver = resolve
+      })
+      entrypoints.set(route, (entry = { resolve: resolver!, future: prom }))
+      return prom
+    },
+    async onEntrypoint(route, execute) {
+      let input: RouteEntrypoint
+      try {
+        const exports: any = await execute()
+        input = {
+          component: exports.default || exports,
+          exports: exports,
+        }
+      } catch (e) {
+        input = { error: e }
+      }
+
+      const old = entrypoints.get(route)
+      entrypoints.set(route, input)
+      if (old && 'resolve' in old) old.resolve(input)
+    },
+    async loadRoute(route) {
+      const entry = entrypoints.get(route)
+      if (entry) {
+        if ('future' in entry) {
+          return entry.future
+        }
+        return entry
+      }
+
+      try {
+        const { scripts } = await getFilesForRoute(assetPrefix, route)
+        await Promise.all(scripts.map(executeScript))
+        return Promise.race([
+          this.whenEntrypoint(route),
+          idleTimeout<RouteLoaderEntry>(
+            MS_MAX_IDLE_DELAY,
+            markAssetError(
+              new Error(`Route did not complete loading: ${route}`)
+            )
+          ),
+        ])
+      } catch (err) {
+        return { error: err }
+      }
+    },
+  }
+}
+
+export default createRouteLoader

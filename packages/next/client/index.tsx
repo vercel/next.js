@@ -133,7 +133,7 @@ if (process.env.__NEXT_I18N_SUPPORT) {
 
 type RegisterFn = (input: [string, () => void]) => void
 
-const pageLoader = new PageLoader(buildId, prefix, page)
+const pageLoader = new PageLoader(buildId, prefix)
 const register: RegisterFn = ([r, f]) => pageLoader.registerPage(r, f)
 if (window.__NEXT_P) {
   // Defer page registration for another tick. This will increase the overall
@@ -236,7 +236,13 @@ export default async (opts: { webpackHMR?: any } = {}) => {
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = opts.webpackHMR
   }
-  const { page: app, mod } = await pageLoader.loadPage('/_app')
+
+  const appEntrypoint = await pageLoader.routeLoader.whenEntrypoint('/_app')
+  if ('error' in appEntrypoint) {
+    throw appEntrypoint.error
+  }
+
+  const { component: app, exports: mod } = appEntrypoint
   CachedApp = app as AppComponent
 
   if (mod && mod.reportWebVitals) {
