@@ -94,6 +94,9 @@ export default (context, renderViaHTTP) => {
 
         aboutPage.replace('</div>', 'div')
 
+        // Ensure dev server has time to break:
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+
         browser = await webdriver(context.appPort, '/hmr/contact')
 
         expect(await hasRedbox(browser)).toBe(true)
