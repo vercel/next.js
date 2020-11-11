@@ -11,15 +11,18 @@ export type Rewrite = {
   basePath?: false
 }
 
-export type Redirect = Rewrite & {
-  statusCode?: number
-  permanent?: boolean
-}
-
 export type Header = {
   source: string
   basePath?: false
   headers: Array<{ key: string; value: string }>
+}
+
+// internal type used for validation (not user facing)
+export type Redirect = Rewrite & {
+  statusCode?: number
+  permanent?: boolean
+  destination: string
+  basePath?: false
 }
 
 export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
