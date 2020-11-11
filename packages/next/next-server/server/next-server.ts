@@ -1271,8 +1271,14 @@ export default class Server {
       const redirect = {
         destination: pageData.pageProps.__N_REDIRECT,
         statusCode: pageData.pageProps.__N_REDIRECT_STATUS,
+        basePath: pageData.pageProps.__N_REDIRECT_BASE_PATH,
       }
       const statusCode = getRedirectStatus(redirect)
+      const { basePath } = this.nextConfig
+
+      if (basePath && redirect.basePath !== false) {
+        redirect.destination = `${basePath}${redirect.destination}`
+      }
 
       if (statusCode === PERMANENT_REDIRECT_STATUS) {
         res.setHeader('Refresh', `0;url=${redirect.destination}`)
