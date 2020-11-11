@@ -3,7 +3,6 @@
 import cheerio from 'cheerio'
 import { remove } from 'fs-extra'
 import {
-  check,
   findPort,
   killApp,
   nextBuild,
@@ -86,32 +85,6 @@ describe('CSS Module client-side navigation in Production', () => {
         `window.getComputedStyle(document.querySelector('#verify-blue')).color`
       )
       expect(redColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
-
-      await check(
-        async () => {
-          // Check that Red was preloaded
-          const result = await browser.eval(
-            `Promise.all(Object.entries(window.next.router.pageLoader.cssc).map(v=>v[1]))`
-          )
-          expect(result.length).toBe(2)
-          expect(result).toContainEqual(expect.stringContaining('color:red'))
-          return 'yes'
-        },
-        /yes/,
-        true
-      )
-
-      // Check that CSS was not loaded as script
-      const cssPreloads = await browser.eval(
-        `[].slice.call(document.querySelectorAll('link[rel=preload][href*=".css"]')).map(e=>e.as)`
-      )
-      expect(cssPreloads.every((e) => e === 'style' || e === 'fetch')).toBe(
-        true
-      )
-      const cssPreloads2 = await browser.eval(
-        `[].slice.call(document.querySelectorAll('link[rel=prefetch][href*=".css"]')).map(e=>e.as)`
-      )
-      expect(cssPreloads2.every((e) => e === 'fetch')).toBe(true)
 
       await browser.elementByCss('#link-red').click()
 
