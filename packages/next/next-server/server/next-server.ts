@@ -258,6 +258,7 @@ export default class Server {
         'pages'
       ),
       flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
+      locales: this.nextConfig.i18n?.locales,
     })
 
     /**
@@ -1223,7 +1224,10 @@ export default class Server {
     }
 
     const locale = query.__nextLocale as string
-    const defaultLocale = query.__nextDefaultLocale as string
+    const defaultLocale = isSSG
+      ? this.nextConfig.i18n?.defaultLocale
+      : (query.__nextDefaultLocale as string)
+
     delete query.__nextLocale
     delete query.__nextDefaultLocale
 
@@ -1289,9 +1293,9 @@ export default class Server {
     let ssgCacheKey =
       isPreviewMode || !isSSG
         ? undefined // Preview mode bypasses the cache
-        : `${locale ? `/${locale}` : ''}${resolvedUrlPathname}${
-            query.amp ? '.amp' : ''
-          }`
+        : `${locale ? `/${locale}` : ''}${
+            pathname === '/' && locale ? '' : resolvedUrlPathname
+          }${query.amp ? '.amp' : ''}`
 
     if (is404Page && isSSG) {
       ssgCacheKey = `${locale ? `/${locale}` : ''}${pathname}${
