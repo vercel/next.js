@@ -62,7 +62,10 @@ export function addLocale(
   defaultLocale?: string
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
-    return locale && locale !== defaultLocale && !path.startsWith('/' + locale)
+    return locale &&
+      locale !== defaultLocale &&
+      !path.startsWith('/' + locale + '/') &&
+      path !== '/' + locale
       ? addPathPrefix(path, '/' + locale)
       : path
   }
@@ -71,7 +74,8 @@ export function addLocale(
 
 export function delLocale(path: string, locale?: string) {
   if (process.env.__NEXT_I18N_SUPPORT) {
-    return locale && path.startsWith('/' + locale)
+    return locale &&
+      (path.startsWith('/' + locale + '/') || path === '/' + locale)
       ? path.substr(locale.length + 1) || '/'
       : path
   }
@@ -269,6 +273,7 @@ export type NextRouter = BaseRouter &
 
 export type PrefetchOptions = {
   priority?: boolean
+  locale?: string | false
 }
 
 export type PrivateRouteInfo = {
@@ -810,10 +815,15 @@ export default class Router implements BaseRouter {
         // it's not
         if (destination.startsWith('/')) {
           const parsedHref = parseRelativeUrl(destination)
-          this._resolveHref(parsedHref, pages)
+          this._resolveHref(parsedHref, pages, false)
 
           if (pages.includes(parsedHref.pathname)) {
-            return this.change(method, destination, destination, options)
+            const { url: newUrl, as: newAs } = prepareUrlAs(
+              this,
+              destination,
+              destination
+            )
+            return this.change(method, newUrl, newAs, options)
           }
         }
 
@@ -851,6 +861,12 @@ export default class Router implements BaseRouter {
       if (process.env.__NEXT_SCROLL_RESTORATION) {
         if (manualScrollRestoration && '_N_X' in options) {
           window.scrollTo((options as any)._N_X, (options as any)._N_Y)
+        }
+      }
+
+      if (process.env.__NEXT_I18N_SUPPORT) {
+        if (this.locale) {
+          document.documentElement.lang = this.locale
         }
       }
       Router.events.emit('routeChangeComplete', as)
@@ -1171,6 +1187,26 @@ export default class Router implements BaseRouter {
 
     let { pathname } = parsed
 
+    if (process.env.__NEXT_I18N_SUPPORT) {
+      const normalizeLocalePath = require('../i18n/normalize-locale-path')
+        .normalizeLocalePath as typeof import('../i18n/normalize-locale-path').normalizeLocalePath
+
+      if (options.locale === false) {
+        pathname = normalizeLocalePath!(pathname, this.locales).pathname
+        parsed.pathname = pathname
+        url = formatWithValidation(parsed)
+
+        let parsedAs = parseRelativeUrl(asPath)
+        const localePathResult = normalizeLocalePath!(
+          parsedAs.pathname,
+          this.locales
+        )
+        parsedAs.pathname = localePathResult.pathname
+        options.locale = localePathResult.detectedLocale || options.locale
+        asPath = formatWithValidation(parsedAs)
+      }
+    }
+
     const pages = await this.pageLoader.getPageList()
 
     parsed = this._resolveHref(parsed, pages) as typeof parsed
@@ -1187,12 +1223,20 @@ export default class Router implements BaseRouter {
 
     const route = removePathTrailingSlash(pathname)
     await Promise.all([
-      this.pageLoader.prefetchData(
-        url,
-        asPath,
-        this.locale,
-        this.defaultLocale
-      ),
+      this.pageLoader._isSsg(url).then((isSsg: boolean) => {
+        return isSsg
+          ? this._getStaticData(
+              this.pageLoader.getDataHref(
+                url,
+                asPath,
+                true,
+                typeof options.locale !== 'undefined'
+                  ? options.locale
+                  : this.locale
+              )
+            )
+          : false
+      }),
       this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
     ])
   }

@@ -1,5 +1,5 @@
 import '../next-server/server/node-polyfill-fetch'
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import gzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
@@ -588,7 +588,7 @@ export async function buildStaticPaths(
 
   if (!Array.isArray(toPrerender)) {
     throw new Error(
-      `Invalid \`paths\` value returned from getStaticProps in ${page}.\n` +
+      `Invalid \`paths\` value returned from getStaticPaths in ${page}.\n` +
         `\`paths\` must be an array of strings or objects of shape { params: [key: string]: string }`
     )
   }

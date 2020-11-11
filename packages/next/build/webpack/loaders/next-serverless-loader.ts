@@ -243,10 +243,12 @@ const nextServerlessLoader: loader.Loader = function () {
       let locales = i18n.locales
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
-      let acceptPreferredLocale = accept.language(
-        req.headers['accept-language'],
-        i18n.locales
-      )
+      let acceptPreferredLocale = i18n.localeDetection !== false
+        ? accept.language(
+          req.headers['accept-language'],
+          i18n.locales
+        )
+        : detectedLocale
 
       const { host } = req.headers || {}
       // remove port from host and remove port if present
@@ -368,7 +370,10 @@ const nextServerlessLoader: loader.Loader = function () {
         return
       }
 
-      detectedLocale = detectedLocale || defaultLocale
+      detectedLocale =
+        localePathResult.detectedLocale ||
+        (detectedDomain && detectedDomain.defaultLocale) ||
+        defaultLocale
     `
     : `
       const i18n = {}
@@ -472,6 +477,8 @@ const nextServerlessLoader: loader.Loader = function () {
     const { denormalizePagePath } = require('next/dist/next-server/server/denormalize-page-path')
     const { setLazyProp, getCookieParser } = require('next/dist/next-server/server/api-utils')
     const {sendPayload} = require('next/dist/next-server/server/send-payload');
+    const {getRedirectStatus} = require('next/dist/lib/load-custom-routes');
+    const {PERMANENT_REDIRECT_STATUS} = require('next/dist/next-server/lib/constants')
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
 
@@ -803,7 +810,7 @@ const nextServerlessLoader: loader.Loader = function () {
                 err: undefined,
                 locale: detectedLocale,
                 locales,
-                defaultLocale: i18n.defaultLocale,
+                defaultLocale,
               }))
 
               sendPayload(req, res, result, 'html', ${
@@ -813,6 +820,26 @@ const nextServerlessLoader: loader.Loader = function () {
                 stateful: !!getServerSideProps,
                 revalidate: renderOpts.revalidate,
               })
+              return null
+            } else if (renderOpts.isRedirect && !_nextData) {
+              const redirect = {
+                destination: renderOpts.pageData.pageProps.__N_REDIRECT,
+                statusCode: renderOpts.pageData.pageProps.__N_REDIRECT_STATUS,
+                basePath: renderOpts.pageData.pageProps.__N_REDIRECT_BASE_PATH
+              }
+              const statusCode = getRedirectStatus(redirect)
+
+              if ("${basePath}" && redirect.basePath !== false) {
+                redirect.destination = \`${basePath}\${redirect.destination}\`
+              }
+
+              if (statusCode === PERMANENT_REDIRECT_STATUS) {
+                res.setHeader('Refresh', \`0;url=\${redirect.destination}\`)
+              }
+
+              res.statusCode = statusCode
+              res.setHeader('Location', redirect.destination)
+              res.end()
               return null
             } else {
               sendPayload(req, res, _nextData ? JSON.stringify(renderOpts.pageData) : result, _nextData ? 'json' : 'html', ${
