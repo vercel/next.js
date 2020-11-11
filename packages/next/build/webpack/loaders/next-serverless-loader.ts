@@ -810,7 +810,7 @@ const nextServerlessLoader: loader.Loader = function () {
                 err: undefined,
                 locale: detectedLocale,
                 locales,
-                defaultLocale: i18n.defaultLocale,
+                defaultLocale,
               }))
 
               sendPayload(req, res, result, 'html', ${

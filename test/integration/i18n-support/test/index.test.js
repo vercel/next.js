@@ -996,6 +996,9 @@ function runTests(isDev) {
         expect($('html').attr('lang')).toBe(locale)
         expect($('#router-locale').text()).toBe(locale)
         expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+        // this will not be the domain's defaultLocale since we don't
+        // generate a prerendered version for each locale domain currently
+        expect($('#router-default-locale').text()).toBe('en-US')
       }
     }
 
@@ -1003,6 +1006,32 @@ function runTests(isDev) {
       for (const locale of domainLocales) {
         await checkDomainLocales(item.defaultLocale, item.domain, locale)
       }
+    }
+  })
+
+  it('should provide correctly defaultLocale for locale domain', async () => {
+    for (const { host, locale } of [
+      { host: 'example.fr', locale: 'fr' },
+      { host: 'example.be', locale: 'nl-BE' },
+    ]) {
+      const res = await fetchViaHTTP(appPort, '/gssp', undefined, {
+        redirect: 'manual',
+        headers: {
+          host,
+        },
+      })
+
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+      expect($('#router-locale').text()).toBe(locale)
+      expect($('#router-default-locale').text()).toBe(locale)
+      expect(JSON.parse($('#props').text())).toEqual({
+        defaultLocale: locale,
+        locale,
+        locales,
+      })
+      expect(JSON.parse($('#router-locales').text())).toEqual(locales)
     }
   })
 
@@ -1160,6 +1189,9 @@ function runTests(isDev) {
     await browser.waitForElementByCss('#frank')
 
     expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
+    expect(await browser.elementByCss('#router-default-locale').text()).toBe(
+      'en-US'
+    )
     expect(
       JSON.parse(await browser.elementByCss('#router-locales').text())
     ).toEqual(locales)

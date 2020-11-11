@@ -59,6 +59,7 @@ export default function prepareDestination(
   // clone query so we don't modify the original
   query = Object.assign({}, query)
   delete query.__nextLocale
+  delete query.__nextDefaultLocale
 
   if (destination.startsWith('/')) {
     parsedDestination = parseRelativeUrl(destination)
