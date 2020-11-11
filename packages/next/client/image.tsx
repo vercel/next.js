@@ -3,6 +3,10 @@ import Head from '../next-server/lib/head'
 import { toBase64 } from '../next-server/lib/to-base-64'
 import { useIntersection } from './use-intersection'
 
+if (typeof window === 'undefined') {
+  ;(global as any).__NEXT_IMAGE_IMPORTED = true
+}
+
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
 

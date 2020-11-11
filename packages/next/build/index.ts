@@ -495,6 +495,7 @@ export default async function build(
 
   let customAppGetInitialProps: boolean | undefined
   let namedExports: Array<string> | undefined
+  let isNextImageImported: boolean | undefined
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
@@ -583,6 +584,10 @@ export default async function build(
           if (workerResult.isHybridAmp) {
             isHybridAmp = true
             hybridAmpPages.add(page)
+          }
+
+          if (workerResult.isNextImageImported) {
+            isNextImageImported = true
           }
 
           if (workerResult.hasStaticProps) {
@@ -1132,6 +1137,7 @@ export default async function build(
       version: 1,
       hasExportPathMap: typeof config.exportPathMap === 'function',
       exportTrailingSlash: config.trailingSlash === true,
+      isNextImageImported: isNextImageImported === true,
     }),
     'utf8'
   )
