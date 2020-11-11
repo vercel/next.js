@@ -23,6 +23,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   CONFIG_FILE,
   EXPORT_DETAIL,
+  EXPORT_MARKER,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
@@ -283,11 +284,35 @@ export default async function exportApp(
     }
   }
 
-  const { i18n } = nextConfig
+  const {
+    i18n,
+    images: { loader = 'default' },
+  } = nextConfig
 
   if (i18n && !options.buildExport) {
     throw new Error(
       `i18n support is not compatible with next export. See here for more info on deploying: https://nextjs.org/docs/deployment`
+    )
+  }
+
+  const { isNextImageImported } = await promises
+    .readFile(join(distDir, EXPORT_MARKER), 'utf8')
+    .then((text) => JSON.parse(text))
+    .catch(() => ({}))
+
+  if (
+    isNextImageImported &&
+    loader === 'default' &&
+    !options.buildExport &&
+    !hasNextSupport
+  ) {
+    throw new Error(
+      `Image Optimization using Next.js' default loader is not compatible with \`next export\`.
+Possible solutions:
+  - Use \`next start\`, which starts the Image Optimization API.
+  - Use Vercel to deploy, which supports Image Optimization.
+  - Configure a third-party loader in \`next.config.js\`.
+Read more: https://err.sh/next.js/export-image-api`
     )
   }
 
