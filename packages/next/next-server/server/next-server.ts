@@ -205,7 +205,6 @@ export default class Server {
           ? requireFontManifest(this.distDir, this._isLikeServerless)
           : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
-      defaultLocale: this.nextConfig.i18n?.defaultLocale,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -259,6 +258,7 @@ export default class Server {
         'pages'
       ),
       flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
+      locales: this.nextConfig.i18n?.locales,
     })
 
     /**
@@ -438,6 +438,9 @@ export default class Server {
         return
       }
 
+      parsedUrl.query.__nextDefaultLocale =
+        detectedDomain?.defaultLocale || i18n.defaultLocale
+
       parsedUrl.query.__nextLocale =
         localePathResult.detectedLocale ||
         detectedDomain?.defaultLocale ||
@@ -606,6 +609,8 @@ export default class Server {
             }
 
             _parsedUrl.query.__nextLocale = detectedLocale!
+            _parsedUrl.query.__nextDefaultLocale =
+              defaultLocale || i18n.defaultLocale
           }
 
           const parsedUrl = parseUrl(pathname, true)
@@ -1146,6 +1151,7 @@ export default class Server {
                   amp: query.amp,
                   _nextDataReq: query._nextDataReq,
                   __nextLocale: query.__nextLocale,
+                  __nextDefaultLocale: query.__nextDefaultLocale,
                 }
               : query),
             ...(params || {}),
@@ -1218,7 +1224,12 @@ export default class Server {
     }
 
     const locale = query.__nextLocale as string
+    const defaultLocale = isSSG
+      ? this.nextConfig.i18n?.defaultLocale
+      : (query.__nextDefaultLocale as string)
+
     delete query.__nextLocale
+    delete query.__nextDefaultLocale
 
     const { i18n } = this.nextConfig
     const locales = i18n.locales as string[]
@@ -1260,8 +1271,14 @@ export default class Server {
       const redirect = {
         destination: pageData.pageProps.__N_REDIRECT,
         statusCode: pageData.pageProps.__N_REDIRECT_STATUS,
+        basePath: pageData.pageProps.__N_REDIRECT_BASE_PATH,
       }
       const statusCode = getRedirectStatus(redirect)
+      const { basePath } = this.nextConfig
+
+      if (basePath && redirect.basePath !== false) {
+        redirect.destination = `${basePath}${redirect.destination}`
+      }
 
       if (statusCode === PERMANENT_REDIRECT_STATUS) {
         res.setHeader('Refresh', `0;url=${redirect.destination}`)
@@ -1282,9 +1299,9 @@ export default class Server {
     let ssgCacheKey =
       isPreviewMode || !isSSG
         ? undefined // Preview mode bypasses the cache
-        : `${locale ? `/${locale}` : ''}${resolvedUrlPathname}${
-            query.amp ? '.amp' : ''
-          }`
+        : `${locale ? `/${locale}` : ''}${
+            pathname === '/' && locale ? '' : resolvedUrlPathname
+          }${query.amp ? '.amp' : ''}`
 
     if (is404Page && isSSG) {
       ssgCacheKey = `${locale ? `/${locale}` : ''}${pathname}${
@@ -1372,7 +1389,7 @@ export default class Server {
               fontManifest: this.renderOpts.fontManifest,
               locale,
               locales,
-              // defaultLocale,
+              defaultLocale,
             }
           )
 
@@ -1396,7 +1413,7 @@ export default class Server {
             resolvedUrl,
             locale,
             locales,
-            // defaultLocale,
+            defaultLocale,
             // For getServerSideProps we need to ensure we use the original URL
             // and not the resolved URL to prevent a hydration mismatch on
             // asPath

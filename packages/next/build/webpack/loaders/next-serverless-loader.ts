@@ -863,7 +863,7 @@ const nextServerlessLoader: loader.Loader = function () {
                 err: undefined,
                 locale: detectedLocale,
                 locales,
-                defaultLocale: i18n.defaultLocale,
+                defaultLocale,
               }))
 
               sendPayload(req, res, result, 'html', ${
@@ -877,9 +877,14 @@ const nextServerlessLoader: loader.Loader = function () {
             } else if (renderOpts.isRedirect && !_nextData) {
               const redirect = {
                 destination: renderOpts.pageData.pageProps.__N_REDIRECT,
-                statusCode: renderOpts.pageData.pageProps.__N_REDIRECT_STATUS
+                statusCode: renderOpts.pageData.pageProps.__N_REDIRECT_STATUS,
+                basePath: renderOpts.pageData.pageProps.__N_REDIRECT_BASE_PATH
               }
               const statusCode = getRedirectStatus(redirect)
+
+              if ("${basePath}" && redirect.basePath !== false) {
+                redirect.destination = \`${basePath}\${redirect.destination}\`
+              }
 
               if (statusCode === PERMANENT_REDIRECT_STATUS) {
                 res.setHeader('Refresh', \`0;url=\${redirect.destination}\`)
