@@ -1,5 +1,6 @@
 import PropTypes from 'prop-types'
 import React, { Component, ReactNode, useContext } from 'react'
+import ReactDOMServer from 'react-dom/server'
 import flush from 'styled-jsx/server'
 import {
   AMP_RENDER_TARGET,
@@ -389,7 +390,7 @@ export class Head extends Component<
           hasAmphtmlRel = true
         }
       }
-      return child
+      return React.cloneElement(child, { 'data-next-head': true })
     })
 
     // try to parse styles from fragment for backwards compat
@@ -421,107 +422,115 @@ export class Head extends Component<
       this.context.__NEXT_DATA__.page
     )
     return (
-      <head {...this.props}>
-        {this.context.isDevelopment && (
-          <>
-            <style
-              data-next-hide-fouc
-              data-ampdevmode={inAmpMode ? 'true' : undefined}
-              dangerouslySetInnerHTML={{
-                __html: `body{display:none}`,
-              }}
-            />
-            <noscript
-              data-next-hide-fouc
-              data-ampdevmode={inAmpMode ? 'true' : undefined}
-            >
-              <style
-                dangerouslySetInnerHTML={{
-                  __html: `body{display:block}`,
-                }}
-              />
-            </noscript>
-          </>
-        )}
-        {children}
-        {head}
-        <meta
-          name="next-head-count"
-          content={React.Children.count(head || []).toString()}
-        />
-        {inAmpMode && (
-          <>
-            <meta
-              name="viewport"
-              content="width=device-width,minimum-scale=1,initial-scale=1"
-            />
-            {!hasCanonicalRel && (
-              <link
-                rel="canonical"
-                href={canonicalBase + cleanAmpPath(dangerousAsPath)}
-              />
-            )}
-            {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
-            <link
-              rel="preload"
-              as="script"
-              href="https://cdn.ampproject.org/v0.js"
-            />
-            {/* Add custom styles before AMP styles to prevent accidental overrides */}
-            {styles && (
-              <style
-                amp-custom=""
-                dangerouslySetInnerHTML={{
-                  __html: curStyles
-                    .map((style) => style.props.dangerouslySetInnerHTML.__html)
-                    .join('')
-                    .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
-                    .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
-                }}
-              />
-            )}
-            <style
-              amp-boilerplate=""
-              dangerouslySetInnerHTML={{
-                __html: `body{-webkit-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-moz-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-ms-animation:-amp-start 8s steps(1,end) 0s 1 normal both;animation:-amp-start 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}`,
-              }}
-            />
-            <noscript>
-              <style
-                amp-boilerplate=""
-                dangerouslySetInnerHTML={{
-                  __html: `body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}`,
-                }}
-              />
-            </noscript>
-            <script async src="https://cdn.ampproject.org/v0.js" />
-          </>
-        )}
-        {!inAmpMode && (
-          <>
-            {!hasAmphtmlRel && hybridAmp && (
-              <link
-                rel="amphtml"
-                href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
-              />
-            )}
-            {process.env.__NEXT_OPTIMIZE_FONTS
-              ? this.makeStylesheetInert(this.getCssLinks(files))
-              : this.getCssLinks(files)}
-            <noscript data-n-css />
-            {!disableRuntimeJS && this.getPreloadDynamicChunks()}
-            {!disableRuntimeJS && this.getPreloadMainLinks(files)}
-            {this.context.isDevelopment && (
-              // this element is used to mount development styles so the
-              // ordering matches production
-              // (by default, style-loader injects at the bottom of <head />)
-              <noscript id="__next_css__DO_NOT_USE__" />
-            )}
-            {styles || null}
-          </>
-        )}
-        {React.createElement(React.Fragment, {}, ...(headTags || []))}
-      </head>
+      <head
+        {...this.props}
+        dangerouslySetInnerHTML={{
+          __html: ReactDOMServer.renderToStaticMarkup(
+            <>
+              {this.context.isDevelopment && (
+                <>
+                  <style
+                    data-next-hide-fouc
+                    data-ampdevmode={inAmpMode ? 'true' : undefined}
+                    dangerouslySetInnerHTML={{
+                      __html: `body{display:none}`,
+                    }}
+                  />
+                  <noscript
+                    data-next-hide-fouc
+                    data-ampdevmode={inAmpMode ? 'true' : undefined}
+                  >
+                    <style
+                      dangerouslySetInnerHTML={{
+                        __html: `body{display:block}`,
+                      }}
+                    />
+                  </noscript>
+                </>
+              )}
+              {children}
+              {head}
+              {inAmpMode && (
+                <>
+                  <meta
+                    name="viewport"
+                    content="width=device-width,minimum-scale=1,initial-scale=1"
+                  />
+                  {!hasCanonicalRel && (
+                    <link
+                      rel="canonical"
+                      href={canonicalBase + cleanAmpPath(dangerousAsPath)}
+                    />
+                  )}
+                  {/* https://www.ampproject.org/docs/fundamentals/optimize_amp#optimize-the-amp-runtime-loading */}
+                  <link
+                    rel="preload"
+                    as="script"
+                    href="https://cdn.ampproject.org/v0.js"
+                  />
+                  {/* Add custom styles before AMP styles to prevent accidental overrides */}
+                  {styles && (
+                    <style
+                      amp-custom=""
+                      dangerouslySetInnerHTML={{
+                        __html: curStyles
+                          .map(
+                            (style) =>
+                              style.props.dangerouslySetInnerHTML.__html
+                          )
+                          .join('')
+                          .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
+                          .replace(/\/\*@ sourceURL=.*?\*\//g, ''),
+                      }}
+                    />
+                  )}
+                  <style
+                    amp-boilerplate=""
+                    dangerouslySetInnerHTML={{
+                      __html: `body{-webkit-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-moz-animation:-amp-start 8s steps(1,end) 0s 1 normal both;-ms-animation:-amp-start 8s steps(1,end) 0s 1 normal both;animation:-amp-start 8s steps(1,end) 0s 1 normal both}@-webkit-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-moz-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-ms-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@-o-keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}@keyframes -amp-start{from{visibility:hidden}to{visibility:visible}}`,
+                    }}
+                  />
+                  <noscript>
+                    <style
+                      amp-boilerplate=""
+                      dangerouslySetInnerHTML={{
+                        __html: `body{-webkit-animation:none;-moz-animation:none;-ms-animation:none;animation:none}`,
+                      }}
+                    />
+                  </noscript>
+                  <script async src="https://cdn.ampproject.org/v0.js" />
+                </>
+              )}
+              {!inAmpMode && (
+                <>
+                  {!hasAmphtmlRel && hybridAmp && (
+                    <link
+                      rel="amphtml"
+                      href={
+                        canonicalBase + getAmpPath(ampPath, dangerousAsPath)
+                      }
+                    />
+                  )}
+                  {process.env.__NEXT_OPTIMIZE_FONTS
+                    ? this.makeStylesheetInert(this.getCssLinks(files))
+                    : this.getCssLinks(files)}
+                  <noscript data-n-css />
+                  {!disableRuntimeJS && this.getPreloadDynamicChunks()}
+                  {!disableRuntimeJS && this.getPreloadMainLinks(files)}
+                  {this.context.isDevelopment && (
+                    // this element is used to mount development styles so the
+                    // ordering matches production
+                    // (by default, style-loader injects at the bottom of <head />)
+                    <noscript id="__next_css__DO_NOT_USE__" />
+                  )}
+                  {styles || null}
+                </>
+              )}
+              {React.createElement(React.Fragment, {}, ...(headTags || []))}
+            </>
+          ),
+        }}
+      ></head>
     )
   }
 }
