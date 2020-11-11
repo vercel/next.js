@@ -32,23 +32,12 @@ This script will ask for the admin token. Once you provide it with a valid token
 
 At the end, the newly generated client token will be printed and should be used to replace the '< GRAPHQL_SECRET >' placeholder in the next.config.js config.
 
-### Using `create-next-app`
-
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```
 npx create-next-app --example with-graphql-faunadb with-graphql-faunadb
 # or
 yarn create next-app --example with-graphql-faunadb with-graphql-faunadb
-```
-
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-graphql-faunadb
-cd with-graphql-faunadb
 ```
 
 ### Run locally

@@ -1,5 +1,5 @@
 {
-  "name": "realtime-chat-app",
+  "name": "with-supabase-auth-realtime-db",
   "version": "0.1.0",
   "license": "MIT",
   "scripts": {

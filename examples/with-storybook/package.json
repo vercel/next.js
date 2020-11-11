@@ -14,7 +14,7 @@
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@storybook/addon-actions": "6.0.5",
     "@storybook/addon-links": "6.0.5",

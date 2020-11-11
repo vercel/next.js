@@ -23,9 +23,6 @@ const runTests = () => {
           amp: {
             canonicalBase: undefined,
           },
-          devIndicators: {
-            autoPrerender: undefined,
-          },
         }
       `
     )
@@ -46,9 +43,6 @@ const runTests = () => {
           pageExtensions: null,
           amp: {
             canonicalBase: null,
-          },
-          devIndicators: {
-            autoPrerender: null,
           },
         }
       `
