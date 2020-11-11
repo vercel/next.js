@@ -1,3 +1,5 @@
+import ReactDOMServer from 'react-dom/server'
+
 const DOMAttributeNames: Record<string, string> = {
   acceptCharset: 'accept-charset',
   className: 'class',
@@ -43,10 +45,8 @@ function updateElements(type: string, components: JSX.Element[]) {
     }
   })
 
-  components.forEach((t) => {
-    // TODO not getting react components here
-    console.log(t)
-    headEl.appendChild(reactElementToDOM(t))
+  components.forEach((c) => {
+    headEl.appendChild(reactElementToDOM(c))
   })
 }
 
@@ -58,14 +58,21 @@ export default function initHeadManager() {
     updateHead: (head: JSX.Element[]) => {
       const promise = (updatePromise = Promise.resolve().then(() => {
         if (promise !== updatePromise) return
-
         updatePromise = null
         const tags: Record<string, JSX.Element[]> = {}
 
         head.forEach((h) => {
-          const components = tags[h.type] || []
-          components.push(h)
-          tags[h.type] = components
+          // handle react components
+          if (typeof h.type === 'function') {
+            // TODO half baked idea, not working
+            const headEl = document.getElementsByTagName('head')[0]
+            const elStr = ReactDOMServer.renderToStaticMarkup(h)
+            headEl.innerHTML = elStr
+          } else {
+            const components = tags[h.type] || []
+            components.push(h)
+            tags[h.type] = components
+          }
         })
 
         const titleComponent = tags.title ? tags.title[0] : null
