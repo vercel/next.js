@@ -778,7 +778,7 @@ const nextServerlessLoader: loader.Loader = function () {
                 if (paramIdx > -1) {
                   _parsedUrl.pathname = _parsedUrl.pathname.substr(0, paramIdx) +
                     encodeURI(nowParams[param] || '') +
-                    _parsedUrl.pathname.substr(paramIdx + builtParam.length + 2)
+                    _parsedUrl.pathname.substr(paramIdx + builtParam.length)
                 }
               }
               parsedUrl.pathname = _parsedUrl.pathname
