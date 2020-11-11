@@ -18,7 +18,7 @@ describe('Export with default loader next/image component', () => {
   it('should have error during next export', async () => {
     const { stderr } = await nextExport(appDir, { outdir }, { stderr: true })
     expect(stderr).toContain(
-      "Image Optimization using Next.js' default loader is not compatible with `next export`. Use `next start` or configure a different loader"
+      "Image Optimization using Next.js' default loader is not compatible with `next export`."
     )
   })
 })
