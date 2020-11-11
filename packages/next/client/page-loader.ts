@@ -1,6 +1,5 @@
 import { ComponentType } from 'react'
 import type { ClientSsgManifest } from '../build'
-import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
 import {
   addBasePath,
   addLocale,
@@ -9,7 +8,10 @@ import {
 import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../next-server/lib/router/utils/parse-relative-url'
-import createRouteLoader, { RouteLoader } from './route-loader'
+import createRouteLoader, {
+  getClientBuildManifest,
+  RouteLoader,
+} from './route-loader'
 
 function normalizeRoute(route: string) {
   if (route[0] !== '/') {
@@ -31,7 +33,6 @@ export default class PageLoader {
   private buildId: string
   private assetPrefix: string
 
-  private promisedBuildManifest?: Promise<ClientBuildManifest>
   private promisedSsgManifest?: Promise<ClientSsgManifest>
   private promisedDevPagesManifest?: Promise<any>
   public routeLoader: RouteLoader
@@ -41,18 +42,6 @@ export default class PageLoader {
 
     this.buildId = buildId
     this.assetPrefix = assetPrefix
-
-    this.promisedBuildManifest = new Promise((resolve) => {
-      if (self.__BUILD_MANIFEST) {
-        resolve(self.__BUILD_MANIFEST)
-      } else {
-        const cb = self.__BUILD_MANIFEST_CB
-        self.__BUILD_MANIFEST_CB = () => {
-          resolve(self.__BUILD_MANIFEST)
-          cb && cb()
-        }
-      }
-    })
 
     /** @type {Promise<Set<string>>} */
     this.promisedSsgManifest = new Promise((resolve) => {
@@ -68,9 +57,7 @@ export default class PageLoader {
 
   getPageList() {
     if (process.env.NODE_ENV === 'production') {
-      return this.promisedBuildManifest!.then(
-        (buildManifest) => buildManifest.sortedPages
-      )
+      return getClientBuildManifest().then((manifest) => manifest.sortedPages)
     } else {
       if ((window as any).__DEV_PAGES_MANIFEST) {
         return (window as any).__DEV_PAGES_MANIFEST.pages

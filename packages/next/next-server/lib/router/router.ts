@@ -8,7 +8,11 @@ import {
   removePathTrailingSlash,
 } from '../../../client/normalize-trailing-slash'
 import { GoodPageCache, StyleSheetTuple } from '../../../client/page-loader'
-import { isAssetError, markAssetError } from '../../../client/route-loader'
+import {
+  getClientBuildManifest,
+  isAssetError,
+  markAssetError,
+} from '../../../client/route-loader'
 import { denormalizePagePath } from '../../server/denormalize-page-path'
 import mitt, { MittEmitter } from '../mitt'
 import {
@@ -664,7 +668,7 @@ export default class Router implements BaseRouter {
     // get their query parameters to allow ensuring they can be parsed properly
     // when rewritten to
     const pages = await this.pageLoader.getPageList()
-    const { __rewrites: rewrites } = await this.pageLoader.promisedBuildManifest
+    const { __rewrites: rewrites } = await getClientBuildManifest()
 
     let parsed = parseRelativeUrl(url)
 
@@ -705,7 +709,7 @@ export default class Router implements BaseRouter {
         parseRelativeUrl(as).pathname,
         pages,
         basePath,
-        rewrites,
+        rewrites as any,
         query,
         (p: string) => this._resolveHref({ pathname: p }, pages).pathname!
       )
