@@ -95,7 +95,7 @@ export default class PageLoader {
     const route = normalizeRoute(hrefPathname)
 
     const getHrefForSlug = (path: string) => {
-      const dataRoute = addLocale(getAssetPathFromRoute(path, '.json'), locale)
+      const dataRoute = getAssetPathFromRoute(addLocale(path, locale), '.json')
       return addBasePath(
         `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`
       )

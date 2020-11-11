@@ -663,19 +663,65 @@ const nextServerlessLoader: loader.Loader = function () {
                           // favor named matches if available
                           const routeKeyNames = Object.keys(routeKeys)
 
+                          const filterLocaleItem = val => {
+                            ${
+                              i18nEnabled
+                                ? `
+                                // locale items can be included in route-matches
+                                // for fallback SSG pages so ensure they are
+                                // filtered
+                                const isCatchAll = Array.isArray(val)
+                                const _val = isCatchAll ? val[0] : val
+
+                                if (
+                                  typeof _val === 'string' &&
+                                  locales.some(
+                                    item => {
+                                      if (item.toLowerCase() === _val.toLowerCase()) {
+                                        detectedLocale = item
+                                        renderOpts.locale = detectedLocale
+                                        return true
+                                      }
+                                    }
+                                  )
+                                ) {
+                                  // remove the locale item from the match
+                                  if (isCatchAll) {
+                                    val.splice(0, 1)
+                                  }
+
+                                  // the value is only a locale item and
+                                  // shouldn't be added
+                                  return isCatchAll
+                                    ? val.length === 0
+                                    : true
+                                }
+                              `
+                                : ''
+                            }
+                            return false
+                          }
+
                           if (routeKeyNames.every(name => obj[name])) {
                             return routeKeyNames.reduce((prev, keyName) => {
                               const paramName = routeKeys[keyName]
-                              prev[groups[paramName].pos] = obj[keyName]
+
+                              if (!filterLocaleItem(obj[keyName])) {
+                                prev[groups[paramName].pos] = obj[keyName]
+                              }
                               return prev
                             }, {})
                           }
 
                           return Object.keys(obj).reduce(
-                            (prev, key) =>
-                              Object.assign(prev, {
-                                [key]: obj[key]
-                              }),
+                            (prev, key) => {
+                              if (!filterLocaleItem(obj[key])) {
+                                return Object.assign(prev, {
+                                  [key]: obj[key]
+                                })
+                              }
+                              return prev
+                            },
                             {}
                           );
                         }
@@ -720,12 +766,19 @@ const nextServerlessLoader: loader.Loader = function () {
               const _parsedUrl = parseUrl(req.url)
 
               for (const param of Object.keys(defaultRouteRegex.groups)) {
-                const paramIdx = _parsedUrl.pathname.indexOf(\`[\${param}]\`)
+                const { optional, repeat } = defaultRouteRegex.groups[param]
+                let builtParam = \`[\${repeat ? '...' : ''}\${param}]\`
+
+                if (optional) {
+                  builtParam = \`[\${builtParam}]\`
+                }
+
+                const paramIdx = _parsedUrl.pathname.indexOf(builtParam)
 
                 if (paramIdx > -1) {
                   _parsedUrl.pathname = _parsedUrl.pathname.substr(0, paramIdx) +
-                    encodeURI(nowParams[param]) +
-                    _parsedUrl.pathname.substr(paramIdx + param.length + 2)
+                    encodeURI(nowParams[param] || '') +
+                    _parsedUrl.pathname.substr(paramIdx + builtParam.length)
                 }
               }
               parsedUrl.pathname = _parsedUrl.pathname

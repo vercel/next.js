@@ -590,6 +590,7 @@ export default class Server {
 
           // re-create page's pathname
           let pathname = `/${params.path.join('/')}`
+          pathname = getRouteFromAssetPath(pathname, '.json')
 
           const { i18n } = this.nextConfig
 
@@ -611,7 +612,6 @@ export default class Server {
             _parsedUrl.query.__nextDefaultLocale =
               defaultLocale || i18n.defaultLocale
           }
-          pathname = getRouteFromAssetPath(pathname, '.json')
 
           const parsedUrl = parseUrl(pathname, true)
 
