@@ -132,6 +132,7 @@ const baseRules = {
   ],
   'getter-return': 'warn',
   'react-hooks/exhaustive-deps': 'off',
+  'import/no-unresolved': [2, { commonjs: true, amd: true }],
 }
 
 // Copied from https://github.com/typescript-eslint/typescript-eslint/blob/master/packages/eslint-plugin/src/configs/eslint-recommended.ts

@@ -40,10 +40,12 @@ export class Linter {
     }
     options.baseConfig = {
       extends: [
+        'eslint:recommended',
         'plugin:react-hooks/recommended',
         'plugin:@next/next/recommended',
       ],
       rules: getBaseRules(this.isTypescript),
+      plugins: ['import'],
     }
     options.parser = this.isTypescript
       ? '@typescript-eslint/parser'
