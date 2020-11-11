@@ -7,11 +7,11 @@
     "start": "next start"
   },
   "dependencies": {
-    "mobx": "^6.0.0",
-    "mobx-react-lite": "^3.0.0",
+    "mobx": "^6.0.3",
+    "mobx-react-lite": "^3.1.5",
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1"
   },
   "license": "MIT"
 }
