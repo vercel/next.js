@@ -13,7 +13,11 @@ export function parseRelativeUrl(url: string, base?: string) {
   )
   const resolvedBase = base ? new URL(base, globalBase) : globalBase
   const { pathname, searchParams, search, hash, href, origin } = new URL(
-    url.startsWith('/') ? resolvedBase.origin + url : url,
+    url.startsWith('/')
+      ? resolvedBase.protocol +
+        (resolvedBase.host ? '//' + resolvedBase.host : '') +
+        url
+      : url,
     resolvedBase
   )
   if (origin !== globalBase.origin) {
@@ -23,7 +27,7 @@ export function parseRelativeUrl(url: string, base?: string) {
     pathname,
     query: searchParamsToUrlQuery(searchParams),
     search,
-    hash: hash ? hash : url.endsWith('#') ? '#' : '',
+    hash,
     href: href.slice(globalBase.origin.length),
   }
 }
