@@ -485,41 +485,59 @@ export default function Image({
     sizerStyle = undefined
     imgStyle = undefined
   }
+
   return (
-    <div style={wrapperStyle}>
-      {shouldPreload
-        ? generatePreload({
-            src,
-            layout,
-            unoptimized,
-            width: widthInt,
-            sizes,
-            quality: qualityInt,
-          })
-        : null}
-      {sizerStyle ? (
-        <div style={sizerStyle}>
-          {sizerSvg ? (
-            <img
-              style={{ maxWidth: '100%', display: 'block' }}
-              alt=""
-              aria-hidden={true}
-              role="presentation"
-              src={`data:image/svg+xml;charset=utf-8,${sizerSvg}`}
-            />
-          ) : null}
-        </div>
-      ) : null}
-      <img
-        {...rest}
-        {...imgAttributes}
-        decoding="async"
-        className={className}
-        sizes={sizes}
-        ref={thisEl}
-        style={imgStyle}
-      />
-    </div>
+    <>
+      <div style={wrapperStyle}>
+        {shouldPreload
+          ? generatePreload({
+              src,
+              layout,
+              unoptimized,
+              width: widthInt,
+              sizes,
+              quality: qualityInt,
+            })
+          : null}
+        {sizerStyle ? (
+          <>
+            <noscript>
+              <div style={{ marginTop: `-${sizerStyle.paddingTop}` }} />
+            </noscript>
+            <div style={sizerStyle}>
+              {sizerSvg ? (
+                <img
+                  style={{ maxWidth: '100%', display: 'block' }}
+                  alt=""
+                  aria-hidden={true}
+                  role="presentation"
+                  src={`data:image/svg+xml;charset=utf-8,${sizerSvg}`}
+                />
+              ) : null}
+            </div>
+          </>
+        ) : null}
+        <noscript>
+          <img
+            {...rest}
+            src={src}
+            decoding="async"
+            style={{ width: '100%' }}
+            className={className}
+            ref={thisEl}
+          />
+        </noscript>
+        <img
+          {...rest}
+          {...imgAttributes}
+          decoding="async"
+          className={className}
+          sizes={sizes}
+          ref={thisEl}
+          style={imgStyle}
+        />
+      </div>
+    </>
   )
 }
 
