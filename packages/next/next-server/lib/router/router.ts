@@ -815,10 +815,15 @@ export default class Router implements BaseRouter {
         // it's not
         if (destination.startsWith('/')) {
           const parsedHref = parseRelativeUrl(destination)
-          this._resolveHref(parsedHref, pages)
+          this._resolveHref(parsedHref, pages, false)
 
           if (pages.includes(parsedHref.pathname)) {
-            return this.change(method, destination, destination, options)
+            const { url: newUrl, as: newAs } = prepareUrlAs(
+              this,
+              destination,
+              destination
+            )
+            return this.change(method, newUrl, newAs, options)
           }
         }
 
