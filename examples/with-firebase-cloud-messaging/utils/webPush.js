@@ -21,7 +21,7 @@ const firebaseCloudMessaging = {
       }
 
       const messaging = firebase.messaging()
-      await messaging.requestPermission()
+      await Notification.requestPermission()
       const token = await messaging.getToken()
 
       localforage.setItem('fcm_token', token)
