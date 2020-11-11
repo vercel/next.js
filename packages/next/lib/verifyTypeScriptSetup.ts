@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import path from 'path'
 import { FatalTypeScriptError } from './typescript/FatalTypeScriptError'
 import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
