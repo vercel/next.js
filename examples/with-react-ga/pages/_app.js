@@ -7,7 +7,9 @@ const MyApp = ({ Component, pageProps }) => {
 
   useEffect(() => {
     initGA()
-    // in case of query in the url the routeChangeComplete event is triggered on load too
+    // `routeChangeComplete` won't run for the first page load unless the query string is
+    // hydrated later on, so here we log a page view if this is the first render and
+    // there's no query string
     if (!router.asPath.includes('?')) {
       logPageView()
     }
@@ -15,6 +17,7 @@ const MyApp = ({ Component, pageProps }) => {
   }, [])
 
   useEffect(() => {
+    // Listen for page changes after a navigation or when the query changes
     router.events.on('routeChangeComplete', logPageView)
     return () => {
       router.events.off('routeChangeComplete', logPageView)
