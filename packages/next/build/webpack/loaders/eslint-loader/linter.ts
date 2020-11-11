@@ -39,17 +39,13 @@ export class Linter {
         options.parserOptions.requireConfigFile || false
     }
     options.baseConfig = {
-      extends: [
-        'eslint:recommended',
-        'plugin:react-hooks/recommended',
-        'plugin:@next/next/recommended',
-      ],
+      extends: ['eslint:recommended', 'plugin:@next/next/recommended'],
       rules: getBaseRules(this.isTypescript),
-      plugins: ['import'],
+      plugins: ['import', 'react-hooks'],
     }
     options.parser = this.isTypescript
-      ? '@typescript-eslint/parser'
-      : '@babel/eslint-parser'
+      ? require.resolve('@typescript-eslint/parser')
+      : require.resolve('@babel/eslint-parser')
     const { engine } = createEngine(options)
     this.engine = engine
   }

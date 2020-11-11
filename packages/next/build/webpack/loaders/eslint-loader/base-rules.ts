@@ -131,6 +131,7 @@ const baseRules = {
     },
   ],
   'getter-return': 'warn',
+  'react-hooks/rules-of-hooks': 'error',
   'react-hooks/exhaustive-deps': 'off',
   'import/no-unresolved': [2, { commonjs: true, amd: true }],
 }
