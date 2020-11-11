@@ -1386,11 +1386,50 @@ describe('CSS Support', () => {
         )
         expect(titleColor).toBe('rgb(17, 17, 17)')
       }
+      async function checkRedTitle(browser) {
+        await browser.waitForElementByCss('#red-title')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#red-title')).color`
+        )
+        expect(titleColor).toBe('rgb(255, 0, 0)')
+      }
 
-      it('should hydrate without dependencies function', async () => {
+      it('should hydrate black without dependencies manifest', async () => {
         const browser = await webdriver(appPort, '/')
         try {
           await checkBlackTitle(browser)
+          await check(
+            () => browser.eval(`document.querySelector('p').innerText`),
+            'mounted'
+          )
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should hydrate red without dependencies manifest', async () => {
+        const browser = await webdriver(appPort, '/client')
+        try {
+          await checkRedTitle(browser)
+          await check(
+            () => browser.eval(`document.querySelector('p').innerText`),
+            'mounted'
+          )
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should route from black to red without dependencies', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkBlackTitle(browser)
+          await check(
+            () => browser.eval(`document.querySelector('p').innerText`),
+            'mounted'
+          )
+          await browser.eval(`document.querySelector('#link-client').click()`)
+          await checkRedTitle(browser)
           await check(
             () => browser.eval(`document.querySelector('p').innerText`),
             'mounted'

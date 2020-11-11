@@ -664,15 +664,22 @@ export default class Router implements BaseRouter {
       return true
     }
 
+    let parsed = parseRelativeUrl(url)
+    let { pathname, query } = parsed
+
     // The build manifest needs to be loaded before auto-static dynamic pages
     // get their query parameters to allow ensuring they can be parsed properly
     // when rewritten to
-    const pages = await this.pageLoader.getPageList()
-    const { __rewrites: rewrites } = await getClientBuildManifest()
-
-    let parsed = parseRelativeUrl(url)
-
-    let { pathname, query } = parsed
+    let pages: any, rewrites: any
+    try {
+      pages = await this.pageLoader.getPageList()
+      ;({ __rewrites: rewrites } = await getClientBuildManifest())
+    } catch (err) {
+      // If we fail to resolve the page list or client-build manifest, we must
+      // do a server-side transition:
+      window.location.href = as
+      return false
+    }
 
     parsed = this._resolveHref(parsed, pages) as typeof parsed
 
@@ -709,7 +716,7 @@ export default class Router implements BaseRouter {
         parseRelativeUrl(as).pathname,
         pages,
         basePath,
-        rewrites as any,
+        rewrites,
         query,
         (p: string) => this._resolveHref({ pathname: p }, pages).pathname!
       )
