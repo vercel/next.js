@@ -135,6 +135,19 @@ When using Domain Routing, if a user with the `Accept-Language` header `fr;q=0.9
 
 When using Sub-path Routing, the user would be redirected to `/fr`.
 
+### Enable Default local Sub-path
+
+Enable the local Sub-path for the default locale
+
+```js
+// next.config.js
+module.exports = {
+  i18n: {
+    showDefaultLocale: true,
+  },
+}
+```
+
 ### Disabling Automatic Locale Detection
 
 The automatic locale detection can be disabled with:
