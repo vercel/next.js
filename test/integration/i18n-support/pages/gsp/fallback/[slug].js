@@ -30,6 +30,16 @@ export const getStaticProps = ({ params, locale, locales, defaultLocale }) => {
     throw new Error(`missing params ${JSON.stringify(params)}`)
   }
 
+  if (params && params.slug === 'mixed-not-found-redirect') {
+    return {
+      notFound: true,
+      redirect: {
+        destination: '/another',
+        permanent: false,
+      },
+    }
+  }
+
   return {
     props: {
       params,
