@@ -3,6 +3,7 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import path from 'path'
 import { PrerenderManifest } from '../../build'
 import { PRERENDER_MANIFEST } from '../lib/constants'
+import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
 import { normalizePagePath } from './normalize-page-path'
 
 function toRoute(pathname: string): string {
@@ -14,6 +15,7 @@ type IncrementalCacheValue = {
   pageData?: any
   isStale?: boolean
   isNotFound?: boolean
+  isRedirect?: boolean
   curRevalidate?: number | false
   // milliseconds to revalidate after
   revalidateAfter: number | false
@@ -29,6 +31,7 @@ export class IncrementalCache {
 
   prerenderManifest: PrerenderManifest
   cache: LRUCache<string, IncrementalCacheValue>
+  locales?: string[]
 
   constructor({
     max,
@@ -36,12 +39,14 @@ export class IncrementalCache {
     distDir,
     pagesDir,
     flushToDisk,
+    locales,
   }: {
     dev: boolean
     max?: number
     distDir: string
     pagesDir: string
     flushToDisk?: boolean
+    locales?: string[]
   }) {
     this.incrementalOptions = {
       dev,
@@ -50,6 +55,7 @@ export class IncrementalCache {
       flushToDisk:
         !dev && (typeof flushToDisk !== 'undefined' ? flushToDisk : true),
     }
+    this.locales = locales
 
     if (dev) {
       this.prerenderManifest = {
@@ -69,7 +75,7 @@ export class IncrementalCache {
       // default to 50MB limit
       max: max || 50 * 1024 * 1024,
       length(val) {
-        if (val.isNotFound) return 25
+        if (val.isNotFound || val.isRedirect) return 25
         // rough estimate of size of cache value
         return val.html!.length + JSON.stringify(val.pageData).length
       },
@@ -81,7 +87,7 @@ export class IncrementalCache {
   }
 
   private calculateRevalidate(pathname: string): number | false {
-    pathname = toRoute(pathname)
+    pathname = toRoute(normalizeLocalePath(pathname, this.locales).pathname)
 
     // in development we don't have a prerender-manifest
     // and default to always revalidating to allow easier debugging
@@ -161,6 +167,7 @@ export class IncrementalCache {
       html?: string
       pageData?: any
       isNotFound?: boolean
+      isRedirect?: boolean
     },
     revalidateSeconds?: number | false
   ) {
