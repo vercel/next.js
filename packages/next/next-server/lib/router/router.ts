@@ -608,6 +608,7 @@ export default class Router implements BaseRouter {
       window.location.href = url
       return false
     }
+    let localeChange = options.locale !== this.locale
 
     if (process.env.__NEXT_I18N_SUPPORT) {
       this.locale = options.locale || this.locale
@@ -620,7 +621,12 @@ export default class Router implements BaseRouter {
         normalizeLocalePath,
       } = require('../i18n/normalize-locale-path') as typeof import('../i18n/normalize-locale-path')
 
-      const localePathResult = normalizeLocalePath(as, this.locales)
+      const parsedAs = parseRelativeUrl(as)
+
+      const localePathResult = normalizeLocalePath(
+        parsedAs.pathname,
+        this.locales
+      )
 
       if (localePathResult.detectedLocale) {
         this.locale = localePathResult.detectedLocale
@@ -641,6 +647,7 @@ export default class Router implements BaseRouter {
     }
 
     as = addLocale(as, options.locale, this.defaultLocale)
+
     const cleanedAs = delLocale(
       hasBasePath(as) ? delBasePath(as) : as,
       this.locale
@@ -700,7 +707,7 @@ export default class Router implements BaseRouter {
     // We also need to set the method = replaceState always
     // as this should not go into the history (That's how browsers work)
     // We should compare the new asPath to the current asPath, not the url
-    if (!this.urlIsNew(cleanedAs)) {
+    if (!this.urlIsNew(cleanedAs) && !localeChange) {
       method = 'replaceState'
     }
 
