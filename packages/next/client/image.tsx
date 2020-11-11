@@ -485,7 +485,6 @@ export default function Image({
     sizerStyle = undefined
     imgStyle = undefined
   }
-
   return (
     <>
       <div style={wrapperStyle}>
