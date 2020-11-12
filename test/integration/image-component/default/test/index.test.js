@@ -344,6 +344,48 @@ function runTests(mode) {
     }
   })
 
+  it('should work with sizes and automatically use layout-responsive', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/sizes')
+      const width = 1200
+      const height = 700
+      const delta = 250
+      const id = 'sizes1'
+      expect(await getSrc(browser, id)).toBe(
+        '/_next/image?url=%2Fwide.png&w=3840&q=75'
+      )
+      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+      )
+      expect(await browser.elementById(id).getAttribute('sizes')).toBe(
+        '(max-width: 2048px) 1200px, 3840px'
+      )
+      await browser.setDimensions({
+        width: width + delta,
+        height: height + delta,
+      })
+      expect(await getComputed(browser, id, 'width')).toBeGreaterThan(width)
+      expect(await getComputed(browser, id, 'height')).toBeGreaterThan(height)
+      await browser.setDimensions({
+        width: width - delta,
+        height: height - delta,
+      })
+      const newWidth = await getComputed(browser, id, 'width')
+      const newHeight = await getComputed(browser, id, 'height')
+      expect(newWidth).toBeLessThan(width)
+      expect(newHeight).toBeLessThan(height)
+      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+        getRatio(width, height),
+        1
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
   if (mode === 'dev') {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/missing-src')
