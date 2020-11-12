@@ -219,28 +219,28 @@ describe('Image Component Tests', () => {
       browser = null
     })
     runTests()
-    it('should add a preload tag for a priority image', async () => {
+    it.skip('should add a preload tag for a priority image', async () => {
       expect(
         await hasPreloadLinkMatchingUrl(
           'https://example.com/myaccount/withpriority.png?auto=format&fit=max&w=1024&q=60'
         )
       ).toBe(true)
     })
-    it('should add a preload tag for a priority image with preceding slash', async () => {
+    it.skip('should add a preload tag for a priority image with preceding slash', async () => {
       expect(
         await hasPreloadLinkMatchingUrl(
           'https://example.com/myaccount/fooslash.jpg?auto=format&fit=max&w=1024'
         )
       ).toBe(true)
     })
-    it('should add a preload tag for a priority image, with arbitrary host', async () => {
+    it.skip('should add a preload tag for a priority image, with arbitrary host', async () => {
       expect(
         await hasPreloadLinkMatchingUrl(
           'https://arbitraryurl.com/withpriority3.png'
         )
       ).toBe(true)
     })
-    it('should add a preload tag for a priority image, with quality', async () => {
+    it.skip('should add a preload tag for a priority image, with quality', async () => {
       expect(
         await hasPreloadLinkMatchingUrl(
           'https://example.com/myaccount/withpriority.png?auto=format&fit=max&w=1024&q=60'
