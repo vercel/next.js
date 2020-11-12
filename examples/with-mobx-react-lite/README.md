@@ -27,7 +27,7 @@ Deploy the example using [Vercel](https://vercel.com):
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-mobx-v6-react-lite with-mobx-app
+npx create-next-app --example with-mobx-react-lite with-mobx-react-lite-app
 # or
 yarn create next-app --example with-mobx-react-lite with-mobx-react-lite-app
 ```
