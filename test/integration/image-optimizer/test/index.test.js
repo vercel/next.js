@@ -546,6 +546,31 @@ describe('Image Optimizer', () => {
         'Specified images.imageSizes should be an Array of numbers that are between 1 and 10000, received invalid values (0, 12000)'
       )
     })
+
+    it('should error when loader contains invalid value', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            loader: 'notreal',
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Specified images.loader should be one of (default, imgix, cloudinary, akamai), received invalid value (notreal)'
+      )
+    })
   })
 
   // domains for testing
