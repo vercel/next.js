@@ -21,12 +21,12 @@ export default function Page(props) {
   )
 }
 
-// TODO: should non-dynamic GSP pages pre-render for each locale?
-export const getStaticProps = ({ locale, locales }) => {
+export const getStaticProps = ({ locale, locales, defaultLocale }) => {
   return {
     props: {
       locale,
       locales,
+      defaultLocale,
     },
   }
 }
