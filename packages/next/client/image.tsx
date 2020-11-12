@@ -1,5 +1,4 @@
-import React, { ReactElement } from 'react'
-import Head from '../next-server/lib/head'
+import React from 'react'
 import { toBase64 } from '../next-server/lib/to-base-64'
 import {
   ImageConfig,
@@ -158,47 +157,6 @@ function generateSrcSet({
         }${kind}`
     )
     .join(', ')
-}
-
-type PreloadData = {
-  src: string
-  unoptimized: boolean
-  layout: LayoutValue
-  width: number | undefined
-  sizes?: string
-  quality?: number
-}
-
-function generatePreload({
-  src,
-  unoptimized = false,
-  layout,
-  width,
-  sizes,
-  quality,
-}: PreloadData): ReactElement {
-  // This function generates an image preload that makes use of the "imagesrcset" and "imagesizes"
-  // attributes for preloading responsive images. They're still experimental, but fully backward
-  // compatible, as the link tag includes all necessary attributes, even if the final two are ignored.
-  // See: https://web.dev/preload-responsive-images/
-  return (
-    <Head>
-      <link
-        rel="preload"
-        as="image"
-        href={computeSrc(src, unoptimized, layout, width, quality)}
-        // @ts-ignore: imagesrcset and imagesizes not yet in the link element type
-        imagesrcset={generateSrcSet({
-          src,
-          unoptimized,
-          layout,
-          width,
-          quality,
-        })}
-        imagesizes={sizes}
-      />
-    </Head>
-  )
 }
 
 function getInt(x: unknown): number | undefined {
@@ -414,10 +372,6 @@ export default function Image({
     imgAttributes.srcSet = imgSrcSet
   }
 
-  // No need to add preloads on the client side--by the time the application is hydrated,
-  // it's too late for preloads
-  const shouldPreload = priority && typeof window === 'undefined'
-
   if (unsized) {
     wrapperStyle = undefined
     sizerStyle = undefined
@@ -425,16 +379,6 @@ export default function Image({
   }
   return (
     <div style={wrapperStyle}>
-      {shouldPreload
-        ? generatePreload({
-            src,
-            layout,
-            unoptimized,
-            width: widthInt,
-            sizes,
-            quality: qualityInt,
-          })
-        : null}
       {sizerStyle ? (
         <div style={sizerStyle}>
           {sizerSvg ? (
