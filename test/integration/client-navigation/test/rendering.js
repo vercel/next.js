@@ -88,7 +88,7 @@ export default function (render, fetch, ctx) {
       expect(html).toContain(
         '<meta name="viewport" content="width=device-width,initial-scale=1"/>'
       )
-      expect(html.match(/<meta name="viewport"/g).length).toBe(
+      expect(html.match(/<meta name="viewport" /g).length).toBe(
         1,
         'Should contain only one viewport'
       )
