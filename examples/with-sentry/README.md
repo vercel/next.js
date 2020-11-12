@@ -81,6 +81,7 @@ More configurations are available for the [Sentry webpack plugin](https://github
 - The build output will contain warning about unhandled Promise rejections. This is caused by the test pages, and is expected. When deploying to Vercel, "Client Error 1" will actually be sent to Sentry during the build, while that test page is being statically rendered.
 - The version of `@zeit/next-source-maps` (`0.0.4-canary.1`) is important and must be specified since it is not yet the default. Otherwise [source maps will not be generated for the server](https://github.com/zeit/next-plugins/issues/377).
 - Both `@zeit/next-source-maps` and `@sentry/webpack-plugin` are added to dependencies (rather than `devDependencies`) because if used with SSR, these plugins are used during production for generating the source-maps and sending them to sentry.
+- By default, source maps are uploaded to [sentry.io](https://sentry.io). If you're self-hosting Sentry, add `SENTRY_URL` to `.env` or `.env.locale` and set it to the base domain of your installation, which by default is `https://sentry.io/`.
 
 ## Deploy on Vercel
 
