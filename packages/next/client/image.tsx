@@ -14,6 +14,7 @@ const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
+  ['contentful', contentfulLoader],
   ['default', defaultLoader],
 ])
 
@@ -482,6 +483,16 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
 
 function akamaiLoader({ root, src, width }: LoaderProps): string {
   return `${root}${normalizeSrc(src)}?imwidth=${width}`
+}
+
+function contentfulLoader({ src, quality, width }: LoaderProps): string {
+  const params = ['w=' + width]
+
+  if (quality) {
+    params.push('q=' + quality)
+  }
+
+  return `${normalizeSrc(src)}?${params.join('&')}`
 }
 
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
