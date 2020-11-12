@@ -16,7 +16,7 @@
     "react-dom": "^16.13.0",
     "remark": "11.0.2",
     "remark-html": "10.0.0",
-    "typescript": "^3.9.2"
+    "typescript": "^4.0.3"
   },
   "devDependencies": {
     "@types/classnames": "^2.2.10",
