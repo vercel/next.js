@@ -1,6 +1,7 @@
 const nextHandlerWrapper = (app) => {
   const handler = app.getRequestHandler()
-  return async ({ raw, url }, h) => {
+  return async ({ raw, url, query }, h) => {
+    url.query = query
     await handler(raw.req, raw.res, url)
     return h.close
   }
