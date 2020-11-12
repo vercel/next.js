@@ -4,7 +4,17 @@ description: Learn how to upgrade Next.js.
 
 # Upgrade Guide
 
-## Upgrading from version 8 to 9.0.x
+## Upgrading from version 9 to 10
+
+There were no breaking changes between version 9 and 10.
+
+To upgrade run the following command:
+
+```
+npm install next@latest
+```
+
+## Upgrading from version 8 to 9
 
 ### Preamble
 
