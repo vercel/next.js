@@ -205,7 +205,6 @@ export default class Server {
           ? requireFontManifest(this.distDir, this._isLikeServerless)
           : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
-      defaultLocale: this.nextConfig.i18n?.defaultLocale,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -259,6 +258,7 @@ export default class Server {
         'pages'
       ),
       flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
+      locales: this.nextConfig.i18n?.locales,
     })
 
     /**
@@ -315,9 +315,11 @@ export default class Server {
       req.url = req.url!.replace(basePath, '') || '/'
     }
 
-    if (i18n && !parsedUrl.pathname?.startsWith('/_next')) {
+    if (i18n && !req.url?.startsWith('/_next')) {
       // get pathname from URL with basePath stripped for locale detection
-      const { pathname, ...parsed } = parseUrl(req.url || '/')
+      let { pathname, ...parsed } = parseUrl(req.url || '/')
+      pathname = pathname || '/'
+
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
       let acceptPreferredLocale =
@@ -348,13 +350,13 @@ export default class Server {
           pathname: localePathResult.pathname,
         })
         ;(req as any).__nextStrippedLocale = true
-        parsedUrl.pathname = localePathResult.pathname
+        parsedUrl.pathname = `${basePath || ''}${localePathResult.pathname}`
       }
 
       // If a detected locale is a domain specific locale and we aren't already
       // on that domain and path prefix redirect to it to prevent duplicate
       // content from multiple domains
-      if (detectedDomain && parsedUrl.pathname === '/') {
+      if (detectedDomain && pathname === '/') {
         const localeToCheck = acceptPreferredLocale
         // const localeToCheck = localePathResult.detectedLocale
         //   ? detectedLocale
@@ -429,14 +431,17 @@ export default class Server {
             pathname: localeDomainRedirect
               ? localeDomainRedirect
               : shouldStripDefaultLocale
-              ? '/'
-              : `/${detectedLocale}`,
+              ? basePath || `/`
+              : `${basePath || ''}/${detectedLocale}`,
           })
         )
         res.statusCode = 307
         res.end()
         return
       }
+
+      parsedUrl.query.__nextDefaultLocale =
+        detectedDomain?.defaultLocale || i18n.defaultLocale
 
       parsedUrl.query.__nextLocale =
         localePathResult.detectedLocale ||
@@ -587,6 +592,7 @@ export default class Server {
 
           // re-create page's pathname
           let pathname = `/${params.path.join('/')}`
+          pathname = getRouteFromAssetPath(pathname, '.json')
 
           const { i18n } = this.nextConfig
 
@@ -603,9 +609,11 @@ export default class Server {
               pathname = localePathResult.pathname
               detectedLocale = localePathResult.detectedLocale
             }
+
             _parsedUrl.query.__nextLocale = detectedLocale!
+            _parsedUrl.query.__nextDefaultLocale =
+              defaultLocale || i18n.defaultLocale
           }
-          pathname = getRouteFromAssetPath(pathname, '.json')
 
           const parsedUrl = parseUrl(pathname, true)
 
@@ -704,7 +712,7 @@ export default class Server {
         type: redirectRoute.type,
         match: redirectRoute.match,
         statusCode: redirectRoute.statusCode,
-        name: `Redirect route`,
+        name: `Redirect route ${redirectRoute.source}`,
         fn: async (req, res, params, parsedUrl) => {
           const { parsedDestination } = prepareDestination(
             redirectRoute.destination,
@@ -744,7 +752,7 @@ export default class Server {
         ...rewriteRoute,
         check: true,
         type: rewriteRoute.type,
-        name: `Rewrite route`,
+        name: `Rewrite route ${rewriteRoute.source}`,
         match: rewriteRoute.match,
         fn: async (req, res, params, parsedUrl) => {
           const { newUrl, parsedDestination } = prepareDestination(
@@ -1145,6 +1153,7 @@ export default class Server {
                   amp: query.amp,
                   _nextDataReq: query._nextDataReq,
                   __nextLocale: query.__nextLocale,
+                  __nextDefaultLocale: query.__nextDefaultLocale,
                 }
               : query),
             ...(params || {}),
@@ -1217,7 +1226,12 @@ export default class Server {
     }
 
     const locale = query.__nextLocale as string
+    const defaultLocale = isSSG
+      ? this.nextConfig.i18n?.defaultLocale
+      : (query.__nextDefaultLocale as string)
+
     delete query.__nextLocale
+    delete query.__nextDefaultLocale
 
     const { i18n } = this.nextConfig
     const locales = i18n.locales as string[]
@@ -1259,8 +1273,14 @@ export default class Server {
       const redirect = {
         destination: pageData.pageProps.__N_REDIRECT,
         statusCode: pageData.pageProps.__N_REDIRECT_STATUS,
+        basePath: pageData.pageProps.__N_REDIRECT_BASE_PATH,
       }
       const statusCode = getRedirectStatus(redirect)
+      const { basePath } = this.nextConfig
+
+      if (basePath && redirect.basePath !== false) {
+        redirect.destination = `${basePath}${redirect.destination}`
+      }
 
       if (statusCode === PERMANENT_REDIRECT_STATUS) {
         res.setHeader('Refresh', `0;url=${redirect.destination}`)
@@ -1281,9 +1301,9 @@ export default class Server {
     let ssgCacheKey =
       isPreviewMode || !isSSG
         ? undefined // Preview mode bypasses the cache
-        : `${locale ? `/${locale}` : ''}${resolvedUrlPathname}${
-            query.amp ? '.amp' : ''
-          }`
+        : `${locale ? `/${locale}` : ''}${
+            pathname === '/' && locale ? '' : resolvedUrlPathname
+          }${query.amp ? '.amp' : ''}`
 
     if (is404Page && isSSG) {
       ssgCacheKey = `${locale ? `/${locale}` : ''}${pathname}${
@@ -1371,7 +1391,7 @@ export default class Server {
               fontManifest: this.renderOpts.fontManifest,
               locale,
               locales,
-              // defaultLocale,
+              defaultLocale,
             }
           )
 
@@ -1395,7 +1415,7 @@ export default class Server {
             resolvedUrl,
             locale,
             locales,
-            // defaultLocale,
+            defaultLocale,
             // For getServerSideProps we need to ensure we use the original URL
             // and not the resolved URL to prevent a hydration mismatch on
             // asPath

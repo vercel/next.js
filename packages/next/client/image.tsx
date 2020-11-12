@@ -3,6 +3,10 @@ import Head from '../next-server/lib/head'
 import { toBase64 } from '../next-server/lib/to-base-64'
 import { useIntersection } from './use-intersection'
 
+if (typeof window === 'undefined') {
+  ;(global as any).__NEXT_IMAGE_IMPORTED = true
+}
+
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
 
@@ -34,7 +38,7 @@ type ImageData = {
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
-type ImageProps = Omit<
+export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
 > & {
