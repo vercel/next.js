@@ -1,4 +1,6 @@
+import { createElement } from 'react'
 import ReactDOMServer from 'react-dom/server'
+import { parse } from 'node-html-parser'
 
 const DOMAttributeNames: Record<string, string> = {
   acceptCharset: 'accept-charset',
@@ -37,11 +39,11 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
 
 function updateElements(type: string, components: JSX.Element[]) {
   const headEl = document.getElementsByTagName('head')[0]
-  const headCountEls = headEl.querySelectorAll('[data-next-head=true]')
+  const existingHeaders = headEl.querySelectorAll('[data-next-head=true]')
 
-  headCountEls.forEach((el) => {
+  existingHeaders.forEach((el) => {
     if (el!.tagName.toLowerCase() === type) {
-      headEl.removeChild(el)
+      headEl.removeChild(el!)
     }
   })
 
@@ -64,10 +66,15 @@ export default function initHeadManager() {
         head.forEach((h) => {
           // handle react components
           if (typeof h.type === 'function') {
-            // TODO half baked idea, not working
-            const headEl = document.getElementsByTagName('head')[0]
-            const elStr = ReactDOMServer.renderToStaticMarkup(h)
-            headEl.innerHTML = elStr
+            const el = parse(ReactDOMServer.renderToStaticMarkup(h))
+            // @ts-ignore misleading node type by node-html-parser
+            el.childNodes.forEach((childEl: HTMLElement) => {
+              const type = childEl.tagName.toLowerCase()
+              childEl.setAttribute('data-next-head', 'true')
+              const components = tags[type] || []
+              components.push(createElement(type, childEl.attributes))
+              tags[type] = components
+            })
           } else {
             const components = tags[h.type] || []
             components.push(h)
