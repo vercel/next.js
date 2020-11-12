@@ -24,10 +24,24 @@ const appDir = join(__dirname, '../')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 let app
 let appPort
+let buildPagesDir
 
 const locales = ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en']
 
 function runTests(isDev) {
+  if (!isDev) {
+    it('should output prerendered index routes correctly', async () => {
+      expect(await fs.exists(join(buildPagesDir, 'pages/en-US.html'))).toBe(
+        true
+      )
+      expect(await fs.exists(join(buildPagesDir, 'pages/en-US.json'))).toBe(
+        true
+      )
+      expect(await fs.exists(join(buildPagesDir, 'pages/fr.html'))).toBe(true)
+      expect(await fs.exists(join(buildPagesDir, 'pages/fr.json'))).toBe(true)
+    })
+  }
+
   it('should load the index route correctly SSR', async () => {
     const res = await fetchViaHTTP(appPort, '/', undefined, {
       redirect: 'manual',
@@ -194,6 +208,7 @@ describe('i18n Support Root Catch-all', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
+      buildPagesDir = join(appDir, '.next/server')
     })
     afterAll(() => killApp(app))
 
@@ -208,6 +223,7 @@ describe('i18n Support Root Catch-all', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
+      buildPagesDir = join(appDir, '.next/serverless')
     })
     afterAll(async () => {
       nextConfig.restore()
