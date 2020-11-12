@@ -112,7 +112,7 @@ function callLoader(loaderProps: CallLoaderProps) {
   )
 }
 
-type SrcSetData = {
+type GenImgAttrsData = {
   src: string
   unoptimized: boolean
   layout: LayoutValue
@@ -121,6 +121,11 @@ type SrcSetData = {
   sizes?: string
 }
 
+type GenImgAttrsResult = Pick<
+  JSX.IntrinsicElements['img'],
+  'src' | 'sizes' | 'srcSet'
+>
+
 function generateImgAttrs({
   src,
   unoptimized,
@@ -128,11 +133,7 @@ function generateImgAttrs({
   width,
   quality,
   sizes,
-}: SrcSetData): {
-  src: string
-  sizes?: string
-  srcset?: string
-} {
+}: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
     return { src }
   }
@@ -140,7 +141,7 @@ function generateImgAttrs({
   const { widths, kind } = getWidths(width, layout)
   const last = widths.length - 1
 
-  const srcset = widths
+  const srcSet = widths
     .map(
       (w, i) =>
         `${callLoader({ src, quality, width: w })} ${
@@ -157,7 +158,7 @@ function generateImgAttrs({
 
   src = callLoader({ src, quality, width: widths[last] })
 
-  return { src, sizes, srcset }
+  return { src, sizes, srcSet }
 }
 
 function getInt(x: unknown): number | undefined {
@@ -353,10 +354,7 @@ export default function Image({
     }
   }
 
-  let imgAttributes: Pick<
-    JSX.IntrinsicElements['img'],
-    'src' | 'sizes' | 'srcSet'
-  > = {
+  let imgAttributes: GenImgAttrsResult = {
     src:
       'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
   }
