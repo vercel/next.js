@@ -1,8 +1,5 @@
-import { enableStaticRendering } from 'mobx-react-lite'
 import { createContext, useContext } from 'react'
 import { Store } from '../store'
-
-enableStaticRendering(typeof window === 'undefined')
 
 let store
 export const StoreContext = createContext()
