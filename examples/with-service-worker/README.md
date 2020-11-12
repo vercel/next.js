@@ -1,4 +1,4 @@
-# Adding a service worker into a next.js app
+# Service Worker Example
 
 This example shows how to add a simple service worker to a Next.js application. The service worker is in [`public/sw.js`](public/sw.js) and it's installed by [`pages/_app.js`](pages/_app.js) after the first render.
 
