@@ -10,16 +10,12 @@ import assert from 'assert'
 import {
   fetchViaHTTP,
   renderViaHTTP,
-  File,
   waitFor,
   normalizeRegEx,
   check,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
-
-export const appDir = join(__dirname, '../')
-export const nextConfig = new File(join(appDir, 'next.config.js'))
 
 export const locales = ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en']
 
@@ -95,7 +91,7 @@ export function runTests(ctx) {
   if (!ctx.isDev) {
     it('should add i18n config to routes-manifest', async () => {
       const routesManifest = await fs.readJSON(
-        join(appDir, '.next/routes-manifest.json')
+        join(ctx.appDir, '.next/routes-manifest.json')
       )
 
       expect(routesManifest.i18n).toEqual({
@@ -120,7 +116,7 @@ export function runTests(ctx) {
 
     it('should output correct prerender-manifest', async () => {
       const prerenderManifest = await fs.readJSON(
-        join(appDir, '.next/prerender-manifest.json')
+        join(ctx.appDir, '.next/prerender-manifest.json')
       )
 
       for (const key of Object.keys(prerenderManifest.dynamicRoutes)) {

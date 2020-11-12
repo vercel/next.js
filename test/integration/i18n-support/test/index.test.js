@@ -2,7 +2,7 @@ import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { appDir, runTests, nextConfig, locales } from './shared'
+import { runTests, locales } from './shared'
 import {
   nextBuild,
   nextStart,
@@ -10,16 +10,34 @@ import {
   killApp,
   getPageFileFromPagesManifest,
   fetchViaHTTP,
+  File,
+  launchApp,
 } from 'next-test-utils'
 
+const appDir = join(__dirname, '../')
+const nextConfig = new File(join(appDir, 'next.config.js'))
 const ctx = {
-  basePath: '/docs',
+  basePath: '',
+  appDir,
 }
 
 describe('i18n Support', () => {
+  describe('dev mode', () => {
+    beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
+      ctx.appPort = await findPort()
+      ctx.app = await launchApp(appDir, ctx.appPort)
+    })
+    afterAll(() => killApp(ctx.app))
+
+    runTests({
+      ...ctx,
+      isDev: true,
+    })
+  })
+
   describe('production mode', () => {
     beforeAll(async () => {
-      nextConfig.replace('// basePath', 'basePath')
       await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)
       ctx.appPort = await findPort()
@@ -27,10 +45,7 @@ describe('i18n Support', () => {
       ctx.buildPagesDir = join(appDir, '.next/server/pages')
       ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
-    afterAll(async () => {
-      nextConfig.restore()
-      await killApp(ctx.app)
-    })
+    afterAll(() => killApp(ctx.app))
 
     runTests(ctx)
   })
@@ -39,7 +54,6 @@ describe('i18n Support', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       nextConfig.replace('// target', 'target')
-      nextConfig.replace('// basePath', 'basePath')
 
       await nextBuild(appDir)
       ctx.appPort = await findPort()
@@ -76,7 +90,7 @@ describe('i18n Support', () => {
 
       const res = await fetchViaHTTP(
         appPort,
-        `${ctx.basePath}/nl/not-found/blocking-fallback/first`
+        '/nl/not-found/blocking-fallback/first'
       )
       server.close()
 
@@ -100,7 +114,6 @@ describe('i18n Support', () => {
   describe('with localeDetection disabled', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
-      nextConfig.replace('// basePath', 'basePath')
       nextConfig.replace('// localeDetection', 'localeDetection')
 
       await nextBuild(appDir)
@@ -141,7 +154,7 @@ describe('i18n Support', () => {
     it('should not detect locale from accept-language', async () => {
       const res = await fetchViaHTTP(
         ctx.appPort,
-        `${ctx.basePath || '/'}`,
+        '/',
         {},
         {
           redirect: 'manual',
@@ -164,7 +177,7 @@ describe('i18n Support', () => {
       for (const locale of locales) {
         const res = await fetchViaHTTP(
           ctx.appPort,
-          `${ctx.basePath}/${locale}`,
+          `/${locale}`,
           {},
           {
             redirect: 'manual',
