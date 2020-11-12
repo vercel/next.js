@@ -52,8 +52,13 @@ function prefetch(
       throw err
     }
   })
+  const curLocale =
+    options && typeof options.locale !== 'undefined'
+      ? options.locale
+      : router && router.locale
+
   // Join on an invalid URI character
-  prefetched[href + '%' + as + '%' + ((options && options.locale) || '')] = true
+  prefetched[href + '%' + as + (curLocale ? '%' + curLocale : '')] = true
 }
 
 function isModifiedEvent(event: React.MouseEvent) {
@@ -253,7 +258,8 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     const shouldPrefetch = isVisible && p && isLocalURL(href)
     const curLocale =
       typeof locale !== 'undefined' ? locale : router && router.locale
-    const isPrefetched = prefetched[href + '%' + as + '%' + curLocale]
+    const isPrefetched =
+      prefetched[href + '%' + as + (curLocale ? '%' + curLocale : '')]
     if (shouldPrefetch && !isPrefetched) {
       prefetch(router, href, as, {
         locale: curLocale,
