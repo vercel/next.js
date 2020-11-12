@@ -1,6 +1,11 @@
-import React, { ReactElement } from 'react'
-import Head from '../next-server/lib/head'
+import React from 'react'
 import { toBase64 } from '../next-server/lib/to-base-64'
+import {
+  ImageConfig,
+  imageConfigDefault,
+  LoaderValue,
+  VALID_LOADERS,
+} from '../next-server/server/image-config'
 import { useIntersection } from './use-intersection'
 
 if (typeof window === 'undefined') {
@@ -10,14 +15,12 @@ if (typeof window === 'undefined') {
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
 
-const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
+const loaders = new Map<LoaderValue, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
   ['default', defaultLoader],
 ])
-
-type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
 
 const VALID_LAYOUT_VALUES = [
   'fill',
@@ -27,14 +30,6 @@ const VALID_LAYOUT_VALUES = [
   undefined,
 ] as const
 type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
-
-type ImageData = {
-  deviceSizes: number[]
-  imageSizes: number[]
-  loader: LoaderKey
-  path: string
-  domains?: string[]
-}
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
@@ -64,14 +59,14 @@ export type ImageProps = Omit<
       }
   )
 
-const imageData: ImageData = process.env.__NEXT_IMAGE_OPTS as any
 const {
   deviceSizes: configDeviceSizes,
   imageSizes: configImageSizes,
   loader: configLoader,
   path: configPath,
   domains: configDomains,
-} = imageData
+} =
+  ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
 // sort smallest to largest
 const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)
@@ -121,8 +116,15 @@ type CallLoaderProps = {
 }
 
 function callLoader(loaderProps: CallLoaderProps) {
-  const load = loaders.get(configLoader) || defaultLoader
-  return load({ root: configPath, ...loaderProps })
+  const load = loaders.get(configLoader)
+  if (load) {
+    return load({ root: configPath, ...loaderProps })
+  }
+  throw new Error(
+    `Unknown "loader" found in "next.config.js". Expected: ${VALID_LOADERS.join(
+      ', '
+    )}. Received: ${configLoader}`
+  )
 }
 
 type SrcSetData = {
@@ -155,47 +157,6 @@ function generateSrcSet({
         }${kind}`
     )
     .join(', ')
-}
-
-type PreloadData = {
-  src: string
-  unoptimized: boolean
-  layout: LayoutValue
-  width: number | undefined
-  sizes?: string
-  quality?: number
-}
-
-function generatePreload({
-  src,
-  unoptimized = false,
-  layout,
-  width,
-  sizes,
-  quality,
-}: PreloadData): ReactElement {
-  // This function generates an image preload that makes use of the "imagesrcset" and "imagesizes"
-  // attributes for preloading responsive images. They're still experimental, but fully backward
-  // compatible, as the link tag includes all necessary attributes, even if the final two are ignored.
-  // See: https://web.dev/preload-responsive-images/
-  return (
-    <Head>
-      <link
-        rel="preload"
-        as="image"
-        href={computeSrc(src, unoptimized, layout, width, quality)}
-        // @ts-ignore: imagesrcset and imagesizes not yet in the link element type
-        imagesrcset={generateSrcSet({
-          src,
-          unoptimized,
-          layout,
-          width,
-          quality,
-        })}
-        imagesizes={sizes}
-      />
-    </Head>
-  )
 }
 
 function getInt(x: unknown): number | undefined {
@@ -411,10 +372,6 @@ export default function Image({
     imgAttributes.srcSet = imgSrcSet
   }
 
-  // No need to add preloads on the client side--by the time the application is hydrated,
-  // it's too late for preloads
-  const shouldPreload = priority && typeof window === 'undefined'
-
   if (unsized) {
     wrapperStyle = undefined
     sizerStyle = undefined
@@ -422,16 +379,6 @@ export default function Image({
   }
   return (
     <div style={wrapperStyle}>
-      {shouldPreload
-        ? generatePreload({
-            src,
-            layout,
-            unoptimized,
-            width: widthInt,
-            sizes,
-            quality: qualityInt,
-          })
-        : null}
       {sizerStyle ? (
         <div style={sizerStyle}>
           {sizerSvg ? (
