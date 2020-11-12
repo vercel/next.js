@@ -23,21 +23,22 @@ const ctx = {
 
 describe('i18n Support', () => {
   describe('dev mode', () => {
+    const curCtx = {
+      ...ctx,
+      isDev: true,
+    }
     beforeAll(async () => {
       nextConfig.replace('// basePath', 'basePath')
       await fs.remove(join(appDir, '.next'))
-      ctx.appPort = await findPort()
-      ctx.app = await launchApp(appDir, ctx.appPort)
+      curCtx.appPort = await findPort()
+      curCtx.app = await launchApp(appDir, curCtx.appPort)
     })
     afterAll(async () => {
       nextConfig.restore()
-      await killApp(ctx.app)
+      await killApp(curCtx.app)
     })
 
-    runTests({
-      ...ctx,
-      isDev: true,
-    })
+    runTests(curCtx)
   })
 
   describe('production mode', () => {
