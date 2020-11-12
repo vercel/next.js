@@ -184,6 +184,10 @@
             {
               "title": "Codemods",
               "path": "/docs/advanced-features/codemods.md"
+            },
+            {
+              "title": "Internationalized Routing",
+              "path": "/docs/advanced-features/i18n-routing.md"
             }
           ]
         },
@@ -287,10 +291,6 @@
             {
               "title": "Compression",
               "path": "/docs/api-reference/next.config.js/compression.md"
-            },
-            {
-              "title": "Static Optimization Indicator",
-              "path": "/docs/api-reference/next.config.js/static-optimization-indicator.md"
             },
             {
               "title": "Runtime Configuration",

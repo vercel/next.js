@@ -1,5 +1,5 @@
 import { join, sep as pathSeparator, normalize } from 'path'
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import { isWriteable } from '../../build/is-writeable'
 import { warn } from '../../build/output/log'
 import { promises } from 'fs'

@@ -119,6 +119,24 @@ const expectedManifestRoutes = () => [
     page: '/non-json',
   },
   {
+    dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+      buildId
+    )}\\/not-found.json$`,
+    page: '/not-found',
+  },
+  {
+    dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+      buildId
+    )}\\/not\\-found\\/([^\\/]+?)\\.json$`,
+    namedDataRouteRegex: `^/_next/data/${escapeRegex(
+      buildId
+    )}/not\\-found/(?<slug>[^/]+?)\\.json$`,
+    page: '/not-found/[slug]',
+    routeKeys: {
+      slug: 'slug',
+    },
+  },
+  {
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/refresh.json$`
     ),
@@ -234,6 +252,50 @@ const navigateTest = (dev = false) => {
 
 const runTests = (dev = false) => {
   navigateTest(dev)
+
+  it('should render 404 correctly when notFound is returned (non-dynamic)', async () => {
+    const res = await fetchViaHTTP(appPort, '/not-found', { hiding: true })
+
+    expect(res.status).toBe(404)
+    expect(await res.text()).toContain('This page could not be found')
+  })
+
+  it('should render 404 correctly when notFound is returned client-transition (non-dynamic)', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/not-found?hiding=true')
+    })()`)
+
+    await browser.waitForElementByCss('h1')
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(null)
+  })
+
+  it('should render 404 correctly when notFound is returned (dynamic)', async () => {
+    const res = await fetchViaHTTP(appPort, '/not-found/first', {
+      hiding: true,
+    })
+
+    expect(res.status).toBe(404)
+    expect(await res.text()).toContain('This page could not be found')
+  })
+
+  it('should render 404 correctly when notFound is returned client-transition (dynamic)', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/not-found/first?hiding=true')
+    })()`)
+
+    await browser.waitForElementByCss('h1')
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(null)
+  })
 
   it('should SSR normal page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/')
