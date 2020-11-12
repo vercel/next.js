@@ -20,7 +20,6 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
 
     const attr = DOMAttributeNames[p] || p.toLowerCase()
     el.setAttribute(attr, props[p])
-    el.setAttribute('data-next-head', true)
   }
 
   const { children, dangerouslySetInnerHTML } = props
@@ -39,17 +38,46 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
 
 function updateElements(type: string, components: JSX.Element[]) {
   const headEl = document.getElementsByTagName('head')[0]
-  const existingHeaders = headEl.querySelectorAll('[data-next-head=true]')
-
-  existingHeaders.forEach((el) => {
-    if (el!.tagName.toLowerCase() === type) {
-      headEl.removeChild(el!)
+  const headCountEl: HTMLMetaElement = headEl.querySelector(
+    'meta[name=next-head-count]'
+  ) as HTMLMetaElement
+  if (process.env.NODE_ENV !== 'production') {
+    if (!headCountEl) {
+      console.error(
+        'Warning: next-head-count is missing. https://err.sh/next.js/next-head-count-missing'
+      )
+      return
     }
-  })
+  }
 
-  components.forEach((c) => {
-    headEl.appendChild(reactElementToDOM(c))
-  })
+  const headCount = Number(headCountEl.content)
+  const oldTags: Element[] = []
+
+  for (
+    let i = 0, j = headCountEl.previousElementSibling;
+    i < headCount;
+    i++, j = j!.previousElementSibling
+  ) {
+    if (j!.tagName.toLowerCase() === type) {
+      oldTags.push(j!)
+    }
+  }
+  const newTags = (components.map(reactElementToDOM) as HTMLElement[]).filter(
+    (newTag) => {
+      for (let k = 0, len = oldTags.length; k < len; k++) {
+        const oldTag = oldTags[k]
+        if (oldTag.isEqualNode(newTag)) {
+          oldTags.splice(k, 1)
+          return false
+        }
+      }
+      return true
+    }
+  )
+
+  oldTags.forEach((t) => t.parentNode!.removeChild(t))
+  newTags.forEach((t) => headEl.insertBefore(t, headCountEl))
+  headCountEl.content = (headCount - oldTags.length + newTags.length).toString()
 }
 
 export default function initHeadManager() {
@@ -70,7 +98,6 @@ export default function initHeadManager() {
             // @ts-ignore misleading node type by node-html-parser
             el.childNodes.forEach((childEl: HTMLElement) => {
               const type = childEl.tagName.toLowerCase()
-              childEl.setAttribute('data-next-head', 'true')
               const components = tags[type] || []
               components.push(createElement(type, childEl.attributes))
               tags[type] = components

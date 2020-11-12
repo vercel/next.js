@@ -390,7 +390,7 @@ export class Head extends Component<
           hasAmphtmlRel = true
         }
       }
-      return React.cloneElement(child, { 'data-next-head': true })
+      return child
     })
 
     // try to parse styles from fragment for backwards compat
@@ -450,6 +450,10 @@ export class Head extends Component<
               )}
               {children}
               {head}
+              <meta
+                name="next-head-count"
+                content={React.Children.count(head || []).toString()}
+              />
               {inAmpMode && (
                 <>
                   <meta
