@@ -84,7 +84,7 @@
     "loader-utils": "2.0.0",
     "native-url": "0.3.4",
     "node-fetch": "2.6.1",
-    "node-html-parser": "^1.2.19",
+    "node-html-parser": "1.4.9",
     "path-browserify": "1.0.1",
     "pnp-webpack-plugin": "1.6.4",
     "postcss": "8.1.1",
