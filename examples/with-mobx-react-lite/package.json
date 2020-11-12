@@ -1,5 +1,5 @@
 {
-  "name": "with-mobx",
+  "name": "with-mobx-react-lite",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
