@@ -5,6 +5,7 @@ import { basename, extname } from 'path'
 import * as Log from '../../build/output/log'
 import { CONFIG_FILE } from '../lib/constants'
 import { execOnce } from '../lib/utils'
+import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
@@ -24,13 +25,7 @@ const defaultConfig: { [key: string]: any } = {
   poweredByHeader: true,
   compress: true,
   analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
-  images: {
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    domains: [],
-    path: '/_next/image',
-    loader: 'default',
-  },
+  images: imageConfigDefault,
   devIndicators: {
     buildActivity: true,
   },
@@ -215,7 +210,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   }
 
   if (result?.images) {
-    const { images } = result
+    const images: Partial<ImageConfig> = result.images
 
     if (typeof images !== 'object') {
       throw new Error(
@@ -300,10 +295,26 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
     }
 
+    if (!images.loader) {
+      images.loader = 'default'
+    }
+
+    if (!VALID_LOADERS.includes(images.loader)) {
+      throw new Error(
+        `Specified images.loader should be one of (${VALID_LOADERS.join(
+          ', '
+        )}), received invalid value (${
+          images.loader
+        }).\nSee more info here: https://err.sh/next.js/invalid-images-config`
+      )
+    }
+
     // Append trailing slash for non-default loaders
     if (images.path) {
-      const isDefaultLoader = !images.loader || images.loader === 'default'
-      if (!isDefaultLoader && images.path[images.path.length - 1] !== '/') {
+      if (
+        images.loader !== 'default' &&
+        images.path[images.path.length - 1] !== '/'
+      ) {
         images.path += '/'
       }
     }

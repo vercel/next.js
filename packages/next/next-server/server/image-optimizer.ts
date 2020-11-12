@@ -11,6 +11,7 @@ import { fileExists } from '../../lib/file-exists'
 import isAnimated from 'next/dist/compiled/is-animated'
 import Stream from 'stream'
 import { sendEtagResponse } from './send-payload'
+import { ImageConfig, imageConfigDefault } from './image-config'
 
 let sharp: typeof import('sharp')
 //const AVIF = 'image/avif'
@@ -24,14 +25,6 @@ const MODERN_TYPES = [/* AVIF, */ WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 
-type ImageData = {
-  deviceSizes: number[]
-  imageSizes: number[]
-  loader: string
-  path: string
-  domains?: string[]
-}
-
 export async function imageOptimizer(
   server: Server,
   req: IncomingMessage,
@@ -39,7 +32,7 @@ export async function imageOptimizer(
   parsedUrl: UrlWithParsedQuery
 ) {
   const { nextConfig, distDir } = server
-  const imageData: ImageData = nextConfig.images
+  const imageData: ImageConfig = nextConfig.images || imageConfigDefault
   const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
   const sizes = [...deviceSizes, ...imageSizes]
 
