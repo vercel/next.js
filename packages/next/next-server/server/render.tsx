@@ -53,6 +53,7 @@ import optimizeAmp from './optimize-amp'
 import {
   allowedStatusCodes,
   getRedirectStatus,
+  Redirect,
 } from '../../lib/load-custom-routes'
 
 function noRouter() {
@@ -290,18 +291,12 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
   )
 }
 
-type Redirect = {
-  permanent: boolean
-  destination: string
-  statusCode?: number
-}
-
 function checkRedirectValues(
   redirect: Redirect,
   req: IncomingMessage,
   method: 'getStaticProps' | 'getServerSideProps'
 ) {
-  const { destination, permanent, statusCode } = redirect
+  const { destination, permanent, statusCode, basePath } = redirect
   let errors: string[] = []
 
   const hasStatusCode = typeof statusCode !== 'undefined'
@@ -323,6 +318,14 @@ function checkRedirectValues(
   if (destinationType !== 'string') {
     errors.push(
       `\`destination\` should be string but received ${destinationType}`
+    )
+  }
+
+  const basePathType = typeof basePath
+
+  if (basePathType !== 'undefined' && basePathType !== 'boolean') {
+    errors.push(
+      `\`basePath\` should be undefined or a false, received ${basePathType}`
     )
   }
 
@@ -406,6 +409,7 @@ export async function renderToHTML(
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
   delete query.__nextLocale
+  delete query.__nextDefaultLocale
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -630,11 +634,14 @@ export async function renderToHTML(
       }
 
       if (process.env.NODE_ENV !== 'production') {
-        if ('notFound' in data && 'redirect' in data) {
+        if (
+          typeof (data as any).notFound !== 'undefined' &&
+          typeof (data as any).redirect !== 'undefined'
+        ) {
           throw new Error(
             `\`redirect\` and \`notFound\` can not both be returned from ${
               isSSG ? 'getStaticProps' : 'getServerSideProps'
-            } at the same time. Page: ${pathname}`
+            } at the same time. Page: ${pathname}\nSee more info here: https://err.sh/next.js/gssp-mixed-not-found-redirect`
           )
         }
       }
@@ -656,7 +663,7 @@ export async function renderToHTML(
         data.redirect &&
         typeof data.redirect === 'object'
       ) {
-        checkRedirectValues(data.redirect, req, 'getStaticProps')
+        checkRedirectValues(data.redirect as Redirect, req, 'getStaticProps')
 
         if (isBuildTimeSSG) {
           throw new Error(
@@ -668,6 +675,9 @@ export async function renderToHTML(
         ;(data as any).props = {
           __N_REDIRECT: data.redirect.destination,
           __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
+        }
+        if (typeof data.redirect.basePath !== 'undefined') {
+          ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
         }
         ;(renderOpts as any).isRedirect = true
       }
@@ -790,10 +800,17 @@ export async function renderToHTML(
       }
 
       if ('redirect' in data && typeof data.redirect === 'object') {
-        checkRedirectValues(data.redirect, req, 'getServerSideProps')
+        checkRedirectValues(
+          data.redirect as Redirect,
+          req,
+          'getServerSideProps'
+        )
         ;(data as any).props = {
           __N_REDIRECT: data.redirect.destination,
           __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
+        }
+        if (typeof data.redirect.basePath !== 'undefined') {
+          ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
         }
         ;(renderOpts as any).isRedirect = true
       }
