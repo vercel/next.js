@@ -10,6 +10,7 @@ import {
   check,
   hasRedbox,
   getRedboxHeader,
+  waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import fs from 'fs-extra'
@@ -36,17 +37,26 @@ async function hasImageMatchingUrl(browser, url) {
 }
 
 async function getComputed(browser, id, prop) {
-  const style = await browser.eval(
-    `getComputedStyle(document.getElementById('${id}')).${prop}`
-  )
-  if (typeof style === 'string') {
-    return parseInt(style.replace(/px$/, ''), 10)
+  const val = await browser.eval(`document.getElementById('${id}').${prop}`)
+  if (typeof val === 'number') {
+    return val
+  }
+  if (typeof val === 'string') {
+    return parseInt(val, 10)
   }
   return null
 }
 
+async function getSrc(browser, id) {
+  const src = await browser.elementById(id).getAttribute('src')
+  if (src) {
+    const url = new URL(src)
+    return url.href.slice(url.origin.length)
+  }
+}
+
 function getRatio(width, height) {
-  return Math.round((height / width) * 1000)
+  return height / width
 }
 
 function runTests(mode) {
@@ -70,9 +80,32 @@ function runTests(mode) {
       expect(
         await hasImageMatchingUrl(
           browser,
-          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=420&q=75`
+          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=1200&q=75`
         )
       ).toBe(true)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should update the image on src change', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/update')
+
+      await check(
+        () => browser.eval(`document.getElementById("update-image").src`),
+        /test\.jpg/
+      )
+
+      await browser.eval(`document.getElementById("toggle").click()`)
+
+      await check(
+        () => browser.eval(`document.getElementById("update-image").src`),
+        /test\.png/
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -109,6 +142,12 @@ function runTests(mode) {
       const height = 700
       const delta = 250
       const id = 'fixed1'
+      expect(await getSrc(browser, id)).toBe(
+        '/_next/image?url=%2Fwide.png&w=3840&q=75'
+      )
+      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&w=1200&q=75 1x, /_next/image?url=%2Fwide.png&w=3840&q=75 2x'
+      )
       await browser.setDimensions({
         width: width + delta,
         height: height + delta,
@@ -136,6 +175,12 @@ function runTests(mode) {
       const height = 700
       const delta = 250
       const id = 'intrinsic1'
+      expect(await getSrc(browser, id)).toBe(
+        '/_next/image?url=%2Fwide.png&w=3840&q=75'
+      )
+      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&w=1200&q=75 1x, /_next/image?url=%2Fwide.png&w=3840&q=75 2x'
+      )
       await browser.setDimensions({
         width: width + delta,
         height: height + delta,
@@ -150,7 +195,10 @@ function runTests(mode) {
       const newHeight = await getComputed(browser, id, 'height')
       expect(newWidth).toBeLessThan(width)
       expect(newHeight).toBeLessThan(height)
-      expect(getRatio(newWidth, newHeight)).toBe(getRatio(width, height))
+      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+        getRatio(width, height),
+        1
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -166,6 +214,12 @@ function runTests(mode) {
       const height = 700
       const delta = 250
       const id = 'responsive1'
+      expect(await getSrc(browser, id)).toBe(
+        '/_next/image?url=%2Fwide.png&w=3840&q=75'
+      )
+      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+      )
       await browser.setDimensions({
         width: width + delta,
         height: height + delta,
@@ -180,7 +234,10 @@ function runTests(mode) {
       const newHeight = await getComputed(browser, id, 'height')
       expect(newWidth).toBeLessThan(width)
       expect(newHeight).toBeLessThan(height)
-      expect(getRatio(newWidth, newHeight)).toBe(getRatio(width, height))
+      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+        getRatio(width, height),
+        1
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -196,6 +253,12 @@ function runTests(mode) {
       const height = 350
       const delta = 150
       const id = 'fill1'
+      expect(await getSrc(browser, id)).toBe(
+        '/_next/image?url=%2Fwide.png&w=3840&q=75'
+      )
+      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+      )
       await browser.setDimensions({
         width: width + delta,
         height: height + delta,
@@ -210,7 +273,10 @@ function runTests(mode) {
       const newHeight = await getComputed(browser, id, 'height')
       expect(newWidth).toBe(width)
       expect(newHeight).toBe(height)
-      expect(getRatio(newWidth, newHeight)).toBe(getRatio(width, height))
+      expect(getRatio(newWidth, newHeight)).toBeCloseTo(
+        getRatio(width, height),
+        1
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -226,6 +292,12 @@ function runTests(mode) {
       const width = await getComputed(browser, id, 'width')
       const height = await getComputed(browser, id, 'height')
       await browser.eval(`document.getElementById("${id}").scrollIntoView()`)
+      expect(await getSrc(browser, id)).toBe(
+        '/_next/image?url=%2Fwide.png&w=3840&q=75'
+      )
+      expect(await browser.elementById(id).getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+      )
       expect(await getComputed(browser, id, 'width')).toBe(width)
       expect(await getComputed(browser, id, 'height')).toBe(height)
       const delta = 150
@@ -245,6 +317,15 @@ function runTests(mode) {
       })
       expect(await getComputed(browser, id, 'width')).toBe(smallWidth)
       expect(await getComputed(browser, id, 'height')).toBe(smallHeight)
+
+      const objectFit = await browser.eval(
+        `document.getElementById("${id}").style.objectFit`
+      )
+      const objectPosition = await browser.eval(
+        `document.getElementById("${id}").style.objectPosition`
+      )
+      expect(objectFit).toBe('cover')
+      expect(objectPosition).toBe('left center')
     } finally {
       if (browser) {
         await browser.close()
@@ -271,6 +352,15 @@ function runTests(mode) {
       )
     })
 
+    it('should show invalid src error when protocol-relative', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-proto-relative')
+
+      await hasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
+      )
+    })
+
     it('should show invalid unsized error', async () => {
       const browser = await webdriver(appPort, '/invalid-unsized')
 
@@ -278,6 +368,41 @@ function runTests(mode) {
       expect(await getRedboxHeader(browser)).toContain(
         'Image with src "/test.png" has deprecated "unsized" property, which was removed in favor of the "layout=\'fill\'" property'
       )
+    })
+  }
+
+  // Tests that use the `unsized` attribute:
+  if (mode !== 'dev') {
+    it('should correctly rotate image', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/rotated')
+
+        const id = 'exif-rotation-image'
+
+        // Wait for image to load:
+        await check(async () => {
+          const result = await browser.eval(
+            `document.getElementById(${JSON.stringify(id)}).naturalWidth`
+          )
+
+          if (result < 1) {
+            throw new Error('Image not ready')
+          }
+
+          return 'result-correct'
+        }, /result-correct/)
+
+        await waitFor(1000)
+
+        const computedWidth = await getComputed(browser, id, 'width')
+        const computedHeight = await getComputed(browser, id, 'height')
+        expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1.333, 1)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
     })
   }
 }
