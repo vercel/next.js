@@ -1,6 +1,6 @@
 {
   "name": "@next/env",
-  "version": "10.0.0",
+  "version": "10.0.2-canary.12",
   "keywords": [
     "react",
     "next",
@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@types/dotenv": "8.2.0",
-    "@zeit/ncc": "^0.20.4",
+    "@zeit/ncc": "0.20.4",
     "dotenv": "8.2.0",
     "dotenv-expand": "5.1.0"
   }
