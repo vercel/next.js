@@ -93,7 +93,7 @@ const createProgress = (total: number, label: string) => {
     currentSegmentCount++
 
     // Make sure we only log once per fully generated segment
-    if (currentSegmentCount !== currentSegmentTotal) {
+    if (currentSegmentCount < currentSegmentTotal) {
       return
     }
 
