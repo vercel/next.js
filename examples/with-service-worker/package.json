@@ -1,16 +1,15 @@
 {
-  "name": "with-react-ga",
+  "name": "with-service-worker",
   "version": "1.0.0",
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "react-ga": "2.5.3"
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
   },
   "license": "MIT"
 }

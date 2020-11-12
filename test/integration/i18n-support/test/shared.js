@@ -31,6 +31,19 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  if (ctx.isDev) {
+    it('should show error for redirect and notFound returned at same time', async () => {
+      const html = await renderViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath}/_next/data/development/gsp/fallback/mixed-not-found-redirect.json`
+      )
+
+      expect(html).toContain(
+        '`redirect` and `notFound` can not both be returned from getStaticProps at the same time. Page: /gsp/fallback/[slug]'
+      )
+    })
+  }
+
   it('should have correct values for non-prefixed path', async () => {
     for (const paths of [
       ['/links', '/links'],
