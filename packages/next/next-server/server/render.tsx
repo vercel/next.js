@@ -20,10 +20,8 @@ import { isInAmpMode } from '../lib/amp'
 import { AmpStateContext } from '../lib/amp-context'
 import {
   AMP_RENDER_TARGET,
-  PERMANENT_REDIRECT_STATUS,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
-  TEMPORARY_REDIRECT_STATUS,
 } from '../lib/constants'
 import { defaultHead } from '../lib/head'
 import { HeadManagerContext } from '../lib/head-manager-context'
@@ -52,7 +50,11 @@ import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import optimizeAmp from './optimize-amp'
-import { allowedStatusCodes } from '../../lib/load-custom-routes'
+import {
+  allowedStatusCodes,
+  getRedirectStatus,
+  Redirect,
+} from '../../lib/load-custom-routes'
 
 function noRouter() {
   const message =
@@ -258,22 +260,6 @@ function renderDocument(
             locale,
             locales,
             defaultLocale,
-            head: React.Children.toArray(docProps.head || [])
-              .map((elem) => {
-                const { children } = elem?.props
-                return [
-                  elem?.type,
-                  {
-                    ...elem?.props,
-                    children: children
-                      ? typeof children === 'string'
-                        ? children
-                        : children.join('')
-                      : undefined,
-                  },
-                ]
-              })
-              .filter(Boolean) as any,
           },
           buildManifest,
           docComponentsRendered,
@@ -305,18 +291,12 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
   )
 }
 
-type Redirect = {
-  permanent: boolean
-  destination: string
-  statusCode?: number
-}
-
 function checkRedirectValues(
   redirect: Redirect,
   req: IncomingMessage,
   method: 'getStaticProps' | 'getServerSideProps'
 ) {
-  const { destination, permanent, statusCode } = redirect
+  const { destination, permanent, statusCode, basePath } = redirect
   let errors: string[] = []
 
   const hasStatusCode = typeof statusCode !== 'undefined'
@@ -341,6 +321,14 @@ function checkRedirectValues(
     )
   }
 
+  const basePathType = typeof basePath
+
+  if (basePathType !== 'undefined' && basePathType !== 'boolean') {
+    errors.push(
+      `\`basePath\` should be undefined or a false, received ${basePathType}`
+    )
+  }
+
   if (errors.length > 0) {
     throw new Error(
       `Invalid redirect object returned from ${method} for ${req.url}\n` +
@@ -349,22 +337,6 @@ function checkRedirectValues(
         `See more info here: https://err.sh/vercel/next.js/invalid-redirect-gssp`
     )
   }
-}
-
-function handleRedirect(res: ServerResponse, redirect: Redirect) {
-  const statusCode = redirect.statusCode
-    ? redirect.statusCode
-    : redirect.permanent
-    ? PERMANENT_REDIRECT_STATUS
-    : TEMPORARY_REDIRECT_STATUS
-
-  if (statusCode === PERMANENT_REDIRECT_STATUS) {
-    res.setHeader('Refresh', `0;url=${redirect.destination}`)
-  }
-
-  res.statusCode = statusCode
-  res.setHeader('Location', redirect.destination)
-  res.end()
 }
 
 export async function renderToHTML(
@@ -437,6 +409,7 @@ export async function renderToHTML(
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
   delete query.__nextLocale
+  delete query.__nextDefaultLocale
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -660,6 +633,19 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
       }
 
+      if (process.env.NODE_ENV !== 'production') {
+        if (
+          typeof (data as any).notFound !== 'undefined' &&
+          typeof (data as any).redirect !== 'undefined'
+        ) {
+          throw new Error(
+            `\`redirect\` and \`notFound\` can not both be returned from ${
+              isSSG ? 'getStaticProps' : 'getServerSideProps'
+            } at the same time. Page: ${pathname}\nSee more info here: https://err.sh/next.js/gssp-mixed-not-found-redirect`
+          )
+        }
+      }
+
       if ('notFound' in data && data.notFound) {
         if (pathname === '/404') {
           throw new Error(
@@ -677,7 +663,7 @@ export async function renderToHTML(
         data.redirect &&
         typeof data.redirect === 'object'
       ) {
-        checkRedirectValues(data.redirect, req, 'getStaticProps')
+        checkRedirectValues(data.redirect as Redirect, req, 'getStaticProps')
 
         if (isBuildTimeSSG) {
           throw new Error(
@@ -686,14 +672,14 @@ export async function renderToHTML(
           )
         }
 
-        if (isDataReq) {
-          ;(data as any).props = {
-            __N_REDIRECT: data.redirect.destination,
-          }
-        } else {
-          handleRedirect(res, data.redirect)
-          return null
+        ;(data as any).props = {
+          __N_REDIRECT: data.redirect.destination,
+          __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
         }
+        if (typeof data.redirect.basePath !== 'undefined') {
+          ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
+        }
+        ;(renderOpts as any).isRedirect = true
       }
 
       if (
@@ -814,16 +800,19 @@ export async function renderToHTML(
       }
 
       if ('redirect' in data && typeof data.redirect === 'object') {
-        checkRedirectValues(data.redirect, req, 'getServerSideProps')
-
-        if (isDataReq) {
-          ;(data as any).props = {
-            __N_REDIRECT: data.redirect.destination,
-          }
-        } else {
-          handleRedirect(res, data.redirect)
-          return null
+        checkRedirectValues(
+          data.redirect as Redirect,
+          req,
+          'getServerSideProps'
+        )
+        ;(data as any).props = {
+          __N_REDIRECT: data.redirect.destination,
+          __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
         }
+        if (typeof data.redirect.basePath !== 'undefined') {
+          ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
+        }
+        ;(renderOpts as any).isRedirect = true
       }
 
       if (
@@ -864,7 +853,9 @@ export async function renderToHTML(
 
   // Avoid rendering page un-necessarily for getServerSideProps data request
   // and getServerSideProps/getStaticProps redirects
-  if (isDataReq && (!isSSG || props.pageProps.__N_REDIRECT)) return props
+  if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
+    return props
+  }
 
   // We don't call getStaticProps or getServerSideProps while generating
   // the fallback so make sure to set pageProps to an empty object
