@@ -1,5 +1,5 @@
 import '../next-server/server/node-polyfill-fetch'
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import gzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
@@ -544,7 +544,7 @@ export async function buildStaticPaths(
   // Get the default list of allowed params.
   const _validParamKeys = Object.keys(_routeMatcher(page))
 
-  const staticPathsResult = await getStaticPaths({ locales })
+  const staticPathsResult = await getStaticPaths({ locales, defaultLocale })
 
   const expectedReturnVal =
     `Expected: { paths: [], fallback: boolean }\n` +
@@ -575,7 +575,7 @@ export async function buildStaticPaths(
   if (
     !(
       typeof staticPathsResult.fallback === 'boolean' ||
-      staticPathsResult.fallback === 'unstable_blocking'
+      staticPathsResult.fallback === 'blocking'
     )
   ) {
     throw new Error(
@@ -588,7 +588,7 @@ export async function buildStaticPaths(
 
   if (!Array.isArray(toPrerender)) {
     throw new Error(
-      `Invalid \`paths\` value returned from getStaticProps in ${page}.\n` +
+      `Invalid \`paths\` value returned from getStaticPaths in ${page}.\n` +
         `\`paths\` must be an array of strings or objects of shape { params: [key: string]: string }`
     )
   }
@@ -700,7 +700,8 @@ export async function isPageStatic(
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderRoutes?: string[] | undefined
-  prerenderFallback?: boolean | 'unstable_blocking' | undefined
+  prerenderFallback?: boolean | 'blocking' | undefined
+  isNextImageImported?: boolean
 }> {
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
@@ -775,7 +776,7 @@ export async function isPageStatic(
     }
 
     let prerenderRoutes: Array<string> | undefined
-    let prerenderFallback: boolean | 'unstable_blocking' | undefined
+    let prerenderFallback: boolean | 'blocking' | undefined
     if (hasStaticProps && hasStaticPaths) {
       ;({
         paths: prerenderRoutes,
@@ -788,6 +789,7 @@ export async function isPageStatic(
       ))
     }
 
+    const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
     const config = mod.config || {}
     return {
       isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
@@ -797,6 +799,7 @@ export async function isPageStatic(
       prerenderFallback,
       hasStaticProps,
       hasServerProps,
+      isNextImageImported,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}
