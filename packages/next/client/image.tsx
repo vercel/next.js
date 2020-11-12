@@ -130,22 +130,20 @@ function generateImgAttrs({
   sizes,
 }: SrcSetData): {
   src: string
-  sizes: string | undefined
-  srcset: string | undefined
+  sizes?: string
+  srcset?: string
 } {
   if (unoptimized) {
-    return { src, sizes: undefined, srcset: undefined }
+    return { src }
   }
 
   const { widths, kind } = getWidths(width, layout)
   const last = widths.length - 1
-  const largest = widths[last]
-  src = callLoader({ src, width: largest, quality })
 
   const srcset = widths
     .map(
       (w, i) =>
-        `${callLoader({ src, width: w, quality })} ${
+        `${callLoader({ src, quality, width: w })} ${
           kind === 'w' ? w : i + 1
         }${kind}`
     )
@@ -156,6 +154,8 @@ function generateImgAttrs({
       .map((w, i) => (i === last ? `${w}px` : `(max-width: ${w}px) ${w}px`))
       .join(', ')
   }
+
+  src = callLoader({ src, quality, width: widths[last] })
 
   return { src, sizes, srcset }
 }
