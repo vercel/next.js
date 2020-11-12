@@ -1302,7 +1302,9 @@ export default class Server {
       isPreviewMode || !isSSG
         ? undefined // Preview mode bypasses the cache
         : `${locale ? `/${locale}` : ''}${
-            pathname === '/' && locale ? '' : resolvedUrlPathname
+            (pathname === '/' || resolvedUrlPathname === '/') && locale
+              ? ''
+              : resolvedUrlPathname
           }${query.amp ? '.amp' : ''}`
 
     if (is404Page && isSSG) {
