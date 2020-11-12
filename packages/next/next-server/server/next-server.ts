@@ -320,9 +320,11 @@ export default class Server {
       req.url = req.url!.replace(basePath, '') || '/'
     }
 
-    if (i18n && !parsedUrl.pathname?.startsWith('/_next')) {
+    if (i18n && !req.url?.startsWith('/_next')) {
       // get pathname from URL with basePath stripped for locale detection
-      const { pathname, ...parsed } = parseUrl(req.url || '/')
+      let { pathname, ...parsed } = parseUrl(req.url || '/')
+      pathname = pathname || '/'
+
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
       let acceptPreferredLocale =
@@ -353,13 +355,13 @@ export default class Server {
           pathname: localePathResult.pathname,
         })
         ;(req as any).__nextStrippedLocale = true
-        parsedUrl.pathname = localePathResult.pathname
+        parsedUrl.pathname = `${basePath || ''}${localePathResult.pathname}`
       }
 
       // If a detected locale is a domain specific locale and we aren't already
       // on that domain and path prefix redirect to it to prevent duplicate
       // content from multiple domains
-      if (detectedDomain && parsedUrl.pathname === '/') {
+      if (detectedDomain && pathname === '/') {
         const localeToCheck = acceptPreferredLocale
         // const localeToCheck = localePathResult.detectedLocale
         //   ? detectedLocale
@@ -434,8 +436,8 @@ export default class Server {
             pathname: localeDomainRedirect
               ? localeDomainRedirect
               : shouldStripDefaultLocale
-              ? '/'
-              : `/${detectedLocale}`,
+              ? basePath || `/`
+              : `${basePath || ''}/${detectedLocale}`,
           })
         )
         res.statusCode = 307
@@ -715,7 +717,7 @@ export default class Server {
         type: redirectRoute.type,
         match: redirectRoute.match,
         statusCode: redirectRoute.statusCode,
-        name: `Redirect route`,
+        name: `Redirect route ${redirectRoute.source}`,
         fn: async (req, res, params, parsedUrl) => {
           const { parsedDestination } = prepareDestination(
             redirectRoute.destination,
@@ -755,7 +757,7 @@ export default class Server {
         ...rewriteRoute,
         check: true,
         type: rewriteRoute.type,
-        name: `Rewrite route`,
+        name: `Rewrite route ${rewriteRoute.source}`,
         match: rewriteRoute.match,
         fn: async (req, res, params, parsedUrl) => {
           const { newUrl, parsedDestination } = prepareDestination(
@@ -1305,7 +1307,9 @@ export default class Server {
       isPreviewMode || !isSSG
         ? undefined // Preview mode bypasses the cache
         : `${locale ? `/${locale}` : ''}${
-            pathname === '/' && locale ? '' : resolvedUrlPathname
+            (pathname === '/' || resolvedUrlPathname === '/') && locale
+              ? ''
+              : resolvedUrlPathname
           }${query.amp ? '.amp' : ''}`
 
     if (is404Page && isSSG) {

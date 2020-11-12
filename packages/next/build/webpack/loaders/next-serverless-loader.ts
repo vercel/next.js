@@ -8,6 +8,7 @@ import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
+  TEMPORARY_REDIRECT_STATUS,
 } from '../../../next-server/lib/constants'
 import { isDynamicRoute } from '../../../next-server/lib/router/utils'
 import { __ApiPreviewProps } from '../../../next-server/server/api-utils'
@@ -361,11 +362,11 @@ const nextServerlessLoader: loader.Loader = function () {
               localeDomainRedirect
                 ? localeDomainRedirect
                 : shouldStripDefaultLocale
-                  ? '/'
-                  : \`/\${detectedLocale}\`,
+                  ? "${basePath}" || '/'
+                  : \`${basePath}/\${detectedLocale}\`,
           })
         )
-        res.statusCode = 307
+        res.statusCode = ${TEMPORARY_REDIRECT_STATUS}
         res.end()
         return
       }
