@@ -680,7 +680,11 @@ export async function buildStaticPaths(
       }
       const curLocale = entry.locale || defaultLocale || ''
 
-      prerenderPaths?.add(`${curLocale ? `/${curLocale}` : ''}${builtPage}`)
+      prerenderPaths?.add(
+        `${curLocale ? `/${curLocale}` : ''}${
+          curLocale && builtPage === '/' ? '' : builtPage
+        }`
+      )
     }
   })
 

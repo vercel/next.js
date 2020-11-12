@@ -87,7 +87,11 @@ export class IncrementalCache {
   }
 
   private calculateRevalidate(pathname: string): number | false {
-    pathname = toRoute(normalizeLocalePath(pathname, this.locales).pathname)
+    pathname = toRoute(pathname)
+
+    if (!this.prerenderManifest.routes[pathname]) {
+      pathname = toRoute(normalizeLocalePath(pathname, this.locales).pathname)
+    }
 
     // in development we don't have a prerender-manifest
     // and default to always revalidating to allow easier debugging

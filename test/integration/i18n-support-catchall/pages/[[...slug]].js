@@ -41,7 +41,16 @@ export const getStaticProps = ({ locale, locales, defaultLocale, params }) => {
 
 export const getStaticPaths = () => {
   return {
-    paths: [],
+    paths: [
+      {
+        params: { slug: [] },
+        locale: 'en-US',
+      },
+      {
+        params: { slug: undefined },
+        locale: 'fr',
+      },
+    ],
     fallback: 'blocking',
   }
 }
