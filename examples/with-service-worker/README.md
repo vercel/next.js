@@ -1,7 +1,8 @@
 # Adding a service worker into a next.js app
 
-This example shows how to add a service worker to a next.js application without a custom server or any plugin. Service worker is inside `public` folder and its installation is called in `pages/_app.js` file when the component mounts.
-The following blog post provides additional explanation: [https://dev.to/josedonato/adding-a-service-worker-into-your-next-js-application-1dib](https://dev.to/josedonato/adding-a-service-worker-into-your-next-js-application-1dib)
+This example shows how to add a simple service worker to a Next.js application. The service worker is in [`public/sw.js`](public/sw.js) and it's installed by [`pages/_app.js`](pages/_app.js) after the first render.
+
+The example is based on the following blog post: [Adding a service worker into your Next.js application](https://dev.to/josedonato/adding-a-service-worker-into-your-next-js-application-1dib).
 
 ## Deploy your own
 
