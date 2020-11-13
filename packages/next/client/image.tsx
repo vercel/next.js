@@ -18,7 +18,7 @@ const loaders = new Map<LoaderKey, (props: LoaderProps) => string>([
   ['default', defaultLoader],
 ])
 
-type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'default'
+type LoaderKey = 'imgix' | 'cloudinary' | 'akamai' | 'contentful' | 'default'
 
 const VALID_LAYOUT_VALUES = [
   'fill',
