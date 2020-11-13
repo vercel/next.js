@@ -202,12 +202,14 @@ The default behavior of the `Link` component is to `push` a new URL into the `hi
 `Link` supports any component that supports the `onClick` event, in the case you don't provide an `<a>` tag, consider the following example:
 
 ```jsx
-<Link href="/about">
-  <img src="/static/image.png" alt="image" />
+import Image from 'next/image'
+
+;<Link href="/about">
+  <Image src="/image.png" alt="image" width="64" height="64" />
 </Link>
 ```
 
-The child of `Link` is `<img>` instead of `<a>`. `Link` will send the `onClick` property to `<img>` but won't pass the `href` property.
+The child of `Link` is `Image` instead of `<a>`. `Link` will send the `onClick` property to `Image` but won't pass the `href` property.
 
 ## Disable scrolling to the top of the page
 
