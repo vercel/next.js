@@ -1164,7 +1164,7 @@ describe('CSS Support', () => {
 
     function tests() {
       async function checkGreenTitle(browser) {
-        await browser.waitForElementByCss('#black-title')
+        await browser.waitForElementByCss('#green-title')
         const titleColor = await browser.eval(
           `window.getComputedStyle(document.querySelector('#green-title')).color`
         )
