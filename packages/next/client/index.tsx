@@ -661,7 +661,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     return true
   }
 
-  function onCommit() {
+  function onHeadCommit() {
     if (
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
@@ -723,12 +723,15 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       // unstyled content:
       getComputedStyle(document.body, 'height')
     }
+  }
 
+  function onRootCommit() {
     resolvePromise()
   }
 
   const elem = (
-    <Root callback={onCommit}>
+    <Root callback={onRootCommit}>
+      <Head callback={onHeadCommit} />
       <AppContainer>
         <App {...appProps} />
       </AppContainer>
@@ -775,4 +778,13 @@ function Root({
     measureWebVitals(onPerfEntry)
   }, [])
   return children as React.ReactElement
+}
+
+// Dummy component that we render as a child of Root so that we can
+// toggle the correct styles before the page is rendered.
+function Head({ callback }: { callback: () => void }) {
+  // We use `useLayoutEffect` to guarantee the callback is executed
+  // as soon as React flushes the update.
+  React.useLayoutEffect(() => callback(), [callback])
+  return null
 }
