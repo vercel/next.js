@@ -507,7 +507,19 @@ export async function renderToHTML(
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   // url will always be set
-  const asPath: string = renderOpts.resolvedAsPath || (req.url as string)
+  let asPath: string = renderOpts.resolvedAsPath || (req.url as string)
+
+  if (!renderOpts.nextExport && isSSG) {
+    // this does not decode query values only the path
+    // ensuring non-ascii values are the proper encoding
+    // and ensures we match prerender asPath values
+    try {
+      asPath = decodeURI(asPath)
+    } catch (_) {
+      // non-fatal continue
+    }
+  }
+
   const router = new ServerRouter(
     pathname,
     query,

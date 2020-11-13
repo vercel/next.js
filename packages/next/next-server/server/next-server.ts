@@ -84,6 +84,7 @@ import * as Log from '../../build/output/log'
 import { imageOptimizer } from './image-optimizer'
 import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
+import escapePathDelimiters from '../lib/router/utils/escape-path-delimiters'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -1311,6 +1312,27 @@ export default class Server {
       }`
     }
 
+    if (ssgCacheKey) {
+      // we only encode path delimiters for path segments from
+      // getStaticPaths so we need to attempt decoding the URL
+      // to match against and only escape the path delimiters
+      // this allows non-ascii values to be handled e.g. Japanese characters
+
+      // TODO: investigate adding this handling for non-SSG pages so
+      // non-ascii names work there also
+      ssgCacheKey = ssgCacheKey
+        .split('/')
+        .map((seg) => {
+          try {
+            seg = escapePathDelimiters(decodeURIComponent(seg))
+          } catch (_) {
+            // non-fatal
+          }
+          return seg
+        })
+        .join('/')
+    }
+
     // Complete the response with cached data if its present
     const cachedData = ssgCacheKey
       ? await this.incrementalCache.get(ssgCacheKey)
@@ -1485,7 +1507,9 @@ export default class Server {
         // static paths always includes locale so make sure it's prefixed
         // with it
         !staticPaths.includes(
-          `${locale ? '/' + locale : ''}${resolvedUrlPathname}`
+          // we need to decode the path since we don't encode the
+          // results from getStaticPaths
+          `${locale ? '/' + locale : ''}${decodeURI(resolvedUrlPathname)}`
         ))
     ) {
       if (

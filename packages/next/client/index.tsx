@@ -62,6 +62,7 @@ const {
   dynamicIds,
   isFallback,
   locales,
+  gsp,
 } = data
 
 let { locale, defaultLocale } = data
@@ -78,6 +79,17 @@ envConfig.setConfig({
 })
 
 let asPath = getURL()
+
+if (gsp) {
+  // this does not decode query values only the path
+  // ensuring non-ascii values are the proper encoding
+  // and matches SSR/prerender
+  try {
+    asPath = decodeURI(asPath)
+  } catch (_) {
+    // non-fatal
+  }
+}
 
 // make sure not to attempt stripping basePath for 404s
 if (hasBasePath(asPath)) {
