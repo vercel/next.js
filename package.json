@@ -120,6 +120,7 @@
     "shell-quote": "1.7.2",
     "styled-components": "5.1.0",
     "styled-jsx-plugin-postcss": "3.0.2",
+    "supertest": "6.0.1",
     "tailwindcss": "1.1.3",
     "taskr": "1.1.0",
     "tree-kill": "1.2.2",

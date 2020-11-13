@@ -164,14 +164,6 @@ export async function ncc_ci_info(task, opts) {
     .target('compiled/ci-info')
 }
 // eslint-disable-next-line camelcase
-externals['compression'] = 'next/dist/compiled/compression'
-export async function ncc_compression(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('compression')))
-    .ncc({ packageName: 'compression', externals })
-    .target('compiled/compression')
-}
-// eslint-disable-next-line camelcase
 externals['conf'] = 'next/dist/compiled/conf'
 export async function ncc_conf(task, opts) {
   await task
@@ -556,7 +548,6 @@ export async function ncc(task) {
       'ncc_cacache',
       'ncc_cache_loader',
       'ncc_ci_info',
-      'ncc_compression',
       'ncc_conf',
       'ncc_content_type',
       'ncc_cookie',

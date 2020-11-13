@@ -1,4 +1,3 @@
-import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
 import chalk from 'chalk'
 import { IncomingMessage, ServerResponse } from 'http'
@@ -84,16 +83,11 @@ import * as Log from '../../build/output/log'
 import { imageOptimizer } from './image-optimizer'
 import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
+import Compression from './compression'
 
 const getCustomRouteMatcher = pathMatch(true)
 
 type NextConfig = any
-
-type Middleware = (
-  req: IncomingMessage,
-  res: ServerResponse,
-  next: (err?: Error) => void
-) => void
 
 type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -153,7 +147,7 @@ export default class Server {
     locales?: string[]
     defaultLocale?: string
   }
-  private compression?: Middleware
+  private compression?: ReturnType<typeof Compression>
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
   private incrementalCache: IncrementalCache
   router: Router
@@ -214,7 +208,7 @@ export default class Server {
     }
 
     if (compress && this.nextConfig.target === 'server') {
-      this.compression = compression() as Middleware
+      this.compression = Compression()
     }
 
     // Initialize next/config with the environment configuration
@@ -1017,7 +1011,7 @@ export default class Server {
 
   private handleCompression(req: IncomingMessage, res: ServerResponse): void {
     if (this.compression) {
-      this.compression(req, res, () => {})
+      this.compression(req, res)
     }
   }
 
