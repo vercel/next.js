@@ -202,12 +202,21 @@ The default behavior of the `Link` component is to `push` a new URL into the `hi
 `Link` supports any component that supports the `onClick` event, in the case you don't provide an `<a>` tag, consider the following example:
 
 ```jsx
-<Link href="/about">
-  <img src="/static/image.png" alt="image" />
-</Link>
+import Link from 'next/link'
+import Image from 'next/image'
+
+function Avatar() {
+  return (
+    <Link href="/about">
+      <Image src="/me.png" alt="me" width="64" height="64" />
+    </Link>
+  )
+}
+
+export default Avatar
 ```
 
-The child of `Link` is `<img>` instead of `<a>`. `Link` will send the `onClick` property to `<img>` but won't pass the `href` property.
+The child of `Link` is [`Image`](/docs/api-reference/next/image.md) instead of `<a>`. `Link` will send the `onClick` property to `Image` but won't pass the `href` property.
 
 ## Disable scrolling to the top of the page
 

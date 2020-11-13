@@ -32,6 +32,7 @@ To get access to the runtime configs in your app use `next/config`, like so:
 
 ```jsx
 import getConfig from 'next/config'
+import Image from 'next/image'
 
 // Only holds serverRuntimeConfig and publicRuntimeConfig
 const { serverRuntimeConfig, publicRuntimeConfig } = getConfig()
@@ -43,7 +44,11 @@ console.log(publicRuntimeConfig.staticFolder)
 function MyImage() {
   return (
     <div>
-      <img src={`${publicRuntimeConfig.staticFolder}/logo.png`} alt="logo" />
+      <Image
+        src={`${publicRuntimeConfig.staticFolder}/logo.png`}
+        alt="logo"
+        layout="fill"
+      />
     </div>
   )
 }
