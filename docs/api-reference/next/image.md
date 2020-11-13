@@ -141,9 +141,9 @@ When true, the source image will be served as-is instead of changing quality, si
 
 Other properties on the `Image` component will be passed to the underlying `img` element with the exception of the following:
 
-- `style` is omitted from the `img`, use `className` instead.
-- `srcSet` is omitted from the `img`, use [Device Sizes](/docs/basic-features/image-optimization.md#device-sizes) instead.
-- `decoding` is omitted from the `img`, it is always assigned `decoding=async`.
+- `style`. Use `className` instead.
+- `srcSet`. Use [Device Sizes](/docs/basic-features/image-optimization.md#device-sizes) instead.
+- `decoding`. It is always `"async"`.
 
 ## Related
 
