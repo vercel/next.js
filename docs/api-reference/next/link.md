@@ -216,7 +216,7 @@ function Avatar() {
 export default Avatar
 ```
 
-The child of `Link` is `Image` instead of `<a>`. `Link` will send the `onClick` property to `Image` but won't pass the `href` property.
+The child of `Link` is [`Image`](/docs/api-reference/next/image.md) instead of `<a>`. `Link` will send the `onClick` property to `Image` but won't pass the `href` property.
 
 ## Disable scrolling to the top of the page
 
