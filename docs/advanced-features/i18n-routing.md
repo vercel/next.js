@@ -1,3 +1,7 @@
+---
+description: Next.js has built-in support for internationalized routing and language detection. Learn more here.
+---
+
 # Internationalized Routing
 
 <details>
@@ -87,7 +91,7 @@ By using domain routing you can configure locales to be served from different do
 // next.config.js
 module.exports = {
   i18n: {
-    locales: ['en-US', 'fr', 'nl-NL'],
+    locales: ['en-US', 'fr', 'nl-NL', 'nl-BE'],
     defaultLocale: 'en-US',
 
     domains: [
@@ -102,6 +106,9 @@ module.exports = {
       {
         domain: 'example.nl',
         defaultLocale: 'nl-NL',
+        // specify other locales that should be redirected
+        // to this domain
+        locales: ['nl-BE'],
       },
     ],
   },
@@ -113,6 +120,7 @@ For example if you have `pages/blog.js` the following urls will be available:
 - `example.com/blog`
 - `example.fr/blog`
 - `example.nl/blog`
+- `example.nl/nl-BE/blog`
 
 ## Automatic Locale Detection
 
@@ -126,6 +134,21 @@ If a locale other than the default locale is detected, the user will be redirect
 When using Domain Routing, if a user with the `Accept-Language` header `fr;q=0.9` visits `example.com`, they will be redirected to `example.fr` since that domain handles the `fr` locale by default.
 
 When using Sub-path Routing, the user would be redirected to `/fr`.
+
+### Disabling Automatic Locale Detection
+
+The automatic locale detection can be disabled with:
+
+```js
+// next.config.js
+module.exports = {
+  i18n: {
+    localeDetection: false,
+  },
+}
+```
+
+When `localeDetection` is set to `false` Next.js will no longer automatically redirect based on the user's preferred locale and will only provide locale information detected from either the locale based domain or locale path as described above.
 
 ## Accessing the locale information
 

@@ -177,6 +177,25 @@ export default class Router {
         currentPathname = replaceBasePath(this.basePath, currentPathname!)
       }
 
+      // re-add locale for custom-routes to allow matching against
+      if (
+        isCustomRoute &&
+        (req as any).__nextStrippedLocale &&
+        parsedUrl.query.__nextLocale
+      ) {
+        if (keepBasePath) {
+          currentPathname = replaceBasePath(this.basePath, currentPathname!)
+        }
+
+        currentPathname = `/${parsedUrl.query.__nextLocale}${
+          currentPathname === '/' ? '' : currentPathname
+        }`
+
+        if (keepBasePath) {
+          currentPathname = `${this.basePath}${currentPathname}`
+        }
+      }
+
       const newParams = testRoute.match(currentPathname)
 
       // Check if the match function matched

@@ -11,20 +11,26 @@ export type Rewrite = {
   basePath?: false
 }
 
-export type Redirect = Rewrite & {
-  statusCode?: number
-  permanent?: boolean
-}
-
 export type Header = {
   source: string
   basePath?: false
   headers: Array<{ key: string; value: string }>
 }
 
-const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
+// internal type used for validation (not user facing)
+export type Redirect = Rewrite & {
+  statusCode?: number
+  permanent?: boolean
+  destination: string
+  basePath?: false
+}
 
-export function getRedirectStatus(route: Redirect): number {
+export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
+
+export function getRedirectStatus(route: {
+  statusCode?: number
+  permanent?: boolean
+}): number {
   return (
     route.statusCode ||
     (route.permanent ? PERMANENT_REDIRECT_STATUS : TEMPORARY_REDIRECT_STATUS)
