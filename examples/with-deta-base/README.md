@@ -1,26 +1,12 @@
-# Next.js + Deta Base
+# Deta Base Example
 
-A To Do app using Vercel functions and [Deta Base](https://docs.deta.sh/docs/base/about) for persistent To Dos.
+An example of using [Deta Base](https://docs.deta.sh/docs/base/about) in a Next.js project.
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com/now):
+Once you have access to [the environment variables you'll need](#step-2-setting-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-deta-base)
-
-## Configuration
-
-1. Get a project key from [Deta](https://www.deta.sh/).
-
-2. Copy the `.env.local.example` to `.env.local`:
-
-```shell
-cp .env.local.example .env.local
-```
-
-3. Set the project key from 1 in `.env.local` such that `DETA_PROJECT_KEY=<project_key>`.
-
-4. When you deploy to production, make sure you to set the [environment variable](https://vercel.com/docs/serverless-functions/introduction#environment-variables) `DETA_PROJECT_KEY` equal to your project key from 1.
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-deta-base&env=DETA_PROJECT_KEY&envDescription=The%20Deta%20Project%20Key%2C%20found%20in%20the%20Deta%20dashboard&envLink=https%3A%2F%2Fweb.deta.sh%2F)
 
 ## How to use
 
@@ -32,7 +18,56 @@ npx create-next-app --example with-deta-base with-deta-base-app
 yarn create next-app --example with-deta-base with-deta-base-app
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+## Configuration
 
+### Step 1. Create a Deta Account
 
+Create an account on [Deta](https://www.deta.sh/?ref=next.js). Save the default _Project Key_ which will be auto-generated on account creation.
 
+### Step 2. Setting Up Environment Variables
+
+Copy the `.env.local.example` file from this directory to `.env.local` (ignored by Git):
+
+```bash
+cp .env.local.example .env.local
+```
+
+Set the environment variable in `.env.local`:
+
+- `DETA_PROJECT_KEY` should be the default _Project Key_ that you saved from configuration step 1.
+
+The resulting `env.local` file shoule look like this:
+
+```bash
+DETA_PROEJECT_KEY=...
+```
+
+### Step 3. Run Next.js in development mode
+
+```bash
+npm install
+npm run dev
+
+# or
+
+yarn install
+yarn dev
+```
+
+Your todo app should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
+
+### Step 4. Deploy on Vercel
+
+You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+
+#### Deploy Your Local Project
+
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+
+**Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
+
+#### Deploy from Our Template
+
+Alternatively, you can deploy using our template by clicking on the Deploy button below.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-deta-base&env=DETA_PROJECT_KEY&envDescription=The%20Deta%20Project%20Key%2C%20found%20in%20the%20Deta%20dashboard&envLink=https%3A%2F%2Fweb.deta.sh%2F)
