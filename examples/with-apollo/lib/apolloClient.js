@@ -46,13 +46,11 @@ export function initializeApollo(initialState = null) {
 }
 
 export function addApolloState(client, pageProps) {
-  return {
-    ...pageProps,
-    props: {
-      ...pageProps.props,
-      [APOLLO_STATE_PROP_NAME]: client.cache.extract(),
-    },
+  if (pageProps?.props) {
+    pageProps.props[APOLLO_STATE_PROP_NAME] = client.cache.extract()
   }
+
+  return pageProps
 }
 
 export function useApollo(pageProps) {
