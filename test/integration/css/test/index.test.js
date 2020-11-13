@@ -1168,7 +1168,7 @@ describe('CSS Support', () => {
         const titleColor = await browser.eval(
           `window.getComputedStyle(document.querySelector('#green-title')).color`
         )
-        expect(titleColor).toBe('rgb(0, 255, 0)')
+        expect(titleColor).toBe('rgb(0, 128, 0)')
       }
       async function checkBlueTitle(browser) {
         await browser.waitForElementByCss('#blue-title')
@@ -1404,7 +1404,7 @@ describe('CSS Support', () => {
             const newPageHref2 = await browser.eval(
               `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
             )
-            expect(newPrevSibling2).toBeTruthy()
+            expect(newPrevSibling2).toBe('')
             expect(newPageHref2).toBeDefined()
             expect(newPageHref2).toBe(currentPageHref)
           } finally {
