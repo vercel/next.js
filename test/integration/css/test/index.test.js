@@ -245,6 +245,82 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('React Lifecyce Order (dev)', () => {
+    const appDir = join(fixturesDir, 'transition-react')
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have the correct color on mount after navigation', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+
+        // Navigate to other:
+        await browser.waitForElementByCss('#link-other').click()
+        const text = await browser.waitForElementByCss('#red-title').text()
+        expect(text).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
+  describe('React Lifecyce Order (production)', () => {
+    const appDir = join(fixturesDir, 'transition-react')
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    let code
+    let stdout
+    beforeAll(async () => {
+      ;({ code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      }))
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have compiled successfully', () => {
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it('should have the correct color on mount after navigation', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+
+        // Navigate to other:
+        await browser.waitForElementByCss('#link-other').click()
+        const text = await browser.waitForElementByCss('#red-title').text()
+        expect(text).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
   describe('Invalid CSS in _document', () => {
     const appDir = join(fixturesDir, 'invalid-module-document')
 
