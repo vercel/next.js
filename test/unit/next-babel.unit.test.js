@@ -191,4 +191,32 @@ describe('next/babel', () => {
       `)
     })
   })
+
+  describe('respect preset-react runtime', () => {
+    it('should allow forcing on automatic mode', () => {
+      const code = trim`const a = ()=><a href="/">home</a>`
+      const output = babel(code, true, {
+        'preset-react': {
+          runtime: 'automatic',
+        },
+      })
+
+      expect(output).toMatchInlineSnapshot(
+        `"import{jsx as _jsx}from\\"react/jsx-runtime\\";var a=function a(){return/*#__PURE__*/_jsx(\\"a\\",{href:\\"/\\",children:\\"home\\"});};"`
+      )
+    })
+
+    it('should allow forcing on classic mode', () => {
+      const code = trim`const a = ()=><a href="/">home</a>`
+      const output = babel(code, true, {
+        'preset-react': {
+          runtime: 'classic',
+        },
+      })
+
+      expect(output).toMatchInlineSnapshot(
+        `"import React from\\"react\\";var __jsx=React.createElement;var a=function a(){return __jsx(\\"a\\",{href:\\"/\\"},\\"home\\");};"`
+      )
+    })
+  })
 })
