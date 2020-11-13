@@ -17,7 +17,8 @@
   justify-content: center;
 }
 
-.complete, .incomplete {
+.complete,
+.incomplete {
   display: flex;
   flex-direction: column;
   padding-left: 1.5rem;
@@ -37,7 +38,6 @@
   align-items: center;
   height: 52px;
 }
-
 
 .reverseWrapper {
   display: flex;
@@ -66,7 +66,7 @@
   padding-right: 5px;
   font-size: 16px;
   height: 32px;
-  margin-right: 10px; 
+  margin-right: 10px;
 }
 
 .inpt:focus,
@@ -74,7 +74,8 @@
   border: 1px solid #2b66ff;
 }
 
-.addBtn, .delBtn {
+.addBtn,
+.delBtn {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -165,8 +166,11 @@
     Bitstream Vera Sans Mono, Courier New, monospace;
 }
 
-
-.card, .card2, .card3, .card4, .card5 {
+.card,
+.card2,
+.card3,
+.card4,
+.card5 {
   display: flex;
   color: #c5c4c7;
   font-size: 18px;
@@ -215,8 +219,11 @@
   color: #00f3cb;
 }
 
-
-.card, .card2, .card3, .card4, .card5 h3 {
+.card,
+.card2,
+.card3,
+.card4,
+.card5 h3 {
   margin: 0 0 1rem 0;
   font-size: 1.5rem;
 }
