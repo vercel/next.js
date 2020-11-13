@@ -8,19 +8,18 @@
     "setup": "node ./contentful/setup.js $CONTENTFUL_SPACE_ID $CONTENTFUL_MANAGEMENT_TOKEN"
   },
   "dependencies": {
-    "@contentful/rich-text-react-renderer": "13.4.0",
+    "@contentful/rich-text-react-renderer": "14.1.1",
     "classnames": "2.2.6",
-    "contentful": "7.14.4",
-    "date-fns": "2.10.0",
+    "date-fns": "2.14.0",
     "next": "latest",
-    "react": "^16.13.0",
-    "react-dom": "^16.13.0"
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
   },
   "devDependencies": {
-    "@fullhuman/postcss-purgecss": "^2.1.0",
-    "contentful-import": "^7.7.12",
+    "@fullhuman/postcss-purgecss": "^2.3.0",
+    "contentful-import": "^7.8.7",
     "postcss-preset-env": "^6.7.0",
-    "tailwindcss": "^1.2.0"
+    "tailwindcss": "^1.5.1"
   },
   "license": "MIT"
 }
