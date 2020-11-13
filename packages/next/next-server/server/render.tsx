@@ -634,11 +634,14 @@ export async function renderToHTML(
       }
 
       if (process.env.NODE_ENV !== 'production') {
-        if ('notFound' in data && 'redirect' in data) {
+        if (
+          typeof (data as any).notFound !== 'undefined' &&
+          typeof (data as any).redirect !== 'undefined'
+        ) {
           throw new Error(
             `\`redirect\` and \`notFound\` can not both be returned from ${
               isSSG ? 'getStaticProps' : 'getServerSideProps'
-            } at the same time. Page: ${pathname}`
+            } at the same time. Page: ${pathname}\nSee more info here: https://err.sh/next.js/gssp-mixed-not-found-redirect`
           )
         }
       }

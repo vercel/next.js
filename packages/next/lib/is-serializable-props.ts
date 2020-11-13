@@ -64,7 +64,7 @@ export function isSerializableProps(
         page,
         method,
         path,
-        '`undefined` cannot be serialized as JSON. Please use `null` or omit this value all together.'
+        '`undefined` cannot be serialized as JSON. Please use `null` or omit this value.'
       )
     }
 
