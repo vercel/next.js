@@ -93,9 +93,7 @@ Try it out:
 
 ### sizes
 
-Defines what proportion of the screen you expect the image to take up. Defaults to undefined.
-
-Recommended, as it helps serve the correct sized image to each device.
+A string mapping media queries to device sizes. Defaults to [Device Sizes](/docs/basic-features/image-optimization.md#device-sizes).
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
 
