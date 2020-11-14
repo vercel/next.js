@@ -25,6 +25,7 @@ const externals = {
   // Postcss:
   postcss: 'postcss',
   'postcss/lib/parser': 'postcss/lib/parser',
+  'postcss/package.json': 'postcss/package.json',
 
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
