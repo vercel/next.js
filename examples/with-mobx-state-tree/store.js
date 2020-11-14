@@ -30,6 +30,15 @@ const Store = types
     return { start, stop, update }
   })
 
+// use redux-devtool
+export function connectReduxDevTool(store) {
+  if (process.env.NODE_ENV !== 'production') {
+    const { connectReduxDevtools } = require('mst-middlewares')
+    const remotedev = require('remotedev')
+    connectReduxDevtools(remotedev, store)
+  }
+}
+
 export function initializeStore(snapshot = null) {
   const _store = store ?? Store.create({ lastUpdate: 0 })
 
@@ -42,6 +51,8 @@ export function initializeStore(snapshot = null) {
   if (typeof window === 'undefined') return _store
   // Create the store once in the client
   if (!store) store = _store
+
+  connectReduxDevTool(store)
 
   return store
 }

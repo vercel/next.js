@@ -15,7 +15,9 @@
     "react-dom": "^16.7.0"
   },
   "devDependencies": {
-    "@babel/plugin-proposal-decorators": "^7.1.2"
+    "@babel/plugin-proposal-decorators": "^7.1.2",
+    "mst-middlewares": "3.7.0",
+    "remotedev": "0.2.7"
   },
   "license": "MIT"
 }
