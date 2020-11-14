@@ -2,7 +2,7 @@
 
 This example shows how to use the [Image Component in Next.js](https://nextjs.org/docs/api-reference/next/image) serve optimized, responsive images.
 
-The index page ([`pages/index.js`](pages/index.js)) has a couple images, one internal image and one external image. In [`next.config.js`](next.config.js), the `domains` property is used to enable external images. Run or deploy the app to see how it works!
+The index page ([`pages/index.js`](pages/index.js)) has a couple images, one internal image and one external image. In [`next.config.js`](next.config.js), the `domains` property is used to enable external images. The other pages demonstrate the different layouts. Run or deploy the app to see how it works!
 
 ## Deploy your own
 
