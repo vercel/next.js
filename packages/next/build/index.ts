@@ -254,6 +254,7 @@ export default async function build(
   const buildCustomRoute = (
     r: {
       source: string
+      locale?: false
       basePath?: false
       statusCode?: number
       destination?: string
@@ -262,11 +263,23 @@ export default async function build(
   ) => {
     const keys: any[] = []
 
-    if (r.basePath !== false) {
+    if (r.basePath !== false && (!config.i18n || r.locale === false)) {
       r.source = `${config.basePath}${r.source}`
 
       if (r.destination && r.destination.startsWith('/')) {
         r.destination = `${config.basePath}${r.destination}`
+      }
+    }
+
+    if (config.i18n && r.locale !== false) {
+      const basePath = r.basePath !== false ? config.basePath || '' : ''
+
+      r.source = `${basePath}/:nextInternalLocale(${config.i18n.locales
+        .map((locale: string) => escapeStringRegexp(locale))
+        .join('|')})${r.source}`
+
+      if (r.destination && r.destination?.startsWith('/')) {
+        r.destination = `${basePath}/:nextInternalLocale${r.destination}`
       }
     }
 

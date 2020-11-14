@@ -84,6 +84,7 @@ import * as Log from '../../build/output/log'
 import { imageOptimizer } from './image-optimizer'
 import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
+import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -504,6 +505,7 @@ export default class Server {
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
+    locales: string[]
   } {
     const server: Server = this
     const publicRoutes = fs.existsSync(this.publicDir)
@@ -658,14 +660,41 @@ export default class Server {
         : ''
     }
 
-    const getCustomRoute = (r: Rewrite | Redirect | Header, type: RouteType) =>
-      ({
+    const getCustomRouteLocalePrefix = (r: {
+      locale?: false
+      destination?: string
+    }) => {
+      const { i18n } = this.nextConfig
+
+      if (!i18n || r.locale === false || !this.renderOpts.dev) return ''
+
+      if (r.destination && r.destination.startsWith('/')) {
+        r.destination = `/:nextInternalLocale${r.destination}`
+      }
+
+      return `/:nextInternalLocale(${i18n.locales
+        .map((locale: string) => escapeStringRegexp(locale))
+        .join('|')})`
+    }
+
+    const getCustomRoute = (
+      r: Rewrite | Redirect | Header,
+      type: RouteType
+    ) => {
+      const match = getCustomRouteMatcher(
+        `${getCustomRouteBasePath(r)}${getCustomRouteLocalePrefix(r)}${
+          r.source
+        }`
+      )
+
+      return {
         ...r,
         type,
-        match: getCustomRouteMatcher(`${getCustomRouteBasePath(r)}${r.source}`),
+        match,
         name: type,
         fn: async (_req, _res, _params, _parsedUrl) => ({ finished: false }),
-      } as Route & Rewrite & Header)
+      } as Route & Rewrite & Header
+    }
 
     // Headers come very first
     const headers = this.customRoutes.headers.map((r) => {
@@ -810,6 +839,18 @@ export default class Server {
         // next.js core assumes page path without trailing slash
         pathname = removePathTrailingSlash(pathname)
 
+        if (this.nextConfig.i18n) {
+          const localePathResult = normalizeLocalePath(
+            pathname,
+            this.nextConfig.i18n?.locales
+          )
+
+          if (localePathResult.detectedLocale) {
+            pathname = localePathResult.pathname
+            parsedUrl.query.__nextLocale = localePathResult.detectedLocale
+          }
+        }
+
         if (params?.path?.[0] === 'api') {
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
@@ -845,6 +886,7 @@ export default class Server {
       dynamicRoutes: this.dynamicRoutes,
       basePath: this.nextConfig.basePath,
       pageChecker: this.hasPage.bind(this),
+      locales: this.nextConfig.i18n?.locales,
     }
   }
 

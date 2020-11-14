@@ -191,8 +191,7 @@ const nextServerlessLoader: loader.Loader = function () {
             rewrite.destination,
             params,
             parsedUrl.query,
-            true,
-            "${basePath}"
+            true
           )
 
           Object.assign(parsedUrl.query, parsedDestination.query)
@@ -200,13 +199,43 @@ const nextServerlessLoader: loader.Loader = function () {
 
           Object.assign(parsedUrl, parsedDestination)
 
-          if (parsedUrl.pathname === '${page}'){
+          let fsPathname = parsedUrl.pathname
+
+          ${
+            basePath
+              ? `
+            fsPathname = fsPathname.replace(
+              new RegExp('^${basePath}'),
+              ''
+            ) || '/'
+          `
+              : ''
+          }
+
+          ${
+            i18n
+              ? `
+            const destLocalePathResult = normalizeLocalePath(
+              fsPathname,
+              i18n.locales
+            )
+            fsPathname = destLocalePathResult.pathname
+
+            parsedUrl.query.nextInternalLocale = (
+              destLocalePathResult.detectedLocale ||
+              params.nextInternalLocale
+            )
+          `
+              : ''
+          }
+
+          if (fsPathname === '${page}'){
             break
           }
           ${
             pageIsDynamicRoute
               ? `
-            const dynamicParams = dynamicRouteMatcher(parsedUrl.pathname);\
+            const dynamicParams = dynamicRouteMatcher(fsPathname);\
             if (dynamicParams) {
               parsedUrl.query = {
                 ...parsedUrl.query,
@@ -235,12 +264,10 @@ const nextServerlessLoader: loader.Loader = function () {
   const handleLocale = i18nEnabled
     ? `
       // get pathname from URL with basePath stripped for locale detection
-      const i18n = ${i18n}
       const accept = require('@hapi/accept')
       const cookie = require('next/dist/compiled/cookie')
       const { detectLocaleCookie } = require('next/dist/next-server/lib/i18n/detect-locale-cookie')
       const { detectDomainLocale } = require('next/dist/next-server/lib/i18n/detect-domain-locale')
-      const { normalizeLocalePath } = require('next/dist/next-server/lib/i18n/normalize-locale-path')
       let locales = i18n.locales
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
@@ -400,6 +427,9 @@ const nextServerlessLoader: loader.Loader = function () {
       ${dynamicRouteImports}
       const { parse: parseUrl } = require('url')
       const { apiResolver } = require('next/dist/next-server/server/api-utils')
+      const { normalizeLocalePath } = require('next/dist/next-server/lib/i18n/normalize-locale-path')
+      const i18n = ${i18n || '{}'}
+
       ${rewriteImports}
 
       ${dynamicRouteMatcher}
@@ -416,6 +446,12 @@ const nextServerlessLoader: loader.Loader = function () {
           // to ensure we are using the correct values
           const trustQuery = req.headers['${vercelHeader}']
           const parsedUrl = handleRewrites(parseUrl(req.url, true))
+
+          if (parsedUrl.query.nextInternalLocale) {
+            detectedLocale = parsedUrl.query.nextInternalLocale
+            delete parsedUrl.query.nextInternalLocale
+          }
+
           let hasValidParams = true
 
           ${normalizeDynamicRouteParams}
@@ -482,6 +518,8 @@ const nextServerlessLoader: loader.Loader = function () {
     const {PERMANENT_REDIRECT_STATUS} = require('next/dist/next-server/lib/constants')
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
+    const { normalizeLocalePath } = require('next/dist/next-server/lib/i18n/normalize-locale-path')
+    const i18n = ${i18n || '{}'}
 
     const appMod = require('${absoluteAppPath}')
     let App = appMod.default || appMod.then && appMod.then(mod => mod.default);
@@ -605,6 +643,11 @@ const nextServerlessLoader: loader.Loader = function () {
         }
 
         ${handleLocale}
+
+        if (parsedUrl.query.nextInternalLocale) {
+          detectedLocale = parsedUrl.query.nextInternalLocale
+          delete parsedUrl.query.nextInternalLocale
+        }
 
         const renderOpts = Object.assign(
           {
