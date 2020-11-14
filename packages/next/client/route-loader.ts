@@ -72,16 +72,21 @@ export interface RouteLoader {
   prefetch(route: string): Promise<void>
 }
 
-function hasPrefetch(link?: HTMLLinkElement): boolean {
+function hasRel(rel: string, link?: HTMLLinkElement) {
   try {
     link = document.createElement('link')
-    return link.relList.supports('prefetch')
-  } catch {
-    return false
-  }
+    return link.relList.supports(rel)
+  } catch {}
 }
 
-const canPrefetch: boolean = hasPrefetch()
+const relPrefetch =
+  hasRel('preload') && !hasRel('prefetch')
+    ? // https://caniuse.com/#feat=link-rel-preload
+      // macOS and iOS (Safari does not support prefetch)
+      'preload'
+    : // https://caniuse.com/#feat=link-rel-prefetch
+      // IE 11, Edge 12+, nearly all evergreen
+      'prefetch'
 
 function prefetchViaDom(
   href: string,
@@ -97,7 +102,7 @@ function prefetchViaDom(
 
     // The order of property assignment here is intentional:
     if (as) link!.as = as
-    link!.rel = `prefetch`
+    link!.rel = relPrefetch
     link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
     link!.onload = res
     link!.onerror = rej
@@ -321,9 +326,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
       return getFilesForRoute(assetPrefix, route)
         .then((output) =>
           Promise.all(
-            canPrefetch
-              ? output.scripts.map((script) => prefetchViaDom(script, 'script'))
-              : []
+            output.scripts.map((script) => prefetchViaDom(script, 'script'))
           )
         )
         .then(() => {
