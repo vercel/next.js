@@ -40,7 +40,7 @@ export function runTests(ctx) {
     })
   } else {
     it('should preload all locales data correctly', async () => {
-      const browser = await webdriver(ctx.appPort, '/mixed')
+      const browser = await webdriver(ctx.appPort, `${ctx.basePath}/mixed`)
 
       await browser.eval(`(function() {
         document.querySelector('#to-gsp-en-us').scrollIntoView()
@@ -54,7 +54,9 @@ export function runTests(ctx) {
 
         assert.deepEqual(
           hrefs.map((href) =>
-            new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
+            new URL(href).pathname
+              .replace(ctx.basePath, '')
+              .replace(/^\/_next\/data\/[^/]+/, '')
           ),
           ['/en-US/gsp.json', '/fr/gsp.json', '/nl-NL/gsp.json']
         )
