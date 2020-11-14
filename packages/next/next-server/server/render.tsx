@@ -353,6 +353,9 @@ export async function renderToHTML(
     ? renderOpts.devOnlyCacheBusterQueryString || `?ts=${Date.now()}`
     : ''
 
+  // don't modify original query object
+  query = Object.assign({}, query)
+
   const {
     err,
     dev = false,
@@ -654,8 +657,6 @@ export async function renderToHTML(
         }
 
         ;(renderOpts as any).isNotFound = true
-        ;(renderOpts as any).revalidate = false
-        return null
       }
 
       if (
@@ -684,6 +685,7 @@ export async function renderToHTML(
 
       if (
         (dev || isBuildTimeSSG) &&
+        !(renderOpts as any).isNotFound &&
         !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
       ) {
         // this fn should throw an error instead of ever returning `false`
@@ -721,6 +723,11 @@ export async function renderToHTML(
       } else {
         // By default, we never revalidate.
         ;(data as any).revalidate = false
+      }
+
+      // this must come after revalidate is attached
+      if ((renderOpts as any).isNotFound) {
+        return null
       }
 
       props.pageProps = Object.assign(
