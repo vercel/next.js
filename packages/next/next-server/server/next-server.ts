@@ -65,7 +65,7 @@ import Router, {
 import prepareDestination, {
   compileNonPath,
 } from '../lib/router/utils/prepare-destination'
-import { sendPayload } from './send-payload'
+import { sendPayload, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../lib/utils'
@@ -1272,9 +1272,6 @@ export default class Server {
       ? this.nextConfig.i18n?.defaultLocale
       : (query.__nextDefaultLocale as string)
 
-    delete query.__nextLocale
-    delete query.__nextDefaultLocale
-
     const { i18n } = this.nextConfig
     const locales = i18n.locales as string[]
 
@@ -1361,18 +1358,31 @@ export default class Server {
       : undefined
 
     if (cachedData) {
-      if (cachedData.isNotFound) {
-        // we don't currently revalidate when notFound is returned
-        // so trigger rendering 404 here
-        throw new NoFallbackError()
-      }
-
       const data = isDataReq
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
 
+      const revalidateOptions = !this.renderOpts.dev
+        ? {
+            private: isPreviewMode,
+            stateful: false, // GSP response
+            revalidate:
+              cachedData.curRevalidate !== undefined
+                ? cachedData.curRevalidate
+                : /* default to minimum revalidate (this should be an invariant) */ 1,
+          }
+        : undefined
+
       if (!isDataReq && cachedData.pageData?.pageProps?.__N_REDIRECT) {
         await handleRedirect(cachedData.pageData)
+      } else if (cachedData.isNotFound) {
+        if (revalidateOptions) {
+          setRevalidateHeaders(res, revalidateOptions)
+        }
+        await this.render404(req, res, {
+          pathname,
+          query,
+        } as UrlWithParsedQuery)
       } else {
         sendPayload(
           req,
@@ -1383,16 +1393,7 @@ export default class Server {
             generateEtags: this.renderOpts.generateEtags,
             poweredByHeader: this.renderOpts.poweredByHeader,
           },
-          !this.renderOpts.dev
-            ? {
-                private: isPreviewMode,
-                stateful: false, // GSP response
-                revalidate:
-                  cachedData.curRevalidate !== undefined
-                    ? cachedData.curRevalidate
-                    : /* default to minimum revalidate (this should be an invariant) */ 1,
-              }
-            : undefined
+          revalidateOptions
         )
       }
 
@@ -1575,6 +1576,15 @@ export default class Server {
     } = await doRender()
     let resHtml = html
 
+    const revalidateOptions =
+      !this.renderOpts.dev || (isServerProps && !isDataReq)
+        ? {
+            private: isPreviewMode,
+            stateful: !isSSG,
+            revalidate: sprRevalidate,
+          }
+        : undefined
+
     if (
       !isResSent(res) &&
       !isNotFound &&
@@ -1592,13 +1602,7 @@ export default class Server {
             generateEtags: this.renderOpts.generateEtags,
             poweredByHeader: this.renderOpts.poweredByHeader,
           },
-          !this.renderOpts.dev || (isServerProps && !isDataReq)
-            ? {
-                private: isPreviewMode,
-                stateful: !isSSG,
-                revalidate: sprRevalidate,
-              }
-            : undefined
+          revalidateOptions
         )
       }
       resHtml = null
@@ -1613,8 +1617,16 @@ export default class Server {
       )
     }
 
-    if (isNotFound) {
-      throw new NoFallbackError()
+    if (!isResSent(res) && isNotFound) {
+      if (revalidateOptions) {
+        setRevalidateHeaders(res, revalidateOptions)
+      }
+      await this.render404(
+        req,
+        res,
+        { pathname, query } as UrlWithParsedQuery,
+        !!revalidateOptions
+      )
     }
     return resHtml
   }
@@ -1691,12 +1703,15 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    query: ParsedUrlQuery = {}
+    query: ParsedUrlQuery = {},
+    setHeaders = true
   ): Promise<void> {
-    res.setHeader(
-      'Cache-Control',
-      'no-cache, no-store, max-age=0, must-revalidate'
-    )
+    if (setHeaders) {
+      res.setHeader(
+        'Cache-Control',
+        'no-cache, no-store, max-age=0, must-revalidate'
+      )
+    }
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
     if (html === null) {
       return
@@ -1774,12 +1789,13 @@ export default class Server {
   public async render404(
     req: IncomingMessage,
     res: ServerResponse,
-    parsedUrl?: UrlWithParsedQuery
+    parsedUrl?: UrlWithParsedQuery,
+    setHeaders = true
   ): Promise<void> {
     const url: any = req.url
     const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(url, true)
     res.statusCode = 404
-    return this.renderError(null, req, res, pathname!, query)
+    return this.renderError(null, req, res, pathname!, query, setHeaders)
   }
 
   public async serveStatic(
