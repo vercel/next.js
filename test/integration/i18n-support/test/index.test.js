@@ -22,6 +22,20 @@ const ctx = {
 }
 
 describe('i18n Support', () => {
+  beforeAll(async () => {
+    ctx.externalPort = await findPort()
+    ctx.externalApp = http.createServer((req, res) => {
+      res.statusCode = 200
+      res.end(JSON.stringify({ url: req.url, external: true }))
+    })
+    await new Promise((resolve, reject) => {
+      ctx.externalApp.listen(ctx.externalPort, (err) =>
+        err ? reject(err) : resolve()
+      )
+    })
+  })
+  afterAll(() => ctx.externalApp.close())
+
   describe('dev mode', () => {
     const curCtx = {
       ...ctx,
@@ -29,11 +43,13 @@ describe('i18n Support', () => {
     }
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
+      nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
       curCtx.appPort = await findPort()
       curCtx.app = await launchApp(appDir, curCtx.appPort)
     })
     afterAll(async () => {
       await killApp(curCtx.app)
+      nextConfig.restore()
     })
 
     runTests(curCtx)
@@ -42,13 +58,17 @@ describe('i18n Support', () => {
   describe('production mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
+      nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
       await nextBuild(appDir)
       ctx.appPort = await findPort()
       ctx.app = await nextStart(appDir, ctx.appPort)
       ctx.buildPagesDir = join(appDir, '.next/server/pages')
       ctx.buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
-    afterAll(() => killApp(ctx.app))
+    afterAll(async () => {
+      await killApp(ctx.app)
+      nextConfig.restore()
+    })
 
     runTests(ctx)
   })
@@ -57,6 +77,7 @@ describe('i18n Support', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       nextConfig.replace('// target', 'target')
+      nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
 
       await nextBuild(appDir)
       ctx.appPort = await findPort()
@@ -109,6 +130,60 @@ describe('i18n Support', () => {
         locales,
         defaultLocale: 'en-US',
       })
+    })
+
+    it('should resolve rewrites correctly', async () => {
+      const serverFile = getPageFileFromPagesManifest(appDir, '/another')
+      const appPort = await findPort()
+      const mod = require(join(appDir, '.next/serverless', serverFile))
+
+      const server = http.createServer(async (req, res) => {
+        try {
+          await mod.render(req, res)
+        } catch (err) {
+          res.statusCode = 500
+          res.end('internal err')
+        }
+      })
+
+      await new Promise((resolve, reject) => {
+        server.listen(appPort, (err) => (err ? reject(err) : resolve()))
+      })
+      console.log('listening on', appPort)
+
+      const requests = await Promise.all(
+        [
+          '/en-US/rewrite-1',
+          '/nl/rewrite-2',
+          '/fr/rewrite-3',
+          '/en-US/rewrite-4',
+          '/fr/rewrite-4',
+        ].map((path) =>
+          fetchViaHTTP(appPort, `${ctx.basePath}${path}`, undefined, {
+            redirect: 'manual',
+          })
+        )
+      )
+
+      server.close()
+
+      const checks = [
+        ['en-US', '/rewrite-1'],
+        ['nl', '/rewrite-2'],
+        ['nl', '/rewrite-3'],
+        ['en-US', '/rewrite-4'],
+        ['fr', '/rewrite-4'],
+      ]
+
+      for (let i = 0; i < requests.length; i++) {
+        const res = requests[i]
+        const [locale, asPath] = checks[i]
+        const $ = cheerio.load(await res.text())
+        expect($('html').attr('lang')).toBe(locale)
+        expect($('#router-locale').text()).toBe(locale)
+        expect($('#router-pathname').text()).toBe('/another')
+        expect($('#router-as-path').text()).toBe(asPath)
+      }
     })
 
     runTests(ctx)
