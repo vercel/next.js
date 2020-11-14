@@ -245,6 +245,82 @@ describe('CSS Support', () => {
     })
   })
 
+  describe('React Lifecyce Order (dev)', () => {
+    const appDir = join(fixturesDir, 'transition-react')
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have the correct color on mount after navigation', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+
+        // Navigate to other:
+        await browser.waitForElementByCss('#link-other').click()
+        const text = await browser.waitForElementByCss('#red-title').text()
+        expect(text).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
+  describe('React Lifecyce Order (production)', () => {
+    const appDir = join(fixturesDir, 'transition-react')
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    let code
+    let stdout
+    beforeAll(async () => {
+      ;({ code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      }))
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have compiled successfully', () => {
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it('should have the correct color on mount after navigation', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+
+        // Navigate to other:
+        await browser.waitForElementByCss('#link-other').click()
+        const text = await browser.waitForElementByCss('#red-title').text()
+        expect(text).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
   describe('Invalid CSS in _document', () => {
     const appDir = join(fixturesDir, 'invalid-module-document')
 
@@ -1081,6 +1157,160 @@ describe('CSS Support', () => {
     })
   })
 
+  // https://github.com/vercel/next.js/issues/18557
+  describe('CSS page transition inject <style> with nonce so it works with CSP header', () => {
+    const appDir = join(fixturesDir, 'csp-style-src-nonce')
+    let app, appPort
+
+    function tests() {
+      async function checkGreenTitle(browser) {
+        await browser.waitForElementByCss('#green-title')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#green-title')).color`
+        )
+        expect(titleColor).toBe('rgb(0, 128, 0)')
+      }
+      async function checkBlueTitle(browser) {
+        await browser.waitForElementByCss('#blue-title')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#blue-title')).color`
+        )
+        expect(titleColor).toBe('rgb(0, 0, 255)')
+      }
+
+      it('should have correct color on index page (on load)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkGreenTitle(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct color on index page (on hover)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkGreenTitle(browser)
+          await browser.waitForElementByCss('#link-other').moveTo()
+          await waitFor(2000)
+          await checkGreenTitle(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should not change color on hover', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkGreenTitle(browser)
+          await browser.waitForElementByCss('#link-other').moveTo()
+          await waitFor(2000)
+          await checkGreenTitle(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct CSS injection order', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkGreenTitle(browser)
+
+          const prevSiblingHref = await browser.eval(
+            `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
+          )
+          const currentPageHref = await browser.eval(
+            `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
+          )
+          expect(prevSiblingHref).toBeDefined()
+          expect(prevSiblingHref).toBe(currentPageHref)
+
+          // Navigate to other:
+          await browser.waitForElementByCss('#link-other').click()
+          await checkBlueTitle(browser)
+
+          const newPrevSibling = await browser.eval(
+            `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+          )
+          const newPageHref = await browser.eval(
+            `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+          )
+          expect(newPrevSibling).toBe('VmVyY2Vs')
+          expect(newPageHref).toBeDefined()
+          expect(newPageHref).not.toBe(currentPageHref)
+
+          // Navigate to home:
+          await browser.waitForElementByCss('#link-index').click()
+          await checkGreenTitle(browser)
+
+          const newPrevSibling2 = await browser.eval(
+            `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+          )
+          const newPageHref2 = await browser.eval(
+            `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+          )
+          expect(newPrevSibling2).toBeTruthy()
+          expect(newPageHref2).toBeDefined()
+          expect(newPageHref2).toBe(currentPageHref)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct color on index page (on nav from index)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkGreenTitle(browser)
+          await browser.waitForElementByCss('#link-other').click()
+
+          // Wait for navigation:
+          await browser.waitForElementByCss('#link-index')
+          await checkBlueTitle(browser)
+
+          // Navigate back to index:
+          await browser.waitForElementByCss('#link-index').click()
+          await checkGreenTitle(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct color on index page (on nav from other)', async () => {
+        const browser = await webdriver(appPort, '/other')
+        try {
+          await checkBlueTitle(browser)
+          await browser.waitForElementByCss('#link-index').click()
+
+          // Wait for navigation:
+          await browser.waitForElementByCss('#link-other')
+          await checkGreenTitle(browser)
+
+          // Navigate back to other:
+          await browser.waitForElementByCss('#link-other').click()
+          await checkBlueTitle(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+    }
+
+    describe('Production Mode', () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+      beforeAll(async () => {
+        await nextBuild(appDir, [], {})
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+
+      tests()
+    })
+  })
+
   // https://github.com/vercel/next.js/issues/12445
   describe('CSS Modules Composes Ordering', () => {
     const appDir = join(fixturesDir, 'composes-ordering')
@@ -1100,13 +1330,6 @@ describe('CSS Support', () => {
           `window.getComputedStyle(document.querySelector('#red-title')).color`
         )
         expect(titleColor).toBe('rgb(255, 0, 0)')
-      }
-      async function checkCssPreloadCount(browser) {
-        return Number(
-          await browser.eval(
-            `Object.keys(window.next.router.pageLoader.cssc).length`
-          )
-        )
       }
 
       it('should have correct color on index page (on load)', async () => {
@@ -1131,14 +1354,13 @@ describe('CSS Support', () => {
       })
 
       if (!isDev) {
-        it('should preload CSS on hover', async () => {
+        it('should not change color on hover', async () => {
           const browser = await webdriver(appPort, '/')
           try {
             await checkBlackTitle(browser)
-            expect(await checkCssPreloadCount(browser)).toBe(1)
             await browser.waitForElementByCss('#link-other').moveTo()
             await waitFor(2000)
-            expect(await checkCssPreloadCount(browser)).toBe(2)
+            await checkBlackTitle(browser)
           } finally {
             await browser.close()
           }
@@ -1168,7 +1390,7 @@ describe('CSS Support', () => {
             const newPageHref = await browser.eval(
               `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
             )
-            expect(newPrevSibling).toBeTruthy()
+            expect(newPrevSibling).toBe('')
             expect(newPageHref).toBeDefined()
             expect(newPageHref).not.toBe(currentPageHref)
 
@@ -1182,7 +1404,7 @@ describe('CSS Support', () => {
             const newPageHref2 = await browser.eval(
               `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
             )
-            expect(newPrevSibling2).toBeTruthy()
+            expect(newPrevSibling2).toBe('')
             expect(newPageHref2).toBeDefined()
             expect(newPageHref2).toBe(currentPageHref)
           } finally {
@@ -1394,11 +1616,50 @@ describe('CSS Support', () => {
         )
         expect(titleColor).toBe('rgb(17, 17, 17)')
       }
+      async function checkRedTitle(browser) {
+        await browser.waitForElementByCss('#red-title')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#red-title')).color`
+        )
+        expect(titleColor).toBe('rgb(255, 0, 0)')
+      }
 
-      it('should hydrate without dependencies function', async () => {
+      it('should hydrate black without dependencies manifest', async () => {
         const browser = await webdriver(appPort, '/')
         try {
           await checkBlackTitle(browser)
+          await check(
+            () => browser.eval(`document.querySelector('p').innerText`),
+            'mounted'
+          )
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should hydrate red without dependencies manifest', async () => {
+        const browser = await webdriver(appPort, '/client')
+        try {
+          await checkRedTitle(browser)
+          await check(
+            () => browser.eval(`document.querySelector('p').innerText`),
+            'mounted'
+          )
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should route from black to red without dependencies', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkBlackTitle(browser)
+          await check(
+            () => browser.eval(`document.querySelector('p').innerText`),
+            'mounted'
+          )
+          await browser.eval(`document.querySelector('#link-client').click()`)
+          await checkRedTitle(browser)
           await check(
             () => browser.eval(`document.querySelector('p').innerText`),
             'mounted'
