@@ -22,6 +22,10 @@ export async function browser_polyfills(task) {
 }
 
 const externals = {
+  // Postcss:
+  postcss: 'postcss',
+  'postcss/lib/parser': 'postcss/lib/parser',
+
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
   'caniuse-lite': 'caniuse-lite',
