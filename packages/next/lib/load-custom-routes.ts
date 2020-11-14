@@ -391,13 +391,13 @@ export default async function loadCustomRoutes(
         source: '/:file((?:[^/]+/)*[^/]+\\.\\w+)/',
         destination: '/:file',
         permanent: true,
-        locale: false,
+        locale: config.i18n ? false : undefined,
       },
       {
         source: '/:notfile((?:[^/]+/)*[^/\\.]+)',
         destination: '/:notfile/',
         permanent: true,
-        locale: false,
+        locale: config.i18n ? false : undefined,
       }
     )
     if (config.basePath) {
@@ -406,7 +406,7 @@ export default async function loadCustomRoutes(
         destination: config.basePath + '/',
         permanent: true,
         basePath: false,
-        locale: false,
+        locale: config.i18n ? false : undefined,
       })
     }
   } else {
@@ -414,7 +414,7 @@ export default async function loadCustomRoutes(
       source: '/:path+/',
       destination: '/:path+',
       permanent: true,
-      locale: false,
+      locale: config.i18n ? false : undefined,
     })
     if (config.basePath) {
       redirects.unshift({
@@ -422,7 +422,7 @@ export default async function loadCustomRoutes(
         destination: config.basePath,
         permanent: true,
         basePath: false,
-        locale: false,
+        locale: config.i18n ? false : undefined,
       })
     }
   }

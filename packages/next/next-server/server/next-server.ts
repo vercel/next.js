@@ -666,7 +666,7 @@ export default class Server {
     }) => {
       const { i18n } = this.nextConfig
 
-      if (r.locale === false || !this.renderOpts.dev) return ''
+      if (!i18n || r.locale === false || !this.renderOpts.dev) return ''
 
       if (r.destination && r.destination.startsWith('/')) {
         r.destination = `/:nextInternalLocale${r.destination}`
