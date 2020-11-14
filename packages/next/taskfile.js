@@ -395,6 +395,21 @@ export async function ncc_postcss_preset_env(task, opts) {
     .target('compiled/postcss-preset-env')
 }
 // eslint-disable-next-line camelcase
+externals['postcss-scss'] = 'next/dist/compiled/postcss-scss'
+export async function ncc_postcss_scss(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('postcss-scss')))
+    .ncc({
+      packageName: 'postcss-scss',
+      externals: {
+        postcss: 'postcss',
+        'postcss/lib/parser': 'postcss/lib/parser',
+        ...externals,
+      },
+    })
+    .target('compiled/postcss-scss')
+}
+// eslint-disable-next-line camelcase
 externals['recast'] = 'next/dist/compiled/recast'
 export async function ncc_recast(task, opts) {
   await task
@@ -584,6 +599,7 @@ export async function ncc(task) {
       'ncc_postcss_flexbugs_fixes',
       'ncc_postcss_loader',
       'ncc_postcss_preset_env',
+      'ncc_postcss_scss',
       'ncc_recast',
       'ncc_resolve',
       'ncc_schema_utils',
