@@ -75,19 +75,18 @@ export interface RouteLoader {
 function hasPrefetch(link?: HTMLLinkElement): boolean {
   try {
     link = document.createElement('link')
-    return link.relList.supports('prefetch')
+    return (
+      // detect IE11 since it supports prefetch but isn't detected
+      // with relList.support
+      (!!window.MSInputMethodContext && !!(document as any).documentMode) ||
+      link.relList.supports('prefetch')
+    )
   } catch {
     return false
   }
 }
 
-const canPrefetch: boolean =
-  hasPrefetch() ||
-  // detect IE11 since it supports prefetch but isn't detected
-  // with relList.support
-  (typeof window !== 'undefined' &&
-    !!window.MSInputMethodContext &&
-    !!(document as any).documentMode)
+const canPrefetch: boolean = hasPrefetch()
 
 function prefetchViaDom(
   href: string,
