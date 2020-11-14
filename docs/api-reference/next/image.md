@@ -139,7 +139,11 @@ When true, the source image will be served as-is instead of changing quality, si
 
 ## Other Props
 
-All other properties on the `Image` component will be passed to the underlying `img` element, except for `style`. Use `className` instead.
+Other properties on the `Image` component will be passed to the underlying `img` element with the exception of the following:
+
+- `style`. Use `className` instead.
+- `srcSet`. Use [Device Sizes](/docs/basic-features/image-optimization.md#device-sizes) instead.
+- `decoding`. It is always `"async"`.
 
 ## Related
 
