@@ -1,5 +1,6 @@
 import cssnanoSimple from 'cssnano-simple'
 import postcss from 'postcss'
+import postcssScss from 'next/dist/compiled/postcss-scss'
 import webpack from 'webpack'
 import sources from 'webpack-sources'
 
@@ -31,6 +32,7 @@ export class CssMinimizerPlugin {
       ...this.options.postcssOptions,
       to: file,
       from: file,
+      parser: postcssScss,
     }
 
     let input: string
