@@ -22,11 +22,6 @@ export async function browser_polyfills(task) {
 }
 
 const externals = {
-  // Postcss:
-  postcss: 'postcss',
-  'postcss/lib/parser': 'postcss/lib/parser',
-  'postcss/package.json': 'postcss/package.json',
-
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
   'caniuse-lite': 'caniuse-lite',
@@ -404,7 +399,14 @@ externals['postcss-scss'] = 'next/dist/compiled/postcss-scss'
 export async function ncc_postcss_scss(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('postcss-scss')))
-    .ncc({ packageName: 'postcss-scss', externals })
+    .ncc({
+      packageName: 'postcss-scss',
+      externals: {
+        postcss: 'postcss',
+        'postcss/lib/parser': 'postcss/lib/parser',
+        ...externals,
+      },
+    })
     .target('compiled/postcss-scss')
 }
 // eslint-disable-next-line camelcase
