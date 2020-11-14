@@ -72,21 +72,22 @@ export interface RouteLoader {
   prefetch(route: string): Promise<void>
 }
 
-function hasRel(rel: string, link?: HTMLLinkElement) {
+function hasPrefetch(link?: HTMLLinkElement): boolean {
   try {
     link = document.createElement('link')
-    return link.relList.supports(rel)
-  } catch {}
+    return link.relList.supports('prefetch')
+  } catch {
+    return false
+  }
 }
 
-const relPrefetch =
-  hasRel('preload') && !hasRel('prefetch')
-    ? // https://caniuse.com/#feat=link-rel-preload
-      // macOS and iOS (Safari does not support prefetch)
-      'preload'
-    : // https://caniuse.com/#feat=link-rel-prefetch
-      // IE 11, Edge 12+, nearly all evergreen
-      'prefetch'
+const canPrefetch: boolean =
+  hasPrefetch() ||
+  // detect IE11 since it supports prefetch but isn't detected
+  // with relList.support
+  (typeof window !== 'undefined' &&
+    !!window.MSInputMethodContext &&
+    !!(document as any).documentMode)
 
 function prefetchViaDom(
   href: string,
@@ -102,7 +103,7 @@ function prefetchViaDom(
 
     // The order of property assignment here is intentional:
     if (as) link!.as = as
-    link!.rel = relPrefetch
+    link!.rel = `prefetch`
     link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
     link!.onload = res
     link!.onerror = rej
@@ -326,7 +327,9 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
       return getFilesForRoute(assetPrefix, route)
         .then((output) =>
           Promise.all(
-            output.scripts.map((script) => prefetchViaDom(script, 'script'))
+            canPrefetch
+              ? output.scripts.map((script) => prefetchViaDom(script, 'script'))
+              : []
           )
         )
         .then(() => {
