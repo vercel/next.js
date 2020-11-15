@@ -7,7 +7,7 @@ import {
   ListIcon,
   ListItem,
 } from '@chakra-ui/react'
-import {ExternalLinkIcon} from '@chakra-ui/icons'
+import { ExternalLinkIcon } from '@chakra-ui/icons'
 import { Hero } from '../components/Hero'
 import { Container } from '../components/Container'
 import { Main } from '../components/Main'
