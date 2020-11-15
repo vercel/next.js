@@ -24,7 +24,7 @@ export async function browser_polyfills(task) {
 const externals = {
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
-  'caniuse-lite': 'caniuse-lite',
+  'caniuse-lite': 'caniuse-lite', // FIXME: `autoprefixer` will still bundle this because it uses direct imports
 
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
