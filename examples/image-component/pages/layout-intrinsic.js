@@ -1,7 +1,9 @@
 import Image from 'next/image'
+import ViewSource from '../components/view-source'
 
 const Intrinsic = () => (
   <div>
+    <ViewSource pathname="pages/layout-intrinsic.js" />
     <h1>Image Component With Layout Intrinsic</h1>
     <Image
       alt="Mountains"
