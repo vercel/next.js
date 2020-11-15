@@ -63,7 +63,20 @@ const runTests = () => {
     expect(props2.found).toBe(true)
     expect(props2.params).toEqual({ slug: 'hello' })
     expect(isNaN(props2.random)).toBe(false)
-    expect(props2.random).not.toBe(props.random)
+
+    await waitFor(1000)
+    res = await fetchViaHTTP(appPort, '/fallback-blocking/hello')
+    $ = cheerio.load(await res.text())
+
+    const props3 = JSON.parse($('#props').text())
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=1, stale-while-revalidate'
+    )
+    expect(res.status).toBe(200)
+    expect(props3.found).toBe(true)
+    expect(props3.params).toEqual({ slug: 'hello' })
+    expect(isNaN(props3.random)).toBe(false)
+    expect(props3.random).not.toBe(props.random)
   })
 
   it('should revalidate after notFound is returned for fallback: true', async () => {
@@ -106,7 +119,20 @@ const runTests = () => {
     expect(props2.found).toBe(true)
     expect(props2.params).toEqual({ slug: 'world' })
     expect(isNaN(props2.random)).toBe(false)
-    expect(props2.random).not.toBe(props.random)
+
+    await waitFor(1000)
+    res = await fetchViaHTTP(appPort, '/fallback-true/world')
+    $ = cheerio.load(await res.text())
+
+    const props3 = JSON.parse($('#props').text())
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=1, stale-while-revalidate'
+    )
+    expect(res.status).toBe(200)
+    expect(props3.found).toBe(true)
+    expect(props3.params).toEqual({ slug: 'world' })
+    expect(isNaN(props3.random)).toBe(false)
+    expect(props3.random).not.toBe(props.random)
   })
 }
 
