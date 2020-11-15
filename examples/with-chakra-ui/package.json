@@ -14,9 +14,9 @@
     "@emotion/styled": "^11.0.0",
     "emotion-theming": "^11.0.0",
     "framer-motion": "^2.9.4",
-    "next": "^9.1.7",
-    "react": "^16.12.0",
-    "react-dom": "^16.12.0"
+    "next": "^10.0.1",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1"
   },
   "license": "MIT"
 }
