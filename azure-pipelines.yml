@@ -21,6 +21,11 @@ stages:
             displayName: 'Install Node.js'
           - task: Cache@2
             inputs:
+              key: yarn | $(Agent.OS) | yarn.lock
+              path: $(YARN_CACHE_FOLDER)
+            displayName: Yarn Cache
+          - task: Cache@2
+            inputs:
               # use deterministic cache key that is specific
               # to this test run
               key: $(Build.SourceVersion)
