@@ -3,6 +3,7 @@ import { UrlWithParsedQuery } from 'url'
 
 import pathMatch from '../lib/router/utils/path-match'
 import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
+import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
 
 export const route = pathMatch()
 
@@ -52,6 +53,7 @@ export default class Router {
   pageChecker: PageChecker
   dynamicRoutes: DynamicRoutes
   useFileSystemPublicRoutes: boolean
+  locales: string[]
 
   constructor({
     basePath = '',
@@ -63,6 +65,7 @@ export default class Router {
     dynamicRoutes = [],
     pageChecker,
     useFileSystemPublicRoutes,
+    locales = [],
   }: {
     basePath: string
     headers: Route[]
@@ -73,6 +76,7 @@ export default class Router {
     dynamicRoutes: DynamicRoutes | undefined
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
+    locales: string[]
   }) {
     this.basePath = basePath
     this.headers = headers
@@ -83,6 +87,7 @@ export default class Router {
     this.catchAllRoute = catchAllRoute
     this.dynamicRoutes = dynamicRoutes
     this.useFileSystemPublicRoutes = useFileSystemPublicRoutes
+    this.locales = locales
   }
 
   setDynamicRoutes(routes: DynamicRoutes = []) {
@@ -101,6 +106,8 @@ export default class Router {
     // memoize page check calls so we don't duplicate checks for pages
     const pageChecks: { [name: string]: Promise<boolean> } = {}
     const memoizedPageChecker = async (p: string): Promise<boolean> => {
+      p = normalizeLocalePath(p, this.locales).pathname
+
       if (pageChecks[p]) {
         return pageChecks[p]
       }
@@ -175,6 +182,21 @@ export default class Router {
 
       if (!keepBasePath) {
         currentPathname = replaceBasePath(this.basePath, currentPathname!)
+      }
+
+      // re-add locale for custom-routes to allow matching against
+      if (isCustomRoute && parsedUrl.query.__nextLocale) {
+        if (keepBasePath) {
+          currentPathname = replaceBasePath(this.basePath, currentPathname!)
+        }
+
+        currentPathname = `/${parsedUrl.query.__nextLocale}${
+          currentPathname === '/' ? '' : currentPathname
+        }`
+
+        if (keepBasePath) {
+          currentPathname = `${this.basePath}${currentPathname}`
+        }
       }
 
       const newParams = testRoute.match(currentPathname)

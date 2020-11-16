@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 import { promises, writeFileSync } from 'fs'
 import Worker from 'jest-worker'
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import devalue from 'next/dist/compiled/devalue'
 import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
 import findUp from 'next/dist/compiled/find-up'
@@ -254,6 +254,7 @@ export default async function build(
   const buildCustomRoute = (
     r: {
       source: string
+      locale?: false
       basePath?: false
       statusCode?: number
       destination?: string
@@ -262,11 +263,23 @@ export default async function build(
   ) => {
     const keys: any[] = []
 
-    if (r.basePath !== false) {
+    if (r.basePath !== false && (!config.i18n || r.locale === false)) {
       r.source = `${config.basePath}${r.source}`
 
       if (r.destination && r.destination.startsWith('/')) {
         r.destination = `${config.basePath}${r.destination}`
+      }
+    }
+
+    if (config.i18n && r.locale !== false) {
+      const basePath = r.basePath !== false ? config.basePath || '' : ''
+
+      r.source = `${basePath}/:nextInternalLocale(${config.i18n.locales
+        .map((locale: string) => escapeStringRegexp(locale))
+        .join('|')})${r.source}`
+
+      if (r.destination && r.destination?.startsWith('/')) {
+        r.destination = `${basePath}/:nextInternalLocale${r.destination}`
       }
     }
 
@@ -495,6 +508,7 @@ export default async function build(
 
   let customAppGetInitialProps: boolean | undefined
   let namedExports: Array<string> | undefined
+  let isNextImageImported: boolean | undefined
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
@@ -583,6 +597,10 @@ export default async function build(
           if (workerResult.isHybridAmp) {
             isHybridAmp = true
             hybridAmpPages.add(page)
+          }
+
+          if (workerResult.isNextImageImported) {
+            isNextImageImported = true
           }
 
           if (workerResult.hasStaticProps) {
@@ -808,7 +826,7 @@ export default async function build(
               }
             }
 
-            if (isSsg && !isFallback) {
+            if (isSsg) {
               // remove non-locale prefixed variant from defaultMap
               delete defaultMap[page]
             }
@@ -1132,6 +1150,7 @@ export default async function build(
       version: 1,
       hasExportPathMap: typeof config.exportPathMap === 'function',
       exportTrailingSlash: config.trailingSlash === true,
+      isNextImageImported: isNextImageImported === true,
     }),
     'utf8'
   )
