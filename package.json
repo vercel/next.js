@@ -58,9 +58,8 @@
     "babel-core": "7.0.0-bridge.0",
     "babel-eslint": "10.0.3",
     "babel-jest": "24.9.0",
-    "browserslist": "^4.14.6",
+    "browserslist": "^4.14.7",
     "browserstack-local": "1.4.0",
-    "caniuse-lite": "^1.0.30001019",
     "cheerio": "0.22.0",
     "clone": "2.1.2",
     "cookie": "0.4.1",
@@ -130,8 +129,8 @@
     "worker-loader": "2.0.0"
   },
   "resolutions": {
-    "browserslist": "^4.14.6",
-    "caniuse-lite": "^1.0.30001019"
+    "browserslist": "^4.14.7",
+    "caniuse-lite": "^1.0.30001157"
   },
   "engines": {
     "node": ">= 10.13.0"
