@@ -112,6 +112,11 @@
   "optionalDependencies": {
     "sharp": "0.26.2"
   },
+  "peerDependenciesMeta": {
+    "sharp": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@babel/code-frame": "7.10.4",
     "@babel/core": "7.12.3",
