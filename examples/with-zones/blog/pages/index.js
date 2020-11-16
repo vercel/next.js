@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function Blog() {
   return (
@@ -18,7 +19,12 @@ export default function Blog() {
       </ul>
       <a href="/">Home</a>
       <div>
-        <img width={200} src="/blog/static/nextjs.png" />
+        <Image
+          src="/blog/static/nextjs.png"
+          alt="Next.js logo"
+          width={200}
+          height={160}
+        />
       </div>
     </div>
   )
