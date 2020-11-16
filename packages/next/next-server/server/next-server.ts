@@ -342,8 +342,7 @@ export default class Server {
       detectedLocale = detectedLocale || acceptPreferredLocale
 
       let localeDomainRedirect: string | undefined
-      ;(req as any).__nextHadTrailingSlash =
-        pathname !== '/' && pathname!.endsWith('/')
+      ;(req as any).__nextHadTrailingSlash = pathname!.endsWith('/')
       const localePathResult = normalizeLocalePath(pathname!, i18n.locales)
 
       if (localePathResult.detectedLocale) {
