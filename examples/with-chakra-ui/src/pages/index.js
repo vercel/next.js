@@ -6,8 +6,8 @@ import {
   List,
   ListIcon,
   ListItem,
-} from '@chakra-ui/core'
-
+} from '@chakra-ui/react'
+import { ExternalLinkIcon } from '@chakra-ui/icons'
 import { Hero } from '../components/Hero'
 import { Container } from '../components/Container'
 import { Main } from '../components/Main'
@@ -32,13 +32,13 @@ const Index = () => (
             flexGrow={1}
             mr={2}
           >
-            Chakra UI <Icon name="external-link" mx="2px" />
+            Chakra UI <Icon as={ExternalLinkIcon} mx="2px" />
           </ChakraLink>
         </ListItem>
         <ListItem>
           <ListIcon icon="check-circle" color="green.500" />
           <ChakraLink isExternal href="https://nextjs.org" flexGrow={1} mr={2}>
-            Next.js <Icon name="external-link" mx="2px" />
+            Next.js <Icon as={ExternalLinkIcon} mx="2px" />
           </ChakraLink>
         </ListItem>
       </List>
