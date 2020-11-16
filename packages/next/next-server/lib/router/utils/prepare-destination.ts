@@ -58,6 +58,7 @@ export default function prepareDestination(
 
   // clone query so we don't modify the original
   query = Object.assign({}, query)
+  const hadLocale = query.__nextLocale
   delete query.__nextLocale
   delete query.__nextDefaultLocale
 
@@ -121,7 +122,12 @@ export default function prepareDestination(
 
   // add path params to query if it's not a redirect and not
   // already defined in destination query or path
-  const paramKeys = Object.keys(params)
+  let paramKeys = Object.keys(params)
+
+  // remove internal param for i18n
+  if (hadLocale) {
+    paramKeys = paramKeys.filter((name) => name !== 'nextInternalLocale')
+  }
 
   if (
     appendParamsToQuery &&
@@ -144,7 +150,7 @@ export default function prepareDestination(
     const [pathname, hash] = newUrl.split('#')
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
-    delete parsedDestination.search
+    delete (parsedDestination as any).search
   } catch (err) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(
