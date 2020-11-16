@@ -26,12 +26,12 @@
               "path": "/docs/basic-features/image-optimization.md"
             },
             {
-              "title": "Fast Refresh",
-              "path": "/docs/basic-features/fast-refresh.md"
-            },
-            {
               "title": "Static File Serving",
               "path": "/docs/basic-features/static-file-serving.md"
+            },
+            {
+              "title": "Fast Refresh",
+              "path": "/docs/basic-features/fast-refresh.md"
             },
             {
               "title": "TypeScript",
