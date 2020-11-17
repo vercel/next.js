@@ -1,5 +1,5 @@
 /* eslint-env jest */
-
+import assert from 'assert'
 import http from 'http'
 import qs from 'querystring'
 import fs from 'fs-extra'
@@ -188,6 +188,43 @@ function runTests(isDev) {
       defaultLocale: 'en-US',
     })
   })
+
+  if (!isDev) {
+    it('should preload data correctly', async () => {
+      const browser = await webdriver(appPort, '/')
+
+      await browser.eval(`(function() {
+        document.querySelector('#to-def-locale-index').scrollIntoView()
+        document.querySelector('#to-def-locale-another').scrollIntoView()
+        document.querySelector('#to-locale-index').scrollIntoView()
+        document.querySelector('#to-locale-another').scrollIntoView()
+        document.querySelector('#to-fr-locale-another').scrollIntoView()
+        document.querySelector('#to-fr-locale-index').scrollIntoView()
+      })()`)
+
+      await check(async () => {
+        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
+        hrefs.sort()
+
+        console.log({ hrefs })
+
+        assert.deepEqual(
+          hrefs.map((href) =>
+            new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
+          ),
+          [
+            '/en-US.json',
+            '/en-US/another.json',
+            '/fr.json',
+            '/fr/another.json',
+            '/nl-NL.json',
+            '/nl-NL/another.json',
+          ]
+        )
+        return 'yes'
+      }, 'yes')
+    })
+  }
 }
 
 describe('i18n Support Root Catch-all', () => {
