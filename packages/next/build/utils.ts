@@ -588,7 +588,7 @@ export async function buildStaticPaths(
 
   if (!Array.isArray(toPrerender)) {
     throw new Error(
-      `Invalid \`paths\` value returned from getStaticProps in ${page}.\n` +
+      `Invalid \`paths\` value returned from getStaticPaths in ${page}.\n` +
         `\`paths\` must be an array of strings or objects of shape { params: [key: string]: string }`
     )
   }
@@ -680,7 +680,11 @@ export async function buildStaticPaths(
       }
       const curLocale = entry.locale || defaultLocale || ''
 
-      prerenderPaths?.add(`${curLocale ? `/${curLocale}` : ''}${builtPage}`)
+      prerenderPaths?.add(
+        `${curLocale ? `/${curLocale}` : ''}${
+          curLocale && builtPage === '/' ? '' : builtPage
+        }`
+      )
     }
   })
 
@@ -701,6 +705,7 @@ export async function isPageStatic(
   hasStaticProps?: boolean
   prerenderRoutes?: string[] | undefined
   prerenderFallback?: boolean | 'blocking' | undefined
+  isNextImageImported?: boolean
 }> {
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
@@ -788,6 +793,7 @@ export async function isPageStatic(
       ))
     }
 
+    const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
     const config = mod.config || {}
     return {
       isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
@@ -797,6 +803,7 @@ export async function isPageStatic(
       prerenderFallback,
       hasStaticProps,
       hasServerProps,
+      isNextImageImported,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}
