@@ -4,15 +4,17 @@ import PostUpvoter from './PostUpvoter'
 
 export const ALL_POSTS_QUERY = gql`
   query allPosts($first: Int!, $skip: Int!) {
-    allPosts(orderBy: createdAt_DESC, first: $first, skip: $skip) {
+    Posts(offset: $skip, limit: $first, order_by: { createdAt: desc }) {
       id
       title
       votes
       url
       createdAt
     }
-    _allPostsMeta {
-      count
+    Posts_aggregate {
+      aggregate {
+        count
+      }
     }
   }
 `
@@ -38,7 +40,7 @@ export default function PostList() {
   const loadMorePosts = () => {
     fetchMore({
       variables: {
-        skip: allPosts.length,
+        skip: Posts.length,
       },
     })
   }
@@ -46,13 +48,13 @@ export default function PostList() {
   if (error) return <ErrorMessage message="Error loading posts." />
   if (loading && !loadingMorePosts) return <div>Loading</div>
 
-  const { allPosts, _allPostsMeta } = data
-  const areMorePosts = allPosts.length < _allPostsMeta.count
+  const { Posts, Posts_aggregate } = data
+  const areMorePosts = Posts.length < Posts_aggregate.count
 
   return (
     <section>
       <ul>
-        {allPosts.map((post, index) => (
+        {Posts.map((post, index) => (
           <li key={post.id}>
             <div>
               <span>{index + 1}. </span>

@@ -3,7 +3,7 @@ import { ALL_POSTS_QUERY, allPostsQueryVars } from './PostList'
 
 const CREATE_POST_MUTATION = gql`
   mutation createPost($title: String!, $url: String!) {
-    createPost(title: $title, url: $url) {
+    insert_Posts_one(object: { title: $title, url: $url }) {
       id
       title
       votes
@@ -26,7 +26,7 @@ const Submit = () => {
 
     createPost({
       variables: { title, url },
-      update: (proxy, { data: { createPost } }) => {
+      update: (proxy, { data: { insert_Posts_one } }) => {
         const data = proxy.readQuery({
           query: ALL_POSTS_QUERY,
           variables: allPostsQueryVars,
@@ -36,7 +36,7 @@ const Submit = () => {
           query: ALL_POSTS_QUERY,
           data: {
             ...data,
-            allPosts: [createPost, ...data.allPosts],
+            Posts: [insert_Posts_one, ...data.Posts],
           },
           variables: allPostsQueryVars,
         })

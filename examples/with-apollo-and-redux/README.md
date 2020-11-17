@@ -4,6 +4,8 @@ This example serves as a conduit if you were using Apollo 1.X with Redux, and ar
 
 In 3.0.0, Apollo serves out-of-the-box support for redux in favor of Apollo's state management. This example aims to be an amalgamation of the [`with-apollo`](https://github.com/vercel/next.js/tree/master/examples/with-apollo) and [`with-redux`](https://github.com/vercel/next.js/tree/master/examples/with-redux) examples.
 
+To inspect the GraphQL API, go to [Online GraphiQL](https://graphiql-online.com/) and enter `https://top-shepherd-94.hasura.app/v1/graphql` as API endpoint URL.
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com):

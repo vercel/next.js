@@ -2,8 +2,8 @@ import { gql, useMutation } from '@apollo/client'
 import PropTypes from 'prop-types'
 
 const UPDATE_POST_MUTATION = gql`
-  mutation updatePost($id: ID!, $votes: Int) {
-    updatePost(id: $id, votes: $votes) {
+  mutation updatePost($id: uuid!, $votes: Int) {
+    update_Posts_by_pk(pk_columns: { id: $id }, _set: { votes: $votes }) {
       __typename
       id
       votes
