@@ -197,6 +197,10 @@ export function resolveHref(
   const base = new URL(currentPath, 'http://n')
   const urlAsString =
     typeof href === 'string' ? href : formatWithValidation(href)
+  // Return because it cannot be routed by the Next.js router
+  if (!isLocalURL(urlAsString)) {
+    return (resolveAs ? [urlAsString] : urlAsString) as string
+  }
   try {
     const finalUrl = new URL(urlAsString, base)
     finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
@@ -475,7 +479,8 @@ export default class Router implements BaseRouter {
         this.changeState(
           'replaceState',
           formatWithValidation({ pathname: addBasePath(pathname), query }),
-          getURL()
+          getURL(),
+          { locale }
         )
       }
 
@@ -608,6 +613,7 @@ export default class Router implements BaseRouter {
       window.location.href = url
       return false
     }
+    let localeChange = options.locale !== this.locale
 
     if (process.env.__NEXT_I18N_SUPPORT) {
       this.locale = options.locale || this.locale
@@ -620,11 +626,16 @@ export default class Router implements BaseRouter {
         normalizeLocalePath,
       } = require('../i18n/normalize-locale-path') as typeof import('../i18n/normalize-locale-path')
 
-      const localePathResult = normalizeLocalePath(as, this.locales)
+      const parsedAs = parseRelativeUrl(hasBasePath(as) ? delBasePath(as) : as)
+
+      const localePathResult = normalizeLocalePath(
+        parsedAs.pathname,
+        this.locales
+      )
 
       if (localePathResult.detectedLocale) {
         this.locale = localePathResult.detectedLocale
-        url = localePathResult.pathname
+        url = addBasePath(localePathResult.pathname)
       }
     }
 
@@ -640,7 +651,13 @@ export default class Router implements BaseRouter {
       this.abortComponentLoad(this._inFlightRoute)
     }
 
-    as = addLocale(as, options.locale, this.defaultLocale)
+    as = addBasePath(
+      addLocale(
+        hasBasePath(as) ? delBasePath(as) : as,
+        options.locale,
+        this.defaultLocale
+      )
+    )
     const cleanedAs = delLocale(
       hasBasePath(as) ? delBasePath(as) : as,
       this.locale
@@ -700,7 +717,7 @@ export default class Router implements BaseRouter {
     // We also need to set the method = replaceState always
     // as this should not go into the history (That's how browsers work)
     // We should compare the new asPath to the current asPath, not the url
-    if (!this.urlIsNew(cleanedAs)) {
+    if (!this.urlIsNew(cleanedAs) && !localeChange) {
       method = 'replaceState'
     }
 
@@ -841,12 +858,7 @@ export default class Router implements BaseRouter {
       }
 
       Router.events.emit('beforeHistoryChange', as)
-      this.changeState(
-        method,
-        url,
-        addLocale(as, options.locale, this.defaultLocale),
-        options
-      )
+      this.changeState(method, url, as, options)
 
       if (process.env.NODE_ENV !== 'production') {
         const appComp: any = this.components['/_app'].Component
@@ -1223,7 +1235,7 @@ export default class Router implements BaseRouter {
 
     const pages = await this.pageLoader.getPageList()
 
-    parsed = this._resolveHref(parsed, pages) as typeof parsed
+    parsed = this._resolveHref(parsed, pages, false) as typeof parsed
 
     if (parsed.pathname !== pathname) {
       pathname = parsed.pathname
