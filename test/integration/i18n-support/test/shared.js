@@ -38,6 +38,31 @@ export function runTests(ctx) {
         '`redirect` and `notFound` can not both be returned from getStaticProps at the same time. Page: /gsp/fallback/[slug]'
       )
     })
+  } else {
+    it('should preload all locales data correctly', async () => {
+      const browser = await webdriver(ctx.appPort, `${ctx.basePath}/mixed`)
+
+      await browser.eval(`(function() {
+        document.querySelector('#to-gsp-en-us').scrollIntoView()
+        document.querySelector('#to-gsp-nl-nl').scrollIntoView()
+        document.querySelector('#to-gsp-fr').scrollIntoView()
+      })()`)
+
+      await check(async () => {
+        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
+        hrefs.sort()
+
+        assert.deepEqual(
+          hrefs.map((href) =>
+            new URL(href).pathname
+              .replace(ctx.basePath, '')
+              .replace(/^\/_next\/data\/[^/]+/, '')
+          ),
+          ['/en-US/gsp.json', '/fr/gsp.json', '/nl-NL/gsp.json']
+        )
+        return 'yes'
+      }, 'yes')
+    })
   }
 
   it('should have correct values for non-prefixed path', async () => {

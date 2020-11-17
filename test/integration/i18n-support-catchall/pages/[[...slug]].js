@@ -15,6 +15,16 @@ export default function Page(props) {
       <p id="router-pathname">{router.pathname}</p>
       <p id="router-as-path">{router.asPath}</p>
 
+      <Link href="/" locale="en-US">
+        <a id="to-def-locale-index">to /</a>
+      </Link>
+      <br />
+
+      <Link href="/another" locale="en-US">
+        <a id="to-def-locale-another">to /another</a>
+      </Link>
+      <br />
+
       <Link href="/" locale="nl-NL">
         <a id="to-locale-index">to /nl-nl</a>
       </Link>
@@ -22,6 +32,16 @@ export default function Page(props) {
 
       <Link href="/another" locale="nl-NL">
         <a id="to-locale-another">to /nl-nl/another</a>
+      </Link>
+      <br />
+
+      <Link href="/" locale="fr">
+        <a id="to-fr-locale-index">to /fr</a>
+      </Link>
+      <br />
+
+      <Link href="/another" locale="fr">
+        <a id="to-fr-locale-another">to /fr/another</a>
       </Link>
       <br />
     </>
