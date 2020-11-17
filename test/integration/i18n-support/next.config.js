@@ -1,6 +1,7 @@
 module.exports = {
   // target: 'experimental-serverless-trace',
   // basePath: '/docs',
+  // trailingSlash: true,
   i18n: {
     // localeDetection: false,
     locales: ['nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en-US', 'en'],

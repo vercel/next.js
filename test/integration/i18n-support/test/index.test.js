@@ -1,8 +1,10 @@
+import url from 'url'
 import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { runTests, locales } from './shared'
+import webdriver from 'next-webdriver'
 import {
   nextBuild,
   nextStart,
@@ -272,6 +274,115 @@ describe('i18n Support', () => {
         expect(JSON.parse($('#router-locales').text())).toEqual(locales)
         expect($('#router-pathname').text()).toBe('/')
         expect($('#router-as-path').text()).toBe('/')
+      }
+    })
+  })
+
+  describe('with trailingSlash: true', () => {
+    const curCtx = {
+      ...ctx,
+      isDev: true,
+    }
+    beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
+      nextConfig.replace('// trailingSlash', 'trailingSlash')
+
+      curCtx.appPort = await findPort()
+      curCtx.app = await launchApp(appDir, curCtx.appPort)
+    })
+    afterAll(async () => {
+      nextConfig.restore()
+      await killApp(curCtx.app)
+    })
+
+    it('should redirect correctly', async () => {
+      for (const locale of locales) {
+        const res = await fetchViaHTTP(curCtx.appPort, '/', undefined, {
+          redirect: 'manual',
+          headers: {
+            'accept-language': locale,
+          },
+        })
+
+        if (locale === 'en-US') {
+          expect(res.status).toBe(200)
+        } else {
+          expect(res.status).toBe(307)
+
+          const parsed = url.parse(res.headers.get('location'), true)
+          expect(parsed.pathname).toBe(`/${locale}`)
+          expect(parsed.query).toEqual({})
+        }
+      }
+    })
+
+    it('should serve pages correctly with locale prefix', async () => {
+      for (const locale of locales) {
+        const res = await fetchViaHTTP(
+          curCtx.appPort,
+          `/${locale}/`,
+          undefined,
+          {
+            redirect: 'manual',
+          }
+        )
+        expect(res.status).toBe(200)
+
+        const $ = cheerio.load(await res.text())
+
+        expect($('#router-pathname').text()).toBe('/')
+        expect($('#router-as-path').text()).toBe('/')
+        expect($('#router-locale').text()).toBe(locale)
+        expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+        expect($('#router-default-locale').text()).toBe('en-US')
+      }
+    })
+
+    it('should navigate between pages correctly', async () => {
+      for (const locale of locales) {
+        const localePath = `/${locale !== 'en-US' ? `${locale}/` : ''}`
+        const browser = await webdriver(curCtx.appPort, localePath)
+
+        await browser.eval('window.beforeNav = 1')
+        await browser.elementByCss('#to-gsp').click()
+        await browser.waitForElementByCss('#gsp')
+
+        expect(await browser.elementByCss('#router-pathname').text()).toBe(
+          '/gsp'
+        )
+        expect(await browser.elementByCss('#router-as-path').text()).toBe(
+          '/gsp/'
+        )
+        expect(await browser.elementByCss('#router-locale').text()).toBe(locale)
+        expect(await browser.eval('window.beforeNav')).toBe(1)
+        expect(await browser.eval('window.location.pathname')).toBe(
+          `${localePath}gsp/`
+        )
+
+        await browser.back().waitForElementByCss('#index')
+
+        expect(await browser.elementByCss('#router-pathname').text()).toBe('/')
+        expect(await browser.elementByCss('#router-as-path').text()).toBe('/')
+        expect(await browser.elementByCss('#router-locale').text()).toBe(locale)
+        expect(await browser.eval('window.beforeNav')).toBe(1)
+        expect(await browser.eval('window.location.pathname')).toBe(
+          `${localePath}`
+        )
+
+        await browser.elementByCss('#to-gssp-slug').click()
+        await browser.waitForElementByCss('#gssp')
+
+        expect(await browser.elementByCss('#router-pathname').text()).toBe(
+          '/gssp/[slug]'
+        )
+        expect(await browser.elementByCss('#router-as-path').text()).toBe(
+          '/gssp/first/'
+        )
+        expect(await browser.elementByCss('#router-locale').text()).toBe(locale)
+        expect(await browser.eval('window.beforeNav')).toBe(1)
+        expect(await browser.eval('window.location.pathname')).toBe(
+          `${localePath}gssp/first/`
+        )
       }
     })
   })

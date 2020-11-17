@@ -194,6 +194,13 @@ export default class Router {
           currentPathname === '/' ? '' : currentPathname
         }`
 
+        if (
+          (req as any).__nextHadTrailingSlash &&
+          !currentPathname.endsWith('/')
+        ) {
+          currentPathname += '/'
+        }
+
         if (keepBasePath) {
           currentPathname = `${this.basePath}${currentPathname}`
         }
