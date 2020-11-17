@@ -12,13 +12,16 @@
   "author": "Thomas Greco",
   "license": "MIT",
   "dependencies": {
-    "@emotion/cache": "11.0.0-next.12",
-    "@emotion/css": "11.0.0-next.12",
-    "@emotion/react": "11.0.0-next.12",
-    "@emotion/server": "11.0.0-next.12",
-    "@emotion/styled": "11.0.0-next.12",
+    "@emotion/cache": "^11.0.0",
+    "@emotion/css": "^11.0.0",
+    "@emotion/react": "^11.1.1",
+    "@emotion/server": "^11.0.0",
+    "@emotion/styled": "^11.0.0",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^16.14.0",
+    "react-dom": "^16.14.0"
+  },
+  "devDependencies": {
+    "@emotion/babel-preset-css-prop": "^11.0.0"
   }
 }
