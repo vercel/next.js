@@ -143,10 +143,20 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         continue
       }
       const fontContent = options.getFontDefinition(url)
-      result = result.replace(
-        '</head>',
-        `<style data-href="${url}">${fontContent}</style></head>`
-      )
+      if (!fontContent) {
+        /**
+         * In case of unreachable font definitions, fallback to default link tag.
+         */
+        result = result.replace(
+          '</head>',
+          `<link rel="stylesheet" href="${url}"/></head>`
+        )
+      } else {
+        result = result.replace(
+          '</head>',
+          `<style data-href="${url}">${fontContent}</style></head>`
+        )
+      }
     }
     return result
   }
