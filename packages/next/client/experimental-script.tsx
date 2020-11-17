@@ -2,7 +2,8 @@ import React, { useEffect, useContext } from 'react'
 import { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
 
-const ScriptCache = new Set()
+const ScriptCache = new Map()
+const LoadCache = new Set()
 
 const DOMAttributeNames: Record<string, string> = {
   acceptCharset: 'accept-charset',
@@ -20,13 +21,8 @@ interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
   preload?: boolean
 }
 
-const onErrorHandler: Function = (
-  cacheKey: string,
-  onError: Function
-) => () => {
-  if (cacheKey) {
-    ScriptCache.delete(cacheKey)
-  }
+const onErrorHandler: Function = (src: string, onError: Function) => () => {
+  ScriptCache.delete(src)
 
   if (onError) {
     onError()
@@ -43,17 +39,33 @@ const loadScript = (props: Props) => {
     onError,
   } = props
 
-  if (ScriptCache.has(key || src)) {
-    // Execute onLoad since the script has already loaded
-    return onLoad()
+  const cacheKey = key || src
+  if (ScriptCache.has(src)) {
+    if (!LoadCache.has(cacheKey)) {
+      // Execute onLoad since the script loading has begun
+      ScriptCache.get(src).then(() => {
+        LoadCache.add(cacheKey)
+        onLoad()
+      })
+    }
+    return
   }
 
   const el = document.createElement('script')
-  const cacheKey = key || src
 
-  if (cacheKey) {
-    ScriptCache.add(cacheKey)
-  }
+  const loadPromise = new Promise((resolve, reject) => {
+    el.addEventListener('load', function () {
+      resolve()
+      if (onLoad) {
+        LoadCache.add(cacheKey)
+        onLoad.call(this)
+      }
+    })
+    el.addEventListener('error', function () {
+      reject()
+      onErrorHandler(src, onError)
+    })
+  })
 
   if (dangerouslySetInnerHTML) {
     el.innerHTML = dangerouslySetInnerHTML.__html || ''
@@ -63,8 +75,9 @@ const loadScript = (props: Props) => {
     el.src = src
   }
 
-  el.onload = onLoad
-  el.onerror = onErrorHandler(cacheKey, onError)
+  if (cacheKey) {
+    ScriptCache.set(src, loadPromise)
+  }
 
   for (const [k, value] of Object.entries(props)) {
     if (value === undefined) {

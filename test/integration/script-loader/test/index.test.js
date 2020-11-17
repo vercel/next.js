@@ -132,4 +132,18 @@ describe('Script Loader', () => {
     // Script is inserted in place
     expect($('.container #script').length).toBeGreaterThan(0)
   })
+
+  it('onloads fire correctly', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/page4')
+      await waitFor(3000)
+
+      const text = await browser.elementById('text').text()
+
+      expect(text).toBe('aaabbbccc')
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
 })
