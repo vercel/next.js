@@ -9,22 +9,28 @@ export type Rewrite = {
   source: string
   destination: string
   basePath?: false
-}
-
-export type Redirect = Rewrite & {
-  statusCode?: number
-  permanent?: boolean
+  locale?: false
 }
 
 export type Header = {
   source: string
   basePath?: false
+  locale?: false
   headers: Array<{ key: string; value: string }>
 }
 
-const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
+// internal type used for validation (not user facing)
+export type Redirect = Rewrite & {
+  statusCode?: number
+  permanent?: boolean
+}
 
-export function getRedirectStatus(route: Redirect): number {
+export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
+
+export function getRedirectStatus(route: {
+  statusCode?: number
+  permanent?: boolean
+}): number {
   return (
     route.statusCode ||
     (route.permanent ? PERMANENT_REDIRECT_STATUS : TEMPORARY_REDIRECT_STATUS)
@@ -151,10 +157,11 @@ function checkCustomRoutes(
       'source',
       'destination',
       'basePath',
+      'locale',
       ...(isRedirect ? ['statusCode', 'permanent'] : []),
     ])
   } else {
-    allowedKeys = new Set(['source', 'headers', 'basePath'])
+    allowedKeys = new Set(['source', 'headers', 'basePath', 'locale'])
   }
 
   for (const route of routes) {
@@ -193,6 +200,10 @@ function checkCustomRoutes(
 
     if (typeof route.basePath !== 'undefined' && route.basePath !== false) {
       invalidParts.push('`basePath` must be undefined or false')
+    }
+
+    if (typeof route.locale !== 'undefined' && route.locale !== false) {
+      invalidParts.push('`locale` must be undefined or true')
     }
 
     if (!route.source) {
@@ -380,11 +391,13 @@ export default async function loadCustomRoutes(
         source: '/:file((?:[^/]+/)*[^/]+\\.\\w+)/',
         destination: '/:file',
         permanent: true,
+        locale: config.i18n ? false : undefined,
       },
       {
         source: '/:notfile((?:[^/]+/)*[^/\\.]+)',
         destination: '/:notfile/',
         permanent: true,
+        locale: config.i18n ? false : undefined,
       }
     )
     if (config.basePath) {
@@ -393,6 +406,7 @@ export default async function loadCustomRoutes(
         destination: config.basePath + '/',
         permanent: true,
         basePath: false,
+        locale: config.i18n ? false : undefined,
       })
     }
   } else {
@@ -400,6 +414,7 @@ export default async function loadCustomRoutes(
       source: '/:path+/',
       destination: '/:path+',
       permanent: true,
+      locale: config.i18n ? false : undefined,
     })
     if (config.basePath) {
       redirects.unshift({
@@ -407,6 +422,7 @@ export default async function loadCustomRoutes(
         destination: config.basePath,
         permanent: true,
         basePath: false,
+        locale: config.i18n ? false : undefined,
       })
     }
   }

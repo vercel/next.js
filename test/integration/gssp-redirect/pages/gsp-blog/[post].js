@@ -3,6 +3,13 @@ import { useRouter } from 'next/router'
 export default function Post(props) {
   const router = useRouter()
 
+  if (typeof window === 'undefined') {
+    if (router.query.post?.startsWith('redir')) {
+      console.log(router)
+      throw new Error('render should not occur for redirect')
+    }
+  }
+
   if (typeof window !== 'undefined' && !window.initialHref) {
     window.initialHref = window.location.href
   }
@@ -25,10 +32,27 @@ export const getStaticProps = ({ params }) => {
       destination = params.post.split('dest-').pop().replace(/_/g, '/')
     }
 
+    let permanent = undefined
+    let statusCode = undefined
+
+    if (params.post.includes('statusCode-')) {
+      permanent = parseInt(
+        params.post.split('statusCode-').pop().split('-').shift(),
+        10
+      )
+    }
+
+    if (params.post.includes('permanent')) {
+      permanent = true
+    } else if (!statusCode) {
+      permanent = false
+    }
+
     return {
       redirect: {
         destination,
-        permanent: params.post.includes('permanent'),
+        permanent,
+        statusCode,
       },
     }
   }
