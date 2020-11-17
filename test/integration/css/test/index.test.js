@@ -163,7 +163,7 @@ describe('CSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `"@media (min-width:480px) and (max-width:767px){::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::-ms-input-placeholder{color:green}::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:80%}"`
+        `"@media (min-width:480px) and (max-width:767px){::-moz-placeholder{color:green}:-ms-input-placeholder{color:green}::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:80%}"`
       )
 
       // Contains a source map
@@ -184,7 +184,7 @@ describe('CSS Support', () => {
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
         Object {
-          "mappings": "AAAA,+CACE,mBACE,WACF,CAFA,uBACE,WACF,CAFA,wBACE,WACF,CAFA,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,WACF",
+          "mappings": "AAAA,+CACE,mBACE,WACF,CAFA,uBACE,WACF,CAFA,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,WACF",
           "sourcesContent": Array [
             "@media (480px <= width < 768px) {
           ::placeholder {
@@ -242,6 +242,82 @@ describe('CSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(`".blue-text{color:#00f}.red-text{color:red}"`)
+    })
+  })
+
+  describe('React Lifecyce Order (dev)', () => {
+    const appDir = join(fixturesDir, 'transition-react')
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have the correct color on mount after navigation', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+
+        // Navigate to other:
+        await browser.waitForElementByCss('#link-other').click()
+        const text = await browser.waitForElementByCss('#red-title').text()
+        expect(text).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
+  describe('React Lifecyce Order (production)', () => {
+    const appDir = join(fixturesDir, 'transition-react')
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    let appPort
+    let app
+    let code
+    let stdout
+    beforeAll(async () => {
+      ;({ code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      }))
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+
+    it('should have compiled successfully', () => {
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
+
+    it('should have the correct color on mount after navigation', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/')
+
+        // Navigate to other:
+        await browser.waitForElementByCss('#link-other').click()
+        const text = await browser.waitForElementByCss('#red-title').text()
+        expect(text).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
     })
   })
 
@@ -1081,6 +1157,160 @@ describe('CSS Support', () => {
     })
   })
 
+  // https://github.com/vercel/next.js/issues/18557
+  describe('CSS page transition inject <style> with nonce so it works with CSP header', () => {
+    const appDir = join(fixturesDir, 'csp-style-src-nonce')
+    let app, appPort
+
+    function tests() {
+      async function checkGreenTitle(browser) {
+        await browser.waitForElementByCss('#green-title')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#green-title')).color`
+        )
+        expect(titleColor).toBe('rgb(0, 128, 0)')
+      }
+      async function checkBlueTitle(browser) {
+        await browser.waitForElementByCss('#blue-title')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#blue-title')).color`
+        )
+        expect(titleColor).toBe('rgb(0, 0, 255)')
+      }
+
+      it('should have correct color on index page (on load)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkGreenTitle(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct color on index page (on hover)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkGreenTitle(browser)
+          await browser.waitForElementByCss('#link-other').moveTo()
+          await waitFor(2000)
+          await checkGreenTitle(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should not change color on hover', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkGreenTitle(browser)
+          await browser.waitForElementByCss('#link-other').moveTo()
+          await waitFor(2000)
+          await checkGreenTitle(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct CSS injection order', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkGreenTitle(browser)
+
+          const prevSiblingHref = await browser.eval(
+            `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
+          )
+          const currentPageHref = await browser.eval(
+            `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
+          )
+          expect(prevSiblingHref).toBeDefined()
+          expect(prevSiblingHref).toBe(currentPageHref)
+
+          // Navigate to other:
+          await browser.waitForElementByCss('#link-other').click()
+          await checkBlueTitle(browser)
+
+          const newPrevSibling = await browser.eval(
+            `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+          )
+          const newPageHref = await browser.eval(
+            `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+          )
+          expect(newPrevSibling).toBe('VmVyY2Vs')
+          expect(newPageHref).toBeDefined()
+          expect(newPageHref).not.toBe(currentPageHref)
+
+          // Navigate to home:
+          await browser.waitForElementByCss('#link-index').click()
+          await checkGreenTitle(browser)
+
+          const newPrevSibling2 = await browser.eval(
+            `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+          )
+          const newPageHref2 = await browser.eval(
+            `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+          )
+          expect(newPrevSibling2).toBeTruthy()
+          expect(newPageHref2).toBeDefined()
+          expect(newPageHref2).toBe(currentPageHref)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct color on index page (on nav from index)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkGreenTitle(browser)
+          await browser.waitForElementByCss('#link-other').click()
+
+          // Wait for navigation:
+          await browser.waitForElementByCss('#link-index')
+          await checkBlueTitle(browser)
+
+          // Navigate back to index:
+          await browser.waitForElementByCss('#link-index').click()
+          await checkGreenTitle(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct color on index page (on nav from other)', async () => {
+        const browser = await webdriver(appPort, '/other')
+        try {
+          await checkBlueTitle(browser)
+          await browser.waitForElementByCss('#link-index').click()
+
+          // Wait for navigation:
+          await browser.waitForElementByCss('#link-other')
+          await checkGreenTitle(browser)
+
+          // Navigate back to other:
+          await browser.waitForElementByCss('#link-other').click()
+          await checkBlueTitle(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+    }
+
+    describe('Production Mode', () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+      beforeAll(async () => {
+        await nextBuild(appDir, [], {})
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+
+      tests()
+    })
+  })
+
   // https://github.com/vercel/next.js/issues/12445
   describe('CSS Modules Composes Ordering', () => {
     const appDir = join(fixturesDir, 'composes-ordering')
@@ -1160,7 +1390,7 @@ describe('CSS Support', () => {
             const newPageHref = await browser.eval(
               `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
             )
-            expect(newPrevSibling).toBeTruthy()
+            expect(newPrevSibling).toBe('')
             expect(newPageHref).toBeDefined()
             expect(newPageHref).not.toBe(currentPageHref)
 
@@ -1174,7 +1404,7 @@ describe('CSS Support', () => {
             const newPageHref2 = await browser.eval(
               `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
             )
-            expect(newPrevSibling2).toBeTruthy()
+            expect(newPrevSibling2).toBe('')
             expect(newPageHref2).toBeDefined()
             expect(newPageHref2).toBe(currentPageHref)
           } finally {

@@ -72,41 +72,26 @@ const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)
 allSizes.sort((a, b) => a - b)
 
-function getSizes(
+function getWidths(
   width: number | undefined,
   layout: LayoutValue
-): { sizes: number[]; kind: 'w' | 'x' } {
+): { widths: number[]; kind: 'w' | 'x' } {
   if (
     typeof width !== 'number' ||
     layout === 'fill' ||
     layout === 'responsive'
   ) {
-    return { sizes: configDeviceSizes, kind: 'w' }
+    return { widths: configDeviceSizes, kind: 'w' }
   }
 
-  const sizes = [
+  const widths = [
     ...new Set(
       [width, width * 2, width * 3].map(
         (w) => allSizes.find((p) => p >= w) || allSizes[allSizes.length - 1]
       )
     ),
   ]
-  return { sizes, kind: 'x' }
-}
-
-function computeSrc(
-  src: string,
-  unoptimized: boolean,
-  layout: LayoutValue,
-  width?: number,
-  quality?: number
-): string {
-  if (unoptimized) {
-    return src
-  }
-  const { sizes } = getSizes(width, layout)
-  const largest = sizes[sizes.length - 1]
-  return callLoader({ src, width: largest, quality })
+  return { widths, kind: 'x' }
 }
 
 type CallLoaderProps = {
@@ -127,36 +112,53 @@ function callLoader(loaderProps: CallLoaderProps) {
   )
 }
 
-type SrcSetData = {
+type GenImgAttrsData = {
   src: string
   unoptimized: boolean
   layout: LayoutValue
   width?: number
   quality?: number
+  sizes?: string
 }
 
-function generateSrcSet({
+type GenImgAttrsResult = Pick<
+  JSX.IntrinsicElements['img'],
+  'src' | 'sizes' | 'srcSet'
+>
+
+function generateImgAttrs({
   src,
   unoptimized,
   layout,
   width,
   quality,
-}: SrcSetData): string | undefined {
-  // At each breakpoint, generate an image url using the loader, such as:
-  // ' www.example.com/foo.jpg?w=480 480w, '
+  sizes,
+}: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
-    return undefined
+    return { src }
   }
 
-  const { sizes, kind } = getSizes(width, layout)
-  return sizes
+  const { widths, kind } = getWidths(width, layout)
+  const last = widths.length - 1
+
+  const srcSet = widths
     .map(
-      (size, i) =>
-        `${callLoader({ src, width: size, quality })} ${
-          kind === 'w' ? size : i + 1
+      (w, i) =>
+        `${callLoader({ src, quality, width: w })} ${
+          kind === 'w' ? w : i + 1
         }${kind}`
     )
     .join(', ')
+
+  if (!sizes && kind === 'w') {
+    sizes = widths
+      .map((w, i) => (i === last ? `${w}px` : `(max-width: ${w}px) ${w}px`))
+      .join(', ')
+  }
+
+  src = callLoader({ src, quality, width: widths[last] })
+
+  return { src, sizes, srcSet }
 }
 
 function getInt(x: unknown): number | undefined {
@@ -352,24 +354,20 @@ export default function Image({
     }
   }
 
-  // Generate attribute values
-  const imgSrc = computeSrc(src, unoptimized, layout, widthInt, qualityInt)
-  const imgSrcSet = generateSrcSet({
-    src,
-    unoptimized,
-    layout,
-    width: widthInt,
-    quality: qualityInt,
-  })
-
-  const imgAttributes: Pick<JSX.IntrinsicElements['img'], 'src' | 'srcSet'> = {
+  let imgAttributes: GenImgAttrsResult = {
     src:
       'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
   }
 
   if (isVisible) {
-    imgAttributes.src = imgSrc
-    imgAttributes.srcSet = imgSrcSet
+    imgAttributes = generateImgAttrs({
+      src,
+      unoptimized,
+      layout,
+      width: widthInt,
+      quality: qualityInt,
+      sizes,
+    })
   }
 
   if (unsized) {
@@ -397,7 +395,6 @@ export default function Image({
         {...imgAttributes}
         decoding="async"
         className={className}
-        sizes={sizes}
         ref={setRef}
         style={imgStyle}
       />

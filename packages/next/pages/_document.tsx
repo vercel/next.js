@@ -519,7 +519,9 @@ export class Head extends Component<
               />
             )}
             {!process.env.__NEXT_OPTIMIZE_CSS && this.getCssLinks(files)}
-            {!process.env.__NEXT_OPTIMIZE_CSS && <noscript data-n-css />}
+            {!process.env.__NEXT_OPTIMIZE_CSS && (
+              <noscript data-n-css={this.props.nonce ?? ''} />
+            )}
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks(files)}
             {process.env.__NEXT_OPTIMIZE_CSS && this.getCssLinks(files)}
