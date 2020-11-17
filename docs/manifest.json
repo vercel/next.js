@@ -199,6 +199,10 @@
           "title": "Migrating to Next.js",
           "routes": [
             {
+              "title": "Incrementally Adopting Next.js",
+              "path": "/docs/migrating/incremental-adoption.md"
+            },
+            {
               "title": "Migrating from Gatsby",
               "path": "/docs/migrating/from-gatsby.md"
             }
