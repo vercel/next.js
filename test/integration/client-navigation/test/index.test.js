@@ -39,6 +39,7 @@ describe('Client Navigation', () => {
       '/fragment-syntax',
       '/custom-extension',
       '/styled-jsx',
+      '/styled-jsx-external',
       '/with-cdm',
       '/url-prop',
       '/url-prop-override',
