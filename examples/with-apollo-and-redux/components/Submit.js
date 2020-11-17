@@ -36,7 +36,7 @@ const Submit = () => {
           query: ALL_POSTS_QUERY,
           data: {
             ...data,
-            Posts: [insert_Posts_one, ...data.Posts],
+            Posts: [insert_Posts_one],
           },
           variables: allPostsQueryVars,
         })

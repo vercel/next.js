@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { ApolloClient, HttpLink, InMemoryCache } from '@apollo/client'
 import { concatPagination } from '@apollo/client/utilities'
 import merge from 'deepmerge'
+import isEqual from 'lodash/isEqual'
 
 let apolloClient
 
@@ -16,7 +17,7 @@ function createApolloClient() {
       typePolicies: {
         Query: {
           fields: {
-            allPosts: concatPagination(),
+            Posts: concatPagination(),
           },
         },
       },
@@ -34,7 +35,15 @@ export function initializeApollo(initialState = null) {
     const existingCache = _apolloClient.extract()
 
     // Merge the existing cache into data passed from getStaticProps/getServerSideProps
-    const data = merge(initialState, existingCache)
+    const data = merge(initialState, existingCache, {
+      // treat arrays as sets
+      arrayMerge: (destinationArray, sourceArray) => [
+        ...sourceArray,
+        ...destinationArray.filter((d) =>
+          sourceArray.every((s) => !isEqual(d, s))
+        ),
+      ],
+    })
 
     // Restore the cache with the merged data
     _apolloClient.cache.restore(data)

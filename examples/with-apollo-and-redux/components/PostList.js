@@ -20,7 +20,7 @@ export const ALL_POSTS_QUERY = gql`
 `
 export const allPostsQueryVars = {
   skip: 0,
-  first: 10,
+  first: 3,
 }
 
 export default function PostList() {
@@ -49,7 +49,7 @@ export default function PostList() {
   if (loading && !loadingMorePosts) return <div>Loading</div>
 
   const { Posts, Posts_aggregate } = data
-  const areMorePosts = Posts.length < Posts_aggregate.count
+  const areMorePosts = Posts.length < Posts_aggregate.aggregate.count
 
   return (
     <section>
