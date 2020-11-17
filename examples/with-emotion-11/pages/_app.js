@@ -1,4 +1,3 @@
-// import App from 'next/app'
 import { CacheProvider } from '@emotion/react'
 import { cache } from '@emotion/css'
 import { globalStyles } from '../shared/styles'
@@ -18,10 +17,10 @@ function MyApp({ Component, pageProps }) {
 // perform automatic static optimization, causing every page in your app to
 // be server-side rendered.
 //
-// MyApp.getInitialProps = async appContext => {
+// MyApp.getInitialProps = async (appContext) => {
 //   // calls page's `getInitialProps` and fills `appProps.pageProps`
-//   const appProps = await App.getInitialProps(appContext)
-
+//   const appProps = await App.getInitialProps(appContext);
+//
 //   return { ...appProps }
 // }
 
