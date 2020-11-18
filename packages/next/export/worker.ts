@@ -283,7 +283,6 @@ export default async function exportPage({
         html = components.Component
         queryWithAutoExportWarn()
       } else {
-        process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
         /**
          * This sets environment variable to be used at the time of static export by head.tsx.
          * Using this from process.env allows targetting both serverless and SSR by calling
