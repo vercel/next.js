@@ -1041,7 +1041,6 @@ export async function renderToHTML(
       getFontDefinition,
     },
     {
-      optimizeFonts: renderOpts.optimizeFonts,
       optimizeImages: renderOpts.optimizeImages,
     }
   )
