@@ -1055,7 +1055,7 @@ const nextConfig = join(appDir, 'next.config.js')
 describe('Dynamic Routing', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
-      await fs.remove(nextConfig, 'utf8')
+      await fs.remove(nextConfig)
 
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -1068,7 +1068,7 @@ describe('Dynamic Routing', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
-      await fs.remove(nextConfig, 'utf8')
+      await fs.remove(nextConfig)
 
       await nextBuild(appDir)
       buildId = await fs.readFile(buildIdPath, 'utf8')
