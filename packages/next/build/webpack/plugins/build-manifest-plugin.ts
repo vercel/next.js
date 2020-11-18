@@ -28,7 +28,6 @@ export type ClientBuildManifest = Record<string, string[]>
 // reduced version to send to the client.
 function generateClientManifest(
   assetMap: BuildManifest,
-  isModern: boolean,
   rewrites: Rewrite[]
 ): string {
   const clientManifest: ClientBuildManifest = {
@@ -44,11 +43,7 @@ function generateClientManifest(
     if (page === '/_app') return
     // Filter out dependencies in the _app entry, because those will have already
     // been loaded by the client prior to a navigation event
-    const filteredDeps = dependencies.filter(
-      (dep) =>
-        !appDependencies.has(dep) &&
-        (!dep.endsWith('.js') || dep.endsWith('.module.js') === isModern)
-    )
+    const filteredDeps = dependencies.filter((dep) => !appDependencies.has(dep))
 
     // The manifest can omit the page if it has no requirements
     if (filteredDeps.length) {
@@ -82,16 +77,11 @@ function getFilesArray(files: any) {
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
   private buildId: string
-  private modern: boolean
   private rewrites: Rewrite[]
 
-  constructor(options: {
-    buildId: string
-    modern: boolean
-    rewrites: Rewrite[]
-  }) {
+  constructor(options: { buildId: string; rewrites: Rewrite[] }) {
     this.buildId = options.buildId
-    this.modern = options.modern
+
     this.rewrites = options.rewrites.map((r) => {
       const rewrite = { ...r }
 
@@ -185,11 +175,6 @@ export default class BuildManifestPlugin {
     assetMap.lowPriorityFiles.push(
       `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
     )
-    if (this.modern) {
-      assetMap.lowPriorityFiles.push(
-        `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
-      )
-    }
 
     // Add the runtime ssg manifest file as a lazy-loaded file dependency.
     // We also stub this file out for development mode (when it is not
@@ -199,12 +184,6 @@ export default class BuildManifestPlugin {
     const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
     assetMap.lowPriorityFiles.push(ssgManifestPath)
     assets[ssgManifestPath] = new RawSource(srcEmptySsgManifest)
-
-    if (this.modern) {
-      const ssgManifestPathModern = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.module.js`
-      assetMap.lowPriorityFiles.push(ssgManifestPathModern)
-      assets[ssgManifestPathModern] = new RawSource(srcEmptySsgManifest)
-    }
 
     assetMap.pages = Object.keys(assetMap.pages)
       .sort()
@@ -218,22 +197,9 @@ export default class BuildManifestPlugin {
     assets[clientManifestPath] = new RawSource(
       `self.__BUILD_MANIFEST = ${generateClientManifest(
         assetMap,
-        false,
         this.rewrites
       )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
     )
-
-    if (this.modern) {
-      const modernClientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
-
-      assets[modernClientManifestPath] = new RawSource(
-        `self.__BUILD_MANIFEST = ${generateClientManifest(
-          assetMap,
-          true,
-          this.rewrites
-        )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
-      )
-    }
 
     return assets
   }

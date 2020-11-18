@@ -2,7 +2,7 @@
 
 import { validateAMP } from 'amp-test-utils'
 import cheerio from 'cheerio'
-import { readFile, readFileSync, writeFile, writeFileSync } from 'fs-extra'
+import { readFileSync, writeFileSync } from 'fs-extra'
 import {
   check,
   findPort,
@@ -232,58 +232,6 @@ describe('AMP Usage', () => {
         expect(styles).not.toMatch(/\/\*@ sourceURL=.*?\*\//)
         expect(styles).not.toMatch(/\/\*# sourceMappingURL=.*\*\//)
       })
-    })
-  })
-
-  describe('production mode modern', () => {
-    let origNextConfig = ''
-    const nextConfigPath = join(appDir, 'next.config.js')
-
-    beforeAll(async () => {
-      origNextConfig = await readFile(nextConfigPath, 'utf8')
-
-      await writeFile(
-        nextConfigPath,
-        origNextConfig.replace(
-          '// edit here',
-          `
-          experimental: {
-            modern: true
-          }
-        `
-        )
-      )
-      await nextBuild(appDir)
-      app = nextServer({
-        dir: join(__dirname, '../'),
-        dev: false,
-        quiet: true,
-      })
-
-      server = await startApp(app)
-      context.appPort = appPort = server.address().port
-    })
-    afterAll(async () => {
-      await stopApp(server)
-      await writeFile(nextConfigPath, origNextConfig)
-    })
-
-    it('should not output client pages for AMP only', async () => {
-      const browser = await webdriver(appPort, '/nav')
-      await browser.elementByCss('#only-amp-link').click()
-
-      const result = await browser.eval('window.NAV_PAGE_LOADED')
-
-      expect(result).toBe(null)
-    })
-
-    it('should not output client pages for AMP only with config exported after declaration', async () => {
-      const browser = await webdriver(appPort, '/nav')
-      await browser.elementByCss('#var-before-export-link').click()
-
-      const result = await browser.eval('window.NAV_PAGE_LOADED')
-
-      expect(result).toBe(null)
     })
   })
 

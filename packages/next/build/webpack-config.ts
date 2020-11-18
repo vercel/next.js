@@ -62,12 +62,6 @@ type ExcludesFalse = <T>(x: T | false) => x is T
 
 const isWebpack5 = parseInt(webpack.version!) === 5
 
-const escapePathVariables = (value: any) => {
-  return typeof value === 'string'
-    ? value.replace(/\[(\\*[\w:]+\\*)\]/gi, '[\\$1\\]')
-    : value
-}
-
 const devtoolRevertWarning = execOnce((devtool: Configuration['devtool']) => {
   console.warn(
     chalk.yellow.bold('Warning: ') +
@@ -249,7 +243,6 @@ export default async function getBaseWebpackConfig(
         // Webpack 5 has a built-in loader cache
         cache: !isWebpack5,
         babelPresetPlugins,
-        hasModern: !!config.experimental.modern,
         development: dev,
         hasReactRefresh,
         hasJsxRuntime,
@@ -536,10 +529,7 @@ export default async function getBaseWebpackConfig(
     splitChunksConfig = splitChunksConfigs.prodGranular
   }
 
-  const crossOrigin =
-    !config.crossOrigin && config.experimental.modern
-      ? 'anonymous'
-      : config.crossOrigin
+  const crossOrigin = config.crossOrigin
 
   let customAppFile: string | null = await findPageFile(
     pagesDir,
@@ -888,9 +878,7 @@ export default async function getBaseWebpackConfig(
                   options: {
                     cacheContext: dir,
                     cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
-                    cacheIdentifier: `webpack${isServer ? '-server' : ''}${
-                      config.experimental.modern ? '-hasmodern' : ''
-                    }`,
+                    cacheIdentifier: `webpack${isServer ? '-server' : ''}`,
                   },
                 },
                 {
@@ -962,9 +950,6 @@ export default async function getBaseWebpackConfig(
           : {}),
         'process.env.__NEXT_TRAILING_SLASH': JSON.stringify(
           config.trailingSlash
-        ),
-        'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
-          config.experimental.modern && !dev
         ),
         'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
           config.devIndicators.buildActivity
@@ -1077,35 +1062,11 @@ export default async function getBaseWebpackConfig(
         new BuildManifestPlugin({
           buildId,
           rewrites,
-          modern: config.experimental.modern,
         }),
       tracer &&
         new ProfilingPlugin({
           tracer,
         }),
-      !isWebpack5 &&
-        config.experimental.modern &&
-        !isServer &&
-        !dev &&
-        (() => {
-          const { NextEsmPlugin } = require('./webpack/plugins/next-esm-plugin')
-          return new NextEsmPlugin({
-            filename: (getFileName: Function | string) => (...args: any[]) => {
-              const name =
-                typeof getFileName === 'function'
-                  ? getFileName(...args)
-                  : getFileName
-
-              return name.includes('.js')
-                ? name.replace(/\.js$/, '.module.js')
-                : escapePathVariables(
-                    args[0].chunk.name.replace(/\.js$/, '.module.js')
-                  )
-            },
-            chunkFilename: (inputChunkName: string) =>
-              inputChunkName.replace(/\.js$/, '.module.js'),
-          })
-        })(),
       config.experimental.optimizeFonts &&
         !dev &&
         isServer &&
@@ -1191,7 +1152,6 @@ export default async function getBaseWebpackConfig(
       crossOrigin: config.crossOrigin,
       pageExtensions: config.pageExtensions,
       trailingSlash: config.trailingSlash,
-      modern: config.experimental.modern,
       buildActivity: config.devIndicators.buildActivity,
       plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
