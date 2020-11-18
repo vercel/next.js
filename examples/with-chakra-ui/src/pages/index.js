@@ -15,7 +15,7 @@ import { CTA } from '../components/CTA'
 import { Footer } from '../components/Footer'
 
 const Index = () => (
-  <Container>
+  <Container height="100vh">
     <Hero />
     <Main>
       <Text>
