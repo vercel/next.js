@@ -99,8 +99,29 @@ type CallLoaderProps = {
   width: number
   quality?: number
 }
+type URLResolver = (resolverProps: CallLoaderProps) => string
+
+let customResolver: URLResolver
+export function registerCustomResolver(resolver: URLResolver): void {
+  if (process.env.NODE_ENV !== 'production' && configLoader !== 'custom') {
+    throw new Error(
+      `registerCustomResolver can only be used if image loader is set to 'custom' in next.config.js`
+    )
+  }
+  customResolver = resolver
+}
 
 function callLoader(loaderProps: CallLoaderProps) {
+  if (configLoader === 'custom') {
+    if (process.env.NODE_ENV !== 'production' && configLoader !== 'custom') {
+      throw new Error(
+        `imageLoader has been set to 'custom' in next.config.js but no custom loader is defined. 
+        You must call registerCustomResolver in your _app.js file.`
+      )
+    }
+    return customResolver(loaderProps)
+  }
+
   const load = loaders.get(configLoader)
   if (load) {
     return load({ root: configPath, ...loaderProps })
