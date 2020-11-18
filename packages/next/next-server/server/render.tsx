@@ -1051,6 +1051,7 @@ export async function renderToHTML(
   }
 
   if (renderOpts.optimizeCss) {
+    // eslint-disable-next-line import/no-extraneous-dependencies
     const Critters = require('critters')
     const cssOptimizer = new Critters({
       ssrMode: true,
