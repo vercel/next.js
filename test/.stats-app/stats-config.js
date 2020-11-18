@@ -3,7 +3,7 @@ const clientGlobs = [
     name: 'Client Bundles (main, webpack, commons)',
     globs: [
       '.next/static/runtime/+(main|webpack)-*',
-      '.next/static/chunks/!(polyfills)',
+      '.next/static/chunks/!(polyfills*)',
     ],
   },
   {
