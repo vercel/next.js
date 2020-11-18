@@ -10,7 +10,7 @@ const breakpoints = createBreakpoints({
   xl: '80em',
 })
 
-const theme = {
+const theme = extendTheme({
   colors: {
     black: '#16161D',
   },
@@ -36,6 +36,6 @@ const theme = {
       viewBox: '0 0 3000 3163',
     },
   },
-}
+})
 
-export default extendTheme(theme)
+export default theme
