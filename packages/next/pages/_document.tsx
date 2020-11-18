@@ -505,7 +505,7 @@ export class Head extends Component<
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
               />
             )}
-            {process.env.__NEXT_OPTIMIZE_FONTS
+            {process.env.NODE_ENV === 'production'
               ? this.makeStylesheetInert(this.getCssLinks(files))
               : this.getCssLinks(files)}
             <noscript data-n-css={this.props.nonce ?? ''} />
