@@ -218,9 +218,6 @@ export class Head extends Component<
     return (
       dedupe(dynamicImports)
         .map((bundle) => {
-          // `dynamicImports` will contain both `.js` and `.module.js` when the
-          // feature is enabled. This clause will filter down to the modern
-          // variants only.
           if (!bundle.file.endsWith('.js')) {
             return null
           }
@@ -248,9 +245,6 @@ export class Head extends Component<
   getPreloadMainLinks(files: DocumentFiles): JSX.Element[] | null {
     const { assetPrefix, devOnlyCacheBusterQueryString } = this.context
     const preloadFiles = files.allFiles.filter((file: string) => {
-      // `dynamicImports` will contain both `.js` and `.module.js` when
-      // the feature is enabled. This clause will filter down to the
-      // modern variants only.
       return file.endsWith('.js')
     })
 

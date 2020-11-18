@@ -28,7 +28,6 @@ export type ClientBuildManifest = Record<string, string[]>
 // reduced version to send to the client.
 function generateClientManifest(
   assetMap: BuildManifest,
-
   rewrites: Rewrite[]
 ): string {
   const clientManifest: ClientBuildManifest = {
@@ -198,7 +197,6 @@ export default class BuildManifestPlugin {
     assets[clientManifestPath] = new RawSource(
       `self.__BUILD_MANIFEST = ${generateClientManifest(
         assetMap,
-        false,
         this.rewrites
       )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
     )
