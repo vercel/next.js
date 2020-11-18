@@ -66,7 +66,6 @@ export async function printTreeView(
     pagesDir,
     pageExtensions,
     buildManifest,
-
     useStatic404,
   }: {
     distPath: string
@@ -74,7 +73,6 @@ export async function printTreeView(
     pagesDir: string
     pageExtensions: string[]
     buildManifest: BuildManifest
-
     useStatic404: boolean
   }
 ) {
@@ -114,12 +112,7 @@ export async function printTreeView(
     list = [...list, '/404']
   }
 
-  const sizeData = await computeFromManifest(
-    buildManifest,
-    distPath,
-
-    pageInfos
-  )
+  const sizeData = await computeFromManifest(buildManifest, distPath, pageInfos)
 
   const pageList = list
     .slice()
@@ -379,7 +372,6 @@ let lastComputePageInfo: boolean | undefined
 async function computeFromManifest(
   manifest: BuildManifest,
   distPath: string,
-
   pageInfos?: Map<string, PageInfo>
 ): Promise<ComputeManifestShape> {
   if (
