@@ -328,7 +328,7 @@ export class Head extends Component<
         )
     }
 
-    if (process.env.__NEXT_OPTIMIZE_FONTS && !inAmpMode) {
+    if (process.env.NODE_ENV === 'production' && !inAmpMode) {
       children = this.makeStylesheetInert(children)
     }
 

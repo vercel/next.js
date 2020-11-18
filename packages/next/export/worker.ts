@@ -287,7 +287,7 @@ export default async function exportPage({
         /**
          * This sets environment variable to be used at the time of static export by head.tsx.
          * Using this from process.env allows targetting both serverless and SSR by calling
-         * `process.env.__NEXT_OPTIMIZE_FONTS`.
+         * `process.env.__NEXT_OPTIMIZE_IMAGES`.
          * TODO(atcastle@): Remove this when experimental.optimizeImages are being clened up.
          */
         if (optimizeImages) {

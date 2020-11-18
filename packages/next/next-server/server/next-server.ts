@@ -262,7 +262,7 @@ export default class Server {
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
      * Using this from process.env allows targetting both serverless and SSR by calling
-     * `process.env.__NEXT_OPTIMIZE_FONTS`.
+     * `process.env.__NEXT_OPTIMIZE_IMAGES`.
      * TODO(atcastle@): Remove this when experimental.optimizeImages are being clened up.
      */
     if (this.renderOpts.optimizeImages) {
