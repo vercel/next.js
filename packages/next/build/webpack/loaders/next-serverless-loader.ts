@@ -875,8 +875,7 @@ const nextServerlessLoader: loader.Loader = function () {
 
         const previewData = tryGetPreviewData(req, res, options.previewProps)
         const isPreviewMode = previewData !== false
-        if (process.env.__NEXT_OPTIMIZE_FONTS) {
-          renderOpts.optimizeFonts = true
+        if (process.env.NODE_ENV === 'production') {
           /**
            * __webpack_require__.__NEXT_FONT_MANIFEST__ is added by
            * font-stylesheet-gathering-plugin

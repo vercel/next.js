@@ -54,7 +54,6 @@ const defaultConfig: { [key: string]: any } = {
     workerThreads: false,
     pageEnv: false,
     productionBrowserSourceMaps: false,
-    optimizeFonts: false,
     optimizeImages: false,
     scrollRestoration: false,
   },
