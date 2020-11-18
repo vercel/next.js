@@ -729,11 +729,11 @@ function runTests(dev) {
 
     for (const el of Array.from($('link[rel="preload"]'))) {
       const { href } = el.attribs
-      if (href.includes('_buildManifest.js')) {
+      if (href.includes('_buildManifest')) {
         found++
       }
     }
-    expect(found).toBe(dev ? 2 : 1)
+    expect(found).toBe(1)
   })
 
   it('should not preload buildManifest for non-auto export dynamic pages', async () => {
@@ -743,7 +743,7 @@ function runTests(dev) {
 
     for (const el of Array.from($('link[rel="preload"]'))) {
       const { href } = el.attribs
-      if (href.includes('_buildManifest.js')) {
+      if (href.includes('_buildManifest')) {
         found++
       }
     }
