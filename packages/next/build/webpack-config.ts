@@ -1106,8 +1106,7 @@ export default async function getBaseWebpackConfig(
               inputChunkName.replace(/\.js$/, '.module.js'),
           })
         })(),
-      config.experimental.optimizeFonts &&
-        !dev &&
+      !dev &&
         isServer &&
         (function () {
           const {
