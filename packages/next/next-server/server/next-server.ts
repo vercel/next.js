@@ -342,6 +342,11 @@ export default class Server {
       detectedLocale = detectedLocale || acceptPreferredLocale
 
       let localeDomainRedirect: string | undefined
+      ;(req as any).__nextHadTrailingSlash = pathname!.endsWith('/')
+
+      if (pathname === '/') {
+        ;(req as any).__nextHadTrailingSlash = this.nextConfig.trailingSlash
+      }
       const localePathResult = normalizeLocalePath(pathname!, i18n.locales)
 
       if (localePathResult.detectedLocale) {
@@ -351,7 +356,12 @@ export default class Server {
           pathname: localePathResult.pathname,
         })
         ;(req as any).__nextStrippedLocale = true
-        parsedUrl.pathname = `${basePath || ''}${localePathResult.pathname}`
+        parsedUrl.pathname = `${basePath || ''}${localePathResult.pathname}${
+          (req as any).__nextHadTrailingSlash &&
+          localePathResult.pathname !== '/'
+            ? '/'
+            : ''
+        }`
       }
 
       // If a detected locale is a domain specific locale and we aren't already
@@ -426,15 +436,15 @@ export default class Server {
 
         res.setHeader(
           'Location',
-          formatUrl({
-            // make sure to include any query values when redirecting
-            ...parsed,
-            pathname: localeDomainRedirect
-              ? localeDomainRedirect
-              : shouldStripDefaultLocale
-              ? basePath || `/`
-              : `${basePath || ''}/${detectedLocale}`,
-          })
+          localeDomainRedirect
+            ? localeDomainRedirect
+            : formatUrl({
+                // make sure to include any query values when redirecting
+                ...parsed,
+                pathname: shouldStripDefaultLocale
+                  ? basePath || `/`
+                  : `${basePath || ''}/${detectedLocale}`,
+              })
         )
         res.statusCode = 307
         res.end()
