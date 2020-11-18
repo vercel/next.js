@@ -37,13 +37,6 @@ function dedupe<T extends { file: string }>(bundles: T[]): T[] {
   return kept
 }
 
-function getOptionalModernScriptVariant(path: string): string {
-  if (process.env.__NEXT_MODERN_BUILD) {
-    return path.replace(/\.js$/, '.module.js')
-  }
-  return path
-}
-
 type DocumentFiles = {
   sharedFiles: readonly string[]
   pageFiles: readonly string[]
@@ -238,10 +231,7 @@ export class Head extends Component<
     return (
       dedupe(dynamicImports)
         .map((bundle) => {
-          // `dynamicImports` will contain both `.js` and `.module.js` when the
-          // feature is enabled. This clause will filter down to the modern
-          // variants only.
-          if (!bundle.file.endsWith(getOptionalModernScriptVariant('.js'))) {
+          if (!bundle.file.endsWith('.js')) {
             return null
           }
 
@@ -268,10 +258,7 @@ export class Head extends Component<
   getPreloadMainLinks(files: DocumentFiles): JSX.Element[] | null {
     const { assetPrefix, devOnlyCacheBusterQueryString } = this.context
     const preloadFiles = files.allFiles.filter((file: string) => {
-      // `dynamicImports` will contain both `.js` and `.module.js` when
-      // the feature is enabled. This clause will filter down to the
-      // modern variants only.
-      return file.endsWith(getOptionalModernScriptVariant('.js'))
+      return file.endsWith('.js')
     })
 
     return !preloadFiles.length
@@ -575,13 +562,6 @@ export class NextScript extends Component<OriginProps> {
     } = this.context
 
     return dedupe(dynamicImports).map((bundle) => {
-      let modernProps = {}
-      if (process.env.__NEXT_MODERN_BUILD) {
-        modernProps = bundle.file.endsWith('.module.js')
-          ? { type: 'module' }
-          : { noModule: true }
-      }
-
       if (!bundle.file.endsWith('.js') || files.allFiles.includes(bundle.file))
         return null
 
@@ -596,7 +576,6 @@ export class NextScript extends Component<OriginProps> {
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
           }
-          {...modernProps}
         />
       )
     })
@@ -616,13 +595,6 @@ export class NextScript extends Component<OriginProps> {
     )
 
     return [...normalScripts, ...lowPriorityScripts].map((file) => {
-      let modernProps = {}
-      if (process.env.__NEXT_MODERN_BUILD) {
-        modernProps = file.endsWith('.module.js')
-          ? { type: 'module' }
-          : { noModule: true }
-      }
-
       return (
         <script
           key={file}
@@ -634,7 +606,6 @@ export class NextScript extends Component<OriginProps> {
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
           }
-          {...modernProps}
         />
       )
     })
@@ -776,18 +747,6 @@ export class NextScript extends Component<OriginProps> {
             }}
           />
         )}
-        {process.env.__NEXT_MODERN_BUILD && !disableRuntimeJS ? (
-          <script
-            nonce={this.props.nonce}
-            crossOrigin={
-              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-            }
-            noModule={true}
-            dangerouslySetInnerHTML={{
-              __html: NextScript.safariNomoduleFix,
-            }}
-          />
-        ) : null}
         {!disableRuntimeJS && this.getPolyfillScripts()}
         {disableRuntimeJS ? null : this.getDynamicChunks(files)}
         {disableRuntimeJS ? null : this.getScripts(files)}

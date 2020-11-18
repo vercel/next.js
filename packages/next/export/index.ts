@@ -327,7 +327,6 @@ Read more: https://err.sh/next.js/export-image-api`
     hotReloader: null,
     basePath: nextConfig.basePath,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
-    isModern: nextConfig.experimental.modern,
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
