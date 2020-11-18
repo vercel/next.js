@@ -254,6 +254,7 @@ export default async function build(
   const buildCustomRoute = (
     r: {
       source: string
+      locale?: false
       basePath?: false
       statusCode?: number
       destination?: string
@@ -262,11 +263,23 @@ export default async function build(
   ) => {
     const keys: any[] = []
 
-    if (r.basePath !== false) {
+    if (r.basePath !== false && (!config.i18n || r.locale === false)) {
       r.source = `${config.basePath}${r.source}`
 
       if (r.destination && r.destination.startsWith('/')) {
         r.destination = `${config.basePath}${r.destination}`
+      }
+    }
+
+    if (config.i18n && r.locale !== false) {
+      const basePath = r.basePath !== false ? config.basePath || '' : ''
+
+      r.source = `${basePath}/:nextInternalLocale(${config.i18n.locales
+        .map((locale: string) => escapeStringRegexp(locale))
+        .join('|')})${r.source}`
+
+      if (r.destination && r.destination?.startsWith('/')) {
+        r.destination = `${basePath}/:nextInternalLocale${r.destination}`
       }
     }
 
@@ -527,8 +540,7 @@ export default async function build(
       const [selfSize, allSize] = await getJsPageSizeInKb(
         actualPage,
         distDir,
-        buildManifest,
-        config.experimental.modern
+        buildManifest
       )
 
       let isSsg = false
@@ -1101,7 +1113,6 @@ export default async function build(
     await generateClientSsgManifest(prerenderManifest, {
       distDir,
       buildId,
-      isModern: !!config.experimental.modern,
     })
   } else {
     const prerenderManifest: PrerenderManifest = {
@@ -1164,7 +1175,6 @@ export default async function build(
       useStatic404,
       pageExtensions: config.pageExtensions,
       buildManifest,
-      isModern: config.experimental.modern,
     }
   )
 
@@ -1246,11 +1256,7 @@ export type ClientSsgManifest = Set<string>
 
 function generateClientSsgManifest(
   prerenderManifest: PrerenderManifest,
-  {
-    buildId,
-    distDir,
-    isModern,
-  }: { buildId: string; distDir: string; isModern: boolean }
+  { buildId, distDir }: { buildId: string; distDir: string }
 ) {
   const ssgPages: ClientSsgManifest = new Set<string>([
     ...Object.entries(prerenderManifest.routes)
@@ -1260,21 +1266,12 @@ function generateClientSsgManifest(
     ...Object.keys(prerenderManifest.dynamicRoutes),
   ])
 
-  const clientSsgManifestPaths = [
-    '_ssgManifest.js',
-    isModern && '_ssgManifest.module.js',
-  ]
-    .filter(Boolean)
-    .map((f) =>
-      path.join(`${CLIENT_STATIC_FILES_PATH}/${buildId}`, f as string)
-    )
   const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
     ssgPages
   )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
-  clientSsgManifestPaths.forEach((clientSsgManifestPath) =>
-    writeFileSync(
-      path.join(distDir, clientSsgManifestPath),
-      clientSsgManifestContent
-    )
+
+  writeFileSync(
+    path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
+    clientSsgManifestContent
   )
 }
