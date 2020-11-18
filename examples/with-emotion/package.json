@@ -12,11 +12,11 @@
   "author": "Thomas Greco",
   "license": "MIT",
   "devDependencies": {
-    "@emotion/babel-preset-css-prop": "10.1.0"
+    "@emotion/babel-preset-css-prop": "11.0.0"
   },
   "dependencies": {
-    "@emotion/core": "10.1.0",
-    "@emotion/styled": "10.0.27",
+    "@emotion/react": "11.1.1",
+    "@emotion/styled": "11.0.0",
     "next": "latest",
     "react": "^17.0.1",
     "react-dom": "^17.0.1"
