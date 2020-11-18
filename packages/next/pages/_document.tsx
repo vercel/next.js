@@ -188,6 +188,8 @@ export class Head extends Component<
     const cssFromFiles = this.getCssFiles(files)
       .map((file) => readFileSync(join('.next', file), { encoding: 'utf-8' }))
       .join('')
+      .replace(/\/\*# sourceMappingURL=.*\*\//g, '')
+      .replace(/\/\*@ sourceURL=.*?\*\//g, '')
     const cssFromElements = curStyles
       .map((style) => style.props.dangerouslySetInnerHTML.__html)
       .join('')
@@ -498,6 +500,12 @@ export class Head extends Component<
             />
             {/* Add custom styles before AMP styles to prevent accidental overrides */}
             {this.getAmpCss(files, curStyles)}
+            {this.context.isDevelopment && (
+              // this element is used to mount development styles so the
+              // ordering matches production
+              // (by default, style-loader injects at the bottom of <head />)
+              <style amp-custom="" id="__next_css__DO_NOT_USE__" />
+            )}
             <style
               amp-boilerplate=""
               dangerouslySetInnerHTML={{
