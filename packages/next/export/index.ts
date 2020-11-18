@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import {
   promises,
@@ -23,6 +23,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   CONFIG_FILE,
   EXPORT_DETAIL,
+  EXPORT_MARKER,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
@@ -33,12 +34,13 @@ import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
 import { eventCliSession } from '../telemetry/events'
+import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
 import {
   normalizePagePath,
   denormalizePagePath,
 } from '../next-server/server/normalize-page-path'
-import { loadEnvConfig } from '../lib/load-env-config'
+import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
 import type exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
@@ -57,7 +59,7 @@ function divideSegments(number: number, segments: number): number[] {
   return result
 }
 
-const createProgress = (total: number, label = 'Exporting') => {
+const createProgress = (total: number, label: string) => {
   const segments = divideSegments(total, 4)
 
   let currentSegmentTotal = segments.shift()
@@ -133,7 +135,7 @@ export default async function exportApp(
   dir = resolve(dir)
 
   // attempt to load global env values so they are available in next.config.js
-  loadEnvConfig(dir)
+  loadEnvConfig(dir, false, Log)
 
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
@@ -162,6 +164,22 @@ export default async function exportApp(
   if (!existsSync(distDir)) {
     throw new Error(
       `Build directory ${distDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`
+    )
+  }
+
+  const customRoutesDetected = ['rewrites', 'redirects', 'headers'].filter(
+    (config) => typeof nextConfig[config] === 'function'
+  )
+
+  if (
+    !hasNextSupport &&
+    !options.buildExport &&
+    customRoutesDetected.length > 0
+  ) {
+    Log.warn(
+      `rewrites, redirects, and headers are not applied when exporting your application, detected (${customRoutesDetected.join(
+        ', '
+      )}). See more info here: https://err.sh/next.js/export-no-custom-routes`
     )
   }
 
@@ -266,6 +284,38 @@ export default async function exportApp(
     }
   }
 
+  const {
+    i18n,
+    images: { loader = 'default' },
+  } = nextConfig
+
+  if (i18n && !options.buildExport) {
+    throw new Error(
+      `i18n support is not compatible with next export. See here for more info on deploying: https://nextjs.org/docs/deployment`
+    )
+  }
+
+  const { isNextImageImported } = await promises
+    .readFile(join(distDir, EXPORT_MARKER), 'utf8')
+    .then((text) => JSON.parse(text))
+    .catch(() => ({}))
+
+  if (
+    isNextImageImported &&
+    loader === 'default' &&
+    !options.buildExport &&
+    !hasNextSupport
+  ) {
+    throw new Error(
+      `Image Optimization using Next.js' default loader is not compatible with \`next export\`.
+Possible solutions:
+  - Use \`next start\`, which starts the Image Optimization API.
+  - Use Vercel to deploy, which supports Image Optimization.
+  - Configure a third-party loader in \`next.config.js\`.
+Read more: https://err.sh/next.js/export-image-api`
+    )
+  }
+
   // Start the rendering process
   const renderOpts = {
     dir,
@@ -281,6 +331,9 @@ export default async function exportApp(
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
+    locales: i18n?.locales,
+    locale: i18n.defaultLocale,
+    defaultLocale: i18n.defaultLocale,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -381,7 +434,7 @@ export default async function exportApp(
     !options.silent &&
     createProgress(
       filteredPaths.length,
-      `${Log.prefixes.info} ${options.statusMessage}`
+      `${Log.prefixes.info} ${options.statusMessage || 'Exporting'}`
     )
   const pagesDataDir = options.buildExport
     ? outDir
@@ -445,13 +498,17 @@ export default async function exportApp(
       renderError = renderError || !!result.error
       if (!!result.error) errorPaths.push(path)
 
-      if (
-        options.buildExport &&
-        typeof result.fromBuildExportRevalidate !== 'undefined'
-      ) {
-        configuration.initialPageRevalidationMap[path] =
-          result.fromBuildExportRevalidate
+      if (options.buildExport) {
+        if (typeof result.fromBuildExportRevalidate !== 'undefined') {
+          configuration.initialPageRevalidationMap[path] =
+            result.fromBuildExportRevalidate
+        }
+
+        if (result.ssgNotFound === true) {
+          configuration.ssgNotFoundPaths.push(path)
+        }
       }
+
       if (progress) progress()
     })
   )

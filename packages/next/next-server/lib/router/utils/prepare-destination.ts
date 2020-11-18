@@ -5,6 +5,43 @@ import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
 
 type Params = { [param: string]: any }
 
+export function compileNonPath(value: string, params: Params): string {
+  if (!value.includes(':')) {
+    return value
+  }
+
+  for (const key of Object.keys(params)) {
+    if (value.includes(`:${key}`)) {
+      value = value
+        .replace(
+          new RegExp(`:${key}\\*`, 'g'),
+          `:${key}--ESCAPED_PARAM_ASTERISKS`
+        )
+        .replace(
+          new RegExp(`:${key}\\?`, 'g'),
+          `:${key}--ESCAPED_PARAM_QUESTION`
+        )
+        .replace(new RegExp(`:${key}\\+`, 'g'), `:${key}--ESCAPED_PARAM_PLUS`)
+        .replace(
+          new RegExp(`:${key}(?!\\w)`, 'g'),
+          `--ESCAPED_PARAM_COLON${key}`
+        )
+    }
+  }
+  value = value
+    .replace(/(:|\*|\?|\+|\(|\)|\{|\})/g, '\\$1')
+    .replace(/--ESCAPED_PARAM_PLUS/g, '+')
+    .replace(/--ESCAPED_PARAM_COLON/g, ':')
+    .replace(/--ESCAPED_PARAM_QUESTION/g, '?')
+    .replace(/--ESCAPED_PARAM_ASTERISKS/g, '*')
+
+  // the value needs to start with a forward-slash to be compiled
+  // correctly
+  return pathToRegexp
+    .compile(`/${value}`, { validate: false })(params)
+    .substr(1)
+}
+
 export default function prepareDestination(
   destination: string,
   params: Params,
@@ -18,6 +55,12 @@ export default function prepareDestination(
     hostname?: string
     port?: string
   } & ReturnType<typeof parseRelativeUrl> = {} as any
+
+  // clone query so we don't modify the original
+  query = Object.assign({}, query)
+  const hadLocale = query.__nextLocale
+  delete query.__nextLocale
+  delete query.__nextDefaultLocale
 
   if (destination.startsWith('/')) {
     parsedDestination = parseRelativeUrl(destination)
@@ -72,16 +115,19 @@ export default function prepareDestination(
     if (value) {
       // the value needs to start with a forward-slash to be compiled
       // correctly
-      value = `/${value}`
-      const queryCompiler = pathToRegexp.compile(value, { validate: false })
-      value = queryCompiler(params).substr(1)
+      value = compileNonPath(value, params)
     }
     destQuery[key] = value
   }
 
   // add path params to query if it's not a redirect and not
   // already defined in destination query or path
-  const paramKeys = Object.keys(params)
+  let paramKeys = Object.keys(params)
+
+  // remove internal param for i18n
+  if (hadLocale) {
+    paramKeys = paramKeys.filter((name) => name !== 'nextInternalLocale')
+  }
 
   if (
     appendParamsToQuery &&
@@ -97,14 +143,14 @@ export default function prepareDestination(
   const shouldAddBasePath = destination.startsWith('/') && basePath
 
   try {
-    newUrl = `${shouldAddBasePath ? basePath : ''}${encodeURI(
-      destinationCompiler(params)
+    newUrl = `${shouldAddBasePath ? basePath : ''}${destinationCompiler(
+      params
     )}`
 
     const [pathname, hash] = newUrl.split('#')
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
-    delete parsedDestination.search
+    delete (parsedDestination as any).search
   } catch (err) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(

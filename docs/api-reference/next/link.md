@@ -145,7 +145,7 @@ export default Home
 
 ## With URL Object
 
-`Link` can also receive an URL object and it will automatically format it to create the URL string. Here's how to do it:
+`Link` can also receive a URL object and it will automatically format it to create the URL string. Here's how to do it:
 
 ```jsx
 import Link from 'next/link'
@@ -196,18 +196,6 @@ The default behavior of the `Link` component is to `push` a new URL into the `hi
   <a>About us</a>
 </Link>
 ```
-
-## Using a component that supports `onClick`
-
-`Link` supports any component that supports the `onClick` event, in the case you don't provide an `<a>` tag, consider the following example:
-
-```jsx
-<Link href="/about">
-  <img src="/static/image.png" alt="image" />
-</Link>
-```
-
-The child of `Link` is `<img>` instead of `<a>`. `Link` will send the `onClick` property to `<img>` but won't pass the `href` property.
 
 ## Disable scrolling to the top of the page
 
