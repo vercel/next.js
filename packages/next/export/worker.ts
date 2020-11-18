@@ -47,7 +47,6 @@ interface ExportPageInput {
   serverRuntimeConfig: string
   subFolders: string
   serverless: boolean
-  optimizeFonts: boolean
   optimizeImages: boolean
 }
 
@@ -66,7 +65,6 @@ interface RenderOpts {
   ampSkipValidation?: boolean
   hybridAmp?: boolean
   inAmpMode?: boolean
-  optimizeFonts?: boolean
   optimizeImages?: boolean
   fontManifest?: FontManifest
   locales?: string[]
@@ -90,7 +88,6 @@ export default async function exportPage({
   serverRuntimeConfig,
   subFolders,
   serverless,
-  optimizeFonts,
   optimizeImages,
 }: ExportPageInput): Promise<ExportPageResults> {
   let results: ExportPageResults = {
@@ -247,12 +244,8 @@ export default async function exportPage({
           {
             ampPath: renderAmpPath,
             /// @ts-ignore
-            optimizeFonts,
-            /// @ts-ignore
             optimizeImages,
-            fontManifest: optimizeFonts
-              ? requireFontManifest(distDir, serverless)
-              : null,
+            fontManifest: requireFontManifest(distDir, serverless),
             locale: locale!,
             locales: renderOpts.locales!,
           },
@@ -290,15 +283,13 @@ export default async function exportPage({
         html = components.Component
         queryWithAutoExportWarn()
       } else {
+        process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
         /**
          * This sets environment variable to be used at the time of static export by head.tsx.
          * Using this from process.env allows targetting both serverless and SSR by calling
          * `process.env.__NEXT_OPTIMIZE_FONTS`.
-         * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being clened up.
+         * TODO(atcastle@): Remove this when experimental.optimizeImages are being clened up.
          */
-        if (optimizeFonts) {
-          process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
-        }
         if (optimizeImages) {
           process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
         }
@@ -307,11 +298,8 @@ export default async function exportPage({
           ...renderOpts,
           ampPath: renderAmpPath,
           params,
-          optimizeFonts,
           optimizeImages,
-          fontManifest: optimizeFonts
-            ? requireFontManifest(distDir, serverless)
-            : null,
+          fontManifest: requireFontManifest(distDir, serverless),
           locale: locale as string,
         }
         // @ts-ignore
