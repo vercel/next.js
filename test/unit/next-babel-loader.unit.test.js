@@ -14,12 +14,7 @@ const dir = path.resolve(os.tmpdir())
 
 const babel = async (
   code,
-  {
-    isServer = false,
-    resourcePath = 'index.js',
-    hasModern = false,
-    development = false,
-  } = {}
+  { isServer = false, resourcePath = 'index.js', development = false } = {}
 ) => {
   let isAsync = false
   return new Promise((resolve, reject) => {
@@ -56,7 +51,6 @@ const babel = async (
         pagesDir: path.resolve(dir, 'pages'),
         cache: false,
         babelPresetPlugins: [],
-        hasModern,
         development,
         hasReactRefresh: Boolean(!isServer && development),
       },
