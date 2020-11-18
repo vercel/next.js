@@ -66,15 +66,15 @@ module.exports = (
 ): BabelPreset => {
   const supportsESM = api.caller(supportsStaticESM)
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
-  const isModern = api.caller((caller: any) => !!caller && caller.isModern)
-  const hasJsxRuntime = Boolean(
-    api.caller((caller: any) => !!caller && caller.hasJsxRuntime)
-  )
+
+  const useJsxRuntime =
+    options['preset-react']?.runtime === 'automatic' ||
+    (Boolean(api.caller((caller: any) => !!caller && caller.hasJsxRuntime)) &&
+      options['preset-react']?.runtime !== 'classic')
 
   const isLaxModern =
-    isModern ||
-    (options['preset-env']?.targets &&
-      options['preset-env'].targets.esmodules === true)
+    options['preset-env']?.targets &&
+    options['preset-env'].targets.esmodules === true
 
   const presetEnvConfig = {
     // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
@@ -122,7 +122,7 @@ module.exports = (
           // This adds @babel/plugin-transform-react-jsx-source and
           // @babel/plugin-transform-react-jsx-self automatically in development
           development: isDevelopment || isTest,
-          ...(hasJsxRuntime ? { runtime: 'automatic' } : { pragma: '__jsx' }),
+          ...(useJsxRuntime ? { runtime: 'automatic' } : { pragma: '__jsx' }),
           ...options['preset-react'],
         },
       ],
@@ -132,7 +132,7 @@ module.exports = (
       ],
     ],
     plugins: [
-      !hasJsxRuntime && [
+      !useJsxRuntime && [
         require('./plugins/jsx-pragma'),
         {
           // This produces the following injected import for modules containing JSX:

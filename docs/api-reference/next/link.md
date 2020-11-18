@@ -197,18 +197,6 @@ The default behavior of the `Link` component is to `push` a new URL into the `hi
 </Link>
 ```
 
-## Using a component that supports `onClick`
-
-`Link` supports any component that supports the `onClick` event, in the case you don't provide an `<a>` tag, consider the following example:
-
-```jsx
-<Link href="/about">
-  <img src="/static/image.png" alt="image" />
-</Link>
-```
-
-The child of `Link` is `<img>` instead of `<a>`. `Link` will send the `onClick` property to `<img>` but won't pass the `href` property.
-
 ## Disable scrolling to the top of the page
 
 The default behavior of `Link` is to scroll to the top of the page. When there is a hash defined it will scroll to the specific id, like a normal `<a>` tag. To prevent scrolling to the top / hash `scroll={false}` can be added to `Link`:
