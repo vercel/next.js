@@ -248,7 +248,7 @@ describe('SCSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `".redText ::-moz-placeholder{color:red}.redText :-ms-input-placeholder{color:red}.redText ::-ms-input-placeholder{color:red}.redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+        `".redText ::-moz-placeholder{color:red}.redText :-ms-input-placeholder{color:red}.redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
       )
 
       // Contains a source map
@@ -269,7 +269,7 @@ describe('SCSS Support', () => {
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
         Object {
-          "mappings": "AACA,4BAEI,SAHK,CACT,gCAEI,SAHK,CACT,iCAEI,SAHK,CACT,uBAEI,SAHK,CAIN,cAID,2CAA4C",
+          "mappings": "AACA,4BAEI,SAHK,CACT,gCAEI,SAHK,CACT,uBAEI,SAHK,CAIN,cAID,2CAA4C",
           "sourcesContent": Array [
             "$var: red;
         .redText {
@@ -809,7 +809,7 @@ describe('SCSS Support', () => {
     })
   })
 
-  describe('Bad CSS Import from node_modules', () => {
+  describe('CSS Import from node_modules', () => {
     const appDir = join(fixturesDir, 'npm-import-bad')
 
     beforeAll(async () => {
@@ -819,9 +819,9 @@ describe('SCSS Support', () => {
     it('should fail the build', async () => {
       const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
 
-      expect(code).not.toBe(0)
-      expect(stderr).toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
-      expect(stderr).toMatch(/Build error occurred/)
+      expect(code).toBe(0)
+      expect(stderr).not.toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
+      expect(stderr).not.toMatch(/Build error occurred/)
     })
   })
 

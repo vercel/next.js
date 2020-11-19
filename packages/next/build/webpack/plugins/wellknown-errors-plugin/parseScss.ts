@@ -1,5 +1,5 @@
-import { codeFrameColumns } from '@babel/code-frame'
-import Chalk from 'next/dist/compiled/chalk'
+import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
+import Chalk from 'chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 
 const chalk = new Chalk.constructor({ enabled: true })

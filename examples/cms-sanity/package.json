@@ -20,5 +20,6 @@
     "@fullhuman/postcss-purgecss": "^2.1.0",
     "postcss-preset-env": "^6.7.0",
     "tailwindcss": "^1.2.0"
-  }
+  },
+  "license": "MIT"
 }

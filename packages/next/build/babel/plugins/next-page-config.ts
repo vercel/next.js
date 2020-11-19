@@ -1,4 +1,8 @@
-import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
+import {
+  NodePath,
+  PluginObj,
+  types as BabelTypes,
+} from 'next/dist/compiled/babel/core'
 import { PageConfig } from 'next/types'
 import { STRING_LITERAL_DROP_BUNDLE } from '../../../next-server/lib/constants'
 
@@ -48,7 +52,11 @@ export default function nextPageConfig({
                   BabelTypes.isExportNamedDeclaration(exportPath) &&
                   (exportPath.node as BabelTypes.ExportNamedDeclaration).specifiers?.some(
                     (specifier) => {
-                      return specifier.exported.name === CONFIG_KEY
+                      return (
+                        (t.isIdentifier(specifier.exported)
+                          ? specifier.exported.name
+                          : specifier.exported.value) === CONFIG_KEY
+                      )
                     }
                   ) &&
                   BabelTypes.isStringLiteral(
@@ -77,10 +85,52 @@ export default function nextPageConfig({
                 }
 
                 const config: PageConfig = {}
-                const declarations = [
-                  ...(exportPath.node.declaration?.declarations || []),
-                  exportPath.scope.getBinding(CONFIG_KEY)?.path.node,
+                const declarations: BabelTypes.VariableDeclarator[] = [
+                  ...((exportPath.node
+                    .declaration as BabelTypes.VariableDeclaration)
+                    ?.declarations || []),
+                  exportPath.scope.getBinding(CONFIG_KEY)?.path
+                    .node as BabelTypes.VariableDeclarator,
                 ].filter(Boolean)
+
+                for (const specifier of exportPath.node.specifiers) {
+                  if (
+                    (t.isIdentifier(specifier.exported)
+                      ? specifier.exported.name
+                      : specifier.exported.value) === CONFIG_KEY
+                  ) {
+                    // export {} from 'somewhere'
+                    if (BabelTypes.isStringLiteral(exportPath.node.source)) {
+                      throw new Error(
+                        errorMessage(
+                          exportState,
+                          `Expected object but got import`
+                        )
+                      )
+                      // import hello from 'world'
+                      // export { hello as config }
+                    } else if (
+                      BabelTypes.isIdentifier(
+                        (specifier as BabelTypes.ExportSpecifier).local
+                      )
+                    ) {
+                      if (
+                        BabelTypes.isImportSpecifier(
+                          exportPath.scope.getBinding(
+                            (specifier as BabelTypes.ExportSpecifier).local.name
+                          )?.path.node
+                        )
+                      ) {
+                        throw new Error(
+                          errorMessage(
+                            exportState,
+                            `Expected object but got import`
+                          )
+                        )
+                      }
+                    }
+                  }
+                }
 
                 for (const declaration of declarations) {
                   if (
@@ -88,14 +138,6 @@ export default function nextPageConfig({
                       name: CONFIG_KEY,
                     })
                   ) {
-                    if (BabelTypes.isImportSpecifier(declaration)) {
-                      throw new Error(
-                        errorMessage(
-                          exportState,
-                          `Expected object but got import`
-                        )
-                      )
-                    }
                     continue
                   }
 
@@ -120,7 +162,7 @@ export default function nextPageConfig({
                         )
                       )
                     }
-                    const { name } = prop.key
+                    const { name } = prop.key as BabelTypes.Identifier
                     if (BabelTypes.isIdentifier(prop.key, { name: 'amp' })) {
                       if (!BabelTypes.isObjectProperty(prop)) {
                         throw new Error(

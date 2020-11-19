@@ -30,8 +30,6 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 
 ## How to use
 
-### Using `create-next-app`
-
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
@@ -46,7 +44,7 @@ yarn create next-app --example cms-kontent cms-kontent-app
 
 First, [create an account on Kontent.ai](https://app.kontent.ai/sign-up?utm_source=nextjs_docs_example&utm_medium=devrel&utm_campaign=extended_trial).
 
-> The link above will provide you with the 90-days trial. Once you finish the trial, or even during the trial period, you could switch to the [**developer plan**](https://kontent.ai/blog/a-new-developer-plan) which is **free of charge** and offers all the features you'll need to test out the example capabilities.
+> The link above will provide you with the 90-days trial. Once you finish the trial, or even during the trial period, you could switch to the [**developer plan**](https://kontent.ai/developer-plan) which is **free of charge** and offers all the features you'll need to test out the example capabilities.
 
 After signing up, [create an empty project](https://docs.kontent.ai/tutorials/set-up-kontent/projects/manage-projects#a-creating-projects).
 

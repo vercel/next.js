@@ -5,7 +5,7 @@ import { UrlObject } from 'url'
 import { formatUrl } from './router/utils/format-url'
 import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
-import { Env } from '../../lib/load-env-config'
+import { Env } from '@next/env'
 import { BuildManifest } from '../server/get-page-files'
 
 /**
@@ -98,6 +98,9 @@ export type NEXT_DATA = {
   customServer?: boolean
   gip?: boolean
   appGip?: boolean
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
 }
 
 /**
@@ -183,6 +186,7 @@ export type DocumentProps = DocumentInitialProps & {
   headTags: any[]
   unstable_runtimeJS?: false
   devOnlyCacheBusterQueryString: string
+  locale?: string
 }
 
 /**
