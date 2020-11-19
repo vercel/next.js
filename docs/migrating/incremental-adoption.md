@@ -13,15 +13,15 @@ description: Learn different strategies for incrementally adopting Next.js into 
   </ul>
 </details>
 
-Next.js has been designed from the start for gradual adoption. You can use as much (or as little) React as you need. By starting small and incrementally adding more pages, you can prevent derailing feature work by avoiding a complete rewrite.
+Next.js has been designed for gradual adoption. With Next.js, you can continue using your existing code and add as much (or as little) React as you need. By starting small and incrementally adding more pages, you can prevent derailing feature work by avoiding a complete rewrite.
 
 ## Strategies
 
 ### Subpath
 
-If you need multiple applications on a single domain, you can take over an entire subpath. For example, you might deploy your Next.js e-commerce store at `acme.com/store`.
+The first strategy is to configure your server or proxy such that, everything under a specific subpath points to a Next.js app. For example, your existing website might be at `example.com`, and you might configure your proxy such that `example.com/store` serves a Next.js e-commerce store.
 
-Using [`basePath`](/docs/api-reference/next.config.js/basepath.md), you can configure your Next.js application's assets and links to automatically work with your new subpath `/store`. Since each page in Next.js is its own [standalone route](/docs/routing/introduction.md), new files like `pages/products.js` will route to `acme.com/store/products` in your new application.
+Using [`basePath`](/docs/api-reference/next.config.js/basepath.md), you can configure your Next.js application's assets and links to automatically work with your new subpath `/store`. Since each page in Next.js is its own [standalone route](/docs/routing/introduction.md), pages like `pages/products.js` will route to `example.com/store/products` in your application.
 
 ```jsx
 // next.config.js
@@ -31,13 +31,15 @@ module.exports = {
 }
 ```
 
+To learn more about `basePath`, take a look at our [documentation](/docs/api-reference/next.config.js/basepath.md).
+
 > This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
 
 ### Rewrites
 
-If you plan on fully migrating your domain to Next.js, you can use [`rewrites`](/docs/api-reference/next.config.js/rewrites.md) inside `next.config.js`. This allows you to check your new routes before falling back to proxying your existing website.
+The second strategy is to create a new Next.js app that points to the root URL of your domain. Then, you can use [`rewrites`](/docs/api-reference/next.config.js/rewrites.md) inside `next.config.js` to have some subpaths to be proxied to your existing app.
 
-For example, let's say you took over `/about` with Next.js. When a request for `acme.com/about` hits your Next.js application, it will serve the new page. A request for any other route (e.g. `acme.com/dashboard`) will fall back and proxy the URL you specify.
+For example, let's say you created a Next.js app to be served from `example.com` with the following `next.config.js`. Now, requests for the pages you’ve added to this Next.js app (e.g. `/about` if you’ve added `pages/about.js`) will be handled by Next.js, and requests for any other route (e.g. `/dashboard`) will be proxied to `proxy.example.com`.
 
 ```jsx
 // next.config.js
@@ -53,16 +55,18 @@ module.exports = {
       },
       {
         source: '/:path*',
-        destination: `https://acme-proxy.com/:path*`,
+        destination: `https://proxy.example.com/:path*`,
       },
     ]
   },
 }
 ```
 
+To learn more about rewrites, take a look at our [documentation](/docs/api-reference/next.config.js/rewrites.md).
+
 > This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
 
-### Micro-Frontends
+### Micro-Frontends with Monorepos and Subdomains
 
 Next.js and [Vercel](https://vercel.com) make it easy to adopt [micro-frontends](https://martinfowler.com/articles/micro-frontends.html) and deploy as a [Monorepo](https://vercel.com/blog/monorepos). This allows you to use [subdomains](https://en.wikipedia.org/wiki/Subdomain) to adopt new applications incrementally. Some benefits of micro-frontends:
 

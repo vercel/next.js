@@ -68,9 +68,7 @@ describe('Production response size', () => {
   it('should not increase the overall response size of default build', async () => {
     const responseSizes = [
       baseResponseSize,
-      ...(await getResponseSizes(
-        scriptsUrls.filter((path) => !path.endsWith('.module.js'))
-      )),
+      ...(await getResponseSizes(scriptsUrls)),
     ]
     const responseSizesBytes = getResponseSizesBytes(responseSizes)
     console.log(
@@ -80,28 +78,9 @@ describe('Production response size', () => {
     )
 
     // These numbers are without gzip compression!
-    const delta = responseSizesBytes - 283 * 1024
-    expect(delta).toBeLessThanOrEqual(1024) // don't increase size more than 1kb
-    expect(delta).toBeGreaterThanOrEqual(-1024) // don't decrease size more than 1kb without updating target
-  })
+    const delta = responseSizesBytes / 1024
 
-  it('should not increase the overall response size of modern build', async () => {
-    const responseSizes = [
-      baseResponseSize,
-      ...(await getResponseSizes(
-        scriptsUrls.filter((path) => path.endsWith('.module.js'))
-      )),
-    ]
-    const responseSizesBytes = getResponseSizesBytes(responseSizes)
-    console.log(
-      `Response Sizes for modern:\n${responseSizes
-        .map((obj) => ` ${obj.url}: ${obj.bytes} (bytes)`)
-        .join('\n')} \nOverall: ${responseSizesBytes} bytes`
-    )
-
-    // These numbers are without gzip compression!
-    const delta = responseSizesBytes - 173 * 1024
-    expect(delta).toBeLessThanOrEqual(1024) // don't increase size more than 1kb
-    expect(delta).toBeGreaterThanOrEqual(-1024) // don't decrease size more than 1kb without updating target
+    // Expected difference: < 0.5
+    expect(delta).toBeCloseTo(281.4, 0)
   })
 })
