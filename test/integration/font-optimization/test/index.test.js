@@ -104,7 +104,7 @@ function runTests() {
   })
 }
 
-describe.skip('Font optimization for SSR apps', () => {
+describe('Font optimization for SSR apps', () => {
   beforeAll(async () => {
     await fs.writeFile(nextConfig, `module.exports = {}`, 'utf8')
 
@@ -121,7 +121,7 @@ describe.skip('Font optimization for SSR apps', () => {
   runTests()
 })
 
-describe.skip('Font optimization for serverless apps', () => {
+describe('Font optimization for serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
@@ -138,7 +138,7 @@ describe.skip('Font optimization for serverless apps', () => {
   runTests()
 })
 
-describe.skip('Font optimization for emulated serverless apps', () => {
+describe('Font optimization for emulated serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
@@ -155,4 +155,28 @@ describe.skip('Font optimization for emulated serverless apps', () => {
     await fs.remove(nextConfig)
   })
   runTests()
+})
+
+describe('Font optimization for unreachable font definitions.', () => {
+  beforeAll(async () => {
+    await fs.writeFile(nextConfig, `module.exports = { }`, 'utf8')
+    await nextBuild(appDir)
+    await fs.writeFile(
+      join(appDir, '.next', 'server', 'font-manifest.json'),
+      '[]',
+      'utf8'
+    )
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+    builtServerPagesDir = join(appDir, '.next', 'serverless')
+    builtPage = (file) => join(builtServerPagesDir, file)
+  })
+  afterAll(() => killApp(app))
+  it('should fallback to normal stylesheet if the contents of the fonts are unreachable', async () => {
+    const html = await renderViaHTTP(appPort, '/stars')
+    expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+    expect(html).toContain(
+      '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@700"/>'
+    )
+  })
 })
