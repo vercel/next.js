@@ -1785,6 +1785,11 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
       })
     }
   }
+
+  // this should come very last
+  it('should not have attempted sending invalid payload', async () => {
+    expect(stderr).not.toContain('argument entity must be string')
+  })
 }
 
 describe('SSG Prerender', () => {
