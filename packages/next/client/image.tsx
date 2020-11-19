@@ -113,7 +113,7 @@ export function registerCustomResolver(resolver: URLResolver): void {
 
 function callLoader(loaderProps: CallLoaderProps) {
   if (configLoader === 'custom') {
-    if (process.env.NODE_ENV !== 'production' && configLoader !== 'custom') {
+    if (process.env.NODE_ENV !== 'production' && !customResolver) {
       throw new Error(
         `imageLoader has been set to 'custom' in next.config.js but no custom loader is defined. 
         You must call registerCustomResolver in your _app.js file.`
