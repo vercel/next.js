@@ -203,7 +203,7 @@ function checkCustomRoutes(
     }
 
     if (typeof route.locale !== 'undefined' && route.locale !== false) {
-      invalidParts.push('`locale` must be undefined or true')
+      invalidParts.push('`locale` must be undefined or false')
     }
 
     if (!route.source) {
