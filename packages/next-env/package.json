@@ -32,6 +32,6 @@
     "@zeit/ncc": "^0.20.4"
   },
   "dependencies": {
-    "snackables-next": "1.0.1"
+    "snackables-next": "1.1.0"
   }
 }

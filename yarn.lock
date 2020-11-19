@@ -15585,10 +15585,10 @@ smart-buffer@^4.1.0:
   version "4.1.0"
   resolved "https://registry.yarnpkg.com/smart-buffer/-/smart-buffer-4.1.0.tgz#91605c25d91652f4661ea69ccf45f1b331ca21ba"
 
-snackables-next@1.0.1:
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/snackables-next/-/snackables-next-1.0.1.tgz#8cadc26c9c37028b48cf465239537c665d410887"
-  integrity sha512-Hi1oca2oTH6mNm9buiEbf2SRLCMu3uqxff0tyqO3pIxP/8gheZGcqbY49YhtJyHSreT3+BlZMI7LMyutvY5kYA==
+snackables-next@1.1.0:
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/snackables-next/-/snackables-next-1.1.0.tgz#b189c9c6ebb444fa8f17191886c5d8eb9692dd44"
+  integrity sha512-blhjxcS1yuRPjhI5VxuDiCSFhaIYIZOTsGkP+fd51Os426Ijl2VOGB20vJ/uCBjUTBP9MARFOUcZH5ZG8jMs9Q==
 
 snake-case@^2.1.0:
   version "2.1.0"
