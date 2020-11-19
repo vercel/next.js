@@ -329,7 +329,7 @@ describe('i18n Support', () => {
         ]) {
           const res = await fetchViaHTTP(
             curCtx.appPort,
-            `/${locale}${asPath}`,
+            `${locale === 'en-US' ? '' : `/${locale}`}${asPath}`,
             undefined,
             {
               redirect: 'manual',
