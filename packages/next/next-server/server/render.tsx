@@ -1037,7 +1037,8 @@ export async function renderToHTML(
     }
   }
 
-  if (renderOpts.optimizeFonts || renderOpts.optimizeImages) {
+  // Avoid postProcess if both flags are false
+  if (process.env.__NEXT_OPTIMIZE_FONTS || process.env.__NEXT_OPTIMIZE_IMAGES) {
     html = await postProcess(
       html,
       {
