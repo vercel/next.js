@@ -82,7 +82,7 @@ function runTests() {
     )
   })
 
-  it('should minify the css', async () => {
+  it.skip('should minify the css', async () => {
     const snapshotJson = JSON.parse(
       await fs.readFile(join(__dirname, 'manifest-snapshot.json'), {
         encoding: 'utf-8',
