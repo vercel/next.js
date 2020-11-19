@@ -1,4 +1,4 @@
-# Pass Server Data Directly to a Next.js Page during SSR
+# Emotion Example
 
 Extract and inline critical css with
 [emotion](https://github.com/emotion-js/emotion/tree/master/packages/emotion),
