@@ -37,13 +37,6 @@ function dedupe<T extends { file: string }>(bundles: T[]): T[] {
   return kept
 }
 
-function getOptionalModernScriptVariant(path: string): string {
-  if (process.env.__NEXT_MODERN_BUILD) {
-    return path.replace(/\.js$/, '.module.js')
-  }
-  return path
-}
-
 type DocumentFiles = {
   sharedFiles: readonly string[]
   pageFiles: readonly string[]
@@ -163,8 +156,11 @@ export class Head extends Component<
       dynamicImports,
     } = this.context
     const cssFiles = files.allFiles.filter((f) => f.endsWith('.css'))
-    const sharedFiles = new Set(files.sharedFiles)
+    const sharedFiles: Set<string> = new Set(files.sharedFiles)
 
+    // Unmanaged files are CSS files that will be handled directly by the
+    // webpack runtime (`mini-css-extract-plugin`).
+    let unmangedFiles: Set<string> = new Set([])
     let dynamicCssFiles = dedupe(
       dynamicImports.filter((f) => f.file.endsWith('.css'))
     ).map((f) => f.file)
@@ -173,13 +169,14 @@ export class Head extends Component<
       dynamicCssFiles = dynamicCssFiles.filter(
         (f) => !(existing.has(f) || sharedFiles.has(f))
       )
+      unmangedFiles = new Set(dynamicCssFiles)
       cssFiles.push(...dynamicCssFiles)
     }
 
     const cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
       const isSharedFile = sharedFiles.has(file)
-
+      const isUnmanagedFile = unmangedFiles.has(file)
       cssLinkElements.push(
         <link
           key={`${file}-preload`}
@@ -203,8 +200,8 @@ export class Head extends Component<
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
           }
-          data-n-g={isSharedFile ? '' : undefined}
-          data-n-p={isSharedFile ? undefined : ''}
+          data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
+          data-n-p={isUnmanagedFile ? undefined : isSharedFile ? undefined : ''}
         />
       )
     })
@@ -221,10 +218,7 @@ export class Head extends Component<
     return (
       dedupe(dynamicImports)
         .map((bundle) => {
-          // `dynamicImports` will contain both `.js` and `.module.js` when the
-          // feature is enabled. This clause will filter down to the modern
-          // variants only.
-          if (!bundle.file.endsWith(getOptionalModernScriptVariant('.js'))) {
+          if (!bundle.file.endsWith('.js')) {
             return null
           }
 
@@ -251,10 +245,7 @@ export class Head extends Component<
   getPreloadMainLinks(files: DocumentFiles): JSX.Element[] | null {
     const { assetPrefix, devOnlyCacheBusterQueryString } = this.context
     const preloadFiles = files.allFiles.filter((file: string) => {
-      // `dynamicImports` will contain both `.js` and `.module.js` when
-      // the feature is enabled. This clause will filter down to the
-      // modern variants only.
-      return file.endsWith(getOptionalModernScriptVariant('.js'))
+      return file.endsWith('.js')
     })
 
     return !preloadFiles.length
@@ -441,6 +432,10 @@ export class Head extends Component<
         )}
         {children}
         {head}
+        <meta
+          name="next-head-count"
+          content={React.Children.count(head || []).toString()}
+        />
         {inAmpMode && (
           <>
             <meta
@@ -500,7 +495,7 @@ export class Head extends Component<
             {process.env.__NEXT_OPTIMIZE_FONTS
               ? this.makeStylesheetInert(this.getCssLinks(files))
               : this.getCssLinks(files)}
-            <noscript data-n-css />
+            <noscript data-n-css={this.props.nonce ?? ''} />
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks(files)}
             {this.context.isDevelopment && (
@@ -552,13 +547,6 @@ export class NextScript extends Component<OriginProps> {
     } = this.context
 
     return dedupe(dynamicImports).map((bundle) => {
-      let modernProps = {}
-      if (process.env.__NEXT_MODERN_BUILD) {
-        modernProps = bundle.file.endsWith('.module.js')
-          ? { type: 'module' }
-          : { noModule: true }
-      }
-
       if (!bundle.file.endsWith('.js') || files.allFiles.includes(bundle.file))
         return null
 
@@ -573,7 +561,6 @@ export class NextScript extends Component<OriginProps> {
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
           }
-          {...modernProps}
         />
       )
     })
@@ -593,13 +580,6 @@ export class NextScript extends Component<OriginProps> {
     )
 
     return [...normalScripts, ...lowPriorityScripts].map((file) => {
-      let modernProps = {}
-      if (process.env.__NEXT_MODERN_BUILD) {
-        modernProps = file.endsWith('.module.js')
-          ? { type: 'module' }
-          : { noModule: true }
-      }
-
       return (
         <script
           key={file}
@@ -611,7 +591,6 @@ export class NextScript extends Component<OriginProps> {
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
           }
-          {...modernProps}
         />
       )
     })
@@ -644,7 +623,7 @@ export class NextScript extends Component<OriginProps> {
       ))
   }
 
-  static getInlineScriptSource(documentProps: DocumentProps): string {
+  static getInlineScriptSource(documentProps: Readonly<DocumentProps>): string {
     const { __NEXT_DATA__ } = documentProps
     try {
       const data = JSON.stringify(__NEXT_DATA__)
@@ -753,18 +732,6 @@ export class NextScript extends Component<OriginProps> {
             }}
           />
         )}
-        {process.env.__NEXT_MODERN_BUILD && !disableRuntimeJS ? (
-          <script
-            nonce={this.props.nonce}
-            crossOrigin={
-              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-            }
-            noModule={true}
-            dangerouslySetInnerHTML={{
-              __html: NextScript.safariNomoduleFix,
-            }}
-          />
-        ) : null}
         {!disableRuntimeJS && this.getPolyfillScripts()}
         {disableRuntimeJS ? null : this.getDynamicChunks(files)}
         {disableRuntimeJS ? null : this.getScripts(files)}
