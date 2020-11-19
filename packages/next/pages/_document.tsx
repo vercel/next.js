@@ -638,6 +638,27 @@ export class NextScript extends Component<OriginProps> {
     }
   }
 
+  getInlineScriptSource(documentProps: Readonly<DocumentProps>): string {
+    const { __NEXT_DATA__ } = documentProps
+    const { props } = __NEXT_DATA__
+    return NextScript.getInlineScriptSource({
+      ...documentProps,
+      __NEXT_DATA__: {
+        ...__NEXT_DATA__,
+        props: this.transformPropsForSerialization(props),
+      },
+    })
+  }
+
+  /**
+   * This method is applied to initial props before serializing it in to the
+   * __NEXT_DATA__ inline script tag. The result must be serializable to JSON.
+   * If you override this, you should also provide App.transformDeserializedProps.
+   */
+  transformPropsForSerialization(props: Record<string, any>): any {
+    return props
+  }
+
   render() {
     const {
       assetPrefix,
@@ -672,7 +693,7 @@ export class NextScript extends Component<OriginProps> {
                 this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
               }
               dangerouslySetInnerHTML={{
-                __html: NextScript.getInlineScriptSource(this.context),
+                __html: this.getInlineScriptSource(this.context),
               }}
               data-ampdevmode
             />

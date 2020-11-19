@@ -276,6 +276,11 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     }
   }
 
+  const transformedProps =
+    'transformDeserializedProps' in CachedApp
+      ? (CachedApp as any).transformDeserializedProps(hydrateProps)
+      : hydrateProps
+
   let initialErr = hydrateErr
 
   try {
@@ -342,7 +347,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
   }
 
   router = createRouter(page, query, asPath, {
-    initialProps: hydrateProps,
+    initialProps: transformedProps,
     pageLoader,
     App: CachedApp,
     Component: CachedComponent,
@@ -372,7 +377,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     App: CachedApp,
     initial: true,
     Component: CachedComponent,
-    props: hydrateProps,
+    props: transformedProps,
     err: initialErr,
   }
 

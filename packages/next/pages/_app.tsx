@@ -29,12 +29,22 @@ async function appGetInitialProps({
   return { pageProps }
 }
 
+/**
+ * This function is applied to initial props after deserializing JSON from the
+ * __NEXT_DATA__ inline script tag. If you override this, you should also
+ * provide Document.transformPropsForSerialization.
+ */
+function transformDeserializedProps(props: any): any {
+  return props
+}
+
 export default class App<P = {}, CP = {}, S = {}> extends React.Component<
   P & AppProps<CP>,
   S
 > {
   static origGetInitialProps = appGetInitialProps
   static getInitialProps = appGetInitialProps
+  static transformDeserializedProps = transformDeserializedProps
 
   // Kept here for backwards compatibility.
   // When someone ended App they could call `super.componentDidCatch`.

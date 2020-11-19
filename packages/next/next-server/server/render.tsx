@@ -14,7 +14,7 @@ import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   UNSTABLE_REVALIDATE_RENAME_ERROR,
 } from '../../lib/constants'
-import { isSerializableProps } from '../../lib/is-serializable-props'
+import { isSerializableProps } from '../../lib/is-serializable-props' // XXX need to be able to override this.
 import { GetServerSideProps, GetStaticProps } from '../../types'
 import { isInAmpMode } from '../lib/amp'
 import { AmpStateContext } from '../lib/amp-context'
