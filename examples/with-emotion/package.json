@@ -1,15 +1,11 @@
 {
   "name": "with-emotion",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
-  "keywords": [],
-  "author": "Thomas Greco",
   "license": "MIT",
   "devDependencies": {
     "@emotion/babel-plugin": "11.0.0"
