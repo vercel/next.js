@@ -269,3 +269,5 @@ export const getStaticPaths = ({ locales }) => {
   }
 }
 ```
+
+Note: i18n routing does not currently support [`next export`](https://nextjs.org/docs/advanced-features/i18n-routing) mode as you are no longer leveraging Next.js' server-side routing.
