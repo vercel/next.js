@@ -631,7 +631,7 @@ const nextServerlessLoader: loader.Loader = function () {
           const {
             default: getRouteNoAssetPath,
           } = require('next/dist/next-server/lib/router/utils/get-route-from-asset-path');
-          _nextData = true;
+          _nextData = ${page === '/_error' ? 'false' : 'true'};
           parsedUrl.pathname = getRouteNoAssetPath(
             parsedUrl.pathname.replace(
               new RegExp('/_next/data/${escapedBuildId}/'),
