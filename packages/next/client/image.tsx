@@ -102,11 +102,10 @@ type CallLoaderProps = {
 type URLResolver = (resolverProps: CallLoaderProps) => string
 
 let customResolver: URLResolver
+let resolverError = false
 export function registerCustomResolver(resolver: URLResolver): void {
-  if (process.env.NODE_ENV !== 'production' && configLoader !== 'custom') {
-    throw new Error(
-      `registerCustomResolver can only be used if image loader is set to 'custom' in next.config.js`
-    )
+  if (configLoader !== 'custom') {
+    resolverError = true
   }
   customResolver = resolver
 }
@@ -251,6 +250,11 @@ export default function Image({
     if (unsized) {
       throw new Error(
         `Image with src "${src}" has deprecated "unsized" property, which was removed in favor of the "layout='fill'" property`
+      )
+    }
+    if (resolverError) {
+      throw new Error(
+        `registerCustomResolver can only be used if image loader is set to 'custom' in next.config.js`
       )
     }
   }
