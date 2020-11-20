@@ -637,6 +637,13 @@ export default class Router implements BaseRouter {
         this.locale = localePathResult.detectedLocale
         url = addBasePath(localePathResult.pathname)
       }
+
+      // if the locale isn't configured hard navigate to show 404 page
+      if (!this.locales?.includes(this.locale!)) {
+        parsedAs.pathname = addLocale(parsedAs.pathname, this.locale)
+        window.location.href = formatWithValidation(parsedAs)
+        return new Promise(() => {})
+      }
     }
 
     if (!(options as any)._h) {
