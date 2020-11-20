@@ -616,7 +616,10 @@ export default class Router implements BaseRouter {
     let localeChange = options.locale !== this.locale
 
     if (process.env.__NEXT_I18N_SUPPORT) {
-      this.locale = options.locale || this.locale
+      this.locale =
+        options.locale === false
+          ? this.defaultLocale
+          : options.locale || this.locale
 
       if (typeof options.locale === 'undefined') {
         options.locale = this.locale
@@ -627,12 +630,10 @@ export default class Router implements BaseRouter {
       } = require('../i18n/normalize-locale-path') as typeof import('../i18n/normalize-locale-path')
 
       const parsedAs = parseRelativeUrl(hasBasePath(as) ? delBasePath(as) : as)
-
       const localePathResult = normalizeLocalePath(
         parsedAs.pathname,
         this.locales
       )
-
       if (localePathResult.detectedLocale) {
         this.locale = localePathResult.detectedLocale
         url = addBasePath(localePathResult.pathname)
@@ -1235,7 +1236,7 @@ export default class Router implements BaseRouter {
           this.locales
         )
         parsedAs.pathname = localePathResult.pathname
-        options.locale = localePathResult.detectedLocale || options.locale
+        options.locale = localePathResult.detectedLocale || this.defaultLocale
         asPath = formatWithValidation(parsedAs)
       }
     }
