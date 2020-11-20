@@ -27,11 +27,63 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  it('should trigger full navigation for unsupported locale', async () => {
+    const browser = await webdriver(ctx.appPort, '/')
+
+    await browser.eval('window.beforeNav = 1')
+    await browser.eval(`(function() {
+      window.next.router.push('/auto-export', '/auto-export', { locale: 'no' })
+    })()`)
+
+    await browser.waitForElementByCss('#not-found')
+    expect(await browser.eval('window.beforeNav')).toBe(null)
+
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props.is404).toBe(true)
+    expect(props.locale).toBe('en-US')
+    expect(props.locales).toEqual(locales)
+    expect(props.defaultLocale).toBe('en-US')
+  })
+
+  it('should 404 for non configured locales direct visit', async () => {
+    for (const [pathname, gssp] of [
+      ['/gsp', true],
+      ['/gssp', true],
+      ['/auto-export'],
+      ['/'],
+      ['/gsp/fallback/first'],
+    ]) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `/no${pathname === '/' ? '' : pathname}`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      expect(res.status).toBe(404)
+
+      if (gssp) {
+        const res = await fetchViaHTTP(
+          ctx.appPort,
+          `/_next/data/${ctx.buildId}/no${pathname}.json`,
+          undefined,
+          {
+            redirect: 'manual',
+          }
+        )
+
+        expect(res.status).toBe(404)
+      }
+    }
+  })
+
   if (ctx.isDev) {
     it('should show error for redirect and notFound returned at same time', async () => {
       const html = await renderViaHTTP(
         ctx.appPort,
-        `${ctx.basePath}/_next/data/development/gsp/fallback/mixed-not-found-redirect.json`
+        `${ctx.basePath}/_next/data/development/en/gsp/fallback/mixed-not-found-redirect.json`
       )
 
       expect(html).toContain(
