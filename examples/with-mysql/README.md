@@ -2,6 +2,10 @@
 
 This is an example of using [MySQL](https://www.mysql.com/) in a Next.js project.
 
+## Demo 
+
+### [https://next-mysql.vercel.app](https://next-mysql.vercel.app/)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com):
