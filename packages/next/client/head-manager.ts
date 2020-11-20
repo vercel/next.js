@@ -22,7 +22,12 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
   if (dangerouslySetInnerHTML) {
     el.innerHTML = dangerouslySetInnerHTML.__html || ''
   } else if (children) {
-    el.textContent = typeof children === 'string' ? children : children.join('')
+    el.textContent =
+      typeof children === 'string'
+        ? children
+        : Array.isArray(children)
+        ? children.join('')
+        : ''
   }
   return el
 }
@@ -93,7 +98,12 @@ export default function initHeadManager() {
         let title = ''
         if (titleComponent) {
           const { children } = titleComponent.props
-          title = typeof children === 'string' ? children : children.join('')
+          title =
+            typeof children === 'string'
+              ? children
+              : Array.isArray(children)
+              ? children.join('')
+              : ''
         }
         if (title !== document.title) document.title = title
         ;['meta', 'base', 'link', 'style', 'script'].forEach((type) => {

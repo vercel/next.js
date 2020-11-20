@@ -2,7 +2,7 @@
   "name": "with-react-md",
   "version": "1.0.0",
   "private": true,
-  "license": "ISC",
+  "license": "MIT",
   "scripts": {
     "dev": "next",
     "build": "next build",

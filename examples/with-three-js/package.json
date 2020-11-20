@@ -17,5 +17,6 @@
   },
   "devDependencies": {
     "next-transpile-modules": "4.0.2"
-  }
+  },
+  "license": "MIT"
 }

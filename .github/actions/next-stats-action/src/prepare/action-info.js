@@ -56,7 +56,9 @@ module.exports = function actionInfo() {
     isLocal: LOCAL_STATS,
     commitId: null,
     issueId: ISSUE_ID,
-    isRelease: releaseTypes.has(GITHUB_ACTION),
+    isRelease:
+      GITHUB_REPOSITORY === 'vercel/next.js' &&
+      (GITHUB_REF || '').includes('canary'),
   }
 
   // get comment
