@@ -20,6 +20,8 @@ let app
 describe('distDir', () => {
   describe('With basic usage', () => {
     beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
+      await fs.remove(join(appDir, 'dist'))
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
