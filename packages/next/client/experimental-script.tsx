@@ -59,7 +59,12 @@ const loadScript = (props: Props) => {
   if (dangerouslySetInnerHTML) {
     el.innerHTML = dangerouslySetInnerHTML.__html || ''
   } else if (children) {
-    el.textContent = typeof children === 'string' ? children : children.join('')
+    el.textContent =
+      typeof children === 'string'
+        ? children
+        : Array.isArray(children)
+        ? children.join('')
+        : ''
   } else if (src) {
     el.src = src
   }
@@ -117,7 +122,12 @@ export default function Script(props: Props) {
       }
       if (k === 'children') {
         syncProps.dangerouslySetInnerHTML = {
-          __html: typeof value === 'string' ? value : value.join(''),
+          __html:
+            typeof value === 'string'
+              ? value
+              : Array.isArray(value)
+              ? value.join('')
+              : '',
         }
       } else {
         ;(syncProps as any)[k] = value
