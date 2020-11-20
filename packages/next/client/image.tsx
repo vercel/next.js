@@ -16,11 +16,11 @@ const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
 
 const loaders = new Map<LoaderValue, (props: LoaderProps) => string>([
+  ['default', defaultLoader],
   ['imgix', imgixLoader],
+  ['fastly', fastlyLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
-  ['fastly', fastlyLoader],
-  ['default', defaultLoader],
 ])
 
 const VALID_LAYOUT_VALUES = [
@@ -436,10 +436,6 @@ function fastlyLoader({ root, src, width, quality }: LoaderProps): string {
   return url.href
 }
 
-function akamaiLoader({ root, src, width }: LoaderProps): string {
-  return `${root}${normalizeSrc(src)}?imwidth=${width}`
-}
-
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
   // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit/turtles.jpg
   const params = ['f_auto', 'c_limit', 'w_' + width]
@@ -451,6 +447,10 @@ function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
     paramsString = params.join(',') + '/'
   }
   return `${root}${paramsString}${normalizeSrc(src)}`
+}
+
+function akamaiLoader({ root, src, width }: LoaderProps): string {
+  return `${root}${normalizeSrc(src)}?imwidth=${width}`
 }
 
 function defaultLoader({ root, src, width, quality }: LoaderProps): string {

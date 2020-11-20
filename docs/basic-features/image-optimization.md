@@ -86,9 +86,9 @@ The following Image Optimization cloud providers are supported:
 
 - [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/next.js/image-optimization)
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
+- [Fastly](https://www.fastly.com): `loader: 'fastly'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
-- [Fastly](https://www.fastly.com): `loader: 'fastly'`
 - Default: Works automatically with `next dev`, `next start`, or a custom server
 
 ## Caching
