@@ -9,7 +9,7 @@ const LoadCache = new Set()
 
 interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
   strategy?: 'defer' | 'lazy' | 'dangerouslyBlockRendering' | 'eager'
-  key?: string
+  id?: string
   onLoad?: () => void
   onError?: () => void
   children?: React.ReactNode
@@ -22,11 +22,11 @@ const loadScript = (props: Props) => {
     onLoad = () => {},
     dangerouslySetInnerHTML,
     children = '',
-    key,
+    id,
     onError,
   } = props
 
-  const cacheKey = key || src
+  const cacheKey = id || src
   if (ScriptCache.has(src)) {
     if (!LoadCache.has(cacheKey)) {
       LoadCache.add(cacheKey)
@@ -53,8 +53,10 @@ const loadScript = (props: Props) => {
     })
   })
 
-  ScriptCache.set(src, loadPromise)
-  LoadCache.add(cacheKey)
+  if (src) {
+    ScriptCache.set(src, loadPromise)
+    LoadCache.add(cacheKey)
+  }
 
   if (dangerouslySetInnerHTML) {
     el.innerHTML = dangerouslySetInnerHTML.__html || ''
@@ -88,7 +90,6 @@ export default function Script(props: Props) {
     dangerouslySetInnerHTML,
     children = '',
     strategy = 'defer',
-    key,
     onError,
     preload = false,
     ...restProps

@@ -8,7 +8,7 @@ const Page = () => {
     <div class="container">
       <Script
         src={url}
-        key="script1"
+        id="script1"
         onLoad={() => {
           // eslint-disable-next-line no-undef
           document.getElementById('text').textContent += _.repeat('a', 3)
@@ -16,7 +16,7 @@ const Page = () => {
       ></Script>
       <Script
         src={url}
-        key="script2"
+        id="script2"
         onLoad={() => {
           // eslint-disable-next-line no-undef
           document.getElementById('text').textContent += _.repeat('b', 3)
@@ -24,7 +24,7 @@ const Page = () => {
       ></Script>
       <Script
         src={url}
-        key="script3"
+        id="script3"
         onLoad={() => {
           // eslint-disable-next-line no-undef
           document.getElementById('text').textContent += _.repeat('c', 3)
