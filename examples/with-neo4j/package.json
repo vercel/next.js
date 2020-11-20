@@ -8,10 +8,10 @@
   },
   "license": "MIT",
   "dependencies": {
-    "neo4j-driver": "4.1.1",
-    "next": "9.5.2",
+    "neo4j-driver": "4.2.1",
+    "next": "latest",
     "react": "16.13.1",
     "react-dom": "16.13.1",
-    "swr": "0.3.1"
+    "swr": "0.3.9"
   }
 }
