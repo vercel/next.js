@@ -33,7 +33,15 @@ module.exports = (phase, defaultConfig) => {
 }
 ```
 
-ℹ️ Since this plugin extends the [default analyzer config](https://github.com/webpack-contrib/webpack-bundle-analyzer#options-for-plugin), you may provide overrides accordingly.
+ℹ️ Since this plugin extends the [default analyzer config](https://github.com/webpack-contrib/webpack-bundle-analyzer#options-for-plugin), you may provide overrides accordingly:
+
+```js
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+  generateStatsFile: true
+})
+module.exports = withBundleAnalyzer({})
+```
 
 Then you can run the command below:
 
