@@ -1,54 +1,48 @@
-# Example using Neo4j Database
+# Neo4j Example
 
-This is a simple set up for Next using Neo4j Database with api routes. Neo4j's Movies dataset example is used.
+This is a simple set up for Next using Neo4j Database with api routes. Neo4j's Movies dataset example is used to run the example.
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Once you have access to [the environment variables you'll need](#step-3-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/with-neo4j)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/with-neo4j&env=NEO4J_URI,NEO4J_USER,NEO4J_PASSWORD&envDescription=Required%20to%20connect%20the%20app%20with%20a%20Neo4j%20database&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-neo4j%23step-3-set-up-environment-variables)
 
 ## How to use
 
-You can start with this template [using `create-next-app`](https://github.com/vercel/next.js/tree/canary/examples/with-neo4j#using-create-next-app) or by [downloading the repository manually](https://github.com/vercel/next.js/tree/canary/examples/with-neo4j#download-manually)
-
-[Neo4j Desktop](https://neo4j.com/download/) has been used for this example, however, [Neo4j Online Sandbox](https://neo4j.com/sandbox/) can also be used. Both as free instances.
-
-Create a database with neo4j desktop or online sandbox and create your credentials. For this example use the sample database containing _Movies_:
-
-```
-:play movie-graph
-```
-
-You need use the Neo4j JavaScript Driver:
-
-```bash
-yarn add neo4j-driver
-```
-
-Also included is a Cypher [movie sample](https://github.com/vercel/next.js/blob/canary/examples/with-neo4j/movie-sample.md) query if needed.
-
-### Using `create-next-app`
-
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
-```
-npx create-next-app --example with-neo4j with-neo4j
+```bash
+npx create-next-app --example with-neo4j with-neo4j-app
 # or
-yarn create next-app --example with-neo4j with-neo4j
+yarn create next-app --example with-neo4j with-neo4j-app
 ```
 
 ## Configuration
 
-1. Create a neo4j database.
-2. Add the [movie sample](https://github.com/vercel/next.js/blob/canary/examples/with-neo4j/movie-sample.md) to database.
-3. Create a `.env.local` file and copy the contents of `.env.local.example` into it:
+### Step 1. Create a Neo4j database
+
+First, you'll need a Neo4j database. [Neo4j Desktop](https://neo4j.com/download/) and [Neo4j Online Sandbox](https://neo4j.com/sandbox/) are good and free to use options.
+
+### Step 2. Add the movie graph model to the database
+
+This example uses a database containing _Movies_, you can add it like so:
+
+```bash
+:play movie-graph
+```
+
+Also included is a Cypher [movie sample](./movie-sample.md) query if needed.
+
+### Step 3. Set up environment variables
+
+Next, copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-3. Set each variable on `.env.local` with your database uri and credentials.
+Then set each variable on `.env.local` to match your database uri and credentials.
 
 ## Deploy on Vercel
 
@@ -59,3 +53,9 @@ You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source
 To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
 **Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
+
+### Deploy from Our Template
+
+Alternatively, you can deploy using our template by clicking on the Deploy button below.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/with-neo4j&env=NEO4J_URI,NEO4J_USER,NEO4J_PASSWORD&envDescription=Required%20to%20connect%20the%20app%20with%20a%20Neo4j%20database&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-neo4j%23step-3-set-up-environment-variables)
