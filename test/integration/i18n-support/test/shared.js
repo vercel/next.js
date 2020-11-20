@@ -27,6 +27,44 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  it('should use default locale when no locale is in href with locale false', async () => {
+    const browser = await webdriver(
+      ctx.appPort,
+      `${ctx.basePath}/nl/locale-false?nextLocale=fr`
+    )
+
+    await browser.eval('window.beforeNav = 1')
+
+    if (!ctx.isDev) {
+      await browser.eval(`(function() {
+        document.querySelector('#to-gssp-slug-default').scrollIntoView()
+        document.querySelector('#to-gsp-default').scrollIntoView()
+      })()`)
+
+      await check(async () => {
+        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
+        hrefs.sort()
+
+        assert.deepEqual(
+          hrefs.map((href) =>
+            new URL(href).pathname
+              .replace(ctx.basePath, '')
+              .replace(/^\/_next\/data\/[^/]+/, '')
+          ),
+          [
+            '/en-US/gsp.json',
+            '/fr/gsp.json',
+            '/fr/gsp/fallback/first.json',
+            '/fr/gsp/fallback/hello.json',
+          ]
+        )
+        return 'yes'
+      }, 'yes')
+    }
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
   if (ctx.isDev) {
     it('should show error for redirect and notFound returned at same time', async () => {
       const html = await renderViaHTTP(
@@ -715,6 +753,7 @@ export function runTests(ctx) {
               .replace(/^\/_next\/data\/[^/]+/, '')
           ),
           [
+            '/en-US/gsp.json',
             '/fr/gsp.json',
             '/fr/gsp/fallback/first.json',
             '/fr/gsp/fallback/hello.json',
