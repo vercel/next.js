@@ -8,6 +8,7 @@ import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
+  TEMPORARY_REDIRECT_STATUS,
 } from '../../../next-server/lib/constants'
 import { isDynamicRoute } from '../../../next-server/lib/router/utils'
 import { __ApiPreviewProps } from '../../../next-server/server/api-utils'
@@ -190,8 +191,7 @@ const nextServerlessLoader: loader.Loader = function () {
             rewrite.destination,
             params,
             parsedUrl.query,
-            true,
-            "${basePath}"
+            true
           )
 
           Object.assign(parsedUrl.query, parsedDestination.query)
@@ -199,13 +199,43 @@ const nextServerlessLoader: loader.Loader = function () {
 
           Object.assign(parsedUrl, parsedDestination)
 
-          if (parsedUrl.pathname === '${page}'){
+          let fsPathname = parsedUrl.pathname
+
+          ${
+            basePath
+              ? `
+            fsPathname = fsPathname.replace(
+              new RegExp('^${basePath}'),
+              ''
+            ) || '/'
+          `
+              : ''
+          }
+
+          ${
+            i18n
+              ? `
+            const destLocalePathResult = normalizeLocalePath(
+              fsPathname,
+              i18n.locales
+            )
+            fsPathname = destLocalePathResult.pathname
+
+            parsedUrl.query.nextInternalLocale = (
+              destLocalePathResult.detectedLocale ||
+              params.nextInternalLocale
+            )
+          `
+              : ''
+          }
+
+          if (fsPathname === '${page}'){
             break
           }
           ${
             pageIsDynamicRoute
               ? `
-            const dynamicParams = dynamicRouteMatcher(parsedUrl.pathname);\
+            const dynamicParams = dynamicRouteMatcher(fsPathname);\
             if (dynamicParams) {
               parsedUrl.query = {
                 ...parsedUrl.query,
@@ -234,12 +264,10 @@ const nextServerlessLoader: loader.Loader = function () {
   const handleLocale = i18nEnabled
     ? `
       // get pathname from URL with basePath stripped for locale detection
-      const i18n = ${i18n}
       const accept = require('@hapi/accept')
       const cookie = require('next/dist/compiled/cookie')
       const { detectLocaleCookie } = require('next/dist/next-server/lib/i18n/detect-locale-cookie')
       const { detectDomainLocale } = require('next/dist/next-server/lib/i18n/detect-domain-locale')
-      const { normalizeLocalePath } = require('next/dist/next-server/lib/i18n/normalize-locale-path')
       let locales = i18n.locales
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
@@ -361,11 +389,11 @@ const nextServerlessLoader: loader.Loader = function () {
               localeDomainRedirect
                 ? localeDomainRedirect
                 : shouldStripDefaultLocale
-                  ? '/'
-                  : \`/\${detectedLocale}\`,
+                  ? "${basePath}" || '/'
+                  : \`${basePath}/\${detectedLocale}\`,
           })
         )
-        res.statusCode = 307
+        res.statusCode = ${TEMPORARY_REDIRECT_STATUS}
         res.end()
         return
       }
@@ -399,6 +427,9 @@ const nextServerlessLoader: loader.Loader = function () {
       ${dynamicRouteImports}
       const { parse: parseUrl } = require('url')
       const { apiResolver } = require('next/dist/next-server/server/api-utils')
+      const { normalizeLocalePath } = require('next/dist/next-server/lib/i18n/normalize-locale-path')
+      const i18n = ${i18n || '{}'}
+
       ${rewriteImports}
 
       ${dynamicRouteMatcher}
@@ -415,6 +446,12 @@ const nextServerlessLoader: loader.Loader = function () {
           // to ensure we are using the correct values
           const trustQuery = req.headers['${vercelHeader}']
           const parsedUrl = handleRewrites(parseUrl(req.url, true))
+
+          if (parsedUrl.query.nextInternalLocale) {
+            detectedLocale = parsedUrl.query.nextInternalLocale
+            delete parsedUrl.query.nextInternalLocale
+          }
+
           let hasValidParams = true
 
           ${normalizeDynamicRouteParams}
@@ -481,6 +518,8 @@ const nextServerlessLoader: loader.Loader = function () {
     const {PERMANENT_REDIRECT_STATUS} = require('next/dist/next-server/lib/constants')
     const buildManifest = require('${buildManifest}');
     const reactLoadableManifest = require('${reactLoadableManifest}');
+    const { normalizeLocalePath } = require('next/dist/next-server/lib/i18n/normalize-locale-path')
+    const i18n = ${i18n || '{}'}
 
     const appMod = require('${absoluteAppPath}')
     let App = appMod.default || appMod.then && appMod.then(mod => mod.default);
@@ -605,6 +644,11 @@ const nextServerlessLoader: loader.Loader = function () {
 
         ${handleLocale}
 
+        if (parsedUrl.query.nextInternalLocale) {
+          detectedLocale = parsedUrl.query.nextInternalLocale
+          delete parsedUrl.query.nextInternalLocale
+        }
+
         const renderOpts = Object.assign(
           {
             Component,
@@ -663,19 +707,65 @@ const nextServerlessLoader: loader.Loader = function () {
                           // favor named matches if available
                           const routeKeyNames = Object.keys(routeKeys)
 
+                          const filterLocaleItem = val => {
+                            ${
+                              i18nEnabled
+                                ? `
+                                // locale items can be included in route-matches
+                                // for fallback SSG pages so ensure they are
+                                // filtered
+                                const isCatchAll = Array.isArray(val)
+                                const _val = isCatchAll ? val[0] : val
+
+                                if (
+                                  typeof _val === 'string' &&
+                                  locales.some(
+                                    item => {
+                                      if (item.toLowerCase() === _val.toLowerCase()) {
+                                        detectedLocale = item
+                                        renderOpts.locale = detectedLocale
+                                        return true
+                                      }
+                                    }
+                                  )
+                                ) {
+                                  // remove the locale item from the match
+                                  if (isCatchAll) {
+                                    val.splice(0, 1)
+                                  }
+
+                                  // the value is only a locale item and
+                                  // shouldn't be added
+                                  return isCatchAll
+                                    ? val.length === 0
+                                    : true
+                                }
+                              `
+                                : ''
+                            }
+                            return false
+                          }
+
                           if (routeKeyNames.every(name => obj[name])) {
                             return routeKeyNames.reduce((prev, keyName) => {
                               const paramName = routeKeys[keyName]
-                              prev[groups[paramName].pos] = obj[keyName]
+
+                              if (!filterLocaleItem(obj[keyName])) {
+                                prev[groups[paramName].pos] = obj[keyName]
+                              }
                               return prev
                             }, {})
                           }
 
                           return Object.keys(obj).reduce(
-                            (prev, key) =>
-                              Object.assign(prev, {
-                                [key]: obj[key]
-                              }),
+                            (prev, key) => {
+                              if (!filterLocaleItem(obj[key])) {
+                                return Object.assign(prev, {
+                                  [key]: obj[key]
+                                })
+                              }
+                              return prev
+                            },
                             {}
                           );
                         }
@@ -720,12 +810,19 @@ const nextServerlessLoader: loader.Loader = function () {
               const _parsedUrl = parseUrl(req.url)
 
               for (const param of Object.keys(defaultRouteRegex.groups)) {
-                const paramIdx = _parsedUrl.pathname.indexOf(\`[\${param}]\`)
+                const { optional, repeat } = defaultRouteRegex.groups[param]
+                let builtParam = \`[\${repeat ? '...' : ''}\${param}]\`
+
+                if (optional) {
+                  builtParam = \`[\${builtParam}]\`
+                }
+
+                const paramIdx = _parsedUrl.pathname.indexOf(builtParam)
 
                 if (paramIdx > -1) {
                   _parsedUrl.pathname = _parsedUrl.pathname.substr(0, paramIdx) +
-                    encodeURI(nowParams[param]) +
-                    _parsedUrl.pathname.substr(paramIdx + param.length + 2)
+                    encodeURI(nowParams[param] || '') +
+                    _parsedUrl.pathname.substr(paramIdx + builtParam.length)
                 }
               }
               parsedUrl.pathname = _parsedUrl.pathname
@@ -810,7 +907,7 @@ const nextServerlessLoader: loader.Loader = function () {
                 err: undefined,
                 locale: detectedLocale,
                 locales,
-                defaultLocale: i18n.defaultLocale,
+                defaultLocale,
               }))
 
               sendPayload(req, res, result, 'html', ${
@@ -824,9 +921,14 @@ const nextServerlessLoader: loader.Loader = function () {
             } else if (renderOpts.isRedirect && !_nextData) {
               const redirect = {
                 destination: renderOpts.pageData.pageProps.__N_REDIRECT,
-                statusCode: renderOpts.pageData.pageProps.__N_REDIRECT_STATUS
+                statusCode: renderOpts.pageData.pageProps.__N_REDIRECT_STATUS,
+                basePath: renderOpts.pageData.pageProps.__N_REDIRECT_BASE_PATH
               }
               const statusCode = getRedirectStatus(redirect)
+
+              if ("${basePath}" && redirect.basePath !== false) {
+                redirect.destination = \`${basePath}\${redirect.destination}\`
+              }
 
               if (statusCode === PERMANENT_REDIRECT_STATUS) {
                 res.setHeader('Refresh', \`0;url=\${redirect.destination}\`)

@@ -163,3 +163,31 @@ module.exports = {
   },
 }
 ```
+
+### Rewrites with i18n support
+
+When leveraging [`i18n` support](/docs/advanced-features/i18n-routing.md) with rewrites each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the rewrite:
+
+```js
+module.exports = {
+  i18n: {
+    locales: ['en', 'fr', 'de'],
+    defaultLocale: 'en',
+  },
+
+  async rewrites() {
+    return [
+      {
+        source: '/with-locale', // automatically handles all locales
+        destination: '/another', // automatically passes the locale on
+      },
+      {
+        // does not handle locales automatically since locale: false is set
+        source: '/nl/with-locale-manual',
+        destination: '/nl/another',
+        locale: false,
+      },
+    ]
+  },
+}
+```
