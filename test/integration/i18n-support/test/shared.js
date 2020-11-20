@@ -213,6 +213,11 @@ export function runTests(ctx) {
           initialRevalidateSeconds: false,
           srcRoute: null,
         },
+        '/en-US/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/en-US/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
+        },
         '/en-US/gsp/fallback/first': {
           dataRoute: `/_next/data/${ctx.buildId}/en-US/gsp/fallback/first.json`,
           initialRevalidateSeconds: false,
@@ -253,6 +258,21 @@ export function runTests(ctx) {
           initialRevalidateSeconds: false,
           srcRoute: '/not-found/fallback/[slug]',
         },
+        '/en/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/en/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
+        },
+        '/fr-BE/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/fr-BE/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
+        },
+        '/fr/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/fr/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
+        },
         '/frank': {
           dataRoute: `/_next/data/${ctx.buildId}/frank.json`,
           initialRevalidateSeconds: false,
@@ -263,10 +283,25 @@ export function runTests(ctx) {
           srcRoute: null,
           initialRevalidateSeconds: false,
         },
+        '/nl-BE/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/nl-BE/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
+        },
+        '/nl-NL/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/nl-NL/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
+        },
         '/nl-NL/gsp/no-fallback/second': {
           dataRoute: `/_next/data/${ctx.buildId}/nl-NL/gsp/no-fallback/second.json`,
           initialRevalidateSeconds: false,
           srcRoute: '/gsp/no-fallback/[slug]',
+        },
+        '/nl/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/nl/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
         },
         '/not-found': {
           dataRoute: `/_next/data/${ctx.buildId}/not-found.json`,

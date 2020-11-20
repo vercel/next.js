@@ -495,8 +495,11 @@ export async function renderToHTML(
             }
           : {}),
       }
+      renderOpts.resolvedAsPath = `${pathname}${
+        // ensure trailing slash is present for non-dynamic auto-export pages
+        req.url!.endsWith('/') && pathname !== '/' && !pageIsDynamic ? '/' : ''
+      }`
       req.url = pathname
-      renderOpts.resolvedAsPath = pathname
       renderOpts.nextExport = true
     }
 
