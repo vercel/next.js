@@ -1,15 +1,15 @@
 /* eslint-env jest */
 
-import { join } from 'path'
 import {
-  killApp,
+  File,
   findPort,
+  killApp,
   launchApp,
-  nextStart,
   nextBuild,
+  nextStart,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import fs from 'fs-extra'
+import { join } from 'path'
 
 jest.setTimeout(1000 * 30)
 
@@ -41,7 +41,7 @@ function runTests() {
       expect(
         await hasImageMatchingUrl(
           browser,
-          `http://localhost:${appPort}/_next/test.jpg?auto=webp&optimize=medium&width=420`
+          `https://example.com/fastly/test.jpg?auto=webp&optimize=medium&width=1200`
         )
       ).toBe(true)
     } finally {
@@ -75,21 +75,15 @@ describe('Image Component Fastly Loader', () => {
   })
 
   describe('serverless mode', () => {
+    const f = new File(nextConfig)
     beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          target: 'serverless'
-        }
-      `
-      )
+      f.replace(`// target: 'serverless'`, `target: 'serverless'`)
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.unlink(nextConfig)
+      f.restore()
       await killApp(app)
     })
 
