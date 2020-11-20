@@ -226,7 +226,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
       if (images.domains.length > 50) {
         throw new Error(
-          `Specified images.domains exceeds length of 50, received length (${images.domains.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
+          `Specified images.domains exceeds length of 50, received length (${images.domains.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/next.js/invalid-images-config`
         )
       }
 
@@ -251,7 +251,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
       if (deviceSizes.length > 25) {
         throw new Error(
-          `Specified images.deviceSizes exceeds length of 25, received length (${deviceSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
+          `Specified images.deviceSizes exceeds length of 25, received length (${deviceSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/next.js/invalid-images-config`
         )
       }
 
@@ -277,7 +277,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
       if (imageSizes.length > 25) {
         throw new Error(
-          `Specified images.imageSizes exceeds length of 25, received length (${imageSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
+          `Specified images.imageSizes exceeds length of 25, received length (${imageSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/next.js/invalid-images-config`
         )
       }
 
@@ -345,7 +345,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
     if (typeof i18n.domains !== 'undefined' && !Array.isArray(i18n.domains)) {
       throw new Error(
-        `Specified i18n.domains must be an array of domain objects e.g. [ { domain: 'example.fr', defaultLocale: 'fr', locales: ['fr'] } ] received ${typeof i18n.domains}.\nSee more info here: https://err.sh/nextjs/invalid-i18n-config`
+        `Specified i18n.domains must be an array of domain objects e.g. [ { domain: 'example.fr', defaultLocale: 'fr', locales: ['fr'] } ] received ${typeof i18n.domains}.\nSee more info here: https://err.sh/next.js/invalid-i18n-config`
       )
     }
 
