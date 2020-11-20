@@ -75,7 +75,12 @@ export interface RouteLoader {
 function hasPrefetch(link?: HTMLLinkElement): boolean {
   try {
     link = document.createElement('link')
-    return link.relList.supports('prefetch')
+    return (
+      // detect IE11 since it supports prefetch but isn't detected
+      // with relList.support
+      (!!window.MSInputMethodContext && !!(document as any).documentMode) ||
+      link.relList.supports('prefetch')
+    )
   } catch {
     return false
   }
@@ -246,7 +251,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
 
     styleSheets.set(
       href,
-      (prom = fetch(href, { credentials: 'include' })
+      (prom = fetch(href)
         .then((res) => {
           if (!res.ok) {
             throw new Error(`Failed to load stylesheet: ${href}`)

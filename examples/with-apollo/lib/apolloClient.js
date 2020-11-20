@@ -3,6 +3,8 @@ import { ApolloClient, HttpLink, InMemoryCache } from '@apollo/client'
 import { concatPagination } from '@apollo/client/utilities'
 import merge from 'deepmerge'
 
+export const APOLLO_STATE_PROP_NAME = '__APOLLO_STATE__'
+
 let apolloClient
 
 function createApolloClient() {
@@ -47,7 +49,16 @@ export function initializeApollo(initialState = null) {
   return _apolloClient
 }
 
-export function useApollo(initialState) {
-  const store = useMemo(() => initializeApollo(initialState), [initialState])
+export function addApolloState(client, pageProps) {
+  if (pageProps?.props) {
+    pageProps.props[APOLLO_STATE_PROP_NAME] = client.cache.extract()
+  }
+
+  return pageProps
+}
+
+export function useApollo(pageProps) {
+  const state = pageProps[APOLLO_STATE_PROP_NAME]
+  const store = useMemo(() => initializeApollo(state), [state])
   return store
 }
