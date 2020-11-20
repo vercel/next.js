@@ -33,7 +33,7 @@ module.exports = (phase, defaultConfig) => {
 }
 ```
 
-Since this plugin extends the [default analyzer config](https://github.com/webpack-contrib/webpack-bundle-analyzer#options-for-plugin), you may provide overrides accordingly.
+ℹ️ Since this plugin extends the [default analyzer config](https://github.com/webpack-contrib/webpack-bundle-analyzer#options-for-plugin), you may provide overrides accordingly.
 
 Then you can run the command below:
 
