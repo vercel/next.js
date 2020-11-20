@@ -319,23 +319,33 @@ describe('i18n Support', () => {
 
     it('should serve pages correctly with locale prefix', async () => {
       for (const locale of locales) {
-        const res = await fetchViaHTTP(
-          curCtx.appPort,
-          `/${locale}/`,
-          undefined,
-          {
-            redirect: 'manual',
-          }
-        )
-        expect(res.status).toBe(200)
+        for (const [pathname, asPath] of [
+          ['/', '/'],
+          ['/links', '/links/'],
+          ['/auto-export', '/auto-export/'],
+          ['/gsp', '/gsp/'],
+          ['/gsp/fallback/[slug]', '/gsp/fallback/always/'],
+          ['/gssp', '/gssp/'],
+          ['/gssp/[slug]', '/gssp/first/'],
+        ]) {
+          const res = await fetchViaHTTP(
+            curCtx.appPort,
+            `${locale === 'en-US' ? '' : `/${locale}`}${asPath}`,
+            undefined,
+            {
+              redirect: 'manual',
+            }
+          )
+          expect(res.status).toBe(200)
 
-        const $ = cheerio.load(await res.text())
+          const $ = cheerio.load(await res.text())
 
-        expect($('#router-pathname').text()).toBe('/')
-        expect($('#router-as-path').text()).toBe('/')
-        expect($('#router-locale').text()).toBe(locale)
-        expect(JSON.parse($('#router-locales').text())).toEqual(locales)
-        expect($('#router-default-locale').text()).toBe('en-US')
+          expect($('#router-pathname').text()).toBe(pathname)
+          expect($('#router-as-path').text()).toBe(asPath)
+          expect($('#router-locale').text()).toBe(locale)
+          expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+          expect($('#router-default-locale').text()).toBe('en-US')
+        }
       }
     })
 
