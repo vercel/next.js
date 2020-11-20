@@ -1,12 +1,20 @@
-# MobX example
+# MobX V6 with Mobx React Lite
 
-Usually splitting your app state into `pages` feels natural but sometimes you'll want to have global state for your app. This is an example on how you can use MobX that also works with our universal rendering approach. This is just a way you can do it but it's not the only one.
+Usually splitting your app state into `pages` feels natural but sometimes you'll want to have global state for your app. This is an example on how you can use mobx that also works with our universal rendering approach.
 
 In this example we are going to display a digital clock that updates every second. The first render is happening in the server and then the browser will take over. To illustrate this, the server rendered clock will have a different background color than the client one.
 
-![](http://i.imgur.com/JCxtWSj.gif)
+To illustrate SSG and SSR, go to `/ssg` and `/ssr`, those pages are using Next.js data fetching methods to get the date in the server and return it as props to the page, and then the browser will hydrate the store and continue updating the date.
 
-This example is a mobx-react-lite port of the [with-mobx](https://github.com/vercel/next.js/tree/master/examples/with-mobx) example. MobX support has been implemented using React Hooks.
+The trick here for supporting universal mobx is to separate the cases for the client and the server. When we are on the server we want to create a new store every time, otherwise different users data will be mixed up. If we are in the client we want to use always the same store. That's what we accomplish on `store.js`.
+
+Page.js component is using the clock store to start and stop the store clock.
+
+Clock.js component is using the clock store to read the time.
+
+StoreProvider.js component is used to instantiate the `Store` both on the server and on the client.
+
+Both components are using a custom hook `useStore` to pull in the `Store` from the provider.
 
 ## Deploy your own
 
@@ -25,59 +33,3 @@ yarn create next-app --example with-mobx-react-lite with-mobx-react-lite-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
-
-## Implementation details
-
-The initial store data is returned from the `initializeData` function that recycles existing store data if it already exists.
-
-```jsx
-function initializeData(initialData = store || {}) {
-  const { lastUpdate = Date.now(), light } = initialData
-  return {
-    lastUpdate,
-    light: Boolean(light),
-  }
-}
-```
-
-The observable store is created in a function component by passing a plain JavaScript object to the `useObservable` hook. Actions on the observable store (`start` and `stop`) are created in the same scope as the `store` in `store.js` and exported as named exports.
-
-```js
-store = useObservable(initializeData(props.initialData))
-
-start = useCallback(
-  action(() => {
-    // Async operation that mutates the store
-  })
-)
-
-stop = () => {
-  // Does not mutate the store
-}
-```
-
-The component creates and exports a new React context provider that will make the store accessible to all of its descendents.
-
-```jsx
-return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
-```
-
-The store is accessible at any depth by using the `StoreContext`.
-
-```js
-const store = useContext(StoreContext)
-```
-
-The clock, under `components/Clock.js`, reacts to changes in the observable `store` by means of the `useObserver` hook.
-
-```jsx
-return (
-  <div>
-    // ...
-    {useObserver(() => (
-      <Clock lastUpdate={store.lastUpdate} light={store.light} />
-    ))}
-    // ...
-  </div>
-)
-```
