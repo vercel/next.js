@@ -48,6 +48,7 @@ describe('i18n Support', () => {
       nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
       curCtx.appPort = await findPort()
       curCtx.app = await launchApp(appDir, curCtx.appPort)
+      curCtx.buildId = 'development'
     })
     afterAll(async () => {
       await killApp(curCtx.app)
