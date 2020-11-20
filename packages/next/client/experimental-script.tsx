@@ -1,32 +1,19 @@
 import React, { useEffect, useContext } from 'react'
 import { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
+import { DOMAttributeNames } from './head-manager'
+import requestIdleCallback from './request-idle-callback'
 
 const ScriptCache = new Map()
 const LoadCache = new Set()
 
-const DOMAttributeNames: Record<string, string> = {
-  acceptCharset: 'accept-charset',
-  className: 'class',
-  htmlFor: 'for',
-  httpEquiv: 'http-equiv',
-}
-
 interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
-  strategy?: 'defer' | 'lazy' | 'dangerousRenderBlocking' | 'eager'
+  strategy?: 'defer' | 'lazy' | 'dangerouslyBlockRendering' | 'eager'
   key?: string
   onLoad?: () => void
   onError?: () => void
-  children?: any
+  children?: React.ReactNode
   preload?: boolean
-}
-
-const onErrorHandler: Function = (src: string, onError: Function) => () => {
-  ScriptCache.delete(src)
-
-  if (onError) {
-    onError()
-  }
 }
 
 const loadScript = (props: Props) => {
@@ -42,11 +29,9 @@ const loadScript = (props: Props) => {
   const cacheKey = key || src
   if (ScriptCache.has(src)) {
     if (!LoadCache.has(cacheKey)) {
+      LoadCache.add(cacheKey)
       // Execute onLoad since the script loading has begun
-      ScriptCache.get(src).then(() => {
-        LoadCache.add(cacheKey)
-        onLoad()
-      })
+      ScriptCache.get(src).then(onLoad, onError)
     }
     return
   }
@@ -57,15 +42,19 @@ const loadScript = (props: Props) => {
     el.addEventListener('load', function () {
       resolve()
       if (onLoad) {
-        LoadCache.add(cacheKey)
         onLoad.call(this)
       }
     })
     el.addEventListener('error', function () {
       reject()
-      onErrorHandler(src, onError)
+      if (onError) {
+        onError()
+      }
     })
   })
+
+  ScriptCache.set(src, loadPromise)
+  LoadCache.add(cacheKey)
 
   if (dangerouslySetInnerHTML) {
     el.innerHTML = dangerouslySetInnerHTML.__html || ''
@@ -73,10 +62,6 @@ const loadScript = (props: Props) => {
     el.textContent = typeof children === 'string' ? children : children.join('')
   } else if (src) {
     el.src = src
-  }
-
-  if (cacheKey) {
-    ScriptCache.set(src, loadPromise)
   }
 
   for (const [k, value] of Object.entries(props)) {
@@ -112,18 +97,12 @@ export default function Script(props: Props) {
       loadScript(props)
     } else if (strategy === 'lazy') {
       window.addEventListener('load', () => {
-        if ('requestIdleCallback' in window) {
-          ;(window as any).requestIdleCallback(() => loadScript(props), {
-            timeout: 3000,
-          })
-        } else {
-          setTimeout(() => loadScript(props), 0)
-        }
+        requestIdleCallback(() => loadScript(props))
       })
     }
   }, [strategy, props])
 
-  if (strategy === 'dangerousRenderBlocking') {
+  if (strategy === 'dangerouslyBlockRendering') {
     const syncProps: Props = { ...restProps }
 
     for (const [k, value] of Object.entries({

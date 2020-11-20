@@ -125,7 +125,7 @@ describe('Script Loader', () => {
     ).toBeGreaterThan(0)
   })
 
-  it('priority dangerousRenderBlocking', async () => {
+  it('priority dangerouslyBlockRendering', async () => {
     const html = await renderViaHTTP(appPort, '/page2')
     const $ = cheerio.load(html)
 
