@@ -1,4 +1,4 @@
-# MobX V6 With Mobx React Lite
+# MobX V6 with Mobx React Lite
 
 Usually splitting your app state into `pages` feels natural but sometimes you'll want to have global state for your app. This is an example on how you can use mobx that also works with our universal rendering approach.
 
