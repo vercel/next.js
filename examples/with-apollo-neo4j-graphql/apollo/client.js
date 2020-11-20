@@ -11,12 +11,10 @@ function createIsomorphLink() {
   } else {
     const { HttpLink } = require('@apollo/client/link/http')
 
-    const httpLink = new HttpLink({
+    return new HttpLink({
       uri: '/api/graphql',
       credentials: 'same-origin',
     })
-
-    return httpLink
   }
 }
 

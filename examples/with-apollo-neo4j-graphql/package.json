@@ -7,11 +7,11 @@
     "start": "next start"
   },
   "dependencies": {
-    "@apollo/client": "3.1.3",
-    "apollo-server-micro": "2.16.1",
-    "deepmerge": "4.2.2",
-    "neo4j-driver": "4.1.1",
-    "neo4j-graphql-js": "2.15.1",
+    "@apollo/client": "^3.2.7",
+    "apollo-server-micro": "^2.19.0",
+    "graphql": "14.2.1",
+    "neo4j-driver": "^4.2.1",
+    "neo4j-graphql-js": "^2.17.1",
     "next": "latest",
     "react": "16.13.1",
     "react-dom": "16.13.1"
