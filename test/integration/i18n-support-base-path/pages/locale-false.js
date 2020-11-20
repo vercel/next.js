@@ -42,6 +42,14 @@ export default function Page(props) {
         <a id="to-gssp-slug">to /gssp/first</a>
       </Link>
       <br />
+      <Link href={`/gssp/first`} locale={false}>
+        <a id="to-gssp-slug-default">to /gssp/first (default locale)</a>
+      </Link>
+      <br />
+      <Link href={`/gsp`} locale={false}>
+        <a id="to-gsp-default">to /gsp (default locale)</a>
+      </Link>
+      <br />
     </>
   )
 }
