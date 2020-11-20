@@ -12,11 +12,14 @@ let appPort
 let app
 
 describe('Polyfills', () => {
+  let output = ''
+
   beforeAll(async () => {
     const { stdout, stderr } = await nextBuild(appDir, [], {
       stdout: true,
       stderr: true,
     })
+    output = (stderr || '') + (stdout + '')
     console.log(stdout)
     console.error(stderr)
     appPort = await findPort()
@@ -33,5 +36,12 @@ describe('Polyfills', () => {
     expect(text).toBe('pass')
 
     await browser.close()
+  })
+
+  it('should contain generated page count in output', async () => {
+    expect(output).toContain('Generating static pages (0/3)')
+    expect(output).toContain('Generating static pages (3/3)')
+    // we should only have 1 segment and the initial message logged out
+    expect(output.match(/Generating static pages/g).length).toBe(2)
   })
 })
