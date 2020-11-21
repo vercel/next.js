@@ -29,13 +29,13 @@ export async function connectToDatabase() {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     }
-    cached.promise = MongoClient.connect(MONGODB_URI, opts)
-      .then((client) => {
-        return {
-          client,
-          db: client.db(MONGODB_DB),
-        }
-      })
+
+    cached.promise = MongoClient.connect(MONGODB_URI, opts).then((client) => {
+      return {
+        client,
+        db: client.db(MONGODB_DB),
+      }
+    })
   }
   cached.conn = await cached.promise
   return cached.conn
