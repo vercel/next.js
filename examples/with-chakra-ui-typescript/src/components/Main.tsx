@@ -1,4 +1,4 @@
-import { Stack, StackProps } from '@chakra-ui/core'
+import { Stack, StackProps } from '@chakra-ui/react'
 
 export const Main = (props: StackProps) => (
   <Stack

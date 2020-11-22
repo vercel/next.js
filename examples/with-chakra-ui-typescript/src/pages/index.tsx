@@ -5,7 +5,7 @@ import {
   List,
   ListIcon,
   ListItem,
-} from '@chakra-ui/core'
+} from '@chakra-ui/react'
 import { CheckCircleIcon, LinkIcon } from '@chakra-ui/icons'
 
 import { Hero } from '../components/Hero'
