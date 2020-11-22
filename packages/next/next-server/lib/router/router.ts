@@ -35,6 +35,7 @@ import { getRouteRegex } from './utils/route-regex'
 interface TransitionOptions {
   shallow?: boolean
   locale?: string | false
+  scroll?: boolean
 }
 
 interface NextHistoryState {
@@ -898,6 +899,17 @@ export default class Router implements BaseRouter {
           document.documentElement.lang = this.locale
         }
       }
+
+      const { scroll } = options
+
+      //  avoid scroll for urls with anchor refs
+      const shouldScrollUp = scroll ?? as.indexOf('#') < 0
+
+      if (shouldScrollUp) {
+        window.scrollTo(0, 0)
+        document.body.focus()
+      }
+
       Router.events.emit('routeChangeComplete', as)
 
       return true

@@ -92,21 +92,8 @@ function linkClicked(
 
   e.preventDefault()
 
-  //  avoid scroll for urls with anchor refs
-  if (scroll == null) {
-    scroll = as.indexOf('#') < 0
-  }
-
   // replace state instead of push if prop is present
-  router[replace ? 'replace' : 'push'](href, as, { shallow, locale }).then(
-    (success: boolean) => {
-      if (!success) return
-      if (scroll) {
-        window.scrollTo(0, 0)
-        document.body.focus()
-      }
-    }
-  )
+  router[replace ? 'replace' : 'push'](href, as, { shallow, locale, scroll })
 }
 
 function Link(props: React.PropsWithChildren<LinkProps>) {
