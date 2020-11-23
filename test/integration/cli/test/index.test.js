@@ -4,6 +4,7 @@ import {
   findPort,
   killApp,
   launchApp,
+  nextBuild,
   runNextCommand,
   runNextCommandDev,
 } from 'next-test-utils'
@@ -84,6 +85,21 @@ describe('CLI Usage', () => {
         stderr: true,
       })
       expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
+
+    test('should exit with code 0 when SIGINT is signalled', async () => {
+      const killSigint = (instance) =>
+        setTimeout(() => instance.kill('SIGINT'), 100)
+      const { code } = await runNextCommand(['build'], { instance: killSigint })
+      expect(code).toBe(0)
+    })
+    test('should exit with code 0 when SIGTERM is signalled', async () => {
+      const killSigterm = (instance) =>
+        setTimeout(() => instance.kill('SIGTERM'), 100)
+      const { code } = await runNextCommand(['build'], {
+        instance: killSigterm,
+      })
+      expect(code).toBe(0)
     })
   })
 
@@ -192,6 +208,25 @@ describe('CLI Usage', () => {
         stderr: true,
       })
       expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
+
+    test('should exit with code 0 when SIGINT is signalled', async () => {
+      const killSigint = (instance) =>
+        setTimeout(() => instance.kill('SIGINT'), 100)
+      const port = await findPort()
+      const { code } = await runNextCommand(['dev', dir, '-p', port], {
+        instance: killSigint,
+      })
+      expect(code).toBe(0)
+    })
+    test('should exit with code 0 when SIGTERM is signalled', async () => {
+      const killSigterm = (instance) =>
+        setTimeout(() => instance.kill('SIGTERM'), 100)
+      const port = await findPort()
+      const { code } = await runNextCommand(['dev', dir, '-p', port], {
+        instance: killSigterm,
+      })
+      expect(code).toBe(0)
     })
   })
 
@@ -311,6 +346,28 @@ describe('CLI Usage', () => {
       expect(stderr).toMatch('both `sass` and `node-sass` installed')
 
       await killApp(instance)
+    })
+
+    test('should exit with code 0 when SIGINT is signalled', async () => {
+      const killSigint = (instance) =>
+        setTimeout(() => instance.kill('SIGINT'), 100)
+      await nextBuild(dir)
+      const port = await findPort()
+      const { code } = await runNextCommand(['start', dir, '-p', port], {
+        instance: killSigint,
+      })
+      expect(code).toBe(0)
+    })
+
+    test('should exit with code 0 when SIGTERM is signalled', async () => {
+      const killSigterm = (instance) =>
+        setTimeout(() => instance.kill('SIGTERM'), 100)
+      await nextBuild(dir)
+      const port = await findPort()
+      const { code } = await runNextCommand(['start', dir, '-p', port], {
+        instance: killSigterm,
+      })
+      expect(code).toBe(0)
     })
   })
 
