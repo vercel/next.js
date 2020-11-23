@@ -203,7 +203,7 @@ function checkCustomRoutes(
     }
 
     if (typeof route.locale !== 'undefined' && route.locale !== false) {
-      invalidParts.push('`locale` must be undefined or true')
+      invalidParts.push('`locale` must be undefined or false')
     }
 
     if (!route.source) {
@@ -388,13 +388,13 @@ export default async function loadCustomRoutes(
   if (config.trailingSlash) {
     redirects.unshift(
       {
-        source: '/:file((?:[^/]+/)*[^/]+\\.\\w+)/',
+        source: '/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/',
         destination: '/:file',
         permanent: true,
         locale: config.i18n ? false : undefined,
       },
       {
-        source: '/:notfile((?:[^/]+/)*[^/\\.]+)',
+        source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
         destination: '/:notfile/',
         permanent: true,
         locale: config.i18n ? false : undefined,
