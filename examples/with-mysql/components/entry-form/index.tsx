@@ -1,33 +1,33 @@
-import { useState } from "react";
-import Router from "next/router";
+import { useState } from 'react'
+import Router from 'next/router'
 
-import Button from "@/components/button";
+import Button from '@/components/button'
 
 export default function EntryForm() {
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
+  const [title, setTitle] = useState('')
+  const [content, setContent] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   async function submitHandler(e) {
     setSubmitting(true)
-    e.preventDefault();
+    e.preventDefault()
     try {
-      const res = await fetch("/api/create-entry", {
-        method: "POST",
+      const res = await fetch('/api/create-entry', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           title,
           content,
         }),
-      });
+      })
       setSubmitting(false)
-      const json = await res.json();
-      if (!res.ok) throw Error(json.message);
-      Router.push("/");
+      const json = await res.json()
+      if (!res.ok) throw Error(json.message)
+      Router.push('/')
     } catch (e) {
-      throw Error(e.message);
+      throw Error(e.message)
     }
   }
 
@@ -58,9 +58,9 @@ export default function EntryForm() {
           onChange={(e) => setContent(e.target.value)}
         />
       </div>
-      <Button disabled={submitting} type="submit">{submitting ? "Creating ..." : "Create"}</Button>
+      <Button disabled={submitting} type="submit">
+        {submitting ? 'Creating ...' : 'Create'}
+      </Button>
     </form>
-  );
+  )
 }
-
-

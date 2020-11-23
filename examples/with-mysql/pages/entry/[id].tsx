@@ -1,25 +1,26 @@
-import { useState, useEffect } from "react";
-import { useRouter } from "next/router";
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/router'
 
-import Container from "@/components/container";
-import Nav from "@/components/nav";
+import Container from '@/components/container'
+import Nav from '@/components/nav'
 
 export default function EditEntryPage() {
-  const [entry, setEntry] = useState(null);
-  const router = useRouter();
-  const { id } = router.query;
+  const [entry, setEntry] = useState(null)
+  const router = useRouter()
+  const { id } = router.query
 
   useEffect(() => {
     if (id) {
-      getEntry();
+      getEntry()
     }
-  }, [id]);
+  }, [getEntry, id])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   async function getEntry() {
-    const res = await fetch(`/api/get-entry?id=${id}`);
-    const json = await res.json();
-    if (!res.ok) throw Error(json.message);
-    setEntry(json);
+    const res = await fetch(`/api/get-entry?id=${id}`)
+    const json = await res.json()
+    if (!res.ok) throw Error(json.message)
+    setEntry(json)
   }
 
   if (entry) {
@@ -31,7 +32,7 @@ export default function EditEntryPage() {
           <p>{entry.content}</p>
         </Container>
       </>
-    );
+    )
   } else {
     return (
       <>
@@ -41,7 +42,6 @@ export default function EditEntryPage() {
           <p>...</p>
         </Container>
       </>
-    );
+    )
   }
 }
-

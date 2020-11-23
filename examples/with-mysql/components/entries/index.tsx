@@ -1,4 +1,4 @@
-import Entry from "./entry";
+import Entry from './entry'
 
 function Entries({ entries }) {
   if (entries) {
@@ -10,10 +10,10 @@ function Entries({ entries }) {
           </div>
         ))}
       </div>
-    );
+    )
   } else {
     return null
   }
 }
 
-export default Entries;
+export default Entries

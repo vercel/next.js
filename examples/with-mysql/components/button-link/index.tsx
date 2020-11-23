@@ -1,18 +1,18 @@
-import Link from "next/link";
-import cn from "clsx";
+import Link from 'next/link'
+import cn from 'clsx'
 
-function ButtonLink({ href = "/", className = "", children }) {
+function ButtonLink({ href = '/', className = '', children }) {
   return (
     <Link href={href}>
       <a
         className={cn(
-          "bg-black",
-          "text-white",
-          "p-2",
-          "rounded",
-          "uppercase",
-          "text-sm",
-          "font-bold",
+          'bg-black',
+          'text-white',
+          'p-2',
+          'rounded',
+          'uppercase',
+          'text-sm',
+          'font-bold',
           {
             [className]: Boolean(className),
           }
@@ -21,7 +21,7 @@ function ButtonLink({ href = "/", className = "", children }) {
         {children}
       </a>
     </Link>
-  );
+  )
 }
 
-export default ButtonLink;
+export default ButtonLink
