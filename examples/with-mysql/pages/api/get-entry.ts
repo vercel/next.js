@@ -1,6 +1,7 @@
+import { NextApiHandler } from 'next'
 import { query } from '../../lib/db'
 
-const handler = async (req, res) => {
+const handler: NextApiHandler = async (req, res) => {
   const { id } = req.query
   try {
     if (!id) {
@@ -11,8 +12,8 @@ const handler = async (req, res) => {
     }
     const results = await query(
       `
-      SELECT id, title, content  
-      FROM entries 
+      SELECT id, title, content
+      FROM entries
       WHERE id = ?
     `,
       id

@@ -1,9 +1,10 @@
+import { NextApiHandler } from 'next'
 import Filter from 'bad-words'
 import { query } from '../../lib/db'
 
 const filter = new Filter()
 
-const handler = async (req, res) => {
+const handler: NextApiHandler = async (req, res) => {
   const { title, content } = req.body
   try {
     if (!title || !content) {
@@ -14,7 +15,7 @@ const handler = async (req, res) => {
 
     const results = await query(
       `
-      INSERT INTO entries (title, content) 
+      INSERT INTO entries (title, content)
       VALUES (?, ?)
       `,
       [filter.clean(title), filter.clean(content)]

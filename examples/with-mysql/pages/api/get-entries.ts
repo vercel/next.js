@@ -1,9 +1,10 @@
+import { NextApiHandler } from 'next'
 import { query } from '../../lib/db'
 
-const handler = async (_, res) => {
+const handler: NextApiHandler = async (_, res) => {
   try {
     const results = await query(`
-      SELECT * FROM entries 
+      SELECT * FROM entries
       ORDER BY id DESC
       LIMIT 10
   `)
