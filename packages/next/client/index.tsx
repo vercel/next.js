@@ -477,6 +477,7 @@ export function renderError(renderErrorProps: RenderErrorProps) {
 }
 
 let reactRoot: any = null
+let shouldUseHydrate = typeof ReactDOM.hydrate === 'function'
 function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
     if (!reactRoot) {
@@ -494,8 +495,9 @@ function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
     }
 
     // The check for `.hydrate` is there to support React alternatives like preact
-    if (typeof ReactDOM.hydrate === 'function') {
+    if (shouldUseHydrate) {
       ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
+      shouldUseHydrate = false
     } else {
       ReactDOM.render(reactEl, domEl, markRenderComplete)
     }
