@@ -88,7 +88,14 @@ export function delLocale(path: string, locale?: string) {
 }
 
 export function hasBasePath(path: string): boolean {
-  return path === basePath || path.startsWith(basePath + '/')
+  // Strip query string search from path
+  const pathWithoutSearch =
+    path.indexOf('?') > -1 ? path.substring(path.indexOf('?'), -1) : path
+
+  return (
+    pathWithoutSearch === basePath ||
+    pathWithoutSearch.startsWith(basePath + '/')
+  )
 }
 
 export function addBasePath(path: string): string {
