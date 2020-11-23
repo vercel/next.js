@@ -11,8 +11,6 @@ export default function SSRPage({ data }) {
     return <Error statusCode={404} />
   }
 
-  console.log(profileData)
-
   return (
     <div className="container">
       <Head>
