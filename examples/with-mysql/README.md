@@ -2,7 +2,7 @@
 
 This is an example of using [MySQL](https://www.mysql.com/) in a Next.js project.
 
-## Demo 
+## Demo
 
 ### [https://next-mysql.vercel.app](https://next-mysql.vercel.app/)
 
@@ -26,7 +26,7 @@ yarn create next-app --example with-mysql next-mysql-app
 
 ### Set up a MySQL database
 
-Set up a MySQL server either locally or any cloud provider. 
+Set up a MySQL server either locally or any cloud provider.
 
 ### Set up environment variables
 
@@ -58,9 +58,7 @@ yarn migrate
 ```bash
 npm install
 npm run dev
-
 # or
-
 yarn install
 yarn dev
 ```

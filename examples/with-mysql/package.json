@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "migrate": "node scripts/migrate-db.js"
   },
   "dependencies": {
     "bad-words": "^3.0.4",
