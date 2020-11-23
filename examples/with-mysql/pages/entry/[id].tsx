@@ -1,35 +1,21 @@
-import { useState, useEffect } from 'react'
 import { useRouter } from 'next/router'
 
+import { useEntry } from '@/lib/swr-hooks'
 import Container from '@/components/container'
 import Nav from '@/components/nav'
 
 export default function EditEntryPage() {
-  const [entry, setEntry] = useState(null)
   const router = useRouter()
-  const { id } = router.query
+  const id = router.query.id?.toString()
+  const { data } = useEntry(id)
 
-  useEffect(() => {
-    if (id) {
-      getEntry()
-    }
-  }, [getEntry, id])
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  async function getEntry() {
-    const res = await fetch(`/api/get-entry?id=${id}`)
-    const json = await res.json()
-    if (!res.ok) throw Error(json.message)
-    setEntry(json)
-  }
-
-  if (entry) {
+  if (data) {
     return (
       <>
         <Nav title="View" />
         <Container>
-          <h1 className="font-bold text-3xl my-2">{entry.title}</h1>
-          <p>{entry.content}</p>
+          <h1 className="font-bold text-3xl my-2">{data.title}</h1>
+          <p>{data.content}</p>
         </Container>
       </>
     )
