@@ -14,12 +14,31 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // It's been edited for the needs of this script
 // See the LICENSE at the top of the file
 
-type Handler = (...evts: any[]) => void
-
+type Handler<T extends any[] = any[]> = (...evts: T) => void
+type UrlOnlyEvents =
+  | 'routeChangeStart'
+  | 'routeChangeComplete'
+  | 'beforeHistoryChange'
+  | 'hashChangeStart'
+  | 'hashChangeComplete'
+type ErrorEvents = 'routeChangeError'
 export type MittEmitter = {
-  on(type: string, handler: Handler): void
-  off(type: string, handler: Handler): void
-  emit(type: string, ...evts: any[]): void
+  on(type: UrlOnlyEvents, handler: Handler<[string]>): void
+  on(
+    type: ErrorEvents,
+    handler: Handler<[unknown & { cancelled?: boolean }, string]>
+  ): void
+  off(type: UrlOnlyEvents, handler: Handler<[string]>): void
+  off(
+    type: ErrorEvents,
+    handler: Handler<[unknown & { cancelled?: boolean }, string]>
+  ): void
+  emit(type: UrlOnlyEvents, url: string): void
+  emit(
+    type: ErrorEvents,
+    error: unknown & { cancelled?: boolean },
+    url: string
+  ): void
 }
 
 export default function mitt(): MittEmitter {
