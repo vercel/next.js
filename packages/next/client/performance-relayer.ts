@@ -46,7 +46,7 @@ function onReport(metric: Metric) {
       // This content type is necessary for `sendBeacon`:
       type: 'application/x-www-form-urlencoded',
     })
-    const vitalsUrl = 'https://vitals.vercel-analytics.com/v1/vitals'
+    const vitalsUrl = 'https://vitals.vercel-insights.com/v1/vitals'
     ;(navigator.sendBeacon && navigator.sendBeacon(vitalsUrl, blob)) ||
       fetch(vitalsUrl, {
         body: blob,
