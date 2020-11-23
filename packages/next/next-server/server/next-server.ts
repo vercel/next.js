@@ -78,7 +78,6 @@ import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
 import { FontManifest } from './font-utils'
 import { denormalizePagePath } from './denormalize-page-path'
-import accept from '@hapi/accept'
 import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
 import { detectLocaleCookie } from '../lib/i18n/detect-locale-cookie'
 import * as Log from '../../build/output/log'
@@ -86,6 +85,7 @@ import { imageOptimizer } from './image-optimizer'
 import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
 import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
+import { ResolveLocale } from '@formatjs/ecma402-abstract'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -324,10 +324,40 @@ export default class Server {
 
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
+
+      // Parse the `accept-language` header
+      const regex = /((([a-zA-Z]+(-[a-zA-Z0-9]+){0,2})|\*)(;q=[0-1](\.[0-9]+)?)?)*/g
+
+      function parse(al: string = '') {
+        const strings = al.match(regex) ?? []
+        return strings
+          .map((m) => {
+            if (!m) {
+              return null
+            }
+
+            const bits = m.split(';')
+            const ietf = bits[0]
+
+            return {
+              code: ietf,
+              quality: bits[1] ? parseFloat(bits[1].split('=')[1]) : 1.0,
+            }
+          })
+          .filter((r: any) => r)
+          .sort((a, b) => b!.quality - a!.quality)
+      }
+
+      const resolvedLocale = ResolveLocale(
+        new Set(i18n.locales),
+        parse(req.headers['accept-language']).map((l) => l!.code),
+        { localeMatcher: 'best fit' },
+        [],
+        {},
+        () => i18n.defaultLocale
+      )
       let acceptPreferredLocale =
-        i18n.localeDetection !== false
-          ? accept.language(req.headers['accept-language'], i18n.locales)
-          : detectedLocale
+        i18n.localeDetection !== false ? resolvedLocale.locale : detectedLocale
 
       const { host } = req?.headers || {}
       // remove port from host and remove port if present
