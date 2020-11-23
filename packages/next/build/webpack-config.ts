@@ -1,8 +1,8 @@
-import { codeFrameColumns } from '@babel/code-frame'
+import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import crypto from 'crypto'
 import { readFileSync, realpathSync } from 'fs'
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import semver from 'next/dist/compiled/semver'
 import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
 import path from 'path'
@@ -61,12 +61,6 @@ import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin
 type ExcludesFalse = <T>(x: T | false) => x is T
 
 const isWebpack5 = parseInt(webpack.version!) === 5
-
-const escapePathVariables = (value: any) => {
-  return typeof value === 'string'
-    ? value.replace(/\[(\\*[\w:]+\\*)\]/gi, '[\\$1\\]')
-    : value
-}
 
 const devtoolRevertWarning = execOnce((devtool: Configuration['devtool']) => {
   console.warn(
@@ -229,25 +223,6 @@ export default async function getBaseWebpackConfig(
     }
   }
 
-  if (config.images?.hosts) {
-    if (!config.images.hosts.default) {
-      // If the image component is being used, a default host must be provided
-      throw new Error(
-        'If the image configuration property is present in next.config.js, it must have a host named "default"'
-      )
-    }
-    Object.values(config.images.hosts).forEach((host: any) => {
-      if (!host.path) {
-        throw new Error(
-          'All hosts defined in the image configuration property of next.config.js must define a path'
-        )
-      }
-      // Normalize hosts so all paths have trailing slash
-      if (host.path[host.path.length - 1] !== '/') {
-        host.path += '/'
-      }
-    })
-  }
   const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })
   const hasReactRefresh: boolean = dev && !isServer
   const hasJsxRuntime: boolean =
@@ -268,7 +243,6 @@ export default async function getBaseWebpackConfig(
         // Webpack 5 has a built-in loader cache
         cache: !isWebpack5,
         babelPresetPlugins,
-        hasModern: !!config.experimental.modern,
         development: dev,
         hasReactRefresh,
         hasJsxRuntime,
@@ -555,10 +529,7 @@ export default async function getBaseWebpackConfig(
     splitChunksConfig = splitChunksConfigs.prodGranular
   }
 
-  const crossOrigin =
-    !config.crossOrigin && config.experimental.modern
-      ? 'anonymous'
-      : config.crossOrigin
+  const crossOrigin = config.crossOrigin
 
   let customAppFile: string | null = await findPageFile(
     pagesDir,
@@ -907,9 +878,7 @@ export default async function getBaseWebpackConfig(
                   options: {
                     cacheContext: dir,
                     cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
-                    cacheIdentifier: `webpack${isServer ? '-server' : ''}${
-                      config.experimental.modern ? '-hasmodern' : ''
-                    }`,
+                    cacheIdentifier: `webpack${isServer ? '-server' : ''}`,
                   },
                 },
                 {
@@ -982,14 +951,8 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_TRAILING_SLASH': JSON.stringify(
           config.trailingSlash
         ),
-        'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
-          config.experimental.modern && !dev
-        ),
         'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
           config.devIndicators.buildActivity
-        ),
-        'process.env.__NEXT_PRERENDER_INDICATOR': JSON.stringify(
-          config.devIndicators.autoPrerender
         ),
         'process.env.__NEXT_PLUGINS': JSON.stringify(
           config.experimental.plugins
@@ -1009,18 +972,23 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),
-        'process.env.__NEXT_IMAGE_OPTS': JSON.stringify(config.images),
+        'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
+          deviceSizes: config.images.deviceSizes,
+          imageSizes: config.images.imageSizes,
+          path: config.images.path,
+          loader: config.images.loader,
+          ...(dev
+            ? {
+                // pass domains in development to allow validating on the client
+                domains: config.images.domains,
+              }
+            : {}),
+        }),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
-        'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(
-          !!config.experimental.i18n
-        ),
-        'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(
-          config.experimental.i18n.domains
-        ),
-        'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(
-          config.experimental.analyticsId
-        ),
+        'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
+        'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n.domains),
+        'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -1094,35 +1062,11 @@ export default async function getBaseWebpackConfig(
         new BuildManifestPlugin({
           buildId,
           rewrites,
-          modern: config.experimental.modern,
         }),
       tracer &&
         new ProfilingPlugin({
           tracer,
         }),
-      !isWebpack5 &&
-        config.experimental.modern &&
-        !isServer &&
-        !dev &&
-        (() => {
-          const { NextEsmPlugin } = require('./webpack/plugins/next-esm-plugin')
-          return new NextEsmPlugin({
-            filename: (getFileName: Function | string) => (...args: any[]) => {
-              const name =
-                typeof getFileName === 'function'
-                  ? getFileName(...args)
-                  : getFileName
-
-              return name.includes('.js')
-                ? name.replace(/\.js$/, '.module.js')
-                : escapePathVariables(
-                    args[0].chunk.name.replace(/\.js$/, '.module.js')
-                  )
-            },
-            chunkFilename: (inputChunkName: string) =>
-              inputChunkName.replace(/\.js$/, '.module.js'),
-          })
-        })(),
       config.experimental.optimizeFonts &&
         !dev &&
         isServer &&
@@ -1208,9 +1152,7 @@ export default async function getBaseWebpackConfig(
       crossOrigin: config.crossOrigin,
       pageExtensions: config.pageExtensions,
       trailingSlash: config.trailingSlash,
-      modern: config.experimental.modern,
       buildActivity: config.devIndicators.buildActivity,
-      autoPrerender: config.devIndicators.autoPrerender,
       plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
       reactMode: config.experimental.reactMode,
