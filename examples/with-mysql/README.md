@@ -8,9 +8,9 @@ This is an example of using [MySQL](https://www.mysql.com/) in a Next.js project
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Once you have access to [the environment variables you'll need](#step-5-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-mysql&env=MYSQL_HOST,MYSQL_DATABASE,MYSQL_USERNAME,MYSQL_PASSWORD&project-name=nextjs-mysql&repo-name=nextjs-mysql&demo-title=Next.js%20%2B%20MySQL%20Demo&demo-description=A%20simple%20app%20demonstrating%20Next.js%20and%20MySQL%20&demo-url=https%3A%2F%2Fnext-mysql.vercel.app%2F)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-mysql&env=MYSQL_HOST,MYSQL_DATABASE,MYSQL_USERNAME,MYSQL_PASSWORD&project-name=nextjs-mysql&repo-name=nextjs-mysql&envDescription=Required%20to%20connect%20the%20app%20with%MySQL&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-mysql%23step-2-set-up-environment-variables&demo-title=Next.js%20%2B%20MySQL%20Demo&demo-description=A%20simple%20app%20demonstrating%20Next.js%20and%20MySQL%20&demo-url=https%3A%2F%2Fnext-mysql.vercel.app%2F)
 
 ## How to use
 
@@ -24,11 +24,11 @@ yarn create next-app --example with-mysql next-mysql-app
 
 ## Configuration
 
-### Set up a MySQL database
+### Step 1. Set up a MySQL database
 
 Set up a MySQL server either locally or any cloud provider.
 
-### Set up environment variables
+### Step 2. Set up environment variables
 
 Copy the `env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
@@ -43,7 +43,7 @@ Set each variable on `.env.local`:
 - `MYSQL_USERNAME` - The name of the MySQL user with access to database.
 - `MYSQL_PASSWORD` - The passowrd of the MySQL user.
 
-### Run migration script
+### Step 3. Run migration script
 
 You'll need to run a migration to create the necessary table for the example.
 
@@ -53,7 +53,7 @@ npm run migrate
 yarn migrate
 ```
 
-### Run Next.js in development mode
+### Step 4. Run Next.js in development mode
 
 ```bash
 npm install
@@ -79,4 +79,4 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-mysql&env=MYSQL_HOST,MYSQL_DATABASE,MYSQL_USERNAME,MYSQL_PASSWORD&project-name=nextjs-mysql&repo-name=nextjs-mysql&demo-title=Next.js%20%2B%20MySQL%20Demo&demo-description=A%20simple%20app%20demonstrating%20Next.js%20and%20MySQL%20&demo-url=https%3A%2F%2Fnext-mysql.vercel.app%2F)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-mysql&env=MYSQL_HOST,MYSQL_DATABASE,MYSQL_USERNAME,MYSQL_PASSWORD&project-name=nextjs-mysql&repo-name=nextjs-mysql&envDescription=Required%20to%20connect%20the%20app%20with%MySQL&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-mysql%23step-2-set-up-environment-variables&demo-title=Next.js%20%2B%20MySQL%20Demo&demo-description=A%20simple%20app%20demonstrating%20Next.js%20and%20MySQL%20&demo-url=https%3A%2F%2Fnext-mysql.vercel.app%2F)
