@@ -25,7 +25,7 @@ module.exports = {
       },
       // Regex Path Matching - The regex below will match `/post/123` but not `/post/abc`
       {
-        source: '/post/:slug*',
+        source: '/post/:slug(\\d{1,})',
         destination: '/news/:slug*',
         permanent: false,
       },
