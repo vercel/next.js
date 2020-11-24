@@ -9,6 +9,7 @@
     "test:ci": "jest --ci"
   },
   "dependencies": {
+    "@share-vde/components": "2.0.15",
     "next": "latest",
     "react": "16.12.0",
     "react-dom": "16.12.0"

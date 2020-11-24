@@ -1,5 +1,6 @@
 import Head from 'next/head'
 import styles from './index.module.css'
+import { Button } from '@share-vde/components';
 
 const Home = () => (
   <div className={styles.container}>
