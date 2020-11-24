@@ -8,7 +8,7 @@ export default function Home() {
   // Our custom hook to get context values
   const { loadingUser, user } = useUser()
 
-  const username = 'nextjs_user'
+  const profile = { username: 'nextjs_user', message: 'Awesome!!' }
 
   useEffect(() => {
     if (!loadingUser) {
@@ -21,7 +21,8 @@ export default function Home() {
 
   const createUser = async () => {
     const db = firebase.firestore()
-    await db.collection('profile').doc(username).set({ username })
+    await db.collection('profile').doc(profile.username).set(profile)
+    alert('User created!!')
   }
 
   return (
@@ -35,9 +36,16 @@ export default function Home() {
         <h1 className="title">Next.js w/ Firebase Client-Side</h1>
         <p className="description">Fill in your credentials to get started</p>
 
-        <button onClick={() => createUser()}>Create 'nextjs_user'</button>
+        <p className="description">
+          Cloud Firestore Security Rules write permissions are required for
+          adding users
+        </p>
+        <button onClick={createUser}>Create 'nextjs_user'</button>
 
-        <Link href={`/profile/${username}`} passHref>
+        <p className="description">
+          Please press the link below after adding the user
+        </p>
+        <Link href={`/profile/${profile.username}`} passHref>
           <a>Go to SSR Page</a>
         </Link>
       </main>

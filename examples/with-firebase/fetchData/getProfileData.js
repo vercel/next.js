@@ -9,7 +9,5 @@ export const getProfileData = async (username) => {
     return null
   }
 
-  const profileData = profileDoc.data()
-  const profileDataJson = JSON.stringify(profileData)
-  return profileDataJson
+  return profileDoc.data()
 }

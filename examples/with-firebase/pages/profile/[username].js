@@ -1,15 +1,10 @@
 import Head from 'next/head'
-import Error from 'next/error'
 
 import { getProfileData } from '../../fetchData/getProfileData'
 
 export default function SSRPage({ data }) {
-  const { username, profileDataJson } = data
-  const profileData = JSON.parse(profileDataJson)
-
-  if (!profileData) {
-    return <Error statusCode={404} />
-  }
+  const { username, profile } = data
+  console.log(profile)
 
   return (
     <div className="container">
@@ -21,6 +16,7 @@ export default function SSRPage({ data }) {
       <main>
         <h1 className="title">Next.js w/ Firebase Server-Side</h1>
         <h2>{username}</h2>
+        <p>{profile.message}</p>
       </main>
     </div>
   )
@@ -28,6 +24,9 @@ export default function SSRPage({ data }) {
 
 export const getServerSideProps = async ({ params }) => {
   const { username } = params
-  const profileDataJson = await getProfileData(username)
-  return { props: { data: { username, profileDataJson } } }
+  const profile = await getProfileData(username)
+  if (!profile) {
+    return { notFound: true }
+  }
+  return { props: { data: { username, profile } } }
 }
