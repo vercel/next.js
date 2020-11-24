@@ -51,7 +51,9 @@ const exists = promisify(existsOrig)
 function divideSegments(number: number, segments: number): number[] {
   const result = []
   while (number > 0 && segments > 0) {
-    const dividedNumber = Math.floor(number / segments)
+    const dividedNumber =
+      number < segments ? number : Math.floor(number / segments)
+
     number -= dividedNumber
     segments--
     result.push(dividedNumber)
@@ -327,7 +329,6 @@ Read more: https://err.sh/next.js/export-image-api`
     hotReloader: null,
     basePath: nextConfig.basePath,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
-    isModern: nextConfig.experimental.modern,
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
