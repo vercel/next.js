@@ -10,5 +10,5 @@
       }
     ]
   ],
-  "plugins": ["xwind/babel","@emotion/babel-plugin"]
+  "plugins": ["xwind/babel", "@emotion/babel-plugin"]
 }
