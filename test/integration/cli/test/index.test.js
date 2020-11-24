@@ -212,7 +212,7 @@ describe('CLI Usage', () => {
 
     test('should exit with code 0 when SIGINT is signalled', async () => {
       const killSigint = (instance) =>
-        setTimeout(() => instance.kill('SIGINT'), 100)
+        setTimeout(() => instance.kill('SIGINT'), 500)
       const port = await findPort()
       const { code } = await runNextCommand(['dev', dir, '-p', port], {
         instance: killSigint,
@@ -221,7 +221,7 @@ describe('CLI Usage', () => {
     })
     test('should exit with code 0 when SIGTERM is signalled', async () => {
       const killSigterm = (instance) =>
-        setTimeout(() => instance.kill('SIGTERM'), 100)
+        setTimeout(() => instance.kill('SIGTERM'), 500)
       const port = await findPort()
       const { code } = await runNextCommand(['dev', dir, '-p', port], {
         instance: killSigterm,
@@ -350,7 +350,7 @@ describe('CLI Usage', () => {
 
     test('should exit with code 0 when SIGINT is signalled', async () => {
       const killSigint = (instance) =>
-        setTimeout(() => instance.kill('SIGINT'), 100)
+        setTimeout(() => instance.kill('SIGINT'), 500)
       await nextBuild(dir)
       const port = await findPort()
       const { code } = await runNextCommand(['start', dir, '-p', port], {
@@ -361,7 +361,7 @@ describe('CLI Usage', () => {
 
     test('should exit with code 0 when SIGTERM is signalled', async () => {
       const killSigterm = (instance) =>
-        setTimeout(() => instance.kill('SIGTERM'), 100)
+        setTimeout(() => instance.kill('SIGTERM'), 500)
       await nextBuild(dir)
       const port = await findPort()
       const { code } = await runNextCommand(['start', dir, '-p', port], {
