@@ -1,3 +1,5 @@
+import { removePathTrailingSlash } from '../../../../client/normalize-trailing-slash'
+
 // Translates a logical route into its pages asset path (relative from a common prefix)
 // "asset path" being its javascript file, data file, prerendered html,...
 export default function getAssetPathFromRoute(
@@ -10,5 +12,5 @@ export default function getAssetPathFromRoute(
       : /^\/index(\/|$)/.test(route)
       ? `/index${route}`
       : `${route}`
-  return path + ext
+  return removePathTrailingSlash(path) + ext
 }
