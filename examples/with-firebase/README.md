@@ -33,7 +33,7 @@ cp .env.local.example .env.local
 
 3. Set each variable on `.env.local` with your Firebase Configuration (found in "Project settings").
 
-4. If you want to check the SSR page, get your account credentials from the Firebase console at _Project settings > Service accounts_, where you can click on _Generate new private key_ and download the credentials as a json file. Please set `NEXT_PUBLIC_FIREBASE_CLIENT_EMAIL` and `NEXT_PUBLIC_FIREBASE_PRIVATE_KEY`
+4. If you want to check the SSR page, get your account credentials from the Firebase console at _Project settings > Service accounts_, where you can click on _Generate new private key_ and download the credentials as a json file. Then set `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY` in `.env.local`
 
 ## Deploy on Vercel
 
