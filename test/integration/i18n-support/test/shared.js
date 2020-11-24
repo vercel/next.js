@@ -27,16 +27,79 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  it('should use default locale when no locale is in href with locale false', async () => {
+    const browser = await webdriver(
+      ctx.appPort,
+      `${ctx.basePath}/nl/locale-false?nextLocale=fr`
+    )
+
+    await browser.eval('window.beforeNav = 1')
+
+    if (!ctx.isDev) {
+      await browser.eval(`(function() {
+        document.querySelector('#to-gssp-slug-default').scrollIntoView()
+        document.querySelector('#to-gsp-default').scrollIntoView()
+      })()`)
+
+      await check(async () => {
+        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
+        hrefs.sort()
+
+        assert.deepEqual(
+          hrefs.map((href) =>
+            new URL(href).pathname
+              .replace(ctx.basePath, '')
+              .replace(/^\/_next\/data\/[^/]+/, '')
+          ),
+          [
+            '/en-US/gsp.json',
+            '/fr/gsp.json',
+            '/fr/gsp/fallback/first.json',
+            '/fr/gsp/fallback/hello.json',
+          ]
+        )
+        return 'yes'
+      }, 'yes')
+    }
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
   if (ctx.isDev) {
     it('should show error for redirect and notFound returned at same time', async () => {
       const html = await renderViaHTTP(
         ctx.appPort,
-        `${ctx.basePath}/_next/data/development/gsp/fallback/mixed-not-found-redirect.json`
+        `${ctx.basePath}/_next/data/development/en/gsp/fallback/mixed-not-found-redirect.json`
       )
 
       expect(html).toContain(
         '`redirect` and `notFound` can not both be returned from getStaticProps at the same time. Page: /gsp/fallback/[slug]'
       )
+    })
+  } else {
+    it('should preload all locales data correctly', async () => {
+      const browser = await webdriver(ctx.appPort, `${ctx.basePath}/mixed`)
+
+      await browser.eval(`(function() {
+        document.querySelector('#to-gsp-en-us').scrollIntoView()
+        document.querySelector('#to-gsp-nl-nl').scrollIntoView()
+        document.querySelector('#to-gsp-fr').scrollIntoView()
+      })()`)
+
+      await check(async () => {
+        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
+        hrefs.sort()
+
+        assert.deepEqual(
+          hrefs.map((href) =>
+            new URL(href).pathname
+              .replace(ctx.basePath, '')
+              .replace(/^\/_next\/data\/[^/]+/, '')
+          ),
+          ['/en-US/gsp.json', '/fr/gsp.json', '/nl-NL/gsp.json']
+        )
+        return 'yes'
+      }, 'yes')
     })
   }
 
@@ -136,6 +199,11 @@ export function runTests(ctx) {
           initialRevalidateSeconds: false,
           srcRoute: null,
         },
+        '/en-US/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/en-US/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
+        },
         '/en-US/gsp/fallback/first': {
           dataRoute: `/_next/data/${ctx.buildId}/en-US/gsp/fallback/first.json`,
           initialRevalidateSeconds: false,
@@ -176,6 +244,21 @@ export function runTests(ctx) {
           initialRevalidateSeconds: false,
           srcRoute: '/not-found/fallback/[slug]',
         },
+        '/en/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/en/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
+        },
+        '/fr-BE/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/fr-BE/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
+        },
+        '/fr/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/fr/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
+        },
         '/frank': {
           dataRoute: `/_next/data/${ctx.buildId}/frank.json`,
           initialRevalidateSeconds: false,
@@ -186,10 +269,25 @@ export function runTests(ctx) {
           srcRoute: null,
           initialRevalidateSeconds: false,
         },
+        '/nl-BE/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/nl-BE/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
+        },
+        '/nl-NL/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/nl-NL/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
+        },
         '/nl-NL/gsp/no-fallback/second': {
           dataRoute: `/_next/data/${ctx.buildId}/nl-NL/gsp/no-fallback/second.json`,
           initialRevalidateSeconds: false,
           srcRoute: '/gsp/no-fallback/[slug]',
+        },
+        '/nl/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/nl/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
         },
         '/not-found': {
           dataRoute: `/_next/data/${ctx.buildId}/not-found.json`,
@@ -309,7 +407,15 @@ export function runTests(ctx) {
   })
 
   it('should apply redirects correctly', async () => {
-    for (const path of ['/redirect', '/en-US/redirect', '/nl/redirect']) {
+    for (const [path, shouldRedirect, locale] of [
+      ['/en-US/redirect-1', true],
+      ['/en/redirect-1', false],
+      ['/nl/redirect-2', true],
+      ['/fr/redirect-2', false],
+      ['/redirect-3', true, '/en-US'],
+      ['/en/redirect-3', true, '/en'],
+      ['/nl-NL/redirect-3', true, '/nl-NL'],
+    ]) {
       const res = await fetchViaHTTP(
         ctx.appPort,
         `${ctx.basePath}${path}`,
@@ -318,16 +424,29 @@ export function runTests(ctx) {
           redirect: 'manual',
         }
       )
-      expect(res.status).toBe(307)
 
-      const parsed = url.parse(res.headers.get('location'), true)
-      expect(parsed.pathname).toBe(`${ctx.basePath}/somewhere-else`)
-      expect(parsed.query).toEqual({})
+      expect(res.status).toBe(shouldRedirect ? 307 : 404)
+
+      if (shouldRedirect) {
+        const parsed = url.parse(res.headers.get('location'), true)
+        expect(parsed.pathname).toBe(
+          `${ctx.basePath}${locale || ''}/somewhere-else`
+        )
+        expect(parsed.query).toEqual({})
+      }
     }
   })
 
   it('should apply headers correctly', async () => {
-    for (const path of ['/add-header', '/en-US/add-header', '/nl/add-header']) {
+    for (const [path, shouldAdd] of [
+      ['/en-US/add-header-1', true],
+      ['/en/add-header-1', false],
+      ['/nl/add-header-2', true],
+      ['/fr/add-header-2', false],
+      ['/add-header-3', true],
+      ['/en/add-header-3', true],
+      ['/nl-NL/add-header-3', true],
+    ]) {
       const res = await fetchViaHTTP(
         ctx.appPort,
         `${ctx.basePath}${path}`,
@@ -337,30 +456,69 @@ export function runTests(ctx) {
         }
       )
       expect(res.status).toBe(404)
-      expect(res.headers.get('x-hello')).toBe('world')
+      expect(res.headers.get('x-hello')).toBe(shouldAdd ? 'world' : null)
     }
   })
 
   it('should apply rewrites correctly', async () => {
-    const checks = [
+    let res = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath}/en-US/rewrite-1`,
+      undefined,
       {
-        locale: 'en-US',
-        path: '/rewrite',
-      },
-      {
-        locale: 'en-US',
-        path: '/en-US/rewrite',
-      },
-      {
-        locale: 'nl',
-        path: '/nl/rewrite',
-      },
-    ]
+        redirect: 'manual',
+      }
+    )
 
-    for (const check of checks) {
-      const res = await fetchViaHTTP(
+    expect(res.status).toBe(200)
+
+    let html = await res.text()
+    let $ = cheerio.load(html)
+    expect($('html').attr('lang')).toBe('en-US')
+    expect($('#router-locale').text()).toBe('en-US')
+    expect($('#router-pathname').text()).toBe('/another')
+    expect($('#router-as-path').text()).toBe('/rewrite-1')
+
+    res = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath}/nl/rewrite-2`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+
+    expect(res.status).toBe(200)
+
+    html = await res.text()
+    $ = cheerio.load(html)
+    expect($('html').attr('lang')).toBe('nl')
+    expect($('#router-locale').text()).toBe('nl')
+    expect($('#router-pathname').text()).toBe('/another')
+    expect($('#router-as-path').text()).toBe('/rewrite-2')
+
+    res = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath}/fr/rewrite-3`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+
+    expect(res.status).toBe(200)
+
+    html = await res.text()
+    $ = cheerio.load(html)
+    expect($('html').attr('lang')).toBe('nl')
+    expect($('#router-locale').text()).toBe('nl')
+    expect($('#router-pathname').text()).toBe('/another')
+    expect($('#router-as-path').text()).toBe('/rewrite-3')
+
+    for (const locale of locales) {
+      res = await fetchViaHTTP(
         ctx.appPort,
-        `${ctx.basePath}${check.path}`,
+        `${ctx.basePath}/${locale}/rewrite-4`,
         undefined,
         {
           redirect: 'manual',
@@ -369,12 +527,27 @@ export function runTests(ctx) {
 
       expect(res.status).toBe(200)
 
-      const html = await res.text()
-      const $ = cheerio.load(html)
-      expect($('html').attr('lang')).toBe(check.locale)
-      expect($('#router-locale').text()).toBe(check.locale)
+      html = await res.text()
+      $ = cheerio.load(html)
+      expect($('html').attr('lang')).toBe(locale)
+      expect($('#router-locale').text()).toBe(locale)
       expect($('#router-pathname').text()).toBe('/another')
-      expect($('#router-as-path').text()).toBe('/rewrite')
+      expect($('#router-as-path').text()).toBe('/rewrite-4')
+
+      res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath}/${locale}/rewrite-5`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      expect(res.status).toBe(200)
+
+      const json = await res.json()
+      expect(json.url).toBe('/')
+      expect(json.external).toBe(true)
     }
   })
 
@@ -615,6 +788,7 @@ export function runTests(ctx) {
               .replace(/^\/_next\/data\/[^/]+/, '')
           ),
           [
+            '/en-US/gsp.json',
             '/fr/gsp.json',
             '/fr/gsp/fallback/first.json',
             '/fr/gsp/fallback/hello.json',
