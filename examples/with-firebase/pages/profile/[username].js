@@ -4,7 +4,6 @@ import { getProfileData } from '../../fetchData/getProfileData'
 
 export default function SSRPage({ data }) {
   const { username, profile } = data
-  console.log(profile)
 
   return (
     <div className="container">
