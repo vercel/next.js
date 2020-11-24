@@ -224,7 +224,7 @@ Next.js doesn't know about variants of a page so it's up to you to add the `href
 
 ### Automatically Statically Optimized Pages
 
-For pages that are automatically statically optimized, a version of the page will be generated for each locale.
+For pages that are [automatically statically optimized](/docs/advanced-features/automatic-static-optimization.md), a version of the page will be generated for each locale.
 
 ### Non-dynamic getStaticProps Pages
 
@@ -270,4 +270,6 @@ export const getStaticPaths = ({ locales }) => {
 }
 ```
 
-Note: i18n routing does not currently support [`next export`](https://nextjs.org/docs/advanced-features/i18n-routing) mode as you are no longer leveraging Next.js' server-side routing.
+## Caveats
+
+Internationalized Routing does not currently support [Static HTML Export (`next export`)](/docs/advanced-features/static-html-export.md) as you are no longer leveraging Next.js' server-side routing in that case.
