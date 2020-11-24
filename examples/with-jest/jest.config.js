@@ -11,7 +11,7 @@ module.exports = {
     '^.+\\.css$': '<rootDir>/config/jest/cssTransform.js',
   },
   transformIgnorePatterns: [
-    '/node_modules/',
+    'node_modules/(?!@share-vde).*',
     '^.+\\.module\\.(css|sass|scss)$',
   ],
   moduleNameMapper: {
