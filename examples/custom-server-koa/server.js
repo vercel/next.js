@@ -21,7 +21,7 @@ app.prepare().then(() => {
     ctx.respond = false
   })
 
-  router.all('*', async (ctx) => {
+  router.all('(.*)', async (ctx) => {
     await handle(ctx.req, ctx.res)
     ctx.respond = false
   })
