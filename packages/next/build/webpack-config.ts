@@ -369,7 +369,7 @@ export default async function getBaseWebpackConfig(
       'next/router': 'next/dist/client/router.js',
       'next/experimental-script': config.experimental.scriptLoader
         ? 'next/dist/client/experimental-script.js'
-        : undefined,
+        : '',
       'next/config': 'next/dist/next-server/lib/runtime-config.js',
       'next/dynamic': 'next/dist/next-server/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
