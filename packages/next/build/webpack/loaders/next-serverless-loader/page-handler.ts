@@ -16,7 +16,6 @@ import { getRedirectStatus } from '../../../../lib/load-custom-routes'
 import getRouteNoAssetPath from '../../../../next-server/lib/router/utils/get-route-from-asset-path'
 import { getRouteMatcher } from '../../../../next-server/lib/router/utils/route-matcher'
 import { PERMANENT_REDIRECT_STATUS } from '../../../../next-server/lib/constants'
-import { normalizeLocalePath } from '../../../../next-server/lib/i18n/normalize-locale-path'
 
 export function getPageHandler(ctx: ServerlessHandlerCtx) {
   const {
@@ -167,17 +166,16 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
         routeNoAssetPath = parsedUrl.pathname
       }
 
-      routeNoAssetPath = normalizeLocalePath(routeNoAssetPath, i18n?.locales)
-        .pathname
-
       const localeResult = handleLocale(
         req,
         res,
         parsedUrl,
+        routeNoAssetPath,
         fromExport || nextStartMode
       )
       defaultLocale = localeResult?.defaultLocale || defaultLocale
       detectedLocale = localeResult?.detectedLocale || detectedLocale
+      routeNoAssetPath = localeResult?.routeNoAssetPath || routeNoAssetPath
 
       if (parsedUrl.query.nextInternalLocale) {
         detectedLocale = parsedUrl.query.nextInternalLocale as string

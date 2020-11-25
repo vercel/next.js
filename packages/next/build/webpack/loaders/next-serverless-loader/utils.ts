@@ -98,7 +98,7 @@ export function getUtils({
           params,
           parsedUrl.query,
           true,
-          basePath
+          ''
         )
 
         Object.assign(parsedUrl.query, parsedDestination.query)
@@ -209,6 +209,7 @@ export function getUtils({
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlWithParsedQuery,
+    routeNoAssetPath: string,
     shouldNotRedirect: boolean
   ) {
     if (!i18n) return
@@ -238,6 +239,9 @@ export function getUtils({
       parsedUrl.pathname!,
       i18n.locales
     )
+
+    routeNoAssetPath = normalizeLocalePath(routeNoAssetPath, i18n.locales)
+      .pathname
 
     if (localePathResult.detectedLocale) {
       detectedLocale = localePathResult.detectedLocale
@@ -335,6 +339,7 @@ export function getUtils({
     return {
       defaultLocale,
       detectedLocale,
+      routeNoAssetPath,
     }
   }
 

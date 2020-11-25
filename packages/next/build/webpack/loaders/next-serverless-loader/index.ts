@@ -174,6 +174,7 @@ const nextServerlessLoader: loader.Loader = function () {
       generateEtags: ${generateEtags || 'false'},
       poweredByHeader: ${poweredByHeader || 'false'},
 
+      runtimeConfig,
       buildManifest,
       reactLoadableManifest,
 
