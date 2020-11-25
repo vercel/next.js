@@ -6,7 +6,7 @@ Description
 
 Deploy the example using [Vercel](https://vercel.com/now):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/DIRECTORY_NAME)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/darkmode-styled-components-ts)
 
 ## How to use
 
