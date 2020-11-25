@@ -41,7 +41,7 @@ Will be transformed into:
 }
 ```
 
-### tailwind CSS config
+### Tailwind CSS config
 
 Use the following command when you add a tailwind plugin that adds to tailwind's base css:
 
