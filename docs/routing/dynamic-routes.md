@@ -129,8 +129,6 @@ The `query` objects are as follows:
 { "slug": ["a", "b"] } // `GET /post/a/b` (multi-element array)
 ```
 
-> A good example of optional catch all routes is the Next.js docs, a single page called [pages/docs/[[...slug]].js](https://github.com/vercel/next-site/blob/master/pages/docs/%5B%5B...slug%5D%5D.js) takes care of all the docs you're currently looking at.
-
 ## Caveats
 
 - Predefined routes take precedence over dynamic routes, and dynamic routes over catch all routes. Take a look at the following examples:
