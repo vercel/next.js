@@ -130,7 +130,7 @@ export function runNextCommand(argv, options = {}) {
       })
     }
 
-    instance.on('close', (code) => {
+    instance.on('close', (code, signal) => {
       if (
         !options.stderr &&
         !options.stdout &&
@@ -142,6 +142,7 @@ export function runNextCommand(argv, options = {}) {
 
       resolve({
         code,
+        signal,
         stdout: stdoutOutput,
         stderr: stderrOutput,
       })
