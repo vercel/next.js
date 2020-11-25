@@ -1,6 +1,5 @@
 import { PluginItem } from 'next/dist/compiled/babel/core'
 import { dirname } from 'path'
-
 const env = process.env.NODE_ENV
 const isProduction = env === 'production'
 const isDevelopment = env === 'development'
@@ -170,9 +169,9 @@ module.exports = (
           helpers: true,
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
-          absoluteRuntime: dirname(
-            require.resolve('@babel/runtime/package.json')
-          ),
+          absoluteRuntime: process.versions.pnp
+            ? dirname(require.resolve('@babel/runtime/package.json'))
+            : undefined,
           ...options['transform-runtime'],
         },
       ],
