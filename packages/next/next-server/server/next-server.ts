@@ -32,6 +32,7 @@ import {
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
+  TEMPORARY_REDIRECT_STATUS,
 } from '../lib/constants'
 import {
   getRouteMatcher,
@@ -342,6 +343,11 @@ export default class Server {
       detectedLocale = detectedLocale || acceptPreferredLocale
 
       let localeDomainRedirect: string | undefined
+      ;(req as any).__nextHadTrailingSlash = pathname!.endsWith('/')
+
+      if (pathname === '/') {
+        ;(req as any).__nextHadTrailingSlash = this.nextConfig.trailingSlash
+      }
       const localePathResult = normalizeLocalePath(pathname!, i18n.locales)
 
       if (localePathResult.detectedLocale) {
@@ -426,17 +432,17 @@ export default class Server {
 
         res.setHeader(
           'Location',
-          formatUrl({
-            // make sure to include any query values when redirecting
-            ...parsed,
-            pathname: localeDomainRedirect
-              ? localeDomainRedirect
-              : shouldStripDefaultLocale
-              ? basePath || `/`
-              : `${basePath || ''}/${detectedLocale}`,
-          })
+          localeDomainRedirect
+            ? localeDomainRedirect
+            : formatUrl({
+                // make sure to include any query values when redirecting
+                ...parsed,
+                pathname: shouldStripDefaultLocale
+                  ? basePath || `/`
+                  : `${basePath || ''}/${detectedLocale}`,
+              })
         )
-        res.statusCode = 307
+        res.statusCode = TEMPORARY_REDIRECT_STATUS
         res.end()
         return
       }
@@ -605,7 +611,8 @@ export default class Server {
             const localePathResult = normalizeLocalePath(pathname, i18n.locales)
             const { defaultLocale } =
               detectDomainLocale(i18n.domains, hostname) || {}
-            let detectedLocale = defaultLocale
+
+            let detectedLocale = ''
 
             if (localePathResult.detectedLocale) {
               pathname = localePathResult.pathname
@@ -615,6 +622,13 @@ export default class Server {
             _parsedUrl.query.__nextLocale = detectedLocale!
             _parsedUrl.query.__nextDefaultLocale =
               defaultLocale || i18n.defaultLocale
+
+            if (!detectedLocale) {
+              _parsedUrl.query.__nextLocale =
+                _parsedUrl.query.__nextDefaultLocale
+              await this.render404(req, res, _parsedUrl)
+              return { finished: true }
+            }
           }
 
           const parsedUrl = parseUrl(pathname, true)
@@ -1447,8 +1461,11 @@ export default class Server {
           isRedirect = renderResult.renderOpts.isRedirect
         } else {
           const origQuery = parseUrl(req.url || '', true).query
+          const hadTrailingSlash =
+            urlPathname !== '/' && this.nextConfig.trailingSlash
+
           const resolvedUrl = formatUrl({
-            pathname: resolvedUrlPathname,
+            pathname: `${resolvedUrlPathname}${hadTrailingSlash ? '/' : ''}`,
             // make sure to only add query values from original URL
             query: origQuery,
           })
@@ -1468,7 +1485,7 @@ export default class Server {
               ? formatUrl({
                   // we use the original URL pathname less the _next/data prefix if
                   // present
-                  pathname: urlPathname,
+                  pathname: `${urlPathname}${hadTrailingSlash ? '/' : ''}`,
                   query: origQuery,
                 })
               : resolvedUrl,
@@ -1794,6 +1811,13 @@ export default class Server {
   ): Promise<void> {
     const url: any = req.url
     const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(url, true)
+    const { i18n } = this.nextConfig
+
+    if (i18n) {
+      query.__nextLocale = query.__nextLocale || i18n.defaultLocale
+      query.__nextDefaultLocale =
+        query.__nextDefaultLocale || i18n.defaultLocale
+    }
     res.statusCode = 404
     return this.renderError(null, req, res, pathname!, query, setHeaders)
   }

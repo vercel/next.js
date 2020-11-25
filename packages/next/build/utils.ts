@@ -66,7 +66,6 @@ export async function printTreeView(
     pagesDir,
     pageExtensions,
     buildManifest,
-    isModern,
     useStatic404,
   }: {
     distPath: string
@@ -74,7 +73,6 @@ export async function printTreeView(
     pagesDir: string
     pageExtensions: string[]
     buildManifest: BuildManifest
-    isModern: boolean
     useStatic404: boolean
   }
 ) {
@@ -114,12 +112,7 @@ export async function printTreeView(
     list = [...list, '/404']
   }
 
-  const sizeData = await computeFromManifest(
-    buildManifest,
-    distPath,
-    isModern,
-    pageInfos
-  )
+  const sizeData = await computeFromManifest(buildManifest, distPath, pageInfos)
 
   const pageList = list
     .slice()
@@ -374,18 +367,15 @@ type ComputeManifestShape = {
 let cachedBuildManifest: BuildManifest | undefined
 
 let lastCompute: ComputeManifestShape | undefined
-let lastComputeModern: boolean | undefined
 let lastComputePageInfo: boolean | undefined
 
 async function computeFromManifest(
   manifest: BuildManifest,
   distPath: string,
-  isModern: boolean,
   pageInfos?: Map<string, PageInfo>
 ): Promise<ComputeManifestShape> {
   if (
     Object.is(cachedBuildManifest, manifest) &&
-    lastComputeModern === isModern &&
     lastComputePageInfo === !!pageInfos
   ) {
     return lastCompute!
@@ -405,13 +395,6 @@ async function computeFromManifest(
 
     ++expected
     manifest.pages[key].forEach((file) => {
-      if (
-        // Select Modern or Legacy scripts
-        file.endsWith('.module.js') !== isModern
-      ) {
-        return
-      }
-
       if (key === '/_app') {
         files.set(file, Infinity)
       } else if (files.has(file)) {
@@ -471,7 +454,6 @@ async function computeFromManifest(
   }
 
   cachedBuildManifest = manifest
-  lastComputeModern = isModern
   lastComputePageInfo = !!pageInfos
   return lastCompute!
 }
@@ -495,18 +477,16 @@ function sum(a: number[]): number {
 export async function getJsPageSizeInKb(
   page: string,
   distPath: string,
-  buildManifest: BuildManifest,
-  isModern: boolean
+  buildManifest: BuildManifest
 ): Promise<[number, number]> {
-  const data = await computeFromManifest(buildManifest, distPath, isModern)
+  const data = await computeFromManifest(buildManifest, distPath)
 
-  const fnFilterModern = (entry: string) =>
-    entry.endsWith('.js') && entry.endsWith('.module.js') === isModern
+  const fnFilterJs = (entry: string) => entry.endsWith('.js')
 
   const pageFiles = (
     buildManifest.pages[denormalizePagePath(page)] || []
-  ).filter(fnFilterModern)
-  const appFiles = (buildManifest.pages['/_app'] || []).filter(fnFilterModern)
+  ).filter(fnFilterJs)
+  const appFiles = (buildManifest.pages['/_app'] || []).filter(fnFilterJs)
 
   const fnMapRealPath = (dep: string) => `${distPath}/${dep}`
 
