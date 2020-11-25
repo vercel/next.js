@@ -22,10 +22,14 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Modified to strip out unneeded results for Next's specific use case
 
 import webpack, {
-  Compiler,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   compilation as CompilationType,
+  Compiler,
 } from 'webpack'
+import sources from 'webpack-sources'
+
+// @ts-ignore: TODO: remove ignore when webpack 5 is stable
+const { RawSource } = webpack.sources || sources
 
 const isWebpack5 = parseInt(webpack.version!) === 5
 
@@ -61,7 +65,12 @@ function buildManifest(
 
       chunkGroup.chunks.forEach((chunk: any) => {
         chunk.files.forEach((file: string) => {
-          if (!file.match(/\.js$/) || !file.match(/^static\/chunks\//)) {
+          if (
+            !(
+              (file.endsWith('.js') || file.endsWith('.css')) &&
+              file.match(/^static\/(chunks|css)\//)
+            )
+          ) {
             return
           }
 
@@ -81,10 +90,7 @@ function buildManifest(
               continue
             }
 
-            manifest[request].push({
-              id,
-              file,
-            })
+            manifest[request].push({ id, file })
           }
         })
       })
@@ -108,15 +114,8 @@ export class ReactLoadablePlugin {
 
   createAssets(compiler: any, compilation: any, assets: any) {
     const manifest = buildManifest(compiler, compilation)
-    var json = JSON.stringify(manifest, null, 2)
-    assets[this.filename] = {
-      source() {
-        return json
-      },
-      size() {
-        return json.length
-      },
-    }
+    // @ts-ignore: TODO: remove when webpack 5 is stable
+    assets[this.filename] = new RawSource(JSON.stringify(manifest, null, 2))
     return assets
   }
 

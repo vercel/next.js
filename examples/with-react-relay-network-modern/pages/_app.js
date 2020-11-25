@@ -1,6 +1,13 @@
+import { RelayEnvironmentProvider } from 'relay-hooks'
+
 import { createEnvironment } from '../lib/createEnvironment'
 
 export default function App({ Component, pageProps }) {
-  const environment = createEnvironment(pageProps.records)
-  return <Component {...pageProps} environment={environment} />
+  return (
+    <RelayEnvironmentProvider
+      environment={createEnvironment(pageProps.relayData)}
+    >
+      <Component {...pageProps} />
+    </RelayEnvironmentProvider>
+  )
 }

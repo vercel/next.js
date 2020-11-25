@@ -1,4 +1,4 @@
-import Document, { Head, Main, NextScript } from 'next/document'
+import Document, { Html, Head, Main, NextScript } from 'next/document'
 import { Provider as StyletronProvider } from 'styletron-react'
 import { styletron } from '../styletron'
 
@@ -15,7 +15,7 @@ class MyDocument extends Document {
 
   render() {
     return (
-      <html>
+      <Html>
         <Head>
           {this.props.stylesheets.map((sheet, i) => (
             <style
@@ -31,7 +31,7 @@ class MyDocument extends Document {
           <Main />
           <NextScript />
         </body>
-      </html>
+      </Html>
     )
   }
 }

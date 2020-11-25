@@ -3,6 +3,15 @@ module.exports = {
     // Make sure entries are not getting disposed.
     maxInactiveAge: 1000 * 60 * 60,
   },
+  rewrites() {
+    // add a rewrite so the code isn't dead-code eliminated
+    return [
+      {
+        source: '/some-rewrite',
+        destination: '/',
+      },
+    ]
+  },
   redirects() {
     return [
       {
@@ -18,6 +27,11 @@ module.exports = {
       {
         source: '/shadowed-page',
         destination: '/about',
+        permanent: false,
+      },
+      {
+        source: '/redirect-query-test/:path',
+        destination: '/about?foo=:path',
         permanent: false,
       },
     ]

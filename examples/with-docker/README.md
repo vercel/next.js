@@ -8,8 +8,6 @@ You can check the [Example Dockerfile for your own Node.js project](https://gith
 
 ## How to use
 
-### Using `create-next-app`
-
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
@@ -18,22 +16,13 @@ npx create-next-app --example with-docker with-docker-app
 yarn create next-app --example with-docker with-docker-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-docker
-cd with-docker
-```
-
 Build it with docker:
 
 ```bash
 # build
 docker build -t next-app .
 # or, use multi-stage builds to build a smaller docker image
-docker build -t next-app -f ./Dockerfile.multistage .
+docker build --target production -t next-app -f ./Dockerfile.multistage .
 ```
 
 Alternatively you can add these commands as scripts to your package.json and simply run

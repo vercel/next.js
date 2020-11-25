@@ -1,0 +1,37 @@
+{
+  "name": "@next/env",
+  "version": "10.0.3",
+  "keywords": [
+    "react",
+    "next",
+    "next.js",
+    "dotenv"
+  ],
+  "description": "Next.js dotenv file loading",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "packages/next-env"
+  },
+  "author": "Next.js Team <support@vercel.com>",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "types/index.d.ts",
+  "files": [
+    "dist",
+    "types"
+  ],
+  "scripts": {
+    "build": "ncc build ./index.ts -w -o dist/",
+    "prerelease": "rimraf ./dist/",
+    "types": "tsc index.ts --declaration --emitDeclarationOnly --declarationDir types --esModuleInterop",
+    "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
+    "prepublish": "yarn release && yarn types"
+  },
+  "devDependencies": {
+    "@types/dotenv": "8.2.0",
+    "@zeit/ncc": "0.20.4",
+    "dotenv": "8.2.0",
+    "dotenv-expand": "5.1.0"
+  }
+}

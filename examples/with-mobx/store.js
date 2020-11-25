@@ -1,12 +1,16 @@
-import { action, observable, computed, runInAction } from 'mobx'
-import { useStaticRendering } from 'mobx-react'
+import { action, observable, computed, runInAction, makeObservable } from 'mobx'
+import { enableStaticRendering } from 'mobx-react'
 import { useMemo } from 'react'
 // eslint-disable-next-line react-hooks/rules-of-hooks
-useStaticRendering(typeof window === 'undefined')
+enableStaticRendering(typeof window === 'undefined')
 
 let store
 
 class Store {
+  constructor() {
+    makeObservable(this)
+  }
+
   @observable lastUpdate = 0
   @observable light = false
 
@@ -30,7 +34,7 @@ class Store {
 
   stop = () => clearInterval(this.timer)
 
-  hydrate = (data) => {
+  @action hydrate = (data) => {
     if (!data) return
 
     this.lastUpdate = data.lastUpdate !== null ? data.lastUpdate : Date.now()

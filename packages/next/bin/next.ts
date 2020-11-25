@@ -50,8 +50,9 @@ if (args['--version']) {
 // Check if we are running `next <subcommand>` or `next`
 const foundCommand = Boolean(commands[args._[0]])
 
-// Makes sure the `next <subcommand> --help` case is covered
+// Makes sure the `next --help` case is covered
 // This help message is only showed for `next --help`
+// `next <subcommand> --help` falls through to be handled later
 if (!foundCommand && args['--help']) {
   console.log(`
     Usage
@@ -102,6 +103,10 @@ if (typeof React.Suspense === 'undefined') {
     `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://err.sh/vercel/next.js/invalid-react-version`
   )
 }
+
+// Make sure commands gracefully respect termination signals (e.g. from Docker)
+process.on('SIGTERM', () => process.exit(0))
+process.on('SIGINT', () => process.exit(0))
 
 commands[command]().then((exec) => exec(forwardedArgs))
 

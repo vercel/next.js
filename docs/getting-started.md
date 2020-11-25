@@ -37,6 +37,8 @@ Install `next`, `react` and `react-dom` in your project:
 
 ```bash
 npm install next react react-dom
+# or
+yarn add next react react-dom
 ```
 
 Open `package.json` and add the following `scripts`:
@@ -51,9 +53,9 @@ Open `package.json` and add the following `scripts`:
 
 These scripts refer to the different stages of developing an application:
 
-- `dev` - Runs [`next dev`](/docs/api-reference/cli#development) which starts Next.js in development mode
-- `build` - Runs [`next build`](/docs/api-reference/cli#build) which builds the application for production usage
-- `start` - Runs [`next start`](/docs/api-reference/cli#production) which starts a Next.js production server
+- `dev` - Runs [`next dev`](/docs/api-reference/cli.md#development) which starts Next.js in development mode
+- `build` - Runs [`next build`](/docs/api-reference/cli.md#build) which builds the application for production usage
+- `start` - Runs [`next start`](/docs/api-reference/cli.md#production) which starts a Next.js production server
 
 Next.js is built around the concept of [pages](/docs/basic-features/pages.md). A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the `pages` directory.
 
@@ -71,7 +73,7 @@ function HomePage() {
 export default HomePage
 ```
 
-To start developing your application run `npm run dev`. This starts the development server on `http://localhost:3000`.
+To start developing your application run `npm run dev` or `yarn dev`. This starts the development server on `http://localhost:3000`.
 
 Visit `http://localhost:3000` to view your application.
 

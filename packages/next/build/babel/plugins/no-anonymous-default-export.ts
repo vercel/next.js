@@ -1,5 +1,5 @@
-import { PluginObj, types as BabelTypes } from '@babel/core'
-import chalk from 'next/dist/compiled/chalk'
+import { PluginObj, types as BabelTypes } from 'next/dist/compiled/babel/core'
+import chalk from 'chalk'
 
 export default function NoAnonymousDefaultExport({
   types: t,
@@ -48,6 +48,10 @@ export default function NoAnonymousDefaultExport({
                 chalk.bold('After'),
                 chalk.cyan('const Named = () => <div />;'),
                 chalk.cyan('export default Named;'),
+                '',
+                `A codemod is available to fix the most common cases: ${chalk.cyan(
+                  'https://nextjs.link/codemod-ndc'
+                )}`,
               ].join('\n')
             )
             break
@@ -67,6 +71,10 @@ export default function NoAnonymousDefaultExport({
                   '',
                   chalk.bold('After'),
                   chalk.cyan('export default function Named() { /* ... */ }'),
+                  '',
+                  `A codemod is available to fix the most common cases: ${chalk.cyan(
+                    'https://nextjs.link/codemod-ndc'
+                  )}`,
                 ].join('\n')
               )
             }

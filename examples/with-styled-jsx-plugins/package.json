@@ -1,5 +1,5 @@
 {
-  "name": "basic-css",
+  "name": "with-styled-jsx-plugins",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
@@ -14,7 +14,7 @@
     "react-dom": "^16.7.0",
     "styled-jsx-plugin-postcss": "0.1.0"
   },
-  "license": "ISC",
+  "license": "MIT",
   "postcss": {
     "plugins": {
       "lost": {},
