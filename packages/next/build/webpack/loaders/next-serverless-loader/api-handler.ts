@@ -1,7 +1,6 @@
-import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl } from 'url'
-import 'next/dist/next-server/server/node-polyfill-fetch'
-import { apiResolver } from 'next/dist/next-server/server/api-utils'
+import { IncomingMessage, ServerResponse } from 'http'
+import { apiResolver } from '../../../../next-server/server/api-utils'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
 export function getApiHandler(ctx: ServerlessHandlerCtx) {
@@ -44,14 +43,14 @@ export function getApiHandler(ctx: ServerlessHandlerCtx) {
               >)
         )
 
-        params = result.query
+        params = result.params
       }
 
       await apiResolver(
         req,
         res,
         Object.assign({}, parsedUrl.query, params),
-        pageModule,
+        await pageModule,
         encodedPreviewProps,
         true,
         onError
