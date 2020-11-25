@@ -20,15 +20,15 @@ npm install next@latest
 
 #### Production Deployment on Vercel
 
-If you previously configured `routes` in your `vercel.json` file for dynamic routes, these rules can be removed when leveraging Next.js 9's new [Dynamic Routing feature](https://nextjs.org/docs/routing/dynamic-routes).
+If you previously configured `routes` in your `vercel.json` file for dynamic routes, these rules can be removed when leveraging Next.js 9's new [Dynamic Routing feature](/docs/routing/dynamic-routes.md).
 
 Next.js 9's dynamic routes are **automatically configured on [Vercel](https://vercel.com/)** and do not require any `vercel.json` customization.
 
-You can read more about [Dynamic Routing here](https://nextjs.org/docs/routing/dynamic-routes).
+You can read more about [Dynamic Routing here](/docs/routing/dynamic-routes.md).
 
 #### Check your Custom <App> (`pages/_app.js`)
 
-If you previously copied the [Custom `<App>`](https://nextjs.org/docs/advanced-features/custom-app) example, you may be able to remove your `getInitialProps`.
+If you previously copied the [Custom `<App>`](/docs/advanced-features/custom-app.md) example, you may be able to remove your `getInitialProps`.
 
 Removing `getInitialProps` from `pages/_app.js` (when possible) is important to leverage new Next.js features!
 

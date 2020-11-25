@@ -44,8 +44,8 @@ The following is the definition of the `router` object returned by both [`useRou
 - `pathname`: `String` - Current route. That is the path of the page in `/pages`
 - `query`: `Object` - The query string parsed to an object. It will be an empty object during prerendering if the page doesn't have [data fetching requirements](/docs/basic-features/data-fetching.md). Defaults to `{}`
 - `asPath`: `String` - The path (including the query) shown in the browser without the configured `basePath` or `locale`.
-- `isFallback`: `boolean` - Whether the current page is in [fallback mode](/docs/basic-features/data-fetching#fallback-pages).
-- `basePath`: `String` - The active [basePath](/docs/api-reference/next.config.js/basepath) (if enabled).
+- `isFallback`: `boolean` - Whether the current page is in [fallback mode](/docs/basic-features/data-fetching.md#fallback-pages).
+- `basePath`: `String` - The active [basePath](/docs/api-reference/next.config.js/basepath.md) (if enabled).
 - `locale`: `String` - The active locale (if enabled).
 - `locales`: `String[]` - All supported locales (if enabled).
 - `defaultLocale`: `String` - The current default locale (if enabled).
