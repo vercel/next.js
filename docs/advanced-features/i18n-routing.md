@@ -152,13 +152,13 @@ When `localeDetection` is set to `false` Next.js will no longer automatically re
 
 ## Accessing the locale information
 
-You can access the locale information via the Next.js router. For example, using the [`useRouter()`](https://nextjs.org/docs/api-reference/next/router#userouter) hook the following properties are available:
+You can access the locale information via the Next.js router. For example, using the [`useRouter()`](/docs/api-reference/next/router.md#userouter) hook the following properties are available:
 
 - `locale` contains the currently active locale.
 - `locales` contains all configured locales.
 - `defaultLocale` contains the configured default locale.
 
-When [pre-rendering](/docs/basic-features/pages#static-generation-recommended) pages with `getStaticProps` or `getServerSideProps`, the locale information is provided in [the context](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) provided to the function.
+When [pre-rendering](/docs/basic-features/pages.md#static-generation-recommended) pages with `getStaticProps` or `getServerSideProps`, the locale information is provided in [the context](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) provided to the function.
 
 When leveraging `getStaticPaths`, the configured locales are provided in the context parameter of the function under `locales` and the configured defaultLocale under `defaultLocale`.
 
@@ -255,7 +255,7 @@ export async function getStaticProps({ locale }) {
 
 ### Dynamic getStaticProps Pages
 
-For dynamic `getStaticProps` pages, any locale variants of the page that is desired to be prerendered needs to be returned from [`getStaticPaths`](/docs/basic-features/data-fetching#getstaticpaths-static-generation). Along with the `params` object that can be returned for the `paths`, you can also return a `locale` field specifying which locale you want to render. For example:
+For dynamic `getStaticProps` pages, any locale variants of the page that is desired to be prerendered needs to be returned from [`getStaticPaths`](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation). Along with the `params` object that can be returned for the `paths`, you can also return a `locale` field specifying which locale you want to render. For example:
 
 ```js
 // pages/blog/[slug].js
