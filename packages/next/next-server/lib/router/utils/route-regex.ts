@@ -1,4 +1,4 @@
-interface Group {
+export interface Group {
   pos: number
   repeat: boolean
   optional: boolean
