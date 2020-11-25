@@ -3,15 +3,15 @@ import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
 import { join } from 'path'
 import { parse } from 'querystring'
 import { loader } from 'webpack'
-import { API_ROUTE } from '../../../lib/constants'
+import { API_ROUTE } from '../../../../lib/constants'
 import {
   BUILD_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   TEMPORARY_REDIRECT_STATUS,
-} from '../../../next-server/lib/constants'
-import { isDynamicRoute } from '../../../next-server/lib/router/utils'
-import { __ApiPreviewProps } from '../../../next-server/server/api-utils'
+} from '../../../../next-server/lib/constants'
+import { isDynamicRoute } from '../../../../next-server/lib/router/utils'
+import { __ApiPreviewProps } from '../../../../next-server/server/api-utils'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -412,10 +412,6 @@ const nextServerlessLoader: loader.Loader = function () {
 
   if (page.match(API_ROUTE)) {
     return `
-      import initServer from 'next-plugin-loader?middleware=on-init-server!'
-      import onError from 'next-plugin-loader?middleware=on-error-server!'
-      import 'next/dist/next-server/server/node-polyfill-fetch'
-
       ${envLoading}
       ${runtimeConfigImports}
       ${
@@ -424,75 +420,26 @@ const nextServerlessLoader: loader.Loader = function () {
         */
         runtimeConfigSetter
       }
-      ${dynamicRouteImports}
-      const { parse: parseUrl } = require('url')
-      const { apiResolver } = require('next/dist/next-server/server/api-utils')
-      const { normalizeLocalePath } = require('next/dist/next-server/lib/i18n/normalize-locale-path')
-      const i18n = ${i18n || '{}'}
+      import initServer from 'next-plugin-loader?middleware=on-init-server!'
+      import onError from 'next-plugin-loader?middleware=on-error-server!'
+      import {getApiHandler} from 'next/dist/build/webpack/loaders/next-serverless-loader/api-handler'
+      import { rewrites } from '${routesManifest}'
 
-      ${rewriteImports}
-
-      ${dynamicRouteMatcher}
-
-      ${defaultRouteRegex}
-
-      ${handleRewrites}
-
-      export default async (req, res) => {
-        try {
-          await initServer()
-
-          // We need to trust the dynamic route params from the proxy
-          // to ensure we are using the correct values
-          const trustQuery = req.headers['${vercelHeader}']
-          const parsedUrl = handleRewrites(parseUrl(req.url, true))
-
-          if (parsedUrl.query.nextInternalLocale) {
-            detectedLocale = parsedUrl.query.nextInternalLocale
-            delete parsedUrl.query.nextInternalLocale
-          }
-
-          let hasValidParams = true
-
-          ${normalizeDynamicRouteParams}
-          ${handleBasePath}
-
-          const params = ${
-            pageIsDynamicRoute
-              ? `
-              normalizeDynamicRouteParams(
-                trustQuery
-                  ? parsedUrl.query
-                  : dynamicRouteMatcher(parsedUrl.pathname)
-              )
-              `
-              : `{}`
-          }
-
-          const resolver = await require('${absolutePagePath}')
-          await apiResolver(
-            req,
-            res,
-            Object.assign({}, parsedUrl.query, params ),
-            resolver,
-            ${encodedPreviewProps},
-            true,
-            onError
-          )
-        } catch (err) {
-          console.error(err)
-          await onError(err)
-
-          // TODO: better error for DECODE_FAILED?
-          if (err.code === 'DECODE_FAILED') {
-            res.statusCode = 400
-            res.end('Bad Request')
-          } else {
-            // Throw the error to crash the serverless function
-            throw err
-          }
+      const apiHandler = getApiHandler({
+        pageModule: require("${absolutePagePath}"),
+        rewrites,
+        i18n: ${i18n || 'undefined'},
+        page: "${page}",
+        basePath: "${basePath}",
+        pageIsDynamic: ${pageIsDynamicRoute},
+        absolutePagePath: "${absolute404Path}",
+        encodedPreviewProps: ${encodedPreviewProps},
+        experimental: {
+          onError,
+          initServer,
         }
-      }
+      })
+      export default apiHandler
     `
   } else {
     return `
