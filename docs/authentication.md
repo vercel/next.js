@@ -4,20 +4,20 @@ description: Learn about authentication patterns in Next.js apps and explore a f
 
 # Authentication
 
-Authentication verifies who a user is, while authorization controls what a user can access. Next.js supports multiple patterns for authentication, each designed for different use cases. This guide will allow you to choose your adventure based on your constraints.
+Authentication verifies who a user is, while authorization controls what a user can access. Next.js supports multiple authentication patterns, each designed for different use cases. This page will go through each case so that you can choose based on your constraints.
 
-## Patterns
+## Authentication Patterns
 
-The first step to identifying which authentication pattern you need is understanding the [data-fetching strategy](/docs/basic-features/data-fetching) you want. We can then determine which authentication providers support this strategy. There are two main strategies:
+The first step to identifying which authentication pattern you need is understanding the [data-fetching strategy](/docs/basic-features/data-fetching.md) you want. We can then determine which authentication providers support this strategy. There are two main patterns:
 
-- Use [static generation](/docs/basic-features/pages#static-generation-recommended) to [server-render](/docs/basic-features/pages#static-generation-without-data) a loading state, followed by fetching user data client-side.
-- Fetch user data server-side to eliminate a flash of unauthenticated content.
+- Use [static generation](/docs/basic-features/pages.md#static-generation-recommended) to server-render a loading state, followed by fetching user data client-side.
+- Fetch user data [server-side](/docs/basic-features/pages#server-side-rendering.md) to eliminate a flash of unauthenticated content.
 
-### Static Generation
+## Authenticating Statically Generated Pages
 
 Next.js automatically determines that a page is static if there are no blocking data requirements. This means the absence of `getServerSideProps` and `getInitialProps` in the page. Instead, your page can render a loading state from the server, followed by fetching the user client-side.
 
-One advantage of this pattern is it allows pages to be served from a global CDN and [preloaded](/docs/api-reference/next/link) using `<Link />`. Depending on the size of your application, [React hydration](https://reactjs.org/docs/react-dom.html#hydrate) could take some time. If you serve a loading shell from the server, this allows React to hydrate while you're fetching user data. In practice, this results in a faster TTI ([Time to Interactive](https://web.dev/interactive/)).
+One advantage of this pattern is it allows pages to be served from a global CDN and preloaded using [`next/link`](/docs/api-reference/next/link.md). Depending on the size of your application, [React hydration](https://reactjs.org/docs/react-dom.html#hydrate) could take some time. If you serve a loading state from the server, this allows React to hydrate while you're fetching user data. In practice, this results in a faster TTI ([Time to Interactive](https://web.dev/interactive/)).
 
 Let's look at an example for a profile page. This will initially render a loading skeleton. Once the request for a user has finished, it will show the user's name.
 
@@ -55,8 +55,8 @@ If you export an `async` function called `getServerSideProps` from a page, Next.
 ```jsx
 export async function getServerSideProps(context) {
   return {
-    props: {} // Will be passed to the page component as props
-  };
+    props: {}, // Will be passed to the page component as props
+  }
 }
 ```
 
@@ -120,7 +120,6 @@ It is possible to use the Firebase Client SDK to generate an ID token and forwar
 
 You can either use [FirebaseUI](https://github.com/firebase/firebaseui-web-react) for a drop-in UI, or create your own with a [custom React hook](https://usehooks.com/useAuth/).
 
-
 ### Bring Your Own Database
 
 <details open>
@@ -149,7 +148,7 @@ Both of these libraries support either authentication pattern.
   </ul>
 </details>
 
-Magic, which uses [passwordless login](https://magic.link/), supports the static generation pattern. Similar to Firebase, a [unique identifier](https://w3c-ccg.github.io/did-primer/) has to be created on the client-side and then forwarded as a header to log-in. Then, Magic's Node SDK can be used to exchange the indentifier for a user's information. 
+Magic, which uses [passwordless login](https://magic.link/), supports the static generation pattern. Similar to Firebase, a [unique identifier](https://w3c-ccg.github.io/did-primer/) has to be created on the client-side and then forwarded as a header to log-in. Then, Magic's Node SDK can be used to exchange the indentifier for a user's information.
 
 ### Auth0
 
