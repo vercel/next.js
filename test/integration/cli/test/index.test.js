@@ -91,6 +91,7 @@ describe('CLI Usage', () => {
       const killSigint = (instance) =>
         setTimeout(() => instance.kill('SIGINT'), 500)
       const { code, signal } = await runNextCommand(['build', dir], {
+        ignoreFail: true,
         instance: killSigint,
       })
       // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
@@ -104,6 +105,7 @@ describe('CLI Usage', () => {
       const killSigterm = (instance) =>
         setTimeout(() => instance.kill('SIGTERM'), 500)
       const { code, signal } = await runNextCommand(['build', dir], {
+        ignoreFail: true,
         instance: killSigterm,
       })
       // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
@@ -227,6 +229,7 @@ describe('CLI Usage', () => {
         setTimeout(() => instance.kill('SIGINT'), 500)
       const port = await findPort()
       const { code, signal } = await runNextCommand(['dev', dir, '-p', port], {
+        ignoreFail: true,
         instance: killSigint,
       })
       // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
@@ -241,6 +244,7 @@ describe('CLI Usage', () => {
         setTimeout(() => instance.kill('SIGTERM'), 500)
       const port = await findPort()
       const { code, signal } = await runNextCommand(['dev', dir, '-p', port], {
+        ignoreFail: true,
         instance: killSigterm,
       })
       // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
@@ -378,6 +382,7 @@ describe('CLI Usage', () => {
       const { code, signal } = await runNextCommand(
         ['start', dir, '-p', port],
         {
+          ignoreFail: true,
           instance: killSigint,
         }
       )
@@ -396,6 +401,7 @@ describe('CLI Usage', () => {
       const { code, signal } = await runNextCommand(
         ['start', dir, '-p', port],
         {
+          ignoreFail: true,
           instance: killSigterm,
         }
       )
