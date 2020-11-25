@@ -34,7 +34,7 @@ class Store {
 
   stop = () => clearInterval(this.timer)
 
-  hydrate = (data) => {
+  @action hydrate = (data) => {
     if (!data) return
 
     this.lastUpdate = data.lastUpdate !== null ? data.lastUpdate : Date.now()

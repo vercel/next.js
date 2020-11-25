@@ -12,6 +12,7 @@ export class Store {
       lastUpdate: observable,
       light: observable,
       start: action,
+      hydrate: action,
       timeString: computed,
     })
   }
