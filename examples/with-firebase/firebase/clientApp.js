@@ -18,7 +18,10 @@ const clientCredentials = {
 if (typeof window !== 'undefined' && !firebase.apps.length) {
   firebase.initializeApp(clientCredentials)
   // To enable analytics. https://firebase.google.com/docs/analytics/get-started
-  if ('measurementId' in clientCredentials) firebase.analytics()
+  if ('measurementId' in clientCredentials) {
+    firebase.analytics()
+    firebase.performance()
+  }
 }
 
 export default firebase
