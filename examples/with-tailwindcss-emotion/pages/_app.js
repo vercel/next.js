@@ -2,6 +2,8 @@ import Head from 'next/head'
 import { Global } from '@emotion/react'
 import xw from 'xwind'
 
+import '../styles/base.css'
+
 function App({ Component, pageProps }) {
   return (
     <>
@@ -9,8 +11,8 @@ function App({ Component, pageProps }) {
         <title>Tailwindcss Emotion Example</title>
       </Head>
       <Global
-        //add tailwind base + keyframes ... to global styles
-        styles={xw`XWIND_BASE XWIND_GLOBAL`}
+        //keyframes + ring and shadow classes variables  ... to global styles
+        styles={xw`XWIND_GLOBAL`}
       />
       <Component {...pageProps} />
     </>

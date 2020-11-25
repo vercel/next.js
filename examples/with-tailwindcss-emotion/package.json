@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "build:base-css": "tailwindcss build ./styles/tailwind.base.css -o ./styles/base.css"
   },
   "dependencies": {
     "@emotion/react": "^11.1.1",
@@ -13,13 +14,13 @@
     "react-dom": "17.0.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.12.8",
+    "@babel/core": "^7.12.9",
     "@emotion/babel-plugin": "11.0.0",
     "autoprefixer": "10.0.2",
     "next": "latest",
     "postcss": "8.1.10",
     "tailwindcss": "^2.0.1",
-    "xwind": "0.7.1"
+    "xwind": "0.7.2"
   },
   "license": "MIT"
 }

@@ -40,3 +40,13 @@ Will be transformed into:
   color: #2d3748;
 }
 ```
+
+### tailwind CSS config
+
+Use the following command when you add a tailwind plugin that adds to tailwind's base css:
+
+```bash
+npm run build:base-css
+# or
+yarn run build:base-css
+```
