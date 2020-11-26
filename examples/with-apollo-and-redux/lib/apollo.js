@@ -10,14 +10,14 @@ function createApolloClient() {
   return new ApolloClient({
     ssrMode: typeof window === 'undefined',
     link: new HttpLink({
-      uri: 'https://top-shepherd-94.hasura.app/v1/graphql', // Server URL (must be absolute)
+      uri: 'https://nextjs-graphql-with-prisma-simple.vercel.app/api', // Server URL (must be absolute)
       credentials: 'same-origin', // Additional fetch() options like `credentials` or `headers`
     }),
     cache: new InMemoryCache({
       typePolicies: {
         Query: {
           fields: {
-            Posts: concatPagination(),
+            allPosts: concatPagination(),
           },
         },
       },
@@ -36,7 +36,7 @@ export function initializeApollo(initialState = null) {
 
     // Merge the existing cache into data passed from getStaticProps/getServerSideProps
     const data = merge(initialState, existingCache, {
-      // treat arrays as sets
+      // combine arrays using object equality (like in sets)
       arrayMerge: (destinationArray, sourceArray) => [
         ...sourceArray,
         ...destinationArray.filter((d) =>
