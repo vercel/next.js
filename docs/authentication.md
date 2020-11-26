@@ -17,9 +17,9 @@ The first step to identifying which authentication pattern you need is understan
 
 Next.js automatically determines that a page is static if there are no blocking data requirements. This means the absence of `getServerSideProps` and `getInitialProps` in the page. Instead, your page can render a loading state from the server, followed by fetching the user client-side.
 
-One advantage of this pattern is it allows pages to be served from a global CDN and preloaded using [`next/link`](/docs/api-reference/next/link.md). Depending on the size of your application, [React hydration](https://reactjs.org/docs/react-dom.html#hydrate) could take some time. If you serve a loading state from the server, this allows React to hydrate while you're fetching user data. In practice, this results in a faster TTI ([Time to Interactive](https://web.dev/interactive/)).
+One advantage of this pattern is it allows pages to be served from a global CDN and preloaded using [`next/link`](/docs/api-reference/next/link.md). In practice, this results in a faster TTI ([Time to Interactive](https://web.dev/interactive/)).
 
-Let's look at an example for a profile page. This will initially render a loading skeleton. Once the request for a user has finished, it will show the user's name.
+Let's look at an example for a profile page. This will initially render a loading skeleton. Once the request for a user has finished, it will show the user's name:
 
 ```jsx
 // pages/profile.js
@@ -161,7 +161,7 @@ Magic, which uses [passwordless login](https://magic.link/), supports the static
 
 Auth0 can support both authentication patterns. You can also utilize [API routes](/docs/api-routes/introduction) for logging in/out and retrieving user information. After logging in using the [Auth0 SDK](@auth0/nextjs-auth0), you can utilize static generation or `getServerSideProps` for server-side rendering.
 
-## Learn more
+## Related
 
 We recommend you to read the following section next:
 
