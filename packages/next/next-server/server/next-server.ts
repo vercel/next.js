@@ -83,7 +83,6 @@ import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
 import getRouteFromAssetPath from '../lib/router/utils/get-route-from-asset-path'
 import { FontManifest } from './font-utils'
 import { denormalizePagePath } from './denormalize-page-path'
-import accept from '@hapi/accept'
 import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
 import { detectLocaleCookie } from '../lib/i18n/detect-locale-cookie'
 import * as Log from '../../build/output/log'
@@ -92,7 +91,8 @@ import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
 import escapePathDelimiters from '../lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../../build/webpack/loaders/next-serverless-loader/utils'
-
+import Negotiator from 'negotiator'
+import { match as matchLocale } from '@formatjs/intl-localematcher'
 const getCustomRouteMatcher = pathMatch(true)
 
 type Middleware = (
@@ -431,10 +431,27 @@ export default class Server {
 
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
-      let acceptPreferredLocale =
-        i18n.localeDetection !== false
-          ? accept.language(req.headers['accept-language'], i18n.locales)
-          : detectedLocale
+      let languages = new Negotiator(req).languages()
+      let acceptPreferredLocale = detectedLocale
+
+      if (i18n.localeDetection !== false) {
+        try {
+          acceptPreferredLocale = matchLocale(
+            languages,
+            i18n.locales,
+            defaultLocale
+          )
+        } catch (e) {
+          // TODO: Log this or bubble this up, locale can be malformed
+        }
+
+        if (
+          acceptPreferredLocale === defaultLocale &&
+          languages[0] !== defaultLocale
+        ) {
+          // TODO: Bubble this up since we're serving default locale instead of preferred
+        }
+      }
 
       const { host } = req?.headers || {}
       // remove port from host and remove port if present

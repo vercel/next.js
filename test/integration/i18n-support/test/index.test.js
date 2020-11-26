@@ -225,6 +225,9 @@ describe('i18n Support', () => {
           'go-BE',
           'do',
           'do-BE',
+          'zh-Hant-TW',
+          'it',
+          'en',
         ],
         defaultLocale: 'en-US',
         domains: [
@@ -325,6 +328,31 @@ describe('i18n Support', () => {
           expect(parsed.pathname).toBe(`/${locale}`)
           expect(parsed.query).toEqual({})
         }
+      }
+    })
+
+    it('should negotiate locales correctly', async () => {
+      const negotiatingLocales = {
+        'fr-FR': 'fr',
+        'en-Latn-US': 'en',
+        // IMPORTANT: Non-canonicalized form (should technically be it-IT)
+        'it-it': 'it',
+        'zh-TW': 'zh-Hant-TW',
+      }
+      for (const locale in negotiatingLocales) {
+        const minimizedLocale = negotiatingLocales[locale]
+        const res = await fetchViaHTTP(curCtx.appPort, '/', undefined, {
+          redirect: 'manual',
+          headers: {
+            'accept-language': locale,
+          },
+        })
+
+        expect(res.status).toBe(307)
+
+        const parsed = url.parse(res.headers.get('location'), true)
+        expect(parsed.pathname).toBe(`/${minimizedLocale}`)
+        expect(parsed.query).toEqual({})
       }
     })
 

@@ -61,6 +61,7 @@
   },
   "dependencies": {
     "@babel/runtime": "7.12.5",
+    "@formatjs/intl-localematcher": "0.2.2",
     "@hapi/accept": "5.0.1",
     "@next/env": "10.0.8-canary.6",
     "@next/polyfill-module": "10.0.8-canary.6",
@@ -80,6 +81,7 @@
     "get-orientation": "1.1.2",
     "jest-worker": "24.9.0",
     "native-url": "0.3.4",
+    "negotiator": "0.6.2",
     "node-fetch": "2.6.1",
     "node-html-parser": "1.4.9",
     "node-libs-browser": "^2.2.1",
@@ -156,6 +158,7 @@
     "@types/jsonwebtoken": "8.3.7",
     "@types/lodash.curry": "4.1.6",
     "@types/lru-cache": "5.1.0",
+    "@types/negotiator": "0.6.1",
     "@types/node-fetch": "2.3.4",
     "@types/path-to-regexp": "1.7.0",
     "@types/react": "16.9.17",

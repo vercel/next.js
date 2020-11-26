@@ -26,7 +26,17 @@ let app
 let appPort
 let buildPagesDir
 
-const locales = ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en']
+const locales = [
+  'en-US',
+  'nl-NL',
+  'nl-BE',
+  'nl',
+  'fr-BE',
+  'fr',
+  'zh-Hant-TW',
+  'it',
+  'en',
+]
 
 function runTests(isDev) {
   if (!isDev) {

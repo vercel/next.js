@@ -16,6 +16,9 @@ module.exports = {
       'go-BE',
       'do',
       'do-BE',
+      'zh-Hant-TW',
+      'it',
+      'en',
     ],
     defaultLocale: 'en-US',
     domains: [

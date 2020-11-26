@@ -225,6 +225,9 @@ describe('i18n Support basePath', () => {
           'go-BE',
           'do',
           'do-BE',
+          'zh-Hant-TW',
+          'it',
+          'en',
         ],
         defaultLocale: 'en-US',
         domains: [

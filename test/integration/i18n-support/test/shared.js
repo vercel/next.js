@@ -26,6 +26,9 @@ export const nonDomainLocales = [
   'fr-BE',
   'fr',
   'en',
+  'zh-Hant-TW',
+  'it',
+  'en',
 ]
 export const locales = [...nonDomainLocales, ...domainLocales]
 
@@ -808,7 +811,12 @@ export function runTests(ctx) {
             \\"initialRevalidateSeconds\\": false,
             \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
             \\"dataRoute\\": \\"/_next/data/BUILD_ID/nl/gsp/fallback/always.json\\"
-          }
+          },
+          \\"/zh-Hant-TW/gsp/fallback/always\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/zh-Hant-TW/gsp/fallback/always.json\\"
+          },
         }"
       `)
 
