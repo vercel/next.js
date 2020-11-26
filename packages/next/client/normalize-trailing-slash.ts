@@ -10,7 +10,7 @@ export function removePathTrailingSlash(path: string): string {
  * in `next.config.js`.
  */
 export const normalizePathTrailingSlash = process.env.__NEXT_TRAILING_SLASH
-  ? (path: string): string => {
+  ? function (path: string): string {
       if (/\.[^/]+\/?$/.test(path)) {
         return removePathTrailingSlash(path)
       } else if (path.endsWith('/')) {
