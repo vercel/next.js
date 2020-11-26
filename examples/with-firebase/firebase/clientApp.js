@@ -5,7 +5,6 @@ import 'firebase/storage' // If you need it
 import 'firebase/analytics' // If you need it
 import 'firebase/performance' // If you need it
 
-
 const clientCredentials = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
