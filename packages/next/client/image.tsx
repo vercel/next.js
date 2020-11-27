@@ -19,6 +19,7 @@ const loaders = new Map<LoaderValue, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
+  ['cloudflare', cloudflareLoader],
   ['default', defaultLoader],
 ])
 
@@ -439,6 +440,12 @@ function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
     paramsString = params.join(',') + '/'
   }
   return `${root}${paramsString}${normalizeSrc(src)}`
+}
+
+function cloudflareLoader({ root, src, width, quality }: LoaderProps): string {
+  return `${root}cdn-cgi/image/width=${width}${
+    quality ? `,quality=${quality}` : ''
+  }/${normalizeSrc(src)}`
 }
 
 function defaultLoader({ root, src, width, quality }: LoaderProps): string {
