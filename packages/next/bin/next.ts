@@ -104,6 +104,10 @@ if (typeof React.Suspense === 'undefined') {
   )
 }
 
+// Make sure commands gracefully respect termination signals (e.g. from Docker)
+process.on('SIGTERM', () => process.exit(0))
+process.on('SIGINT', () => process.exit(0))
+
 commands[command]().then((exec) => exec(forwardedArgs))
 
 if (command === 'dev') {
