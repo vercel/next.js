@@ -1,12 +1,11 @@
 /* This is a database connection function*/
 import mongoose from 'mongoose'
 
-const connection = {} /* creating connection object*/
-
 async function dbConnect() {
-  /* check if we have connection to our databse*/
-  if (connection.isConnected) {
-    return
+  /* check if we have connection to our databse or databse is curentlly connecting or disconnecting (readyState 1,2 and 3)*/
+  if (mongoose.connection.readyState >= 1) {
+    /* then do nothing */
+    return;
   }
 
   /* connecting to our database */
@@ -15,8 +14,6 @@ async function dbConnect() {
     useUnifiedTopology: true,
     useFindAndModify: false,
   })
-
-  connection.isConnected = db.connections[0].readyState
 }
 
 export default dbConnect
