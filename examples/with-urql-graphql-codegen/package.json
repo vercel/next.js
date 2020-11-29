@@ -14,7 +14,7 @@
   "license": "ISC",
   "dependencies": {
     "graphql": "^15.3.0",
-    "next": "^9.5.3",
+    "next": "latest",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
     "urql": "^1.10.1"
