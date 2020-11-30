@@ -104,6 +104,24 @@ function runTests({ w, isDev, domains }) {
     expect(actual).toMatch(expected)
   })
 
+  it('should maintain ico format', async () => {
+    const query = { w, q: 90, url: '/test.ico' }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/x-icon')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
+    const actual = await res.text()
+    const expected = await fs.readFile(
+      join(__dirname, '..', 'public', 'test.ico'),
+      'utf8'
+    )
+    expect(actual).toMatch(expected)
+  })
+
   it('should maintain jpg format for old Safari', async () => {
     const accept =
       'image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5'
@@ -526,6 +544,31 @@ describe('Image Optimizer', () => {
 
       expect(stderr).toContain(
         'Specified images.imageSizes should be an Array of numbers that are between 1 and 10000, received invalid values (0, 12000)'
+      )
+    })
+
+    it('should error when loader contains invalid value', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            loader: 'notreal',
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Specified images.loader should be one of (default, imgix, cloudinary, akamai), received invalid value (notreal)'
       )
     })
   })

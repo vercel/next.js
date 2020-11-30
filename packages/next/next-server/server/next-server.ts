@@ -32,6 +32,7 @@ import {
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
+  TEMPORARY_REDIRECT_STATUS,
 } from '../lib/constants'
 import {
   getRouteMatcher,
@@ -65,7 +66,7 @@ import Router, {
 import prepareDestination, {
   compileNonPath,
 } from '../lib/router/utils/prepare-destination'
-import { sendPayload } from './send-payload'
+import { sendPayload, setRevalidateHeaders } from './send-payload'
 import { serveStatic } from './serve-static'
 import { IncrementalCache } from './incremental-cache'
 import { execOnce } from '../lib/utils'
@@ -84,6 +85,7 @@ import * as Log from '../../build/output/log'
 import { imageOptimizer } from './image-optimizer'
 import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
+import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -205,7 +207,6 @@ export default class Server {
           ? requireFontManifest(this.distDir, this._isLikeServerless)
           : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
-      defaultLocale: this.nextConfig.i18n?.defaultLocale,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -259,6 +260,7 @@ export default class Server {
         'pages'
       ),
       flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
+      locales: this.nextConfig.i18n?.locales,
     })
 
     /**
@@ -315,9 +317,11 @@ export default class Server {
       req.url = req.url!.replace(basePath, '') || '/'
     }
 
-    if (i18n && !parsedUrl.pathname?.startsWith('/_next')) {
+    if (i18n && !req.url?.startsWith('/_next')) {
       // get pathname from URL with basePath stripped for locale detection
-      const { pathname, ...parsed } = parseUrl(req.url || '/')
+      let { pathname, ...parsed } = parseUrl(req.url || '/')
+      pathname = pathname || '/'
+
       let defaultLocale = i18n.defaultLocale
       let detectedLocale = detectLocaleCookie(req, i18n.locales)
       let acceptPreferredLocale =
@@ -339,6 +343,11 @@ export default class Server {
       detectedLocale = detectedLocale || acceptPreferredLocale
 
       let localeDomainRedirect: string | undefined
+      ;(req as any).__nextHadTrailingSlash = pathname!.endsWith('/')
+
+      if (pathname === '/') {
+        ;(req as any).__nextHadTrailingSlash = this.nextConfig.trailingSlash
+      }
       const localePathResult = normalizeLocalePath(pathname!, i18n.locales)
 
       if (localePathResult.detectedLocale) {
@@ -348,13 +357,13 @@ export default class Server {
           pathname: localePathResult.pathname,
         })
         ;(req as any).__nextStrippedLocale = true
-        parsedUrl.pathname = localePathResult.pathname
+        parsedUrl.pathname = `${basePath || ''}${localePathResult.pathname}`
       }
 
       // If a detected locale is a domain specific locale and we aren't already
       // on that domain and path prefix redirect to it to prevent duplicate
       // content from multiple domains
-      if (detectedDomain && parsedUrl.pathname === '/') {
+      if (detectedDomain && pathname === '/') {
         const localeToCheck = acceptPreferredLocale
         // const localeToCheck = localePathResult.detectedLocale
         //   ? detectedLocale
@@ -423,20 +432,23 @@ export default class Server {
 
         res.setHeader(
           'Location',
-          formatUrl({
-            // make sure to include any query values when redirecting
-            ...parsed,
-            pathname: localeDomainRedirect
-              ? localeDomainRedirect
-              : shouldStripDefaultLocale
-              ? '/'
-              : `/${detectedLocale}`,
-          })
+          localeDomainRedirect
+            ? localeDomainRedirect
+            : formatUrl({
+                // make sure to include any query values when redirecting
+                ...parsed,
+                pathname: shouldStripDefaultLocale
+                  ? basePath || `/`
+                  : `${basePath || ''}/${detectedLocale}`,
+              })
         )
-        res.statusCode = 307
+        res.statusCode = TEMPORARY_REDIRECT_STATUS
         res.end()
         return
       }
+
+      parsedUrl.query.__nextDefaultLocale =
+        detectedDomain?.defaultLocale || i18n.defaultLocale
 
       parsedUrl.query.__nextLocale =
         localePathResult.detectedLocale ||
@@ -499,6 +511,7 @@ export default class Server {
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
+    locales: string[]
   } {
     const server: Server = this
     const publicRoutes = fs.existsSync(this.publicDir)
@@ -587,6 +600,7 @@ export default class Server {
 
           // re-create page's pathname
           let pathname = `/${params.path.join('/')}`
+          pathname = getRouteFromAssetPath(pathname, '.json')
 
           const { i18n } = this.nextConfig
 
@@ -597,15 +611,25 @@ export default class Server {
             const localePathResult = normalizeLocalePath(pathname, i18n.locales)
             const { defaultLocale } =
               detectDomainLocale(i18n.domains, hostname) || {}
-            let detectedLocale = defaultLocale
+
+            let detectedLocale = ''
 
             if (localePathResult.detectedLocale) {
               pathname = localePathResult.pathname
               detectedLocale = localePathResult.detectedLocale
             }
+
             _parsedUrl.query.__nextLocale = detectedLocale!
+            _parsedUrl.query.__nextDefaultLocale =
+              defaultLocale || i18n.defaultLocale
+
+            if (!detectedLocale) {
+              _parsedUrl.query.__nextLocale =
+                _parsedUrl.query.__nextDefaultLocale
+              await this.render404(req, res, _parsedUrl)
+              return { finished: true }
+            }
           }
-          pathname = getRouteFromAssetPath(pathname, '.json')
 
           const parsedUrl = parseUrl(pathname, true)
 
@@ -650,14 +674,41 @@ export default class Server {
         : ''
     }
 
-    const getCustomRoute = (r: Rewrite | Redirect | Header, type: RouteType) =>
-      ({
+    const getCustomRouteLocalePrefix = (r: {
+      locale?: false
+      destination?: string
+    }) => {
+      const { i18n } = this.nextConfig
+
+      if (!i18n || r.locale === false || !this.renderOpts.dev) return ''
+
+      if (r.destination && r.destination.startsWith('/')) {
+        r.destination = `/:nextInternalLocale${r.destination}`
+      }
+
+      return `/:nextInternalLocale(${i18n.locales
+        .map((locale: string) => escapeStringRegexp(locale))
+        .join('|')})`
+    }
+
+    const getCustomRoute = (
+      r: Rewrite | Redirect | Header,
+      type: RouteType
+    ) => {
+      const match = getCustomRouteMatcher(
+        `${getCustomRouteBasePath(r)}${getCustomRouteLocalePrefix(r)}${
+          r.source
+        }`
+      )
+
+      return {
         ...r,
         type,
-        match: getCustomRouteMatcher(`${getCustomRouteBasePath(r)}${r.source}`),
+        match,
         name: type,
         fn: async (_req, _res, _params, _parsedUrl) => ({ finished: false }),
-      } as Route & Rewrite & Header)
+      } as Route & Rewrite & Header
+    }
 
     // Headers come very first
     const headers = this.customRoutes.headers.map((r) => {
@@ -704,7 +755,7 @@ export default class Server {
         type: redirectRoute.type,
         match: redirectRoute.match,
         statusCode: redirectRoute.statusCode,
-        name: `Redirect route`,
+        name: `Redirect route ${redirectRoute.source}`,
         fn: async (req, res, params, parsedUrl) => {
           const { parsedDestination } = prepareDestination(
             redirectRoute.destination,
@@ -744,7 +795,7 @@ export default class Server {
         ...rewriteRoute,
         check: true,
         type: rewriteRoute.type,
-        name: `Rewrite route`,
+        name: `Rewrite route ${rewriteRoute.source}`,
         match: rewriteRoute.match,
         fn: async (req, res, params, parsedUrl) => {
           const { newUrl, parsedDestination } = prepareDestination(
@@ -802,6 +853,18 @@ export default class Server {
         // next.js core assumes page path without trailing slash
         pathname = removePathTrailingSlash(pathname)
 
+        if (this.nextConfig.i18n) {
+          const localePathResult = normalizeLocalePath(
+            pathname,
+            this.nextConfig.i18n?.locales
+          )
+
+          if (localePathResult.detectedLocale) {
+            pathname = localePathResult.pathname
+            parsedUrl.query.__nextLocale = localePathResult.detectedLocale
+          }
+        }
+
         if (params?.path?.[0] === 'api') {
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
@@ -837,6 +900,7 @@ export default class Server {
       dynamicRoutes: this.dynamicRoutes,
       basePath: this.nextConfig.basePath,
       pageChecker: this.hasPage.bind(this),
+      locales: this.nextConfig.i18n?.locales,
     }
   }
 
@@ -1145,6 +1209,7 @@ export default class Server {
                   amp: query.amp,
                   _nextDataReq: query._nextDataReq,
                   __nextLocale: query.__nextLocale,
+                  __nextDefaultLocale: query.__nextDefaultLocale,
                 }
               : query),
             ...(params || {}),
@@ -1217,7 +1282,9 @@ export default class Server {
     }
 
     const locale = query.__nextLocale as string
-    delete query.__nextLocale
+    const defaultLocale = isSSG
+      ? this.nextConfig.i18n?.defaultLocale
+      : (query.__nextDefaultLocale as string)
 
     const { i18n } = this.nextConfig
     const locales = i18n.locales as string[]
@@ -1259,8 +1326,14 @@ export default class Server {
       const redirect = {
         destination: pageData.pageProps.__N_REDIRECT,
         statusCode: pageData.pageProps.__N_REDIRECT_STATUS,
+        basePath: pageData.pageProps.__N_REDIRECT_BASE_PATH,
       }
       const statusCode = getRedirectStatus(redirect)
+      const { basePath } = this.nextConfig
+
+      if (basePath && redirect.basePath !== false) {
+        redirect.destination = `${basePath}${redirect.destination}`
+      }
 
       if (statusCode === PERMANENT_REDIRECT_STATUS) {
         res.setHeader('Refresh', `0;url=${redirect.destination}`)
@@ -1281,9 +1354,11 @@ export default class Server {
     let ssgCacheKey =
       isPreviewMode || !isSSG
         ? undefined // Preview mode bypasses the cache
-        : `${locale ? `/${locale}` : ''}${resolvedUrlPathname}${
-            query.amp ? '.amp' : ''
-          }`
+        : `${locale ? `/${locale}` : ''}${
+            (pathname === '/' || resolvedUrlPathname === '/') && locale
+              ? ''
+              : resolvedUrlPathname
+          }${query.amp ? '.amp' : ''}`
 
     if (is404Page && isSSG) {
       ssgCacheKey = `${locale ? `/${locale}` : ''}${pathname}${
@@ -1297,18 +1372,31 @@ export default class Server {
       : undefined
 
     if (cachedData) {
-      if (cachedData.isNotFound) {
-        // we don't currently revalidate when notFound is returned
-        // so trigger rendering 404 here
-        throw new NoFallbackError()
-      }
-
       const data = isDataReq
         ? JSON.stringify(cachedData.pageData)
         : cachedData.html
 
+      const revalidateOptions = !this.renderOpts.dev
+        ? {
+            private: isPreviewMode,
+            stateful: false, // GSP response
+            revalidate:
+              cachedData.curRevalidate !== undefined
+                ? cachedData.curRevalidate
+                : /* default to minimum revalidate (this should be an invariant) */ 1,
+          }
+        : undefined
+
       if (!isDataReq && cachedData.pageData?.pageProps?.__N_REDIRECT) {
         await handleRedirect(cachedData.pageData)
+      } else if (cachedData.isNotFound) {
+        if (revalidateOptions) {
+          setRevalidateHeaders(res, revalidateOptions)
+        }
+        await this.render404(req, res, {
+          pathname,
+          query,
+        } as UrlWithParsedQuery)
       } else {
         sendPayload(
           req,
@@ -1319,16 +1407,7 @@ export default class Server {
             generateEtags: this.renderOpts.generateEtags,
             poweredByHeader: this.renderOpts.poweredByHeader,
           },
-          !this.renderOpts.dev
-            ? {
-                private: isPreviewMode,
-                stateful: false, // GSP response
-                revalidate:
-                  cachedData.curRevalidate !== undefined
-                    ? cachedData.curRevalidate
-                    : /* default to minimum revalidate (this should be an invariant) */ 1,
-              }
-            : undefined
+          revalidateOptions
         )
       }
 
@@ -1371,7 +1450,7 @@ export default class Server {
               fontManifest: this.renderOpts.fontManifest,
               locale,
               locales,
-              // defaultLocale,
+              defaultLocale,
             }
           )
 
@@ -1382,8 +1461,11 @@ export default class Server {
           isRedirect = renderResult.renderOpts.isRedirect
         } else {
           const origQuery = parseUrl(req.url || '', true).query
+          const hadTrailingSlash =
+            urlPathname !== '/' && this.nextConfig.trailingSlash
+
           const resolvedUrl = formatUrl({
-            pathname: resolvedUrlPathname,
+            pathname: `${resolvedUrlPathname}${hadTrailingSlash ? '/' : ''}`,
             // make sure to only add query values from original URL
             query: origQuery,
           })
@@ -1395,7 +1477,7 @@ export default class Server {
             resolvedUrl,
             locale,
             locales,
-            // defaultLocale,
+            defaultLocale,
             // For getServerSideProps we need to ensure we use the original URL
             // and not the resolved URL to prevent a hydration mismatch on
             // asPath
@@ -1403,7 +1485,7 @@ export default class Server {
               ? formatUrl({
                   // we use the original URL pathname less the _next/data prefix if
                   // present
-                  pathname: urlPathname,
+                  pathname: `${urlPathname}${hadTrailingSlash ? '/' : ''}`,
                   query: origQuery,
                 })
               : resolvedUrl,
@@ -1511,6 +1593,15 @@ export default class Server {
     } = await doRender()
     let resHtml = html
 
+    const revalidateOptions =
+      !this.renderOpts.dev || (isServerProps && !isDataReq)
+        ? {
+            private: isPreviewMode,
+            stateful: !isSSG,
+            revalidate: sprRevalidate,
+          }
+        : undefined
+
     if (
       !isResSent(res) &&
       !isNotFound &&
@@ -1528,13 +1619,7 @@ export default class Server {
             generateEtags: this.renderOpts.generateEtags,
             poweredByHeader: this.renderOpts.poweredByHeader,
           },
-          !this.renderOpts.dev || (isServerProps && !isDataReq)
-            ? {
-                private: isPreviewMode,
-                stateful: !isSSG,
-                revalidate: sprRevalidate,
-              }
-            : undefined
+          revalidateOptions
         )
       }
       resHtml = null
@@ -1549,8 +1634,16 @@ export default class Server {
       )
     }
 
-    if (isNotFound) {
-      throw new NoFallbackError()
+    if (!isResSent(res) && isNotFound) {
+      if (revalidateOptions) {
+        setRevalidateHeaders(res, revalidateOptions)
+      }
+      await this.render404(
+        req,
+        res,
+        { pathname, query } as UrlWithParsedQuery,
+        !!revalidateOptions
+      )
     }
     return resHtml
   }
@@ -1627,12 +1720,15 @@ export default class Server {
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    query: ParsedUrlQuery = {}
+    query: ParsedUrlQuery = {},
+    setHeaders = true
   ): Promise<void> {
-    res.setHeader(
-      'Cache-Control',
-      'no-cache, no-store, max-age=0, must-revalidate'
-    )
+    if (setHeaders) {
+      res.setHeader(
+        'Cache-Control',
+        'no-cache, no-store, max-age=0, must-revalidate'
+      )
+    }
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
     if (html === null) {
       return
@@ -1710,12 +1806,20 @@ export default class Server {
   public async render404(
     req: IncomingMessage,
     res: ServerResponse,
-    parsedUrl?: UrlWithParsedQuery
+    parsedUrl?: UrlWithParsedQuery,
+    setHeaders = true
   ): Promise<void> {
     const url: any = req.url
     const { pathname, query } = parsedUrl ? parsedUrl : parseUrl(url, true)
+    const { i18n } = this.nextConfig
+
+    if (i18n) {
+      query.__nextLocale = query.__nextLocale || i18n.defaultLocale
+      query.__nextDefaultLocale =
+        query.__nextDefaultLocale || i18n.defaultLocale
+    }
     res.statusCode = 404
-    return this.renderError(null, req, res, pathname!, query)
+    return this.renderError(null, req, res, pathname!, query, setHeaders)
   }
 
   public async serveStatic(
