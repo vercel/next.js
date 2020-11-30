@@ -29,6 +29,7 @@ export function detectDomainLocale(
       const domainHostname = item.domain?.split(':')[0].toLowerCase()
       if (
         hostname === domainHostname ||
+        hostname?.includes(domainHostname) ||
         detectedLocale === item.defaultLocale.toLowerCase() ||
         item.locales?.some((locale) => locale.toLowerCase() === detectedLocale)
       ) {
