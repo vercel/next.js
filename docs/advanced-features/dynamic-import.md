@@ -54,7 +54,7 @@ In the following example, the module `../components/hello` will be dynamically l
 ```jsx
 import dynamic from 'next/dynamic'
 
-const DynamicComponent = dynamic(() => import('../components/hello'))
+const DynamicComponent = dynamic(() => import(/* webpackChunkName: "Hello" */ '../components/hello'))
 
 function Home() {
   return (
@@ -70,6 +70,8 @@ export default Home
 ```
 
 `DynamicComponent` will be the default component returned by `../components/hello`. It works like a regular React Component, and you can pass props to it as you normally would.
+
+[`webpackChunkName`](https://webpack.js.org/api/module-methods/#magic-comments) is used to name the new chunk that will be created by Webpack. Adding this comment will cause the separate chunk to be named `Hello.js` instead of an incremented integer like `1.js`.
 
 ## With named exports
 
@@ -87,7 +89,7 @@ To dynamically import the `Hello` component, you can return it from the [Promise
 import dynamic from 'next/dynamic'
 
 const DynamicComponent = dynamic(() =>
-  import('../components/hello').then((mod) => mod.Hello)
+  import(/* webpackChunkName: "Hello" */ '../components/hello').then((mod) => mod.Hello)
 )
 
 function Home() {
@@ -111,7 +113,7 @@ An optional `loading` component can be added to render a loading state while the
 import dynamic from 'next/dynamic'
 
 const DynamicComponentWithCustomLoading = dynamic(
-  () => import('../components/hello'),
+  () => import(/* webpackChunkName: "Hello" */ '../components/hello'),
   { loading: () => <p>...</p> }
 )
 
@@ -138,7 +140,7 @@ Take a look at the following example:
 import dynamic from 'next/dynamic'
 
 const DynamicComponentWithNoSSR = dynamic(
-  () => import('../components/hello3'),
+  () => import(/* webpackChunkName: "Hello" */ '../components/hello'),
   { ssr: false }
 )
 
