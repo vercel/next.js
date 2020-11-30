@@ -222,6 +222,8 @@ Next.js doesn't know about variants of a page so it's up to you to add the `href
 
 ## How does this work with Static Generation?
 
+> Note that Internationalized Routing does not integrate with [`next export`](/docs/advanced-features/static-html-export.md) as `next export` does not leverage the Next.js routing layer. Hybrid Next.js applications that do not use `next export` are fully supported.
+
 ### Automatically Statically Optimized Pages
 
 For pages that are [automatically statically optimized](/docs/advanced-features/automatic-static-optimization.md), a version of the page will be generated for each locale.
@@ -269,7 +271,3 @@ export const getStaticPaths = ({ locales }) => {
   }
 }
 ```
-
-## Caveats
-
-Internationalized Routing does not currently support [Static HTML Export (`next export`)](/docs/advanced-features/static-html-export.md) as you are no longer leveraging Next.js' server-side routing in that case.
