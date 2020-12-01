@@ -4,6 +4,8 @@ import path from 'path'
 import resolve from 'next/dist/compiled/resolve/index.js'
 import { execOnce } from '../../next-server/lib/utils'
 
+const { version } = require('next/package.json')
+
 export type PluginMetaData = {
   requiredEnv: string[]
   middleware: string[]
@@ -32,7 +34,9 @@ const exitWithError = (error: string) => {
 
 async function collectPluginMeta(
   env: ENV_OPTIONS,
-  pluginPackagePath: string
+  pluginPackagePath: string,
+  pluginName: string,
+  requiredVersion: string
 ): Promise<PluginMetaData> {
   const pkgDir = path.dirname(pluginPackagePath)
   const pluginPackageJson = require(pluginPackagePath)
@@ -41,13 +45,21 @@ async function collectPluginMeta(
     'required-env': string[]
   } = pluginPackageJson.nextjs
 
+  if (pluginPackageJson.version !== requiredVersion) {
+    exitWithError(
+      `Next.js plugin versions must match the Next.js version being used, received ${pluginName}@${pluginPackageJson.version} need ${requiredVersion}`
+    )
+  }
+
   if (!pluginMetaData) {
-    exitWithError('Next.js plugins need to have a "nextjs" key in package.json')
+    exitWithError(
+      `Next.js plugins need to have a "nextjs" key in package.json for ${pluginName}`
+    )
   }
 
   if (!pluginMetaData.name) {
     exitWithError(
-      'Next.js plugins need to have a "nextjs.name" key in package.json'
+      `Next.js plugins need to have a "nextjs.name" key in package.json for ${pluginName}`
     )
   }
 
@@ -64,7 +76,7 @@ async function collectPluginMeta(
       console.error(err)
     }
     exitWithError(
-      `Failed to read src/ directory for Next.js plugin: ${pluginMetaData.name}`
+      `Failed to read src/ directory for Next.js plugin: ${pluginName}`
     )
   }
 
@@ -85,9 +97,9 @@ async function collectPluginMeta(
 
   if (invalidMiddleware.length > 0) {
     console.error(
-      `Next.js Plugin: ${
-        pluginMetaData.name
-      } listed invalid middleware ${invalidMiddleware.join(', ')}`
+      `Next.js Plugin: ${pluginName} listed invalid middleware ${invalidMiddleware.join(
+        ', '
+      )}`
     )
   }
 
@@ -109,9 +121,7 @@ async function collectPluginMeta(
 
   if (missingEnvFields.length > 0) {
     exitWithError(
-      `Next.js Plugin: ${
-        pluginMetaData.name
-      } required env ${missingEnvFields.join(
+      `Next.js Plugin: ${pluginName} required env ${missingEnvFields.join(
         ', '
       )} but was missing in your \`next.config.js\``
     )
@@ -205,7 +215,9 @@ async function _collectPlugins(
         resolve.sync(path.join(name, 'package.json'), {
           basedir: dir,
           preserveSymlinks: true,
-        })
+        }),
+        name,
+        version
       )
     )
   )

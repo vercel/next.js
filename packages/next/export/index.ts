@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import {
   promises,
@@ -23,6 +23,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   CONFIG_FILE,
   EXPORT_DETAIL,
+  EXPORT_MARKER,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
@@ -50,7 +51,9 @@ const exists = promisify(existsOrig)
 function divideSegments(number: number, segments: number): number[] {
   const result = []
   while (number > 0 && segments > 0) {
-    const dividedNumber = Math.floor(number / segments)
+    const dividedNumber =
+      number < segments ? number : Math.floor(number / segments)
+
     number -= dividedNumber
     segments--
     result.push(dividedNumber)
@@ -283,11 +286,35 @@ export default async function exportApp(
     }
   }
 
-  const { i18n } = nextConfig
+  const {
+    i18n,
+    images: { loader = 'default' },
+  } = nextConfig
 
   if (i18n && !options.buildExport) {
     throw new Error(
       `i18n support is not compatible with next export. See here for more info on deploying: https://nextjs.org/docs/deployment`
+    )
+  }
+
+  const { isNextImageImported } = await promises
+    .readFile(join(distDir, EXPORT_MARKER), 'utf8')
+    .then((text) => JSON.parse(text))
+    .catch(() => ({}))
+
+  if (
+    isNextImageImported &&
+    loader === 'default' &&
+    !options.buildExport &&
+    !hasNextSupport
+  ) {
+    throw new Error(
+      `Image Optimization using Next.js' default loader is not compatible with \`next export\`.
+Possible solutions:
+  - Use \`next start\`, which starts the Image Optimization API.
+  - Use Vercel to deploy, which supports Image Optimization.
+  - Configure a third-party loader in \`next.config.js\`.
+Read more: https://err.sh/next.js/export-image-api`
     )
   }
 
@@ -302,7 +329,6 @@ export default async function exportApp(
     hotReloader: null,
     basePath: nextConfig.basePath,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
-    isModern: nextConfig.experimental.modern,
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,

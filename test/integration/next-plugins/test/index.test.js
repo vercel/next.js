@@ -4,6 +4,7 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
+import { version } from 'next/package.json'
 import {
   findPort,
   launchApp,
@@ -11,6 +12,8 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
+  File,
+  check,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -51,7 +54,53 @@ function runTests() {
   })
 }
 
+const pluginPkgJson = new File(
+  join(appDir, 'node_modules/@next/plugin-google-analytics/package.json')
+)
+
 describe('Next.js plugins', () => {
+  beforeAll(async () => {
+    pluginPkgJson.replace('0.0.1', version)
+  })
+  afterAll(() => pluginPkgJson.restore())
+
+  describe('version mismatch error', () => {
+    beforeAll(async () => {
+      await fs.writeFile(
+        nextConfigPath,
+        `module.exports = { env: { GA_TRACKING_ID: 'my-tracking-id' }, experimental: { plugins: true } }`
+      )
+      pluginPkgJson.replace(version, '0.0.1')
+    })
+    afterAll(async () => {
+      pluginPkgJson.restore()
+      pluginPkgJson.replace('0.0.1', version)
+      await fs.remove(nextConfigPath)
+    })
+    it('should show error when plugin version mismatches', async () => {
+      let output = ''
+      const handleOutput = (msg) => {
+        output += msg || ''
+      }
+
+      app = await launchApp(appDir, await findPort(), {
+        onStdout: handleOutput,
+        onStderr: handleOutput,
+      })
+
+      try {
+        await check(
+          () => output,
+          /Next.js plugin versions must match the Next.js version being used/
+        )
+      } finally {
+        if (app) {
+          await killApp(app)
+        }
+      }
+    })
+  })
+
   describe('dev mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
