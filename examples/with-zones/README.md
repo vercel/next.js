@@ -54,7 +54,7 @@ To get started, push the example to GitHub/GitLab/Bitbucket and [import your rep
 
 ![Import flow for blog app](docs/import-blog.jpg)
 
-Click continue and finish the import process. After that's done copy the domain URL that was assigned to your project and paste it on `home/.env`:
+Click continue and finish the import process. After that's done copy the domain URL that was assigned to your project, paste it on `home/.env`, and push the change to your repo:
 
 ```bash
 # Replace this URL with the URL of your blog app
