@@ -20,5 +20,6 @@
     "enzyme-adapter-react-16": "^1.15.2",
     "expect.js": "^0.3.1",
     "mocha": "^7.1.1"
-  }
+  },
+  "license": "MIT"
 }

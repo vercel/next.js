@@ -16,7 +16,11 @@ import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, { CustomRoutes } from '../lib/load-custom-routes'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
-import { PHASE_DEVELOPMENT_SERVER } from '../next-server/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  CLIENT_STATIC_FILES_PATH,
+  DEV_CLIENT_PAGES_MANIFEST,
+} from '../next-server/lib/constants'
 import {
   getRouteMatcher,
   getRouteRegex,
@@ -46,6 +50,8 @@ export default class DevServer extends Server {
   private webpackWatcher?: Watchpack | null
   private hotReloader?: HotReloader
   private isCustomServer: boolean
+  protected sortedRoutes?: string[]
+
   protected staticPathsWorker: import('jest-worker').default & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   }
@@ -206,8 +212,22 @@ export default class DevServer extends Server {
 
           routedPages.push(pageName)
         }
+
         try {
-          this.dynamicRoutes = getSortedRoutes(routedPages)
+          // we serve a separate manifest with all pages for the client in
+          // dev mode so that we can match a page after a rewrite on the client
+          // before it has been built and is populated in the _buildManifest
+          const sortedRoutes = getSortedRoutes(routedPages)
+
+          if (
+            !this.sortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
+          ) {
+            // emit the change so clients fetch the update
+            this.hotReloader!.send(undefined, { devPagesManifest: true })
+          }
+          this.sortedRoutes = sortedRoutes
+
+          this.dynamicRoutes = this.sortedRoutes
             .filter(isDynamicRoute)
             .map((page) => ({
               page,
@@ -257,6 +277,7 @@ export default class DevServer extends Server {
       config: this.nextConfig,
       previewProps: this.getPreviewProps(),
       buildId: this.buildId,
+      rewrites: this.customRoutes.rewrites,
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
@@ -315,7 +336,17 @@ export default class DevServer extends Server {
     const path = `/${pathParts.join('/')}`
     // check for a public file, throwing error if there's a
     // conflicting page
-    if (await this.hasPublicFile(path)) {
+    let decodedPath: string
+
+    try {
+      decodedPath = decodeURIComponent(path)
+    } catch (_) {
+      const err: Error & { code?: string } = new Error('failed to decode param')
+      err.code = 'DECODE_FAILED'
+      throw err
+    }
+
+    if (await this.hasPublicFile(decodedPath)) {
       if (await this.hasPage(pathname!)) {
         const err = new Error(
           `A conflicting public file and page file was found for path ${pathname} https://err.sh/vercel/next.js/conflicting-public-file-page`
@@ -411,6 +442,26 @@ export default class DevServer extends Server {
       },
     })
 
+    fsRoutes.unshift({
+      match: route(
+        `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
+      ),
+      type: 'route',
+      name: `_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`,
+      fn: async (_req, res) => {
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(
+          JSON.stringify({
+            pages: this.sortedRoutes,
+          })
+        )
+        return {
+          finished: true,
+        }
+      },
+    })
+
     fsRoutes.push({
       match: route('/:path*'),
       type: 'route',
@@ -483,6 +534,7 @@ export default class DevServer extends Server {
 
     const __getStaticPaths = async () => {
       const { publicRuntimeConfig, serverRuntimeConfig } = this.nextConfig
+      const { locales, defaultLocale } = this.nextConfig.i18n || {}
 
       const paths = await this.staticPathsWorker.loadStaticPaths(
         this.distDir,
@@ -491,7 +543,9 @@ export default class DevServer extends Server {
         {
           publicRuntimeConfig,
           serverRuntimeConfig,
-        }
+        },
+        locales,
+        defaultLocale
       )
       return paths
     }
@@ -502,7 +556,7 @@ export default class DevServer extends Server {
     return {
       staticPaths,
       fallbackMode:
-        fallback === 'unstable_blocking'
+        fallback === 'blocking'
           ? 'blocking'
           : fallback === true
           ? 'static'
@@ -619,7 +673,7 @@ export default class DevServer extends Server {
     res: ServerResponse,
     pathParts: string[]
   ): Promise<void> {
-    const p = pathJoin(this.publicDir, ...pathParts.map(encodeURIComponent))
+    const p = pathJoin(this.publicDir, ...pathParts)
     return this.serveStatic(req, res, p)
   }
 

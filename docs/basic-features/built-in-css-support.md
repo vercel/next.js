@@ -31,7 +31,7 @@ body {
 }
 ```
 
-Create a [`pages/_app.js` file](/docs/advanced-features/custom-app) if not already present.
+Create a [`pages/_app.js` file](/docs/advanced-features/custom-app.md) if not already present.
 Then, [`import`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import) the `styles.css` file.
 
 ```jsx
@@ -44,7 +44,7 @@ export default function MyApp({ Component, pageProps }) {
 ```
 
 These styles (`styles.css`) will apply to all pages and components in your application.
-Due to the global nature of stylesheets, and to avoid conflicts, you may **only import them inside [`pages/_app.js`](/docs/advanced-features/custom-app)**.
+Due to the global nature of stylesheets, and to avoid conflicts, you may **only import them inside [`pages/_app.js`](/docs/advanced-features/custom-app.md)**.
 
 In development, expressing stylesheets this way allows your styles to be hot reloaded as you edit them—meaning you can keep application state.
 
@@ -52,7 +52,47 @@ In production, all CSS files will be automatically concatenated into a single mi
 
 ### Import styles from `node_modules`
 
-If you’d like to import CSS files from `node_modules`, you must do so inside `pages/_app.js`.
+Since Next.js **9.5.4**, importing a CSS file from `node_modules` is permitted anywhere in your application.
+
+For global stylesheets, like `bootstrap` or `nprogress`, you should import the file inside `pages/_app.js`.
+For example:
+
+```jsx
+// pages/_app.js
+import 'bootstrap/dist/css/bootstrap.css'
+
+export default function MyApp({ Component, pageProps }) {
+  return <Component {...pageProps} />
+}
+```
+
+For importing CSS required by a third party component, you can do so in your component. For example:
+
+```tsx
+// components/ExampleDialog.js
+import { useState } from 'react'
+import { Dialog } from '@reach/dialog'
+import '@reach/dialog/styles.css'
+
+function ExampleDialog(props) {
+  const [showDialog, setShowDialog] = useState(false)
+  const open = () => setShowDialog(true)
+  const close = () => setShowDialog(false)
+
+  return (
+    <div>
+      <button onClick={open}>Open Dialog</button>
+      <Dialog isOpen={showDialog} onDismiss={close}>
+        <button className="close-button" onClick={close}>
+          <VisuallyHidden>Close</VisuallyHidden>
+          <span aria-hidden>×</span>
+        </button>
+        <p>Hello there. I am a dialog</p>
+      </Dialog>
+    </div>
+  )
+}
+```
 
 ## Adding Component-Level CSS
 

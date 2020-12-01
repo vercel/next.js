@@ -1,6 +1,6 @@
 import devalue from 'next/dist/compiled/devalue'
 import webpack, { Compiler, compilation as CompilationType } from 'webpack'
-import { RawSource } from 'webpack-sources'
+import sources from 'webpack-sources'
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
@@ -12,33 +12,48 @@ import {
 import { BuildManifest } from '../../../next-server/server/get-page-files'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
+import { Rewrite } from '../../../lib/load-custom-routes'
+import { getSortedRoutes } from '../../../next-server/lib/router/utils'
+
+// @ts-ignore: TODO: remove ignore when webpack 5 is stable
+const { RawSource } = webpack.sources || sources
 
 const isWebpack5 = parseInt(webpack.version!) === 5
+
+type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
+
+export type ClientBuildManifest = Record<string, string[]>
 
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
 function generateClientManifest(
   assetMap: BuildManifest,
-  isModern: boolean
+  rewrites: Rewrite[]
 ): string {
-  const clientManifest: { [s: string]: string[] } = {}
+  const clientManifest: ClientBuildManifest = {
+    // TODO: update manifest type to include rewrites
+    __rewrites: rewrites as any,
+  }
   const appDependencies = new Set(assetMap.pages['/_app'])
+  const sortedPageKeys = getSortedRoutes(Object.keys(assetMap.pages))
 
-  Object.entries(assetMap.pages).forEach(([page, dependencies]) => {
+  sortedPageKeys.forEach((page) => {
+    const dependencies = assetMap.pages[page]
+
     if (page === '/_app') return
     // Filter out dependencies in the _app entry, because those will have already
     // been loaded by the client prior to a navigation event
-    const filteredDeps = dependencies.filter(
-      (dep) =>
-        !appDependencies.has(dep) &&
-        (!dep.endsWith('.js') || dep.endsWith('.module.js') === isModern)
-    )
+    const filteredDeps = dependencies.filter((dep) => !appDependencies.has(dep))
 
     // The manifest can omit the page if it has no requirements
     if (filteredDeps.length) {
       clientManifest[page] = filteredDeps
     }
   })
+  // provide the sorted pages as an array so we don't rely on the object's keys
+  // being in order and we don't slow down look-up time for page assets
+  clientManifest.sortedPages = sortedPageKeys
+
   return devalue(clientManifest)
 }
 
@@ -62,17 +77,27 @@ function getFilesArray(files: any) {
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
   private buildId: string
-  private modern: boolean
+  private rewrites: Rewrite[]
 
-  constructor(options: { buildId: string; modern: boolean }) {
+  constructor(options: { buildId: string; rewrites: Rewrite[] }) {
     this.buildId = options.buildId
-    this.modern = options.modern
+
+    this.rewrites = options.rewrites.map((r) => {
+      const rewrite = { ...r }
+
+      // omit external rewrite destinations since these aren't
+      // handled client-side
+      if (!rewrite.destination.startsWith('/')) {
+        delete rewrite.destination
+      }
+      return rewrite
+    })
   }
 
   createAssets(compilation: any, assets: any) {
     const namedChunks: Map<string, CompilationType.Chunk> =
       compilation.namedChunks
-    const assetMap: BuildManifest = {
+    const assetMap: DeepMutable<BuildManifest> = {
       polyfillFiles: [],
       devFiles: [],
       ampDevFiles: [],
@@ -150,11 +175,6 @@ export default class BuildManifestPlugin {
     assetMap.lowPriorityFiles.push(
       `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
     )
-    if (this.modern) {
-      assetMap.lowPriorityFiles.push(
-        `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
-      )
-    }
 
     // Add the runtime ssg manifest file as a lazy-loaded file dependency.
     // We also stub this file out for development mode (when it is not
@@ -164,12 +184,6 @@ export default class BuildManifestPlugin {
     const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
     assetMap.lowPriorityFiles.push(ssgManifestPath)
     assets[ssgManifestPath] = new RawSource(srcEmptySsgManifest)
-
-    if (this.modern) {
-      const ssgManifestPathModern = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.module.js`
-      assetMap.lowPriorityFiles.push(ssgManifestPathModern)
-      assets[ssgManifestPathModern] = new RawSource(srcEmptySsgManifest)
-    }
 
     assetMap.pages = Object.keys(assetMap.pages)
       .sort()
@@ -183,20 +197,9 @@ export default class BuildManifestPlugin {
     assets[clientManifestPath] = new RawSource(
       `self.__BUILD_MANIFEST = ${generateClientManifest(
         assetMap,
-        false
+        this.rewrites
       )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
     )
-
-    if (this.modern) {
-      const modernClientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.module.js`
-
-      assets[modernClientManifestPath] = new RawSource(
-        `self.__BUILD_MANIFEST = ${generateClientManifest(
-          assetMap,
-          true
-        )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
-      )
-    }
 
     return assets
   }

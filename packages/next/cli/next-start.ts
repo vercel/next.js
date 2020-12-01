@@ -29,7 +29,6 @@ const nextStart: cliCommand = (argv) => {
     throw error
   }
   if (args['--help']) {
-    // tslint:disable-next-line
     console.log(`
       Description
         Starts the application in production mode.
@@ -53,14 +52,12 @@ const nextStart: cliCommand = (argv) => {
   const port = args['--port'] || 3000
   startServer({ dir }, port, args['--hostname'])
     .then(async (app) => {
-      // tslint:disable-next-line
       Log.ready(
         `started server on http://${args['--hostname'] || 'localhost'}:${port}`
       )
       await app.prepare()
     })
     .catch((err) => {
-      // tslint:disable-next-line
       console.error(err)
       process.exit(1)
     })

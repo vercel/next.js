@@ -600,7 +600,6 @@ declare module 'webpack' {
     type Rule = RuleSetRule
 
     namespace Options {
-      // tslint:disable-next-line:max-line-length
       type Devtool =
         | 'eval'
         | 'inline-source-map'
@@ -869,13 +868,10 @@ declare module 'webpack' {
         modulesSize(): number
         size(options: any): number
         integratedSize(otherChunk: any, options: any): number
-        // tslint:disable-next-line:ban-types
         sortModules(sortByFn: Function): void
         getAllAsyncChunks(): Set<any>
         getChunkMaps(realHash: any): { hash: any; name: any }
-        // tslint:disable-next-line:ban-types
         getChunkModuleMaps(filterFn: Function): { id: any; hash: any }
-        // tslint:disable-next-line:ban-types
         hasModuleInGraph(filterFn: Function, filterChunkFn: Function): boolean
         toString(): string
       }
@@ -1132,7 +1128,6 @@ declare module 'webpack' {
         hash?: string
         getStats(): Stats
         addModule(module: CompilationModule, cacheGroup: any): any
-        // tslint:disable-next-line:ban-types
         addEntry(context: any, entry: any, name: any, callback: Function): void
         getPath(
           filename: string,
@@ -1256,7 +1251,6 @@ declare module 'webpack' {
         watchRun: any
       }
     }
-    // tslint:disable-next-line:interface-name
     interface ICompiler {
       run(handler: ICompiler.Handler): void
       watch(
@@ -1877,7 +1871,6 @@ declare module 'webpack' {
     }
 
     class PrefetchPlugin extends Plugin {
-      // tslint:disable-next-line:unified-signatures
       constructor(context: any, request: any)
       constructor(request: any)
     }
@@ -2363,7 +2356,6 @@ declare module 'webpack' {
     /** @deprecated */
     namespace compiler {
       /** @deprecated use webpack.Compiler */
-      // tslint:disable-next-line:no-unnecessary-qualifier
       type Compiler = webpack.Compiler
 
       /** @deprecated use webpack.Compiler.Watching */
@@ -2374,7 +2366,6 @@ declare module 'webpack' {
       type WatchOptions = Compiler.WatchOptions
 
       /** @deprecated use webpack.Stats */
-      // tslint:disable-next-line:no-unnecessary-qualifier
       type Stats = webpack.Stats
 
       /** @deprecated use webpack.Stats.ToJsonOptions */

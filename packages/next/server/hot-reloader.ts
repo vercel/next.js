@@ -17,7 +17,6 @@ import {
 } from '../next-server/lib/constants'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { route } from '../next-server/server/router'
-import errorOverlayMiddleware from './lib/error-overlay-middleware'
 import { findPageFile } from './lib/find-page-file'
 import onDemandEntryHandler, {
   entries,
@@ -31,6 +30,8 @@ import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypo
 import { isWriteable } from '../build/is-writeable'
 import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { stringify } from 'querystring'
+import { Rewrite } from '../lib/load-custom-routes'
+import { difference } from '../build/utils'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -152,6 +153,7 @@ export default class HotReloader {
   private onDemandEntries: any
   private previewProps: __ApiPreviewProps
   private watcher: any
+  private rewrites: Rewrite[]
 
   constructor(
     dir: string,
@@ -160,11 +162,13 @@ export default class HotReloader {
       pagesDir,
       buildId,
       previewProps,
+      rewrites,
     }: {
       config: object
       pagesDir: string
       buildId: string
       previewProps: __ApiPreviewProps
+      rewrites: Rewrite[]
     }
   ) {
     this.buildId = buildId
@@ -178,6 +182,7 @@ export default class HotReloader {
 
     this.config = config
     this.previewProps = previewProps
+    this.rewrites = rewrites
   }
 
   public async run(
@@ -210,7 +215,22 @@ export default class HotReloader {
         return {}
       }
 
-      const page = denormalizePagePath(`/${params.path.join('/')}`)
+      let decodedPagePath: string
+
+      try {
+        decodedPagePath = `/${params.path
+          .map((param) => decodeURIComponent(param))
+          .join('/')}`
+      } catch (_) {
+        const err: Error & { code?: string } = new Error(
+          'failed to decode param'
+        )
+        err.code = 'DECODE_FAILED'
+        throw err
+      }
+
+      const page = denormalizePagePath(decodedPagePath)
+
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
           await this.ensurePage(page)
@@ -285,6 +305,7 @@ export default class HotReloader {
         config: this.config,
         buildId: this.buildId,
         pagesDir: this.pagesDir,
+        rewrites: this.rewrites,
         entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints },
       }),
       getBaseWebpackConfig(this.dir, {
@@ -293,6 +314,7 @@ export default class HotReloader {
         config: this.config,
         buildId: this.buildId,
         pagesDir: this.pagesDir,
+        rewrites: this.rewrites,
         entrypoints: entrypoints.server,
       }),
     ])
@@ -350,6 +372,42 @@ export default class HotReloader {
 
     watchCompilers(multiCompiler.compilers[0], multiCompiler.compilers[1])
 
+    // Watch for changes to client/server page files so we can tell when just
+    // the server file changes and trigger a reload for GS(S)P pages
+    const changedClientPages = new Set<string>()
+    const changedServerPages = new Set<string>()
+    const prevClientPageHashes = new Map<string, string>()
+    const prevServerPageHashes = new Map<string, string>()
+
+    const trackPageChanges = (
+      pageHashMap: Map<string, string>,
+      changedItems: Set<string>
+    ) => (stats: webpack.compilation.Compilation) => {
+      stats.entrypoints.forEach((entry, key) => {
+        if (key.startsWith('pages/')) {
+          entry.chunks.forEach((chunk: any) => {
+            if (chunk.id === key) {
+              const prevHash = pageHashMap.get(key)
+
+              if (prevHash && prevHash !== chunk.hash) {
+                changedItems.add(key)
+              }
+              pageHashMap.set(key, chunk.hash)
+            }
+          })
+        }
+      })
+    }
+
+    multiCompiler.compilers[0].hooks.emit.tap(
+      'NextjsHotReloaderForClient',
+      trackPageChanges(prevClientPageHashes, changedClientPages)
+    )
+    multiCompiler.compilers[1].hooks.emit.tap(
+      'NextjsHotReloaderForServer',
+      trackPageChanges(prevServerPageHashes, changedServerPages)
+    )
+
     // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
     multiCompiler.compilers[1].hooks.failed.tap(
       'NextjsHotReloaderForServer',
@@ -363,6 +421,22 @@ export default class HotReloader {
       (stats) => {
         this.serverError = null
         this.serverStats = stats
+
+        const serverOnlyChanges = difference<string>(
+          changedServerPages,
+          changedClientPages
+        )
+        changedClientPages.clear()
+        changedServerPages.clear()
+
+        if (serverOnlyChanges.length > 0) {
+          this.send({
+            event: 'serverOnlyChanges',
+            pages: serverOnlyChanges.map((pg) =>
+              denormalizePagePath(pg.substr('pages'.length))
+            ),
+          })
+        }
 
         const { compilation } = stats
 
@@ -470,7 +544,6 @@ export default class HotReloader {
       // must come before hotMiddleware
       this.onDemandEntries.middleware,
       this.webpackHotMiddleware.middleware,
-      errorOverlayMiddleware({ dir: this.dir }),
       getOverlayMiddleware({
         rootDirectory: this.dir,
         stats: () => this.stats,
@@ -509,8 +582,10 @@ export default class HotReloader {
     return []
   }
 
-  private send(action: string, ...args: any[]): void {
-    this.webpackHotMiddleware!.publish({ action, data: args })
+  public send(action?: string | any, ...args: any[]): void {
+    this.webpackHotMiddleware!.publish(
+      action && typeof action === 'object' ? action : { action, data: args }
+    )
   }
 
   public async ensurePage(page: string) {

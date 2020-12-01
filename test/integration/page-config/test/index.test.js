@@ -88,4 +88,30 @@ describe('Page Config', () => {
       await reset()
     }
   })
+
+  it('shows error when page config is export from', async () => {
+    const reset = await uncommentExport('invalid/export-from.js')
+
+    try {
+      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+      expect(stderr).toMatch(
+        /https:\/\/err\.sh\/vercel\/next\.js\/invalid-page-config/
+      )
+    } finally {
+      await reset()
+    }
+  })
+
+  it('shows error when page config is imported and exported', async () => {
+    const reset = await uncommentExport('invalid/import-export.js')
+
+    try {
+      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+      expect(stderr).toMatch(
+        /https:\/\/err\.sh\/vercel\/next\.js\/invalid-page-config/
+      )
+    } finally {
+      await reset()
+    }
+  })
 })

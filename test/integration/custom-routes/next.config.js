@@ -11,6 +11,10 @@ module.exports = {
           ]
         : []),
       {
+        source: '/rewriting-to-auto-export',
+        destination: '/auto-export/hello',
+      },
+      {
         source: '/to-another',
         destination: '/another/one',
       },
@@ -199,6 +203,18 @@ module.exports = {
       {
         source: '/catchall-redirect/:path*',
         destination: '/somewhere',
+        permanent: false,
+      },
+      {
+        source: '/to-external-with-query',
+        destination:
+          'https://authserver.example.com/set-password?returnUrl=https%3A%2F%2Fwww.example.com/login',
+        permanent: false,
+      },
+      {
+        source: '/to-external-with-query-2',
+        destination:
+          'https://authserver.example.com/set-password?returnUrl=https://www.example.com/login',
         permanent: false,
       },
     ]
