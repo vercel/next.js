@@ -1,4 +1,4 @@
-const DOMAttributeNames: Record<string, string> = {
+export const DOMAttributeNames: Record<string, string> = {
   acceptCharset: 'accept-charset',
   className: 'class',
   htmlFor: 'for',
