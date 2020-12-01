@@ -151,6 +151,7 @@ export default class Server {
     images: string
     fontManifest: FontManifest
     optimizeImages: boolean
+    optimizeCss: any
     locale?: string
     locales?: string[]
     defaultLocale?: string
@@ -207,6 +208,7 @@ export default class Server {
           ? requireFontManifest(this.distDir, this._isLikeServerless)
           : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
+      optimizeCss: this.nextConfig.experimental.optimizeCss,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -274,6 +276,9 @@ export default class Server {
     }
     if (this.renderOpts.optimizeImages) {
       process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
+    }
+    if (this.renderOpts.optimizeCss) {
+      process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
   }
 

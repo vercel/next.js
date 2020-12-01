@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types'
-import React, { Component, ReactNode, useContext } from 'react'
+import React, { Component, ReactElement, ReactNode, useContext } from 'react'
 import flush from 'styled-jsx/server'
 import {
   AMP_RENDER_TARGET,
@@ -173,23 +173,29 @@ export class Head extends Component<
       cssFiles.push(...dynamicCssFiles)
     }
 
-    const cssLinkElements: JSX.Element[] = []
+    let cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
       const isSharedFile = sharedFiles.has(file)
+
+      if (!process.env.__NEXT_OPTIMIZE_CSS) {
+        cssLinkElements.push(
+          <link
+            key={`${file}-preload`}
+            nonce={this.props.nonce}
+            rel="preload"
+            href={`${assetPrefix}/_next/${encodeURI(
+              file
+            )}${devOnlyCacheBusterQueryString}`}
+            as="style"
+            crossOrigin={
+              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+            }
+          />
+        )
+      }
+
       const isUnmanagedFile = unmangedFiles.has(file)
       cssLinkElements.push(
-        <link
-          key={`${file}-preload`}
-          nonce={this.props.nonce}
-          rel="preload"
-          href={`${assetPrefix}/_next/${encodeURI(
-            file
-          )}${devOnlyCacheBusterQueryString}`}
-          as="style"
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
-        />,
         <link
           key={file}
           nonce={this.props.nonce}
@@ -205,6 +211,13 @@ export class Head extends Component<
         />
       )
     })
+
+    if (process.env.__NEXT_OPTIMIZE_FONTS) {
+      cssLinkElements = this.makeStylesheetInert(
+        cssLinkElements
+      ) as ReactElement[]
+    }
+
     return cssLinkElements.length === 0 ? null : cssLinkElements
   }
 
@@ -266,7 +279,7 @@ export class Head extends Component<
         ))
   }
 
-  makeStylesheetInert(node: ReactNode): ReactNode {
+  makeStylesheetInert(node: ReactNode): ReactNode[] {
     return React.Children.map(node, (c: any) => {
       if (
         c.type === 'link' &&
@@ -492,12 +505,16 @@ export class Head extends Component<
                 href={canonicalBase + getAmpPath(ampPath, dangerousAsPath)}
               />
             )}
-            {process.env.__NEXT_OPTIMIZE_FONTS
-              ? this.makeStylesheetInert(this.getCssLinks(files))
-              : this.getCssLinks(files)}
-            <noscript data-n-css={this.props.nonce ?? ''} />
+            {!process.env.__NEXT_OPTIMIZE_CSS && this.getCssLinks(files)}
+            {!process.env.__NEXT_OPTIMIZE_CSS && (
+              <noscript data-n-css={this.props.nonce ?? ''} />
+            )}
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks(files)}
+            {process.env.__NEXT_OPTIMIZE_CSS && this.getCssLinks(files)}
+            {process.env.__NEXT_OPTIMIZE_CSS && (
+              <noscript data-n-css={this.props.nonce ?? ''} />
+            )}
             {this.context.isDevelopment && (
               // this element is used to mount development styles so the
               // ordering matches production

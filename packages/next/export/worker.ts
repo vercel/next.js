@@ -49,6 +49,7 @@ interface ExportPageInput {
   serverless: boolean
   optimizeFonts: boolean
   optimizeImages: boolean
+  optimizeCss: any
 }
 
 interface ExportPageResults {
@@ -68,6 +69,7 @@ interface RenderOpts {
   inAmpMode?: boolean
   optimizeFonts?: boolean
   optimizeImages?: boolean
+  optimizeCss?: any
   fontManifest?: FontManifest
   locales?: string[]
   locale?: string
@@ -92,6 +94,7 @@ export default async function exportPage({
   serverless,
   optimizeFonts,
   optimizeImages,
+  optimizeCss,
 }: ExportPageInput): Promise<ExportPageResults> {
   let results: ExportPageResults = {
     ampValidations: [],
@@ -250,6 +253,8 @@ export default async function exportPage({
             optimizeFonts,
             /// @ts-ignore
             optimizeImages,
+            /// @ts-ignore
+            optimizeCss,
             fontManifest: optimizeFonts
               ? requireFontManifest(distDir, serverless)
               : null,
@@ -302,6 +307,9 @@ export default async function exportPage({
         if (optimizeImages) {
           process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
         }
+        if (optimizeCss) {
+          process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
+        }
         curRenderOpts = {
           ...components,
           ...renderOpts,
@@ -309,6 +317,7 @@ export default async function exportPage({
           params,
           optimizeFonts,
           optimizeImages,
+          optimizeCss,
           fontManifest: optimizeFonts
             ? requireFontManifest(distDir, serverless)
             : null,

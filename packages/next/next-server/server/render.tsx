@@ -165,9 +165,11 @@ export type RenderOptsPartial = {
   optimizeFonts: boolean
   fontManifest?: FontManifest
   optimizeImages: boolean
+  optimizeCss: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
+  distDir?: string
   locale?: string
   locales?: string[]
   defaultLocale?: string
@@ -1038,16 +1040,35 @@ export async function renderToHTML(
     }
   }
 
-  html = await postProcess(
-    html,
-    {
-      getFontDefinition,
-    },
-    {
-      optimizeFonts: renderOpts.optimizeFonts,
-      optimizeImages: renderOpts.optimizeImages,
-    }
-  )
+  // Avoid postProcess if both flags are false
+  if (process.env.__NEXT_OPTIMIZE_FONTS || process.env.__NEXT_OPTIMIZE_IMAGES) {
+    html = await postProcess(
+      html,
+      {
+        getFontDefinition,
+      },
+      {
+        optimizeFonts: renderOpts.optimizeFonts,
+        optimizeImages: renderOpts.optimizeImages,
+      }
+    )
+  }
+
+  if (renderOpts.optimizeCss) {
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    const Critters = require('critters')
+    const cssOptimizer = new Critters({
+      ssrMode: true,
+      reduceInlineStyles: false,
+      path: renderOpts.distDir,
+      publicPath: '/_next/',
+      preload: 'media',
+      fonts: false,
+      ...renderOpts.optimizeCss,
+    })
+
+    html = await cssOptimizer.process(html)
+  }
 
   if (inAmpMode || hybridAmp) {
     // fix &amp being escaped for amphtml rel link
