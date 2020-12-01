@@ -256,27 +256,55 @@ export class Head extends Component<
   }
 
   getPreloadMainLinks(files: DocumentFiles): JSX.Element[] | null {
-    const { assetPrefix, devOnlyCacheBusterQueryString } = this.context
+    const {
+      assetPrefix,
+      devOnlyCacheBusterQueryString,
+      scriptLoader,
+    } = this.context
     const preloadFiles = files.allFiles.filter((file: string) => {
       return file.endsWith('.js')
     })
 
-    return !preloadFiles.length
-      ? null
-      : preloadFiles.map((file: string) => (
-          <link
-            key={file}
-            nonce={this.props.nonce}
-            rel="preload"
-            href={`${assetPrefix}/_next/${encodeURI(
-              file
-            )}${devOnlyCacheBusterQueryString}`}
-            as="script"
-            crossOrigin={
-              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-            }
-          />
-        ))
+    return [
+      ...(scriptLoader.eager || []).map((file) => (
+        <link
+          key={file.src}
+          nonce={this.props.nonce}
+          rel="preload"
+          href={file.src}
+          as="script"
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
+        />
+      )),
+      ...preloadFiles.map((file: string) => (
+        <link
+          key={file}
+          nonce={this.props.nonce}
+          rel="preload"
+          href={`${assetPrefix}/_next/${encodeURI(
+            file
+          )}${devOnlyCacheBusterQueryString}`}
+          as="script"
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
+        />
+      )),
+      ...(scriptLoader.defer || []).map((file: string) => (
+        <link
+          key={file}
+          nonce={this.props.nonce}
+          rel="preload"
+          href={file}
+          as="script"
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
+        />
+      )),
+    ]
   }
 
   makeStylesheetInert(node: ReactNode): ReactNode[] {
@@ -583,6 +611,22 @@ export class NextScript extends Component<OriginProps> {
     })
   }
 
+  getPreNextScripts() {
+    const { scriptLoader } = this.context
+
+    return (scriptLoader.eager || []).map((file: string) => {
+      return (
+        <script
+          {...file}
+          nonce={this.props.nonce}
+          crossOrigin={
+            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+          }
+        />
+      )
+    })
+  }
+
   getScripts(files: DocumentFiles) {
     const {
       assetPrefix,
@@ -750,6 +794,7 @@ export class NextScript extends Component<OriginProps> {
           />
         )}
         {!disableRuntimeJS && this.getPolyfillScripts()}
+        {!disableRuntimeJS && this.getPreNextScripts()}
         {disableRuntimeJS ? null : this.getDynamicChunks(files)}
         {disableRuntimeJS ? null : this.getScripts(files)}
       </>

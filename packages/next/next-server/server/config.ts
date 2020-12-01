@@ -57,6 +57,7 @@ const defaultConfig: { [key: string]: any } = {
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
+    scriptLoader: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
