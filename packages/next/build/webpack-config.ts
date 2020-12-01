@@ -1201,12 +1201,6 @@ export default async function getBaseWebpackConfig(
     productionBrowserSourceMaps,
   })
 
-  if (!webpackConfig) {
-    throw new Error(
-      'Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your next.config.js.'
-    )
-  }
-
   let originalDevtool = webpackConfig.devtool
   if (typeof config.webpack === 'function') {
     webpackConfig = config.webpack(webpackConfig, {
@@ -1219,6 +1213,13 @@ export default async function getBaseWebpackConfig(
       totalPages,
       webpack,
     })
+
+    if (!webpackConfig) {
+      throw new Error(
+        'Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your next.config.js.\n' +
+          'See more info here https://err.sh/next.js/undefined-webpack-config'
+      )
+    }
 
     if (dev && originalDevtool !== webpackConfig.devtool) {
       webpackConfig.devtool = originalDevtool
