@@ -367,6 +367,9 @@ export default async function getBaseWebpackConfig(
       // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
       'next/head': 'next/dist/next-server/lib/head.js',
       'next/router': 'next/dist/client/router.js',
+      'next/experimental-script': config.experimental.scriptLoader
+        ? 'next/dist/client/experimental-script.js'
+        : '',
       'next/config': 'next/dist/next-server/lib/runtime-config.js',
       'next/dynamic': 'next/dist/next-server/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
@@ -728,6 +731,10 @@ export default async function getBaseWebpackConfig(
           // When the 'serverless' target is used all node_modules will be compiled into the output bundles
           // So that the 'serverless' bundles have 0 runtime dependencies
           '@ampproject/toolbox-optimizer', // except this one
+
+          // Mark this as external if not enabled so it doesn't cause a
+          // webpack error from being missing
+          ...(config.experimental.optimizeCss ? [] : ['critters']),
         ],
     optimization: {
       // Webpack 5 uses a new property for the same functionality
@@ -968,6 +975,9 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
           config.experimental.optimizeImages
+        ),
+        'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
+          !!config.experimental.optimizeCss && !dev
         ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
