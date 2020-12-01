@@ -429,15 +429,9 @@ function akamaiLoader({ root, src, width }: LoaderProps): string {
 }
 
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
-  // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit/turtles.jpg
-  const params = ['f_auto', 'c_limit', 'w_' + width]
-  let paramsString = ''
-  if (quality) {
-    params.push('q_' + quality)
-  }
-  if (params.length) {
-    paramsString = params.join(',') + '/'
-  }
+  // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
+  const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
+  let paramsString = params.join(',') + '/'
   return `${root}${paramsString}${normalizeSrc(src)}`
 }
 
