@@ -63,8 +63,12 @@ export async function getStaticProps() {
 > ```bash
 > # .env
 > A=abc
-> WRONG=pre$A # becomes "preabc"
-> CORRECT=pre\$A # becomes "pre$A"
+>
+> # becomes "preabc"
+> WRONG=pre$A
+>
+> # becomes "pre$A"
+> CORRECT=pre\$A
 > ```
 
 ## Exposing Environment Variables to the Browser
