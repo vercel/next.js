@@ -1224,6 +1224,13 @@ export default async function getBaseWebpackConfig(
       webpack,
     })
 
+    if (!webpackConfig) {
+      throw new Error(
+        'Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your next.config.js.\n' +
+          'See more info here https://err.sh/next.js/undefined-webpack-config'
+      )
+    }
+
     if (dev && originalDevtool !== webpackConfig.devtool) {
       webpackConfig.devtool = originalDevtool
       devtoolRevertWarning(originalDevtool)
