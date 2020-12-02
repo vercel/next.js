@@ -82,7 +82,7 @@ function runTests() {
     )
   })
 
-  it('should minify the css', async () => {
+  it.skip('should minify the css', async () => {
     const snapshotJson = JSON.parse(
       await fs.readFile(join(__dirname, 'manifest-snapshot.json'), {
         encoding: 'utf-8',
@@ -104,7 +104,7 @@ function runTests() {
   })
 }
 
-describe.skip('Font optimization for SSR apps', () => {
+describe('Font optimization for SSR apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
@@ -125,7 +125,7 @@ describe.skip('Font optimization for SSR apps', () => {
   runTests()
 })
 
-describe.skip('Font optimization for serverless apps', () => {
+describe('Font optimization for serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
@@ -142,7 +142,7 @@ describe.skip('Font optimization for serverless apps', () => {
   runTests()
 })
 
-describe.skip('Font optimization for emulated serverless apps', () => {
+describe('Font optimization for emulated serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
