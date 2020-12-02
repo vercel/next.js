@@ -114,8 +114,8 @@ The `context` parameter is an object containing the following keys:
 > This includes reading from the filesystem or a database.
 
 > **Note**: You should not use [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to
-> call an API route in your application.
-> Instead, directly import the API route and call its function yourself.
+> call an API route in `getStaticProps`.
+> Instead, directly import the logic used inside your API route.
 > You may need to slightly refactor your code for this approach.
 >
 > Fetching from an external API is fine!
@@ -661,8 +661,8 @@ The `context` parameter is an object containing the following keys:
 > This includes reading from the filesystem or a database.
 
 > **Note**: You should not use [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to
-> call an API route in your application.
-> Instead, directly import the API route and call its function yourself.
+> call an API route in `getServerSideProps`.
+> Instead, directly import the logic used inside your API route.
 > You may need to slightly refactor your code for this approach.
 >
 > Fetching from an external API is fine!
