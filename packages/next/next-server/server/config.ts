@@ -54,7 +54,9 @@ const defaultConfig: { [key: string]: any } = {
     pageEnv: false,
     productionBrowserSourceMaps: false,
     optimizeImages: false,
+    optimizeCss: false,
     scrollRestoration: false,
+    scriptLoader: false,
   },
   future: {
     excludeDefaultMomentLocales: false,

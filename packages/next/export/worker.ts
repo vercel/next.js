@@ -48,6 +48,7 @@ interface ExportPageInput {
   subFolders: string
   serverless: boolean
   optimizeImages: boolean
+  optimizeCss: any
 }
 
 interface ExportPageResults {
@@ -66,6 +67,7 @@ interface RenderOpts {
   hybridAmp?: boolean
   inAmpMode?: boolean
   optimizeImages?: boolean
+  optimizeCss?: any
   fontManifest?: FontManifest
   locales?: string[]
   locale?: string
@@ -89,6 +91,7 @@ export default async function exportPage({
   subFolders,
   serverless,
   optimizeImages,
+  optimizeCss,
 }: ExportPageInput): Promise<ExportPageResults> {
   let results: ExportPageResults = {
     ampValidations: [],
@@ -245,6 +248,8 @@ export default async function exportPage({
             ampPath: renderAmpPath,
             /// @ts-ignore
             optimizeImages,
+            /// @ts-ignore
+            optimizeCss,
             fontManifest: requireFontManifest(distDir, serverless),
             locale: locale!,
             locales: renderOpts.locales!,
@@ -292,12 +297,16 @@ export default async function exportPage({
         if (optimizeImages) {
           process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
         }
+        if (optimizeCss) {
+          process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
+        }
         curRenderOpts = {
           ...components,
           ...renderOpts,
           ampPath: renderAmpPath,
           params,
           optimizeImages,
+          optimizeCss,
           fontManifest: requireFontManifest(distDir, serverless),
           locale: locale as string,
         }

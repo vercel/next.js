@@ -485,6 +485,7 @@ Read more: https://err.sh/next.js/export-image-api`
         buildExport: options.buildExport,
         serverless: isTargetLikeServerless(nextConfig.target),
         optimizeImages: nextConfig.experimental.optimizeImages,
+        optimizeCss: nextConfig.experimental.optimizeCss,
       })
 
       for (const validation of result.ampValidations || []) {
