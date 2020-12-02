@@ -28,7 +28,7 @@ describe('Custom Resolver Tests', () => {
   it('should show "custom resolver registered but not in config" error', async () => {
     await hasRedbox(browser)
     expect(await getRedboxHeader(browser)).toContain(
-      `registerCustomResolver can only be used if image loader is set to 'custom' in next.config.js`
+      `registerCustomImageLoader can only be used if image loader is set to 'custom' in next.config.js`
     )
   })
 })

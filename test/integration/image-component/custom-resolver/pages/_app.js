@@ -1,6 +1,6 @@
-import { registerCustomResolver } from 'next/image'
+import { registerCustomImageLoader } from 'next/image'
 
-registerCustomResolver(({ src, width, quality }) => {
+registerCustomImageLoader(({ src, width, quality }) => {
   return `https://customresolver.com/${src}?w~~${width},q~~${quality}`
 })
 

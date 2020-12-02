@@ -61,7 +61,7 @@ export type ImageProps = Omit<
 
 const config =
   ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
-const configLoader = config.loader || config.resolver
+const configLoader = config.loader || 'default'
 const {
   deviceSizes: configDeviceSizes,
   imageSizes: configImageSizes,
@@ -102,24 +102,24 @@ type CallLoaderProps = {
 }
 type URLResolver = (resolverProps: CallLoaderProps) => string
 
-let customResolver: URLResolver
-let resolverError = false
-export function registerCustomResolver(resolver: URLResolver): void {
+let customLoader: URLResolver
+let loaderError = false
+export function registerCustomImageLoader(loader: URLResolver): void {
   if (configLoader !== 'custom') {
-    resolverError = true
+    loaderError = true
   }
-  customResolver = resolver
+  customLoader = loader
 }
 
 function callLoader(loaderProps: CallLoaderProps) {
   if (configLoader === 'custom') {
-    if (process.env.NODE_ENV !== 'production' && !customResolver) {
+    if (process.env.NODE_ENV !== 'production' && !customLoader) {
       throw new Error(
         `imageLoader has been set to 'custom' in next.config.js but no custom loader is defined. 
-        You must call registerCustomResolver in your _app.js file.`
+        You must call registerCustomImageLoader in your _app.js file.`
       )
     }
-    return customResolver(loaderProps)
+    return customLoader(loaderProps)
   }
 
   const load = loaders.get(configLoader)
@@ -253,9 +253,9 @@ export default function Image({
         `Image with src "${src}" has deprecated "unsized" property, which was removed in favor of the "layout='fill'" property`
       )
     }
-    if (resolverError) {
+    if (loaderError) {
       throw new Error(
-        `registerCustomResolver can only be used if image loader is set to 'custom' in next.config.js`
+        `registerCustomImageLoader can only be used if image loader is set to 'custom' in next.config.js`
       )
     }
   }
