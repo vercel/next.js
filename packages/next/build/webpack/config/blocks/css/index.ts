@@ -120,10 +120,9 @@ export const css = curry(async function css(
           test: regexCssModules,
           // CSS Modules are only supported in the user's application. We're
           // not yet allowing CSS imports _within_ `node_modules`.
-          issuer: {
-            and: [ctx.rootDirectory],
-            not: [/node_modules/],
-          },
+          issuer: (issuerPath: string) =>
+            issuerPath.startsWith(ctx.rootDirectory) &&
+            !/node_modules/.test(issuerPath.replace(ctx.rootDirectory, '')),
           use: getCssModuleLoader(ctx, postCssPlugins),
         },
       ],
@@ -143,10 +142,9 @@ export const css = curry(async function css(
           test: regexSassModules,
           // Sass Modules are only supported in the user's application. We're
           // not yet allowing Sass imports _within_ `node_modules`.
-          issuer: {
-            and: [ctx.rootDirectory],
-            not: [/node_modules/],
-          },
+          issuer: (issuerPath: string) =>
+            issuerPath.startsWith(ctx.rootDirectory) &&
+            !/node_modules/.test(issuerPath.replace(ctx.rootDirectory, '')),
           use: getCssModuleLoader(ctx, postCssPlugins, sassPreprocessors),
         },
       ],
@@ -198,13 +196,13 @@ export const css = curry(async function css(
             // interoperability with npm packages that require CSS. Without
             // this ability, the component's CSS would have to be included for
             // the entire app instead of specific page where it's required.
-            include: { and: [/node_modules/] },
+            include: (includePath: string) =>
+              /node_modules/.test(includePath.replace(ctx.rootDirectory, '')),
             // Global CSS is only supported in the user's application, not in
             // node_modules.
-            issuer: {
-              and: [ctx.rootDirectory],
-              not: [/node_modules/],
-            },
+            issuer: (issuerPath: string) =>
+              issuerPath.startsWith(ctx.rootDirectory) &&
+              !/node_modules/.test(issuerPath.replace(ctx.rootDirectory, '')),
             use: getGlobalCssLoader(ctx, postCssPlugins),
           },
         ],
@@ -253,7 +251,8 @@ export const css = curry(async function css(
       oneOf: [
         {
           test: [regexCssGlobal, regexSassGlobal],
-          issuer: { and: [/node_modules/] },
+          issuer: (issuerPath: string) =>
+            /node_modules/.test(issuerPath.replace(ctx.rootDirectory, '')),
           use: {
             loader: 'error-loader',
             options: {

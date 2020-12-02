@@ -874,7 +874,7 @@ export default async function getBaseWebpackConfig(
             if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
               return false
             }
-            return /node_modules/.test(excludePath)
+            return /node_modules/.test(excludePath.replace(dir, ''))
           },
           use: config.experimental.babelMultiThread
             ? [
