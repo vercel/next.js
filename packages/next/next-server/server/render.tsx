@@ -1051,18 +1051,16 @@ export async function renderToHTML(
   }
 
   // Avoid postProcess if both flags are false
-  if (process.env.__NEXT_OPTIMIZE_FONTS || process.env.__NEXT_OPTIMIZE_IMAGES) {
-    html = await postProcess(
-      html,
-      {
-        getFontDefinition,
-      },
-      {
-        optimizeFonts: renderOpts.optimizeFonts,
-        optimizeImages: renderOpts.optimizeImages,
-      }
-    )
-  }
+  html = await postProcess(
+    html,
+    {
+      getFontDefinition,
+    },
+    {
+      optimizeFonts: true,
+      optimizeImages: renderOpts.optimizeImages,
+    }
+  )
 
   if (renderOpts.optimizeCss) {
     // eslint-disable-next-line import/no-extraneous-dependencies
