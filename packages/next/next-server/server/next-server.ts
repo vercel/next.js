@@ -151,6 +151,7 @@ export default class Server {
     images: string
     fontManifest: FontManifest
     optimizeImages: boolean
+    optimizeCss: any
     locale?: string
     locales?: string[]
     defaultLocale?: string
@@ -207,6 +208,7 @@ export default class Server {
           ? requireFontManifest(this.distDir, this._isLikeServerless)
           : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
+      optimizeCss: this.nextConfig.experimental.optimizeCss,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -274,6 +276,9 @@ export default class Server {
     }
     if (this.renderOpts.optimizeImages) {
       process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
+    }
+    if (this.renderOpts.optimizeCss) {
+      process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
   }
 
@@ -357,12 +362,7 @@ export default class Server {
           pathname: localePathResult.pathname,
         })
         ;(req as any).__nextStrippedLocale = true
-        parsedUrl.pathname = `${basePath || ''}${localePathResult.pathname}${
-          (req as any).__nextHadTrailingSlash &&
-          localePathResult.pathname !== '/'
-            ? '/'
-            : ''
-        }`
+        parsedUrl.pathname = `${basePath || ''}${localePathResult.pathname}`
       }
 
       // If a detected locale is a domain specific locale and we aren't already
@@ -1466,8 +1466,11 @@ export default class Server {
           isRedirect = renderResult.renderOpts.isRedirect
         } else {
           const origQuery = parseUrl(req.url || '', true).query
+          const hadTrailingSlash =
+            urlPathname !== '/' && this.nextConfig.trailingSlash
+
           const resolvedUrl = formatUrl({
-            pathname: resolvedUrlPathname,
+            pathname: `${resolvedUrlPathname}${hadTrailingSlash ? '/' : ''}`,
             // make sure to only add query values from original URL
             query: origQuery,
           })
@@ -1487,7 +1490,7 @@ export default class Server {
               ? formatUrl({
                   // we use the original URL pathname less the _next/data prefix if
                   // present
-                  pathname: urlPathname,
+                  pathname: `${urlPathname}${hadTrailingSlash ? '/' : ''}`,
                   query: origQuery,
                 })
               : resolvedUrl,
