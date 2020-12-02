@@ -1,6 +1,6 @@
 ## Example app using Facebook Pixel
 
-This example shows how to use Next.js along with Facebook Pixel. A [custom `App`](https://nextjs.org/docs/advanced-features/custom-app) is used to track route changes and send page views to Facebook Pixel. This example uses [react-facebook-pixel](https://www.npmjs.com/package/react-facebook-pixel).
+This example shows how to use Next.js along with Facebook Pixel. A [custom `App`](https://nextjs.org/docs/advanced-features/custom-app) is used to track route changes and send page views to Facebook Pixel. A custom [\_document](https://nextjs.org/docs/advanced-features/custom-document) is used to inject [base code](https://developers.facebook.com/docs/facebook-pixel/implementation/?locale=en_US) and track pageviews and [event](https://developers.facebook.com/docs/facebook-pixel/advanced/).
 
 ## Deploy your own
 
@@ -13,9 +13,9 @@ Deploy the example using [Vercel](https://vercel.com):
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-facebook-pixel with-facebook-pixel-app
+npx create-next-app --example with-facebook-pixel-advanced with-facebook-pixel-advanced-app
 # or
-yarn create next-app --example with-facebook-pixel with-facebook-pixel-app
+yarn create next-app --example with-facebook-pixel-advanced with-facebook-pixel-advanced-app
 ```
 
 Next, copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
