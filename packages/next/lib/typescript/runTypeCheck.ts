@@ -24,12 +24,11 @@ export async function runTypeCheck(
   if (effectiveConfiguration.fileNames.length < 1) {
     return { hasWarnings: false }
   }
-  const requiredConfig = getRequiredConfiguration(ts)
+  const requiredConfig = getRequiredConfiguration(ts, effectiveConfiguration)
 
   const program = ts.createProgram(effectiveConfiguration.fileNames, {
     ...effectiveConfiguration.options,
     ...requiredConfig,
-    noEmit: true,
   })
   const result = program.emit()
 

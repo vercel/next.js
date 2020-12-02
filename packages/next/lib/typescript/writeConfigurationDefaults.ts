@@ -16,7 +16,8 @@ type DesiredCompilerOptionsShape = {
 }
 
 function getDesiredCompilerOptions(
-  ts: typeof import('typescript')
+  ts: typeof import('typescript'),
+  configuration: import('typescript').ParsedCommandLine
 ): DesiredCompilerOptionsShape {
   const o: DesiredCompilerOptionsShape = {
     // These are suggested values and will be set when not present in the
@@ -27,7 +28,6 @@ function getDesiredCompilerOptions(
     skipLibCheck: { suggested: true },
     strict: { suggested: false },
     forceConsistentCasingInFileNames: { suggested: true },
-    noEmit: { suggested: true },
 
     // These values are required and cannot be changed by the user
     // Keep this in sync with the webpack config
@@ -65,15 +65,22 @@ function getDesiredCompilerOptions(
     },
   }
 
+  if (configuration.options.composite) {
+    o.emitDeclarationOnly = { suggested: true }
+  } else {
+    o.noEmit = { suggested: true }
+  }
+
   return o
 }
 
 export function getRequiredConfiguration(
-  ts: typeof import('typescript')
+  ts: typeof import('typescript'),
+  configuration: import('typescript').ParsedCommandLine
 ): Partial<import('typescript').CompilerOptions> {
   const res: Partial<import('typescript').CompilerOptions> = {}
 
-  const desiredCompilerOptions = getDesiredCompilerOptions(ts)
+  const desiredCompilerOptions = getDesiredCompilerOptions(ts, configuration)
   for (const optionKey of Object.keys(desiredCompilerOptions)) {
     const ev = desiredCompilerOptions[optionKey]
     if (!('value' in ev)) {
@@ -94,10 +101,13 @@ export async function writeConfigurationDefaults(
     await fs.writeFile(tsConfigPath, '{}' + os.EOL)
   }
 
-  const desiredCompilerOptions = getDesiredCompilerOptions(ts)
   const effectiveConfiguration = await getTypeScriptConfiguration(
     ts,
     tsConfigPath
+  )
+  const desiredCompilerOptions = getDesiredCompilerOptions(
+    ts,
+    effectiveConfiguration
   )
 
   const userTsConfigContent = await fs.readFile(tsConfigPath, {

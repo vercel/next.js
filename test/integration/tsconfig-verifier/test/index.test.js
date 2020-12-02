@@ -36,13 +36,13 @@ describe('tsconfig.json verifier', () => {
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
           \\"forceConsistentCasingInFileNames\\": true,
-          \\"noEmit\\": true,
           \\"esModuleInterop\\": true,
           \\"module\\": \\"esnext\\",
           \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"noEmit\\": true,
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
@@ -80,13 +80,13 @@ describe('tsconfig.json verifier', () => {
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
           \\"forceConsistentCasingInFileNames\\": true,
-          \\"noEmit\\": true,
           \\"esModuleInterop\\": true,
           \\"module\\": \\"esnext\\",
           \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"noEmit\\": true
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
@@ -147,11 +147,11 @@ describe('tsconfig.json verifier', () => {
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
           \\"forceConsistentCasingInFileNames\\": true,
-          \\"noEmit\\": true,
           \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"noEmit\\": true
         }
         // in-object comment 2
         ,
@@ -195,11 +195,11 @@ describe('tsconfig.json verifier', () => {
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
           \\"forceConsistentCasingInFileNames\\": true,
-          \\"noEmit\\": true,
           \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"noEmit\\": true
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
@@ -240,11 +240,54 @@ describe('tsconfig.json verifier', () => {
           \\"skipLibCheck\\": true,
           \\"strict\\": false,
           \\"forceConsistentCasingInFileNames\\": true,
-          \\"noEmit\\": true,
           \\"moduleResolution\\": \\"node\\",
           \\"resolveJsonModule\\": true,
           \\"isolatedModules\\": true,
-          \\"jsx\\": \\"preserve\\"
+          \\"jsx\\": \\"preserve\\",
+          \\"noEmit\\": true
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
+  })
+
+  it('allows you to build for project references', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+
+    await writeFile(tsConfig, `{ "compilerOptions": { "composite": true } }`)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"composite\\": \\"true\\",
+          \\"target\\": \\"es5\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"forceConsistentCasingInFileNames\\": true,
+          \\"esModuleInterop\\": true,
+          \\"module\\": \\"esnext\\",
+          \\"moduleResolution\\": \\"node\\",
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\",
+          \\"emitDeclarationOnly\\": true,
         },
         \\"include\\": [
           \\"next-env.d.ts\\",
