@@ -162,7 +162,6 @@ export type RenderOptsPartial = {
   previewProps: __ApiPreviewProps
   basePath: string
   unstable_runtimeJS?: false
-  optimizeFonts: boolean
   fontManifest?: FontManifest
   optimizeImages: boolean
   optimizeCss: any
@@ -1057,7 +1056,6 @@ export async function renderToHTML(
       getFontDefinition,
     },
     {
-      optimizeFonts: true,
       optimizeImages: renderOpts.optimizeImages,
     }
   )

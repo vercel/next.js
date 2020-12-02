@@ -6,7 +6,6 @@ const MAXIMUM_IMAGE_PRELOADS = 2
 const IMAGE_PRELOAD_SIZE_THRESHOLD = 2500
 
 type postProcessOptions = {
-  optimizeFonts: boolean
   optimizeImages: boolean
 }
 
