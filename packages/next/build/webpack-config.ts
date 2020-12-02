@@ -1077,8 +1077,7 @@ export default async function getBaseWebpackConfig(
         new ProfilingPlugin({
           tracer,
         }),
-      config.experimental.optimizeFonts &&
-        !dev &&
+      !dev &&
         isServer &&
         (function () {
           const {
