@@ -53,11 +53,18 @@ const runTests = () => {
   })
 
   it('should rewrite index routes correctly', async () => {
+    for (const path of ['/', '/fr', '/nl-NL']) {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(200)
+      const $ = cheerio.load(await res.text())
+      expect($('#links').text()).toBe('Links')
+    }
+  })
+
+  it('should rewrite correctly', async () => {
     for (const [path, dest] of [
-      ['/', '/'],
-      ['/en', '/'],
-      ['/nl-NL', '/'],
-      ['/fr', '/fr'],
       ['/about', '/about'],
       ['/en/about', '/about'],
       ['/nl-NL/about', '/about'],
@@ -82,20 +89,9 @@ const runTests = () => {
     for (const locale of ['', '/nl-NL', '/fr']) {
       const browser = await webdriver(appPort, `${locale}/links`)
 
-      await browser.elementByCss('#to-index').click()
-
       const expectedIndex = locale === '/fr' ? `fr` : ''
 
-      await check(async () => {
-        const data = JSON.parse(await browser.elementByCss('#data').text())
-        return data.url === `/${expectedIndex}` ? 'success' : 'fail'
-      }, 'success')
-
-      await browser
-        .back()
-        .waitForElementByCss('#links')
-        .elementByCss('#to-about')
-        .click()
+      await browser.elementByCss('#to-about').click()
 
       await check(async () => {
         const data = JSON.parse(await browser.elementByCss('#data').text())
@@ -118,6 +114,23 @@ const runTests = () => {
           ? 'success'
           : 'fail'
       }, 'success')
+
+      await browser.back().waitForElementByCss('#links')
+
+      await browser.eval('window.beforeNav = 1')
+
+      await browser.elementByCss('#to-index').click()
+
+      await check(() => browser.eval('window.location.pathname'), locale || '/')
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      await browser.elementByCss('#to-links').click()
+
+      await check(
+        () => browser.eval('window.location.pathname'),
+        `${locale}/links`
+      )
+      expect(await browser.eval('window.beforeNav')).toBe(1)
     }
   })
 }

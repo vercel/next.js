@@ -738,11 +738,12 @@ export default class Router implements BaseRouter {
 
     if (process.env.__NEXT_HAS_REWRITES) {
       resolvedAs = resolveRewrites(
-        parseRelativeUrl(as).pathname,
+        addLocale(parseRelativeUrl(as).pathname, this.locale),
         pages,
         rewrites,
         query,
-        (p: string) => this._resolveHref({ pathname: p }, pages).pathname!
+        (p: string) => this._resolveHref({ pathname: p }, pages).pathname!,
+        this.locales
       )
 
       if (resolvedAs !== as) {

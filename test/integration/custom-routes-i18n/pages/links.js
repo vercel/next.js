@@ -18,6 +18,10 @@ export default function Links() {
         <a id="to-catch-all">to /catch-all/hello</a>
       </Link>
       <br />
+
+      <Link href="/links">
+        <a id="to-links">to /links</a>
+      </Link>
     </>
   )
 }

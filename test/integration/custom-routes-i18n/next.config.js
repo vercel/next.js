@@ -31,17 +31,17 @@ module.exports = {
 
       {
         source: '/en',
-        destination,
+        destination: '/en/links',
         locale: false,
       },
       {
         source: '/nl-NL',
-        destination,
+        destination: '/nl-NL/links',
         locale: false,
       },
       {
         source: '/fr',
-        destination: `${destination}/fr`,
+        destination: `/fr/links`,
         locale: false,
       },
       {
