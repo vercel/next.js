@@ -1,6 +1,6 @@
 import Document, { Html, Head, Main, NextScript } from 'next/document'
 
-import { FB_PIXEL_ID } from '../utils/fpixel'
+import { FB_PIXEL_ID } from '../lib/fpixel'
 
 export default class MyDocument extends Document {
   render() {

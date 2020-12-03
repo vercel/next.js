@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/router'
-import * as fbq from '../utils/fpixel'
+import * as fbq from '../lib/fpixel'
 
 const FacebookPixel = ({ children }) => {
   const router = useRouter()

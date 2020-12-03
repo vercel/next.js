@@ -1,4 +1,4 @@
-import * as fbq from '../utils/fpixel'
+import * as fbq from '../lib/fpixel'
 
 export default function Example() {
   const handleClick = () => {
