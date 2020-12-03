@@ -166,7 +166,7 @@ module.exports = {
 
 ### Rewrites with i18n support
 
-When leveraging [`i18n` support](/docs/advanced-features/i18n-routing.md) with rewrites each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the rewrite:
+When leveraging [`i18n` support](/docs/advanced-features/i18n-routing.md) with rewrites each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the rewrite. If `locale: false` is used you must prefix the `source` and `destination` with a locale for it to be matched correctly.
 
 ```js
 module.exports = {
@@ -185,6 +185,12 @@ module.exports = {
         // does not handle locales automatically since locale: false is set
         source: '/nl/with-locale-manual',
         destination: '/nl/another',
+        locale: false,
+      },
+      {
+        // this matches '/' since `en` is the defaultLocale
+        source: '/en',
+        destination: '/en/another',
         locale: false,
       },
     ]
