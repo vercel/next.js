@@ -9,7 +9,6 @@ const customRouteMatcher = pathMatch(true)
 export default function resolveRewrites(
   asPath: string,
   pages: string[],
-  basePath: string,
   rewrites: Rewrite[],
   query: ParsedUrlQuery,
   resolveHref: (path: string) => string
@@ -28,8 +27,7 @@ export default function resolveRewrites(
           rewrite.destination,
           params,
           query,
-          true,
-          rewrite.basePath === false ? '' : basePath
+          true
         )
         asPath = destRes.parsedDestination.pathname!
         Object.assign(query, destRes.parsedDestination.query)

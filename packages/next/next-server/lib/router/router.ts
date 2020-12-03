@@ -740,7 +740,6 @@ export default class Router implements BaseRouter {
       resolvedAs = resolveRewrites(
         parseRelativeUrl(as).pathname,
         pages,
-        basePath,
         rewrites,
         query,
         (p: string) => this._resolveHref({ pathname: p }, pages).pathname!
