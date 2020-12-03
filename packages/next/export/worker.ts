@@ -47,7 +47,6 @@ interface ExportPageInput {
   serverRuntimeConfig: string
   subFolders: string
   serverless: boolean
-  optimizeFonts: boolean
   optimizeImages: boolean
   optimizeCss: any
 }
@@ -67,7 +66,6 @@ interface RenderOpts {
   ampSkipValidation?: boolean
   hybridAmp?: boolean
   inAmpMode?: boolean
-  optimizeFonts?: boolean
   optimizeImages?: boolean
   optimizeCss?: any
   fontManifest?: FontManifest
@@ -92,7 +90,6 @@ export default async function exportPage({
   serverRuntimeConfig,
   subFolders,
   serverless,
-  optimizeFonts,
   optimizeImages,
   optimizeCss,
 }: ExportPageInput): Promise<ExportPageResults> {
@@ -250,14 +247,10 @@ export default async function exportPage({
           {
             ampPath: renderAmpPath,
             /// @ts-ignore
-            optimizeFonts,
-            /// @ts-ignore
             optimizeImages,
             /// @ts-ignore
             optimizeCss,
-            fontManifest: optimizeFonts
-              ? requireFontManifest(distDir, serverless)
-              : null,
+            fontManifest: requireFontManifest(distDir, serverless),
             locale: locale!,
             locales: renderOpts.locales!,
           },
@@ -306,12 +299,9 @@ export default async function exportPage({
           ...renderOpts,
           ampPath: renderAmpPath,
           params,
-          optimizeFonts,
           optimizeImages,
           optimizeCss,
-          fontManifest: optimizeFonts
-            ? requireFontManifest(distDir, serverless)
-            : null,
+          fontManifest: requireFontManifest(distDir, serverless),
           locale: locale as string,
         }
         // @ts-ignore

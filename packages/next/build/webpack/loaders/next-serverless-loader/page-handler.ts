@@ -370,8 +370,6 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
       const previewData = tryGetPreviewData(req, res, options.previewProps)
       const isPreviewMode = previewData !== false
-
-      renderOpts.optimizeFonts = true
       /**
        * __webpack_require__.__NEXT_FONT_MANIFEST__ is added by
        * font-stylesheet-gathering-plugin
