@@ -2,6 +2,10 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/router'
 import * as fbq from '../lib/fpixel'
 
+const handleRouteChange = () => {
+  fbq.pageview()
+}
+
 const FacebookPixel = ({ children }) => {
   const router = useRouter()
 
@@ -14,10 +18,6 @@ const FacebookPixel = ({ children }) => {
       router.events.off('routeChangeComplete', handleRouteChange)
     }
   }, [router.events])
-
-  const handleRouteChange = () => {
-    fbq.pageview()
-  }
 
   return children
 }
