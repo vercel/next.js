@@ -42,6 +42,19 @@ ANALYZE=true yarn build
 
 When enabled two HTML files (client.html and server.html) will be outputted to `<distDir>/analyze/`. One will be for the server bundle, one for the browser bundle.
 
+You can also customize `webpack-bundle-analyzer` configuration:
+
+```js
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+  openAnalyzer: false, // both server and client
+}, {
+  generateStatsFile: true, // server only
+}, {
+  defaultSizes: 'gzip', // client only
+})
+```
+
 ### Usage with next-compose-plugins
 
 From version 2.0.0 of next-compose-plugins you need to call bundle-analyzer in this way to work
