@@ -748,6 +748,9 @@ export async function renderToHTML(
             )}' for ${req.url}`
           )
         }
+      } else {
+        // By default, we never revalidate.
+        ;(data as any).revalidate = false
       }
 
       // this must come after revalidate is attached
