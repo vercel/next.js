@@ -210,7 +210,9 @@ export default class Router {
           currentPathname += '/'
         }
       } else {
-        currentPathname = `${activeBasePath}${
+        currentPathname = `${
+          (req as any)._nextHadBasePath ? activeBasePath : ''
+        }${
           activeBasePath && localePathResult.pathname === '/'
             ? ''
             : localePathResult.pathname
