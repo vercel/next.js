@@ -60,7 +60,7 @@
     ]
   },
   "dependencies": {
-    "@ampproject/toolbox-optimizer": "2.7.0-alpha.1",
+    "@ampproject/toolbox-optimizer": "2.7.1-alpha.0",
     "@babel/runtime": "7.12.5",
     "@hapi/accept": "5.0.1",
     "@next/env": "10.0.4-canary.1",
