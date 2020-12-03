@@ -655,8 +655,10 @@ export default class Router implements BaseRouter {
       performance.mark('routeChange')
     }
 
+    const { shallow = false } = options
+
     if (this._inFlightRoute) {
-      this.abortComponentLoad(this._inFlightRoute)
+      this.abortComponentLoad(this._inFlightRoute, shallow)
     }
 
     as = addBasePath(
@@ -680,12 +682,12 @@ export default class Router implements BaseRouter {
     // any time without notice.
     if (!(options as any)._h && this.onlyAHashChange(cleanedAs)) {
       this.asPath = cleanedAs
-      Router.events.emit('hashChangeStart', as)
+      Router.events.emit('hashChangeStart', as, { shallow })
       // TODO: do we need the resolved href when only a hash change?
       this.changeState(method, url, as, options)
       this.scrollToHash(cleanedAs)
       this.notify(this.components[this.route])
-      Router.events.emit('hashChangeComplete', as)
+      Router.events.emit('hashChangeComplete', as, { shallow })
       return true
     }
 
@@ -730,7 +732,6 @@ export default class Router implements BaseRouter {
     }
 
     let route = removePathTrailingSlash(pathname)
-    const { shallow = false } = options
 
     // we need to resolve the as value using rewrites for dynamic SSG
     // pages to allow building the data URL correctly
@@ -823,7 +824,7 @@ export default class Router implements BaseRouter {
       }
     }
 
-    Router.events.emit('routeChangeStart', as)
+    Router.events.emit('routeChangeStart', as, { shallow })
 
     try {
       const routeInfo = await this.getRouteInfo(
@@ -865,7 +866,7 @@ export default class Router implements BaseRouter {
         return new Promise(() => {})
       }
 
-      Router.events.emit('beforeHistoryChange', as)
+      Router.events.emit('beforeHistoryChange', as, { shallow })
       this.changeState(method, url, as, options)
 
       if (process.env.NODE_ENV !== 'production') {
@@ -883,7 +884,7 @@ export default class Router implements BaseRouter {
       )
 
       if (error) {
-        Router.events.emit('routeChangeError', error, cleanedAs)
+        Router.events.emit('routeChangeError', error, cleanedAs, { shallow })
         throw error
       }
 
@@ -898,7 +899,7 @@ export default class Router implements BaseRouter {
           document.documentElement.lang = this.locale
         }
       }
-      Router.events.emit('routeChangeComplete', as)
+      Router.events.emit('routeChangeComplete', as, { shallow })
 
       return true
     } catch (err) {
@@ -950,6 +951,7 @@ export default class Router implements BaseRouter {
     pathname: string,
     query: ParsedUrlQuery,
     as: string,
+    shallow: boolean,
     loadErrorFail?: boolean
   ): Promise<CompletePrivateRouteInfo> {
     if (err.cancelled) {
@@ -958,7 +960,7 @@ export default class Router implements BaseRouter {
     }
 
     if (isAssetError(err) || loadErrorFail) {
-      Router.events.emit('routeChangeError', err, as)
+      Router.events.emit('routeChangeError', err, as, { shallow })
 
       // If we can't load the page it could be one of following reasons
       //  1. Page doesn't exists
@@ -1030,7 +1032,14 @@ export default class Router implements BaseRouter {
 
       return routeInfo
     } catch (routeInfoErr) {
-      return this.handleRouteInfoError(routeInfoErr, pathname, query, as, true)
+      return this.handleRouteInfoError(
+        routeInfoErr,
+        pathname,
+        query,
+        as,
+        shallow,
+        true
+      )
     }
   }
 
@@ -1104,7 +1113,7 @@ export default class Router implements BaseRouter {
       this.components[route] = routeInfo
       return routeInfo
     } catch (err) {
-      return this.handleRouteInfoError(err, pathname, query, as)
+      return this.handleRouteInfoError(err, pathname, query, as, shallow)
     }
   }
 
@@ -1349,9 +1358,11 @@ export default class Router implements BaseRouter {
     })
   }
 
-  abortComponentLoad(as: string): void {
+  abortComponentLoad(as: string, shallow: boolean): void {
     if (this.clc) {
-      Router.events.emit('routeChangeError', buildCancellationError(), as)
+      Router.events.emit('routeChangeError', buildCancellationError(), as, {
+        shallow,
+      })
       this.clc()
       this.clc = null
     }
