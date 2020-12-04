@@ -2,15 +2,34 @@ import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import os from 'os'
 import { basename, extname } from 'path'
+import { execOnce } from '../lib/utils'
 import * as Log from '../../build/output/log'
 import { CONFIG_FILE } from '../lib/constants'
-import { execOnce } from '../lib/utils'
+import { Header, Rewrite, Redirect } from '../../lib/load-custom-routes'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
 
-const defaultConfig: { [key: string]: any } = {
+export type NextConfig = { [key: string]: any } & {
+  i18n: {
+    domains?: Array<{
+      http?: true
+      domain: string
+      locales?: string[]
+      defaultLocale: string
+    }>
+    locales: string[]
+    defaultLocale: string
+    localeDetection?: false
+  } | null
+
+  headers?: () => Promise<Header[]>
+  rewrites?: () => Promise<Rewrite[]>
+  redirects?: () => Promise<Redirect[]>
+}
+
+const defaultConfig: NextConfig = {
   env: [],
   webpack: null,
   webpackDevMiddleware: null,
@@ -39,7 +58,7 @@ const defaultConfig: { [key: string]: any } = {
   basePath: '',
   sassOptions: {},
   trailingSlash: false,
-  i18n: false,
+  i18n: null,
   experimental: {
     cpus: Math.max(
       1,
@@ -351,7 +370,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
 
     if (i18n.domains) {
-      const invalidDomainItems = i18n.domains.filter((item: any) => {
+      const invalidDomainItems = i18n.domains.filter((item) => {
         if (!item || typeof item !== 'object') return true
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
@@ -362,7 +381,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
           for (const locale of item.locales) {
             if (typeof locale !== 'string') hasInvalidLocale = true
 
-            for (const domainItem of i18n.domains) {
+            for (const domainItem of i18n.domains || []) {
               if (domainItem === item) continue
               if (domainItem.locales && domainItem.locales.includes(locale)) {
                 console.warn(
@@ -419,7 +438,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     // make sure default Locale is at the front
     i18n.locales = [
       i18n.defaultLocale,
-      ...i18n.locales.filter((locale: string) => locale !== i18n.defaultLocale),
+      ...i18n.locales.filter((locale) => locale !== i18n.defaultLocale),
     ]
 
     const localeDetectionType = typeof i18n.localeDetection

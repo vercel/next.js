@@ -32,6 +32,7 @@ import {
 } from '../next-server/lib/constants'
 import loadConfig, {
   isTargetLikeServerless,
+  NextConfig,
 } from '../next-server/server/config'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
@@ -132,7 +133,7 @@ interface ExportOptions {
 export default async function exportApp(
   dir: string,
   options: ExportOptions,
-  configuration?: any
+  configuration?: NextConfig
 ): Promise<void> {
   dir = resolve(dir)
 
@@ -333,8 +334,8 @@ Read more: https://err.sh/next.js/export-image-api`
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
     locales: i18n?.locales,
-    locale: i18n.defaultLocale,
-    defaultLocale: i18n.defaultLocale,
+    locale: i18n?.defaultLocale,
+    defaultLocale: i18n?.defaultLocale,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -499,7 +500,7 @@ Read more: https://err.sh/next.js/export-image-api`
       renderError = renderError || !!result.error
       if (!!result.error) errorPaths.push(path)
 
-      if (options.buildExport) {
+      if (options.buildExport && configuration) {
         if (typeof result.fromBuildExportRevalidate !== 'undefined') {
           configuration.initialPageRevalidationMap[path] =
             result.fromBuildExportRevalidate
