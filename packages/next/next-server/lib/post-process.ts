@@ -6,7 +6,6 @@ const MAXIMUM_IMAGE_PRELOADS = 2
 const IMAGE_PRELOAD_SIZE_THRESHOLD = 2500
 
 type postProcessOptions = {
-  optimizeFonts: boolean
   optimizeImages: boolean
 }
 
@@ -143,10 +142,20 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         continue
       }
       const fontContent = options.getFontDefinition(url)
-      result = result.replace(
-        '</head>',
-        `<style data-href="${url}">${fontContent}</style></head>`
-      )
+      if (!fontContent) {
+        /**
+         * In case of unreachable font definitions, fallback to default link tag.
+         */
+        result = result.replace(
+          '</head>',
+          `<link rel="stylesheet" href="${url}"/></head>`
+        )
+      } else {
+        result = result.replace(
+          '</head>',
+          `<style data-href="${url}">${fontContent}</style></head>`
+        )
+      }
     }
     return result
   }
@@ -251,13 +260,7 @@ function sourceIsSupportedType(imgSrc: string): boolean {
 }
 
 // Initialization
-registerPostProcessor(
-  'Inline-Fonts',
-  new FontOptimizerMiddleware(),
-  // Using process.env because passing Experimental flag through loader is not possible.
-  // @ts-ignore
-  (options) => options.optimizeFonts || process.env.__NEXT_OPTIMIZE_FONTS
-)
+registerPostProcessor('Inline-Fonts', new FontOptimizerMiddleware(), () => true)
 
 registerPostProcessor(
   'Preload Images',

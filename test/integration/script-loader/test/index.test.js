@@ -112,11 +112,6 @@ describe('Script Loader', () => {
         `link[rel=stylesheet][href^="/_next/static/css"] ~ link[rel=preload][href="${src}"]`
       ).length
     ).toBeGreaterThan(0)
-    expect(
-      $(
-        `link[rel=stylesheet][href="https://fonts.googleapis.com/css?family=Voces"] ~ link[rel=preload][href="${src}"]`
-      ).length
-    ).toBeGreaterThan(0)
 
     // Script is inserted before NextScripts
     expect(
