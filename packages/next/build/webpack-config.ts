@@ -1139,15 +1139,15 @@ export default async function getBaseWebpackConfig(
       webpackConfig.optimization.usedExports = false
     }
 
-    const nextPublicVariables = Object.keys(process.env).reduce(
-      (prev: string, key: string) => {
+    const nextPublicVariables = Object.keys(process.env)
+      .reduce((acc: string[], key: string) => {
         if (key.startsWith('NEXT_PUBLIC_')) {
-          return `${prev}|${key}=${process.env[key]}`
+          return [...acc, `${key}=${process.env[key]}`]
         }
-        return prev
-      },
-      ''
-    )
+        return acc
+      }, [])
+      .join('|')
+
     const nextEnvVariables = Object.keys(config.env).reduce(
       (prev: string, key: string) => {
         return `${prev}|${key}=${config.env[key]}`
