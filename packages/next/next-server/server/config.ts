@@ -72,7 +72,6 @@ const defaultConfig: NextConfig = {
     workerThreads: false,
     pageEnv: false,
     productionBrowserSourceMaps: false,
-    optimizeFonts: false,
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,

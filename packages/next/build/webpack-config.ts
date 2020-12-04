@@ -971,9 +971,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_REACT_MODE': JSON.stringify(
           config.experimental.reactMode
         ),
-        'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
-          config.experimental.optimizeFonts && !dev
-        ),
         'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
           config.experimental.optimizeImages
         ),
@@ -1078,8 +1075,7 @@ export default async function getBaseWebpackConfig(
         new ProfilingPlugin({
           tracer,
         }),
-      config.experimental.optimizeFonts &&
-        !dev &&
+      !dev &&
         isServer &&
         (function () {
           const {
@@ -1167,7 +1163,6 @@ export default async function getBaseWebpackConfig(
       plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
       reactMode: config.experimental.reactMode,
-      optimizeFonts: config.experimental.optimizeFonts,
       optimizeImages: config.experimental.optimizeImages,
       scrollRestoration: config.experimental.scrollRestoration,
       basePath: config.basePath,
