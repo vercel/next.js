@@ -25,17 +25,21 @@ import { loadEnvConfig } from '@next/env'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
+  BUILD_ID_FILE,
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
+  FONT_MANIFEST,
   IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
+  SERVER_FILES_MANIFEST,
 } from '../next-server/lib/constants'
 import {
   getRouteRegex,
@@ -361,6 +365,27 @@ export default async function build(
     'utf8'
   )
 
+  const requiredServerFiles = {
+    version: 1,
+    files: [
+      ...[
+        ROUTES_MANIFEST,
+        PAGES_MANIFEST,
+        BUILD_MANIFEST,
+        PRERENDER_MANIFEST,
+        REACT_LOADABLE_MANIFEST,
+        FONT_MANIFEST,
+        BUILD_ID_FILE,
+      ].map((file) => path.join(config.distDir, file)),
+    ],
+    ignore: [
+      path.relative(
+        dir,
+        path.join(path.dirname(require.resolve('sharp')), '**/*')
+      ),
+    ],
+  }
+
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
       tracer,
@@ -533,6 +558,8 @@ export default async function build(
       false
     ))
 
+  let hasSsrAmpPages = false
+
   const analysisBegin = process.hrtime()
   await Promise.all(
     pageKeys.map(async (page) => {
@@ -592,6 +619,13 @@ export default async function build(
             config.i18n?.locales,
             config.i18n?.defaultLocale
           )
+
+          if (
+            workerResult.isStatic === false &&
+            (workerResult.isHybridAmp || workerResult.isAmpOnly)
+          ) {
+            hasSsrAmpPages = true
+          }
 
           if (workerResult.isHybridAmp) {
             isHybridAmp = true
@@ -654,6 +688,18 @@ export default async function build(
     })
   )
   staticCheckWorkers.end()
+
+  if (!hasSsrAmpPages) {
+    requiredServerFiles.ignore.push(
+      path.relative(
+        dir,
+        path.join(
+          path.dirname(require.resolve('@ampproject/toolbox-optimizer')),
+          '**/*'
+        )
+      )
+    )
+  }
 
   if (serverPropsPages.size > 0 || ssgPages.size > 0) {
     // We update the routes manifest after the build with the
@@ -729,6 +775,12 @@ export default async function build(
   }
 
   await writeBuildId(distDir, buildId)
+
+  await promises.writeFile(
+    path.join(distDir, SERVER_FILES_MANIFEST),
+    JSON.stringify(requiredServerFiles),
+    'utf8'
+  )
 
   const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
   const tbdPrerenderRoutes: string[] = []

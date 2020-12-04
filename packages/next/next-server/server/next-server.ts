@@ -135,6 +135,7 @@ export default class Server {
   serverBuildDir: string
   pagesManifest?: PagesManifest
   buildId: string
+  minimalMode: boolean
   renderOpts: {
     poweredByHeader: boolean
     buildId: string
@@ -168,8 +169,9 @@ export default class Server {
     quiet = false,
     conf = null,
     dev = false,
+    minimalMode = false,
     customServer = true,
-  }: ServerConstructor = {}) {
+  }: ServerConstructor & { minimalMode?: boolean } = {}) {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
@@ -191,6 +193,7 @@ export default class Server {
     } = this.nextConfig
 
     this.buildId = this.readBuildId()
+    this.minimalMode = minimalMode
 
     this.renderOpts = {
       poweredByHeader: this.nextConfig.poweredByHeader,
@@ -261,8 +264,8 @@ export default class Server {
         this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
         'pages'
       ),
-      flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
       locales: this.nextConfig.i18n?.locales,
+      flushToDisk: !minimalMode && this.nextConfig.experimental.sprFlushToDisk,
     })
 
     /**
@@ -1357,7 +1360,7 @@ export default class Server {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG
+      isPreviewMode || !isSSG || this.minimalMode
         ? undefined // Preview mode bypasses the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
@@ -1540,6 +1543,7 @@ export default class Server {
     //   getStaticPaths, then finish the data request on the client-side.
     //
     if (
+      this.minimalMode !== true &&
       fallbackMode !== 'blocking' &&
       ssgCacheKey &&
       !didRespond &&

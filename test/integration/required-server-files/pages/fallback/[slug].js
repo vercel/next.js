@@ -1,0 +1,26 @@
+export const getStaticProps = ({ params }) => {
+  return {
+    props: {
+      hello: 'world',
+      slug: params.slug,
+      random: Math.random(),
+    },
+  }
+}
+
+export const getStaticPaths = () => {
+  return {
+    paths: ['/fallback/first'],
+    fallback: true,
+  }
+}
+
+export default function Page(props) {
+  return (
+    <>
+      <p id="fallback">fallback page</p>
+      <p id="slug">{props.slug}</p>
+      <p id="props">{JSON.stringify(props)}</p>
+    </>
+  )
+}
