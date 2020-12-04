@@ -25,7 +25,7 @@ export default function GuestbookEntry(props) {
             >
               <img
                 className={guestbookEntryUserDetailAvatarImg.className}
-                src={`https://avatars.io/twitter/${props.twitter_handle}/`}
+                src={`https://twitter-avatar.now.sh/${props.twitter_handle}/`}
               />
             </a>
           </div>
