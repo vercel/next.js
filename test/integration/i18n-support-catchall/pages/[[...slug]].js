@@ -35,12 +35,12 @@ export default function Page(props) {
       </Link>
       <br />
 
-      <Link href="/" locale="fr">
+      <Link href="/fr" locale={false}>
         <a id="to-fr-locale-index">to /fr</a>
       </Link>
       <br />
 
-      <Link href="/another" locale="fr">
+      <Link href="/fr/another" locale={false}>
         <a id="to-fr-locale-another">to /fr/another</a>
       </Link>
       <br />
