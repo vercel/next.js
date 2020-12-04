@@ -367,6 +367,10 @@ export default async function build(
 
   const requiredServerFiles = {
     version: 1,
+    config: {
+      ...config,
+      compress: false,
+    },
     files: [
       ...[
         ROUTES_MANIFEST,
