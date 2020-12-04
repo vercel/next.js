@@ -368,9 +368,12 @@ export default async function getBaseWebpackConfig(
       // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
       'next/head': 'next/dist/next-server/lib/head.js',
       'next/router': 'next/dist/client/router.js',
-      'next/experimental-script': config.experimental.scriptLoader
-        ? 'next/dist/client/experimental-script.js'
-        : '',
+      ...(config.experimental.scriptLoader
+        ? {
+            'next/experimental-script':
+              'next/dist/client/experimental-script.js',
+          }
+        : undefined),
       'next/config': 'next/dist/next-server/lib/runtime-config.js',
       'next/dynamic': 'next/dist/next-server/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
