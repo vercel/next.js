@@ -57,6 +57,7 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
+import { NextConfig } from '../next-server/server/config'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -191,7 +192,7 @@ export default async function getBaseWebpackConfig(
     rewrites,
   }: {
     buildId: string
-    config: any
+    config: NextConfig
     dev?: boolean
     isServer?: boolean
     pagesDir: string
@@ -994,7 +995,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
         'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
-        'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n.domains),
+        'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
         'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
         ...(isServer
           ? {

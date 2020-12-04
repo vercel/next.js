@@ -263,26 +263,6 @@ export default async function build(
   ) => {
     const keys: any[] = []
 
-    if (r.basePath !== false && (!config.i18n || r.locale === false)) {
-      r.source = `${config.basePath}${r.source}`
-
-      if (r.destination && r.destination.startsWith('/')) {
-        r.destination = `${config.basePath}${r.destination}`
-      }
-    }
-
-    if (config.i18n && r.locale !== false) {
-      const basePath = r.basePath !== false ? config.basePath || '' : ''
-
-      r.source = `${basePath}/:nextInternalLocale(${config.i18n.locales
-        .map((locale: string) => escapeStringRegexp(locale))
-        .join('|')})${r.source}`
-
-      if (r.destination && r.destination?.startsWith('/')) {
-        r.destination = `${basePath}/:nextInternalLocale${r.destination}`
-      }
-    }
-
     const routeRegex = pathToRegexp(r.source, keys, {
       strict: true,
       sensitive: false,
@@ -322,13 +302,15 @@ export default async function build(
       namedDataRouteRegex?: string
     }>
     i18n?: {
-      locales: string[]
-      defaultLocale: string[]
-      domains: Array<{
+      domains?: Array<{
+        http?: true
         domain: string
+        locales?: string[]
         defaultLocale: string
-        locales: string[]
       }>
+      locales: string[]
+      defaultLocale: string
+      localeDetection?: false
     }
   } = {
     version: 3,

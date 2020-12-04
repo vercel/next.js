@@ -46,8 +46,7 @@ export default function prepareDestination(
   destination: string,
   params: Params,
   query: ParsedUrlQuery,
-  appendParamsToQuery: boolean,
-  basePath: string
+  appendParamsToQuery: boolean
 ) {
   let parsedDestination: {
     query?: ParsedUrlQuery
@@ -140,12 +139,8 @@ export default function prepareDestination(
     }
   }
 
-  const shouldAddBasePath = destination.startsWith('/') && basePath
-
   try {
-    newUrl = `${shouldAddBasePath ? basePath : ''}${destinationCompiler(
-      params
-    )}`
+    newUrl = destinationCompiler(params)
 
     const [pathname, hash] = newUrl.split('#')
     parsedDestination.pathname = pathname

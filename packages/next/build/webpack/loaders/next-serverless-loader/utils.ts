@@ -97,8 +97,7 @@ export function getUtils({
           rewrite.destination,
           params,
           parsedUrl.query,
-          true,
-          ''
+          true
         )
 
         Object.assign(parsedUrl.query, parsedDestination.query)

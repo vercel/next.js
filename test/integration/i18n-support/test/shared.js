@@ -412,7 +412,7 @@ export function runTests(ctx) {
       ['/en/redirect-1', false],
       ['/nl/redirect-2', true],
       ['/fr/redirect-2', false],
-      ['/redirect-3', true, '/en-US'],
+      ['/redirect-3', true],
       ['/en/redirect-3', true, '/en'],
       ['/nl-NL/redirect-3', true, '/nl-NL'],
     ]) {

@@ -88,7 +88,7 @@ export default class BuildManifestPlugin {
       // omit external rewrite destinations since these aren't
       // handled client-side
       if (!rewrite.destination.startsWith('/')) {
-        delete rewrite.destination
+        delete (rewrite as any).destination
       }
       return rewrite
     })
