@@ -25,7 +25,6 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { dirname, join } from 'path'
-import url from 'url'
 
 jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
@@ -829,28 +828,18 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
           document.querySelector('#to-rewritten-ssg').scrollIntoView()
         )
 
-        await check(
-          async () => {
-            const links = await browser.elementsByCss('link[rel=prefetch]')
-            let found = false
-
-            for (const link of links) {
-              const href = await link.getAttribute('href')
-              const { pathname } = url.parse(href)
-
-              if (pathname.endsWith('/lang/en/about.json')) {
-                found = true
-                break
-              }
-            }
-            return found
-          },
-          {
-            test(result) {
-              return result === true
-            },
-          }
-        )
+        await check(async () => {
+          const hrefs = await browser.eval(
+            `Object.keys(window.next.router.sdc)`
+          )
+          hrefs.sort()
+          expect(
+            hrefs.map((href) =>
+              new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
+            )
+          ).toContainEqual('/lang/en/about.json')
+          return 'yes'
+        }, 'yes')
       }
       await browser.eval('window.beforeNav = "hi"')
       await browser.elementByCss('#to-rewritten-ssg').click()

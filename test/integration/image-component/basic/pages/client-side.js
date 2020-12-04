@@ -54,11 +54,11 @@ const ClientSide = () => {
         height={400}
       />
       <Image
-        id="icon-image-64"
+        id="icon-image-32"
         src="/icon.png"
         loading="eager"
-        width={64}
-        height={64}
+        width={32}
+        height={32}
       />
       <Image
         id="icon-image-16"
