@@ -40,6 +40,7 @@ function prefetch(
   as: string,
   options?: PrefetchOptions
 ): void {
+  if (!router) return
   if (typeof window === 'undefined') return
   if (!isLocalURL(href)) return
   // Prefetch the JSON page if asked (only in the client)
