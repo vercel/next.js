@@ -39,6 +39,7 @@ describe('Client Navigation', () => {
       '/fragment-syntax',
       '/custom-extension',
       '/styled-jsx',
+      '/styled-jsx-external',
       '/with-cdm',
       '/url-prop',
       '/url-prop-override',
@@ -1227,6 +1228,27 @@ describe('Client Navigation', () => {
             .elementByCss('meta[name="description"]')
             .getAttribute('content')
         ).toBe('Head Two')
+
+        await browser
+          .elementByCss('#to-head-1')
+          .click()
+          .waitForElementByCss('#head-1', 3000)
+        expect(
+          await browser
+            .elementByCss('meta[name="description"]')
+            .getAttribute('content')
+        ).toBe('Head One')
+
+        await browser
+          .elementByCss('#to-head-3')
+          .click()
+          .waitForElementByCss('#head-3', 3000)
+        expect(
+          await browser
+            .elementByCss('meta[name="description"]')
+            .getAttribute('content')
+        ).toBe('Head Three')
+        expect(await browser.eval('document.title')).toBe('')
 
         await browser
           .elementByCss('#to-head-1')

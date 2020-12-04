@@ -2,7 +2,7 @@
 description: 'Next.js has 2 pre-rendering modes: Static Generation and Server-side rendering. Learn how they work here.'
 ---
 
-# Data fetching
+# Data Fetching
 
 > This document is for Next.js versions 9.3 and up. If you’re using older versions of Next.js, refer to our [previous documentation](https://nextjs.org/docs/tag/v9.2.2/basic-features/data-fetching).
 
@@ -54,11 +54,58 @@ The `context` parameter is an object containing the following keys:
 - `params` contains the route parameters for pages using dynamic routes. For example, if the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md). You should use this together with `getStaticPaths`, which we’ll explain later.
 - `preview` is `true` if the page is in the preview mode and `undefined` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `previewData` contains the preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
+- `locale` contains the active locale (if enabled).
+- `locales` contains all supported locales (if enabled).
+- `defaultLocale` contains the configured default locale (if enabled).
 
 `getStaticProps` should return an object with:
 
 - `props` - A **required** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
 - `revalidate` - An **optional** amount in seconds after which a page re-generation can occur. More on [Incremental Static Regeneration](#incremental-static-regeneration)
+- `notFound` - An **optional** boolean value to allow the page to return a 404 status and page. Below is an example of how it works:
+
+  ```js
+  export async function getStaticProps(context) {
+    const res = await fetch(`https://.../data`)
+    const data = await res.json()
+
+    if (!data) {
+      return {
+        notFound: true,
+      }
+    }
+
+    return {
+      props: {}, // will be passed to the page component as props
+    }
+  }
+  ```
+
+  > **Note**: `notFound` is not needed for [`fallback: false`](#fallback-false) mode as only paths returned from `getStaticPaths` will be pre-rendered.
+
+- `redirect` - An **optional** redirect value to allow redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean }`. In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. Below is an example of how it works:
+
+  ```js
+  export async function getStaticProps(context) {
+    const res = await fetch(`https://...`)
+    const data = await res.json()
+
+    if (!data) {
+      return {
+        redirect: {
+          destination: '/',
+          permanent: false,
+        },
+      }
+    }
+
+    return {
+      props: {}, // will be passed to the page component as props
+    }
+  }
+  ```
+
+  > **Note**: Redirecting at build-time is currently not allowed and if the redirects are known at build-time they should be added in [`next.config.js`](/docs/api-reference/next.config.js/redirects.md).
 
 > **Note**: You can import modules in top-level scope for use in `getStaticProps`.
 > Imports used in `getStaticProps` will [not be bundled for the client-side](#write-server-side-code-directly).
@@ -67,8 +114,8 @@ The `context` parameter is an object containing the following keys:
 > This includes reading from the filesystem or a database.
 
 > **Note**: You should not use [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to
-> call an API route in your application.
-> Instead, directly import the API route and call its function yourself.
+> call an API route in `getStaticProps`.
+> Instead, directly import the logic used inside your API route.
 > You may need to slightly refactor your code for this approach.
 >
 > Fetching from an external API is fine!
@@ -412,7 +459,7 @@ export default Post
 
 If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 
-- The paths returned from `getStaticPaths` will be rendered to HTML at build time.
+- The paths returned from `getStaticPaths` will be rendered to HTML at build time by `getStaticProps`.
 - The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a “fallback” version of the page on the first request to such a path (see [“Fallback pages”](#fallback-pages) below for details).
 - In the background, Next.js will statically generate the requested path HTML and JSON. This includes running `getStaticProps`.
 - When that’s done, the browser receives the JSON for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
@@ -485,6 +532,21 @@ This ensures that users always have a fast experience while preserving fast buil
 
 `fallback: true` will not _update_ generated pages, for that take a look at [Incremental Static Regeneration](#incremental-static-regeneration).
 
+#### `fallback: 'blocking'`
+
+If `fallback` is `'blocking'`, new paths not returned by `getStaticPaths` will wait for the HTML to be generated, identical to SSR (hence why _blocking_), and then be cached for future requests so it only happens once per path.
+
+`getStaticProps` will behave as follows:
+
+- The paths returned from `getStaticPaths` will be rendered to HTML at build time by `getStaticProps`.
+- The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will SSR on the first request and return the generated HTML.
+- When that’s done, the browser receives the HTML for the generated path. From the user’s perspective, it will transition from "the browser is requesting the page" to "the full page is loaded". There is no flash of loading/fallback state.
+- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
+
+`fallback: 'blocking'` will not _update_ generated pages by default. To update generated pages, use [Incremental Static Regeneration](#incremental-static-regeneration) in conjunction with `fallback: 'blocking'`.
+
+> `fallback: 'blocking'` is not supported when using [`next export`](/docs/advanced-features/static-html-export.md).
+
 ### When should I use `getStaticPaths`?
 
 You should use `getStaticPaths` if you’re statically pre-rendering pages that use dynamic routes.
@@ -544,6 +606,53 @@ The `context` parameter is an object containing the following keys:
 - `preview`: `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `previewData`: The preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `resolvedUrl`: A normalized version of the request URL that strips the `_next/data` prefix for client transitions and includes original query values.
+- `locale` contains the active locale (if enabled).
+- `locales` contains all supported locales (if enabled).
+- `defaultLocale` contains the configured default locale (if enabled).
+
+`getServerSideProps` should return an object with:
+
+- `props` - A **required** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
+- `notFound` - An **optional** boolean value to allow the page to return a 404 status and page. Below is an example of how it works:
+
+  ```js
+  export async function getServerSideProps(context) {
+    const res = await fetch(`https://...`)
+    const data = await res.json()
+
+    if (!data) {
+      return {
+        notFound: true,
+      }
+    }
+
+    return {
+      props: {}, // will be passed to the page component as props
+    }
+  }
+  ```
+
+- `redirect` - An **optional** redirect value to allow redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean }`. In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. Below is an example of how it works:
+
+  ```js
+  export async function getServerSideProps(context) {
+    const res = await fetch(`https://.../data`)
+    const data = await res.json()
+
+    if (!data) {
+      return {
+        redirect: {
+          destination: '/',
+          permanent: false,
+        },
+      }
+    }
+
+    return {
+      props: {}, // will be passed to the page component as props
+    }
+  }
+  ```
 
 > **Note**: You can import modules in top-level scope for use in `getServerSideProps`.
 > Imports used in `getServerSideProps` will not be bundled for the client-side.
@@ -552,8 +661,8 @@ The `context` parameter is an object containing the following keys:
 > This includes reading from the filesystem or a database.
 
 > **Note**: You should not use [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to
-> call an API route in your application.
-> Instead, directly import the API route and call its function yourself.
+> call an API route in `getServerSideProps`.
+> Instead, directly import the logic used inside your API route.
 > You may need to slightly refactor your code for this approach.
 >
 > Fetching from an external API is fine!
