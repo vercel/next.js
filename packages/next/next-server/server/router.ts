@@ -24,6 +24,7 @@ export type Route = {
   statusCode?: number
   name: string
   requireBasePath?: false
+  internal?: true
   fn: (
     req: IncomingMessage,
     res: ServerResponse,
@@ -197,7 +198,11 @@ export default class Router {
       const activeBasePath = keepBasePath ? this.basePath : ''
 
       if (keepLocale) {
-        if (!localePathResult.detectedLocale && parsedUrl.query.__nextLocale) {
+        if (
+          !testRoute.internal &&
+          parsedUrl.query.__nextLocale &&
+          !localePathResult.detectedLocale
+        ) {
           currentPathname = `${activeBasePath}/${parsedUrl.query.__nextLocale}${
             currentPathnameNoBasePath === '/' ? '' : currentPathnameNoBasePath
           }`
