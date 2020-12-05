@@ -347,6 +347,12 @@ export default async function build(
     'utf8'
   )
 
+  const manifestPath = path.join(
+    distDir,
+    isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+    PAGES_MANIFEST
+  )
+
   const requiredServerFiles = {
     version: 1,
     config: {
@@ -356,11 +362,14 @@ export default async function build(
     files: [
       ...[
         ROUTES_MANIFEST,
-        PAGES_MANIFEST,
+        path.relative(distDir, manifestPath),
         BUILD_MANIFEST,
         PRERENDER_MANIFEST,
         REACT_LOADABLE_MANIFEST,
-        FONT_MANIFEST,
+        path.join(
+          isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+          FONT_MANIFEST
+        ),
         BUILD_ID_FILE,
       ].map((file) => path.join(config.distDir, file)),
     ],
@@ -494,11 +503,6 @@ export default async function build(
     prefixText: `${Log.prefixes.info} Collecting page data`,
   })
 
-  const manifestPath = path.join(
-    distDir,
-    isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-    PAGES_MANIFEST
-  )
   const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
 
   const ssgPages = new Set<string>()

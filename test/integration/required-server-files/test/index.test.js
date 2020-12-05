@@ -75,6 +75,11 @@ describe('Required Server Files', () => {
     expect(requiredFilesManifest.files.length).toBeGreaterThan(0)
     expect(requiredFilesManifest.ignore.length).toBeGreaterThan(0)
     expect(typeof requiredFilesManifest.config.trailingSlash).toBe('boolean')
+
+    for (const file of requiredFilesManifest.files) {
+      console.log('checking', file)
+      expect(await fs.exists(join(appDir, file))).toBe(true)
+    }
   })
 
   it('should render SSR page correctly', async () => {
