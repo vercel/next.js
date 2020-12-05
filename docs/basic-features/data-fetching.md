@@ -92,6 +92,7 @@ The `context` parameter is an object containing the following keys:
 
     if (!data) {
       return {
+        props: {}, // will be passed to the page component as props
         redirect: {
           destination: '/',
           permanent: false,
