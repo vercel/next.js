@@ -86,6 +86,7 @@ import { imageOptimizer } from './image-optimizer'
 import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
 import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
+import { getUtils } from '../../build/webpack/loaders/next-serverless-loader/utils'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -462,6 +463,62 @@ export default class Server {
         localePathResult.detectedLocale ||
         detectedDomain?.defaultLocale ||
         defaultLocale
+    }
+
+    if (
+      this.minimalMode &&
+      req.headers['x-matched-path'] &&
+      typeof req.headers['x-matched-path'] === 'string'
+    ) {
+      let { pathname, query } = parseUrl(
+        req.headers['x-matched-path'] as string,
+        true
+      )
+      let matchedPathname = pathname as string
+
+      // interpolate dynamic params if needed
+      if (isDynamicRoute(matchedPathname)) {
+        const utils = getUtils({
+          pageIsDynamic: true,
+          page: matchedPathname,
+          i18n: this.nextConfig.i18n,
+          basePath: this.nextConfig.basePath,
+          rewrites: this.customRoutes.rewrites,
+        })
+
+        let params: ParsedUrlQuery | false = {}
+        const paramsResult = utils.normalizeDynamicRouteParams({
+          ...parsedUrl.query,
+          ...query,
+        })
+
+        if (paramsResult.hasValidParams) {
+          params = paramsResult.params
+        } else if (req.headers['x-now-route-matches']) {
+          const opts: Record<string, string> = {}
+          params = utils.getParamsFromRouteMatches(
+            req,
+            opts,
+            (parsedUrl.query.__nextLocale as string | undefined) || ''
+          )
+
+          if (opts.locale) {
+            parsedUrl.query.__nextLocale = opts.locale
+          }
+        } else {
+          params = utils.dynamicRouteMatcher!(matchedPathname)
+        }
+
+        if (params) {
+          matchedPathname = utils.interpolateDynamicPath(
+            matchedPathname,
+            params
+          )
+        }
+      }
+      parsedUrl.pathname = `${basePath || ''}${
+        parsedUrl.query.__nextLocale || ''
+      }${matchedPathname}`
     }
 
     res.statusCode = 200

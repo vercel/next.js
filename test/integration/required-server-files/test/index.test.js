@@ -145,4 +145,85 @@ describe('Required Server Files', () => {
     expect(data4.hello).toBe('world')
     expect(data4.slug).toBe('third')
   })
+
+  it('should render SSR page correctly with x-matched-path', async () => {
+    const html = await renderViaHTTP(appPort, '/some-other-path', undefined, {
+      headers: {
+        'x-matched-path': '/',
+      },
+    })
+    const $ = cheerio.load(html)
+    const data = JSON.parse($('#props').text())
+
+    expect($('#index').text()).toBe('index page')
+    expect(data.hello).toBe('world')
+
+    const html2 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
+      headers: {
+        'x-matched-path': '/',
+      },
+    })
+    const $2 = cheerio.load(html2)
+    const data2 = JSON.parse($2('#props').text())
+
+    expect($2('#index').text()).toBe('index page')
+    expect(isNaN(data2.random)).toBe(false)
+    expect(data2.random).not.toBe(data.random)
+  })
+
+  it('should render dynamic SSR page correctly with x-matched-path', async () => {
+    const html = await renderViaHTTP(appPort, '/some-other-path', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]?slug=first',
+      },
+    })
+    const $ = cheerio.load(html)
+    const data = JSON.parse($('#props').text())
+
+    expect($('#dynamic').text()).toBe('dynamic page')
+    expect($('#slug').text()).toBe('first')
+    expect(data.hello).toBe('world')
+
+    const html2 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]?slug=second',
+      },
+    })
+    const $2 = cheerio.load(html2)
+    const data2 = JSON.parse($2('#props').text())
+
+    expect($2('#dynamic').text()).toBe('dynamic page')
+    expect($2('#slug').text()).toBe('second')
+    expect(isNaN(data2.random)).toBe(false)
+    expect(data2.random).not.toBe(data.random)
+  })
+
+  it('should render dynamic SSR page correctly with x-matched-path and routes-matches', async () => {
+    const html = await renderViaHTTP(appPort, '/dynamic/[slug]', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]',
+        'x-now-route-matches': '1=first',
+      },
+    })
+    const $ = cheerio.load(html)
+    const data = JSON.parse($('#props').text())
+
+    expect($('#dynamic').text()).toBe('dynamic page')
+    expect($('#slug').text()).toBe('first')
+    expect(data.hello).toBe('world')
+
+    const html2 = await renderViaHTTP(appPort, '/dynamic/[slug]', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]',
+        'x-now-route-matches': '1=second',
+      },
+    })
+    const $2 = cheerio.load(html2)
+    const data2 = JSON.parse($2('#props').text())
+
+    expect($2('#dynamic').text()).toBe('dynamic page')
+    expect($2('#slug').text()).toBe('second')
+    expect(isNaN(data2.random)).toBe(false)
+    expect(data2.random).not.toBe(data.random)
+  })
 })
