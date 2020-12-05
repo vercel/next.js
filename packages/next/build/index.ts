@@ -358,6 +358,7 @@ export default async function build(
     config: {
       ...config,
       compress: false,
+      configFile: undefined,
     },
     files: [
       ...[
