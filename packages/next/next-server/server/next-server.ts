@@ -777,44 +777,46 @@ export default class Server {
       })
     }
 
-    const redirects = this.customRoutes.redirects.map((redirect) => {
-      const redirectRoute = getCustomRoute(redirect, 'redirect')
-      return {
-        type: redirectRoute.type,
-        match: redirectRoute.match,
-        statusCode: redirectRoute.statusCode,
-        name: `Redirect route ${redirectRoute.source}`,
-        fn: async (req, res, params, parsedUrl) => {
-          const { parsedDestination } = prepareDestination(
-            redirectRoute.destination,
-            params,
-            parsedUrl.query,
-            false
-          )
-
-          const { query } = parsedDestination
-          delete (parsedDestination as any).query
-
-          parsedDestination.search = stringifyQuery(req, query)
-
-          const updatedDestination = formatUrl(parsedDestination)
-
-          res.setHeader('Location', updatedDestination)
-          res.statusCode = getRedirectStatus(redirectRoute as Redirect)
-
-          // Since IE11 doesn't support the 308 header add backwards
-          // compatibility using refresh header
-          if (res.statusCode === 308) {
-            res.setHeader('Refresh', `0;url=${updatedDestination}`)
-          }
-
-          res.end()
+    const redirects = this.minimalMode
+      ? []
+      : this.customRoutes.redirects.map((redirect) => {
+          const redirectRoute = getCustomRoute(redirect, 'redirect')
           return {
-            finished: true,
-          }
-        },
-      } as Route
-    })
+            type: redirectRoute.type,
+            match: redirectRoute.match,
+            statusCode: redirectRoute.statusCode,
+            name: `Redirect route ${redirectRoute.source}`,
+            fn: async (req, res, params, parsedUrl) => {
+              const { parsedDestination } = prepareDestination(
+                redirectRoute.destination,
+                params,
+                parsedUrl.query,
+                false
+              )
+
+              const { query } = parsedDestination
+              delete (parsedDestination as any).query
+
+              parsedDestination.search = stringifyQuery(req, query)
+
+              const updatedDestination = formatUrl(parsedDestination)
+
+              res.setHeader('Location', updatedDestination)
+              res.statusCode = getRedirectStatus(redirectRoute as Redirect)
+
+              // Since IE11 doesn't support the 308 header add backwards
+              // compatibility using refresh header
+              if (res.statusCode === 308) {
+                res.setHeader('Refresh', `0;url=${updatedDestination}`)
+              }
+
+              res.end()
+              return {
+                finished: true,
+              }
+            },
+          } as Route
+        })
 
     const rewrites = this.customRoutes.rewrites.map((rewrite) => {
       const rewriteRoute = getCustomRoute(rewrite, 'rewrite')

@@ -5,7 +5,12 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import Server from 'next/dist/next-server/server/next-server'
-import { findPort, nextBuild, renderViaHTTP } from 'next-test-utils'
+import {
+  fetchViaHTTP,
+  findPort,
+  nextBuild,
+  renderViaHTTP,
+} from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -231,5 +236,23 @@ describe('Required Server Files', () => {
     expect($2('#slug').text()).toBe('second')
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
+  })
+
+  it('should not apply trailingSlash redirect', async () => {
+    for (const path of [
+      '/',
+      '/dynamic/another/',
+      '/dynamic/another',
+      '/fallback/first/',
+      '/fallback/first',
+      '/fallback/another/',
+      '/fallback/another',
+    ]) {
+      const res = await fetchViaHTTP(appPort, path, undefined, {
+        redirect: 'manual',
+      })
+
+      expect(res.status).toBe(200)
+    }
   })
 })
