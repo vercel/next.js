@@ -20,6 +20,7 @@ import { detectDomainLocale } from '../../../../next-server/lib/i18n/detect-doma
 import { denormalizePagePath } from '../../../../next-server/server/denormalize-page-path'
 import cookie from 'next/dist/compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../next-server/lib/constants'
+import { NextConfig } from '../../../../next-server/server/config'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -54,16 +55,7 @@ export type ServerlessHandlerCtx = {
   poweredByHeader: boolean
   canonicalBase: string
   encodedPreviewProps: __ApiPreviewProps
-  i18n?: {
-    localeDetection?: false
-    locales: string[]
-    defaultLocale: string
-    domains: Array<{
-      domain: string
-      locales: string[]
-      defaultLocale: string
-    }>
-  }
+  i18n?: NextConfig['i18n']
   experimental: {
     initServer: () => Promise<any>
     onError: ({ err }: { err: Error }) => Promise<any>
@@ -103,8 +95,7 @@ export function getUtils({
           rewrite.destination,
           params,
           parsedUrl.query,
-          true,
-          ''
+          true
         )
 
         Object.assign(parsedUrl.query, parsedDestination.query)
