@@ -1,6 +1,6 @@
 # Electron application example
 
-This example shows how you can use Next.js inside an Electron application to avoid a lot of configuration. It uses Next.js router as view and server-render to speed up the initial render of the application.
+This example shows how you can use Next.js inside an Electron application to avoid a lot of configuration. It uses the Next.js router as view and server-render to speed up the initial render of the application.
 
 For development it's going to run an HTTP server and let Next.js handle routing. In production it uses `next export` to pre-generate HTML static files and uses them in your app instead of running an HTTP server.
 
