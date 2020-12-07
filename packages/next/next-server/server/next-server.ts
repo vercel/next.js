@@ -48,7 +48,7 @@ import {
   tryGetPreviewData,
   __ApiPreviewProps,
 } from './api-utils'
-import loadConfig, { isTargetLikeServerless } from './config'
+import loadConfig, { isTargetLikeServerless, NextConfig } from './config'
 import pathMatch from '../lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
@@ -91,6 +91,9 @@ const getCustomRouteMatcher = pathMatch(true)
 
 type NextConfig = any
 
+const getCustomRouteMatcher = pathMatch(true)
+
+
 type FindComponentsResult = {
   components: LoadComponentsReturnType
   query: ParsedUrlQuery
@@ -113,7 +116,7 @@ export type ServerConstructor = {
   /**
    * Object what you would use in next.config.js - @default {}
    */
-  conf?: NextConfig
+  conf?: NextConfig | null
   dev?: boolean
   customServer?: boolean
 }
@@ -141,7 +144,6 @@ export default class Server {
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
-    optimizeFonts: boolean
     images: string
     fontManifest: FontManifest
     optimizeImages: boolean
@@ -196,11 +198,9 @@ export default class Server {
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
       images: JSON.stringify(this.nextConfig.images),
-      optimizeFonts: this.nextConfig.experimental.optimizeFonts && !dev,
-      fontManifest:
-        this.nextConfig.experimental.optimizeFonts && !dev
-          ? requireFontManifest(this.distDir, this._isLikeServerless)
-          : null,
+      fontManifest: !dev
+        ? requireFontManifest(this.distDir, this._isLikeServerless)
+        : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
     }
@@ -262,12 +262,9 @@ export default class Server {
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
      * Using this from process.env allows targetting both serverless and SSR by calling
-     * `process.env.__NEXT_OPTIMIZE_FONTS`.
-     * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being clened up.
+     * `process.env.__NEXT_OPTIMIZE_IMAGES`.
+     * TODO(atcastle@): Remove this when experimental.optimizeImages are being clened up.
      */
-    if (this.renderOpts.optimizeFonts) {
-      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
-    }
     if (this.renderOpts.optimizeImages) {
       process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
     }
@@ -356,7 +353,6 @@ export default class Server {
           pathname: localePathResult.pathname,
         })
         ;(req as any).__nextStrippedLocale = true
-        parsedUrl.pathname = `${basePath || ''}${localePathResult.pathname}`
       }
 
       // If a detected locale is a domain specific locale and we aren't already
@@ -667,38 +663,11 @@ export default class Server {
       ...staticFilesRoute,
     ]
 
-    const getCustomRouteBasePath = (r: { basePath?: false }) => {
-      return r.basePath !== false && this.renderOpts.dev
-        ? this.nextConfig.basePath
-        : ''
-    }
-
-    const getCustomRouteLocalePrefix = (r: {
-      locale?: false
-      destination?: string
-    }) => {
-      const { i18n } = this.nextConfig
-
-      if (!i18n || r.locale === false || !this.renderOpts.dev) return ''
-
-      if (r.destination && r.destination.startsWith('/')) {
-        r.destination = `/:nextInternalLocale${r.destination}`
-      }
-
-      return `/:nextInternalLocale(${i18n.locales
-        .map((locale: string) => escapeStringRegexp(locale))
-        .join('|')})`
-    }
-
     const getCustomRoute = (
       r: Rewrite | Redirect | Header,
       type: RouteType
     ) => {
-      const match = getCustomRouteMatcher(
-        `${getCustomRouteBasePath(r)}${getCustomRouteLocalePrefix(r)}${
-          r.source
-        }`
-      )
+      const match = getCustomRouteMatcher(r.source)
 
       return {
         ...r,
@@ -751,6 +720,7 @@ export default class Server {
     const redirects = this.customRoutes.redirects.map((redirect) => {
       const redirectRoute = getCustomRoute(redirect, 'redirect')
       return {
+        internal: redirectRoute.internal,
         type: redirectRoute.type,
         match: redirectRoute.match,
         statusCode: redirectRoute.statusCode,
@@ -760,8 +730,7 @@ export default class Server {
             redirectRoute.destination,
             params,
             parsedUrl.query,
-            false,
-            getCustomRouteBasePath(redirectRoute)
+            false
           )
 
           const { query } = parsedDestination
@@ -801,8 +770,7 @@ export default class Server {
             rewriteRoute.destination,
             params,
             parsedUrl.query,
-            true,
-            getCustomRouteBasePath(rewriteRoute)
+            true
           )
 
           // external rewrite, proxy it
@@ -899,7 +867,7 @@ export default class Server {
       dynamicRoutes: this.dynamicRoutes,
       basePath: this.nextConfig.basePath,
       pageChecker: this.hasPage.bind(this),
-      locales: this.nextConfig.i18n?.locales,
+      locales: this.nextConfig.i18n?.locales || [],
     }
   }
 
@@ -1286,7 +1254,7 @@ export default class Server {
       : (query.__nextDefaultLocale as string)
 
     const { i18n } = this.nextConfig
-    const locales = i18n.locales as string[]
+    const locales = i18n?.locales
 
     let previewData: string | false | object | undefined
     let isPreviewMode = false
