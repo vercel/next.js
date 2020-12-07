@@ -364,15 +364,6 @@ export default async function getBaseWebpackConfig(
       ...nodePathList, // Support for NODE_PATH environment variable
     ],
     alias: {
-      // These aliases make sure the wrapper module is not included in the bundles
-      // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
-      'next/head': 'next/dist/next-server/lib/head.js',
-      'next/router': 'next/dist/client/router.js',
-      'next/experimental-script': config.experimental.scriptLoader
-        ? 'next/dist/client/experimental-script.js'
-        : '',
-      'next/config': 'next/dist/next-server/lib/runtime-config.js',
-      'next/dynamic': 'next/dist/next-server/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
       ...(isWebpack5 && !isServer
         ? {
