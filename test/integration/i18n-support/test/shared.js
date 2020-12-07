@@ -406,6 +406,26 @@ export function runTests(ctx) {
     }
   })
 
+  it('should apply trailingSlash redirect correctly', async () => {
+    for (const [testPath, path, hostname, query] of [
+      ['/first/', '/first', 'localhost', {}],
+      ['/en/', '/en', 'localhost', {}],
+      ['/en/another/', '/en/another', 'localhost', {}],
+      ['/fr/', '/fr', 'localhost', {}],
+      ['/fr/another/', '/fr/another', 'localhost', {}],
+    ]) {
+      const res = await fetchViaHTTP(ctx.appPort, testPath, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(308)
+
+      const parsed = url.parse(res.headers.get('location'), true)
+      expect(parsed.pathname).toBe(path)
+      expect(parsed.hostname).toBe(hostname)
+      expect(parsed.query).toEqual(query)
+    }
+  })
+
   it('should apply redirects correctly', async () => {
     for (const [path, shouldRedirect, locale] of [
       ['/en-US/redirect-1', true],

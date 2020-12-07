@@ -720,6 +720,7 @@ export default class Server {
     const redirects = this.customRoutes.redirects.map((redirect) => {
       const redirectRoute = getCustomRoute(redirect, 'redirect')
       return {
+        internal: redirectRoute.internal,
         type: redirectRoute.type,
         match: redirectRoute.match,
         statusCode: redirectRoute.statusCode,
