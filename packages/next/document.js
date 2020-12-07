@@ -1,2 +1,2 @@
 module.exports = require('./dist/pages/_document')
-exports.__esModule = true;
+exports.__esModule = true
