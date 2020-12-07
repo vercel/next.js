@@ -1,6 +1,6 @@
 ## Example app using Facebook Pixel
 
-This example shows how to use Next.js along with Facebook Pixel. A [custom `App`](https://nextjs.org/docs/advanced-features/custom-app) is used to track route changes and send page views to Facebook Pixel. This example uses [react-facebook-pixel](https://www.npmjs.com/package/react-facebook-pixel).
+This example shows how to use Next.js along with Facebook Pixel. A custom [\_document](https://nextjs.org/docs/advanced-features/custom-document) is used to inject [base code](https://developers.facebook.com/docs/facebook-pixel/implementation/?locale=en_US). A [\_app](https://nextjs.org/docs/advanced-features/custom-app) is used to track route changes and send page views to Facebook Pixel.
 
 ## Deploy your own
 
@@ -24,6 +24,6 @@ Next, copy the `.env.local.example` file in this directory to `.env.local` (whic
 cp .env.local.example .env.local
 ```
 
-Set the `NEXT_PUBLIC_FACEBOOK_PIXEL_ID` variable in `.env.local` to match your facebook app's pixel ID. If not specified, tracking will be disabled.
+Set the `NEXT_PUBLIC_FACEBOOK_PIXEL_ID` variable in `.env.local` to match your facebook app's pixel ID.
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
