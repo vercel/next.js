@@ -56,7 +56,7 @@ export async function apiResolver(
     )
 
     // Parsing of body
-    if (bodyParser) {
+    if (bodyParser && !apiReq.body) {
       apiReq.body = await parseBody(
         apiReq,
         config.api && config.api.bodyParser && config.api.bodyParser.sizeLimit
