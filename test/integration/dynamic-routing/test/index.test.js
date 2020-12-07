@@ -15,6 +15,8 @@ import {
   nextStart,
   normalizeRegEx,
   check,
+  hasRedbox,
+  getRedboxHeader,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import escapeRegex from 'escape-string-regexp'
@@ -727,14 +729,11 @@ function runTests(dev) {
 
     for (const el of Array.from($('link[rel="preload"]'))) {
       const { href } = el.attribs
-      if (
-        href.includes('_buildManifest.js') ||
-        href.includes('_buildManifest.module.js')
-      ) {
+      if (href.includes('_buildManifest')) {
         found++
       }
     }
-    expect(found).toBe(dev ? 2 : 1)
+    expect(found).toBe(1)
   })
 
   it('should not preload buildManifest for non-auto export dynamic pages', async () => {
@@ -744,10 +743,7 @@ function runTests(dev) {
 
     for (const el of Array.from($('link[rel="preload"]'))) {
       const { href } = el.attribs
-      if (
-        href.includes('_buildManifest.js') ||
-        href.includes('_buildManifest.module.js')
-      ) {
+      if (href.includes('_buildManifest')) {
         found++
       }
     }
@@ -788,6 +784,18 @@ function runTests(dev) {
       expect(text).toBe('slug: first')
     })
 
+    it('should show error when interpolating fails for href', async () => {
+      const browser = await webdriver(appPort, '/')
+      await browser
+        .elementByCss('#view-post-1-interpolated-incorrectly')
+        .click()
+      await hasRedbox(browser)
+      const header = await getRedboxHeader(browser)
+      expect(header).toContain(
+        'The provided `href` (/[name]?another=value) value is missing query values (name) to be interpolated properly.'
+      )
+    })
+
     it('should work with HMR correctly', async () => {
       const browser = await webdriver(appPort, '/post-1/comments')
       let text = await browser.eval(`document.documentElement.innerHTML`)
@@ -809,17 +817,6 @@ function runTests(dev) {
       }
     })
   } else {
-    // TODO: Make webpack 5 work with nest-esm-plugin
-    it.skip('should output modern bundles with dynamic route correctly', async () => {
-      const buildManifest = require(join('../.next', 'build-manifest.json'))
-
-      const files = buildManifest.pages[
-        '/blog/[name]/comment/[id]'
-      ].filter((filename) => filename.includes('/blog/[name]/comment/[id]'))
-
-      expect(files.length).toBe(2)
-    })
-
     it('should output a routes-manifest correctly', async () => {
       const manifest = await fs.readJson(
         join(appDir, '.next/routes-manifest.json')
@@ -1058,6 +1055,8 @@ const nextConfig = join(appDir, 'next.config.js')
 describe('Dynamic Routing', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
+      await fs.remove(nextConfig)
+
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
       buildId = 'development'
@@ -1069,20 +1068,8 @@ describe('Dynamic Routing', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
-      const curConfig = await fs.readFile(nextConfig, 'utf8')
+      await fs.remove(nextConfig)
 
-      if (curConfig.includes('target')) {
-        await fs.writeFile(
-          nextConfig,
-          `
-          module.exports = {
-            experimental: {
-              modern: true
-            }
-          }
-        `
-        )
-      }
       await nextBuild(appDir)
       buildId = await fs.readFile(buildIdPath, 'utf8')
 
@@ -1095,20 +1082,10 @@ describe('Dynamic Routing', () => {
   })
 
   describe('serverless mode', () => {
-    let origNextConfig
-
     beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
-        `
-        module.exports = {
-          target: 'serverless',
-          experimental: {
-            modern: true
-          }
-        }
-      `
+        `module.exports = { target: 'serverless' }`
       )
 
       await nextBuild(appDir)
@@ -1118,7 +1095,6 @@ describe('Dynamic Routing', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
       await killApp(app)
     })
     runTests()
