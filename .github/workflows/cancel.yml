@@ -1,10 +1,9 @@
 name: Cancel
 on:
-  push:
-    branches:
-      - '**'
-      - '!master'
-      - '!canary'
+  pull_request_target:
+    types:
+      - edited
+      - synchronize
 
 jobs:
   cancel:
