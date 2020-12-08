@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import useMqtt from '../lib/useMqtt'
 
-const mqttUri = 'wss://test.mosquitto.org:8081'
+const mqttUri = process.env.NEXT_PUBLIC_MQTT_URI
+const clientId = `next_mqtt_${Math.random().toString(16).substr(2, 8)}`
 const mqttOptions = {
-  username: '',
-  password: '',
-  clientId: `next_mqtt_${Math.random().toString(16).substr(2, 8)}`,
+  username: process.env.NEXT_PUBLIC_MQTT_USERNAME,
+  password: process.env.NEXT_PUBLIC_MQTT_PASSWORD,
+  clientId: clientId,
 }
 
 export default function Home() {
