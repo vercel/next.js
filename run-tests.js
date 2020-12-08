@@ -195,6 +195,7 @@ const configuredTestTypes = [UNIT_TEST_EXT]
             ...(isAzure
               ? {
                   HEADLESS: 'true',
+                  __POST_PROCESS_MIDDLEWARE_TIME_BUDGET: '50',
                 }
               : {}),
             ...(usePolling

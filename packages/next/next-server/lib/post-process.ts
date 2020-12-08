@@ -1,7 +1,8 @@
 import { parse, HTMLElement } from 'node-html-parser'
 import { OPTIMIZED_FONT_PROVIDERS } from './constants'
 
-const MIDDLEWARE_TIME_BUDGET = 10
+const MIDDLEWARE_TIME_BUDGET =
+  parseInt(process.env.__POST_PROCESS_MIDDLEWARE_TIME_BUDGET || '', 10) || 10
 const MAXIMUM_IMAGE_PRELOADS = 2
 const IMAGE_PRELOAD_SIZE_THRESHOLD = 2500
 
