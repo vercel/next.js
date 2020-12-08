@@ -18,10 +18,10 @@ let app
 let appPort
 
 const runTests = () => {
-  it('loads the async script once', async () => {
+  it('does not re-render scripts with boolean attributes', async () => {
     const browser = await webdriver(appPort, '/')
 
-    expect(await browser.eval('window.scriptLoaded')).toBe(1)
+    expect(await browser.eval('window.scriptLoaded')).toBe(2)
   })
 }
 

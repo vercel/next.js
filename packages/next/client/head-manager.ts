@@ -15,7 +15,15 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
     if (props[p] === undefined) continue
 
     const attr = DOMAttributeNames[p] || p.toLowerCase()
-    const value = typeof props[p] === 'boolean' ? '' : props[p]
+
+    // render `true` as an empty string to more closely match what react-dom
+    // does and prevent re-renders when hydrated
+    const isBool = typeof props[p] === 'boolean'
+    const value = isBool ? '' : props[p]
+
+    if (isBool && !props[p]) {
+      continue
+    }
 
     el.setAttribute(attr, value)
   }
