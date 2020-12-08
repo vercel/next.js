@@ -81,8 +81,6 @@ export type BaseContext = {
   [k: string]: any
 }
 
-export type HeadEntry = [string, { [key: string]: any }]
-
 export type NEXT_DATA = {
   props: Record<string, any>
   page: string
@@ -100,7 +98,9 @@ export type NEXT_DATA = {
   customServer?: boolean
   gip?: boolean
   appGip?: boolean
-  head: HeadEntry[]
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
 }
 
 /**
@@ -186,6 +186,8 @@ export type DocumentProps = DocumentInitialProps & {
   headTags: any[]
   unstable_runtimeJS?: false
   devOnlyCacheBusterQueryString: string
+  scriptLoader: { defer?: string[]; eager?: any[] }
+  locale?: string
 }
 
 /**
