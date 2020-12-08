@@ -224,3 +224,6 @@ module.exports = {
   },
 }
 ```
+
+### Cache-Control
+Cache-Control headers set in next.config.js will be overwritten in production to ensure that static assets can cached effectively. If you need to revalidate the cache, you can do so by setting `revalidate` in a page's [`getStaticProps`](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) function. 
