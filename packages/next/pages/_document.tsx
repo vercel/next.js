@@ -445,6 +445,10 @@ export class Head extends Component<
         )}
         {children}
         {head}
+        <meta
+          name="next-head-count"
+          content={React.Children.count(head || []).toString()}
+        />
         {inAmpMode && (
           <>
             <meta
@@ -504,7 +508,7 @@ export class Head extends Component<
             {process.env.__NEXT_OPTIMIZE_FONTS
               ? this.makeStylesheetInert(this.getCssLinks(files))
               : this.getCssLinks(files)}
-            <noscript data-n-css />
+            <noscript data-n-css={this.props.nonce ?? ''} />
             {!disableRuntimeJS && this.getPreloadDynamicChunks()}
             {!disableRuntimeJS && this.getPreloadMainLinks(files)}
             {this.context.isDevelopment && (
@@ -648,7 +652,7 @@ export class NextScript extends Component<OriginProps> {
       ))
   }
 
-  static getInlineScriptSource(documentProps: DocumentProps): string {
+  static getInlineScriptSource(documentProps: Readonly<DocumentProps>): string {
     const { __NEXT_DATA__ } = documentProps
     try {
       const data = JSON.stringify(__NEXT_DATA__)
