@@ -43,9 +43,10 @@ store.subscribe((state) => {
   }
 
   if (state.bootstrap) {
-    if (state.appUrl) {
-      Log.ready(`started server on ${state.bindAddr}, url: ${state.appUrl}`)
-    }
+    Log.ready(
+      `started server on ${state.bindAddr}` +
+        (state.appUrl ? `, url: ${state.appUrl}` : '')
+    )
     return
   }
 

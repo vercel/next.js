@@ -14,11 +14,13 @@ const nextDev: cliCommand = (argv) => {
     '--help': Boolean,
     '--port': Number,
     '--hostname': String,
+    '--socket': String,
 
     // Aliases
     '-h': '--help',
     '-p': '--port',
     '-H': '--hostname',
+    '-S': '--socket',
   }
   let args: arg.Result<arg.Spec>
   try {
@@ -44,6 +46,7 @@ const nextDev: cliCommand = (argv) => {
       Options
         --port, -p      A port number on which to start the application
         --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
+        --socket, -S    Unix socket path to listen on
         --help, -h      Displays this message
     `)
     process.exit(0)
@@ -77,13 +80,18 @@ const nextDev: cliCommand = (argv) => {
   // We do not set a default host value here to prevent breaking
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
-  const appUrl = `http://${
-    !host || host === '0.0.0.0' ? 'localhost' : host
-  }:${port}`
+  const socket = args['--socket']
+  const bindAddr = socket || `${host || '0.0.0.0'}:${port}`
+  const appUrl = socket
+    ? null
+    : `http://${!host || host === '0.0.0.0' ? 'localhost' : host}:${port}`
 
-  startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
+  startServer(
+    { dir, dev: true, isNextDevCommand: true },
+    ...(socket ? [socket] : [port, host])
+  )
     .then(async (app) => {
-      startedDevelopmentServer(appUrl, `${host || '0.0.0.0'}:${port}`)
+      startedDevelopmentServer(appUrl, bindAddr)
       // Start preflight after server is listening and ignore errors:
       preflight().catch(() => {})
       // Finalize server bootup:
@@ -91,7 +99,9 @@ const nextDev: cliCommand = (argv) => {
     })
     .catch((err) => {
       if (err.code === 'EADDRINUSE') {
-        let errorMessage = `Port ${port} is already in use.`
+        let errorMessage = socket
+          ? `Socket path ${socket} already exists.`
+          : `Port ${port} is already in use.`
         const pkgAppPath = require('next/dist/compiled/find-up').sync(
           'package.json',
           {

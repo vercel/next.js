@@ -5,7 +5,10 @@ import createStore from 'next/dist/compiled/unistore'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { OutputState, store as consoleStore } from './store'
 
-export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
+export function startedDevelopmentServer(
+  appUrl: string | null,
+  bindAddr: string
+) {
   consoleStore.setState({ appUrl, bindAddr })
 }
 
@@ -132,7 +135,7 @@ buildStore.subscribe((state) => {
 
   let partialState: Partial<OutputState> = {
     bootstrap: false,
-    appUrl: appUrl!,
+    appUrl,
   }
 
   if (status.loading) {
