@@ -214,6 +214,12 @@ export default function IndexPage(props) {
 }
 ```
 
+## Leveraging the NEXT_LOCALE cookie
+
+Next.js supports overriding the accept-language header with a `NEXT_LOCALE=the-locale` cookie. This cookie can be set using a language switcher and then when a user comes back to the site it will leverage the locale specified in the cookie.
+
+For example, if a user prefers the locale `fr` but a `NEXT_LOCALE=en` cookie is set the `en` locale will be used instead until the cookie is removed or expired.
+
 ## Search Engine Optimization
 
 Since Next.js knows what language the user is visiting it will automatically add the `lang` attribute to the `<html>` tag.
