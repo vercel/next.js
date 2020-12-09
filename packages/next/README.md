@@ -1,4 +1,9 @@
-[![Next.js](https://assets.vercel.com/image/upload/v1607554385/repositories/next-js/next-logo.png)](https://nextjs.org)
+<p align="center">
+  <a href="https://nextjs.org">
+    <img src="https://assets.vercel.com/image/upload/v1607554385/repositories/next-js/next-logo.png" height="96">
+    <h2 align="center">Next.js</h3>
+  </a>
+</p>
 
 <p align="center">
   <a aria-label="Vercel logo" href="https://vercel.com">
