@@ -55,7 +55,7 @@ module.exports = {
     config.module.rules.push({
       test: /\.mdx/,
       use: [
-        options.defaultLoaders.babel,
+        defaultLoaders.babel,
         {
           loader: '@mdx-js/loader',
           options: pluginOptions.options,
