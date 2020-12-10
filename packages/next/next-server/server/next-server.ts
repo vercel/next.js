@@ -460,17 +460,28 @@ export default class Server {
       req.headers['x-matched-path'] &&
       typeof req.headers['x-matched-path'] === 'string'
     ) {
-      let { pathname, query } = parseUrl(
-        req.headers['x-matched-path'] as string,
+      const reqUrlIsDataUrl = req.url?.includes('/_next/data')
+      const matchedPathIsDataUrl = req.headers['x-matched-path']?.includes(
+        '/_next/data'
+      )
+      const isDataUrl = reqUrlIsDataUrl || matchedPathIsDataUrl
+
+      let parsedPath = parseUrl(
+        isDataUrl ? req.url! : (req.headers['x-matched-path'] as string),
         true
       )
+      const { pathname, query } = parsedPath
       let matchedPathname = pathname as string
 
-      // interpolate dynamic params if needed
-      if (isDynamicRoute(matchedPathname)) {
+      const matchedPathnameNoExt = isDataUrl
+        ? matchedPathname.replace(/\.json$/, '')
+        : matchedPathname
+
+      // interpolate dynamic params and normalize URL if needed
+      if (isDynamicRoute(matchedPathnameNoExt)) {
         const utils = getUtils({
           pageIsDynamic: true,
-          page: matchedPathname,
+          page: matchedPathnameNoExt,
           i18n: this.nextConfig.i18n,
           basePath: this.nextConfig.basePath,
           rewrites: this.customRoutes.rewrites,
@@ -504,7 +515,18 @@ export default class Server {
             matchedPathname,
             params
           )
+
+          req.url = utils.interpolateDynamicPath(req.url!, params)
         }
+
+        if (reqUrlIsDataUrl && matchedPathIsDataUrl) {
+          req.url = formatUrl({
+            ...parsedPath,
+            pathname: matchedPathname,
+          })
+        }
+        Object.assign(parsedUrl.query, params)
+        utils.normalizeVercelUrl(req, true)
       }
       parsedUrl.pathname = `${basePath || ''}${
         parsedUrl.query.__nextLocale || ''

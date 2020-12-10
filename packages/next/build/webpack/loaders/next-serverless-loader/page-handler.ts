@@ -57,6 +57,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
     interpolateDynamicPath,
     getParamsFromRouteMatches,
     normalizeDynamicRouteParams,
+    normalizeVercelUrl,
   } = getUtils(ctx)
 
   async function renderReqToHTML(
@@ -229,17 +230,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       // if provided from worker or params if we're parsing them here
       renderOpts.params = _params || params
 
-      // make sure to normalize req.url on Vercel to strip dynamic params
-      // from the query which are added during routing
-      if (pageIsDynamic && trustQuery && defaultRouteRegex) {
-        const _parsedUrl = parseUrl(req.url!, true)
-        delete (_parsedUrl as any).search
-
-        for (const param of Object.keys(defaultRouteRegex.groups)) {
-          delete _parsedUrl.query[param]
-        }
-        req.url = formatUrl(_parsedUrl)
-      }
+      normalizeVercelUrl(req, !!trustQuery)
 
       // normalize request URL/asPath for fallback/revalidate pages since the
       // proxy sets the request URL to the output's path for fallback pages

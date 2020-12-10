@@ -209,33 +209,68 @@ describe('Required Server Files', () => {
     expect(data2.random).not.toBe(data.random)
   })
 
-  it('should render dynamic SSR page correctly with x-matched-path and routes-matches', async () => {
-    const html = await renderViaHTTP(appPort, '/dynamic/[slug]', undefined, {
+  it('should render fallback page correctly with x-matched-path and routes-matches', async () => {
+    const html = await renderViaHTTP(appPort, '/fallback/first', undefined, {
       headers: {
-        'x-matched-path': '/dynamic/[slug]',
+        'x-matched-path': '/fallback/first',
         'x-now-route-matches': '1=first',
       },
     })
     const $ = cheerio.load(html)
     const data = JSON.parse($('#props').text())
 
-    expect($('#dynamic').text()).toBe('dynamic page')
+    expect($('#fallback').text()).toBe('fallback page')
     expect($('#slug').text()).toBe('first')
     expect(data.hello).toBe('world')
 
-    const html2 = await renderViaHTTP(appPort, '/dynamic/[slug]', undefined, {
+    const html2 = await renderViaHTTP(appPort, `/fallback/[slug]`, undefined, {
       headers: {
-        'x-matched-path': '/dynamic/[slug]',
+        'x-matched-path': '/fallback/[slug]',
         'x-now-route-matches': '1=second',
       },
     })
     const $2 = cheerio.load(html2)
     const data2 = JSON.parse($2('#props').text())
 
-    expect($2('#dynamic').text()).toBe('dynamic page')
+    expect($2('#fallback').text()).toBe('fallback page')
     expect($2('#slug').text()).toBe('second')
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
+  })
+
+  it('should return data correctly with x-matched-path', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/dynamic/first.json`,
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]?slug=first',
+        },
+      }
+    )
+
+    const { pageProps: data } = await res.json()
+
+    expect(data.slug).toBe('first')
+    expect(data.hello).toBe('world')
+
+    const res2 = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/fallback/[slug].json`,
+      undefined,
+      {
+        headers: {
+          'x-matched-path': `/_next/data/${buildId}/fallback/[slug].json`,
+          'x-now-route-matches': '1=second',
+        },
+      }
+    )
+
+    const { pageProps: data2 } = await res2.json()
+
+    expect(data2.slug).toBe('second')
+    expect(data2.hello).toBe('world')
   })
 
   it('should not apply trailingSlash redirect', async () => {

@@ -1,5 +1,5 @@
 import { IncomingMessage, ServerResponse } from 'http'
-import { format as formatUrl, UrlWithParsedQuery } from 'url'
+import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
 import { Rewrite } from '../../../../lib/load-custom-routes'
 import { normalizeLocalePath } from '../../../../next-server/lib/i18n/normalize-locale-path'
@@ -256,6 +256,20 @@ export function getUtils({
     return pathname
   }
 
+  function normalizeVercelUrl(req: IncomingMessage, trustQuery: boolean) {
+    // make sure to normalize req.url on Vercel to strip dynamic params
+    // from the query which are added during routing
+    if (pageIsDynamic && trustQuery && defaultRouteRegex) {
+      const _parsedUrl = parseUrl(req.url!, true)
+      delete (_parsedUrl as any).search
+
+      for (const param of Object.keys(defaultRouteRegex.groups)) {
+        delete _parsedUrl.query[param]
+      }
+      req.url = formatUrl(_parsedUrl)
+    }
+  }
+
   function normalizeDynamicRouteParams(params: ParsedUrlQuery) {
     let hasValidParams = true
     if (!defaultRouteRegex) return { params, hasValidParams }
@@ -454,6 +468,7 @@ export function getUtils({
     handleRewrites,
     handleBasePath,
     defaultRouteRegex,
+    normalizeVercelUrl,
     dynamicRouteMatcher,
     defaultRouteMatches,
     interpolateDynamicPath,
