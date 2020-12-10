@@ -162,12 +162,13 @@ export type RenderOptsPartial = {
   previewProps: __ApiPreviewProps
   basePath: string
   unstable_runtimeJS?: false
-  optimizeFonts: boolean
   fontManifest?: FontManifest
   optimizeImages: boolean
+  optimizeCss: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
+  distDir?: string
   locale?: string
   locales?: string[]
   defaultLocale?: string
@@ -208,6 +209,7 @@ function renderDocument(
     appGip,
     unstable_runtimeJS,
     devOnlyCacheBusterQueryString,
+    scriptLoader,
     locale,
     locales,
     defaultLocale,
@@ -232,6 +234,7 @@ function renderDocument(
     gip?: boolean
     appGip?: boolean
     devOnlyCacheBusterQueryString: string
+    scriptLoader: any
   }
 ): string {
   return (
@@ -274,6 +277,7 @@ function renderDocument(
           headTags,
           unstable_runtimeJS,
           devOnlyCacheBusterQueryString,
+          scriptLoader,
           locale,
           ...docProps,
         })}
@@ -352,6 +356,9 @@ export async function renderToHTML(
   renderOpts.devOnlyCacheBusterQueryString = renderOpts.dev
     ? renderOpts.devOnlyCacheBusterQueryString || `?ts=${Date.now()}`
     : ''
+
+  // don't modify original query object
+  query = Object.assign({}, query)
 
   const {
     err,
@@ -492,8 +499,11 @@ export async function renderToHTML(
             }
           : {}),
       }
+      renderOpts.resolvedAsPath = `${pathname}${
+        // ensure trailing slash is present for non-dynamic auto-export pages
+        req.url!.endsWith('/') && pathname !== '/' && !pageIsDynamic ? '/' : ''
+      }`
       req.url = pathname
-      renderOpts.resolvedAsPath = pathname
       renderOpts.nextExport = true
     }
 
@@ -549,6 +559,8 @@ export async function renderToHTML(
 
   let head: JSX.Element[] = defaultHead(inAmpMode)
 
+  let scriptLoader: any = {}
+
   const AppContainer = ({ children }: any) => (
     <RouterContext.Provider value={router}>
       <AmpStateContext.Provider value={ampState}>
@@ -557,6 +569,10 @@ export async function renderToHTML(
             updateHead: (state) => {
               head = state
             },
+            updateScripts: (scripts) => {
+              scriptLoader = scripts
+            },
+            scripts: {},
             mountedInstances: new Set(),
           }}
         >
@@ -654,8 +670,6 @@ export async function renderToHTML(
         }
 
         ;(renderOpts as any).isNotFound = true
-        ;(renderOpts as any).revalidate = false
-        return null
       }
 
       if (
@@ -684,6 +698,7 @@ export async function renderToHTML(
 
       if (
         (dev || isBuildTimeSSG) &&
+        !(renderOpts as any).isNotFound &&
         !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
       ) {
         // this fn should throw an error instead of ever returning `false`
@@ -721,6 +736,11 @@ export async function renderToHTML(
       } else {
         // By default, we never revalidate.
         ;(data as any).revalidate = false
+      }
+
+      // this must come after revalidate is attached
+      if ((renderOpts as any).isNotFound) {
+        return null
       }
 
       props.pageProps = Object.assign(
@@ -988,6 +1008,7 @@ export async function renderToHTML(
     gip: hasPageGetInitialProps ? true : undefined,
     appGip: !defaultAppGetInitialProps ? true : undefined,
     devOnlyCacheBusterQueryString,
+    scriptLoader,
   })
 
   if (process.env.NODE_ENV !== 'production') {
@@ -1028,16 +1049,32 @@ export async function renderToHTML(
     }
   }
 
+  // Avoid postProcess if both flags are false
   html = await postProcess(
     html,
     {
       getFontDefinition,
     },
     {
-      optimizeFonts: renderOpts.optimizeFonts,
       optimizeImages: renderOpts.optimizeImages,
     }
   )
+
+  if (renderOpts.optimizeCss) {
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    const Critters = require('critters')
+    const cssOptimizer = new Critters({
+      ssrMode: true,
+      reduceInlineStyles: false,
+      path: renderOpts.distDir,
+      publicPath: '/_next/',
+      preload: 'media',
+      fonts: false,
+      ...renderOpts.optimizeCss,
+    })
+
+    html = await cssOptimizer.process(html)
+  }
 
   if (inAmpMode || hybridAmp) {
     // fix &amp being escaped for amphtml rel link

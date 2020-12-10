@@ -101,7 +101,7 @@ Reason: \`function\` cannot be serialized as JSON. Please only return JSON seria
     expect(() => isSerializableProps('/', 'test', { toplevel: undefined }))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing \`.toplevel\` returned from \`test\` in \\"/\\".
-Reason: \`undefined\` cannot be serialized as JSON. Please use \`null\` or omit this value all together."
+Reason: \`undefined\` cannot be serialized as JSON. Please use \`null\` or omit this value."
 `)
 
     expect(() =>
@@ -136,7 +136,7 @@ Reason: \`function\` cannot be serialized as JSON. Please only return JSON seria
     expect(() => isSerializableProps('/', 'test', { k: { a: [1, undefined] } }))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing \`.k.a[1]\` returned from \`test\` in \\"/\\".
-Reason: \`undefined\` cannot be serialized as JSON. Please use \`null\` or omit this value all together."
+Reason: \`undefined\` cannot be serialized as JSON. Please use \`null\` or omit this value."
 `)
 
     expect(() =>

@@ -477,6 +477,7 @@ export function renderError(renderErrorProps: RenderErrorProps) {
 }
 
 let reactRoot: any = null
+let shouldUseHydrate = typeof ReactDOM.hydrate === 'function'
 function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
     if (!reactRoot) {
@@ -494,8 +495,9 @@ function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
     }
 
     // The check for `.hydrate` is there to support React alternatives like preact
-    if (typeof ReactDOM.hydrate === 'function') {
+    if (shouldUseHydrate) {
       ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
+      shouldUseHydrate = false
     } else {
       ReactDOM.render(reactEl, domEl, markRenderComplete)
     }
@@ -648,11 +650,18 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       currentStyleTags.map((tag) => tag.getAttribute('data-n-href'))
     )
 
+    const noscript = document.querySelector('noscript[data-n-css]')
+    const nonce = noscript?.getAttribute('data-n-css')
+
     styleSheets.forEach(({ href, text }) => {
       if (!currentHrefs.has(href)) {
         const styleTag = document.createElement('style')
         styleTag.setAttribute('data-n-href', href)
         styleTag.setAttribute('media', 'x')
+
+        if (nonce) {
+          styleTag.setAttribute('nonce', nonce)
+        }
 
         document.head.appendChild(styleTag)
         styleTag.appendChild(document.createTextNode(text))
@@ -661,7 +670,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     return true
   }
 
-  function onCommit() {
+  function onHeadCommit() {
     if (
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
@@ -723,12 +732,15 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       // unstyled content:
       getComputedStyle(document.body, 'height')
     }
+  }
 
+  function onRootCommit() {
     resolvePromise()
   }
 
   const elem = (
-    <Root callback={onCommit}>
+    <Root callback={onRootCommit}>
+      <Head callback={onHeadCommit} />
       <AppContainer>
         <App {...appProps} />
       </AppContainer>
@@ -775,4 +787,13 @@ function Root({
     measureWebVitals(onPerfEntry)
   }, [])
   return children as React.ReactElement
+}
+
+// Dummy component that we render as a child of Root so that we can
+// toggle the correct styles before the page is rendered.
+function Head({ callback }: { callback: () => void }) {
+  // We use `useLayoutEffect` to guarantee the callback is executed
+  // as soon as React flushes the update.
+  React.useLayoutEffect(() => callback(), [callback])
+  return null
 }
