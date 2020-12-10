@@ -95,7 +95,7 @@ Try it out:
 
 A string mapping media queries to device sizes. Defaults to `100vw`.
 
-We recommend setting `sizes`, as it helps the browser choose the right image size to use.
+We recommend setting `sizes` when `layout="responsive"` and your image will not be the same width as the viewport.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
 
