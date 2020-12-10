@@ -213,7 +213,7 @@
     "string-hash": "1.1.3",
     "strip-ansi": "6.0.0",
     "taskr": "1.1.0",
-    "terser": "5.1.0",
+    "terser": "5.5.1",
     "terser-webpack-plugin": "4.1.0",
     "text-table": "0.2.0",
     "thread-loader": "2.1.3",
