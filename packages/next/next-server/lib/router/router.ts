@@ -616,7 +616,10 @@ export default class Router implements BaseRouter {
     let localeChange = options.locale !== this.locale
 
     if (process.env.__NEXT_I18N_SUPPORT) {
-      this.locale = options.locale || this.locale
+      this.locale =
+        options.locale === false
+          ? this.defaultLocale
+          : options.locale || this.locale
 
       if (typeof options.locale === 'undefined') {
         options.locale = this.locale
@@ -627,15 +630,20 @@ export default class Router implements BaseRouter {
       } = require('../i18n/normalize-locale-path') as typeof import('../i18n/normalize-locale-path')
 
       const parsedAs = parseRelativeUrl(hasBasePath(as) ? delBasePath(as) : as)
-
       const localePathResult = normalizeLocalePath(
         parsedAs.pathname,
         this.locales
       )
-
       if (localePathResult.detectedLocale) {
         this.locale = localePathResult.detectedLocale
         url = addBasePath(localePathResult.pathname)
+      }
+
+      // if the locale isn't configured hard navigate to show 404 page
+      if (!this.locales?.includes(this.locale!)) {
+        parsedAs.pathname = addLocale(parsedAs.pathname, this.locale)
+        window.location.href = formatWithValidation(parsedAs)
+        return new Promise(() => {})
       }
     }
 
@@ -730,12 +738,14 @@ export default class Router implements BaseRouter {
 
     if (process.env.__NEXT_HAS_REWRITES) {
       resolvedAs = resolveRewrites(
-        parseRelativeUrl(as).pathname,
+        addBasePath(
+          addLocale(delBasePath(parseRelativeUrl(as).pathname), this.locale)
+        ),
         pages,
-        basePath,
         rewrites,
         query,
-        (p: string) => this._resolveHref({ pathname: p }, pages).pathname!
+        (p: string) => this._resolveHref({ pathname: p }, pages).pathname!,
+        this.locales
       )
 
       if (resolvedAs !== as) {
@@ -1228,7 +1238,7 @@ export default class Router implements BaseRouter {
           this.locales
         )
         parsedAs.pathname = localePathResult.pathname
-        options.locale = localePathResult.detectedLocale || options.locale
+        options.locale = localePathResult.detectedLocale || this.defaultLocale
         asPath = formatWithValidation(parsedAs)
       }
     }
