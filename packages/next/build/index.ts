@@ -254,6 +254,7 @@ export default async function build(
   const buildCustomRoute = (
     r: {
       source: string
+      locale?: false
       basePath?: false
       statusCode?: number
       destination?: string
@@ -261,14 +262,6 @@ export default async function build(
     type: RouteType
   ) => {
     const keys: any[] = []
-
-    if (r.basePath !== false) {
-      r.source = `${config.basePath}${r.source}`
-
-      if (r.destination && r.destination.startsWith('/')) {
-        r.destination = `${config.basePath}${r.destination}`
-      }
-    }
 
     const routeRegex = pathToRegexp(r.source, keys, {
       strict: true,
@@ -309,13 +302,15 @@ export default async function build(
       namedDataRouteRegex?: string
     }>
     i18n?: {
-      locales: string[]
-      defaultLocale: string[]
-      domains: Array<{
+      domains?: Array<{
+        http?: true
         domain: string
+        locales?: string[]
         defaultLocale: string
-        locales: string[]
       }>
+      locales: string[]
+      defaultLocale: string
+      localeDetection?: false
     }
   } = {
     version: 3,
@@ -495,6 +490,7 @@ export default async function build(
 
   let customAppGetInitialProps: boolean | undefined
   let namedExports: Array<string> | undefined
+  let isNextImageImported: boolean | undefined
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
@@ -526,8 +522,7 @@ export default async function build(
       const [selfSize, allSize] = await getJsPageSizeInKb(
         actualPage,
         distDir,
-        buildManifest,
-        config.experimental.modern
+        buildManifest
       )
 
       let isSsg = false
@@ -583,6 +578,10 @@ export default async function build(
           if (workerResult.isHybridAmp) {
             isHybridAmp = true
             hybridAmpPages.add(page)
+          }
+
+          if (workerResult.isNextImageImported) {
+            isNextImageImported = true
           }
 
           if (workerResult.hasStaticProps) {
@@ -1096,7 +1095,6 @@ export default async function build(
     await generateClientSsgManifest(prerenderManifest, {
       distDir,
       buildId,
-      isModern: !!config.experimental.modern,
     })
   } else {
     const prerenderManifest: PrerenderManifest = {
@@ -1132,6 +1130,7 @@ export default async function build(
       version: 1,
       hasExportPathMap: typeof config.exportPathMap === 'function',
       exportTrailingSlash: config.trailingSlash === true,
+      isNextImageImported: isNextImageImported === true,
     }),
     'utf8'
   )
@@ -1158,7 +1157,6 @@ export default async function build(
       useStatic404,
       pageExtensions: config.pageExtensions,
       buildManifest,
-      isModern: config.experimental.modern,
     }
   )
 
@@ -1240,11 +1238,7 @@ export type ClientSsgManifest = Set<string>
 
 function generateClientSsgManifest(
   prerenderManifest: PrerenderManifest,
-  {
-    buildId,
-    distDir,
-    isModern,
-  }: { buildId: string; distDir: string; isModern: boolean }
+  { buildId, distDir }: { buildId: string; distDir: string }
 ) {
   const ssgPages: ClientSsgManifest = new Set<string>([
     ...Object.entries(prerenderManifest.routes)
@@ -1254,21 +1248,12 @@ function generateClientSsgManifest(
     ...Object.keys(prerenderManifest.dynamicRoutes),
   ])
 
-  const clientSsgManifestPaths = [
-    '_ssgManifest.js',
-    isModern && '_ssgManifest.module.js',
-  ]
-    .filter(Boolean)
-    .map((f) =>
-      path.join(`${CLIENT_STATIC_FILES_PATH}/${buildId}`, f as string)
-    )
   const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
     ssgPages
   )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
-  clientSsgManifestPaths.forEach((clientSsgManifestPath) =>
-    writeFileSync(
-      path.join(distDir, clientSsgManifestPath),
-      clientSsgManifestContent
-    )
+
+  writeFileSync(
+    path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
+    clientSsgManifestContent
   )
 }

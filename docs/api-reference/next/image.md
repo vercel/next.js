@@ -93,9 +93,9 @@ Try it out:
 
 ### sizes
 
-Defines what proportion of the screen you expect the image to take up. Defaults to undefined.
+A string mapping media queries to device sizes. Defaults to `100vw`.
 
-Recommended, as it helps serve the correct sized image to each device.
+We recommend setting `sizes` when `layout="responsive"` and your image will not be the same width as the viewport.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
 
@@ -141,7 +141,11 @@ When true, the source image will be served as-is instead of changing quality, si
 
 ## Other Props
 
-All other properties on the `Image` component will be passed to the underlying `img` element, except for `style`. Use `className` instead.
+Other properties on the `Image` component will be passed to the underlying `img` element with the exception of the following:
+
+- `style`. Use `className` instead.
+- `srcSet`. Use [Device Sizes](/docs/basic-features/image-optimization.md#device-sizes) instead.
+- `decoding`. It is always `"async"`.
 
 ## Related
 

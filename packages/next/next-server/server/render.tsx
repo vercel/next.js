@@ -53,6 +53,7 @@ import optimizeAmp from './optimize-amp'
 import {
   allowedStatusCodes,
   getRedirectStatus,
+  Redirect,
 } from '../../lib/load-custom-routes'
 
 function noRouter() {
@@ -161,12 +162,13 @@ export type RenderOptsPartial = {
   previewProps: __ApiPreviewProps
   basePath: string
   unstable_runtimeJS?: false
-  optimizeFonts: boolean
   fontManifest?: FontManifest
   optimizeImages: boolean
+  optimizeCss: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
+  distDir?: string
   locale?: string
   locales?: string[]
   defaultLocale?: string
@@ -207,6 +209,7 @@ function renderDocument(
     appGip,
     unstable_runtimeJS,
     devOnlyCacheBusterQueryString,
+    scriptLoader,
     locale,
     locales,
     defaultLocale,
@@ -231,6 +234,7 @@ function renderDocument(
     gip?: boolean
     appGip?: boolean
     devOnlyCacheBusterQueryString: string
+    scriptLoader: any
   }
 ): string {
   return (
@@ -259,22 +263,6 @@ function renderDocument(
             locale,
             locales,
             defaultLocale,
-            head: React.Children.toArray(docProps.head || [])
-              .map((elem) => {
-                const { children } = elem?.props
-                return [
-                  elem?.type,
-                  {
-                    ...elem?.props,
-                    children: children
-                      ? typeof children === 'string'
-                        ? children
-                        : children.join('')
-                      : undefined,
-                  },
-                ]
-              })
-              .filter(Boolean) as any,
           },
           buildManifest,
           docComponentsRendered,
@@ -289,6 +277,7 @@ function renderDocument(
           headTags,
           unstable_runtimeJS,
           devOnlyCacheBusterQueryString,
+          scriptLoader,
           locale,
           ...docProps,
         })}
@@ -306,18 +295,12 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
   )
 }
 
-type Redirect = {
-  permanent: boolean
-  destination: string
-  statusCode?: number
-}
-
 function checkRedirectValues(
   redirect: Redirect,
   req: IncomingMessage,
   method: 'getStaticProps' | 'getServerSideProps'
 ) {
-  const { destination, permanent, statusCode } = redirect
+  const { destination, permanent, statusCode, basePath } = redirect
   let errors: string[] = []
 
   const hasStatusCode = typeof statusCode !== 'undefined'
@@ -339,6 +322,14 @@ function checkRedirectValues(
   if (destinationType !== 'string') {
     errors.push(
       `\`destination\` should be string but received ${destinationType}`
+    )
+  }
+
+  const basePathType = typeof basePath
+
+  if (basePathType !== 'undefined' && basePathType !== 'boolean') {
+    errors.push(
+      `\`basePath\` should be undefined or a false, received ${basePathType}`
     )
   }
 
@@ -365,6 +356,9 @@ export async function renderToHTML(
   renderOpts.devOnlyCacheBusterQueryString = renderOpts.dev
     ? renderOpts.devOnlyCacheBusterQueryString || `?ts=${Date.now()}`
     : ''
+
+  // don't modify original query object
+  query = Object.assign({}, query)
 
   const {
     err,
@@ -422,6 +416,7 @@ export async function renderToHTML(
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
   delete query.__nextLocale
+  delete query.__nextDefaultLocale
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -504,8 +499,11 @@ export async function renderToHTML(
             }
           : {}),
       }
+      renderOpts.resolvedAsPath = `${pathname}${
+        // ensure trailing slash is present for non-dynamic auto-export pages
+        req.url!.endsWith('/') && pathname !== '/' && !pageIsDynamic ? '/' : ''
+      }`
       req.url = pathname
-      renderOpts.resolvedAsPath = pathname
       renderOpts.nextExport = true
     }
 
@@ -561,6 +559,8 @@ export async function renderToHTML(
 
   let head: JSX.Element[] = defaultHead(inAmpMode)
 
+  let scriptLoader: any = {}
+
   const AppContainer = ({ children }: any) => (
     <RouterContext.Provider value={router}>
       <AmpStateContext.Provider value={ampState}>
@@ -569,6 +569,10 @@ export async function renderToHTML(
             updateHead: (state) => {
               head = state
             },
+            updateScripts: (scripts) => {
+              scriptLoader = scripts
+            },
+            scripts: {},
             mountedInstances: new Set(),
           }}
         >
@@ -646,11 +650,14 @@ export async function renderToHTML(
       }
 
       if (process.env.NODE_ENV !== 'production') {
-        if ('notFound' in data && 'redirect' in data) {
+        if (
+          typeof (data as any).notFound !== 'undefined' &&
+          typeof (data as any).redirect !== 'undefined'
+        ) {
           throw new Error(
             `\`redirect\` and \`notFound\` can not both be returned from ${
               isSSG ? 'getStaticProps' : 'getServerSideProps'
-            } at the same time. Page: ${pathname}`
+            } at the same time. Page: ${pathname}\nSee more info here: https://err.sh/next.js/gssp-mixed-not-found-redirect`
           )
         }
       }
@@ -663,8 +670,6 @@ export async function renderToHTML(
         }
 
         ;(renderOpts as any).isNotFound = true
-        ;(renderOpts as any).revalidate = false
-        return null
       }
 
       if (
@@ -672,7 +677,7 @@ export async function renderToHTML(
         data.redirect &&
         typeof data.redirect === 'object'
       ) {
-        checkRedirectValues(data.redirect, req, 'getStaticProps')
+        checkRedirectValues(data.redirect as Redirect, req, 'getStaticProps')
 
         if (isBuildTimeSSG) {
           throw new Error(
@@ -685,11 +690,15 @@ export async function renderToHTML(
           __N_REDIRECT: data.redirect.destination,
           __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
         }
+        if (typeof data.redirect.basePath !== 'undefined') {
+          ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
+        }
         ;(renderOpts as any).isRedirect = true
       }
 
       if (
         (dev || isBuildTimeSSG) &&
+        !(renderOpts as any).isNotFound &&
         !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
       ) {
         // this fn should throw an error instead of ever returning `false`
@@ -727,6 +736,11 @@ export async function renderToHTML(
       } else {
         // By default, we never revalidate.
         ;(data as any).revalidate = false
+      }
+
+      // this must come after revalidate is attached
+      if ((renderOpts as any).isNotFound) {
+        return null
       }
 
       props.pageProps = Object.assign(
@@ -806,10 +820,17 @@ export async function renderToHTML(
       }
 
       if ('redirect' in data && typeof data.redirect === 'object') {
-        checkRedirectValues(data.redirect, req, 'getServerSideProps')
+        checkRedirectValues(
+          data.redirect as Redirect,
+          req,
+          'getServerSideProps'
+        )
         ;(data as any).props = {
           __N_REDIRECT: data.redirect.destination,
           __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
+        }
+        if (typeof data.redirect.basePath !== 'undefined') {
+          ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
         }
         ;(renderOpts as any).isRedirect = true
       }
@@ -987,6 +1008,7 @@ export async function renderToHTML(
     gip: hasPageGetInitialProps ? true : undefined,
     appGip: !defaultAppGetInitialProps ? true : undefined,
     devOnlyCacheBusterQueryString,
+    scriptLoader,
   })
 
   if (process.env.NODE_ENV !== 'production') {
@@ -1027,16 +1049,32 @@ export async function renderToHTML(
     }
   }
 
+  // Avoid postProcess if both flags are false
   html = await postProcess(
     html,
     {
       getFontDefinition,
     },
     {
-      optimizeFonts: renderOpts.optimizeFonts,
       optimizeImages: renderOpts.optimizeImages,
     }
   )
+
+  if (renderOpts.optimizeCss) {
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    const Critters = require('critters')
+    const cssOptimizer = new Critters({
+      ssrMode: true,
+      reduceInlineStyles: false,
+      path: renderOpts.distDir,
+      publicPath: '/_next/',
+      preload: 'media',
+      fonts: false,
+      ...renderOpts.optimizeCss,
+    })
+
+    html = await cssOptimizer.process(html)
+  }
 
   if (inAmpMode || hybridAmp) {
     // fix &amp being escaped for amphtml rel link
