@@ -126,12 +126,13 @@ export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
 ) => Promise<GetStaticPathsResult<P>>
 
 export type GetServerSidePropsContext<
-  Q extends ParsedUrlQuery = ParsedUrlQuery
+  Q extends ParsedUrlQuery = ParsedUrlQuery,
+  R extends ParsedUrlQuery = ParsedUrlQuery
 > = {
   req: IncomingMessage
   res: ServerResponse
   params?: Q
-  query: ParsedUrlQuery
+  query: R
   preview?: boolean
   previewData?: any
   resolvedUrl: string
@@ -147,9 +148,10 @@ export type GetServerSidePropsResult<P> =
 
 export type GetServerSideProps<
   P extends { [key: string]: any } = { [key: string]: any },
-  Q extends ParsedUrlQuery = ParsedUrlQuery
+  Q extends ParsedUrlQuery = ParsedUrlQuery,
+  R extends ParsedUrlQuery = ParsedUrlQuery
 > = (
-  context: GetServerSidePropsContext<Q>
+  context: GetServerSidePropsContext<Q, R>
 ) => Promise<GetServerSidePropsResult<P>>
 
 export type InferGetServerSidePropsType<T> = T extends GetServerSideProps<
