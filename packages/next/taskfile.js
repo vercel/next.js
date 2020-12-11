@@ -513,16 +513,6 @@ export async function ncc_web_vitals(task, opts) {
     .target('compiled/web-vitals')
 }
 
-externals['terser-webpack-plugin'] = 'next/dist/compiled/terser-webpack-plugin'
-export async function ncc_terser_webpack_plugin(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('terser-webpack-plugin'))
-    )
-    .ncc({ packageName: 'terser-webpack-plugin', externals })
-    .target('compiled/terser-webpack-plugin')
-}
-
 externals['comment-json'] = 'next/dist/compiled/comment-json'
 export async function ncc_comment_json(task, opts) {
   await task
