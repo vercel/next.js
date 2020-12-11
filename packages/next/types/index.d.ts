@@ -111,7 +111,7 @@ export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
   ? P
   : never
 
-export type GetStaticPathsContext = {
+export interface GetStaticPathsContext {
   locales?: string[]
   defaultLocale?: string
 }
@@ -125,9 +125,9 @@ export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
   context: GetStaticPathsContext
 ) => Promise<GetStaticPathsResult<P>>
 
-export type GetServerSidePropsContext<
+export interface GetServerSidePropsContext<
   Q extends ParsedUrlQuery = ParsedUrlQuery
-> = {
+> {
   req: IncomingMessage
   res: ServerResponse
   params?: Q
