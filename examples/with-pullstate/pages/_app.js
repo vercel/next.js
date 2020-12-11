@@ -3,13 +3,11 @@ import { PullstateProvider } from 'pullstate'
 import { PullstateCore } from '../stores'
 
 export default function App({ Component, pageProps }) {
-  const instance =
-    typeof window === 'undefined'
-      ? PullstateCore.instantiate({ ssr: true })
-      : PullstateCore.instantiate({
-          ssr: false,
-          hydrateSnapshot: pageProps.hydrateSnapshot,
-        })
+  const instance = pageProps.snapshot
+    ? PullstateCore.instantiate({
+        hydrateSnapshot: JSON.parse(pageProps.snapshot),
+      })
+    : PullstateCore.instantiate()
 
   return (
     <PullstateProvider instance={instance}>
