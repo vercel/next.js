@@ -49,8 +49,9 @@ function buildError(error, file) {
 }
 
 class Webpack4Cache {
-  constructor(cacheDir) {
+  constructor(cacheDir, { SourceMapSource, RawSource }) {
     this.cacheDir = cacheDir
+    this.sources = { SourceMapSource, RawSource }
   }
   getLazyHashedEtag(obj) {
     let str
@@ -72,7 +73,26 @@ class Webpack4Cache {
       return undefined
     }
 
-    return cachedResult.data
+    cachedResult = JSON.parse(cachedResult.data)
+
+    const { code, name, map, input, inputSourceMap } = cachedResult
+
+    let source
+
+    if (map) {
+      source = new this.sources.SourceMapSource(
+        code,
+        name,
+        map,
+        input,
+        inputSourceMap,
+        true
+      )
+    } else {
+      source = new this.sources.RawSource(code)
+    }
+
+    return { source }
   }
 
   async storePromise(identifier, etag, data) {
@@ -91,7 +111,13 @@ class TerserPlugin {
     }
   }
 
-  async optimize(compiler, compilation, assets, optimizeOptions, cache) {
+  async optimize(
+    compilation,
+    assets,
+    optimizeOptions,
+    cache,
+    { SourceMapSource, RawSource }
+  ) {
     let numberOfAssetsForMinify = 0
     const assetsList = isWebpack5
       ? Object.keys(assets)
@@ -144,10 +170,6 @@ class TerserPlugin {
         })
     )
 
-    if (numberOfAssetsForMinify === 0) {
-      return
-    }
-
     const numberOfWorkers = Math.min(
       numberOfAssetsForMinify,
       optimizeOptions.availableNumberOfCores
@@ -175,7 +197,6 @@ class TerserPlugin {
     const limit = pLimit(
       numberOfAssetsForMinify > 0 ? numberOfWorkers : Infinity
     )
-    const { SourceMapSource, RawSource } = compiler?.webpack?.sources || sources
     const scheduledTasks = []
 
     for (const asset of assetsForMinify) {
@@ -237,7 +258,17 @@ class TerserPlugin {
               output.source = new RawSource(output.code)
             }
 
-            await cache.storePromise(name, eTag, output.source)
+            if (isWebpack5) {
+              await cache.storePromise(name, eTag, { source: output.source })
+            } else {
+              await cache.storePromise(name, eTag, {
+                code: output.code,
+                map: output.map,
+                name,
+                input,
+                inputSourceMap,
+              })
+            }
           }
 
           /** @type {AssetInfo} */
@@ -261,6 +292,7 @@ class TerserPlugin {
    * @returns {void}
    */
   apply(compiler) {
+    const { SourceMapSource, RawSource } = compiler?.webpack?.sources || sources
     const { output } = compiler.options
 
     if (typeof this.options.terserOptions.ecma === 'undefined') {
@@ -273,10 +305,12 @@ class TerserPlugin {
     compiler.hooks.compilation.tap(pluginName, (compilation) => {
       const cache = isWebpack5
         ? compilation.getCache('TerserWebpackPlugin')
-        : new Webpack4Cache(this.options.cacheDir)
+        : new Webpack4Cache(this.options.cacheDir, {
+            SourceMapSource,
+            RawSource,
+          })
 
       const handleHashForChunk = (hash, chunk) => {
-        hash.update('TerserPlugin')
         hash.update('a')
       }
 
@@ -297,13 +331,13 @@ class TerserPlugin {
           },
           (assets) =>
             this.optimize(
-              compiler,
               compilation,
               assets,
               {
                 availableNumberOfCores,
               },
-              cache
+              cache,
+              { SourceMapSource, RawSource }
             )
         )
 
@@ -327,13 +361,13 @@ class TerserPlugin {
 
         compilation.hooks.optimizeChunkAssets.tapPromise(pluginName, (assets) =>
           this.optimize(
-            compiler,
             compilation,
             assets,
             {
               availableNumberOfCores,
             },
-            cache
+            cache,
+            { SourceMapSource, RawSource }
           )
         )
       }
