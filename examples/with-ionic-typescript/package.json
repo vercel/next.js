@@ -1,0 +1,24 @@
+{
+  "name": "with-ionic-typescript",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "export": "next export -o build"
+  },
+  "dependencies": {
+    "@ionic/core": "^5.4.1",
+    "ionicons": "^5.2.3",
+    "next": "latest",
+    "react": "17.0.1",
+    "react-dom": "17.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^14.14.6",
+    "@types/react": "^16.9.55",
+    "copy-webpack-plugin": "6.2.1",
+    "typescript": "^4.0.5"
+  },
+  "license": "MIT"
+}
