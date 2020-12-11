@@ -4,7 +4,7 @@ This example shows Styled-jsx (with SCSS) working for components written in Type
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com/now):
+Deploy the example using [Vercel](https://vercel.com):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-storybook-styled-jsx-scss)
 
@@ -18,7 +18,23 @@ npx create-next-app --example with-storybook-styled-jsx-scss with-storybook-styl
 yarn create next-app --example with-storybook-styled-jsx-scss with-storybook-styled-jsx-scss-app
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+### Run Storybook
+
+```bash
+npm run storybook
+# or
+yarn storybook
+```
+
+### Build Static Storybook
+
+```bash
+npm run build-storybook
+# or
+yarn build-storybook
+```
+
+You can use [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy Storybook. Specify `storybook-static` as the output directory.
 
 ## Notes
 
