@@ -602,7 +602,6 @@ export async function ncc(task) {
       'ncc_thread_loader',
       'ncc_unistore',
       'ncc_web_vitals',
-      'ncc_terser_webpack_plugin',
       'ncc_comment_json',
       'ncc_semver',
     ])
