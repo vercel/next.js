@@ -1,13 +1,9 @@
 import { PullstateProvider } from 'pullstate'
 
-import { PullstateCore } from '../stores'
+import { useHydrate } from '../stores'
 
 export default function App({ Component, pageProps }) {
-  const instance = pageProps.snapshot
-    ? PullstateCore.instantiate({
-        hydrateSnapshot: JSON.parse(pageProps.snapshot),
-      })
-    : PullstateCore.instantiate()
+  const instance = useHydrate(pageProps.snapshot)
 
   return (
     <PullstateProvider instance={instance}>
