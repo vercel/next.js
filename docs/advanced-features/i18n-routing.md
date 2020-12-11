@@ -214,6 +214,12 @@ export default function IndexPage(props) {
 }
 ```
 
+## Leveraging the NEXT_LOCALE cookie
+
+Next.js supports overriding the accept-language header with a `NEXT_LOCALE=the-locale` cookie. This cookie can be set using a language switcher and then when a user comes back to the site it will leverage the locale specified in the cookie.
+
+For example, if a user prefers the locale `fr` but a `NEXT_LOCALE=en` cookie is set the `en` locale will be used instead until the cookie is removed or expired.
+
 ## Search Engine Optimization
 
 Since Next.js knows what language the user is visiting it will automatically add the `lang` attribute to the `<html>` tag.
@@ -221,6 +227,8 @@ Since Next.js knows what language the user is visiting it will automatically add
 Next.js doesn't know about variants of a page so it's up to you to add the `hreflang` meta tags using [`next/head`](/docs/api-reference/next/head.md). You can learn more about `hreflang` in the [Google Webmasters documentation](https://support.google.com/webmasters/answer/189077).
 
 ## How does this work with Static Generation?
+
+> Note that Internationalized Routing does not integrate with [`next export`](/docs/advanced-features/static-html-export.md) as `next export` does not leverage the Next.js routing layer. Hybrid Next.js applications that do not use `next export` are fully supported.
 
 ### Automatically Statically Optimized Pages
 
@@ -269,7 +277,3 @@ export const getStaticPaths = ({ locales }) => {
   }
 }
 ```
-
-## Caveats
-
-Internationalized Routing does not currently support [Static HTML Export (`next export`)](/docs/advanced-features/static-html-export.md) as you are no longer leveraging Next.js' server-side routing in that case.
