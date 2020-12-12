@@ -1024,11 +1024,14 @@ export default class Server {
   protected getDynamicRoutes(): Array<DynamicRouteItem> {
     const addedPages = new Set<string>()
 
-    return getSortedRoutes(Object.keys(this.pagesManifest!))
-      .filter(isDynamicRoute)
+    return getSortedRoutes(
+      Object.keys(this.pagesManifest!).map(
+        (page) =>
+          normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
+      )
+    )
       .map((page) => {
-        page = normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
-        if (addedPages.has(page)) return null
+        if (addedPages.has(page) || !isDynamicRoute(page)) return null
         addedPages.add(page)
         return {
           page,
