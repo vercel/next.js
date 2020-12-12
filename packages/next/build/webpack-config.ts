@@ -4,7 +4,8 @@ import crypto from 'crypto'
 import { readFileSync, realpathSync } from 'fs'
 import chalk from 'chalk'
 import semver from 'next/dist/compiled/semver'
-import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
+// @ts-ignore No typings yet
+import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
 import path from 'path'
 import webpack from 'webpack'
 import type { Configuration } from 'webpack'
@@ -743,9 +744,8 @@ export default async function getBaseWebpackConfig(
       minimizer: [
         // Minify JavaScript
         new TerserPlugin({
-          extractComments: false,
-          cache: path.join(distDir, 'cache', 'next-minifier'),
-          parallel: config.experimental.cpus || true,
+          cacheDir: path.join(distDir, 'cache', 'next-minifier'),
+          parallel: config.experimental.cpus,
           terserOptions,
         }),
         // Minify CSS
