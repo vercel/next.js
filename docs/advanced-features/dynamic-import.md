@@ -71,6 +71,8 @@ export default Home
 
 `DynamicComponent` will be the default component returned by `../components/hello`. It works like a regular React Component, and you can pass props to it as you normally would.
 
+> **Note**: import() needs to be explicitly written without template strings. Furthermore the import() has to be inside the dynamic() call for us to be able to match webpack bundles / module ids to the specific dynamic() call. Also, you can't use dynamic() inside of rendering as it needs to be marked in the top level of the module.
+
 ## With named exports
 
 If the dynamic component is not the default export, you can use a named export too. Consider the module `../components/hello.js` which has a named export `Hello`:
