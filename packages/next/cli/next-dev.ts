@@ -111,7 +111,7 @@ const nextDev: cliCommand = (argv) => {
   startServer(
     { dir, dev: true, isNextDevCommand: true },
     port,
-    args['--hostname']
+    args['--hostname'] || '127.0.0.1'
   )
     .then(async (app) => {
       startedDevelopmentServer(appUrl)
