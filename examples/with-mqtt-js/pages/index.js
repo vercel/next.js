@@ -1,81 +1,67 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import useMqtt from '../lib/useMqtt'
 
-
-export const getServerSideProps = async () =>{
-  return {
-    props: {
-      mqttUri: process.env.NEXT_PUBLIC_MQTT_URI
+export const getStaticProps = () =>{
+  const rndId = 'code'
+  return {props:{
+    mqttUri: process.env.NEXT_PUBLIC_MQTT_URI,
+    mqttOptions: {
+      username: process.env.NEXT_PUBLIC_MQTT_USERNAME,
+      password: process.env.NEXT_PUBLIC_MQTT_PASSWORD,
+      clientId: process.env.NEXT_PUBLIC_MQTT_CLIENTID ?? `next_mqtt_${rndId}`,
     }
-  }
+  }}
 }
 
-export default function Home({mqttUri}) {
-  console.log('mqttUri', mqttUri)
-  // const mqttUri = process.env.NEXT_PUBLIC_MQTT_URI
-  const clientId = process.env.NEXT_PUBLIC_MQTT_CLIENTID || `next_mqtt_${Math.random().toString(16).substr(2, 8)}`
-  const mqttOptions = {
-    username: process.env.NEXT_PUBLIC_MQTT_USERNAME,
-    password: process.env.NEXT_PUBLIC_MQTT_PASSWORD,
-    clientId: clientId,
-  }
-
-
+export default function Home({mqttUri, mqttOptions}) {
   const [incommingMessages, setIncommingMessages] = useState([])
-
   const addMessage = (message) => {
-    setIncommingMessages((currentMessages) => [...currentMessages, message])
+    console.log('currentMessages', incommingMessages)
+    setIncommingMessages((incommingMessages) => [...incommingMessages, message])
   }
-
-  
   const clearMessages = () => {
     setIncommingMessages(() => [])
   }
 
-  const incommingMessageHandlers = [
+  const incommingMessageHandlers = useRef([
     {
       topic: 'topic1',
       handler: (msg) => {
         addMessage(msg)
       },
-    },
-    {
-      topic: 'topic2',
-      handler: (msg) => {
-        addMessage(msg)
-      },
-    },
-  ]
+    }
+  ])  
   
-  const [mqttClient, setMqttClient] = useState(null) 
-  useMqtt(
-    mqttUri, 
-    mqttOptions, 
-    incommingMessageHandlers, 
-    client => setMqttClient(client)
+  const mqttClientRef = useRef(null)
+  const setMqttClient = (client) => {mqttClientRef.current = client} 
+  useMqtt({
+    uri: mqttUri, 
+    options: mqttOptions, 
+    topicHandlers: incommingMessageHandlers.current, 
+    onConnectedHandler: client => setMqttClient(client)}
   )
 
-  const publishMessages = () => {
-    if (!mqttClient) {
-      console.log('Cannot publish, mqttClient: ', mqttClient)
+  const publishMessages = (client) => {
+    if (!client) {
+      console.log('(publishMessages) Cannot publish, mqttClient: ', client)
       return
     }
 
-    mqttClient.publish('topic1', '1st message from component')
-    mqttClient.publish('topic2', '2nd message from component')
+    client.publish('topic1', '1st message from component')
+    client.publish('topic2', '2nd message from component')
   }
 
   return (
     <div>
       <h2>Subscribed Topics</h2>
-      {incommingMessageHandlers.map((i) => (
+      {incommingMessageHandlers.current.map((i) => (
         <p key={Math.random()}>{i.topic}</p>
       ))}
       <h2>Incomming Messages:</h2>
       {incommingMessages.map((m) => (
         <p key={Math.random()}>{m.payload.toString()}</p>
       ))}
-      <button onClick={() => publishMessages()}>Publish Test Messages</button>
+      <button onClick={() => publishMessages(mqttClientRef.current)}>Publish Test Messages</button>
       <button onClick={() => clearMessages()}>Clear Test Messages</button>
     </div>
   )

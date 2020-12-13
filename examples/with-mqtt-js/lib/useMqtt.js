@@ -4,25 +4,24 @@ import { useEffect, useRef } from 'react'
 function useMqtt({
   uri,
   options = {},
-  topicHandlers = [{ topic: '', handler: () => {} }],
-  setClientHandler = (client) => {}
+  topicHandlers = [{ topic: '', handler: ({ topic, payload, packet }) => {} }],
+  onConnectedHandler = (client) => {}
 }) {
-  useEffect(() => {
-    if (!topicHandlers || topicHandlers.length === 0) return () => {}
-    console.log('uri', uri)
-    console.dir('options', options)
-    console.log('topicHandlers', topicHandlers)
-    
-    let client
+  const clientRef = useRef(null) 
 
+  useEffect(() => {
+    if (clientRef.current) return;
+    if (!topicHandlers || topicHandlers.length === 0) return () => {}
+    
     try {
-      client = options
+      clientRef.current = options
         ? MQTT.connect(uri, options)
         : MQTT.connect(uri)
     } catch (error) {
       console.error('error', error)
     }
 
+    const client = clientRef.current
     topicHandlers.forEach((th) => {
       client.subscribe(th.topic)
     })
@@ -38,7 +37,8 @@ function useMqtt({
     })
 
     client.on('connect', () => {
-      if (setClientHandler) setClientHandler(client);
+      console.log('connected', client.connected)
+      if (onConnectedHandler) onConnectedHandler(client);
     });
 
     return () => {
@@ -49,7 +49,7 @@ function useMqtt({
         client.end()
       }
     }
-  }, [uri, options, topicHandlers])
+  }, [])
 
 }
 
