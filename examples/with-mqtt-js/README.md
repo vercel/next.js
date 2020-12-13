@@ -8,9 +8,6 @@ This example shows how to use the MQTT.js client with next.js.
 Deploy the example using [Vercel](https://vercel.com):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-mqtt-js)
-=======
-Thanks @jamesmosier for the startup advice.
->>>>>>> 75cd5f095f73b85d6ae6735e7eeaffdf78501894
 
 ## How to use
 

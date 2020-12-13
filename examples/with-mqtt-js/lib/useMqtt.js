@@ -5,22 +5,23 @@ function useMqtt({
   uri,
   options = {},
   topicHandlers = [{ topic: '', handler: () => {} }],
-  // getClientHandler = () => {}
+  setClientHandler = (client) => {}
 }) {
-  const clientRef = useRef(null)
-
   useEffect(() => {
     if (!topicHandlers || topicHandlers.length === 0) return () => {}
+    console.log('uri', uri)
+    console.dir('options', options)
+    console.log('topicHandlers', topicHandlers)
+    
+    let client
 
     try {
-      clientRef.current = options
+      client = options
         ? MQTT.connect(uri, options)
         : MQTT.connect(uri)
     } catch (error) {
       console.error('error', error)
     }
-
-    const client = clientRef.current
 
     topicHandlers.forEach((th) => {
       client.subscribe(th.topic)
@@ -36,9 +37,9 @@ function useMqtt({
       if (th) th.handler({ topic, payload, packet })
     })
 
-    // client.on('connect', () => {
-    //   if (setClientHandler) setClientHandler(client);
-    // });
+    client.on('connect', () => {
+      if (setClientHandler) setClientHandler(client);
+    });
 
     return () => {
       if (client) {
@@ -50,7 +51,6 @@ function useMqtt({
     }
   }, [uri, options, topicHandlers])
 
-  return clientRef
 }
 
 export default useMqtt

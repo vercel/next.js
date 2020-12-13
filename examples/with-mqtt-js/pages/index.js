@@ -1,19 +1,35 @@
 import { useState } from 'react'
 import useMqtt from '../lib/useMqtt'
 
-const mqttUri = process.env.NEXT_PUBLIC_MQTT_URI
-const clientId = process.env.NEXT_PUBLIC_MQTT_CLIENTID || `next_mqtt_${Math.random().toString(16).substr(2, 8)}`
-const mqttOptions = {
-  username: process.env.NEXT_PUBLIC_MQTT_USERNAME,
-  password: process.env.NEXT_PUBLIC_MQTT_PASSWORD,
-  clientId: clientId,
+
+export const getServerSideProps = async () =>{
+  return {
+    props: {
+      mqttUri: process.env.NEXT_PUBLIC_MQTT_URI
+    }
+  }
 }
 
-export default function Home() {
+export default function Home({mqttUri}) {
+  console.log('mqttUri', mqttUri)
+  // const mqttUri = process.env.NEXT_PUBLIC_MQTT_URI
+  const clientId = process.env.NEXT_PUBLIC_MQTT_CLIENTID || `next_mqtt_${Math.random().toString(16).substr(2, 8)}`
+  const mqttOptions = {
+    username: process.env.NEXT_PUBLIC_MQTT_USERNAME,
+    password: process.env.NEXT_PUBLIC_MQTT_PASSWORD,
+    clientId: clientId,
+  }
+
+
   const [incommingMessages, setIncommingMessages] = useState([])
 
   const addMessage = (message) => {
     setIncommingMessages((currentMessages) => [...currentMessages, message])
+  }
+
+  
+  const clearMessages = () => {
+    setIncommingMessages(() => [])
   }
 
   const incommingMessageHandlers = [
@@ -31,20 +47,22 @@ export default function Home() {
     },
   ]
   
-  const client = useRef()
-  const mqttClient = useMqtt(mqttUri, mqttOptions, incommingMessageHandlers)
+  const [mqttClient, setMqttClient] = useState(null) 
+  useMqtt(
+    mqttUri, 
+    mqttOptions, 
+    incommingMessageHandlers, 
+    client => setMqttClient(client)
+  )
 
   const publishMessages = () => {
-    if (!mqttClient.publish) {
+    if (!mqttClient) {
+      console.log('Cannot publish, mqttClient: ', mqttClient)
       return
     }
 
     mqttClient.publish('topic1', '1st message from component')
     mqttClient.publish('topic2', '2nd message from component')
-  }
-
-  const clearMessages = () => {
-    setIncommingMessages([])
   }
 
   return (
