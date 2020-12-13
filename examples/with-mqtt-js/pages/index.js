@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import useMqtt from '../lib/useMqtt'
 
 export const getStaticProps = () =>{
@@ -16,7 +16,6 @@ export const getStaticProps = () =>{
 export default function Home({mqttUri, mqttOptions}) {
   const [incommingMessages, setIncommingMessages] = useState([])
   const addMessage = (message) => {
-    console.log('currentMessages', incommingMessages)
     setIncommingMessages((incommingMessages) => [...incommingMessages, message])
   }
   const clearMessages = () => {
@@ -48,7 +47,6 @@ export default function Home({mqttUri, mqttOptions}) {
     }
 
     client.publish('topic1', '1st message from component')
-    client.publish('topic2', '2nd message from component')
   }
 
   return (

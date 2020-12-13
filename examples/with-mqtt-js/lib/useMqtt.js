@@ -37,7 +37,6 @@ function useMqtt({
     })
 
     client.on('connect', () => {
-      console.log('connected', client.connected)
       if (onConnectedHandler) onConnectedHandler(client);
     });
 
@@ -49,6 +48,7 @@ function useMqtt({
         client.end()
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
 }
