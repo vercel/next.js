@@ -1,19 +1,20 @@
 import { useState, useRef } from 'react'
 import useMqtt from '../lib/useMqtt'
 
-export const getStaticProps = () =>{
-  const rndId = 'code'
-  return {props:{
-    mqttUri: process.env.NEXT_PUBLIC_MQTT_URI,
-    mqttOptions: {
-      username: process.env.NEXT_PUBLIC_MQTT_USERNAME,
-      password: process.env.NEXT_PUBLIC_MQTT_PASSWORD,
-      clientId: process.env.NEXT_PUBLIC_MQTT_CLIENTID ?? `next_mqtt_${rndId}`,
-    }
-  }}
+export const getStaticProps = () => {
+  return {
+    props: {
+      mqttUri: process.env.NEXT_PUBLIC_MQTT_URI,
+      mqttOptions: {
+        username: process.env.NEXT_PUBLIC_MQTT_USERNAME,
+        password: process.env.NEXT_PUBLIC_MQTT_PASSWORD,
+        clientId: process.env.NEXT_PUBLIC_MQTT_CLIENTID,
+      },
+    },
+  }
 }
 
-export default function Home({mqttUri, mqttOptions}) {
+export default function Home({ mqttUri, mqttOptions }) {
   const [incommingMessages, setIncommingMessages] = useState([])
   const addMessage = (message) => {
     setIncommingMessages((incommingMessages) => [...incommingMessages, message])
@@ -28,17 +29,19 @@ export default function Home({mqttUri, mqttOptions}) {
       handler: (msg) => {
         addMessage(msg)
       },
-    }
-  ])  
-  
+    },
+  ])
+
   const mqttClientRef = useRef(null)
-  const setMqttClient = (client) => {mqttClientRef.current = client} 
+  const setMqttClient = (client) => {
+    mqttClientRef.current = client
+  }
   useMqtt({
-    uri: mqttUri, 
-    options: mqttOptions, 
-    topicHandlers: incommingMessageHandlers.current, 
-    onConnectedHandler: client => setMqttClient(client)}
-  )
+    uri: mqttUri,
+    options: mqttOptions,
+    topicHandlers: incommingMessageHandlers.current,
+    onConnectedHandler: (client) => setMqttClient(client),
+  })
 
   const publishMessages = (client) => {
     if (!client) {
@@ -59,7 +62,9 @@ export default function Home({mqttUri, mqttOptions}) {
       {incommingMessages.map((m) => (
         <p key={Math.random()}>{m.payload.toString()}</p>
       ))}
-      <button onClick={() => publishMessages(mqttClientRef.current)}>Publish Test Messages</button>
+      <button onClick={() => publishMessages(mqttClientRef.current)}>
+        Publish Test Messages
+      </button>
       <button onClick={() => clearMessages()}>Clear Test Messages</button>
     </div>
   )

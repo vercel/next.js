@@ -5,14 +5,14 @@ function useMqtt({
   uri,
   options = {},
   topicHandlers = [{ topic: '', handler: ({ topic, payload, packet }) => {} }],
-  onConnectedHandler = (client) => {}
+  onConnectedHandler = (client) => {},
 }) {
-  const clientRef = useRef(null) 
+  const clientRef = useRef(null)
 
   useEffect(() => {
-    if (clientRef.current) return;
+    if (clientRef.current) return
     if (!topicHandlers || topicHandlers.length === 0) return () => {}
-    
+
     try {
       clientRef.current = options
         ? MQTT.connect(uri, options)
@@ -37,8 +37,8 @@ function useMqtt({
     })
 
     client.on('connect', () => {
-      if (onConnectedHandler) onConnectedHandler(client);
-    });
+      if (onConnectedHandler) onConnectedHandler(client)
+    })
 
     return () => {
       if (client) {
@@ -48,9 +48,8 @@ function useMqtt({
         client.end()
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
 }
 
 export default useMqtt
