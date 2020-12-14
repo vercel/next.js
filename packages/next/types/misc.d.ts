@@ -199,7 +199,6 @@ declare module 'next/dist/compiled/web-vitals' {
   export = m
 }
 
-declare module 'next/dist/compiled/terser-webpack-plugin'
 declare module 'next/dist/compiled/comment-json' {
   import m from 'comment-json'
   export = m
