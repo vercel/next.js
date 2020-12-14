@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import {
   promises,
@@ -23,6 +23,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   CONFIG_FILE,
   EXPORT_DETAIL,
+  EXPORT_MARKER,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
@@ -31,6 +32,7 @@ import {
 } from '../next-server/lib/constants'
 import loadConfig, {
   isTargetLikeServerless,
+  NextConfig,
 } from '../next-server/server/config'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
@@ -50,7 +52,9 @@ const exists = promisify(existsOrig)
 function divideSegments(number: number, segments: number): number[] {
   const result = []
   while (number > 0 && segments > 0) {
-    const dividedNumber = Math.floor(number / segments)
+    const dividedNumber =
+      number < segments ? number : Math.floor(number / segments)
+
     number -= dividedNumber
     segments--
     result.push(dividedNumber)
@@ -129,7 +133,7 @@ interface ExportOptions {
 export default async function exportApp(
   dir: string,
   options: ExportOptions,
-  configuration?: any
+  configuration?: NextConfig
 ): Promise<void> {
   dir = resolve(dir)
 
@@ -160,9 +164,11 @@ export default async function exportApp(
     Log.info(`using build directory: ${distDir}`)
   }
 
-  if (!existsSync(distDir)) {
+  const buildIdFile = join(distDir, BUILD_ID_FILE)
+
+  if (!existsSync(buildIdFile)) {
     throw new Error(
-      `Build directory ${distDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`
+      `Could not find a production build in the '${distDir}' directory. Try building your app with 'next build' before starting the static export. https://err.sh/vercel/next.js/next-export-no-build-id`
     )
   }
 
@@ -182,7 +188,7 @@ export default async function exportApp(
     )
   }
 
-  const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
+  const buildId = readFileSync(buildIdFile, 'utf8')
   const pagesManifest =
     !options.pages &&
     (require(join(
@@ -283,11 +289,35 @@ export default async function exportApp(
     }
   }
 
-  const { i18n } = nextConfig.experimental
+  const {
+    i18n,
+    images: { loader = 'default' },
+  } = nextConfig
 
   if (i18n && !options.buildExport) {
     throw new Error(
       `i18n support is not compatible with next export. See here for more info on deploying: https://nextjs.org/docs/deployment`
+    )
+  }
+
+  const { isNextImageImported } = await promises
+    .readFile(join(distDir, EXPORT_MARKER), 'utf8')
+    .then((text) => JSON.parse(text))
+    .catch(() => ({}))
+
+  if (
+    isNextImageImported &&
+    loader === 'default' &&
+    !options.buildExport &&
+    !hasNextSupport
+  ) {
+    throw new Error(
+      `Image Optimization using Next.js' default loader is not compatible with \`next export\`.
+Possible solutions:
+  - Use \`next start\`, which starts the Image Optimization API.
+  - Use Vercel to deploy, which supports Image Optimization.
+  - Configure a third-party loader in \`next.config.js\`.
+Read more: https://err.sh/next.js/export-image-api`
     )
   }
 
@@ -302,13 +332,12 @@ export default async function exportApp(
     hotReloader: null,
     basePath: nextConfig.basePath,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
-    isModern: nextConfig.experimental.modern,
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
     locales: i18n?.locales,
-    locale: i18n.defaultLocale,
-    defaultLocale: i18n.defaultLocale,
+    locale: i18n?.defaultLocale,
+    defaultLocale: i18n?.defaultLocale,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -458,8 +487,8 @@ export default async function exportApp(
         subFolders,
         buildExport: options.buildExport,
         serverless: isTargetLikeServerless(nextConfig.target),
-        optimizeFonts: nextConfig.experimental.optimizeFonts,
         optimizeImages: nextConfig.experimental.optimizeImages,
+        optimizeCss: nextConfig.experimental.optimizeCss,
       })
 
       for (const validation of result.ampValidations || []) {
@@ -473,7 +502,7 @@ export default async function exportApp(
       renderError = renderError || !!result.error
       if (!!result.error) errorPaths.push(path)
 
-      if (options.buildExport) {
+      if (options.buildExport && configuration) {
         if (typeof result.fromBuildExportRevalidate !== 'undefined') {
           configuration.initialPageRevalidationMap[path] =
             result.fromBuildExportRevalidate

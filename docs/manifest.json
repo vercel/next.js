@@ -22,12 +22,16 @@
               "path": "/docs/basic-features/built-in-css-support.md"
             },
             {
-              "title": "Fast Refresh",
-              "path": "/docs/basic-features/fast-refresh.md"
+              "title": "Image Optimization",
+              "path": "/docs/basic-features/image-optimization.md"
             },
             {
               "title": "Static File Serving",
               "path": "/docs/basic-features/static-file-serving.md"
+            },
+            {
+              "title": "Fast Refresh",
+              "path": "/docs/basic-features/fast-refresh.md"
             },
             {
               "title": "TypeScript",
@@ -180,6 +184,10 @@
             {
               "title": "Codemods",
               "path": "/docs/advanced-features/codemods.md"
+            },
+            {
+              "title": "Internationalized Routing",
+              "path": "/docs/advanced-features/i18n-routing.md"
             }
           ]
         },
@@ -190,6 +198,10 @@
         {
           "title": "Migrating to Next.js",
           "routes": [
+            {
+              "title": "Incrementally Adopting Next.js",
+              "path": "/docs/migrating/incremental-adoption.md"
+            },
             {
               "title": "Migrating from Gatsby",
               "path": "/docs/migrating/from-gatsby.md"
@@ -215,6 +227,10 @@
         {
           "title": "next/link",
           "path": "/docs/api-reference/next/link.md"
+        },
+        {
+          "title": "next/image",
+          "path": "/docs/api-reference/next/image.md"
         },
         {
           "title": "next/head",
@@ -279,10 +295,6 @@
             {
               "title": "Compression",
               "path": "/docs/api-reference/next.config.js/compression.md"
-            },
-            {
-              "title": "Static Optimization Indicator",
-              "path": "/docs/api-reference/next.config.js/static-optimization-indicator.md"
             },
             {
               "title": "Runtime Configuration",
