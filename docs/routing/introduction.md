@@ -36,7 +36,7 @@ To match a dynamic segment you can use the bracket syntax. This allows you to ma
 
 ## Linking between pages
 
-The Next.js router allows you to do client-side route transitions between pages, similarly to a single-page application.
+The Next.js router allows you to do client-side route transitions between pages, similar to a single-page application.
 
 A React component called `Link` is provided to do this client-side route transition.
 
