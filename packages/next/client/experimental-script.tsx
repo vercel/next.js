@@ -2,7 +2,7 @@ import React, { useEffect, useContext } from 'react'
 import { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
 import { DOMAttributeNames } from './head-manager'
-import requestIdleCallback from './request-idle-callback'
+import { requestIdleCallback } from './request-idle-callback'
 
 const ScriptCache = new Map()
 const LoadCache = new Set()
