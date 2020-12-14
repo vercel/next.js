@@ -1207,6 +1207,7 @@ export default class Router implements BaseRouter {
         }
       })
     }
+    parsedHref.pathname = removePathTrailingSlash(parsedHref.pathname!)
     return parsedHref
   }
 
