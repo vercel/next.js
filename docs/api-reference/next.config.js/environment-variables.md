@@ -41,7 +41,7 @@ For example, the following line:
 return <h1>The value of customKey is: {process.env.customKey}</h1>
 ```
 
-Will end up being:
+will end up being:
 
 ```jsx
 return <h1>The value of customKey is: {'my-value'}</h1>
