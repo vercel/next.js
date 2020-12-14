@@ -77,15 +77,15 @@ module.exports = {
 
 ### Regex Path Matching
 
-To match a regex path you can wrap the regex in parenthesis after a parameter, for example `/blog/:slug(\\d{1,})` will match `/blog/123` but not `/blog/abc`:
+To match a regex path you can wrap the regex in parenthesis after a parameter, for example `/post/:slug(\\d{1,})` will match `/post/123` but not `/post/abc`:
 
 ```js
 module.exports = {
   async redirects() {
     return [
       {
-        source: '/old-blog/:post(\\d{1,})',
-        destination: '/blog/:post', // Matched parameters can be used in the destination
+        source: '/post/:slug(\\d{1,})',
+        destination: '/news/:slug', // Matched parameters can be used in the destination
         permanent: false,
       },
     ]
@@ -122,7 +122,7 @@ module.exports = {
 
 ### Redirects with i18n support
 
-When leveraging [`i18n` support](/docs/advanced-features/i18n-routing.md) with redirects each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the redirect:
+When leveraging [`i18n` support](/docs/advanced-features/i18n-routing.md) with redirects each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the redirect. If `locale: false` is used you must prefix the `source` and `destination` with a locale for it to be matched correctly.
 
 ```js
 module.exports = {
@@ -142,6 +142,13 @@ module.exports = {
         // does not handle locales automatically since locale: false is set
         source: '/nl/with-locale-manual',
         destination: '/nl/another',
+        locale: false,
+        permanent: false,
+      },
+      {
+        // this matches '/' since `en` is the defaultLocale
+        source: '/en',
+        destination: '/en/another',
         locale: false,
         permanent: false,
       },

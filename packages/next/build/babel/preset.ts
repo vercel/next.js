@@ -1,6 +1,5 @@
 import { PluginItem } from 'next/dist/compiled/babel/core'
 import { dirname } from 'path'
-
 const env = process.env.NODE_ENV
 const isProduction = env === 'production'
 const isDevelopment = env === 'development'
@@ -66,16 +65,15 @@ module.exports = (
 ): BabelPreset => {
   const supportsESM = api.caller(supportsStaticESM)
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
-  const isModern = api.caller((caller: any) => !!caller && caller.isModern)
+
   const useJsxRuntime =
     options['preset-react']?.runtime === 'automatic' ||
     (Boolean(api.caller((caller: any) => !!caller && caller.hasJsxRuntime)) &&
       options['preset-react']?.runtime !== 'classic')
 
   const isLaxModern =
-    isModern ||
-    (options['preset-env']?.targets &&
-      options['preset-env'].targets.esmodules === true)
+    options['preset-env']?.targets &&
+    options['preset-env'].targets.esmodules === true
 
   const presetEnvConfig = {
     // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
@@ -171,9 +169,9 @@ module.exports = (
           helpers: true,
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
-          absoluteRuntime: dirname(
-            require.resolve('@babel/runtime/package.json')
-          ),
+          absoluteRuntime: process.versions.pnp
+            ? dirname(require.resolve('@babel/runtime/package.json'))
+            : undefined,
           ...options['transform-runtime'],
         },
       ],

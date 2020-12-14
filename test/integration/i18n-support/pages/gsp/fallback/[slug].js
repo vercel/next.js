@@ -62,11 +62,18 @@ export const getStaticPaths = ({ locales, defaultLocale }) => {
     throw new Error('missing defaultLocale in getStaticPaths')
   }
 
-  return {
+  const paths = [
     // the default locale will be used since one isn't defined here
-    paths: ['first', 'second'].map((slug) => ({
-      params: { slug },
-    })),
+    { params: { slug: 'first' } },
+    { params: { slug: 'second' } },
+  ]
+
+  for (const locale of locales) {
+    paths.push({ params: { slug: 'always' }, locale })
+  }
+
+  return {
+    paths,
     fallback: true,
   }
 }

@@ -14,6 +14,7 @@ import {
   markAssetError,
 } from '../../../client/route-loader'
 import { denormalizePagePath } from '../../server/denormalize-page-path'
+import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt, { MittEmitter } from '../mitt'
 import {
   AppContextType,
@@ -616,26 +617,30 @@ export default class Router implements BaseRouter {
     let localeChange = options.locale !== this.locale
 
     if (process.env.__NEXT_I18N_SUPPORT) {
-      this.locale = options.locale || this.locale
+      this.locale =
+        options.locale === false
+          ? this.defaultLocale
+          : options.locale || this.locale
 
       if (typeof options.locale === 'undefined') {
         options.locale = this.locale
       }
 
-      const {
-        normalizeLocalePath,
-      } = require('../i18n/normalize-locale-path') as typeof import('../i18n/normalize-locale-path')
-
       const parsedAs = parseRelativeUrl(hasBasePath(as) ? delBasePath(as) : as)
-
       const localePathResult = normalizeLocalePath(
         parsedAs.pathname,
         this.locales
       )
-
       if (localePathResult.detectedLocale) {
         this.locale = localePathResult.detectedLocale
         url = addBasePath(localePathResult.pathname)
+      }
+
+      // if the locale isn't configured hard navigate to show 404 page
+      if (!this.locales?.includes(this.locale!)) {
+        parsedAs.pathname = addLocale(parsedAs.pathname, this.locale)
+        window.location.href = formatWithValidation(parsedAs)
+        return new Promise(() => {})
       }
     }
 
@@ -730,18 +735,25 @@ export default class Router implements BaseRouter {
 
     if (process.env.__NEXT_HAS_REWRITES) {
       resolvedAs = resolveRewrites(
-        parseRelativeUrl(as).pathname,
+        addBasePath(
+          addLocale(delBasePath(parseRelativeUrl(as).pathname), this.locale)
+        ),
         pages,
-        basePath,
         rewrites,
         query,
-        (p: string) => this._resolveHref({ pathname: p }, pages).pathname!
+        (p: string) => this._resolveHref({ pathname: p }, pages).pathname!,
+        this.locales
       )
 
       if (resolvedAs !== as) {
         const potentialHref = removePathTrailingSlash(
           this._resolveHref(
-            Object.assign({}, parsed, { pathname: resolvedAs }),
+            Object.assign({}, parsed, {
+              pathname: normalizeLocalePath(
+                hasBasePath(resolvedAs) ? delBasePath(resolvedAs) : resolvedAs,
+                this.locales
+              ).pathname,
+            }),
             pages,
             false
           ).pathname!
@@ -1195,6 +1207,7 @@ export default class Router implements BaseRouter {
         }
       })
     }
+    parsedHref.pathname = removePathTrailingSlash(parsedHref.pathname!)
     return parsedHref
   }
 
@@ -1214,9 +1227,6 @@ export default class Router implements BaseRouter {
     let { pathname } = parsed
 
     if (process.env.__NEXT_I18N_SUPPORT) {
-      const normalizeLocalePath = require('../i18n/normalize-locale-path')
-        .normalizeLocalePath as typeof import('../i18n/normalize-locale-path').normalizeLocalePath
-
       if (options.locale === false) {
         pathname = normalizeLocalePath!(pathname, this.locales).pathname
         parsed.pathname = pathname
@@ -1228,7 +1238,7 @@ export default class Router implements BaseRouter {
           this.locales
         )
         parsedAs.pathname = localePathResult.pathname
-        options.locale = localePathResult.detectedLocale || options.locale
+        options.locale = localePathResult.detectedLocale || this.defaultLocale
         asPath = formatWithValidation(parsedAs)
       }
     }
