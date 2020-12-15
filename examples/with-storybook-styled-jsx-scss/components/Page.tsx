@@ -53,11 +53,6 @@ export const Page: React.FC<PageProps> = ({
           Styled JSX + SCSS.
         </p>
         <p>
-          You'll also notice that the main .babelrc config is used directly in
-          Storybook (possibly Storybook can just be pointed at the main .babelrc
-          file to remove the duplication).
-        </p>
-        <p>
           Story files live in their own directory and refer to the components
           within /components.
         </p>
