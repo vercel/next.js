@@ -3,30 +3,17 @@ export const VALID_LOADERS = [
   'imgix',
   'cloudinary',
   'akamai',
-  'custom',
 ] as const
 
 export type LoaderValue = typeof VALID_LOADERS[number]
 
-interface BaseImageConfig {
+interface ImageConfig {
   deviceSizes: number[]
   imageSizes: number[]
+  loader: LoaderValue
   path: string
   domains?: string[]
 }
-
-interface ImageConfigWithLoader {
-  loader: LoaderValue
-  resolver?: undefined
-}
-
-interface ImageConfigWithResolver {
-  resolver: LoaderValue
-  loader?: undefined
-}
-
-export type ImageConfig = BaseImageConfig &
-  (ImageConfigWithLoader | ImageConfigWithResolver)
 
 export const imageConfigDefault: ImageConfig = {
   deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
