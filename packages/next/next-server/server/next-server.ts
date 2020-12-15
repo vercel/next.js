@@ -1024,11 +1024,14 @@ export default class Server {
   protected getDynamicRoutes(): Array<DynamicRouteItem> {
     const addedPages = new Set<string>()
 
-    return getSortedRoutes(Object.keys(this.pagesManifest!))
-      .filter(isDynamicRoute)
+    return getSortedRoutes(
+      Object.keys(this.pagesManifest!).map(
+        (page) =>
+          normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
+      )
+    )
       .map((page) => {
-        page = normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
-        if (addedPages.has(page)) return null
+        if (addedPages.has(page) || !isDynamicRoute(page)) return null
         addedPages.add(page)
         return {
           page,
@@ -1899,7 +1902,7 @@ export default class Server {
     } catch (err) {
       if (!fs.existsSync(buildIdFile)) {
         throw new Error(
-          `Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`
+          `Could not find a production build in the '${this.distDir}' directory. Try building your app with 'next build' before starting the production server. https://err.sh/vercel/next.js/production-start-no-build-id`
         )
       }
 

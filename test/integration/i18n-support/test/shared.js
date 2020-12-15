@@ -27,6 +27,29 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  it('should resolve href correctly when dynamic route matches locale prefixed', async () => {
+    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/nl`)
+    await browser.eval('window.beforeNav = 1')
+
+    await browser.eval(`(function() {
+      window.next.router.push('/post-1?a=b')
+    })()`)
+    await browser.waitForElementByCss('#post')
+
+    const router = JSON.parse(await browser.elementByCss('#router').text())
+    expect(router.query).toEqual({ post: 'post-1', a: 'b' })
+    expect(router.pathname).toBe('/[post]')
+    expect(router.asPath).toBe('/post-1?a=b')
+    expect(router.locale).toBe('nl')
+
+    await browser.back().waitForElementByCss('#index')
+    expect(await browser.elementByCss('#router-locale').text()).toBe('nl')
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({})
+  })
+
   it('should use default locale when no locale is in href with locale false', async () => {
     const browser = await webdriver(
       ctx.appPort,
@@ -445,7 +468,7 @@ export function runTests(ctx) {
         }
       )
 
-      expect(res.status).toBe(shouldRedirect ? 307 : 404)
+      expect(res.status).toBe(shouldRedirect ? 307 : 200)
 
       if (shouldRedirect) {
         const parsed = url.parse(res.headers.get('location'), true)
@@ -475,7 +498,7 @@ export function runTests(ctx) {
           redirect: 'manual',
         }
       )
-      expect(res.status).toBe(404)
+      expect(res.status).toBe(200)
       expect(res.headers.get('x-hello')).toBe(shouldAdd ? 'world' : null)
     }
   })
