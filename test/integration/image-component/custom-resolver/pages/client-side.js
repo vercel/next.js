@@ -1,11 +1,19 @@
 import React from 'react'
 import Image from 'next/image'
 
+const myLoader = ({ src, width, quality }) => {
+  return `https://customresolver.com/${src}?w~~${width},q~~${quality}`
+}
+
+const MyImage = (props) => {
+  return <Image loader={myLoader} {...props}></Image>
+}
+
 const Page = () => {
   return (
     <div>
       <p>Image Client Side Test</p>
-      <Image
+      <MyImage
         id="basic-image"
         src="foo.jpg"
         loading="eager"

@@ -38,6 +38,7 @@ export type ImageProps = Omit<
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
 > & {
   src: string
+  loader?: URLResolver
   quality?: number | string
   priority?: boolean
   loading?: LoadingValue
@@ -102,26 +103,10 @@ type CallLoaderProps = {
 }
 type URLResolver = (resolverProps: CallLoaderProps) => string
 
-let customLoader: URLResolver
-let loaderError = false
-export function registerCustomImageLoader(loader: URLResolver): void {
-  if (configLoader !== 'custom') {
-    loaderError = true
+function callLoader(loaderProps: CallLoaderProps, loader?: URLResolver) {
+  if (loader) {
+    return loader(loaderProps)
   }
-  customLoader = loader
-}
-
-function callLoader(loaderProps: CallLoaderProps) {
-  if (configLoader === 'custom') {
-    if (process.env.NODE_ENV !== 'production' && !customLoader) {
-      throw new Error(
-        `imageLoader has been set to 'custom' in next.config.js but no custom loader is defined. 
-        You must call registerCustomImageLoader in your _app.js file.`
-      )
-    }
-    return customLoader(loaderProps)
-  }
-
   const load = loaders.get(configLoader)
   if (load) {
     return load({ root: configPath, ...loaderProps })
@@ -140,6 +125,7 @@ type GenImgAttrsData = {
   width?: number
   quality?: number
   sizes?: string
+  loader?: URLResolver
 }
 
 type GenImgAttrsResult = Pick<
@@ -154,6 +140,7 @@ function generateImgAttrs({
   width,
   quality,
   sizes,
+  loader,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
     return { src }
@@ -165,7 +152,7 @@ function generateImgAttrs({
   const srcSet = widths
     .map(
       (w, i) =>
-        `${callLoader({ src, quality, width: w })} ${
+        `${callLoader({ src, quality, width: w }, loader)} ${
           kind === 'w' ? w : i + 1
         }${kind}`
     )
@@ -177,7 +164,7 @@ function generateImgAttrs({
       .join(', ')
   }
 
-  src = callLoader({ src, quality, width: widths[last] })
+  src = callLoader({ src, quality, width: widths[last] }, loader)
 
   return { src, sizes, srcSet }
 }
@@ -204,6 +191,7 @@ export default function Image({
   height,
   objectFit,
   objectPosition,
+  loader,
   ...all
 }: ImageProps) {
   let rest: Partial<ImageProps> = all
@@ -251,11 +239,6 @@ export default function Image({
     if (unsized) {
       throw new Error(
         `Image with src "${src}" has deprecated "unsized" property, which was removed in favor of the "layout='fill'" property`
-      )
-    }
-    if (loaderError) {
-      throw new Error(
-        `registerCustomImageLoader can only be used if image loader is set to 'custom' in next.config.js`
       )
     }
   }
@@ -393,6 +376,7 @@ export default function Image({
       width: widthInt,
       quality: qualityInt,
       sizes,
+      loader,
     })
   }
 
