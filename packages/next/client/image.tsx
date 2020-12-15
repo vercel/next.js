@@ -103,7 +103,7 @@ type CallLoaderProps = {
 }
 type URLResolver = (resolverProps: CallLoaderProps) => string
 
-function callLoader(loaderProps: CallLoaderProps, loader?: URLResolver) {
+function callLoader(loaderProps: CallLoaderProps, loader: URLResolver | undefined) {
   if (loader) {
     return loader(loaderProps)
   }
