@@ -62,7 +62,7 @@ export type ImageProps = Omit<
 
 const config =
   ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
-const configLoader = config.loader || 'default'
+const configLoader = config.loader
 const {
   deviceSizes: configDeviceSizes,
   imageSizes: configImageSizes,
