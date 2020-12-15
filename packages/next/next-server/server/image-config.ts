@@ -7,7 +7,7 @@ export const VALID_LOADERS = [
 
 export type LoaderValue = typeof VALID_LOADERS[number]
 
-interface ImageConfig {
+export type ImageConfig = {
   deviceSizes: number[]
   imageSizes: number[]
   loader: LoaderValue
