@@ -1,4 +1,3 @@
-import { parse as parseQs } from 'querystring'
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse as parseUrl, format as formatUrl, UrlWithParsedQuery } from 'url'
 import { isResSent } from '../../../../next-server/lib/utils'
@@ -14,7 +13,6 @@ import {
 } from '../../../../next-server/server/api-utils'
 import { getRedirectStatus } from '../../../../lib/load-custom-routes'
 import getRouteNoAssetPath from '../../../../next-server/lib/router/utils/get-route-from-asset-path'
-import { getRouteMatcher } from '../../../../next-server/lib/router/utils/route-matcher'
 import { PERMANENT_REDIRECT_STATUS } from '../../../../next-server/lib/constants'
 
 export function getPageHandler(ctx: ServerlessHandlerCtx) {
@@ -56,7 +54,10 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
     handleBasePath,
     defaultRouteRegex,
     dynamicRouteMatcher,
+    interpolateDynamicPath,
+    getParamsFromRouteMatches,
     normalizeDynamicRouteParams,
+    normalizeVercelUrl,
   } = getUtils(ctx)
 
   async function renderReqToHTML(
@@ -222,116 +223,24 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
         !hasValidParams &&
         req.headers?.['x-now-route-matches']
       ) {
-        nowParams = getRouteMatcher(
-          (function () {
-            const { groups, routeKeys } = defaultRouteRegex!
-
-            return {
-              re: {
-                // Simulate a RegExp match from the \`req.url\` input
-                exec: (str: string) => {
-                  const obj = parseQs(str)
-
-                  // favor named matches if available
-                  const routeKeyNames = Object.keys(routeKeys || {})
-
-                  const filterLocaleItem = (val: string | string[]) => {
-                    if (i18n) {
-                      // locale items can be included in route-matches
-                      // for fallback SSG pages so ensure they are
-                      // filtered
-                      const isCatchAll = Array.isArray(val)
-                      const _val = isCatchAll ? val[0] : val
-
-                      if (
-                        typeof _val === 'string' &&
-                        i18n.locales.some((item) => {
-                          if (item.toLowerCase() === _val.toLowerCase()) {
-                            detectedLocale = item
-                            renderOpts.locale = detectedLocale
-                            return true
-                          }
-                          return false
-                        })
-                      ) {
-                        // remove the locale item from the match
-                        if (isCatchAll) {
-                          ;(val as string[]).splice(0, 1)
-                        }
-
-                        // the value is only a locale item and
-                        // shouldn't be added
-                        return isCatchAll ? val.length === 0 : true
-                      }
-                    }
-                    return false
-                  }
-
-                  if (routeKeyNames.every((name) => obj[name])) {
-                    return routeKeyNames.reduce((prev, keyName) => {
-                      const paramName = routeKeys?.[keyName]
-
-                      if (paramName && !filterLocaleItem(obj[keyName])) {
-                        prev[groups[paramName].pos] = obj[keyName]
-                      }
-                      return prev
-                    }, {} as any)
-                  }
-
-                  return Object.keys(obj).reduce((prev, key) => {
-                    if (!filterLocaleItem(obj[key])) {
-                      return Object.assign(prev, {
-                        [key]: obj[key],
-                      })
-                    }
-                    return prev
-                  }, {})
-                },
-              },
-              groups,
-            }
-          })() as any
-        )(req.headers['x-now-route-matches'] as string)
+        nowParams = getParamsFromRouteMatches(req, renderOpts, detectedLocale)
       }
 
       // make sure to set renderOpts to the correct params e.g. _params
       // if provided from worker or params if we're parsing them here
       renderOpts.params = _params || params
 
-      // make sure to normalize req.url on Vercel to strip dynamic params
-      // from the query which are added during routing
-      if (pageIsDynamic && trustQuery && defaultRouteRegex) {
-        const _parsedUrl = parseUrl(req.url!, true)
-        delete (_parsedUrl as any).search
-
-        for (const param of Object.keys(defaultRouteRegex.groups)) {
-          delete _parsedUrl.query[param]
-        }
-        req.url = formatUrl(_parsedUrl)
-      }
+      normalizeVercelUrl(req, !!trustQuery)
 
       // normalize request URL/asPath for fallback/revalidate pages since the
       // proxy sets the request URL to the output's path for fallback pages
       if (pageIsDynamic && nowParams && defaultRouteRegex) {
         const _parsedUrl = parseUrl(req.url!)
 
-        for (const param of Object.keys(defaultRouteRegex.groups)) {
-          const { optional, repeat } = defaultRouteRegex.groups[param]
-          let builtParam = `[${repeat ? '...' : ''}${param}]`
-
-          if (optional) {
-            builtParam = `[${builtParam}]`
-          }
-
-          const paramIdx = _parsedUrl.pathname!.indexOf(builtParam)
-
-          if (paramIdx > -1) {
-            _parsedUrl.pathname =
-              _parsedUrl.pathname!.substr(0, paramIdx) +
-              encodeURI((nowParams as any)[param] || '') +
-              _parsedUrl.pathname!.substr(paramIdx + builtParam.length)
-          }
-        }
+        _parsedUrl.pathname = interpolateDynamicPath(
+          _parsedUrl.pathname!,
+          nowParams
+        )
         parsedUrl.pathname = _parsedUrl.pathname
         req.url = formatUrl(_parsedUrl)
       }
