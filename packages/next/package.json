@@ -189,7 +189,7 @@
     "find-up": "4.1.0",
     "fresh": "0.5.2",
     "gzip-size": "5.1.1",
-    "http-proxy": "1.18.0",
+    "http-proxy": "1.18.1",
     "ignore-loader": "0.1.2",
     "is-docker": "2.0.0",
     "is-wsl": "2.2.0",
