@@ -7,7 +7,10 @@ import {
 } from '../../../next-server/server/font-utils'
 import postcss from 'postcss'
 import minifier from 'cssnano-simple'
-import { OPTIMIZED_FONT_PROVIDERS } from '../../../next-server/lib/constants'
+import {
+  FONT_MANIFEST,
+  OPTIMIZED_FONT_PROVIDERS,
+} from '../../../next-server/lib/constants'
 
 // @ts-ignore: TODO: remove ignore when webpack 5 is stable
 const { RawSource } = webpack.sources || sources
@@ -169,7 +172,7 @@ export class FontStylesheetGatheringPlugin {
             })
           }
           if (!isWebpack5) {
-            compilation.assets['font-manifest.json'] = new RawSource(
+            compilation.assets[FONT_MANIFEST] = new RawSource(
               JSON.stringify(this.manifestContent, null, '  ')
             )
           }
@@ -189,7 +192,7 @@ export class FontStylesheetGatheringPlugin {
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
           },
           (assets: any) => {
-            assets['font-manifest.json'] = new RawSource(
+            assets[FONT_MANIFEST] = new RawSource(
               JSON.stringify(this.manifestContent, null, '  ')
             )
           }
