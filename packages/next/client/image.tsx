@@ -15,7 +15,20 @@ if (typeof window === 'undefined') {
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
 type LoadingValue = typeof VALID_LOADING_VALUES[number]
 
-const loaders = new Map<LoaderValue, (props: LoaderProps) => string>([
+export type ImageLoader = (resolverProps: ImageLoaderProps) => string
+
+type ImageLoaderProps = {
+  src: string
+  width: number
+  quality?: number
+}
+
+type DefaultImageLoaderProps = ImageLoaderProps & { root: string }
+
+const loaders = new Map<
+  LoaderValue,
+  (props: DefaultImageLoaderProps) => string
+>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
@@ -38,7 +51,7 @@ export type ImageProps = Omit<
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
 > & {
   src: string
-  loader?: URLResolver
+  loader?: ImageLoader | string
   quality?: number | string
   priority?: boolean
   loading?: LoadingValue
@@ -96,36 +109,14 @@ function getWidths(
   return { widths, kind: 'x' }
 }
 
-type CallLoaderProps = {
-  src: string
-  width: number
-  quality?: number
-}
-type URLResolver = (resolverProps: CallLoaderProps) => string
-
-function callLoader(loaderProps: CallLoaderProps, loader: URLResolver | undefined) {
-  if (loader) {
-    return loader(loaderProps)
-  }
-  const load = loaders.get(configLoader)
-  if (load) {
-    return load({ root: configPath, ...loaderProps })
-  }
-  throw new Error(
-    `Unknown "loader" found in "next.config.js". Expected: ${VALID_LOADERS.join(
-      ', '
-    )}. Received: ${configLoader}`
-  )
-}
-
 type GenImgAttrsData = {
   src: string
   unoptimized: boolean
   layout: LayoutValue
+  loader: ImageLoader
   width?: number
   quality?: number
   sizes?: string
-  loader?: URLResolver
 }
 
 type GenImgAttrsResult = Pick<
@@ -149,22 +140,18 @@ function generateImgAttrs({
   const { widths, kind } = getWidths(width, layout)
   const last = widths.length - 1
 
-  const srcSet = widths
-    .map(
-      (w, i) =>
-        `${callLoader({ src, quality, width: w }, loader)} ${
-          kind === 'w' ? w : i + 1
-        }${kind}`
-    )
-    .join(', ')
-
-  if (!sizes && kind === 'w') {
-    sizes = '100vw'
+  return {
+    src: loader({ src, quality, width: widths[last] }),
+    sizes: !sizes && kind === 'w' ? '100vw' : sizes,
+    srcSet: widths
+      .map(
+        (w, i) =>
+          `${loader({ src, quality, width: w })} ${
+            kind === 'w' ? w : i + 1
+          }${kind}`
+      )
+      .join(', '),
   }
-
-  src = callLoader({ src, quality, width: widths[last] }, loader)
-
-  return { src, sizes, srcSet }
 }
 
 function getInt(x: unknown): number | undefined {
@@ -175,6 +162,19 @@ function getInt(x: unknown): number | undefined {
     return parseInt(x, 10)
   }
   return undefined
+}
+
+function defaultImageLoader(loaderProps: ImageLoaderProps) {
+  const load = loaders.get(configLoader)
+  if (!load) {
+    throw new Error(
+      `Unknown "loader" found in "next.config.js". Expected: ${VALID_LOADERS.join(
+        ', '
+      )}. Received: ${configLoader}`
+    )
+  }
+
+  return load({ root: configPath, ...loaderProps })
 }
 
 export default function Image({
@@ -189,7 +189,7 @@ export default function Image({
   height,
   objectFit,
   objectPosition,
-  loader,
+  loader = defaultImageLoader,
   ...all
 }: ImageProps) {
   let rest: Partial<ImageProps> = all
@@ -205,6 +205,20 @@ export default function Image({
 
     // Remove property so it's not spread into image:
     delete rest['layout']
+  }
+  // Handle string specifying a different built-in loader
+  if (typeof loader === 'string') {
+    if (!(VALID_LOADERS as ReadonlyArray<string>).includes(loader)) {
+      throw new Error(
+        `Unknown "loader" specified as a parameter. Expected a function or one of the following: ${VALID_LOADERS.join(
+          ', '
+        )}. Received: ${configLoader}`
+      )
+    }
+    const load = loaders.get(loader as LoaderValue) as (
+      props: DefaultImageLoaderProps
+    ) => string
+    loader = (props: ImageLoaderProps) => load({ root: configPath, ...props })
   }
 
   if (process.env.NODE_ENV !== 'production') {
@@ -412,13 +426,16 @@ export default function Image({
 
 //BUILT IN LOADERS
 
-type LoaderProps = CallLoaderProps & { root: string }
-
 function normalizeSrc(src: string) {
   return src[0] === '/' ? src.slice(1) : src
 }
 
-function imgixLoader({ root, src, width, quality }: LoaderProps): string {
+function imgixLoader({
+  root,
+  src,
+  width,
+  quality,
+}: DefaultImageLoaderProps): string {
   // Demo: https://static.imgix.net/daisy.png?format=auto&fit=max&w=300
   const params = ['auto=format', 'fit=max', 'w=' + width]
   let paramsString = ''
@@ -432,18 +449,28 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
   return `${root}${normalizeSrc(src)}${paramsString}`
 }
 
-function akamaiLoader({ root, src, width }: LoaderProps): string {
+function akamaiLoader({ root, src, width }: DefaultImageLoaderProps): string {
   return `${root}${normalizeSrc(src)}?imwidth=${width}`
 }
 
-function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
+function cloudinaryLoader({
+  root,
+  src,
+  width,
+  quality,
+}: DefaultImageLoaderProps): string {
   // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
   const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
   let paramsString = params.join(',') + '/'
   return `${root}${paramsString}${normalizeSrc(src)}`
 }
 
-function defaultLoader({ root, src, width, quality }: LoaderProps): string {
+function defaultLoader({
+  root,
+  src,
+  width,
+  quality,
+}: DefaultImageLoaderProps): string {
   if (process.env.NODE_ENV !== 'production') {
     const missingValues = []
 

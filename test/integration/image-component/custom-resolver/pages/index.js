@@ -23,6 +23,15 @@ const Page = () => {
         quality={60}
       />
       <Image
+        id="different-default-image"
+        src="foo.jpg"
+        loading="eager"
+        loader="cloudinary"
+        width={300}
+        height={400}
+        quality={60}
+      />
+      <Image
         id="unoptimized-image"
         unoptimized
         src="https://arbitraryurl.com/foo.jpg"

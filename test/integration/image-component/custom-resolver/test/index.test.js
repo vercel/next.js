@@ -24,6 +24,13 @@ function runTests() {
       'https://customresolver.com/foo.jpg?w~~480,q~~60 1x, https://customresolver.com/foo.jpg?w~~1024,q~~60 2x'
     )
   })
+  it('Should use a different default resolver for image URL as specified', async () => {
+    expect(
+      await browser.elementById('different-default-image').getAttribute('src')
+    ).toBe(
+      'https://globalresolver.com/myaccount/f_auto,c_limit,w_1024,q_60/foo.jpg'
+    )
+  })
   it('should support the unoptimized attribute', async () => {
     expect(
       await browser.elementById('unoptimized-image').getAttribute('src')
