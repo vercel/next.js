@@ -123,7 +123,7 @@ You do not need to worry about .error {} colliding with any other `.css` or
 Then, create `components/Button.js`, importing and using the above CSS file:
 
 ```jsx
-import styles from './Button.module.css'
+import * as styles from './Button.module.css'
 
 export function Button() {
   return (

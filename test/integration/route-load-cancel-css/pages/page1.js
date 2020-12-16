@@ -1,4 +1,4 @@
-import styles from './page1.module.css'
+import * as styles from './page1.module.css'
 
 function Page1() {
   return (

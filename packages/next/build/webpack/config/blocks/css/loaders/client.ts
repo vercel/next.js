@@ -30,11 +30,19 @@ export function getClientStyleLoader({
             // need to track the last inserted element.
             parentNode.insertBefore(element, anchorElement)
           },
+          modules: {
+            // expose CSS class names as ES module named exports,
+            // so importing non-existing class names fails
+            namedExport: true,
+          },
         },
       }
     : {
         // @ts-ignore: TODO: remove when webpack 5 is stable
         loader: MiniCssExtractPlugin.loader,
-        options: { publicPath: `${assetPrefix}/_next/`, esModule: false },
+        options: {
+          publicPath: `${assetPrefix}/_next/`,
+          modules: { namedExport: true },
+        },
       }
 }

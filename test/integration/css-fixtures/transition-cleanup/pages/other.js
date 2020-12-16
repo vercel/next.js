@@ -1,4 +1,4 @@
-import css from './other.module.css'
+import * as css from './other.module.css'
 
 export default function Other() {
   throw new Error(`oops ${css.root}`)

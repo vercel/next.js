@@ -1,7 +1,7 @@
 import useSWR from 'swr'
 import fetcher from 'libs/fetcher'
 import Link from 'next/link'
-import styles from './User.module.css'
+import * as styles from './User.module.css'
 import Social from 'components/Social'
 
 const User = () => {

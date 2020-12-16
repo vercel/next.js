@@ -1,4 +1,4 @@
-import styles from './styles.module.css'
+import * as styles from './styles.module.css'
 
 const Post = ({ id, pathname }) => {
   return (

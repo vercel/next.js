@@ -1,4 +1,4 @@
-import style from '../css/index.module.css'
+import * as style from '../css/index.module.css'
 
 export default function Index() {
   return (

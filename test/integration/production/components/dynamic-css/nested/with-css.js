@@ -1,4 +1,4 @@
-import styles from './with-css.module.css'
+import * as styles from './with-css.module.css'
 import Nested from './Nested'
 
 export default () => (

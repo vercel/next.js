@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import css from './other.module.css'
+import * as css from './other.module.css'
 
 export default class Other extends React.Component {
   ref = React.createRef()

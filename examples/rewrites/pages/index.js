@@ -1,4 +1,4 @@
-import styles from '../styles.module.css'
+import * as styles from '../styles.module.css'
 import Link from 'next/link'
 
 const Code = (p) => <code className={styles.inlineCode} {...p} />

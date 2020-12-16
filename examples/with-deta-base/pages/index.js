@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Head from 'next/head'
-import styles from '../styles/Home.module.css'
+import * as styles from '../styles/Home.module.css'
 
 const ToDo = ({ content, isCompleted, onChange, onDelete }) => {
   const cards = ['card', 'card2', 'card3', 'card4', 'card5']

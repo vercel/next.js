@@ -1,4 +1,4 @@
-import style from '../css/404.module.css'
+import * as style from '../css/404.module.css'
 
 export default function NotFound() {
   return (

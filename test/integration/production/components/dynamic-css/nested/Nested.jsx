@@ -1,3 +1,3 @@
-import styles2 from './with-css-2.module.css'
+import * as styles2 from './with-css-2.module.css'
 
 export default () => <p className={styles2.text}>With CSS</p>

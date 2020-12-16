@@ -1,4 +1,4 @@
-import styles from './Social.module.css'
+import * as styles from './Social.module.css'
 import UIcon from 'components/UIcon'
 
 const Social = ({ user }) => {

@@ -1,5 +1,5 @@
-import styles1 from './index.module.css'
-import styles2 from './index2.module.css'
+import * as styles1 from './index.module.css'
+import * as styles2 from './index2.module.css'
 
 export default function Home() {
   return (

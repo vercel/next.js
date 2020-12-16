@@ -1,6 +1,6 @@
-import helloStyles from './hello.module.css'
-import helloStyles2 from './hello.module.scss'
-import helloStyles3 from './hello.module.sass'
+import * as helloStyles from './hello.module.css'
+import * as helloStyles2 from './hello.module.scss'
+import * as helloStyles3 from './hello.module.sass'
 
 export function hello(): string {
   console.log(helloStyles.hello)

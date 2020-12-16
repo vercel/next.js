@@ -1,5 +1,5 @@
 import Head from 'next/head'
-import styles from '../styles/Home.module.css'
+import * as styles from '../styles/Home.module.css'
 import { Page } from '../components/Page'
 
 const demoProps = {

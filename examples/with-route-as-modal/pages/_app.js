@@ -1,4 +1,4 @@
-import styles from '../app-styles.module.css'
+import * as styles from '../app-styles.module.css'
 
 function MyApp({ Component, pageProps }) {
   return (

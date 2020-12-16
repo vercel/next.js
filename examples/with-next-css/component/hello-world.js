@@ -1,4 +1,4 @@
-import css from './hello-world.module.css'
+import * as css from './hello-world.module.css'
 
 export default function HelloWorld() {
   return (

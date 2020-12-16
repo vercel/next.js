@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Button } from '../components/button'
-import styles from './homepage.module.css'
+import * as styles from './homepage.module.css'
 
 function HomePage() {
   return (

@@ -76,6 +76,40 @@ describe('Basic CSS Module Support', () => {
   })
 })
 
+describe('Strict CSS Module Import', () => {
+  const appDir = join(fixturesDir, 'strict-module-import')
+
+  let stderr
+  let code
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+    ;({ code, stderr } = await nextBuild(appDir, [], {
+      stderr: true,
+    }))
+  })
+
+  it('should fail to build code importing non-existent class', async () => {
+    expect(code).not.toBe(0)
+    expect(stderr).toContain('Failed to compile')
+    expect(stderr).toContain('pages/index.js')
+    expect(stderr).toContain('Attempted import error')
+  })
+
+  it(`should've emitted a single CSS file`, async () => {
+    const cssFolder = join(appDir, '.next/static/css')
+
+    const files = await readdir(cssFolder)
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+    expect(cssFiles.length).toBe(1)
+    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `".index_redText__3CwEB{color:red}"`
+    )
+  })
+})
+
 describe('3rd Party CSS Module Support', () => {
   const appDir = join(fixturesDir, '3rd-party-module')
 

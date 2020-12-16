@@ -847,14 +847,12 @@ test('css syntax errors', async () => {
   await session.patch('index.module.css', `button {}`)
   expect(await session.hasRedbox(true)).toBe(true)
   const source2 = await session.getRedboxSource()
-  expect(source2).toMatchInlineSnapshot(`
-    "./index.module.css:1:1
-    Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
-
-    > 1 | button {}
-        |         ^"
-  `)
-
+  expect(source2).toMatch('./index.module.css:1:1')
+  expect(source2).toMatch('Syntax error:')
+  expect(source2).toMatch(
+    'Selector "button" is not pure (pure selectors must contain at least one local class or id'
+  )
+  expect(source2).toMatch('> 1 | button {}')
   await cleanup()
 })
 
@@ -894,14 +892,12 @@ test('scss syntax errors', async () => {
   await session.patch('index.module.scss', `button { font-size: 5px; }`)
   expect(await session.hasRedbox(true)).toBe(true)
   const source2 = await session.getRedboxSource()
-  expect(source2).toMatchInlineSnapshot(`
-    "./index.module.scss:1:1
-    Syntax error: Selector \\"button\\" is not pure (pure selectors must contain at least one local class or id)
-
-    > 1 | button { font-size: 5px; }
-        |                          ^"
-  `)
-
+  expect(source2).toMatch('./index.module.scss:1:1')
+  expect(source2).toMatch('Syntax error:')
+  expect(source2).toMatch(
+    'Selector "button" is not pure (pure selectors must contain at least one local class or id'
+  )
+  expect(source2).toMatch('> 1 | button { font-size: 5px; }')
   await cleanup()
 })
 

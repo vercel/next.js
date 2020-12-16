@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import styles from '../styles.module.css'
+import * as styles from '../styles.module.css'
 
 export default function Index() {
   const [response, setResponse] = useState()

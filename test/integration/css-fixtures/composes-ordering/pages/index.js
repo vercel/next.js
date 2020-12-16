@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import css from './index.module.css'
+import * as css from './index.module.css'
 
 export default function Home() {
   return (

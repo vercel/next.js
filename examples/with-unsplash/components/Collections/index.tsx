@@ -1,7 +1,7 @@
 import useSWR from 'swr'
 import fetcher from 'libs/fetcher'
 import Link from 'next/link'
-import styles from './Collections.module.css'
+import * as styles from './Collections.module.css'
 
 interface CollectionProps {
   id_collection?: number

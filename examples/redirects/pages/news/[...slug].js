@@ -1,6 +1,6 @@
 import { useRouter } from 'next/router'
 import Link from 'next/link'
-import styles from '../../styles.module.css'
+import * as styles from '../../styles.module.css'
 
 const Code = (p) => <code className={styles.inlineCode} {...p} />
 

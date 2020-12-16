@@ -202,7 +202,7 @@
     "conf": "5.0.0",
     "content-type": "1.0.4",
     "cookie": "0.4.1",
-    "css-loader": "4.3.0",
+    "css-loader": "5.2.6",
     "debug": "4.1.1",
     "devalue": "2.0.1",
     "escape-string-regexp": "2.0.0",

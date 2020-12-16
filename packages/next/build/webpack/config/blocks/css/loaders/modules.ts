@@ -29,14 +29,13 @@ export function getCssModuleLoader(
     options: {
       importLoaders: 1 + preProcessors.length,
       sourceMap: true,
-      // Use CJS mode for backwards compatibility:
-      esModule: false,
       url: cssFileResolve,
       import: (url: string, _: any, resourcePath: string) =>
         cssFileResolve(url, resourcePath),
       modules: {
-        // Do not transform class names (CJS mode backwards compatibility):
-        exportLocalsConvention: 'asIs',
+        // expose CSS class names as ES module named exports,
+        // so importing non-existing class names fails
+        namedExport: true,
         // Server-side (Node.js) rendering support:
         exportOnlyLocals: ctx.isServer,
         // Disallow global style exports so we can code-split CSS and

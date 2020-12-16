@@ -1,5 +1,5 @@
-import styles from './with-css.module.css'
-import styles2 from './with-css-2.module.css'
+import * as styles from './with-css.module.css'
+import * as styles2 from './with-css-2.module.css'
 
 export default () => (
   <div className={styles.content}>

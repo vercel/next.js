@@ -1,6 +1,6 @@
 import useSWR from 'swr'
 import fetcher from 'libs/fetcher'
-import styles from './Stats.module.css'
+import * as styles from './Stats.module.css'
 
 const Stats = () => {
   const { data, error } = useSWR('/api/stats', fetcher)

@@ -1,4 +1,4 @@
-import postStyles from './post-styles.module.css'
+import * as postStyles from './post-styles.module.css'
 
 export default function PostBody({ content }) {
   return (

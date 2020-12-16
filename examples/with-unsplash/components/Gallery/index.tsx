@@ -1,6 +1,6 @@
 import useSWR from 'swr'
 import fetcher from 'libs/fetcher'
-import styles from './Gallery.module.css'
+import * as styles from './Gallery.module.css'
 import UImage from 'components/UImage'
 
 interface GalleryProps {

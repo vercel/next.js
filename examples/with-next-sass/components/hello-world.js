@@ -1,4 +1,4 @@
-import styles from './hello-world.module.scss'
+import * as styles from './hello-world.module.scss'
 
 export default function HelloWorld() {
   return (

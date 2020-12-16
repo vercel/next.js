@@ -1,4 +1,4 @@
-import styles from './UImage.module.css'
+import * as styles from './UImage.module.css'
 import UIcon from 'components/UIcon'
 
 const Uimage = ({ id, urls, altDescription }) => {

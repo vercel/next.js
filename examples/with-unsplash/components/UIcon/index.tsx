@@ -1,4 +1,4 @@
-import styles from './UIcon.module.css'
+import * as styles from './UIcon.module.css'
 
 const UIcon = ({ url, name }) => {
   return (

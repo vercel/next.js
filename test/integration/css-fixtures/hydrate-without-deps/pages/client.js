@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import css from './index.module.css'
+import * as css from './index.module.css'
 
 export default function Home() {
   const [state, setState] = useState('')
