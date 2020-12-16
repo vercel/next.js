@@ -361,19 +361,17 @@ export default async function build(
       configFile: undefined,
     },
     files: [
-      ...[
-        ROUTES_MANIFEST,
-        path.relative(distDir, manifestPath),
-        BUILD_MANIFEST,
-        PRERENDER_MANIFEST,
-        REACT_LOADABLE_MANIFEST,
-        path.join(
-          isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-          FONT_MANIFEST
-        ),
-        BUILD_ID_FILE,
-      ].map((file) => path.join(config.distDir, file)),
-    ],
+      ROUTES_MANIFEST,
+      path.relative(distDir, manifestPath),
+      BUILD_MANIFEST,
+      PRERENDER_MANIFEST,
+      REACT_LOADABLE_MANIFEST,
+      path.join(
+        isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+        FONT_MANIFEST
+      ),
+      BUILD_ID_FILE,
+    ].map((file) => path.join(config.distDir, file)),
     ignore: [
       path.relative(
         dir,
