@@ -145,7 +145,7 @@ export class FontStylesheetGatheringPlugin {
             return `${source}
                 // Font manifest declaration
                 ${
-                  mainTemplate.requireFn
+                  isWebpack5 ? '__webpack_require__' : mainTemplate.requireFn
                 }.__NEXT_FONT_MANIFEST__ = ${JSON.stringify(
               this.manifestContent
             )};`
