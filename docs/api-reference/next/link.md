@@ -113,7 +113,8 @@ function NavLink({ href, name }) {
 export default NavLink
 ```
 
-> **Note**: If you’re using [emotion](https://emotion.sh/)’s JSX pragma feature (`@jsx jsx`), you must use `passHref` even if you use an `<a>` tag directly.
+- If you’re using [emotion](https://emotion.sh/)’s JSX pragma feature (`@jsx jsx`), you must use `passHref` even if you use an `<a>` tag directly.
+- The component should support `onClick` property to trigger navigation correctly
 
 ## If the child is a function component
 
