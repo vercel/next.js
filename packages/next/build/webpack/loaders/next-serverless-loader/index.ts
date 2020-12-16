@@ -99,13 +99,13 @@ const nextServerlessLoader: loader.Loader = function () {
       import initServer from 'next-plugin-loader?middleware=on-init-server!'
       import onError from 'next-plugin-loader?middleware=on-error-server!'
       import 'next/dist/next-server/server/node-polyfill-fetch'
-      import { rewrites } from '${routesManifest}'
+      import routesManifest from '${routesManifest}'
 
       import { getApiHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/api-handler'
 
       const apiHandler = getApiHandler({
         pageModule: require("${absolutePagePath}"),
-        rewrites,
+        rewrites: routesManifest.rewrites,
         i18n: ${i18n || 'undefined'},
         page: "${page}",
         basePath: "${basePath}",
@@ -123,7 +123,7 @@ const nextServerlessLoader: loader.Loader = function () {
     import initServer from 'next-plugin-loader?middleware=on-init-server!'
     import onError from 'next-plugin-loader?middleware=on-error-server!'
     import 'next/dist/next-server/server/node-polyfill-fetch'
-    import { rewrites } from '${routesManifest}'
+    import routesManifest from '${routesManifest}'
     import buildManifest from '${buildManifest}'
     import reactLoadableManifest from '${reactLoadableManifest}'
 
@@ -178,7 +178,7 @@ const nextServerlessLoader: loader.Loader = function () {
       buildManifest,
       reactLoadableManifest,
 
-      rewrites,
+      rewrites: routesManifest.rewrites,
       i18n: ${i18n || 'undefined'},
       page: "${page}",
       buildId: "${buildId}",
