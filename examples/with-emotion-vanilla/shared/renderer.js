@@ -1,5 +1,5 @@
 import createEmotionServer from '@emotion/server/create-instance'
-import { cache } from './emotion'
+import { cache } from '@emotion/css'
 
 export const renderStatic = async (callback) => {
   const html = callback()

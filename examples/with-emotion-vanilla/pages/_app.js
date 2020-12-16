@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { hydrate } from '../shared/emotion'
+import { hydrate } from '@emotion/css'
 
 // Adds server generated styles to emotion cache.
 // this needs to come before the app mounts

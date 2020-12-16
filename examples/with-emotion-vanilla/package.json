@@ -7,6 +7,9 @@
     "start": "next start"
   },
   "license": "MIT",
+  "devDependencies": {
+    "@emotion/babel-plugin": "11.0.0"
+  },
   "dependencies": {
     "@emotion/css": "11.0.0",
     "@emotion/server": "11.0.0",

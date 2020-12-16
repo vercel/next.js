@@ -1,4 +1,4 @@
-import { css, cx, keyframes, injectGlobal } from './emotion'
+import { css, cx, keyframes, injectGlobal } from '@emotion/css'
 
 injectGlobal`
   * {
