@@ -107,6 +107,11 @@ const TRANSFORMER_INQUIRER_CHOICES = [
       'url-to-withrouter: Transforms the deprecated automatically injected url property on top level pages to using withRouter',
     value: 'url-to-withrouter',
   },
+  {
+    name:
+      'update-router-api: Transforms the deprecated as JSX Attribute in Link JSX Element and remove it also in router.push and router.replace',
+    value: 'update-router-api',
+  },
 ]
 
 function expandFilePathsIfNeeded(filesBeforeExpansion) {
