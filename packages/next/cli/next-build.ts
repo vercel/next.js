@@ -13,6 +13,7 @@ const nextBuild: cliCommand = (argv) => {
     '--help': Boolean,
     '--profile': Boolean,
     '--debug': Boolean,
+    '--no-isr': Boolean,
     // Aliases
     '-h': '--help',
     '-d': '--debug',
@@ -41,6 +42,7 @@ const nextBuild: cliCommand = (argv) => {
 
       Options
       --profile     Can be used to enable React Production Profiling
+      --no-isr      Don't include ISR pages in the output
     `,
       0
     )
@@ -55,7 +57,7 @@ const nextBuild: cliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  build(dir, null, args['--profile'], args['--debug'])
+  build(dir, null, args['--profile'], args['--debug'], args['--no-isr'])
     .then(() => process.exit(0))
     .catch((err) => {
       console.error('')

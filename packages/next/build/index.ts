@@ -109,7 +109,8 @@ export default async function build(
   dir: string,
   conf = null,
   reactProductionProfiling = false,
-  debugOutput = false
+  debugOutput = false,
+  omitIsrPages = false
 ): Promise<void> {
   if (!(await isWriteable(dir))) {
     throw new Error(
@@ -1002,6 +1003,81 @@ export default async function build(
       const hasAmp = hybridAmpPages.has(page)
       const file = normalizePagePath(page)
 
+      if (isSsg) {
+        const { i18n } = config
+
+        // For a non-dynamic SSG page, we must copy its data file from export.
+        if (!isDynamic) {
+          const revalidationMapPath = i18n
+            ? `/${i18n.defaultLocale}${page === '/' ? '' : page}`
+            : page
+          const initialRevalidateSeconds =
+            exportConfig.initialPageRevalidationMap[revalidationMapPath]
+
+          // Set Page Revalidation Interval
+          const pageInfo = pageInfos.get(page)
+          if (pageInfo) {
+            pageInfo.initialRevalidateSeconds = initialRevalidateSeconds
+            pageInfos.set(page, pageInfo)
+          }
+
+          // Omit ISR pages if requested
+          if (omitIsrPages && initialRevalidateSeconds !== undefined) {
+            continue
+          }
+
+          await moveExportedPage(page, page, file, true, 'json')
+
+          finalPrerenderRoutes[page] = {
+            initialRevalidateSeconds,
+            srcRoute: null,
+            dataRoute: path.posix.join('/_next/data', buildId, `${file}.json`),
+          }
+        } else {
+          // For a dynamic SSG page, we did not copy its data exports and only
+          // copy the fallback HTML file (if present).
+          // We must also copy specific versions of this page as defined by
+          // `getStaticPaths` (additionalSsgPaths).
+          const extraRoutes = additionalSsgPaths.get(page) || []
+          for (const route of extraRoutes) {
+            const initialRevalidateSeconds =
+              exportConfig.initialPageRevalidationMap[route]
+
+            // Set route Revalidation Interval
+            const pageInfo = pageInfos.get(route)
+            if (pageInfo) {
+              pageInfo.initialRevalidateSeconds = initialRevalidateSeconds
+              pageInfos.set(route, pageInfo)
+            }
+
+            // Omit ISR pages if requested
+            if (omitIsrPages && initialRevalidateSeconds !== undefined) {
+              continue
+            }
+
+            const pageFile = normalizePagePath(route)
+            await moveExportedPage(page, route, pageFile, true, 'html', true)
+            await moveExportedPage(page, route, pageFile, true, 'json', true)
+
+            if (hasAmp) {
+              const ampPage = `${pageFile}.amp`
+              await moveExportedPage(page, ampPage, ampPage, true, 'html', true)
+              await moveExportedPage(page, ampPage, ampPage, true, 'json', true)
+            }
+
+            finalPrerenderRoutes[route] = {
+              initialRevalidateSeconds,
+              srcRoute: page,
+              dataRoute: path.posix.join(
+                '/_next/data',
+                buildId,
+                `${normalizePagePath(route)}.json`
+              ),
+            }
+          }
+        }
+      }
+
       // The dynamic version of SSG pages are only prerendered if the fallback
       // is enabled. Below, we handle the specific prerenders of these.
       if (!(isSsg && isDynamic && !isStaticSsgFallback)) {
@@ -1014,69 +1090,6 @@ export default async function build(
 
         if (isSsg) {
           await moveExportedPage(page, ampPage, ampPage, isSsg, 'json')
-        }
-      }
-
-      if (isSsg) {
-        const { i18n } = config
-
-        // For a non-dynamic SSG page, we must copy its data file from export.
-        if (!isDynamic) {
-          await moveExportedPage(page, page, file, true, 'json')
-
-          const revalidationMapPath = i18n
-            ? `/${i18n.defaultLocale}${page === '/' ? '' : page}`
-            : page
-
-          finalPrerenderRoutes[page] = {
-            initialRevalidateSeconds:
-              exportConfig.initialPageRevalidationMap[revalidationMapPath],
-            srcRoute: null,
-            dataRoute: path.posix.join('/_next/data', buildId, `${file}.json`),
-          }
-          // Set Page Revalidation Interval
-          const pageInfo = pageInfos.get(page)
-          if (pageInfo) {
-            pageInfo.initialRevalidateSeconds =
-              exportConfig.initialPageRevalidationMap[revalidationMapPath]
-            pageInfos.set(page, pageInfo)
-          }
-        } else {
-          // For a dynamic SSG page, we did not copy its data exports and only
-          // copy the fallback HTML file (if present).
-          // We must also copy specific versions of this page as defined by
-          // `getStaticPaths` (additionalSsgPaths).
-          const extraRoutes = additionalSsgPaths.get(page) || []
-          for (const route of extraRoutes) {
-            const pageFile = normalizePagePath(route)
-            await moveExportedPage(page, route, pageFile, true, 'html', true)
-            await moveExportedPage(page, route, pageFile, true, 'json', true)
-
-            if (hasAmp) {
-              const ampPage = `${pageFile}.amp`
-              await moveExportedPage(page, ampPage, ampPage, true, 'html', true)
-              await moveExportedPage(page, ampPage, ampPage, true, 'json', true)
-            }
-
-            finalPrerenderRoutes[route] = {
-              initialRevalidateSeconds:
-                exportConfig.initialPageRevalidationMap[route],
-              srcRoute: page,
-              dataRoute: path.posix.join(
-                '/_next/data',
-                buildId,
-                `${normalizePagePath(route)}.json`
-              ),
-            }
-
-            // Set route Revalidation Interval
-            const pageInfo = pageInfos.get(route)
-            if (pageInfo) {
-              pageInfo.initialRevalidateSeconds =
-                exportConfig.initialPageRevalidationMap[route]
-              pageInfos.set(route, pageInfo)
-            }
-          }
         }
       }
     }
