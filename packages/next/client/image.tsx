@@ -19,6 +19,7 @@ const loaders = new Map<LoaderValue, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
+  ['statically', staticallyLoader],
   ['default', defaultLoader],
 ])
 
@@ -424,6 +425,13 @@ function imgixLoader({ root, src, width, quality }: LoaderProps): string {
 
 function akamaiLoader({ root, src, width }: LoaderProps): string {
   return `${root}${normalizeSrc(src)}?imwidth=${width}`
+}
+
+function staticallyLoader({ root, src, width }: LoaderProps): string {
+  // Demo: https://cdn.statically.io/img/static.web.id/f=auto,q=50,w=350/dog.jpg
+  const params = ['f=auto', 'q=' + (quality || 85), 'w=' + width]
+  let paramsString = params.join(',') + '/'
+  return `${root}${paramsString}${normalizeSrc(src)}`
 }
 
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
