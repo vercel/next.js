@@ -427,7 +427,7 @@ function akamaiLoader({ root, src, width }: LoaderProps): string {
   return `${root}${normalizeSrc(src)}?imwidth=${width}`
 }
 
-function staticallyLoader({ root, src, width }: LoaderProps): string {
+function staticallyLoader({ root, src, width, quality }: LoaderProps): string {
   // Demo: https://cdn.statically.io/img/static.web.id/f=auto,q=50,w=350/dog.jpg
   const params = ['f=auto', 'q=' + (quality || 85), 'w=' + width]
   let paramsString = params.join(',') + '/'
