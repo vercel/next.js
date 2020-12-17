@@ -21,9 +21,6 @@ import {
 
 export default function Post({ data, preview }) {
   const router = useRouter()
-  if (!router.isFallback && !data.post?.slug) {
-    return <ErrorPage statusCode={404} />
-  }
 
   const {
     data: { post, morePosts },
@@ -32,6 +29,10 @@ export default function Post({ data, preview }) {
     initialData: data,
     enabled: preview,
   })
+
+  if (!router.isFallback && !data.post?.slug) {
+    return <ErrorPage statusCode={404} />
+  }
 
   return (
     <Layout preview={preview}>
