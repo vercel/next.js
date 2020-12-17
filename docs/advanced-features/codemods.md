@@ -17,6 +17,60 @@ Codemods are transformations that run on your codebase programmatically. This al
 - `--dry` Do a dry-run, no code will be edited
 - `--print` Prints the changed output for comparison
 
+## Next.js 10
+
+### `update-router-api`
+
+Transforms the deprecated as JSX Attribute in Link JSX Element and the Router API.
+
+For example
+
+```jsx
+// my-component.js
+import Router from 'next/router'
+
+export default class extends React.Component {
+  onClick = (id) => {
+    Router.push('/url/[id]', `/url/${id}`)
+  }
+  render() {
+    return <button onClick={() => this.onClick('123')}>Test</button>
+  }
+}
+```
+
+Transforms into:
+
+```jsx
+// my-component.js
+export default class extends React.Component {
+  onClick = (id) => {
+    Router.push(`/url/${id}`)
+  }
+  render() {
+    return <button onClick={() => this.onClick('123')}>Test</button>
+  }
+}
+```
+
+Rename as JSX attr of Link JSX Element to href
+Remove the as argument in router.push, Router.push
+Remove the as argument in router.replace, Router.replace
+
+#### Usage
+
+Go to your project
+
+```
+cd path-to-your-project/
+```
+
+Run the codemod:
+
+```
+npx @next/codemod update-router-api
+```
+
 ## Next.js 9
 
 ### `name-default-component`
