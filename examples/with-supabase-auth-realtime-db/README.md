@@ -10,7 +10,7 @@ This is a full-stack Slack clone example using:
 
 ![Demo animation gif](./docs/slack-clone-demo.gif)
 
-This example is a clone of the [Slack Clone example](https://github.com/supabase/supabase/tree/master/examples/slack-clone) in the supabase repo, feel free to check it out!
+This example is a clone of the [Slack Clone example](https://github.com/supabase/supabase/tree/master/examples/nextjs-slack-clone) in the supabase repo, feel free to check it out!
 
 ## Deploy your own
 
