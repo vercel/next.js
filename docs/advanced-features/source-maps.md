@@ -1,5 +1,5 @@
 ---
-description: Save pages under the `src` directory as an alternative to the root `pages` directory.
+description: Enables browser source map generation during the production build.
 ---
 
 # Source Maps
