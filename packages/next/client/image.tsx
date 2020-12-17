@@ -151,9 +151,7 @@ function generateImgAttrs({
     .join(', ')
 
   if (!sizes && kind === 'w') {
-    sizes = widths
-      .map((w, i) => (i === last ? `${w}px` : `(max-width: ${w}px) ${w}px`))
-      .join(', ')
+    sizes = '100vw'
   }
 
   src = callLoader({ src, quality, width: widths[last] })

@@ -14,6 +14,7 @@ import {
   markAssetError,
 } from '../../../client/route-loader'
 import { denormalizePagePath } from '../../server/denormalize-page-path'
+import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt, { MittEmitter } from '../mitt'
 import {
   AppContextType,
@@ -629,10 +630,6 @@ export default class Router implements BaseRouter {
         options.locale = this.locale
       }
 
-      const {
-        normalizeLocalePath,
-      } = require('../i18n/normalize-locale-path') as typeof import('../i18n/normalize-locale-path')
-
       const parsedAs = parseRelativeUrl(hasBasePath(as) ? delBasePath(as) : as)
       const localePathResult = normalizeLocalePath(
         parsedAs.pathname,
@@ -744,18 +741,25 @@ export default class Router implements BaseRouter {
 
     if (process.env.__NEXT_HAS_REWRITES) {
       resolvedAs = resolveRewrites(
-        parseRelativeUrl(as).pathname,
+        addBasePath(
+          addLocale(delBasePath(parseRelativeUrl(as).pathname), this.locale)
+        ),
         pages,
-        basePath,
         rewrites,
         query,
-        (p: string) => this._resolveHref({ pathname: p }, pages).pathname!
+        (p: string) => this._resolveHref({ pathname: p }, pages).pathname!,
+        this.locales
       )
 
       if (resolvedAs !== as) {
         const potentialHref = removePathTrailingSlash(
           this._resolveHref(
-            Object.assign({}, parsed, { pathname: resolvedAs }),
+            Object.assign({}, parsed, {
+              pathname: normalizeLocalePath(
+                hasBasePath(resolvedAs) ? delBasePath(resolvedAs) : resolvedAs,
+                this.locales
+              ).pathname,
+            }),
             pages,
             false
           ).pathname!
@@ -1217,6 +1221,7 @@ export default class Router implements BaseRouter {
         }
       })
     }
+    parsedHref.pathname = removePathTrailingSlash(parsedHref.pathname!)
     return parsedHref
   }
 
@@ -1236,9 +1241,6 @@ export default class Router implements BaseRouter {
     let { pathname } = parsed
 
     if (process.env.__NEXT_I18N_SUPPORT) {
-      const normalizeLocalePath = require('../i18n/normalize-locale-path')
-        .normalizeLocalePath as typeof import('../i18n/normalize-locale-path').normalizeLocalePath
-
       if (options.locale === false) {
         pathname = normalizeLocalePath!(pathname, this.locales).pathname
         parsed.pathname = pathname
