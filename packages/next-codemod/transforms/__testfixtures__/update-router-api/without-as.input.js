@@ -3,7 +3,7 @@ import Link from 'next/link'
 
 export default class extends React.Component {
   onClick = e => {
-    Router.push('/url/href')
+    Router.push('/url')
   }
   render() {
     return (
@@ -11,7 +11,7 @@ export default class extends React.Component {
         <button onClick={this.onClick}>
           Test
         </button>
-        <Link href="/url/href">
+        <Link href="/url">
           Test 2
         </Link>
       </div>

@@ -1,13 +1,13 @@
 import { withRouter } from 'next/router'
 
 export default withRouter(class extends React.Component {
-  onClick = e => {
-    this.props.router.replace('/url/as', '/url/href')
+  onClick = id => {
+    this.props.router.replace('/url/[id]', `/url/${id}`)
   }
   render() {
     return (
-      <button onClick={this.onClick}>
-        Test
+      <button onClick={() => this.onClick('123')}>
+        Test 123
       </button>
     )
   }

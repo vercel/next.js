@@ -9,7 +9,7 @@ function ActiveLink({ children, href, as }) {
 
   const handleClick = (e) => {
     e.preventDefault()
-    router.push(as, href)
+    router.push(href, as)
   }
 
   return (
