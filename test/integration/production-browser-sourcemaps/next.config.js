@@ -1,5 +1,3 @@
 module.exports = {
-  experimental: {
-    productionBrowserSourceMaps: true,
-  },
+  productionBrowserSourceMaps: true,
 }

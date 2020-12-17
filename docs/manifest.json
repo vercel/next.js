@@ -182,6 +182,10 @@
               "path": "/docs/advanced-features/debugging.md"
             },
             {
+              "title": "Source Maps",
+              "path": "/docs/advanced-features/source-maps.md"
+            },
+            {
               "title": "Codemods",
               "path": "/docs/advanced-features/codemods.md"
             },
