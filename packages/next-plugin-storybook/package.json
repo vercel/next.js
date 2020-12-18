@@ -14,5 +14,8 @@
   "scripts": {
     "build": "yarn tsc -d -w -p tsconfig.json"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "14.14.14"
+  }
 }

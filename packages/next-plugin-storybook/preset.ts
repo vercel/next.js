@@ -1,4 +1,4 @@
-import { PHASE_PRODUCTION_BUILD } from 'next/constants'
+import { PHASE_PRODUCTION_BUILD } from '../next/next-server/lib/constants'
 import { findPagesDir } from 'next/lib/find-pages-dir'
 import loadConfig from 'next/next-server/server/config'
 import getWebpackConfig from 'next/build/webpack-config'
