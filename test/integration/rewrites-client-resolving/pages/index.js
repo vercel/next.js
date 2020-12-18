@@ -22,5 +22,9 @@ export default () => (
       <a id="category-link-again">to /category/hello/world</a>
     </Link>
     <br />
+    <Link href="/s1/product/42">
+      <a id="product-with-sector-link">to /s1/product/42</a>
+    </Link>
+    <br />
   </>
 )

@@ -60,6 +60,14 @@ const runTests = () => {
 
     expect(await browser.elementByCss('#categories').text()).toBe('categories')
   })
+
+  it('should add parameters from rewrite source to query object', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.elementByCss('#product-with-sector-link').click()
+    await browser.waitForElementByCss('#product')
+
+    expect(await browser.elementByCss('#sector').text()).toBe('sector: s1')
+  })
 }
 
 describe('Client-side rewrites resolving', () => {
