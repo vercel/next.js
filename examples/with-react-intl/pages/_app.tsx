@@ -53,14 +53,13 @@ function getMessages(locales: string | string[] = ['en']) {
 
 const getInitialProps: typeof App.getInitialProps = async appContext => {
   const {
-    ctx: {req},
+    ctx: {locale},
   } = appContext;
   const requestedLocales: string | string[] =
-    (req as any)?.locale ||
+    locale ||
     (typeof navigator !== 'undefined' && navigator.languages) ||
     // IE11
     (typeof navigator !== 'undefined' && (navigator as any).userLanguage) ||
-    (typeof window !== 'undefined' && (window as any).LOCALE) ||
     'en';
 
   const [supportedLocale, messagePromise] = getMessages(requestedLocales);
