@@ -18,19 +18,6 @@ module.exports = function (task) {
       Object.keys(assets).forEach((key) => {
         let data = assets[key].source
 
-        if (
-          join(file.dir, key).endsWith('terser-webpack-plugin/dist/minify.js')
-        ) {
-          data = Buffer.from(
-            data
-              .toString()
-              .replace(
-                `require('terser')`,
-                `require("${options.externals['terser']}")`
-              )
-          )
-        }
-
         this._.files.push({
           data,
           base: basename(key),

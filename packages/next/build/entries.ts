@@ -9,6 +9,7 @@ import { warn } from './output/log'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
+import { NextConfig } from '../next-server/server/config'
 
 type PagesMapping = {
   [page: string]: string
@@ -65,7 +66,7 @@ export function createEntrypoints(
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
   previewMode: __ApiPreviewProps,
-  config: any,
+  config: NextConfig,
   loadedEnvFiles: LoadedEnvFiles
 ): Entrypoints {
   const client: WebpackEntrypoints = {}
