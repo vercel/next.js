@@ -128,12 +128,9 @@ export default function prepareDestination(
     paramKeys = paramKeys.filter((name) => name !== 'nextInternalLocale')
   }
 
-  if (
-    appendParamsToQuery &&
-    !paramKeys.some((key) => destPathParams.includes(key))
-  ) {
+  if (appendParamsToQuery) {
     for (const key of paramKeys) {
-      if (!(key in destQuery)) {
+      if (!(key in destQuery) && !destPathParams.includes(key)) {
         destQuery[key] = params[key]
       }
     }
