@@ -125,14 +125,12 @@ export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
   context: GetStaticPathsContext
 ) => Promise<GetStaticPathsResult<P>>
 
-export type ExtendedIncomingMessage = IncomingMessage & {
-  cookies?: { [key: string]: any }
-}
-
 export type GetServerSidePropsContext<
   Q extends ParsedUrlQuery = ParsedUrlQuery
 > = {
-  req: ExtendedIncomingMessage
+  req: IncomingMessage & {
+    cookies?: { [key: string]: any }
+  }
   res: ServerResponse
   params?: Q
   query: ParsedUrlQuery
