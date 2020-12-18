@@ -59,6 +59,7 @@ const defaultConfig: NextConfig = {
   sassOptions: {},
   trailingSlash: false,
   i18n: null,
+  productionBrowserSourceMaps: false,
   experimental: {
     cpus: Math.max(
       1,
@@ -71,7 +72,6 @@ const defaultConfig: NextConfig = {
     reactMode: 'legacy',
     workerThreads: false,
     pageEnv: false,
-    productionBrowserSourceMaps: false,
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
