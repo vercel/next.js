@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 import { promises, writeFileSync } from 'fs'
 import Worker from 'jest-worker'
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import devalue from 'next/dist/compiled/devalue'
 import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
 import findUp from 'next/dist/compiled/find-up'
@@ -25,17 +25,21 @@ import { loadEnvConfig } from '@next/env'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
+  BUILD_ID_FILE,
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
+  FONT_MANIFEST,
   IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   PRERENDER_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
+  SERVER_FILES_MANIFEST,
 } from '../next-server/lib/constants'
 import {
   getRouteRegex,
@@ -254,6 +258,7 @@ export default async function build(
   const buildCustomRoute = (
     r: {
       source: string
+      locale?: false
       basePath?: false
       statusCode?: number
       destination?: string
@@ -261,14 +266,6 @@ export default async function build(
     type: RouteType
   ) => {
     const keys: any[] = []
-
-    if (r.basePath !== false) {
-      r.source = `${config.basePath}${r.source}`
-
-      if (r.destination && r.destination.startsWith('/')) {
-        r.destination = `${config.basePath}${r.destination}`
-      }
-    }
 
     const routeRegex = pathToRegexp(r.source, keys, {
       strict: true,
@@ -309,13 +306,15 @@ export default async function build(
       namedDataRouteRegex?: string
     }>
     i18n?: {
-      locales: string[]
-      defaultLocale: string[]
-      domains: Array<{
+      domains?: Array<{
+        http?: true
         domain: string
+        locales?: string[]
         defaultLocale: string
-        locales: string[]
       }>
+      locales: string[]
+      defaultLocale: string
+      localeDetection?: false
     }
   } = {
     version: 3,
@@ -336,7 +335,7 @@ export default async function build(
         }
       }),
     dataRoutes: [],
-    i18n: config.experimental.i18n || undefined,
+    i18n: config.i18n || undefined,
   }
 
   await promises.mkdir(distDir, { recursive: true })
@@ -347,6 +346,39 @@ export default async function build(
     JSON.stringify(routesManifest),
     'utf8'
   )
+
+  const manifestPath = path.join(
+    distDir,
+    isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+    PAGES_MANIFEST
+  )
+
+  const requiredServerFiles = {
+    version: 1,
+    config: {
+      ...config,
+      compress: false,
+      configFile: undefined,
+    },
+    files: [
+      ROUTES_MANIFEST,
+      path.relative(distDir, manifestPath),
+      BUILD_MANIFEST,
+      PRERENDER_MANIFEST,
+      REACT_LOADABLE_MANIFEST,
+      path.join(
+        isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+        FONT_MANIFEST
+      ),
+      BUILD_ID_FILE,
+    ].map((file) => path.join(config.distDir, file)),
+    ignore: [
+      path.relative(
+        dir,
+        path.join(path.dirname(require.resolve('sharp')), '**/*')
+      ),
+    ],
+  }
 
   const configs = await Promise.all([
     getBaseWebpackConfig(dir, {
@@ -470,11 +502,6 @@ export default async function build(
     prefixText: `${Log.prefixes.info} Collecting page data`,
   })
 
-  const manifestPath = path.join(
-    distDir,
-    isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-    PAGES_MANIFEST
-  )
   const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
 
   const ssgPages = new Set<string>()
@@ -495,6 +522,7 @@ export default async function build(
 
   let customAppGetInitialProps: boolean | undefined
   let namedExports: Array<string> | undefined
+  let isNextImageImported: boolean | undefined
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
@@ -519,6 +547,8 @@ export default async function build(
       false
     ))
 
+  let hasSsrAmpPages = false
+
   const analysisBegin = process.hrtime()
   await Promise.all(
     pageKeys.map(async (page) => {
@@ -526,8 +556,7 @@ export default async function build(
       const [selfSize, allSize] = await getJsPageSizeInKb(
         actualPage,
         distDir,
-        buildManifest,
-        config.experimental.modern
+        buildManifest
       )
 
       let isSsg = false
@@ -576,13 +605,24 @@ export default async function build(
             page,
             serverBundle,
             runtimeEnvConfig,
-            config.experimental.i18n?.locales,
-            config.experimental.i18n?.defaultLocale
+            config.i18n?.locales,
+            config.i18n?.defaultLocale
           )
+
+          if (
+            workerResult.isStatic === false &&
+            (workerResult.isHybridAmp || workerResult.isAmpOnly)
+          ) {
+            hasSsrAmpPages = true
+          }
 
           if (workerResult.isHybridAmp) {
             isHybridAmp = true
             hybridAmpPages.add(page)
+          }
+
+          if (workerResult.isNextImageImported) {
+            isNextImageImported = true
           }
 
           if (workerResult.hasStaticProps) {
@@ -594,7 +634,7 @@ export default async function build(
               ssgPageRoutes = workerResult.prerenderRoutes
             }
 
-            if (workerResult.prerenderFallback === 'unstable_blocking') {
+            if (workerResult.prerenderFallback === 'blocking') {
               ssgBlockingFallbackPages.add(page)
             } else if (workerResult.prerenderFallback === true) {
               ssgStaticFallbackPages.add(page)
@@ -637,6 +677,18 @@ export default async function build(
     })
   )
   staticCheckWorkers.end()
+
+  if (!hasSsrAmpPages) {
+    requiredServerFiles.ignore.push(
+      path.relative(
+        dir,
+        path.join(
+          path.dirname(require.resolve('@ampproject/toolbox-optimizer')),
+          '**/*'
+        )
+      )
+    )
+  }
 
   if (serverPropsPages.size > 0 || ssgPages.size > 0) {
     // We update the routes manifest after the build with the
@@ -713,6 +765,12 @@ export default async function build(
 
   await writeBuildId(distDir, buildId)
 
+  await promises.writeFile(
+    path.join(distDir, SERVER_FILES_MANIFEST),
+    JSON.stringify(requiredServerFiles),
+    'utf8'
+  )
+
   const finalPrerenderRoutes: { [route: string]: SsgRoute } = {}
   const tbdPrerenderRoutes: string[] = []
   let ssgNotFoundPaths: string[] = []
@@ -739,7 +797,7 @@ export default async function build(
       // n.b. we cannot handle this above in combinedPages because the dynamic
       // page must be in the `pages` array, but not in the mapping.
       exportPathMap: (defaultMap: any) => {
-        const { i18n } = config.experimental
+        const { i18n } = config
 
         // Dynamically routed pages should be prerendered to be used as
         // a client-side skeleton (fallback) while data is being fetched.
@@ -808,7 +866,7 @@ export default async function build(
               }
             }
 
-            if (isSsg && !isFallback) {
+            if (isSsg) {
               // remove non-locale prefixed variant from defaultMap
               delete defaultMap[page]
             }
@@ -878,7 +936,7 @@ export default async function build(
         pagesManifest[page] = relativeDest
       }
 
-      const { i18n } = config.experimental
+      const { i18n } = config
       const isNotFound = ssgNotFoundPaths.includes(page)
 
       // for SSG files with i18n the non-prerendered variants are
@@ -960,14 +1018,14 @@ export default async function build(
       }
 
       if (isSsg) {
-        const { i18n } = config.experimental
+        const { i18n } = config
 
         // For a non-dynamic SSG page, we must copy its data file from export.
         if (!isDynamic) {
           await moveExportedPage(page, page, file, true, 'json')
 
           const revalidationMapPath = i18n
-            ? `/${i18n.defaultLocale}${page}`
+            ? `/${i18n.defaultLocale}${page === '/' ? '' : page}`
             : page
 
           finalPrerenderRoutes[page] = {
@@ -1048,6 +1106,9 @@ export default async function build(
         (staticPages.size + ssgPages.size + serverPropsPages.size),
       hasStatic404: useStatic404,
       hasReportWebVitals: namedExports?.includes('reportWebVitals') ?? false,
+      rewritesCount: rewrites.length,
+      headersCount: headers.length,
+      redirectsCount: redirects.length - 1, // reduce one for trailing slash
     })
   )
 
@@ -1093,7 +1154,6 @@ export default async function build(
     await generateClientSsgManifest(prerenderManifest, {
       distDir,
       buildId,
-      isModern: !!config.experimental.modern,
     })
   } else {
     const prerenderManifest: PrerenderManifest = {
@@ -1110,11 +1170,15 @@ export default async function build(
     )
   }
 
+  const images = { ...config.images }
+  const { deviceSizes, imageSizes } = images
+  images.sizes = [...deviceSizes, ...imageSizes]
+
   await promises.writeFile(
     path.join(distDir, IMAGES_MANIFEST),
     JSON.stringify({
       version: 1,
-      images: config.images,
+      images,
     }),
     'utf8'
   )
@@ -1125,6 +1189,7 @@ export default async function build(
       version: 1,
       hasExportPathMap: typeof config.exportPathMap === 'function',
       exportTrailingSlash: config.trailingSlash === true,
+      isNextImageImported: isNextImageImported === true,
     }),
     'utf8'
   )
@@ -1151,7 +1216,6 @@ export default async function build(
       useStatic404,
       pageExtensions: config.pageExtensions,
       buildManifest,
-      isModern: config.experimental.modern,
     }
   )
 
@@ -1159,7 +1223,7 @@ export default async function build(
     printCustomRoutes({ redirects, rewrites, headers })
   }
 
-  if (config.experimental.analyticsId) {
+  if (config.analyticsId) {
     console.log(
       chalk.bold.green('Next.js Analytics') +
         ' is enabled for this production build. ' +
@@ -1233,11 +1297,7 @@ export type ClientSsgManifest = Set<string>
 
 function generateClientSsgManifest(
   prerenderManifest: PrerenderManifest,
-  {
-    buildId,
-    distDir,
-    isModern,
-  }: { buildId: string; distDir: string; isModern: boolean }
+  { buildId, distDir }: { buildId: string; distDir: string }
 ) {
   const ssgPages: ClientSsgManifest = new Set<string>([
     ...Object.entries(prerenderManifest.routes)
@@ -1247,21 +1307,12 @@ function generateClientSsgManifest(
     ...Object.keys(prerenderManifest.dynamicRoutes),
   ])
 
-  const clientSsgManifestPaths = [
-    '_ssgManifest.js',
-    isModern && '_ssgManifest.module.js',
-  ]
-    .filter(Boolean)
-    .map((f) =>
-      path.join(`${CLIENT_STATIC_FILES_PATH}/${buildId}`, f as string)
-    )
   const clientSsgManifestContent = `self.__SSG_MANIFEST=${devalue(
     ssgPages
   )};self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
-  clientSsgManifestPaths.forEach((clientSsgManifestPath) =>
-    writeFileSync(
-      path.join(distDir, clientSsgManifestPath),
-      clientSsgManifestContent
-    )
+
+  writeFileSync(
+    path.join(distDir, CLIENT_STATIC_FILES_PATH, buildId, '_ssgManifest.js'),
+    clientSsgManifestContent
   )
 }
