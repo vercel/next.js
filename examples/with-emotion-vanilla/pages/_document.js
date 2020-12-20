@@ -16,8 +16,7 @@ export default class AppDocument extends Document {
         <React.Fragment>
           {initialProps.styles}
           <style
-            data-emotion-css={ids.join(' ')}
-            data-emotion-ssr={JSON.stringify(ids)}
+            data-emotion={`css ${ids.join(' ')}`}
             dangerouslySetInnerHTML={{ __html: css }}
           />
         </React.Fragment>
