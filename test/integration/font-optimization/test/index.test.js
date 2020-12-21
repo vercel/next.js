@@ -106,7 +106,11 @@ function runTests() {
 
 describe('Font optimization for SSR apps', () => {
   beforeAll(async () => {
-    await fs.writeFile(nextConfig, `module.exports = {}`, 'utf8')
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { experimental: {optimizeFonts: true} }`,
+      'utf8'
+    )
 
     if (fs.pathExistsSync(join(appDir, '.next'))) {
       await fs.remove(join(appDir, '.next'))
@@ -125,7 +129,7 @@ describe('Font optimization for serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
-      `module.exports = { target: 'serverless' }`,
+      `module.exports = { target: 'serverless', experimental: {optimizeFonts: true} }`,
       'utf8'
     )
     await nextBuild(appDir)
@@ -142,16 +146,17 @@ describe('Font optimization for emulated serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
-      `module.exports = { target: 'experimental-serverless-trace' }`,
+      `module.exports = { target: 'experimental-serverless-trace', experimental: {optimizeFonts: true} }`,
       'utf8'
     )
     await nextBuild(appDir)
     appPort = await findPort()
-    await startServerlessEmulator(appDir, appPort)
+    app = await startServerlessEmulator(appDir, appPort)
     builtServerPagesDir = join(appDir, '.next', 'serverless')
     builtPage = (file) => join(builtServerPagesDir, file)
   })
   afterAll(async () => {
+    await killApp(app)
     await fs.remove(nextConfig)
   })
   runTests()

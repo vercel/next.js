@@ -151,7 +151,9 @@ export class FontStylesheetGatheringPlugin {
                   isWebpack5 ? '__webpack_require__' : mainTemplate.requireFn
                 }.__NEXT_FONT_MANIFEST__ = ${JSON.stringify(
               this.manifestContent
-            )};`
+            )};
+            // Enable feature:
+            process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true);`
           }
         )
       }

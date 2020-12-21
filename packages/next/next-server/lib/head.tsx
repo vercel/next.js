@@ -136,7 +136,11 @@ function reduceComponents(
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
       const key = c.key || i
-      if (process.env.NODE_ENV !== 'development' && !props.inAmpMode) {
+      if (
+        process.env.NODE_ENV !== 'development' &&
+        process.env.__NEXT_OPTIMIZE_FONTS &&
+        !props.inAmpMode
+      ) {
         if (
           c.type === 'link' &&
           c.props['href'] &&
