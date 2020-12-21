@@ -212,7 +212,10 @@ export class Head extends Component<
       )
     })
 
-    if (process.env.NODE_ENV !== 'development') {
+    if (
+      process.env.NODE_ENV !== 'development' &&
+      process.env.__NEXT_OPTIMIZE_FONTS
+    ) {
       cssLinkElements = this.makeStylesheetInert(
         cssLinkElements
       ) as ReactElement[]
@@ -369,7 +372,11 @@ export class Head extends Component<
         )
     }
 
-    if (process.env.NODE_ENV !== 'development' && !inAmpMode) {
+    if (
+      process.env.NODE_ENV !== 'development' &&
+      process.env.__NEXT_OPTIMIZE_FONTS &&
+      !inAmpMode
+    ) {
       children = this.makeStylesheetInert(children)
     }
 
