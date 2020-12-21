@@ -45,10 +45,13 @@ type DocumentFiles = {
 
 function getDocumentFiles(
   buildManifest: BuildManifest,
-  pathname: string
+  pathname: string,
+  inAmpMode: boolean
 ): DocumentFiles {
   const sharedFiles: readonly string[] = getPageFiles(buildManifest, '/_app')
-  const pageFiles: readonly string[] = getPageFiles(buildManifest, pathname)
+  const pageFiles: readonly string[] = inAmpMode
+    ? []
+    : getPageFiles(buildManifest, pathname)
 
   return {
     sharedFiles,
@@ -451,16 +454,12 @@ export class Head extends Component<
       })
     }
 
-    const files: DocumentFiles = inAmpMode
-      ? {
-          sharedFiles: [],
-          pageFiles: [],
-          allFiles: [],
-        }
-      : getDocumentFiles(
-          this.context.buildManifest,
-          this.context.__NEXT_DATA__.page
-        )
+    const files: DocumentFiles = getDocumentFiles(
+      this.context.buildManifest,
+      this.context.__NEXT_DATA__.page,
+      inAmpMode
+    )
+
     return (
       <head {...this.props}>
         {this.context.isDevelopment && (
@@ -773,16 +772,12 @@ export class NextScript extends Component<OriginProps> {
         )
     }
 
-    const files: DocumentFiles = inAmpMode
-      ? {
-          sharedFiles: [],
-          pageFiles: [],
-          allFiles: [],
-        }
-      : getDocumentFiles(
-          this.context.buildManifest,
-          this.context.__NEXT_DATA__.page
-        )
+    const files: DocumentFiles = getDocumentFiles(
+      this.context.buildManifest,
+      this.context.__NEXT_DATA__.page,
+      inAmpMode
+    )
+
     return (
       <>
         {!disableRuntimeJS && buildManifest.devFiles
