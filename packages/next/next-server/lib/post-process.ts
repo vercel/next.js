@@ -7,6 +7,7 @@ const MAXIMUM_IMAGE_PRELOADS = 2
 const IMAGE_PRELOAD_SIZE_THRESHOLD = 2500
 
 type postProcessOptions = {
+  optimizeFonts: boolean
   optimizeImages: boolean
 }
 
@@ -261,7 +262,13 @@ function sourceIsSupportedType(imgSrc: string): boolean {
 }
 
 // Initialization
-registerPostProcessor('Inline-Fonts', new FontOptimizerMiddleware(), () => true)
+registerPostProcessor(
+  'Inline-Fonts',
+  new FontOptimizerMiddleware(),
+  // Using process.env because passing Experimental flag through loader is not possible.
+  // @ts-ignore
+  (options) => options.optimizeFonts || process.env.__NEXT_OPTIMIZE_FONTS
+)
 
 registerPostProcessor(
   'Preload Images',
