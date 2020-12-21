@@ -67,6 +67,7 @@
     "@next/polyfill-module": "10.0.4-canary.8",
     "@next/react-dev-overlay": "10.0.4-canary.8",
     "@next/react-refresh-utils": "10.0.4-canary.8",
+    "@opentelemetry/api": "0.14.0",
     "ast-types": "0.13.2",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
