@@ -113,10 +113,10 @@ commands[command]()
   .then((exec) => exec(forwardedArgs))
   .then(async () => {
     if (command === 'build') {
-      const tp = opentelemetryApi.trace.getTracerProvider()
-      if (tp) {
-        // @ts-ignore shutdown exists
-        await tp.getDelegate()?.shutdown()
+      // @ts-ignore getDelegate exists
+      const tp = opentelemetryApi.trace.getTracerProvider().getDelegate()
+      if (tp.shutdown) {
+        await tp.shutdown()
       }
       process.exit(0)
     }
