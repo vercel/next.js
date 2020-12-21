@@ -146,6 +146,7 @@ export default class Server {
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
+    optimizeFonts: boolean
     images: string
     fontManifest: FontManifest
     optimizeImages: boolean
@@ -202,9 +203,11 @@ export default class Server {
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
       images: JSON.stringify(this.nextConfig.images),
-      fontManifest: !dev
-        ? requireFontManifest(this.distDir, this._isLikeServerless)
-        : null,
+      optimizeFonts: this.nextConfig.experimental.optimizeFonts && !dev,
+      fontManifest:
+        this.nextConfig.experimental.optimizeFonts && !dev
+          ? requireFontManifest(this.distDir, this._isLikeServerless)
+          : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
     }
@@ -269,6 +272,9 @@ export default class Server {
      * `process.env.__NEXT_OPTIMIZE_IMAGES`.
      * TODO(atcastle@): Remove this when experimental.optimizeImages are being clened up.
      */
+    if (this.renderOpts.optimizeFonts) {
+      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+    }
     if (this.renderOpts.optimizeImages) {
       process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
     }
