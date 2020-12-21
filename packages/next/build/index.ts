@@ -1,7 +1,8 @@
+import { loadEnvConfig } from '@next/env'
+import chalk from 'chalk'
 import crypto from 'crypto'
 import { promises, writeFileSync } from 'fs'
 import Worker from 'jest-worker'
-import chalk from 'chalk'
 import devalue from 'next/dist/compiled/devalue'
 import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
 import findUp from 'next/dist/compiled/find-up'
@@ -21,7 +22,7 @@ import loadCustomRoutes, {
   Redirect,
   RouteType,
 } from '../lib/load-custom-routes'
-import { loadEnvConfig } from '@next/env'
+import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
@@ -66,7 +67,9 @@ import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
+import * as Log from './output/log'
 import createSpinner from './spinner'
+import { traceAsyncFn, tracer } from './tracer'
 import {
   collectPages,
   getJsPageSizeInKb,
@@ -80,8 +83,6 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
-import * as Log from './output/log'
-import { tracer, traceAsyncFn } from './tracer'
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -372,12 +373,16 @@ export default async function build(
         BUILD_MANIFEST,
         PRERENDER_MANIFEST,
         REACT_LOADABLE_MANIFEST,
-        path.join(
-          isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-          FONT_MANIFEST
-        ),
+        config.experimental.optimizeFonts
+          ? path.join(
+              isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+              FONT_MANIFEST
+            )
+          : null,
         BUILD_ID_FILE,
-      ].map((file) => path.join(config.distDir, file)),
+      ]
+        .filter(nonNullable)
+        .map((file) => path.join(config.distDir, file)),
       ignore: [
         path.relative(
           dir,
