@@ -151,11 +151,12 @@ describe('Font optimization for emulated serverless apps', () => {
     )
     await nextBuild(appDir)
     appPort = await findPort()
-    await startServerlessEmulator(appDir, appPort)
+    app = await startServerlessEmulator(appDir, appPort)
     builtServerPagesDir = join(appDir, '.next', 'serverless')
     builtPage = (file) => join(builtServerPagesDir, file)
   })
   afterAll(async () => {
+    await killApp(app)
     await fs.remove(nextConfig)
   })
   runTests()
