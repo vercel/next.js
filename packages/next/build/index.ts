@@ -1276,22 +1276,22 @@ export default async function build(
         console.log('')
       }
 
-      if (tracer) {
-        const parsedResults = await tracer.profiler.stopProfiling()
+      if (chromeProfiler) {
+        const parsedResults = await chromeProfiler.profiler.stopProfiling()
         await new Promise((resolve) => {
           if (parsedResults === undefined) {
-            tracer.profiler.destroy()
-            tracer.trace.flush()
-            tracer.end(resolve)
+            chromeProfiler.profiler.destroy()
+            chromeProfiler.trace.flush()
+            chromeProfiler.end(resolve)
             return
           }
 
           const cpuStartTime = parsedResults.profile.startTime
           const cpuEndTime = parsedResults.profile.endTime
 
-          tracer.trace.completeEvent({
+          chromeProfiler.trace.completeEvent({
             name: 'TaskQueueManager::ProcessTaskFromWorkQueue',
-            id: ++tracer.counter,
+            id: ++chromeProfiler.counter,
             cat: ['toplevel'],
             ts: cpuStartTime,
             args: {
@@ -1300,9 +1300,9 @@ export default async function build(
             },
           })
 
-          tracer.trace.completeEvent({
+          chromeProfiler.trace.completeEvent({
             name: 'EvaluateScript',
-            id: ++tracer.counter,
+            id: ++chromeProfiler.counter,
             cat: ['devtools.timeline'],
             ts: cpuStartTime,
             dur: cpuEndTime - cpuStartTime,
@@ -1316,9 +1316,9 @@ export default async function build(
             },
           })
 
-          tracer.trace.instantEvent({
+          chromeProfiler.trace.instantEvent({
             name: 'CpuProfile',
-            id: ++tracer.counter,
+            id: ++chromeProfiler.counter,
             cat: ['disabled-by-default-devtools.timeline'],
             ts: cpuEndTime,
             args: {
@@ -1328,9 +1328,9 @@ export default async function build(
             },
           })
 
-          tracer.profiler.destroy()
-          tracer.trace.flush()
-          tracer.end(resolve)
+          chromeProfiler.profiler.destroy()
+          chromeProfiler.trace.flush()
+          chromeProfiler.end(resolve)
         })
       }
 
