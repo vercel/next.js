@@ -50,6 +50,14 @@ For example, the [hybrid pages](/docs/basic-features/pages.md) approach is fully
 - **Automatic HTTPS:** HTTPS is enabled by default (including custom domains) and doesn't require extra configuration. We auto-renew SSL certificates.
 - **More:** [Read our documentation](https://vercel.com/docs) to learn more about the Vercel platform.
 
+## Automatic Updates
+
+When you deploy your Next.js application, you want to see the latest version without needing to reload.
+
+Next.js will automatically load the latest version of your application in the background when routing. For client-side navigation, `next/link` will temporarily function as a normal `<a>` tag.
+
+If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Then, after either a full page refresh or multiple client-side transitions, Next.js will show the latest version.
+
 ## Other hosting options
 
 ### Node.js Server
