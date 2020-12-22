@@ -1,7 +1,7 @@
 // @ts-nocheck
 import * as path from 'path'
 
-import webpack, { ModuleFilenameHelpers } from 'webpack'
+import webpack, { ModuleFilenameHelpers, Compilation } from 'webpack'
 import sources from 'webpack-sources'
 import pLimit from 'p-limit'
 import jestWorker from 'jest-worker'
@@ -352,8 +352,7 @@ class TerserPlugin {
         compilation.hooks.processAssets.tapPromise(
           {
             name: pluginName,
-            stage:
-              compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
+            stage: Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
           },
           (assets) =>
             this.optimize(
