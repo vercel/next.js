@@ -122,6 +122,24 @@ function runTests({ w, isDev, domains }) {
     expect(actual).toMatch(expected)
   })
 
+  it('should maintain avif format', async () => {
+    const query = { w, q: 90, url: '/test.avif' }
+    const opts = { headers: { accept: 'image/avif' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/avif')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
+    const actual = await res.text()
+    const expected = await fs.readFile(
+      join(__dirname, '..', 'public', 'test.avif'),
+      'utf8'
+    )
+    expect(actual).toMatch(expected)
+  })
+
   it('should maintain jpg format for old Safari', async () => {
     const accept =
       'image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5'
@@ -308,6 +326,21 @@ function runTests({ w, isDev, domains }) {
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toBe('image/webp')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
+    await expectWidth(res, w)
+  })
+
+  it('should resize relative url and Chrome accept header as avif', async () => {
+    const query = { url: '/test.avif', w, q: 80 }
+    const opts = {
+      headers: { accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8' },
+    }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toBe('image/avif')
     expect(res.headers.get('cache-control')).toBe(
       'public, max-age=0, must-revalidate'
     )

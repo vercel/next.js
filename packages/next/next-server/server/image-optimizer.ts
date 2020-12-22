@@ -14,14 +14,14 @@ import { sendEtagResponse } from './send-payload'
 import { ImageConfig, imageConfigDefault } from './image-config'
 
 let sharp: typeof import('sharp')
-//const AVIF = 'image/avif'
+const AVIF = 'image/avif'
 const WEBP = 'image/webp'
 const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
 const CACHE_VERSION = 2
-const MODERN_TYPES = [/* AVIF, */ WEBP]
+const MODERN_TYPES = [AVIF, WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 
@@ -263,10 +263,9 @@ export async function imageOptimizer(
       transformer.resize(width)
     }
 
-    //if (contentType === AVIF) {
-    // Soon https://github.com/lovell/sharp/issues/2289
-    //}
-    if (contentType === WEBP) {
+    if (contentType === AVIF) {
+      transformer.avif({ quality })
+    } else if (contentType === WEBP) {
       transformer.webp({ quality })
     } else if (contentType === PNG) {
       transformer.png({ quality })
