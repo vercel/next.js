@@ -8,8 +8,6 @@ export const config = {
 }
 
 export default function IndexPage() {
-  const isAmp = useAmp()
-
   return (
     <Layout>
       <Head>
@@ -35,7 +33,7 @@ export default function IndexPage() {
         ></amp-img>
       </amp-img>
       <p>
-        Cat ipsum dolor <a href={isAmp ? '/dog?amp=1' : '/dog'}>sit amet</a>,
+        Cat ipsum dolor <a href="/dog?amp=1">sit amet</a>,
         eat grass, throw it back up but refuse to leave cardboard box or groom
         yourself 4 hours - checked, have your beauty sleep 18 hours - checked,
         be fabulous for the rest of the day - checked!. Hide from vacuum
