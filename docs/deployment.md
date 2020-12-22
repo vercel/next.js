@@ -10,7 +10,7 @@ The easiest way to deploy Next.js to production is to use the **[Vercel platform
 
 ### Getting started
 
-If you haven’t already done so, push your Next.js app to a Git provider of your choice: [GitHub](http://github.com/), [GitLab](https://gitlab.com/), or [BitBucket](https://bitbucket.org/). Your repository can be private or public.
+If you haven’t already done so, push your Next.js app to a Git provider of your choice: [GitHub](https://github.com/), [GitLab](https://gitlab.com/), or [BitBucket](https://bitbucket.org/). Your repository can be private or public.
 
 Then, follow these steps:
 

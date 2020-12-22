@@ -1,6 +1,6 @@
 # Semantic UI example
 
-This example shows how to use Next.js along with [Semantic UI React](http://react.semantic-ui.com) including handling of external styles and assets. This is intended to show the integration of this UI toolkit with the Framework.
+This example shows how to use Next.js along with [Semantic UI React](https://react.semantic-ui.com) including handling of external styles and assets. This is intended to show the integration of this UI toolkit with the Framework.
 
 ## Deploy your own
 
