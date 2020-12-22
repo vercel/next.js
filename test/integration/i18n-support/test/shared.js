@@ -27,6 +27,17 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  if (!ctx.isDev) {
+    it('should not contain backslashes in pages-manifest', async () => {
+      const pagesManifestContent = await fs.readFile(
+        join(ctx.buildPagesDir, '../pages-manifest.json'),
+        'utf8'
+      )
+      expect(pagesManifestContent).not.toContain('\\')
+      expect(pagesManifestContent).toContain('/')
+    })
+  }
+
   it('should resolve href correctly when dynamic route matches locale prefixed', async () => {
     const browser = await webdriver(ctx.appPort, `${ctx.basePath}/nl`)
     await browser.eval('window.beforeNav = 1')
