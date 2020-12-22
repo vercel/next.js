@@ -2,7 +2,7 @@
 
 import { validateAMP } from 'amp-test-utils'
 import cheerio from 'cheerio'
-import { readFile, readFileSync, writeFile, writeFileSync } from 'fs-extra'
+import { readFileSync, writeFileSync } from 'fs-extra'
 import {
   check,
   findPort,
@@ -29,8 +29,15 @@ const context = {}
 
 describe('AMP Usage', () => {
   describe('production mode', () => {
+    let output = ''
+
     beforeAll(async () => {
-      await nextBuild(appDir)
+      const result = await nextBuild(appDir, undefined, {
+        stdout: true,
+        stderr: true,
+      })
+      output = result.stdout + result.stderr
+
       app = nextServer({
         dir: join(__dirname, '../'),
         dev: false,
@@ -41,6 +48,11 @@ describe('AMP Usage', () => {
       context.appPort = appPort = server.address().port
     })
     afterAll(() => stopApp(server))
+
+    it('should not contain missing files warning', async () => {
+      expect(output).toContain('Compiled successfully')
+      expect(output).not.toContain('Could not find files for')
+    })
 
     describe('With basic usage', () => {
       it('should render the page', async () => {
@@ -235,58 +247,6 @@ describe('AMP Usage', () => {
     })
   })
 
-  describe('production mode modern', () => {
-    let origNextConfig = ''
-    const nextConfigPath = join(appDir, 'next.config.js')
-
-    beforeAll(async () => {
-      origNextConfig = await readFile(nextConfigPath, 'utf8')
-
-      await writeFile(
-        nextConfigPath,
-        origNextConfig.replace(
-          '// edit here',
-          `
-          experimental: {
-            modern: true
-          }
-        `
-        )
-      )
-      await nextBuild(appDir)
-      app = nextServer({
-        dir: join(__dirname, '../'),
-        dev: false,
-        quiet: true,
-      })
-
-      server = await startApp(app)
-      context.appPort = appPort = server.address().port
-    })
-    afterAll(async () => {
-      await stopApp(server)
-      await writeFile(nextConfigPath, origNextConfig)
-    })
-
-    it('should not output client pages for AMP only', async () => {
-      const browser = await webdriver(appPort, '/nav')
-      await browser.elementByCss('#only-amp-link').click()
-
-      const result = await browser.eval('window.NAV_PAGE_LOADED')
-
-      expect(result).toBe(null)
-    })
-
-    it('should not output client pages for AMP only with config exported after declaration', async () => {
-      const browser = await webdriver(appPort, '/nav')
-      await browser.elementByCss('#var-before-export-link').click()
-
-      const result = await browser.eval('window.NAV_PAGE_LOADED')
-
-      expect(result).toBe(null)
-    })
-  })
-
   describe('AMP dev no-warn', () => {
     let dynamicAppPort
     let ampDynamic
@@ -311,10 +271,18 @@ describe('AMP Usage', () => {
   describe('AMP dev mode', () => {
     let dynamicAppPort
     let ampDynamic
+    let output = ''
 
     beforeAll(async () => {
       dynamicAppPort = await findPort()
-      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort)
+      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort, {
+        onStdout(msg) {
+          output += msg
+        },
+        onStderr(msg) {
+          output += msg
+        },
+      })
     })
 
     afterAll(() => killApp(ampDynamic))
@@ -541,6 +509,12 @@ describe('AMP Usage', () => {
       } finally {
         await browser.close()
       }
+    })
+
+    it('should not contain missing files warning', async () => {
+      expect(output).toContain('compiled successfully')
+      expect(output).toContain('build page: /only-amp')
+      expect(output).not.toContain('Could not find files for')
     })
   })
 })

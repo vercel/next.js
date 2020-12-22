@@ -3,6 +3,7 @@ import 'firebase/auth' // If you need it
 import 'firebase/firestore' // If you need it
 import 'firebase/storage' // If you need it
 import 'firebase/analytics' // If you need it
+import 'firebase/performance' // If you need it
 
 const clientCredentials = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -18,7 +19,10 @@ const clientCredentials = {
 if (typeof window !== 'undefined' && !firebase.apps.length) {
   firebase.initializeApp(clientCredentials)
   // To enable analytics. https://firebase.google.com/docs/analytics/get-started
-  if ('measurementId' in clientCredentials) firebase.analytics()
+  if ('measurementId' in clientCredentials) {
+    firebase.analytics()
+    firebase.performance()
+  }
 }
 
 export default firebase

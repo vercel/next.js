@@ -62,7 +62,7 @@ const nextExport: cliCommand = (argv) => {
 
   exportApp(dir, options)
     .then(() => {
-      printAndExit('Export successful', 0)
+      printAndExit(`Export successful. Files written to ${options.outdir}`, 0)
     })
     .catch((err) => {
       printAndExit(err)
