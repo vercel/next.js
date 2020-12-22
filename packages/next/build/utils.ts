@@ -26,7 +26,7 @@ import { GetStaticPaths } from 'next/types'
 import { denormalizePagePath } from '../next-server/server/normalize-page-path'
 import { BuildManifest } from '../next-server/server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
-import type { UnwrapPromise } from '../lib/coalesced-function'
+import { UnwrapPromise } from '../lib/coalesced-function'
 import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
