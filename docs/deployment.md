@@ -29,7 +29,7 @@ Let’s talk about the workflow we recommend using. [Vercel](https://vercel.com)
 
 - **Develop:** Write code in Next.js. Keep the development server running and take advantage of [React Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh).
 - **Preview:** Every time you push changes to a branch on GitHub / GitLab / BitBucket, Vercel automatically creates a new deployment with a unique URL. You can view them on GitHub when you open a pull request, or under “Preview Deployments” on your project page on Vercel. [Learn more about it here](https://vercel.com/features/deployment-previews).
-- **Ship:** When you’re ready to ship, merge the pull request to your default branch (e.g. `master`). Vercel will automatically create a production deployment.
+- **Ship:** When you’re ready to ship, merge the pull request to your default branch (e.g. `main`). Vercel will automatically create a production deployment.
 
 By using the DPS workflow, in addition to doing _code reviews_, you can do _deployment previews_. Each deployment creates a unique URL that can be shared or used for integration tests.
 
