@@ -29,8 +29,15 @@ const context = {}
 
 describe('AMP Usage', () => {
   describe('production mode', () => {
+    let output = ''
+
     beforeAll(async () => {
-      await nextBuild(appDir)
+      const result = await nextBuild(appDir, undefined, {
+        stdout: true,
+        stderr: true,
+      })
+      output = result.stdout + result.stderr
+
       app = nextServer({
         dir: join(__dirname, '../'),
         dev: false,
@@ -41,6 +48,11 @@ describe('AMP Usage', () => {
       context.appPort = appPort = server.address().port
     })
     afterAll(() => stopApp(server))
+
+    it('should not contain missing files warning', async () => {
+      expect(output).toContain('Compiled successfully')
+      expect(output).not.toContain('Could not find files for')
+    })
 
     describe('With basic usage', () => {
       it('should render the page', async () => {
@@ -259,10 +271,18 @@ describe('AMP Usage', () => {
   describe('AMP dev mode', () => {
     let dynamicAppPort
     let ampDynamic
+    let output = ''
 
     beforeAll(async () => {
       dynamicAppPort = await findPort()
-      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort)
+      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort, {
+        onStdout(msg) {
+          output += msg
+        },
+        onStderr(msg) {
+          output += msg
+        },
+      })
     })
 
     afterAll(() => killApp(ampDynamic))
@@ -489,6 +509,12 @@ describe('AMP Usage', () => {
       } finally {
         await browser.close()
       }
+    })
+
+    it('should not contain missing files warning', async () => {
+      expect(output).toContain('compiled successfully')
+      expect(output).toContain('build page: /only-amp')
+      expect(output).not.toContain('Could not find files for')
     })
   })
 })
