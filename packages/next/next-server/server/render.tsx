@@ -162,6 +162,7 @@ export type RenderOptsPartial = {
   previewProps: __ApiPreviewProps
   basePath: string
   unstable_runtimeJS?: false
+  optimizeFonts: boolean
   fontManifest?: FontManifest
   optimizeImages: boolean
   optimizeCss: any
@@ -1050,15 +1051,16 @@ export async function renderToHTML(
   }
 
   // Avoid postProcess if both flags are false
-  html = await postProcess(
-    html,
-    {
-      getFontDefinition,
-    },
-    {
-      optimizeImages: renderOpts.optimizeImages,
-    }
-  )
+  if (process.env.__NEXT_OPTIMIZE_FONTS || process.env.__NEXT_OPTIMIZE_IMAGES) {
+    html = await postProcess(
+      html,
+      { getFontDefinition },
+      {
+        optimizeFonts: renderOpts.optimizeFonts,
+        optimizeImages: renderOpts.optimizeImages,
+      }
+    )
+  }
 
   if (renderOpts.optimizeCss) {
     // eslint-disable-next-line import/no-extraneous-dependencies
