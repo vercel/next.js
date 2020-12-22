@@ -974,13 +974,16 @@ export default async function build(
               continue
             }
 
-            const updatedRelativeDest = path.join(
-              'pages',
-              locale + localeExt,
-              // if it's the top-most index page we want it to be locale.EXT
-              // instead of locale/index.html
-              page === '/' ? '' : relativeDestNoPages
-            )
+            const updatedRelativeDest = path
+              .join(
+                'pages',
+                locale + localeExt,
+                // if it's the top-most index page we want it to be locale.EXT
+                // instead of locale/index.html
+                page === '/' ? '' : relativeDestNoPages
+              )
+              .replace(/\\/g, '/')
+
             const updatedOrig = path.join(
               exportOptions.outdir,
               locale + localeExt,
