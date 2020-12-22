@@ -3,6 +3,7 @@ import loaderUtils from 'loader-utils'
 import { tracer, traceAsyncFn } from '../../../../tracer'
 import cache from './cache'
 import injectCaller from './injectCaller'
+import transform from './transform'
 
 // When using `import` Babel will be undefined
 const babel = require('next/dist/compiled/babel/core')
@@ -109,13 +110,20 @@ async function loader(source, inputSourceMap, overrides) {
 
       const { cacheDirectory, cacheIdentifier } = loaderOptions
 
-      const result = await cache({
-        source,
-        options,
-        cacheDirectory,
-        cacheIdentifier,
-        cacheCompression: false,
-      })
+      let result
+      if (loaderOptions.cache) {
+        result = await cache({
+          source,
+          options,
+          cacheDirectory,
+          cacheIdentifier,
+          cacheCompression: false,
+        })
+      } else {
+        result = await traceAsyncFn(tracer.startSpan('transform'), async () => {
+          return transform(source, options)
+        })
+      }
 
       // TODO: Babel should really provide the full list of config files that
       // were used so that this can also handle files loaded with 'extends'.
