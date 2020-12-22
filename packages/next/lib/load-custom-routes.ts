@@ -410,7 +410,9 @@ function processRoutes<T>(
         .join('|')})${r.source}`
 
       if (r.destination && r.destination?.startsWith('/')) {
-        r.destination = `/:nextInternalLocale${r.destination}`
+        r.destination = `/:nextInternalLocale${
+          r.destination === '/' && !config.trailingSlash ? '' : r.destination
+        }`
       }
     }
     r.source = `${srcBasePath}${r.source}`

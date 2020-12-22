@@ -461,7 +461,7 @@ export function runTests(ctx) {
   })
 
   it('should apply redirects correctly', async () => {
-    for (const [path, shouldRedirect, locale] of [
+    for (const [path, shouldRedirect, locale, pathname] of [
       ['/en-US/redirect-1', true],
       ['/en/redirect-1', false],
       ['/nl/redirect-2', true],
@@ -469,6 +469,8 @@ export function runTests(ctx) {
       ['/redirect-3', true],
       ['/en/redirect-3', true, '/en'],
       ['/nl-NL/redirect-3', true, '/nl-NL'],
+      ['/redirect-4', true, null, '/'],
+      ['/nl/redirect-4', true, null, '/nl'],
     ]) {
       const res = await fetchViaHTTP(
         ctx.appPort,
@@ -484,7 +486,7 @@ export function runTests(ctx) {
       if (shouldRedirect) {
         const parsed = url.parse(res.headers.get('location'), true)
         expect(parsed.pathname).toBe(
-          `${ctx.basePath}${locale || ''}/somewhere-else`
+          `${ctx.basePath}${locale || ''}${pathname || '/somewhere-else'}`
         )
         expect(parsed.query).toEqual({})
       }

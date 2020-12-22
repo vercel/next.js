@@ -45,7 +45,7 @@ interface ExportPageInput {
   renderOpts: RenderOpts
   buildExport?: boolean
   serverRuntimeConfig: string
-  subFolders: string
+  subFolders?: boolean
   serverless: boolean
   optimizeFonts: boolean
   optimizeImages: boolean
