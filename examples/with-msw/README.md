@@ -8,7 +8,7 @@ In this example we integrate Mock Service Worker with Next by following the next
 1. Setup a [Service Worker instance](./mocks/browser.js) that would intercept all runtime client-side requests via `setupWorker` function.
 1. Setup a ["server" instance](./mocks/server.js) to intercept any server/build time requests (e.g. the one happening in `getServerSideProps`) via `setupServer` function.
 
-Mocking is enabled using the `NEXT_PUBLIC_API_MOCKING` environment variable, By default, mocking is enabled for both development and production environments. This allows you to have functioning preview deployments before you have implemented an actual API. To disable MSW for a specific environment, change the environment variable value in the file corresponding to the environment from `enabled` to `disabled`. To learn more about using MSW for development and testing, please read the documentation.
+Mocking is enabled using the `NEXT_PUBLIC_API_MOCKING` environment variable. By default, mocking is enabled for both development and production. This allows you to have working preview deployments before implementing an actual API. To disable MSW for a specific environment, change the environment variable value in the file corresponding to the environment from `enabled` to `disabled`.
 
 ## Deploy your own
 
