@@ -45,10 +45,13 @@ type DocumentFiles = {
 
 function getDocumentFiles(
   buildManifest: BuildManifest,
-  pathname: string
+  pathname: string,
+  inAmpMode: boolean
 ): DocumentFiles {
   const sharedFiles: readonly string[] = getPageFiles(buildManifest, '/_app')
-  const pageFiles: readonly string[] = getPageFiles(buildManifest, pathname)
+  const pageFiles: readonly string[] = inAmpMode
+    ? []
+    : getPageFiles(buildManifest, pathname)
 
   return {
     sharedFiles,
@@ -212,7 +215,10 @@ export class Head extends Component<
       )
     })
 
-    if (process.env.__NEXT_OPTIMIZE_FONTS) {
+    if (
+      process.env.NODE_ENV !== 'development' &&
+      process.env.__NEXT_OPTIMIZE_FONTS
+    ) {
       cssLinkElements = this.makeStylesheetInert(
         cssLinkElements
       ) as ReactElement[]
@@ -369,7 +375,11 @@ export class Head extends Component<
         )
     }
 
-    if (process.env.__NEXT_OPTIMIZE_FONTS && !inAmpMode) {
+    if (
+      process.env.NODE_ENV !== 'development' &&
+      process.env.__NEXT_OPTIMIZE_FONTS &&
+      !inAmpMode
+    ) {
       children = this.makeStylesheetInert(children)
     }
 
@@ -446,8 +456,10 @@ export class Head extends Component<
 
     const files: DocumentFiles = getDocumentFiles(
       this.context.buildManifest,
-      this.context.__NEXT_DATA__.page
+      this.context.__NEXT_DATA__.page,
+      inAmpMode
     )
+
     return (
       <head {...this.props}>
         {this.context.isDevelopment && (
@@ -762,8 +774,10 @@ export class NextScript extends Component<OriginProps> {
 
     const files: DocumentFiles = getDocumentFiles(
       this.context.buildManifest,
-      this.context.__NEXT_DATA__.page
+      this.context.__NEXT_DATA__.page,
+      inAmpMode
     )
+
     return (
       <>
         {!disableRuntimeJS && buildManifest.devFiles

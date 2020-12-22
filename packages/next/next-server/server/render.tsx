@@ -1068,9 +1068,7 @@ export async function renderToHTML(
   if (process.env.__NEXT_OPTIMIZE_FONTS || process.env.__NEXT_OPTIMIZE_IMAGES) {
     html = await postProcess(
       html,
-      {
-        getFontDefinition,
-      },
+      { getFontDefinition },
       {
         optimizeFonts: renderOpts.optimizeFonts,
         optimizeImages: renderOpts.optimizeImages,

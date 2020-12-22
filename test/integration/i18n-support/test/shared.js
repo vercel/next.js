@@ -27,6 +27,40 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  if (!ctx.isDev) {
+    it('should not contain backslashes in pages-manifest', async () => {
+      const pagesManifestContent = await fs.readFile(
+        join(ctx.buildPagesDir, '../pages-manifest.json'),
+        'utf8'
+      )
+      expect(pagesManifestContent).not.toContain('\\')
+      expect(pagesManifestContent).toContain('/')
+    })
+  }
+
+  it('should resolve href correctly when dynamic route matches locale prefixed', async () => {
+    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/nl`)
+    await browser.eval('window.beforeNav = 1')
+
+    await browser.eval(`(function() {
+      window.next.router.push('/post-1?a=b')
+    })()`)
+    await browser.waitForElementByCss('#post')
+
+    const router = JSON.parse(await browser.elementByCss('#router').text())
+    expect(router.query).toEqual({ post: 'post-1', a: 'b' })
+    expect(router.pathname).toBe('/[post]')
+    expect(router.asPath).toBe('/post-1?a=b')
+    expect(router.locale).toBe('nl')
+
+    await browser.back().waitForElementByCss('#index')
+    expect(await browser.elementByCss('#router-locale').text()).toBe('nl')
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({})
+  })
+
   it('should use default locale when no locale is in href with locale false', async () => {
     const browser = await webdriver(
       ctx.appPort,
@@ -406,15 +440,37 @@ export function runTests(ctx) {
     }
   })
 
+  it('should apply trailingSlash redirect correctly', async () => {
+    for (const [testPath, path, hostname, query] of [
+      ['/first/', '/first', 'localhost', {}],
+      ['/en/', '/en', 'localhost', {}],
+      ['/en/another/', '/en/another', 'localhost', {}],
+      ['/fr/', '/fr', 'localhost', {}],
+      ['/fr/another/', '/fr/another', 'localhost', {}],
+    ]) {
+      const res = await fetchViaHTTP(ctx.appPort, testPath, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(308)
+
+      const parsed = url.parse(res.headers.get('location'), true)
+      expect(parsed.pathname).toBe(path)
+      expect(parsed.hostname).toBe(hostname)
+      expect(parsed.query).toEqual(query)
+    }
+  })
+
   it('should apply redirects correctly', async () => {
-    for (const [path, shouldRedirect, locale] of [
+    for (const [path, shouldRedirect, locale, pathname] of [
       ['/en-US/redirect-1', true],
       ['/en/redirect-1', false],
       ['/nl/redirect-2', true],
       ['/fr/redirect-2', false],
-      ['/redirect-3', true, '/en-US'],
+      ['/redirect-3', true],
       ['/en/redirect-3', true, '/en'],
       ['/nl-NL/redirect-3', true, '/nl-NL'],
+      ['/redirect-4', true, null, '/'],
+      ['/nl/redirect-4', true, null, '/nl'],
     ]) {
       const res = await fetchViaHTTP(
         ctx.appPort,
@@ -425,12 +481,12 @@ export function runTests(ctx) {
         }
       )
 
-      expect(res.status).toBe(shouldRedirect ? 307 : 404)
+      expect(res.status).toBe(shouldRedirect ? 307 : 200)
 
       if (shouldRedirect) {
         const parsed = url.parse(res.headers.get('location'), true)
         expect(parsed.pathname).toBe(
-          `${ctx.basePath}${locale || ''}/somewhere-else`
+          `${ctx.basePath}${locale || ''}${pathname || '/somewhere-else'}`
         )
         expect(parsed.query).toEqual({})
       }
@@ -455,7 +511,7 @@ export function runTests(ctx) {
           redirect: 'manual',
         }
       )
-      expect(res.status).toBe(404)
+      expect(res.status).toBe(200)
       expect(res.headers.get('x-hello')).toBe(shouldAdd ? 'world' : null)
     }
   })
