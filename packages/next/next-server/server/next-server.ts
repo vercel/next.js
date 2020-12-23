@@ -1439,9 +1439,15 @@ export default class Server {
         .split('/')
         .map((seg) => {
           try {
-            seg = escapePathDelimiters(decodeURIComponent(seg))
+            seg = escapePathDelimiters(decodeURIComponent(seg), true)
           } catch (_) {
-            // non-fatal
+            // An improperly encoded URL was provided, this is considered
+            // a bad request (400)
+            const err: Error & { code?: string } = new Error(
+              'failed to decode param'
+            )
+            err.code = 'DECODE_FAILED'
+            throw err
           }
           return seg
         })
@@ -1627,12 +1633,10 @@ export default class Server {
       // `getStaticPaths`
       (isProduction ||
         !staticPaths ||
-        // static paths always includes locale so make sure it's prefixed
-        // with it
         !staticPaths.includes(
-          // we need to decode the path since we don't encode the
-          // results from getStaticPaths
-          `${locale ? '/' + locale : ''}${decodeURI(resolvedUrlPathname)}`
+          // we use ssgCacheKey here as it is normalized to match the
+          // encoding from getStaticPaths along with including the locale
+          query.amp ? ssgCacheKey.replace(/\.amp$/, '') : ssgCacheKey
         ))
     ) {
       if (

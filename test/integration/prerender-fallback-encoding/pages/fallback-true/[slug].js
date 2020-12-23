@@ -1,4 +1,4 @@
-import paths from '../../paths'
+import getPaths from '../../paths'
 import { useRouter } from 'next/router'
 
 export default function Page(props) {
@@ -27,7 +27,7 @@ export const getStaticProps = ({ params }) => {
 
 export const getStaticPaths = () => {
   return {
-    paths,
+    paths: getPaths('/fallback-true'),
     fallback: true,
   }
 }

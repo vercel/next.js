@@ -161,7 +161,14 @@ export function interpolateAs(
           interpolatedRoute!.replace(
             replaced,
             repeat
-              ? (value as string[]).map(escapePathDelimiters).join('/')
+              ? (value as string[])
+                  .map(
+                    // TODO: should these values be encoded since they are decoded
+                    // in dynamicMatches and we are expecting encoded segments in
+                    // the URL
+                    (segment) => escapePathDelimiters(segment)
+                  )
+                  .join('/')
               : escapePathDelimiters(value as string)
           ) || '/')
       )

@@ -21,20 +21,32 @@ let app
 let appPort
 let buildId
 
+// paths on the filesystem
 const prerenderedPaths = [
   '%2Fmy-post%2F',
   '+my-post+',
   '%3Fmy-post%3F',
   '&my-post&',
   '商業日語',
+  ' my-post ',
+  '%2Fsecond-post%2F',
+  '+second-post+',
+  '&second-post&',
+  'mixed-商業日語',
 ]
 
+// paths that should be requested in the URL
 const urlPaths = [
   '%2Fmy-post%2F',
-  '+my-post+',
+  '%2Bmy-post%2B',
   '%3Fmy-post%3F',
-  '&my-post&',
+  '%26my-post%26',
   encodeURIComponent('商業日語'),
+  '%20my-post%20',
+  '%2Fsecond-post%2F',
+  '%2Bsecond-post%2B',
+  '%26second-post%26',
+  `mixed-${encodeURIComponent('商業日語')}`,
 ]
 
 const modePaths = ['fallback-blocking', 'fallback-false', 'fallback-true']
@@ -67,9 +79,9 @@ function runTests(isDev) {
 
       const urlPaths = [
         '%2Fanother-post%2F',
-        '+another-post+',
+        '%2Banother-post%2B',
         '%3Fanother-post%3F',
-        '&another-post&',
+        '%26another-post%26',
         encodeURIComponent('商業日語商業日語'),
       ]
 
@@ -113,7 +125,7 @@ function runTests(isDev) {
               )
             }
 
-            const browser = await webdriver(appPort, `/${mode}/${path}`)
+            const browser = await webdriver(appPort, `/${mode}/${testSlug}`)
 
             expect(
               JSON.parse(await browser.elementByCss('#props').text()).params
@@ -126,7 +138,7 @@ function runTests(isDev) {
             )
 
             expect(browserRouter.pathname).toBe(`/${mode}/[slug]`)
-            expect(browserRouter.asPath).toBe(`/${mode}/${path}`)
+            expect(browserRouter.asPath).toBe(`/${mode}/${testSlug}`)
             expect(browserRouter.query).toEqual({
               slug: decodeURIComponent(testSlug),
             })
@@ -139,7 +151,6 @@ function runTests(isDev) {
   it('should respond with the prerendered pages correctly', async () => {
     for (let i = 0; i < urlPaths.length; i++) {
       const testSlug = urlPaths[i]
-      const path = prerenderedPaths[i]
 
       for (const mode of modePaths) {
         const res = await fetchViaHTTP(
@@ -151,6 +162,8 @@ function runTests(isDev) {
           }
         )
 
+        console.log('checking', { mode, testSlug })
+
         expect(res.status).toBe(200)
 
         const $ = cheerio.load(await res.text())
@@ -161,9 +174,9 @@ function runTests(isDev) {
         const router = JSON.parse($('#router').text())
 
         expect(router.pathname).toBe(`/${mode}/[slug]`)
-        expect(router.asPath).toBe(`/${mode}/${path}`)
+        expect(router.asPath).toBe(`/${mode}/${testSlug}`)
         expect(router.query).toEqual({
-          slug: decodeURIComponent(path),
+          slug: decodeURIComponent(testSlug),
         })
       }
     }
@@ -194,10 +207,9 @@ function runTests(isDev) {
   it('should render correctly in the browser for prerender paths', async () => {
     for (let i = 0; i < urlPaths.length; i++) {
       const testSlug = urlPaths[i]
-      const path = prerenderedPaths[i]
 
       for (const mode of modePaths) {
-        const browser = await webdriver(appPort, `/${mode}/${path}`)
+        const browser = await webdriver(appPort, `/${mode}/${testSlug}`)
 
         expect(
           JSON.parse(await browser.elementByCss('#props').text()).params
@@ -210,7 +222,7 @@ function runTests(isDev) {
         )
 
         expect(browserRouter.pathname).toBe(`/${mode}/[slug]`)
-        expect(browserRouter.asPath).toBe(`/${mode}/${path}`)
+        expect(browserRouter.asPath).toBe(`/${mode}/${testSlug}`)
         expect(browserRouter.query).toEqual({
           slug: decodeURIComponent(testSlug),
         })
