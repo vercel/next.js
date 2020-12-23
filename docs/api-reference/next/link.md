@@ -55,6 +55,7 @@ export default Home
 `Link` accepts the following props:
 
 - `href` - The path or URL to navigate to. This is the only required prop
+- `locale` - One of the locale identifier or `false` if the locale is already in the `href` path. Also, if no `locale` prop is provided, the currently active locale is used during client-transitions
 - `as` - Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked
 - [`passHref`](#if-the-child-is-a-custom-component-that-wraps-an-a-tag) - Forces `Link` to send the `href` property to its child. Defaults to `false`
 - `prefetch` - Prefetch the page in the background. Defaults to `true`. Any `<Link />` that is in the viewport (initially or through scroll) will be preloaded. Prefetch can be disabled by passing `prefetch={false}`. Pages using [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) will preload `JSON` files with the data for faster page transitions
