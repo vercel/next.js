@@ -1,8 +1,7 @@
 // import babel from 'next/dist/compiled/babel/core'
 import loaderUtils from 'loader-utils'
-import { tracer, traceAsyncFn } from '../../../../tracer'
+import { tracer, traceAsyncFn, traceFn } from '../../../../tracer'
 import cache from './cache'
-import injectCaller from './injectCaller'
 import transform from './transform'
 
 // When using `import` Babel will be undefined
@@ -72,18 +71,35 @@ async function loader(source, inputSourceMap, overrides) {
       // so that it can properly map the module back to its internal cached
       // modules.
       sourceFileName: filename,
+      caller: {
+        name: 'babel-loader',
+
+        // Provide plugins with insight into webpack target.
+        // https://github.com/babel/babel-loader/issues/787
+        target: this.target,
+
+        // Webpack >= 2 supports ESM and dynamic import.
+        supportsStaticESM: true,
+        supportsDynamicImport: true,
+
+        // Webpack 5 supports TLA behind a flag. We enable it by default
+        // for Babel, and then webpack will throw an error if the experimental
+        // flag isn't enabled.
+        supportsTopLevelAwait: true,
+        ...loaderOptions.caller,
+      },
     })
     // Remove loader related options
     delete programmaticOptions.cacheDirectory
     delete programmaticOptions.cacheIdentifier
 
-    const config = await traceAsyncFn(
+    const config = traceFn(
       tracer.startSpan('babel-load-partial-config-async'),
-      async () =>
-        await babel.loadPartialConfigAsync(
-          injectCaller(babel, programmaticOptions, this.target)
-        )
+      () => {
+        return babel.loadPartialConfig(programmaticOptions)
+      }
     )
+
     if (config) {
       let options = config.options
       if (overrides && overrides.config) {
@@ -111,7 +127,7 @@ async function loader(source, inputSourceMap, overrides) {
       const { cacheDirectory, cacheIdentifier } = loaderOptions
 
       let result
-      if (loaderOptions.cache) {
+      if (cacheDirectory) {
         result = await cache({
           source,
           options,
@@ -120,9 +136,17 @@ async function loader(source, inputSourceMap, overrides) {
           cacheCompression: false,
         })
       } else {
-        result = await traceAsyncFn(tracer.startSpan('transform'), async () => {
-          return transform(source, options)
-        })
+        result = await traceAsyncFn(
+          tracer.startSpan('transform', {
+            attributes: {
+              filename,
+              cache: 'DISABLED',
+            },
+          }),
+          async () => {
+            return transform(source, options)
+          }
+        )
       }
 
       // TODO: Babel should really provide the full list of config files that
