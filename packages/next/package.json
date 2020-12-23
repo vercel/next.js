@@ -112,7 +112,7 @@
     "react-dom": "^16.6.0 || ^17"
   },
   "optionalDependencies": {
-    "sharp": "0.26.2"
+    "sharp": "0.26.3"
   },
   "devDependencies": {
     "@babel/code-frame": "7.10.4",
