@@ -20,6 +20,7 @@ import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
+import RouteAnnouncer from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 
 /// <reference types="react-dom/experimental" />
@@ -573,6 +574,7 @@ function AppContainer({
       <RouterContext.Provider value={makePublicRouterInstance(router)}>
         <HeadManagerContext.Provider value={headManager}>
           {children}
+          <RouteAnnouncer pathName={router.asPath} />
         </HeadManagerContext.Provider>
       </RouterContext.Provider>
     </Container>
