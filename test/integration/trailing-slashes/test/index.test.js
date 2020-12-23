@@ -291,12 +291,13 @@ describe('Trailing slashes', () => {
         expect.objectContaining({
           redirects: expect.arrayContaining([
             expect.objectContaining({
-              source: '/:file((?:[^/]+/)*[^/]+\\.\\w+)/',
+              source:
+                '/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/',
               destination: '/:file',
               statusCode: 308,
             }),
             expect.objectContaining({
-              source: '/:notfile((?:[^/]+/)*[^/\\.]+)',
+              source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
               destination: '/:notfile/',
               statusCode: 308,
             }),

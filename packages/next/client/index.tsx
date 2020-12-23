@@ -489,6 +489,7 @@ export function renderError(renderErrorProps: RenderErrorProps) {
 }
 
 let reactRoot: any = null
+let shouldUseHydrate = typeof ReactDOM.hydrate === 'function'
 function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
     if (!reactRoot) {
@@ -506,8 +507,9 @@ function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
     }
 
     // The check for `.hydrate` is there to support React alternatives like preact
-    if (typeof ReactDOM.hydrate === 'function') {
+    if (shouldUseHydrate) {
       ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
+      shouldUseHydrate = false
     } else {
       ReactDOM.render(reactEl, domEl, markRenderComplete)
     }
@@ -660,11 +662,18 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       currentStyleTags.map((tag) => tag.getAttribute('data-n-href'))
     )
 
+    const noscript = document.querySelector('noscript[data-n-css]')
+    const nonce = noscript?.getAttribute('data-n-css')
+
     styleSheets.forEach(({ href, text }) => {
       if (!currentHrefs.has(href)) {
         const styleTag = document.createElement('style')
         styleTag.setAttribute('data-n-href', href)
         styleTag.setAttribute('media', 'x')
+
+        if (nonce) {
+          styleTag.setAttribute('nonce', nonce)
+        }
 
         document.head.appendChild(styleTag)
         styleTag.appendChild(document.createTextNode(text))

@@ -24,7 +24,7 @@ export async function browser_polyfills(task) {
 const externals = {
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
-  'caniuse-lite': 'caniuse-lite',
+  'caniuse-lite': 'caniuse-lite', // FIXME: `autoprefixer` will still bundle this because it uses direct imports
 
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
@@ -395,6 +395,21 @@ export async function ncc_postcss_preset_env(task, opts) {
     .target('compiled/postcss-preset-env')
 }
 // eslint-disable-next-line camelcase
+externals['postcss-scss'] = 'next/dist/compiled/postcss-scss'
+export async function ncc_postcss_scss(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('postcss-scss')))
+    .ncc({
+      packageName: 'postcss-scss',
+      externals: {
+        postcss: 'postcss',
+        'postcss/lib/parser': 'postcss/lib/parser',
+        ...externals,
+      },
+    })
+    .target('compiled/postcss-scss')
+}
+// eslint-disable-next-line camelcase
 externals['recast'] = 'next/dist/compiled/recast'
 export async function ncc_recast(task, opts) {
   await task
@@ -498,16 +513,6 @@ export async function ncc_web_vitals(task, opts) {
     .target('compiled/web-vitals')
 }
 
-externals['terser-webpack-plugin'] = 'next/dist/compiled/terser-webpack-plugin'
-export async function ncc_terser_webpack_plugin(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('terser-webpack-plugin'))
-    )
-    .ncc({ packageName: 'terser-webpack-plugin', externals })
-    .target('compiled/terser-webpack-plugin')
-}
-
 externals['comment-json'] = 'next/dist/compiled/comment-json'
 export async function ncc_comment_json(task, opts) {
   await task
@@ -584,6 +589,7 @@ export async function ncc(task) {
       'ncc_postcss_flexbugs_fixes',
       'ncc_postcss_loader',
       'ncc_postcss_preset_env',
+      'ncc_postcss_scss',
       'ncc_recast',
       'ncc_resolve',
       'ncc_schema_utils',
@@ -596,7 +602,6 @@ export async function ncc(task) {
       'ncc_thread_loader',
       'ncc_unistore',
       'ncc_web_vitals',
-      'ncc_terser_webpack_plugin',
       'ncc_comment_json',
       'ncc_semver',
     ])

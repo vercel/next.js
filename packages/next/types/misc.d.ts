@@ -174,6 +174,10 @@ declare module 'next/dist/compiled/semver' {
   import m from 'semver'
   export = m
 }
+declare module 'next/dist/compiled/postcss-scss' {
+  import m from 'postcss-scss'
+  export = m
+}
 declare module 'next/dist/compiled/text-table' {
   function textTable(
     rows: Array<Array<{}>>,
@@ -195,7 +199,6 @@ declare module 'next/dist/compiled/web-vitals' {
   export = m
 }
 
-declare module 'next/dist/compiled/terser-webpack-plugin'
 declare module 'next/dist/compiled/comment-json' {
   import m from 'comment-json'
   export = m

@@ -4,7 +4,8 @@ import crypto from 'crypto'
 import { readFileSync, realpathSync } from 'fs'
 import chalk from 'chalk'
 import semver from 'next/dist/compiled/semver'
-import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
+// @ts-ignore No typings yet
+import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
 import path from 'path'
 import webpack from 'webpack'
 import type { Configuration } from 'webpack'
@@ -57,16 +58,11 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
+import { NextConfig } from '../next-server/server/config'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
 const isWebpack5 = parseInt(webpack.version!) === 5
-
-const escapePathVariables = (value: any) => {
-  return typeof value === 'string'
-    ? value.replace(/\[(\\*[\w:]+\\*)\]/gi, '[\\$1\\]')
-    : value
-}
 
 const devtoolRevertWarning = execOnce((devtool: Configuration['devtool']) => {
   console.warn(
@@ -197,7 +193,7 @@ export default async function getBaseWebpackConfig(
     rewrites,
   }: {
     buildId: string
-    config: any
+    config: NextConfig
     dev?: boolean
     isServer?: boolean
     pagesDir: string
@@ -209,7 +205,7 @@ export default async function getBaseWebpackConfig(
   }
 ): Promise<webpack.Configuration> {
   const productionBrowserSourceMaps =
-    config.experimental.productionBrowserSourceMaps && !isServer
+    config.productionBrowserSourceMaps && !isServer
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
@@ -249,7 +245,6 @@ export default async function getBaseWebpackConfig(
         // Webpack 5 has a built-in loader cache
         cache: !isWebpack5,
         babelPresetPlugins,
-        hasModern: !!config.experimental.modern,
         development: dev,
         hasReactRefresh,
         hasJsxRuntime,
@@ -370,12 +365,6 @@ export default async function getBaseWebpackConfig(
       ...nodePathList, // Support for NODE_PATH environment variable
     ],
     alias: {
-      // These aliases make sure the wrapper module is not included in the bundles
-      // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
-      'next/head': 'next/dist/next-server/lib/head.js',
-      'next/router': 'next/dist/client/router.js',
-      'next/config': 'next/dist/next-server/lib/runtime-config.js',
-      'next/dynamic': 'next/dist/next-server/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
       ...(isWebpack5 && !isServer
         ? {
@@ -536,10 +525,7 @@ export default async function getBaseWebpackConfig(
     splitChunksConfig = splitChunksConfigs.prodGranular
   }
 
-  const crossOrigin =
-    !config.crossOrigin && config.experimental.modern
-      ? 'anonymous'
-      : config.crossOrigin
+  const crossOrigin = config.crossOrigin
 
   let customAppFile: string | null = await findPageFile(
     pagesDir,
@@ -738,6 +724,10 @@ export default async function getBaseWebpackConfig(
           // When the 'serverless' target is used all node_modules will be compiled into the output bundles
           // So that the 'serverless' bundles have 0 runtime dependencies
           '@ampproject/toolbox-optimizer', // except this one
+
+          // Mark this as external if not enabled so it doesn't cause a
+          // webpack error from being missing
+          ...(config.experimental.optimizeCss ? [] : ['critters']),
         ],
     optimization: {
       // Webpack 5 uses a new property for the same functionality
@@ -754,9 +744,8 @@ export default async function getBaseWebpackConfig(
       minimizer: [
         // Minify JavaScript
         new TerserPlugin({
-          extractComments: false,
-          cache: path.join(distDir, 'cache', 'next-minifier'),
-          parallel: config.experimental.cpus || true,
+          cacheDir: path.join(distDir, 'cache', 'next-minifier'),
+          parallel: config.experimental.cpus,
           terserOptions,
         }),
         // Minify CSS
@@ -888,9 +877,7 @@ export default async function getBaseWebpackConfig(
                   options: {
                     cacheContext: dir,
                     cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
-                    cacheIdentifier: `webpack${isServer ? '-server' : ''}${
-                      config.experimental.modern ? '-hasmodern' : ''
-                    }`,
+                    cacheIdentifier: `webpack${isServer ? '-server' : ''}`,
                   },
                 },
                 {
@@ -963,9 +950,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_TRAILING_SLASH': JSON.stringify(
           config.trailingSlash
         ),
-        'process.env.__NEXT_MODERN_BUILD': JSON.stringify(
-          config.experimental.modern && !dev
-        ),
         'process.env.__NEXT_BUILD_INDICATOR': JSON.stringify(
           config.devIndicators.buildActivity
         ),
@@ -983,6 +967,9 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
           config.experimental.optimizeImages
+        ),
+        'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
+          !!config.experimental.optimizeCss && !dev
         ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
@@ -1002,7 +989,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
         'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
-        'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n.domains),
+        'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
         'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
         ...(isServer
           ? {
@@ -1077,35 +1064,11 @@ export default async function getBaseWebpackConfig(
         new BuildManifestPlugin({
           buildId,
           rewrites,
-          modern: config.experimental.modern,
         }),
       tracer &&
         new ProfilingPlugin({
           tracer,
         }),
-      !isWebpack5 &&
-        config.experimental.modern &&
-        !isServer &&
-        !dev &&
-        (() => {
-          const { NextEsmPlugin } = require('./webpack/plugins/next-esm-plugin')
-          return new NextEsmPlugin({
-            filename: (getFileName: Function | string) => (...args: any[]) => {
-              const name =
-                typeof getFileName === 'function'
-                  ? getFileName(...args)
-                  : getFileName
-
-              return name.includes('.js')
-                ? name.replace(/\.js$/, '.module.js')
-                : escapePathVariables(
-                    args[0].chunk.name.replace(/\.js$/, '.module.js')
-                  )
-            },
-            chunkFilename: (inputChunkName: string) =>
-              inputChunkName.replace(/\.js$/, '.module.js'),
-          })
-        })(),
       config.experimental.optimizeFonts &&
         !dev &&
         isServer &&
@@ -1171,15 +1134,15 @@ export default async function getBaseWebpackConfig(
       webpackConfig.optimization.usedExports = false
     }
 
-    const nextPublicVariables = Object.keys(process.env).reduce(
-      (prev: string, key: string) => {
+    const nextPublicVariables = Object.keys(process.env)
+      .reduce((acc: string[], key: string) => {
         if (key.startsWith('NEXT_PUBLIC_')) {
-          return `${prev}|${key}=${process.env[key]}`
+          return [...acc, `${key}=${process.env[key]}`]
         }
-        return prev
-      },
-      ''
-    )
+        return acc
+      }, [])
+      .join('|')
+
     const nextEnvVariables = Object.keys(config.env).reduce(
       (prev: string, key: string) => {
         return `${prev}|${key}=${config.env[key]}`
@@ -1191,7 +1154,6 @@ export default async function getBaseWebpackConfig(
       crossOrigin: config.crossOrigin,
       pageExtensions: config.pageExtensions,
       trailingSlash: config.trailingSlash,
-      modern: config.experimental.modern,
       buildActivity: config.devIndicators.buildActivity,
       plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
@@ -1253,6 +1215,13 @@ export default async function getBaseWebpackConfig(
       totalPages,
       webpack,
     })
+
+    if (!webpackConfig) {
+      throw new Error(
+        'Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your next.config.js.\n' +
+          'See more info here https://err.sh/next.js/undefined-webpack-config'
+      )
+    }
 
     if (dev && originalDevtool !== webpackConfig.devtool) {
       webpackConfig.devtool = originalDevtool
