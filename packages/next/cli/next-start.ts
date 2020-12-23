@@ -42,7 +42,7 @@ const nextStart: cliCommand = (argv) => {
 
       Options
         --port, -p      A port number on which to start the application
-        --hostname, -H  Hostname on which to start the application
+        --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
         --help, -h      Displays this message
     `)
     process.exit(0)
@@ -50,11 +50,10 @@ const nextStart: cliCommand = (argv) => {
 
   const dir = resolve(args._[0] || '.')
   const port = args['--port'] || 3000
-  startServer({ dir }, port, args['--hostname'])
+  const host = args['--hostname'] || '0.0.0.0'
+  startServer({ dir }, port, host)
     .then(async (app) => {
-      Log.ready(
-        `started server on http://${args['--hostname'] || 'localhost'}:${port}`
-      )
+      Log.ready(`started server on http://${host}:${port}`)
       await app.prepare()
     })
     .catch((err) => {

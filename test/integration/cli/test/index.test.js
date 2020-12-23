@@ -204,7 +204,7 @@ describe('CLI Usage', () => {
     test('--port', async () => {
       const port = await findPort()
       const output = await runNextCommandDev([dir, '--port', port], true)
-      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+      expect(output).toMatch(new RegExp(`http://0.0.0.0:${port}`))
     })
 
     test("NODE_OPTIONS='--inspect'", async () => {
@@ -214,13 +214,13 @@ describe('CLI Usage', () => {
       const output = await runNextCommandDev([dir, '--port', port], true, {
         env: { NODE_OPTIONS: '--inspect' },
       })
-      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+      expect(output).toMatch(new RegExp(`http://0.0.0.0:${port}`))
     })
 
     test('-p', async () => {
       const port = await findPort()
       const output = await runNextCommandDev([dir, '-p', port], true)
-      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+      expect(output).toMatch(new RegExp(`http://0.0.0.0:${port}`))
     })
 
     test('-p conflict', async () => {

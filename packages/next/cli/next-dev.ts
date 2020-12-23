@@ -43,7 +43,7 @@ const nextDev: cliCommand = (argv) => {
 
       Options
         --port, -p      A port number on which to start the application
-        --hostname, -H  Hostname on which to start the application
+        --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
         --help, -h      Displays this message
     `)
     process.exit(0)
@@ -106,13 +106,10 @@ const nextDev: cliCommand = (argv) => {
   }
 
   const port = args['--port'] || 3000
-  const appUrl = `http://${args['--hostname'] || 'localhost'}:${port}`
+  const host = args['--hostname'] || '0.0.0.0'
+  const appUrl = `http://${host}:${port}`
 
-  startServer(
-    { dir, dev: true, isNextDevCommand: true },
-    port,
-    args['--hostname']
-  )
+  startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
     .then(async (app) => {
       startedDevelopmentServer(appUrl)
       // Start preflight after server is listening and ignore errors:
