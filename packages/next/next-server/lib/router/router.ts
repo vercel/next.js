@@ -815,7 +815,7 @@ export default class Router implements BaseRouter {
           )
         }
       } else if (shouldInterpolate) {
-        let interpolatedURL = Object.assign({}, parsedAs, {
+        const interpolatedURL = Object.assign({}, parsedAs, {
           pathname: interpolatedAs.result,
           query: omitParmsFromQuery(query, interpolatedAs.params!),
         })
