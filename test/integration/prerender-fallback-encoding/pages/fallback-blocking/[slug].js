@@ -11,7 +11,13 @@ export default function Page(props) {
   return (
     <>
       <p id="props">{JSON.stringify(props)}</p>
-      <p id="router">{JSON.stringify(router)}</p>
+      <p id="router">
+        {JSON.stringify({
+          query: router.query,
+          asPath: router.asPath,
+          pathname: router.pathname,
+        })}
+      </p>
     </>
   )
 }

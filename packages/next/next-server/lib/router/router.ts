@@ -25,7 +25,6 @@ import {
   NextPageContext,
   ST,
 } from '../utils'
-import escapePathDelimiters from './utils/escape-path-delimiters'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import { searchParamsToUrlQuery } from './utils/querystring'
@@ -163,13 +162,14 @@ export function interpolateAs(
             repeat
               ? (value as string[])
                   .map(
-                    // TODO: should these values be encoded since they are decoded
-                    // in dynamicMatches and we are expecting encoded segments in
-                    // the URL
-                    (segment) => escapePathDelimiters(segment)
+                    // these values should be fully encoded instead of just
+                    // path delimiter escaped since they are being inserted
+                    // into the URL and we expect URL encoded segments
+                    // when parsing dynamic route params
+                    (segment) => encodeURIComponent(segment)
                   )
                   .join('/')
-              : escapePathDelimiters(value as string)
+              : encodeURIComponent(value as string)
           ) || '/')
       )
     })
