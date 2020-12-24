@@ -229,6 +229,97 @@ function runTests(isDev) {
       }
     }
   })
+
+  it('should navigate client-side correctly with interpolating', async () => {
+    for (const mode of modePaths) {
+      const testSlug = urlPaths[0]
+      const browser = await webdriver(appPort, `/${mode}/${testSlug}`)
+
+      expect(
+        JSON.parse(await browser.elementByCss('#props').text()).params
+      ).toEqual({
+        slug: decodeURIComponent(testSlug),
+      })
+
+      const browserRouter = JSON.parse(
+        await browser.elementByCss('#router').text()
+      )
+
+      expect(browserRouter.pathname).toBe(`/${mode}/[slug]`)
+      expect(browserRouter.asPath).toBe(`/${mode}/${testSlug}`)
+      expect(browserRouter.query).toEqual({
+        slug: decodeURIComponent(testSlug),
+      })
+
+      await browser.eval('window.beforeNav = 1')
+
+      for (const nextSlug of urlPaths) {
+        if (nextSlug === testSlug) continue
+
+        await browser.eval(`(function() {
+          window.next.router.push({
+            pathname: '/${mode}/[slug]',
+            query: { slug: '${decodeURIComponent(nextSlug)}' }
+          })
+        })()`)
+
+        await check(async () => {
+          const browserRouter = JSON.parse(
+            await browser.elementByCss('#router').text()
+          )
+          return browserRouter.asPath === `/${mode}/${nextSlug}`
+            ? 'success'
+            : 'fail'
+        }, 'success')
+
+        expect(await browser.eval('window.beforeNav')).toBe(1)
+      }
+    }
+  })
+
+  it('should navigate client-side correctly with string href', async () => {
+    for (const mode of modePaths) {
+      const testSlug = urlPaths[0]
+      const browser = await webdriver(appPort, `/${mode}/${testSlug}`)
+
+      expect(
+        JSON.parse(await browser.elementByCss('#props').text()).params
+      ).toEqual({
+        slug: decodeURIComponent(testSlug),
+      })
+
+      const browserRouter = JSON.parse(
+        await browser.elementByCss('#router').text()
+      )
+
+      expect(browserRouter.pathname).toBe(`/${mode}/[slug]`)
+      expect(browserRouter.asPath).toBe(`/${mode}/${testSlug}`)
+      expect(browserRouter.query).toEqual({
+        slug: decodeURIComponent(testSlug),
+      })
+
+      await browser.eval('window.beforeNav = 1')
+
+      for (const nextSlug of urlPaths) {
+        if (nextSlug === testSlug) continue
+
+        await browser.eval(`(function() {
+          window.next.router.push('/${mode}/${nextSlug}')
+        })()`)
+
+        await check(async () => {
+          const browserRouter = JSON.parse(
+            await browser.elementByCss('#router').text()
+          )
+          return browserRouter.asPath === `/${mode}/${nextSlug}`
+            ? 'success'
+            : 'fail'
+        }, 'success')
+
+        expect(await browser.eval('window.beforeNav')).toBe(1)
+      }
+    }
+  })
 }
 
 describe('Fallback path encoding', () => {

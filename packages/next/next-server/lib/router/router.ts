@@ -254,12 +254,15 @@ export function resolveHref(
   }
 }
 
-function prepareUrlAs(router: NextRouter, url: Url, as: Url) {
+function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
+  const [resolvedHref, resolvedAs] = resolveHref(router.pathname, url, true)
   return {
-    url: addBasePath(resolveHref(router.pathname, url)),
-    as: as ? addBasePath(resolveHref(router.pathname, as)) : as,
+    url: addBasePath(resolvedHref),
+    as: addBasePath(
+      as ? resolveHref(router.pathname, as) : resolvedAs || resolvedHref
+    ),
   }
 }
 
@@ -599,7 +602,7 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  push(url: Url, as: Url = url, options: TransitionOptions = {}) {
+  push(url: Url, as?: Url, options: TransitionOptions = {}) {
     ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('pushState', url, as, options)
   }
@@ -610,7 +613,7 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  replace(url: Url, as: Url = url, options: TransitionOptions = {}) {
+  replace(url: Url, as?: Url, options: TransitionOptions = {}) {
     ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('replaceState', url, as, options)
   }
