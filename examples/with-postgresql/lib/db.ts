@@ -5,7 +5,7 @@ const client = new ServerlessClient({
   port: Number(process.env.POSTGRESQL_PORT),
   user: process.env.POSTGRESQL_USER,
   password: process.env.POSTGRESQL_PASSWORD,
-  database: process.env.POSTGRESQL_NAME,
+  database: process.env.POSTGRESQL_DATABASE,
   debug: true,
   ssl: true,
   delayMs: 3000,
