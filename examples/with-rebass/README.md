@@ -1,6 +1,6 @@
 # Example app with Rebass
 
-This example features how you use [Rebass](http://jxnblk.com/rebass/) functional UI library with Next.js.
+This example features how you use [Rebass](https://jxnblk.com/rebass/) functional UI library with Next.js.
 
 ![Screenshot](https://cloud.githubusercontent.com/assets/304265/22472564/b2e04ff0-e7de-11e6-921e-d0c9833ac805.png)
 

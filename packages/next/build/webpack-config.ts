@@ -4,7 +4,8 @@ import crypto from 'crypto'
 import { readFileSync, realpathSync } from 'fs'
 import chalk from 'chalk'
 import semver from 'next/dist/compiled/semver'
-import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
+// @ts-ignore No typings yet
+import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
 import path from 'path'
 import webpack from 'webpack'
 import type { Configuration } from 'webpack'
@@ -204,7 +205,7 @@ export default async function getBaseWebpackConfig(
   }
 ): Promise<webpack.Configuration> {
   const productionBrowserSourceMaps =
-    config.experimental.productionBrowserSourceMaps && !isServer
+    config.productionBrowserSourceMaps && !isServer
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
@@ -743,9 +744,8 @@ export default async function getBaseWebpackConfig(
       minimizer: [
         // Minify JavaScript
         new TerserPlugin({
-          extractComments: false,
-          cache: path.join(distDir, 'cache', 'next-minifier'),
-          parallel: config.experimental.cpus || true,
+          cacheDir: path.join(distDir, 'cache', 'next-minifier'),
+          parallel: config.experimental.cpus,
           terserOptions,
         }),
         // Minify CSS
@@ -962,6 +962,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_REACT_MODE': JSON.stringify(
           config.experimental.reactMode
         ),
+        'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
+          config.experimental.optimizeFonts && !dev
+        ),
         'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
           config.experimental.optimizeImages
         ),
@@ -1066,7 +1069,8 @@ export default async function getBaseWebpackConfig(
         new ProfilingPlugin({
           tracer,
         }),
-      !dev &&
+      config.experimental.optimizeFonts &&
+        !dev &&
         isServer &&
         (function () {
           const {
@@ -1154,6 +1158,7 @@ export default async function getBaseWebpackConfig(
       plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
       reactMode: config.experimental.reactMode,
+      optimizeFonts: config.experimental.optimizeFonts,
       optimizeImages: config.experimental.optimizeImages,
       scrollRestoration: config.experimental.scrollRestoration,
       basePath: config.basePath,
