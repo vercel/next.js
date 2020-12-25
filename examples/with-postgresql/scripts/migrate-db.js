@@ -40,7 +40,7 @@ async function migrate() {
       RETURN NEW;
     END;
     $$ LANGUAGE plpgsql;`);
-    
+
     await query(`
     CREATE TABLE IF NOT EXISTS entries (
       id SERIAL PRIMARY KEY,

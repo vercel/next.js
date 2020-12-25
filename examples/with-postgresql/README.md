@@ -4,22 +4,22 @@ This is an example of using [PostgreSQL](https://www.postgresql.org/) in a Next.
 
 ## Demo
 
-### [https://next-postgres.vercel.app](https://next-postgres.vercel.app/)
+### [https://next-postgresql.vercel.app](https://next-postgresql.vercel.app/)
 
 ## Deploy your own
 
 Once you have access to [the environment variables you'll need](#step-5-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-postgres&env=POSTGRESQL_HOST,POSTGRESQL_PORT,POSTGRESQL_USERNAME,POSTGRESQL_PASSWORD,POSTGRESQL_DATABASE&project-name=nextjs-postgres&repo-name=nextjs-postgres&envDescription=Required%20to%20connect%20the%20app%20with%20PostgreSQL&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-postgres%23step-2-set-up-environment-variables&demo-title=Next.js%20%2B%20PostgreSQL%20Demo&demo-description=A%20simple%20app%20demonstrating%20Next.js%20and%20PostgreSQL%20&demo-url=https%3A%2F%2Fnext-postgres.vercel.app%2F)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-postgresql&env=POSTGRESQL_HOST,POSTGRESQL_PORT,POSTGRESQL_USERNAME,POSTGRESQL_PASSWORD,POSTGRESQL_DATABASE&project-name=nextjs-postgresql&repo-name=nextjs-postgresql&envDescription=Required%20to%20connect%20the%20app%20with%20PostgreSQL&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-postgresql%23step-2-set-up-environment-variables&demo-title=Next.js%20%2B%20PostgreSQL%20Demo&demo-description=A%20simple%20app%20demonstrating%20Next.js%20and%20PostgreSQL%20&demo-url=https%3A%2F%2Fnext-postgresql.vercel.app%2F)
 
 ## How to use
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-postgres next-postgres-app
+npx create-next-app --example with-postgresql next-postgresql-app
 # or
-yarn create next-app --example with-postgres next-postgres-app
+yarn create next-app --example with-postgresql next-postgresql-app
 ```
 
 ## Configuration
@@ -80,4 +80,4 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-postgres&env=POSTGRES_HOST,POSTGRES_PORT,POSTGRES_USERNAME,POSTGRES_PASSWORD,POSTGRES_DATABASE&project-name=nextjs-postgres&repo-name=nextjs-postgres&envDescription=Required%20to%20connect%20the%20app%20with%20PostgreSQL&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-postgres%23step-2-set-up-environment-variables&demo-title=Next.js%20%2B%20PostgreSQL%20Demo&demo-description=A%20simple%20app%20demonstrating%20Next.js%20and%20PostgreSQL%20&demo-url=https%3A%2F%2Fnext-postgres.vercel.app%2F)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-postgresql&env=POSTGRESQL_HOST,POSTGRESQL_PORT,POSTGRESQL_USERNAME,POSTGRESQL_PASSWORD,POSTGRESQL_DATABASE&project-name=nextjs-postgresql&repo-name=nextjs-postgresql&envDescription=Required%20to%20connect%20the%20app%20with%20PostgreSQL&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-postgresql%23step-2-set-up-environment-variables&demo-title=Next.js%20%2B%20PostgreSQL%20Demo&demo-description=A%20simple%20app%20demonstrating%20Next.js%20and%20PostgreSQL%20&demo-url=https%3A%2F%2Fnext-postgresql.vercel.app%2F)
