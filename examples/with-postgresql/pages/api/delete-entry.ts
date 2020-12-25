@@ -7,7 +7,7 @@ const handler: NextApiHandler = async (req, res) => {
     if (!id) {
       return res.status(400).json({ message: '`id` required' })
     }
-    if (typeof parseInt(id.toString()) !== 'number') {
+    if (typeof id !== 'string' || typeof parseInt(id.toString()) !== 'number') {
       return res.status(400).json({ message: '`id` must be a number' })
     }
     const results = await query(
@@ -15,7 +15,7 @@ const handler: NextApiHandler = async (req, res) => {
       DELETE FROM entries
       WHERE id = $1
   `,
-      [id as string]
+      [id]
     )
     res.json(results)
   } catch (e) {

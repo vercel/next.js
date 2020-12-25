@@ -9,12 +9,9 @@ const client = new ServerlessClient({
   debug: true,
   ssl: true,
   delayMs: 3000,
-});
+})
 
-export async function query(
-  q: string,
-  values: (string | number)[] = []
-) {
+export async function query(q: string, values: (string | number)[] = []) {
   try {
     await client.connect()
     const results = await client.query(q, values)

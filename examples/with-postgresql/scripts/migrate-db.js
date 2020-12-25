@@ -1,11 +1,11 @@
-const path = require("path");
-const envPath = path.resolve(process.cwd(), ".env.local");
+const path = require('path')
+const envPath = path.resolve(process.cwd(), '.env.local')
 
-console.log({ envPath });
+console.log({ envPath })
 
-require("dotenv").config({ path: envPath });
+require('dotenv').config({ path: envPath })
 
-const ServerlessClient = require("serverless-postgres");
+const ServerlessClient = require('serverless-postgres')
 
 const client = new ServerlessClient({
   host: process.env.POSTGRESQL_HOST,
@@ -16,16 +16,16 @@ const client = new ServerlessClient({
   debug: true,
   ssl: true,
   delayMs: 3000,
-});
+})
 
 async function query(q) {
   try {
-    await client.connect();
-    const results = await client.query(q);
-    await client.clean();
-    return results;
+    await client.connect()
+    const results = await client.query(q)
+    await client.clean()
+    return results
   } catch (e) {
-    throw Error(e.message);
+    throw Error(e.message)
   }
 }
 
@@ -39,7 +39,7 @@ async function migrate() {
       NEW.updated_at = NOW();
       RETURN NEW;
     END;
-    $$ LANGUAGE plpgsql;`);
+    $$ LANGUAGE plpgsql;`)
 
     await query(`
     CREATE TABLE IF NOT EXISTS entries (
@@ -48,20 +48,20 @@ async function migrate() {
       content TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )`);
+    )`)
 
     await query(`
     CREATE TRIGGER set_timestamp
     BEFORE UPDATE ON entries
     FOR EACH ROW
     EXECUTE PROCEDURE trigger_set_timestamp();
-    `);
-    console.log("migration ran successfully");
+    `)
+    console.log('migration ran successfully')
   } catch (e) {
     console.log(e)
-    console.error("could not run migration, double check your credentials.");
-    process.exit(1);
+    console.error('could not run migration, double check your credentials.')
+    process.exit(1)
   }
 }
 
-migrate().then(() => process.exit());
+migrate().then(() => process.exit())
