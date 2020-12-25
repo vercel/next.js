@@ -7,7 +7,9 @@ const client = new ServerlessClient({
   password: process.env.POSTGRESQL_PASSWORD,
   database: process.env.POSTGRESQL_DATABASE,
   debug: true,
-  ssl: true,
+  ssl: {
+    rejectUnauthorized: false,
+  },
   delayMs: 3000,
 })
 
