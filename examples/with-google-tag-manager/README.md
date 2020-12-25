@@ -1,6 +1,6 @@
 ## Example app using Google Tag Manager
 
-This example shows how to use Next.js along with Google Tag Manager. A custom [\_document](https://nextjs.org/docs/advanced-features/custom-document) is used to inject [base code](https://developers.google.com/tag-manager/quickstart). A [\_app](https://nextjs.org/docs/advanced-features/custom-app) is used to track route changes and send page views to Google Tag Manager.
+This example shows how to use Next.js along with Google Tag Manager. [`pages/_document.js`](pages/_document.js) is used to inject [base code](https://developers.google.com/tag-manager/quickstart). [`pages/_app.js`](pages/_app.js) is used to track route changes and send page views to Google Tag Manager.
 
 ## Deploy your own
 
