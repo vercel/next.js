@@ -1,5 +1,5 @@
 {
-  "name": "with-mysql",
+  "name": "with-postgresql",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
@@ -15,7 +15,6 @@
     "react": "^17.0.1",
     "react-dom": "^17.0.1",
     "react-loading-skeleton": "^2.1.1",
-    "serverless-mysql": "^1.5.4",
     "serverless-postgres": "^1.8.0",
     "swr": "^0.3.9"
   },
