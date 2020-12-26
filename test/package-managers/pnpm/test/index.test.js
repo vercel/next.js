@@ -91,18 +91,15 @@ describe('pnpm support', () => {
       // Inject dependency tarball paths into a "pnpm.overrides" field in package.json,
       // so that they are installed from packed tarballs rather than from the npm registry.
       const packageJsonPath = path.join(tempAppDir, 'package.json')
+      const overrides = {}
+      for (const [dependency, tarballPath] of Object.entries(
+        dependencyTarballPaths
+      )) {
+        overrides[dependency] = `file:${tarballPath}`
+      }
       const packageJsonWithOverrides = {
         ...(await fs.readJson(packageJsonPath)),
-        pnpm: {
-          overrides: Object.fromEntries(
-            Object.entries(
-              dependencyTarballPaths
-            ).map(([dependency, tarballPath]) => [
-              dependency,
-              `file:${tarballPath}`,
-            ])
-          ),
-        },
+        pnpm: { overrides },
       }
       await fs.writeFile(
         packageJsonPath,
