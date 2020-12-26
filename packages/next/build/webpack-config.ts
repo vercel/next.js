@@ -706,6 +706,8 @@ export default async function getBaseWebpackConfig(
     callback()
   }
 
+  const emacsLockfilePattern = '**/.#*'
+
   let webpackConfig: webpack.Configuration = {
     externals: !isServer
       ? // make sure importing "next" is handled gracefully for client
@@ -782,7 +784,13 @@ export default async function getBaseWebpackConfig(
       }
     },
     watchOptions: {
-      ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
+      ignored: [
+        '**/.git/**',
+        '**/node_modules/**',
+        '**/.next/**',
+        // can be removed after https://github.com/paulmillr/chokidar/issues/955 is released
+        emacsLockfilePattern,
+      ],
     },
     output: {
       ...(isWebpack5
