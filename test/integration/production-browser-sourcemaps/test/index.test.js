@@ -43,9 +43,7 @@ describe('Production browser sourcemaps', () => {
         `
         module.exports = {
           target: 'serverless',
-          experimental: {
-            productionBrowserSourceMaps: true
-          }
+          productionBrowserSourceMaps: true
         }
       `
       )

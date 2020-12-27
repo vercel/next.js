@@ -32,6 +32,7 @@ import {
 } from '../next-server/lib/constants'
 import loadConfig, {
   isTargetLikeServerless,
+  NextConfig,
 } from '../next-server/server/config'
 import { eventCliSession } from '../telemetry/events'
 import { hasNextSupport } from '../telemetry/ci-info'
@@ -51,7 +52,9 @@ const exists = promisify(existsOrig)
 function divideSegments(number: number, segments: number): number[] {
   const result = []
   while (number > 0 && segments > 0) {
-    const dividedNumber = Math.floor(number / segments)
+    const dividedNumber =
+      number < segments ? number : Math.floor(number / segments)
+
     number -= dividedNumber
     segments--
     result.push(dividedNumber)
@@ -130,7 +133,7 @@ interface ExportOptions {
 export default async function exportApp(
   dir: string,
   options: ExportOptions,
-  configuration?: any
+  configuration?: NextConfig
 ): Promise<void> {
   dir = resolve(dir)
 
@@ -161,9 +164,11 @@ export default async function exportApp(
     Log.info(`using build directory: ${distDir}`)
   }
 
-  if (!existsSync(distDir)) {
+  const buildIdFile = join(distDir, BUILD_ID_FILE)
+
+  if (!existsSync(buildIdFile)) {
     throw new Error(
-      `Build directory ${distDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`
+      `Could not find a production build in the '${distDir}' directory. Try building your app with 'next build' before starting the static export. https://err.sh/vercel/next.js/next-export-no-build-id`
     )
   }
 
@@ -183,7 +188,7 @@ export default async function exportApp(
     )
   }
 
-  const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
+  const buildId = readFileSync(buildIdFile, 'utf8')
   const pagesManifest =
     !options.pages &&
     (require(join(
@@ -331,8 +336,8 @@ Read more: https://err.sh/next.js/export-image-api`
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
     locales: i18n?.locales,
-    locale: i18n.defaultLocale,
-    defaultLocale: i18n.defaultLocale,
+    locale: i18n?.defaultLocale,
+    defaultLocale: i18n?.defaultLocale,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -484,6 +489,7 @@ Read more: https://err.sh/next.js/export-image-api`
         serverless: isTargetLikeServerless(nextConfig.target),
         optimizeFonts: nextConfig.experimental.optimizeFonts,
         optimizeImages: nextConfig.experimental.optimizeImages,
+        optimizeCss: nextConfig.experimental.optimizeCss,
       })
 
       for (const validation of result.ampValidations || []) {
@@ -497,7 +503,7 @@ Read more: https://err.sh/next.js/export-image-api`
       renderError = renderError || !!result.error
       if (!!result.error) errorPaths.push(path)
 
-      if (options.buildExport) {
+      if (options.buildExport && configuration) {
         if (typeof result.fromBuildExportRevalidate !== 'undefined') {
           configuration.initialPageRevalidationMap[path] =
             result.fromBuildExportRevalidate
