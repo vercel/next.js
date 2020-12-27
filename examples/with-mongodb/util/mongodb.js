@@ -20,10 +20,14 @@ if (!MONGODB_DB) {
  * during API Route usage.
  */
 let cached = global.mongo
-if (!cached) cached = global.mongo = {}
+if (!cached) {
+  cached = global.mongo = {}
+}
 
 export async function connectToDatabase() {
-  if (cached.conn) return cached.conn
+  if (cached.conn) {
+    return cached.conn
+  }
   if (!cached.promise) {
     const conn = {}
     const opts = {
