@@ -27,5 +27,5 @@ plugin, then we can use the `preval.macro` in `pages/index.js` to pre-evaluate
 code at build-time. `preval.macro` is effectively transforming our code, but
 we didn't have to configure it to make that happen!
 
-Specifically what we're doing is we're prevailing the username of the user who
+Specifically what we're doing is we're prevaling the username of the user who
 ran the build.
