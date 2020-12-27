@@ -46,4 +46,4 @@ following behavior while you are doing development.
 - When you run `next build` then `next start`, assuming you set externally the environmental variable STAGING to anything but 1, you will get the results assuming `isProd` is true.
 - When your run `next build` or `npm run build` in production, if the environmental variable `STAGING` is set to `1`, `isStaging` will be set and you will get those values returned.
 
-You can read more about this feature in thie blog post <a href="https://vercel.com/blog/next5-1" target="_blank">Next.js 5.1: Faster Page Resolution, Environment Config and More</a> (under Environment Config).
+You can read more about this feature in this blog post <a href="https://vercel.com/blog/next5-1" target="_blank">Next.js 5.1: Faster Page Resolution, Environment Config and More</a> (under Environment Config).

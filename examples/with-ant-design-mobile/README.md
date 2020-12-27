@@ -1,6 +1,6 @@
 # Ant Design Mobile example
 
-This example features how you use [antd-mobile](https://github.com/ant-design/ant-design-mobile) (Ant Design Mobile FrontEnd Framwork) with Next.js.
+This example features how you use [antd-mobile](https://github.com/ant-design/ant-design-mobile) (Ant Design Mobile FrontEnd Framework) with Next.js.
 
 ## Deploy your own
 
