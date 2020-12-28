@@ -3,7 +3,7 @@
 Extract and inline critical css with
 [emotion](https://github.com/emotion-js/emotion/tree/master/packages/emotion),
 [emotion-server](https://github.com/emotion-js/emotion/tree/master/packages/emotion-server),
-[@emotion/core](https://github.com/emotion-js/emotion/tree/master/packages/core),
+[@emotion/react](https://github.com/emotion-js/emotion/tree/master/packages/react),
 and [@emotion/styled](https://github.com/emotion-js/emotion/tree/master/packages/styled).
 
 ## Deploy your own
