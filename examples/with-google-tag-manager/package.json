@@ -1,8 +1,8 @@
 {
-  "name": "with-tailwindcss",
-  "version": "1.0.0",
+  "name": "with-google-tag-manager",
+  "version": "0.1.0",
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
@@ -10,11 +10,6 @@
     "next": "latest",
     "react": "^16.13.1",
     "react-dom": "^16.13.1"
-  },
-  "devDependencies": {
-    "autoprefixer": "10.0.2",
-    "postcss": "8.1.7",
-    "tailwindcss": "^2.0.2"
   },
   "license": "MIT"
 }
