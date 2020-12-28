@@ -1366,8 +1366,11 @@ export default class Server {
       ? (req as any)._nextRewroteUrl
       : urlPathname
 
-    resolvedUrlPathname = removePathTrailingSlash(resolvedUrlPathname)
     urlPathname = removePathTrailingSlash(urlPathname)
+    resolvedUrlPathname = normalizeLocalePath(
+      removePathTrailingSlash(resolvedUrlPathname),
+      this.nextConfig.i18n?.locales
+    ).pathname
 
     const stripNextDataPath = (path: string) => {
       if (path.includes(this.buildId)) {
