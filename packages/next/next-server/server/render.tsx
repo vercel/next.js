@@ -165,9 +165,11 @@ export type RenderOptsPartial = {
   optimizeFonts: boolean
   fontManifest?: FontManifest
   optimizeImages: boolean
+  optimizeCss: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
+  distDir?: string
   locale?: string
   locales?: string[]
   defaultLocale?: string
@@ -208,6 +210,7 @@ function renderDocument(
     appGip,
     unstable_runtimeJS,
     devOnlyCacheBusterQueryString,
+    scriptLoader,
     locale,
     locales,
     defaultLocale,
@@ -232,6 +235,7 @@ function renderDocument(
     gip?: boolean
     appGip?: boolean
     devOnlyCacheBusterQueryString: string
+    scriptLoader: any
   }
 ): string {
   return (
@@ -274,6 +278,7 @@ function renderDocument(
           headTags,
           unstable_runtimeJS,
           devOnlyCacheBusterQueryString,
+          scriptLoader,
           locale,
           ...docProps,
         })}
@@ -555,6 +560,8 @@ export async function renderToHTML(
 
   let head: JSX.Element[] = defaultHead(inAmpMode)
 
+  let scriptLoader: any = {}
+
   const AppContainer = ({ children }: any) => (
     <RouterContext.Provider value={router}>
       <AmpStateContext.Provider value={ampState}>
@@ -563,6 +570,10 @@ export async function renderToHTML(
             updateHead: (state) => {
               head = state
             },
+            updateScripts: (scripts) => {
+              scriptLoader = scripts
+            },
+            scripts: {},
             mountedInstances: new Set(),
           }}
         >
@@ -697,32 +708,46 @@ export async function renderToHTML(
         )
       }
 
-      if ('revalidate' in data && typeof data.revalidate === 'number') {
-        if (!Number.isInteger(data.revalidate)) {
+      if ('revalidate' in data) {
+        if (typeof data.revalidate === 'number') {
+          if (!Number.isInteger(data.revalidate)) {
+            throw new Error(
+              `A page's revalidate option must be seconds expressed as a natural number for ${req.url}. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
+                `\nTry changing the value to '${Math.ceil(
+                  data.revalidate
+                )}' or using \`Math.ceil()\` if you're computing the value.`
+            )
+          } else if (data.revalidate <= 0) {
+            throw new Error(
+              `A page's revalidate option can not be less than or equal to zero for ${req.url}. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
+                `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
+                `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
+            )
+          } else if (data.revalidate > 31536000) {
+            // if it's greater than a year for some reason error
+            console.warn(
+              `Warning: A page's revalidate option was set to more than a year for ${req.url}. This may have been done in error.` +
+                `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
+            )
+          }
+        } else if (data.revalidate === true) {
+          // When enabled, revalidate after 1 second. This value is optimal for
+          // the most up-to-date page possible, but without a 1-to-1
+          // request-refresh ratio.
+          data.revalidate = 1
+        } else if (
+          data.revalidate === false ||
+          typeof data.revalidate === 'undefined'
+        ) {
+          // By default, we never revalidate.
+          data.revalidate = false
+        } else {
           throw new Error(
-            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
-              `\nTry changing the value to '${Math.ceil(
-                data.revalidate
-              )}' or using \`Math.ceil()\` if you're computing the value.`
-          )
-        } else if (data.revalidate <= 0) {
-          throw new Error(
-            `A page's revalidate option can not be less than or equal to zero. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
-              `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
-              `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
-          )
-        } else if (data.revalidate > 31536000) {
-          // if it's greater than a year for some reason error
-          console.warn(
-            `Warning: A page's revalidate option was set to more than a year. This may have been done in error.` +
-              `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
+            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers and strings cannot be used. Received '${JSON.stringify(
+              data.revalidate
+            )}' for ${req.url}`
           )
         }
-      } else if ('revalidate' in data && data.revalidate === true) {
-        // When enabled, revalidate after 1 second. This value is optimal for
-        // the most up-to-date page possible, but without a 1-to-1
-        // request-refresh ratio.
-        data.revalidate = 1
       } else {
         // By default, we never revalidate.
         ;(data as any).revalidate = false
@@ -998,6 +1023,7 @@ export async function renderToHTML(
     gip: hasPageGetInitialProps ? true : undefined,
     appGip: !defaultAppGetInitialProps ? true : undefined,
     devOnlyCacheBusterQueryString,
+    scriptLoader,
   })
 
   if (process.env.NODE_ENV !== 'production') {
@@ -1038,16 +1064,33 @@ export async function renderToHTML(
     }
   }
 
-  html = await postProcess(
-    html,
-    {
-      getFontDefinition,
-    },
-    {
-      optimizeFonts: renderOpts.optimizeFonts,
-      optimizeImages: renderOpts.optimizeImages,
-    }
-  )
+  // Avoid postProcess if both flags are false
+  if (process.env.__NEXT_OPTIMIZE_FONTS || process.env.__NEXT_OPTIMIZE_IMAGES) {
+    html = await postProcess(
+      html,
+      { getFontDefinition },
+      {
+        optimizeFonts: renderOpts.optimizeFonts,
+        optimizeImages: renderOpts.optimizeImages,
+      }
+    )
+  }
+
+  if (renderOpts.optimizeCss) {
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    const Critters = require('critters')
+    const cssOptimizer = new Critters({
+      ssrMode: true,
+      reduceInlineStyles: false,
+      path: renderOpts.distDir,
+      publicPath: '/_next/',
+      preload: 'media',
+      fonts: false,
+      ...renderOpts.optimizeCss,
+    })
+
+    html = await cssOptimizer.process(html)
+  }
 
   if (inAmpMode || hybridAmp) {
     // fix &amp being escaped for amphtml rel link
