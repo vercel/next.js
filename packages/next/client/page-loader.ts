@@ -1,5 +1,5 @@
 import { ComponentType } from 'react'
-import type { ClientSsgManifest } from '../build'
+import { ClientSsgManifest } from '../build'
 import {
   addBasePath,
   addLocale,

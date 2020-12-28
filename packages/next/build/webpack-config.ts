@@ -8,7 +8,7 @@ import semver from 'next/dist/compiled/semver'
 import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
 import path from 'path'
 import webpack from 'webpack'
-import type { Configuration } from 'webpack'
+import { Configuration } from 'webpack'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
