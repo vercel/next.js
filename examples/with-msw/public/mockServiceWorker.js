@@ -7,7 +7,7 @@
 /* eslint-disable */
 /* tslint:disable */
 
-const INTEGRITY_CHECKSUM = 'd1e0e502f550d40a34bee90822e4bf98'
+const INTEGRITY_CHECKSUM = '65d33ca82955e1c5928aed19d1bdf3f9'
 const bypassHeaderName = 'x-msw-bypass'
 
 let clients = {}
@@ -74,10 +74,21 @@ self.addEventListener('message', async function (event) {
   }
 })
 
-self.addEventListener('fetch', async function (event) {
+self.addEventListener('fetch', function (event) {
   const { clientId, request } = event
   const requestClone = request.clone()
   const getOriginalResponse = () => fetch(requestClone)
+
+  // Bypass navigation requests.
+  if (request.mode === 'navigate') {
+    return
+  }
+
+  // Bypass mocking if the current client isn't present in the internal clients map
+  // (i.e. has the mocking disabled).
+  if (!clients[clientId]) {
+    return
+  }
 
   // Opening the DevTools triggers the "only-if-cached" request
   // that cannot be handled by the worker. Bypass such requests.
@@ -89,20 +100,15 @@ self.addEventListener('fetch', async function (event) {
     new Promise(async (resolve, reject) => {
       const client = await event.target.clients.get(clientId)
 
-      if (
-        // Bypass mocking when no clients active
-        !client ||
-        // Bypass mocking if the current client has mocking disabled
-        !clients[clientId] ||
-        // Bypass mocking for navigation requests
-        request.mode === 'navigate'
-      ) {
+      // Bypass mocking when the request client is not active.
+      if (!client) {
         return resolve(getOriginalResponse())
       }
 
       // Bypass requests with the explicit bypass header
       if (requestClone.headers.get(bypassHeaderName) === 'true') {
         const modifiedHeaders = serializeHeaders(requestClone.headers)
+
         // Remove the bypass header to comply with the CORS preflight check
         delete modifiedHeaders[bypassHeaderName]
 
