@@ -515,9 +515,13 @@ export async function buildStaticPaths(
   locales?: string[],
   defaultLocale?: string
 ): Promise<
-  Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & { paths: string[] }
+  Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & {
+    paths: string[]
+    encodedPaths: string[]
+  }
 > {
   const prerenderPaths = new Set<string>()
+  const encodedPrerenderPaths = new Set<string>()
   const _routeRegex = getRouteRegex(page)
   const _routeMatcher = getRouteMatcher(_routeRegex)
 
@@ -595,7 +599,18 @@ export async function buildStaticPaths(
         )
       }
 
-      prerenderPaths?.add(entry)
+      // If leveraging the string paths variant the entry should already be
+      // encoded so we decode the segments ensuring we only escape path
+      // delimiters
+      prerenderPaths.add(
+        entry
+          .split('/')
+          .map((segment) =>
+            escapePathDelimiters(decodeURIComponent(segment), true)
+          )
+          .join('/')
+      )
+      encodedPrerenderPaths.add(entry)
     }
     // For the object-provided path, we must make sure it specifies all
     // required keys.
@@ -617,6 +632,8 @@ export async function buildStaticPaths(
 
       const { params = {} } = entry
       let builtPage = page
+      let encodedBuiltPage = page
+
       _validParamKeys.forEach((validParamKey) => {
         const { repeat, optional } = _routeRegex.groups[validParamKey]
         let paramValue = params[validParamKey]
@@ -647,8 +664,19 @@ export async function buildStaticPaths(
           .replace(
             replaced,
             repeat
-              ? (paramValue as string[]).map(escapePathDelimiters).join('/')
-              : escapePathDelimiters(paramValue as string)
+              ? (paramValue as string[])
+                  .map((segment) => escapePathDelimiters(segment, true))
+                  .join('/')
+              : escapePathDelimiters(paramValue as string, true)
+          )
+          .replace(/(?!^)\/$/, '')
+
+        encodedBuiltPage = encodedBuiltPage
+          .replace(
+            replaced,
+            repeat
+              ? (paramValue as string[]).map(encodeURIComponent).join('/')
+              : encodeURIComponent(paramValue as string)
           )
           .replace(/(?!^)\/$/, '')
       })
@@ -660,15 +688,24 @@ export async function buildStaticPaths(
       }
       const curLocale = entry.locale || defaultLocale || ''
 
-      prerenderPaths?.add(
+      prerenderPaths.add(
         `${curLocale ? `/${curLocale}` : ''}${
           curLocale && builtPage === '/' ? '' : builtPage
+        }`
+      )
+      encodedPrerenderPaths.add(
+        `${curLocale ? `/${curLocale}` : ''}${
+          curLocale && encodedBuiltPage === '/' ? '' : encodedBuiltPage
         }`
       )
     }
   })
 
-  return { paths: [...prerenderPaths], fallback: staticPathsResult.fallback }
+  return {
+    paths: [...prerenderPaths],
+    fallback: staticPathsResult.fallback,
+    encodedPaths: [...encodedPrerenderPaths],
+  }
 }
 
 export async function isPageStatic(
@@ -683,8 +720,9 @@ export async function isPageStatic(
   isHybridAmp?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
-  prerenderRoutes?: string[] | undefined
-  prerenderFallback?: boolean | 'blocking' | undefined
+  prerenderRoutes?: string[]
+  encodedPrerenderRoutes?: string[]
+  prerenderFallback?: boolean | 'blocking'
   isNextImageImported?: boolean
 }> {
   try {
@@ -760,11 +798,13 @@ export async function isPageStatic(
     }
 
     let prerenderRoutes: Array<string> | undefined
+    let encodedPrerenderRoutes: Array<string> | undefined
     let prerenderFallback: boolean | 'blocking' | undefined
     if (hasStaticProps && hasStaticPaths) {
       ;({
         paths: prerenderRoutes,
         fallback: prerenderFallback,
+        encodedPaths: encodedPrerenderRoutes,
       } = await buildStaticPaths(
         page,
         mod.getStaticPaths,
@@ -781,6 +821,7 @@ export async function isPageStatic(
       isAmpOnly: config.amp === true,
       prerenderRoutes,
       prerenderFallback,
+      encodedPrerenderRoutes,
       hasStaticProps,
       hasServerProps,
       isNextImageImported,

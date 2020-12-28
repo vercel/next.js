@@ -523,6 +523,7 @@ export default async function build(
     const hybridAmpPages = new Set<string>()
     const serverPropsPages = new Set<string>()
     const additionalSsgPaths = new Map<string, Array<string>>()
+    const additionalSsgPathsEncoded = new Map<string, Array<string>>()
     const pageInfos = new Map<string, PageInfo>()
     const pagesManifest = JSON.parse(
       await promises.readFile(manifestPath, 'utf8')
@@ -640,8 +641,15 @@ export default async function build(
               ssgPages.add(page)
               isSsg = true
 
-              if (workerResult.prerenderRoutes) {
+              if (
+                workerResult.prerenderRoutes &&
+                workerResult.encodedPrerenderRoutes
+              ) {
                 additionalSsgPaths.set(page, workerResult.prerenderRoutes)
+                additionalSsgPathsEncoded.set(
+                  page,
+                  workerResult.encodedPrerenderRoutes
+                )
                 ssgPageRoutes = workerResult.prerenderRoutes
               }
 
@@ -841,8 +849,13 @@ export default async function build(
           // Append the "well-known" routes we should prerender for, e.g. blog
           // post slugs.
           additionalSsgPaths.forEach((routes, page) => {
-            routes.forEach((route) => {
-              defaultMap[route] = { page }
+            const encodedRoutes = additionalSsgPathsEncoded.get(page)
+
+            routes.forEach((route, routeIdx) => {
+              defaultMap[route] = {
+                page,
+                query: { __nextSsgPath: encodedRoutes?.[routeIdx] },
+              }
             })
           })
 

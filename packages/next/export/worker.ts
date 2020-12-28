@@ -110,9 +110,10 @@ export default async function exportPage({
     let query = { ...originalQuery }
     let params: { [key: string]: string | string[] } | undefined
 
-    let updatedPath = path
+    let updatedPath = (query.__nextSsgPath as string) || path
     let locale = query.__nextLocale || renderOpts.locale
     delete query.__nextLocale
+    delete query.__nextSsgPath
 
     if (renderOpts.locale) {
       const localePathResult = normalizeLocalePath(path, renderOpts.locales)
