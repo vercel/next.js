@@ -27,6 +27,46 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  it('should navigate through history with query correctly', async () => {
+    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push(
+        window.next.router.pathname,
+        window.next.router.asPath,
+        { locale: 'nl' }
+      )
+      window.next.router.push(
+        '/gssp?page=1'
+      )
+    })()`)
+
+    await browser.waitForElementByCss('#gssp')
+
+    const props = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props).toEqual({
+      locale: 'nl',
+      locales,
+      defaultLocale: 'en-US',
+      query: { page: '1' },
+    })
+
+    await browser
+      .back()
+      .waitForElementByCss('#index')
+      .forward()
+      .waitForElementByCss('#gssp')
+
+    const props2 = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props2).toEqual({
+      locale: 'nl',
+      locales,
+      defaultLocale: 'en-US',
+      query: { page: '1' },
+    })
+  })
+
   if (!ctx.isDev) {
     it('should not contain backslashes in pages-manifest', async () => {
       const pagesManifestContent = await fs.readFile(
@@ -461,7 +501,7 @@ export function runTests(ctx) {
   })
 
   it('should apply redirects correctly', async () => {
-    for (const [path, shouldRedirect, locale] of [
+    for (const [path, shouldRedirect, locale, pathname] of [
       ['/en-US/redirect-1', true],
       ['/en/redirect-1', false],
       ['/nl/redirect-2', true],
@@ -469,6 +509,8 @@ export function runTests(ctx) {
       ['/redirect-3', true],
       ['/en/redirect-3', true, '/en'],
       ['/nl-NL/redirect-3', true, '/nl-NL'],
+      ['/redirect-4', true, null, '/'],
+      ['/nl/redirect-4', true, null, '/nl'],
     ]) {
       const res = await fetchViaHTTP(
         ctx.appPort,
@@ -484,7 +526,7 @@ export function runTests(ctx) {
       if (shouldRedirect) {
         const parsed = url.parse(res.headers.get('location'), true)
         expect(parsed.pathname).toBe(
-          `${ctx.basePath}${locale || ''}/somewhere-else`
+          `${ctx.basePath}${locale || ''}${pathname || '/somewhere-else'}`
         )
         expect(parsed.query).toEqual({})
       }
@@ -1308,7 +1350,7 @@ export function runTests(ctx) {
     }
   })
 
-  it('should provide correctly defaultLocale for locale domain', async () => {
+  it('should provide defaultLocale correctly for locale domain', async () => {
     for (const { host, locale } of [
       { host: 'example.fr', locale: 'fr' },
       { host: 'example.be', locale: 'nl-BE' },
@@ -1334,6 +1376,7 @@ export function runTests(ctx) {
         defaultLocale: locale,
         locale,
         locales,
+        query: {},
       })
       expect(JSON.parse($('#router-locales').text())).toEqual(locales)
     }
@@ -1952,6 +1995,7 @@ export function runTests(ctx) {
     expect(JSON.parse($('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      query: {},
       defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
@@ -2163,6 +2207,7 @@ export function runTests(ctx) {
     expect(JSON.parse($('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      query: {},
       defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
@@ -2176,6 +2221,7 @@ export function runTests(ctx) {
     expect(JSON.parse($2('#props').text())).toEqual({
       locale: 'nl-NL',
       locales,
+      query: {},
       defaultLocale: 'en-US',
     })
     expect($2('#router-locale').text()).toBe('nl-NL')
