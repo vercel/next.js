@@ -22,7 +22,7 @@ if (!MONGODB_DB) {
 let cached = global.mongo
 
 if (!cached) {
-  cached = global.mongo = {}
+  cached = global.mongo = { conn: null, promise: null }
 }
 
 export async function connectToDatabase() {
@@ -31,27 +31,18 @@ export async function connectToDatabase() {
   }
 
   if (!cached.promise) {
-    const conn = {}
-
     const opts = {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     }
 
-    cached.promise = MongoClient.connect(MONGODB_URI, opts)
-      .then((client) => {
-        conn.client = client
-
-        return client.db(MONGODB_DB)
-      })
-      .then((db) => {
-        conn.db = db
-
-        cached.conn = conn
-      })
+    cached.promise = MongoClient.connect(MONGODB_URI, opts).then((client) => {
+      return {
+        client,
+        db: client.db(MONGODB_DB),
+      }
+    })
   }
-
-  await cached.promise
-
+  cached.conn = await cached.promise
   return cached.conn
 }
