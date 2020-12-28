@@ -13,6 +13,7 @@ export default function getPaths(pathPrefix) {
     // non-ascii characters
     { params: { slug: '商業日語' } },
     { params: { slug: ' my-post ' } },
+    { params: { slug: encodeURIComponent('商業日語') } },
     `${pathPrefix}/%2Fsecond-post%2F`,
     `${pathPrefix}/%2Bsecond-post%2B`,
     `${pathPrefix}/%26second-post%26`,

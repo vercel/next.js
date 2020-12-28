@@ -24,10 +24,12 @@ let buildId
 // paths on the filesystem
 const prerenderedPaths = [
   '%2Fmy-post%2F',
+  '%252Fmy-post%252F',
   '+my-post+',
   '%3Fmy-post%3F',
   '&my-post&',
   '商業日語',
+  encodeURIComponent('商業日語'),
   ' my-post ',
   '%2Fsecond-post%2F',
   '+second-post+',
@@ -38,10 +40,12 @@ const prerenderedPaths = [
 // paths that should be requested in the URL
 const urlPaths = [
   '%2Fmy-post%2F',
+  '%252Fmy-post%252F',
   '%2Bmy-post%2B',
   '%3Fmy-post%3F',
   '%26my-post%26',
   encodeURIComponent('商業日語'),
+  encodeURIComponent(encodeURIComponent('商業日語')),
   '%20my-post%20',
   '%2Fsecond-post%2F',
   '%2Bsecond-post%2B',
