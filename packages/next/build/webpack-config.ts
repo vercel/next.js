@@ -1131,6 +1131,7 @@ export default async function getBaseWebpackConfig(
       if (!webpackConfig.optimization) {
         webpackConfig.optimization = {}
       }
+      webpackConfig.optimization.providedExports = false
       webpackConfig.optimization.usedExports = false
     }
 

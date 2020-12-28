@@ -71,12 +71,12 @@ export class FontStylesheetGatheringPlugin {
                 return
               }
               let result
-              if (node.name === '__jsx') {
+              if (node.name === '_jsx' || node.name === '__jsx') {
                 result = new BasicEvaluatedExpression()
                 // @ts-ignore
                 result.setRange(node.range)
                 result.setExpression(node)
-                result.setIdentifier('__jsx')
+                result.setIdentifier(node.name)
 
                 // This was added webpack 5.
                 if (isWebpack5) {
@@ -86,44 +86,50 @@ export class FontStylesheetGatheringPlugin {
               return result
             })
 
+          const jsxNodeHandler = (node: namedTypes.CallExpression) => {
+            if (node.arguments.length !== 2) {
+              // A font link tag has only two arguments rel=stylesheet and href='...'
+              return
+            }
+            if (!isNodeCreatingLinkElement(node)) {
+              return
+            }
+
+            // node.arguments[0] is the name of the tag and [1] are the props.
+            const propsNode = node.arguments[1] as namedTypes.ObjectExpression
+            const props: { [key: string]: string } = {}
+            propsNode.properties.forEach((prop) => {
+              if (prop.type !== 'Property') {
+                return
+              }
+              if (
+                prop.key.type === 'Identifier' &&
+                prop.value.type === 'Literal'
+              ) {
+                props[prop.key.name] = prop.value.value as string
+              }
+            })
+            if (
+              !props.rel ||
+              props.rel !== 'stylesheet' ||
+              !props.href ||
+              !OPTIMIZED_FONT_PROVIDERS.some((url) =>
+                props.href.startsWith(url)
+              )
+            ) {
+              return false
+            }
+
+            this.gatheredStylesheets.push(props.href)
+          }
+          // React JSX transform:
+          parser.hooks.call
+            .for('_jsx')
+            .tap(this.constructor.name, jsxNodeHandler)
+          // Next.js JSX transform:
           parser.hooks.call
             .for('__jsx')
-            .tap(this.constructor.name, (node: namedTypes.CallExpression) => {
-              if (node.arguments.length !== 2) {
-                // A font link tag has only two arguments rel=stylesheet and href='...'
-                return
-              }
-              if (!isNodeCreatingLinkElement(node)) {
-                return
-              }
-
-              // node.arguments[0] is the name of the tag and [1] are the props.
-              const propsNode = node.arguments[1] as namedTypes.ObjectExpression
-              const props: { [key: string]: string } = {}
-              propsNode.properties.forEach((prop) => {
-                if (prop.type !== 'Property') {
-                  return
-                }
-                if (
-                  prop.key.type === 'Identifier' &&
-                  prop.value.type === 'Literal'
-                ) {
-                  props[prop.key.name] = prop.value.value as string
-                }
-              })
-              if (
-                !props.rel ||
-                props.rel !== 'stylesheet' ||
-                !props.href ||
-                !OPTIMIZED_FONT_PROVIDERS.some((url) =>
-                  props.href.startsWith(url)
-                )
-              ) {
-                return false
-              }
-
-              this.gatheredStylesheets.push(props.href)
-            })
+            .tap(this.constructor.name, jsxNodeHandler)
         })
     }
   }
@@ -213,6 +219,10 @@ function isNodeCreatingLinkElement(node: namedTypes.CallExpression) {
   if (componentNode.type !== 'Literal') {
     return false
   }
+  // React has pragma: _jsx.
   // Next has pragma: __jsx.
-  return callee.name === '__jsx' && componentNode.value === 'link'
+  return (
+    (callee.name === '_jsx' || callee.name === '__jsx') &&
+    componentNode.value === 'link'
+  )
 }
