@@ -12,7 +12,7 @@ const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
 
 export type NextConfig = { [key: string]: any } & {
-  i18n: {
+  i18n?: {
     domains?: Array<{
       http?: true
       domain: string
@@ -27,6 +27,8 @@ export type NextConfig = { [key: string]: any } & {
   headers?: () => Promise<Header[]>
   rewrites?: () => Promise<Rewrite[]>
   redirects?: () => Promise<Redirect[]>
+
+  trailingSlash?: boolean
 }
 
 const defaultConfig: NextConfig = {
