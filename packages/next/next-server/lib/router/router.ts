@@ -25,7 +25,6 @@ import {
   NextPageContext,
   ST,
 } from '../utils'
-import escapePathDelimiters from './utils/escape-path-delimiters'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import { searchParamsToUrlQuery } from './utils/querystring'
@@ -161,8 +160,16 @@ export function interpolateAs(
           interpolatedRoute!.replace(
             replaced,
             repeat
-              ? (value as string[]).map(escapePathDelimiters).join('/')
-              : escapePathDelimiters(value as string)
+              ? (value as string[])
+                  .map(
+                    // these values should be fully encoded instead of just
+                    // path delimiter escaped since they are being inserted
+                    // into the URL and we expect URL encoded segments
+                    // when parsing dynamic route params
+                    (segment) => encodeURIComponent(segment)
+                  )
+                  .join('/')
+              : encodeURIComponent(value as string)
           ) || '/')
       )
     })
@@ -247,12 +254,15 @@ export function resolveHref(
   }
 }
 
-function prepareUrlAs(router: NextRouter, url: Url, as: Url) {
+function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
+  const [resolvedHref, resolvedAs] = resolveHref(router.pathname, url, true)
   return {
-    url: addBasePath(resolveHref(router.pathname, url)),
-    as: as ? addBasePath(resolveHref(router.pathname, as)) : as,
+    url: addBasePath(resolvedHref),
+    as: addBasePath(
+      as ? resolveHref(router.pathname, as) : resolvedAs || resolvedHref
+    ),
   }
 }
 
@@ -592,7 +602,7 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  push(url: Url, as: Url = url, options: TransitionOptions = {}) {
+  push(url: Url, as?: Url, options: TransitionOptions = {}) {
     ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('pushState', url, as, options)
   }
@@ -603,7 +613,7 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  replace(url: Url, as: Url = url, options: TransitionOptions = {}) {
+  replace(url: Url, as?: Url, options: TransitionOptions = {}) {
     ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('replaceState', url, as, options)
   }
