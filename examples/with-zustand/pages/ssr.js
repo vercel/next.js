@@ -1,5 +1,5 @@
 import Page from '../components/page'
-import { initializeStore } from '../store'
+import { initializeStore } from '../lib/store'
 
 export default function SSR() {
   return <Page />
