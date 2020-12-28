@@ -81,7 +81,7 @@ In order to expose a variable to the browser you have to prefix the variable wit
 NEXT_PUBLIC_ANALYTICS_ID=abcdefghijk
 ```
 
-This loads `process.env.NEXT_PUBLIC_ANALYTICS_ID` into the Node.js environment automatically. Allowing you to use it anywhere in your code. The value will be inlined into JavaScript sent to the browser because of the `NEXT_PUBLIC_` prefix.
+This loads `process.env.NEXT_PUBLIC_ANALYTICS_ID` into the Node.js environment automatically, allowing you to use it anywhere in your code. The value will be inlined into JavaScript sent to the browser because of the `NEXT_PUBLIC_` prefix.
 
 ```js
 // pages/index.js
