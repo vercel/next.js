@@ -143,6 +143,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
+      HEADLESS: true
 
     steps:
       - uses: actions/checkout@v2
