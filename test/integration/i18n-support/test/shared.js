@@ -37,20 +37,29 @@ export function runTests(ctx) {
         window.next.router.asPath,
         { locale: 'nl' }
       )
+    })()`)
+
+    await check(() => browser.elementByCss('#router-locale').text(), 'nl')
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    await browser.eval(`(function() {
       window.next.router.push(
         '/gssp?page=1'
       )
     })()`)
 
-    await browser.waitForElementByCss('#gssp')
+    await check(async () => {
+      const html = await browser.eval('document.documentElement.innerHTML')
+      const props = JSON.parse(cheerio.load(html)('#props').text())
 
-    const props = JSON.parse(await browser.elementByCss('#props').text())
-    expect(props).toEqual({
-      locale: 'nl',
-      locales,
-      defaultLocale: 'en-US',
-      query: { page: '1' },
-    })
+      assert.deepEqual(props, {
+        locale: 'nl',
+        locales,
+        defaultLocale: 'en-US',
+        query: { page: '1' },
+      })
+      return 'success'
+    }, 'success')
 
     await browser
       .back()
@@ -65,6 +74,7 @@ export function runTests(ctx) {
       defaultLocale: 'en-US',
       query: { page: '1' },
     })
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   if (!ctx.isDev) {
