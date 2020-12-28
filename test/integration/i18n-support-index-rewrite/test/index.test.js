@@ -17,48 +17,61 @@ import {
 jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '..')
+const locales = ['nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en']
 let appPort
 let app
 
 const runTests = () => {
   it('should rewrite index route correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    const $ = cheerio.load(html)
+    for (const locale of locales) {
+      const html = await renderViaHTTP(
+        appPort,
+        `/${locale === 'en' ? '' : locale}`
+      )
+      const $ = cheerio.load(html)
 
-    expect(JSON.parse($('#props').text())).toEqual({
-      params: {
-        slug: ['company', 'about-us'],
-      },
-      hello: 'world',
-    })
+      expect(JSON.parse($('#props').text())).toEqual({
+        params: {
+          slug: ['company', 'about-us'],
+        },
+        locale,
+        hello: 'world',
+      })
+    }
   })
 
   it('should handle index rewrite on client correctly', async () => {
-    const browser = await webdriver(appPort, '/hello')
+    for (const locale of locales) {
+      const browser = await webdriver(
+        appPort,
+        `${locale === 'en' ? '' : `/${locale}`}/hello`
+      )
 
-    expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
-      params: {
-        slug: ['hello'],
-      },
-      hello: 'world',
-    })
-    await browser.eval(`(function() {
-      window.beforeNav = 1
-      window.next.router.push('/')
-    })()`)
+      expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
+        params: {
+          slug: ['hello'],
+        },
+        locale,
+        hello: 'world',
+      })
+      await browser.eval(`(function() {
+        window.beforeNav = 1
+        window.next.router.push('/')
+      })()`)
 
-    await check(async () => {
-      assert.deepEqual(
-        JSON.parse(await browser.elementByCss('#props').text()),
-        {
+      await check(async () => {
+        const html = await browser.eval('document.documentElement.innerHTML')
+        const props = JSON.parse(cheerio.load(html)('#props').text())
+        assert.deepEqual(props, {
           params: {
             slug: ['company', 'about-us'],
           },
+          locale,
           hello: 'world',
-        }
-      )
-      return 'success'
-    }, 'success')
+        })
+        return 'success'
+      }, 'success')
+    }
   })
 }
 
