@@ -235,7 +235,7 @@ describe('i18n Support basePath', () => {
             locales: ['do-BE'],
           },
           {
-            domain: 'google.com',
+            domain: 'example.com',
             defaultLocale: 'go',
             locales: ['go-BE'],
           },

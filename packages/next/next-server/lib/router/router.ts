@@ -50,6 +50,13 @@ interface NextHistoryState {
 
 type HistoryState = null | { __N: false } | ({ __N: true } & NextHistoryState)
 
+let detectDomainLocale: typeof import('../i18n/detect-domain-locale').detectDomainLocale
+
+if (process.env.__NEXT_I18N_SUPPORT) {
+  detectDomainLocale = require('../i18n/detect-domain-locale')
+    .detectDomainLocale
+}
+
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 function buildCancellationError() {
@@ -670,10 +677,6 @@ export default class Router implements BaseRouter {
         return new Promise(() => {})
       }
 
-      const {
-        detectDomainLocale,
-      } = require('../i18n/detect-domain-locale') as typeof import('../i18n/detect-domain-locale')
-
       const detectedDomain = detectDomainLocale(
         this.domainLocales,
         undefined,
@@ -683,11 +686,16 @@ export default class Router implements BaseRouter {
       // if we are navigating to a domain locale ensure we redirect to the
       // correct domain
       if (detectedDomain && self.location.hostname !== detectedDomain.domain) {
+        const asNoBasePath = delBasePath(as)
         window.location.href = `http${detectedDomain.http ? '' : 's'}://${
           detectedDomain.domain
-        }${
-          this.locale === detectedDomain.defaultLocale ? '' : `/${this.locale}`
-        }${as === '/' ? '' : as}`
+        }${addBasePath(
+          `${
+            this.locale === detectedDomain.defaultLocale
+              ? ''
+              : `/${this.locale}`
+          }${asNoBasePath === '/' ? '' : asNoBasePath}` || '/'
+        )}`
         return new Promise(() => {})
       }
     }

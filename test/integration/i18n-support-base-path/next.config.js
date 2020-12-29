@@ -25,7 +25,7 @@ module.exports = {
         locales: ['do-BE'],
       },
       {
-        domain: 'google.com',
+        domain: 'example.com',
         defaultLocale: 'go',
         locales: ['go-BE'],
       },

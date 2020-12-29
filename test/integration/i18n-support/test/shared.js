@@ -50,8 +50,10 @@ export function runTests(ctx) {
       )
     })()`)
 
-    await check(() => browser.eval('window.location.hostname'), /google\.com/)
-    expect(await browser.eval('window.location.pathname')).toBe('/')
+    await check(() => browser.eval('window.location.hostname'), /example\.com/)
+    expect(await browser.eval('window.location.pathname')).toBe(
+      ctx.basePath || '/'
+    )
 
     await browser.get(browser.initUrl)
     await browser.waitForElementByCss('#index')
@@ -66,8 +68,10 @@ export function runTests(ctx) {
       )
     })()`)
 
-    await check(() => browser.eval('window.location.hostname'), /google\.com/)
-    expect(await browser.eval('window.location.pathname')).toBe('/go-BE/gssp')
+    await check(() => browser.eval('window.location.hostname'), /example\.com/)
+    expect(await browser.eval('window.location.pathname')).toBe(
+      `${ctx.basePath || ''}/go-BE/gssp`
+    )
   })
 
   it('should navigate through history with query correctly', async () => {
@@ -295,7 +299,7 @@ export function runTests(ctx) {
             locales: ['do-BE'],
           },
           {
-            domain: 'google.com',
+            domain: 'example.com',
             defaultLocale: 'go',
             locales: ['go-BE'],
           },
@@ -1219,7 +1223,7 @@ export function runTests(ctx) {
       undefined,
       {
         headers: {
-          host: 'google.com',
+          host: 'example.com',
         },
       }
     )
@@ -1262,7 +1266,7 @@ export function runTests(ctx) {
       undefined,
       {
         headers: {
-          host: 'google.com',
+          host: 'example.com',
         },
         redirect: 'manual',
       }
@@ -1321,8 +1325,8 @@ export function runTests(ctx) {
     const checks = [
       // test domain, locale prefix, redirect result
       // ['example.be', 'nl-BE', 'http://example.be/'],
-      ['google.com', 'do', 'http://example.do/'],
-      ['example.do', 'go', 'https://google.com/'],
+      ['example.com', 'do', 'http://example.do/'],
+      ['example.do', 'go', 'https://example.com/'],
       // ['example.fr', 'fr', 'http://example.fr/'],
     ]
 
@@ -1358,7 +1362,7 @@ export function runTests(ctx) {
         locales: ['do-BE'],
       },
       {
-        domain: 'google.com',
+        domain: 'example.com',
         defaultLocale: 'go',
         locales: ['go-BE'],
       },
@@ -1432,7 +1436,7 @@ export function runTests(ctx) {
   it('should provide defaultLocale correctly for locale domain', async () => {
     for (const { host, locale } of [
       { host: 'example.do', locale: 'do' },
-      { host: 'google.com', locale: 'go' },
+      { host: 'example.com', locale: 'go' },
     ]) {
       const res = await fetchViaHTTP(
         ctx.appPort,
