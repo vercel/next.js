@@ -130,7 +130,7 @@ declare module 'next/dist/compiled/lru-cache' {
   import m from 'lru-cache'
   export = m
 }
-declare module 'next/dist/compiled/nanoid/index.js' {
+declare module 'next/dist/compiled/nanoid/index.cjs' {
   import m from 'nanoid'
   export = m
 }
