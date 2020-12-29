@@ -477,6 +477,38 @@ function runTests(mode) {
     }
   })
 
+  it('should correctly ignore prose styles', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/prose')
+
+      const id = 'prose-image'
+
+      // Wait for image to load:
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById(${JSON.stringify(id)}).naturalWidth`
+        )
+
+        if (result < 1) {
+          throw new Error('Image not ready')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await waitFor(1000)
+
+      const computedWidth = await getComputed(browser, id, 'width')
+      const computedHeight = await getComputed(browser, id, 'height')
+      expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1, 1)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
   // Tests that use the `unsized` attribute:
   if (mode !== 'dev') {
     it('should correctly rotate image', async () => {
