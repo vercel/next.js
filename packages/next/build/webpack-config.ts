@@ -65,9 +65,10 @@ type ExcludesFalse = <T>(x: T | false) => x is T
 const isWebpack5 = parseInt(webpack.version!) === 5
 
 if (isWebpack5 && semver.lt(webpack.version!, '5.11.1')) {
-  throw new Error(
+  Log.error(
     `webpack 5 version must be greater than v5.11.1 to work properly with Next.js, please upgrade to continue!\nSee more info here: https://err.sh/next.js/invalid-webpack-5-version`
   )
+  process.exit(1)
 }
 
 const devtoolRevertWarning = execOnce((devtool: Configuration['devtool']) => {
