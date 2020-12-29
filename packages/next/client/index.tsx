@@ -62,6 +62,7 @@ const {
   dynamicIds,
   isFallback,
   locales,
+  domainLocales,
 } = data
 
 let { locale, defaultLocale } = data
@@ -353,6 +354,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     locale,
     locales,
     defaultLocale,
+    domainLocales,
   })
 
   // call init-client middleware

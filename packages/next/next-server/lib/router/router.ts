@@ -13,6 +13,7 @@ import {
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
+import { DomainLocales } from '../../server/config'
 import { denormalizePagePath } from '../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt, { MittEmitter } from '../mitt'
@@ -398,6 +399,7 @@ export default class Router implements BaseRouter {
   locale?: string
   locales?: string[]
   defaultLocale?: string
+  domainLocales?: DomainLocales
 
   static events: MittEmitter = mitt()
 
@@ -417,6 +419,7 @@ export default class Router implements BaseRouter {
       locale,
       locales,
       defaultLocale,
+      domainLocales,
     }: {
       subscription: Subscription
       initialProps: any
@@ -429,6 +432,7 @@ export default class Router implements BaseRouter {
       locale?: string
       locales?: string[]
       defaultLocale?: string
+      domainLocales?: DomainLocales
     }
   ) {
     // represents the current component key
@@ -483,6 +487,7 @@ export default class Router implements BaseRouter {
       this.locale = locale
       this.locales = locales
       this.defaultLocale = defaultLocale
+      this.domainLocales = domainLocales
     }
 
     if (typeof window !== 'undefined') {
@@ -662,6 +667,27 @@ export default class Router implements BaseRouter {
       if (!this.locales?.includes(this.locale!)) {
         parsedAs.pathname = addLocale(parsedAs.pathname, this.locale)
         window.location.href = formatWithValidation(parsedAs)
+        return new Promise(() => {})
+      }
+
+      const {
+        detectDomainLocale,
+      } = require('../i18n/detect-domain-locale') as typeof import('../i18n/detect-domain-locale')
+
+      const detectedDomain = detectDomainLocale(
+        this.domainLocales,
+        undefined,
+        this.locale
+      )
+
+      // if we are navigating to a domain locale ensure we redirect to the
+      // correct domain
+      if (detectedDomain && self.location.hostname !== detectedDomain.domain) {
+        window.location.href = `http${detectedDomain.http ? '' : 's'}://${
+          detectedDomain.domain
+        }${
+          this.locale === detectedDomain.defaultLocale ? '' : `/${this.locale}`
+        }${as === '/' ? '' : as}`
         return new Promise(() => {})
       }
     }

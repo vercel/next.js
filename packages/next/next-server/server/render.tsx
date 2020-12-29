@@ -55,6 +55,7 @@ import {
   getRedirectStatus,
   Redirect,
 } from '../../lib/load-custom-routes'
+import { DomainLocales } from './config'
 
 function noRouter() {
   const message =
@@ -173,6 +174,7 @@ export type RenderOptsPartial = {
   locale?: string
   locales?: string[]
   defaultLocale?: string
+  domainLocales?: DomainLocales
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -214,6 +216,7 @@ function renderDocument(
     locale,
     locales,
     defaultLocale,
+    domainLocales,
   }: RenderOpts & {
     props: any
     docComponentsRendered: DocumentProps['docComponentsRendered']
@@ -264,6 +267,7 @@ function renderDocument(
             locale,
             locales,
             defaultLocale,
+            domainLocales,
           },
           buildManifest,
           docComponentsRendered,
