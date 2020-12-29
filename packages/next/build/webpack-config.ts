@@ -8,7 +8,7 @@ import semver from 'next/dist/compiled/semver'
 import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
 import path from 'path'
 import webpack from 'webpack'
-import type { Configuration } from 'webpack'
+import { Configuration } from 'webpack'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -63,6 +63,12 @@ import { NextConfig } from '../next-server/server/config'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
 const isWebpack5 = parseInt(webpack.version!) === 5
+
+if (isWebpack5 && semver.lt(webpack.version!, '5.11.1')) {
+  throw new Error(
+    `webpack 5 version must be greater than v5.11.1 to work properly with Next.js, please upgrade to continue!\nSee more info here: https://err.sh/next.js/invalid-webpack-5-version`
+  )
+}
 
 const devtoolRevertWarning = execOnce((devtool: Configuration['devtool']) => {
   console.warn(
@@ -1139,6 +1145,7 @@ export default async function getBaseWebpackConfig(
       if (!webpackConfig.optimization) {
         webpackConfig.optimization = {}
       }
+      webpackConfig.optimization.providedExports = false
       webpackConfig.optimization.usedExports = false
     }
 
