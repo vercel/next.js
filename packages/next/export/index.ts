@@ -43,7 +43,7 @@ import {
 } from '../next-server/server/normalize-page-path'
 import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
-import type exportPage from './worker'
+import exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../next-server/server/require'
 
@@ -164,9 +164,11 @@ export default async function exportApp(
     Log.info(`using build directory: ${distDir}`)
   }
 
-  if (!existsSync(distDir)) {
+  const buildIdFile = join(distDir, BUILD_ID_FILE)
+
+  if (!existsSync(buildIdFile)) {
     throw new Error(
-      `Build directory ${distDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`
+      `Could not find a production build in the '${distDir}' directory. Try building your app with 'next build' before starting the static export. https://err.sh/vercel/next.js/next-export-no-build-id`
     )
   }
 
@@ -186,7 +188,7 @@ export default async function exportApp(
     )
   }
 
-  const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
+  const buildId = readFileSync(buildIdFile, 'utf8')
   const pagesManifest =
     !options.pages &&
     (require(join(
@@ -485,6 +487,7 @@ Read more: https://err.sh/next.js/export-image-api`
         subFolders,
         buildExport: options.buildExport,
         serverless: isTargetLikeServerless(nextConfig.target),
+        optimizeFonts: nextConfig.experimental.optimizeFonts,
         optimizeImages: nextConfig.experimental.optimizeImages,
         optimizeCss: nextConfig.experimental.optimizeCss,
       })
