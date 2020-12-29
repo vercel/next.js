@@ -44,6 +44,7 @@ export type ImageProps = Omit<
   unoptimized?: boolean
   objectFit?: ImgElementStyle['objectFit']
   objectPosition?: ImgElementStyle['objectPosition']
+  wrapperProps?: Omit<JSX.IntrinsicElements['div'], 'ref' | 'style'>
 } & (
     | {
         width?: never
@@ -181,6 +182,7 @@ export default function Image({
   height,
   objectFit,
   objectPosition,
+  wrapperProps,
   ...all
 }: ImageProps) {
   let rest: Partial<ImageProps> = all
@@ -374,7 +376,7 @@ export default function Image({
     imgStyle = undefined
   }
   return (
-    <div style={wrapperStyle}>
+    <div {...wrapperProps} style={wrapperStyle} data-isvisible={isVisible}>
       {sizerStyle ? (
         <div style={sizerStyle}>
           {sizerSvg ? (
