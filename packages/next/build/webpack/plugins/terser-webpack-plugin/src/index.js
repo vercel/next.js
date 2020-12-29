@@ -337,6 +337,7 @@ class TerserPlugin {
           })
 
       const handleHashForChunk = (hash, chunk) => {
+        // increment 'a' to invalidate cache
         hash.update('a')
       }
 
