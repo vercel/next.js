@@ -78,12 +78,21 @@ export default function ProfilePage() {
   return (
     <>
       <h1>Profile</h1>
+
       {user && (
         <>
-          <p>Your profile: {JSON.stringify(user)}</p>
+          <p>Your session:</p>
+          <pre>{JSON.stringify(user, null, 2)}</pre>
           <ProfileEdit />
         </>
       )}
+
+      <style jsx>{`
+        pre {
+          white-space: pre-wrap;
+          word-wrap: break-word;
+        }
+      `}</style>
     </>
   )
 }

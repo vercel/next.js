@@ -14,7 +14,8 @@
     "passport-local": "1.0.0",
     "react": "latest",
     "react-dom": "latest",
-    "swr": "0.3.0"
+    "swr": "0.3.0",
+    "uuid": "8.3.1"
   },
   "license": "MIT"
 }

@@ -9,8 +9,17 @@ function UserList() {
       {!!users?.length && (
         <ul>
           {users.map((user) => (
-            <li key={user.username}>{JSON.stringify(user)}</li>
+            <li key={user.username}>
+              <pre>{JSON.stringify(user, null, 2)}</pre>
+            </li>
           ))}
+
+          <style jsx>{`
+            pre {
+              white-space: pre-wrap;
+              word-wrap: break-word;
+            }
+          `}</style>
         </ul>
       )}
     </>
@@ -53,11 +62,20 @@ export default function HomePage() {
           Home
         </li>
       </ol>
-      {user && <p>Currently logged in as: {JSON.stringify(user)}</p>}
+      {user && (
+        <>
+          <p>Currently logged in as:</p>
+          <pre>{JSON.stringify(user, null, 2)}</pre>
+        </>
+      )}
       <UserList />
       <style jsx>{`
         li {
           margin-bottom: 0.5rem;
+        }
+        pre {
+          white-space: pre-wrap;
+          word-wrap: break-word;
         }
       `}</style>
     </>

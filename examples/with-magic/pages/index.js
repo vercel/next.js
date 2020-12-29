@@ -45,6 +45,10 @@ const Home = () => {
         li {
           margin-bottom: 0.5rem;
         }
+        pre {
+          white-space: pre-wrap;
+          word-wrap: break-word;
+        }
       `}</style>
     </Layout>
   )
