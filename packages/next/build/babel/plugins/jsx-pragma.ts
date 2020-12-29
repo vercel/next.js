@@ -55,7 +55,8 @@ export default function ({
 
               // if the React binding came from a require('react'),
               // make sure that our usage comes after it.
-              let newPath
+              let newPath: NodePath<BabelTypes.VariableDeclaration>
+
               if (
                 existingBinding &&
                 t.isVariableDeclarator(existingBinding.path.node) &&
@@ -67,12 +68,14 @@ export default function ({
                   mapping
                 )
               } else {
-                // @ts-ignore
                 ;[newPath] = path.unshiftContainer('body', mapping)
               }
 
               for (const declar of newPath.get('declarations')) {
-                path.scope.registerBinding(newPath.node.kind, declar)
+                path.scope.registerBinding(
+                  newPath.node.kind,
+                  declar as NodePath<BabelTypes.Node>
+                )
               }
             }
 
@@ -93,10 +96,12 @@ export default function ({
                 t.stringLiteral(state.opts.module || 'react')
               )
 
-              // @ts-ignore
               const [newPath] = path.unshiftContainer('body', importSpecifier)
               for (const specifier of newPath.get('specifiers')) {
-                path.scope.registerBinding('module', specifier)
+                path.scope.registerBinding(
+                  'module',
+                  specifier as NodePath<BabelTypes.Node>
+                )
               }
             }
           }

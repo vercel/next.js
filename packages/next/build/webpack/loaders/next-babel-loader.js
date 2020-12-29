@@ -3,9 +3,9 @@ import hash from 'next/dist/compiled/string-hash'
 import { basename, join } from 'path'
 import * as Log from '../../output/log'
 
-// increment 'n' to invalidate cache
+// increment 'o' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'n' + '-'
+const cacheKey = 'babel-cache-' + 'o' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 module.exports = babelLoader.custom((babel) => {

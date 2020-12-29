@@ -39,8 +39,8 @@
   "pre-commit": "lint-staged",
   "devDependencies": {
     "@babel/plugin-proposal-object-rest-spread": "7.12.1",
-    "@babel/preset-flow": "7.10.4",
-    "@babel/preset-react": "7.12.5",
+    "@babel/preset-flow": "7.12.1",
+    "@babel/preset-react": "7.12.10",
     "@fullhuman/postcss-purgecss": "1.3.0",
     "@mdx-js/loader": "0.18.0",
     "@types/cheerio": "0.22.16",
