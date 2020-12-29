@@ -3,6 +3,13 @@ import { useRouter } from 'next/router'
 export default function Post(props) {
   const router = useRouter()
 
+  if (typeof window === 'undefined') {
+    if (router.query.post?.startsWith('redir')) {
+      console.log(router)
+      throw new Error('render should not occur for redirect')
+    }
+  }
+
   if (typeof window !== 'undefined' && !window.initialHref) {
     window.initialHref = window.location.href
   }
