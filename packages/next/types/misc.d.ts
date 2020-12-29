@@ -131,8 +131,8 @@ declare module 'next/dist/compiled/lru-cache' {
   export = m
 }
 declare module 'next/dist/compiled/nanoid/index.js' {
-  function nanoid(size?: number): string
-  export = nanoid
+  import m from 'nanoid'
+  export = m
 }
 declare module 'next/dist/compiled/ora' {
   import m from 'ora'
