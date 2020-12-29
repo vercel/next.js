@@ -1,13 +1,20 @@
 import cssnanoSimple from 'cssnano-simple'
 import postcssScss from 'next/dist/compiled/postcss-scss'
 import postcss, { Parser } from 'postcss'
-import webpack from 'webpack'
+import webpack, {
+  isWebpack5,
+  onWebpackInit,
+} from 'next/dist/compiled/webpack/webpack'
 import sources from 'webpack-sources'
 import { tracer, traceAsyncFn } from '../../tracer'
 import { spans } from './profiling-plugin'
 
 // @ts-ignore: TODO: remove ignore when webpack 5 is stable
-const { RawSource, SourceMapSource } = webpack.sources || sources
+let RawSource: typeof sources.RawSource,
+  SourceMapSource: typeof sources.SourceMapSource
+onWebpackInit(function () {
+  ;({ RawSource, SourceMapSource } = (webpack as any).sources || sources)
+})
 
 // https://github.com/NMFR/optimize-css-assets-webpack-plugin/blob/0a410a9bf28c7b0e81a3470a13748e68ca2f50aa/src/index.js#L20
 const CSS_REGEX = /\.css(\?.*)?$/i
@@ -17,8 +24,6 @@ type CssMinimizerPluginOptions = {
     map: false | { prev?: string | false; inline: boolean; annotation: boolean }
   }
 }
-
-const isWebpack5 = parseInt(webpack.version!) === 5
 
 export class CssMinimizerPlugin {
   __next_css_remove = true

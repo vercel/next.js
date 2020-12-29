@@ -1,19 +1,24 @@
 /* eslint-disable class-methods-use-this */
 
-import webpack from 'webpack'
+import webpack, {
+  isWebpack5,
+  onWebpackInit,
+} from 'next/dist/compiled/webpack/webpack'
 import sources from 'webpack-sources'
 
 import CssDependency from './CssDependency'
 import CssModule from './CssModule'
 
-const { ConcatSource, SourceMapSource, OriginalSource } =
-  webpack.sources || sources
-const {
-  Template,
-  util: { createHash },
-} = webpack
+let ConcatSource, SourceMapSource, OriginalSource, Template, createHash
+onWebpackInit(function () {
+  ;({ ConcatSource, SourceMapSource, OriginalSource } =
+    webpack.sources || sources)
+  ;({
+    Template,
+    util: { createHash },
+  } = webpack)
+})
 
-const isWebpack5 = parseInt(webpack.version) === 5
 const MODULE_TYPE = 'css/mini-extract'
 
 const pluginName = 'mini-css-extract-plugin'

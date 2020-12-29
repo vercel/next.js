@@ -4,7 +4,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative as relativePath } from 'path'
 import { UrlObject } from 'url'
-import webpack from 'webpack'
+import webpack from 'next/dist/compiled/webpack/webpack'
 import { createEntrypoints, createPagesMapping } from '../build/entries'
 import { watchCompilers } from '../build/output'
 import getBaseWebpackConfig from '../build/webpack-config'
@@ -308,6 +308,7 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints },
+        webpack5: false,
       }),
       getBaseWebpackConfig(this.dir, {
         dev: true,
@@ -317,6 +318,7 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         entrypoints: entrypoints.server,
+        webpack5: false,
       }),
     ])
   }

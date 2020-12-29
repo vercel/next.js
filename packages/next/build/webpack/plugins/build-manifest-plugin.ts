@@ -1,5 +1,8 @@
 import devalue from 'next/dist/compiled/devalue'
-import webpack, { Compiler, compilation as CompilationType } from 'webpack'
+import webpack, {
+  isWebpack5,
+  onWebpackInit,
+} from 'next/dist/compiled/webpack/webpack'
 import sources from 'webpack-sources'
 import {
   BUILD_MANIFEST,
@@ -17,9 +20,10 @@ import { getSortedRoutes } from '../../../next-server/lib/router/utils'
 import { tracer, traceFn } from '../../tracer'
 import { spans } from './profiling-plugin'
 // @ts-ignore: TODO: remove ignore when webpack 5 is stable
-const { RawSource } = webpack.sources || sources
-
-const isWebpack5 = parseInt(webpack.version!) === 5
+let RawSource: typeof sources.RawSource
+onWebpackInit(function () {
+  ;({ RawSource } = (webpack as any).sources || sources)
+})
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
@@ -107,7 +111,7 @@ export default class BuildManifestPlugin {
     return tracer.withSpan(spans.get(compiler), () => {
       const span = tracer.startSpan('NextJsBuildManifest-createassets')
       return traceFn(span, () => {
-        const namedChunks: Map<string, CompilationType.Chunk> =
+        const namedChunks: Map<string, webpack.compilation.Chunk> =
           compilation.namedChunks
         const assetMap: DeepMutable<BuildManifest> = {
           polyfillFiles: [],
@@ -226,7 +230,7 @@ export default class BuildManifestPlugin {
     })
   }
 
-  apply(compiler: Compiler) {
+  apply(compiler: webpack.Compiler) {
     if (isWebpack5) {
       compiler.hooks.make.tap('NextJsBuildManifest', (compilation) => {
         // @ts-ignore TODO: Remove ignore when webpack 5 is stable

@@ -23,20 +23,25 @@ const externals = {
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
 
+  // css-loader
+  // postcss: 'postcss',
+
+  // sass-loader
+  // (also responsible for these dependencies in package.json)
+  // 'node-sass': 'node-sass',
+  // sass: 'sass',
+  // fibers: 'fibers',
+  // klona: 'klona',
+
   // Webpack indirect and direct dependencies:
-  webpack: 'webpack',
-  'webpack-sources': 'webpack-sources',
-  'webpack/lib/node/NodeOutputFileSystem':
+  // 'webpack-sources': 'webpack-sources',
+  /*'webpack/lib/node/NodeOutputFileSystem':
     'webpack/lib/node/NodeOutputFileSystem',
-  // dependents: terser-webpack-plugin
   'webpack/lib/cache/getLazyHashedEtag': 'webpack/lib/cache/getLazyHashedEtag',
-  'webpack/lib/RequestShortener': 'webpack/lib/RequestShortener',
+  'webpack/lib/RequestShortener': 'webpack/lib/RequestShortener',*/
+
   chokidar: 'chokidar',
-  // dependents: thread-loader
-  'loader-runner': 'loader-runner',
-  // dependents: thread-loader, babel-loader
   'loader-utils': 'loader-utils',
-  // dependents: terser-webpack-plugin
   'jest-worker': 'jest-worker',
 }
 // eslint-disable-next-line camelcase
@@ -148,6 +153,13 @@ export async function ncc_ci_info(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('ci-info')))
     .ncc({ packageName: 'ci-info', externals })
     .target('compiled/ci-info')
+}
+externals['comment-json'] = 'next/dist/compiled/comment-json'
+export async function ncc_comment_json(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('comment-json')))
+    .ncc({ packageName: 'comment-json', externals })
+    .target('compiled/comment-json')
 }
 // eslint-disable-next-line camelcase
 externals['compression'] = 'next/dist/compiled/compression'
@@ -414,6 +426,13 @@ export async function ncc_schema_utils(task, opts) {
     })
     .target('compiled/schema-utils')
 }
+externals['semver'] = 'next/dist/compiled/semver'
+export async function ncc_semver(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('semver')))
+    .ncc({ packageName: 'semver', externals })
+    .target('compiled/semver')
+}
 // eslint-disable-next-line camelcase
 externals['send'] = 'next/dist/compiled/send'
 export async function ncc_send(task, opts) {
@@ -489,20 +508,48 @@ export async function ncc_web_vitals(task, opts) {
     .target('compiled/web-vitals')
 }
 
-externals['comment-json'] = 'next/dist/compiled/comment-json'
-export async function ncc_comment_json(task, opts) {
+// eslint-disable-next-line camelcase
+export async function ncc_webpack_bundle4(task, opts) {
+  const bundleExternals = { ...externals }
+  for (const pkg of Object.keys(babelBundlePackages))
+    delete bundleExternals[pkg]
   await task
-    .source(opts.src || relative(__dirname, require.resolve('comment-json')))
-    .ncc({ packageName: 'comment-json', externals })
-    .target('compiled/comment-json')
+    .source(opts.src || 'bundles/webpack/bundle4.js')
+    .ncc({
+      packageName: 'webpack',
+      bundleName: 'webpack',
+      externals: bundleExternals,
+      minify: false,
+    })
+    .target('compiled/webpack')
 }
 
-externals['semver'] = 'next/dist/compiled/semver'
-export async function ncc_semver(task, opts) {
+// eslint-disable-next-line camelcase
+export async function ncc_webpack_bundle5(task, opts) {
+  const bundleExternals = { ...externals }
+  for (const pkg of Object.keys(webpackBundlePackages))
+    delete bundleExternals[pkg]
   await task
-    .source(opts.src || relative(__dirname, require.resolve('semver')))
-    .ncc({ packageName: 'semver', externals })
-    .target('compiled/semver')
+    .source(opts.src || 'bundles/webpack/bundle5.js')
+    .ncc({
+      packageName: 'webpack5',
+      bundleName: 'webpack',
+      externals: bundleExternals,
+      minify: false,
+    })
+    .target('compiled/webpack')
+}
+
+const webpackBundlePackages = {
+  webpack: 'next/dist/compiled/webpack/webpack',
+}
+
+Object.assign(externals, webpackBundlePackages)
+
+export async function ncc_webpack_bundle_packages(task, opts) {
+  await task
+    .source(opts.src || 'bundles/webpack/packages/*')
+    .target('compiled/webpack/')
 }
 
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
@@ -536,6 +583,7 @@ export async function ncc(task) {
       'ncc_cacache',
       'ncc_cache_loader',
       'ncc_ci_info',
+      'ncc_comment_json',
       'ncc_compression',
       'ncc_conf',
       'ncc_content_type',
@@ -567,6 +615,7 @@ export async function ncc(task) {
       'ncc_postcss_scss',
       'ncc_recast',
       'ncc_schema_utils',
+      'ncc_semver',
       'ncc_send',
       'ncc_source_map',
       'ncc_string_hash',
@@ -576,8 +625,9 @@ export async function ncc(task) {
       'ncc_thread_loader',
       'ncc_unistore',
       'ncc_web_vitals',
-      'ncc_comment_json',
-      'ncc_semver',
+      'ncc_webpack_bundle4',
+      'ncc_webpack_bundle5',
+      'ncc_webpack_bundle_packages',
     ])
 }
 

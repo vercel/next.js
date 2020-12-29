@@ -26,6 +26,16 @@
 declare module 'mini-css-extract-plugin'
 declare module 'loader-utils'
 
+declare module 'next/dist/compiled/webpack/webpack' {
+  import webpack from 'webpack'
+  export let isWebpack5: boolean
+  export function init(useWebpack5: boolean): void
+  export let BasicEvaluatedExpression: any
+  export let GraphHelpers: any
+  export function onWebpackInit(cb: () => void): void
+  export default webpack
+}
+
 declare module 'webpack' {
   import { RawSourceMap } from 'source-map'
   import { ConcatSource } from 'webpack-sources'

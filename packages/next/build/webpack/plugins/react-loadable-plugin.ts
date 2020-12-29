@@ -22,16 +22,16 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Modified to strip out unneeded results for Next's specific use case
 
 import webpack, {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  compilation as CompilationType,
-  Compiler,
-} from 'webpack'
+  isWebpack5,
+  onWebpackInit,
+} from 'next/dist/compiled/webpack/webpack'
 import sources from 'webpack-sources'
 
 // @ts-ignore: TODO: remove ignore when webpack 5 is stable
-const { RawSource } = webpack.sources || sources
-
-const isWebpack5 = parseInt(webpack.version!) === 5
+let RawSource: typeof sources.RawSource
+onWebpackInit(function () {
+  ;({ RawSource } = (webpack as any).sources || sources)
+})
 
 function getModulesIterable(compilation: any, chunk: any) {
   if (isWebpack5) {
@@ -50,8 +50,8 @@ function getModuleId(compilation: any, module: any) {
 }
 
 function buildManifest(
-  _compiler: Compiler,
-  compilation: CompilationType.Compilation
+  _compiler: webpack.Compiler,
+  compilation: webpack.compilation.Compilation
 ) {
   let manifest: { [k: string]: any[] } = {}
 
@@ -119,7 +119,7 @@ export class ReactLoadablePlugin {
     return assets
   }
 
-  apply(compiler: Compiler) {
+  apply(compiler: webpack.Compiler) {
     if (isWebpack5) {
       compiler.hooks.make.tap('ReactLoadableManifest', (compilation) => {
         // @ts-ignore TODO: Remove ignore when webpack 5 is stable
