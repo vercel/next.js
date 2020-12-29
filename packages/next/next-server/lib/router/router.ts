@@ -672,7 +672,7 @@ export default class Router implements BaseRouter {
 
       // we need to wrap this in the env check again since regenerator runtime
       // moves this on its own due to the return
-      if (process.env.NEXT_I18N_SUPPORT) {
+      if (process.env.__NEXT_I18N_SUPPORT) {
         // if the locale isn't configured hard navigate to show 404 page
         if (!this.locales?.includes(this.locale!)) {
           parsedAs.pathname = addLocale(parsedAs.pathname, this.locale)
@@ -689,7 +689,7 @@ export default class Router implements BaseRouter {
 
       // we need to wrap this in the env check again since regenerator runtime
       // moves this on its own due to the return
-      if (process.env.NEXT_I18N_SUPPORT) {
+      if (process.env.__NEXT_I18N_SUPPORT) {
         // if we are navigating to a domain locale ensure we redirect to the
         // correct domain
         if (
