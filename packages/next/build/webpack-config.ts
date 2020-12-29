@@ -8,7 +8,7 @@ import semver from 'next/dist/compiled/semver'
 import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
 import path from 'path'
 import webpack from 'webpack'
-import type { Configuration } from 'webpack'
+import { Configuration } from 'webpack'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -205,7 +205,7 @@ export default async function getBaseWebpackConfig(
   }
 ): Promise<webpack.Configuration> {
   const productionBrowserSourceMaps =
-    config.experimental.productionBrowserSourceMaps && !isServer
+    config.productionBrowserSourceMaps && !isServer
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
@@ -962,6 +962,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_REACT_MODE': JSON.stringify(
           config.experimental.reactMode
         ),
+        'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
+          config.experimental.optimizeFonts && !dev
+        ),
         'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
           config.experimental.optimizeImages
         ),
@@ -1066,7 +1069,8 @@ export default async function getBaseWebpackConfig(
         new ProfilingPlugin({
           tracer,
         }),
-      !dev &&
+      config.experimental.optimizeFonts &&
+        !dev &&
         isServer &&
         (function () {
           const {
@@ -1127,6 +1131,7 @@ export default async function getBaseWebpackConfig(
       if (!webpackConfig.optimization) {
         webpackConfig.optimization = {}
       }
+      webpackConfig.optimization.providedExports = false
       webpackConfig.optimization.usedExports = false
     }
 
@@ -1154,6 +1159,7 @@ export default async function getBaseWebpackConfig(
       plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
       reactMode: config.experimental.reactMode,
+      optimizeFonts: config.experimental.optimizeFonts,
       optimizeImages: config.experimental.optimizeImages,
       scrollRestoration: config.experimental.scrollRestoration,
       basePath: config.basePath,

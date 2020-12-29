@@ -5,8 +5,8 @@ import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
 import mitt from '../next-server/lib/mitt'
 import { RouterContext } from '../next-server/lib/router-context'
-import type Router from '../next-server/lib/router/router'
-import type {
+import Router from '../next-server/lib/router/router'
+import {
   AppComponent,
   AppProps,
   PrivateRouteInfo,
@@ -15,7 +15,7 @@ import { delBasePath, hasBasePath } from '../next-server/lib/router/router'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import * as querystring from '../next-server/lib/router/utils/querystring'
 import * as envConfig from '../next-server/lib/runtime-config'
-import type { NEXT_DATA } from '../next-server/lib/utils'
+import { NEXT_DATA } from '../next-server/lib/utils'
 import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'

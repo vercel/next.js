@@ -42,6 +42,11 @@ module.exports = {
         destination: '/somewhere-else',
         permanent: false,
       },
+      {
+        source: '/redirect-4',
+        destination: '/',
+        permanent: false,
+      },
     ]
   },
   async rewrites() {

@@ -36,10 +36,10 @@ Then set each variable on `.env.local`:
 
 - `DETA_PROJECT_KEY` should be the default _Project Key_ that you saved from step 1.
 
-The resulting `env.local` file shoule look like this:
+The resulting `env.local` file should look like this:
 
 ```bash
-DETA_PROEJECT_KEY=...
+DETA_PROJECT_KEY=...
 ```
 
 ### Step 3. Run Next.js in development mode
