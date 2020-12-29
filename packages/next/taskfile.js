@@ -11,14 +11,8 @@ export async function next__polyfill_nomodule(task, opts) {
     .target('dist/build/polyfills')
 }
 
-export async function unfetch(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('unfetch')))
-    .target('dist/build/polyfills')
-}
-
 export async function browser_polyfills(task) {
-  await task.parallel(['next__polyfill_nomodule', 'unfetch'])
+  await task.parallel(['next__polyfill_nomodule'])
 }
 
 const externals = {

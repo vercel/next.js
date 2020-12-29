@@ -731,6 +731,7 @@ export class NextScript extends Component<OriginProps> {
 
       const ampDevFiles = [
         ...buildManifest.devFiles,
+        ...buildManifest.polyfillFiles,
         ...buildManifest.ampDevFiles,
       ]
 

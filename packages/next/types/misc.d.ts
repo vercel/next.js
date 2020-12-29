@@ -8,7 +8,6 @@ declare module 'cssnano-simple' {
   export = cssnanoSimple
 }
 declare module 'styled-jsx/server'
-declare module 'unfetch'
 declare module 'webpack/lib/GraphHelpers'
 declare module 'webpack/lib/DynamicEntryPlugin'
 declare module 'webpack/lib/Entrypoint'
