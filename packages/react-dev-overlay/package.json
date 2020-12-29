@@ -16,12 +16,12 @@
     "build": "tsc -d -w -p tsconfig.json"
   },
   "dependencies": {
-    "@babel/code-frame": "7.10.4",
+    "@babel/code-frame": "7.12.11",
     "ally.js": "1.4.1",
     "anser": "1.4.9",
     "chalk": "4.0.0",
     "classnames": "2.2.6",
-    "data-uri-to-buffer": "3.0.0",
+    "data-uri-to-buffer": "3.0.1",
     "shell-quote": "1.7.2",
     "source-map": "0.8.0-beta.0",
     "stacktrace-parser": "0.1.10",
