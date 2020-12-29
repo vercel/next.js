@@ -254,7 +254,7 @@ export default function Image({
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerSvg: string | undefined
   let imgStyle: ImgElementStyle | undefined = {
-    visibility: isVisible ? 'visible' : 'hidden',
+    visibility: isVisible ? 'inherit' : 'hidden',
 
     position: 'absolute',
     top: 0,
@@ -379,7 +379,13 @@ export default function Image({
         <div style={sizerStyle}>
           {sizerSvg ? (
             <img
-              style={{ maxWidth: '100%', display: 'block' }}
+              style={{
+                maxWidth: '100%',
+                display: 'block',
+                margin: 0,
+                border: 'none',
+                padding: 0,
+              }}
               alt=""
               aria-hidden={true}
               role="presentation"

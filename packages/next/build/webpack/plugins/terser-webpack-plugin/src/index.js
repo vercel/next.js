@@ -337,7 +337,8 @@ class TerserPlugin {
           })
 
       const handleHashForChunk = (hash, chunk) => {
-        hash.update('a')
+        // increment 'b' to invalidate cache
+        hash.update('b')
       }
 
       if (isWebpack5) {
