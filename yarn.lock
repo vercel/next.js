@@ -3002,10 +3002,10 @@
     "@types/express-serve-static-core" "*"
     "@types/mime" "*"
 
-"@types/sharp@0.26.0":
-  version "0.26.0"
-  resolved "https://registry.yarnpkg.com/@types/sharp/-/sharp-0.26.0.tgz#2fa8419dbdaca8dd38f73888b27b207f188a8669"
-  integrity sha512-oJrR8eiwpL7qykn2IeFRduXM4za7z+7yOUEbKVtuDQ/F6htDLHYO6IbzhaJQHV5n6O3adIh4tJvtgPyLyyydqg==
+"@types/sharp@0.27.0":
+  version "0.27.0"
+  resolved "https://registry.yarnpkg.com/@types/sharp/-/sharp-0.27.0.tgz#00cd5ba3aa58f52df9c3633a318ce315a6da3089"
+  integrity sha512-isK4KKTn2Jdg1EfhbRFZ9vLIYPSUAXp8PvdUuGfpzXsucViiH543rdmJTzq01LuVOCz/a2dH7bIG+IJ65z/U9g==
   dependencies:
     "@types/node" "*"
 
