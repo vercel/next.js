@@ -670,11 +670,15 @@ export default class Router implements BaseRouter {
         )
       }
 
-      // if the locale isn't configured hard navigate to show 404 page
-      if (!this.locales?.includes(this.locale!)) {
-        parsedAs.pathname = addLocale(parsedAs.pathname, this.locale)
-        window.location.href = formatWithValidation(parsedAs)
-        return new Promise(() => {})
+      // we need to wrap this in the env check again since regenerator runtime
+      // moves this on its own due to the return
+      if (process.env.NEXT_I18N_SUPPORT) {
+        // if the locale isn't configured hard navigate to show 404 page
+        if (!this.locales?.includes(this.locale!)) {
+          parsedAs.pathname = addLocale(parsedAs.pathname, this.locale)
+          window.location.href = formatWithValidation(parsedAs)
+          return new Promise(() => {})
+        }
       }
 
       const detectedDomain = detectDomainLocale(
@@ -683,20 +687,27 @@ export default class Router implements BaseRouter {
         this.locale
       )
 
-      // if we are navigating to a domain locale ensure we redirect to the
-      // correct domain
-      if (detectedDomain && self.location.hostname !== detectedDomain.domain) {
-        const asNoBasePath = delBasePath(as)
-        window.location.href = `http${detectedDomain.http ? '' : 's'}://${
-          detectedDomain.domain
-        }${addBasePath(
-          `${
-            this.locale === detectedDomain.defaultLocale
-              ? ''
-              : `/${this.locale}`
-          }${asNoBasePath === '/' ? '' : asNoBasePath}` || '/'
-        )}`
-        return new Promise(() => {})
+      // we need to wrap this in the env check again since regenerator runtime
+      // moves this on its own due to the return
+      if (process.env.NEXT_I18N_SUPPORT) {
+        // if we are navigating to a domain locale ensure we redirect to the
+        // correct domain
+        if (
+          detectedDomain &&
+          self.location.hostname !== detectedDomain.domain
+        ) {
+          const asNoBasePath = delBasePath(as)
+          window.location.href = `http${detectedDomain.http ? '' : 's'}://${
+            detectedDomain.domain
+          }${addBasePath(
+            `${
+              this.locale === detectedDomain.defaultLocale
+                ? ''
+                : `/${this.locale}`
+            }${asNoBasePath === '/' ? '' : asNoBasePath}` || '/'
+          )}`
+          return new Promise(() => {})
+        }
       }
     }
 
