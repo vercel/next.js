@@ -28,6 +28,7 @@ const externals = {
 
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
+  jsonwebtoken: 'jsonwebtoken',
 
   // Webpack indirect and direct dependencies:
   webpack: 'webpack',
@@ -310,14 +311,6 @@ export async function ncc_json5(task, opts) {
     .target('compiled/json5')
 }
 // eslint-disable-next-line camelcase
-externals['jsonwebtoken'] = 'next/dist/compiled/jsonwebtoken'
-export async function ncc_jsonwebtoken(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('jsonwebtoken')))
-    .ncc({ packageName: 'jsonwebtoken', externals })
-    .target('compiled/jsonwebtoken')
-}
-// eslint-disable-next-line camelcase
 externals['lodash.curry'] = 'next/dist/compiled/lodash.curry'
 export async function ncc_lodash_curry(task, opts) {
   await task
@@ -579,7 +572,6 @@ export async function ncc(task) {
       'ncc_is_docker',
       'ncc_is_wsl',
       'ncc_json5',
-      'ncc_jsonwebtoken',
       'ncc_lodash_curry',
       'ncc_lru_cache',
       'ncc_mkdirp',
