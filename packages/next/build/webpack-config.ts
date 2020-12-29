@@ -64,6 +64,12 @@ type ExcludesFalse = <T>(x: T | false) => x is T
 
 const isWebpack5 = parseInt(webpack.version!) === 5
 
+if (isWebpack5 && semver.lt(webpack.version!, '5.11.1')) {
+  throw new Error(
+    `webpack 5 version must be greater than v5.11.1 to work properly with Next.js, please upgrade to continue!\nSee more info here: https://err.sh/next.js/invalid-webpack-5-version`
+  )
+}
+
 const devtoolRevertWarning = execOnce((devtool: Configuration['devtool']) => {
   console.warn(
     chalk.yellow.bold('Warning: ') +
@@ -706,6 +712,8 @@ export default async function getBaseWebpackConfig(
     callback()
   }
 
+  const emacsLockfilePattern = '**/.#*'
+
   let webpackConfig: webpack.Configuration = {
     externals: !isServer
       ? // make sure importing "next" is handled gracefully for client
@@ -782,7 +790,13 @@ export default async function getBaseWebpackConfig(
       }
     },
     watchOptions: {
-      ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
+      ignored: [
+        '**/.git/**',
+        '**/node_modules/**',
+        '**/.next/**',
+        // can be removed after https://github.com/paulmillr/chokidar/issues/955 is released
+        emacsLockfilePattern,
+      ],
     },
     output: {
       ...(isWebpack5
