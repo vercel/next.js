@@ -179,7 +179,7 @@ module.exports = async function addComment(
           itemKey
         )}</strong></summary>\n\n`
 
-        if (curDiff.length > 36 * 1000 && !actionInfo.isLocal) {
+        if (curDiff.length > 36 * 1000) {
           diffContent += 'Diff too large to display'
         } else {
           diffContent += `\`\`\`diff\n${curDiff}\n\`\`\``
