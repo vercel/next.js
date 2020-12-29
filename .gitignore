@@ -25,6 +25,7 @@ test/**/next-env.d.ts
 
 # Editors
 **/.idea
+**/.#*
 
 # examples
 examples/**/out
