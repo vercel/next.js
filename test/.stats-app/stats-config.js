@@ -112,28 +112,28 @@ module.exports = {
         numRequests: 2500,
       },
     },
-    {
-      title: 'Serverless Mode',
-      diff: false,
-      renames,
-      configFiles: [
-        {
-          path: 'next.config.js',
-          content: `
-            module.exports = {
-              generateBuildId: () => 'BUILD_ID',
-              target: 'serverless'
-            }
-          `,
-        },
-      ],
-      filesToTrack: [
-        ...clientGlobs,
-        {
-          name: 'Serverless bundles',
-          globs: ['.next/serverless/pages/**/*'],
-        },
-      ],
-    },
+    // {
+    //   title: 'Serverless Mode',
+    //   diff: false,
+    //   renames,
+    //   configFiles: [
+    //     {
+    //       path: 'next.config.js',
+    //       content: `
+    //         module.exports = {
+    //           generateBuildId: () => 'BUILD_ID',
+    //           target: 'serverless'
+    //         }
+    //       `,
+    //     },
+    //   ],
+    //   filesToTrack: [
+    //     ...clientGlobs,
+    //     {
+    //       name: 'Serverless bundles',
+    //       globs: ['.next/serverless/pages/**/*'],
+    //     },
+    //   ],
+    // },
   ],
 }
