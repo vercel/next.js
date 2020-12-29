@@ -1,4 +1,4 @@
-import babelLoader from 'next/dist/compiled/babel-loader'
+import babelLoader from './babel-loader/src/index'
 import hash from 'next/dist/compiled/string-hash'
 import { basename, join } from 'path'
 import * as Log from '../../output/log'
@@ -8,7 +8,7 @@ import * as Log from '../../output/log'
 const cacheKey = 'babel-cache-' + 'o' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
-module.exports = babelLoader.custom((babel) => {
+const customBabelLoader = babelLoader((babel) => {
   const presetItem = babel.createConfigItem(nextBabelPreset, {
     type: 'preset',
   })
@@ -37,7 +37,6 @@ module.exports = babelLoader.custom((babel) => {
       const loader = Object.assign(
         opts.cache
           ? {
-              cacheCompression: false,
               cacheDirectory: join(opts.distDir, 'cache', 'next-babel-loader'),
               cacheIdentifier:
                 cacheKey +
@@ -210,3 +209,5 @@ module.exports = babelLoader.custom((babel) => {
     },
   }
 })
+
+export default customBabelLoader

@@ -22,7 +22,8 @@
       "runtimeExecutable": "yarn",
       "runtimeArgs": ["run", "debug", "build", "test/integration/basic"],
       "skipFiles": ["<node_internals>/**"],
-      "port": 9229
+      "port": 9229,
+      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"]
     },
     {
       "name": "Launch app production",

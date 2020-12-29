@@ -126,14 +126,6 @@ export async function ncc_babel_bundle_packages(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['babel-loader'] = 'next/dist/compiled/babel-loader'
-export async function ncc_babel_loader(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('babel-loader')))
-    .ncc({ packageName: 'babel-loader', externals })
-    .target('compiled/babel-loader')
-}
-// eslint-disable-next-line camelcase
 externals['cacache'] = 'next/dist/compiled/cacache'
 export async function ncc_cacache(task, opts) {
   await task
@@ -551,7 +543,6 @@ export async function ncc(task) {
       'ncc_async_sema',
       'ncc_babel_bundle',
       'ncc_babel_bundle_packages',
-      'ncc_babel_loader',
       'ncc_cacache',
       'ncc_cache_loader',
       'ncc_ci_info',

@@ -171,7 +171,6 @@
     "ast-types": "0.13.2",
     "async-retry": "1.2.3",
     "async-sema": "3.0.0",
-    "babel-loader": "8.1.0",
     "babel-plugin-dynamic-import-node": "2.3.3",
     "cacache": "15.0.5",
     "cache-loader": "4.1.0",
