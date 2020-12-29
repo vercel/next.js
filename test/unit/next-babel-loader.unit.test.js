@@ -6,7 +6,13 @@ process.env.NODE_ENV = 'production'
 require('next/dist/build/babel/preset')
 process.env.NODE_ENV = NODE_ENV
 
-const loader = require('next/dist/build/webpack/loaders/next-babel-loader')
+function interopRequireDefault(mod) {
+  return mod.default || mod
+}
+
+const loader = interopRequireDefault(
+  require('next/dist/build/webpack/loaders/next-babel-loader')
+)
 const os = require('os')
 const path = require('path')
 
