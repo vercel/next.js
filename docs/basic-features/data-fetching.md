@@ -39,6 +39,17 @@ In addition, we’ll talk briefly about how to fetch data on the client side.
 
 ## `getStaticProps` (Static Generation)
 
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes                                                                                                           |
+| --------- | ----------------------------------------------------------------------------------------------------------------- |
+| `v10.0.0` | `locale`, `locales`, `defaultLocale`, and `notFound` options added.                                               |
+| `v9.5.0`  | Stable [Incremental Static Regeneration](https://nextjs.org/blog/next-9-5#stable-incremental-static-regeneration) |
+| `v9.3.0`  | `getStaticProps` introduced.                                                                                      |
+
+</details>
+
 If you export an `async` function called `getStaticProps` from a page, Next.js will pre-render this page at build time using the props returned by `getStaticProps`.
 
 ```jsx
@@ -364,6 +375,16 @@ This use case is supported by Next.js by the feature called **Preview Mode**. Le
 
 ## `getStaticPaths` (Static Generation)
 
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version  | Changes                                                                                                           |
+| -------- | ----------------------------------------------------------------------------------------------------------------- |
+| `v9.5.0` | Stable [Incremental Static Regeneration](https://nextjs.org/blog/next-9-5#stable-incremental-static-regeneration) |
+| `v9.3.0` | `getStaticPaths` introduced.                                                                                      |
+
+</details>
+
 If a page has dynamic routes ([documentation](/docs/routing/dynamic-routes.md)) and uses `getStaticProps` it needs to define a list of paths that have to be rendered to HTML at build time.
 
 If you export an `async` function called `getStaticPaths` from a page that uses dynamic routes, Next.js will statically pre-render all the paths specified by `getStaticPaths`.
@@ -453,7 +474,7 @@ export default Post
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://static-tweet.now.sh">Static generation of a large number of pages</a></li>
+    <li><a href="https://static-tweet.vercel.app">Static generation of a large number of pages</a></li>
   </ul>
 </details>
 
@@ -586,6 +607,16 @@ Also, you must use `export async function getStaticPaths() {}` — it will **not
 In development (`next dev`), `getStaticPaths` will be called on every request.
 
 ## `getServerSideProps` (Server-side Rendering)
+
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes                                                             |
+| --------- | ------------------------------------------------------------------- |
+| `v10.0.0` | `locale`, `locales`, `defaultLocale`, and `notFound` options added. |
+| `v9.3.0`  | `getServerSideProps` introduced.                                    |
+
+</details>
 
 If you export an `async` function called `getServerSideProps` from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
 
