@@ -327,7 +327,7 @@ const manualScrollRestoration =
   typeof window !== 'undefined' &&
   'scrollRestoration' in window.history
 
-const SSG_DATA_NOT_FOUND_ERROR = 'SSG Data NOT_FOUND'
+const SSG_DATA_NOT_FOUND = '__NEXT_SSG_DATA_NOT_FOUND'
 
 function fetchRetry(url: string, attempts: number): Promise<any> {
   return fetch(url, {
@@ -349,9 +349,7 @@ function fetchRetry(url: string, attempts: number): Promise<any> {
         return fetchRetry(url, attempts - 1)
       }
       if (res.status === 404) {
-        // TODO: handle reloading in development from fallback returning 200
-        // to on-demand-entry-handler causing it to reload periodically
-        throw new Error(SSG_DATA_NOT_FOUND_ERROR)
+        return { [SSG_DATA_NOT_FOUND]: true }
       }
       throw new Error(`Failed to load static props`)
     }
@@ -854,7 +852,7 @@ export default class Router implements BaseRouter {
     Router.events.emit('routeChangeStart', as, routeProps)
 
     try {
-      const routeInfo = await this.getRouteInfo(
+      let routeInfo = await this.getRouteInfo(
         route,
         pathname,
         query,
@@ -864,33 +862,52 @@ export default class Router implements BaseRouter {
       let { error, props, __N_SSG, __N_SSP } = routeInfo
 
       // handle redirect on client-transition
-      if (
-        (__N_SSG || __N_SSP) &&
-        props &&
-        (props as any).pageProps &&
-        (props as any).pageProps.__N_REDIRECT
-      ) {
-        const destination = (props as any).pageProps.__N_REDIRECT
+      if ((__N_SSG || __N_SSP) && props) {
+        if ((props as any).pageProps && (props as any).pageProps.__N_REDIRECT) {
+          const destination = (props as any).pageProps.__N_REDIRECT
 
-        // check if destination is internal (resolves to a page) and attempt
-        // client-navigation if it is falling back to hard navigation if
-        // it's not
-        if (destination.startsWith('/')) {
-          const parsedHref = parseRelativeUrl(destination)
-          this._resolveHref(parsedHref, pages, false)
+          // check if destination is internal (resolves to a page) and attempt
+          // client-navigation if it is falling back to hard navigation if
+          // it's not
+          if (destination.startsWith('/')) {
+            const parsedHref = parseRelativeUrl(destination)
+            this._resolveHref(parsedHref, pages, false)
 
-          if (pages.includes(parsedHref.pathname)) {
-            const { url: newUrl, as: newAs } = prepareUrlAs(
-              this,
-              destination,
-              destination
-            )
-            return this.change(method, newUrl, newAs, options)
+            if (pages.includes(parsedHref.pathname)) {
+              const { url: newUrl, as: newAs } = prepareUrlAs(
+                this,
+                destination,
+                destination
+              )
+              return this.change(method, newUrl, newAs, options)
+            }
           }
+
+          window.location.href = destination
+          return new Promise(() => {})
         }
 
-        window.location.href = destination
-        return new Promise(() => {})
+        // handle SSG data 404
+        if (props[SSG_DATA_NOT_FOUND]) {
+          let notFoundRoute
+
+          try {
+            await this.fetchComponent('/404')
+            notFoundRoute = '/404'
+          } catch (_) {
+            notFoundRoute = '/_error'
+          }
+
+          routeInfo = await this.getRouteInfo(
+            notFoundRoute,
+            notFoundRoute,
+            query,
+            as,
+            { shallow: false }
+          )
+
+          console.log('using routeInfo', routeInfo)
+        }
       }
 
       Router.events.emit('beforeHistoryChange', as, routeProps)
@@ -1006,26 +1023,6 @@ export default class Router implements BaseRouter {
       let Component: ComponentType
       let styleSheets: StyleSheetTuple[]
       let props: Record<string, any> | undefined
-      const ssg404 = err.message === SSG_DATA_NOT_FOUND_ERROR
-
-      if (ssg404) {
-        try {
-          let mod: any
-          ;({ page: Component, styleSheets, mod } = await this.fetchComponent(
-            '/404'
-          ))
-
-          // TODO: should we tolerate these props missing and still render the
-          // page instead of falling back to _error?
-          if (mod && mod.__N_SSG) {
-            props = await this._getStaticData(
-              this.pageLoader.getDataHref('/404', '/404', true, this.locale)
-            )
-          }
-        } catch (_err) {
-          // non-fatal fallback to _error
-        }
-      }
 
       if (
         typeof Component! === 'undefined' ||
@@ -1040,8 +1037,8 @@ export default class Router implements BaseRouter {
         props,
         Component,
         styleSheets,
-        err: ssg404 ? undefined : err,
-        error: ssg404 ? undefined : err,
+        err,
+        error: err,
       }
 
       if (!routeInfo.props) {
@@ -1359,7 +1356,9 @@ export default class Router implements BaseRouter {
       return Promise.resolve(this.sdc[cacheKey])
     }
     return fetchNextData(dataHref, this.isSsr).then((data) => {
-      this.sdc[cacheKey] = data
+      if (!data[SSG_DATA_NOT_FOUND]) {
+        this.sdc[cacheKey] = data
+      }
       return data
     })
   }
