@@ -332,7 +332,7 @@ const manualScrollRestoration =
   typeof window !== 'undefined' &&
   'scrollRestoration' in window.history
 
-const SSG_DATA_NOT_FOUND = '__NEXT_SSG_DATA_NOT_FOUND'
+const SSG_DATA_NOT_FOUND = Symbol('SSG_DATA_NOT_FOUND')
 
 function fetchRetry(url: string, attempts: number): Promise<any> {
   return fetch(url, {
@@ -354,7 +354,7 @@ function fetchRetry(url: string, attempts: number): Promise<any> {
         return fetchRetry(url, attempts - 1)
       }
       if (res.status === 404) {
-        return { [SSG_DATA_NOT_FOUND]: true }
+        return { notFound: SSG_DATA_NOT_FOUND }
       }
       throw new Error(`Failed to load static props`)
     }
@@ -893,7 +893,7 @@ export default class Router implements BaseRouter {
         }
 
         // handle SSG data 404
-        if (props[SSG_DATA_NOT_FOUND]) {
+        if (props.notFound === SSG_DATA_NOT_FOUND) {
           let notFoundRoute
 
           try {
@@ -1367,9 +1367,7 @@ export default class Router implements BaseRouter {
       return Promise.resolve(this.sdc[cacheKey])
     }
     return fetchNextData(dataHref, this.isSsr).then((data) => {
-      if (!data[SSG_DATA_NOT_FOUND]) {
-        this.sdc[cacheKey] = data
-      }
+      this.sdc[cacheKey] = data
       return data
     })
   }
