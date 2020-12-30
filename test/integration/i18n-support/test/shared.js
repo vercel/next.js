@@ -17,7 +17,17 @@ import {
 
 jest.setTimeout(1000 * 60 * 2)
 
-export const locales = ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en']
+const domainLocales = ['go', 'go-BE', 'do', 'do-BE']
+export const nonDomainLocales = [
+  'en-US',
+  'nl-NL',
+  'nl-BE',
+  'nl',
+  'fr-BE',
+  'fr',
+  'en',
+]
+export const locales = [...nonDomainLocales, ...domainLocales]
 
 async function addDefaultLocaleCookie(browser) {
   // make sure default locale is used in case browser isn't set to
@@ -27,6 +37,43 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  it('should redirect to locale domain correctly client-side', async () => {
+    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+
+    await browser.eval(`(function() {
+      window.next.router.push(
+        window.next.router.pathname,
+        window.next.router.asPath,
+        {
+          locale: 'go'
+        }
+      )
+    })()`)
+
+    await check(() => browser.eval('window.location.hostname'), /example\.com/)
+    expect(await browser.eval('window.location.pathname')).toBe(
+      ctx.basePath || '/'
+    )
+
+    await browser.get(browser.initUrl)
+    await browser.waitForElementByCss('#index')
+
+    await browser.eval(`(function() {
+      window.next.router.push(
+        '/gssp',
+        undefined,
+        {
+          locale: 'go-BE'
+        }
+      )
+    })()`)
+
+    await check(() => browser.eval('window.location.hostname'), /example\.com/)
+    expect(await browser.eval('window.location.pathname')).toBe(
+      `${ctx.basePath || ''}/go-BE/gssp`
+    )
+  })
+
   it('should navigate through history with query correctly', async () => {
     const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
 
@@ -243,20 +290,19 @@ export function runTests(ctx) {
       )
 
       expect(routesManifest.i18n).toEqual({
-        locales: ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en'],
+        locales,
         defaultLocale: 'en-US',
         domains: [
           {
             http: true,
-            domain: 'example.be',
-            defaultLocale: 'nl-BE',
-            locales: ['nl', 'nl-NL', 'nl-BE'],
+            domain: 'example.do',
+            defaultLocale: 'do',
+            locales: ['do-BE'],
           },
           {
-            http: true,
-            domain: 'example.fr',
-            defaultLocale: 'fr',
-            locales: ['fr-BE'],
+            domain: 'example.com',
+            defaultLocale: 'go',
+            locales: ['go-BE'],
           },
         ],
       })
@@ -283,6 +329,16 @@ export function runTests(ctx) {
           dataRoute: `/_next/data/${ctx.buildId}/404.json`,
           initialRevalidateSeconds: false,
           srcRoute: null,
+        },
+        '/do-BE/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/do-BE/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
+        },
+        '/do/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/do/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
         },
         '/en-US/gsp/fallback/always': {
           dataRoute: `/_next/data/${ctx.buildId}/en-US/gsp/fallback/always.json`,
@@ -348,6 +404,16 @@ export function runTests(ctx) {
           dataRoute: `/_next/data/${ctx.buildId}/frank.json`,
           initialRevalidateSeconds: false,
           srcRoute: null,
+        },
+        '/go-BE/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/go-BE/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
+        },
+        '/go/gsp/fallback/always': {
+          dataRoute: `/_next/data/${ctx.buildId}/go/gsp/fallback/always.json`,
+          initialRevalidateSeconds: false,
+          srcRoute: '/gsp/fallback/[slug]',
         },
         '/gsp': {
           dataRoute: `/_next/data/${ctx.buildId}/gsp.json`,
@@ -432,7 +498,7 @@ export function runTests(ctx) {
   }
 
   it('should resolve auto-export dynamic route correctly', async () => {
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       const res = await fetchViaHTTP(
         ctx.appPort,
         `${ctx.basePath}/${locale}/dynamic/first`,
@@ -447,7 +513,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate to auto-export dynamic page', async () => {
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       const browser = await webdriver(ctx.appPort, `${ctx.basePath}/${locale}`)
       await browser.eval('window.beforeNav = 1')
 
@@ -622,7 +688,7 @@ export function runTests(ctx) {
     expect($('#router-pathname').text()).toBe('/another')
     expect($('#router-as-path').text()).toBe('/rewrite-3')
 
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       res = await fetchViaHTTP(
         ctx.appPort,
         `${ctx.basePath}/${locale}/rewrite-4`,
@@ -1137,7 +1203,7 @@ export function runTests(ctx) {
       undefined,
       {
         headers: {
-          host: 'example.fr',
+          host: 'example.do',
         },
       }
     )
@@ -1147,8 +1213,8 @@ export function runTests(ctx) {
     const html = await res.text()
     const $ = cheerio.load(html)
 
-    expect($('html').attr('lang')).toBe('fr')
-    expect($('#router-locale').text()).toBe('fr')
+    expect($('html').attr('lang')).toBe('do')
+    expect($('#router-locale').text()).toBe('do')
     expect($('#router-as-path').text()).toBe('/')
     expect($('#router-pathname').text()).toBe('/')
     // expect(JSON.parse($('#router-locales').text())).toEqual(['fr','fr-BE'])
@@ -1160,7 +1226,7 @@ export function runTests(ctx) {
       undefined,
       {
         headers: {
-          host: 'example.be',
+          host: 'example.com',
         },
       }
     )
@@ -1170,8 +1236,8 @@ export function runTests(ctx) {
     const html2 = await res2.text()
     const $2 = cheerio.load(html2)
 
-    expect($2('html').attr('lang')).toBe('nl-BE')
-    expect($2('#router-locale').text()).toBe('nl-BE')
+    expect($2('html').attr('lang')).toBe('go')
+    expect($2('#router-locale').text()).toBe('go')
     expect($2('#router-as-path').text()).toBe('/')
     expect($2('#router-pathname').text()).toBe('/')
     // expect(JSON.parse($2('#router-locales').text())).toEqual(['nl-BE','fr-BE'])
@@ -1181,11 +1247,11 @@ export function runTests(ctx) {
   it('should not strip locale prefix for default locale with locale domains', async () => {
     const res = await fetchViaHTTP(
       ctx.appPort,
-      `${ctx.basePath}/fr`,
+      `${ctx.basePath}/do`,
       undefined,
       {
         headers: {
-          host: 'example.fr',
+          host: 'example.do',
         },
         redirect: 'manual',
       }
@@ -1199,11 +1265,11 @@ export function runTests(ctx) {
 
     const res2 = await fetchViaHTTP(
       ctx.appPort,
-      `${ctx.basePath}/nl-BE`,
+      `${ctx.basePath}/go`,
       undefined,
       {
         headers: {
-          host: 'example.be',
+          host: 'example.com',
         },
         redirect: 'manual',
       }
@@ -1262,8 +1328,8 @@ export function runTests(ctx) {
     const checks = [
       // test domain, locale prefix, redirect result
       // ['example.be', 'nl-BE', 'http://example.be/'],
-      ['example.be', 'fr', 'http://example.fr/'],
-      ['example.fr', 'nl-BE', 'http://example.be/'],
+      ['example.com', 'do', 'http://example.do/'],
+      ['example.do', 'go', 'https://example.com/'],
       // ['example.fr', 'fr', 'http://example.fr/'],
     ]
 
@@ -1294,15 +1360,14 @@ export function runTests(ctx) {
         // used for testing, this should not be needed in most cases
         // as production domains should always use https
         http: true,
-        domain: 'example.be',
-        defaultLocale: 'nl-BE',
-        locales: ['nl', 'nl-NL', 'nl-BE'],
+        domain: 'example.do',
+        defaultLocale: 'do',
+        locales: ['do-BE'],
       },
       {
-        http: true,
-        domain: 'example.fr',
-        defaultLocale: 'fr',
-        locales: ['fr-BE'],
+        domain: 'example.com',
+        defaultLocale: 'go',
+        locales: ['go-BE'],
       },
     ]
     const domainLocales = domainItems.reduce((prev, cur) => {
@@ -1332,6 +1397,14 @@ export function runTests(ctx) {
       const shouldRedirect =
         expectedDomainItem.domain !== domain ||
         locale !== expectedDomainItem.defaultLocale
+
+      console.log('checking', {
+        domain,
+        locale,
+        shouldRedirect,
+        expectedDomainItem,
+        status: res.status,
+      })
 
       expect(res.status).toBe(shouldRedirect ? 307 : 200)
 
@@ -1365,8 +1438,8 @@ export function runTests(ctx) {
 
   it('should provide defaultLocale correctly for locale domain', async () => {
     for (const { host, locale } of [
-      { host: 'example.fr', locale: 'fr' },
-      { host: 'example.be', locale: 'nl-BE' },
+      { host: 'example.do', locale: 'do' },
+      { host: 'example.com', locale: 'go' },
     ]) {
       const res = await fetchViaHTTP(
         ctx.appPort,
@@ -1396,7 +1469,7 @@ export function runTests(ctx) {
   })
 
   it('should generate AMP pages with all locales', async () => {
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       const localePath = locale !== 'en-US' ? `/${locale}` : ''
       const html = await renderViaHTTP(
         ctx.appPort,
@@ -1430,7 +1503,7 @@ export function runTests(ctx) {
   })
 
   it('should work with AMP first page with all locales', async () => {
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       const localePath = locale !== 'en-US' ? `/${locale}` : ''
       const html = await renderViaHTTP(
         ctx.appPort,
@@ -1449,7 +1522,7 @@ export function runTests(ctx) {
   })
 
   it('should generate fallbacks with all locales', async () => {
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       const html = await renderViaHTTP(
         ctx.appPort,
         `${ctx.basePath}/${locale}/gsp/fallback/${Math.random()}`
@@ -1460,7 +1533,7 @@ export function runTests(ctx) {
   })
 
   it('should generate auto-export page with all locales', async () => {
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       const html = await renderViaHTTP(ctx.appPort, `${ctx.basePath}/${locale}`)
       const $ = cheerio.load(html)
       expect($('html').attr('lang')).toBe(locale)
@@ -1483,7 +1556,7 @@ export function runTests(ctx) {
   })
 
   it('should generate non-dynamic GSP page with all locales', async () => {
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       const html = await renderViaHTTP(
         ctx.appPort,
         `${ctx.basePath}/${locale}/gsp`
@@ -1513,7 +1586,7 @@ export function runTests(ctx) {
     it('should not output GSP pages that returned notFound', async () => {
       const skippedLocales = ['en', 'nl']
 
-      for (const locale of locales) {
+      for (const locale of nonDomainLocales) {
         const pagePath = join(ctx.buildPagesDir, locale, 'not-found.html')
         const dataPath = join(ctx.buildPagesDir, locale, 'not-found.json')
         console.log(pagePath)
@@ -1526,7 +1599,7 @@ export function runTests(ctx) {
   it('should 404 for GSP pages that returned notFound', async () => {
     const skippedLocales = ['en', 'nl']
 
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       const res = await fetchViaHTTP(
         ctx.appPort,
         `${ctx.basePath}/${locale}/not-found`

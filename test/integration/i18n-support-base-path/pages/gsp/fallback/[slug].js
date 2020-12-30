@@ -52,7 +52,7 @@ export const getStaticProps = ({ params, locale, locales, defaultLocale }) => {
 
 export const getStaticPaths = ({ locales, defaultLocale }) => {
   // make sure locales were provided correctly
-  if (!locales || locales.length !== 7) {
+  if (!locales || locales.length !== 11) {
     throw new Error(
       'locales missing in getStaticPaths!! got: ' + JSON.stringify(locales)
     )

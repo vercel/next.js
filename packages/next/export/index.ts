@@ -338,6 +338,7 @@ Read more: https://err.sh/next.js/export-image-api`
     locales: i18n?.locales,
     locale: i18n?.defaultLocale,
     defaultLocale: i18n?.defaultLocale,
+    domainLocales: i18n?.domains,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

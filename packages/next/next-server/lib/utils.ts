@@ -7,6 +7,7 @@ import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
 import { Env } from '@next/env'
 import { BuildManifest } from '../server/get-page-files'
+import { DomainLocales } from '../server/config'
 
 /**
  * Types used by both next and next-server
@@ -101,6 +102,7 @@ export type NEXT_DATA = {
   locale?: string
   locales?: string[]
   defaultLocale?: string
+  domainLocales?: DomainLocales
 }
 
 /**
