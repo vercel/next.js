@@ -683,6 +683,8 @@ export default class Router implements BaseRouter {
         if (!this.locales?.includes(this.locale!)) {
           parsedAs.pathname = addLocale(parsedAs.pathname, this.locale)
           window.location.href = formatWithValidation(parsedAs)
+          // this was previously a return but was removed in favor
+          // of better dead code elimination with regenerator runtime
           didNavigate = true
         }
       }
@@ -699,6 +701,7 @@ export default class Router implements BaseRouter {
         // if we are navigating to a domain locale ensure we redirect to the
         // correct domain
         if (
+          !didNavigate &&
           detectedDomain &&
           self.location.hostname !== detectedDomain.domain
         ) {
@@ -712,6 +715,8 @@ export default class Router implements BaseRouter {
                 : `/${this.locale}`
             }${asNoBasePath === '/' ? '' : asNoBasePath}` || '/'
           )}`
+          // this was previously a return but was removed in favor
+          // of better dead code elimination with regenerator runtime
           didNavigate = true
         }
       }
