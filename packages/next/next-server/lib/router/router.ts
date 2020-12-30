@@ -856,7 +856,7 @@ export default class Router implements BaseRouter {
         route,
         pathname,
         query,
-        resolvedAs,
+        addBasePath(addLocale(resolvedAs, this.locale)),
         routeProps
       )
       let { error, props, __N_SSG, __N_SSP } = routeInfo
