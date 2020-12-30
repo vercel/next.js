@@ -1020,6 +1020,30 @@ const runTests = (dev = false) => {
 
       const pathname = await browser.elementByCss('#pathname').text()
       expect(pathname).toBe('/hello')
+      expect(await browser.eval('window.location.pathname')).toBe(
+        `${basePath}/hello`
+      )
+      expect(await browser.eval('window.location.search')).toBe('?query=true')
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should allow URL query strings on index without refresh', async () => {
+    const browser = await webdriver(appPort, `${basePath}?query=true`)
+    try {
+      await browser.eval('window.itdidnotrefresh = "hello"')
+      await new Promise((resolve, reject) => {
+        // Timeout of EventSource created in setupPing()
+        // (on-demand-entries-utils.js) is 5000 ms (see #13132, #13560)
+        setTimeout(resolve, 10000)
+      })
+      expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
+
+      const pathname = await browser.elementByCss('#pathname').text()
+      expect(pathname).toBe('/')
+      expect(await browser.eval('window.location.pathname')).toBe(basePath)
+      expect(await browser.eval('window.location.search')).toBe('?query=true')
     } finally {
       await browser.close()
     }
