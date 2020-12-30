@@ -61,7 +61,7 @@ function runTests() {
   })
   it('should use imageSizes when width matches, not deviceSizes from next.config.js', async () => {
     expect(await browser.elementById('icon-image-16').getAttribute('src')).toBe(
-      'https://example.com/myaccount/icon.png?auto=format&fit=max&w=48'
+      'https://example.com/myaccount/icon.png?auto=format&fit=max&w=32'
     )
     expect(
       await browser.elementById('icon-image-16').getAttribute('srcset')
@@ -69,7 +69,7 @@ function runTests() {
       'https://example.com/myaccount/icon.png?auto=format&fit=max&w=16 1x, https://example.com/myaccount/icon.png?auto=format&fit=max&w=32 2x'
     )
     expect(await browser.elementById('icon-image-32').getAttribute('src')).toBe(
-      'https://example.com/myaccount/icon.png?auto=format&fit=max&w=480'
+      'https://example.com/myaccount/icon.png?auto=format&fit=max&w=64'
     )
     expect(
       await browser.elementById('icon-image-32').getAttribute('srcset')
@@ -182,7 +182,7 @@ function lazyLoadingTests() {
 
   it('should load the fifth image eagerly, without scrolling', async () => {
     expect(await browser.elementById('eager-loading').getAttribute('src')).toBe(
-      'https://example.com/myaccount/foo5.jpg?auto=format&fit=max&w=1600'
+      'https://example.com/myaccount/foo5.jpg?auto=format&fit=max&w=2000'
     )
     expect(
       await browser.elementById('eager-loading').getAttribute('srcset')
