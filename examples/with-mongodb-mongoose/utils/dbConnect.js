@@ -2,9 +2,8 @@
 import mongoose from 'mongoose'
 
 async function dbConnect() {
-  /* check if we have connection to our databse or databse is curentlly connecting or disconnecting (readyState 1,2 and 3)*/
+  /* check if we have connection to our database or database is currently connecting or disconnecting (readyState 1, 2 and 3) */
   if (mongoose.connection.readyState >= 1) {
-    /* then do nothing */
     return;
   }
 
