@@ -1,5 +1,5 @@
 import * as fs from 'fs-extra'
-import nanoid from 'nanoid'
+import { nanoid } from 'nanoid'
 import { findPort, killApp, launchApp } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import path from 'path'

@@ -11,6 +11,16 @@ description: Enable Image Optimization with the built-in Image component.
   </ul>
 </details>
 
+<details>
+  <summary><b>Version History</b></summary>
+  
+| Version   | Changes                  |
+| --------- | ------------------------ |
+| `v10.0.1` | `layout` prop added.     |
+| `v10.0.0` | `next/image` introduced. |
+
+</details>
+
 > Before moving forward, we recommend you to read [Image Optimization](/docs/basic-features/image-optimization.md) first.
 
 Image Optimization can be enabled via the `Image` component exported by `next/image`.
