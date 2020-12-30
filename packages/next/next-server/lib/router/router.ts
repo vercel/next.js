@@ -856,7 +856,7 @@ export default class Router implements BaseRouter {
         route,
         pathname,
         query,
-        as,
+        resolvedAs,
         routeProps
       )
       let { error, props, __N_SSG, __N_SSP } = routeInfo
