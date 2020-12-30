@@ -11,6 +11,16 @@ description: Enable Image Optimization with the built-in Image component.
   </ul>
 </details>
 
+<details>
+  <summary><b>Version History</b></summary>
+  
+| Version   | Changes                  |
+| --------- | ------------------------ |
+| `v10.0.1` | `layout` prop added.     |
+| `v10.0.0` | `next/image` introduced. |
+
+</details>
+
 > Before moving forward, we recommend you to read [Image Optimization](/docs/basic-features/image-optimization.md) first.
 
 Image Optimization can be enabled via the `Image` component exported by `next/image`.
@@ -103,11 +113,11 @@ We recommend setting `sizes` when `layout="responsive"` and your image will not 
 
 The quality of the optimized image, an integer between 1 and 100 where 100 is the best quality. Defaults to 75.
 
-### priority
+<!-- ### priority
 
 When true, the image will be considered high priority and [preload](https://web.dev/preload-responsive-images/).
 
-Should only be used when the image is visible above the fold. Defaults to false.
+Should only be used when the image is visible above the fold. Defaults to false. -->
 
 ## Advanced Props
 

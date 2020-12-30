@@ -128,15 +128,16 @@ function linkClicked(
   }
 
   // replace state instead of push if prop is present
-  router[replace ? 'replace' : 'push'](href, as, { shallow, locale }).then(
-    (success: boolean) => {
-      if (!success) return
-      if (scroll) {
-        window.scrollTo(0, 0)
-        a11ySmartFocus()
-      }
+  router[replace ? 'replace' : 'push'](href, as, {
+    shallow,
+    locale,
+    scroll,
+  }).then((success: boolean) => {
+    if (!success) return
+    if (scroll) {
+      a11ySmartFocus()
     }
-  )
+  })
 }
 
 function Link(props: React.PropsWithChildren<LinkProps>) {

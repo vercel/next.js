@@ -1,6 +1,6 @@
 import passport from 'passport'
 import LocalStrategy from 'passport-local'
-import { findUserByUsername } from './db'
+import { findUserByUsername, validatePassword } from './db'
 
 passport.serializeUser(function (user, done) {
   // serialize the username into session
@@ -21,7 +21,7 @@ passport.use(
       const user = findUserByUsername(req, username)
       // Security-wise, if you hashed the password earlier, you must verify it
       // if (!user || await argon2.verify(user.password, password))
-      if (!user || user.password !== password) {
+      if (!user || !validatePassword(user, password)) {
         done(null, null)
       } else {
         done(null, user)
