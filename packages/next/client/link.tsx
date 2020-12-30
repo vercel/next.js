@@ -98,15 +98,17 @@ function linkClicked(
   }
 
   // replace state instead of push if prop is present
-  router[replace ? 'replace' : 'push'](href, as, { shallow, locale }).then(
-    (success: boolean) => {
-      if (!success) return
-      if (scroll) {
-        window.scrollTo(0, 0)
-        document.body.focus()
-      }
+  router[replace ? 'replace' : 'push'](href, as, {
+    shallow,
+    locale,
+    scroll,
+  }).then((success: boolean) => {
+    if (!success) return
+    if (scroll) {
+      // FIXME: proper route announcing at Router level, not Link:
+      document.body.focus()
     }
-  )
+  })
 }
 
 function Link(props: React.PropsWithChildren<LinkProps>) {

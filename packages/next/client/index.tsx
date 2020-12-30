@@ -5,18 +5,22 @@ import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
 import mitt from '../next-server/lib/mitt'
 import { RouterContext } from '../next-server/lib/router-context'
-import Router from '../next-server/lib/router/router'
-import {
+import Router, {
   AppComponent,
   AppProps,
+  delBasePath,
+  hasBasePath,
   PrivateRouteInfo,
 } from '../next-server/lib/router/router'
-import { delBasePath, hasBasePath } from '../next-server/lib/router/router'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import * as querystring from '../next-server/lib/router/utils/querystring'
 import * as envConfig from '../next-server/lib/runtime-config'
-import { NEXT_DATA } from '../next-server/lib/utils'
-import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
+import {
+  getURL,
+  loadGetInitialProps,
+  NEXT_DATA,
+  ST,
+} from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
@@ -39,7 +43,10 @@ declare global {
   }
 }
 
-type RenderRouteInfo = PrivateRouteInfo & { App: AppComponent }
+type RenderRouteInfo = PrivateRouteInfo & {
+  App: AppComponent
+  scroll?: boolean
+}
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 
 const data: typeof window['__NEXT_DATA__'] = JSON.parse(
@@ -349,7 +356,17 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     wrapApp,
     err: initialErr,
     isFallback: Boolean(isFallback),
-    subscription: (info, App) => render(Object.assign({}, info, { App })),
+    subscription: (info, App, scroll) =>
+      render(
+        Object.assign<
+          {},
+          Omit<RenderRouteInfo, 'App' | 'scroll'>,
+          Pick<RenderRouteInfo, 'App' | 'scroll'>
+        >({}, info, {
+          App,
+          scroll,
+        }) as RenderRouteInfo
+      ),
     locale,
     locales,
     defaultLocale,
@@ -613,7 +630,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 
   let canceled = false
   let resolvePromise: () => void
-  const renderPromise = new Promise((resolve, reject) => {
+  const renderPromise = new Promise<void>((resolve, reject) => {
     if (lastRenderReject) {
       lastRenderReject()
     }
@@ -731,6 +748,10 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       // Force browser to recompute layout, which should prevent a flash of
       // unstyled content:
       getComputedStyle(document.body, 'height')
+    }
+
+    if (input.scroll) {
+      window.scrollTo(0, 0)
     }
   }
 
