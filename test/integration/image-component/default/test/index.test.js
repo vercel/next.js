@@ -139,7 +139,7 @@ function runTests(mode) {
         {
           imagesizes: null,
           imagesrcset:
-            '/_next/image?url=%2Ftest.jpg&w=640&q=75 1x, /_next/image?url=%2Ftest.jpg&w=828&q=75 2x, /_next/image?url=%2Ftest.jpg&w=1200&q=75 3x',
+            '/_next/image?url=%2Ftest.jpg&w=640&q=75 1x, /_next/image?url=%2Ftest.jpg&w=828&q=75 2x',
         },
         {
           imagesizes: '100vw',
