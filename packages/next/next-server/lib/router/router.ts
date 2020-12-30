@@ -98,7 +98,7 @@ export function hasBasePath(path: string): boolean {
   if (queryIndex > -1 || hashIndex > -1) {
     path = path.substring(0, queryIndex > -1 ? queryIndex : hashIndex)
   }
-  return path === basePath || path.startsWith(basePath)
+  return path === basePath || path.startsWith(basePath + '/')
 }
 
 export function addBasePath(path: string): string {
