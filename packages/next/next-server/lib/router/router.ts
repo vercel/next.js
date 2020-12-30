@@ -13,6 +13,7 @@ import {
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
+import { DomainLocales } from '../../server/config'
 import { denormalizePagePath } from '../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt, { MittEmitter } from '../mitt'
@@ -49,6 +50,13 @@ interface NextHistoryState {
 }
 
 type HistoryState = null | { __N: false } | ({ __N: true } & NextHistoryState)
+
+let detectDomainLocale: typeof import('../i18n/detect-domain-locale').detectDomainLocale
+
+if (process.env.__NEXT_I18N_SUPPORT) {
+  detectDomainLocale = require('../i18n/detect-domain-locale')
+    .detectDomainLocale
+}
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
@@ -407,6 +415,7 @@ export default class Router implements BaseRouter {
   locale?: string
   locales?: string[]
   defaultLocale?: string
+  domainLocales?: DomainLocales
 
   static events: MittEmitter = mitt()
 
@@ -426,6 +435,7 @@ export default class Router implements BaseRouter {
       locale,
       locales,
       defaultLocale,
+      domainLocales,
     }: {
       subscription: Subscription
       initialProps: any
@@ -438,6 +448,7 @@ export default class Router implements BaseRouter {
       locale?: string
       locales?: string[]
       defaultLocale?: string
+      domainLocales?: DomainLocales
     }
   ) {
     // represents the current component key
@@ -492,6 +503,7 @@ export default class Router implements BaseRouter {
       this.locale = locale
       this.locales = locales
       this.defaultLocale = defaultLocale
+      this.domainLocales = domainLocales
     }
 
     if (typeof window !== 'undefined') {
@@ -666,11 +678,54 @@ export default class Router implements BaseRouter {
           ).pathname
         )
       }
+      let didNavigate = false
 
-      // if the locale isn't configured hard navigate to show 404 page
-      if (!this.locales?.includes(this.locale!)) {
-        parsedAs.pathname = addLocale(parsedAs.pathname, this.locale)
-        window.location.href = formatWithValidation(parsedAs)
+      // we need to wrap this in the env check again since regenerator runtime
+      // moves this on its own due to the return
+      if (process.env.__NEXT_I18N_SUPPORT) {
+        // if the locale isn't configured hard navigate to show 404 page
+        if (!this.locales?.includes(this.locale!)) {
+          parsedAs.pathname = addLocale(parsedAs.pathname, this.locale)
+          window.location.href = formatWithValidation(parsedAs)
+          // this was previously a return but was removed in favor
+          // of better dead code elimination with regenerator runtime
+          didNavigate = true
+        }
+      }
+
+      const detectedDomain = detectDomainLocale(
+        this.domainLocales,
+        undefined,
+        this.locale
+      )
+
+      // we need to wrap this in the env check again since regenerator runtime
+      // moves this on its own due to the return
+      if (process.env.__NEXT_I18N_SUPPORT) {
+        // if we are navigating to a domain locale ensure we redirect to the
+        // correct domain
+        if (
+          !didNavigate &&
+          detectedDomain &&
+          self.location.hostname !== detectedDomain.domain
+        ) {
+          const asNoBasePath = delBasePath(as)
+          window.location.href = `http${detectedDomain.http ? '' : 's'}://${
+            detectedDomain.domain
+          }${addBasePath(
+            `${
+              this.locale === detectedDomain.defaultLocale
+                ? ''
+                : `/${this.locale}`
+            }${asNoBasePath === '/' ? '' : asNoBasePath}` || '/'
+          )}`
+          // this was previously a return but was removed in favor
+          // of better dead code elimination with regenerator runtime
+          didNavigate = true
+        }
+      }
+
+      if (didNavigate) {
         return new Promise(() => {})
       }
     }
