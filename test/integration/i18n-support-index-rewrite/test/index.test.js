@@ -71,6 +71,8 @@ const runTests = () => {
         })
         return 'success'
       }, 'success')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
     }
   })
 }

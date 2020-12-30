@@ -140,6 +140,7 @@ export function runTests(ctx) {
             '/fr/gsp.json',
             '/fr/gsp/fallback/first.json',
             '/fr/gsp/fallback/hello.json',
+            '/fr/gsp/no-fallback/first.json',
           ]
         )
         return 'yes'
@@ -686,6 +687,7 @@ export function runTests(ctx) {
             '/fr/gsp.json',
             '/fr/gsp/fallback/first.json',
             '/fr/gsp/fallback/hello.json',
+            '/fr/gsp/no-fallback/first.json',
           ]
         )
         return 'yes'
@@ -898,6 +900,7 @@ export function runTests(ctx) {
             '/fr/gsp.json',
             '/fr/gsp/fallback/first.json',
             '/fr/gsp/fallback/hello.json',
+            '/fr/gsp/no-fallback/first.json',
           ]
         )
         return 'yes'
@@ -1601,7 +1604,7 @@ export function runTests(ctx) {
 
     expect(props.is404).toBe(true)
     expect(props.locale).toBe('en')
-    expect(await browser.eval('window.beforeNav')).toBe(null)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should render 404 for fallback page that returned 404 on client transition', async () => {
