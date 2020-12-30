@@ -1,0 +1,11 @@
+{
+  "name": "db",
+  "version": "1.0.0",
+  "license": "MIT",
+  "scripts": {
+    "hasura": "cd hasura && hasura --envfile ../.env"
+  },
+  "dependencies": {
+    "hasura-cli": "^1.3.3"
+  }
+}

@@ -1,0 +1,5 @@
+version: 2
+metadata_directory: metadata
+actions:
+  kind: synchronous
+show_update_notification: false
