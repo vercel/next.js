@@ -111,6 +111,49 @@ function runTests(mode) {
     }
   })
 
+  it('should preload priority images', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/priority')
+
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
+
+        if (result === 0) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      const links = await browser.elementsByCss('link[rel=preload][as=image]')
+      const entries = []
+      for (const link of links) {
+        const imagesrcset = await link.getAttribute('imagesrcset')
+        const imagesizes = await link.getAttribute('imagesizes')
+        entries.push({ imagesrcset, imagesizes })
+      }
+      expect(entries).toEqual([
+        {
+          imagesizes: null,
+          imagesrcset:
+            '/_next/image?url=%2Ftest.jpg&w=640&q=75 1x, /_next/image?url=%2Ftest.jpg&w=828&q=75 2x',
+        },
+        {
+          imagesizes: '100vw',
+          imagesrcset:
+            '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
+        },
+      ])
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
   it('should update the image on src change', async () => {
     let browser
     try {
