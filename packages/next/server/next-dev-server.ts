@@ -534,6 +534,7 @@ export default class DevServer extends Server {
 
     const __getStaticPaths = async () => {
       const { publicRuntimeConfig, serverRuntimeConfig } = this.nextConfig
+      const { locales, defaultLocale } = this.nextConfig.i18n || {}
 
       const paths = await this.staticPathsWorker.loadStaticPaths(
         this.distDir,
@@ -542,7 +543,9 @@ export default class DevServer extends Server {
         {
           publicRuntimeConfig,
           serverRuntimeConfig,
-        }
+        },
+        locales,
+        defaultLocale
       )
       return paths
     }
@@ -553,7 +556,7 @@ export default class DevServer extends Server {
     return {
       staticPaths,
       fallbackMode:
-        fallback === 'unstable_blocking'
+        fallback === 'blocking'
           ? 'blocking'
           : fallback === true
           ? 'static'

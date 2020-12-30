@@ -15,6 +15,7 @@ import { ComponentType } from 'react'
 import { GetStaticProps } from '../types'
 import { requireFontManifest } from '../next-server/server/require'
 import { FontManifest } from '../next-server/server/font-utils'
+import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 
 const envConfig = require('../next-server/lib/runtime-config')
 
@@ -44,16 +45,18 @@ interface ExportPageInput {
   renderOpts: RenderOpts
   buildExport?: boolean
   serverRuntimeConfig: string
-  subFolders: string
+  subFolders?: boolean
   serverless: boolean
   optimizeFonts: boolean
   optimizeImages: boolean
+  optimizeCss: any
 }
 
 interface ExportPageResults {
   ampValidations: AmpValidation[]
   fromBuildExportRevalidate?: number
   error?: boolean
+  ssgNotFound?: boolean
 }
 
 interface RenderOpts {
@@ -66,7 +69,11 @@ interface RenderOpts {
   inAmpMode?: boolean
   optimizeFonts?: boolean
   optimizeImages?: boolean
+  optimizeCss?: any
   fontManifest?: FontManifest
+  locales?: string[]
+  locale?: string
+  defaultLocale?: string
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -87,6 +94,7 @@ export default async function exportPage({
   serverless,
   optimizeFonts,
   optimizeImages,
+  optimizeCss,
 }: ExportPageInput): Promise<ExportPageResults> {
   let results: ExportPageResults = {
     ampValidations: [],
@@ -96,9 +104,29 @@ export default async function exportPage({
     const { query: originalQuery = {} } = pathMap
     const { page } = pathMap
     const filePath = normalizePagePath(path)
+    const isDynamic = isDynamicRoute(page)
     const ampPath = `${filePath}.amp`
+    let renderAmpPath = ampPath
     let query = { ...originalQuery }
     let params: { [key: string]: string | string[] } | undefined
+
+    let updatedPath = (query.__nextSsgPath as string) || path
+    let locale = query.__nextLocale || renderOpts.locale
+    delete query.__nextLocale
+    delete query.__nextSsgPath
+
+    if (renderOpts.locale) {
+      const localePathResult = normalizeLocalePath(path, renderOpts.locales)
+
+      if (localePathResult.detectedLocale) {
+        updatedPath = localePathResult.pathname
+        locale = localePathResult.detectedLocale
+
+        if (locale === renderOpts.defaultLocale) {
+          renderAmpPath = `${normalizePagePath(updatedPath)}.amp`
+        }
+      }
+    }
 
     // We need to show a warning if they try to provide query values
     // for an auto-exported page since they won't be available
@@ -112,8 +140,8 @@ export default async function exportPage({
     }
 
     // Check if the page is a specified dynamic route
-    if (isDynamicRoute(page) && page !== path) {
-      params = getRouteMatcher(getRouteRegex(page))(path) || undefined
+    if (isDynamic && page !== path) {
+      params = getRouteMatcher(getRouteRegex(page))(updatedPath) || undefined
       if (params) {
         // we have to pass these separately for serverless
         if (!serverless) {
@@ -124,7 +152,7 @@ export default async function exportPage({
         }
       } else {
         throw new Error(
-          `The provided export path '${path}' doesn't match the '${page}' page.\nRead more: https://err.sh/vercel/next.js/export-path-mismatch`
+          `The provided export path '${updatedPath}' doesn't match the '${page}' page.\nRead more: https://err.sh/vercel/next.js/export-path-mismatch`
         )
       }
     }
@@ -139,7 +167,7 @@ export default async function exportPage({
     }
 
     const req = ({
-      url: path,
+      url: updatedPath,
       ...headerMocks,
     } as unknown) as IncomingMessage
     const res = ({
@@ -221,23 +249,27 @@ export default async function exportPage({
           res,
           'export',
           {
-            ampPath,
+            ampPath: renderAmpPath,
             /// @ts-ignore
             optimizeFonts,
             /// @ts-ignore
             optimizeImages,
+            /// @ts-ignore
+            optimizeCss,
             fontManifest: optimizeFonts
               ? requireFontManifest(distDir, serverless)
               : null,
+            locale: locale!,
+            locales: renderOpts.locales!,
           },
           // @ts-ignore
           params
         )
-        curRenderOpts = result.renderOpts || {}
-        html = result.html
+        curRenderOpts = (result as any).renderOpts || {}
+        html = (result as any).html
       }
 
-      if (!html) {
+      if (!html && !(curRenderOpts as any).isNotFound) {
         throw new Error(`Failed to render serverless page`)
       }
     } else {
@@ -266,9 +298,9 @@ export default async function exportPage({
       } else {
         /**
          * This sets environment variable to be used at the time of static export by head.tsx.
-         * Using this from process.env allows targetting both serverless and SSR by calling
+         * Using this from process.env allows targeting both serverless and SSR by calling
          * `process.env.__NEXT_OPTIMIZE_FONTS`.
-         * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being clened up.
+         * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being cleaned up.
          */
         if (optimizeFonts) {
           process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
@@ -276,21 +308,27 @@ export default async function exportPage({
         if (optimizeImages) {
           process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
         }
+        if (optimizeCss) {
+          process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
+        }
         curRenderOpts = {
           ...components,
           ...renderOpts,
-          ampPath,
+          ampPath: renderAmpPath,
           params,
           optimizeFonts,
           optimizeImages,
+          optimizeCss,
           fontManifest: optimizeFonts
             ? requireFontManifest(distDir, serverless)
             : null,
+          locale: locale as string,
         }
         // @ts-ignore
         html = await renderMethod(req, res, page, query, curRenderOpts)
       }
     }
+    results.ssgNotFound = (curRenderOpts as any).isNotFound
 
     const validateAmp = async (
       rawAmpHtml: string,
@@ -314,7 +352,9 @@ export default async function exportPage({
     }
 
     if (curRenderOpts.inAmpMode && !curRenderOpts.ampSkipValidation) {
-      await validateAmp(html, path, curRenderOpts.ampValidatorPath)
+      if (!results.ssgNotFound) {
+        await validateAmp(html, path, curRenderOpts.ampValidatorPath)
+      }
     } else if (curRenderOpts.hybridAmp) {
       // we need to render the AMP version
       let ampHtmlFilename = `${ampPath}${sep}index.html`
@@ -332,15 +372,23 @@ export default async function exportPage({
         if (serverless) {
           req.url += (req.url!.includes('?') ? '&' : '?') + 'amp=1'
           // @ts-ignore
-          ampHtml = (await renderMethod(req, res, 'export')).html
+          ampHtml = (
+            await (renderMethod as any)(
+              req,
+              res,
+              'export',
+              curRenderOpts,
+              params
+            )
+          ).html
         } else {
           ampHtml = await renderMethod(
             req,
             res,
             page,
             // @ts-ignore
-            { ...query, amp: 1 },
-            curRenderOpts
+            { ...query, amp: '1' },
+            curRenderOpts as any
           )
         }
 
@@ -375,6 +423,10 @@ export default async function exportPage({
     }
     results.fromBuildExportRevalidate = (curRenderOpts as any).revalidate
 
+    if (results.ssgNotFound) {
+      // don't attempt writing to disk if getStaticProps returned not found
+      return results
+    }
     await promises.writeFile(htmlFilepath, html, 'utf8')
     return results
   } catch (error) {
