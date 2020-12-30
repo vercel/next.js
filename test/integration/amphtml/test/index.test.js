@@ -298,7 +298,20 @@ describe('AMP Usage', () => {
       const html = await renderViaHTTP(dynamicAppPort, '/only-amp')
       const $ = cheerio.load(html)
       expect($('html').attr('data-ampdevmode')).toBe('')
-      expect($('script[data-ampdevmode]').length).toBe(4)
+      expect(
+        [].slice
+          .apply($('script[data-ampdevmode]'))
+          .map((el) => el.attribs.src || el.attribs.id)
+          .map((e) =>
+            e.startsWith('/') ? new URL(e, 'http://x.x').pathname : e
+          )
+      ).toEqual([
+        '__NEXT_DATA__',
+        '/_next/static/chunks/react-refresh.js',
+        '/_next/static/chunks/polyfills.js',
+        '/_next/static/chunks/webpack.js',
+        '/_next/static/chunks/amp.js',
+      ])
     })
 
     it('should detect the changes and display it', async () => {

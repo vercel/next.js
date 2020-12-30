@@ -14,7 +14,7 @@
   "devDependencies": {
     "autoprefixer": "10.0.2",
     "postcss": "8.1.7",
-    "tailwindcss": "^2.0.1"
+    "tailwindcss": "^2.0.2"
   },
   "license": "MIT"
 }
