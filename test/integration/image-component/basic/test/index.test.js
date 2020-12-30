@@ -202,6 +202,23 @@ async function hasPreloadLinkMatchingUrl(url) {
   return false
 }
 
+async function hasImagePreloadBeforeCSSPreload() {
+  const links = await browser.elementsByCss('link')
+  let foundImage = false
+  for (const link of links) {
+    const rel = await link.getAttribute('rel')
+    if (rel === 'preload') {
+      const linkAs = await link.getAttribute('as')
+      if (linkAs === 'image') {
+        foundImage = true
+      } else if (linkAs === 'style' && foundImage) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
 describe('Image Component Tests', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
@@ -244,6 +261,9 @@ describe('Image Component Tests', () => {
           'https://example.com/myaccount/withpriority.png?auto=format&fit=max&w=1024&q=60'
         )
       ).toBe(true)
+    })
+    it('should not create any preload tags higher up the page than CSS preload tags', async () => {
+      expect(await hasImagePreloadBeforeCSSPreload()).toBe(false)
     })
   })
   describe('Client-side Image Component Tests', () => {

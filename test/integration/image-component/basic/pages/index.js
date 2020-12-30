@@ -1,6 +1,7 @@
 import React from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import Head from 'next/head'
 
 const Page = () => {
   return (
@@ -90,6 +91,10 @@ const Page = () => {
       <Link href="/lazy">
         <a id="lazylink">lazy</a>
       </Link>
+      <Head>
+        <link rel="stylesheet" href="styles.css" />
+        <link rel="preload" href="styles.css" as="style" />
+      </Head>
       <p id="stubtext">This is the index page</p>
     </div>
   )
