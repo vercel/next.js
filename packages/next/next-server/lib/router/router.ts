@@ -649,6 +649,12 @@ export default class Router implements BaseRouter {
       window.location.href = url
       return false
     }
+
+    // Default to scroll reset behavior unless explicitly specified to be
+    // `false`! This makes the behavior between using `Router#push` and a
+    // `<Link />` consistent.
+    options.scroll = !!(options.scroll ?? true)
+
     let localeChange = options.locale !== this.locale
 
     if (process.env.__NEXT_I18N_SUPPORT) {
