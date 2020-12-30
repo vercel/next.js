@@ -63,8 +63,12 @@ export async function getStaticProps() {
 > ```bash
 > # .env
 > A=abc
-> WRONG=pre$A # becomes "preabc"
-> CORRECT=pre\$A # becomes "pre$A"
+>
+> # becomes "preabc"
+> WRONG=pre$A
+>
+> # becomes "pre$A"
+> CORRECT=pre\$A
 > ```
 
 ## Exposing Environment Variables to the Browser
@@ -77,7 +81,7 @@ In order to expose a variable to the browser you have to prefix the variable wit
 NEXT_PUBLIC_ANALYTICS_ID=abcdefghijk
 ```
 
-This loads `process.env.NEXT_PUBLIC_ANALYTICS_ID` into the Node.js environment automatically. Allowing you to use it anywhere in your code. The value will be inlined into JavaScript sent to the browser because of the `NEXT_PUBLIC_` prefix.
+This loads `process.env.NEXT_PUBLIC_ANALYTICS_ID` into the Node.js environment automatically, allowing you to use it anywhere in your code. The value will be inlined into JavaScript sent to the browser because of the `NEXT_PUBLIC_` prefix.
 
 ```js
 // pages/index.js

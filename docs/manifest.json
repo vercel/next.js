@@ -26,12 +26,12 @@
               "path": "/docs/basic-features/image-optimization.md"
             },
             {
-              "title": "Fast Refresh",
-              "path": "/docs/basic-features/fast-refresh.md"
-            },
-            {
               "title": "Static File Serving",
               "path": "/docs/basic-features/static-file-serving.md"
+            },
+            {
+              "title": "Fast Refresh",
+              "path": "/docs/basic-features/fast-refresh.md"
             },
             {
               "title": "TypeScript",
@@ -182,6 +182,10 @@
               "path": "/docs/advanced-features/debugging.md"
             },
             {
+              "title": "Source Maps",
+              "path": "/docs/advanced-features/source-maps.md"
+            },
+            {
               "title": "Codemods",
               "path": "/docs/advanced-features/codemods.md"
             },
@@ -198,6 +202,10 @@
         {
           "title": "Migrating to Next.js",
           "routes": [
+            {
+              "title": "Incrementally Adopting Next.js",
+              "path": "/docs/migrating/incremental-adoption.md"
+            },
             {
               "title": "Migrating from Gatsby",
               "path": "/docs/migrating/from-gatsby.md"
