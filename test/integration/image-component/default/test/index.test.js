@@ -101,7 +101,7 @@ function runTests(mode) {
       expect(
         await hasImageMatchingUrl(
           browser,
-          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=1200&q=75`
+          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=828&q=75`
         )
       ).toBe(true)
     } finally {
