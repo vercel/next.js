@@ -113,11 +113,11 @@ We recommend setting `sizes` when `layout="responsive"` and your image will not 
 
 The quality of the optimized image, an integer between 1 and 100 where 100 is the best quality. Defaults to 75.
 
-<!-- ### priority
+### priority
 
 When true, the image will be considered high priority and [preload](https://web.dev/preload-responsive-images/).
 
-Should only be used when the image is visible above the fold. Defaults to false. -->
+Should only be used when the image is visible above the fold. Defaults to false.
 
 ## Advanced Props
 
@@ -137,6 +137,12 @@ The image position when using `layout="fill"`.
 
 ### loading
 
+> **Attention**: This property is only meant for advanced usage. Switching an
+> image to load with `eager` will normally **hurt performance**.
+>
+> You are probably looking for the [`priority`](#priority) property instead,
+> which properly loads the image eagerly for nearly all use cases.
+
 The loading behavior of the image. Defaults to `lazy`.
 
 When `lazy`, defer loading the image until it reaches a calculated distance from the viewport.
@@ -147,7 +153,7 @@ When `eager`, load the image immediately.
 
 ### unoptimized
 
-When true, the source image will be served as-is instead of changing quality, size, or format. Defaults to false.
+When true, the source image will be served as-is instead of changing quality, size, or format. Defaults to `false`.
 
 ## Other Props
 

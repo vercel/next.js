@@ -1,4 +1,5 @@
 import React from 'react'
+import Head from '../next-server/lib/head'
 import { toBase64 } from '../next-server/lib/to-base-64'
 import {
   ImageConfig,
@@ -410,6 +411,30 @@ export default function Image({
         ref={setRef}
         style={imgStyle}
       />
+      {priority ? (
+        // Note how we omit the `href` attribute, as it would only be relevant
+        // for browsers that do not support `imagesrcset`, and in those cases
+        // it would likely cause the incorrect image to be preloaded.
+        //
+        // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-imagesrcset
+        <Head>
+          <link
+            key={
+              '__nimg-' +
+              imgAttributes.src +
+              imgAttributes.srcSet +
+              imgAttributes.sizes
+            }
+            rel="preload"
+            as="image"
+            href={imgAttributes.srcSet ? undefined : imgAttributes.src}
+            // @ts-ignore: imagesrcset is not yet in the link element type
+            imagesrcset={imgAttributes.srcSet}
+            // @ts-ignore: imagesizes is not yet in the link element type
+            imagesizes={imgAttributes.sizes}
+          ></link>
+        </Head>
+      ) : null}
     </div>
   )
 }
