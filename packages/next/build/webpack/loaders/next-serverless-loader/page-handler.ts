@@ -312,6 +312,11 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           if (renderOpts.isNotFound) {
             res.statusCode = 404
 
+            if (_nextData) {
+              res.end('{"notFound":true}')
+              return null
+            }
+
             const NotFoundComponent = notFoundMod ? notFoundMod.default : Error
             const errPathname = notFoundMod ? '/404' : '/_error'
 

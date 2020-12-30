@@ -187,7 +187,6 @@ export function runTests(ctx) {
             '/fr/gsp.json',
             '/fr/gsp/fallback/first.json',
             '/fr/gsp/fallback/hello.json',
-            '/fr/gsp/no-fallback/first.json',
           ]
         )
         return 'yes'
@@ -753,7 +752,6 @@ export function runTests(ctx) {
             '/fr/gsp.json',
             '/fr/gsp/fallback/first.json',
             '/fr/gsp/fallback/hello.json',
-            '/fr/gsp/no-fallback/first.json',
           ]
         )
         return 'yes'
@@ -966,7 +964,6 @@ export function runTests(ctx) {
             '/fr/gsp.json',
             '/fr/gsp/fallback/first.json',
             '/fr/gsp/fallback/hello.json',
-            '/fr/gsp/no-fallback/first.json',
           ]
         )
         return 'yes'

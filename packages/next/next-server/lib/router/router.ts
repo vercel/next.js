@@ -368,7 +368,12 @@ function fetchRetry(url: string, attempts: number): Promise<any> {
         return fetchRetry(url, attempts - 1)
       }
       if (res.status === 404) {
-        return { notFound: SSG_DATA_NOT_FOUND }
+        return res.json().then((data) => {
+          if (data.notFound) {
+            return { notFound: SSG_DATA_NOT_FOUND }
+          }
+          throw new Error(`Failed to load static props`)
+        })
       }
       throw new Error(`Failed to load static props`)
     }
@@ -977,8 +982,6 @@ export default class Router implements BaseRouter {
             as,
             { shallow: false }
           )
-
-          console.log('using routeInfo', routeInfo)
         }
       }
 
