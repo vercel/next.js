@@ -115,15 +115,14 @@ Try it out:
 
 A string mapping media queries to device sizes. Defaults to `100vw`.
 
-We recommend setting `sizes` when `layout="responsive"` and your image will not
-be the same width as the viewport.
+We recommend setting `sizes` when using `layout="responsive"` or `layout="fill"` and your image will **not** be the same width as the viewport.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes).
 
 ### quality
 
 The quality of the optimized image, an integer between `1` and `100` where `100`
-is the best quality. Defaults to `75.`
+is the best quality. Defaults to `75`.
 
 ### priority
 
