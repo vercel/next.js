@@ -1,19 +1,19 @@
 /* eslint-env jest */
 
-import { join } from 'path'
+import fs from 'fs-extra'
 import {
-  killApp,
-  findPort,
-  launchApp,
-  nextStart,
-  nextBuild,
   check,
-  hasRedbox,
+  findPort,
   getRedboxHeader,
+  hasRedbox,
+  killApp,
+  launchApp,
+  nextBuild,
+  nextStart,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import fs from 'fs-extra'
+import { join } from 'path'
 
 jest.setTimeout(1000 * 30)
 
@@ -42,7 +42,28 @@ async function getComputed(browser, id, prop) {
     return val
   }
   if (typeof val === 'string') {
-    return parseInt(val, 10)
+    const v = parseInt(val, 10)
+    if (isNaN(v)) {
+      return val
+    }
+    return v
+  }
+  return null
+}
+
+async function getComputedStyle(browser, id, prop) {
+  const val = await browser.eval(
+    `window.getComputedStyle(document.getElementById('${id}')).${prop}`
+  )
+  if (typeof val === 'number') {
+    return val
+  }
+  if (typeof val === 'string') {
+    const v = parseInt(val, 10)
+    if (isNaN(v)) {
+      return val
+    }
+    return v
   }
   return null
 }
@@ -80,7 +101,7 @@ function runTests(mode) {
       expect(
         await hasImageMatchingUrl(
           browser,
-          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=1200&q=75`
+          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=828&q=75`
         )
       ).toBe(true)
     } finally {
@@ -417,6 +438,76 @@ function runTests(mode) {
       )
     })
   }
+
+  it('should correctly inherit the visibilty of the parent component', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/hidden-parent')
+
+      const id = 'hidden-image'
+
+      // Wait for image to load:
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById(${JSON.stringify(id)}).naturalWidth`
+        )
+
+        if (result < 1) {
+          throw new Error('Image not ready')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await waitFor(1000)
+
+      const desiredVisibilty = await getComputed(
+        browser,
+        id,
+        'style.visibility'
+      )
+      expect(desiredVisibilty).toBe('inherit')
+
+      const actualVisibility = await getComputedStyle(browser, id, 'visibility')
+      expect(actualVisibility).toBe('hidden')
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should correctly ignore prose styles', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/prose')
+
+      const id = 'prose-image'
+
+      // Wait for image to load:
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById(${JSON.stringify(id)}).naturalWidth`
+        )
+
+        if (result < 1) {
+          throw new Error('Image not ready')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await waitFor(1000)
+
+      const computedWidth = await getComputed(browser, id, 'width')
+      const computedHeight = await getComputed(browser, id, 'height')
+      expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1, 1)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
 
   // Tests that use the `unsized` attribute:
   if (mode !== 'dev') {
