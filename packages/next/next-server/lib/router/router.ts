@@ -39,6 +39,7 @@ interface RouteProperties {
 interface TransitionOptions {
   shallow?: boolean
   locale?: string | false
+  scroll?: boolean
 }
 
 interface NextHistoryState {
@@ -314,7 +315,11 @@ export type AppProps = Pick<CompletePrivateRouteInfo, 'Component' | 'err'> & {
 } & Record<string, any>
 export type AppComponent = ComponentType<AppProps>
 
-type Subscription = (data: PrivateRouteInfo, App: AppComponent) => Promise<void>
+type Subscription = (
+  data: PrivateRouteInfo,
+  App: AppComponent,
+  resetScroll: boolean
+) => Promise<void>
 
 type BeforePopStateCallback = (state: NextHistoryState) => boolean
 
@@ -706,7 +711,7 @@ export default class Router implements BaseRouter {
       // TODO: do we need the resolved href when only a hash change?
       this.changeState(method, url, as, options)
       this.scrollToHash(cleanedAs)
-      this.notify(this.components[this.route])
+      this.notify(this.components[this.route], false)
       Router.events.emit('hashChangeComplete', as, routeProps)
       return true
     }
@@ -903,12 +908,17 @@ export default class Router implements BaseRouter {
           !(routeInfo.Component as any).getInitialProps
       }
 
-      await this.set(route, pathname!, query, cleanedAs, routeInfo).catch(
-        (e) => {
-          if (e.cancelled) error = error || e
-          else throw e
-        }
-      )
+      await this.set(
+        route,
+        pathname!,
+        query,
+        cleanedAs,
+        routeInfo,
+        !!options.scroll
+      ).catch((e) => {
+        if (e.cancelled) error = error || e
+        else throw e
+      })
 
       if (error) {
         Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
@@ -1149,7 +1159,8 @@ export default class Router implements BaseRouter {
     pathname: string,
     query: ParsedUrlQuery,
     as: string,
-    data: PrivateRouteInfo
+    data: PrivateRouteInfo,
+    resetScroll: boolean
   ): Promise<void> {
     this.isFallback = false
 
@@ -1157,7 +1168,7 @@ export default class Router implements BaseRouter {
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    return this.notify(data)
+    return this.notify(data, resetScroll)
   }
 
   /**
@@ -1396,7 +1407,11 @@ export default class Router implements BaseRouter {
     }
   }
 
-  notify(data: PrivateRouteInfo): Promise<void> {
-    return this.sub(data, this.components['/_app'].Component as AppComponent)
+  notify(data: PrivateRouteInfo, resetScroll: boolean): Promise<void> {
+    return this.sub(
+      data,
+      this.components['/_app'].Component as AppComponent,
+      resetScroll
+    )
   }
 }
