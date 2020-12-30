@@ -139,7 +139,11 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
     }
     for (const key in this.fontDefinitions) {
       const url = this.fontDefinitions[key]
-      if (result.indexOf(`<style data-href="${url}">`) > -1) {
+      const fallBackLinkTag = `<link rel="stylesheet" href="${url}"/>`
+      if (
+        result.indexOf(`<style data-href="${url}">`) > -1 ||
+        result.indexOf(fallBackLinkTag) > -1
+      ) {
         // The font is already optimized and probably the response is cached
         continue
       }
@@ -148,10 +152,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         /**
          * In case of unreachable font definitions, fallback to default link tag.
          */
-        result = result.replace(
-          '</head>',
-          `<link rel="stylesheet" href="${url}"/></head>`
-        )
+        result = result.replace('</head>', `${fallBackLinkTag}</head>`)
       } else {
         result = result.replace(
           '</head>',
