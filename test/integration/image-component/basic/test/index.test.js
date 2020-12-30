@@ -66,7 +66,7 @@ function runTests() {
     expect(
       await browser.elementById('icon-image-16').getAttribute('srcset')
     ).toBe(
-      'https://example.com/myaccount/icon.png?auto=format&fit=max&w=16 1x, https://example.com/myaccount/icon.png?auto=format&fit=max&w=32 2x, https://example.com/myaccount/icon.png?auto=format&fit=max&w=48 3x'
+      'https://example.com/myaccount/icon.png?auto=format&fit=max&w=16 1x, https://example.com/myaccount/icon.png?auto=format&fit=max&w=32 2x'
     )
     expect(await browser.elementById('icon-image-32').getAttribute('src')).toBe(
       'https://example.com/myaccount/icon.png?auto=format&fit=max&w=480'
@@ -74,7 +74,7 @@ function runTests() {
     expect(
       await browser.elementById('icon-image-32').getAttribute('srcset')
     ).toBe(
-      'https://example.com/myaccount/icon.png?auto=format&fit=max&w=32 1x, https://example.com/myaccount/icon.png?auto=format&fit=max&w=64 2x, https://example.com/myaccount/icon.png?auto=format&fit=max&w=480 3x'
+      'https://example.com/myaccount/icon.png?auto=format&fit=max&w=32 1x, https://example.com/myaccount/icon.png?auto=format&fit=max&w=64 2x'
     )
   })
   it('should support the unoptimized attribute', async () => {
@@ -172,17 +172,17 @@ function lazyLoadingTests() {
     await waitFor(200)
     expect(
       await browser.elementById('lazy-without-attribute').getAttribute('src')
-    ).toBe('https://example.com/myaccount/foo4.jpg?auto=format&fit=max&w=2000')
+    ).toBe('https://example.com/myaccount/foo4.jpg?auto=format&fit=max&w=1600')
     expect(
       await browser.elementById('lazy-without-attribute').getAttribute('srcset')
     ).toBe(
-      'https://example.com/myaccount/foo4.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/foo4.jpg?auto=format&fit=max&w=1600 2x, https://example.com/myaccount/foo4.jpg?auto=format&fit=max&w=2000 3x'
+      'https://example.com/myaccount/foo4.jpg?auto=format&fit=max&w=1024 1x, https://example.com/myaccount/foo4.jpg?auto=format&fit=max&w=1600 2x'
     )
   })
 
   it('should load the fifth image eagerly, without scrolling', async () => {
     expect(await browser.elementById('eager-loading').getAttribute('src')).toBe(
-      'https://example.com/myaccount/foo5.jpg?auto=format&fit=max&w=2000'
+      'https://example.com/myaccount/foo5.jpg?auto=format&fit=max&w=1600'
     )
     expect(
       await browser.elementById('eager-loading').getAttribute('srcset')
