@@ -112,6 +112,11 @@ const TRANSFORMER_INQUIRER_CHOICES = [
       'url-to-withrouter: Transforms the deprecated automatically injected url property on top level pages to using withRouter',
     value: 'url-to-withrouter',
   },
+  {
+    name:
+      'css-module-named-imports: Transforms default imports from CSS modules into named imports',
+    value: 'css-module-named-imports',
+  },
 ]
 
 function expandFilePathsIfNeeded(filesBeforeExpansion) {
