@@ -340,6 +340,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         images.path += '/'
       }
     }
+
+    if (images.path === imageConfigDefault.path && result.basePath) {
+      images.path = `${result.basePath}${images.path}`
+    }
   }
 
   if (result.i18n) {
