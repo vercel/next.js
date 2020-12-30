@@ -444,6 +444,42 @@ describe('Client Navigation', () => {
     })
   })
 
+  describe('resets scroll at the correct time', () => {
+    it('should reset scroll before the new page runs its lifecycles', async () => {
+      let browser
+      try {
+        browser = await webdriver(
+          context.appPort,
+          '/nav/long-page-to-snap-scroll'
+        )
+
+        // Scrolls to item 400 on the page
+        await browser
+          .waitForElementByCss('#long-page-to-snap-scroll')
+          .elementByCss('#scroll-to-item-400')
+          .click()
+
+        const scrollPosition = await browser.eval('window.pageYOffset')
+        expect(scrollPosition).toBe(7208)
+
+        // Go to snap scroll page
+        await browser
+          .elementByCss('#goto-snap-scroll-position')
+          .click()
+          .waitForElementByCss('#scroll-pos-y')
+
+        const snappedScrollPosition = await browser.eval(
+          'document.getElementById("scroll-pos-y").innerText'
+        )
+        expect(snappedScrollPosition).toBe('0')
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
   describe('with hash changes', () => {
     describe('when hash change via Link', () => {
       it('should not run getInitialProps', async () => {

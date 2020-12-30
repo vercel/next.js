@@ -192,6 +192,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           locales: i18n?.locales,
           locale: detectedLocale,
           defaultLocale,
+          domainLocales: i18n?.domains,
         },
         options
       )
