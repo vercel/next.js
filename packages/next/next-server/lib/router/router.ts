@@ -669,6 +669,7 @@ export default class Router implements BaseRouter {
           ).pathname
         )
       }
+      let didNavigate = false
 
       // we need to wrap this in the env check again since regenerator runtime
       // moves this on its own due to the return
@@ -677,7 +678,7 @@ export default class Router implements BaseRouter {
         if (!this.locales?.includes(this.locale!)) {
           parsedAs.pathname = addLocale(parsedAs.pathname, this.locale)
           window.location.href = formatWithValidation(parsedAs)
-          return new Promise(() => {})
+          didNavigate = true
         }
       }
 
@@ -706,8 +707,12 @@ export default class Router implements BaseRouter {
                 : `/${this.locale}`
             }${asNoBasePath === '/' ? '' : asNoBasePath}` || '/'
           )}`
-          return new Promise(() => {})
+          didNavigate = true
         }
+      }
+
+      if (didNavigate) {
+        return new Promise(() => {})
       }
     }
 
