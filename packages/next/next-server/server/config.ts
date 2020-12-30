@@ -16,6 +16,7 @@ export type DomainLocales = Array<{
   domain: string
   locales?: string[]
   defaultLocale: string
+  showDefaultLocale: boolean
 }>
 
 export type NextConfig = { [key: string]: any } & {
@@ -24,6 +25,7 @@ export type NextConfig = { [key: string]: any } & {
     defaultLocale: string
     domains?: DomainLocales
     localeDetection?: false
+    showDefaultLocale: boolean
   } | null
 
   headers?: () => Promise<Header[]>
