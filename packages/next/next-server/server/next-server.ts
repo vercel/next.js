@@ -121,6 +121,11 @@ export type ServerConstructor = {
   conf?: NextConfig | null
   dev?: boolean
   customServer?: boolean
+
+  /**
+   * Logger to be used by server - @default console
+   */
+  logger?: Log.Logger
 }
 
 export default class Server {
@@ -170,7 +175,10 @@ export default class Server {
     dev = false,
     minimalMode = false,
     customServer = true,
+    logger,
   }: ServerConstructor & { minimalMode?: boolean } = {}) {
+    if (logger) Log.use(logger)
+
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
