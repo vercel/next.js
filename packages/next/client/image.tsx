@@ -30,6 +30,8 @@ type ImageData = {
   domains?: string[]
 }
 
+type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
+
 type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
@@ -39,6 +41,8 @@ type ImageProps = Omit<
   priority?: boolean
   loading?: LoadingValue
   unoptimized?: boolean
+  objectFit?: ImgElementStyle['objectFit']
+  objectPosition?: ImgElementStyle['objectPosition']
 } & (
     | {
         width?: never
@@ -247,6 +251,8 @@ export default function Image({
   quality,
   width,
   height,
+  objectFit,
+  objectPosition,
   ...all
 }: ImageProps) {
   const thisEl = useRef<HTMLImageElement>(null)
@@ -310,6 +316,12 @@ export default function Image({
     lazy = false
   }
 
+  if (src && src.startsWith('data:')) {
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    unoptimized = true
+    lazy = false
+  }
+
   useEffect(() => {
     const target = thisEl.current
 
@@ -336,7 +348,7 @@ export default function Image({
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerSvg: string | undefined
-  let imgStyle: JSX.IntrinsicElements['img']['style'] = {
+  let imgStyle: ImgElementStyle | undefined = {
     visibility: lazy ? 'hidden' : 'visible',
 
     position: 'absolute',
@@ -357,6 +369,9 @@ export default function Image({
     maxWidth: '100%',
     minHeight: '100%',
     maxHeight: '100%',
+
+    objectFit,
+    objectPosition,
   }
   if (
     typeof widthInt !== 'undefined' &&
@@ -468,7 +483,9 @@ export default function Image({
     className = className ? className + ' __lazy' : '__lazy'
   }
 
-  const shouldPreload = priority
+  // No need to add preloads on the client side--by the time the application is hydrated,
+  // it's too late for preloads
+  const shouldPreload = priority && typeof window === 'undefined'
 
   if (unsized) {
     wrapperStyle = undefined
@@ -570,14 +587,20 @@ function defaultLoader({ root, src, width, quality }: LoaderProps): string {
       )
     }
 
-    if (src && !src.startsWith('/') && configDomains) {
+    if (src.startsWith('//')) {
+      throw new Error(
+        `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
+      )
+    }
+
+    if (!src.startsWith('/') && configDomains) {
       let parsedSrc: URL
       try {
         parsedSrc = new URL(src)
       } catch (err) {
         console.error(err)
         throw new Error(
-          `Failed to parse "${src}" in "next/image", if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
+          `Failed to parse src "${src}" on \`next/image\`, if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
         )
       }
 
