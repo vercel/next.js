@@ -151,9 +151,7 @@ function generateImgAttrs({
     .join(', ')
 
   if (!sizes && kind === 'w') {
-    sizes = widths
-      .map((w, i) => (i === last ? `${w}px` : `(max-width: ${w}px) ${w}px`))
-      .join(', ')
+    sizes = '100vw'
   }
 
   src = callLoader({ src, quality, width: widths[last] })
@@ -256,7 +254,7 @@ export default function Image({
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerSvg: string | undefined
   let imgStyle: ImgElementStyle | undefined = {
-    visibility: isVisible ? 'visible' : 'hidden',
+    visibility: isVisible ? 'inherit' : 'hidden',
 
     position: 'absolute',
     top: 0,
@@ -381,7 +379,13 @@ export default function Image({
         <div style={sizerStyle}>
           {sizerSvg ? (
             <img
-              style={{ maxWidth: '100%', display: 'block' }}
+              style={{
+                maxWidth: '100%',
+                display: 'block',
+                margin: 0,
+                border: 'none',
+                padding: 0,
+              }}
               alt=""
               aria-hidden={true}
               role="presentation"
@@ -429,15 +433,9 @@ function akamaiLoader({ root, src, width }: LoaderProps): string {
 }
 
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
-  // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit/turtles.jpg
-  const params = ['f_auto', 'c_limit', 'w_' + width]
-  let paramsString = ''
-  if (quality) {
-    params.push('q_' + quality)
-  }
-  if (params.length) {
-    paramsString = params.join(',') + '/'
-  }
+  // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
+  const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
+  let paramsString = params.join(',') + '/'
   return `${root}${paramsString}${normalizeSrc(src)}`
 }
 
