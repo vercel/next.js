@@ -419,9 +419,15 @@ export default function Image({
         // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-imagesrcset
         <Head>
           <link
-            key={'__nimg-' + imgAttributes.srcSet + imgAttributes.sizes}
+            key={
+              '__nimg-' +
+              imgAttributes.src +
+              imgAttributes.srcSet +
+              imgAttributes.sizes
+            }
             rel="preload"
             as="image"
+            href={imgAttributes.srcSet ? undefined : imgAttributes.src}
             // @ts-ignore: imagesrcset is not yet in the link element type
             imagesrcset={imgAttributes.srcSet}
             // @ts-ignore: imagesizes is not yet in the link element type
