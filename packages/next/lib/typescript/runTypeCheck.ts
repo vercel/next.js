@@ -33,7 +33,17 @@ export async function runTypeCheck(
   })
   const result = program.emit()
 
-  const regexIgnoredFile = /[\\/]__(?:tests|mocks)__[\\/]|(?:spec|test)\.[^\\/]+$/
+  // Intended to match:
+  // - pages/test.js
+  // - pages/apples.test.js
+  // - pages/__tests__/a.js
+  //
+  // But not:
+  // - pages/contest.js
+  // - pages/other.js
+  // - pages/test/a.js
+  //
+  const regexIgnoredFile = /[\\/]__(?:tests|mocks)__[\\/]|(?<=[\\/.])(?:spec|test)\.[^\\/]+$/
   const allDiagnostics = ts
     .getPreEmitDiagnostics(program)
     .concat(result.diagnostics)
