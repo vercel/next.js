@@ -213,20 +213,31 @@ describe('i18n Support basePath', () => {
 
       expect(routesManifest.i18n).toEqual({
         localeDetection: false,
-        locales: ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en'],
+        locales: [
+          'en-US',
+          'nl-NL',
+          'nl-BE',
+          'nl',
+          'fr-BE',
+          'fr',
+          'en',
+          'go',
+          'go-BE',
+          'do',
+          'do-BE',
+        ],
         defaultLocale: 'en-US',
         domains: [
           {
             http: true,
-            domain: 'example.be',
-            defaultLocale: 'nl-BE',
-            locales: ['nl', 'nl-NL', 'nl-BE'],
+            domain: 'example.do',
+            defaultLocale: 'do',
+            locales: ['do-BE'],
           },
           {
-            http: true,
-            domain: 'example.fr',
-            defaultLocale: 'fr',
-            locales: ['fr-BE'],
+            domain: 'example.com',
+            defaultLocale: 'go',
+            locales: ['go-BE'],
           },
         ],
       })
