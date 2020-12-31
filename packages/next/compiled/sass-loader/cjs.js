@@ -349,13 +349,13 @@ function getSassOptions(loaderContext, loaderOptions, content, implementation, u
       let fibers;
 
       try {
-        fibers = __webpack_require__.ab + "fibers.js";
+        fibers = require.resolve('fibers');
       } catch (_error) {// Nothing
       }
 
-      if (__webpack_require__.ab + "fibers.js") {
+      if (fibers) {
         // eslint-disable-next-line global-require, import/no-dynamic-require
-        options.fiber = __webpack_require__(911)(fibers);
+        options.fiber = require(fibers);
       }
     } else if (options.fiber === false) {
       // Don't pass the `fiber` option for `sass` (`Dart Sass`)
