@@ -582,8 +582,12 @@ export default class Router implements BaseRouter {
         // As we're navigating to a new historical index, we need to lookup and
         // restore the scroll for that location.
         if (this._idx !== idx) {
-          const v = sessionStorage.getItem('__next_scroll_' + idx)
-          forcedScroll = v ? JSON.parse(v) : { x: 0, y: 0 }
+          try {
+            const v = sessionStorage.getItem('__next_scroll_' + idx)
+            forcedScroll = JSON.parse(v!)
+          } catch {
+            forcedScroll = { x: 0, y: 0 }
+          }
         }
       }
     }
