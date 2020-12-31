@@ -447,31 +447,6 @@ function runTests({ w, isDev, domains }) {
 
 describe('Image Optimizer', () => {
   describe('config checks', () => {
-    it('should error when domains length exceeds 50', async () => {
-      await nextConfig.replace(
-        '{ /* replaceme */ }',
-        JSON.stringify({
-          images: {
-            domains: new Array(51).fill('google.com'),
-          },
-        })
-      )
-      let stderr = ''
-
-      app = await launchApp(appDir, await findPort(), {
-        onStderr(msg) {
-          stderr += msg || ''
-        },
-      })
-      await waitFor(1000)
-      await killApp(app).catch(() => {})
-      await nextConfig.restore()
-
-      expect(stderr).toContain(
-        'Specified images.domains exceeds length of 50, received length (51), please reduce the length of the array to continue'
-      )
-    })
-
     it('should error when sizes length exceeds 25', async () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
