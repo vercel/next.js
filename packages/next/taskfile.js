@@ -33,13 +33,6 @@ const externals = {
   // fibers: 'fibers',
   // klona: 'klona',
 
-  // Webpack indirect and direct dependencies:
-  'webpack-sources': 'webpack-sources',
-  /*'webpack/lib/node/NodeOutputFileSystem':
-    'webpack/lib/node/NodeOutputFileSystem',
-  'webpack/lib/cache/getLazyHashedEtag': 'webpack/lib/cache/getLazyHashedEtag',
-  'webpack/lib/RequestShortener': 'webpack/lib/RequestShortener',*/
-
   chokidar: 'chokidar',
   'loader-utils': 'loader-utils',
   'jest-worker': 'jest-worker',
@@ -426,6 +419,17 @@ export async function ncc_schema_utils(task, opts) {
     })
     .target('compiled/schema-utils')
 }
+// eslint-disable-next-line camelcase
+externals['schema-utils3'] = 'next/dist/compiled/schema-utils3'
+export async function ncc_schema_utils3(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('schema-utils3')))
+    .ncc({
+      packageName: 'schema-utils3',
+      externals,
+    })
+    .target('compiled/schema-utils3')
+}
 externals['semver'] = 'next/dist/compiled/semver'
 export async function ncc_semver(task, opts) {
   await task
@@ -507,6 +511,24 @@ export async function ncc_web_vitals(task, opts) {
     .ncc({ packageName: 'web-vitals', externals, target: 'es5' })
     .target('compiled/web-vitals')
 }
+// eslint-disable-next-line camelcase
+externals['webpack-sources'] = 'next/dist/compiled/webpack-sources'
+export async function ncc_webpack_sources(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('webpack-sources')))
+    .ncc({ packageName: 'webpack-sources', externals })
+    .target('compiled/webpack-sources')
+}
+// eslint-disable-next-line camelcase
+externals['webpack-sources2'] = 'next/dist/compiled/webpack-sources2'
+export async function ncc_webpack_sources2(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('webpack-sources2'))
+    )
+    .ncc({ packageName: 'webpack-sources2', externals })
+    .target('compiled/webpack-sources2')
+}
 
 // eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle4(task, opts) {
@@ -534,7 +556,11 @@ export async function ncc_webpack_bundle5(task, opts) {
     .ncc({
       packageName: 'webpack5',
       bundleName: 'webpack',
-      externals: bundleExternals,
+      externals: {
+        ...bundleExternals,
+        'schema-utils': 'next/dist/compiled/schema-utils3',
+        'webpack-sources': 'next/dist/compiled/webpack-sources2',
+      },
       minify: false,
     })
     .target('compiled/webpack')
@@ -615,6 +641,7 @@ export async function ncc(task) {
       'ncc_postcss_scss',
       'ncc_recast',
       'ncc_schema_utils',
+      'ncc_schema_utils3',
       'ncc_semver',
       'ncc_send',
       'ncc_source_map',
@@ -628,6 +655,8 @@ export async function ncc(task) {
       'ncc_webpack_bundle4',
       'ncc_webpack_bundle5',
       'ncc_webpack_bundle_packages',
+      'ncc_webpack_sources',
+      'ncc_webpack_sources2',
     ])
 }
 

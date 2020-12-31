@@ -4,8 +4,8 @@ import postcss, { Parser } from 'postcss'
 import webpack, {
   isWebpack5,
   onWebpackInit,
+  sources,
 } from 'next/dist/compiled/webpack/webpack'
-import sources from 'webpack-sources'
 import { tracer, traceAsyncFn } from '../../tracer'
 import { spans } from './profiling-plugin'
 

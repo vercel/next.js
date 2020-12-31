@@ -7,5 +7,6 @@ module.exports = function () {
     NodeTargetPlugin: require('webpack/lib/node/NodeTargetPlugin'),
     ModuleFilenameHelpers: require('webpack/lib/ModuleFilenameHelpers'),
     GraphHelpers: require('webpack/lib/GraphHelpers'),
+    sources: require('webpack-sources'),
   }
 }

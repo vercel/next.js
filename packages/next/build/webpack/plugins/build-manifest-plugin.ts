@@ -2,8 +2,8 @@ import devalue from 'next/dist/compiled/devalue'
 import webpack, {
   isWebpack5,
   onWebpackInit,
+  sources,
 } from 'next/dist/compiled/webpack/webpack'
-import sources from 'webpack-sources'
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,

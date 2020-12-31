@@ -3,8 +3,8 @@
 import webpack, {
   isWebpack5,
   onWebpackInit,
+  sources,
 } from 'next/dist/compiled/webpack/webpack'
-import sources from 'webpack-sources'
 
 import CssDependency from './CssDependency'
 import CssModule from './CssModule'
@@ -167,7 +167,7 @@ class MiniCssExtractPlugin {
 
         if (modules) {
           if (isWebpack5) {
-            const xor = new (require('webpack/lib/util/StringXor'))()
+            const xor = new (require('next/dist/compiled/webpack/webpack').StringXor)()
             for (const m of modules) {
               if (m.type === MODULE_TYPE) {
                 xor.add(compilation.chunkGraph.getModuleHash(m, chunk.runtime))

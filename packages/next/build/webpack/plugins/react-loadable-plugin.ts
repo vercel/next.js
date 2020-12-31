@@ -24,8 +24,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 import webpack, {
   isWebpack5,
   onWebpackInit,
+  sources,
 } from 'next/dist/compiled/webpack/webpack'
-import sources from 'webpack-sources'
 
 // @ts-ignore: TODO: remove ignore when webpack 5 is stable
 let RawSource: typeof sources.RawSource

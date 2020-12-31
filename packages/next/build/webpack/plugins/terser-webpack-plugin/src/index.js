@@ -1,11 +1,10 @@
 // @ts-nocheck
 import * as path from 'path'
 import webpack, {
-  Compilation,
   ModuleFilenameHelpers,
   isWebpack5,
+  sources,
 } from 'next/dist/compiled/webpack/webpack'
-import sources from 'webpack-sources'
 import pLimit from 'p-limit'
 import jestWorker from 'jest-worker'
 import crypto from 'crypto'
@@ -358,7 +357,7 @@ class TerserPlugin {
         compilation.hooks.processAssets.tapPromise(
           {
             name: pluginName,
-            stage: Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
+            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
           },
           (assets) =>
             this.optimize(

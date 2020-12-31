@@ -1,5 +1,7 @@
-import webpack, { onWebpackInit } from 'next/dist/compiled/webpack/webpack'
-import sources from 'webpack-sources'
+import webpack, {
+  onWebpackInit,
+  sources,
+} from 'next/dist/compiled/webpack/webpack'
 import { join, relative, dirname } from 'path'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 const SSR_MODULE_CACHE_FILENAME = 'ssr-module-cache.js'

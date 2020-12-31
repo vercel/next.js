@@ -1,8 +1,8 @@
 import webpack, {
   isWebpack5,
   onWebpackInit,
+  sources,
 } from 'next/dist/compiled/webpack/webpack'
-import sources from 'webpack-sources'
 import { PAGES_MANIFEST } from '../../../next-server/lib/constants'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 

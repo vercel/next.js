@@ -90,7 +90,6 @@ const defaultConfig: NextConfig = {
   future: {
     strictPostcssConfiguration: false,
     excludeDefaultMomentLocales: false,
-    webpack5: false,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},

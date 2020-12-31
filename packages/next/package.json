@@ -101,14 +101,12 @@
     "react-refresh": "0.8.3",
     "resolve-url-loader": "3.1.2",
     "sass-loader": "10.0.5",
-    "schema-utils": "2.7.1",
     "stream-browserify": "3.0.0",
     "style-loader": "1.2.1",
     "styled-jsx": "3.3.2",
     "use-subscription": "1.5.1",
     "vm-browserify": "1.1.2",
-    "watchpack": "2.0.0-beta.13",
-    "webpack-sources": "1.4.3"
+    "watchpack": "2.0.0-beta.13"
   },
   "optionalDependencies": {
     "sharp": "0.26.3"
@@ -222,6 +220,8 @@
     "postcss-preset-env": "6.7.0",
     "postcss-scss": "3.0.4",
     "recast": "0.18.5",
+    "schema-utils": "2.7.1",
+    "schema-utils3": "npm:schema-utils@3.0.0",
     "semver": "7.3.2",
     "send": "0.17.1",
     "source-map": "0.6.1",
@@ -234,6 +234,8 @@
     "typescript": "3.8.3",
     "unistore": "3.4.1",
     "web-vitals": "0.2.4",
+    "webpack-sources": "1.4.3",
+    "webpack-sources2": "npm:webpack-sources@2.2.0",
     "webpack": "4.44.1",
     "webpack5": "npm:webpack@5.11.1"
   },

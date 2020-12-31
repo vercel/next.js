@@ -1,9 +1,9 @@
 import webpack, {
   BasicEvaluatedExpression,
   isWebpack5,
+  sources,
 } from 'next/dist/compiled/webpack/webpack'
 import { namedTypes } from 'ast-types'
-import sources from 'webpack-sources'
 import {
   getFontDefinitionFromNetwork,
   FontManifest,
