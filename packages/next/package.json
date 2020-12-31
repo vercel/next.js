@@ -165,7 +165,7 @@
     "@types/styled-jsx": "2.2.8",
     "@types/text-table": "0.2.1",
     "@types/webpack-sources": "0.1.5",
-    "@vercel/ncc": "0.25.1",
+    "@vercel/ncc": "0.26.1",
     "amphtml-validator": "1.0.33",
     "arg": "4.1.0",
     "ast-types": "0.13.2",
