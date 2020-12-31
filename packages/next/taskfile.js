@@ -34,7 +34,7 @@ const externals = {
   // klona: 'klona',
 
   // Webpack indirect and direct dependencies:
-  // 'webpack-sources': 'webpack-sources',
+  'webpack-sources': 'webpack-sources',
   /*'webpack/lib/node/NodeOutputFileSystem':
     'webpack/lib/node/NodeOutputFileSystem',
   'webpack/lib/cache/getLazyHashedEtag': 'webpack/lib/cache/getLazyHashedEtag',
