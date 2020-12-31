@@ -74,6 +74,28 @@ function addPathPrefix(path: string, prefix?: string) {
     : path
 }
 
+export function getDomainLocale(
+  path: string,
+  locale?: string | false,
+  locales?: string[],
+  domainLocales?: DomainLocales
+) {
+  if (process.env.__NEXT_I18N_SUPPORT) {
+    locale = locale || normalizeLocalePath(path, locales).detectedLocale
+
+    const detectedDomain = detectDomainLocale(domainLocales, undefined, locale)
+
+    if (detectedDomain) {
+      return `http${detectedDomain.http ? '' : 's'}://${detectedDomain.domain}${
+        basePath || ''
+      }${locale === detectedDomain.defaultLocale ? '' : `/${locale}`}${path}`
+    }
+    return false
+  }
+
+  return false
+}
+
 export function addLocale(
   path: string,
   locale?: string | false,
@@ -290,6 +312,7 @@ export type BaseRouter = {
   locale?: string
   locales?: string[]
   defaultLocale?: string
+  domainLocales?: DomainLocales
 }
 
 export type NextRouter = BaseRouter &
