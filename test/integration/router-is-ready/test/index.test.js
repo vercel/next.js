@@ -9,8 +9,6 @@ import {
   nextStart,
   nextBuild,
   File,
-  hasRedbox,
-  getRedboxHeader,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 1)
@@ -21,19 +19,6 @@ const appDir = join(__dirname, '../')
 const invalidPage = new File(join(appDir, 'pages/invalid.js'))
 
 function runTests(isDev) {
-  if (isDev) {
-    it('should show error when accessing isReady in render on server', async () => {
-      invalidPage.replace('// console', 'console')
-      const browser = await webdriver(appPort, '/invalid')
-
-      expect(await hasRedbox(browser)).toBe(true)
-      expect(await getRedboxHeader(browser)).toContain(
-        `No router instance found. you should only use "next/router" inside the client side of your app`
-      )
-      invalidPage.restore()
-    })
-  }
-
   it('isReady should be true immediately for getInitialProps page', async () => {
     const browser = await webdriver(appPort, '/gip')
     expect(await browser.eval('window.isReadyValues')).toEqual([true])
