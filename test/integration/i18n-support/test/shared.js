@@ -89,7 +89,7 @@ export function runTests(ctx) {
       ['#to-gssp-slug', '/gssp/first'],
     ]) {
       const href = await browser.elementByCss(element).getAttribute('href')
-      expect(href).toBe(`https://example.com${pathname}`)
+      expect(href).toBe(`https://example.com${ctx.basePath || ''}${pathname}`)
     }
 
     browser = await webdriver(
@@ -106,7 +106,9 @@ export function runTests(ctx) {
       ['#to-gssp-slug', '/gssp/first'],
     ]) {
       const href = await browser.elementByCss(element).getAttribute('href')
-      expect(href).toBe(`https://example.com/go-BE${pathname}`)
+      expect(href).toBe(
+        `https://example.com${ctx.basePath || ''}/go-BE${pathname}`
+      )
     }
   })
 

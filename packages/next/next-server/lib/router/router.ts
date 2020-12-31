@@ -74,7 +74,7 @@ function addPathPrefix(path: string, prefix?: string) {
     : path
 }
 
-export function getLocaleDomain(
+export function getDomainLocale(
   path: string,
   locale?: string | false,
   locales?: string[],
@@ -87,8 +87,8 @@ export function getLocaleDomain(
 
     if (detectedDomain) {
       return `http${detectedDomain.http ? '' : 's'}://${detectedDomain.domain}${
-        locale === detectedDomain.defaultLocale ? '' : `/${locale}`
-      }${path}`
+        basePath || ''
+      }${locale === detectedDomain.defaultLocale ? '' : `/${locale}`}${path}`
     }
     return false
   }

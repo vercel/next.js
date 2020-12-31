@@ -3,7 +3,7 @@ import { UrlObject } from 'url'
 import {
   addBasePath,
   addLocale,
-  getLocaleDomain,
+  getDomainLocale,
   isLocalURL,
   NextRouter,
   PrefetchOptions,
@@ -301,7 +301,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     const curLocale =
       typeof locale !== 'undefined' ? locale : router && router.locale
 
-    const localeDomain = getLocaleDomain(
+    const localeDomain = getDomainLocale(
       as,
       curLocale,
       router && router.locales,
