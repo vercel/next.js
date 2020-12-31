@@ -55,6 +55,7 @@ import {
   getRedirectStatus,
   Redirect,
 } from '../../lib/load-custom-routes'
+import { DomainLocales } from './config'
 
 function noRouter() {
   const message =
@@ -73,6 +74,7 @@ class ServerRouter implements NextRouter {
   locale?: string
   locales?: string[]
   defaultLocale?: string
+  domainLocales?: DomainLocales
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
@@ -84,7 +86,8 @@ class ServerRouter implements NextRouter {
     basePath: string,
     locale?: string,
     locales?: string[],
-    defaultLocale?: string
+    defaultLocale?: string,
+    domainLocales?: DomainLocales
   ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
@@ -95,6 +98,7 @@ class ServerRouter implements NextRouter {
     this.locale = locale
     this.locales = locales
     this.defaultLocale = defaultLocale
+    this.domainLocales = domainLocales
   }
   push(): any {
     noRouter()
@@ -173,6 +177,7 @@ export type RenderOptsPartial = {
   locale?: string
   locales?: string[]
   defaultLocale?: string
+  domainLocales?: DomainLocales
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -214,6 +219,7 @@ function renderDocument(
     locale,
     locales,
     defaultLocale,
+    domainLocales,
   }: RenderOpts & {
     props: any
     docComponentsRendered: DocumentProps['docComponentsRendered']
@@ -264,6 +270,7 @@ function renderDocument(
             locale,
             locales,
             defaultLocale,
+            domainLocales,
           },
           buildManifest,
           docComponentsRendered,
@@ -529,7 +536,8 @@ export async function renderToHTML(
     basePath,
     renderOpts.locale,
     renderOpts.locales,
-    renderOpts.defaultLocale
+    renderOpts.defaultLocale,
+    renderOpts.domainLocales
   )
   const ctx = {
     err,

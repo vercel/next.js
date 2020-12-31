@@ -100,7 +100,7 @@ export default function Page() {
 }
 ```
 
-Redirecting the user to `pages/login.js`, useful for pages behind authentication:
+Redirecting the user to `pages/login.js`, useful for pages behind [authentication](/docs/authentication):
 
 ```jsx
 import { useEffect } from 'react'
