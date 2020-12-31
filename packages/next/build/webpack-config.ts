@@ -192,7 +192,6 @@ export default async function getBaseWebpackConfig(
     reactProductionProfiling = false,
     entrypoints,
     rewrites,
-    webpack5 = false,
   }: {
     buildId: string
     config: NextConfig
@@ -203,10 +202,12 @@ export default async function getBaseWebpackConfig(
     reactProductionProfiling?: boolean
     entrypoints: WebpackEntrypoints
     rewrites: Rewrite[]
-    webpack5: boolean
   }
 ): Promise<webpack.Configuration> {
-  initWebpack(webpack5)
+  initWebpack(
+    config.future?.webpack5 ||
+      (config.future?.webpack5 !== false && Number(process.env.NEXT_WEBPACK5))
+  )
 
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []

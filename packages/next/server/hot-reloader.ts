@@ -308,7 +308,6 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints },
-        webpack5: false,
       }),
       getBaseWebpackConfig(this.dir, {
         dev: true,
@@ -318,7 +317,6 @@ export default class HotReloader {
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
         entrypoints: entrypoints.server,
-        webpack5: false,
       }),
     ])
   }
