@@ -439,48 +439,56 @@ function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
   return `${root}${paramsString}${normalizeSrc(src)}`
 }
 
+function validateDefaultLoader(
+  src: string,
+  width: number,
+  quality: number | undefined
+): void {
+  const missingValues = []
+
+  // these should always be provided but make sure they are
+  if (!src) missingValues.push('src')
+  if (!width) missingValues.push('width')
+
+  if (missingValues.length > 0) {
+    throw new Error(
+      `Next Image Optimization requires ${missingValues.join(
+        ', '
+      )} to be provided. Make sure you pass them as props to the \`next/image\` component. Received: ${JSON.stringify(
+        { src, width, quality }
+      )}`
+    )
+  }
+
+  if (src.startsWith('//')) {
+    throw new Error(
+      `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
+    )
+  }
+
+  if (!src.startsWith('/') && configDomains) {
+    let parsedSrc: URL
+    try {
+      parsedSrc = new URL(src)
+    } catch (err) {
+      console.error(err)
+      throw new Error(
+        `Failed to parse src "${src}" on \`next/image\`, if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
+      )
+    }
+
+    if (!configDomains.includes(parsedSrc.hostname)) {
+      throw new Error(
+        `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
+          `See more info: https://err.sh/next.js/next-image-unconfigured-host`
+      )
+    }
+  }
+}
+
 function defaultLoader({ root, src, width, quality }: LoaderProps): string {
   if (process.env.NODE_ENV !== 'production') {
-    const missingValues = []
-
-    // these should always be provided but make sure they are
-    if (!src) missingValues.push('src')
-    if (!width) missingValues.push('width')
-
-    if (missingValues.length > 0) {
-      throw new Error(
-        `Next Image Optimization requires ${missingValues.join(
-          ', '
-        )} to be provided. Make sure you pass them as props to the \`next/image\` component. Received: ${JSON.stringify(
-          { src, width, quality }
-        )}`
-      )
-    }
-
-    if (src.startsWith('//')) {
-      throw new Error(
-        `Failed to parse src "${src}" on \`next/image\`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)`
-      )
-    }
-
-    if (!src.startsWith('/') && configDomains) {
-      let parsedSrc: URL
-      try {
-        parsedSrc = new URL(src)
-      } catch (err) {
-        console.error(err)
-        throw new Error(
-          `Failed to parse src "${src}" on \`next/image\`, if using relative image it must start with a leading slash "/" or be an absolute URL (http:// or https://)`
-        )
-      }
-
-      if (!configDomains.includes(parsedSrc.hostname)) {
-        throw new Error(
-          `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
-            `See more info: https://err.sh/next.js/next-image-unconfigured-host`
-        )
-      }
-    }
+    validateDefaultLoader(src, width, quality)
   }
 
   return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
