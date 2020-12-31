@@ -38316,51 +38316,6 @@ function isBuffer(val) {
 
 /***/ }),
 
-/***/ 5884:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-exports.assert						= __webpack_require__.ab + "assert.js";
-exports.buffer						= __webpack_require__.ab + "index.js";
-exports.child_process				= null;
-exports.cluster						= null;
-exports.console						= __webpack_require__.ab + "index1.js";
-exports.constants					= __webpack_require__.ab + "constants.json";
-exports.crypto						= __webpack_require__.ab + "index2.js";
-exports.dgram						= null;
-exports.dns							= null;
-exports.domain						= __webpack_require__.ab + "index3.js";
-exports.events						= __webpack_require__.ab + "events.js";
-exports.fs							= null;
-exports.http						= __webpack_require__.ab + "index4.js";
-exports.https						= __webpack_require__.ab + "index5.js";
-exports.module						= null;
-exports.net							= null;
-exports.os							= __webpack_require__.ab + "browser.js";
-exports.path						= __webpack_require__.ab + "index6.js";
-exports.punycode					= __webpack_require__.ab + "punycode.js";
-exports.process						= __webpack_require__.ab + "browser1.js";
-exports.querystring					= __webpack_require__.ab + "index7.js";
-exports.readline					= null;
-exports.repl						= null;
-exports.stream						= __webpack_require__.ab + "index8.js";
-exports._stream_duplex				= __webpack_require__.ab + "duplex.js";
-exports._stream_passthrough			= __webpack_require__.ab + "passthrough.js";
-exports._stream_readable			= __webpack_require__.ab + "readable.js";
-exports._stream_transform			= __webpack_require__.ab + "transform.js";
-exports._stream_writable			= __webpack_require__.ab + "writable.js";
-exports.string_decoder				= __webpack_require__.ab + "string_decoder.js";
-exports.sys							= __webpack_require__.ab + "util.js";
-exports.timers						= __webpack_require__.ab + "main.js";
-exports.tls							= null;
-exports.tty							= __webpack_require__.ab + "index9.js";
-exports.url							= __webpack_require__.ab + "url.js";
-exports.util						= __webpack_require__.ab + "util.js";
-exports.vm							= __webpack_require__.ab + "index10.js";
-exports.zlib						= __webpack_require__.ab + "index11.js";
-
-
-/***/ }),
-
 /***/ 31368:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
@@ -86896,7 +86851,7 @@ module.exports = NodeOutputFileSystem;
 
 const AliasPlugin = __webpack_require__(15005);
 const ParserHelpers = __webpack_require__(23999);
-const nodeLibsBrowser = __webpack_require__(5884);
+const nodeLibsBrowser = __webpack_require__(27852);
 
 module.exports = class NodeSourcePlugin {
 	constructor(options) {
@@ -105668,7 +105623,7 @@ module.exports.TimeoutError = TimeoutError
 
 
 const childProcess = __webpack_require__(63129)
-    , childModule  = __webpack_require__.ab + "index12.js"
+    , childModule  = __webpack_require__.ab + "index.js"
 
 
 function fork (forkModule, workerOptions) {
@@ -105681,7 +105636,7 @@ function fork (forkModule, workerOptions) {
         , env      : process.env
         , cwd      : process.cwd()
       }, workerOptions)
-    , child         = childProcess.fork(__webpack_require__.ab + "index12.js", process.argv, options)
+    , child         = childProcess.fork(__webpack_require__.ab + "index.js", process.argv, options)
 
   child.on('error', function() {
     // this *should* be picked up by onExit and the operation requeued
@@ -105920,6 +105875,14 @@ module.exports = require("next/dist/compiled/terser");;
 
 "use strict";
 module.exports = require("next/dist/compiled/webpack-sources");;
+
+/***/ }),
+
+/***/ 27852:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("node-libs-browser");;
 
 /***/ }),
 
