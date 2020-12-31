@@ -49,7 +49,11 @@ import {
   tryGetPreviewData,
   __ApiPreviewProps,
 } from './api-utils'
-import loadConfig, { isTargetLikeServerless, NextConfig } from './config'
+import loadConfig, {
+  DomainLocales,
+  isTargetLikeServerless,
+  NextConfig,
+} from './config'
 import pathMatch from '../lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
@@ -85,6 +89,8 @@ import * as Log from '../../build/output/log'
 import { imageOptimizer } from './image-optimizer'
 import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
+import escapePathDelimiters from '../lib/router/utils/escape-path-delimiters'
+import { getUtils } from '../../build/webpack/loaders/next-serverless-loader/utils'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -132,6 +138,7 @@ export default class Server {
   serverBuildDir: string
   pagesManifest?: PagesManifest
   buildId: string
+  minimalMode: boolean
   renderOpts: {
     poweredByHeader: boolean
     buildId: string
@@ -144,6 +151,7 @@ export default class Server {
     customServer?: boolean
     ampOptimizerConfig?: { [key: string]: any }
     basePath: string
+    optimizeFonts: boolean
     images: string
     fontManifest: FontManifest
     optimizeImages: boolean
@@ -151,6 +159,7 @@ export default class Server {
     locale?: string
     locales?: string[]
     defaultLocale?: string
+    domainLocales?: DomainLocales
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -164,8 +173,9 @@ export default class Server {
     quiet = false,
     conf = null,
     dev = false,
+    minimalMode = false,
     customServer = true,
-  }: ServerConstructor = {}) {
+  }: ServerConstructor & { minimalMode?: boolean } = {}) {
     this.dir = resolve(dir)
     this.quiet = quiet
     const phase = this.currentPhase()
@@ -187,6 +197,7 @@ export default class Server {
     } = this.nextConfig
 
     this.buildId = this.readBuildId()
+    this.minimalMode = minimalMode
 
     this.renderOpts = {
       poweredByHeader: this.nextConfig.poweredByHeader,
@@ -198,11 +209,14 @@ export default class Server {
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
       images: JSON.stringify(this.nextConfig.images),
-      fontManifest: !dev
-        ? requireFontManifest(this.distDir, this._isLikeServerless)
-        : null,
+      optimizeFonts: this.nextConfig.experimental.optimizeFonts && !dev,
+      fontManifest:
+        this.nextConfig.experimental.optimizeFonts && !dev
+          ? requireFontManifest(this.distDir, this._isLikeServerless)
+          : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
+      domainLocales: this.nextConfig.i18n?.domains,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -255,8 +269,8 @@ export default class Server {
         this._isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
         'pages'
       ),
-      flushToDisk: this.nextConfig.experimental.sprFlushToDisk,
       locales: this.nextConfig.i18n?.locales,
+      flushToDisk: !minimalMode && this.nextConfig.experimental.sprFlushToDisk,
     })
 
     /**
@@ -265,6 +279,9 @@ export default class Server {
      * `process.env.__NEXT_OPTIMIZE_IMAGES`.
      * TODO(atcastle@): Remove this when experimental.optimizeImages are being clened up.
      */
+    if (this.renderOpts.optimizeFonts) {
+      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+    }
     if (this.renderOpts.optimizeImages) {
       process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
     }
@@ -449,6 +466,84 @@ export default class Server {
         localePathResult.detectedLocale ||
         detectedDomain?.defaultLocale ||
         defaultLocale
+    }
+
+    if (
+      this.minimalMode &&
+      req.headers['x-matched-path'] &&
+      typeof req.headers['x-matched-path'] === 'string'
+    ) {
+      const reqUrlIsDataUrl = req.url?.includes('/_next/data')
+      const matchedPathIsDataUrl = req.headers['x-matched-path']?.includes(
+        '/_next/data'
+      )
+      const isDataUrl = reqUrlIsDataUrl || matchedPathIsDataUrl
+
+      let parsedPath = parseUrl(
+        isDataUrl ? req.url! : (req.headers['x-matched-path'] as string),
+        true
+      )
+      const { pathname, query } = parsedPath
+      let matchedPathname = pathname as string
+
+      const matchedPathnameNoExt = isDataUrl
+        ? matchedPathname.replace(/\.json$/, '')
+        : matchedPathname
+
+      // interpolate dynamic params and normalize URL if needed
+      if (isDynamicRoute(matchedPathnameNoExt)) {
+        const utils = getUtils({
+          pageIsDynamic: true,
+          page: matchedPathnameNoExt,
+          i18n: this.nextConfig.i18n,
+          basePath: this.nextConfig.basePath,
+          rewrites: this.customRoutes.rewrites,
+        })
+
+        let params: ParsedUrlQuery | false = {}
+        const paramsResult = utils.normalizeDynamicRouteParams({
+          ...parsedUrl.query,
+          ...query,
+        })
+
+        if (paramsResult.hasValidParams) {
+          params = paramsResult.params
+        } else if (req.headers['x-now-route-matches']) {
+          const opts: Record<string, string> = {}
+          params = utils.getParamsFromRouteMatches(
+            req,
+            opts,
+            (parsedUrl.query.__nextLocale as string | undefined) || ''
+          )
+
+          if (opts.locale) {
+            parsedUrl.query.__nextLocale = opts.locale
+          }
+        } else {
+          params = utils.dynamicRouteMatcher!(matchedPathname)
+        }
+
+        if (params) {
+          matchedPathname = utils.interpolateDynamicPath(
+            matchedPathname,
+            params
+          )
+
+          req.url = utils.interpolateDynamicPath(req.url!, params)
+        }
+
+        if (reqUrlIsDataUrl && matchedPathIsDataUrl) {
+          req.url = formatUrl({
+            ...parsedPath,
+            pathname: matchedPathname,
+          })
+        }
+        Object.assign(parsedUrl.query, params)
+        utils.normalizeVercelUrl(req, true)
+      }
+      parsedUrl.pathname = `${basePath || ''}${
+        parsedUrl.query.__nextLocale || ''
+      }${matchedPathname}`
     }
 
     res.statusCode = 200
@@ -717,44 +812,47 @@ export default class Server {
       })
     }
 
-    const redirects = this.customRoutes.redirects.map((redirect) => {
-      const redirectRoute = getCustomRoute(redirect, 'redirect')
-      return {
-        type: redirectRoute.type,
-        match: redirectRoute.match,
-        statusCode: redirectRoute.statusCode,
-        name: `Redirect route ${redirectRoute.source}`,
-        fn: async (req, res, params, parsedUrl) => {
-          const { parsedDestination } = prepareDestination(
-            redirectRoute.destination,
-            params,
-            parsedUrl.query,
-            false
-          )
-
-          const { query } = parsedDestination
-          delete (parsedDestination as any).query
-
-          parsedDestination.search = stringifyQuery(req, query)
-
-          const updatedDestination = formatUrl(parsedDestination)
-
-          res.setHeader('Location', updatedDestination)
-          res.statusCode = getRedirectStatus(redirectRoute as Redirect)
-
-          // Since IE11 doesn't support the 308 header add backwards
-          // compatibility using refresh header
-          if (res.statusCode === 308) {
-            res.setHeader('Refresh', `0;url=${updatedDestination}`)
-          }
-
-          res.end()
+    const redirects = this.minimalMode
+      ? []
+      : this.customRoutes.redirects.map((redirect) => {
+          const redirectRoute = getCustomRoute(redirect, 'redirect')
           return {
-            finished: true,
-          }
-        },
-      } as Route
-    })
+            internal: redirectRoute.internal,
+            type: redirectRoute.type,
+            match: redirectRoute.match,
+            statusCode: redirectRoute.statusCode,
+            name: `Redirect route ${redirectRoute.source}`,
+            fn: async (req, res, params, parsedUrl) => {
+              const { parsedDestination } = prepareDestination(
+                redirectRoute.destination,
+                params,
+                parsedUrl.query,
+                false
+              )
+
+              const { query } = parsedDestination
+              delete (parsedDestination as any).query
+
+              parsedDestination.search = stringifyQuery(req, query)
+
+              const updatedDestination = formatUrl(parsedDestination)
+
+              res.setHeader('Location', updatedDestination)
+              res.statusCode = getRedirectStatus(redirectRoute as Redirect)
+
+              // Since IE11 doesn't support the 308 header add backwards
+              // compatibility using refresh header
+              if (res.statusCode === 308) {
+                res.setHeader('Refresh', `0;url=${updatedDestination}`)
+              }
+
+              res.end()
+              return {
+                finished: true,
+              }
+            },
+          } as Route
+        })
 
     const rewrites = this.customRoutes.rewrites.map((rewrite) => {
       const rewriteRoute = getCustomRoute(rewrite, 'rewrite')
@@ -1023,11 +1121,14 @@ export default class Server {
   protected getDynamicRoutes(): Array<DynamicRouteItem> {
     const addedPages = new Set<string>()
 
-    return getSortedRoutes(Object.keys(this.pagesManifest!))
-      .filter(isDynamicRoute)
+    return getSortedRoutes(
+      Object.keys(this.pagesManifest!).map(
+        (page) =>
+          normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
+      )
+    )
       .map((page) => {
-        page = normalizeLocalePath(page, this.nextConfig.i18n?.locales).pathname
-        if (addedPages.has(page)) return null
+        if (addedPages.has(page) || !isDynamicRoute(page)) return null
         addedPages.add(page)
         return {
           page,
@@ -1272,8 +1373,11 @@ export default class Server {
       ? (req as any)._nextRewroteUrl
       : urlPathname
 
-    resolvedUrlPathname = removePathTrailingSlash(resolvedUrlPathname)
     urlPathname = removePathTrailingSlash(urlPathname)
+    resolvedUrlPathname = normalizeLocalePath(
+      removePathTrailingSlash(resolvedUrlPathname),
+      this.nextConfig.i18n?.locales
+    ).pathname
 
     const stripNextDataPath = (path: string) => {
       if (path.includes(this.buildId)) {
@@ -1318,7 +1422,7 @@ export default class Server {
     }
 
     let ssgCacheKey =
-      isPreviewMode || !isSSG
+      isPreviewMode || !isSSG || this.minimalMode
         ? undefined // Preview mode bypasses the cache
         : `${locale ? `/${locale}` : ''}${
             (pathname === '/' || resolvedUrlPathname === '/') && locale
@@ -1330,6 +1434,33 @@ export default class Server {
       ssgCacheKey = `${locale ? `/${locale}` : ''}${pathname}${
         query.amp ? '.amp' : ''
       }`
+    }
+
+    if (ssgCacheKey) {
+      // we only encode path delimiters for path segments from
+      // getStaticPaths so we need to attempt decoding the URL
+      // to match against and only escape the path delimiters
+      // this allows non-ascii values to be handled e.g. Japanese characters
+
+      // TODO: investigate adding this handling for non-SSG pages so
+      // non-ascii names work there also
+      ssgCacheKey = ssgCacheKey
+        .split('/')
+        .map((seg) => {
+          try {
+            seg = escapePathDelimiters(decodeURIComponent(seg), true)
+          } catch (_) {
+            // An improperly encoded URL was provided, this is considered
+            // a bad request (400)
+            const err: Error & { code?: string } = new Error(
+              'failed to decode param'
+            )
+            err.code = 'DECODE_FAILED'
+            throw err
+          }
+          return seg
+        })
+        .join('/')
     }
 
     // Complete the response with cached data if its present
@@ -1359,10 +1490,15 @@ export default class Server {
         if (revalidateOptions) {
           setRevalidateHeaders(res, revalidateOptions)
         }
-        await this.render404(req, res, {
-          pathname,
-          query,
-        } as UrlWithParsedQuery)
+        if (isDataReq) {
+          res.statusCode = 404
+          res.end('{"notFound":true}')
+        } else {
+          await this.render404(req, res, {
+            pathname,
+            query,
+          } as UrlWithParsedQuery)
+        }
       } else {
         sendPayload(
           req,
@@ -1413,10 +1549,11 @@ export default class Server {
             res,
             'passthrough',
             {
-              fontManifest: this.renderOpts.fontManifest,
               locale,
               locales,
               defaultLocale,
+              fontManifest: this.renderOpts.fontManifest,
+              domainLocales: this.renderOpts.domainLocales,
             }
           )
 
@@ -1501,6 +1638,7 @@ export default class Server {
     //   getStaticPaths, then finish the data request on the client-side.
     //
     if (
+      this.minimalMode !== true &&
       fallbackMode !== 'blocking' &&
       ssgCacheKey &&
       !didRespond &&
@@ -1510,10 +1648,10 @@ export default class Server {
       // `getStaticPaths`
       (isProduction ||
         !staticPaths ||
-        // static paths always includes locale so make sure it's prefixed
-        // with it
         !staticPaths.includes(
-          `${locale ? '/' + locale : ''}${resolvedUrlPathname}`
+          // we use ssgCacheKey here as it is normalized to match the
+          // encoding from getStaticPaths along with including the locale
+          query.amp ? ssgCacheKey.replace(/\.amp$/, '') : ssgCacheKey
         ))
     ) {
       if (
@@ -1604,12 +1742,15 @@ export default class Server {
       if (revalidateOptions) {
         setRevalidateHeaders(res, revalidateOptions)
       }
-      await this.render404(
-        req,
-        res,
-        { pathname, query } as UrlWithParsedQuery,
-        !!revalidateOptions
-      )
+      if (isDataReq) {
+        res.statusCode = 404
+        res.end('{"notFound":true}')
+      } else {
+        await this.render404(req, res, {
+          pathname,
+          query,
+        } as UrlWithParsedQuery)
+      }
     }
     return resHtml
   }
@@ -1898,7 +2039,7 @@ export default class Server {
     } catch (err) {
       if (!fs.existsSync(buildIdFile)) {
         throw new Error(
-          `Could not find a valid build in the '${this.distDir}' directory! Try building your app with 'next build' before starting the server.`
+          `Could not find a production build in the '${this.distDir}' directory. Try building your app with 'next build' before starting the production server. https://err.sh/vercel/next.js/production-start-no-build-id`
         )
       }
 

@@ -30,7 +30,7 @@ const runTests = () => {
     for (const [path, dest] of [
       ['/redirect-1', '/destination-1'],
       ['/en/redirect-1', '/destination-1'],
-      ['/fr/redirect-1', 'http://example.fr/destination-1'],
+      ['/fr/redirect-1', '/fr/destination-1'],
       ['/nl-NL/redirect-2', '/destination-2'],
       ['/fr/redirect-2', false],
     ]) {
