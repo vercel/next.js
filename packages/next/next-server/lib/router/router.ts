@@ -25,6 +25,7 @@ import {
   loadGetInitialProps,
   NextPageContext,
   ST,
+  NEXT_DATA,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
@@ -32,6 +33,13 @@ import { searchParamsToUrlQuery } from './utils/querystring'
 import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+
+declare global {
+  interface Window {
+    /* prod */
+    __NEXT_DATA__: NEXT_DATA
+  }
+}
 
 interface RouteProperties {
   shallow: boolean
@@ -454,6 +462,7 @@ export default class Router implements BaseRouter {
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocales
+  isReady: boolean
 
   private _idx: number = 0
 
@@ -527,8 +536,7 @@ export default class Router implements BaseRouter {
     // if auto prerendered and dynamic route wait to update asPath
     // until after mount to prevent hydration mismatch
     this.asPath =
-      // @ts-ignore this is temporarily global (attached to window)
-      isDynamicRoute(pathname) && __NEXT_DATA__.autoExport ? pathname : as
+      isDynamicRoute(pathname) && self.__NEXT_DATA__.autoExport ? pathname : as
     this.basePath = basePath
     this.sub = subscription
     this.clc = null
@@ -538,6 +546,12 @@ export default class Router implements BaseRouter {
     this.isSsr = true
 
     this.isFallback = isFallback
+
+    this.isReady = !!(
+      self.__NEXT_DATA__.gssp ||
+      self.__NEXT_DATA__.gip ||
+      !self.location.search
+    )
 
     if (process.env.__NEXT_I18N_SUPPORT) {
       this.locale = locale
@@ -705,6 +719,12 @@ export default class Router implements BaseRouter {
     if (!isLocalURL(url)) {
       window.location.href = url
       return false
+    }
+
+    // for static pages with query params in the URL we delay
+    // marking the router ready until after the query is updated
+    if ((options as any)._h) {
+      this.isReady = true
     }
 
     // Default to scroll reset behavior unless explicitly specified to be
