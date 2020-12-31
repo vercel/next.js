@@ -28,10 +28,10 @@ const externals = {
 
   // sass-loader
   // (also responsible for these dependencies in package.json)
-  // 'node-sass': 'node-sass',
-  // sass: 'sass',
-  // fibers: 'fibers',
-  // klona: 'klona',
+  'node-sass': 'node-sass',
+  sass: 'sass',
+  fibers: 'fibers',
+  klona: 'klona',
 
   chokidar: 'chokidar',
   'loader-utils': 'loader-utils',
@@ -409,6 +409,17 @@ export async function ncc_recast(task, opts) {
     .target('compiled/recast')
 }
 // eslint-disable-next-line camelcase
+externals['sass-loader'] = 'next/dist/compiled/sass-loader'
+export async function ncc_sass_loader(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('sass-loader')))
+    .ncc({
+      packageName: 'sass-loader',
+      externals: { ...externals, 'schema-utils': 'schema-utils3' },
+    })
+    .target('compiled/sass-loader')
+}
+// eslint-disable-next-line camelcase
 externals['schema-utils'] = 'next/dist/compiled/schema-utils'
 export async function ncc_schema_utils(task, opts) {
   await task
@@ -532,15 +543,12 @@ export async function ncc_webpack_sources2(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle4(task, opts) {
-  const bundleExternals = { ...externals }
-  for (const pkg of Object.keys(babelBundlePackages))
-    delete bundleExternals[pkg]
   await task
     .source(opts.src || 'bundles/webpack/bundle4.js')
     .ncc({
       packageName: 'webpack',
       bundleName: 'webpack',
-      externals: bundleExternals,
+      externals,
       minify: false,
     })
     .target('compiled/webpack')
@@ -548,16 +556,13 @@ export async function ncc_webpack_bundle4(task, opts) {
 
 // eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle5(task, opts) {
-  const bundleExternals = { ...externals }
-  for (const pkg of Object.keys(webpackBundlePackages))
-    delete bundleExternals[pkg]
   await task
     .source(opts.src || 'bundles/webpack/bundle5.js')
     .ncc({
       packageName: 'webpack5',
       bundleName: 'webpack',
       externals: {
-        ...bundleExternals,
+        ...externals,
         'schema-utils': 'next/dist/compiled/schema-utils3',
         'webpack-sources': 'next/dist/compiled/webpack-sources2',
       },
@@ -640,6 +645,7 @@ export async function ncc(task) {
       'ncc_postcss_preset_env',
       'ncc_postcss_scss',
       'ncc_recast',
+      'ncc_sass_loader',
       'ncc_schema_utils',
       'ncc_schema_utils3',
       'ncc_semver',

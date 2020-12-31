@@ -38,7 +38,7 @@ export const css = curry(async function css(
     // First, process files with `sass-loader`: this inlines content, and
     // compiles away the proprietary syntax.
     {
-      loader: require.resolve('sass-loader'),
+      loader: require.resolve('next/dist/compiled/sass-loader'),
       options: {
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
