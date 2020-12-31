@@ -1,5 +1,6 @@
 /* eslint-env jest */
 
+import cheerio from 'cheerio'
 import fs from 'fs-extra'
 import {
   check,
@@ -10,6 +11,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -152,6 +154,19 @@ function runTests(mode) {
         await browser.close()
       }
     }
+  })
+
+  it('should not pass through user-provided srcset (causing a flash)', async () => {
+    const html = await renderViaHTTP(appPort, '/drop-srcset')
+    const $html = cheerio.load(html)
+
+    const els = [].slice.apply($html('img'))
+    expect(els.length).toBe(1)
+
+    const [el] = els
+    expect(el.attribs.src).toBeDefined()
+    expect(el.attribs.srcset).toBeUndefined()
+    expect(el.attribs.srcSet).toBeUndefined()
   })
 
   it('should update the image on src change', async () => {
