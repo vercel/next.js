@@ -52,7 +52,7 @@ export function CssReset() {
               'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
               'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
               'Noto Color Emoji';
-            font-size: 1rem;
+            font-size: 16px;
             font-weight: 400;
             line-height: 1.5;
             color: #212529;
@@ -77,12 +77,12 @@ export function CssReset() {
           h5,
           h6 {
             margin-top: 0;
-            margin-bottom: 0.5rem;
+            margin-bottom: 8px;
           }
 
           p {
             margin-top: 0;
-            margin-bottom: 1rem;
+            margin-bottom: 16px;
           }
 
           abbr[title],
@@ -97,7 +97,7 @@ export function CssReset() {
           }
 
           address {
-            margin-bottom: 1rem;
+            margin-bottom: 16px;
             font-style: normal;
             line-height: inherit;
           }
@@ -106,7 +106,7 @@ export function CssReset() {
           ul,
           dl {
             margin-top: 0;
-            margin-bottom: 1rem;
+            margin-bottom: 16px;
           }
 
           ol ol,
@@ -121,12 +121,12 @@ export function CssReset() {
           }
 
           dd {
-            margin-bottom: 0.5rem;
+            margin-bottom: 8px;
             margin-left: 0;
           }
 
           blockquote {
-            margin: 0 0 1rem;
+            margin: 0 0 16px;
           }
 
           b,
@@ -186,12 +186,12 @@ export function CssReset() {
 
           pre {
             margin-top: 0;
-            margin-bottom: 1rem;
+            margin-bottom: 16px;
             overflow: auto;
           }
 
           figure {
-            margin: 0 0 1rem;
+            margin: 0 0 16px;
           }
 
           img {
@@ -209,8 +209,8 @@ export function CssReset() {
           }
 
           caption {
-            padding-top: 0.75rem;
-            padding-bottom: 0.75rem;
+            padding-top: 12px;
+            padding-bottom: 12px;
             color: #6c757d;
             text-align: left;
             caption-side: bottom;
@@ -222,7 +222,7 @@ export function CssReset() {
 
           label {
             display: inline-block;
-            margin-bottom: 0.5rem;
+            margin-bottom: 8px;
           }
 
           button {
@@ -311,8 +311,8 @@ export function CssReset() {
             width: 100%;
             max-width: 100%;
             padding: 0;
-            margin-bottom: 0.5rem;
-            font-size: 1.5rem;
+            margin-bottom: 8px;
+            font-size: 24px;
             line-height: inherit;
             color: inherit;
             white-space: normal;

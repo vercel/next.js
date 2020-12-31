@@ -17,7 +17,7 @@ const styles = css`
   }
 
   [data-nextjs-toast-wrapper] {
-    padding: 1rem;
+    padding: 16px;
     border-radius: var(--size-gap-half);
     font-weight: 500;
     color: var(--color-ansi-bright-white);
