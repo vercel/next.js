@@ -4,10 +4,9 @@
     [
       "import",
       {
-        "libraryName": "antd",
-        "libraryDirectory": "lib",
-        "style": "index.css"
-      }
+        "libraryName": "antd"
+      },
+      "antd"
     ],
     [
       "import",
