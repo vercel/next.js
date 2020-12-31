@@ -97,6 +97,11 @@ class ServerRouter implements NextRouter {
     this.locales = locales
     this.defaultLocale = defaultLocale
   }
+
+  get isReady(): any {
+    return noRouter()
+  }
+
   push(): any {
     noRouter()
   }
