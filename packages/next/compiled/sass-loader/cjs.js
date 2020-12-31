@@ -252,10 +252,10 @@ function getDefaultSassImplementation() {
   let sassImplPkg = 'sass';
 
   try {
-    __webpack_require__.ab + "sass.dart.js"
+    require.resolve('sass');
   } catch (error) {
     try {
-      __webpack_require__.ab + "index.js"
+      require.resolve('node-sass');
 
       sassImplPkg = 'node-sass';
     } catch (ignoreError) {
@@ -264,7 +264,7 @@ function getDefaultSassImplementation() {
   } // eslint-disable-next-line import/no-dynamic-require, global-require
 
 
-  return __webpack_require__(261);
+  return require(sassImplPkg);
 }
 /**
  * @public
