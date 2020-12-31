@@ -7,6 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@babel/core": "^7.12.10",
     "mobx": "3.3.1",
     "mobx-react": "^4.0.4",
     "mobx-state-tree": "1.0.1",
