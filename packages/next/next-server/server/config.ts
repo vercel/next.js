@@ -249,12 +249,6 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         )
       }
 
-      if (images.domains.length > 50) {
-        throw new Error(
-          `Specified images.domains exceeds length of 50, received length (${images.domains.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/next.js/invalid-images-config`
-        )
-      }
-
       const invalid = images.domains.filter(
         (d: unknown) => typeof d !== 'string'
       )
