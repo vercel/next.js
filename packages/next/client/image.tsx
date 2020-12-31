@@ -20,6 +20,7 @@ const loaders = new Map<LoaderValue, (props: LoaderProps) => string>([
   ['imgix', imgixLoader],
   ['cloudinary', cloudinaryLoader],
   ['akamai', akamaiLoader],
+  ['cloudflare', cloudflareLoader],
   ['default', defaultLoader],
 ])
 
@@ -465,10 +466,21 @@ function akamaiLoader({ root, src, width }: LoaderProps): string {
   return `${root}${normalizeSrc(src)}?imwidth=${width}`
 }
 
+function cloudflareLoader({ root, src, width, quality }: LoaderProps): string {
+  // URL Format - https://developers.cloudflare.com/images/url-format
+  const params = ['width=' + width]
+  if (quality) {
+    params.push('quality=' + quality)
+  }
+
+  const paramsString = params.join(',')
+  return `${root}/cdn-cgi/image/${paramsString}/${normalizeSrc(src)}`
+}
+
 function cloudinaryLoader({ root, src, width, quality }: LoaderProps): string {
   // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
   const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
-  let paramsString = params.join(',') + '/'
+  const paramsString = params.join(',') + '/'
   return `${root}${paramsString}${normalizeSrc(src)}`
 }
 
