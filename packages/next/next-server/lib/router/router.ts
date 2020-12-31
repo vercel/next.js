@@ -49,7 +49,10 @@ interface NextHistoryState {
   options: TransitionOptions
 }
 
-type HistoryState = null | { __N: false } | ({ __N: true } & NextHistoryState)
+type HistoryState =
+  | null
+  | { __N: false }
+  | ({ __N: true; idx: number } & NextHistoryState)
 
 let detectDomainLocale: typeof import('../i18n/detect-domain-locale').detectDomainLocale
 
@@ -355,7 +358,7 @@ export type AppComponent = ComponentType<AppProps>
 type Subscription = (
   data: PrivateRouteInfo,
   App: AppComponent,
-  resetScroll: boolean
+  resetScroll: { x: number; y: number } | null
 ) => Promise<void>
 
 type BeforePopStateCallback = (state: NextHistoryState) => boolean
@@ -367,7 +370,14 @@ type HistoryMethod = 'replaceState' | 'pushState'
 const manualScrollRestoration =
   process.env.__NEXT_SCROLL_RESTORATION &&
   typeof window !== 'undefined' &&
-  'scrollRestoration' in window.history
+  'scrollRestoration' in window.history &&
+  !!(function () {
+    try {
+      let v = '__next'
+      // eslint-disable-next-line no-sequences
+      return sessionStorage.setItem(v, v), sessionStorage.removeItem(v), true
+    } catch (n) {}
+  })()
 
 const SSG_DATA_NOT_FOUND = Symbol('SSG_DATA_NOT_FOUND')
 
@@ -444,6 +454,8 @@ export default class Router implements BaseRouter {
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocales
+
+  private _idx: number = 0
 
   static events: MittEmitter = mitt()
 
@@ -555,27 +567,6 @@ export default class Router implements BaseRouter {
       if (process.env.__NEXT_SCROLL_RESTORATION) {
         if (manualScrollRestoration) {
           window.history.scrollRestoration = 'manual'
-
-          let scrollDebounceTimeout: undefined | NodeJS.Timeout
-
-          const debouncedScrollSave = () => {
-            if (scrollDebounceTimeout) clearTimeout(scrollDebounceTimeout)
-
-            scrollDebounceTimeout = setTimeout(() => {
-              const { url, as: curAs, options } = history.state
-              this.changeState(
-                'replaceState',
-                url,
-                curAs,
-                Object.assign({}, options, {
-                  _N_X: window.scrollX,
-                  _N_Y: window.scrollY,
-                })
-              )
-            }, 10)
-          }
-
-          window.addEventListener('scroll', debouncedScrollSave)
         }
       }
     }
@@ -607,7 +598,30 @@ export default class Router implements BaseRouter {
       return
     }
 
-    const { url, as, options } = state
+    let forcedScroll: { x: number; y: number } | undefined
+    const { url, as, options, idx } = state
+    if (process.env.__NEXT_SCROLL_RESTORATION) {
+      if (manualScrollRestoration) {
+        if (this._idx !== idx) {
+          // Snapshot current scroll position:
+          try {
+            sessionStorage.setItem(
+              '__next_scroll_' + this._idx,
+              JSON.stringify({ x: self.pageXOffset, y: self.pageYOffset })
+            )
+          } catch {}
+
+          // Restore old scroll position:
+          try {
+            const v = sessionStorage.getItem('__next_scroll_' + idx)
+            forcedScroll = JSON.parse(v!)
+          } catch {
+            forcedScroll = { x: 0, y: 0 }
+          }
+        }
+      }
+    }
+    this._idx = idx
 
     const { pathname } = parseRelativeUrl(url)
 
@@ -627,10 +641,11 @@ export default class Router implements BaseRouter {
       'replaceState',
       url,
       as,
-      Object.assign({}, options, {
+      Object.assign<{}, TransitionOptions, TransitionOptions>({}, options, {
         shallow: options.shallow && this._shallow,
         locale: options.locale || this.defaultLocale,
-      })
+      }),
+      forcedScroll
     )
   }
 
@@ -652,6 +667,19 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   push(url: Url, as?: Url, options: TransitionOptions = {}) {
+    if (process.env.__NEXT_SCROLL_RESTORATION) {
+      // TODO: remove in the future when we update history before route change
+      // is complete, as the popstate event should handle this capture.
+      if (manualScrollRestoration) {
+        try {
+          // Snapshot scroll position right before navigating to a new page:
+          sessionStorage.setItem(
+            '__next_scroll_' + this._idx,
+            JSON.stringify({ x: self.pageXOffset, y: self.pageYOffset })
+          )
+        } catch {}
+      }
+    }
     ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('pushState', url, as, options)
   }
@@ -667,11 +695,12 @@ export default class Router implements BaseRouter {
     return this.change('replaceState', url, as, options)
   }
 
-  async change(
+  private async change(
     method: HistoryMethod,
     url: string,
     as: string,
-    options: TransitionOptions
+    options: TransitionOptions,
+    forcedScroll?: { x: number; y: number }
   ): Promise<boolean> {
     if (!isLocalURL(url)) {
       window.location.href = url
@@ -804,7 +833,7 @@ export default class Router implements BaseRouter {
       // TODO: do we need the resolved href when only a hash change?
       this.changeState(method, url, as, options)
       this.scrollToHash(cleanedAs)
-      this.notify(this.components[this.route], false)
+      this.notify(this.components[this.route], null)
       Router.events.emit('hashChangeComplete', as, routeProps)
       return true
     }
@@ -1024,7 +1053,7 @@ export default class Router implements BaseRouter {
         query,
         cleanedAs,
         routeInfo,
-        !!options.scroll
+        forcedScroll || (options.scroll ? { x: 0, y: 0 } : null)
       ).catch((e) => {
         if (e.cancelled) error = error || e
         else throw e
@@ -1033,12 +1062,6 @@ export default class Router implements BaseRouter {
       if (error) {
         Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
         throw error
-      }
-
-      if (process.env.__NEXT_SCROLL_RESTORATION) {
-        if (manualScrollRestoration && '_N_X' in options) {
-          window.scrollTo((options as any)._N_X, (options as any)._N_Y)
-        }
       }
 
       if (process.env.__NEXT_I18N_SUPPORT) {
@@ -1083,6 +1106,7 @@ export default class Router implements BaseRouter {
           as,
           options,
           __N: true,
+          idx: this._idx = method !== 'pushState' ? this._idx : this._idx + 1,
         } as HistoryState,
         // Most browsers currently ignores this parameter, although they may use it in the future.
         // Passing the empty string here should be safe against future changes to the method.
@@ -1250,7 +1274,7 @@ export default class Router implements BaseRouter {
     query: ParsedUrlQuery,
     as: string,
     data: PrivateRouteInfo,
-    resetScroll: boolean
+    resetScroll: { x: number; y: number } | null
   ): Promise<void> {
     this.isFallback = false
 
@@ -1497,7 +1521,10 @@ export default class Router implements BaseRouter {
     }
   }
 
-  notify(data: PrivateRouteInfo, resetScroll: boolean): Promise<void> {
+  notify(
+    data: PrivateRouteInfo,
+    resetScroll: { x: number; y: number } | null
+  ): Promise<void> {
     return this.sub(
       data,
       this.components['/_app'].Component as AppComponent,

@@ -45,7 +45,7 @@ declare global {
 
 type RenderRouteInfo = PrivateRouteInfo & {
   App: AppComponent
-  scroll?: boolean
+  scroll?: { x: number; y: number } | null
 }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 
@@ -753,7 +753,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     }
 
     if (input.scroll) {
-      window.scrollTo(0, 0)
+      window.scrollTo(input.scroll.x, input.scroll.y)
     }
   }
 
