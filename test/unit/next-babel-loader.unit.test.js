@@ -6,7 +6,13 @@ process.env.NODE_ENV = 'production'
 require('next/dist/build/babel/preset')
 process.env.NODE_ENV = NODE_ENV
 
-const loader = require('next/dist/build/webpack/loaders/next-babel-loader')
+function interopRequireDefault(mod) {
+  return mod.default || mod
+}
+
+const loader = interopRequireDefault(
+  require('next/dist/build/webpack/loaders/next-babel-loader')
+)
 const os = require('os')
 const path = require('path')
 
@@ -378,7 +384,7 @@ describe('next-babel-loader', () => {
         }
       )
       expect(code).toMatchInlineSnapshot(
-        `"var hello;export default(function(){return(hello===null||hello===void 0?void 0:hello.world)?'something':'nothing';});"`
+        `"var hello;export default(function(){return hello!==null&&hello!==void 0&&hello.world?'something':'nothing';});"`
       )
     })
 
@@ -391,7 +397,7 @@ describe('next-babel-loader', () => {
         }
       )
       expect(code).toMatchInlineSnapshot(
-        `"var hello;export default(function(){return(hello===null||hello===void 0?void 0:hello.world)?'something':'nothing';});"`
+        `"var hello;export default(function(){return hello!==null&&hello!==void 0&&hello.world?'something':'nothing';});"`
       )
     })
 
