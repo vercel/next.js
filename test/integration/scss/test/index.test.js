@@ -269,7 +269,7 @@ describe('SCSS Support', () => {
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
         Object {
-          "mappings": "AACA,4BAEI,SAHK,CACT,gCAEI,SAHK,CACT,uBAEI,SAHK,CAIN,cAID,2CAA4C",
+          "mappings": "AAEE,4BACE,SAHE,CAEJ,gCACE,SAHE,CAEJ,uBACE,SAHE,CAON,cACE",
           "sourcesContent": Array [
             "$var: red;
         .redText {
