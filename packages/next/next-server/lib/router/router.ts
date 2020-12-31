@@ -579,9 +579,16 @@ export default class Router implements BaseRouter {
     const { url, as, options, idx } = state
     if (process.env.__NEXT_SCROLL_RESTORATION) {
       if (manualScrollRestoration) {
-        // As we're navigating to a new historical index, we need to lookup and
-        // restore the scroll for that location.
         if (this._idx !== idx) {
+          // Snapshot current scroll position:
+          try {
+            sessionStorage.setItem(
+              '__next_scroll_' + this._idx,
+              JSON.stringify({ x: self.pageXOffset, y: self.pageYOffset })
+            )
+          } catch {}
+
+          // Restore old scroll position:
           try {
             const v = sessionStorage.getItem('__next_scroll_' + idx)
             forcedScroll = JSON.parse(v!)
@@ -638,6 +645,8 @@ export default class Router implements BaseRouter {
    */
   push(url: Url, as?: Url, options: TransitionOptions = {}) {
     if (process.env.__NEXT_SCROLL_RESTORATION) {
+      // TODO: remove in the future when we update history before route change
+      // is complete, as the popstate event should handle this capture.
       if (manualScrollRestoration) {
         try {
           // Snapshot scroll position right before navigating to a new page:
