@@ -5,24 +5,24 @@ import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
 import mitt from '../next-server/lib/mitt'
 import { RouterContext } from '../next-server/lib/router-context'
-import type Router from '../next-server/lib/router/router'
-import type {
+import Router, {
   AppComponent,
   AppProps,
-  PrivateRouteInfo,
-} from '../next-server/lib/router/router'
-import {
   delBasePath,
   hasBasePath,
-  delLocale,
+  PrivateRouteInfo,
 } from '../next-server/lib/router/router'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import * as querystring from '../next-server/lib/router/utils/querystring'
 import * as envConfig from '../next-server/lib/runtime-config'
-import type { NEXT_DATA } from '../next-server/lib/utils'
-import { getURL, loadGetInitialProps, ST } from '../next-server/lib/utils'
+import {
+  getURL,
+  loadGetInitialProps,
+  NEXT_DATA,
+  ST,
+} from '../next-server/lib/utils'
 import initHeadManager from './head-manager'
-import PageLoader, { looseToArray, StyleSheetTuple } from './page-loader'
+import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { createRouter, makePublicRouterInstance } from './router'
 
@@ -43,7 +43,10 @@ declare global {
   }
 }
 
-type RenderRouteInfo = PrivateRouteInfo & { App: AppComponent }
+type RenderRouteInfo = PrivateRouteInfo & {
+  App: AppComponent
+  scroll?: { x: number; y: number } | null
+}
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 
 const data: typeof window['__NEXT_DATA__'] = JSON.parse(
@@ -52,6 +55,8 @@ const data: typeof window['__NEXT_DATA__'] = JSON.parse(
 window.__NEXT_DATA__ = data
 
 export const version = process.env.__NEXT_VERSION
+
+const looseToArray = <T extends {}>(input: any): T[] => [].slice.call(input)
 
 const {
   props: hydrateProps,
@@ -63,12 +68,11 @@ const {
   runtimeConfig,
   dynamicIds,
   isFallback,
-  head: initialHeadData,
   locales,
-  defaultLocale,
+  domainLocales,
 } = data
 
-let { locale } = data
+let { locale, defaultLocale } = data
 
 const prefix = assetPrefix || ''
 
@@ -88,27 +92,56 @@ if (hasBasePath(asPath)) {
   asPath = delBasePath(asPath)
 }
 
-asPath = delLocale(asPath, locale)
-
-if (process.env.__NEXT_i18n_SUPPORT) {
+if (process.env.__NEXT_I18N_SUPPORT) {
   const {
     normalizeLocalePath,
-  } = require('../next-server/lib/i18n/normalize-locale-path')
+  } = require('../next-server/lib/i18n/normalize-locale-path') as typeof import('../next-server/lib/i18n/normalize-locale-path')
 
-  if (isFallback && locales) {
-    const localePathResult = normalizeLocalePath(asPath, locales)
+  const {
+    detectDomainLocale,
+  } = require('../next-server/lib/i18n/detect-domain-locale') as typeof import('../next-server/lib/i18n/detect-domain-locale')
+
+  const {
+    parseRelativeUrl,
+  } = require('../next-server/lib/router/utils/parse-relative-url') as typeof import('../next-server/lib/router/utils/parse-relative-url')
+
+  const {
+    formatUrl,
+  } = require('../next-server/lib/router/utils/format-url') as typeof import('../next-server/lib/router/utils/format-url')
+
+  if (locales) {
+    const parsedAs = parseRelativeUrl(asPath)
+    const localePathResult = normalizeLocalePath(parsedAs.pathname, locales)
 
     if (localePathResult.detectedLocale) {
-      asPath = asPath.substr(localePathResult.detectedLocale.length + 1)
-      locale = localePathResult.detectedLocale
+      parsedAs.pathname = localePathResult.pathname
+      asPath = formatUrl(parsedAs)
+    } else {
+      // derive the default locale if it wasn't detected in the asPath
+      // since we don't prerender static pages with all possible default
+      // locales
+      defaultLocale = locale
+    }
+
+    // attempt detecting default locale based on hostname
+    const detectedDomain = detectDomainLocale(
+      process.env.__NEXT_I18N_DOMAINS as any,
+      window.location.hostname
+    )
+
+    // TODO: investigate if defaultLocale needs to be populated after
+    // hydration to prevent mismatched renders
+    if (detectedDomain) {
+      defaultLocale = detectedDomain.defaultLocale
     }
   }
 }
 
 type RegisterFn = (input: [string, () => void]) => void
 
-const pageLoader = new PageLoader(buildId, prefix, page)
-const register: RegisterFn = ([r, f]) => pageLoader.registerPage(r, f)
+const pageLoader = new PageLoader(buildId, prefix)
+const register: RegisterFn = ([r, f]) =>
+  pageLoader.routeLoader.onEntrypoint(r, f)
 if (window.__NEXT_P) {
   // Defer page registration for another tick. This will increase the overall
   // latency in hydrating the page, but reduce the total blocking time.
@@ -117,7 +150,7 @@ if (window.__NEXT_P) {
 window.__NEXT_P = []
 ;(window.__NEXT_P as any).push = register
 
-const headManager = initHeadManager(initialHeadData)
+const headManager = initHeadManager()
 const appElement = document.getElementById('__next')
 
 let lastAppProps: AppProps
@@ -125,7 +158,6 @@ let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
 let CachedComponent: React.ComponentType
-let cachedStyleSheets: StyleSheetTuple[]
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 
 class Container extends React.Component<{
@@ -210,7 +242,13 @@ export default async (opts: { webpackHMR?: any } = {}) => {
   if (process.env.NODE_ENV === 'development') {
     webpackHMR = opts.webpackHMR
   }
-  const { page: app, mod } = await pageLoader.loadPage('/_app')
+
+  const appEntrypoint = await pageLoader.routeLoader.whenEntrypoint('/_app')
+  if ('error' in appEntrypoint) {
+    throw appEntrypoint.error
+  }
+
+  const { component: app, exports: mod } = appEntrypoint
   CachedApp = app as AppComponent
 
   if (mod && mod.reportWebVitals) {
@@ -249,10 +287,16 @@ export default async (opts: { webpackHMR?: any } = {}) => {
   let initialErr = hydrateErr
 
   try {
-    ;({
-      page: CachedComponent,
-      styleSheets: cachedStyleSheets,
-    } = await pageLoader.loadPage(page))
+    const pageEntrypoint =
+      // The dev server fails to serve script assets when there's a hydration
+      // error, so we need to skip waiting for the entrypoint.
+      process.env.NODE_ENV === 'development' && hydrateErr
+        ? { error: hydrateErr }
+        : await pageLoader.routeLoader.whenEntrypoint(page)
+    if ('error' in pageEntrypoint) {
+      throw pageEntrypoint.error
+    }
+    CachedComponent = pageEntrypoint.component
 
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('react-is')
@@ -310,15 +354,24 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     pageLoader,
     App: CachedApp,
     Component: CachedComponent,
-    initialStyleSheets: cachedStyleSheets,
     wrapApp,
     err: initialErr,
     isFallback: Boolean(isFallback),
-    subscription: ({ Component, styleSheets, props, err }, App) =>
-      render({ App, Component, styleSheets, props, err }),
+    subscription: (info, App, scroll) =>
+      render(
+        Object.assign<
+          {},
+          Omit<RenderRouteInfo, 'App' | 'scroll'>,
+          Pick<RenderRouteInfo, 'App' | 'scroll'>
+        >({}, info, {
+          App,
+          scroll,
+        }) as RenderRouteInfo
+      ),
     locale,
     locales,
     defaultLocale,
+    domainLocales,
   })
 
   // call init-client middleware
@@ -334,10 +387,10 @@ export default async (opts: { webpackHMR?: any } = {}) => {
       })
   }
 
-  const renderCtx = {
+  const renderCtx: RenderRouteInfo = {
     App: CachedApp,
+    initial: true,
     Component: CachedComponent,
-    styleSheets: cachedStyleSheets,
     props: hydrateProps,
     err: initialErr,
   }
@@ -442,9 +495,8 @@ export function renderError(renderErrorProps: RenderErrorProps) {
     })
 }
 
-// If hydrate does not exist, eg in preact.
-let isInitialRender = typeof ReactDOM.hydrate === 'function'
 let reactRoot: any = null
+let shouldUseHydrate = typeof ReactDOM.hydrate === 'function'
 function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
     if (!reactRoot) {
@@ -462,13 +514,9 @@ function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
     }
 
     // The check for `.hydrate` is there to support React alternatives like preact
-    if (isInitialRender) {
+    if (shouldUseHydrate) {
       ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
-      isInitialRender = false
-
-      if (onPerfEntry && ST) {
-        measureWebVitals(onPerfEntry)
-      }
+      shouldUseHydrate = false
     } else {
       ReactDOM.render(reactEl, domEl, markRenderComplete)
     }
@@ -566,13 +614,10 @@ const wrapApp = (App: AppComponent) => (
   )
 }
 
-function doRender({
-  App,
-  Component,
-  props,
-  err,
-  styleSheets,
-}: RenderRouteInfo): Promise<any> {
+function doRender(input: RenderRouteInfo): Promise<any> {
+  let { App, Component, props, err } = input
+  let styleSheets: StyleSheetTuple[] | undefined =
+    'initial' in input ? undefined : input.styleSheets
   Component = Component || lastAppProps.Component
   props = props || lastAppProps.props
 
@@ -587,7 +632,7 @@ function doRender({
 
   let canceled = false
   let resolvePromise: () => void
-  const renderPromise = new Promise((resolve, reject) => {
+  const renderPromise = new Promise<void>((resolve, reject) => {
     if (lastRenderReject) {
       lastRenderReject()
     }
@@ -609,9 +654,7 @@ function doRender({
   // Promise. It should remain synchronous.
   function onStart(): boolean {
     if (
-      // We can skip this during hydration. Running it wont cause any harm, but
-      // we may as well save the CPU cycles.
-      isInitialRender ||
+      !styleSheets ||
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
       process.env.NODE_ENV !== 'production'
@@ -626,11 +669,18 @@ function doRender({
       currentStyleTags.map((tag) => tag.getAttribute('data-n-href'))
     )
 
+    const noscript = document.querySelector('noscript[data-n-css]')
+    const nonce = noscript?.getAttribute('data-n-css')
+
     styleSheets.forEach(({ href, text }) => {
       if (!currentHrefs.has(href)) {
         const styleTag = document.createElement('style')
         styleTag.setAttribute('data-n-href', href)
         styleTag.setAttribute('media', 'x')
+
+        if (nonce) {
+          styleTag.setAttribute('nonce', nonce)
+        }
 
         document.head.appendChild(styleTag)
         styleTag.appendChild(document.createTextNode(text))
@@ -639,14 +689,14 @@ function doRender({
     return true
   }
 
-  function onCommit() {
+  function onHeadCommit() {
     if (
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
       process.env.NODE_ENV === 'production' &&
       // We can skip this during hydration. Running it wont cause any harm, but
       // we may as well save the CPU cycles:
-      !isInitialRender &&
+      styleSheets &&
       // Ensure this render was not canceled
       !canceled
     ) {
@@ -702,11 +752,18 @@ function doRender({
       getComputedStyle(document.body, 'height')
     }
 
+    if (input.scroll) {
+      window.scrollTo(input.scroll.x, input.scroll.y)
+    }
+  }
+
+  function onRootCommit() {
     resolvePromise()
   }
 
   const elem = (
-    <Root callback={onCommit}>
+    <Root callback={onRootCommit}>
+      <Head callback={onHeadCommit} />
       <AppContainer>
         <App {...appProps} />
       </AppContainer>
@@ -747,5 +804,19 @@ function Root({
       }
     }, [])
   }
+  // We should ask to measure the Web Vitals after rendering completes so we
+  // don't cause any hydration delay:
+  React.useEffect(() => {
+    measureWebVitals(onPerfEntry)
+  }, [])
   return children as React.ReactElement
+}
+
+// Dummy component that we render as a child of Root so that we can
+// toggle the correct styles before the page is rendered.
+function Head({ callback }: { callback: () => void }) {
+  // We use `useLayoutEffect` to guarantee the callback is executed
+  // as soon as React flushes the update.
+  React.useLayoutEffect(() => callback(), [callback])
+  return null
 }
