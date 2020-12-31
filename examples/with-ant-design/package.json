@@ -11,17 +11,10 @@
     "@next/bundle-analyzer": "^9.1.4",
     "antd": "4.3.0",
     "babel-plugin-import": "1.13.0",
-    "cross-env": "^7.0.2",
     "dayjs": "1.8.28",
-    "esm": "^3.2.25",
     "next": "latest",
-    "postcss-preset-env": "^6.7.0",
     "react": "^16.13.1",
     "react-dom": "^16.13.1"
-  },
-  "browser": {
-    "fs": false,
-    "path": false
   },
   "license": "MIT"
 }
