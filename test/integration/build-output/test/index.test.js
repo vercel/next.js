@@ -164,7 +164,7 @@ describe('Build Output', () => {
       const indexSize = parsePageSize('/')
       const indexFirstLoad = parsePageFirstLoad('/')
 
-      expect(parseFloat(indexSize)).toBeLessThanOrEqual(3)
+      expect(parseFloat(indexSize)).toBeLessThanOrEqual(3.1)
       expect(parseFloat(indexSize)).toBeGreaterThanOrEqual(2)
       expect(indexSize.endsWith('kB')).toBe(true)
 
