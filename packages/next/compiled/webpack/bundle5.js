@@ -60917,7 +60917,7 @@ class HotModuleReplacementRuntimeModule extends RuntimeModule {
 	 */
 	generate() {
 		return Template.getFunctionContent(
-			__webpack_require__(45837)
+			require("./HotModuleReplacement.runtime.js")
 		)
 			.replace(/\$getFullHash\$/g, RuntimeGlobals.getFullHash)
 			.replace(
@@ -72163,7 +72163,7 @@ class ReadFileChunkLoadingRuntimeModule extends RuntimeModule {
 						"}",
 						"",
 						Template.getFunctionContent(
-							__webpack_require__(82506)
+							require("./JavascriptHotModuleReplacement.runtime.js")
 						)
 							.replace(/\$key\$/g, "readFileVm")
 							.replace(/\$installedChunks\$/g, "installedChunks")
@@ -72567,7 +72567,7 @@ class RequireChunkLoadingRuntimeModule extends RuntimeModule {
 						"}",
 						"",
 						Template.getFunctionContent(
-							__webpack_require__(82506)
+							require("./JavascriptHotModuleReplacement.runtime.js")
 						)
 							.replace(/\$key\$/g, "require")
 							.replace(/\$installedChunks\$/g, "installedChunks")
@@ -101517,7 +101517,7 @@ class JsonpChunkLoadingRuntimeModule extends RuntimeModule {
 						)};`,
 						"",
 						Template.getFunctionContent(
-							__webpack_require__(82506)
+							require("./JavascriptHotModuleReplacement.runtime.js")
 						)
 							.replace(/\$key\$/g, "jsonp")
 							.replace(/\$installedChunks\$/g, "installedChunks")
@@ -102209,7 +102209,7 @@ class ImportScriptsChunkLoadingRuntimeModule extends RuntimeModule {
 						"}",
 						"",
 						Template.getFunctionContent(
-							__webpack_require__(82506)
+							require("./JavascriptHotModuleReplacement.runtime.js")
 						)
 							.replace(/\$key\$/g, "importScrips")
 							.replace(/\$installedChunks\$/g, "installedChunks")
