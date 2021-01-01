@@ -94,6 +94,10 @@
           "path": "/docs/deployment.md"
         },
         {
+          "title": "Authentication",
+          "path": "/docs/authentication.md"
+        },
+        {
           "title": "Advanced Features",
           "routes": [
             {
