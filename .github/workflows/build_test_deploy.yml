@@ -153,7 +153,7 @@ jobs:
       - run: cat package.json | jq '.resolutions."react-dom" = "^17.0.1"' > package.json.tmp && mv package.json.tmp package.json
       - run: yarn install --check-files
       - run: yarn list webpack react react-dom
-      - run: xvfb-run node run-tests.js test/integration/link-ref/test/index.test.js test/integration/production/test/index.test.js test/integration/basic/test/index.test.js test/integration/async-modules/test/index.test.js test/integration/font-optimization/test/index.test.js test/acceptance/*.test.js
+      - run: xvfb-run node run-tests.js test/integration/{link-ref,production,basic,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
 
   testFirefox:
     name: Test Firefox (production)
