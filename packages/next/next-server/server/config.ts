@@ -24,6 +24,7 @@ export type NextConfig = { [key: string]: any } & {
     defaultLocale: string
     domains?: DomainLocales
     localeDetection?: false
+    trustProxy?: false
   } | null
 
   headers?: () => Promise<Header[]>

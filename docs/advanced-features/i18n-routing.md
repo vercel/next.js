@@ -122,6 +122,19 @@ For example if you have `pages/blog.js` the following urls will be available:
 - `example.nl/blog`
 - `example.nl/nl-BE/blog`
 
+### Domain Routing Behind a Proxy
+
+When running a Next.js app behind a proxy, hostname can be derived from the `X-Forwarded-Host` header with:
+
+```js
+// next.config.js
+module.exports = {
+  i18n: {
+    trustProxy: true,
+  },
+}
+```
+
 ## Automatic Locale Detection
 
 When a user visits the application root (generally `/`), Next.js will try to automatically detect which locale the user prefers based on the [`Accept-Language`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Language) header and the current domain.

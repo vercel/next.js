@@ -344,7 +344,10 @@ export default class Server {
 
       const { host } = req?.headers || {}
       // remove port from host and remove port if present
-      const hostname = host?.split(':')[0].toLowerCase()
+      let hostname = host?.split(':')[0].toLowerCase()
+
+      if (i18n.trustProxy)
+        hostname = req.headers['x-forwarded-host']?.toString()
 
       const detectedDomain = detectDomainLocale(i18n.domains, hostname)
       if (detectedDomain) {
@@ -697,7 +700,11 @@ export default class Server {
           if (i18n) {
             const { host } = req?.headers || {}
             // remove port from host and remove port if present
-            const hostname = host?.split(':')[0].toLowerCase()
+            let hostname = host?.split(':')[0].toLowerCase()
+
+            if (i18n.trustProxy)
+              hostname = req.headers['x-forwarded-host']?.toString()
+
             const localePathResult = normalizeLocalePath(pathname, i18n.locales)
             const { defaultLocale } =
               detectDomainLocale(i18n.domains, hostname) || {}
