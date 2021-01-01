@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
-const relative = require('path').relative
+const { relative, basename } = require('path')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -418,6 +418,10 @@ export async function ncc_sass_loader(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('sass-loader')))
     .ncc({
       packageName: 'sass-loader',
+      customEmit(path) {
+        if (path.indexOf('node-sass') !== -1)
+          return `eval("require.resolve('node-sass')")`
+      },
       externals: { ...externals, 'schema-utils': 'schema-utils3' },
     })
     .target('compiled/sass-loader')
@@ -564,6 +568,10 @@ export async function ncc_webpack_bundle5(task, opts) {
     .ncc({
       packageName: 'webpack5',
       bundleName: 'webpack',
+      customEmit(path) {
+        console.log(path)
+        if (path.endsWith('.runtime.js')) return `'./${basename(path)}'`
+      },
       externals: {
         ...externals,
         'schema-utils': 'next/dist/compiled/schema-utils3',
