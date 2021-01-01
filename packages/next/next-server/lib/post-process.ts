@@ -7,6 +7,7 @@ const MAXIMUM_IMAGE_PRELOADS = 2
 const IMAGE_PRELOAD_SIZE_THRESHOLD = 2500
 
 type postProcessOptions = {
+  optimizeFonts: boolean
   optimizeImages: boolean
 }
 
@@ -138,7 +139,11 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
     }
     for (const key in this.fontDefinitions) {
       const url = this.fontDefinitions[key]
-      if (result.indexOf(`<style data-href="${url}">`) > -1) {
+      const fallBackLinkTag = `<link rel="stylesheet" href="${url}"/>`
+      if (
+        result.indexOf(`<style data-href="${url}">`) > -1 ||
+        result.indexOf(fallBackLinkTag) > -1
+      ) {
         // The font is already optimized and probably the response is cached
         continue
       }
@@ -147,10 +152,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         /**
          * In case of unreachable font definitions, fallback to default link tag.
          */
-        result = result.replace(
-          '</head>',
-          `<link rel="stylesheet" href="${url}"/></head>`
-        )
+        result = result.replace('</head>', `${fallBackLinkTag}</head>`)
       } else {
         result = result.replace(
           '</head>',
@@ -261,7 +263,13 @@ function sourceIsSupportedType(imgSrc: string): boolean {
 }
 
 // Initialization
-registerPostProcessor('Inline-Fonts', new FontOptimizerMiddleware(), () => true)
+registerPostProcessor(
+  'Inline-Fonts',
+  new FontOptimizerMiddleware(),
+  // Using process.env because passing Experimental flag through loader is not possible.
+  // @ts-ignore
+  (options) => options.optimizeFonts || process.env.__NEXT_OPTIMIZE_FONTS
+)
 
 registerPostProcessor(
   'Preload Images',
