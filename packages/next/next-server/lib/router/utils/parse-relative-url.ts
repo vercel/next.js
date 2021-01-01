@@ -17,7 +17,10 @@ export function parseRelativeUrl(url: string, base?: string) {
     resolvedBase
   )
   if (origin !== globalBase.origin) {
-    throw new Error('invariant: invalid relative URL')
+    throw new Error(
+      `invariant: invalid relative URL, router received ${url}` +
+        `\nSee more info: https://err.sh/next.js/invalid-relative-url.md`
+    )
   }
   return {
     pathname,

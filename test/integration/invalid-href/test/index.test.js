@@ -166,6 +166,14 @@ describe('Invalid hrefs', () => {
       )
     })
 
+    it('shows error when internal href is used with external as', async () => {
+      await showsError(
+        '/invalid-relative',
+        /invalid relative URL, router received mailto:hello@example\.com/,
+        true
+      )
+    })
+
     it('does not throw error when dynamic route mismatch is used on Link and params are manually provided', async () => {
       await noError('/dynamic-route-mismatch-manual', true)
     })
