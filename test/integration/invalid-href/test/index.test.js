@@ -102,6 +102,10 @@ describe('Invalid hrefs', () => {
       await noError('/second')
     })
 
+    it('does not show error when internal href is used with external as', async () => {
+      await noError('/invalid-relative', true)
+    })
+
     it('shows error when dynamic route mismatch is used on Link', async () => {
       const browser = await webdriver(appPort, '/dynamic-route-mismatch')
       try {
@@ -169,7 +173,7 @@ describe('Invalid hrefs', () => {
     it('shows error when internal href is used with external as', async () => {
       await showsError(
         '/invalid-relative',
-        /invalid relative URL, router received mailto:hello@example\.com/,
+        /Invalid href: "\/second" and as: "mailto:hello@example\.com", received relative href and external as/,
         true
       )
     })
