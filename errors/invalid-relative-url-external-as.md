@@ -1,8 +1,8 @@
-# Incompatible `href` and `as` values
+# Invalid relative `href` and external `as` values
 
 #### Why This Error Occurred
 
-Somewhere you are utilizing the `next/link` component, `Router#push`, or `Router#replace` with a dynamic route in your `href` that has an incompatible `as` value. The `as` value is incompatible when the path doesn't provide only the expected parameters for the dynamic route.
+Somewhere you are utilizing the `next/link` component, `Router#push`, or `Router#replace` with a relative route in your `href` that has an external `as` value. The `as` value must be relative also or only `href` should be used with an external URL.
 
 Note: this error will only show when the `next/link` component is clicked not when only rendered.
 
@@ -14,7 +14,7 @@ import Link from 'next/link'
 export default function Page(props) {
   return (
     <>
-      <Link href="/[post]" as="/post-1/comments">
+      <Link href="/invalid" as="mailto:john@example.com">
         <a>Invalid link</a>
       </Link>
     </>
@@ -30,8 +30,8 @@ import Link from 'next/link'
 export default function Page(props) {
   return (
     <>
-      <Link href="/[post]" as="/post-1">
-        <a>Valid link</a>
+      <Link href="mailto:john@example.com">
+        <a>Invalid link</a>
       </Link>
     </>
   )
@@ -45,4 +45,3 @@ Look for any usage of the `next/link` component, `Router#push`, or `Router#repla
 ### Useful Links
 
 - [Routing section in Documentation](https://nextjs.org/docs/routing/introduction)
-- [Dynamic routing section in Documentation](https://nextjs.org/docs/routing/dynamic-routes)

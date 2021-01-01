@@ -904,7 +904,7 @@ export default class Router implements BaseRouter {
     // pages to allow building the data URL correctly
     let resolvedAs = as
 
-    if (process.env.__NEXT_HAS_REWRITES) {
+    if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
       resolvedAs = resolveRewrites(
         addBasePath(
           addLocale(delBasePath(parseRelativeUrl(as).pathname), this.locale)
@@ -940,6 +940,19 @@ export default class Router implements BaseRouter {
         }
       }
     }
+
+    if (!isLocalURL(as)) {
+      if (process.env.NODE_ENV !== 'production') {
+        throw new Error(
+          `Invalid href: "${url}" and as: "${as}", received relative href and external as` +
+            `\nSee more info: https://err.sh/next.js/invalid-relative-url-external-as`
+        )
+      }
+
+      window.location.href = as
+      return false
+    }
+
     resolvedAs = delLocale(delBasePath(resolvedAs), this.locale)
 
     if (isDynamicRoute(route)) {
