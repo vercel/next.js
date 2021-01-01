@@ -40,7 +40,7 @@ export class NextJsRequireCacheHotReloader implements Plugin {
         )
         deleteCache(runtimeChunkPath)
 
-        // we need to make sure to clear all entries from cache
+        // we need to make sure to clear all server entries from cache
         // since they can have a stale webpack-runtime cache
         // which needs to always be in-sync
         const entries = [...compilation.entries.keys()].filter((entry) =>
@@ -49,7 +49,7 @@ export class NextJsRequireCacheHotReloader implements Plugin {
 
         entries.forEach((page) => {
           const outputPath = path.join(
-            compiler.options.output!.path!,
+            compilation.outputOptions.path,
             page + '.js'
           )
           deleteCache(outputPath)
