@@ -226,11 +226,9 @@ class TerserPlugin {
 
             return traceAsyncFn(assetSpan, async () => {
               if (!output) {
-                let inputSourceMap
-
                 const {
                   source: sourceFromInputSource,
-                  map,
+                  map: inputSourceMap,
                 } = inputSource.sourceAndMap()
 
                 const input = Buffer.isBuffer(sourceFromInputSource)
@@ -240,7 +238,7 @@ class TerserPlugin {
                 const options = {
                   name,
                   input,
-                  inputSourceMap: map,
+                  inputSourceMap,
                   terserOptions: { ...this.options.terserOptions },
                 }
 
@@ -337,8 +335,8 @@ class TerserPlugin {
           })
 
       const handleHashForChunk = (hash, chunk) => {
-        // increment 'b' to invalidate cache
-        hash.update('b')
+        // increment 'c' to invalidate cache
+        hash.update('c')
       }
 
       if (isWebpack5) {
