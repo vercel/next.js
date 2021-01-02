@@ -1,11 +1,17 @@
-import { bindFleurContext, FleurishNextAppContext } from '@fleur/next'
+import {
+  bindFleurContext,
+  deserializeContext,
+  FleurishNextAppContext,
+} from '@fleur/next'
 import App from 'next/app'
 import { FleurContext } from '@fleur/react'
 import { AppProps } from 'next/dist/next-server/lib/router/router'
 import { getOrCreateFleurContext } from '../lib/fleur'
 
 function FleurApp({ Component, pageProps }: AppProps) {
-  const fleurContext = getOrCreateFleurContext(pageProps.__FLEUR_STATE__)
+  const fleurContext = getOrCreateFleurContext(
+    deserializeContext(pageProps.__FLEUR_STATE__)
+  )
 
   return (
     <FleurContext value={fleurContext}>

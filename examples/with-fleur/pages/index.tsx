@@ -1,4 +1,4 @@
-import { FleurishNextPageContext } from '@fleur/next'
+import { FleurishNextPageContext, serializeContext } from '@fleur/next'
 import { Page } from '../components/page'
 import { TimerOps } from '../domains/timer'
 export default function Index() {
@@ -7,5 +7,5 @@ export default function Index() {
 
 Index.getInitialProps = async (context: FleurishNextPageContext) => {
   await context.executeOperation(TimerOps.increment)
-  return {}
+  return { __FLEUR_STATE__: serializeContext(context.fleurContext) }
 }
