@@ -55,6 +55,7 @@ function observe(
 
   observer.observe(element)
   return function unobserve() {
+    elements.delete(element)
     observer.unobserve(element)
 
     // Destroy observer when there's nothing left to watch:
