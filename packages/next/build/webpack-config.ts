@@ -840,7 +840,6 @@ export default async function getBaseWebpackConfig(
         'error-loader',
         'next-babel-loader',
         'next-client-pages-loader',
-        'next-data-loader',
         'next-serverless-loader',
         'noop-loader',
         'next-plugin-loader',
