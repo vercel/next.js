@@ -1,7 +1,6 @@
-import babelLoader from './babel-loader/src/index'
-import hash from 'next/dist/compiled/string-hash'
-import { basename, join } from 'path'
+import { join } from 'path'
 import * as Log from '../../output/log'
+import babelLoader from './babel-loader/src/index'
 
 // increment 'o' to invalidate cache
 // eslint-disable-next-line no-useless-concat
@@ -147,17 +146,6 @@ const customBabelLoader = babelLoader((babel) => {
           { type: 'plugin' }
         )
         options.plugins.push(diallowExportAll)
-      }
-
-      if (isServer && source.indexOf('next/data') !== -1) {
-        const nextDataPlugin = babel.createConfigItem(
-          [
-            require('../../babel/plugins/next-data'),
-            { key: basename(filename) + '-' + hash(filename) },
-          ],
-          { type: 'plugin' }
-        )
-        options.plugins.push(nextDataPlugin)
       }
 
       // If the file has `module.exports` we have to transpile commonjs because Babel adds `import` statements
