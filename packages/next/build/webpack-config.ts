@@ -395,8 +395,6 @@ export default async function getBaseWebpackConfig(
       : [require('pnp-webpack-plugin')],
   }
 
-  const webpackMode = dev ? 'development' : 'production'
-
   const terserOptions: any = {
     parse: {
       ecma: 8,
@@ -947,7 +945,10 @@ export default async function getBaseWebpackConfig(
             [`process.env.${key}`]: JSON.stringify(config.env[key]),
           }
         }, {}),
-        'process.env.NODE_ENV': JSON.stringify(webpackMode),
+        // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
+        'process.env.NODE_ENV': JSON.stringify(
+          dev ? 'development' : 'production'
+        ),
         'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(!isServer),
         'process.env.__NEXT_TEST_MODE': JSON.stringify(
@@ -1013,7 +1014,7 @@ export default async function getBaseWebpackConfig(
           : undefined),
         // stub process.env with proxy to warn a missing value is
         // being accessed in development mode
-        ...(config.experimental.pageEnv && process.env.NODE_ENV !== 'production'
+        ...(config.experimental.pageEnv && dev
           ? {
               'process.env': `
             new Proxy(${isServer ? 'process.env' : '{}'}, {

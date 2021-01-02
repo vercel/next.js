@@ -1,9 +1,8 @@
 import { PluginItem } from 'next/dist/compiled/babel/core'
 import { dirname } from 'path'
-const env = process.env.NODE_ENV
-const isProduction = env === 'production'
-const isDevelopment = env === 'development'
-const isTest = env === 'test'
+
+const isLoadIntentTest = process.env.NODE_ENV === 'test'
+const isLoadIntentDevelopment = process.env.NODE_ENV === 'development'
 
 type StyledJsxPlugin = [string, any] | string
 type StyledJsxBabelOptions =
@@ -65,6 +64,18 @@ module.exports = (
 ): BabelPreset => {
   const supportsESM = api.caller(supportsStaticESM)
   const isServer = api.caller((caller: any) => !!caller && caller.isServer)
+  const isCallerDevelopment = api.caller((caller: any) => caller?.isDev)
+
+  // Look at external intent if used without a caller (e.g. via Jest):
+  const isTest = isCallerDevelopment == null && isLoadIntentTest
+
+  // Look at external intent if used without a caller (e.g. Storybook):
+  const isDevelopment =
+    isCallerDevelopment === true ||
+    (isCallerDevelopment == null && isLoadIntentDevelopment)
+
+  // Default to production mode if not `test` nor `development`:
+  const isProduction = !(isTest || isDevelopment)
 
   const useJsxRuntime =
     options['preset-react']?.runtime === 'automatic' ||

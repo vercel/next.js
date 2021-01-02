@@ -1,11 +1,4 @@
 /* eslint-env jest */
-
-// avoid generating __source annotations in JSX during testing:
-const NODE_ENV = process.env.NODE_ENV
-process.env.NODE_ENV = 'production'
-require('next/dist/build/babel/preset')
-process.env.NODE_ENV = NODE_ENV
-
 function interopRequireDefault(mod) {
   return mod.default || mod
 }
@@ -370,8 +363,8 @@ describe('next-babel-loader', () => {
         { resourcePath: pageFile, isServer: false, development: true }
       )
 
-      expect(output).toMatchInlineSnapshot(
-        `"var __jsx=React.createElement;import React from\\"react\\";export var __N_SSG=true;export default function Home(_ref){var greeting=_ref.greeting;return __jsx(\\"h1\\",null,greeting);}_c=Home;var _c;$RefreshReg$(_c,\\"Home\\");"`
+      expect(output).toMatch(
+        /var _jsxFileName="[^"]+";var __jsx=React\.createElement;import React from"react";export var __N_SSG=true;export default function Home\(_ref\)\{var greeting=_ref\.greeting;return __jsx\("h1",\{__self:this,__source:\{fileName:_jsxFileName,lineNumber:8,columnNumber:20\}\},greeting\);\}_c=Home;var _c;\$RefreshReg\$\(_c,"Home"\);/
       )
     })
 
