@@ -13,6 +13,7 @@ import {
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
+import { DomainLocales } from '../../server/config'
 import { denormalizePagePath } from '../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt, { MittEmitter } from '../mitt'
@@ -24,6 +25,7 @@ import {
   loadGetInitialProps,
   NextPageContext,
   ST,
+  NEXT_DATA,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
@@ -32,6 +34,13 @@ import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
 
+declare global {
+  interface Window {
+    /* prod */
+    __NEXT_DATA__: NEXT_DATA
+  }
+}
+
 interface RouteProperties {
   shallow: boolean
 }
@@ -39,6 +48,7 @@ interface RouteProperties {
 interface TransitionOptions {
   shallow?: boolean
   locale?: string | false
+  scroll?: boolean
 }
 
 interface NextHistoryState {
@@ -47,7 +57,17 @@ interface NextHistoryState {
   options: TransitionOptions
 }
 
-type HistoryState = null | { __N: false } | ({ __N: true } & NextHistoryState)
+type HistoryState =
+  | null
+  | { __N: false }
+  | ({ __N: true; idx: number } & NextHistoryState)
+
+let detectDomainLocale: typeof import('../i18n/detect-domain-locale').detectDomainLocale
+
+if (process.env.__NEXT_I18N_SUPPORT) {
+  detectDomainLocale = require('../i18n/detect-domain-locale')
+    .detectDomainLocale
+}
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
@@ -63,6 +83,28 @@ function addPathPrefix(path: string, prefix?: string) {
       ? normalizePathTrailingSlash(prefix)
       : `${prefix}${path}`
     : path
+}
+
+export function getDomainLocale(
+  path: string,
+  locale?: string | false,
+  locales?: string[],
+  domainLocales?: DomainLocales
+) {
+  if (process.env.__NEXT_I18N_SUPPORT) {
+    locale = locale || normalizeLocalePath(path, locales).detectedLocale
+
+    const detectedDomain = detectDomainLocale(domainLocales, undefined, locale)
+
+    if (detectedDomain) {
+      return `http${detectedDomain.http ? '' : 's'}://${detectedDomain.domain}${
+        basePath || ''
+      }${locale === detectedDomain.defaultLocale ? '' : `/${locale}`}${path}`
+    }
+    return false
+  }
+
+  return false
 }
 
 export function addLocale(
@@ -92,6 +134,12 @@ export function delLocale(path: string, locale?: string) {
 }
 
 export function hasBasePath(path: string): boolean {
+  const queryIndex = path.indexOf('?')
+  const hashIndex = path.indexOf('#')
+
+  if (queryIndex > -1 || hashIndex > -1) {
+    path = path.substring(0, queryIndex > -1 ? queryIndex : hashIndex)
+  }
   return path === basePath || path.startsWith(basePath + '/')
 }
 
@@ -275,6 +323,7 @@ export type BaseRouter = {
   locale?: string
   locales?: string[]
   defaultLocale?: string
+  domainLocales?: DomainLocales
 }
 
 export type NextRouter = BaseRouter &
@@ -314,7 +363,11 @@ export type AppProps = Pick<CompletePrivateRouteInfo, 'Component' | 'err'> & {
 } & Record<string, any>
 export type AppComponent = ComponentType<AppProps>
 
-type Subscription = (data: PrivateRouteInfo, App: AppComponent) => Promise<void>
+type Subscription = (
+  data: PrivateRouteInfo,
+  App: AppComponent,
+  resetScroll: { x: number; y: number } | null
+) => Promise<void>
 
 type BeforePopStateCallback = (state: NextHistoryState) => boolean
 
@@ -325,9 +378,16 @@ type HistoryMethod = 'replaceState' | 'pushState'
 const manualScrollRestoration =
   process.env.__NEXT_SCROLL_RESTORATION &&
   typeof window !== 'undefined' &&
-  'scrollRestoration' in window.history
+  'scrollRestoration' in window.history &&
+  !!(function () {
+    try {
+      let v = '__next'
+      // eslint-disable-next-line no-sequences
+      return sessionStorage.setItem(v, v), sessionStorage.removeItem(v), true
+    } catch (n) {}
+  })()
 
-const SSG_DATA_NOT_FOUND_ERROR = 'SSG Data NOT_FOUND'
+const SSG_DATA_NOT_FOUND = Symbol('SSG_DATA_NOT_FOUND')
 
 function fetchRetry(url: string, attempts: number): Promise<any> {
   return fetch(url, {
@@ -349,9 +409,12 @@ function fetchRetry(url: string, attempts: number): Promise<any> {
         return fetchRetry(url, attempts - 1)
       }
       if (res.status === 404) {
-        // TODO: handle reloading in development from fallback returning 200
-        // to on-demand-entry-handler causing it to reload periodically
-        throw new Error(SSG_DATA_NOT_FOUND_ERROR)
+        return res.json().then((data) => {
+          if (data.notFound) {
+            return { notFound: SSG_DATA_NOT_FOUND }
+          }
+          throw new Error(`Failed to load static props`)
+        })
       }
       throw new Error(`Failed to load static props`)
     }
@@ -398,6 +461,10 @@ export default class Router implements BaseRouter {
   locale?: string
   locales?: string[]
   defaultLocale?: string
+  domainLocales?: DomainLocales
+  isReady: boolean
+
+  private _idx: number = 0
 
   static events: MittEmitter = mitt()
 
@@ -417,6 +484,7 @@ export default class Router implements BaseRouter {
       locale,
       locales,
       defaultLocale,
+      domainLocales,
     }: {
       subscription: Subscription
       initialProps: any
@@ -429,6 +497,7 @@ export default class Router implements BaseRouter {
       locale?: string
       locales?: string[]
       defaultLocale?: string
+      domainLocales?: DomainLocales
     }
   ) {
     // represents the current component key
@@ -467,8 +536,7 @@ export default class Router implements BaseRouter {
     // if auto prerendered and dynamic route wait to update asPath
     // until after mount to prevent hydration mismatch
     this.asPath =
-      // @ts-ignore this is temporarily global (attached to window)
-      isDynamicRoute(pathname) && __NEXT_DATA__.autoExport ? pathname : as
+      isDynamicRoute(pathname) && self.__NEXT_DATA__.autoExport ? pathname : as
     this.basePath = basePath
     this.sub = subscription
     this.clc = null
@@ -479,10 +547,17 @@ export default class Router implements BaseRouter {
 
     this.isFallback = isFallback
 
+    this.isReady = !!(
+      self.__NEXT_DATA__.gssp ||
+      self.__NEXT_DATA__.gip ||
+      !self.location.search
+    )
+
     if (process.env.__NEXT_I18N_SUPPORT) {
       this.locale = locale
       this.locales = locales
       this.defaultLocale = defaultLocale
+      this.domainLocales = domainLocales
     }
 
     if (typeof window !== 'undefined') {
@@ -506,27 +581,6 @@ export default class Router implements BaseRouter {
       if (process.env.__NEXT_SCROLL_RESTORATION) {
         if (manualScrollRestoration) {
           window.history.scrollRestoration = 'manual'
-
-          let scrollDebounceTimeout: undefined | NodeJS.Timeout
-
-          const debouncedScrollSave = () => {
-            if (scrollDebounceTimeout) clearTimeout(scrollDebounceTimeout)
-
-            scrollDebounceTimeout = setTimeout(() => {
-              const { url, as: curAs, options } = history.state
-              this.changeState(
-                'replaceState',
-                url,
-                curAs,
-                Object.assign({}, options, {
-                  _N_X: window.scrollX,
-                  _N_Y: window.scrollY,
-                })
-              )
-            }, 10)
-          }
-
-          window.addEventListener('scroll', debouncedScrollSave)
         }
       }
     }
@@ -558,7 +612,30 @@ export default class Router implements BaseRouter {
       return
     }
 
-    const { url, as, options } = state
+    let forcedScroll: { x: number; y: number } | undefined
+    const { url, as, options, idx } = state
+    if (process.env.__NEXT_SCROLL_RESTORATION) {
+      if (manualScrollRestoration) {
+        if (this._idx !== idx) {
+          // Snapshot current scroll position:
+          try {
+            sessionStorage.setItem(
+              '__next_scroll_' + this._idx,
+              JSON.stringify({ x: self.pageXOffset, y: self.pageYOffset })
+            )
+          } catch {}
+
+          // Restore old scroll position:
+          try {
+            const v = sessionStorage.getItem('__next_scroll_' + idx)
+            forcedScroll = JSON.parse(v!)
+          } catch {
+            forcedScroll = { x: 0, y: 0 }
+          }
+        }
+      }
+    }
+    this._idx = idx
 
     const { pathname } = parseRelativeUrl(url)
 
@@ -578,10 +655,11 @@ export default class Router implements BaseRouter {
       'replaceState',
       url,
       as,
-      Object.assign({}, options, {
+      Object.assign<{}, TransitionOptions, TransitionOptions>({}, options, {
         shallow: options.shallow && this._shallow,
         locale: options.locale || this.defaultLocale,
-      })
+      }),
+      forcedScroll
     )
   }
 
@@ -603,6 +681,19 @@ export default class Router implements BaseRouter {
    * @param options object you can define `shallow` and other options
    */
   push(url: Url, as?: Url, options: TransitionOptions = {}) {
+    if (process.env.__NEXT_SCROLL_RESTORATION) {
+      // TODO: remove in the future when we update history before route change
+      // is complete, as the popstate event should handle this capture.
+      if (manualScrollRestoration) {
+        try {
+          // Snapshot scroll position right before navigating to a new page:
+          sessionStorage.setItem(
+            '__next_scroll_' + this._idx,
+            JSON.stringify({ x: self.pageXOffset, y: self.pageYOffset })
+          )
+        } catch {}
+      }
+    }
     ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('pushState', url, as, options)
   }
@@ -618,16 +709,29 @@ export default class Router implements BaseRouter {
     return this.change('replaceState', url, as, options)
   }
 
-  async change(
+  private async change(
     method: HistoryMethod,
     url: string,
     as: string,
-    options: TransitionOptions
+    options: TransitionOptions,
+    forcedScroll?: { x: number; y: number }
   ): Promise<boolean> {
     if (!isLocalURL(url)) {
       window.location.href = url
       return false
     }
+
+    // for static pages with query params in the URL we delay
+    // marking the router ready until after the query is updated
+    if ((options as any)._h) {
+      this.isReady = true
+    }
+
+    // Default to scroll reset behavior unless explicitly specified to be
+    // `false`! This makes the behavior between using `Router#push` and a
+    // `<Link />` consistent.
+    options.scroll = !!(options.scroll ?? true)
+
     let localeChange = options.locale !== this.locale
 
     if (process.env.__NEXT_I18N_SUPPORT) {
@@ -657,11 +761,54 @@ export default class Router implements BaseRouter {
           ).pathname
         )
       }
+      let didNavigate = false
 
-      // if the locale isn't configured hard navigate to show 404 page
-      if (!this.locales?.includes(this.locale!)) {
-        parsedAs.pathname = addLocale(parsedAs.pathname, this.locale)
-        window.location.href = formatWithValidation(parsedAs)
+      // we need to wrap this in the env check again since regenerator runtime
+      // moves this on its own due to the return
+      if (process.env.__NEXT_I18N_SUPPORT) {
+        // if the locale isn't configured hard navigate to show 404 page
+        if (!this.locales?.includes(this.locale!)) {
+          parsedAs.pathname = addLocale(parsedAs.pathname, this.locale)
+          window.location.href = formatWithValidation(parsedAs)
+          // this was previously a return but was removed in favor
+          // of better dead code elimination with regenerator runtime
+          didNavigate = true
+        }
+      }
+
+      const detectedDomain = detectDomainLocale(
+        this.domainLocales,
+        undefined,
+        this.locale
+      )
+
+      // we need to wrap this in the env check again since regenerator runtime
+      // moves this on its own due to the return
+      if (process.env.__NEXT_I18N_SUPPORT) {
+        // if we are navigating to a domain locale ensure we redirect to the
+        // correct domain
+        if (
+          !didNavigate &&
+          detectedDomain &&
+          self.location.hostname !== detectedDomain.domain
+        ) {
+          const asNoBasePath = delBasePath(as)
+          window.location.href = `http${detectedDomain.http ? '' : 's'}://${
+            detectedDomain.domain
+          }${addBasePath(
+            `${
+              this.locale === detectedDomain.defaultLocale
+                ? ''
+                : `/${this.locale}`
+            }${asNoBasePath === '/' ? '' : asNoBasePath}` || '/'
+          )}`
+          // this was previously a return but was removed in favor
+          // of better dead code elimination with regenerator runtime
+          didNavigate = true
+        }
+      }
+
+      if (didNavigate) {
         return new Promise(() => {})
       }
     }
@@ -706,7 +853,7 @@ export default class Router implements BaseRouter {
       // TODO: do we need the resolved href when only a hash change?
       this.changeState(method, url, as, options)
       this.scrollToHash(cleanedAs)
-      this.notify(this.components[this.route])
+      this.notify(this.components[this.route], null)
       Router.events.emit('hashChangeComplete', as, routeProps)
       return true
     }
@@ -757,7 +904,7 @@ export default class Router implements BaseRouter {
     // pages to allow building the data URL correctly
     let resolvedAs = as
 
-    if (process.env.__NEXT_HAS_REWRITES) {
+    if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
       resolvedAs = resolveRewrites(
         addBasePath(
           addLocale(delBasePath(parseRelativeUrl(as).pathname), this.locale)
@@ -793,6 +940,19 @@ export default class Router implements BaseRouter {
         }
       }
     }
+
+    if (!isLocalURL(as)) {
+      if (process.env.NODE_ENV !== 'production') {
+        throw new Error(
+          `Invalid href: "${url}" and as: "${as}", received relative href and external as` +
+            `\nSee more info: https://err.sh/next.js/invalid-relative-url-external-as`
+        )
+      }
+
+      window.location.href = as
+      return false
+    }
+
     resolvedAs = delLocale(delBasePath(resolvedAs), this.locale)
 
     if (isDynamicRoute(route)) {
@@ -854,43 +1014,60 @@ export default class Router implements BaseRouter {
     Router.events.emit('routeChangeStart', as, routeProps)
 
     try {
-      const routeInfo = await this.getRouteInfo(
+      let routeInfo = await this.getRouteInfo(
         route,
         pathname,
         query,
-        as,
+        addBasePath(addLocale(resolvedAs, this.locale)),
         routeProps
       )
       let { error, props, __N_SSG, __N_SSP } = routeInfo
 
       // handle redirect on client-transition
-      if (
-        (__N_SSG || __N_SSP) &&
-        props &&
-        (props as any).pageProps &&
-        (props as any).pageProps.__N_REDIRECT
-      ) {
-        const destination = (props as any).pageProps.__N_REDIRECT
+      if ((__N_SSG || __N_SSP) && props) {
+        if ((props as any).pageProps && (props as any).pageProps.__N_REDIRECT) {
+          const destination = (props as any).pageProps.__N_REDIRECT
 
-        // check if destination is internal (resolves to a page) and attempt
-        // client-navigation if it is falling back to hard navigation if
-        // it's not
-        if (destination.startsWith('/')) {
-          const parsedHref = parseRelativeUrl(destination)
-          this._resolveHref(parsedHref, pages, false)
+          // check if destination is internal (resolves to a page) and attempt
+          // client-navigation if it is falling back to hard navigation if
+          // it's not
+          if (destination.startsWith('/')) {
+            const parsedHref = parseRelativeUrl(destination)
+            this._resolveHref(parsedHref, pages, false)
 
-          if (pages.includes(parsedHref.pathname)) {
-            const { url: newUrl, as: newAs } = prepareUrlAs(
-              this,
-              destination,
-              destination
-            )
-            return this.change(method, newUrl, newAs, options)
+            if (pages.includes(parsedHref.pathname)) {
+              const { url: newUrl, as: newAs } = prepareUrlAs(
+                this,
+                destination,
+                destination
+              )
+              return this.change(method, newUrl, newAs, options)
+            }
           }
+
+          window.location.href = destination
+          return new Promise(() => {})
         }
 
-        window.location.href = destination
-        return new Promise(() => {})
+        // handle SSG data 404
+        if (props.notFound === SSG_DATA_NOT_FOUND) {
+          let notFoundRoute
+
+          try {
+            await this.fetchComponent('/404')
+            notFoundRoute = '/404'
+          } catch (_) {
+            notFoundRoute = '/_error'
+          }
+
+          routeInfo = await this.getRouteInfo(
+            notFoundRoute,
+            notFoundRoute,
+            query,
+            as,
+            { shallow: false }
+          )
+        }
       }
 
       Router.events.emit('beforeHistoryChange', as, routeProps)
@@ -903,22 +1080,21 @@ export default class Router implements BaseRouter {
           !(routeInfo.Component as any).getInitialProps
       }
 
-      await this.set(route, pathname!, query, cleanedAs, routeInfo).catch(
-        (e) => {
-          if (e.cancelled) error = error || e
-          else throw e
-        }
-      )
+      await this.set(
+        route,
+        pathname!,
+        query,
+        cleanedAs,
+        routeInfo,
+        forcedScroll || (options.scroll ? { x: 0, y: 0 } : null)
+      ).catch((e) => {
+        if (e.cancelled) error = error || e
+        else throw e
+      })
 
       if (error) {
         Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
         throw error
-      }
-
-      if (process.env.__NEXT_SCROLL_RESTORATION) {
-        if (manualScrollRestoration && '_N_X' in options) {
-          window.scrollTo((options as any)._N_X, (options as any)._N_Y)
-        }
       }
 
       if (process.env.__NEXT_I18N_SUPPORT) {
@@ -963,6 +1139,7 @@ export default class Router implements BaseRouter {
           as,
           options,
           __N: true,
+          idx: this._idx = method !== 'pushState' ? this._idx : this._idx + 1,
         } as HistoryState,
         // Most browsers currently ignores this parameter, although they may use it in the future.
         // Passing the empty string here should be safe against future changes to the method.
@@ -1006,26 +1183,6 @@ export default class Router implements BaseRouter {
       let Component: ComponentType
       let styleSheets: StyleSheetTuple[]
       let props: Record<string, any> | undefined
-      const ssg404 = err.message === SSG_DATA_NOT_FOUND_ERROR
-
-      if (ssg404) {
-        try {
-          let mod: any
-          ;({ page: Component, styleSheets, mod } = await this.fetchComponent(
-            '/404'
-          ))
-
-          // TODO: should we tolerate these props missing and still render the
-          // page instead of falling back to _error?
-          if (mod && mod.__N_SSG) {
-            props = await this._getStaticData(
-              this.pageLoader.getDataHref('/404', '/404', true, this.locale)
-            )
-          }
-        } catch (_err) {
-          // non-fatal fallback to _error
-        }
-      }
 
       if (
         typeof Component! === 'undefined' ||
@@ -1040,8 +1197,8 @@ export default class Router implements BaseRouter {
         props,
         Component,
         styleSheets,
-        err: ssg404 ? undefined : err,
-        error: ssg404 ? undefined : err,
+        err,
+        error: err,
       }
 
       if (!routeInfo.props) {
@@ -1149,7 +1306,8 @@ export default class Router implements BaseRouter {
     pathname: string,
     query: ParsedUrlQuery,
     as: string,
-    data: PrivateRouteInfo
+    data: PrivateRouteInfo,
+    resetScroll: { x: number; y: number } | null
   ): Promise<void> {
     this.isFallback = false
 
@@ -1157,7 +1315,7 @@ export default class Router implements BaseRouter {
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    return this.notify(data)
+    return this.notify(data, resetScroll)
   }
 
   /**
@@ -1396,7 +1554,14 @@ export default class Router implements BaseRouter {
     }
   }
 
-  notify(data: PrivateRouteInfo): Promise<void> {
-    return this.sub(data, this.components['/_app'].Component as AppComponent)
+  notify(
+    data: PrivateRouteInfo,
+    resetScroll: { x: number; y: number } | null
+  ): Promise<void> {
+    return this.sub(
+      data,
+      this.components['/_app'].Component as AppComponent,
+      resetScroll
+    )
   }
 }
