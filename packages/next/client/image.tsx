@@ -100,7 +100,7 @@ type CallLoaderProps = {
   quality?: number
 }
 
-function callLoader(loaderProps: CallLoaderProps) {
+function callLoader(loaderProps: CallLoaderProps): string {
   const load = loaders.get(configLoader)
   if (load) {
     return load({ root: configPath, ...loaderProps })
@@ -410,7 +410,7 @@ export default function Image({
 
 type LoaderProps = CallLoaderProps & { root: string }
 
-function normalizeSrc(src: string) {
+function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
 
