@@ -8,8 +8,8 @@
     "test": "jest"
   },
   "dependencies": {
-    "@fleur/fleur": "1.6.0",
-    "@fleur/next": "0.8.0-dev.5",
+    "@fleur/fleur": "2.0.0",
+    "@fleur/next": "0.8.0-dev.6",
     "@fleur/react": "4.0.1",
     "next": "latest",
     "react": "17.0.1",
