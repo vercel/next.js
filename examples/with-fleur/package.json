@@ -1,5 +1,5 @@
 {
-  "name": "with-redux",
+  "name": "with-fleur",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
