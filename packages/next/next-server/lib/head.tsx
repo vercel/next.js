@@ -62,8 +62,10 @@ function unique() {
 
   return (h: React.ReactElement<any>) => {
     let isUnique = true
+    let hasKey = false
 
     if (h.key && typeof h.key !== 'number' && h.key.indexOf('$') > 0) {
+      hasKey = true
       const key = h.key.slice(h.key.indexOf('$') + 1)
       if (keys.has(key)) {
         isUnique = false
@@ -96,7 +98,7 @@ function unique() {
           } else {
             const category = h.props[metatype]
             const categories = metaCategories[metatype] || new Set()
-            if (categories.has(category)) {
+            if ((metatype !== 'name' || !hasKey) && categories.has(category)) {
               isUnique = false
             } else {
               categories.add(category)
