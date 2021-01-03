@@ -11,14 +11,8 @@ export async function next__polyfill_nomodule(task, opts) {
     .target('dist/build/polyfills')
 }
 
-export async function unfetch(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('unfetch')))
-    .target('dist/build/polyfills')
-}
-
 export async function browser_polyfills(task) {
-  await task.parallel(['next__polyfill_nomodule', 'unfetch'])
+  await task.parallel(['next__polyfill_nomodule'])
 }
 
 const externals = {
@@ -131,14 +125,6 @@ export async function ncc_babel_bundle_packages(task, opts) {
     .target('compiled/babel/')
 }
 
-// eslint-disable-next-line camelcase
-externals['babel-loader'] = 'next/dist/compiled/babel-loader'
-export async function ncc_babel_loader(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('babel-loader')))
-    .ncc({ packageName: 'babel-loader', externals })
-    .target('compiled/babel-loader')
-}
 // eslint-disable-next-line camelcase
 externals['cacache'] = 'next/dist/compiled/cacache'
 export async function ncc_cacache(task, opts) {
@@ -557,7 +543,6 @@ export async function ncc(task) {
       'ncc_async_sema',
       'ncc_babel_bundle',
       'ncc_babel_bundle_packages',
-      'ncc_babel_loader',
       'ncc_cacache',
       'ncc_cache_loader',
       'ncc_ci_info',

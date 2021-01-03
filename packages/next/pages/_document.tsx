@@ -348,6 +348,23 @@ export class Head extends Component<
     this.context.docComponentsRendered.Head = true
 
     let { head } = this.context
+    let cssPreloads: Array<JSX.Element> = []
+    let otherHeadElements: Array<JSX.Element> = []
+    if (head) {
+      head.forEach((c) => {
+        if (
+          c &&
+          c.type === 'link' &&
+          c.props['rel'] === 'preload' &&
+          c.props['as'] === 'style'
+        ) {
+          cssPreloads.push(c)
+        } else {
+          c && otherHeadElements.push(c)
+        }
+      })
+      head = cssPreloads.concat(otherHeadElements)
+    }
     let children = this.props.children
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
@@ -731,6 +748,7 @@ export class NextScript extends Component<OriginProps> {
 
       const ampDevFiles = [
         ...buildManifest.devFiles,
+        ...buildManifest.polyfillFiles,
         ...buildManifest.ampDevFiles,
       ]
 

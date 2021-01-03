@@ -25,7 +25,7 @@
     "@types/react": "^16.9.35",
     "@types/react-dom": "^16.9.8",
     "postcss-preset-env": "^6.7.0",
-    "tailwindcss": "^1.4.0"
+    "tailwindcss": "^2.0.2"
   },
   "license": "MIT"
 }
