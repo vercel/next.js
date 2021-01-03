@@ -1,14 +1,9 @@
-import {
-  bindFleurContext,
-  deserializeContext,
-  FleurishNextAppContext,
-} from '@fleur/next'
-import App from 'next/app'
+import { deserializeContext } from '@fleur/next'
 import { FleurContext } from '@fleur/react'
 import { AppProps } from 'next/dist/next-server/lib/router/router'
 import { getOrCreateFleurContext } from '../lib/fleur'
 
-function FleurApp({ Component, pageProps }: AppProps) {
+export default function FleurApp({ Component, pageProps }: AppProps) {
   const fleurContext = getOrCreateFleurContext(
     deserializeContext(pageProps.__FLEUR_STATE__)
   )
@@ -20,16 +15,15 @@ function FleurApp({ Component, pageProps }: AppProps) {
   )
 }
 
-FleurApp.getInitialProps = async (context: FleurishNextAppContext) => {
-  const fleurContext = getOrCreateFleurContext()
-  const appContext = bindFleurContext(fleurContext, context)
+// You can fetch data you need in before page rendering
+// import App from 'next/app'
+// import { bindFleurContext, FleurishNextAppContext } from '@fleur/next'
 
-  // You can fetch data you need in advance here
-  // Example: await appContext.executeOperation(AppOps.fetchSession)
+// FleurApp.getInitialProps = async (context: FleurishNextAppContext) => {
+//   const fleurContext = getOrCreateFleurContext()
+//   const appContext = bindFleurContext(fleurContext, context)
 
-  const appProps = await App.getInitialProps(appContext)
+//   // Example: await appContext.executeOperation(AppOps.fetchSession)
 
-  return appProps
-}
-
-export default FleurApp
+//   return App.getInitialProps(appContext)
+// }
