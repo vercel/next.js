@@ -1,3 +1,25 @@
+trigger:
+  # Only run latest commit for branches:
+  batch: true
+  # Do not run Azure CI for docs-only/example-only changes:
+  paths:
+    include:
+      - '*'
+    exclude:
+      - bench/*
+      - docs/*
+      - errors/*
+      - examples/*
+  # Do not run Azure on `canary`, `master`, or release tags. This unnecessarily
+  # increases the backlog, and the change was already tested on the PR.
+  branches:
+    include:
+      - '*'
+    exclude:
+      - canary
+      - master
+      - refs/tags/*
+
 variables:
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
   NEXT_TELEMETRY_DISABLED: '1'

@@ -1,6 +1,6 @@
 # video.js example
 
-This example shows how to use Next.js along with [Video.js](http://videojs.com) including handling of default styles.
+This example shows how to use Next.js along with [Video.js](https://videojs.com) including handling of default styles.
 
 ## Deploy your own
 

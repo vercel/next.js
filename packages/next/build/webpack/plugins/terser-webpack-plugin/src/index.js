@@ -1,7 +1,7 @@
 // @ts-nocheck
 import * as path from 'path'
 
-import webpack, { ModuleFilenameHelpers } from 'webpack'
+import webpack, { ModuleFilenameHelpers, Compilation } from 'webpack'
 import sources from 'webpack-sources'
 import pLimit from 'p-limit'
 import jestWorker from 'jest-worker'
@@ -226,11 +226,9 @@ class TerserPlugin {
 
             return traceAsyncFn(assetSpan, async () => {
               if (!output) {
-                let inputSourceMap
-
                 const {
                   source: sourceFromInputSource,
-                  map,
+                  map: inputSourceMap,
                 } = inputSource.sourceAndMap()
 
                 const input = Buffer.isBuffer(sourceFromInputSource)
@@ -240,7 +238,7 @@ class TerserPlugin {
                 const options = {
                   name,
                   input,
-                  inputSourceMap: map,
+                  inputSourceMap,
                   terserOptions: { ...this.options.terserOptions },
                 }
 
@@ -337,7 +335,8 @@ class TerserPlugin {
           })
 
       const handleHashForChunk = (hash, chunk) => {
-        hash.update('a')
+        // increment 'c' to invalidate cache
+        hash.update('c')
       }
 
       if (isWebpack5) {
@@ -352,8 +351,7 @@ class TerserPlugin {
         compilation.hooks.processAssets.tapPromise(
           {
             name: pluginName,
-            stage:
-              compiler.webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
+            stage: Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
           },
           (assets) =>
             this.optimize(

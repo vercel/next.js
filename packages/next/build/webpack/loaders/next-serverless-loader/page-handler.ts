@@ -192,6 +192,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           locales: i18n?.locales,
           locale: detectedLocale,
           defaultLocale,
+          domainLocales: i18n?.domains,
         },
         options
       )
@@ -310,6 +311,11 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
         if (_nextData || getStaticProps || getServerSideProps) {
           if (renderOpts.isNotFound) {
             res.statusCode = 404
+
+            if (_nextData) {
+              res.end('{"notFound":true}')
+              return null
+            }
 
             const NotFoundComponent = notFoundMod ? notFoundMod.default : Error
             const errPathname = notFoundMod ? '/404' : '/_error'

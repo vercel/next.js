@@ -154,9 +154,10 @@ module.exports = {
         destination: '/another', // automatically becomes /docs/another
       },
       {
-        // does not add /docs since basePath: false is set
+        // does not add /docs to /without-basePath since basePath: false is set
+        // Note: this can not be used for internal rewrites e.g. `destination: '/another'`
         source: '/without-basePath',
-        destination: '/another',
+        destination: 'https://example.com',
         basePath: false,
       },
     ]
