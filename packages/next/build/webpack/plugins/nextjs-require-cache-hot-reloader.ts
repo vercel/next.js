@@ -38,20 +38,28 @@ export class NextJsRequireCacheHotReloader implements Plugin {
           compilation.outputOptions.path,
           'webpack-runtime.js'
         )
-
         deleteCache(runtimeChunkPath)
 
-        for (const outputPath of this.previousOutputPathsWebpack5) {
-          if (!this.currentOutputPathsWebpack5.has(outputPath)) {
-            deleteCache(outputPath)
-          }
-        }
-
-        this.previousOutputPathsWebpack5 = new Set(
-          this.currentOutputPathsWebpack5
+        // we need to make sure to clear all server entries from cache
+        // since they can have a stale webpack-runtime cache
+        // which needs to always be in-sync
+        const entries = [...compilation.entries.keys()].filter((entry) =>
+          entry.toString().startsWith('pages/')
         )
-        this.currentOutputPathsWebpack5.clear()
+
+        entries.forEach((page) => {
+          const outputPath = path.join(
+            compilation.outputOptions.path,
+            page + '.js'
+          )
+          deleteCache(outputPath)
+        })
       })
+
+      this.previousOutputPathsWebpack5 = new Set(
+        this.currentOutputPathsWebpack5
+      )
+      this.currentOutputPathsWebpack5.clear()
       return
     }
 

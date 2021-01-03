@@ -2,15 +2,38 @@ import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import os from 'os'
 import { basename, extname } from 'path'
+import { execOnce } from '../lib/utils'
 import * as Log from '../../build/output/log'
 import { CONFIG_FILE } from '../lib/constants'
-import { execOnce } from '../lib/utils'
+import { Header, Rewrite, Redirect } from '../../lib/load-custom-routes'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
 
-const defaultConfig: { [key: string]: any } = {
+export type DomainLocales = Array<{
+  http?: true
+  domain: string
+  locales?: string[]
+  defaultLocale: string
+}>
+
+export type NextConfig = { [key: string]: any } & {
+  i18n?: {
+    locales: string[]
+    defaultLocale: string
+    domains?: DomainLocales
+    localeDetection?: false
+  } | null
+
+  headers?: () => Promise<Header[]>
+  rewrites?: () => Promise<Rewrite[]>
+  redirects?: () => Promise<Redirect[]>
+
+  trailingSlash?: boolean
+}
+
+const defaultConfig: NextConfig = {
   env: [],
   webpack: null,
   webpackDevMiddleware: null,
@@ -39,24 +62,25 @@ const defaultConfig: { [key: string]: any } = {
   basePath: '',
   sassOptions: {},
   trailingSlash: false,
-  i18n: false,
+  i18n: null,
+  productionBrowserSourceMaps: false,
   experimental: {
     cpus: Math.max(
       1,
       (Number(process.env.CIRCLE_NODE_TOTAL) ||
         (os.cpus() || { length: 1 }).length) - 1
     ),
-    modern: false,
     plugins: false,
     profiling: false,
     sprFlushToDisk: true,
     reactMode: 'legacy',
     workerThreads: false,
     pageEnv: false,
-    productionBrowserSourceMaps: false,
     optimizeFonts: false,
     optimizeImages: false,
+    optimizeCss: false,
     scrollRestoration: false,
+    scriptLoader: false,
   },
   future: {
     excludeDefaultMomentLocales: false,
@@ -227,7 +251,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
       if (images.domains.length > 50) {
         throw new Error(
-          `Specified images.domains exceeds length of 50, received length (${images.domains.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
+          `Specified images.domains exceeds length of 50, received length (${images.domains.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/next.js/invalid-images-config`
         )
       }
 
@@ -252,7 +276,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
       if (deviceSizes.length > 25) {
         throw new Error(
-          `Specified images.deviceSizes exceeds length of 25, received length (${deviceSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
+          `Specified images.deviceSizes exceeds length of 25, received length (${deviceSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/next.js/invalid-images-config`
         )
       }
 
@@ -278,7 +302,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
       if (imageSizes.length > 25) {
         throw new Error(
-          `Specified images.imageSizes exceeds length of 25, received length (${imageSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
+          `Specified images.imageSizes exceeds length of 25, received length (${imageSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/next.js/invalid-images-config`
         )
       }
 
@@ -318,6 +342,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         images.path += '/'
       }
     }
+
+    if (images.path === imageConfigDefault.path && result.basePath) {
+      images.path = `${result.basePath}${images.path}`
+    }
   }
 
   if (result.i18n) {
@@ -346,12 +374,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
     if (typeof i18n.domains !== 'undefined' && !Array.isArray(i18n.domains)) {
       throw new Error(
-        `Specified i18n.domains must be an array of domain objects e.g. [ { domain: 'example.fr', defaultLocale: 'fr', locales: ['fr'] } ] received ${typeof i18n.domains}.\nSee more info here: https://err.sh/nextjs/invalid-i18n-config`
+        `Specified i18n.domains must be an array of domain objects e.g. [ { domain: 'example.fr', defaultLocale: 'fr', locales: ['fr'] } ] received ${typeof i18n.domains}.\nSee more info here: https://err.sh/next.js/invalid-i18n-config`
       )
     }
 
     if (i18n.domains) {
-      const invalidDomainItems = i18n.domains.filter((item: any) => {
+      const invalidDomainItems = i18n.domains.filter((item) => {
         if (!item || typeof item !== 'object') return true
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
@@ -362,7 +390,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
           for (const locale of item.locales) {
             if (typeof locale !== 'string') hasInvalidLocale = true
 
-            for (const domainItem of i18n.domains) {
+            for (const domainItem of i18n.domains || []) {
               if (domainItem === item) continue
               if (domainItem.locales && domainItem.locales.includes(locale)) {
                 console.warn(
@@ -419,7 +447,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     // make sure default Locale is at the front
     i18n.locales = [
       i18n.defaultLocale,
-      ...i18n.locales.filter((locale: string) => locale !== i18n.defaultLocale),
+      ...i18n.locales.filter((locale) => locale !== i18n.defaultLocale),
     ]
 
     const localeDetectionType = typeof i18n.localeDetection

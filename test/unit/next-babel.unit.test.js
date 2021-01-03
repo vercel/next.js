@@ -3,16 +3,10 @@ import { transform } from '@babel/core'
 
 const trim = (s) => s.join('\n').trim().replace(/^\s+/gm, '')
 
-// avoid generating __source annotations in JSX during testing:
-const NODE_ENV = process.env.NODE_ENV
-process.env.NODE_ENV = 'production'
-const preset = require('next/dist/build/babel/preset')
-process.env.NODE_ENV = NODE_ENV
-
 const babel = (code, esm = false, presetOptions = {}, filename = 'noop.js') =>
   transform(code, {
     filename,
-    presets: [[preset, presetOptions]],
+    presets: [[require('next/dist/build/babel/preset'), presetOptions]],
     babelrc: false,
     configFile: false,
     sourceType: 'module',
@@ -20,6 +14,7 @@ const babel = (code, esm = false, presetOptions = {}, filename = 'noop.js') =>
     caller: {
       name: 'tests',
       supportsStaticESM: esm,
+      isDev: false,
     },
   }).code
 
@@ -64,8 +59,8 @@ describe('next/babel', () => {
       expect(output).toMatch(`__jsx(${react}.Fragment`)
       expect(output).toMatch(`__jsx("a",{href:"/"`)
 
-      expect(babel(`const a = ()=><a href="/">home</a>`)).toMatch(
-        `var _react=_interopRequireDefault(require("react"));var __jsx=_react["default"].createElement;var a=function a(){return __jsx("a",{href:"/"},"home");};`
+      expect(babel(`const a = ()=><a href="/">home</a>`)).toMatchInlineSnapshot(
+        `"\\"use strict\\";var _interopRequireDefault=require(\\"@babel/runtime/helpers/interopRequireDefault\\");var _react=_interopRequireDefault(require(\\"react\\"));var __jsx=_react[\\"default\\"].createElement;var a=function a(){return __jsx(\\"a\\",{href:\\"/\\"},\\"home\\");};"`
       )
     })
 

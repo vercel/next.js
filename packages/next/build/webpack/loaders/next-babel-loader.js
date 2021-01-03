@@ -1,42 +1,13 @@
-import babelLoader from 'next/dist/compiled/babel-loader'
-import hash from 'next/dist/compiled/string-hash'
-import { basename, join } from 'path'
+import { join } from 'path'
 import * as Log from '../../output/log'
+import babelLoader from './babel-loader/src/index'
 
-// increment 'n' to invalidate cache
+// increment 'o' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'n' + '-'
+const cacheKey = 'babel-cache-' + 'o' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
-const getModernOptions = (babelOptions = {}) => {
-  const presetEnvOptions = Object.assign({}, babelOptions['preset-env'])
-  const transformRuntimeOptions = Object.assign(
-    {},
-    babelOptions['transform-runtime'],
-    { regenerator: false }
-  )
-
-  presetEnvOptions.targets = {
-    esmodules: true,
-  }
-  presetEnvOptions.exclude = [
-    ...(presetEnvOptions.exclude || []),
-    // Block accidental inclusions
-    'transform-regenerator',
-    'transform-async-to-generator',
-  ]
-
-  return {
-    ...babelOptions,
-    'preset-env': presetEnvOptions,
-    'transform-runtime': transformRuntimeOptions,
-  }
-}
-
-const nextBabelPresetModern = (presetOptions) => (context) =>
-  nextBabelPreset(context, getModernOptions(presetOptions))
-
-module.exports = babelLoader.custom((babel) => {
+const customBabelLoader = babelLoader((babel) => {
   const presetItem = babel.createConfigItem(nextBabelPreset, {
     type: 'preset',
   })
@@ -55,9 +26,7 @@ module.exports = babelLoader.custom((babel) => {
     customOptions(opts) {
       const custom = {
         isServer: opts.isServer,
-        isModern: opts.isModern,
         pagesDir: opts.pagesDir,
-        hasModern: opts.hasModern,
         babelPresetPlugins: opts.babelPresetPlugins,
         development: opts.development,
         hasReactRefresh: opts.hasReactRefresh,
@@ -67,13 +36,10 @@ module.exports = babelLoader.custom((babel) => {
       const loader = Object.assign(
         opts.cache
           ? {
-              cacheCompression: false,
               cacheDirectory: join(opts.distDir, 'cache', 'next-babel-loader'),
               cacheIdentifier:
                 cacheKey +
                 (opts.isServer ? '-server' : '') +
-                (opts.isModern ? '-modern' : '') +
-                (opts.hasModern ? '-has-modern' : '') +
                 '-new-polyfills' +
                 (opts.development ? '-development' : '-production') +
                 (opts.hasReactRefresh ? '-react-refresh' : '') +
@@ -95,8 +61,6 @@ module.exports = babelLoader.custom((babel) => {
       delete loader.isServer
       delete loader.cache
       delete loader.distDir
-      delete loader.isModern
-      delete loader.hasModern
       delete loader.pagesDir
       delete loader.babelPresetPlugins
       delete loader.development
@@ -110,8 +74,6 @@ module.exports = babelLoader.custom((babel) => {
         source,
         customOptions: {
           isServer,
-          isModern,
-          hasModern,
           pagesDir,
           babelPresetPlugins,
           development,
@@ -138,7 +100,6 @@ module.exports = babelLoader.custom((babel) => {
       }
 
       options.caller.isServer = isServer
-      options.caller.isModern = isModern
       options.caller.isDev = development
       options.caller.hasJsxRuntime = hasJsxRuntime
 
@@ -187,39 +148,9 @@ module.exports = babelLoader.custom((babel) => {
         options.plugins.push(diallowExportAll)
       }
 
-      if (isServer && source.indexOf('next/data') !== -1) {
-        const nextDataPlugin = babel.createConfigItem(
-          [
-            require('../../babel/plugins/next-data'),
-            { key: basename(filename) + '-' + hash(filename) },
-          ],
-          { type: 'plugin' }
-        )
-        options.plugins.push(nextDataPlugin)
-      }
-
-      if (isModern) {
-        const nextPreset = options.presets.find(
-          (preset) => preset && preset.value === nextBabelPreset
-        ) || { options: {} }
-
-        const additionalPresets = options.presets.filter(
-          (preset) => preset !== nextPreset
-        )
-
-        const presetItemModern = babel.createConfigItem(
-          nextBabelPresetModern(nextPreset.options),
-          {
-            type: 'preset',
-          }
-        )
-
-        options.presets = [...additionalPresets, presetItemModern]
-      }
-
       // If the file has `module.exports` we have to transpile commonjs because Babel adds `import` statements
       // That break webpack, since webpack doesn't support combining commonjs and esmodules
-      if (!hasModern && source.indexOf('module.exports') !== -1) {
+      if (source.indexOf('module.exports') !== -1) {
         options.plugins.push(applyCommonJs)
       }
 
@@ -266,3 +197,5 @@ module.exports = babelLoader.custom((babel) => {
     },
   }
 })
+
+export default customBabelLoader
