@@ -113,7 +113,7 @@ When deploying your Next.js application to [Vercel](https://vercel.com), Environ
 
 All kinds of Environment Variables should be configured there. Even Environment Variables used in Development – which can afterwards be [downloaded onto your local device](https://vercel.com/docs/environment-variables#development-environment-variables).
 
-On Vercel, we recommend against using any form of `.env` files, except for using it in Development (like mentioned [here](https://vercel.com/docs/environment-variables#development-environment-variables)).
+On Vercel, `.env` should only be used [in Development](https://vercel.com/docs/environment-variables#development-environment-variables). **Do not deploy `.env` or any other variation of it.**
 
 ## Test Environment Variables
 
