@@ -49,6 +49,16 @@ function runTests(isDev) {
     expect(await browser.eval('window.isReadyValues')).toEqual([false, true])
   })
 
+  it('isReady should be true after query update for dynamic auto-export page without query', async () => {
+    const browser = await webdriver(appPort, '/auto-export/first')
+    expect(await browser.eval('window.isReadyValues')).toEqual([false, true])
+  })
+
+  it('isReady should be true after query update for dynamic auto-export page with query', async () => {
+    const browser = await webdriver(appPort, '/auto-export/first?hello=true')
+    expect(await browser.eval('window.isReadyValues')).toEqual([false, true])
+  })
+
   it('isReady should be true after query update for getStaticProps page with query', async () => {
     const browser = await webdriver(appPort, '/gsp?hello=world')
     expect(await browser.eval('window.isReadyValues')).toEqual([false, true])
