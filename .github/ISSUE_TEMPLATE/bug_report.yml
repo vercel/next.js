@@ -47,3 +47,4 @@ inputs:
     label: To Reproduce
     description: Steps to reproduce the behavior, please provide a clear code snippets that always reproduces the issue or a GitHub repository. Screenshots can be provided in the issue body below.
     required: true
+    value: "1. Go to '...'\n2. Click on '....'\n3. Scroll down to '....'\n4. See error"
