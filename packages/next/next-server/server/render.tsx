@@ -837,7 +837,7 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
       }
 
-      if ('notFound' in data) {
+      if ('notFound' in data && data.notFound) {
         if (pathname === '/404') {
           throw new Error(
             `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
