@@ -115,6 +115,11 @@ export default () => (
       <link rel="stylesheet" href="dedupe-style.css" key="my-style" />
       <link rel="stylesheet" href="dedupe-style.css" key="my-style" />
 
+      {/* this should not execute twice on the client */}
+      <script src="/test-async.js" async></script>
+      {/* this should not execute twice on the client (intentionally sets defer to `yas` to test boolean coercion) */}
+      <script src="/test-defer.js" defer="yas"></script>
+
       {/* such style can be used for alternate links on _app vs individual pages */}
       {['pl', 'en'].map((language) => (
         <link

@@ -3,10 +3,11 @@ export const DOMAttributeNames: Record<string, string> = {
   className: 'class',
   htmlFor: 'for',
   httpEquiv: 'http-equiv',
+  noModule: 'noModule',
 }
 
 function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
-  const el = document.createElement(type)
+  const el: HTMLElement = document.createElement(type)
   for (const p in props) {
     if (!props.hasOwnProperty(p)) continue
     if (p === 'children' || p === 'dangerouslySetInnerHTML') continue
@@ -15,7 +16,14 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
     if (props[p] === undefined) continue
 
     const attr = DOMAttributeNames[p] || p.toLowerCase()
-    el.setAttribute(attr, props[p])
+    if (
+      type === 'script' &&
+      (attr === 'async' || attr === 'defer' || attr === 'noModule')
+    ) {
+      ;(el as HTMLScriptElement)[attr] = !!props[p]
+    } else {
+      el.setAttribute(attr, props[p])
+    }
   }
 
   const { children, dangerouslySetInnerHTML } = props
