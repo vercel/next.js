@@ -7,6 +7,9 @@ inputs:
 - type: description
   attributes:
     value: Thanks for taking the time to file a feature request! Please fill out this form as completely as possible.
+- type: description
+  attributes:
+    value: "Feature requests will be converted to the GitHub Discussions \"Ideas\" section."
 - type: textarea
   attributes:
     label: Describe the feature you'd like to request
