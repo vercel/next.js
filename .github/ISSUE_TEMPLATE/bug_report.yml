@@ -1,0 +1,44 @@
+name: Bug Report
+about: Create a bug report for the Next.js core / examples
+title: ""
+labels: "template: bug"
+issue_body: true
+inputs:
+- type: description
+  attributes:
+    value: Thanks for taking the time to file a bug report! Please fill out this form as completely as possible.
+- type: input
+  attributes:
+    label: What version of Next.js are you using? [e.g. 10.0.1]
+    required: true
+- type: input
+  attributes:
+    label: What version of Node.js are you using? [e.g. 12.0.0]
+    required: true
+- type: input
+  attributes:
+    label: What browser are you using? [e.g. Chrome, Safari]
+    required: true
+- type: input
+  attributes:
+    label: What operating system are you using? [e.g. macOS, Windows]
+    required: true
+- type: input
+  attributes:
+    label: How are you deploying your application? [e.g. next start, next export, Vercel, Other platform]
+    required: true
+- type: textarea
+  attributes:
+    label: Describe the Bug
+    description: A clear and concise description of what the bug is.
+    required: true
+- type: textarea
+  attributes:
+    label: Expected Behavior
+    description: A clear and concise description of what you expected to happen.
+    required: true
+- type: textarea
+  attributes:
+    label: To Reproduce
+    description: Steps to reproduce the behavior, please provide a clear code snippets that always reproduces the issue or a GitHub repository.
+    required: true
