@@ -1,6 +1,7 @@
 declare -a testCases=(
   "with-typescript"
   "with-next-sass"
+  "with-mdx"
 )
 
 set -e

@@ -8,6 +8,7 @@
     "directory": "packages/next-mdx"
   },
   "peerDependencies": {
-    "@mdx-js/loader": ">=0.15.0"
+    "@mdx-js/loader": ">=0.15.0",
+    "@mdx-js/react": "*"
   }
 }
