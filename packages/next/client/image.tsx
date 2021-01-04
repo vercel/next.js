@@ -52,7 +52,7 @@ export type ImageProps = Omit<
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
 > & {
   src: string
-  loader?: ImageLoader | string
+  loader?: ImageLoader
   quality?: number | string
   priority?: boolean
   loading?: LoadingValue
@@ -215,20 +215,6 @@ export default function Image({
 
     // Remove property so it's not spread into image:
     delete rest['layout']
-  }
-  // Handle string specifying a different built-in loader
-  if (typeof loader === 'string') {
-    if (!(VALID_LOADERS as ReadonlyArray<string>).includes(loader)) {
-      throw new Error(
-        `Unknown "loader" specified as a parameter. Expected a function or one of the following: ${VALID_LOADERS.join(
-          ', '
-        )}. Received: ${configLoader}`
-      )
-    }
-    const load = loaders.get(loader as LoaderValue) as (
-      props: DefaultImageLoaderProps
-    ) => string
-    loader = (props: ImageLoaderProps) => load({ root: configPath, ...props })
   }
 
   if (process.env.NODE_ENV !== 'production') {
