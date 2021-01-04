@@ -293,10 +293,6 @@
               "path": "/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md"
             },
             {
-              "title": "Build Target",
-              "path": "/docs/api-reference/next.config.js/build-target.md"
-            },
-            {
               "title": "Custom Webpack Config",
               "path": "/docs/api-reference/next.config.js/custom-webpack-config.md"
             },
