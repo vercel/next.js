@@ -212,7 +212,9 @@ export function redirect(
       `Invalid redirect arguments. Please use a single argument URL, e.g. res.redirect('/destination') or use a status code and URL, e.g. res.redirect(307, '/destination').`
     )
   }
-  res.writeHead(statusOrUrl, { Location: url }).end()
+  res.writeHead(statusOrUrl, { Location: url })
+  res.write('')
+  res.end()
   return res
 }
 
