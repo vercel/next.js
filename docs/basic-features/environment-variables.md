@@ -111,9 +111,9 @@ Next.js allows you to set defaults in `.env` (all environments), `.env.developme
 
 When deploying your Next.js application to [Vercel](https://vercel.com), Environment Variables can be configured [in the Project Settings](https://vercel.com/docs/environment-variables).
 
-All kinds of Environment Variables should be configured there. Even Environment Variables used in Development – which can afterwards be [downloaded onto your local device](https://vercel.com/docs/environment-variables#development-environment-variables).
+All types of Environment Variables should be configured there. Even Environment Variables used in Development – which can be [downloaded onto your local device](https://vercel.com/docs/environment-variables#development-environment-variables) afterwards.
 
-On Vercel, `.env` should only be used [in Development](https://vercel.com/docs/environment-variables#development-environment-variables). **Do not deploy `.env` or any other variation of it.**
+When using the Vercel CLI make sure you add a [`.vercelignore`](https://vercel.com/guides/prevent-uploading-sourcepaths-with-vercelignore?query=vercelignore#allowlist) that includes files that should not be uploaded, generally these are the same files included in `.gitignore`.
 
 ## Test Environment Variables
 
