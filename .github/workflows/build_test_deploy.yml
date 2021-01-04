@@ -115,20 +115,13 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NODE_OPTIONS: '--unhandled-rejections=strict'
+      YARN_COMPRESSION_LEVEL: '0'
     steps:
       - uses: actions/checkout@v2
 
       - run: yarn install --frozen-lockfile --check-files
 
-      - run: |
-          mkdir -p ./e2e-tests/next-pnp
-          cp -r ./examples/with-typescript/. ./e2e-tests/next-pnp
-          cd ./e2e-tests/next-pnp
-          touch yarn.lock
-          yarn set version berry
-          yarn config set pnpFallbackMode none
-          yarn link --all --private ../..
-          yarn build
+      - run: bash ./test-pnp.sh
 
   testsPass:
     name: thank you, next
@@ -148,17 +141,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-      - run: cat package.json | jq '.resolutions.webpack = "^5.0.0-beta.30"' > package.json.tmp && mv package.json.tmp package.json
+      - run: cat package.json | jq '.resolutions.webpack = "^5.11.1"' > package.json.tmp && mv package.json.tmp package.json
       - run: cat package.json | jq '.resolutions.react = "^17.0.1"' > package.json.tmp && mv package.json.tmp package.json
       - run: cat package.json | jq '.resolutions."react-dom" = "^17.0.1"' > package.json.tmp && mv package.json.tmp package.json
       - run: yarn install --check-files
       - run: yarn list webpack react react-dom
-      - run: node run-tests.js test/integration/link-ref/test/index.test.js
-      - run: node run-tests.js test/integration/production/test/index.test.js
-      - run: node run-tests.js test/integration/basic/test/index.test.js
-      - run: node run-tests.js test/integration/async-modules/test/index.test.js
-      - run: node run-tests.js test/integration/font-optimization/test/index.test.js
-      - run: node run-tests.js test/acceptance/*
+      - run: xvfb-run node run-tests.js test/integration/{link-ref,production,basic,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
 
   testFirefox:
     name: Test Firefox (production)

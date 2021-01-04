@@ -1,5 +1,5 @@
 import { ComponentType } from 'react'
-import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
+import { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
 import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
 import requestIdleCallback from './request-idle-callback'
 

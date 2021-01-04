@@ -11,22 +11,26 @@ import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
 
+export type DomainLocales = Array<{
+  http?: true
+  domain: string
+  locales?: string[]
+  defaultLocale: string
+}>
+
 export type NextConfig = { [key: string]: any } & {
-  i18n: {
-    domains?: Array<{
-      http?: true
-      domain: string
-      locales?: string[]
-      defaultLocale: string
-    }>
+  i18n?: {
     locales: string[]
     defaultLocale: string
+    domains?: DomainLocales
     localeDetection?: false
   } | null
 
   headers?: () => Promise<Header[]>
   rewrites?: () => Promise<Rewrite[]>
   redirects?: () => Promise<Redirect[]>
+
+  trailingSlash?: boolean
 }
 
 const defaultConfig: NextConfig = {
@@ -337,6 +341,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       ) {
         images.path += '/'
       }
+    }
+
+    if (images.path === imageConfigDefault.path && result.basePath) {
+      images.path = `${result.basePath}${images.path}`
     }
   }
 
