@@ -18,7 +18,7 @@ type LoadingValue = typeof VALID_LOADING_VALUES[number]
 
 export type ImageLoader = (resolverProps: ImageLoaderProps) => string
 
-type ImageLoaderProps = {
+export type ImageLoaderProps = {
   src: string
   width: number
   quality?: number
