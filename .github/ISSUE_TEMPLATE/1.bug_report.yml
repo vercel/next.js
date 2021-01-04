@@ -53,3 +53,11 @@ inputs:
 - type: description
   attributes:
     value: Before posting the issue go through the steps you've written down to make sure the steps provided are detailed and clear. Contributors should be able to follow the steps provided in order to reproduce the bug. These steps are used to add integration tests to ensure the same issue does not happen again. Thanks in advance! 
+- type: description
+  attributes:
+    value: Contributors should be able to follow the steps provided in order to reproduce the bug. 
+- type: description
+  attributes:
+    value: These steps are used to add integration tests to ensure the same issue does not happen again. Thanks in advance! 
+
+
