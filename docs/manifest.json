@@ -94,6 +94,10 @@
           "path": "/docs/deployment.md"
         },
         {
+          "title": "Authentication",
+          "path": "/docs/authentication.md"
+        },
+        {
           "title": "Advanced Features",
           "routes": [
             {
@@ -180,6 +184,10 @@
             {
               "title": "Debugging",
               "path": "/docs/advanced-features/debugging.md"
+            },
+            {
+              "title": "Source Maps",
+              "path": "/docs/advanced-features/source-maps.md"
             },
             {
               "title": "Codemods",

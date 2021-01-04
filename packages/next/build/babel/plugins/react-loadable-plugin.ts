@@ -71,9 +71,13 @@ export default function ({
 
           if (!callExpression.isCallExpression()) return
 
-          let args = callExpression.get('arguments')
+          const callExpression_ = callExpression as NodePath<
+            BabelTypes.CallExpression
+          >
+
+          let args = callExpression_.get('arguments')
           if (args.length > 2) {
-            throw callExpression.buildCodeFrameError(
+            throw callExpression_.buildCodeFrameError(
               'next/dynamic only accepts 2 arguments'
             )
           }
@@ -89,22 +93,23 @@ export default function ({
             options = args[0]
           } else {
             if (!args[1]) {
-              callExpression.node.arguments.push(t.objectExpression([]))
+              callExpression_.node.arguments.push(t.objectExpression([]))
             }
             // This is needed as the code is modified above
-            args = callExpression.get('arguments')
+            args = callExpression_.get('arguments')
             loader = args[0]
             options = args[1]
           }
 
           if (!options.isObjectExpression()) return
+          const options_ = options as NodePath<BabelTypes.ObjectExpression>
 
-          let properties = options.get('properties')
+          let properties = options_.get('properties')
           let propertiesMap: {
             [key: string]: NodePath<
               | BabelTypes.ObjectProperty
               | BabelTypes.ObjectMethod
-              | BabelTypes.SpreadProperty
+              | BabelTypes.SpreadElement
             >
           } = {}
 
