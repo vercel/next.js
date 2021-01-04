@@ -1,4 +1,5 @@
 import React from 'react'
+import Head from '../next-server/lib/head'
 import { toBase64 } from '../next-server/lib/to-base-64'
 import {
   ImageConfig,
@@ -86,7 +87,15 @@ function getWidths(
 
   const widths = [
     ...new Set(
-      [width, width * 2, width * 3].map(
+      // > This means that most OLED screens that say they are 3x resolution,
+      // > are actually 3x in the green color, but only 1.5x in the red and
+      // > blue colors. Showing a 3x resolution image in the app vs a 2x
+      // > resolution image will be visually the same, though the 3x image
+      // > takes significantly more data. Even true 3x resolution screens are
+      // > wasteful as the human eye cannot see that level of detail without
+      // > something like a magnifying glass.
+      // https://blog.twitter.com/engineering/en_us/topics/infrastructure/2019/capping-image-fidelity-on-ultra-high-resolution-devices.html
+      [width, width * 2 /*, width * 3*/].map(
         (w) => allSizes.find((p) => p >= w) || allSizes[allSizes.length - 1]
       )
     ),
@@ -100,7 +109,7 @@ type CallLoaderProps = {
   quality?: number
 }
 
-function callLoader(loaderProps: CallLoaderProps) {
+function callLoader(loaderProps: CallLoaderProps): string {
   const load = loaders.get(configLoader)
   if (load) {
     return load({ root: configPath, ...loaderProps })
@@ -121,10 +130,11 @@ type GenImgAttrsData = {
   sizes?: string
 }
 
-type GenImgAttrsResult = Pick<
-  JSX.IntrinsicElements['img'],
-  'src' | 'sizes' | 'srcSet'
->
+type GenImgAttrsResult = {
+  src: string
+  srcSet: string | undefined
+  sizes: string | undefined
+}
 
 function generateImgAttrs({
   src,
@@ -135,7 +145,7 @@ function generateImgAttrs({
   sizes,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
-    return { src }
+    return { src, srcSet: undefined, sizes: undefined }
   }
 
   const { widths, kind } = getWidths(width, layout)
@@ -151,9 +161,7 @@ function generateImgAttrs({
     .join(', ')
 
   if (!sizes && kind === 'w') {
-    sizes = widths
-      .map((w, i) => (i === last ? `${w}px` : `(max-width: ${w}px) ${w}px`))
-      .join(', ')
+    sizes = '100vw'
   }
 
   src = callLoader({ src, quality, width: widths[last] })
@@ -256,7 +264,7 @@ export default function Image({
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerSvg: string | undefined
   let imgStyle: ImgElementStyle | undefined = {
-    visibility: isVisible ? 'visible' : 'hidden',
+    visibility: isVisible ? 'inherit' : 'hidden',
 
     position: 'absolute',
     top: 0,
@@ -357,6 +365,8 @@ export default function Image({
   let imgAttributes: GenImgAttrsResult = {
     src:
       'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    srcSet: undefined,
+    sizes: undefined,
   }
 
   if (isVisible) {
@@ -381,7 +391,13 @@ export default function Image({
         <div style={sizerStyle}>
           {sizerSvg ? (
             <img
-              style={{ maxWidth: '100%', display: 'block' }}
+              style={{
+                maxWidth: '100%',
+                display: 'block',
+                margin: 0,
+                border: 'none',
+                padding: 0,
+              }}
               alt=""
               aria-hidden={true}
               role="presentation"
@@ -398,6 +414,30 @@ export default function Image({
         ref={setRef}
         style={imgStyle}
       />
+      {priority ? (
+        // Note how we omit the `href` attribute, as it would only be relevant
+        // for browsers that do not support `imagesrcset`, and in those cases
+        // it would likely cause the incorrect image to be preloaded.
+        //
+        // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-imagesrcset
+        <Head>
+          <link
+            key={
+              '__nimg-' +
+              imgAttributes.src +
+              imgAttributes.srcSet +
+              imgAttributes.sizes
+            }
+            rel="preload"
+            as="image"
+            href={imgAttributes.srcSet ? undefined : imgAttributes.src}
+            // @ts-ignore: imagesrcset is not yet in the link element type
+            imagesrcset={imgAttributes.srcSet}
+            // @ts-ignore: imagesizes is not yet in the link element type
+            imagesizes={imgAttributes.sizes}
+          ></link>
+        </Head>
+      ) : null}
     </div>
   )
 }
@@ -406,7 +446,7 @@ export default function Image({
 
 type LoaderProps = CallLoaderProps & { root: string }
 
-function normalizeSrc(src: string) {
+function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
 

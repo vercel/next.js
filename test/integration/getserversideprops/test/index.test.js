@@ -277,7 +277,7 @@ const runTests = (dev = false) => {
     expect(await browser.elementByCss('html').text()).toContain(
       'This page could not be found'
     )
-    expect(await browser.eval('window.beforeNav')).toBe(null)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should render correctly when notFound is false (dynamic)', async () => {
@@ -306,7 +306,7 @@ const runTests = (dev = false) => {
     expect(await browser.elementByCss('html').text()).toContain(
       'This page could not be found'
     )
-    expect(await browser.eval('window.beforeNav')).toBe(null)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should SSR normal page correctly', async () => {

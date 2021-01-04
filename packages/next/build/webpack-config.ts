@@ -4,10 +4,11 @@ import crypto from 'crypto'
 import { readFileSync, realpathSync } from 'fs'
 import chalk from 'chalk'
 import semver from 'next/dist/compiled/semver'
-import TerserPlugin from 'next/dist/compiled/terser-webpack-plugin'
+// @ts-ignore No typings yet
+import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
 import path from 'path'
 import webpack from 'webpack'
-import type { Configuration } from 'webpack'
+import { Configuration } from 'webpack'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -62,6 +63,13 @@ import { NextConfig } from '../next-server/server/config'
 type ExcludesFalse = <T>(x: T | false) => x is T
 
 const isWebpack5 = parseInt(webpack.version!) === 5
+
+if (isWebpack5 && semver.lt(webpack.version!, '5.11.1')) {
+  Log.error(
+    `webpack 5 version must be greater than v5.11.1 to work properly with Next.js, please upgrade to continue!\nSee more info here: https://err.sh/next.js/invalid-webpack-5-version`
+  )
+  process.exit(1)
+}
 
 const devtoolRevertWarning = execOnce((devtool: Configuration['devtool']) => {
   console.warn(
@@ -203,8 +211,6 @@ export default async function getBaseWebpackConfig(
     rewrites: Rewrite[]
   }
 ): Promise<webpack.Configuration> {
-  const productionBrowserSourceMaps =
-    config.experimental.productionBrowserSourceMaps && !isServer
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
@@ -364,15 +370,6 @@ export default async function getBaseWebpackConfig(
       ...nodePathList, // Support for NODE_PATH environment variable
     ],
     alias: {
-      // These aliases make sure the wrapper module is not included in the bundles
-      // Which makes bundles slightly smaller, but also skips parsing a module that we know will result in this alias
-      'next/head': 'next/dist/next-server/lib/head.js',
-      'next/router': 'next/dist/client/router.js',
-      'next/experimental-script': config.experimental.scriptLoader
-        ? 'next/dist/client/experimental-script.js'
-        : '',
-      'next/config': 'next/dist/next-server/lib/runtime-config.js',
-      'next/dynamic': 'next/dist/next-server/lib/dynamic.js',
       next: NEXT_PROJECT_ROOT,
       ...(isWebpack5 && !isServer
         ? {
@@ -397,8 +394,6 @@ export default async function getBaseWebpackConfig(
         []
       : [require('pnp-webpack-plugin')],
   }
-
-  const webpackMode = dev ? 'development' : 'production'
 
   const terserOptions: any = {
     parse: {
@@ -714,6 +709,8 @@ export default async function getBaseWebpackConfig(
     callback()
   }
 
+  const emacsLockfilePattern = '**/.#*'
+
   let webpackConfig: webpack.Configuration = {
     externals: !isServer
       ? // make sure importing "next" is handled gracefully for client
@@ -752,9 +749,8 @@ export default async function getBaseWebpackConfig(
       minimizer: [
         // Minify JavaScript
         new TerserPlugin({
-          extractComments: false,
-          cache: path.join(distDir, 'cache', 'next-minifier'),
-          parallel: config.experimental.cpus || true,
+          cacheDir: path.join(distDir, 'cache', 'next-minifier'),
+          parallel: config.experimental.cpus,
           terserOptions,
         }),
         // Minify CSS
@@ -791,7 +787,13 @@ export default async function getBaseWebpackConfig(
       }
     },
     watchOptions: {
-      ignored: ['**/.git/**', '**/node_modules/**', '**/.next/**'],
+      ignored: [
+        '**/.git/**',
+        '**/node_modules/**',
+        '**/.next/**',
+        // can be removed after https://github.com/paulmillr/chokidar/issues/955 is released
+        emacsLockfilePattern,
+      ],
     },
     output: {
       ...(isWebpack5
@@ -838,7 +840,6 @@ export default async function getBaseWebpackConfig(
         'error-loader',
         'next-babel-loader',
         'next-client-pages-loader',
-        'next-data-loader',
         'next-serverless-loader',
         'noop-loader',
         'next-plugin-loader',
@@ -944,7 +945,10 @@ export default async function getBaseWebpackConfig(
             [`process.env.${key}`]: JSON.stringify(config.env[key]),
           }
         }, {}),
-        'process.env.NODE_ENV': JSON.stringify(webpackMode),
+        // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
+        'process.env.NODE_ENV': JSON.stringify(
+          dev ? 'development' : 'production'
+        ),
         'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(!isServer),
         'process.env.__NEXT_TEST_MODE': JSON.stringify(
@@ -970,6 +974,9 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_REACT_MODE': JSON.stringify(
           config.experimental.reactMode
+        ),
+        'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
+          config.experimental.optimizeFonts && !dev
         ),
         'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
           config.experimental.optimizeImages
@@ -1007,7 +1014,7 @@ export default async function getBaseWebpackConfig(
           : undefined),
         // stub process.env with proxy to warn a missing value is
         // being accessed in development mode
-        ...(config.experimental.pageEnv && process.env.NODE_ENV !== 'production'
+        ...(config.experimental.pageEnv && dev
           ? {
               'process.env': `
             new Proxy(${isServer ? 'process.env' : '{}'}, {
@@ -1075,7 +1082,8 @@ export default async function getBaseWebpackConfig(
         new ProfilingPlugin({
           tracer,
         }),
-      !dev &&
+      config.experimental.optimizeFonts &&
+        !dev &&
         isServer &&
         (function () {
           const {
@@ -1136,6 +1144,7 @@ export default async function getBaseWebpackConfig(
       if (!webpackConfig.optimization) {
         webpackConfig.optimization = {}
       }
+      webpackConfig.optimization.providedExports = false
       webpackConfig.optimization.usedExports = false
     }
 
@@ -1163,6 +1172,7 @@ export default async function getBaseWebpackConfig(
       plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
       reactMode: config.experimental.reactMode,
+      optimizeFonts: config.experimental.optimizeFonts,
       optimizeImages: config.experimental.optimizeImages,
       scrollRestoration: config.experimental.scrollRestoration,
       basePath: config.basePath,
@@ -1204,7 +1214,7 @@ export default async function getBaseWebpackConfig(
     isServer,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
-    productionBrowserSourceMaps,
+    productionBrowserSourceMaps: config.productionBrowserSourceMaps,
   })
 
   let originalDevtool = webpackConfig.devtool
