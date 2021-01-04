@@ -10,7 +10,7 @@ The easiest way to deploy Next.js to production is to use the **[Vercel platform
 
 ### Getting started
 
-If you haven’t already done so, push your Next.js app to a Git provider of your choice: [GitHub](http://github.com/), [GitLab](https://gitlab.com/), or [BitBucket](https://bitbucket.org/). Your repository can be private or public.
+If you haven’t already done so, push your Next.js app to a Git provider of your choice: [GitHub](https://github.com/), [GitLab](https://gitlab.com/), or [BitBucket](https://bitbucket.org/). Your repository can be private or public.
 
 Then, follow these steps:
 
@@ -29,7 +29,7 @@ Let’s talk about the workflow we recommend using. [Vercel](https://vercel.com)
 
 - **Develop:** Write code in Next.js. Keep the development server running and take advantage of [React Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh).
 - **Preview:** Every time you push changes to a branch on GitHub / GitLab / BitBucket, Vercel automatically creates a new deployment with a unique URL. You can view them on GitHub when you open a pull request, or under “Preview Deployments” on your project page on Vercel. [Learn more about it here](https://vercel.com/features/deployment-previews).
-- **Ship:** When you’re ready to ship, merge the pull request to your default branch (e.g. `master`). Vercel will automatically create a production deployment.
+- **Ship:** When you’re ready to ship, merge the pull request to your default branch (e.g. `main`). Vercel will automatically create a production deployment.
 
 By using the DPS workflow, in addition to doing _code reviews_, you can do _deployment previews_. Each deployment creates a unique URL that can be shared or used for integration tests.
 
@@ -49,6 +49,14 @@ For example, the [hybrid pages](/docs/basic-features/pages.md) approach is fully
 - **Environment Variables:** You can also set environment variables on Vercel. Take a look at [our documentation here](https://vercel.com/docs/v2/build-step#using-environment-variables-and-secrets). You can then [use those environment variables](/docs/api-reference/next.config.js/environment-variables.md) in your Next.js app.
 - **Automatic HTTPS:** HTTPS is enabled by default (including custom domains) and doesn't require extra configuration. We auto-renew SSL certificates.
 - **More:** [Read our documentation](https://vercel.com/docs) to learn more about the Vercel platform.
+
+## Automatic Updates
+
+When you deploy your Next.js application, you want to see the latest version without needing to reload.
+
+Next.js will automatically load the latest version of your application in the background when routing. For client-side navigation, `next/link` will temporarily function as a normal `<a>` tag.
+
+If a new page (with an old version) has already been prefetched by `next/link`, Next.js will use the old version. Then, after either a full page refresh or multiple client-side transitions, Next.js will show the latest version.
 
 ## Other hosting options
 

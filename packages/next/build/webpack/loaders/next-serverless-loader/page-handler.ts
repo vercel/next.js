@@ -192,6 +192,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
           locales: i18n?.locales,
           locale: detectedLocale,
           defaultLocale,
+          domainLocales: i18n?.domains,
         },
         options
       )
@@ -279,12 +280,17 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
       const previewData = tryGetPreviewData(req, res, options.previewProps)
       const isPreviewMode = previewData !== false
-      /**
-       * __webpack_require__.__NEXT_FONT_MANIFEST__ is added by
-       * font-stylesheet-gathering-plugin
-       */
-      // @ts-ignore
-      renderOpts.fontManifest = __webpack_require__.__NEXT_FONT_MANIFEST__
+
+      if (process.env.__NEXT_OPTIMIZE_FONTS) {
+        renderOpts.optimizeFonts = true
+        /**
+         * __webpack_require__.__NEXT_FONT_MANIFEST__ is added by
+         * font-stylesheet-gathering-plugin
+         */
+        // @ts-ignore
+        renderOpts.fontManifest = __webpack_require__.__NEXT_FONT_MANIFEST__
+      }
+
       let result = await renderToHTML(
         req,
         res,
@@ -305,6 +311,11 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
         if (_nextData || getStaticProps || getServerSideProps) {
           if (renderOpts.isNotFound) {
             res.statusCode = 404
+
+            if (_nextData) {
+              res.end('{"notFound":true}')
+              return null
+            }
 
             const NotFoundComponent = notFoundMod ? notFoundMod.default : Error
             const errPathname = notFoundMod ? '/404' : '/_error'

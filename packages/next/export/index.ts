@@ -43,7 +43,7 @@ import {
 } from '../next-server/server/normalize-page-path'
 import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
-import type exportPage from './worker'
+import exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../next-server/server/require'
 
@@ -338,6 +338,7 @@ Read more: https://err.sh/next.js/export-image-api`
     locales: i18n?.locales,
     locale: i18n?.defaultLocale,
     defaultLocale: i18n?.defaultLocale,
+    domainLocales: i18n?.domains,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -487,6 +488,7 @@ Read more: https://err.sh/next.js/export-image-api`
         subFolders,
         buildExport: options.buildExport,
         serverless: isTargetLikeServerless(nextConfig.target),
+        optimizeFonts: nextConfig.experimental.optimizeFonts,
         optimizeImages: nextConfig.experimental.optimizeImages,
         optimizeCss: nextConfig.experimental.optimizeCss,
       })
