@@ -10,12 +10,12 @@ inputs:
 - type: input
   attributes:
     label: What version of Next.js are you using?
-    description: For example: 10.0.1
+    description: "For example: 10.0.1"
     required: true
 - type: input
   attributes:
     label: What version of Node.js are you using?
-    description: For example: 12.0.0
+    description: "For example: 12.0.0"
     required: true
 - type: input
   attributes:
