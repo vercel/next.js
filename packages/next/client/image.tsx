@@ -74,15 +74,14 @@ export type ImageProps = Omit<
       }
   )
 
-const config =
-  ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
-const configLoader = config.loader
 const {
   deviceSizes: configDeviceSizes,
   imageSizes: configImageSizes,
+  loader: configLoader,
   path: configPath,
   domains: configDomains,
-} = config
+} =
+  ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
 // sort smallest to largest
 const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)
