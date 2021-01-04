@@ -53,6 +53,7 @@ inputs:
 - type: description
   attributes:
     value: Before posting the issue go through the steps you've written down to make sure the steps provided are detailed and clear.
+- type: description
   attributes:
     value: Contributors should be able to follow the steps provided in order to reproduce the bug. 
 - type: description
