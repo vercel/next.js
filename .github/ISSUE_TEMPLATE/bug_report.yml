@@ -9,23 +9,28 @@ inputs:
     value: Thanks for taking the time to file a bug report! Please fill out this form as completely as possible.
 - type: input
   attributes:
-    label: What version of Next.js are you using? [e.g. 10.0.1]
+    label: What version of Next.js are you using?
+    description: For example: 10.0.1
     required: true
 - type: input
   attributes:
-    label: What version of Node.js are you using? [e.g. 12.0.0]
+    label: What version of Node.js are you using?
+    description: For example: 12.0.0
     required: true
 - type: input
   attributes:
-    label: What browser are you using? [e.g. Chrome, Safari]
+    label: What browser are you using?
+    description: For example: Chrome, Safari
     required: true
 - type: input
   attributes:
-    label: What operating system are you using? [e.g. macOS, Windows]
+    label: What operating system are you using?
+    description: For example: macOS, Windows
     required: true
 - type: input
   attributes:
-    label: How are you deploying your application? [e.g. next start, next export, Vercel, Other platform]
+    label: How are you deploying your application?
+    description: For example: next start, next export, Vercel, Other platform
     required: true
 - type: textarea
   attributes:
@@ -40,5 +45,5 @@ inputs:
 - type: textarea
   attributes:
     label: To Reproduce
-    description: Steps to reproduce the behavior, please provide a clear code snippets that always reproduces the issue or a GitHub repository.
+    description: Steps to reproduce the behavior, please provide a clear code snippets that always reproduces the issue or a GitHub repository. Screenshots can be provided in the issue body below.
     required: true
