@@ -1,23 +1,20 @@
 {
   "name": "with-emotion",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
   "scripts": {
     "dev": "next",
     "build": "next build",
     "start": "next start"
   },
-  "keywords": [],
-  "author": "Thomas Greco",
   "license": "MIT",
+  "devDependencies": {
+    "@emotion/babel-plugin": "11.0.0"
+  },
   "dependencies": {
-    "@emotion/core": "10.0.27",
-    "@emotion/styled": "10.0.27",
-    "emotion": "10.0.27",
-    "emotion-server": "10.0.27",
+    "@emotion/react": "11.1.1",
+    "@emotion/styled": "11.0.0",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1"
   }
 }

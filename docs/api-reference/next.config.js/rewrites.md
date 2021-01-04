@@ -154,10 +154,45 @@ module.exports = {
         destination: '/another', // automatically becomes /docs/another
       },
       {
-        // does not add /docs since basePath: false is set
+        // does not add /docs to /without-basePath since basePath: false is set
+        // Note: this can not be used for internal rewrites e.g. `destination: '/another'`
         source: '/without-basePath',
-        destination: '/another',
+        destination: 'https://example.com',
         basePath: false,
+      },
+    ]
+  },
+}
+```
+
+### Rewrites with i18n support
+
+When leveraging [`i18n` support](/docs/advanced-features/i18n-routing.md) with rewrites each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the rewrite. If `locale: false` is used you must prefix the `source` and `destination` with a locale for it to be matched correctly.
+
+```js
+module.exports = {
+  i18n: {
+    locales: ['en', 'fr', 'de'],
+    defaultLocale: 'en',
+  },
+
+  async rewrites() {
+    return [
+      {
+        source: '/with-locale', // automatically handles all locales
+        destination: '/another', // automatically passes the locale on
+      },
+      {
+        // does not handle locales automatically since locale: false is set
+        source: '/nl/with-locale-manual',
+        destination: '/nl/another',
+        locale: false,
+      },
+      {
+        // this matches '/' since `en` is the defaultLocale
+        source: '/en',
+        destination: '/en/another',
+        locale: false,
       },
     ]
   },
