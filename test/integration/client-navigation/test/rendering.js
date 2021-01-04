@@ -186,6 +186,12 @@ export default function (render, fetch, ctx) {
       expect(html).toContain('<meta content="meta fragment"/>')
     })
 
+    test('header helper renders boolean attributes correctly children', async () => {
+      const html = await render('/head')
+      expect(html).toContain('<script src="/test-async.js" async="">')
+      expect(html).toContain('<script src="/test-defer.js" defer="">')
+    })
+
     it('should render the page with custom extension', async () => {
       const html = await render('/custom-extension')
       expect(html).toContain('<div>Hello</div>')
