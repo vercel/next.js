@@ -20,17 +20,17 @@ inputs:
 - type: input
   attributes:
     label: What browser are you using?
-    description: For example: Chrome, Safari
+    description: "For example: Chrome, Safari"
     required: true
 - type: input
   attributes:
     label: What operating system are you using?
-    description: For example: macOS, Windows
+    description: "For example: macOS, Windows"
     required: true
 - type: input
   attributes:
     label: How are you deploying your application?
-    description: For example: next start, next export, Vercel, Other platform
+    description: "For example: next start, next export, Vercel, Other platform"
     required: true
 - type: textarea
   attributes:
