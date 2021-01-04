@@ -1,5 +1,5 @@
 import '../next-server/server/node-polyfill-fetch'
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import gzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
@@ -26,7 +26,7 @@ import { GetStaticPaths } from 'next/types'
 import { denormalizePagePath } from '../next-server/server/normalize-page-path'
 import { BuildManifest } from '../next-server/server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
-import type { UnwrapPromise } from '../lib/coalesced-function'
+import { UnwrapPromise } from '../lib/coalesced-function'
 import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
@@ -66,7 +66,6 @@ export async function printTreeView(
     pagesDir,
     pageExtensions,
     buildManifest,
-    isModern,
     useStatic404,
   }: {
     distPath: string
@@ -74,7 +73,6 @@ export async function printTreeView(
     pagesDir: string
     pageExtensions: string[]
     buildManifest: BuildManifest
-    isModern: boolean
     useStatic404: boolean
   }
 ) {
@@ -114,12 +112,7 @@ export async function printTreeView(
     list = [...list, '/404']
   }
 
-  const sizeData = await computeFromManifest(
-    buildManifest,
-    distPath,
-    isModern,
-    pageInfos
-  )
+  const sizeData = await computeFromManifest(buildManifest, distPath, pageInfos)
 
   const pageList = list
     .slice()
@@ -374,18 +367,15 @@ type ComputeManifestShape = {
 let cachedBuildManifest: BuildManifest | undefined
 
 let lastCompute: ComputeManifestShape | undefined
-let lastComputeModern: boolean | undefined
 let lastComputePageInfo: boolean | undefined
 
 async function computeFromManifest(
   manifest: BuildManifest,
   distPath: string,
-  isModern: boolean,
   pageInfos?: Map<string, PageInfo>
 ): Promise<ComputeManifestShape> {
   if (
     Object.is(cachedBuildManifest, manifest) &&
-    lastComputeModern === isModern &&
     lastComputePageInfo === !!pageInfos
   ) {
     return lastCompute!
@@ -405,13 +395,6 @@ async function computeFromManifest(
 
     ++expected
     manifest.pages[key].forEach((file) => {
-      if (
-        // Select Modern or Legacy scripts
-        file.endsWith('.module.js') !== isModern
-      ) {
-        return
-      }
-
       if (key === '/_app') {
         files.set(file, Infinity)
       } else if (files.has(file)) {
@@ -471,7 +454,6 @@ async function computeFromManifest(
   }
 
   cachedBuildManifest = manifest
-  lastComputeModern = isModern
   lastComputePageInfo = !!pageInfos
   return lastCompute!
 }
@@ -495,18 +477,16 @@ function sum(a: number[]): number {
 export async function getJsPageSizeInKb(
   page: string,
   distPath: string,
-  buildManifest: BuildManifest,
-  isModern: boolean
+  buildManifest: BuildManifest
 ): Promise<[number, number]> {
-  const data = await computeFromManifest(buildManifest, distPath, isModern)
+  const data = await computeFromManifest(buildManifest, distPath)
 
-  const fnFilterModern = (entry: string) =>
-    entry.endsWith('.js') && entry.endsWith('.module.js') === isModern
+  const fnFilterJs = (entry: string) => entry.endsWith('.js')
 
   const pageFiles = (
     buildManifest.pages[denormalizePagePath(page)] || []
-  ).filter(fnFilterModern)
-  const appFiles = (buildManifest.pages['/_app'] || []).filter(fnFilterModern)
+  ).filter(fnFilterJs)
+  const appFiles = (buildManifest.pages['/_app'] || []).filter(fnFilterJs)
 
   const fnMapRealPath = (dep: string) => `${distPath}/${dep}`
 
@@ -535,16 +515,20 @@ export async function buildStaticPaths(
   locales?: string[],
   defaultLocale?: string
 ): Promise<
-  Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & { paths: string[] }
+  Omit<UnwrapPromise<ReturnType<GetStaticPaths>>, 'paths'> & {
+    paths: string[]
+    encodedPaths: string[]
+  }
 > {
   const prerenderPaths = new Set<string>()
+  const encodedPrerenderPaths = new Set<string>()
   const _routeRegex = getRouteRegex(page)
   const _routeMatcher = getRouteMatcher(_routeRegex)
 
   // Get the default list of allowed params.
   const _validParamKeys = Object.keys(_routeMatcher(page))
 
-  const staticPathsResult = await getStaticPaths()
+  const staticPathsResult = await getStaticPaths({ locales, defaultLocale })
 
   const expectedReturnVal =
     `Expected: { paths: [], fallback: boolean }\n` +
@@ -575,7 +559,7 @@ export async function buildStaticPaths(
   if (
     !(
       typeof staticPathsResult.fallback === 'boolean' ||
-      staticPathsResult.fallback === 'unstable_blocking'
+      staticPathsResult.fallback === 'blocking'
     )
   ) {
     throw new Error(
@@ -588,7 +572,7 @@ export async function buildStaticPaths(
 
   if (!Array.isArray(toPrerender)) {
     throw new Error(
-      `Invalid \`paths\` value returned from getStaticProps in ${page}.\n` +
+      `Invalid \`paths\` value returned from getStaticPaths in ${page}.\n` +
         `\`paths\` must be an array of strings or objects of shape { params: [key: string]: string }`
     )
   }
@@ -615,7 +599,18 @@ export async function buildStaticPaths(
         )
       }
 
-      prerenderPaths?.add(entry)
+      // If leveraging the string paths variant the entry should already be
+      // encoded so we decode the segments ensuring we only escape path
+      // delimiters
+      prerenderPaths.add(
+        entry
+          .split('/')
+          .map((segment) =>
+            escapePathDelimiters(decodeURIComponent(segment), true)
+          )
+          .join('/')
+      )
+      encodedPrerenderPaths.add(entry)
     }
     // For the object-provided path, we must make sure it specifies all
     // required keys.
@@ -637,6 +632,8 @@ export async function buildStaticPaths(
 
       const { params = {} } = entry
       let builtPage = page
+      let encodedBuiltPage = page
+
       _validParamKeys.forEach((validParamKey) => {
         const { repeat, optional } = _routeRegex.groups[validParamKey]
         let paramValue = params[validParamKey]
@@ -667,8 +664,19 @@ export async function buildStaticPaths(
           .replace(
             replaced,
             repeat
-              ? (paramValue as string[]).map(escapePathDelimiters).join('/')
-              : escapePathDelimiters(paramValue as string)
+              ? (paramValue as string[])
+                  .map((segment) => escapePathDelimiters(segment, true))
+                  .join('/')
+              : escapePathDelimiters(paramValue as string, true)
+          )
+          .replace(/(?!^)\/$/, '')
+
+        encodedBuiltPage = encodedBuiltPage
+          .replace(
+            replaced,
+            repeat
+              ? (paramValue as string[]).map(encodeURIComponent).join('/')
+              : encodeURIComponent(paramValue as string)
           )
           .replace(/(?!^)\/$/, '')
       })
@@ -680,11 +688,24 @@ export async function buildStaticPaths(
       }
       const curLocale = entry.locale || defaultLocale || ''
 
-      prerenderPaths?.add(`${curLocale ? `/${curLocale}` : ''}${builtPage}`)
+      prerenderPaths.add(
+        `${curLocale ? `/${curLocale}` : ''}${
+          curLocale && builtPage === '/' ? '' : builtPage
+        }`
+      )
+      encodedPrerenderPaths.add(
+        `${curLocale ? `/${curLocale}` : ''}${
+          curLocale && encodedBuiltPage === '/' ? '' : encodedBuiltPage
+        }`
+      )
     }
   })
 
-  return { paths: [...prerenderPaths], fallback: staticPathsResult.fallback }
+  return {
+    paths: [...prerenderPaths],
+    fallback: staticPathsResult.fallback,
+    encodedPaths: [...encodedPrerenderPaths],
+  }
 }
 
 export async function isPageStatic(
@@ -699,8 +720,10 @@ export async function isPageStatic(
   isHybridAmp?: boolean
   hasServerProps?: boolean
   hasStaticProps?: boolean
-  prerenderRoutes?: string[] | undefined
-  prerenderFallback?: boolean | 'unstable_blocking' | undefined
+  prerenderRoutes?: string[]
+  encodedPrerenderRoutes?: string[]
+  prerenderFallback?: boolean | 'blocking'
+  isNextImageImported?: boolean
 }> {
   try {
     require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
@@ -775,11 +798,13 @@ export async function isPageStatic(
     }
 
     let prerenderRoutes: Array<string> | undefined
-    let prerenderFallback: boolean | 'unstable_blocking' | undefined
+    let encodedPrerenderRoutes: Array<string> | undefined
+    let prerenderFallback: boolean | 'blocking' | undefined
     if (hasStaticProps && hasStaticPaths) {
       ;({
         paths: prerenderRoutes,
         fallback: prerenderFallback,
+        encodedPaths: encodedPrerenderRoutes,
       } = await buildStaticPaths(
         page,
         mod.getStaticPaths,
@@ -788,6 +813,7 @@ export async function isPageStatic(
       ))
     }
 
+    const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
     const config = mod.config || {}
     return {
       isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
@@ -795,8 +821,10 @@ export async function isPageStatic(
       isAmpOnly: config.amp === true,
       prerenderRoutes,
       prerenderFallback,
+      encodedPrerenderRoutes,
       hasStaticProps,
       hasServerProps,
+      isNextImageImported,
     }
   } catch (err) {
     if (err.code === 'MODULE_NOT_FOUND') return {}
