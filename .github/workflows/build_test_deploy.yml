@@ -105,6 +105,26 @@ jobs:
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
+  testIntegrationWithoutSharp:
+    name: Test Integration (without sharp)
+    runs-on: ubuntu-latest
+    needs: testIntegration
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      HEADLESS: true
+    steps:
+      - uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
+
+      # TODO: remove after we fix watchpack watching too much
+      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
+      - run: rm -rf node_modules/sharp
+      - run: xvfb-run node run-tests.js --timings test/integration/cli/test/index.test.js -c 3
+
   testElectron:
     name: Test Electron
     runs-on: ubuntu-latest
