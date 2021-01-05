@@ -309,14 +309,27 @@ export function resolveHref(
   }
 }
 
+function stripOrigin(url: string) {
+  const origin = getLocationOrigin()
+
+  return url.startsWith(origin) ? url.substring(origin.length) : url
+}
+
 function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
-  const [resolvedHref, resolvedAs] = resolveHref(router.pathname, url, true)
+  let [resolvedHref, resolvedAs] = resolveHref(router.pathname, url, true)
+
+  resolvedHref = stripOrigin(resolvedHref)
+  resolvedAs = stripOrigin(resolvedAs || '')
+
   return {
     url: addBasePath(resolvedHref),
     as: addBasePath(
-      as ? resolveHref(router.pathname, as) : resolvedAs || resolvedHref
+      stripOrigin(
+        (as ? resolveHref(router.pathname, as) : resolvedAs || resolvedHref) ||
+          ''
+      )
     ),
   }
 }
@@ -735,6 +748,11 @@ export default class Router implements BaseRouter {
     if ((options as any)._h) {
       this.isReady = true
     }
+
+    console.log('change', {
+      url,
+      as,
+    })
 
     // Default to scroll reset behavior unless explicitly specified to be
     // `false`! This makes the behavior between using `Router#push` and a
