@@ -30,6 +30,7 @@ pr:
       - docs
       - errors
       - examples
+      - azure-pipelines.yml
 
 variables:
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
