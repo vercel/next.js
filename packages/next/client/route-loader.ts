@@ -166,7 +166,7 @@ export function getClientBuildManifest(): Promise<ClientBuildManifest> {
     return Promise.resolve(self.__BUILD_MANIFEST)
   }
 
-  const onBuildManifest: Promise<Record<string, string[]>> = new Promise<
+  const onBuildManifest: Promise<ClientBuildManifest> = new Promise<
     ClientBuildManifest
   >((resolve) => {
     // Mandatory because this is not concurrent safe:
