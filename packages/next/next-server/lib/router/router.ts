@@ -81,7 +81,7 @@ function addPathPrefix(path: string, prefix?: string) {
   return prefix && path.startsWith('/')
     ? path === '/'
       ? normalizePathTrailingSlash(prefix)
-      : `${prefix}${path}`
+      : `${prefix}${pathNoQueryHash(path) === '/' ? path.substring(1) : path}`
     : path
 }
 
@@ -133,13 +133,18 @@ export function delLocale(path: string, locale?: string) {
   return path
 }
 
-export function hasBasePath(path: string): boolean {
+function pathNoQueryHash(path: string) {
   const queryIndex = path.indexOf('?')
   const hashIndex = path.indexOf('#')
 
   if (queryIndex > -1 || hashIndex > -1) {
     path = path.substring(0, queryIndex > -1 ? queryIndex : hashIndex)
   }
+  return path
+}
+
+export function hasBasePath(path: string): boolean {
+  path = pathNoQueryHash(path)
   return path === basePath || path.startsWith(basePath + '/')
 }
 
@@ -149,7 +154,9 @@ export function addBasePath(path: string): string {
 }
 
 export function delBasePath(path: string): string {
-  return path.slice(basePath.length) || '/'
+  path = path.slice(basePath.length)
+  if (!path.startsWith('/')) path = `/${path}`
+  return path
 }
 
 /**
