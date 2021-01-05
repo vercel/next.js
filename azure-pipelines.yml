@@ -21,8 +21,6 @@ trigger:
       - refs/tags/*
 
 pr:
-  # Only run latest commit for branches:
-  batch: true
   # Do not run Azure CI for docs-only/example-only changes:
   paths:
     include:
