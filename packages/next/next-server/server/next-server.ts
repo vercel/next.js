@@ -162,7 +162,6 @@ export default class Server {
     domainLocales?: DomainLocales
   }
   private compression?: Middleware
-  private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
   private incrementalCache: IncrementalCache
   router: Router
   protected dynamicRoutes?: DynamicRoutes
@@ -283,9 +282,6 @@ export default class Server {
   }
 
   public logError(err: Error): void {
-    if (this.onErrorMiddleware) {
-      this.onErrorMiddleware({ err })
-    }
     if (this.quiet) return
     console.error(err)
   }
@@ -1047,8 +1043,7 @@ export default class Server {
       query,
       pageModule,
       this.renderOpts.previewProps,
-      false,
-      this.onErrorMiddleware
+      false
     )
     return true
   }
