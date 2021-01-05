@@ -10,7 +10,7 @@ const glob = promisify(_glob)
 const exec = promisify(execOrig)
 
 const timings = []
-const NUM_RETRIES = 2
+const DEFAULT_NUM_RETRIES = 0
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
@@ -37,6 +37,12 @@ const configuredTestTypes = [UNIT_TEST_EXT]
   const testTypeIdx = process.argv.indexOf('--type')
   const testType = process.argv[testTypeIdx + 1]
 
+  const retriesIdx = process.argv.indexOf('--num-retries')
+  const numRetries =
+    retriesIdx < 0
+      ? DEFAULT_NUM_RETRIES
+      : parseInt(process.argv[retriesIdx + 1], 10)
+
   let filterTestsBy
 
   switch (testType) {
@@ -56,7 +62,12 @@ const configuredTestTypes = [UNIT_TEST_EXT]
       break
   }
 
-  console.log('Running tests with concurrency:', concurrency)
+  console.log(
+    'Running tests with concurrency:',
+    concurrency,
+    'and retries:',
+    numRetries
+  )
   let tests = process.argv.filter((arg) => arg.endsWith('.test.js'))
   let prevTimings
 
@@ -222,7 +233,7 @@ const configuredTestTypes = [UNIT_TEST_EXT]
       await sema.acquire()
       let passed = false
 
-      for (let i = 0; i < NUM_RETRIES + 1; i++) {
+      for (let i = 0; i < numRetries + 1; i++) {
         try {
           const time = await runTest(test, i > 0)
           timings.push({
@@ -232,7 +243,7 @@ const configuredTestTypes = [UNIT_TEST_EXT]
           passed = true
           break
         } catch (err) {
-          if (i < NUM_RETRIES) {
+          if (i < numRetries) {
             try {
               const testDir = path.dirname(path.join(__dirname, test))
               console.log('Cleaning test files at', testDir)
@@ -243,7 +254,7 @@ const configuredTestTypes = [UNIT_TEST_EXT]
         }
       }
       if (!passed) {
-        console.error(`${test} failed to pass within ${NUM_RETRIES} retries`)
+        console.error(`${test} failed to pass within ${numRetries} retries`)
         children.forEach((child) => child.kill())
 
         if (isTestJob) {
