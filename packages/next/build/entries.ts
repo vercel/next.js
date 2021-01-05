@@ -14,7 +14,7 @@ import { NextConfig } from '../next-server/server/config'
 type PagesMapping = {
   [page: string]: string
 }
-
+console.log('no-op')
 export function createPagesMapping(
   pagePaths: string[],
   extensions: string[]
