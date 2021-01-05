@@ -319,18 +319,21 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
   let [resolvedHref, resolvedAs] = resolveHref(router.pathname, url, true)
+  const origin = getLocationOrigin()
+  const hrefHadOrigin = resolvedHref.startsWith(origin)
+  const asHadOrigin = resolvedAs && resolvedAs.startsWith(origin)
 
   resolvedHref = stripOrigin(resolvedHref)
-  resolvedAs = stripOrigin(resolvedAs || '')
+  resolvedAs = resolvedAs ? stripOrigin(resolvedAs) : resolvedAs
+
+  const preparedUrl = hrefHadOrigin ? resolvedHref : addBasePath(resolvedHref)
+  const preparedAs = as
+    ? stripOrigin(resolveHref(router.pathname, as))
+    : resolvedAs || resolvedHref
 
   return {
-    url: addBasePath(resolvedHref),
-    as: addBasePath(
-      stripOrigin(
-        (as ? resolveHref(router.pathname, as) : resolvedAs || resolvedHref) ||
-          ''
-      )
-    ),
+    url: preparedUrl,
+    as: asHadOrigin ? preparedAs : addBasePath(preparedAs),
   }
 }
 
@@ -748,11 +751,6 @@ export default class Router implements BaseRouter {
     if ((options as any)._h) {
       this.isReady = true
     }
-
-    console.log('change', {
-      url,
-      as,
-    })
 
     // Default to scroll reset behavior unless explicitly specified to be
     // `false`! This makes the behavior between using `Router#push` and a
