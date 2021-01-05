@@ -175,9 +175,7 @@ function getInt(x: unknown): number | undefined {
 function defaultImageLoader(loaderProps: ImageLoaderProps) {
   // Can disregard case with configLoader not in loaders list because
   // that's checked for in config.ts
-  const load = loaders.get(configLoader) as (
-    props: DefaultImageLoaderProps
-  ) => string
+  const load = loaders.get(configLoader)!
   return load({ root: configPath, ...loaderProps })
 }
 
