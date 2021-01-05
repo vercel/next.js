@@ -249,18 +249,6 @@ export default class Server {
     this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
 
-    // call init-server middleware, this is also handled
-    // individually in serverless bundles when deployed
-    if (!dev && this.nextConfig.experimental.plugins) {
-      const initServer = require(join(this.serverBuildDir, 'init-server.js'))
-        .default
-      this.onErrorMiddleware = require(join(
-        this.serverBuildDir,
-        'on-error-server.js'
-      )).default
-      initServer()
-    }
-
     this.incrementalCache = new IncrementalCache({
       dev,
       distDir: this.distDir,

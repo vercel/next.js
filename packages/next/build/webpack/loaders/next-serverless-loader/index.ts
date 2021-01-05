@@ -99,13 +99,11 @@ const nextServerlessLoader: loader.Loader = function () {
           */
           runtimeConfigSetter
         }
-        import initServer from 'next-plugin-loader?middleware=on-init-server!'
-        import onError from 'next-plugin-loader?middleware=on-error-server!'
         import 'next/dist/next-server/server/node-polyfill-fetch'
         import routesManifest from '${routesManifest}'
-  
+
         import { getApiHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/api-handler'
-  
+
         const apiHandler = getApiHandler({
           pageModule: require("${absolutePagePath}"),
           rewrites: routesManifest.rewrites,
@@ -113,23 +111,17 @@ const nextServerlessLoader: loader.Loader = function () {
           page: "${page}",
           basePath: "${basePath}",
           pageIsDynamic: ${pageIsDynamicRoute},
-          encodedPreviewProps: ${encodedPreviewProps},
-          experimental: {
-            onError,
-            initServer,
-          }
+          encodedPreviewProps: ${encodedPreviewProps}
         })
         export default apiHandler
       `
     } else {
       return `
-      import initServer from 'next-plugin-loader?middleware=on-init-server!'
-      import onError from 'next-plugin-loader?middleware=on-error-server!'
       import 'next/dist/next-server/server/node-polyfill-fetch'
       import routesManifest from '${routesManifest}'
       import buildManifest from '${buildManifest}'
       import reactLoadableManifest from '${reactLoadableManifest}'
-  
+
       ${envLoading}
       ${runtimeConfigImports}
       ${
@@ -137,27 +129,27 @@ const nextServerlessLoader: loader.Loader = function () {
         runtimeConfigSetter
       }
       import { getPageHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/page-handler'
-  
+
       const appMod = require('${absoluteAppPath}')
       let App = appMod.default || appMod.then && appMod.then(mod => mod.default);
-  
+
       const compMod = require('${absolutePagePath}')
-  
+
       const Component = compMod.default || compMod.then && compMod.then(mod => mod.default)
       export default Component
       export const getStaticProps = compMod['getStaticProp' + 's'] || compMod.then && compMod.then(mod => mod['getStaticProp' + 's'])
       export const getStaticPaths = compMod['getStaticPath' + 's'] || compMod.then && compMod.then(mod => mod['getStaticPath' + 's'])
       export const getServerSideProps = compMod['getServerSideProp' + 's'] || compMod.then && compMod.then(mod => mod['getServerSideProp' + 's'])
-  
+
       // kept for detecting legacy exports
       export const unstable_getStaticParams = compMod['unstable_getStaticParam' + 's'] || compMod.then && compMod.then(mod => mod['unstable_getStaticParam' + 's'])
       export const unstable_getStaticProps = compMod['unstable_getStaticProp' + 's'] || compMod.then && compMod.then(mod => mod['unstable_getStaticProp' + 's'])
       export const unstable_getStaticPaths = compMod['unstable_getStaticPath' + 's'] || compMod.then && compMod.then(mod => mod['unstable_getStaticPath' + 's'])
       export const unstable_getServerProps = compMod['unstable_getServerProp' + 's'] || compMod.then && compMod.then(mod => mod['unstable_getServerProp' + 's'])
-  
+
       export let config = compMod['confi' + 'g'] || (compMod.then && compMod.then(mod => mod['confi' + 'g'])) || {}
       export const _app = App
-  
+
       const { renderReqToHTML, render } = getPageHandler({
         pageModule: compMod,
         pageComponent: Component,
@@ -171,16 +163,16 @@ const nextServerlessLoader: loader.Loader = function () {
         pageGetStaticProps: getStaticProps,
         pageGetStaticPaths: getStaticPaths,
         pageGetServerSideProps: getServerSideProps,
-  
+
         assetPrefix: "${assetPrefix}",
         canonicalBase: "${canonicalBase}",
         generateEtags: ${generateEtags || 'false'},
         poweredByHeader: ${poweredByHeader || 'false'},
-  
+
         runtimeConfig,
         buildManifest,
         reactLoadableManifest,
-  
+
         rewrites: routesManifest.rewrites,
         i18n: ${i18n || 'undefined'},
         page: "${page}",
@@ -188,11 +180,7 @@ const nextServerlessLoader: loader.Loader = function () {
         escapedBuildId: "${escapedBuildId}",
         basePath: "${basePath}",
         pageIsDynamic: ${pageIsDynamicRoute},
-        encodedPreviewProps: ${encodedPreviewProps},
-        experimental: {
-          onError,
-          initServer,
-        }
+        encodedPreviewProps: ${encodedPreviewProps}
       })
       export { renderReqToHTML, render }
     `

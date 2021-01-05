@@ -49,7 +49,6 @@ const babel = async (
         distDir: path.resolve(dir, '.next'),
         pagesDir: path.resolve(dir, 'pages'),
         cache: false,
-        babelPresetPlugins: [],
         development,
         hasReactRefresh: Boolean(!isServer && development),
       },
