@@ -15,14 +15,15 @@ const clientCredentials = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 }
 
-
 if (!firebase.apps.length) {
   firebase.initializeApp(clientCredentials)
   // Check that `window` is in scope for the analytics module!
-  // To enable analytics. https://firebase.google.com/docs/analytics/get-started
-  if (typeof window !== 'undefined' && 'measurementId' in clientCredentials) {
-    firebase.analytics()
-    firebase.performance()
+  if (typeof window !== 'undefined') {
+    // Enable analytics. https://firebase.google.com/docs/analytics/get-started
+    if ('measurementId' in clientCredentials) {
+      firebase.analytics()
+      firebase.performance()
+    }
   }
 }
 
