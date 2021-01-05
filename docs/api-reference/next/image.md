@@ -126,7 +126,7 @@ A custom image `loader` to resolve URLs. Defaults to `images` object in `next.co
 import Image from 'next/image'
 
 const myLoader = ({ src, width, quality }) => {
-  return `https://customresolver.com/${src}?w~~${width},q~~${quality}`
+  return `https://example.com/${src}?w=${width},q=${quality || 75}`
 }
 
 const MyImage = (props) => {
