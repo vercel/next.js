@@ -1,20 +1,7 @@
 import { useState, useRef } from 'react'
 import useMqtt from '../lib/useMqtt'
 
-export const getStaticProps = () => {
-  return {
-    props: {
-      mqttUri: process.env.NEXT_PUBLIC_MQTT_URI,
-      mqttOptions: {
-        username: process.env.NEXT_PUBLIC_MQTT_USERNAME,
-        password: process.env.NEXT_PUBLIC_MQTT_PASSWORD,
-        clientId: process.env.NEXT_PUBLIC_MQTT_CLIENTID,
-      },
-    },
-  }
-}
-
-export default function Home({ mqttUri, mqttOptions }) {
+export default function Home() {
   const [incommingMessages, setIncommingMessages] = useState([])
   const addMessage = (message) => {
     setIncommingMessages((incommingMessages) => [...incommingMessages, message])
@@ -37,8 +24,12 @@ export default function Home({ mqttUri, mqttOptions }) {
     mqttClientRef.current = client
   }
   useMqtt({
-    uri: mqttUri,
-    options: mqttOptions,
+    uri: process.env.NEXT_PUBLIC_MQTT_URI,
+    options: {
+      username: process.env.NEXT_PUBLIC_MQTT_USERNAME,
+      password: process.env.NEXT_PUBLIC_MQTT_PASSWORD,
+      clientId: process.env.NEXT_PUBLIC_MQTT_CLIENTID,
+    },
     topicHandlers: incommingMessageHandlers.current,
     onConnectedHandler: (client) => setMqttClient(client),
   })
