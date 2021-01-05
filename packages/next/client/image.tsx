@@ -109,7 +109,7 @@ type CallLoaderProps = {
   quality?: number
 }
 
-function callLoader(loaderProps: CallLoaderProps) {
+function callLoader(loaderProps: CallLoaderProps): string {
   const load = loaders.get(configLoader)
   if (load) {
     return load({ root: configPath, ...loaderProps })
@@ -130,10 +130,11 @@ type GenImgAttrsData = {
   sizes?: string
 }
 
-type GenImgAttrsResult = Pick<
-  JSX.IntrinsicElements['img'],
-  'src' | 'sizes' | 'srcSet'
->
+type GenImgAttrsResult = {
+  src: string
+  srcSet: string | undefined
+  sizes: string | undefined
+}
 
 function generateImgAttrs({
   src,
@@ -144,7 +145,7 @@ function generateImgAttrs({
   sizes,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
-    return { src }
+    return { src, srcSet: undefined, sizes: undefined }
   }
 
   const { widths, kind } = getWidths(width, layout)
@@ -364,6 +365,8 @@ export default function Image({
   let imgAttributes: GenImgAttrsResult = {
     src:
       'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+    srcSet: undefined,
+    sizes: undefined,
   }
 
   if (isVisible) {
@@ -443,7 +446,7 @@ export default function Image({
 
 type LoaderProps = CallLoaderProps & { root: string }
 
-function normalizeSrc(src: string) {
+function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
 
