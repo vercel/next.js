@@ -5,7 +5,6 @@ import {
   ImageConfig,
   imageConfigDefault,
   LoaderValue,
-  VALID_LOADERS,
 } from '../next-server/server/image-config'
 import { useIntersection } from './use-intersection'
 
@@ -174,15 +173,11 @@ function getInt(x: unknown): number | undefined {
 }
 
 function defaultImageLoader(loaderProps: ImageLoaderProps) {
-  const load = loaders.get(configLoader)
-  if (!load) {
-    throw new Error(
-      `Unknown "loader" found in "next.config.js". Expected: ${VALID_LOADERS.join(
-        ', '
-      )}. Received: ${configLoader}`
-    )
-  }
-
+  // Can disregard case with configLoader not in loaders list because
+  // that's checked for in config.ts
+  const load = loaders.get(configLoader) as (
+    props: DefaultImageLoaderProps
+  ) => string
   return load({ root: configPath, ...loaderProps })
 }
 
@@ -227,6 +222,13 @@ export default function Image({
     if (!VALID_LAYOUT_VALUES.includes(layout)) {
       throw new Error(
         `Image with src "${src}" has invalid "layout" property. Provided "${layout}" should be one of ${VALID_LAYOUT_VALUES.map(
+          String
+        ).join(',')}.`
+      )
+    }
+    if (!VALID_LOADING_VALUES.includes(loading)) {
+      throw new Error(
+        `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(
           String
         ).join(',')}.`
       )
