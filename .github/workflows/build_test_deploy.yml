@@ -75,7 +75,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        group: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/cache@v2
         id: restore-build
@@ -86,7 +86,7 @@ jobs:
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
 
-      - run: node run-tests.js --timings -g ${{ matrix.group }}/10 -c 1
+      - run: node run-tests.js --timings -g ${{ matrix.group }}/6 -c 2
 
   testElectron:
     name: Test Electron
