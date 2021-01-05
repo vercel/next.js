@@ -40,7 +40,7 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
   return el
 }
 
-function updateElements(type: string, components: JSX.Element[]) {
+function updateElements(type: string, components: JSX.Element[]): void {
   const headEl = document.getElementsByTagName('head')[0]
   const headCountEl: HTMLMetaElement = headEl.querySelector(
     'meta[name=next-head-count]'
@@ -84,7 +84,10 @@ function updateElements(type: string, components: JSX.Element[]) {
   headCountEl.content = (headCount - oldTags.length + newTags.length).toString()
 }
 
-export default function initHeadManager() {
+export default function initHeadManager(): {
+  mountedInstances: Set<unknown>
+  updateHead: (head: JSX.Element[]) => void
+} {
   let updatePromise: Promise<void> | null = null
 
   return {
