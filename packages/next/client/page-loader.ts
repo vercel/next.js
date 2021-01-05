@@ -13,7 +13,7 @@ import createRouteLoader, {
   RouteLoader,
 } from './route-loader'
 
-function normalizeRoute(route: string) {
+function normalizeRoute(route: string): string {
   if (route[0] !== '/') {
     throw new Error(`Route name should start with a "/", got "${route}"`)
   }
@@ -83,13 +83,14 @@ export default class PageLoader {
   /**
    * @param {string} href the route href (file-system path)
    * @param {string} asPath the URL as shown in browser (virtual path); used for dynamic routes
+   * @returns {string}
    */
   getDataHref(
     href: string,
     asPath: string,
     ssg: boolean,
     locale?: string | false
-  ) {
+  ): string {
     const { pathname: hrefPathname, query, search } = parseRelativeUrl(href)
     const { pathname: asPathname } = parseRelativeUrl(asPath)
     const route = normalizeRoute(hrefPathname)

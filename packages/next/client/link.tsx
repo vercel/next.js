@@ -62,7 +62,7 @@ function prefetch(
   prefetched[href + '%' + as + (curLocale ? '%' + curLocale : '')] = true
 }
 
-function isModifiedEvent(event: React.MouseEvent) {
+function isModifiedEvent(event: React.MouseEvent): boolean {
   const { target } = event.currentTarget as HTMLAnchorElement
   return (
     (target && target !== '_self') ||

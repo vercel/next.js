@@ -16,7 +16,7 @@ interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
   preload?: boolean
 }
 
-const loadScript = (props: Props) => {
+const loadScript = (props: Props): void => {
   const {
     src = '',
     onLoad = () => {},
@@ -83,7 +83,7 @@ const loadScript = (props: Props) => {
   document.body.appendChild(el)
 }
 
-export default function Script(props: Props) {
+export default function Script(props: Props): JSX.Element | null {
   const {
     src = '',
     onLoad = () => {},

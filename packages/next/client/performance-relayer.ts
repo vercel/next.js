@@ -12,7 +12,7 @@ const initialHref = location.href
 let isRegistered = false
 let userReportHandler: ReportHandler | undefined
 
-function onReport(metric: Metric) {
+function onReport(metric: Metric): void {
   if (userReportHandler) {
     userReportHandler(metric)
   }
@@ -57,7 +57,7 @@ function onReport(metric: Metric) {
   }
 }
 
-export default (onPerfEntry?: ReportHandler) => {
+export default (onPerfEntry?: ReportHandler): void => {
   // Update function if it changes:
   userReportHandler = onPerfEntry
 
