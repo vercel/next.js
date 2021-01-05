@@ -535,8 +535,10 @@ export default class Router implements BaseRouter {
     this.query = query
     // if auto prerendered and dynamic route wait to update asPath
     // until after mount to prevent hydration mismatch
-    this.asPath =
-      isDynamicRoute(pathname) && self.__NEXT_DATA__.autoExport ? pathname : as
+    const autoExportDynamic =
+      isDynamicRoute(pathname) && self.__NEXT_DATA__.autoExport
+
+    this.asPath = autoExportDynamic ? pathname : as
     this.basePath = basePath
     this.sub = subscription
     this.clc = null
@@ -550,7 +552,7 @@ export default class Router implements BaseRouter {
     this.isReady = !!(
       self.__NEXT_DATA__.gssp ||
       self.__NEXT_DATA__.gip ||
-      !self.location.search
+      (!autoExportDynamic && !self.location.search)
     )
 
     if (process.env.__NEXT_I18N_SUPPORT) {
