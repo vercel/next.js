@@ -39,6 +39,56 @@ module.exports = {
 - `source` is the incoming request path pattern.
 - `destination` is the path you want to route to.
 
+## Rewrite parameters
+
+When using parameters in a rewrite the parameters will be passed in the query by default when none of the parameters are used in the `destination`.
+
+```js
+module.exports = {
+  async rewrites() {
+    return [
+      {
+        source: '/old-about/:path*',
+        destination: '/about', // The :path parameter isn't used here so will be automatically passed in the query
+      },
+    ]
+  },
+}
+```
+
+If a parameter is used in the destination none of the parameters will be automatically passed in the query.
+
+```js
+module.exports = {
+  async rewrites() {
+    return [
+      {
+        source: '/docs/:path*',
+        destination: '/:path*', // The :path parameter is used here so will not be automatically passed in the query
+      },
+    ]
+  },
+}
+```
+
+You can still pass the parameters manually in the query if one is already used in the destination by specifying the query in the `destination`.
+
+```js
+module.exports = {
+  async rewrites() {
+    return [
+      {
+        source: '/:first/:second',
+        destination: '/:first?second=:second',
+        // Since the :first parameter is used in the destination the :second parameter
+        // will not automatically be added in the query although we can manually add it
+        // as shown above
+      },
+    ]
+  },
+}
+```
+
 ## Path Matching
 
 Path matches are allowed, for example `/blog/:slug` will match `/blog/hello-world` (no nested paths):
