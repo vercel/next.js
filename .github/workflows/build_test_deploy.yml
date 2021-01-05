@@ -86,7 +86,7 @@ jobs:
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
 
-      - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
+      - run: node run-tests.js --timings -g ${{ matrix.group }}/6 -c 2
 
   testElectron:
     name: Test Electron
@@ -146,7 +146,7 @@ jobs:
       - run: cat package.json | jq '.resolutions."react-dom" = "^17.0.1"' > package.json.tmp && mv package.json.tmp package.json
       - run: yarn install --check-files
       - run: yarn list webpack react react-dom
-      - run: xvfb-run node run-tests.js test/integration/{link-ref,production,basic,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
+      - run: node run-tests.js test/integration/{link-ref,production,basic,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
 
   testFirefox:
     name: Test Firefox (production)
