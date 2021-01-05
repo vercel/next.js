@@ -114,7 +114,7 @@ Try it out:
 
 ### loader
 
-A custom image `loader` to resolve URLs. Defaults to `images` object in `next.config.js`.
+A custom image `loader` to resolve URLs. Defaults to [`images` object in `next.config.js`](/docs/basic-features/image-optimization.md#loader).
 
 `loader` is a function returning a string, given the following parameters:
 
