@@ -400,6 +400,8 @@ export default async function getBaseWebpackConfig(
       ecma: 8,
     },
     compress: {
+      // improves tree-shaking
+      passes: 2,
       ecma: 5,
       warnings: false,
       // The following two options are known to break valid JavaScript code
