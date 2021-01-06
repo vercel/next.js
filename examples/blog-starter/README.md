@@ -8,7 +8,7 @@ To create the blog posts we use [`remark`](https://github.com/remarkjs/remark) a
 
 ## Demo
 
-[https://next-blog-starter.now.sh/](https://next-blog-starter.now.sh/)
+[https://next-blog-starter.vercel.app/](https://next-blog-starter.vercel.app/)
 
 ## Deploy your own
 
