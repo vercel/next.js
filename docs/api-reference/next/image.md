@@ -16,6 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                  |
 | --------- | ------------------------ |
+| `v10.0.5` | `loader` prop added.     |
 | `v10.0.1` | `layout` prop added.     |
 | `v10.0.0` | `next/image` introduced. |
 
@@ -110,6 +111,36 @@ Try it out:
 - [Demo the `responsive` layout](https://image-component.nextjs.gallery/layout-responsive)
 - [Demo the `fill` layout](https://image-component.nextjs.gallery/layout-fill)
 - [Demo background image](https://image-component.nextjs.gallery/background)
+
+### loader
+
+A custom function used to resolve URLs. Defaults to [`images` object in `next.config.js`](/docs/basic-features/image-optimization.md#loader).
+
+`loader` is a function returning a string, given the following parameters:
+
+- [`src`](#src)
+- [`width`](#width)
+- [`quality`](#quality)
+
+```js
+import Image from 'next/image'
+
+const myLoader = ({ src, width, quality }) => {
+  return `https://example.com/${src}?w=${width}&q=${quality || 75}`
+}
+
+const MyImage = (props) => {
+  return (
+    <Image
+      loader={myLoader}
+      src="/me.png"
+      alt="Picture of the author"
+      width={500}
+      height={500}
+    />
+  )
+}
+```
 
 ### sizes
 
