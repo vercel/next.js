@@ -616,6 +616,13 @@ const runTests = (isDev = false) => {
     )
   })
 
+  it('should append remaining rewrite params to query when other params are not used', async () => {
+    const html = await renderViaHTTP(appPort, '/hello/with-params')
+
+    const data = JSON.parse(cheerio.load(html)('p').text())
+    expect(data).toEqual({ params: 'hello' })
+  })
+
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(
@@ -1076,6 +1083,13 @@ const runTests = (isDev = false) => {
               '^\\/catchall-query(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
             ),
             source: '/catchall-query/:path*',
+          },
+          {
+            destination: '/:path*',
+            regex: normalizeRegEx(
+              '^(?:\\/([^\\/]+?))(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+            ),
+            source: '/:params/:path*',
           },
         ],
         dynamicRoutes: [

@@ -106,6 +106,10 @@ module.exports = {
         source: '/catchall-query/:path*',
         destination: '/with-params?another=:path*',
       },
+      {
+        source: '/:params/:path',
+        destination: '/:path',
+      },
     ]
   },
   async redirects() {
