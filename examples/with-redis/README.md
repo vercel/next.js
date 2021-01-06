@@ -56,7 +56,7 @@ You can add the Lambda Store integration to your Vercel account. Once you set up
 
 #### Step 1. Deploy Your Local Project
 
-To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
 #### Step 2. Add the Lambda Store Integration to Your Vercel Account
 
