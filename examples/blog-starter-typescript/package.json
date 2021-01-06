@@ -12,6 +12,7 @@
     "date-fns": "2.10.0",
     "gray-matter": "4.0.2",
     "next": "latest",
+    "postcss": "8.2.2",
     "react": "^16.13.0",
     "react-dom": "^16.13.0",
     "remark": "11.0.2",
