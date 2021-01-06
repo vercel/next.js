@@ -18,4 +18,4 @@ npx create-next-app --example with-dynamic-app-layout with-dynamic-app-layout-ap
 yarn create next-app --example with-dynamic-app-layout with-dynamic-app-layout-app
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
