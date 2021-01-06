@@ -30,9 +30,9 @@ DB_USER=myuser
 DB_PASS=mypassword
 ```
 
-This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Next.js data fetching methods](/docs/basic-features/data-fetching) and [API routes](/docs/api-routes/introduction).
+This loads `process.env.DB_HOST`, `process.env.DB_USER`, and `process.env.DB_PASS` into the Node.js environment automatically allowing you to use them in [Next.js data fetching methods](/docs/basic-features/data-fetching.md) and [API routes](/docs/api-routes/introduction.md).
 
-For example, using [`getStaticProps`](/docs/basic-features/data-fetching#getstaticprops-static-generation):
+For example, using [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation):
 
 ```js
 // pages/index.js
@@ -63,8 +63,12 @@ export async function getStaticProps() {
 > ```bash
 > # .env
 > A=abc
-> WRONG=pre$A # becomes "preabc"
-> CORRECT=pre\$A # becomes "pre$A"
+>
+> # becomes "preabc"
+> WRONG=pre$A
+>
+> # becomes "pre$A"
+> CORRECT=pre\$A
 > ```
 
 ## Exposing Environment Variables to the Browser
@@ -77,7 +81,7 @@ In order to expose a variable to the browser you have to prefix the variable wit
 NEXT_PUBLIC_ANALYTICS_ID=abcdefghijk
 ```
 
-This loads `process.env.NEXT_PUBLIC_ANALYTICS_ID` into the Node.js environment automatically. Allowing you to use it anywhere in your code. The value will be inlined into JavaScript sent to the browser because of the `NEXT_PUBLIC_` prefix.
+This loads `process.env.NEXT_PUBLIC_ANALYTICS_ID` into the Node.js environment automatically, allowing you to use it anywhere in your code. The value will be inlined into JavaScript sent to the browser because of the `NEXT_PUBLIC_` prefix.
 
 ```js
 // pages/index.js
@@ -105,15 +109,17 @@ Next.js allows you to set defaults in `.env` (all environments), `.env.developme
 
 ## Environment Variables on Vercel
 
-When deploying on [Vercel](https://vercel.com) you can configure secrets in the [Environment Variables](https://vercel.com/docs/v2/build-step#environment-variables) section of the project in the Vercel dashboard.
+When deploying your Next.js application to [Vercel](https://vercel.com), Environment Variables can be configured [in the Project Settings](https://vercel.com/docs/environment-variables).
 
-You can still use `.env`, `.env.development` and `.env.production` to add defaults.
+All types of Environment Variables should be configured there. Even Environment Variables used in Development – which can be [downloaded onto your local device](https://vercel.com/docs/environment-variables#development-environment-variables) afterwards.
 
-If you've configured [Development Environment Variables](https://vercel.com/docs/v2/build-step#development-environment-variables) you can pull them into a `.env.local` for usage on your local machine using the following command:
+If you've configured [Development Environment Variables](https://vercel.com/docs/environment-variables#development-environment-variables) you can pull them into a `.env.local` for usage on your local machine using the following command:
 
 ```bash
 vercel env pull .env.local
 ```
+
+When using the Vercel CLI to deploy make sure you add a [`.vercelignore`](https://vercel.com/guides/prevent-uploading-sourcepaths-with-vercelignore?query=vercelignore#allowlist) that includes files that should not be uploaded, generally these are the same files included in `.gitignore`.
 
 ## Test Environment Variables
 

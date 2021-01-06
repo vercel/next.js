@@ -4,6 +4,7 @@ import {
   findPort,
   killApp,
   launchApp,
+  nextBuild,
   runNextCommand,
   runNextCommandDev,
 } from 'next-test-utils'
@@ -16,6 +17,9 @@ jest.setTimeout(1000 * 60 * 5)
 const dir = join(__dirname, '..')
 const dirOldReact = join(__dirname, '../old-react')
 const dirOldReactDom = join(__dirname, '../old-react-dom')
+const dirExperimentalReact = join(__dirname, '../experimental-react')
+const dirExperimentalReactDom = join(__dirname, '../experimental-react-dom')
+const dirDuplicateSass = join(__dirname, '../duplicate-sass')
 
 describe('CLI Usage', () => {
   describe('no command', () => {
@@ -81,6 +85,35 @@ describe('CLI Usage', () => {
         stderr: true,
       })
       expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+    })
+
+    test('should exit when SIGINT is signalled', async () => {
+      const killSigint = (instance) =>
+        setTimeout(() => instance.kill('SIGINT'), 500)
+      const { code, signal } = await runNextCommand(['build', dir], {
+        ignoreFail: true,
+        instance: killSigint,
+      })
+      // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
+      // See: https://nodejs.org/api/process.html#process_signal_events
+      const expectedExitCode = process.platform === `win32` ? null : 0
+      const expectedExitSignal = process.platform === `win32` ? 'SIGINT' : null
+      expect(code).toBe(expectedExitCode)
+      expect(signal).toBe(expectedExitSignal)
+    })
+    test('should exit when SIGTERM is signalled', async () => {
+      const killSigterm = (instance) =>
+        setTimeout(() => instance.kill('SIGTERM'), 500)
+      const { code, signal } = await runNextCommand(['build', dir], {
+        ignoreFail: true,
+        instance: killSigterm,
+      })
+      // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
+      // See: https://nodejs.org/api/process.html#process_signal_events
+      const expectedExitCode = process.platform === `win32` ? null : 0
+      const expectedExitSignal = process.platform === `win32` ? 'SIGTERM' : null
+      expect(code).toBe(expectedExitCode)
+      expect(signal).toBe(expectedExitSignal)
     })
   })
 
@@ -190,6 +223,37 @@ describe('CLI Usage', () => {
       })
       expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
     })
+
+    test('should exit when SIGINT is signalled', async () => {
+      const killSigint = (instance) =>
+        setTimeout(() => instance.kill('SIGINT'), 500)
+      const port = await findPort()
+      const { code, signal } = await runNextCommand(['dev', dir, '-p', port], {
+        ignoreFail: true,
+        instance: killSigint,
+      })
+      // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
+      // See: https://nodejs.org/api/process.html#process_signal_events
+      const expectedExitCode = process.platform === `win32` ? null : 0
+      const expectedExitSignal = process.platform === `win32` ? 'SIGINT' : null
+      expect(code).toBe(expectedExitCode)
+      expect(signal).toBe(expectedExitSignal)
+    })
+    test('should exit when SIGTERM is signalled', async () => {
+      const killSigterm = (instance) =>
+        setTimeout(() => instance.kill('SIGTERM'), 500)
+      const port = await findPort()
+      const { code, signal } = await runNextCommand(['dev', dir, '-p', port], {
+        ignoreFail: true,
+        instance: killSigterm,
+      })
+      // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
+      // See: https://nodejs.org/api/process.html#process_signal_events
+      const expectedExitCode = process.platform === `win32` ? null : 0
+      const expectedExitSignal = process.platform === `win32` ? 'SIGTERM' : null
+      expect(code).toBe(expectedExitCode)
+      expect(signal).toBe(expectedExitSignal)
+    })
   })
 
   describe('start', () => {
@@ -256,6 +320,97 @@ describe('CLI Usage', () => {
       expect(stderr).not.toMatch('`react`')
 
       await killApp(instance)
+    })
+
+    test('experimental react version', async () => {
+      const port = await findPort()
+
+      let stderr = ''
+      let instance = await launchApp(dirExperimentalReact, port, {
+        stderr: true,
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+
+      expect(stderr).not.toMatch('disabled')
+      expect(stderr).not.toMatch('outdated')
+      expect(stderr).not.toMatch(`react-dom`)
+
+      await killApp(instance)
+    })
+
+    test('experimental react-dom version', async () => {
+      const port = await findPort()
+
+      let stderr = ''
+      let instance = await launchApp(dirExperimentalReactDom, port, {
+        stderr: true,
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+
+      expect(stderr).not.toMatch('disabled')
+      expect(stderr).not.toMatch('outdated')
+      expect(stderr).not.toMatch('`react`')
+
+      await killApp(instance)
+    })
+
+    test('duplicate sass deps', async () => {
+      const port = await findPort()
+
+      let stderr = ''
+      let instance = await launchApp(dirDuplicateSass, port, {
+        stderr: true,
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+
+      expect(stderr).toMatch('both `sass` and `node-sass` installed')
+
+      await killApp(instance)
+    })
+
+    test('should exit when SIGINT is signalled', async () => {
+      const killSigint = (instance) =>
+        setTimeout(() => instance.kill('SIGINT'), 500)
+      await nextBuild(dir)
+      const port = await findPort()
+      const { code, signal } = await runNextCommand(
+        ['start', dir, '-p', port],
+        {
+          ignoreFail: true,
+          instance: killSigint,
+        }
+      )
+      // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
+      // See: https://nodejs.org/api/process.html#process_signal_events
+      const expectedExitCode = process.platform === `win32` ? null : 0
+      const expectedExitSignal = process.platform === `win32` ? 'SIGINT' : null
+      expect(code).toBe(expectedExitCode)
+      expect(signal).toBe(expectedExitSignal)
+    })
+    test('should exit when SIGTERM is signalled', async () => {
+      const killSigterm = (instance) =>
+        setTimeout(() => instance.kill('SIGTERM'), 500)
+      await nextBuild(dir)
+      const port = await findPort()
+      const { code, signal } = await runNextCommand(
+        ['start', dir, '-p', port],
+        {
+          ignoreFail: true,
+          instance: killSigterm,
+        }
+      )
+      // Node can only partially emulate signals on Windows. Our signal handlers won't affect the exit code.
+      // See: https://nodejs.org/api/process.html#process_signal_events
+      const expectedExitCode = process.platform === `win32` ? null : 0
+      const expectedExitSignal = process.platform === `win32` ? 'SIGTERM' : null
+      expect(code).toBe(expectedExitCode)
+      expect(signal).toBe(expectedExitSignal)
     })
   })
 

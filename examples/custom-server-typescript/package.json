@@ -18,6 +18,7 @@
     "@types/react-dom": "^16.9.8",
     "nodemon": "^2.0.4",
     "ts-node": "^8.10.2",
-    "typescript": "3.8.3"
-  }
+    "typescript": "4.0"
+  },
+  "license": "MIT"
 }

@@ -6,9 +6,13 @@ This example shows a default set up of Storybook. Also included in the example i
 
 As of v6.0, Storybook has built-in TypeScript support, so no configuration is needed. If you want to customize the default configuration, refer to the [TypeScript docs](https://storybook.js.org/docs/react/configure/typescript).
 
-## How to use
+## Deploy your own
 
-### Using `create-next-app`
+Deploy the example using [Vercel](https://vercel.com):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-storybook)
+
+## How to use
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
@@ -18,26 +22,7 @@ npx create-next-app --example with-storybook with-storybook-app
 yarn create next-app --example with-storybook with-storybook-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-storybook
-cd with-storybook
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
-## Run Storybook
+### Run Storybook
 
 ```bash
 npm run storybook
@@ -45,7 +30,7 @@ npm run storybook
 yarn storybook
 ```
 
-## Build Static Storybook
+### Build Static Storybook
 
 ```bash
 npm run build-storybook

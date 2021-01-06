@@ -1,7 +1,8 @@
 import { parse, HTMLElement } from 'node-html-parser'
 import { OPTIMIZED_FONT_PROVIDERS } from './constants'
 
-const MIDDLEWARE_TIME_BUDGET = 10
+const MIDDLEWARE_TIME_BUDGET =
+  parseInt(process.env.__POST_PROCESS_MIDDLEWARE_TIME_BUDGET || '', 10) || 10
 const MAXIMUM_IMAGE_PRELOADS = 2
 const IMAGE_PRELOAD_SIZE_THRESHOLD = 2500
 
@@ -138,15 +139,26 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
     }
     for (const key in this.fontDefinitions) {
       const url = this.fontDefinitions[key]
-      if (result.indexOf(`<style data-href="${url}">`) > -1) {
+      const fallBackLinkTag = `<link rel="stylesheet" href="${url}"/>`
+      if (
+        result.indexOf(`<style data-href="${url}">`) > -1 ||
+        result.indexOf(fallBackLinkTag) > -1
+      ) {
         // The font is already optimized and probably the response is cached
         continue
       }
       const fontContent = options.getFontDefinition(url)
-      result = result.replace(
-        '</head>',
-        `<style data-href="${url}">${fontContent}</style></head>`
-      )
+      if (!fontContent) {
+        /**
+         * In case of unreachable font definitions, fallback to default link tag.
+         */
+        result = result.replace('</head>', `${fallBackLinkTag}</head>`)
+      } else {
+        result = result.replace(
+          '</head>',
+          `<style data-href="${url}">${fontContent}</style></head>`
+        )
+      }
     }
     return result
   }
@@ -179,7 +191,8 @@ class ImageOptimizerMiddleware implements PostProcessMiddleware {
     let imagePreloadTags = _data.preloads.images
       .filter((imgHref) => !preloadTagAlreadyExists(markup, imgHref))
       .reduce(
-        (acc, imgHref) => acc + `<link rel="preload" href="${imgHref}"/>`,
+        (acc, imgHref) =>
+          acc + `<link rel="preload" href="${imgHref}" as="image"/>`,
         ''
       )
     return result.replace(
@@ -190,8 +203,10 @@ class ImageOptimizerMiddleware implements PostProcessMiddleware {
 }
 
 function isImgEligible(imgElement: HTMLElement): boolean {
+  let imgSrc = imgElement.getAttribute('src')
   return (
-    imgElement.hasAttribute('src') &&
+    !!imgSrc &&
+    sourceIsSupportedType(imgSrc) &&
     imageIsNotTooSmall(imgElement) &&
     imageIsNotHidden(imgElement)
   )
@@ -240,6 +255,11 @@ function imageIsNotHidden(imgElement: HTMLElement): boolean {
     activeElement = activeElement.parentNode as HTMLElement
   }
   return true
+}
+
+// Currently only filters out svg images--could be made more specific in the future.
+function sourceIsSupportedType(imgSrc: string): boolean {
+  return !imgSrc.includes('.svg')
 }
 
 // Initialization

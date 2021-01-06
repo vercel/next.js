@@ -1,11 +1,13 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
+import { getRedboxHeader, hasRedbox } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import { join } from 'path'
 import url from 'url'
 
-export default function (render, fetch) {
+export default function (render, fetch, ctx) {
   async function get$(path, query) {
     const html = await render(path, query)
     return cheerio.load(html)
@@ -168,10 +170,26 @@ export default function (render, fetch) {
       expect(html).toContain('<meta property="fb:pages" content="fbpages2"/>')
     })
 
+    test('header helper avoids dedupe of meta tags with the same name if they use unique keys', async () => {
+      const html = await render('/head')
+      expect(html).toContain(
+        '<meta name="citation_author" content="authorName1"/>'
+      )
+      expect(html).toContain(
+        '<meta name="citation_author" content="authorName2"/>'
+      )
+    })
+
     test('header helper renders Fragment children', async () => {
       const html = await render('/head')
       expect(html).toContain('<title>Fragment title</title>')
       expect(html).toContain('<meta content="meta fragment"/>')
+    })
+
+    test('header helper renders boolean attributes correctly children', async () => {
+      const html = await render('/head')
+      expect(html).toContain('<script src="/test-async.js" async="">')
+      expect(html).toContain('<script src="/test-defer.js" defer="">')
     })
 
     it('should render the page with custom extension', async () => {
@@ -203,6 +221,14 @@ export default function (render, fetch) {
       expect(style.text().includes(`p.${styleId}{color:blue`)).toBeTruthy()
     })
 
+    test('renders styled jsx external', async () => {
+      const $ = await get$('/styled-jsx-external')
+      const styleId = $('#blue-box').attr('class')
+      const style = $('style')
+
+      expect(style.text().includes(`p.${styleId}{color:blue`)).toBeTruthy()
+    })
+
     test('renders properties populated asynchronously', async () => {
       const html = await render('/async-props')
       expect(html.includes('Diego Milito')).toBeTruthy()
@@ -215,30 +241,37 @@ export default function (render, fetch) {
     })
 
     test('getInitialProps circular structure', async () => {
-      const $ = await get$('/circular-json-error')
+      const browser = await webdriver(ctx.appPort, '/circular-json-error')
       const expectedErrorMessage =
-        'Circular structure in \\"getInitialProps\\" result of page \\"/circular-json-error\\".'
-      expect(
-        $('#__NEXT_DATA__').text().includes(expectedErrorMessage)
-      ).toBeTruthy()
+        'Circular structure in "getInitialProps" result of page "/circular-json-error".'
+
+      await hasRedbox(browser)
+      const text = await getRedboxHeader(browser)
+      expect(text).toContain(expectedErrorMessage)
     })
 
     test('getInitialProps should be class method', async () => {
-      const $ = await get$('/instance-get-initial-props')
+      const browser = await webdriver(
+        ctx.appPort,
+        '/instance-get-initial-props'
+      )
+
       const expectedErrorMessage =
-        '\\"InstanceInitialPropsPage.getInitialProps()\\" is defined as an instance method - visit https://err.sh/vercel/next.js/get-initial-props-as-an-instance-method for more information.'
-      expect(
-        $('#__NEXT_DATA__').text().includes(expectedErrorMessage)
-      ).toBeTruthy()
+        '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://err.sh/vercel/next.js/get-initial-props-as-an-instance-method for more information.'
+
+      await hasRedbox(browser)
+      const text = await getRedboxHeader(browser)
+      expect(text).toContain(expectedErrorMessage)
     })
 
     test('getInitialProps resolves to null', async () => {
-      const $ = await get$('/empty-get-initial-props')
+      const browser = await webdriver(ctx.appPort, '/empty-get-initial-props')
       const expectedErrorMessage =
-        '\\"EmptyInitialPropsPage.getInitialProps()\\" should resolve to an object. But found \\"null\\" instead.'
-      expect(
-        $('#__NEXT_DATA__').text().includes(expectedErrorMessage)
-      ).toBeTruthy()
+        '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
+
+      await hasRedbox(browser)
+      const text = await getRedboxHeader(browser)
+      expect(text).toContain(expectedErrorMessage)
     })
 
     test('default Content-Type', async () => {
@@ -271,20 +304,25 @@ export default function (render, fetch) {
     })
 
     test('default export is not a React Component', async () => {
-      const $ = await get$('/no-default-export')
-      const pre = $('#__NEXT_DATA__')
-      expect(pre.text()).toMatch(/The default export is not a React Component/)
+      const browser = await webdriver(ctx.appPort, '/no-default-export')
+      await hasRedbox(browser)
+      const text = await getRedboxHeader(browser)
+      expect(text).toMatch(/The default export is not a React Component/)
     })
 
     test('error-inside-page', async () => {
-      const $ = await get$('/error-inside-page')
-      expect($('#__NEXT_DATA__').text()).toMatch(/This is an expected error/)
+      const browser = await webdriver(ctx.appPort, '/error-inside-page')
+      await hasRedbox(browser)
+      const text = await getRedboxHeader(browser)
+      expect(text).toMatch(/This is an expected error/)
       // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
     })
 
     test('error-in-the-global-scope', async () => {
-      const $ = await get$('/error-in-the-global-scope')
-      expect($('#__NEXT_DATA__').text()).toMatch(/aa is not defined/)
+      const browser = await webdriver(ctx.appPort, '/error-in-the-global-scope')
+      await hasRedbox(browser)
+      const text = await getRedboxHeader(browser)
+      expect(text).toMatch(/aa is not defined/)
       // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
     })
 
@@ -394,8 +432,11 @@ export default function (render, fetch) {
     })
 
     it('should show a valid error when undefined is thrown', async () => {
-      const $ = await get$('/throw-undefined')
-      expect($('body').text()).toMatch(
+      const browser = await webdriver(ctx.appPort, '/throw-undefined')
+      await hasRedbox(browser)
+      const text = await getRedboxHeader(browser)
+
+      expect(text).toContain(
         'An undefined error was thrown sometime during render...'
       )
     })

@@ -1,9 +1,38 @@
-//  issuer.endsWith(path.posix.sep) || issuer.endsWith(path.win32.sep)
-import findUp from 'next/dist/compiled/find-up'
-import * as path from 'path'
 import { promises as fs } from 'fs'
+import findUp from 'next/dist/compiled/find-up'
 import JSON5 from 'next/dist/compiled/json5'
+import * as path from 'path'
 import { resolveRequest } from './resolve-request'
+
+type PackageJsonDependencies = {
+  dependencies: Record<string, string>
+  devDependencies: Record<string, string>
+}
+
+let cachedDeps: PackageJsonDependencies
+
+async function getDependencies({
+  cwd,
+}: {
+  cwd: string
+}): Promise<PackageJsonDependencies> {
+  if (cachedDeps) {
+    return cachedDeps
+  }
+
+  const configurationPath: string | undefined = await findUp('package.json', {
+    cwd,
+  })
+  if (!configurationPath) {
+    return (cachedDeps = { dependencies: {}, devDependencies: {} })
+  }
+
+  const content = await fs.readFile(configurationPath, 'utf-8')
+  const packageJson: any = JSON5.parse(content)
+
+  const { dependencies = {}, devDependencies = {} } = packageJson || {}
+  return (cachedDeps = { dependencies, devDependencies })
+}
 
 export async function getPackageVersion({
   cwd,
@@ -12,17 +41,7 @@ export async function getPackageVersion({
   cwd: string
   name: string
 }): Promise<string | null> {
-  const configurationPath: string | undefined = await findUp('package.json', {
-    cwd,
-  })
-  if (!configurationPath) {
-    return null
-  }
-
-  const content = await fs.readFile(configurationPath, 'utf-8')
-  const packageJson: any = JSON5.parse(content)
-
-  const { dependencies = {}, devDependencies = {} } = packageJson || {}
+  const { dependencies, devDependencies } = await getDependencies({ cwd })
   if (!(dependencies[name] || devDependencies[name])) {
     return null
   }

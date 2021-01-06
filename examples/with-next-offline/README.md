@@ -4,8 +4,6 @@ This example demonstrates how to use the [next-offline plugin](https://github.co
 
 ## How to use
 
-### Using `create-next-app`
-
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
@@ -13,56 +11,5 @@ npx create-next-app --example with-next-offline with-next-offline-app
 # or
 yarn create next-app --example with-next-offline with-next-offline-app
 ```
-
-### Download
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-next-offline
-cd with-next-offline
-```
-
-### Install dependecies
-
-```bash
-npm install
-# or
-yarn
-```
-
-### Build
-
-#### Static export
-
-```bash
-npm run export
-# or
-yarn export
-```
-
-To serve it yourself, you can run:
-
-```bash
-npx serve -s out
-```
-
-#### Server hosted
-
-```bash
-npm run build
-# or
-yarn build
-```
-
-To serve it yourself, run:
-
-```bash
-npm start
-# or
-yarn start
-```
-
-### Deploy
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

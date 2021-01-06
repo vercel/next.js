@@ -5,8 +5,9 @@ import { UrlObject } from 'url'
 import { formatUrl } from './router/utils/format-url'
 import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
-import { Env } from '../../lib/load-env-config'
+import { Env } from '@next/env'
 import { BuildManifest } from '../server/get-page-files'
+import { DomainLocales } from '../server/config'
 
 /**
  * Types used by both next and next-server
@@ -98,6 +99,10 @@ export type NEXT_DATA = {
   customServer?: boolean
   gip?: boolean
   appGip?: boolean
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
+  domainLocales?: DomainLocales
 }
 
 /**
@@ -166,6 +171,12 @@ export type DocumentInitialProps = RenderPageResult & {
 export type DocumentProps = DocumentInitialProps & {
   __NEXT_DATA__: NEXT_DATA
   dangerousAsPath: string
+  docComponentsRendered: {
+    Html?: boolean
+    Main?: boolean
+    Head?: boolean
+    NextScript?: boolean
+  }
   buildManifest: BuildManifest
   ampPath: string
   inAmpMode: boolean
@@ -177,6 +188,8 @@ export type DocumentProps = DocumentInitialProps & {
   headTags: any[]
   unstable_runtimeJS?: false
   devOnlyCacheBusterQueryString: string
+  scriptLoader: { defer?: string[]; eager?: any[] }
+  locale?: string
 }
 
 /**

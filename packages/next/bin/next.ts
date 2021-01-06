@@ -2,6 +2,7 @@
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
+import opentelemetryApi from '@opentelemetry/api'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -50,8 +51,9 @@ if (args['--version']) {
 // Check if we are running `next <subcommand>` or `next`
 const foundCommand = Boolean(commands[args._[0]])
 
-// Makes sure the `next <subcommand> --help` case is covered
+// Makes sure the `next --help` case is covered
 // This help message is only showed for `next --help`
+// `next <subcommand> --help` falls through to be handled later
 if (!foundCommand && args['--help']) {
   console.log(`
     Usage
@@ -103,7 +105,22 @@ if (typeof React.Suspense === 'undefined') {
   )
 }
 
-commands[command]().then((exec) => exec(forwardedArgs))
+// Make sure commands gracefully respect termination signals (e.g. from Docker)
+process.on('SIGTERM', () => process.exit(0))
+process.on('SIGINT', () => process.exit(0))
+
+commands[command]()
+  .then((exec) => exec(forwardedArgs))
+  .then(async () => {
+    if (command === 'build') {
+      // @ts-ignore getDelegate exists
+      const tp = opentelemetryApi.trace.getTracerProvider().getDelegate()
+      if (tp.shutdown) {
+        await tp.shutdown()
+      }
+      process.exit(0)
+    }
+  })
 
 if (command === 'dev') {
   const { CONFIG_FILE } = require('../next-server/lib/constants')

@@ -14,8 +14,6 @@ For development it's going to run a HTTP server and let Next.js handle routing. 
 
 ## How to use
 
-### Using `create-next-app`
-
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
@@ -24,30 +22,15 @@ npx create-next-app --example with-electron-typescript with-electron-typescript-
 yarn create next-app --example with-electron-typescript with-electron-typescript-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-electron-typescript
-cd with-electron-typescript
-```
-
-To install and start dev build:
-
-```bash
-yarn install && yarn build && yarn start
-```
-
 Available commands:
 
 ```bash
-"yarn build-renderer": build and transpile Next.js layer
-"yarn build-electron": transpile electron layer
-"yarn build": build both layers
-"yarn start": start dev version
-"yarn dist": create production elctron build
-"yarn type-check": check TypeScript in project
+"build-renderer": build and transpile Next.js layer
+"build-electron": transpile electron layer
+"build": build both layers
+"dev": start dev version
+"dist": create production electron build
+"type-check": check TypeScript in project
 ```
 
 ## Notes

@@ -1,7 +1,9 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { UrlWithParsedQuery } from 'url'
 
-import pathMatch from './lib/path-match'
+import pathMatch from '../lib/router/utils/path-match'
+import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
+import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
 
 export const route = pathMatch()
 
@@ -22,6 +24,7 @@ export type Route = {
   statusCode?: number
   name: string
   requireBasePath?: false
+  internal?: true
   fn: (
     req: IncomingMessage,
     res: ServerResponse,
@@ -37,6 +40,7 @@ export type PageChecker = (pathname: string) => Promise<boolean>
 const customRouteTypes = new Set(['rewrite', 'redirect', 'header'])
 
 function replaceBasePath(basePath: string, pathname: string) {
+  // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
   return pathname!.replace(basePath, '') || '/'
 }
 
@@ -50,6 +54,7 @@ export default class Router {
   pageChecker: PageChecker
   dynamicRoutes: DynamicRoutes
   useFileSystemPublicRoutes: boolean
+  locales: string[]
 
   constructor({
     basePath = '',
@@ -61,6 +66,7 @@ export default class Router {
     dynamicRoutes = [],
     pageChecker,
     useFileSystemPublicRoutes,
+    locales = [],
   }: {
     basePath: string
     headers: Route[]
@@ -71,6 +77,7 @@ export default class Router {
     dynamicRoutes: DynamicRoutes | undefined
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
+    locales: string[]
   }) {
     this.basePath = basePath
     this.headers = headers
@@ -81,6 +88,7 @@ export default class Router {
     this.catchAllRoute = catchAllRoute
     this.dynamicRoutes = dynamicRoutes
     this.useFileSystemPublicRoutes = useFileSystemPublicRoutes
+    this.locales = locales
   }
 
   setDynamicRoutes(routes: DynamicRoutes = []) {
@@ -99,6 +107,8 @@ export default class Router {
     // memoize page check calls so we don't duplicate checks for pages
     const pageChecks: { [name: string]: Promise<boolean> } = {}
     const memoizedPageChecker = async (p: string): Promise<boolean> => {
+      p = normalizeLocalePath(p, this.locales).pathname
+
       if (pageChecks[p]) {
         return pageChecks[p]
       }
@@ -131,11 +141,13 @@ export default class Router {
               requireBasePath: false,
               match: route('/:path*'),
               fn: async (checkerReq, checkerRes, params, parsedCheckerUrl) => {
-                const { pathname } = parsedCheckerUrl
+                let { pathname } = parsedCheckerUrl
+                pathname = removePathTrailingSlash(pathname || '/')
 
                 if (!pathname) {
                   return { finished: false }
                 }
+
                 if (await memoizedPageChecker(pathname)) {
                   return this.catchAllRoute.fn(
                     checkerReq,
@@ -162,14 +174,54 @@ export default class Router {
       // in the pathname here to allow custom-routes to require containing
       // it or not, filesystem routes and pages must always include the basePath
       // if it is set
-      let currentPathname = parsedUrlUpdated.pathname
+      let currentPathname = parsedUrlUpdated.pathname as string
       const originalPathname = currentPathname
       const requireBasePath = testRoute.requireBasePath !== false
       const isCustomRoute = customRouteTypes.has(testRoute.type)
+      const isPublicFolderCatchall = testRoute.name === 'public folder catchall'
+      const keepBasePath = isCustomRoute || isPublicFolderCatchall
+      const keepLocale = isCustomRoute
 
-      if (!isCustomRoute) {
-        // If replace ends up replacing the full url it'll be `undefined`, meaning we have to default it to `/`
-        currentPathname = replaceBasePath(this.basePath, currentPathname!)
+      const currentPathnameNoBasePath = replaceBasePath(
+        this.basePath,
+        currentPathname
+      )
+
+      if (!keepBasePath) {
+        currentPathname = currentPathnameNoBasePath
+      }
+
+      const localePathResult = normalizeLocalePath(
+        currentPathnameNoBasePath,
+        this.locales
+      )
+      const activeBasePath = keepBasePath ? this.basePath : ''
+
+      if (keepLocale) {
+        if (
+          !testRoute.internal &&
+          parsedUrl.query.__nextLocale &&
+          !localePathResult.detectedLocale
+        ) {
+          currentPathname = `${activeBasePath}/${parsedUrl.query.__nextLocale}${
+            currentPathnameNoBasePath === '/' ? '' : currentPathnameNoBasePath
+          }`
+        }
+
+        if (
+          (req as any).__nextHadTrailingSlash &&
+          !currentPathname.endsWith('/')
+        ) {
+          currentPathname += '/'
+        }
+      } else {
+        currentPathname = `${
+          (req as any)._nextHadBasePath ? activeBasePath : ''
+        }${
+          activeBasePath && localePathResult.pathname === '/'
+            ? ''
+            : localePathResult.pathname
+        }`
       }
 
       const newParams = testRoute.match(currentPathname)
@@ -178,7 +230,7 @@ export default class Router {
       if (newParams) {
         // since we require basePath be present for non-custom-routes we
         // 404 here when we matched an fs route
-        if (!isCustomRoute) {
+        if (!keepBasePath) {
           if (!originallyHadBasePath && !(req as any)._nextDidRewrite) {
             if (requireBasePath) {
               // consider this a non-match so the 404 renders
@@ -201,7 +253,7 @@ export default class Router {
 
         // since the fs route didn't match we need to re-add the basePath
         // to continue checking rewrites with the basePath present
-        if (!isCustomRoute) {
+        if (!keepBasePath) {
           parsedUrlUpdated.pathname = originalPathname
         }
 
@@ -272,7 +324,6 @@ export default class Router {
         }
       }
     }
-
     return false
   }
 }

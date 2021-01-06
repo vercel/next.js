@@ -32,19 +32,36 @@ jest.setTimeout(1000 * 60 * 5)
 const context = {}
 
 describe('Production Usage', () => {
+  let output = ''
   beforeAll(async () => {
-    await runNextCommand(['build', appDir])
+    const result = await runNextCommand(['build', appDir], {
+      stderr: true,
+      stdout: true,
+    })
 
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
       quiet: true,
     })
+    output = (result.stderr || '') + (result.stdout || '')
+    console.log(output)
+
+    if (result.code !== 0) {
+      throw new Error(`Failed to build, exited with code ${result.code}`)
+    }
 
     server = await startApp(app)
     context.appPort = appPort = server.address().port
   })
   afterAll(() => stopApp(server))
+
+  it('should contain generated page count in output', async () => {
+    expect(output).toContain('Generating static pages (0/36)')
+    expect(output).toContain('Generating static pages (36/36)')
+    // we should only have 4 segments and the initial message logged out
+    expect(output.match(/Generating static pages/g).length).toBe(5)
+  })
 
   describe('With basic usage', () => {
     it('should render the page', async () => {
@@ -417,6 +434,23 @@ describe('Production Usage', () => {
     expect(newText).toBe('server')
   })
 
+  it('should navigate to page with CSS and back', async () => {
+    const browser = await webdriver(appPort, '/css-and-back')
+    const initialText = await browser.elementByCss('p').text()
+    expect(initialText).toBe('server')
+
+    await browser
+      .elementByCss('a')
+      .click()
+      .waitForElementByCss('input')
+      .back()
+      .waitForElementByCss('p')
+
+    await waitFor(1000)
+    const newText = await browser.elementByCss('p').text()
+    expect(newText).toBe('client')
+  })
+
   it('should navigate to external site and back (with query)', async () => {
     const browser = await webdriver(appPort, '/external-and-back?hello=world')
     const initialText = await browser.elementByCss('p').text()
@@ -693,7 +727,7 @@ describe('Production Usage', () => {
   })
 
   it('should handle failed param decoding', async () => {
-    const html = await renderViaHTTP(appPort, '/%DE~%C7%1fY/')
+    const html = await renderViaHTTP(appPort, '/invalid-param/%DE~%C7%1fY/')
     expect(html).toMatch(/400/)
     expect(html).toMatch(/Bad Request/)
   })
