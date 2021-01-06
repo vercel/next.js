@@ -6,7 +6,7 @@ This example shows how to use Next.js with [reactstrap](https://reactstrap.githu
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?s=https://github.com/vercel/next.js/tree/canary/examples/with-reactstrap)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-reactstrap&project-name=with-reactstrap&repository-name=with-reactstrap)
 
 ## How to use
 
