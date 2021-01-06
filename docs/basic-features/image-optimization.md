@@ -23,7 +23,7 @@ Instead of optimizing images at build time, Next.js optimizes images on-demand, 
 
 Images are lazy loaded by default. That means your page speed isn't penalized for images outside the viewport. Images load as they are scrolled into viewport.
 
-Images are always rendered in such a way as to avoid prevent [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google is going to [use in search ranking](https://webmasters.googleblog.com/2020/05/evaluating-page-experience.html).
+Images are always rendered in such a way as to avoid [Cumulative Layout Shift](https://web.dev/cls/), a [Core Web Vital](https://web.dev/vitals/) that Google is going to [use in search ranking](https://webmasters.googleblog.com/2020/05/evaluating-page-experience.html).
 
 ## Image Component
 
@@ -59,7 +59,7 @@ In addition to [using properties](/docs/api-reference/next/image.md) available t
 ### Domains
 
 To enable Image Optimization for images hosted on an external website, use an absolute url for the Image `src` and specify which
-`domains` are allowed to be optimized. This is needed to ensure that external urls can't be abused.
+`domains` are allowed to be optimized. This is needed to ensure that external urls can't be abused. When `loader` is set to an external image service, this option is ignored.
 
 ```js
 module.exports = {
@@ -82,13 +82,15 @@ module.exports = {
 }
 ```
 
-The following Image Optimization cloud providers are supported:
+The following Image Optimization cloud providers are included:
 
 - [Vercel](https://vercel.com): Works automatically when you deploy on Vercel, no configuration necessary. [Learn more](https://vercel.com/docs/next.js/image-optimization)
 - [Imgix](https://www.imgix.com): `loader: 'imgix'`
 - [Cloudinary](https://cloudinary.com): `loader: 'cloudinary'`
 - [Akamai](https://www.akamai.com): `loader: 'akamai'`
 - Default: Works automatically with `next dev`, `next start`, or a custom server
+
+If you need a different provider, you can use the [`loader`](/docs/api-reference/next/image.md#loader) prop with `next/image`.
 
 ## Caching
 

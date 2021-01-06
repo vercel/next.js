@@ -1,12 +1,11 @@
 /* eslint-env jest */
+function interopRequireDefault(mod) {
+  return mod.default || mod
+}
 
-// avoid generating __source annotations in JSX during testing:
-const NODE_ENV = process.env.NODE_ENV
-process.env.NODE_ENV = 'production'
-require('next/dist/build/babel/preset')
-process.env.NODE_ENV = NODE_ENV
-
-const loader = require('next/dist/build/webpack/loaders/next-babel-loader')
+const loader = interopRequireDefault(
+  require('next/dist/build/webpack/loaders/next-babel-loader')
+)
 const os = require('os')
 const path = require('path')
 
@@ -364,8 +363,8 @@ describe('next-babel-loader', () => {
         { resourcePath: pageFile, isServer: false, development: true }
       )
 
-      expect(output).toMatchInlineSnapshot(
-        `"var __jsx=React.createElement;import React from\\"react\\";export var __N_SSG=true;export default function Home(_ref){var greeting=_ref.greeting;return __jsx(\\"h1\\",null,greeting);}_c=Home;var _c;$RefreshReg$(_c,\\"Home\\");"`
+      expect(output).toMatch(
+        /var _jsxFileName="[^"]+";var __jsx=React\.createElement;import React from"react";export var __N_SSG=true;export default function Home\(_ref\)\{var greeting=_ref\.greeting;return __jsx\("h1",\{__self:this,__source:\{fileName:_jsxFileName,lineNumber:8,columnNumber:20\}\},greeting\);\}_c=Home;var _c;\$RefreshReg\$\(_c,"Home"\);/
       )
     })
 
@@ -378,7 +377,7 @@ describe('next-babel-loader', () => {
         }
       )
       expect(code).toMatchInlineSnapshot(
-        `"var hello;export default(function(){return(hello===null||hello===void 0?void 0:hello.world)?'something':'nothing';});"`
+        `"var hello;export default(function(){return hello!==null&&hello!==void 0&&hello.world?'something':'nothing';});"`
       )
     })
 
@@ -391,7 +390,7 @@ describe('next-babel-loader', () => {
         }
       )
       expect(code).toMatchInlineSnapshot(
-        `"var hello;export default(function(){return(hello===null||hello===void 0?void 0:hello.world)?'something':'nothing';});"`
+        `"var hello;export default(function(){return hello!==null&&hello!==void 0&&hello.world?'something':'nothing';});"`
       )
     })
 
