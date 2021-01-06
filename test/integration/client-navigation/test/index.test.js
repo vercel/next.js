@@ -1314,6 +1314,26 @@ describe('Client Navigation', () => {
   })
 
   describe('updating head while client routing', () => {
+    it('should only execute async and defer scripts once', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head')
+
+        await browser.waitForElementByCss('h1')
+        await waitFor(2000)
+        expect(
+          Number(await browser.eval('window.__test_async_executions'))
+        ).toBe(1)
+        expect(
+          Number(await browser.eval('window.__test_defer_executions'))
+        ).toBe(1)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
     it('should update head during client routing', async () => {
       let browser
       try {
