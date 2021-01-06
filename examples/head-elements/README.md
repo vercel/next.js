@@ -8,7 +8,7 @@ This example shows in `pages/index.js` how to add a title and a couple of meta t
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/head-elements)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/head-elements&project-name=head-elements&repository-name=head-elements)
 
 ## How to use
 

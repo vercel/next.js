@@ -8,7 +8,7 @@ In this simple example, we integrate Apollo seamlessly with [Next.js data fetchi
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/api-routes-apollo-server-and-client-auth)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/api-routes-apollo-server-and-client-auth&project-name=api-routes-apollo-server-and-client-auth&repository-name=api-routes-apollo-server-and-client-auth)
 
 ## How to use
 

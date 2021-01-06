@@ -6,7 +6,7 @@ This example features how to use [astroturf](https://github.com/4Catalyzer/astro
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-astroturf)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-astroturf&project-name=with-astroturf&repository-name=with-astroturf)
 
 ## How to use
 

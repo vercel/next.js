@@ -6,7 +6,7 @@ This example show how to use the React [Portals](https://reactjs.org/docs/portal
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-portals)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-portals&project-name=with-portals&repository-name=with-portals)
 
 ## How to use
 

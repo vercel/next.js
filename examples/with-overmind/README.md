@@ -6,7 +6,7 @@ This example uses [overmind](https://overmindjs.org/?view=react&typescript=false
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-overmind)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-overmind&project-name=with-overmind&repository-name=with-overmind)
 
 ## How to use
 

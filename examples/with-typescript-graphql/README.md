@@ -21,7 +21,7 @@ By default `**/*.graphqls` is recognized as GraphQL schema and `**/*.graphql` as
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-typescript-graphql)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-typescript-graphql&project-name=with-typescript-graphql&repository-name=with-typescript-graphql)
 
 ## How to use
 

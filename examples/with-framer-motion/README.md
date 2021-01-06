@@ -8,7 +8,7 @@ When using Next's `<Link>` component, you will likely want to [disable the defau
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-framer-motion)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-framer-motion&project-name=with-framer-motion&repository-name=with-framer-motion)
 
 ## How to use
 

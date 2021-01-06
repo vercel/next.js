@@ -14,7 +14,7 @@ The `pages/about.js` shows how to pass an increment value from the about page in
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-context-api)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-context-api&project-name=with-context-api&repository-name=with-context-api)
 
 ## How to use
 

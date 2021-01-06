@@ -6,7 +6,7 @@ This example demonstrates how to use Next.js' built-in CSS imports and CSS modul
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-next-css)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-next-css&project-name=with-next-css&repository-name=with-next-css)
 
 ## How to use
 

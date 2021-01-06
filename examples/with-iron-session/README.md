@@ -27,7 +27,7 @@ It uses current best practices for authentication in the Next.js ecosystem.
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-iron-session)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-iron-session&project-name=with-iron-session&repository-name=with-iron-session)
 
 ## How to use
 

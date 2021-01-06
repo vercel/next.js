@@ -6,7 +6,7 @@ This example shows how to use the [Stitches CSS-in-JS Library](https://github.co
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-stitches)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-stitches&project-name=with-stitches&repository-name=with-stitches)
 
 ## How to use
 

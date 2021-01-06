@@ -6,7 +6,7 @@ This example shows how to use [`@zeit/fetch`](https://npmjs.com/package/@zeit/fe
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-zeit-fetch)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-zeit-fetch&project-name=with-zeit-fetch&repository-name=with-zeit-fetch)
 
 ## How to use
 

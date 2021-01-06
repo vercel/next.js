@@ -8,7 +8,7 @@ With the advantage of having a global state for your app using `redux`. You'll a
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-redux-persist)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-redux-persist&project-name=with-redux-persist&repository-name=with-redux-persist)
 
 ## How to use
 

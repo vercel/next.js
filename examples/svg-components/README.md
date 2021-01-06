@@ -6,7 +6,7 @@ This example uses a custom `.babelrc` to add support for importing `.svg` files 
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/svg-components)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/svg-components&project-name=svg-components&repository-name=svg-components)
 
 ## How to use
 

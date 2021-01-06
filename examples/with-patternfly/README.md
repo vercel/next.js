@@ -6,7 +6,7 @@ This example shows how to use Next.js along with [Patterfly](https://www.pattern
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-patternfly)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-patternfly&project-name=with-patternfly&repository-name=with-patternfly)
 
 ## How to use
 

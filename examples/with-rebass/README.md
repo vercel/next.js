@@ -8,7 +8,7 @@ This example features how you use [Rebass](https://jxnblk.com/rebass/) functiona
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-rebass)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-rebass&project-name=with-rebass&repository-name=with-rebass)
 
 ## How to use
 

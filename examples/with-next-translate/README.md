@@ -6,7 +6,7 @@ This is an example of using [next-translate](https://github.com/vinissimus/next-
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-next-translate)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-next-translate&project-name=with-next-translate&repository-name=with-next-translate)
 
 ## How to use
 

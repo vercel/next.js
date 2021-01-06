@@ -6,7 +6,7 @@ This examples shows how to dynamically import modules via [`import()`](https://g
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-dynamic-import)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-dynamic-import&project-name=with-dynamic-import&repository-name=with-dynamic-import)
 
 ## How to use
 

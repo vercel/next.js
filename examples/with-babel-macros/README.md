@@ -6,7 +6,7 @@ This example features how to configure and use [`babel-macros`](https://github.c
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-babel-macros)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-babel-macros&project-name=with-babel-macros&repository-name=with-babel-macros)
 
 ## How to use
 

@@ -6,7 +6,7 @@ This example shows how to use Next.js along with [Slate.js](https://www.slatejs.
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-slate)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-slate&project-name=with-slate&repository-name=with-slate)
 
 ## How to use
 

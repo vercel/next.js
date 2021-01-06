@@ -8,7 +8,7 @@ In `next.config.js` you can configure the fallback language.
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-i18n-rosetta)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-i18n-rosetta&project-name=with-i18n-rosetta&repository-name=with-i18n-rosetta)
 
 ## How to use
 

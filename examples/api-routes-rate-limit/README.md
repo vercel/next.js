@@ -20,7 +20,7 @@ X-RateLimit-Remaining: 0
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/api-routes-rate-limit)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/api-routes-rate-limit&project-name=api-routes-rate-limit&repository-name=api-routes-rate-limit)
 
 ## How to use
 

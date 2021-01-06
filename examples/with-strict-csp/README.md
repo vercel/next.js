@@ -9,7 +9,7 @@ Note: There are still valid cases for using a nonce in case you need to inline s
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-strict-csp)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-strict-csp&project-name=with-strict-csp&repository-name=with-strict-csp)
 
 ## How to use
 

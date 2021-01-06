@@ -12,7 +12,7 @@ More details about how plugins work can be found in the [styled-jsx readme](http
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-styled-jsx-scss)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-styled-jsx-scss&project-name=with-styled-jsx-scss&repository-name=with-styled-jsx-scss)
 
 ## How to use
 

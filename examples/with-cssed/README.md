@@ -8,7 +8,7 @@ We are creating `div` element with local scoped styles. The styles includes the 
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-cssed)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-cssed&project-name=with-cssed&repository-name=with-cssed)
 
 ## How to use
 

@@ -8,7 +8,7 @@ The index page ([`pages/index.js`](pages/index.js)) has a list of links that mat
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/redirects)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/redirects&project-name=redirects&repository-name=redirects)
 
 ## How to use
 

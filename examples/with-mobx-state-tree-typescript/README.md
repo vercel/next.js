@@ -14,7 +14,7 @@ The clock, under `components/Clock.js`, has access to the state using the `injec
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-mobx-state-tree-typescript)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mobx-state-tree-typescript&project-name=with-mobx-state-tree-typescript&repository-name=with-mobx-state-tree-typescript)
 
 ## How to use
 

@@ -6,7 +6,7 @@ This example shows a very common use case when building websites where you need 
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/layout-component)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/layout-component&project-name=layout-component&repository-name=layout-component)
 
 ## How to use
 

@@ -8,7 +8,7 @@ Quill does not suppport SSR, so it's only loaded and rendered in the browser.
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-quill-js)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-quill-js&project-name=with-quill-js&repository-name=with-quill-js)
 
 ## How to use
 

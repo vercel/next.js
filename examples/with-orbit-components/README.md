@@ -10,7 +10,7 @@ This fork comes from [styled-components-example](https://github.com/vercel/next.
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-orbit-components)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-orbit-components&project-name=with-orbit-components&repository-name=with-orbit-components)
 
 ## How to use
 

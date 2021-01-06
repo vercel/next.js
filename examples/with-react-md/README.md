@@ -22,7 +22,7 @@ example for Typescript support.
 
 Deploy the example using [Vercel](https://vercel.com/now):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-react-md)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-react-md&project-name=with-react-md&repository-name=with-react-md)
 
 ## How to use
 

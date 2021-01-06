@@ -8,7 +8,7 @@ For further documentation on this feature see the documentation [here](https://n
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/i18n-routing)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/i18n-routing&project-name=i18n-routing&repository-name=i18n-routing)
 
 ## How to use
 

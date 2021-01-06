@@ -10,7 +10,7 @@ This example features an app with four simple pages:
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-prefetching)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-prefetching&project-name=with-prefetching&repository-name=with-prefetching)
 
 ## How to use
 

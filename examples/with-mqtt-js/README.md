@@ -6,7 +6,7 @@ This example shows how to use [MQTT.js](https://github.com/mqttjs/MQTT.js) with 
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-mqtt-js)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mqtt-js&project-name=with-mqtt-js&repository-name=with-mqtt-js)
 
 ## How to use
 

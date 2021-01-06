@@ -14,7 +14,7 @@ Mocking is enabled using the `NEXT_PUBLIC_API_MOCKING` environment variable. By 
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-msw)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-msw&project-name=with-msw&repository-name=with-msw)
 
 ## How to use
 

@@ -6,7 +6,7 @@ This example shows how to use Next.js along with [Ant Design Pro Layout](https:/
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-ant-design-pro-layout-less)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-ant-design-pro-layout-less&project-name=with-ant-design-pro-layout-less&repository-name=with-ant-design-pro-layout-less)
 
 ## How to use
 

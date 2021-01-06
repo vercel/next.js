@@ -6,7 +6,7 @@ This example features how you use [antd-mobile](https://github.com/ant-design/an
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-ant-design-mobile)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-ant-design-mobile&project-name=with-ant-design-mobile&repository-name=with-ant-design-mobile)
 
 ## How to use
 

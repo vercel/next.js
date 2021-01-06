@@ -6,7 +6,7 @@ Next.js ships with [API routes](https://github.com/vercel/next.js#api-routes), w
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/api-routes-graphql)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/api-routes-graphql&project-name=api-routes-graphql&repository-name=api-routes-graphql)
 
 ## How to use
 

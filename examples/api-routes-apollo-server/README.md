@@ -6,7 +6,7 @@ Next.js ships with two forms of pre-rendering: [Static Generation](https://nextj
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/api-routes-apollo-server)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/api-routes-apollo-server&project-name=api-routes-apollo-server&repository-name=api-routes-apollo-server)
 
 ## How to use
 

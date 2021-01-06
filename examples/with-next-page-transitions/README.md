@@ -8,7 +8,7 @@ This example includes two pages with links between them. The "About" page demons
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-next-page-transitions)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-next-page-transitions&project-name=with-next-page-transitions&repository-name=with-next-page-transitions)
 
 ## How to use
 

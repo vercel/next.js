@@ -10,7 +10,7 @@ In this example a custom React.createElement is used. With the help of a babel p
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-glamor)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-glamor&project-name=with-glamor&repository-name=with-glamor)
 
 ## How to use
 

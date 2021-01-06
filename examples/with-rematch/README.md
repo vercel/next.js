@@ -8,7 +8,7 @@ Since rematch is utility which uses redux under the hood, some elements like `st
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-rematch)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-rematch&project-name=with-rematch&repository-name=with-rematch)
 
 ## How to use
 

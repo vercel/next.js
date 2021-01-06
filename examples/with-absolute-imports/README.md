@@ -6,7 +6,7 @@ This example shows how to configure Babel to have absolute imports instead of re
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-absolute-imports)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-absolute-imports&project-name=with-absolute-imports&repository-name=with-absolute-imports)
 
 ## How to use
 
