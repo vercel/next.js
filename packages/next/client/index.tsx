@@ -143,6 +143,8 @@ if (window.__NEXT_P) {
 window.__NEXT_P = []
 ;(window.__NEXT_P as any).push = register
 
+const isProdEnv = process.env.NODE_ENV === 'production'
+const isDevEnv = process.env.NODE_ENV === 'development'
 const headManager: {
   mountedInstances: Set<unknown>
   updateHead: (head: JSX.Element[]) => void
@@ -220,7 +222,7 @@ class Container extends React.Component<{
   }
 
   render() {
-    if (process.env.NODE_ENV === 'production') {
+    if (isProdEnv) {
       return this.props.children
     } else {
       const { ReactDevOverlay } = require('@next/react-dev-overlay/lib/client')
@@ -234,7 +236,7 @@ let CachedComponent: React.ComponentType
 
 export default async (opts: { webpackHMR?: any } = {}) => {
   // This makes sure this specific lines are removed in production
-  if (process.env.NODE_ENV === 'development') {
+  if (isDevEnv) {
     webpackHMR = opts.webpackHMR
   }
 
@@ -285,7 +287,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     const pageEntrypoint =
       // The dev server fails to serve script assets when there's a hydration
       // error, so we need to skip waiting for the entrypoint.
-      process.env.NODE_ENV === 'development' && hydrateErr
+      isDevEnv && hydrateErr
         ? { error: hydrateErr }
         : await pageLoader.routeLoader.whenEntrypoint(page)
     if ('error' in pageEntrypoint) {
@@ -293,7 +295,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     }
     CachedComponent = pageEntrypoint.component
 
-    if (process.env.NODE_ENV !== 'production') {
+    if (!isProdEnv) {
       const { isValidElementType } = require('react-is')
       if (!isValidElementType(CachedComponent)) {
         throw new Error(
@@ -306,7 +308,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     initialErr = error
   }
 
-  if (process.env.NODE_ENV === 'development') {
+  if (isDevEnv) {
     const { getNodeError } = require('@next/react-dev-overlay/lib/client')
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
@@ -379,7 +381,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     err: initialErr,
   }
 
-  if (process.env.NODE_ENV === 'production') {
+  if (isProdEnv) {
     render(renderCtx)
     return emitter
   } else {
@@ -401,7 +403,7 @@ export async function render(renderingProps: RenderRouteInfo): Promise<void> {
       throw renderErr
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    if (isDevEnv) {
       // Ensure this error is displayed in the overlay in development
       setTimeout(() => {
         throw renderErr
@@ -419,7 +421,7 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 
   // In development runtime errors are caught by our overlay
   // In production we catch runtime errors using componentDidCatch which will trigger renderError
-  if (process.env.NODE_ENV !== 'production') {
+  if (!isProdEnv) {
     // A Next.js rendering runtime error is always unrecoverable
     // FIXME: let's make this recoverable (error in GIP client-transition)
     webpackHMR.onUnrecoverableError()
@@ -643,7 +645,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       !styleSheets ||
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
-      process.env.NODE_ENV !== 'production'
+      !isProdEnv
     ) {
       return false
     }
@@ -683,7 +685,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     if (
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
-      process.env.NODE_ENV === 'production' &&
+      isProdEnv &&
       // We can skip this during hydration. Running it wont cause any harm, but
       // we may as well save the CPU cycles:
       styleSheets &&
