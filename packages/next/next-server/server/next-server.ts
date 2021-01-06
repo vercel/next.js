@@ -908,7 +908,7 @@ export default class Server {
       match: route('/:path*'),
       type: 'route',
       name: 'Catchall render',
-      fn: async (req, res, params, parsedUrl) => {
+      fn: async (req, res, _params, parsedUrl) => {
         let { pathname, query } = parsedUrl
         if (!pathname) {
           throw new Error('pathname is undefined')
@@ -929,7 +929,7 @@ export default class Server {
           }
         }
 
-        if (params?.path?.[0] === 'api') {
+        if (pathname === '/api' || pathname.startsWith('/api/')) {
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,
@@ -1044,6 +1044,9 @@ export default class Server {
 
     const pageModule = await require(builtPagePath)
     query = { ...query, ...params }
+
+    delete query.__nextLocale
+    delete query.__nextDefaultLocale
 
     if (!this.renderOpts.dev && this._isLikeServerless) {
       if (typeof pageModule.default === 'function') {
@@ -1490,10 +1493,15 @@ export default class Server {
         if (revalidateOptions) {
           setRevalidateHeaders(res, revalidateOptions)
         }
-        await this.render404(req, res, {
-          pathname,
-          query,
-        } as UrlWithParsedQuery)
+        if (isDataReq) {
+          res.statusCode = 404
+          res.end('{"notFound":true}')
+        } else {
+          await this.render404(req, res, {
+            pathname,
+            query,
+          } as UrlWithParsedQuery)
+        }
       } else {
         sendPayload(
           req,
@@ -1737,12 +1745,15 @@ export default class Server {
       if (revalidateOptions) {
         setRevalidateHeaders(res, revalidateOptions)
       }
-      await this.render404(
-        req,
-        res,
-        { pathname, query } as UrlWithParsedQuery,
-        !!revalidateOptions
-      )
+      if (isDataReq) {
+        res.statusCode = 404
+        res.end('{"notFound":true}')
+      } else {
+        await this.render404(req, res, {
+          pathname,
+          query,
+        } as UrlWithParsedQuery)
+      }
     }
     return resHtml
   }

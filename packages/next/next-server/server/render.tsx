@@ -72,8 +72,10 @@ class ServerRouter implements NextRouter {
   events: any
   isFallback: boolean
   locale?: string
+  isReady: boolean
   locales?: string[]
   defaultLocale?: string
+  domainLocales?: DomainLocales
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
@@ -82,10 +84,12 @@ class ServerRouter implements NextRouter {
     query: ParsedUrlQuery,
     as: string,
     { isFallback }: { isFallback: boolean },
+    isReady: boolean,
     basePath: string,
     locale?: string,
     locales?: string[],
-    defaultLocale?: string
+    defaultLocale?: string,
+    domainLocales?: DomainLocales
   ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
@@ -96,7 +100,10 @@ class ServerRouter implements NextRouter {
     this.locale = locale
     this.locales = locales
     this.defaultLocale = defaultLocale
+    this.isReady = isReady
+    this.domainLocales = domainLocales
   }
+
   push(): any {
     noRouter()
   }
@@ -523,6 +530,7 @@ export async function renderToHTML(
 
   // url will always be set
   const asPath: string = renderOpts.resolvedAsPath || (req.url as string)
+  const routerIsReady = !!(getServerSideProps || hasPageGetInitialProps)
   const router = new ServerRouter(
     pathname,
     query,
@@ -530,10 +538,12 @@ export async function renderToHTML(
     {
       isFallback: isFallback,
     },
+    routerIsReady,
     basePath,
     renderOpts.locale,
     renderOpts.locales,
-    renderOpts.defaultLocale
+    renderOpts.defaultLocale,
+    renderOpts.domainLocales
   )
   const ctx = {
     err,
@@ -827,7 +837,7 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
       }
 
-      if ('notFound' in data) {
+      if ('notFound' in data && data.notFound) {
         if (pathname === '/404') {
           throw new Error(
             `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`

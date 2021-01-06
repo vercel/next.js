@@ -8,7 +8,7 @@ To create the blog posts we use [`remark`](https://github.com/remarkjs/remark) a
 
 ## Demo
 
-[https://next-blog-starter.now.sh/](https://next-blog-starter.now.sh/)
+[https://next-blog-starter.vercel.app/](https://next-blog-starter.vercel.app/)
 
 ## Deploy your own
 
@@ -48,4 +48,4 @@ Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&ut
 
 # Notes
 
-This blog-starter uses [Tailwind CSS](https://tailwindcss.com). To control the generated stylesheet's filesize, this example uses Tailwind CSS' v1.4 [`purge` option](https://tailwindcss.com/docs/controlling-file-size/#removing-unused-css) to remove unused CSS.
+This blog-starter uses [Tailwind CSS](https://tailwindcss.com). To control the generated stylesheet's filesize, this example uses Tailwind CSS' v2.0 [`purge` option](https://tailwindcss.com/docs/controlling-file-size/#removing-unused-css) to remove unused CSS.

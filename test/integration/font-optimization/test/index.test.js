@@ -184,4 +184,13 @@ describe('Font optimization for unreachable font definitions.', () => {
       '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@700"/>'
     )
   })
+  it('should not inline multiple fallback link tag', async () => {
+    await renderViaHTTP(appPort, '/stars')
+    // second render to make sure that the page is requested more than once.
+    const html = await renderViaHTTP(appPort, '/stars')
+    expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+    expect(html).not.toContain(
+      '<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Voces"/><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@700"/><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Voces"/><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@700"/>'
+    )
+  })
 })
