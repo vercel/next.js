@@ -272,7 +272,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
         id: id || uniqueID,
         name,
         startTime: startTime || perfStartEntry,
-        value: value === null ? duration : value,
+        value: value == null ? duration : value,
         label:
           entryType === 'mark' || entryType === 'measure'
             ? 'custom'
