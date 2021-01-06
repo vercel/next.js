@@ -1024,6 +1024,10 @@ const runTests = (dev = false) => {
         `${basePath}/hello`
       )
       expect(await browser.eval('window.location.search')).toBe('?query=true')
+
+      if (dev) {
+        expect(await hasRedbox(browser, false)).toBe(false)
+      }
     } finally {
       await browser.close()
     }
@@ -1044,6 +1048,10 @@ const runTests = (dev = false) => {
       expect(pathname).toBe('/')
       expect(await browser.eval('window.location.pathname')).toBe(basePath)
       expect(await browser.eval('window.location.search')).toBe('?query=true')
+
+      if (dev) {
+        expect(await hasRedbox(browser, false)).toBe(false)
+      }
     } finally {
       await browser.close()
     }
