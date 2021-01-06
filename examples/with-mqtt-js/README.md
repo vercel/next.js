@@ -1,6 +1,6 @@
 # MQTT Client example
 
-This example shows how to use the MQTT.js client with next.js.
+This example shows how to use [MQTT.js](https://github.com/mqttjs/MQTT.js) with Next.js.
 
 ## Deploy your own
 
@@ -10,25 +10,25 @@ Deploy the example using [Vercel](https://vercel.com):
 
 ## How to use
 
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+
 ```bash
 npx create-next-app --example with-mqtt-js with-mqtt-js-app
 # or
 yarn create-next-app --example with-mqtt-js with-mqtt-js-app
 ```
 
-SET a connection URI, options for the mqtt connection in .env.local (see Environment Variables) and define handlers per topic (see pages/index.js) for incomming messages in the code of the page you want to use the client in.
-Then pass the variables and handlers to the useMqtt hook.
-If you need a reference to the client instance pass a setter method to the onConnected handler
+To set up a connection URI with a mqtt client, copy the `.env.local.example` file in this directory to `.env.local` (which will be ignored by Git):
 
-Environment VARIABLES:
+```bash
+cp .env.local.example .env.local
+```
 
-NEXT_MQTT_URI: The URI of the broker e.g.: wss://test.mosquitto.org:8081/mqtt
-NEXT_MQTT_CLIENTID: An arbritrary string of max. 23 characters.
-NEXT_MQTT_USERNAME: The username for the connection to the broker.
-NEXT_MQTT_PASSWORD: The password for the connection to the broker.
+Then set each variable on `.env.local`:
 
-**MQTT.js**
-
-For more information on the mqtt client or the options object, consult the documentation: [MQTT.js](https://github.com/mqttjs/MQTT.js)
+- `NEXT_MQTT_URI`: The URI of the broker. For example `wss://test.mosquitto.org:8081/mqtt`
+- `NEXT_MQTT_CLIENTID`: An arbritrary string of max. 23 characters.
+- `NEXT_MQTT_USERNAME`: The username for the connection to the broker.
+- `NEXT_MQTT_PASSWORD`: The password for the connection to the broker.
 
 Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
