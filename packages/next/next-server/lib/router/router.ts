@@ -360,6 +360,7 @@ export type NextRouter = BaseRouter &
     | 'beforePopState'
     | 'events'
     | 'isFallback'
+    | 'isReady'
   >
 
 export type PrefetchOptions = {
