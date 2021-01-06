@@ -49,7 +49,11 @@ import {
   tryGetPreviewData,
   __ApiPreviewProps,
 } from './api-utils'
-import loadConfig, { isTargetLikeServerless, NextConfig } from './config'
+import loadConfig, {
+  DomainLocales,
+  isTargetLikeServerless,
+  NextConfig,
+} from './config'
 import pathMatch from '../lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
@@ -155,6 +159,7 @@ export default class Server {
     locale?: string
     locales?: string[]
     defaultLocale?: string
+    domainLocales?: DomainLocales
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -211,6 +216,7 @@ export default class Server {
           : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
+      domainLocales: this.nextConfig.i18n?.domains,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -1484,10 +1490,15 @@ export default class Server {
         if (revalidateOptions) {
           setRevalidateHeaders(res, revalidateOptions)
         }
-        await this.render404(req, res, {
-          pathname,
-          query,
-        } as UrlWithParsedQuery)
+        if (isDataReq) {
+          res.statusCode = 404
+          res.end('{"notFound":true}')
+        } else {
+          await this.render404(req, res, {
+            pathname,
+            query,
+          } as UrlWithParsedQuery)
+        }
       } else {
         sendPayload(
           req,
@@ -1538,10 +1549,11 @@ export default class Server {
             res,
             'passthrough',
             {
-              fontManifest: this.renderOpts.fontManifest,
               locale,
               locales,
               defaultLocale,
+              fontManifest: this.renderOpts.fontManifest,
+              domainLocales: this.renderOpts.domainLocales,
             }
           )
 
@@ -1730,12 +1742,15 @@ export default class Server {
       if (revalidateOptions) {
         setRevalidateHeaders(res, revalidateOptions)
       }
-      await this.render404(
-        req,
-        res,
-        { pathname, query } as UrlWithParsedQuery,
-        !!revalidateOptions
-      )
+      if (isDataReq) {
+        res.statusCode = 404
+        res.end('{"notFound":true}')
+      } else {
+        await this.render404(req, res, {
+          pathname,
+          query,
+        } as UrlWithParsedQuery)
+      }
     }
     return resHtml
   }
