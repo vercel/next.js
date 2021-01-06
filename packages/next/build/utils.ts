@@ -595,7 +595,7 @@ export async function buildStaticPaths(
       const result = _routeMatcher(cleanedEntry)
       if (!result) {
         throw new Error(
-          `The provided path \`${entry}\` does not match the page: \`${page}\`.`
+          `The provided path \`${cleanedEntry}\` does not match the page: \`${page}\`.`
         )
       }
 
