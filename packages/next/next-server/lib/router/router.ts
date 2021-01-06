@@ -81,7 +81,7 @@ function addPathPrefix(path: string, prefix?: string) {
   return prefix && path.startsWith('/')
     ? path === '/'
       ? normalizePathTrailingSlash(prefix)
-      : `${prefix}${path}`
+      : `${prefix}${pathNoQueryHash(path) === '/' ? path.substring(1) : path}`
     : path
 }
 
@@ -133,13 +133,18 @@ export function delLocale(path: string, locale?: string) {
   return path
 }
 
-export function hasBasePath(path: string): boolean {
+function pathNoQueryHash(path: string) {
   const queryIndex = path.indexOf('?')
   const hashIndex = path.indexOf('#')
 
   if (queryIndex > -1 || hashIndex > -1) {
     path = path.substring(0, queryIndex > -1 ? queryIndex : hashIndex)
   }
+  return path
+}
+
+export function hasBasePath(path: string): boolean {
+  path = pathNoQueryHash(path)
   return path === basePath || path.startsWith(basePath + '/')
 }
 
@@ -149,7 +154,9 @@ export function addBasePath(path: string): string {
 }
 
 export function delBasePath(path: string): string {
-  return path.slice(basePath.length) || '/'
+  path = path.slice(basePath.length)
+  if (!path.startsWith('/')) path = `/${path}`
+  return path
 }
 
 /**
@@ -302,15 +309,31 @@ export function resolveHref(
   }
 }
 
+function stripOrigin(url: string) {
+  const origin = getLocationOrigin()
+
+  return url.startsWith(origin) ? url.substring(origin.length) : url
+}
+
 function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
-  const [resolvedHref, resolvedAs] = resolveHref(router.pathname, url, true)
+  let [resolvedHref, resolvedAs] = resolveHref(router.pathname, url, true)
+  const origin = getLocationOrigin()
+  const hrefHadOrigin = resolvedHref.startsWith(origin)
+  const asHadOrigin = resolvedAs && resolvedAs.startsWith(origin)
+
+  resolvedHref = stripOrigin(resolvedHref)
+  resolvedAs = resolvedAs ? stripOrigin(resolvedAs) : resolvedAs
+
+  const preparedUrl = hrefHadOrigin ? resolvedHref : addBasePath(resolvedHref)
+  const preparedAs = as
+    ? stripOrigin(resolveHref(router.pathname, as))
+    : resolvedAs || resolvedHref
+
   return {
-    url: addBasePath(resolvedHref),
-    as: addBasePath(
-      as ? resolveHref(router.pathname, as) : resolvedAs || resolvedHref
-    ),
+    url: preparedUrl,
+    as: asHadOrigin ? preparedAs : addBasePath(preparedAs),
   }
 }
 
