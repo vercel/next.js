@@ -670,6 +670,71 @@ export function runTests(ctx) {
     }
   })
 
+  it('should visit API route directly correctly', async () => {
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath || ''}${
+          locale === 'en-US' ? '' : `/${locale}`
+        }/api/hello`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const data = await res.json()
+      expect(data).toEqual({
+        hello: true,
+        query: {},
+      })
+    }
+  })
+
+  it('should visit dynamic API route directly correctly', async () => {
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath || ''}${
+          locale === 'en-US' ? '' : `/${locale}`
+        }/api/post/first`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const data = await res.json()
+      expect(data).toEqual({
+        post: true,
+        query: {
+          slug: 'first',
+        },
+      })
+    }
+  })
+
+  it('should rewrite to API route correctly', async () => {
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath || ''}${
+          locale === 'en-US' ? '' : `/${locale}`
+        }/sitemap.xml`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const data = await res.json()
+      expect(data).toEqual({
+        hello: true,
+        query: {},
+      })
+    }
+  })
+
   it('should apply rewrites correctly', async () => {
     let res = await fetchViaHTTP(
       ctx.appPort,
