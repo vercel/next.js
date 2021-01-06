@@ -83,6 +83,10 @@ module.exports = {
         source: '/rewrite-5',
         destination: 'http://localhost:__EXTERNAL_PORT__',
       },
+      {
+        source: '/sitemap.xml',
+        destination: '/api/hello',
+      },
     ]
   },
   async headers() {
