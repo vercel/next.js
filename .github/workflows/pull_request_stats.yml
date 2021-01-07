@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - run: node skip-docs-change.js echo 'docs-only'
       - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'docs-only')
         id: docs-change
       - uses: ./.github/actions/next-stats-action
