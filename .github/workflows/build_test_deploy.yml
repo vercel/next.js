@@ -1,8 +1,18 @@
 on:
   push:
     branches: [canary]
+    paths-ignore:
+      - 'bench/**'
+      - 'docs/**'
+      - 'errors/**'
+      - 'examples/**'
   pull_request:
     types: [opened, synchronize]
+    paths-ignore:
+      - 'bench/**'
+      - 'docs/**'
+      - 'errors/**'
+      - 'examples/**'
 
 name: Build, test, and deploy
 
