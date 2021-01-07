@@ -67,21 +67,14 @@ async function processHTML(
   const root: HTMLElement = parse(html)
   let document = html
   // Calls the middleware, with some instrumentation and logging
-  async function callMiddleWare(
-    middleware: PostProcessMiddleware,
-    name: string
-  ) {
+  async function callMiddleWare(middleware: PostProcessMiddleware) {
     let timer = Date.now()
     middleware.inspect(root, postProcessData, data)
-    const inspectTime = Date.now() - timer
     document = await middleware.mutate(document, postProcessData, data)
     timer = Date.now() - timer
     if (timer > MIDDLEWARE_TIME_BUDGET) {
-      console.warn(
-        `The postprocess middleware "${name}" took ${timer}ms(${inspectTime}, ${
-          timer - inspectTime
-        }) to complete. This is longer than the ${MIDDLEWARE_TIME_BUDGET} limit.`
-      )
+      // TODO: Identify a correct upper limit for the postprocess step
+      // and add a warning to disable the optimization
     }
     return
   }
