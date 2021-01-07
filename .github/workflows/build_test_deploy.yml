@@ -53,6 +53,7 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
       - run: ./check-pre-compiled.sh
+        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
 
   testUnit:
     name: Test Unit
