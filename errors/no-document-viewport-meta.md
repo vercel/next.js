@@ -29,4 +29,4 @@ export default MyApp
 
 ### Useful Links
 
-- [Issue #13230](https://github.com/zeit/next.js/issues/13230), which led to the creation of this warning.
+- [Issue #13230](https://github.com/vercel/next.js/issues/13230), which led to the creation of this warning.
