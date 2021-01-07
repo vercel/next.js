@@ -33,8 +33,10 @@ async function main() {
 
     await new Promise((resolve, reject) => {
       cmd.on('exit', (code) => {
-        if (code !== 0) return resolve()
-        reject(code)
+        if (code !== 0) {
+          return reject(new Error('command failed with code: ' + code))
+        }
+        resolve()
       })
       cmd.on('error', (err) => reject(err))
     })
@@ -44,6 +46,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error(err)
+  console.error('Failed to detect doc changes', err)
   process.exit(1)
 })
