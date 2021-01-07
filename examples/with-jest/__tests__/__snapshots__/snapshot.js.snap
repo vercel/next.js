@@ -61,7 +61,7 @@ exports[`renders homepage unchanged 1`] = `
       </a>
       <a
         className="card"
-        href="https://vercel.com/import/nextjs"
+        href="https://vercel.com/new"
       >
         <h3>
           Deploy →
