@@ -7,7 +7,6 @@
     "start": "next start"
   },
   "dependencies": {
-    "express": "^4.14.0",
     "firebase": "^7.6.2",
     "localforage": "^1.7.3",
     "next": "latest",
