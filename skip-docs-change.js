@@ -7,7 +7,7 @@ const DOCS_FOLDERS = ['bench', 'docs', 'errors', 'examples']
 
 async function main() {
   const { stdout: changedFilesOutput } = await exec(
-    'git diff canary --name-only'
+    'git diff origin/canary --name-only'
   )
   const changedFiles = changedFilesOutput
     .split('\n')
