@@ -1,18 +1,8 @@
 on:
   push:
     branches: [canary]
-    paths-ignore:
-      - 'bench/**'
-      - 'docs/**'
-      - 'errors/**'
-      - 'examples/**'
   pull_request:
     types: [opened, synchronize]
-    paths-ignore:
-      - 'bench/**'
-      - 'docs/**'
-      - 'errors/**'
-      - 'examples/**'
 
 name: Build, test, and deploy
 
@@ -21,11 +11,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
+    outputs:
+      docsChange: ${{ steps.docs-change.DOCS_CHANGE }}
     steps:
       - uses: actions/checkout@v2
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
       - run: yarn install --frozen-lockfile --check-files
       - run: node run-tests.js --timings --write-timings -g 1/1
+      - name: Check docs only change
+        run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'non-docs')
+        id: docs-change
       - uses: actions/cache@v2
         id: cache-build
         with:
@@ -51,6 +46,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
         id: restore-build
         with:
           path: ./*
@@ -67,12 +63,14 @@ jobs:
       HEADLESS: true
     steps:
       - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}
 
       - run: node run-tests.js --timings --type unit -g 1/1
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
 
   testIntegration:
     name: Test Integration
@@ -88,6 +86,7 @@ jobs:
         group: [1, 2, 3, 4, 5, 6]
     steps:
       - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
         id: restore-build
         with:
           path: ./*
@@ -95,8 +94,10 @@ jobs:
 
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
 
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
 
   testElectron:
     name: Test Electron
@@ -109,6 +110,7 @@ jobs:
       TEST_ELECTRON: 1
     steps:
       - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
         id: restore-build
         with:
           path: ./*
@@ -116,10 +118,13 @@ jobs:
 
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
 
       - run: yarn add -W --dev spectron@7.0.0 electron@5.0.0
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
 
       - run: xvfb-run node run-tests.js test/integration/with-electron/test/index.test.js
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
 
   testYarnPnP:
     runs-on: ubuntu-latest
@@ -128,10 +133,13 @@ jobs:
       YARN_COMPRESSION_LEVEL: '0'
     steps:
       - uses: actions/checkout@v2
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
 
       - run: yarn install --frozen-lockfile --check-files
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
 
       - run: bash ./test-pnp.sh
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
 
   testsPass:
     name: thank you, next
@@ -149,14 +157,24 @@ jobs:
       HEADLESS: true
 
     steps:
+      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'non-docs')
+        id: docs-change
       - uses: actions/checkout@v2
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
       - run: cat package.json | jq '.resolutions.webpack = "^5.11.1"' > package.json.tmp && mv package.json.tmp package.json
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
       - run: cat package.json | jq '.resolutions.react = "^17.0.1"' > package.json.tmp && mv package.json.tmp package.json
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
       - run: cat package.json | jq '.resolutions."react-dom" = "^17.0.1"' > package.json.tmp && mv package.json.tmp package.json
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
       - run: yarn install --check-files
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
       - run: yarn list webpack react react-dom
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
       - run: xvfb-run node run-tests.js test/integration/{link-ref,production,basic,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
 
   testFirefox:
     name: Test Firefox (production)
@@ -168,11 +186,13 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}
       - run: node run-tests.js test/integration/production/test/index.test.js
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
 
   testSafari:
     name: Test Safari (production)
@@ -187,11 +207,13 @@ jobs:
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     steps:
       - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production/test/index.test.js'
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
 
   testSafariOld:
     name: Test Safari 10.1 (nav)
@@ -207,11 +229,13 @@ jobs:
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     steps:
       - uses: actions/cache@v2
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production-nav/test/index.test.js'
+        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
 
   publishRelease:
     name: Potentially publish release

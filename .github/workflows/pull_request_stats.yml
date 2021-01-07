@@ -1,11 +1,6 @@
 on:
   pull_request:
     types: [opened, synchronize]
-    paths-ignore:
-      - 'bench/**'
-      - 'docs/**'
-      - 'errors/**'
-      - 'examples/**'
 
 name: Generate Pull Request Stats
 
@@ -14,5 +9,9 @@ jobs:
     name: PR Stats
     runs-on: ubuntu-latest
     steps:
+      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'non-docs')
+        id: docs-change
       - uses: actions/checkout@v2
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
       - uses: ./.github/actions/next-stats-action
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
