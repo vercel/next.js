@@ -15,7 +15,7 @@ If you haven’t already done so, push your Next.js app to a Git provider of you
 Then, follow these steps:
 
 1. [Sign up to Vercel](https://vercel.com/signup) (no credit card is required).
-2. After signing up, you’ll arrive on the [“Import Project”](https://vercel.com/import) page. Under “From Git Repository”, choose the Git provider you use and set up an integration. (Instructions: [GitHub](https://vercel.com/docs/v2/git-integrations/vercel-for-github) / [GitLab](https://vercel.com/docs/v2/git-integrations/vercel-for-gitlab) / [BitBucket](https://vercel.com/docs/v2/git-integrations/vercel-for-bitbucket)).
+2. After signing up, you’ll arrive on the [“Import Project”](https://vercel.com/new) page. Under “From Git Repository”, choose the Git provider you use and set up an integration. (Instructions: [GitHub](https://vercel.com/docs/v2/git-integrations/vercel-for-github) / [GitLab](https://vercel.com/docs/v2/git-integrations/vercel-for-gitlab) / [BitBucket](https://vercel.com/docs/v2/git-integrations/vercel-for-bitbucket)).
 3. Once that’s set up, click “Import Project From …” and import your Next.js app. It auto-detects that your app is using Next.js and sets up the build configuration for you. No need to change anything — everything should work just fine!
 4. After importing, it’ll deploy your Next.js app and provide you with a deployment URL. Click “Visit” to see your app in production.
 

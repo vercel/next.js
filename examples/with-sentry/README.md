@@ -11,7 +11,7 @@ This is an example showing how to use [Sentry](https://sentry.io) to catch & rep
 
 Once you have access to your [Sentry DSN](#step-1-enable-error-tracking), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/with-sentry&env=NEXT_PUBLIC_SENTRY_DSN&envDescription=DSN%20Key%20required%20by%20Sentry&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-sentry%23step-1-enable-error-tracking)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-sentry&project-name=with-sentry&repository-name=with-sentry&env=NEXT_PUBLIC_SENTRY_DSN&envDescription=DSN%20Key%20required%20by%20Sentry&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-sentry%23step-1-enable-error-tracking)
 
 ## How To Use
 
@@ -89,7 +89,7 @@ You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source
 
 #### Deploy Your Local Project
 
-To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
 **Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
 
@@ -97,4 +97,4 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/with-sentry&env=NEXT_PUBLIC_SENTRY_DSN&envDescription=DSN%20Key%20required%20by%20Sentry&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-sentry%23step-1-enable-error-tracking)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-sentry&project-name=with-sentry&repository-name=with-sentry&env=NEXT_PUBLIC_SENTRY_DSN&envDescription=DSN%20Key%20required%20by%20Sentry&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-sentry%23step-1-enable-error-tracking)
