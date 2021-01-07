@@ -60,7 +60,7 @@ npm run dev
 yarn dev
 ```
 
-Your app should now be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
+Your app should now be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
 You should now see a list of Todos that were fetched from the database via the API Route defined in `/pages/api/todos.js`.
 
