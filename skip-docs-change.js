@@ -6,6 +6,7 @@ const exec = promisify(execOrig)
 const DOCS_FOLDERS = ['bench', 'docs', 'errors', 'examples']
 
 async function main() {
+  console.log(await exec('git remote -v'))
   const { stdout: changedFilesOutput } = await exec(
     'git diff origin/canary --name-only'
   )
