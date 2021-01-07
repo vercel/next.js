@@ -86,6 +86,7 @@ jobs:
       matrix:
         group: [1, 2, 3, 4, 5, 6]
     steps:
+      - run: echo ${{needs.build.outputs.docsChange}}
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs-only'}}
         id: restore-build
@@ -139,10 +140,10 @@ jobs:
         id: docs-change
 
       - run: yarn install --frozen-lockfile --check-files
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{steps.docs-change.outputs.DOCS_CHANGE != 'docs-only'}}
 
       - run: bash ./test-pnp.sh
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{steps.docs-change.outputs.DOCS_CHANGE != 'docs-only'}}
 
   testsPass:
     name: thank you, next
