@@ -10,7 +10,7 @@ This fork comes from [styled-components-example](https://github.com/vercel/next.
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-orbit-components)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-orbit-components&project-name=with-orbit-components&repository-name=with-orbit-components)
 
 ## How to use
 
@@ -22,4 +22,4 @@ npx create-next-app --example with-orbit-components with-orbit-components-app
 yarn create next-app --example with-orbit-components with-orbit-components-app
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

@@ -8,7 +8,6 @@ declare module 'cssnano-simple' {
   export = cssnanoSimple
 }
 declare module 'styled-jsx/server'
-declare module 'unfetch'
 declare module 'webpack/lib/GraphHelpers'
 declare module 'webpack/lib/DynamicEntryPlugin'
 declare module 'webpack/lib/Entrypoint'
@@ -130,9 +129,9 @@ declare module 'next/dist/compiled/lru-cache' {
   import m from 'lru-cache'
   export = m
 }
-declare module 'next/dist/compiled/nanoid/index.js' {
-  function nanoid(size?: number): string
-  export = nanoid
+declare module 'next/dist/compiled/nanoid/index.cjs' {
+  import m from 'nanoid'
+  export = m
 }
 declare module 'next/dist/compiled/ora' {
   import m from 'ora'
@@ -199,7 +198,6 @@ declare module 'next/dist/compiled/web-vitals' {
   export = m
 }
 
-declare module 'next/dist/compiled/terser-webpack-plugin'
 declare module 'next/dist/compiled/comment-json' {
   import m from 'comment-json'
   export = m
