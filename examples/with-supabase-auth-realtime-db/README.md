@@ -16,7 +16,7 @@ This example is a clone of the [Slack Clone example](https://github.com/supabase
 
 Once you have access to [the environment variables you'll need](#step-3-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/with-supabase-auth-realtime-db&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_KEY&envDescription=Required%20to%20connect%20the%20app%to%Supabase&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-supabase-auth-realtime-db%23step-3-set-up-environment-variables&project-name=supabase-slack-clone&repo-name=supabase-slack-clone)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-supabase-auth-realtime-db&project-name=with-supabase-auth-realtime-db&repository-name=with-supabase-auth-realtime-db&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_KEY&envDescription=Required%20to%20connect%20the%20app%to%Supabase&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-supabase-auth-realtime-db%23step-3-set-up-environment-variables&project-name=supabase-slack-clone)
 
 ## How to use
 
@@ -81,7 +81,7 @@ You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source
 
 #### Deploy Your Local Project
 
-To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
 **Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
 
@@ -89,7 +89,7 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/with-supabase-auth-realtime-db&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_KEY&envDescription=Required%20to%20connect%20the%20app%to%Supabase&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-supabase-auth-realtime-db%23step-3-set-up-environment-variables&project-name=supabase-slack-clone&repo-name=supabase-slack-clone)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-supabase-auth-realtime-db&project-name=with-supabase-auth-realtime-db&repository-name=with-supabase-auth-realtime-db&env=NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_KEY&envDescription=Required%20to%20connect%20the%20app%to%Supabase&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-supabase-auth-realtime-db%23step-3-set-up-environment-variables&project-name=supabase-slack-clone)
 
 ## Supabase details
 
