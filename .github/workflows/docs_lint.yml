@@ -1,18 +1,11 @@
 on:
   push:
     branches: [canary]
-    # run only linting for docs changes, if it is a core change
-    # as well we skip this as the normal test flow will lint
     paths:
       - 'bench/**'
       - 'docs/**'
       - 'errors/**'
       - 'examples/**'
-    paths-ignore:
-      - '!bench/**'
-      - '!docs/**'
-      - '!errors/**'
-      - '!examples/**'
 
   pull_request:
     types: [opened, synchronize]
@@ -22,11 +15,6 @@ on:
       - 'errors/**'
       - 'examples/**'
       - '!**/*'
-    paths-ignore:
-      - '!bench/**'
-      - '!docs/**'
-      - '!errors/**'
-      - '!examples/**'
 
 name: Lint docs
 
@@ -37,5 +25,5 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/checkout@v2
-      - run: yarn install --frozen-lockfile --check-files
+      - run: yarn install --frozen-lockfile --check-files --ignore-scripts
       - run: yarn lint-no-typescript
