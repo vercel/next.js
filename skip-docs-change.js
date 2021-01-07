@@ -6,9 +6,9 @@ const exec = promisify(execOrig)
 const DOCS_FOLDERS = ['bench', 'docs', 'errors', 'examples']
 
 async function main() {
-  await exec('git fetch origin master')
+  await exec('git fetch origin canary')
   const { stdout: changedFilesOutput } = await exec(
-    'git diff origin/canary --name-only'
+    'git diff $(git merge-base --fork-point canary) --name-only'
   )
   const changedFiles = changedFilesOutput
     .split('\n')
