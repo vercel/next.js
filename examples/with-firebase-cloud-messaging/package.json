@@ -15,8 +15,6 @@
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },
-  "devDependencies": {
-    "next-offline": "^3.0.10"
-  },
+  "devDependencies": {},
   "license": "MIT"
 }
