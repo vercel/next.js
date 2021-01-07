@@ -8,12 +8,11 @@ name: Build, test, and deploy
 
 jobs:
   build:
-    id: build
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
     outputs:
-      docsChange: ${{ steps.docs-change.DOCS_CHANGE }}
+      docsChange: ${{ steps.docs-change.outputs.DOCS_CHANGE }}
     steps:
       - uses: actions/checkout@v2
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
