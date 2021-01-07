@@ -8,6 +8,7 @@ name: Build, test, and deploy
 
 jobs:
   build:
+    id: build
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
