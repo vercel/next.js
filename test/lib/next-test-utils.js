@@ -444,6 +444,33 @@ export async function evaluate(browser, input) {
   }
 }
 
+export async function retry(fn, duration = 3000, interval = 500, description) {
+  if (duration % interval !== 0) {
+    throw new Error(
+      `invalid duration ${duration} and interval ${interval} mix, duration must be evenly divisible by interval`
+    )
+  }
+
+  for (let i = duration; i >= 0; i -= interval) {
+    try {
+      return await fn()
+    } catch (err) {
+      if (i === 0) {
+        console.error(
+          `Failed to retry${
+            description ? ` ${description}` : ''
+          } within ${duration}ms`
+        )
+        throw err
+      }
+      console.warn(
+        `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
+      )
+      await waitFor(interval)
+    }
+  }
+}
+
 export async function hasRedbox(browser, expected = true) {
   let attempts = 30
   do {
@@ -471,31 +498,43 @@ export async function hasRedbox(browser, expected = true) {
 }
 
 export async function getRedboxHeader(browser) {
-  return evaluate(browser, () => {
-    const portal = [].slice
-      .call(document.querySelectorAll('nextjs-portal'))
-      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header'))
-    const root = portal.shadowRoot
-    return root
-      .querySelector('[data-nextjs-dialog-header]')
-      .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
-  })
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header'))
+        const root = portal.shadowRoot
+        return root
+          .querySelector('[data-nextjs-dialog-header]')
+          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+      }),
+    3000,
+    500,
+    'getRedboxHeader'
+  )
 }
 
 export async function getRedboxSource(browser) {
-  return evaluate(browser, () => {
-    const portal = [].slice
-      .call(document.querySelectorAll('nextjs-portal'))
-      .find((p) =>
-        p.shadowRoot.querySelector(
-          '#nextjs__container_errors_label, #nextjs__container_build_error_label'
-        )
-      )
-    const root = portal.shadowRoot
-    return root
-      .querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
-      .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
-  })
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector(
+              '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+            )
+          )
+        const root = portal.shadowRoot
+        return root
+          .querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
+          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+      }),
+    3000,
+    500,
+    'getRedboxSource'
+  )
 }
 
 export function getBrowserBodyText(browser) {
