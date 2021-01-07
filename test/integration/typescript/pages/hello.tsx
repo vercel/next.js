@@ -19,6 +19,7 @@ export default function HelloPage(): JSX.Element {
   const router = useRouter()
   console.log(process.browser)
   console.log(router.pathname)
+  console.log(router.isReady)
   return (
     <div>
       <p>One trillion dollars: {1_000_000_000_000}</p>
