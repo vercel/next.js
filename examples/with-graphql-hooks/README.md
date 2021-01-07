@@ -10,7 +10,7 @@ This started life as a copy of the `with-apollo` example. We then stripped out A
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-graphql-hooks)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-graphql-hooks&project-name=with-graphql-hooks&repository-name=with-graphql-hooks)
 
 ## How to use
 
@@ -22,4 +22,4 @@ npx create-next-app --example with-graphql-hooks with-graphql-hooks-app
 yarn create next-app --example with-graphql-hooks with-graphql-hooks-app
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

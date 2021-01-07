@@ -6,7 +6,7 @@ This example shows how to use Next.js along with [rbx](https://github.com/dfee/r
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-rbx-bulma-pro)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-rbx-bulma-pro&project-name=with-rbx-bulma-pro&repository-name=with-rbx-bulma-pro)
 
 ## How to use
 
@@ -18,4 +18,4 @@ npx create-next-app --example with-rbx-bulma-pro with-rbx-bulma-pro-app
 yarn create next-app --example with-rbx-bulma-pro with-rbx-bulma-pro-app
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

@@ -61,7 +61,7 @@ export default function Home() {
         </ListItem>
         <ListItem>
           <Heading as="h3" variant="heading30">
-            <Anchor href="https://vercel.com/import?filter=next.js">
+            <Anchor href="https://vercel.com/new">
               <Box as="span" display="flex" alignItems="center">
                 Deploy <ArrowForwardIcon decorative size="sizeIcon60" />
               </Box>

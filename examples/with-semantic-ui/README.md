@@ -6,7 +6,7 @@ This example shows how to use Next.js along with [Semantic UI React](https://rea
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-semantic-ui)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-semantic-ui&project-name=with-semantic-ui&repository-name=with-semantic-ui)
 
 ## How to use
 
@@ -18,4 +18,4 @@ npx create-next-app --example with-semantic-ui with-semantic-ui-app
 yarn create next-app --example with-semantic-ui with-semantic-ui-app
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
