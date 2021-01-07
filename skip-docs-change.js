@@ -6,7 +6,7 @@ const exec = promisify(execOrig)
 const DOCS_FOLDERS = ['bench', 'docs', 'errors', 'examples']
 
 async function main() {
-  await exec('git fetch --depth=1 origin +refs/tags/*:refs/tags/*')
+  await exec('git fetch origin master')
   const { stdout: changedFilesOutput } = await exec(
     'git diff origin/canary --name-only'
   )
