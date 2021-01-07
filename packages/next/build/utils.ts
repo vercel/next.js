@@ -14,7 +14,6 @@ import {
 import {
   SSG_GET_INITIAL_PROPS_CONFLICT,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
-  SERVER_PROPS_SSG_CONFLICT,
 } from '../lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
 import { recursiveReadDir } from '../lib/recursive-readdir'
@@ -775,10 +774,6 @@ export async function isPageStatic(
 
     if (hasGetInitialProps && hasServerProps) {
       throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT)
-    }
-
-    if (hasStaticProps && hasServerProps) {
-      throw new Error(SERVER_PROPS_SSG_CONFLICT)
     }
 
     const pageIsDynamic = isDynamicRoute(page)

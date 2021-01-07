@@ -8,7 +8,6 @@ import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { getRouteMatcher } from '../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../next-server/lib/router/utils/route-regex'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
-import { SERVER_PROPS_EXPORT_ERROR } from '../lib/constants'
 import 'next/dist/next-server/server/node-polyfill-fetch'
 import { IncomingMessage, ServerResponse } from 'http'
 import { ComponentType } from 'react'
@@ -214,15 +213,7 @@ export default async function exportPage({
           ...query,
         },
       })
-      const { Component: mod, getServerSideProps } = await loadComponents(
-        distDir,
-        page,
-        serverless
-      )
-
-      if (getServerSideProps) {
-        throw new Error(`Error for page ${page}: ${SERVER_PROPS_EXPORT_ERROR}`)
-      }
+      const { Component: mod } = await loadComponents(distDir, page, serverless)
 
       // if it was auto-exported the HTML is loaded here
       if (typeof mod === 'string') {
@@ -274,10 +265,6 @@ export default async function exportPage({
       }
     } else {
       const components = await loadComponents(distDir, page, serverless)
-
-      if (components.getServerSideProps) {
-        throw new Error(`Error for page ${page}: ${SERVER_PROPS_EXPORT_ERROR}`)
-      }
 
       // for non-dynamic SSG pages we should have already
       // prerendered the file

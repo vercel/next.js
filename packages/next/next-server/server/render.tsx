@@ -10,7 +10,6 @@ import {
   GSSP_NO_RETURNED_VALUE,
   PAGES_404_GET_INITIAL_PROPS_ERROR,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
-  SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   UNSTABLE_REVALIDATE_RENAME_ERROR,
 } from '../../lib/constants'
@@ -440,10 +439,7 @@ export async function renderToHTML(
   const pageIsDynamic = isDynamicRoute(pathname)
 
   const isAutoExport =
-    !hasPageGetInitialProps &&
-    defaultAppGetInitialProps &&
-    !isSSG &&
-    !getServerSideProps
+    !hasPageGetInitialProps && defaultAppGetInitialProps && !isSSG
 
   for (const methodName of [
     'getStaticProps',
@@ -463,10 +459,6 @@ export async function renderToHTML(
 
   if (hasPageGetInitialProps && getServerSideProps) {
     throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT + ` ${pathname}`)
-  }
-
-  if (getServerSideProps && isSSG) {
-    throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
   }
 
   if (!!getStaticPaths && !isSSG) {
@@ -622,7 +614,7 @@ export async function renderToHTML(
       previewData = tryGetPreviewData(req, res, previewProps)
     }
 
-    if (isSSG && !isFallback) {
+    if ((!getServerSideProps || isBuildTimeSSG) && isSSG && !isFallback) {
       let data: UnwrapPromise<ReturnType<GetStaticProps>>
 
       try {
@@ -782,104 +774,110 @@ export async function renderToHTML(
       ;(renderOpts as any).revalidate =
         'revalidate' in data ? data.revalidate : undefined
       ;(renderOpts as any).pageData = props
-    }
+    } else {
+      if (getServerSideProps) {
+        props[SERVER_PROPS_ID] = true
+      }
 
-    if (getServerSideProps) {
-      props[SERVER_PROPS_ID] = true
-    }
+      if (getServerSideProps && !isFallback) {
+        let data: UnwrapPromise<ReturnType<GetServerSideProps>>
 
-    if (getServerSideProps && !isFallback) {
-      let data: UnwrapPromise<ReturnType<GetServerSideProps>>
-
-      try {
-        data = await getServerSideProps({
-          req,
-          res,
-          query,
-          resolvedUrl: renderOpts.resolvedUrl as string,
-          ...(pageIsDynamic ? { params: params as ParsedUrlQuery } : undefined),
-          ...(previewData !== false
-            ? { preview: true, previewData: previewData }
-            : undefined),
-          locales: renderOpts.locales,
-          locale: renderOpts.locale,
-          defaultLocale: renderOpts.defaultLocale,
-        })
-      } catch (serverSidePropsError) {
-        // remove not found error code to prevent triggering legacy
-        // 404 rendering
-        if (serverSidePropsError.code === 'ENOENT') {
-          delete serverSidePropsError.code
+        try {
+          data = await getServerSideProps({
+            req,
+            res,
+            query,
+            resolvedUrl: renderOpts.resolvedUrl as string,
+            ...(pageIsDynamic
+              ? { params: params as ParsedUrlQuery }
+              : undefined),
+            ...(previewData !== false
+              ? { preview: true, previewData: previewData }
+              : undefined),
+            locales: renderOpts.locales,
+            locale: renderOpts.locale,
+            defaultLocale: renderOpts.defaultLocale,
+          })
+        } catch (serverSidePropsError) {
+          // remove not found error code to prevent triggering legacy
+          // 404 rendering
+          if (serverSidePropsError.code === 'ENOENT') {
+            delete serverSidePropsError.code
+          }
+          throw serverSidePropsError
         }
-        throw serverSidePropsError
-      }
 
-      if (data == null) {
-        throw new Error(GSSP_NO_RETURNED_VALUE)
-      }
+        if (data == null) {
+          throw new Error(GSSP_NO_RETURNED_VALUE)
+        }
 
-      const invalidKeys = Object.keys(data).filter(
-        (key) => key !== 'props' && key !== 'redirect' && key !== 'notFound'
-      )
-
-      if ((data as any).unstable_notFound) {
-        throw new Error(
-          `unstable_notFound has been renamed to notFound, please update the field to continue. Page: ${pathname}`
+        const invalidKeys = Object.keys(data).filter(
+          (key) => key !== 'props' && key !== 'redirect' && key !== 'notFound'
         )
-      }
-      if ((data as any).unstable_redirect) {
-        throw new Error(
-          `unstable_redirect has been renamed to redirect, please update the field to continue. Page: ${pathname}`
-        )
-      }
 
-      if (invalidKeys.length) {
-        throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
-      }
-
-      if ('notFound' in data && data.notFound) {
-        if (pathname === '/404') {
+        if ((data as any).unstable_notFound) {
           throw new Error(
-            `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
+            `unstable_notFound has been renamed to notFound, please update the field to continue. Page: ${pathname}`
+          )
+        }
+        if ((data as any).unstable_redirect) {
+          throw new Error(
+            `unstable_redirect has been renamed to redirect, please update the field to continue. Page: ${pathname}`
           )
         }
 
-        ;(renderOpts as any).isNotFound = true
-        return null
-      }
-
-      if ('redirect' in data && typeof data.redirect === 'object') {
-        checkRedirectValues(
-          data.redirect as Redirect,
-          req,
-          'getServerSideProps'
-        )
-        ;(data as any).props = {
-          __N_REDIRECT: data.redirect.destination,
-          __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
+        if (invalidKeys.length) {
+          throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
         }
-        if (typeof data.redirect.basePath !== 'undefined') {
-          ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
-        }
-        ;(renderOpts as any).isRedirect = true
-      }
 
-      if (
-        (dev || isBuildTimeSSG) &&
-        !isSerializableProps(
-          pathname,
-          'getServerSideProps',
+        if ('notFound' in data && data.notFound) {
+          if (pathname === '/404') {
+            throw new Error(
+              `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
+            )
+          }
+
+          ;(renderOpts as any).isNotFound = true
+          return null
+        }
+
+        if ('redirect' in data && typeof data.redirect === 'object') {
+          checkRedirectValues(
+            data.redirect as Redirect,
+            req,
+            'getServerSideProps'
+          )
+          ;(data as any).props = {
+            __N_REDIRECT: data.redirect.destination,
+            __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
+          }
+          if (typeof data.redirect.basePath !== 'undefined') {
+            ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
+          }
+          ;(renderOpts as any).isRedirect = true
+        }
+
+        if (
+          (dev || isBuildTimeSSG) &&
+          !isSerializableProps(
+            pathname,
+            'getServerSideProps',
+            (data as any).props
+          )
+        ) {
+          // this fn should throw an error instead of ever returning `false`
+          throw new Error(
+            'invariant: getServerSideProps did not return valid props. Please report this.'
+          )
+        }
+
+        props.pageProps = Object.assign(
+          {},
+          props.pageProps,
           (data as any).props
         )
-      ) {
-        // this fn should throw an error instead of ever returning `false`
-        throw new Error(
-          'invariant: getServerSideProps did not return valid props. Please report this.'
-        )
+        ;(renderOpts as any).pageData = props
       }
-
-      props.pageProps = Object.assign({}, props.pageProps, (data as any).props)
-      ;(renderOpts as any).pageData = props
     }
   } catch (dataFetchError) {
     if (isDataReq || !dev || !dataFetchError) throw dataFetchError

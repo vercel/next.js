@@ -3,7 +3,6 @@ import {
   PluginObj,
   types as BabelTypes,
 } from 'next/dist/compiled/babel/core'
-import { SERVER_PROPS_SSG_CONFLICT } from '../../../lib/constants'
 import {
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
@@ -82,16 +81,9 @@ function decorateSsgExport(
 const isDataIdentifier = (name: string, state: PluginState): boolean => {
   if (ssgExports.has(name)) {
     if (name === EXPORT_NAME_GET_SERVER_PROPS) {
-      if (state.isPrerender) {
-        throw new Error(SERVER_PROPS_SSG_CONFLICT)
-      }
       state.isServerProps = true
-    } else {
-      if (state.isServerProps) {
-        throw new Error(SERVER_PROPS_SSG_CONFLICT)
-      }
-      state.isPrerender = true
     }
+    state.isPrerender = true
     return true
   }
   return false
