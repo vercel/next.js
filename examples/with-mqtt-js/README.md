@@ -6,7 +6,7 @@ This example shows how to use [MQTT.js](https://github.com/mqttjs/MQTT.js) with 
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-mqtt-js)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mqtt-js&project-name=with-mqtt-js&repository-name=with-mqtt-js)
 
 ## How to use
 
@@ -31,4 +31,4 @@ Then set each variable on `.env.local`:
 - `NEXT_MQTT_USERNAME`: The username for the connection to the broker.
 - `NEXT_MQTT_PASSWORD`: The password for the connection to the broker.
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

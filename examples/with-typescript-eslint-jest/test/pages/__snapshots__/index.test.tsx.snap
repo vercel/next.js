@@ -84,7 +84,7 @@ exports[`Home page matches snapshot 1`] = `
         </a>
         <a
           class="jsx-2250570153 card"
-          href="https://vercel.com/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
         >
           <h3
             class="jsx-2250570153"
