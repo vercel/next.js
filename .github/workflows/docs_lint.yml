@@ -1,0 +1,57 @@
+on:
+  push:
+    branches: [canary]
+    # run only linting for docs changes, if it is a core change
+    # as well we skip this as the normal test flow will lint
+    paths:
+      - 'bench/**'
+      - 'docs/**'
+      - 'errors/**'
+      - 'examples/**'
+    paths-ignore:
+      - '!bench/**'
+      - '!docs/**'
+      - '!errors/**'
+      - '!examples/**'
+
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - 'bench/**'
+      - 'docs/**'
+      - 'errors/**'
+      - 'examples/**'
+      - '!**/*'
+    paths-ignore:
+      - '!bench/**'
+      - '!docs/**'
+      - '!errors/**'
+      - '!examples/**'
+
+name: Build, test, and deploy
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@v2
+      - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+      - run: yarn install --frozen-lockfile --check-files
+      - uses: actions/cache@v2
+        id: cache-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
+
+  lint:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - uses: actions/cache@v2
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ github.sha }}
+      - run: yarn lint
