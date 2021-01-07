@@ -589,7 +589,7 @@ function AppContainer({
     <Container
       fn={(error) =>
         renderError({ App: CachedApp, err: error }).catch((err) =>
-          console.error(`Error rendering page: ${err}`)
+          console.error('Error rendering page: ', err)
         )
       }
     >
