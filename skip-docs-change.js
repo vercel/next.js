@@ -26,7 +26,7 @@ async function main() {
     console.log('no script provided, exiting...')
   }
 
-  if (hasNonDocsChange || true) {
+  if (hasNonDocsChange) {
     const cmd = spawn(args[0], args.slice(1))
     cmd.stdout.pipe(process.stdout)
     cmd.stderr.pipe(process.stderr)
