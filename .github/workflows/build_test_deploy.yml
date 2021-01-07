@@ -133,7 +133,9 @@ jobs:
       YARN_COMPRESSION_LEVEL: '0'
     steps:
       - uses: actions/checkout@v2
-        if: ${{needs.build.outputs.docsChange == 'non-docs'}}
+
+      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'non-docs')
+        id: docs-change
 
       - run: yarn install --frozen-lockfile --check-files
         if: ${{needs.build.outputs.docsChange == 'non-docs'}}
@@ -157,22 +159,29 @@ jobs:
       HEADLESS: true
 
     steps:
+      - uses: actions/checkout@v2
+
       - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'non-docs')
         id: docs-change
-      - uses: actions/checkout@v2
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
+
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
+
       - run: cat package.json | jq '.resolutions.webpack = "^5.11.1"' > package.json.tmp && mv package.json.tmp package.json
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
+
       - run: cat package.json | jq '.resolutions.react = "^17.0.1"' > package.json.tmp && mv package.json.tmp package.json
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
+
       - run: cat package.json | jq '.resolutions."react-dom" = "^17.0.1"' > package.json.tmp && mv package.json.tmp package.json
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
+
       - run: yarn install --check-files
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
+
       - run: yarn list webpack react react-dom
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
+
       - run: xvfb-run node run-tests.js test/integration/{link-ref,production,basic,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'non-docs' }}
 
