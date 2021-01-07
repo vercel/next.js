@@ -18,7 +18,9 @@ declare global {
 
 const requestIdleCallback =
   (typeof self !== 'undefined' && self.requestIdleCallback) ||
-  function (cb: (deadline: RequestIdleCallbackDeadline) => void) {
+  function (
+    cb: (deadline: RequestIdleCallbackDeadline) => void
+  ): NodeJS.Timeout {
     let start = Date.now()
     return setTimeout(function () {
       cb({
