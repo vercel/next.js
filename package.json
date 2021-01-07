@@ -22,6 +22,7 @@
     "test": "yarn run testall || yarn run test-take2",
     "lint-typescript": "lerna run typescript",
     "lint-eslint": "eslint . --ext js,jsx,ts,tsx --max-warnings=0",
+    "lint-no-typescript": "run-p prettier-check lint-eslint",
     "lint": "run-p lint-typescript prettier-check lint-eslint",
     "lint-fix": "yarn prettier-fix && eslint . --ext js,jsx,ts,tsx --fix --max-warnings=0",
     "prettier-check": "prettier --check .",

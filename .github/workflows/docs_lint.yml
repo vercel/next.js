@@ -28,30 +28,14 @@ on:
       - '!errors/**'
       - '!examples/**'
 
-name: Build, test, and deploy
+name: Lint docs
 
 jobs:
-  build:
+  lint:
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/checkout@v2
-      - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
       - run: yarn install --frozen-lockfile --check-files
-      - uses: actions/cache@v2
-        id: cache-build
-        with:
-          path: ./*
-          key: ${{ github.sha }}
-
-  lint:
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - uses: actions/cache@v2
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ github.sha }}
-      - run: yarn lint
+      - run: yarn lint-no-typescript
