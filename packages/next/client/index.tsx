@@ -3,7 +3,7 @@ import '@next/polyfill-module'
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
-import mitt from '../next-server/lib/mitt'
+import mitt, { MittEmitter } from '../next-server/lib/mitt'
 import { RouterContext } from '../next-server/lib/router-context'
 import Router, {
   AppComponent,
@@ -68,13 +68,14 @@ const {
   runtimeConfig,
   dynamicIds,
   isFallback,
+  locale,
   locales,
   domainLocales,
 } = data
 
-let { locale, defaultLocale } = data
+let { defaultLocale } = data
 
-const prefix = assetPrefix || ''
+const prefix: string = assetPrefix || ''
 
 // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
 // So, this is how we do it in the client side at runtime
@@ -85,7 +86,7 @@ envConfig.setConfig({
   publicRuntimeConfig: runtimeConfig || {},
 })
 
-let asPath = getURL()
+let asPath: string = getURL()
 
 // make sure not to attempt stripping basePath for 404s
 if (hasBasePath(asPath)) {
@@ -139,7 +140,7 @@ if (process.env.__NEXT_I18N_SUPPORT) {
 
 type RegisterFn = (input: [string, () => void]) => void
 
-const pageLoader = new PageLoader(buildId, prefix)
+const pageLoader: PageLoader = new PageLoader(buildId, prefix)
 const register: RegisterFn = ([r, f]) =>
   pageLoader.routeLoader.onEntrypoint(r, f)
 if (window.__NEXT_P) {
@@ -150,14 +151,15 @@ if (window.__NEXT_P) {
 window.__NEXT_P = []
 ;(window.__NEXT_P as any).push = register
 
-const headManager = initHeadManager()
-const appElement = document.getElementById('__next')
+const headManager: {
+  mountedInstances: Set<unknown>
+  updateHead: (head: JSX.Element[]) => void
+} = initHeadManager()
+const appElement: HTMLElement | null = document.getElementById('__next')
 
-let lastAppProps: AppProps
 let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
-let CachedComponent: React.ComponentType
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 
 class Container extends React.Component<{
@@ -217,7 +219,7 @@ class Container extends React.Component<{
     hash = hash && hash.substring(1)
     if (!hash) return
 
-    const el = document.getElementById(hash)
+    const el: HTMLElement | null = document.getElementById(hash)
     if (!el) return
 
     // If we call scrollIntoView() in here without a setTimeout
@@ -235,7 +237,8 @@ class Container extends React.Component<{
   }
 }
 
-export const emitter = mitt()
+export const emitter: MittEmitter = mitt()
+let CachedComponent: React.ComponentType
 
 export default async (opts: { webpackHMR?: any } = {}) => {
   // This makes sure this specific lines are removed in production
@@ -260,12 +263,12 @@ export default async (opts: { webpackHMR?: any } = {}) => {
       duration,
       entryType,
       entries,
-    }) => {
+    }): void => {
       // Combines timestamp with random number for unique ID
-      const uniqueID = `${Date.now()}-${
+      const uniqueID: string = `${Date.now()}-${
         Math.floor(Math.random() * (9e12 - 1)) + 1e12
       }`
-      let perfStartEntry
+      let perfStartEntry: string | undefined
 
       if (entries && entries.length) {
         perfStartEntry = entries[0].startTime
@@ -403,7 +406,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
   }
 }
 
-export async function render(renderingProps: RenderRouteInfo) {
+export async function render(renderingProps: RenderRouteInfo): Promise<void> {
   if (renderingProps.err) {
     await renderError(renderingProps)
     return
@@ -430,7 +433,7 @@ export async function render(renderingProps: RenderRouteInfo) {
 // This method handles all runtime and debug errors.
 // 404 and 500 errors are special kind of errors
 // and they are still handle via the main render method.
-export function renderError(renderErrorProps: RenderErrorProps) {
+export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   const { App, err } = renderErrorProps
 
   // In development runtime errors are caught by our overlay
@@ -496,8 +499,8 @@ export function renderError(renderErrorProps: RenderErrorProps) {
 }
 
 let reactRoot: any = null
-let shouldUseHydrate = typeof ReactDOM.hydrate === 'function'
-function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
+let shouldUseHydrate: boolean = typeof ReactDOM.hydrate === 'function'
+function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement): void {
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
     if (!reactRoot) {
       const opts = { hydrate: true }
@@ -523,7 +526,7 @@ function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement) {
   }
 }
 
-function markHydrateComplete() {
+function markHydrateComplete(): void {
   if (!ST) return
 
   performance.mark('afterHydrate') // mark end of hydration
@@ -541,15 +544,16 @@ function markHydrateComplete() {
   clearMarks()
 }
 
-function markRenderComplete() {
+function markRenderComplete(): void {
   if (!ST) return
 
   performance.mark('afterRender') // mark end of render
-  const navStartEntries = performance.getEntriesByName('routeChange', 'mark')
+  const navStartEntries: PerformanceEntryList = performance.getEntriesByName(
+    'routeChange',
+    'mark'
+  )
 
-  if (!navStartEntries.length) {
-    return
-  }
+  if (!navStartEntries.length) return
 
   performance.measure(
     'Next.js-route-change-to-render',
@@ -569,7 +573,7 @@ function markRenderComplete() {
   )
 }
 
-function clearMarks() {
+function clearMarks(): void {
   ;[
     'beforeRender',
     'afterHydrate',
@@ -600,7 +604,7 @@ function AppContainer({
 
 const wrapApp = (App: AppComponent) => (
   wrappedAppProps: Record<string, any>
-) => {
+): JSX.Element => {
   const appProps: AppProps = {
     ...wrappedAppProps,
     Component: CachedComponent,
@@ -614,8 +618,9 @@ const wrapApp = (App: AppComponent) => (
   )
 }
 
+let lastAppProps: AppProps
 function doRender(input: RenderRouteInfo): Promise<any> {
-  let { App, Component, props, err } = input
+  let { App, Component, props, err }: RenderRouteInfo = input
   let styleSheets: StyleSheetTuple[] | undefined =
     'initial' in input ? undefined : input.styleSheets
   Component = Component || lastAppProps.Component
@@ -630,7 +635,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
   // lastAppProps has to be set before ReactDom.render to account for ReactDom throwing an error.
   lastAppProps = appProps
 
-  let canceled = false
+  let canceled: boolean = false
   let resolvePromise: () => void
   const renderPromise = new Promise<void>((resolve, reject) => {
     if (lastRenderReject) {
@@ -662,17 +667,21 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       return false
     }
 
-    const currentStyleTags = looseToArray<HTMLStyleElement>(
+    const currentStyleTags: HTMLStyleElement[] = looseToArray<HTMLStyleElement>(
       document.querySelectorAll('style[data-n-href]')
     )
-    const currentHrefs = new Set(
+    const currentHrefs: Set<string | null> = new Set(
       currentStyleTags.map((tag) => tag.getAttribute('data-n-href'))
     )
 
-    const noscript = document.querySelector('noscript[data-n-css]')
-    const nonce = noscript?.getAttribute('data-n-css')
+    const noscript: Element | null = document.querySelector(
+      'noscript[data-n-css]'
+    )
+    const nonce: string | null | undefined = noscript?.getAttribute(
+      'data-n-css'
+    )
 
-    styleSheets.forEach(({ href, text }) => {
+    styleSheets.forEach(({ href, text }: { href: string; text: any }) => {
       if (!currentHrefs.has(href)) {
         const styleTag = document.createElement('style')
         styleTag.setAttribute('data-n-href', href)
@@ -689,7 +698,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     return true
   }
 
-  function onHeadCommit() {
+  function onHeadCommit(): void {
     if (
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
@@ -700,11 +709,11 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       // Ensure this render was not canceled
       !canceled
     ) {
-      const desiredHrefs = new Set(styleSheets.map((s) => s.href))
-      const currentStyleTags = looseToArray<HTMLStyleElement>(
-        document.querySelectorAll('style[data-n-href]')
-      )
-      const currentHrefs = currentStyleTags.map(
+      const desiredHrefs: Set<string> = new Set(styleSheets.map((s) => s.href))
+      const currentStyleTags: HTMLStyleElement[] = looseToArray<
+        HTMLStyleElement
+      >(document.querySelectorAll('style[data-n-href]'))
+      const currentHrefs: string[] = currentStyleTags.map(
         (tag) => tag.getAttribute('data-n-href')!
       )
 
@@ -718,13 +727,15 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       }
 
       // Reorder styles into intended order:
-      let referenceNode = document.querySelector('noscript[data-n-css]')
+      let referenceNode: Element | null = document.querySelector(
+        'noscript[data-n-css]'
+      )
       if (
         // This should be an invariant:
         referenceNode
       ) {
-        styleSheets.forEach(({ href }) => {
-          const targetTag = document.querySelector(
+        styleSheets.forEach(({ href }: { href: string }) => {
+          const targetTag: Element | null = document.querySelector(
             `style[data-n-href="${href}"]`
           )
           if (
@@ -757,11 +768,11 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     }
   }
 
-  function onRootCommit() {
+  function onRootCommit(): void {
     resolvePromise()
   }
 
-  const elem = (
+  const elem: JSX.Element = (
     <Root callback={onRootCommit}>
       <Head callback={onHeadCommit} />
       <AppContainer>
@@ -814,7 +825,7 @@ function Root({
 
 // Dummy component that we render as a child of Root so that we can
 // toggle the correct styles before the page is rendered.
-function Head({ callback }: { callback: () => void }) {
+function Head({ callback }: { callback: () => void }): null {
   // We use `useLayoutEffect` to guarantee the callback is executed
   // as soon as React flushes the update.
   React.useLayoutEffect(() => callback(), [callback])
