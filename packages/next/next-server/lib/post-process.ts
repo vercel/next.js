@@ -82,10 +82,7 @@ async function processHTML(
   for (let i = 0; i < middlewareRegistry.length; i++) {
     let middleware = middlewareRegistry[i]
     if (!middleware.condition || middleware.condition(options)) {
-      await callMiddleWare(
-        middlewareRegistry[i].middleware,
-        middlewareRegistry[i].name
-      )
+      await callMiddleWare(middlewareRegistry[i].middleware)
     }
   }
 
