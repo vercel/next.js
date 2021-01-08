@@ -2,8 +2,7 @@ import { useRef, useState, useEffect } from 'react'
 import * as THREE from 'three'
 
 import { useFrame, useLoader } from 'react-three-fiber'
-
-const { GLTFLoader } = require('three/examples/jsm/loaders/GLTFLoader')
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 
 const Bird = ({ speed, factor, url, ...props }) => {
   const gltf = useLoader(GLTFLoader, url)
