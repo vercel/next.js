@@ -94,7 +94,7 @@ export default function Home() {
                   color="primary"
                   size="sm"
                   className="text-capitalize"
-                  href="https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=example&utm_campaign=next-example"
+                  href="https://vercel.com/new?utm_source=github&utm_medium=example&utm_campaign=next-example"
                 >
                   More &rarr;
                 </MDBBtn>
