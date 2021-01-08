@@ -31,6 +31,11 @@ export type NextConfig = { [key: string]: any } & {
   redirects?: () => Promise<Redirect[]>
 
   trailingSlash?: boolean
+
+  future: {
+    strictPostcssConfiguration: boolean
+    excludeDefaultMomentLocales: boolean
+  }
 }
 
 const defaultConfig: NextConfig = {
@@ -83,6 +88,7 @@ const defaultConfig: NextConfig = {
     scriptLoader: false,
   },
   future: {
+    strictPostcssConfiguration: false,
     excludeDefaultMomentLocales: false,
   },
   serverRuntimeConfig: {},
