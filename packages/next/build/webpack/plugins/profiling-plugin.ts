@@ -8,7 +8,6 @@ export class ProfilingPlugin {
   apply(compiler: any) {
     // Only enabled when instrumentation is loaded
     if (!tracer.getCurrentSpan()) {
-      console.log('PROFILING ENABLED')
       return
     }
 
