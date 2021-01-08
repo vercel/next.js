@@ -8,7 +8,7 @@ Next.js supports modern browsers and IE 11. It loads required polyfills automati
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-polyfills)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-polyfills&project-name=with-polyfills&repository-name=with-polyfills)
 
 ## How to use
 
@@ -20,4 +20,4 @@ npx create-next-app --example with-polyfills with-polyfills-app
 yarn create next-app --example with-polyfills with-polyfills-app
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
