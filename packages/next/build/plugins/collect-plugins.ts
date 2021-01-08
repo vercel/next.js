@@ -1,8 +1,7 @@
-import findUp from 'next/dist/compiled/find-up'
 import { promises } from 'fs'
-import path from 'path'
+import findUp from 'next/dist/compiled/find-up'
 import resolve from 'next/dist/compiled/resolve/index.js'
-import { execOnce } from '../../next-server/lib/utils'
+import path from 'path'
 
 const { version } = require('next/package.json')
 
@@ -17,14 +16,7 @@ export type PluginMetaData = {
 }
 
 // currently supported middleware
-export const VALID_MIDDLEWARE = [
-  'document-head-tags-server',
-  'on-init-client',
-  'on-init-server',
-  'on-error-client',
-  'on-error-server',
-  'babel-preset-build',
-]
+export const VALID_MIDDLEWARE = ['preamble-js']
 
 type ENV_OPTIONS = { [name: string]: string }
 
