@@ -200,6 +200,7 @@ export default class Server {
     this.minimalMode = minimalMode
 
     this.renderOpts = {
+      distDir: this.distDir,
       poweredByHeader: this.nextConfig.poweredByHeader,
       canonicalBase: this.nextConfig.amp.canonicalBase,
       buildId: this.buildId,
