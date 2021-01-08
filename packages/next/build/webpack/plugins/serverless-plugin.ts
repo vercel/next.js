@@ -29,13 +29,18 @@ export class ServerlessPlugin {
           // Async chunks are usages of import() for example
           const dynamicChunks = chunk.getAllAsyncChunks()
           for (const dynamicChunk of dynamicChunks) {
-            for (const module of dynamicChunk.modulesIterable) {
-              if (isWebpack5) {
+            if (isWebpack5) {
+              // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+              for (const module of compilation.chunkGraph.getChunkModulesIterable(
+                chunk
+              )) {
                 // Add module back into the entry chunk
                 chunk.addModule(module)
-                continue
               }
+              continue
+            }
 
+            for (const module of dynamicChunk.modulesIterable) {
               // Webpack 4 has separate GraphHelpers
               GraphHelpers.connectChunkAndModule(chunk, module)
             }

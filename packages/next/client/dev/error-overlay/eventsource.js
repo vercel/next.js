@@ -33,9 +33,11 @@ function EventSourceWrapper(options) {
     for (var i = 0; i < listeners.length; i++) {
       listeners[i](event)
     }
-    if (event.data.indexOf('action') !== -1) {
-      eventCallbacks.forEach((cb) => cb(event))
-    }
+
+    eventCallbacks.forEach((cb) => {
+      if (!cb.unfiltered && event.data.indexOf('action') === -1) return
+      cb(event)
+    })
   }
 
   function handleDisconnect() {

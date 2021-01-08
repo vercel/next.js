@@ -163,10 +163,11 @@ function scheduleUpdate() {
   }, 30)
 }
 
+// Needs to be compatible with IE11
 export default {
-  registerExportsForReactRefresh,
-  isReactRefreshBoundary,
-  shouldInvalidateReactRefreshBoundary,
-  getRefreshBoundarySignature,
-  scheduleUpdate,
+  registerExportsForReactRefresh: registerExportsForReactRefresh,
+  isReactRefreshBoundary: isReactRefreshBoundary,
+  shouldInvalidateReactRefreshBoundary: shouldInvalidateReactRefreshBoundary,
+  getRefreshBoundarySignature: getRefreshBoundarySignature,
+  scheduleUpdate: scheduleUpdate,
 }

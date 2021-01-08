@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import {
   promises,
@@ -12,6 +12,7 @@ import { cpus } from 'os'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
+import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
 import { API_ROUTE, SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
@@ -22,6 +23,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   CONFIG_FILE,
   EXPORT_DETAIL,
+  EXPORT_MARKER,
   PAGES_MANIFEST,
   PHASE_EXPORT,
   PRERENDER_MANIFEST,
@@ -30,22 +32,41 @@ import {
 } from '../next-server/lib/constants'
 import loadConfig, {
   isTargetLikeServerless,
+  NextConfig,
 } from '../next-server/server/config'
 import { eventCliSession } from '../telemetry/events'
+import { hasNextSupport } from '../telemetry/ci-info'
 import { Telemetry } from '../telemetry/storage'
 import {
   normalizePagePath,
   denormalizePagePath,
 } from '../next-server/server/normalize-page-path'
-import { loadEnvConfig } from '../lib/load-env-config'
+import { loadEnvConfig } from '@next/env'
 import { PrerenderManifest } from '../build'
-import type exportPage from './worker'
+import exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../next-server/server/require'
 
 const exists = promisify(existsOrig)
 
-const createProgress = (total: number, label = 'Exporting') => {
+function divideSegments(number: number, segments: number): number[] {
+  const result = []
+  while (number > 0 && segments > 0) {
+    const dividedNumber =
+      number < segments ? number : Math.floor(number / segments)
+
+    number -= dividedNumber
+    segments--
+    result.push(dividedNumber)
+  }
+  return result
+}
+
+const createProgress = (total: number, label: string) => {
+  const segments = divideSegments(total, 4)
+
+  let currentSegmentTotal = segments.shift()
+  let currentSegmentCount = 0
   let curProgress = 0
   let progressSpinner = createSpinner(`${label} (${curProgress}/${total})`, {
     spinner: {
@@ -72,6 +93,15 @@ const createProgress = (total: number, label = 'Exporting') => {
 
   return () => {
     curProgress++
+    currentSegmentCount++
+
+    // Make sure we only log once per fully generated segment
+    if (currentSegmentCount !== currentSegmentTotal) {
+      return
+    }
+
+    currentSegmentTotal = segments.shift()
+    currentSegmentCount = 0
 
     const newText = `${label} (${curProgress}/${total})`
     if (progressSpinner) {
@@ -97,24 +127,18 @@ interface ExportOptions {
   threads?: number
   pages?: string[]
   buildExport?: boolean
+  statusMessage?: string
 }
 
 export default async function exportApp(
   dir: string,
   options: ExportOptions,
-  configuration?: any
+  configuration?: NextConfig
 ): Promise<void> {
-  function log(message: string): void {
-    if (options.silent) {
-      return
-    }
-    console.log(message)
-  }
-
   dir = resolve(dir)
 
   // attempt to load global env values so they are available in next.config.js
-  loadEnvConfig(dir)
+  loadEnvConfig(dir, false, Log)
 
   const nextConfig = configuration || loadConfig(PHASE_EXPORT, dir)
   const threads = options.threads || Math.max(cpus().length - 1, 1)
@@ -133,18 +157,38 @@ export default async function exportApp(
     )
   }
 
-  const subFolders = nextConfig.exportTrailingSlash
+  const subFolders = nextConfig.trailingSlash
   const isLikeServerless = nextConfig.target !== 'server'
 
-  log(`> using build directory: ${distDir}`)
+  if (!options.silent && !options.buildExport) {
+    Log.info(`using build directory: ${distDir}`)
+  }
 
-  if (!existsSync(distDir)) {
+  const buildIdFile = join(distDir, BUILD_ID_FILE)
+
+  if (!existsSync(buildIdFile)) {
     throw new Error(
-      `Build directory ${distDir} does not exist. Make sure you run "next build" before running "next start" or "next export".`
+      `Could not find a production build in the '${distDir}' directory. Try building your app with 'next build' before starting the static export. https://err.sh/vercel/next.js/next-export-no-build-id`
     )
   }
 
-  const buildId = readFileSync(join(distDir, BUILD_ID_FILE), 'utf8')
+  const customRoutesDetected = ['rewrites', 'redirects', 'headers'].filter(
+    (config) => typeof nextConfig[config] === 'function'
+  )
+
+  if (
+    !hasNextSupport &&
+    !options.buildExport &&
+    customRoutesDetected.length > 0
+  ) {
+    Log.warn(
+      `rewrites, redirects, and headers are not applied when exporting your application, detected (${customRoutesDetected.join(
+        ', '
+      )}). See more info here: https://err.sh/next.js/export-no-custom-routes`
+    )
+  }
+
+  const buildId = readFileSync(buildIdFile, 'utf8')
   const pagesManifest =
     !options.pages &&
     (require(join(
@@ -213,13 +257,20 @@ export default async function exportApp(
 
   // Copy static directory
   if (!options.buildExport && existsSync(join(dir, 'static'))) {
-    log('  copying "static" directory')
+    if (!options.silent) {
+      Log.info('Copying "static" directory')
+    }
     await recursiveCopy(join(dir, 'static'), join(outDir, 'static'))
   }
 
   // Copy .next/static directory
-  if (existsSync(join(distDir, CLIENT_STATIC_FILES_PATH))) {
-    log('  copying "static build" directory')
+  if (
+    !options.buildExport &&
+    existsSync(join(distDir, CLIENT_STATIC_FILES_PATH))
+  ) {
+    if (!options.silent) {
+      Log.info('Copying "static build" directory')
+    }
     await recursiveCopy(
       join(distDir, CLIENT_STATIC_FILES_PATH),
       join(outDir, '_next', CLIENT_STATIC_FILES_PATH)
@@ -228,12 +279,46 @@ export default async function exportApp(
 
   // Get the exportPathMap from the config file
   if (typeof nextConfig.exportPathMap !== 'function') {
-    console.log(
-      `> No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`
-    )
+    if (!options.silent) {
+      Log.info(
+        `No "exportPathMap" found in "${CONFIG_FILE}". Generating map from "./pages"`
+      )
+    }
     nextConfig.exportPathMap = async (defaultMap: ExportPathMap) => {
       return defaultMap
     }
+  }
+
+  const {
+    i18n,
+    images: { loader = 'default' },
+  } = nextConfig
+
+  if (i18n && !options.buildExport) {
+    throw new Error(
+      `i18n support is not compatible with next export. See here for more info on deploying: https://nextjs.org/docs/deployment`
+    )
+  }
+
+  const { isNextImageImported } = await promises
+    .readFile(join(distDir, EXPORT_MARKER), 'utf8')
+    .then((text) => JSON.parse(text))
+    .catch(() => ({}))
+
+  if (
+    isNextImageImported &&
+    loader === 'default' &&
+    !options.buildExport &&
+    !hasNextSupport
+  ) {
+    throw new Error(
+      `Image Optimization using Next.js' default loader is not compatible with \`next export\`.
+Possible solutions:
+  - Use \`next start\`, which starts the Image Optimization API.
+  - Use Vercel to deploy, which supports Image Optimization.
+  - Configure a third-party loader in \`next.config.js\`.
+Read more: https://err.sh/next.js/export-image-api`
+    )
   }
 
   // Start the rendering process
@@ -247,10 +332,13 @@ export default async function exportApp(
     hotReloader: null,
     basePath: nextConfig.basePath,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
-    isModern: nextConfig.experimental.modern,
     ampValidatorPath: nextConfig.experimental.amp?.validator || undefined,
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
+    locales: i18n?.locales,
+    locale: i18n?.defaultLocale,
+    defaultLocale: i18n?.defaultLocale,
+    domainLocales: i18n?.domains,
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -264,7 +352,9 @@ export default async function exportApp(
     nextExport: true,
   }
 
-  log(`  launching ${threads} workers`)
+  if (!options.silent && !options.buildExport) {
+    Log.info(`Launching ${threads} workers`)
+  }
   const exportPathMap = await nextConfig.exportPathMap(defaultPathMap, {
     dev: false,
     dir,
@@ -298,7 +388,7 @@ export default async function exportApp(
   }
 
   if (prerenderManifest && !options.buildExport) {
-    const fallbackTruePages = new Set()
+    const fallbackEnabledPages = new Set()
 
     for (const key of Object.keys(prerenderManifest.dynamicRoutes)) {
       // only error if page is included in path map
@@ -307,42 +397,50 @@ export default async function exportApp(
       }
 
       if (prerenderManifest.dynamicRoutes[key].fallback !== false) {
-        fallbackTruePages.add(key)
+        fallbackEnabledPages.add(key)
       }
     }
 
-    if (fallbackTruePages.size) {
+    if (fallbackEnabledPages.size) {
       throw new Error(
-        `Found pages with \`fallback: true\`:\n${[...fallbackTruePages].join(
-          '\n'
-        )}\n${SSG_FALLBACK_EXPORT_ERROR}\n`
+        `Found pages with \`fallback\` enabled:\n${[
+          ...fallbackEnabledPages,
+        ].join('\n')}\n${SSG_FALLBACK_EXPORT_ERROR}\n`
       )
     }
   }
 
   // Warn if the user defines a path for an API page
   if (hasApiRoutes) {
-    log(
-      chalk.bold.red(`Warning`) +
-        ': ' +
+    if (!options.silent) {
+      Log.warn(
         chalk.yellow(
           `Statically exporting a Next.js application via \`next export\` disables API routes.`
         ) +
-        `\n` +
-        chalk.yellow(
-          `This command is meant for static-only hosts, and is` +
-            ' ' +
-            chalk.bold(`not necessary to make your application static.`)
-        ) +
-        `\n` +
-        chalk.yellow(
-          `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
-        ) +
-        `\nLearn more: https://err.sh/vercel/next.js/api-routes-static-export`
-    )
+          `\n` +
+          chalk.yellow(
+            `This command is meant for static-only hosts, and is` +
+              ' ' +
+              chalk.bold(`not necessary to make your application static.`)
+          ) +
+          `\n` +
+          chalk.yellow(
+            `Pages in your application without server-side data dependencies will be automatically statically exported by \`next build\`, including pages powered by \`getStaticProps\`.`
+          ) +
+          `\n` +
+          chalk.yellow(
+            `Learn more: https://err.sh/vercel/next.js/api-routes-static-export`
+          )
+      )
+    }
   }
 
-  const progress = !options.silent && createProgress(filteredPaths.length)
+  const progress =
+    !options.silent &&
+    createProgress(
+      filteredPaths.length,
+      `${Log.prefixes.info} ${options.statusMessage || 'Exporting'}`
+    )
   const pagesDataDir = options.buildExport
     ? outDir
     : join(outDir, '_next/data', buildId)
@@ -353,7 +451,9 @@ export default async function exportApp(
   const publicDir = join(dir, CLIENT_PUBLIC_FILES_PATH)
   // Copy public directory
   if (!options.buildExport && existsSync(publicDir)) {
-    log('  copying "public" directory')
+    if (!options.silent) {
+      Log.info('Copying "public" directory')
+    }
     await recursiveCopy(publicDir, outDir, {
       filter(path) {
         // Exclude paths used by pages
@@ -388,6 +488,9 @@ export default async function exportApp(
         subFolders,
         buildExport: options.buildExport,
         serverless: isTargetLikeServerless(nextConfig.target),
+        optimizeFonts: nextConfig.experimental.optimizeFonts,
+        optimizeImages: nextConfig.experimental.optimizeImages,
+        optimizeCss: nextConfig.experimental.optimizeCss,
       })
 
       for (const validation of result.ampValidations || []) {
@@ -401,13 +504,17 @@ export default async function exportApp(
       renderError = renderError || !!result.error
       if (!!result.error) errorPaths.push(path)
 
-      if (
-        options.buildExport &&
-        typeof result.fromBuildExportRevalidate !== 'undefined'
-      ) {
-        configuration.initialPageRevalidationMap[path] =
-          result.fromBuildExportRevalidate
+      if (options.buildExport && configuration) {
+        if (typeof result.fromBuildExportRevalidate !== 'undefined') {
+          configuration.initialPageRevalidationMap[path] =
+            result.fromBuildExportRevalidate
+        }
+
+        if (result.ssgNotFound === true) {
+          configuration.ssgNotFoundPaths.push(path)
+        }
       }
+
       if (progress) progress()
     })
   )
@@ -475,8 +582,6 @@ export default async function exportApp(
         .join('\n\t')}`
     )
   }
-  // Add an empty line to the console for the better readability.
-  log('')
 
   writeFileSync(
     join(distDir, EXPORT_DETAIL),

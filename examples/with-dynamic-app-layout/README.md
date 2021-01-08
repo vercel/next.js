@@ -1,16 +1,14 @@
 # With dynamic `App` layout example
 
-Shows how to use _app.js to implement \_dynamic_ layouts for pages. This is achieved by attaching a static `Layout` property to each page that needs a different layout. In that way, once we use `_app.js` to wrap our pages, we can get it from `Component.Layout` and render it accordingly.
+Shows how to use `pages/_app.js` to implement _dynamic_ layouts for pages. This is achieved by attaching a static `Layout` property to each page that needs a different layout. In that way, once we use `pages/_app.js` to wrap our pages, we can get it from `Component.Layout` and render it accordingly.
 
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-dynamic-app-layout)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-dynamic-app-layout&project-name=with-dynamic-app-layout&repository-name=with-dynamic-app-layout)
 
 ## How to use
-
-### Using `create-next-app`
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
@@ -20,23 +18,4 @@ npx create-next-app --example with-dynamic-app-layout with-dynamic-app-layout-ap
 yarn create next-app --example with-dynamic-app-layout with-dynamic-app-layout-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-dynamic-app-layout
-cd with-dynamic-app-layout
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

@@ -1,0 +1,4 @@
+fragment Partial on User {
+  id
+  name
+}

@@ -1,6 +1,6 @@
 # Example app with Rebass
 
-This example features how you use [Rebass](http://jxnblk.com/rebass/) functional UI library with Next.js.
+This example features how you use [Rebass](https://jxnblk.com/rebass/) functional UI library with Next.js.
 
 ![Screenshot](https://cloud.githubusercontent.com/assets/304265/22472564/b2e04ff0-e7de-11e6-921e-d0c9833ac805.png)
 
@@ -8,11 +8,9 @@ This example features how you use [Rebass](http://jxnblk.com/rebass/) functional
 
 Deploy the example using [Vercel](https://vercel.com):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-rebass)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-rebass&project-name=with-rebass&repository-name=with-rebass)
 
 ## How to use
-
-### Using `create-next-app`
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
@@ -22,25 +20,4 @@ npx create-next-app --example with-rebass with-rebass-app
 yarn create next-app --example with-rebass with-rebass-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-rebass
-cd with-rebass
-```
-
-Install it and run:
-
-```bash
-npm install
-ln -f -s ../node_modules/react-md/dist/react-md.light_blue-yellow.min.css static/react-md.light_blue-yellow.min.css
-npm run dev
-# or
-yarn
-ln -f -s ../node_modules/react-md/dist/react-md.light_blue-yellow.min.css static/react-md.light_blue-yellow.min.css
-yarn dev
-```
-
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

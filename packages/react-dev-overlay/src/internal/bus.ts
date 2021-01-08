@@ -45,7 +45,7 @@ function drain() {
       // event(s)
       Boolean(handlers.size)
     ) {
-      const ev = queue.shift()
+      const ev = queue.shift()!
       handlers.forEach((handler) => handler(ev))
     }
   }, 1)

@@ -12,8 +12,10 @@ const nextBuild: cliCommand = (argv) => {
     // Types
     '--help': Boolean,
     '--profile': Boolean,
+    '--debug': Boolean,
     // Aliases
     '-h': '--help',
+    '-d': '--debug',
   }
 
   let args: arg.Result<arg.Spec>
@@ -53,13 +55,11 @@ const nextBuild: cliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  build(dir, null, args['--profile'])
-    .then(() => process.exit(0))
-    .catch((err) => {
-      console.error('')
-      console.error('> Build error occurred')
-      printAndExit(err)
-    })
+  return build(dir, null, args['--profile'], args['--debug']).catch((err) => {
+    console.error('')
+    console.error('> Build error occurred')
+    printAndExit(err)
+  })
 }
 
 export { nextBuild }

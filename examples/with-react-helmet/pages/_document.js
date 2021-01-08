@@ -1,4 +1,4 @@
-import Document, { Head, Main, NextScript } from 'next/document'
+import Document, { Html, Head, Main, NextScript } from 'next/document'
 import { Helmet } from 'react-helmet'
 
 export default class MyDocument extends Document {
@@ -28,13 +28,13 @@ export default class MyDocument extends Document {
 
   render() {
     return (
-      <html {...this.helmetHtmlAttrComponents}>
+      <Html {...this.helmetHtmlAttrComponents}>
         <Head>{this.helmetHeadComponents}</Head>
         <body {...this.helmetBodyAttrComponents}>
           <Main />
           <NextScript />
         </body>
-      </html>
+      </Html>
     )
   }
 }

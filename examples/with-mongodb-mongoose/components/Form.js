@@ -33,6 +33,12 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
         },
         body: JSON.stringify(form),
       })
+
+      // Throw error with status code in case Fetch API req failed
+      if (!res.ok) {
+        throw new Error(res.status)
+      }
+
       const { data } = await res.json()
 
       mutate(`/api/pets/${id}`, data, false) // Update the local data without a revalidation
@@ -45,7 +51,7 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
   /* The POST method adds a new entry in the mongodb database. */
   const postData = async (form) => {
     try {
-      await fetch('/api/pets', {
+      const res = await fetch('/api/pets', {
         method: 'POST',
         headers: {
           Accept: contentType,
@@ -53,6 +59,12 @@ const Form = ({ formId, petForm, forNewPet = true }) => {
         },
         body: JSON.stringify(form),
       })
+
+      // Throw error with status code in case Fetch API req failed
+      if (!res.ok) {
+        throw new Error(res.status)
+      }
+
       router.push('/')
     } catch (error) {
       setMessage('Failed to add pet')

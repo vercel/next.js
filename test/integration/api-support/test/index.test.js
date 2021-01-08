@@ -236,6 +236,20 @@ function runTests(dev = false) {
     expect(data).toEqual({ message: 'Parsed body' })
   })
 
+  it('should show friendly error for invalid redirect', async () => {
+    await fetchViaHTTP(appPort, '/api/redirect-error', null, {})
+    expect(stderr).toContain(
+      `Invalid redirect arguments. Please use a single argument URL, e.g. res.redirect('/destination') or use a status code and URL, e.g. res.redirect(307, '/destination').`
+    )
+  })
+
+  it('should show friendly error in case of passing null as first argument redirect', async () => {
+    await fetchViaHTTP(appPort, '/api/redirect-null', null, {})
+    expect(stderr).toContain(
+      `Invalid redirect arguments. Please use a single argument URL, e.g. res.redirect('/destination') or use a status code and URL, e.g. res.redirect(307, '/destination').`
+    )
+  })
+
   it('should redirect with status code 307', async () => {
     const res = await fetchViaHTTP(appPort, '/api/redirect-307', null, {
       redirect: 'manual',
@@ -430,12 +444,12 @@ function runTests(dev = false) {
     })
   } else {
     it('should show warning with next export', async () => {
-      const { stdout } = await nextExport(
+      const { stderr } = await nextExport(
         appDir,
         { outdir: join(appDir, 'out') },
-        { stdout: true }
+        { stderr: true }
       )
-      expect(stdout).toContain(
+      expect(stderr).toContain(
         'https://err.sh/vercel/next.js/api-routes-static-export'
       )
     })
