@@ -74,8 +74,9 @@ describe('Conflicting SSG paths', () => {
     )
     expect(output).toContain('err.sh/next.js/conflicting-ssg-paths')
     expect(output).toContain(
-      `path: "/blog/conflicting" from page: "/blog/[slug]" conflicts with path: "/blog/conflicting" from page: "/[...catchAll]"`
+      `path: "/blog/conflicting" from page: "/[...catchAll]"`
     )
+    expect(output).toContain(`conflicts with path: "/blog/conflicting"`)
   })
 
   it('should show proper error when a dynamic SSG route conflicts with normal route', async () => {
@@ -83,6 +84,58 @@ describe('Conflicting SSG paths', () => {
     await fs.writeFile(
       join(pagesDir, 'hello/world.js'),
       `
+      export default function Page() {
+        return '/hello/world'
+      }
+    `
+    )
+
+    await fs.writeFile(
+      join(pagesDir, '[...catchAll].js'),
+      `
+      export const getStaticProps = () => {
+        return {
+          props: {}
+        }
+      }
+
+      export const getStaticPaths = () => {
+        return {
+          paths: [
+            '/hello',
+            '/hellO/world'
+          ],
+          fallback: false
+        }
+      }
+
+      export default function Page() {
+        return '/[catchAll]'
+      }
+    `
+    )
+
+    const result = await nextBuild(appDir, undefined, {
+      stdout: true,
+      stderr: true,
+    })
+    const output = result.stdout + result.stderr
+    expect(output).toContain(
+      'Conflicting paths returned from getStaticPaths, paths must unique per page'
+    )
+    expect(output).toContain('err.sh/next.js/conflicting-ssg-paths')
+    expect(output).toContain(
+      `path: "/hellO/world" from page: "/[...catchAll]" conflicts with path: "/hello/world"`
+    )
+  })
+
+  it('should show proper error when a dynamic SSG route conflicts with SSR route', async () => {
+    await fs.ensureDir(join(pagesDir, 'hello'))
+    await fs.writeFile(
+      join(pagesDir, 'hello/world.js'),
+      `
+      export const getServerSideProps = () => ({ props: {} })
+
       export default function Page() {
         return '/hello/world'
       }
