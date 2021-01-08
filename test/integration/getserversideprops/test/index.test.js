@@ -253,6 +253,12 @@ const navigateTest = (dev = false) => {
 const runTests = (dev = false) => {
   navigateTest(dev)
 
+  it('should render correctly when notFound is false (non-dynamic)', async () => {
+    const res = await fetchViaHTTP(appPort, '/not-found')
+
+    expect(res.status).toBe(200)
+  })
+
   it('should render 404 correctly when notFound is returned (non-dynamic)', async () => {
     const res = await fetchViaHTTP(appPort, '/not-found', { hiding: true })
 
@@ -272,6 +278,12 @@ const runTests = (dev = false) => {
       'This page could not be found'
     )
     expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
+  it('should render correctly when notFound is false (dynamic)', async () => {
+    const res = await fetchViaHTTP(appPort, '/not-found/first')
+
+    expect(res.status).toBe(200)
   })
 
   it('should render 404 correctly when notFound is returned (dynamic)', async () => {

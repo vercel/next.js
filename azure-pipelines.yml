@@ -6,10 +6,10 @@ trigger:
     include:
       - '*'
     exclude:
-      - bench/*
-      - docs/*
-      - errors/*
-      - examples/*
+      - bench
+      - docs
+      - errors
+      - examples
   # Do not run Azure on `canary`, `master`, or release tags. This unnecessarily
   # increases the backlog, and the change was already tested on the PR.
   branches:
@@ -19,6 +19,17 @@ trigger:
       - canary
       - master
       - refs/tags/*
+
+pr:
+  # Do not run Azure CI for docs-only/example-only changes:
+  paths:
+    include:
+      - '*'
+    exclude:
+      - bench
+      - docs
+      - errors
+      - examples
 
 variables:
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
