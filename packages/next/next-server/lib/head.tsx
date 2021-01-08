@@ -179,7 +179,4 @@ function Head({ children }: { children: React.ReactNode }) {
   )
 }
 
-// TODO: Remove in the next major release
-Head.rewind = () => {}
-
 export default Head
