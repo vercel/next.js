@@ -588,7 +588,7 @@ export default async function build(
           serverRuntimeConfig: config.serverRuntimeConfig,
         }
 
-        const nonStaticErrorPage = traceAsyncFn(
+        const nonStaticErrorPage = await traceAsyncFn(
           tracer.startSpan('check-static-error-page'),
           async () =>
             hasCustomErrorPage &&
