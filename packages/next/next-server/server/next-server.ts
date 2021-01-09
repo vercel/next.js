@@ -49,7 +49,11 @@ import {
   tryGetPreviewData,
   __ApiPreviewProps,
 } from './api-utils'
-import loadConfig, { isTargetLikeServerless, NextConfig } from './config'
+import loadConfig, {
+  DomainLocales,
+  isTargetLikeServerless,
+  NextConfig,
+} from './config'
 import pathMatch from '../lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
@@ -155,6 +159,7 @@ export default class Server {
     locale?: string
     locales?: string[]
     defaultLocale?: string
+    domainLocales?: DomainLocales
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -211,6 +216,7 @@ export default class Server {
           : null,
       optimizeImages: this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
+      domainLocales: this.nextConfig.i18n?.domains,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -902,7 +908,7 @@ export default class Server {
       match: route('/:path*'),
       type: 'route',
       name: 'Catchall render',
-      fn: async (req, res, params, parsedUrl) => {
+      fn: async (req, res, _params, parsedUrl) => {
         let { pathname, query } = parsedUrl
         if (!pathname) {
           throw new Error('pathname is undefined')
@@ -923,7 +929,7 @@ export default class Server {
           }
         }
 
-        if (params?.path?.[0] === 'api') {
+        if (pathname === '/api' || pathname.startsWith('/api/')) {
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,
@@ -1038,6 +1044,9 @@ export default class Server {
 
     const pageModule = await require(builtPagePath)
     query = { ...query, ...params }
+
+    delete query.__nextLocale
+    delete query.__nextDefaultLocale
 
     if (!this.renderOpts.dev && this._isLikeServerless) {
       if (typeof pageModule.default === 'function') {
@@ -1484,10 +1493,15 @@ export default class Server {
         if (revalidateOptions) {
           setRevalidateHeaders(res, revalidateOptions)
         }
-        await this.render404(req, res, {
-          pathname,
-          query,
-        } as UrlWithParsedQuery)
+        if (isDataReq) {
+          res.statusCode = 404
+          res.end('{"notFound":true}')
+        } else {
+          await this.render404(req, res, {
+            pathname,
+            query,
+          } as UrlWithParsedQuery)
+        }
       } else {
         sendPayload(
           req,
@@ -1538,10 +1552,11 @@ export default class Server {
             res,
             'passthrough',
             {
-              fontManifest: this.renderOpts.fontManifest,
               locale,
               locales,
               defaultLocale,
+              fontManifest: this.renderOpts.fontManifest,
+              domainLocales: this.renderOpts.domainLocales,
             }
           )
 
@@ -1730,12 +1745,15 @@ export default class Server {
       if (revalidateOptions) {
         setRevalidateHeaders(res, revalidateOptions)
       }
-      await this.render404(
-        req,
-        res,
-        { pathname, query } as UrlWithParsedQuery,
-        !!revalidateOptions
-      )
+      if (isDataReq) {
+        res.statusCode = 404
+        res.end('{"notFound":true}')
+      } else {
+        await this.render404(req, res, {
+          pathname,
+          query,
+        } as UrlWithParsedQuery)
+      }
     }
     return resHtml
   }
