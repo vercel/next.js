@@ -57,7 +57,7 @@ async function loadPlugin(
     throw new Error(genericErrorText)
   }
 
-  const pluginPath = resolveRequest(pluginName, `${dir}/`)
+  const pluginPath = resolveRequest(pluginName, `${dir}/`).resolvedPath
   if (isIgnoredPlugin(pluginPath)) {
     return false
   } else if (options === true) {

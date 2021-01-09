@@ -52,7 +52,7 @@ export async function getPackageVersion({
       : `${cwd}/`
 
   try {
-    const targetPath = resolveRequest(`${name}/package.json`, cwd2)
+    const targetPath = resolveRequest(`${name}/package.json`, cwd2).resolvedPath
     const targetContent = await fs.readFile(targetPath, 'utf-8')
     return JSON5.parse(targetContent).version ?? null
   } catch {

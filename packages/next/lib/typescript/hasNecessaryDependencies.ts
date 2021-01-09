@@ -22,7 +22,10 @@ export async function hasNecessaryDependencies(
 
   const missingPackages = requiredPackages.filter((p) => {
     try {
-      resolutions.set(p.pkg, resolveRequest(p.file, path.join(baseDir, '/')))
+      resolutions.set(
+        p.pkg,
+        resolveRequest(p.file, path.join(baseDir, '/')).resolvedPath
+      )
       return false
     } catch (_) {
       return true
