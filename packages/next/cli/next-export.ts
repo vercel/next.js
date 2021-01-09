@@ -54,6 +54,14 @@ const nextExport: cliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
+  // Check if static or public dir
+  if (args['--outdir'] && (existsSync('./static') || existsSync('./public'))) {
+    const dirName = existsSync('./static') ? 'static' : 'public'
+    printAndExit(
+      `> Static file serving directory exists as the project root: ${dirName}`
+    )
+  }
+
   const options = {
     silent: args['--silent'] || false,
     threads: args['--threads'],
