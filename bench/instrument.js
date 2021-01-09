@@ -6,6 +6,7 @@ const { SimpleSpanProcessor } = require('@opentelemetry/tracing')
 const { ZipkinExporter } = require('@opentelemetry/exporter-zipkin')
 
 const tracerProvider = new NodeTracerProvider({
+  // All automatic instrumentation plugins have to be disabled as it affects worker_thread/child_process bootup performance
   plugins: {
     mongodb: { enabled: false, path: '@opentelemetry/plugin-mongodb' },
     grpc: { enabled: false, path: '@opentelemetry/plugin-grpc' },
