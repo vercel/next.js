@@ -144,6 +144,12 @@ jobs:
       - run: cat package.json | jq '.resolutions.webpack = "^5.11.1"' > package.json.tmp && mv package.json.tmp package.json
       - run: cat package.json | jq '.resolutions.react = "^17.0.1"' > package.json.tmp && mv package.json.tmp package.json
       - run: cat package.json | jq '.resolutions."react-dom" = "^17.0.1"' > package.json.tmp && mv package.json.tmp package.json
+
+      # temporarily disable webpack types until they're fixed upstream
+      - run: touch packages/next/.sink.d.ts
+      - run: cat packages/next/tsconfig.json | jq '.compilerOptions.baseUrl = "."' > tsconfig.json.tmp && mv tsconfig.json.tmp packages/next/tsconfig.json
+      - run: 'cat packages/next/tsconfig.json | jq ".compilerOptions.paths = {\"webpack\": [\".sink.d.ts\"]}" > tsconfig.json.tmp && mv tsconfig.json.tmp packages/next/tsconfig.json'
+
       - run: yarn install --check-files
       - run: yarn list webpack react react-dom
       - run: xvfb-run node run-tests.js test/integration/{link-ref,production,basic,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
