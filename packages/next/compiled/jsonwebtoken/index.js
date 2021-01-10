@@ -3,13 +3,13 @@ module.exports =
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 68:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 /*jshint node:true */
 
-var Buffer = __webpack_require__(293).Buffer; // browserify
-var SlowBuffer = __webpack_require__(293).SlowBuffer;
+var Buffer = __nccwpck_require__(293).Buffer; // browserify
+var SlowBuffer = __nccwpck_require__(293).SlowBuffer;
 
 module.exports = bufferEq;
 
@@ -52,14 +52,14 @@ bufferEq.restore = function() {
 /***/ }),
 
 /***/ 175:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var Buffer = __webpack_require__(615).Buffer;
+var Buffer = __nccwpck_require__(615).Buffer;
 
-var getParamBytesForAlg = __webpack_require__(363);
+var getParamBytesForAlg = __nccwpck_require__(363);
 
 var MAX_OCTET = 0x80,
 	CLASS_UNIVERSAL = 0,
@@ -278,9 +278,9 @@ module.exports = getParamBytesForAlg;
 /***/ }),
 
 /***/ 516:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-var jws = __webpack_require__(641);
+var jws = __nccwpck_require__(641);
 
 module.exports = function (jwt, options) {
   options = options || {};
@@ -315,15 +315,15 @@ module.exports = function (jwt, options) {
 /***/ }),
 
 /***/ 667:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 module.exports = {
-  decode: __webpack_require__(516),
-  verify: __webpack_require__(452),
-  sign: __webpack_require__(596),
-  JsonWebTokenError: __webpack_require__(86),
-  NotBeforeError: __webpack_require__(384),
-  TokenExpiredError: __webpack_require__(874),
+  decode: __nccwpck_require__(516),
+  verify: __nccwpck_require__(452),
+  sign: __nccwpck_require__(596),
+  JsonWebTokenError: __nccwpck_require__(86),
+  NotBeforeError: __nccwpck_require__(384),
+  TokenExpiredError: __nccwpck_require__(874),
 };
 
 
@@ -351,9 +351,9 @@ module.exports = JsonWebTokenError;
 /***/ }),
 
 /***/ 384:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-var JsonWebTokenError = __webpack_require__(86);
+var JsonWebTokenError = __nccwpck_require__(86);
 
 var NotBeforeError = function (message, date) {
   JsonWebTokenError.call(this, message);
@@ -370,9 +370,9 @@ module.exports = NotBeforeError;
 /***/ }),
 
 /***/ 874:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-var JsonWebTokenError = __webpack_require__(86);
+var JsonWebTokenError = __nccwpck_require__(86);
 
 var TokenExpiredError = function (message, expiredAt) {
   JsonWebTokenError.call(this, message);
@@ -389,9 +389,9 @@ module.exports = TokenExpiredError;
 /***/ }),
 
 /***/ 347:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-var semver = __webpack_require__(519);
+var semver = __nccwpck_require__(519);
 
 module.exports = semver.satisfies(process.version, '^6.12.0 || >=8.0.0');
 
@@ -399,9 +399,9 @@ module.exports = semver.satisfies(process.version, '^6.12.0 || >=8.0.0');
 /***/ }),
 
 /***/ 527:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-var ms = __webpack_require__(4);
+var ms = __nccwpck_require__(4);
 
 module.exports = function (time, iat) {
   var timestamp = iat || Math.floor(Date.now() / 1000);
@@ -423,18 +423,18 @@ module.exports = function (time, iat) {
 /***/ }),
 
 /***/ 596:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-var timespan = __webpack_require__(527);
-var PS_SUPPORTED = __webpack_require__(347);
-var jws = __webpack_require__(641);
-var includes = __webpack_require__(282);
-var isBoolean = __webpack_require__(170);
-var isInteger = __webpack_require__(117);
-var isNumber = __webpack_require__(598);
-var isPlainObject = __webpack_require__(952);
-var isString = __webpack_require__(95);
-var once = __webpack_require__(433);
+var timespan = __nccwpck_require__(527);
+var PS_SUPPORTED = __nccwpck_require__(347);
+var jws = __nccwpck_require__(641);
+var includes = __nccwpck_require__(282);
+var isBoolean = __nccwpck_require__(170);
+var isInteger = __nccwpck_require__(117);
+var isNumber = __nccwpck_require__(598);
+var isPlainObject = __nccwpck_require__(952);
+var isString = __nccwpck_require__(95);
+var once = __nccwpck_require__(433);
 
 var SUPPORTED_ALGS = ['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512', 'HS256', 'HS384', 'HS512', 'none']
 if (PS_SUPPORTED) {
@@ -636,15 +636,15 @@ module.exports = function (payload, secretOrPrivateKey, options, callback) {
 /***/ }),
 
 /***/ 452:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-var JsonWebTokenError = __webpack_require__(86);
-var NotBeforeError    = __webpack_require__(384);
-var TokenExpiredError = __webpack_require__(874);
-var decode            = __webpack_require__(516);
-var timespan          = __webpack_require__(527);
-var PS_SUPPORTED      = __webpack_require__(347);
-var jws               = __webpack_require__(641);
+var JsonWebTokenError = __nccwpck_require__(86);
+var NotBeforeError    = __nccwpck_require__(384);
+var TokenExpiredError = __nccwpck_require__(874);
+var decode            = __nccwpck_require__(516);
+var timespan          = __nccwpck_require__(527);
+var PS_SUPPORTED      = __nccwpck_require__(347);
+var jws               = __nccwpck_require__(641);
 
 var PUB_KEY_ALGS = ['RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512'];
 var RSA_KEY_ALGS = ['RS256', 'RS384', 'RS512'];
@@ -868,13 +868,13 @@ module.exports = function (jwtString, secretOrPublicKey, options, callback) {
 /***/ }),
 
 /***/ 350:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-var bufferEqual = __webpack_require__(68);
-var Buffer = __webpack_require__(615).Buffer;
-var crypto = __webpack_require__(417);
-var formatEcdsa = __webpack_require__(175);
-var util = __webpack_require__(669);
+var bufferEqual = __nccwpck_require__(68);
+var Buffer = __nccwpck_require__(615).Buffer;
+var crypto = __nccwpck_require__(417);
+var formatEcdsa = __nccwpck_require__(175);
+var util = __nccwpck_require__(669);
 
 var MSG_INVALID_ALGORITHM = '"%s" is not a valid algorithm.\n  Supported algorithms are:\n  "HS256", "HS384", "HS512", "RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512" and "none".'
 var MSG_INVALID_SECRET = 'secret must be a string or buffer';
@@ -1127,11 +1127,11 @@ module.exports = function jwa(algorithm) {
 /***/ }),
 
 /***/ 641:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 /*global exports*/
-var SignStream = __webpack_require__(921);
-var VerifyStream = __webpack_require__(716);
+var SignStream = __nccwpck_require__(921);
+var VerifyStream = __nccwpck_require__(716);
 
 var ALGORITHMS = [
   'HS256', 'HS384', 'HS512',
@@ -1156,12 +1156,12 @@ exports.createVerify = function createVerify(opts) {
 /***/ }),
 
 /***/ 423:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 /*global module, process*/
-var Buffer = __webpack_require__(615).Buffer;
-var Stream = __webpack_require__(413);
-var util = __webpack_require__(669);
+var Buffer = __nccwpck_require__(615).Buffer;
+var Stream = __nccwpck_require__(413);
+var util = __nccwpck_require__(669);
 
 function DataStream(data) {
   this.buffer = null;
@@ -1218,15 +1218,15 @@ module.exports = DataStream;
 /***/ }),
 
 /***/ 921:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 /*global module*/
-var Buffer = __webpack_require__(615).Buffer;
-var DataStream = __webpack_require__(423);
-var jwa = __webpack_require__(350);
-var Stream = __webpack_require__(413);
-var toString = __webpack_require__(29);
-var util = __webpack_require__(669);
+var Buffer = __nccwpck_require__(615).Buffer;
+var DataStream = __nccwpck_require__(423);
+var jwa = __nccwpck_require__(350);
+var Stream = __nccwpck_require__(413);
+var toString = __nccwpck_require__(29);
+var util = __nccwpck_require__(669);
 
 function base64url(string, encoding) {
   return Buffer
@@ -1303,10 +1303,10 @@ module.exports = SignStream;
 /***/ }),
 
 /***/ 29:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 /*global module*/
-var Buffer = __webpack_require__(293).Buffer;
+var Buffer = __nccwpck_require__(293).Buffer;
 
 module.exports = function toString(obj) {
   if (typeof obj === 'string')
@@ -1320,15 +1320,15 @@ module.exports = function toString(obj) {
 /***/ }),
 
 /***/ 716:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 /*global module*/
-var Buffer = __webpack_require__(615).Buffer;
-var DataStream = __webpack_require__(423);
-var jwa = __webpack_require__(350);
-var Stream = __webpack_require__(413);
-var toString = __webpack_require__(29);
-var util = __webpack_require__(669);
+var Buffer = __nccwpck_require__(615).Buffer;
+var DataStream = __nccwpck_require__(423);
+var jwa = __nccwpck_require__(350);
+var Stream = __nccwpck_require__(413);
+var toString = __nccwpck_require__(29);
+var util = __nccwpck_require__(669);
 var JWS_REGEX = /^[a-zA-Z0-9\-_]+?\.[a-zA-Z0-9\-_]+?\.([a-zA-Z0-9\-_]+)?$/;
 
 function isObject(thing) {
@@ -3352,10 +3352,10 @@ function plural(ms, msAbs, n, name) {
 /***/ }),
 
 /***/ 615:
-/***/ ((module, exports, __webpack_require__) => {
+/***/ ((module, exports, __nccwpck_require__) => {
 
 /* eslint-disable node/no-deprecated-api */
-var buffer = __webpack_require__(293)
+var buffer = __nccwpck_require__(293)
 var Buffer = buffer.Buffer
 
 // alternative to using Object.keys for old browsers
@@ -3468,7 +3468,7 @@ module.exports = require("util");;
 /******/ 	var __webpack_module_cache__ = {};
 /******/ 	
 /******/ 	// The require function
-/******/ 	function __webpack_require__(moduleId) {
+/******/ 	function __nccwpck_require__(moduleId) {
 /******/ 		// Check if module is in cache
 /******/ 		if(__webpack_module_cache__[moduleId]) {
 /******/ 			return __webpack_module_cache__[moduleId].exports;
@@ -3483,7 +3483,7 @@ module.exports = require("util");;
 /******/ 		// Execute the module function
 /******/ 		var threw = true;
 /******/ 		try {
-/******/ 			__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 			__webpack_modules__[moduleId](module, module.exports, __nccwpck_require__);
 /******/ 			threw = false;
 /******/ 		} finally {
 /******/ 			if(threw) delete __webpack_module_cache__[moduleId];
@@ -3496,10 +3496,10 @@ module.exports = require("util");;
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
-/******/ 	__webpack_require__.ab = __dirname + "/";/************************************************************************/
+/******/ 	__nccwpck_require__.ab = __dirname + "/";/************************************************************************/
 /******/ 	// module exports must be returned from runtime so entry inlining is disabled
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(667);
+/******/ 	return __nccwpck_require__(667);
 /******/ })()
 ;
