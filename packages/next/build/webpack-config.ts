@@ -193,7 +193,6 @@ export default async function getBaseWebpackConfig(
     dev = false,
     isServer = false,
     pagesDir,
-    tracer,
     target = 'server',
     reactProductionProfiling = false,
     entrypoints,
@@ -205,7 +204,6 @@ export default async function getBaseWebpackConfig(
     isServer?: boolean
     pagesDir: string
     target?: string
-    tracer?: any
     reactProductionProfiling?: boolean
     entrypoints: WebpackEntrypoints
     rewrites: Rewrite[]
@@ -1078,10 +1076,7 @@ export default async function getBaseWebpackConfig(
           buildId,
           rewrites,
         }),
-      tracer &&
-        new ProfilingPlugin({
-          tracer,
-        }),
+      new ProfilingPlugin(),
       config.experimental.optimizeFonts &&
         !dev &&
         isServer &&

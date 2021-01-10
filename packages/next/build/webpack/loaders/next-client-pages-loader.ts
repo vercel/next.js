@@ -1,4 +1,3 @@
-import { loader } from 'webpack'
 import loaderUtils from 'loader-utils'
 import { tracer, traceFn } from '../../tracer'
 
@@ -7,19 +6,21 @@ export type ClientPagesLoaderOptions = {
   page: string
 }
 
-const nextClientPagesLoader: loader.Loader = function () {
-  const span = tracer.startSpan('next-client-pages-loader')
-  return traceFn(span, () => {
-    const { absolutePagePath, page } = loaderUtils.getOptions(
-      this
-    ) as ClientPagesLoaderOptions
+// this parameter: https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters
+function nextClientPagesLoader(this: any) {
+  return tracer.withSpan(this.currentTraceSpan, () => {
+    const span = tracer.startSpan('next-client-pages-loader')
+    return traceFn(span, () => {
+      const { absolutePagePath, page } = loaderUtils.getOptions(
+        this
+      ) as ClientPagesLoaderOptions
 
-    span.setAttribute('absolutePagePath', absolutePagePath)
+      span.setAttribute('absolutePagePath', absolutePagePath)
 
-    const stringifiedAbsolutePagePath = JSON.stringify(absolutePagePath)
-    const stringifiedPage = JSON.stringify(page)
+      const stringifiedAbsolutePagePath = JSON.stringify(absolutePagePath)
+      const stringifiedPage = JSON.stringify(page)
 
-    return `
+      return `
       (window.__NEXT_P = window.__NEXT_P || []).push([
         ${stringifiedPage},
         function () {
@@ -27,6 +28,7 @@ const nextClientPagesLoader: loader.Loader = function () {
         }
       ]);
     `
+    })
   })
 }
 
