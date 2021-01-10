@@ -1,15 +1,16 @@
 import {
-  InferGetStaticPropsType,
-  GetStaticPaths,
   GetStaticPropsContext,
+  InferGetStaticPathsType,
+  InferGetStaticPropsType,
 } from 'next'
 
 type Post = {
-  author: string
+  id: string
+  title: string
   content: string
 }
 
-export const getStaticPaths: GetStaticPaths = async () => {
+export const getStaticPaths = async () => {
   return {
     paths: [{ params: { post: '1' } }],
     fallback: false,
@@ -17,30 +18,28 @@ export const getStaticPaths: GetStaticPaths = async () => {
 }
 
 export const getStaticProps = async (
-  ctx: GetStaticPropsContext<{ post: string }>
+  ctx: GetStaticPropsContext<InferGetStaticPathsType<typeof getStaticPaths>>
 ) => {
-  const posts: Post[] = [
-    {
-      author: 'Vercel',
-      content: 'hello wolrd',
-    },
-  ]
+  const post: Post = {
+    id: ctx.params!.post,
+    title: 'Hello World',
+    content: 'hello world',
+  }
 
   return {
     props: {
-      posts,
+      post,
     },
   }
 }
 
-function Blog({ posts }: InferGetStaticPropsType<typeof getStaticProps>) {
+function BlogPost({ post }: InferGetStaticPropsType<typeof getStaticProps>) {
   return (
     <>
-      {posts.map((post) => (
-        <div key={post.author}>{post.author}</div>
-      ))}
+      <h1>{post.title}</h1>
+      <p>{post.content}</p>
     </>
   )
 }
 
-export default Blog
+export default BlogPost
