@@ -21,6 +21,9 @@ Create a next.config.js (and make sure you have next-bundle-analyzer set up)
 ```js
 const withBundleAnalyzer = require('@next/bundle-analyzer')({
   enabled: process.env.ANALYZE === 'true',
+
+  // additional webpack-bundle-analyzer options:
+  defaultSizes: 'stat',
 })
 module.exports = withBundleAnalyzer({})
 ```
