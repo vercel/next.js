@@ -490,6 +490,17 @@ export default class Server {
         ? matchedPathname.replace(/\.json$/, '')
         : matchedPathname
 
+      console.log({
+        reqUrlIsDataUrl,
+        matchedPathIsDataUrl,
+        isDataUrl,
+        parsedPath,
+        pathname,
+        query,
+        matchedPathname,
+        matchedPathnameNoExt,
+      })
+
       // interpolate dynamic params and normalize URL if needed
       if (isDynamicRoute(matchedPathnameNoExt)) {
         const utils = getUtils({
@@ -523,13 +534,24 @@ export default class Server {
           params = utils.dynamicRouteMatcher!(matchedPathname)
         }
 
+        console.log({ params })
+
         if (params) {
+          console.log('before interpolating', {
+            matchedPathname,
+            url: req.url,
+          })
           matchedPathname = utils.interpolateDynamicPath(
             matchedPathname,
             params
           )
 
           req.url = utils.interpolateDynamicPath(req.url!, params)
+
+          console.log('after interpolating', {
+            matchedPathname,
+            url: req.url,
+          })
         }
 
         if (reqUrlIsDataUrl && matchedPathIsDataUrl) {
@@ -537,13 +559,22 @@ export default class Server {
             ...parsedPath,
             pathname: matchedPathname,
           })
+          console.log('updated req.url for data path', {
+            url: req.url,
+            reqUrlIsDataUrl,
+            matchedPathIsDataUrl,
+          })
         }
         Object.assign(parsedUrl.query, params)
+        console.log('before normalize URL', req.url)
         utils.normalizeVercelUrl(req, true)
+        console.log('after normalize URL', req.url)
       }
       parsedUrl.pathname = `${basePath || ''}${
         parsedUrl.query.__nextLocale || ''
       }${matchedPathname}`
+
+      console.log('parsedUrl.pathname', parsedUrl.pathname)
     }
 
     res.statusCode = 200
