@@ -3,10 +3,10 @@ module.exports =
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 210:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-const hasOwnProperty = __nccwpck_require__(577)
-const {isObject, isArray} = __nccwpck_require__(334)
+const hasOwnProperty = __webpack_require__(577)
+const {isObject, isArray} = __webpack_require__(334)
 
 const PREFIX_BEFORE = 'before'
 const PREFIX_AFTER_PROP = 'after-prop'
@@ -322,11 +322,11 @@ module.exports = {
 /***/ }),
 
 /***/ 20:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-const {parse, tokenize} = __nccwpck_require__(762)
-const stringify = __nccwpck_require__(703)
-const {CommentArray, assign} = __nccwpck_require__(210)
+const {parse, tokenize} = __webpack_require__(762)
+const stringify = __webpack_require__(703)
+const {CommentArray, assign} = __webpack_require__(210)
 
 module.exports = {
   parse,
@@ -341,11 +341,11 @@ module.exports = {
 /***/ }),
 
 /***/ 762:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 // JSON formatting
 
-const esprima = __nccwpck_require__(609)
+const esprima = __webpack_require__(609)
 
 const {
   CommentArray,
@@ -357,7 +357,7 @@ const {
   PREFIX_AFTER_COMMA,
   COLON,
   UNDEFINED
-} = __nccwpck_require__(210)
+} = __webpack_require__(210)
 
 const tokenize = code => esprima.tokenize(code, {
   comment: true,
@@ -801,12 +801,12 @@ module.exports = {
 /***/ }),
 
 /***/ 703:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 const {
   isArray, isObject, isFunction, isNumber, isString
-} = __nccwpck_require__(334)
-const repeat = __nccwpck_require__(332)
+} = __webpack_require__(334)
+const repeat = __webpack_require__(332)
 
 const {
   PREFIX_BEFORE_ALL,
@@ -827,7 +827,7 @@ const {
   EMPTY,
 
   UNDEFINED
-} = __nccwpck_require__(762)
+} = __webpack_require__(762)
 
 // eslint-disable-next-line no-control-regex, no-misleading-character-class
 const ESCAPABLE = /[\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g
@@ -8094,7 +8094,7 @@ function repeat(str, num) {
 /******/ 	var __webpack_module_cache__ = {};
 /******/ 	
 /******/ 	// The require function
-/******/ 	function __nccwpck_require__(moduleId) {
+/******/ 	function __webpack_require__(moduleId) {
 /******/ 		// Check if module is in cache
 /******/ 		if(__webpack_module_cache__[moduleId]) {
 /******/ 			return __webpack_module_cache__[moduleId].exports;
@@ -8109,7 +8109,7 @@ function repeat(str, num) {
 /******/ 		// Execute the module function
 /******/ 		var threw = true;
 /******/ 		try {
-/******/ 			__webpack_modules__[moduleId].call(module.exports, module, module.exports, __nccwpck_require__);
+/******/ 			__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
 /******/ 			threw = false;
 /******/ 		} finally {
 /******/ 			if(threw) delete __webpack_module_cache__[moduleId];
@@ -8122,10 +8122,10 @@ function repeat(str, num) {
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
-/******/ 	__nccwpck_require__.ab = __dirname + "/";/************************************************************************/
+/******/ 	__webpack_require__.ab = __dirname + "/";/************************************************************************/
 /******/ 	// module exports must be returned from runtime so entry inlining is disabled
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
-/******/ 	return __nccwpck_require__(20);
+/******/ 	return __webpack_require__(20);
 /******/ })()
 ;

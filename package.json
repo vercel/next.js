@@ -116,7 +116,6 @@
     "release": "6.3.0",
     "request-promise-core": "1.1.2",
     "rimraf": "2.6.3",
-    "schema-utils": "3.0.0",
     "seedrandom": "3.0.5",
     "selenium-standalone": "6.18.0",
     "selenium-webdriver": "4.0.0-alpha.7",

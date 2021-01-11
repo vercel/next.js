@@ -3,9 +3,9 @@ module.exports =
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 192:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-var path = __nccwpck_require__(622);
+var path = __webpack_require__(622);
 
 module.exports = function (basedir, relfiles) {
     if (relfiles) {
@@ -39,15 +39,15 @@ module.exports = function (basedir, relfiles) {
 /***/ }),
 
 /***/ 19:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
-const path = __nccwpck_require__(622);
-const fs = __nccwpck_require__(747);
-const commonDir = __nccwpck_require__(192);
-const pkgDir = __nccwpck_require__(860);
-const makeDir = __nccwpck_require__(240);
+const path = __webpack_require__(622);
+const fs = __webpack_require__(747);
+const commonDir = __webpack_require__(192);
+const pkgDir = __webpack_require__(860);
+const makeDir = __webpack_require__(240);
 
 const {env, cwd} = process;
 
@@ -114,14 +114,14 @@ module.exports = (options = {}) => {
 /***/ }),
 
 /***/ 240:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
-const fs = __nccwpck_require__(747);
-const path = __nccwpck_require__(622);
-const {promisify} = __nccwpck_require__(669);
-const semver = __nccwpck_require__(519);
+const fs = __webpack_require__(747);
+const path = __webpack_require__(622);
+const {promisify} = __webpack_require__(669);
+const semver = __webpack_require__(519);
 
 const useNativeRecursiveOption = semver.satisfies(process.version, '>=10.12.0');
 
@@ -278,12 +278,12 @@ module.exports.sync = (input, options) => {
 /***/ }),
 
 /***/ 860:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
-const path = __nccwpck_require__(622);
-const findUp = __nccwpck_require__(442);
+const path = __webpack_require__(622);
+const findUp = __webpack_require__(442);
 
 const pkgDir = async cwd => {
 	const filePath = await findUp('package.json', {cwd});
@@ -348,7 +348,7 @@ module.exports = require("util");;
 /******/ 	var __webpack_module_cache__ = {};
 /******/ 	
 /******/ 	// The require function
-/******/ 	function __nccwpck_require__(moduleId) {
+/******/ 	function __webpack_require__(moduleId) {
 /******/ 		// Check if module is in cache
 /******/ 		if(__webpack_module_cache__[moduleId]) {
 /******/ 			return __webpack_module_cache__[moduleId].exports;
@@ -363,7 +363,7 @@ module.exports = require("util");;
 /******/ 		// Execute the module function
 /******/ 		var threw = true;
 /******/ 		try {
-/******/ 			__webpack_modules__[moduleId](module, module.exports, __nccwpck_require__);
+/******/ 			__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
 /******/ 			threw = false;
 /******/ 		} finally {
 /******/ 			if(threw) delete __webpack_module_cache__[moduleId];
@@ -376,10 +376,10 @@ module.exports = require("util");;
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
-/******/ 	__nccwpck_require__.ab = __dirname + "/";/************************************************************************/
+/******/ 	__webpack_require__.ab = __dirname + "/";/************************************************************************/
 /******/ 	// module exports must be returned from runtime so entry inlining is disabled
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
-/******/ 	return __nccwpck_require__(19);
+/******/ 	return __webpack_require__(19);
 /******/ })()
 ;

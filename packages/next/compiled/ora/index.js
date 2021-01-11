@@ -3,9 +3,9 @@ module.exports =
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 250:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-var clone = __nccwpck_require__(820);
+var clone = __webpack_require__(820);
 
 module.exports = function(options, defaults) {
   options = options || {};
@@ -212,11 +212,11 @@ module.exports = ({stream = process.stdout} = {}) => {
 /***/ }),
 
 /***/ 279:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
-const chalk = __nccwpck_require__(242);
+const chalk = __webpack_require__(242);
 
 const isSupported = process.platform !== 'win32' || process.env.CI || process.env.TERM === 'xterm-256color';
 
@@ -261,9 +261,9 @@ module.exports.default = mimicFn;
 /***/ }),
 
 /***/ 3:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-var Stream = __nccwpck_require__(413)
+var Stream = __webpack_require__(413)
 
 module.exports = MuteStream
 
@@ -413,11 +413,11 @@ MuteStream.prototype.close = proxy('close')
 /***/ }),
 
 /***/ 53:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
-const mimicFn = __nccwpck_require__(883);
+const mimicFn = __webpack_require__(883);
 
 const calledFunctions = new WeakMap();
 
@@ -471,15 +471,15 @@ module.exports.callCount = fn => {
 /***/ }),
 
 /***/ 317:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 // Note: since nyc uses this module to output coverage, any lines
 // that are in the direct sync flow of nyc's outputCoverage are
 // ignored, since we can never get coverage for them.
-var assert = __nccwpck_require__(357)
-var signals = __nccwpck_require__(935)
+var assert = __webpack_require__(357)
+var signals = __webpack_require__(935)
 
-var EE = __nccwpck_require__(614)
+var EE = __webpack_require__(614)
 /* istanbul ignore if */
 if (typeof EE !== 'function') {
   EE = EE.EventEmitter
@@ -752,13 +752,13 @@ module.exports = [
 /***/ }),
 
 /***/ 997:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-var defaults = __nccwpck_require__(250)
-var combining = __nccwpck_require__(965)
+var defaults = __webpack_require__(250)
+var combining = __webpack_require__(965)
 
 var DEFAULTS = {
   nul: 0,
@@ -859,11 +859,11 @@ function bisearch(ucs) {
 /***/ }),
 
 /***/ 482:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
 
-const restoreCursor = __nccwpck_require__(847);
+const restoreCursor = __webpack_require__(847);
 
 let isHidden = false;
 
@@ -902,12 +902,12 @@ exports.toggle = (force, writableStream) => {
 /***/ }),
 
 /***/ 31:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-const spinners = Object.assign({}, __nccwpck_require__(615));
+const spinners = Object.assign({}, __webpack_require__(615));
 
 module.exports = spinners;
 // TODO: Remove this for the next major release
@@ -917,19 +917,19 @@ module.exports.default = spinners;
 /***/ }),
 
 /***/ 970:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
-const readline = __nccwpck_require__(58);
-const chalk = __nccwpck_require__(242);
-const cliCursor = __nccwpck_require__(482);
-const cliSpinners = __nccwpck_require__(31);
-const logSymbols = __nccwpck_require__(279);
-const stripAnsi = __nccwpck_require__(148);
-const wcwidth = __nccwpck_require__(997);
-const isInteractive = __nccwpck_require__(133);
-const MuteStream = __nccwpck_require__(3);
+const readline = __webpack_require__(58);
+const chalk = __webpack_require__(242);
+const cliCursor = __webpack_require__(482);
+const cliSpinners = __webpack_require__(31);
+const logSymbols = __webpack_require__(279);
+const stripAnsi = __webpack_require__(148);
+const wcwidth = __webpack_require__(997);
+const isInteractive = __webpack_require__(133);
+const MuteStream = __webpack_require__(3);
 
 const TEXT = Symbol('text');
 const PREFIX_TEXT = Symbol('prefixText');
@@ -1280,12 +1280,12 @@ module.exports.promise = (action, options) => {
 /***/ }),
 
 /***/ 847:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
-const onetime = __nccwpck_require__(53);
-const signalExit = __nccwpck_require__(317);
+const onetime = __webpack_require__(53);
+const signalExit = __webpack_require__(317);
 
 module.exports = onetime(() => {
 	signalExit(() => {
@@ -1358,7 +1358,7 @@ module.exports = require("stream");;
 /******/ 	var __webpack_module_cache__ = {};
 /******/ 	
 /******/ 	// The require function
-/******/ 	function __nccwpck_require__(moduleId) {
+/******/ 	function __webpack_require__(moduleId) {
 /******/ 		// Check if module is in cache
 /******/ 		if(__webpack_module_cache__[moduleId]) {
 /******/ 			return __webpack_module_cache__[moduleId].exports;
@@ -1373,7 +1373,7 @@ module.exports = require("stream");;
 /******/ 		// Execute the module function
 /******/ 		var threw = true;
 /******/ 		try {
-/******/ 			__webpack_modules__[moduleId](module, module.exports, __nccwpck_require__);
+/******/ 			__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
 /******/ 			threw = false;
 /******/ 		} finally {
 /******/ 			if(threw) delete __webpack_module_cache__[moduleId];
@@ -1386,10 +1386,10 @@ module.exports = require("stream");;
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
-/******/ 	__nccwpck_require__.ab = __dirname + "/";/************************************************************************/
+/******/ 	__webpack_require__.ab = __dirname + "/";/************************************************************************/
 /******/ 	// module exports must be returned from runtime so entry inlining is disabled
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
-/******/ 	return __nccwpck_require__(970);
+/******/ 	return __webpack_require__(970);
 /******/ })()
 ;

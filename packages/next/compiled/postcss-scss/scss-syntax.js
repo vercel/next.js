@@ -3,9 +3,9 @@ module.exports =
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 618:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-const { Container } = __nccwpck_require__(43)
+const { Container } = __webpack_require__(43)
 
 class NestedDeclaration extends Container {
   constructor (defaults) {
@@ -22,11 +22,11 @@ module.exports = NestedDeclaration
 /***/ }),
 
 /***/ 327:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-let { Input } = __nccwpck_require__(43)
+let { Input } = __webpack_require__(43)
 
-let ScssParser = __nccwpck_require__(270)
+let ScssParser = __webpack_require__(270)
 
 module.exports = function scssParse (scss, opts) {
   let input = new Input(scss, opts)
@@ -41,13 +41,13 @@ module.exports = function scssParse (scss, opts) {
 /***/ }),
 
 /***/ 270:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-let { Comment } = __nccwpck_require__(43)
-let Parser = __nccwpck_require__(552)
+let { Comment } = __webpack_require__(43)
+let Parser = __webpack_require__(552)
 
-let NestedDeclaration = __nccwpck_require__(618)
-let scssTokenizer = __nccwpck_require__(366)
+let NestedDeclaration = __webpack_require__(618)
+let scssTokenizer = __webpack_require__(366)
 
 class ScssParser extends Parser {
   createTokenizer () {
@@ -224,9 +224,9 @@ module.exports = ScssParser
 /***/ }),
 
 /***/ 139:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-let Stringifier = __nccwpck_require__(779)
+let Stringifier = __webpack_require__(779)
 
 class ScssStringifier extends Stringifier {
   comment (node) {
@@ -282,9 +282,9 @@ module.exports = ScssStringifier
 /***/ }),
 
 /***/ 886:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-let ScssStringifier = __nccwpck_require__(139)
+let ScssStringifier = __webpack_require__(139)
 
 module.exports = function scssStringify (node, builder) {
   let str = new ScssStringifier(builder)
@@ -295,10 +295,10 @@ module.exports = function scssStringify (node, builder) {
 /***/ }),
 
 /***/ 845:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-let stringify = __nccwpck_require__(886)
-let parse = __nccwpck_require__(327)
+let stringify = __webpack_require__(886)
+let parse = __webpack_require__(327)
 
 module.exports = { parse, stringify }
 
@@ -1012,7 +1012,7 @@ module.exports = require("postcss/lib/parser");;
 /******/ 	var __webpack_module_cache__ = {};
 /******/ 	
 /******/ 	// The require function
-/******/ 	function __nccwpck_require__(moduleId) {
+/******/ 	function __webpack_require__(moduleId) {
 /******/ 		// Check if module is in cache
 /******/ 		if(__webpack_module_cache__[moduleId]) {
 /******/ 			return __webpack_module_cache__[moduleId].exports;
@@ -1027,7 +1027,7 @@ module.exports = require("postcss/lib/parser");;
 /******/ 		// Execute the module function
 /******/ 		var threw = true;
 /******/ 		try {
-/******/ 			__webpack_modules__[moduleId](module, module.exports, __nccwpck_require__);
+/******/ 			__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
 /******/ 			threw = false;
 /******/ 		} finally {
 /******/ 			if(threw) delete __webpack_module_cache__[moduleId];
@@ -1040,10 +1040,10 @@ module.exports = require("postcss/lib/parser");;
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
-/******/ 	__nccwpck_require__.ab = __dirname + "/";/************************************************************************/
+/******/ 	__webpack_require__.ab = __dirname + "/";/************************************************************************/
 /******/ 	// module exports must be returned from runtime so entry inlining is disabled
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
-/******/ 	return __nccwpck_require__(845);
+/******/ 	return __webpack_require__(845);
 /******/ })()
 ;

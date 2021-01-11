@@ -3,7 +3,7 @@ module.exports =
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 306:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 "use strict";
 /**
@@ -25,17 +25,17 @@ module.exports =
 
 
 
-const colors = __nccwpck_require__(584);
-const fs = __nccwpck_require__(747);
-const http = __nccwpck_require__(605);
-const https = __nccwpck_require__(211);
-const path = __nccwpck_require__(622);
-const program = __nccwpck_require__(654);
-const Promise = __nccwpck_require__(554);
-const querystring = __nccwpck_require__(191);
-const url = __nccwpck_require__(835);
-const util = __nccwpck_require__(669);
-const vm = __nccwpck_require__(184);
+const colors = __webpack_require__(584);
+const fs = __webpack_require__(747);
+const http = __webpack_require__(605);
+const https = __webpack_require__(211);
+const path = __webpack_require__(622);
+const program = __webpack_require__(654);
+const Promise = __webpack_require__(554);
+const querystring = __webpack_require__(191);
+const url = __webpack_require__(835);
+const util = __webpack_require__(669);
+const vm = __webpack_require__(184);
 
 const DEFAULT_USER_AGENT = 'amphtml-validator';
 
@@ -509,24 +509,24 @@ exports.main = main;
 /***/ }),
 
 /***/ 654:
-/***/ ((module, exports, __nccwpck_require__) => {
+/***/ ((module, exports, __webpack_require__) => {
 
 /**
  * Module dependencies.
  */
 
-var EventEmitter = __nccwpck_require__(614).EventEmitter;
-var spawn = __nccwpck_require__(129).spawn;
-var path = __nccwpck_require__(622);
+var EventEmitter = __webpack_require__(614).EventEmitter;
+var spawn = __webpack_require__(129).spawn;
+var path = __webpack_require__(622);
 var dirname = path.dirname;
 var basename = path.basename;
-var fs = __nccwpck_require__(747);
+var fs = __webpack_require__(747);
 
 /**
  * Inherit `Command` from `EventEmitter.prototype`.
  */
 
-__nccwpck_require__(669).inherits(Command, EventEmitter);
+__webpack_require__(669).inherits(Command, EventEmitter);
 
 /**
  * Expose the root command.
@@ -1747,12 +1747,12 @@ function exists(file) {
 /***/ }),
 
 /***/ 307:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-var rawAsap = __nccwpck_require__(826);
+var rawAsap = __webpack_require__(826);
 var freeTasks = [];
 
 /**
@@ -1820,7 +1820,7 @@ RawTask.prototype.call = function () {
 /***/ }),
 
 /***/ 826:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
@@ -1903,7 +1903,7 @@ function requestFlush() {
         if (!domain) {
             // Lazy execute the domain module.
             // Only employed if the user elects to use domains.
-            domain = __nccwpck_require__(229);
+            domain = __webpack_require__(229);
         }
         domain.active = process.domain = null;
     }
@@ -1929,7 +1929,7 @@ function requestFlush() {
 /***/ }),
 
 /***/ 508:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 /*
 
@@ -1966,12 +1966,12 @@ module['exports'] = colors;
 
 colors.themes = {};
 
-var util = __nccwpck_require__(669);
-var ansiStyles = colors.styles = __nccwpck_require__(401);
+var util = __webpack_require__(669);
+var ansiStyles = colors.styles = __webpack_require__(401);
 var defineProps = Object.defineProperties;
 var newLineRegex = new RegExp(/[\r\n]+/g);
 
-colors.supportsColor = __nccwpck_require__(744).supportsColor;
+colors.supportsColor = __webpack_require__(744).supportsColor;
 
 if (typeof colors.enabled === 'undefined') {
   colors.enabled = colors.supportsColor() !== false;
@@ -2111,15 +2111,15 @@ var sequencer = function sequencer(map, str) {
 };
 
 // custom formatter methods
-colors.trap = __nccwpck_require__(173);
-colors.zalgo = __nccwpck_require__(393);
+colors.trap = __webpack_require__(173);
+colors.zalgo = __webpack_require__(393);
 
 // maps
 colors.maps = {};
-colors.maps.america = __nccwpck_require__(530);
-colors.maps.zebra = __nccwpck_require__(346);
-colors.maps.rainbow = __nccwpck_require__(120);
-colors.maps.random = __nccwpck_require__(243);
+colors.maps.america = __webpack_require__(530);
+colors.maps.zebra = __webpack_require__(346);
+colors.maps.rainbow = __webpack_require__(120);
+colors.maps.random = __webpack_require__(243);
 
 for (var map in colors.maps) {
   (function(map) {
@@ -2305,9 +2305,9 @@ module['exports'] = function zalgo(text, options) {
 /***/ }),
 
 /***/ 530:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-var colors = __nccwpck_require__(508);
+var colors = __webpack_require__(508);
 
 module['exports'] = (function() {
   return function(letter, i, exploded) {
@@ -2324,9 +2324,9 @@ module['exports'] = (function() {
 /***/ }),
 
 /***/ 120:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-var colors = __nccwpck_require__(508);
+var colors = __webpack_require__(508);
 
 module['exports'] = (function() {
   // RoY G BiV
@@ -2345,9 +2345,9 @@ module['exports'] = (function() {
 /***/ }),
 
 /***/ 243:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-var colors = __nccwpck_require__(508);
+var colors = __webpack_require__(508);
 
 module['exports'] = (function() {
   var available = ['underline', 'inverse', 'grey', 'yellow', 'red', 'green',
@@ -2364,9 +2364,9 @@ module['exports'] = (function() {
 /***/ }),
 
 /***/ 346:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
-var colors = __nccwpck_require__(508);
+var colors = __webpack_require__(508);
 
 module['exports'] = function(letter, i, exploded) {
   return i % 2 === 0 ? letter : colors.inverse(letter);
@@ -2503,7 +2503,7 @@ module.exports = function(flag, argv) {
 /***/ }),
 
 /***/ 744:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 /*
@@ -2533,8 +2533,8 @@ THE SOFTWARE.
 
 
 
-var os = __nccwpck_require__(87);
-var hasFlag = __nccwpck_require__(252);
+var os = __webpack_require__(87);
+var hasFlag = __webpack_require__(252);
 
 var env = process.env;
 
@@ -2662,7 +2662,7 @@ module.exports = {
 /***/ }),
 
 /***/ 584:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 //
 // Remark: Requiring this file will use the "safe" colors API,
@@ -2672,30 +2672,30 @@ module.exports = {
 //   colors.red("foo")
 //
 //
-var colors = __nccwpck_require__(508);
+var colors = __webpack_require__(508);
 module['exports'] = colors;
 
 
 /***/ }),
 
 /***/ 554:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-module.exports = __nccwpck_require__(198)
+module.exports = __webpack_require__(198)
 
 
 /***/ }),
 
 /***/ 541:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-var asap = __nccwpck_require__(826);
+var asap = __webpack_require__(826);
 
 function noop() {}
 
@@ -2911,12 +2911,12 @@ function doResolve(fn, promise) {
 /***/ }),
 
 /***/ 200:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-var Promise = __nccwpck_require__(541);
+var Promise = __webpack_require__(541);
 
 module.exports = Promise;
 Promise.prototype.done = function (onFulfilled, onRejected) {
@@ -2932,14 +2932,14 @@ Promise.prototype.done = function (onFulfilled, onRejected) {
 /***/ }),
 
 /***/ 667:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
 //This file contains the ES6 extensions to the core Promises/A+ API
 
-var Promise = __nccwpck_require__(541);
+var Promise = __webpack_require__(541);
 
 module.exports = Promise;
 
@@ -3047,12 +3047,12 @@ Promise.prototype['catch'] = function (onRejected) {
 /***/ }),
 
 /***/ 579:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-var Promise = __nccwpck_require__(541);
+var Promise = __webpack_require__(541);
 
 module.exports = Promise;
 Promise.prototype['finally'] = function (f) {
@@ -3071,23 +3071,23 @@ Promise.prototype['finally'] = function (f) {
 /***/ }),
 
 /***/ 198:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-module.exports = __nccwpck_require__(541);
-__nccwpck_require__(200);
-__nccwpck_require__(579);
-__nccwpck_require__(667);
-__nccwpck_require__(369);
-__nccwpck_require__(693);
+module.exports = __webpack_require__(541);
+__webpack_require__(200);
+__webpack_require__(579);
+__webpack_require__(667);
+__webpack_require__(369);
+__webpack_require__(693);
 
 
 /***/ }),
 
 /***/ 369:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
@@ -3095,8 +3095,8 @@ __nccwpck_require__(693);
 // This file contains then/promise specific extensions that are only useful
 // for node.js interop
 
-var Promise = __nccwpck_require__(541);
-var asap = __nccwpck_require__(307);
+var Promise = __webpack_require__(541);
+var asap = __webpack_require__(307);
 
 module.exports = Promise;
 
@@ -3225,12 +3225,12 @@ Promise.prototype.nodeify = function (callback, ctx) {
 /***/ }),
 
 /***/ 693:
-/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
 "use strict";
 
 
-var Promise = __nccwpck_require__(541);
+var Promise = __webpack_require__(541);
 
 module.exports = Promise;
 Promise.enableSynchronous = function () {
@@ -3396,7 +3396,7 @@ module.exports = require("vm");;
 /******/ 	var __webpack_module_cache__ = {};
 /******/ 	
 /******/ 	// The require function
-/******/ 	function __nccwpck_require__(moduleId) {
+/******/ 	function __webpack_require__(moduleId) {
 /******/ 		// Check if module is in cache
 /******/ 		if(__webpack_module_cache__[moduleId]) {
 /******/ 			return __webpack_module_cache__[moduleId].exports;
@@ -3411,7 +3411,7 @@ module.exports = require("vm");;
 /******/ 		// Execute the module function
 /******/ 		var threw = true;
 /******/ 		try {
-/******/ 			__webpack_modules__[moduleId](module, module.exports, __nccwpck_require__);
+/******/ 			__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
 /******/ 			threw = false;
 /******/ 		} finally {
 /******/ 			if(threw) delete __webpack_module_cache__[moduleId];
@@ -3424,10 +3424,10 @@ module.exports = require("vm");;
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
-/******/ 	__nccwpck_require__.ab = __dirname + "/";/************************************************************************/
+/******/ 	__webpack_require__.ab = __dirname + "/";/************************************************************************/
 /******/ 	// module exports must be returned from runtime so entry inlining is disabled
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
-/******/ 	return __nccwpck_require__(306);
+/******/ 	return __webpack_require__(306);
 /******/ })()
 ;
