@@ -2,7 +2,7 @@ module.exports =
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 601:
+/***/ 3710:
 /***/ ((module) => {
 
 "use strict";
@@ -10,7 +10,7 @@ module.exports = JSON.parse("{\"$schema\":\"http://json-schema.org/draft-07/sche
 
 /***/ }),
 
-/***/ 8938:
+/***/ 6959:
 /***/ ((module) => {
 
 "use strict";
@@ -18,13 +18,13 @@ module.exports = JSON.parse("{\"$schema\":\"http://json-schema.org/draft-07/sche
 
 /***/ }),
 
-/***/ 2133:
+/***/ 8630:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var KEYWORDS = __nccwpck_require__(2670);
+var KEYWORDS = __nccwpck_require__(696);
 
 module.exports = defineKeywords;
 
@@ -61,7 +61,7 @@ function get(keyword) {
 
 /***/ }),
 
-/***/ 2784:
+/***/ 2514:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -96,7 +96,7 @@ module.exports = function (minMax) {
   return function defFunc(ajv) {
     defFunc.definition = {
       type: 'string',
-      inline: __nccwpck_require__(7194),
+      inline: __nccwpck_require__(9687),
       statements: true,
       errors: 'full',
       dependencies: ['format'],
@@ -170,7 +170,7 @@ function compareDateTime(dt1, dt2) {
 
 /***/ }),
 
-/***/ 3733:
+/***/ 3662:
 /***/ ((module) => {
 
 "use strict";
@@ -193,7 +193,7 @@ function metaSchemaRef(ajv) {
 
 /***/ }),
 
-/***/ 5541:
+/***/ 2600:
 /***/ ((module) => {
 
 "use strict";
@@ -219,7 +219,7 @@ module.exports = function defFunc(ajv) {
 
 /***/ }),
 
-/***/ 7039:
+/***/ 2038:
 /***/ ((module) => {
 
 "use strict";
@@ -251,13 +251,13 @@ module.exports = function defFunc(ajv) {
 
 /***/ }),
 
-/***/ 1673:
+/***/ 918:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var util = __nccwpck_require__(3733);
+var util = __nccwpck_require__(3662);
 
 module.exports = function defFunc(ajv) {
   defFunc.definition = {
@@ -313,7 +313,7 @@ function unescapeJsonPointer(str) {
 
 /***/ }),
 
-/***/ 2541:
+/***/ 9436:
 /***/ ((module) => {
 
 "use strict";
@@ -378,7 +378,7 @@ function unescapeJsonPointer(str) {
 
 /***/ }),
 
-/***/ 7194:
+/***/ 9687:
 /***/ ((module) => {
 
 "use strict";
@@ -564,7 +564,7 @@ module.exports = function generate__formatLimit(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 3724:
+/***/ 7952:
 /***/ ((module) => {
 
 "use strict";
@@ -630,7 +630,7 @@ module.exports = function generate_patternRequired(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 608:
+/***/ 3073:
 /***/ ((module) => {
 
 "use strict";
@@ -767,7 +767,7 @@ module.exports = function generate_switch(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 2107:
+/***/ 3110:
 /***/ ((module) => {
 
 "use strict";
@@ -847,59 +847,59 @@ module.exports = function defFunc(ajv) {
 
 /***/ }),
 
-/***/ 6153:
+/***/ 1458:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-module.exports = __nccwpck_require__(2784)('Maximum');
+module.exports = __nccwpck_require__(2514)('Maximum');
 
 
 /***/ }),
 
-/***/ 4409:
+/***/ 1808:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-module.exports = __nccwpck_require__(2784)('Minimum');
+module.exports = __nccwpck_require__(2514)('Minimum');
 
 
 /***/ }),
 
-/***/ 2670:
+/***/ 696:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
 module.exports = {
-  'instanceof': __nccwpck_require__(2479),
-  range: __nccwpck_require__(9159),
-  regexp: __nccwpck_require__(3284),
-  'typeof': __nccwpck_require__(2608),
-  dynamicDefaults: __nccwpck_require__(2107),
-  allRequired: __nccwpck_require__(5541),
-  anyRequired: __nccwpck_require__(7039),
-  oneRequired: __nccwpck_require__(2135),
-  prohibited: __nccwpck_require__(3115),
-  uniqueItemProperties: __nccwpck_require__(3786),
-  deepProperties: __nccwpck_require__(1673),
-  deepRequired: __nccwpck_require__(2541),
-  formatMinimum: __nccwpck_require__(4409),
-  formatMaximum: __nccwpck_require__(6153),
-  patternRequired: __nccwpck_require__(5844),
-  'switch': __nccwpck_require__(682),
-  select: __nccwpck_require__(2308),
-  transform: __nccwpck_require__(159)
+  'instanceof': __nccwpck_require__(6066),
+  range: __nccwpck_require__(9415),
+  regexp: __nccwpck_require__(8608),
+  'typeof': __nccwpck_require__(6408),
+  dynamicDefaults: __nccwpck_require__(3110),
+  allRequired: __nccwpck_require__(2600),
+  anyRequired: __nccwpck_require__(2038),
+  oneRequired: __nccwpck_require__(3545),
+  prohibited: __nccwpck_require__(7582),
+  uniqueItemProperties: __nccwpck_require__(1761),
+  deepProperties: __nccwpck_require__(918),
+  deepRequired: __nccwpck_require__(9436),
+  formatMinimum: __nccwpck_require__(1808),
+  formatMaximum: __nccwpck_require__(1458),
+  patternRequired: __nccwpck_require__(2309),
+  'switch': __nccwpck_require__(2137),
+  select: __nccwpck_require__(8002),
+  transform: __nccwpck_require__(244)
 };
 
 
 /***/ }),
 
-/***/ 2479:
+/***/ 6066:
 /***/ ((module) => {
 
 "use strict";
@@ -965,7 +965,7 @@ module.exports = function defFunc(ajv) {
 
 /***/ }),
 
-/***/ 2135:
+/***/ 3545:
 /***/ ((module) => {
 
 "use strict";
@@ -997,7 +997,7 @@ module.exports = function defFunc(ajv) {
 
 /***/ }),
 
-/***/ 5844:
+/***/ 2309:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -1006,7 +1006,7 @@ module.exports = function defFunc(ajv) {
 module.exports = function defFunc(ajv) {
   defFunc.definition = {
     type: 'object',
-    inline: __nccwpck_require__(3724),
+    inline: __nccwpck_require__(7952),
     statements: true,
     errors: 'full',
     metaSchema: {
@@ -1026,7 +1026,7 @@ module.exports = function defFunc(ajv) {
 
 /***/ }),
 
-/***/ 3115:
+/***/ 7582:
 /***/ ((module) => {
 
 "use strict";
@@ -1058,7 +1058,7 @@ module.exports = function defFunc(ajv) {
 
 /***/ }),
 
-/***/ 9159:
+/***/ 9415:
 /***/ ((module) => {
 
 "use strict";
@@ -1102,7 +1102,7 @@ module.exports = function defFunc(ajv) {
 
 /***/ }),
 
-/***/ 3284:
+/***/ 8608:
 /***/ ((module) => {
 
 "use strict";
@@ -1146,13 +1146,13 @@ module.exports = function defFunc(ajv) {
 
 /***/ }),
 
-/***/ 2308:
+/***/ 8002:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var util = __nccwpck_require__(3733);
+var util = __nccwpck_require__(3662);
 
 module.exports = function defFunc(ajv) {
   if (!ajv._opts.$data) {
@@ -1233,13 +1233,13 @@ module.exports = function defFunc(ajv) {
 
 /***/ }),
 
-/***/ 682:
+/***/ 2137:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var util = __nccwpck_require__(3733);
+var util = __nccwpck_require__(3662);
 
 module.exports = function defFunc(ajv) {
   if (ajv.RULES.keywords.switch && ajv.RULES.keywords.if) return;
@@ -1247,7 +1247,7 @@ module.exports = function defFunc(ajv) {
   var metaSchemaRef = util.metaSchemaRef(ajv);
 
   defFunc.definition = {
-    inline: __nccwpck_require__(608),
+    inline: __nccwpck_require__(3073),
     statements: true,
     errors: 'full',
     metaSchema: {
@@ -1279,7 +1279,7 @@ module.exports = function defFunc(ajv) {
 
 /***/ }),
 
-/***/ 159:
+/***/ 244:
 /***/ ((module) => {
 
 "use strict";
@@ -1367,7 +1367,7 @@ module.exports = function defFunc (ajv) {
 
 /***/ }),
 
-/***/ 2608:
+/***/ 6408:
 /***/ ((module) => {
 
 "use strict";
@@ -1407,7 +1407,7 @@ module.exports = function defFunc(ajv) {
 
 /***/ }),
 
-/***/ 3786:
+/***/ 1761:
 /***/ ((module) => {
 
 "use strict";
@@ -1474,21 +1474,21 @@ function getScalarKeys(keys, schema) {
 
 /***/ }),
 
-/***/ 1414:
+/***/ 4415:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var compileSchema = __nccwpck_require__(1645)
-  , resolve = __nccwpck_require__(2630)
-  , Cache = __nccwpck_require__(7246)
-  , SchemaObject = __nccwpck_require__(7837)
-  , stableStringify = __nccwpck_require__(3600)
-  , formats = __nccwpck_require__(9290)
-  , rules = __nccwpck_require__(1665)
-  , $dataMetaSchema = __nccwpck_require__(6989)
-  , util = __nccwpck_require__(6057);
+var compileSchema = __nccwpck_require__(7598)
+  , resolve = __nccwpck_require__(2492)
+  , Cache = __nccwpck_require__(8424)
+  , SchemaObject = __nccwpck_require__(974)
+  , stableStringify = __nccwpck_require__(3138)
+  , formats = __nccwpck_require__(1067)
+  , rules = __nccwpck_require__(3066)
+  , $dataMetaSchema = __nccwpck_require__(8293)
+  , util = __nccwpck_require__(6569);
 
 module.exports = Ajv;
 
@@ -1505,14 +1505,14 @@ Ajv.prototype.errorsText = errorsText;
 Ajv.prototype._addSchema = _addSchema;
 Ajv.prototype._compile = _compile;
 
-Ajv.prototype.compileAsync = __nccwpck_require__(75);
-var customKeyword = __nccwpck_require__(8093);
+Ajv.prototype.compileAsync = __nccwpck_require__(3823);
+var customKeyword = __nccwpck_require__(8285);
 Ajv.prototype.addKeyword = customKeyword.add;
 Ajv.prototype.getKeyword = customKeyword.get;
 Ajv.prototype.removeKeyword = customKeyword.remove;
 Ajv.prototype.validateKeyword = customKeyword.validate;
 
-var errorClasses = __nccwpck_require__(2718);
+var errorClasses = __nccwpck_require__(5252);
 Ajv.ValidationError = errorClasses.Validation;
 Ajv.MissingRefError = errorClasses.MissingRef;
 Ajv.$dataMetaSchema = $dataMetaSchema;
@@ -1921,11 +1921,11 @@ function addFormat(name, format) {
 function addDefaultMetaSchema(self) {
   var $dataSchema;
   if (self._opts.$data) {
-    $dataSchema = __nccwpck_require__(601);
+    $dataSchema = __nccwpck_require__(3710);
     self.addMetaSchema($dataSchema, $dataSchema.$id, true);
   }
   if (self._opts.meta === false) return;
-  var metaSchema = __nccwpck_require__(8938);
+  var metaSchema = __nccwpck_require__(6959);
   if (self._opts.$data) metaSchema = $dataMetaSchema(metaSchema, META_SUPPORT_DATA);
   self.addMetaSchema(metaSchema, META_SCHEMA_ID, true);
   self._refs['http://json-schema.org/schema'] = META_SCHEMA_ID;
@@ -1988,7 +1988,7 @@ function noop() {}
 
 /***/ }),
 
-/***/ 7246:
+/***/ 8424:
 /***/ ((module) => {
 
 "use strict";
@@ -2022,13 +2022,13 @@ Cache.prototype.clear = function Cache_clear() {
 
 /***/ }),
 
-/***/ 75:
+/***/ 3823:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var MissingRefError = __nccwpck_require__(2718).MissingRef;
+var MissingRefError = __nccwpck_require__(5252).MissingRef;
 
 module.exports = compileAsync;
 
@@ -2120,13 +2120,13 @@ function compileAsync(schema, meta, callback) {
 
 /***/ }),
 
-/***/ 2718:
+/***/ 5252:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var resolve = __nccwpck_require__(2630);
+var resolve = __nccwpck_require__(2492);
 
 module.exports = {
   Validation: errorSubclass(ValidationError),
@@ -2162,13 +2162,13 @@ function errorSubclass(Subclass) {
 
 /***/ }),
 
-/***/ 9290:
+/***/ 1067:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var util = __nccwpck_require__(6057);
+var util = __nccwpck_require__(6569);
 
 var DATE = /^(\d\d\d\d)-(\d\d)-(\d\d)$/;
 var DAYS = [0,31,28,31,30,31,30,31,31,30,31,30,31];
@@ -2312,25 +2312,25 @@ function regex(str) {
 
 /***/ }),
 
-/***/ 1645:
+/***/ 7598:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var resolve = __nccwpck_require__(2630)
-  , util = __nccwpck_require__(6057)
-  , errorClasses = __nccwpck_require__(2718)
-  , stableStringify = __nccwpck_require__(3600);
+var resolve = __nccwpck_require__(2492)
+  , util = __nccwpck_require__(6569)
+  , errorClasses = __nccwpck_require__(5252)
+  , stableStringify = __nccwpck_require__(3138);
 
-var validateGenerator = __nccwpck_require__(6131);
+var validateGenerator = __nccwpck_require__(6183);
 
 /**
  * Functions below are used inside compiled validations function
  */
 
 var ucs2length = util.ucs2length;
-var equal = __nccwpck_require__(3933);
+var equal = __nccwpck_require__(5559);
 
 // this error is thrown by async schemas to return validation errors via exception
 var ValidationError = errorClasses.Validation;
@@ -2707,17 +2707,17 @@ function vars(arr, statement) {
 
 /***/ }),
 
-/***/ 2630:
+/***/ 2492:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var URI = __nccwpck_require__(4007)
-  , equal = __nccwpck_require__(3933)
-  , util = __nccwpck_require__(6057)
-  , SchemaObject = __nccwpck_require__(7837)
-  , traverse = __nccwpck_require__(2437);
+var URI = __nccwpck_require__(9246)
+  , equal = __nccwpck_require__(5559)
+  , util = __nccwpck_require__(6569)
+  , SchemaObject = __nccwpck_require__(974)
+  , traverse = __nccwpck_require__(4815);
 
 module.exports = resolve;
 
@@ -2985,14 +2985,14 @@ function resolveIds(schema) {
 
 /***/ }),
 
-/***/ 1665:
+/***/ 3066:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var ruleModules = __nccwpck_require__(4124)
-  , toHash = __nccwpck_require__(6057).toHash;
+var ruleModules = __nccwpck_require__(2599)
+  , toHash = __nccwpck_require__(6569).toHash;
 
 module.exports = function rules() {
   var RULES = [
@@ -3059,13 +3059,13 @@ module.exports = function rules() {
 
 /***/ }),
 
-/***/ 7837:
+/***/ 974:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var util = __nccwpck_require__(6057);
+var util = __nccwpck_require__(6569);
 
 module.exports = SchemaObject;
 
@@ -3076,7 +3076,7 @@ function SchemaObject(obj) {
 
 /***/ }),
 
-/***/ 9652:
+/***/ 1251:
 /***/ ((module) => {
 
 "use strict";
@@ -3104,7 +3104,7 @@ module.exports = function ucs2length(str) {
 
 /***/ }),
 
-/***/ 6057:
+/***/ 6569:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -3119,8 +3119,8 @@ module.exports = {
   toHash: toHash,
   getProperty: getProperty,
   escapeQuotes: escapeQuotes,
-  equal: __nccwpck_require__(3933),
-  ucs2length: __nccwpck_require__(9652),
+  equal: __nccwpck_require__(5559),
+  ucs2length: __nccwpck_require__(1251),
   varOccurences: varOccurences,
   varReplace: varReplace,
   schemaHasRules: schemaHasRules,
@@ -3351,7 +3351,7 @@ function unescapeJsonPointer(str) {
 
 /***/ }),
 
-/***/ 6989:
+/***/ 8293:
 /***/ ((module) => {
 
 "use strict";
@@ -3408,13 +3408,13 @@ module.exports = function (metaSchema, keywordsJsonPointers) {
 
 /***/ }),
 
-/***/ 5533:
+/***/ 5418:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-var metaSchema = __nccwpck_require__(8938);
+var metaSchema = __nccwpck_require__(6959);
 
 module.exports = {
   $id: 'https://github.com/ajv-validator/ajv/blob/master/lib/definition_schema.js',
@@ -3453,7 +3453,7 @@ module.exports = {
 
 /***/ }),
 
-/***/ 3711:
+/***/ 1954:
 /***/ ((module) => {
 
 "use strict";
@@ -3624,7 +3624,7 @@ module.exports = function generate__limit(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 5675:
+/***/ 7523:
 /***/ ((module) => {
 
 "use strict";
@@ -3712,7 +3712,7 @@ module.exports = function generate__limitItems(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 6051:
+/***/ 2931:
 /***/ ((module) => {
 
 "use strict";
@@ -3805,7 +3805,7 @@ module.exports = function generate__limitLength(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 7043:
+/***/ 8691:
 /***/ ((module) => {
 
 "use strict";
@@ -3893,7 +3893,7 @@ module.exports = function generate__limitProperties(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 3639:
+/***/ 3653:
 /***/ ((module) => {
 
 "use strict";
@@ -3943,7 +3943,7 @@ module.exports = function generate_allOf(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 1256:
+/***/ 1554:
 /***/ ((module) => {
 
 "use strict";
@@ -4024,7 +4024,7 @@ module.exports = function generate_anyOf(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 2660:
+/***/ 7146:
 /***/ ((module) => {
 
 "use strict";
@@ -4046,7 +4046,7 @@ module.exports = function generate_comment(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 184:
+/***/ 5753:
 /***/ ((module) => {
 
 "use strict";
@@ -4110,7 +4110,7 @@ module.exports = function generate_const(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 7419:
+/***/ 4535:
 /***/ ((module) => {
 
 "use strict";
@@ -4199,7 +4199,7 @@ module.exports = function generate_contains(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 7921:
+/***/ 5523:
 /***/ ((module) => {
 
 "use strict";
@@ -4435,7 +4435,7 @@ module.exports = function generate_custom(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 7299:
+/***/ 4778:
 /***/ ((module) => {
 
 "use strict";
@@ -4611,7 +4611,7 @@ module.exports = function generate_dependencies(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 9795:
+/***/ 1216:
 /***/ ((module) => {
 
 "use strict";
@@ -4685,7 +4685,7 @@ module.exports = function generate_enum(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 5801:
+/***/ 388:
 /***/ ((module) => {
 
 "use strict";
@@ -4843,7 +4843,7 @@ module.exports = function generate_format(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 4962:
+/***/ 7405:
 /***/ ((module) => {
 
 "use strict";
@@ -4954,7 +4954,7 @@ module.exports = function generate_if(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 4124:
+/***/ 2599:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -4962,40 +4962,40 @@ module.exports = function generate_if(it, $keyword, $ruleType) {
 
 //all requires must be explicit because browserify won't work with dynamic requires
 module.exports = {
-  '$ref': __nccwpck_require__(5746),
-  allOf: __nccwpck_require__(3639),
-  anyOf: __nccwpck_require__(1256),
-  '$comment': __nccwpck_require__(2660),
-  const: __nccwpck_require__(184),
-  contains: __nccwpck_require__(7419),
-  dependencies: __nccwpck_require__(7299),
-  'enum': __nccwpck_require__(9795),
-  format: __nccwpck_require__(5801),
-  'if': __nccwpck_require__(4962),
-  items: __nccwpck_require__(9623),
-  maximum: __nccwpck_require__(3711),
-  minimum: __nccwpck_require__(3711),
-  maxItems: __nccwpck_require__(5675),
-  minItems: __nccwpck_require__(5675),
-  maxLength: __nccwpck_require__(6051),
-  minLength: __nccwpck_require__(6051),
-  maxProperties: __nccwpck_require__(7043),
-  minProperties: __nccwpck_require__(7043),
-  multipleOf: __nccwpck_require__(9251),
-  not: __nccwpck_require__(7739),
-  oneOf: __nccwpck_require__(6857),
-  pattern: __nccwpck_require__(8099),
-  properties: __nccwpck_require__(9438),
-  propertyNames: __nccwpck_require__(3466),
-  required: __nccwpck_require__(8430),
-  uniqueItems: __nccwpck_require__(2207),
-  validate: __nccwpck_require__(6131)
+  '$ref': __nccwpck_require__(759),
+  allOf: __nccwpck_require__(3653),
+  anyOf: __nccwpck_require__(1554),
+  '$comment': __nccwpck_require__(7146),
+  const: __nccwpck_require__(5753),
+  contains: __nccwpck_require__(4535),
+  dependencies: __nccwpck_require__(4778),
+  'enum': __nccwpck_require__(1216),
+  format: __nccwpck_require__(388),
+  'if': __nccwpck_require__(7405),
+  items: __nccwpck_require__(5498),
+  maximum: __nccwpck_require__(1954),
+  minimum: __nccwpck_require__(1954),
+  maxItems: __nccwpck_require__(7523),
+  minItems: __nccwpck_require__(7523),
+  maxLength: __nccwpck_require__(2931),
+  minLength: __nccwpck_require__(2931),
+  maxProperties: __nccwpck_require__(8691),
+  minProperties: __nccwpck_require__(8691),
+  multipleOf: __nccwpck_require__(8842),
+  not: __nccwpck_require__(1619),
+  oneOf: __nccwpck_require__(2739),
+  pattern: __nccwpck_require__(251),
+  properties: __nccwpck_require__(5986),
+  propertyNames: __nccwpck_require__(632),
+  required: __nccwpck_require__(9888),
+  uniqueItems: __nccwpck_require__(7577),
+  validate: __nccwpck_require__(6183)
 };
 
 
 /***/ }),
 
-/***/ 9623:
+/***/ 5498:
 /***/ ((module) => {
 
 "use strict";
@@ -5143,7 +5143,7 @@ module.exports = function generate_items(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 9251:
+/***/ 8842:
 /***/ ((module) => {
 
 "use strict";
@@ -5231,7 +5231,7 @@ module.exports = function generate_multipleOf(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 7739:
+/***/ 1619:
 /***/ ((module) => {
 
 "use strict";
@@ -5323,7 +5323,7 @@ module.exports = function generate_not(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 6857:
+/***/ 2739:
 /***/ ((module) => {
 
 "use strict";
@@ -5404,7 +5404,7 @@ module.exports = function generate_oneOf(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 8099:
+/***/ 251:
 /***/ ((module) => {
 
 "use strict";
@@ -5487,7 +5487,7 @@ module.exports = function generate_pattern(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 9438:
+/***/ 5986:
 /***/ ((module) => {
 
 "use strict";
@@ -5830,7 +5830,7 @@ module.exports = function generate_properties(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 3466:
+/***/ 632:
 /***/ ((module) => {
 
 "use strict";
@@ -5919,7 +5919,7 @@ module.exports = function generate_propertyNames(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 5746:
+/***/ 759:
 /***/ ((module) => {
 
 "use strict";
@@ -6051,7 +6051,7 @@ module.exports = function generate_ref(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 8430:
+/***/ 9888:
 /***/ ((module) => {
 
 "use strict";
@@ -6329,7 +6329,7 @@ module.exports = function generate_required(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 2207:
+/***/ 7577:
 /***/ ((module) => {
 
 "use strict";
@@ -6423,7 +6423,7 @@ module.exports = function generate_uniqueItems(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 6131:
+/***/ 6183:
 /***/ ((module) => {
 
 "use strict";
@@ -6913,15 +6913,15 @@ module.exports = function generate_validate(it, $keyword, $ruleType) {
 
 /***/ }),
 
-/***/ 8093:
+/***/ 8285:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
 var IDENTIFIER = /^[a-z_$][a-z0-9_$-]*$/i;
-var customRuleCode = __nccwpck_require__(7921);
-var definitionSchema = __nccwpck_require__(5533);
+var customRuleCode = __nccwpck_require__(5523);
+var definitionSchema = __nccwpck_require__(5418);
 
 module.exports = {
   add: addKeyword,
@@ -7067,7 +7067,7 @@ function validateKeyword(definition, throwError) {
 
 /***/ }),
 
-/***/ 3933:
+/***/ 5559:
 /***/ ((module) => {
 
 "use strict";
@@ -7121,7 +7121,7 @@ module.exports = function equal(a, b) {
 
 /***/ }),
 
-/***/ 3600:
+/***/ 3138:
 /***/ ((module) => {
 
 "use strict";
@@ -7188,7 +7188,7 @@ module.exports = function (data, opts) {
 
 /***/ }),
 
-/***/ 2437:
+/***/ 4815:
 /***/ ((module) => {
 
 "use strict";
@@ -7285,7 +7285,7 @@ function escapeJsonPtr(str) {
 
 /***/ }),
 
-/***/ 3427:
+/***/ 4129:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -7299,7 +7299,7 @@ exports.default = void 0;
 const {
   stringHints,
   numberHints
-} = __nccwpck_require__(4226);
+} = __nccwpck_require__(4503);
 /** @typedef {import("json-schema").JSONSchema6} JSONSchema6 */
 
 /** @typedef {import("json-schema").JSONSchema7} JSONSchema7 */
@@ -8553,7 +8553,7 @@ exports.default = _default;
 
 /***/ }),
 
-/***/ 9839:
+/***/ 1032:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
@@ -8562,7 +8562,7 @@ exports.default = _default;
 const {
   validate,
   ValidationError
-} = __nccwpck_require__(1299);
+} = __nccwpck_require__(6134);
 
 module.exports = {
   validate,
@@ -8571,7 +8571,7 @@ module.exports = {
 
 /***/ }),
 
-/***/ 9884:
+/***/ 1468:
 /***/ ((__unused_webpack_module, exports) => {
 
 "use strict";
@@ -8671,7 +8671,7 @@ exports.default = _default;
 
 /***/ }),
 
-/***/ 2735:
+/***/ 679:
 /***/ ((module) => {
 
 "use strict";
@@ -8841,13 +8841,13 @@ module.exports = Range;
 
 /***/ }),
 
-/***/ 4226:
+/***/ 4503:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
 
-const Range = __nccwpck_require__(2735);
+const Range = __nccwpck_require__(679);
 /** @typedef {import("../validate").Schema} Schema */
 
 /**
@@ -8953,7 +8953,7 @@ module.exports.numberHints = function numberHints(schema, logic) {
 
 /***/ }),
 
-/***/ 1299:
+/***/ 6134:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
@@ -8970,16 +8970,16 @@ Object.defineProperty(exports, "ValidationError", ({
   }
 }));
 
-var _absolutePath = _interopRequireDefault(__nccwpck_require__(9884));
+var _absolutePath = _interopRequireDefault(__nccwpck_require__(1468));
 
-var _ValidationError = _interopRequireDefault(__nccwpck_require__(3427));
+var _ValidationError = _interopRequireDefault(__nccwpck_require__(4129));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 // Use CommonJS require for ajv libs so TypeScript consumers aren't locked into esModuleInterop (see #110).
-const Ajv = __nccwpck_require__(1414);
+const Ajv = __nccwpck_require__(4415);
 
-const ajvKeywords = __nccwpck_require__(2133);
+const ajvKeywords = __nccwpck_require__(8630);
 /** @typedef {import("json-schema").JSONSchema4} JSONSchema4 */
 
 /** @typedef {import("json-schema").JSONSchema6} JSONSchema6 */
@@ -9122,10 +9122,10 @@ function filterErrors(errors) {
 
 /***/ }),
 
-/***/ 4007:
+/***/ 9246:
 /***/ (function(__unused_webpack_module, exports) {
 
-/** @license URI.js v4.2.1 (c) 2011 Gary Court. License: http://github.com/garycourt/uri-js */
+/** @license URI.js v4.4.1 (c) 2011 Gary Court. License: http://github.com/garycourt/uri-js */
 (function (global, factory) {
 	 true ? factory(exports) :
 	0;
@@ -10087,9 +10087,9 @@ function _recomposeAuthority(components, options) {
             return "[" + $1 + ($2 ? "%25" + $2 : "") + "]";
         }));
     }
-    if (typeof components.port === "number") {
+    if (typeof components.port === "number" || typeof components.port === "string") {
         uriTokens.push(":");
-        uriTokens.push(components.port.toString(10));
+        uriTokens.push(String(components.port));
     }
     return uriTokens.length ? uriTokens.join("") : undefined;
 }
@@ -10292,8 +10292,9 @@ var handler = {
         return components;
     },
     serialize: function serialize(components, options) {
+        var secure = String(components.scheme).toLowerCase() === "https";
         //normalize the default port
-        if (components.port === (String(components.scheme).toLowerCase() !== "https" ? 80 : 443) || components.port === "") {
+        if (components.port === (secure ? 443 : 80) || components.port === "") {
             components.port = undefined;
         }
         //normalize the empty path
@@ -10312,6 +10313,57 @@ var handler$1 = {
     domainHost: handler.domainHost,
     parse: handler.parse,
     serialize: handler.serialize
+};
+
+function isSecure(wsComponents) {
+    return typeof wsComponents.secure === 'boolean' ? wsComponents.secure : String(wsComponents.scheme).toLowerCase() === "wss";
+}
+//RFC 6455
+var handler$2 = {
+    scheme: "ws",
+    domainHost: true,
+    parse: function parse(components, options) {
+        var wsComponents = components;
+        //indicate if the secure flag is set
+        wsComponents.secure = isSecure(wsComponents);
+        //construct resouce name
+        wsComponents.resourceName = (wsComponents.path || '/') + (wsComponents.query ? '?' + wsComponents.query : '');
+        wsComponents.path = undefined;
+        wsComponents.query = undefined;
+        return wsComponents;
+    },
+    serialize: function serialize(wsComponents, options) {
+        //normalize the default port
+        if (wsComponents.port === (isSecure(wsComponents) ? 443 : 80) || wsComponents.port === "") {
+            wsComponents.port = undefined;
+        }
+        //ensure scheme matches secure flag
+        if (typeof wsComponents.secure === 'boolean') {
+            wsComponents.scheme = wsComponents.secure ? 'wss' : 'ws';
+            wsComponents.secure = undefined;
+        }
+        //reconstruct path from resource name
+        if (wsComponents.resourceName) {
+            var _wsComponents$resourc = wsComponents.resourceName.split('?'),
+                _wsComponents$resourc2 = slicedToArray(_wsComponents$resourc, 2),
+                path = _wsComponents$resourc2[0],
+                query = _wsComponents$resourc2[1];
+
+            wsComponents.path = path && path !== '/' ? path : undefined;
+            wsComponents.query = query;
+            wsComponents.resourceName = undefined;
+        }
+        //forbid fragment component
+        wsComponents.fragment = undefined;
+        return wsComponents;
+    }
+};
+
+var handler$3 = {
+    scheme: "wss",
+    domainHost: handler$2.domainHost,
+    parse: handler$2.parse,
+    serialize: handler$2.serialize
 };
 
 var O = {};
@@ -10344,7 +10396,7 @@ function decodeUnreserved(str) {
     var decStr = pctDecChars(str);
     return !decStr.match(UNRESERVED) ? str : decStr;
 }
-var handler$2 = {
+var handler$4 = {
     scheme: "mailto",
     parse: function parse$$1(components, options) {
         var mailtoComponents = components;
@@ -10432,7 +10484,7 @@ var handler$2 = {
 
 var URN_PARSE = /^([^\:]+)\:(.*)/;
 //RFC 2141
-var handler$3 = {
+var handler$5 = {
     scheme: "urn",
     parse: function parse$$1(components, options) {
         var matches = components.path && components.path.match(URN_PARSE);
@@ -10471,7 +10523,7 @@ var handler$3 = {
 
 var UUID = /^[0-9A-Fa-f]{8}(?:\-[0-9A-Fa-f]{4}){3}\-[0-9A-Fa-f]{12}$/;
 //RFC 4122
-var handler$4 = {
+var handler$6 = {
     scheme: "urn:uuid",
     parse: function parse(urnComponents, options) {
         var uuidComponents = urnComponents;
@@ -10495,6 +10547,8 @@ SCHEMES[handler$1.scheme] = handler$1;
 SCHEMES[handler$2.scheme] = handler$2;
 SCHEMES[handler$3.scheme] = handler$3;
 SCHEMES[handler$4.scheme] = handler$4;
+SCHEMES[handler$5.scheme] = handler$5;
+SCHEMES[handler$6.scheme] = handler$6;
 
 exports.SCHEMES = SCHEMES;
 exports.pctEncChar = pctEncChar;
@@ -10555,6 +10609,6 @@ Object.defineProperty(exports, '__esModule', { value: true });
 /******/ 	// module exports must be returned from runtime so entry inlining is disabled
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
-/******/ 	return __nccwpck_require__(9839);
+/******/ 	return __nccwpck_require__(1032);
 /******/ })()
 ;

@@ -1,7 +1,11 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const ncc = require('@vercel/ncc')
 const { existsSync, readFileSync } = require('fs')
-const { basename, dirname, extname, join } = require('path')
+const { basename, dirname, extname, join, resolve } = require('path')
+const { createRequire } = require('module')
+
+// See taskfile.js bundleContext definition for explanation
+const bundleRequire = createRequire(resolve(__dirname, 'bundles', '_'))
 
 module.exports = function (task) {
   // eslint-disable-next-line require-yield
@@ -43,7 +47,7 @@ module.exports = function (task) {
 // It defines `name`, `main`, `author`, and `license`. It also defines `types`.
 // n.b. types intended for development usage only.
 function writePackageManifest(packageName, main, bundleName) {
-  const packagePath = require.resolve(packageName + '/package.json')
+  const packagePath = bundleRequire.resolve(packageName + '/package.json')
   let { name, author, license } = require(packagePath)
 
   const compiledPackagePath = join(

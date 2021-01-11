@@ -219,7 +219,6 @@
     "recast": "0.18.5",
     "sass-loader": "10.0.5",
     "schema-utils": "2.7.1",
-    "schema-utils3": "npm:schema-utils@3.0.0",
     "semver": "7.3.2",
     "send": "0.17.1",
     "source-map": "0.6.1",
@@ -233,9 +232,7 @@
     "unistore": "3.4.1",
     "web-vitals": "0.2.4",
     "webpack-sources": "1.4.3",
-    "webpack-sources2": "npm:webpack-sources@2.2.0",
-    "webpack": "4.44.1",
-    "webpack5": "npm:webpack@5"
+    "webpack": "4.44.1"
   },
   "engines": {
     "node": ">=10.13.0"

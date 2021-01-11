@@ -249,7 +249,7 @@ function getDefaultSassImplementation() {
   } // eslint-disable-next-line import/no-dynamic-require, global-require
 
 
-  return require(sassImplPkg);
+  return require(sassImplPkg)
 }
 /**
  * @public
