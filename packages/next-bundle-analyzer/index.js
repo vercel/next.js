@@ -1,4 +1,6 @@
-module.exports = ({ enabled = true, ...bundleAnalyzerOptions } = {}) => (nextConfig = {}) => {
+module.exports = ({ enabled = true, ...bundleAnalyzerOptions } = {}) => (
+  nextConfig = {}
+) => {
   return Object.assign({}, nextConfig, {
     webpack(config, options) {
       if (enabled) {
