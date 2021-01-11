@@ -128745,12 +128745,12 @@ module.exports = Queue;
 
 module.exports = function () {
   return {
-    default: __webpack_require__(16520),
     BasicEvaluatedExpression: __webpack_require__(98288),
     ModuleFilenameHelpers: __webpack_require__(79843),
     NodeTargetPlugin: __webpack_require__(62791),
     StringXor: __webpack_require__(74395),
     sources: __webpack_require__(55600),
+    webpack: __webpack_require__(16520),
   }
 }
 
