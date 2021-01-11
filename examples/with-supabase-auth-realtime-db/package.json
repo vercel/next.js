@@ -12,7 +12,11 @@
     "next": "latest",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
-    "sass": "^1.26.2",
-    "tailwindcss": "^1.1.4"
+    "sass": "^1.26.2"
+  },
+  "devDependencies": {
+    "autoprefixer": "10.1.0",
+    "postcss": "8.2.2",
+    "tailwindcss": "2.0.2"
   }
 }
