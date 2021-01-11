@@ -46,6 +46,11 @@ export async function getStaticProps() {
 }
 ```
 
+> **Note**: In order to keep server-only secrets safe, Next.js replaces `process.env.*` with the correct values
+> at build time. This means that `process.env` is not a standard JavaScript object, so you’re not able to
+> use [object destructuring](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment).
+> Environment variables must be referenced as e.g. `process.env.NEXT_PUBLIC_PUBLISHABLE_KEY`, _not_ `const { NEXT_PUBLIC_PUBLISHABLE_KEY } = process.env`.
+
 > **Note**: Next.js will automatically expand variables (`$VAR`) inside of your `.env*` files.
 > This allows you to reference other secrets, like so:
 >
@@ -81,7 +86,7 @@ In order to expose a variable to the browser you have to prefix the variable wit
 NEXT_PUBLIC_ANALYTICS_ID=abcdefghijk
 ```
 
-This loads `process.env.NEXT_PUBLIC_ANALYTICS_ID` into the Node.js environment automatically, allowing you to use it anywhere in your code. The value will be inlined into JavaScript sent to the browser because of the `NEXT_PUBLIC_` prefix.
+This loads `process.env.NEXT_PUBLIC_ANALYTICS_ID` into the Node.js environment automatically, allowing you to use it anywhere in your code. The value will be inlined into JavaScript sent to the browser because of the `NEXT_PUBLIC_` prefix. This inlining occurs at build time, so your various `NEXT_PUBLIC_` envs need to be set when the project is built.
 
 ```js
 // pages/index.js
