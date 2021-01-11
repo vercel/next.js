@@ -1,4 +1,4 @@
-import webpack from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { parse } from 'querystring'
 import { PluginMetaData, getPluginId } from '../../plugins/collect-plugins'
 

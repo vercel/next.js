@@ -1,7 +1,7 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { NodePath } from 'ast-types/lib/node-path'
 import { visit } from 'next/dist/compiled/recast'
-import webpack from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import {
   IConformanceAnomaly,
   IConformanceTestResult,

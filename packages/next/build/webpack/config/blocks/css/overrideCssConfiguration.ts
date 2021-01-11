@@ -1,4 +1,4 @@
-import webpack from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { getPostCssPlugins } from './plugins'
 
 export async function __overrideCssConfiguration(

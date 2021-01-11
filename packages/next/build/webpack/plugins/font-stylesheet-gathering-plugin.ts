@@ -1,4 +1,5 @@
-import webpack, {
+import {
+  webpack,
   BasicEvaluatedExpression,
   isWebpack5,
   sources,

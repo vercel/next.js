@@ -7,7 +7,8 @@ import semver from 'next/dist/compiled/semver'
 // @ts-ignore No typings yet
 import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
 import path from 'path'
-import webpack, {
+import {
+  webpack,
   isWebpack5,
   init as initWebpack,
 } from 'next/dist/compiled/webpack/webpack'

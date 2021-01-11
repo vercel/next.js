@@ -1,7 +1,8 @@
 import cssnanoSimple from 'cssnano-simple'
 import postcssScss from 'next/dist/compiled/postcss-scss'
 import postcss, { Parser } from 'postcss'
-import webpack, {
+import {
+  webpack,
   isWebpack5,
   onWebpackInit,
   sources,

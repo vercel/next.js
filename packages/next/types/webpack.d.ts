@@ -35,7 +35,7 @@ declare module 'next/dist/compiled/webpack/webpack' {
   export let GraphHelpers: any
   export function onWebpackInit(cb: () => void): void
   export let sources: typeof webpackSources
-  export default webpack
+  export { webpack }
 }
 
 declare module 'webpack' {

@@ -1,4 +1,5 @@
-import webpack, {
+import {
+  webpack,
   isWebpack5,
   onWebpackInit,
   sources,

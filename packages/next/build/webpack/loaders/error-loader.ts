@@ -1,7 +1,7 @@
 import chalk from 'chalk'
 import loaderUtils from 'loader-utils'
 import path from 'path'
-import webpack from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 
 const ErrorLoader: webpack.loader.Loader = function () {
   const options = loaderUtils.getOptions(this) || {}

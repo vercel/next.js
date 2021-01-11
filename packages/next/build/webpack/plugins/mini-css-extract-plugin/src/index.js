@@ -1,6 +1,7 @@
 /* eslint-disable class-methods-use-this */
 
-import webpack, {
+import {
+  webpack,
   isWebpack5,
   onWebpackInit,
   sources,

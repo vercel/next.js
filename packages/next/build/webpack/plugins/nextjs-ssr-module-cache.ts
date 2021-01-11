@@ -1,4 +1,5 @@
-import webpack, {
+import {
+  webpack,
   onWebpackInit,
   sources,
 } from 'next/dist/compiled/webpack/webpack'

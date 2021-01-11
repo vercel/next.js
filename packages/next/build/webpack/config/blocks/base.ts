@@ -1,6 +1,6 @@
 import isWslBoolean from 'next/dist/compiled/is-wsl'
 import curry from 'next/dist/compiled/lodash.curry'
-import webpack from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { ConfigurationContext } from '../utils'
 
 const isWindows = process.platform === 'win32' || isWslBoolean

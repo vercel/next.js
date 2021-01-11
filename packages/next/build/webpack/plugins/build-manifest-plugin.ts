@@ -1,5 +1,6 @@
 import devalue from 'next/dist/compiled/devalue'
-import webpack, {
+import {
+  webpack,
   isWebpack5,
   onWebpackInit,
   sources,

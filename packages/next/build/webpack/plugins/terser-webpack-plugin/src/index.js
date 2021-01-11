@@ -1,6 +1,7 @@
 // @ts-nocheck
 import * as path from 'path'
-import webpack, {
+import {
+  webpack,
   ModuleFilenameHelpers,
   isWebpack5,
   sources,

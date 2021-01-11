@@ -1,4 +1,4 @@
-import webpack from 'next/dist/compiled/webpack/webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { isWebpack5, GraphHelpers } from 'next/dist/compiled/webpack/webpack'
 
 /**

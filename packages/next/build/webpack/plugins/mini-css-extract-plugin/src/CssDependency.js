@@ -1,4 +1,5 @@
-import webpack, {
+import {
+  webpack,
   onWebpackInit,
   isWebpack5,
 } from 'next/dist/compiled/webpack/webpack'
