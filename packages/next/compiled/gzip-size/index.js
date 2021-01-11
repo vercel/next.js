@@ -3,9 +3,9 @@ module.exports =
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 724:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-var Stream = __webpack_require__(413)
+var Stream = __nccwpck_require__(413)
 var writeMethods = ["write", "end", "destroy"]
 var readMethods = ["resume", "pause"]
 var readEvents = ["data", "close"]
@@ -97,15 +97,15 @@ function duplex(writer, reader) {
 /***/ }),
 
 /***/ 656:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
 
-const fs = __webpack_require__(747);
-const stream = __webpack_require__(413);
-const zlib = __webpack_require__(761);
-const duplexer = __webpack_require__(724);
-const pify = __webpack_require__(490);
+const fs = __nccwpck_require__(747);
+const stream = __nccwpck_require__(413);
+const zlib = __nccwpck_require__(761);
+const duplexer = __nccwpck_require__(724);
+const pify = __nccwpck_require__(490);
 
 const getOptions = options => Object.assign({level: 9}, options);
 
@@ -266,7 +266,7 @@ module.exports = require("zlib");;
 /******/ 	var __webpack_module_cache__ = {};
 /******/ 	
 /******/ 	// The require function
-/******/ 	function __webpack_require__(moduleId) {
+/******/ 	function __nccwpck_require__(moduleId) {
 /******/ 		// Check if module is in cache
 /******/ 		if(__webpack_module_cache__[moduleId]) {
 /******/ 			return __webpack_module_cache__[moduleId].exports;
@@ -281,7 +281,7 @@ module.exports = require("zlib");;
 /******/ 		// Execute the module function
 /******/ 		var threw = true;
 /******/ 		try {
-/******/ 			__webpack_modules__[moduleId](module, module.exports, __webpack_require__);
+/******/ 			__webpack_modules__[moduleId](module, module.exports, __nccwpck_require__);
 /******/ 			threw = false;
 /******/ 		} finally {
 /******/ 			if(threw) delete __webpack_module_cache__[moduleId];
@@ -294,10 +294,10 @@ module.exports = require("zlib");;
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
-/******/ 	__webpack_require__.ab = __dirname + "/";/************************************************************************/
+/******/ 	__nccwpck_require__.ab = __dirname + "/";/************************************************************************/
 /******/ 	// module exports must be returned from runtime so entry inlining is disabled
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(656);
+/******/ 	return __nccwpck_require__(656);
 /******/ })()
 ;

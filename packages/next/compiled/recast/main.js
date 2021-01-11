@@ -3,7 +3,7 @@ module.exports =
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 781:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -11,9 +11,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var types_1 = __importDefault(__webpack_require__(361));
-var shared_1 = __importDefault(__webpack_require__(574));
-var es7_1 = __importDefault(__webpack_require__(8));
+var types_1 = __importDefault(__nccwpck_require__(361));
+var shared_1 = __importDefault(__nccwpck_require__(574));
+var es7_1 = __importDefault(__nccwpck_require__(8));
 function default_1(fork) {
     fork.use(es7_1.default);
     var types = fork.use(types_1.default);
@@ -269,7 +269,7 @@ module.exports = exports["default"];
 /***/ }),
 
 /***/ 716:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -277,8 +277,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var babel_core_1 = __importDefault(__webpack_require__(781));
-var flow_1 = __importDefault(__webpack_require__(544));
+var babel_core_1 = __importDefault(__nccwpck_require__(781));
+var flow_1 = __importDefault(__nccwpck_require__(544));
 function default_1(fork) {
     fork.use(babel_core_1.default);
     fork.use(flow_1.default);
@@ -290,7 +290,7 @@ module.exports = exports["default"];
 /***/ }),
 
 /***/ 201:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -298,8 +298,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var types_1 = __importDefault(__webpack_require__(361));
-var shared_1 = __importDefault(__webpack_require__(574));
+var types_1 = __importDefault(__nccwpck_require__(361));
+var shared_1 = __importDefault(__nccwpck_require__(574));
 function default_1(fork) {
     var types = fork.use(types_1.default);
     var Type = types.Type;
@@ -598,7 +598,7 @@ module.exports = exports["default"];
 /***/ }),
 
 /***/ 735:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -606,9 +606,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var types_1 = __importDefault(__webpack_require__(361));
-var shared_1 = __importDefault(__webpack_require__(574));
-var core_1 = __importDefault(__webpack_require__(201));
+var types_1 = __importDefault(__nccwpck_require__(361));
+var shared_1 = __importDefault(__nccwpck_require__(574));
+var core_1 = __importDefault(__nccwpck_require__(201));
 function default_1(fork) {
     fork.use(core_1.default);
     var types = fork.use(types_1.default);
@@ -641,7 +641,7 @@ module.exports = exports["default"];
 /***/ }),
 
 /***/ 933:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -649,9 +649,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var core_1 = __importDefault(__webpack_require__(201));
-var types_1 = __importDefault(__webpack_require__(361));
-var shared_1 = __importDefault(__webpack_require__(574));
+var core_1 = __importDefault(__nccwpck_require__(201));
+var types_1 = __importDefault(__nccwpck_require__(361));
+var shared_1 = __importDefault(__nccwpck_require__(574));
 function default_1(fork) {
     fork.use(core_1.default);
     var types = fork.use(types_1.default);
@@ -861,7 +861,7 @@ module.exports = exports["default"];
 /***/ }),
 
 /***/ 8:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -869,9 +869,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var es6_1 = __importDefault(__webpack_require__(933));
-var types_1 = __importDefault(__webpack_require__(361));
-var shared_1 = __importDefault(__webpack_require__(574));
+var es6_1 = __importDefault(__nccwpck_require__(933));
+var types_1 = __importDefault(__nccwpck_require__(361));
+var shared_1 = __importDefault(__nccwpck_require__(574));
 function default_1(fork) {
     fork.use(es6_1.default);
     var types = fork.use(types_1.default);
@@ -905,7 +905,7 @@ module.exports = exports["default"];
 /***/ }),
 
 /***/ 188:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -913,9 +913,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var es7_1 = __importDefault(__webpack_require__(8));
-var types_1 = __importDefault(__webpack_require__(361));
-var shared_1 = __importDefault(__webpack_require__(574));
+var es7_1 = __importDefault(__nccwpck_require__(8));
+var types_1 = __importDefault(__nccwpck_require__(361));
+var shared_1 = __importDefault(__nccwpck_require__(574));
 function default_1(fork) {
     fork.use(es7_1.default);
     var types = fork.use(types_1.default);
@@ -964,7 +964,7 @@ module.exports = exports["default"];
 /***/ }),
 
 /***/ 544:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -972,10 +972,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var es7_1 = __importDefault(__webpack_require__(8));
-var type_annotations_1 = __importDefault(__webpack_require__(61));
-var types_1 = __importDefault(__webpack_require__(361));
-var shared_1 = __importDefault(__webpack_require__(574));
+var es7_1 = __importDefault(__nccwpck_require__(8));
+var type_annotations_1 = __importDefault(__nccwpck_require__(61));
+var types_1 = __importDefault(__nccwpck_require__(361));
+var shared_1 = __importDefault(__nccwpck_require__(574));
 function default_1(fork) {
     fork.use(es7_1.default);
     fork.use(type_annotations_1.default);
@@ -1266,7 +1266,7 @@ module.exports = exports["default"];
 /***/ }),
 
 /***/ 894:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -1274,9 +1274,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var es7_1 = __importDefault(__webpack_require__(8));
-var types_1 = __importDefault(__webpack_require__(361));
-var shared_1 = __importDefault(__webpack_require__(574));
+var es7_1 = __importDefault(__nccwpck_require__(8));
+var types_1 = __importDefault(__nccwpck_require__(361));
+var shared_1 = __importDefault(__nccwpck_require__(574));
 function default_1(fork) {
     fork.use(es7_1.default);
     var types = fork.use(types_1.default);
@@ -1379,7 +1379,7 @@ module.exports = exports["default"];
 /***/ }),
 
 /***/ 61:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -1392,8 +1392,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var types_1 = __importDefault(__webpack_require__(361));
-var shared_1 = __importDefault(__webpack_require__(574));
+var types_1 = __importDefault(__nccwpck_require__(361));
+var shared_1 = __importDefault(__nccwpck_require__(574));
 function default_1(fork) {
     var types = fork.use(types_1.default);
     var def = types.Type.def;
@@ -1429,7 +1429,7 @@ module.exports = exports["default"];
 /***/ }),
 
 /***/ 284:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -1437,10 +1437,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var babel_core_1 = __importDefault(__webpack_require__(781));
-var type_annotations_1 = __importDefault(__webpack_require__(61));
-var types_1 = __importDefault(__webpack_require__(361));
-var shared_1 = __importDefault(__webpack_require__(574));
+var babel_core_1 = __importDefault(__nccwpck_require__(781));
+var type_annotations_1 = __importDefault(__nccwpck_require__(61));
+var types_1 = __importDefault(__nccwpck_require__(361));
+var shared_1 = __importDefault(__nccwpck_require__(574));
 function default_1(fork) {
     // Since TypeScript is parsed by Babylon, include the core Babylon types
     // but omit the Flow-related types.
@@ -1776,7 +1776,7 @@ module.exports = exports["default"];
 /***/ }),
 
 /***/ 997:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -1784,11 +1784,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var types_1 = __importDefault(__webpack_require__(361));
-var path_visitor_1 = __importDefault(__webpack_require__(504));
-var equiv_1 = __importDefault(__webpack_require__(500));
-var path_1 = __importDefault(__webpack_require__(890));
-var node_path_1 = __importDefault(__webpack_require__(724));
+var types_1 = __importDefault(__nccwpck_require__(361));
+var path_visitor_1 = __importDefault(__nccwpck_require__(504));
+var equiv_1 = __importDefault(__nccwpck_require__(500));
+var path_1 = __importDefault(__nccwpck_require__(890));
+var node_path_1 = __importDefault(__nccwpck_require__(724));
 function default_1(defs) {
     var fork = createFork();
     var types = fork.use(types_1.default);
@@ -1851,7 +1851,7 @@ var namedTypes;
 /***/ }),
 
 /***/ 500:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -1859,7 +1859,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var types_1 = __importDefault(__webpack_require__(361));
+var types_1 = __importDefault(__nccwpck_require__(361));
 function default_1(fork) {
     var types = fork.use(types_1.default);
     var getFieldNames = types.getFieldNames;
@@ -2015,7 +2015,7 @@ module.exports = exports["default"];
 /***/ }),
 
 /***/ 724:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -2023,9 +2023,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var types_1 = __importDefault(__webpack_require__(361));
-var path_1 = __importDefault(__webpack_require__(890));
-var scope_1 = __importDefault(__webpack_require__(712));
+var types_1 = __importDefault(__nccwpck_require__(361));
+var path_1 = __importDefault(__nccwpck_require__(890));
+var scope_1 = __importDefault(__nccwpck_require__(712));
 function nodePathPlugin(fork) {
     var types = fork.use(types_1.default);
     var n = types.namedTypes;
@@ -2436,7 +2436,7 @@ module.exports = exports["default"];
 /***/ }),
 
 /***/ 504:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -2444,8 +2444,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var types_1 = __importDefault(__webpack_require__(361));
-var node_path_1 = __importDefault(__webpack_require__(724));
+var types_1 = __importDefault(__nccwpck_require__(361));
+var node_path_1 = __importDefault(__nccwpck_require__(724));
 var hasOwn = Object.prototype.hasOwnProperty;
 function pathVisitorPlugin(fork) {
     var types = fork.use(types_1.default);
@@ -2789,7 +2789,7 @@ module.exports = exports["default"];
 /***/ }),
 
 /***/ 890:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -2797,7 +2797,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var types_1 = __importDefault(__webpack_require__(361));
+var types_1 = __importDefault(__nccwpck_require__(361));
 var Op = Object.prototype;
 var hasOwn = Op.hasOwnProperty;
 function pathPlugin(fork) {
@@ -3130,7 +3130,7 @@ module.exports = exports["default"];
 /***/ }),
 
 /***/ 712:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -3138,7 +3138,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var types_1 = __importDefault(__webpack_require__(361));
+var types_1 = __importDefault(__nccwpck_require__(361));
 var hasOwn = Object.prototype.hasOwnProperty;
 function scopePlugin(fork) {
     var types = fork.use(types_1.default);
@@ -3455,7 +3455,7 @@ module.exports = exports["default"];
 /***/ }),
 
 /***/ 574:
-/***/ (function(module, exports, __webpack_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
 ;
@@ -3463,7 +3463,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var types_1 = __importDefault(__webpack_require__(361));
+var types_1 = __importDefault(__nccwpck_require__(361));
 function default_1(fork) {
     var types = fork.use(types_1.default);
     var Type = types.Type;
@@ -4301,7 +4301,7 @@ exports.default = typesPlugin;
 /***/ }),
 
 /***/ 593:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -4309,17 +4309,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var fork_1 = __importDefault(__webpack_require__(997));
-var core_1 = __importDefault(__webpack_require__(201));
-var es6_1 = __importDefault(__webpack_require__(933));
-var es7_1 = __importDefault(__webpack_require__(8));
-var jsx_1 = __importDefault(__webpack_require__(894));
-var flow_1 = __importDefault(__webpack_require__(544));
-var esprima_1 = __importDefault(__webpack_require__(188));
-var babel_1 = __importDefault(__webpack_require__(716));
-var typescript_1 = __importDefault(__webpack_require__(284));
-var es_proposals_1 = __importDefault(__webpack_require__(735));
-var namedTypes_1 = __webpack_require__(895);
+var fork_1 = __importDefault(__nccwpck_require__(997));
+var core_1 = __importDefault(__nccwpck_require__(201));
+var es6_1 = __importDefault(__nccwpck_require__(933));
+var es7_1 = __importDefault(__nccwpck_require__(8));
+var jsx_1 = __importDefault(__nccwpck_require__(894));
+var flow_1 = __importDefault(__nccwpck_require__(544));
+var esprima_1 = __importDefault(__nccwpck_require__(188));
+var babel_1 = __importDefault(__nccwpck_require__(716));
+var typescript_1 = __importDefault(__nccwpck_require__(284));
+var es_proposals_1 = __importDefault(__nccwpck_require__(735));
+var namedTypes_1 = __nccwpck_require__(895);
 exports.namedTypes = namedTypes_1.namedTypes;
 var _a = fork_1.default([
     // This core module of AST types captures ES5 as it is parsed today by
@@ -11207,7 +11207,7 @@ exports.makeAccessor = makeAccessor;
 /***/ }),
 
 /***/ 998:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -11222,14 +11222,14 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var assert_1 = __importDefault(__webpack_require__(357));
-var types = __importStar(__webpack_require__(593));
+var assert_1 = __importDefault(__nccwpck_require__(357));
+var types = __importStar(__nccwpck_require__(593));
 var n = types.namedTypes;
 var isArray = types.builtInTypes.array;
 var isObject = types.builtInTypes.object;
-var lines_1 = __webpack_require__(687);
-var util_1 = __webpack_require__(721);
-var private_1 = __webpack_require__(495);
+var lines_1 = __nccwpck_require__(687);
+var util_1 = __nccwpck_require__(721);
+var private_1 = __nccwpck_require__(495);
 var childNodesCacheKey = private_1.makeUniqueKey();
 // TODO Move a non-caching implementation of this function into ast-types,
 // and implement a caching wrapper function here.
@@ -11523,7 +11523,7 @@ exports.printComments = printComments;
 /***/ }),
 
 /***/ 236:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -11538,12 +11538,12 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var assert_1 = __importDefault(__webpack_require__(357));
-var types = __importStar(__webpack_require__(593));
+var assert_1 = __importDefault(__nccwpck_require__(357));
+var types = __importStar(__nccwpck_require__(593));
 var n = types.namedTypes;
 var isArray = types.builtInTypes.array;
 var isNumber = types.builtInTypes.number;
-var util = __importStar(__webpack_require__(721));
+var util = __importStar(__nccwpck_require__(721));
 var FastPath = function FastPath(value) {
     assert_1.default.ok(this instanceof FastPath);
     this.stack = [value];
@@ -12077,7 +12077,7 @@ exports.default = FastPath;
 /***/ }),
 
 /***/ 687:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -12096,11 +12096,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var assert_1 = __importDefault(__webpack_require__(357));
-var source_map_1 = __importDefault(__webpack_require__(241));
-var options_1 = __webpack_require__(309);
-var util_1 = __webpack_require__(721);
-var mapping_1 = __importDefault(__webpack_require__(788));
+var assert_1 = __importDefault(__nccwpck_require__(357));
+var source_map_1 = __importDefault(__nccwpck_require__(241));
+var options_1 = __nccwpck_require__(309);
+var util_1 = __nccwpck_require__(721);
+var mapping_1 = __importDefault(__nccwpck_require__(788));
 var Lines = /** @class */ (function () {
     function Lines(infos, sourceFileName) {
         if (sourceFileName === void 0) { sourceFileName = null; }
@@ -12753,7 +12753,7 @@ var emptyLines = fromString("");
 /***/ }),
 
 /***/ 788:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -12761,8 +12761,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var assert_1 = __importDefault(__webpack_require__(357));
-var util_1 = __webpack_require__(721);
+var assert_1 = __importDefault(__nccwpck_require__(357));
+var util_1 = __nccwpck_require__(721);
 var Mapping = /** @class */ (function () {
     function Mapping(sourceLines, sourceLoc, targetLoc) {
         if (targetLoc === void 0) { targetLoc = sourceLoc; }
@@ -12963,17 +12963,17 @@ function skipChars(sourceLines, sourceFromPos, targetLines, targetFromPos, targe
 /***/ }),
 
 /***/ 309:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 var defaults = {
-    parser: __webpack_require__(685),
+    parser: __nccwpck_require__(685),
     tabWidth: 4,
     useTabs: false,
     reuseWhitespace: true,
-    lineTerminator: __webpack_require__(87).EOL || "\n",
+    lineTerminator: __nccwpck_require__(87).EOL || "\n",
     wrapColumn: 74,
     sourceFileName: null,
     sourceMapName: null,
@@ -13026,7 +13026,7 @@ exports.normalize = normalize;
 /***/ }),
 
 /***/ 382:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -13041,15 +13041,15 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var assert_1 = __importDefault(__webpack_require__(357));
-var types = __importStar(__webpack_require__(593));
+var assert_1 = __importDefault(__nccwpck_require__(357));
+var types = __importStar(__nccwpck_require__(593));
 var b = types.builders;
 var isObject = types.builtInTypes.object;
 var isArray = types.builtInTypes.array;
-var options_1 = __webpack_require__(309);
-var lines_1 = __webpack_require__(687);
-var comments_1 = __webpack_require__(998);
-var util = __importStar(__webpack_require__(721));
+var options_1 = __nccwpck_require__(309);
+var lines_1 = __nccwpck_require__(687);
+var comments_1 = __nccwpck_require__(998);
+var util = __importStar(__nccwpck_require__(721));
 function parse(source, options) {
     options = options_1.normalize(options);
     var lines = lines_1.fromString(source, options);
@@ -13076,7 +13076,7 @@ function parse(source, options) {
     // to avoid this fallback.
     var tokens = Array.isArray(ast.tokens)
         ? ast.tokens
-        : __webpack_require__(609).tokenize(sourceWithoutTabs, {
+        : __nccwpck_require__(609).tokenize(sourceWithoutTabs, {
             loc: true
         });
     // We will reattach the tokens array to the file object below.
@@ -13291,7 +13291,7 @@ TCp.findTokenRange = function (loc) {
 /***/ }),
 
 /***/ 844:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -13306,15 +13306,15 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var assert_1 = __importDefault(__webpack_require__(357));
-var linesModule = __importStar(__webpack_require__(687));
-var types = __importStar(__webpack_require__(593));
+var assert_1 = __importDefault(__nccwpck_require__(357));
+var linesModule = __importStar(__nccwpck_require__(687));
+var types = __importStar(__nccwpck_require__(593));
 var Printable = types.namedTypes.Printable;
 var Expression = types.namedTypes.Expression;
 var ReturnStatement = types.namedTypes.ReturnStatement;
 var SourceLocation = types.namedTypes.SourceLocation;
-var util_1 = __webpack_require__(721);
-var fast_path_1 = __importDefault(__webpack_require__(236));
+var util_1 = __nccwpck_require__(721);
+var fast_path_1 = __importDefault(__nccwpck_require__(236));
 var isObject = types.builtInTypes.object;
 var isArray = types.builtInTypes.array;
 var isString = types.builtInTypes.string;
@@ -13691,7 +13691,7 @@ function findChildReprints(newPath, oldPath, reprints) {
 /***/ }),
 
 /***/ 413:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -13706,17 +13706,17 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var assert_1 = __importDefault(__webpack_require__(357));
-var comments_1 = __webpack_require__(998);
-var lines_1 = __webpack_require__(687);
-var options_1 = __webpack_require__(309);
-var patcher_1 = __webpack_require__(844);
-var types = __importStar(__webpack_require__(593));
+var assert_1 = __importDefault(__nccwpck_require__(357));
+var comments_1 = __nccwpck_require__(998);
+var lines_1 = __nccwpck_require__(687);
+var options_1 = __nccwpck_require__(309);
+var patcher_1 = __nccwpck_require__(844);
+var types = __importStar(__nccwpck_require__(593));
 var namedTypes = types.namedTypes;
 var isString = types.builtInTypes.string;
 var isObject = types.builtInTypes.object;
-var fast_path_1 = __importDefault(__webpack_require__(236));
-var util = __importStar(__webpack_require__(721));
+var fast_path_1 = __importDefault(__nccwpck_require__(236));
+var util = __importStar(__nccwpck_require__(721));
 var PrintResult = function PrintResult(code, sourceMap) {
     assert_1.default.ok(this instanceof PrintResult);
     isString.assert(code);
@@ -15961,7 +15961,7 @@ function maybeAddSemicolon(lines) {
 /***/ }),
 
 /***/ 721:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -15976,10 +15976,10 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var assert_1 = __importDefault(__webpack_require__(357));
-var types = __importStar(__webpack_require__(593));
+var assert_1 = __importDefault(__nccwpck_require__(357));
+var types = __importStar(__nccwpck_require__(593));
 var n = types.namedTypes;
-var source_map_1 = __importDefault(__webpack_require__(241));
+var source_map_1 = __importDefault(__nccwpck_require__(241));
 var SourceMapConsumer = source_map_1.default.SourceMapConsumer;
 var SourceMapGenerator = source_map_1.default.SourceMapGenerator;
 var hasOwn = Object.prototype.hasOwnProperty;
@@ -16308,7 +16308,7 @@ exports.isTrailingCommaEnabled = isTrailingCommaEnabled;
 /***/ }),
 
 /***/ 313:
-/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
@@ -16323,12 +16323,12 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var fs_1 = __importDefault(__webpack_require__(747));
-var types = __importStar(__webpack_require__(593));
+var fs_1 = __importDefault(__nccwpck_require__(747));
+var types = __importStar(__nccwpck_require__(593));
 exports.types = types;
-var parser_1 = __webpack_require__(382);
+var parser_1 = __nccwpck_require__(382);
 exports.parse = parser_1.parse;
-var printer_1 = __webpack_require__(413);
+var printer_1 = __nccwpck_require__(413);
 /**
  * Traverse and potentially modify an abstract syntax tree using a
  * convenient visitor syntax:
@@ -16342,7 +16342,7 @@ var printer_1 = __webpack_require__(413);
  *     }
  *   });
  */
-var ast_types_1 = __webpack_require__(593);
+var ast_types_1 = __nccwpck_require__(593);
 exports.visit = ast_types_1.visit;
 /**
  * Reprint a modified syntax tree using as much of the original source
@@ -16389,7 +16389,7 @@ function runString(code, transformer, options) {
 /***/ }),
 
 /***/ 685:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
@@ -16401,10 +16401,10 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 //     parser: require("recast/parsers/esprima")
 //   });
 //
-var util_1 = __webpack_require__(721);
+var util_1 = __nccwpck_require__(721);
 function parse(source, options) {
     var comments = [];
-    var ast = __webpack_require__(609).parse(source, {
+    var ast = __nccwpck_require__(609).parse(source, {
         loc: true,
         locations: true,
         comment: true,
@@ -16462,7 +16462,7 @@ module.exports = require("os");;
 /******/ 	var __webpack_module_cache__ = {};
 /******/ 	
 /******/ 	// The require function
-/******/ 	function __webpack_require__(moduleId) {
+/******/ 	function __nccwpck_require__(moduleId) {
 /******/ 		// Check if module is in cache
 /******/ 		if(__webpack_module_cache__[moduleId]) {
 /******/ 			return __webpack_module_cache__[moduleId].exports;
@@ -16477,7 +16477,7 @@ module.exports = require("os");;
 /******/ 		// Execute the module function
 /******/ 		var threw = true;
 /******/ 		try {
-/******/ 			__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 			__webpack_modules__[moduleId].call(module.exports, module, module.exports, __nccwpck_require__);
 /******/ 			threw = false;
 /******/ 		} finally {
 /******/ 			if(threw) delete __webpack_module_cache__[moduleId];
@@ -16490,10 +16490,10 @@ module.exports = require("os");;
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
-/******/ 	__webpack_require__.ab = __dirname + "/";/************************************************************************/
+/******/ 	__nccwpck_require__.ab = __dirname + "/";/************************************************************************/
 /******/ 	// module exports must be returned from runtime so entry inlining is disabled
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(313);
+/******/ 	return __nccwpck_require__(313);
 /******/ })()
 ;
