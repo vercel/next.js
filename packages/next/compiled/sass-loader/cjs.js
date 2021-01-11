@@ -135,7 +135,7 @@ exports.default = void 0;
 
 var _path = _interopRequireDefault(__webpack_require__(622));
 
-var _schemaUtils = __webpack_require__(712);
+var _schemaUtils = __webpack_require__(286);
 
 var _loaderUtils = __webpack_require__(710);
 
@@ -704,6 +704,14 @@ module.exports = require("next/dist/compiled/neo-async");;
 
 /***/ }),
 
+/***/ 286:
+/***/ ((module) => {
+
+"use strict";
+module.exports = require("next/dist/compiled/schema-utils3");;
+
+/***/ }),
+
 /***/ 519:
 /***/ ((module) => {
 
@@ -725,14 +733,6 @@ module.exports = require("path");;
 
 "use strict";
 module.exports = require("sass");;
-
-/***/ }),
-
-/***/ 712:
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("schema-utils3");;
 
 /***/ }),
 

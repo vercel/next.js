@@ -431,11 +431,13 @@ export async function ncc_sass_loader(task, opts) {
     .ncc({
       packageName: 'sass-loader',
       customEmit(path) {
-        console.log(path)
         if (path.indexOf('node-sass') !== -1)
           return `eval("require.resolve('node-sass')")`
       },
-      externals: { ...externals, 'schema-utils': 'schema-utils3' },
+      externals: {
+        ...externals,
+        'schema-utils': 'next/dist/compiled/schema-utils3',
+      },
     })
     .target('compiled/sass-loader')
 }
