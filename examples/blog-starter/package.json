@@ -17,10 +17,10 @@
     "remark-html": "13.0.1"
   },
   "devDependencies": {
-    "autoprefixer": "10.0.4",
-    "postcss": "8.1.10",
+    "autoprefixer": "^10.2.1",
+    "postcss": "^8.2.4",
     "postcss-preset-env": "^6.7.0",
-    "tailwindcss": "2.0.1"
+    "tailwindcss": "^2.0.2"
   },
   "license": "MIT"
 }

@@ -38,7 +38,7 @@ Sign up to Supabase - [https://app.supabase.io](https://app.supabase.io) and cre
 
 Once your database has started, run the "Slack Clone" quickstart.
 
-![Slack Clone Quick Start](https://user-images.githubusercontent.com/10214025/88916135-1b1d7a00-d298-11ea-82e7-e2c18314e805.png)
+![Slack Clone Quick Start](./docs/quickstart.png)
 
 ### Step 3. Set up environment variables
 
