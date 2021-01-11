@@ -193,7 +193,6 @@ export default async function getBaseWebpackConfig(
     dev = false,
     isServer = false,
     pagesDir,
-    tracer,
     target = 'server',
     reactProductionProfiling = false,
     entrypoints,
@@ -205,7 +204,6 @@ export default async function getBaseWebpackConfig(
     isServer?: boolean
     pagesDir: string
     target?: string
-    tracer?: any
     reactProductionProfiling?: boolean
     entrypoints: WebpackEntrypoints
     rewrites: Rewrite[]
@@ -913,14 +911,13 @@ export default async function getBaseWebpackConfig(
     },
     plugins: [
       hasReactRefresh && new ReactRefreshWebpackPlugin(),
-      // Makes sure `Buffer` is polyfilled in client-side bundles (same behavior as webpack 4)
+      // Makes sure `Buffer` and `process` are polyfilled in client-side bundles (same behavior as webpack 4)
       isWebpack5 &&
         !isServer &&
-        new webpack.ProvidePlugin({ Buffer: ['buffer', 'Buffer'] }),
-      // Makes sure `process` is polyfilled in client-side bundles (same behavior as webpack 4)
-      isWebpack5 &&
-        !isServer &&
-        new webpack.ProvidePlugin({ process: ['process'] }),
+        new webpack.ProvidePlugin({
+          Buffer: [require.resolve('buffer'), 'Buffer'],
+          process: [require.resolve('process')],
+        }),
       // This plugin makes sure `output.filename` is used for entry chunks
       !isWebpack5 && new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
@@ -1078,10 +1075,7 @@ export default async function getBaseWebpackConfig(
           buildId,
           rewrites,
         }),
-      tracer &&
-        new ProfilingPlugin({
-          tracer,
-        }),
+      new ProfilingPlugin(),
       config.experimental.optimizeFonts &&
         !dev &&
         isServer &&
