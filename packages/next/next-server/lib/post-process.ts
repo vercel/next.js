@@ -1,8 +1,7 @@
 import { parse, HTMLElement } from 'node-html-parser'
 import { OPTIMIZED_FONT_PROVIDERS } from './constants'
 
-const MIDDLEWARE_TIME_BUDGET =
-  parseInt(process.env.__POST_PROCESS_MIDDLEWARE_TIME_BUDGET || '', 10) || 10
+// const MIDDLEWARE_TIME_BUDGET = parseInt(process.env.__POST_PROCESS_MIDDLEWARE_TIME_BUDGET || '', 10) || 10
 const MAXIMUM_IMAGE_PRELOADS = 2
 const IMAGE_PRELOAD_SIZE_THRESHOLD = 2500
 
@@ -68,14 +67,14 @@ async function processHTML(
   let document = html
   // Calls the middleware, with some instrumentation and logging
   async function callMiddleWare(middleware: PostProcessMiddleware) {
-    let timer = Date.now()
+    // let timer = Date.now()
     middleware.inspect(root, postProcessData, data)
     document = await middleware.mutate(document, postProcessData, data)
-    timer = Date.now() - timer
-    if (timer > MIDDLEWARE_TIME_BUDGET) {
-      // TODO: Identify a correct upper limit for the postprocess step
-      // and add a warning to disable the optimization
-    }
+    // timer = Date.now() - timer
+    // if (timer > MIDDLEWARE_TIME_BUDGET) {
+    // TODO: Identify a correct upper limit for the postprocess step
+    // and add a warning to disable the optimization
+    // }
     return
   }
 
