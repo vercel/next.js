@@ -491,6 +491,7 @@ export default class Server {
         : matchedPathname
 
       console.log({
+        routeMatches: req.headers['x-now-route-matches'],
         reqUrlIsDataUrl,
         matchedPathIsDataUrl,
         isDataUrl,
