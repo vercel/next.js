@@ -1,5 +1,6 @@
 #!/bin/bash
 
+yarn --cwd packages/next/bundles
 yarn --cwd packages/next ncc-compiled
 
 # Make sure to exit with 1 if there are changes after running ncc-compiled
