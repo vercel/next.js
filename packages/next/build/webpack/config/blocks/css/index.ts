@@ -78,10 +78,7 @@ export const css = curry(async function css(
   const postCssPlugins = await getPostCssPlugins(
     ctx.rootDirectory,
     ctx.isProduction,
-    // TODO: In the future, we should stop supporting old CSS setups and
-    // unconditionally inject ours. When that happens, we should remove this
-    // function argument.
-    true
+    !ctx.future.strictPostcssConfiguration
   )
 
   // CSS cannot be imported in _document. This comes before everything because
