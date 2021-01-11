@@ -1,18 +1,14 @@
 {
-  "name": "with-firebase-cloud-messaging",
+  "name": "pnpm-app",
   "version": "1.0.0",
+  "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "firebase": "^7.6.2",
-    "localforage": "^1.7.3",
-    "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
-  },
-  "devDependencies": {},
-  "license": "MIT"
+  }
 }
