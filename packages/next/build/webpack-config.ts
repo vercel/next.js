@@ -207,7 +207,8 @@ export default async function getBaseWebpackConfig(
 ): Promise<webpack.Configuration> {
   initWebpack(
     config.future?.webpack5 ||
-      (config.future?.webpack5 !== false && Number(process.env.NEXT_WEBPACK5))
+      (config.future?.webpack5 !== false &&
+        Number(process.env.NEXT_WEBPACK5) > 0)
   )
 
   let plugins: PluginMetaData[] = []
