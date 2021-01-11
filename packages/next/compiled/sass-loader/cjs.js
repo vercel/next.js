@@ -249,7 +249,7 @@ function getDefaultSassImplementation() {
   } // eslint-disable-next-line import/no-dynamic-require, global-require
 
 
-  return require(sassImplPkg)
+  return require(sassImplPkg);
 }
 /**
  * @public
@@ -725,14 +725,6 @@ module.exports = require("next/dist/compiled/semver");;
 
 "use strict";
 module.exports = require("path");;
-
-/***/ }),
-
-/***/ 261:
-/***/ ((module) => {
-
-"use strict";
-module.exports = require("sass");;
 
 /***/ }),
 
