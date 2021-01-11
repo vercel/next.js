@@ -1,7 +1,7 @@
 import dynamic from 'next/dynamic'
 import { Suspense } from 'react'
 import { Canvas } from 'react-three-fiber'
-import { OrbitControls, StandardEffects } from 'drei'
+import { OrbitControls } from 'drei'
 
 const Bird = dynamic(() => import('../components/Bird'), { ssr: false })
 
@@ -41,7 +41,6 @@ const BirdsPage = (props) => {
         <OrbitControls />
         <Suspense fallback={null}>
           <Birds />
-          <StandardEffects smaa />
         </Suspense>
       </Canvas>
     </>
