@@ -77,6 +77,10 @@ module.exports = (
   // Default to production mode if not `test` nor `development`:
   const isProduction = !(isTest || isDevelopment)
 
+  const isBabelLoader = api.caller(
+    (caller: any) => !!caller && caller.name === 'babel-loader'
+  )
+
   const useJsxRuntime =
     options['preset-react']?.runtime === 'automatic' ||
     (Boolean(api.caller((caller: any) => !!caller && caller.hasJsxRuntime)) &&
@@ -180,7 +184,7 @@ module.exports = (
           helpers: true,
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
-          absoluteRuntime: process.versions.pnp
+          absoluteRuntime: isBabelLoader
             ? dirname(require.resolve('@babel/runtime/package.json'))
             : undefined,
           ...options['transform-runtime'],
