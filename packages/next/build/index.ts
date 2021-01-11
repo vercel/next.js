@@ -72,6 +72,7 @@ import createSpinner from './spinner'
 import { traceAsyncFn, traceFn, tracer } from './tracer'
 import {
   collectPages,
+  detectConflictingPaths,
   getJsPageSizeInKb,
   getNamedExports,
   hasCustomGetInitialProps,
@@ -870,6 +871,15 @@ export default async function build(
     await traceAsyncFn(tracer.startSpan('static-generation'), async () => {
       if (staticPages.size > 0 || ssgPages.size > 0 || useStatic404) {
         const combinedPages = [...staticPages, ...ssgPages]
+
+        detectConflictingPaths(
+          [
+            ...combinedPages,
+            ...pageKeys.filter((page) => !combinedPages.includes(page)),
+          ],
+          ssgPages,
+          additionalSsgPaths
+        )
         const exportApp = require('../export').default
         const exportOptions = {
           silent: false,
