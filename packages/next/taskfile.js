@@ -430,7 +430,8 @@ export async function ncc_sass_loader(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('sass-loader')))
     .ncc({
       packageName: 'sass-loader',
-      customEmit(path) {
+      customEmit(path, isRequire) {
+        if (isRequire && path === 'sass') return false
         if (path.indexOf('node-sass') !== -1)
           return `eval("require.resolve('node-sass')")`
       },
