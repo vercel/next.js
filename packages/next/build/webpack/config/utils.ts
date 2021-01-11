@@ -1,4 +1,5 @@
 import webpack from 'webpack'
+import { NextConfig } from '../../../next-server/server/config'
 
 export type ConfigurationContext = {
   rootDirectory: string
@@ -14,6 +15,8 @@ export type ConfigurationContext = {
 
   sassOptions: any
   productionBrowserSourceMaps: boolean
+
+  future: NextConfig['future']
 }
 
 export type ConfigurationFn = (
