@@ -404,16 +404,6 @@ export async function ncc_recast(task, opts) {
     .target('compiled/recast')
 }
 // eslint-disable-next-line camelcase
-// NB: Used by other dependencies, but Vercel version is a duplicate
-// version so can be inlined anyway (although may change in future)
-externals['resolve'] = 'next/dist/compiled/resolve'
-export async function ncc_resolve(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('resolve')))
-    .ncc({ packageName: 'resolve', externals })
-    .target('compiled/resolve')
-}
-// eslint-disable-next-line camelcase
 externals['schema-utils'] = 'next/dist/compiled/schema-utils'
 export async function ncc_schema_utils(task, opts) {
   await task
@@ -576,7 +566,6 @@ export async function ncc(task) {
       'ncc_postcss_preset_env',
       'ncc_postcss_scss',
       'ncc_recast',
-      'ncc_resolve',
       'ncc_schema_utils',
       'ncc_send',
       'ncc_source_map',

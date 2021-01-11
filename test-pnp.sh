@@ -1,7 +1,10 @@
 declare -a testCases=(
   "with-typescript"
   "with-next-sass"
+  # Tests @next/mdx
   "with-mdx"
+  # Tests babel config
+  "with-styled-components"
 )
 
 set -e
@@ -25,6 +28,7 @@ do
   touch yarn.lock
   yarn set version berry
   yarn config set pnpFallbackMode none
+  yarn config set enableGlobalCache true
   yarn link --all --private -r ../..
 
   yarn build

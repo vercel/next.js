@@ -1,7 +1,6 @@
 import findUp from 'next/dist/compiled/find-up'
 import { promises } from 'fs'
 import path from 'path'
-import resolve from 'next/dist/compiled/resolve/index.js'
 import { execOnce } from '../../next-server/lib/utils'
 
 const { version } = require('next/package.json')
@@ -213,10 +212,7 @@ async function _collectPlugins(
     nextPluginNames.map((name) =>
       collectPluginMeta(
         env,
-        resolve.sync(path.join(name, 'package.json'), {
-          basedir: dir,
-          preserveSymlinks: true,
-        }),
+        require.resolve(path.join(name, 'package.json'), { paths: [dir] }),
         name,
         version
       )
