@@ -18,7 +18,6 @@ import {
 import { fileExists } from '../lib/file-exists'
 import { getPackageVersion } from '../lib/get-package-version'
 import { Rewrite } from '../lib/load-custom-routes'
-import { resolveRequest } from '../lib/resolve-request'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -306,7 +305,7 @@ export default async function getBaseWebpackConfig(
 
   let typeScriptPath: string | undefined
   try {
-    typeScriptPath = resolveRequest('typescript', `${dir}/`)
+    typeScriptPath = require.resolve('typescript', { paths: [dir] })
   } catch (_) {}
   const tsConfigPath = path.join(dir, 'tsconfig.json')
   const useTypeScript = Boolean(
@@ -607,7 +606,7 @@ export default async function getBaseWebpackConfig(
     // exist.
     let res: string
     try {
-      res = resolveRequest(request, `${context}/`)
+      res = require.resolve(request, { paths: [context] })
     } catch (err) {
       // If the request cannot be resolved, we need to tell webpack to
       // "bundle" it so that webpack shows an error (that it cannot be
@@ -645,7 +644,7 @@ export default async function getBaseWebpackConfig(
       // we need to bundle the code (even if it _should_ be external).
       let baseRes: string | null
       try {
-        baseRes = resolveRequest(request, `${dir}/`)
+        baseRes = require.resolve(request, { paths: [dir] })
       } catch (err) {
         baseRes = null
       }
@@ -1420,29 +1419,32 @@ export default async function getBaseWebpackConfig(
         try {
           // Resolve the version of `@zeit/next-css` as depended on by the Sass,
           // Less or Stylus plugin.
-          const correctNextCss = resolveRequest(
-            '@zeit/next-css',
-            isCss
-              ? // Resolve `@zeit/next-css` from the base directory
-                `${dir}/`
-              : // Else, resolve it from the specific plugins
-                require.resolve(
-                  isSass
-                    ? '@zeit/next-sass'
-                    : isLess
-                    ? '@zeit/next-less'
-                    : isStylus
-                    ? '@zeit/next-stylus'
-                    : 'next'
-                )
-          )
+          const correctNextCss = require.resolve('@zeit/next-css', {
+            paths: [
+              isCss
+                ? // Resolve `@zeit/next-css` from the base directory
+                  dir
+                : // Else, resolve it from the specific plugins
+                  require.resolve(
+                    isSass
+                      ? '@zeit/next-sass'
+                      : isLess
+                      ? '@zeit/next-less'
+                      : isStylus
+                      ? '@zeit/next-stylus'
+                      : 'next'
+                  ),
+            ],
+          })
 
           // If we found `@zeit/next-css` ...
           if (correctNextCss) {
             // ... resolve the version of `css-loader` shipped with that
             // package instead of whichever was hoisted highest in your
             // `node_modules` tree.
-            const correctCssLoader = resolveRequest(use.loader, correctNextCss)
+            const correctCssLoader = require.resolve(use.loader, {
+              paths: [correctNextCss],
+            })
             if (correctCssLoader) {
               // We saved the user from a failed build!
               use.loader = correctCssLoader
