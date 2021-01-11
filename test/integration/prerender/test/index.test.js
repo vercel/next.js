@@ -58,7 +58,7 @@ const startServer = async (optEnv = {}) => {
 const expectedManifestRoutes = () => ({
   '/': {
     dataRoute: `/_next/data/${buildId}/index.json`,
-    initialRevalidateSeconds: 1,
+    initialRevalidateSeconds: 2,
     srcRoute: null,
   },
   '/blog/[post3]': {
