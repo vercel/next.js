@@ -32,6 +32,16 @@ export type NextConfig = { [key: string]: any } & {
 
   trailingSlash?: boolean
 
+  api?: {
+    externalResolver?: boolean
+    bodyParser?:
+      | {
+          sizeLimit?: string | number
+        }
+      | boolean
+      | null
+  } | null
+
   future: {
     strictPostcssConfiguration: boolean
     excludeDefaultMomentLocales: boolean

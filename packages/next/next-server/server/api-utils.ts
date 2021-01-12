@@ -10,6 +10,7 @@ import { interopDefault } from './load-components'
 import { Params } from './router'
 import { sendEtagResponse } from './send-payload'
 import generateETag from 'etag'
+import { NextConfig } from './config'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -27,7 +28,8 @@ export async function apiResolver(
   resolverModule: any,
   apiContext: __ApiPreviewProps,
   propagateError: boolean,
-  onError?: ({ err }: { err: any }) => Promise<void>
+  onError?: ({ err }: { err: any }) => Promise<void>,
+  nextConfig?: NextConfig
 ) {
   const apiReq = req as NextApiRequest
   const apiRes = res as NextApiResponse
@@ -39,8 +41,12 @@ export async function apiResolver(
       return
     }
     const config: PageConfig = resolverModule.config || {}
-    const bodyParser = config.api?.bodyParser !== false
-    const externalResolver = config.api?.externalResolver || false
+    const bodyParser =
+      typeof config.api?.bodyParser !== 'undefined'
+        ? config.api.bodyParser
+        : nextConfig?.api?.bodyParser
+    const externalResolver =
+      config.api?.externalResolver || nextConfig?.api?.externalResoler || false
 
     // Parsing of cookies
     setLazyProp({ req: apiReq }, 'cookies', getCookieParser(req))
@@ -56,13 +62,8 @@ export async function apiResolver(
     )
 
     // Parsing of body
-    if (bodyParser && !apiReq.body) {
-      apiReq.body = await parseBody(
-        apiReq,
-        config.api && config.api.bodyParser && config.api.bodyParser.sizeLimit
-          ? config.api.bodyParser.sizeLimit
-          : '1mb'
-      )
+    if (bodyParser !== false && !apiReq.body) {
+      apiReq.body = await parseBody(apiReq, bodyParser.sizeLimit || '1mb')
     }
 
     apiRes.status = (statusCode) => sendStatusCode(apiRes, statusCode)
