@@ -1,8 +1,8 @@
 import {
   webpack,
   BasicEvaluatedExpression,
+  RawSource,
   isWebpack5,
-  sources,
 } from 'next/dist/compiled/webpack/webpack'
 import { namedTypes } from 'ast-types'
 import {
@@ -15,9 +15,6 @@ import {
   FONT_MANIFEST,
   OPTIMIZED_FONT_PROVIDERS,
 } from '../../../next-server/lib/constants'
-
-// @ts-ignore: TODO: remove ignore when webpack 5 is stable
-const { RawSource } = webpack.sources || sources
 
 async function minifyCss(css: string): Promise<string> {
   return new Promise((resolve) =>

@@ -2,8 +2,7 @@ import devalue from 'next/dist/compiled/devalue'
 import {
   webpack,
   isWebpack5,
-  onWebpackInit,
-  sources,
+  RawSource,
 } from 'next/dist/compiled/webpack/webpack'
 import {
   BUILD_MANIFEST,
@@ -20,11 +19,6 @@ import { Rewrite } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../next-server/lib/router/utils'
 import { tracer, traceFn } from '../../tracer'
 import { spans } from './profiling-plugin'
-// @ts-ignore: TODO: remove ignore when webpack 5 is stable
-let RawSource: typeof sources.RawSource
-onWebpackInit(function () {
-  ;({ RawSource } = (webpack as any).sources || sources)
-})
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 

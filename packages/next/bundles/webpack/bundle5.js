@@ -6,7 +6,8 @@ module.exports = function () {
     ModuleFilenameHelpers: require('webpack5/lib/ModuleFilenameHelpers'),
     NodeTargetPlugin: require('webpack5/lib/node/NodeTargetPlugin'),
     StringXor: require('webpack5/lib/util/StringXor'),
-    sources: require('webpack-sources'),
+    RawSource: require('webpack5').sources.RawSource,
+    SourceMapSource: require('webpack5').sources.SourceMapSource,
     webpack: require('webpack5'),
   }
 }

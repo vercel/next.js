@@ -24,15 +24,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 import {
   webpack,
   isWebpack5,
-  onWebpackInit,
-  sources,
+  RawSource,
 } from 'next/dist/compiled/webpack/webpack'
-
-// @ts-ignore: TODO: remove ignore when webpack 5 is stable
-let RawSource: typeof sources.RawSource
-onWebpackInit(function () {
-  ;({ RawSource } = (webpack as any).sources || sources)
-})
 
 function getModulesIterable(compilation: any, chunk: any) {
   if (isWebpack5) {

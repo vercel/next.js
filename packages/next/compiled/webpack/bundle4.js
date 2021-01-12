@@ -105710,7 +105710,8 @@ module.exports = function () {
     NodeTargetPlugin: __webpack_require__(59743),
     ModuleFilenameHelpers: __webpack_require__(71474),
     GraphHelpers: __webpack_require__(32973),
-    sources: __webpack_require__(53665),
+    RawSource: __webpack_require__(53665).RawSource,
+    SourceMapSource: __webpack_require__(53665).SourceMapSource,
     webpack: __webpack_require__(92929),
   }
 }

@@ -1,19 +1,12 @@
 import {
   webpack,
   isWebpack5,
-  onWebpackInit,
-  sources,
+  RawSource,
 } from 'next/dist/compiled/webpack/webpack'
 import { PAGES_MANIFEST } from '../../../next-server/lib/constants'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 
 export type PagesManifest = { [page: string]: string }
-
-// @ts-ignore: TODO: remove ignore when webpack 5 is stable
-let RawSource: typeof sources.RawSource
-onWebpackInit(function () {
-  ;({ RawSource } = (webpack as any).sources || sources)
-})
 
 // This plugin creates a pages-manifest.json from page entrypoints.
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR
