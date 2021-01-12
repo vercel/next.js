@@ -12,7 +12,6 @@ import {
   isWebpack5,
   init as initWebpack,
 } from 'next/dist/compiled/webpack/webpack'
-// eslint-disable-next-line import/no-extraneous-dependencies
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
