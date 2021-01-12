@@ -365,6 +365,17 @@ export default class Server {
         matchedPathnameNoExt,
       })
 
+      if (i18n) {
+        const localePathResult = normalizeLocalePath(
+          matchedPathname || '/',
+          i18n.locales
+        )
+
+        if (localePathResult.detectedLocale) {
+          parsedUrl.query.__nextLocale = localePathResult.detectedLocale
+        }
+      }
+
       // interpolate dynamic params and normalize URL if needed
       if (isDynamicRoute(matchedPathnameNoExt)) {
         const utils = getUtils({
@@ -580,10 +591,12 @@ export default class Server {
       parsedUrl.query.__nextDefaultLocale =
         detectedDomain?.defaultLocale || i18n.defaultLocale
 
-      parsedUrl.query.__nextLocale =
-        localePathResult.detectedLocale ||
-        detectedDomain?.defaultLocale ||
-        defaultLocale
+      if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
+        parsedUrl.query.__nextLocale =
+          localePathResult.detectedLocale ||
+          detectedDomain?.defaultLocale ||
+          defaultLocale
+      }
     }
 
     res.statusCode = 200
