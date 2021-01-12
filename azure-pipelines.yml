@@ -52,13 +52,13 @@ stages:
             inputs:
               versionSpec: $(node_version)
             displayName: 'Install Node.js'
-          # - task: Cache@2
-          #   inputs:
-          #     # use deterministic cache key that is specific
-          #     # to this test run
-          #     key: $(Build.SourceVersion)
-          #     path: $(System.DefaultWorkingDirectory)
-          #   displayName: Cache Build
+          - task: Cache@2
+            inputs:
+              # use deterministic cache key that is specific
+              # to this test run
+              key: $(Build.SourceVersion)
+              path: $(System.DefaultWorkingDirectory)
+            displayName: Cache Build
           - script: |
               yarn install --frozen-lockfile --check-files
             displayName: 'Install dependencies'
@@ -78,13 +78,13 @@ stages:
             inputs:
               versionSpec: $(node_version)
             displayName: 'Install Node.js'
-          # - task: Cache@2
-          #   inputs:
-          #     # use deterministic cache key that is specific
-          #     # to this test run
-          #     key: $(Build.SourceVersion)
-          #     path: $(System.DefaultWorkingDirectory)
-          #   displayName: Cache Build
+          - task: Cache@2
+            inputs:
+              # use deterministic cache key that is specific
+              # to this test run
+              key: $(Build.SourceVersion)
+              path: $(System.DefaultWorkingDirectory)
+            displayName: Cache Build
           - script: |
               yarn testie --forceExit test/integration/production/
             displayName: 'Run tests'
@@ -101,13 +101,13 @@ stages:
             inputs:
               versionSpec: $(node_version)
             displayName: 'Install Node.js'
-          # - task: Cache@2
-          #   inputs:
-          #     # use deterministic cache key that is specific
-          #     # to this test run
-          #     key: $(Build.SourceVersion)
-          #     path: $(System.DefaultWorkingDirectory)
-          #   displayName: Cache Build
+          - task: Cache@2
+            inputs:
+              # use deterministic cache key that is specific
+              # to this test run
+              key: $(Build.SourceVersion)
+              path: $(System.DefaultWorkingDirectory)
+            displayName: Cache Build
           - script: |
               node run-tests.js -g 1/1 --timings --azure --type unit
             displayName: 'Run tests'
@@ -134,13 +134,13 @@ stages:
             inputs:
               versionSpec: $(node_version)
             displayName: 'Install Node.js'
-          # - task: Cache@2
-          #   inputs:
-          #     # use deterministic cache key that is specific
-          #     # to this test run
-          #     key: $(Build.SourceVersion)
-          #     path: $(System.DefaultWorkingDirectory)
-          #   displayName: Cache Build
+          - task: Cache@2
+            inputs:
+              # use deterministic cache key that is specific
+              # to this test run
+              key: $(Build.SourceVersion)
+              path: $(System.DefaultWorkingDirectory)
+            displayName: Cache Build
           - script: |
               node run-tests.js -g $(group) --timings --azure
             displayName: 'Run tests'
