@@ -1,18 +1,9 @@
-import {
-  Compiler,
-  Template as WebpackTemplate,
-  // @ts-ignore exists in webpack 5
-  RuntimeModule as WebpackRuntimeModule,
-  // @ts-ignore exists in webpack 5
-  RuntimeGlobals as WebpackRuntimeGlobals,
-  // @ts-ignore exists in webpack 5
-  compilation as Compilation,
-} from 'webpack'
+import webpack from 'webpack'
 
 // Shared between webpack 4 and 5:
 function injectRefreshFunctions(
-  compilation: Compilation.Compilation,
-  Template: typeof WebpackTemplate
+  compilation: webpack.Compilation.Compilation,
+  Template: typeof webpack.Template
 ) {
   const hookVars: any = (compilation.mainTemplate.hooks as any).localVars
 
@@ -33,7 +24,7 @@ function injectRefreshFunctions(
   )
 }
 
-function webpack4(this: ReactFreshWebpackPlugin, compiler: Compiler) {
+function webpack4(this: ReactFreshWebpackPlugin, compiler: webpack.Compiler) {
   const { Template } = this
   // Webpack 4 does not have a method to handle interception of module
   // execution.
@@ -88,7 +79,8 @@ function webpack4(this: ReactFreshWebpackPlugin, compiler: Compiler) {
   })
 }
 
-function webpack5(this: ReactFreshWebpackPlugin, compiler: Compiler) {
+function webpack5(this: ReactFreshWebpackPlugin, compiler: webpack.Compiler) {
+  // @ts-ignore exists in webpack 5
   const { RuntimeGlobals, RuntimeModule, Template } = this
   class ReactRefreshRuntimeModule extends RuntimeModule {
     constructor() {
@@ -152,9 +144,11 @@ function webpack5(this: ReactFreshWebpackPlugin, compiler: Compiler) {
 
 class ReactFreshWebpackPlugin {
   webpackMajorVersion: number
-  RuntimeGlobals: typeof WebpackRuntimeGlobals
-  RuntimeModule: typeof WebpackRuntimeModule
-  Template: typeof WebpackTemplate
+  // @ts-ignore exists in webpack 5
+  RuntimeGlobals: typeof webpack.RuntimeGlobals
+  // @ts-ignore exists in webpack 5
+  RuntimeModule: typeof webpack.RuntimeModule
+  Template: typeof webpack.Template
   constructor(
     { version, RuntimeGlobals, RuntimeModule, Template } = require('webpack')
   ) {
@@ -163,7 +157,7 @@ class ReactFreshWebpackPlugin {
     this.RuntimeModule = RuntimeModule
     this.Template = Template
   }
-  apply(compiler: Compiler) {
+  apply(compiler: webpack.Compiler) {
     switch (this.webpackMajorVersion) {
       case 4: {
         webpack4.call(this, compiler)
