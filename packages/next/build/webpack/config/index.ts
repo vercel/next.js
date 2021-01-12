@@ -1,4 +1,5 @@
 import webpack from 'webpack'
+import { NextConfig } from '../../../next-server/server/config'
 import { base } from './blocks/base'
 import { css } from './blocks/css'
 import { ConfigurationContext, pipe } from './utils'
@@ -13,6 +14,7 @@ export async function build(
     assetPrefix,
     sassOptions,
     productionBrowserSourceMaps,
+    future,
   }: {
     rootDirectory: string
     customAppFile: string | null
@@ -21,6 +23,7 @@ export async function build(
     assetPrefix: string
     sassOptions: any
     productionBrowserSourceMaps: boolean
+    future: NextConfig['future']
   }
 ): Promise<webpack.Configuration> {
   const ctx: ConfigurationContext = {
@@ -37,6 +40,7 @@ export async function build(
       : '',
     sassOptions,
     productionBrowserSourceMaps,
+    future,
   }
 
   const fn = pipe(base(ctx), css(ctx))
