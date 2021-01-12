@@ -9,13 +9,13 @@ let initializedWebpack4 = false
 let initFns = []
 exports.init = function (useWebpack5) {
   if (useWebpack5) {
-    exports.isWebpack5 = true
     Object.assign(exports, require('./bundle5')())
+    exports.isWebpack5 = true
     if (!initializedWebpack5) for (const cb of initFns) cb()
     initializedWebpack5 = true
   } else {
-    exports.isWebpack5 = false
     Object.assign(exports, require('./bundle4')())
+    exports.isWebpack5 = false
     if (!initializedWebpack4) for (const cb of initFns) cb()
     initializedWebpack4 = true
   }
