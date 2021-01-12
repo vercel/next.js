@@ -73,7 +73,7 @@ stages:
         pool:
           vmImage: 'windows-2019'
         steps:
-          - script: dir $(System.DefaultWorkingDirectory)\packages\next\dist\babel
+          - script: dir $(System.DefaultWorkingDirectory)\packages\next\dist\
           - checkout: none
           - task: NodeTool@0
             inputs:
