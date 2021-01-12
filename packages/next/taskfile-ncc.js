@@ -16,7 +16,7 @@ module.exports = function (task) {
     }
     return ncc(join(__dirname, file.dir, file.base), {
       filename: file.base,
-      minify: options.minify === false ? false : false,
+      minify: options.minify === false ? false : true,
       ...options,
     }).then(({ code, assets }) => {
       Object.keys(assets).forEach((key) => {

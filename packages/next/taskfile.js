@@ -574,7 +574,6 @@ export async function ncc_webpack_bundle4(task, opts) {
       packageName: 'webpack',
       bundleName: 'webpack',
       externals,
-      minify: false,
     })
     .target('compiled/webpack')
 }
@@ -594,7 +593,6 @@ export async function ncc_webpack_bundle5(task, opts) {
         'schema-utils': 'next/dist/compiled/schema-utils3',
         'webpack-sources': 'next/dist/compiled/webpack-sources2',
       },
-      minify: false,
     })
     .target('compiled/webpack')
 }
