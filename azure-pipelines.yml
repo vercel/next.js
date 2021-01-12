@@ -74,7 +74,7 @@ stages:
           vmImage: 'windows-2019'
         steps:
           - script: |
-              ls packages/next/build/babel
+              dir packages/next/build/babel
           - checkout: none
           - task: NodeTool@0
             inputs:
