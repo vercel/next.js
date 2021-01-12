@@ -10,10 +10,10 @@ import {
 import CssDependency from './CssDependency'
 import CssModule from './CssModule'
 
+// Destructurings of live bindings must register for updates
 let ConcatSource, SourceMapSource, OriginalSource, Template, createHash
 onWebpackInit(function () {
-  ;({ ConcatSource, SourceMapSource, OriginalSource } =
-    webpack.sources || sources)
+  ;({ ConcatSource, SourceMapSource, OriginalSource } = sources)
   ;({
     Template,
     util: { createHash },

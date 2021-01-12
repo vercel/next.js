@@ -4,18 +4,10 @@ import postcss, { Parser } from 'postcss'
 import {
   webpack,
   isWebpack5,
-  onWebpackInit,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
 import { tracer, traceAsyncFn } from '../../tracer'
 import { spans } from './profiling-plugin'
-
-// @ts-ignore: TODO: remove ignore when webpack 5 is stable
-let RawSource: typeof sources.RawSource,
-  SourceMapSource: typeof sources.SourceMapSource
-onWebpackInit(function () {
-  ;({ RawSource, SourceMapSource } = (webpack as any).sources || sources)
-})
 
 // https://github.com/NMFR/optimize-css-assets-webpack-plugin/blob/0a410a9bf28c7b0e81a3470a13748e68ca2f50aa/src/index.js#L20
 const CSS_REGEX = /\.css(\?.*)?$/i
@@ -60,9 +52,9 @@ export class CssMinimizerPlugin {
       .process(input, postcssOptions)
       .then((res) => {
         if (res.map) {
-          return new SourceMapSource(res.css, file, res.map.toJSON())
+          return new sources.SourceMapSource(res.css, file, res.map.toJSON())
         } else {
-          return new RawSource(res.css)
+          return new sources.RawSource(res.css)
         }
       })
   }

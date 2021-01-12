@@ -16,9 +16,6 @@ import {
   OPTIMIZED_FONT_PROVIDERS,
 } from '../../../next-server/lib/constants'
 
-// @ts-ignore: TODO: remove ignore when webpack 5 is stable
-const { RawSource } = webpack.sources || sources
-
 async function minifyCss(css: string): Promise<string> {
   return new Promise((resolve) =>
     postcss([
@@ -175,7 +172,7 @@ export class FontStylesheetGatheringPlugin {
             })
           }
           if (!isWebpack5) {
-            compilation.assets[FONT_MANIFEST] = new RawSource(
+            compilation.assets[FONT_MANIFEST] = new sources.RawSource(
               JSON.stringify(this.manifestContent, null, '  ')
             )
           }
@@ -195,7 +192,7 @@ export class FontStylesheetGatheringPlugin {
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
           },
           (assets: any) => {
-            assets[FONT_MANIFEST] = new RawSource(
+            assets[FONT_MANIFEST] = new sources.RawSource(
               JSON.stringify(this.manifestContent, null, '  ')
             )
           }

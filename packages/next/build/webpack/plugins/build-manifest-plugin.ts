@@ -2,7 +2,6 @@ import devalue from 'next/dist/compiled/devalue'
 import {
   webpack,
   isWebpack5,
-  onWebpackInit,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -20,11 +19,6 @@ import { Rewrite } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../next-server/lib/router/utils'
 import { tracer, traceFn } from '../../tracer'
 import { spans } from './profiling-plugin'
-// @ts-ignore: TODO: remove ignore when webpack 5 is stable
-let RawSource: typeof sources.RawSource
-onWebpackInit(function () {
-  ;({ RawSource } = (webpack as any).sources || sources)
-})
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
@@ -205,20 +199,20 @@ export default class BuildManifestPlugin {
 
         const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
         assetMap.lowPriorityFiles.push(ssgManifestPath)
-        assets[ssgManifestPath] = new RawSource(srcEmptySsgManifest)
+        assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
 
         assetMap.pages = Object.keys(assetMap.pages)
           .sort()
           // eslint-disable-next-line
           .reduce((a, c) => ((a[c] = assetMap.pages[c]), a), {} as any)
 
-        assets[BUILD_MANIFEST] = new RawSource(
+        assets[BUILD_MANIFEST] = new sources.RawSource(
           JSON.stringify(assetMap, null, 2)
         )
 
         const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
 
-        assets[clientManifestPath] = new RawSource(
+        assets[clientManifestPath] = new sources.RawSource(
           `self.__BUILD_MANIFEST = ${generateClientManifest(
             compiler,
             assetMap,

@@ -24,15 +24,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 import {
   webpack,
   isWebpack5,
-  onWebpackInit,
   sources,
 } from 'next/dist/compiled/webpack/webpack'
-
-// @ts-ignore: TODO: remove ignore when webpack 5 is stable
-let RawSource: typeof sources.RawSource
-onWebpackInit(function () {
-  ;({ RawSource } = (webpack as any).sources || sources)
-})
 
 function getModulesIterable(compilation: any, chunk: any) {
   if (isWebpack5) {
@@ -116,7 +109,9 @@ export class ReactLoadablePlugin {
   createAssets(compiler: any, compilation: any, assets: any) {
     const manifest = buildManifest(compiler, compilation)
     // @ts-ignore: TODO: remove when webpack 5 is stable
-    assets[this.filename] = new RawSource(JSON.stringify(manifest, null, 2))
+    assets[this.filename] = new sources.RawSource(
+      JSON.stringify(manifest, null, 2)
+    )
     return assets
   }
 
