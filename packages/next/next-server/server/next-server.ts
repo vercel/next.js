@@ -314,14 +314,13 @@ export default class Server {
       const url: any = req.url
       parsedUrl = parseUrl(url, true)
     }
+    const { basePath, i18n } = this.nextConfig
 
     // Parse the querystring ourselves if the user doesn't handle querystring parsing
     if (typeof parsedUrl.query === 'string') {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
     ;(req as any).__NEXT_INIT_QUERY = Object.assign({}, parsedUrl.query)
-
-    const { basePath, i18n } = this.nextConfig
 
     if (basePath && req.url?.startsWith(basePath)) {
       // store original URL to allow checking if basePath was
@@ -330,7 +329,126 @@ export default class Server {
       req.url = req.url!.replace(basePath, '') || '/'
     }
 
-    if (i18n && !req.url?.startsWith('/_next')) {
+    if (
+      this.minimalMode &&
+      req.headers['x-matched-path'] &&
+      typeof req.headers['x-matched-path'] === 'string'
+    ) {
+      const reqUrlIsDataUrl = req.url?.includes('/_next/data')
+      const matchedPathIsDataUrl = req.headers['x-matched-path']?.includes(
+        '/_next/data'
+      )
+      const isDataUrl = reqUrlIsDataUrl || matchedPathIsDataUrl
+
+      let parsedPath = parseUrl(
+        isDataUrl ? req.url! : (req.headers['x-matched-path'] as string),
+        true
+      )
+      const { pathname, query } = parsedPath
+      let matchedPathname = pathname as string
+
+      const matchedPathnameNoExt = isDataUrl
+        ? matchedPathname.replace(/\.json$/, '')
+        : matchedPathname
+
+      console.log({
+        url: req.url,
+        matchedPathnameHeader: req.headers['x-matched-path'],
+        routeMatches: req.headers['x-now-route-matches'],
+        reqUrlIsDataUrl,
+        matchedPathIsDataUrl,
+        isDataUrl,
+        parsedPath,
+        pathname,
+        query,
+        matchedPathname,
+        matchedPathnameNoExt,
+      })
+
+      // interpolate dynamic params and normalize URL if needed
+      if (isDynamicRoute(matchedPathnameNoExt)) {
+        const utils = getUtils({
+          pageIsDynamic: true,
+          page: matchedPathnameNoExt,
+          i18n: this.nextConfig.i18n,
+          basePath: this.nextConfig.basePath,
+          rewrites: this.customRoutes.rewrites,
+        })
+
+        let params: ParsedUrlQuery | false = {}
+        const paramsResult = utils.normalizeDynamicRouteParams({
+          ...parsedUrl.query,
+          ...query,
+        })
+
+        if (paramsResult.hasValidParams) {
+          params = paramsResult.params
+        } else if (req.headers['x-now-route-matches']) {
+          const opts: Record<string, string> = {}
+          params = utils.getParamsFromRouteMatches(
+            req,
+            opts,
+            (parsedUrl.query.__nextLocale as string | undefined) || ''
+          )
+
+          if (opts.locale) {
+            parsedUrl.query.__nextLocale = opts.locale
+          }
+        } else {
+          params = utils.dynamicRouteMatcher!(matchedPathnameNoExt)
+        }
+
+        console.log('before normalize', { params })
+
+        if (params) {
+          params = utils.normalizeDynamicRouteParams(params).params
+          console.log('after normalize', { params })
+
+          console.log('before interpolating', {
+            matchedPathname,
+            url: req.url,
+          })
+          matchedPathname = utils.interpolateDynamicPath(
+            matchedPathname,
+            params
+          )
+
+          req.url = utils.interpolateDynamicPath(req.url!, params)
+
+          console.log('after interpolating', {
+            matchedPathname,
+            url: req.url,
+            interpolatedUrl: utils.interpolateDynamicPath(req.url!, params),
+          })
+        }
+
+        if (reqUrlIsDataUrl && matchedPathIsDataUrl) {
+          req.url = formatUrl({
+            ...parsedPath,
+            pathname: matchedPathname,
+          })
+          console.log('updated req.url for data path', {
+            url: req.url,
+            potentialUpdatedUrl: formatUrl({
+              ...parsedPath,
+              pathname: matchedPathname,
+            }),
+            reqUrlIsDataUrl,
+            matchedPathIsDataUrl,
+          })
+        }
+        Object.assign(parsedUrl.query, params)
+        console.log('before normalize URL', req.url)
+        utils.normalizeVercelUrl(req, true)
+        console.log('after normalize URL', req.url)
+      }
+
+      parsedUrl.pathname = `${basePath || ''}${
+        matchedPathname === '/' && basePath ? '' : matchedPathname
+      }`
+    }
+
+    if (i18n) {
       // get pathname from URL with basePath stripped for locale detection
       let { pathname, ...parsed } = parseUrl(req.url || '/')
       pathname = pathname || '/'
@@ -468,118 +586,12 @@ export default class Server {
         defaultLocale
     }
 
-    if (
-      this.minimalMode &&
-      req.headers['x-matched-path'] &&
-      typeof req.headers['x-matched-path'] === 'string'
-    ) {
-      const reqUrlIsDataUrl = req.url?.includes('/_next/data')
-      const matchedPathIsDataUrl = req.headers['x-matched-path']?.includes(
-        '/_next/data'
-      )
-      const isDataUrl = reqUrlIsDataUrl || matchedPathIsDataUrl
-
-      let parsedPath = parseUrl(
-        isDataUrl ? req.url! : (req.headers['x-matched-path'] as string),
-        true
-      )
-      const { pathname, query } = parsedPath
-      let matchedPathname = pathname as string
-
-      const matchedPathnameNoExt = isDataUrl
-        ? matchedPathname.replace(/\.json$/, '')
-        : matchedPathname
-
-      console.log({
-        routeMatches: req.headers['x-now-route-matches'],
-        reqUrlIsDataUrl,
-        matchedPathIsDataUrl,
-        isDataUrl,
-        parsedPath,
-        pathname,
-        query,
-        matchedPathname,
-        matchedPathnameNoExt,
-      })
-
-      // interpolate dynamic params and normalize URL if needed
-      if (isDynamicRoute(matchedPathnameNoExt)) {
-        const utils = getUtils({
-          pageIsDynamic: true,
-          page: matchedPathnameNoExt,
-          i18n: this.nextConfig.i18n,
-          basePath: this.nextConfig.basePath,
-          rewrites: this.customRoutes.rewrites,
-        })
-
-        let params: ParsedUrlQuery | false = {}
-        const paramsResult = utils.normalizeDynamicRouteParams({
-          ...parsedUrl.query,
-          ...query,
-        })
-
-        if (paramsResult.hasValidParams) {
-          params = paramsResult.params
-        } else if (req.headers['x-now-route-matches']) {
-          const opts: Record<string, string> = {}
-          params = utils.getParamsFromRouteMatches(
-            req,
-            opts,
-            (parsedUrl.query.__nextLocale as string | undefined) || ''
-          )
-
-          if (opts.locale) {
-            parsedUrl.query.__nextLocale = opts.locale
-          }
-        } else {
-          params = utils.dynamicRouteMatcher!(matchedPathname)
-        }
-
-        console.log({ params })
-
-        if (params) {
-          console.log('before interpolating', {
-            matchedPathname,
-            url: req.url,
-          })
-          matchedPathname = utils.interpolateDynamicPath(
-            matchedPathname,
-            params
-          )
-
-          req.url = utils.interpolateDynamicPath(req.url!, params)
-
-          console.log('after interpolating', {
-            matchedPathname,
-            url: req.url,
-          })
-        }
-
-        if (reqUrlIsDataUrl && matchedPathIsDataUrl) {
-          req.url = formatUrl({
-            ...parsedPath,
-            pathname: matchedPathname,
-          })
-          console.log('updated req.url for data path', {
-            url: req.url,
-            reqUrlIsDataUrl,
-            matchedPathIsDataUrl,
-          })
-        }
-        Object.assign(parsedUrl.query, params)
-        console.log('before normalize URL', req.url)
-        utils.normalizeVercelUrl(req, true)
-        console.log('after normalize URL', req.url)
-      }
-      parsedUrl.pathname = `${basePath || ''}${
-        parsedUrl.query.__nextLocale || ''
-      }${matchedPathname}`
-
-      console.log('parsedUrl.pathname', parsedUrl.pathname)
-    }
-
     res.statusCode = 200
     try {
+      console.log('run', {
+        url: req.url,
+        parsedUrl,
+      })
       return await this.run(req, res, parsedUrl)
     } catch (err) {
       this.logError(err)
