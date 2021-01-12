@@ -52,6 +52,12 @@ stages:
             inputs:
               versionSpec: $(node_version)
             displayName: 'Install Node.js'
+          - script: |
+              yarn install --frozen-lockfile --check-files
+            displayName: 'Install dependencies'
+          - script: |
+              node run-tests.js --timings --write-timings --azure -g 1/1
+            displayName: 'Fetch test timing data'
           - task: Cache@2
             inputs:
               # use deterministic cache key that is specific
@@ -59,12 +65,6 @@ stages:
               key: $(Build.SourceVersion)
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
-          - script: |
-              yarn install --frozen-lockfile --check-files
-            displayName: 'Install dependencies'
-          - script: |
-              node run-tests.js --timings --write-timings --azure -g 1/1
-            displayName: 'Fetch test timing data'
 
   - stage: Test
     dependsOn: Build
