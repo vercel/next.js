@@ -128749,8 +128749,7 @@ module.exports = function () {
     ModuleFilenameHelpers: __webpack_require__(79843),
     NodeTargetPlugin: __webpack_require__(62791),
     StringXor: __webpack_require__(74395),
-    RawSource: __webpack_require__(16520).sources.RawSource,
-    SourceMapSource: __webpack_require__(16520).sources.SourceMapSource,
+    sources: __webpack_require__(55600),
     webpack: __webpack_require__(16520),
   }
 }
