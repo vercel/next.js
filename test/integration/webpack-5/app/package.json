@@ -1,0 +1,17 @@
+{
+  "name": "webpack-5-app",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "react": "^16.7.0",
+    "react-dom": "^16.7.0"
+  },
+  "resolutions": {
+    "webpack": "5.12.3"
+  }
+}
