@@ -29,7 +29,7 @@ export type OriginalStackFrameResponse = {
 
 type Source = { map: () => RawSourceMap } | null
 
-function getModuleId(compilation: any, module: any, isWebpack5: boolean) {
+function getModuleId(compilation: any, module: any, isWebpack5?: boolean) {
   if (isWebpack5) {
     return compilation.chunkGraph.getModuleId(module)
   }
@@ -40,7 +40,7 @@ function getModuleId(compilation: any, module: any, isWebpack5: boolean) {
 function getModuleSource(
   compilation: any,
   module: any,
-  isWebpack5: boolean
+  isWebpack5?: boolean
 ): any {
   if (isWebpack5) {
     return (
