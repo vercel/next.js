@@ -912,7 +912,7 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
-      hasReactRefresh && new ReactRefreshWebpackPlugin(),
+      hasReactRefresh && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client-side bundles (same behavior as webpack 4)
       isWebpack5 &&
         !isServer &&

@@ -1,4 +1,3 @@
-// eslint-disable-next-line import/no-extraneous-dependencies
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { getModuleBuildError } from './webpackModuleError'
 
