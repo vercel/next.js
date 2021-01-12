@@ -155,10 +155,9 @@ class ReactFreshWebpackPlugin {
   RuntimeGlobals: typeof WebpackRuntimeGlobals
   RuntimeModule: typeof WebpackRuntimeModule
   Template: typeof WebpackTemplate
-  constructor(webpack = require('webpack')) {
-    this.init(webpack)
-  }
-  init({ RuntimeModule, RuntimeGlobals, Template, version }) {
+  constructor(
+    { version, RuntimeGlobals, RuntimeModule, Template } = require('webpack')
+  ) {
     this.webpackMajorVersion = parseInt(version ?? '', 10)
     this.RuntimeGlobals = RuntimeGlobals
     this.RuntimeModule = RuntimeModule
