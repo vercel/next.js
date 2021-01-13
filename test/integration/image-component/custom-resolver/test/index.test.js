@@ -50,7 +50,10 @@ describe('Custom Resolver Tests', () => {
   describe('Client-side Custom Loader Tests', () => {
     beforeAll(async () => {
       browser = await webdriver(appPort, '/')
-      await browser.waitForElementByCss('#clientlink').click()
+      await browser
+        .elementByCss('#clientlink')
+        .click()
+        .waitForElementByCss('#client-side')
     })
     afterAll(async () => {
       browser = null
