@@ -156,7 +156,9 @@ export class IncrementalCache {
     ) {
       data.isStale = true
     }
-    const manifestEntry = this.prerenderManifest.routes[pathname]
+
+    const manifestPath = toRoute(pathname)
+    const manifestEntry = this.prerenderManifest.routes[manifestPath]
 
     if (data && manifestEntry) {
       data.curRevalidate = manifestEntry.initialRevalidateSeconds
