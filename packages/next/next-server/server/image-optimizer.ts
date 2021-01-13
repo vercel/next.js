@@ -218,17 +218,19 @@ export async function imageOptimizer(
     }
   }
 
+  const expireAt = maxAge * 1000 + now
+
   if (upstreamType) {
     const vector = VECTOR_TYPES.includes(upstreamType)
     const animate =
       ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
     if (vector || animate) {
+      await writeToCacheDir(hashDir, upstreamType, expireAt, upstreamBuffer)
       sendResponse(req, res, upstreamType, upstreamBuffer)
       return { finished: true }
     }
   }
 
-  const expireAt = maxAge * 1000 + now
   let contentType: string
 
   if (mimeType) {
@@ -276,17 +278,26 @@ export async function imageOptimizer(
     }
 
     const optimizedBuffer = await transformer.toBuffer()
-    await promises.mkdir(hashDir, { recursive: true })
-    const extension = getExtension(contentType)
-    const etag = getHash([optimizedBuffer])
-    const filename = join(hashDir, `${expireAt}.${etag}.${extension}`)
-    await promises.writeFile(filename, optimizedBuffer)
+    await writeToCacheDir(hashDir, contentType, expireAt, optimizedBuffer)
     sendResponse(req, res, contentType, optimizedBuffer)
   } catch (error) {
     sendResponse(req, res, upstreamType, upstreamBuffer)
   }
 
   return { finished: true }
+}
+
+async function writeToCacheDir(
+  dir: string,
+  contentType: string,
+  expireAt: number,
+  buffer: Buffer
+) {
+  await promises.mkdir(dir, { recursive: true })
+  const extension = getExtension(contentType)
+  const etag = getHash([buffer])
+  const filename = join(dir, `${expireAt}.${etag}.${extension}`)
+  await promises.writeFile(filename, buffer)
 }
 
 function sendResponse(
