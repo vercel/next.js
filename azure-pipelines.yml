@@ -85,7 +85,7 @@ stages:
               key: $(Build.SourceVersion)
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
-          - script: dir $(System.DefaultWorkingDirectory)\packages\next\dist\babel\
+          - script: dir $(System.DefaultWorkingDirectory)\packages\next\
           - script: |
               yarn testie --forceExit test/integration/production/
             displayName: 'Run tests'
