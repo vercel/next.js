@@ -58,7 +58,7 @@ const startServer = async (optEnv = {}) => {
 const expectedManifestRoutes = () => ({
   '/': {
     dataRoute: `/_next/data/${buildId}/index.json`,
-    initialRevalidateSeconds: 1,
+    initialRevalidateSeconds: 2,
     srcRoute: null,
   },
   '/blog/[post3]': {
@@ -520,6 +520,15 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     )
     expect(data.pageProps.post).toBe('post-3')
   })
+
+  if (!dev) {
+    it('should use correct caching headers for a revalidate page', async () => {
+      const initialRes = await fetchViaHTTP(appPort, '/')
+      expect(initialRes.headers.get('cache-control')).toBe(
+        's-maxage=2, stale-while-revalidate'
+      )
+    })
+  }
 
   it('should navigate to a normal page and back', async () => {
     const browser = await webdriver(appPort, '/')
