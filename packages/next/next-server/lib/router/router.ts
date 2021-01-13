@@ -266,7 +266,11 @@ export function resolveHref(
     typeof href === 'string' ? href : formatWithValidation(href)
   // Return because it cannot be routed by the Next.js router
   if (!isLocalURL(urlAsString)) {
-    return (resolveAs ? [urlAsString] : urlAsString) as string
+    // prevent a hydration mismatch on href for url with anchor refs
+    const resolvedHref = urlAsString.startsWith('#')
+      ? `/${urlAsString}`
+      : urlAsString
+    return (resolveAs ? [resolvedHref] : resolvedHref) as string
   }
   try {
     const finalUrl = new URL(urlAsString, base)
