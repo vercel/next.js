@@ -143,7 +143,9 @@ export async function imageOptimizer(
       const contentType = getContentType(extension)
       const fsPath = join(hashDir, file)
       if (now < expireAt) {
-        res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+        if (!res.getHeader('Cache-Control')) {
+          res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+        }
         if (sendEtagResponse(req, res, etag)) {
           return { finished: true }
         }
@@ -296,7 +298,9 @@ function sendResponse(
   buffer: Buffer
 ) {
   const etag = getHash([buffer])
-  res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+  if (!res.getHeader('Cache-Control')) {
+    res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+  }
   if (sendEtagResponse(req, res, etag)) {
     return
   }

@@ -675,6 +675,48 @@ describe('Image Optimizer', () => {
     runTests({ w: size, isDev: false, domains })
   })
 
+  describe('cache headers', () => {
+    beforeAll(async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        `{
+  async headers() {
+    return [
+      {
+        source: '/_next/image(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=180, s-maxage=180, stale-while-revalidate=180',
+          },
+        ],
+      }
+    ]
+  }
+}`
+      )
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+      await fs.remove(imagesDir)
+    })
+    it('should not enforce cache control header if previously set', async () => {
+      const query = { url: '/test.png', w: 256, q: 80 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/webp')
+      expect(res.headers.get('cache-control')).toBe(
+        'public, max-age=180, s-maxage=180, stale-while-revalidate=180'
+      )
+      expect(res.headers.get('etag')).toBeTruthy()
+      await nextConfig.restore()
+    })
+  })
+
   describe('dev support next.config.js cloudinary loader', () => {
     beforeAll(async () => {
       const json = JSON.stringify({
