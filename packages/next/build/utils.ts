@@ -28,6 +28,7 @@ import { BuildManifest } from '../next-server/server/get-page-files'
 import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
+import * as Log from './output/log'
 import opentelemetryApi from '@opentelemetry/api'
 import { tracer, traceAsyncFn } from './tracer'
 
@@ -878,4 +879,80 @@ export function getNamedExports(
 ): Array<string> {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
   return Object.keys(require(bundle))
+}
+
+export function detectConflictingPaths(
+  combinedPages: string[],
+  ssgPages: Set<string>,
+  additionalSsgPaths: Map<string, string[]>
+) {
+  const conflictingPaths = new Map<
+    string,
+    Array<{
+      path: string
+      page: string
+    }>
+  >()
+
+  const dynamicSsgPages = [...ssgPages].filter((page) => isDynamicRoute(page))
+
+  additionalSsgPaths.forEach((paths, pathsPage) => {
+    paths.forEach((curPath) => {
+      const lowerPath = curPath.toLowerCase()
+      let conflictingPage = combinedPages.find(
+        (page) => page.toLowerCase() === lowerPath
+      )
+
+      if (conflictingPage) {
+        conflictingPaths.set(lowerPath, [
+          { path: curPath, page: pathsPage },
+          { path: conflictingPage, page: conflictingPage },
+        ])
+      } else {
+        let conflictingPath: string | undefined
+
+        conflictingPage = dynamicSsgPages.find((page) => {
+          if (page === pathsPage) return false
+
+          conflictingPath = additionalSsgPaths
+            .get(page)
+            ?.find((compPath) => compPath.toLowerCase() === lowerPath)
+          return conflictingPath
+        })
+
+        if (conflictingPage && conflictingPath) {
+          conflictingPaths.set(lowerPath, [
+            { path: curPath, page: pathsPage },
+            { path: conflictingPath, page: conflictingPage },
+          ])
+        }
+      }
+    })
+  })
+
+  if (conflictingPaths.size > 0) {
+    let conflictingPathsOutput = ''
+
+    conflictingPaths.forEach((pathItems) => {
+      pathItems.forEach((pathItem, idx) => {
+        const isDynamic = pathItem.page !== pathItem.path
+
+        if (idx > 0) {
+          conflictingPathsOutput += 'conflicts with '
+        }
+
+        conflictingPathsOutput += `path: "${pathItem.path}"${
+          isDynamic ? ` from page: "${pathItem.page}" ` : ' '
+        }`
+      })
+      conflictingPathsOutput += '\n'
+    })
+
+    Log.error(
+      'Conflicting paths returned from getStaticPaths, paths must unique per page.\n' +
+        'See more info here: https://err.sh/next.js/conflicting-ssg-paths\n\n' +
+        conflictingPathsOutput
+    )
+    process.exit(1)
+  }
 }
