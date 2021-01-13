@@ -1,7 +1,7 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
 const { relative, basename, resolve } = require('path')
-const { createRequire } = require('module')
+const { Module } = require('module')
 
 // Note:
 // "bundles" folder shadows main node_modules in workspace where all installs in
@@ -12,7 +12,12 @@ const { createRequire } = require('module')
 // If/when this issue is fixed upstream in Yarn, this "shadowing" workaround can
 // then be removed to directly install the bundles/package.json packages into
 // the main package.json as normal devDependencies aliases.
-const bundleRequire = createRequire(resolve(__dirname, 'bundles', '_'))
+const m = new Module(resolve(__dirname, 'bundles', '_'))
+m.filename = m.id
+m.paths = Module._nodeModulePaths(m.id)
+const bundleRequire = m.require
+bundleRequire.resolve = (request, options) =>
+  Module._resolveFilename(request, m, false, options)
 
 export async function next__polyfill_nomodule(task, opts) {
   await task

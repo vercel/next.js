@@ -2,10 +2,15 @@
 const ncc = require('@vercel/ncc')
 const { existsSync, readFileSync } = require('fs')
 const { basename, dirname, extname, join, resolve } = require('path')
-const { createRequire } = require('module')
+const { Module } = require('module')
 
 // See taskfile.js bundleContext definition for explanation
-const bundleRequire = createRequire(resolve(__dirname, 'bundles', '_'))
+const m = new Module(resolve(__dirname, 'bundles', '_'))
+m.filename = m.id
+m.paths = Module._nodeModulePaths(m.id)
+const bundleRequire = m.require
+bundleRequire.resolve = (request, options) =>
+  Module._resolveFilename(request, m, false, options)
 
 module.exports = function (task) {
   // eslint-disable-next-line require-yield
