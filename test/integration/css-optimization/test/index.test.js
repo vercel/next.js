@@ -6,7 +6,7 @@ import {
   nextBuild,
   renderViaHTTP,
 } from 'next-test-utils'
-import fs from 'fs-extra'
+import fs, { remove } from 'fs-extra'
 
 jest.setTimeout(1000 * 30)
 
@@ -18,6 +18,7 @@ let app
 
 describe('CSS optimization for SSR apps', () => {
   beforeAll(async () => {
+    await remove(join(appDir, '.next'))
     await fs.writeFile(
       nextConfig,
       `module.exports = { experimental: { optimizeCss: true } }`,
@@ -37,6 +38,6 @@ describe('CSS optimization for SSR apps', () => {
 
   afterAll(async () => {
     killApp(app)
-    await fs.unlink(nextConfig)
+    await remove(nextConfig)
   })
 })
