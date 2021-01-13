@@ -59,7 +59,8 @@ const renames = [
 module.exports = {
   commentHeading: 'Stats from current PR',
   commentReleaseHeading: 'Stats from current release',
-  appBuildCommand: 'ls node_modules && echo "--bin--" && ls node_modules/.bin && echo "--next--" && ls node_modules/next/**/* && echo "--build--" && NEXT_TELEMETRY_DISABLED=1 yarn next build',
+  appBuildCommand:
+    'ls node_modules && echo "--bin--" && ls node_modules/.bin && echo "--next--" && ls node_modules/next/**/* && echo "--build--" && NEXT_TELEMETRY_DISABLED=1 yarn next build',
   appStartCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next start --port $PORT',
   mainRepo: 'vercel/next.js',
   mainBranch: 'canary',
@@ -122,7 +123,7 @@ module.exports = {
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
-              target: 'serverless'
+              target: 'serverless',
             }
           `,
         },
