@@ -1,8 +1,10 @@
-# Example app with polyfills
+# With Polyfills
 
-> ❗️ Warning: This example is not the suggested way to add polyfills and is known to cause issues with bundling. See [the browser support docs](https://nextjs.org/docs/basic-features/supported-browsers-features#custom-polyfills) for the correct way to load polyfills.
+Next.js supports IE11 and all modern browsers (Edge, Firefox, Chrome, Safari, Opera, et al) with no required configuration. It also adds [some polyfills](https://nextjs.org/docs/basic-features/supported-browsers-features#polyfills) by default.
 
-Next.js supports modern browsers and IE 11. It loads required polyfills automatically. If you need to add custom polyfills, you can follow this example.
+If your own code or any external npm dependencies require features not supported by your target browsers, you need to add polyfills yourself.
+
+In this case, you should add a top-level import for the specific polyfill you need in your Custom `<App>` or the individual component.
 
 ## Deploy your own
 
