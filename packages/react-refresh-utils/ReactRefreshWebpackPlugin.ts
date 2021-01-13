@@ -95,6 +95,7 @@ function webpack5(compiler: Compiler) {
       // @ts-ignore This exists in webpack 5
       const { runtimeTemplate } = this.compilation
       return Template.asString([
+        `if (${RuntimeGlobals.interceptModuleExecution}) {`,
         `${
           RuntimeGlobals.interceptModuleExecution
         }.push(${runtimeTemplate.basicFunction('options', [
@@ -127,6 +128,7 @@ function webpack5(compiler: Compiler) {
             ]
           )}`,
         ])})`,
+        '}',
       ])
     }
   }
