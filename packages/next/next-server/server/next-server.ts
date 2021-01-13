@@ -363,6 +363,7 @@ export default class Server {
         query,
         matchedPathname,
         matchedPathnameNoExt,
+        parsedUrl,
       })
 
       if (i18n) {
@@ -376,16 +377,20 @@ export default class Server {
         }
       }
 
-      // interpolate dynamic params and normalize URL if needed
-      if (isDynamicRoute(matchedPathnameNoExt)) {
-        const utils = getUtils({
-          pageIsDynamic: true,
-          page: matchedPathnameNoExt,
-          i18n: this.nextConfig.i18n,
-          basePath: this.nextConfig.basePath,
-          rewrites: this.customRoutes.rewrites,
-        })
+      const pageIsDynamic = isDynamicRoute(matchedPathnameNoExt)
+      const utils = getUtils({
+        pageIsDynamic,
+        page: matchedPathnameNoExt,
+        i18n: this.nextConfig.i18n,
+        basePath: this.nextConfig.basePath,
+        rewrites: this.customRoutes.rewrites,
+      })
 
+      utils.handleRewrites(parsedUrl)
+      console.log('after handleRewrites', parsedUrl)
+
+      // interpolate dynamic params and normalize URL if needed
+      if (pageIsDynamic) {
         let params: ParsedUrlQuery | false = {}
         const paramsResult = utils.normalizeDynamicRouteParams({
           ...parsedUrl.query,

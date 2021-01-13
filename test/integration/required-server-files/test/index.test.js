@@ -400,4 +400,23 @@ describe('Required Server Files', () => {
       expect(res.status).toBe(200)
     }
   })
+
+  it('should normalize catch-all rewrite query values correctly', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/some-catch-all/hello/world',
+      {
+        path: 'hello/world',
+      },
+      {
+        headers: {
+          'x-matched-path': '/',
+        },
+      }
+    )
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#router').text()).query).toEqual({
+      path: ['hello', 'world'],
+    })
+  })
 })
