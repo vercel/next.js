@@ -73,7 +73,6 @@ stages:
         pool:
           vmImage: 'windows-2019'
         steps:
-          - script: dir $(System.DefaultWorkingDirectory)\packages\next\dist\
           - checkout: none
           - task: NodeTool@0
             inputs:
@@ -86,6 +85,7 @@ stages:
               key: $(Build.SourceVersion)
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
+          - script: dir $(System.DefaultWorkingDirectory)\packages\next\dist\babel\
           - script: |
               yarn testie --forceExit test/integration/production/
             displayName: 'Run tests'
