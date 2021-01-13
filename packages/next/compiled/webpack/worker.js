@@ -1,10 +1,10 @@
 module.exports =
-/******/ (() => { // webpackBootstrap
+/******/ (function() { // webpackBootstrap
 /******/ 	"use strict";
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 787:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 
 
@@ -196,7 +196,7 @@ exports.default = _default;
 /***/ }),
 
 /***/ 359:
-/***/ ((module, exports, __nccwpck_require__) => {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 /* module decorator */ module = __nccwpck_require__.nmd(module);
 
@@ -220,7 +220,7 @@ module.exports = (options, callback) => {
 /***/ }),
 
 /***/ 775:
-/***/ ((module) => {
+/***/ (function(module) {
 
 module.exports = require("next/dist/compiled/terser");;
 
@@ -262,13 +262,13 @@ module.exports = require("next/dist/compiled/terser");;
 /******/ 	
 /************************************************************************/
 /******/ 	/* webpack/runtime/node module decorator */
-/******/ 	(() => {
-/******/ 		__nccwpck_require__.nmd = (module) => {
+/******/ 	!function() {
+/******/ 		__nccwpck_require__.nmd = function(module) {
 /******/ 			module.paths = [];
 /******/ 			if (!module.children) module.children = [];
 /******/ 			return module;
 /******/ 		};
-/******/ 	})();
+/******/ 	}();
 /******/ 	
 /******/ 	/* webpack/runtime/compat */
 /******/ 	

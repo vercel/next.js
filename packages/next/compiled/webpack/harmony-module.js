@@ -1,9 +1,9 @@
 module.exports =
-/******/ (() => { // webpackBootstrap
+/******/ (function() { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 931:
-/***/ ((module) => {
+/***/ (function(module) {
 
 module.exports = function(originalModule) {
 	if (!originalModule.webpackPolyfill) {

@@ -1,9 +1,9 @@
 module.exports =
-/******/ (() => { // webpackBootstrap
+/******/ (function() { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 55611:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = {"i8":"5.1.1"};
@@ -11,7 +11,7 @@ module.exports = {"i8":"5.1.1"};
 /***/ }),
 
 /***/ 42325:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = {"version":"4.3.0"};
@@ -19,7 +19,7 @@ module.exports = {"version":"4.3.0"};
 /***/ }),
 
 /***/ 85110:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = {"i8":"4.3.0"};
@@ -27,7 +27,7 @@ module.exports = {"i8":"4.3.0"};
 /***/ }),
 
 /***/ 60756:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"application/1d-interleaved-parityfec\":{\"source\":\"iana\"},\"application/3gpdash-qoe-report+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true},\"application/3gpp-ims+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/a2l\":{\"source\":\"iana\"},\"application/activemessage\":{\"source\":\"iana\"},\"application/activity+json\":{\"source\":\"iana\",\"compressible\":true},\"application/alto-costmap+json\":{\"source\":\"iana\",\"compressible\":true},\"application/alto-costmapfilter+json\":{\"source\":\"iana\",\"compressible\":true},\"application/alto-directory+json\":{\"source\":\"iana\",\"compressible\":true},\"application/alto-endpointcost+json\":{\"source\":\"iana\",\"compressible\":true},\"application/alto-endpointcostparams+json\":{\"source\":\"iana\",\"compressible\":true},\"application/alto-endpointprop+json\":{\"source\":\"iana\",\"compressible\":true},\"application/alto-endpointpropparams+json\":{\"source\":\"iana\",\"compressible\":true},\"application/alto-error+json\":{\"source\":\"iana\",\"compressible\":true},\"application/alto-networkmap+json\":{\"source\":\"iana\",\"compressible\":true},\"application/alto-networkmapfilter+json\":{\"source\":\"iana\",\"compressible\":true},\"application/alto-updatestreamcontrol+json\":{\"source\":\"iana\",\"compressible\":true},\"application/alto-updatestreamparams+json\":{\"source\":\"iana\",\"compressible\":true},\"application/aml\":{\"source\":\"iana\"},\"application/andrew-inset\":{\"source\":\"iana\",\"extensions\":[\"ez\"]},\"application/applefile\":{\"source\":\"iana\"},\"application/applixware\":{\"source\":\"apache\",\"extensions\":[\"aw\"]},\"application/atf\":{\"source\":\"iana\"},\"application/atfx\":{\"source\":\"iana\"},\"application/atom+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"atom\"]},\"application/atomcat+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"atomcat\"]},\"application/atomdeleted+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"atomdeleted\"]},\"application/atomicmail\":{\"source\":\"iana\"},\"application/atomsvc+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"atomsvc\"]},\"application/atsc-dwd+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"dwd\"]},\"application/atsc-dynamic-event-message\":{\"source\":\"iana\"},\"application/atsc-held+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"held\"]},\"application/atsc-rdt+json\":{\"source\":\"iana\",\"compressible\":true},\"application/atsc-rsat+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"rsat\"]},\"application/atxml\":{\"source\":\"iana\"},\"application/auth-policy+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/bacnet-xdd+zip\":{\"source\":\"iana\",\"compressible\":false},\"application/batch-smtp\":{\"source\":\"iana\"},\"application/bdoc\":{\"compressible\":false,\"extensions\":[\"bdoc\"]},\"application/beep+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true},\"application/calendar+json\":{\"source\":\"iana\",\"compressible\":true},\"application/calendar+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xcs\"]},\"application/call-completion\":{\"source\":\"iana\"},\"application/cals-1840\":{\"source\":\"iana\"},\"application/captive+json\":{\"source\":\"iana\",\"compressible\":true},\"application/cbor\":{\"source\":\"iana\"},\"application/cbor-seq\":{\"source\":\"iana\"},\"application/cccex\":{\"source\":\"iana\"},\"application/ccmp+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/ccxml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"ccxml\"]},\"application/cdfx+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"cdfx\"]},\"application/cdmi-capability\":{\"source\":\"iana\",\"extensions\":[\"cdmia\"]},\"application/cdmi-container\":{\"source\":\"iana\",\"extensions\":[\"cdmic\"]},\"application/cdmi-domain\":{\"source\":\"iana\",\"extensions\":[\"cdmid\"]},\"application/cdmi-object\":{\"source\":\"iana\",\"extensions\":[\"cdmio\"]},\"application/cdmi-queue\":{\"source\":\"iana\",\"extensions\":[\"cdmiq\"]},\"application/cdni\":{\"source\":\"iana\"},\"application/cea\":{\"source\":\"iana\"},\"application/cea-2018+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/cellml+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/cfw\":{\"source\":\"iana\"},\"application/clue+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/clue_info+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/cms\":{\"source\":\"iana\"},\"application/cnrp+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/coap-group+json\":{\"source\":\"iana\",\"compressible\":true},\"application/coap-payload\":{\"source\":\"iana\"},\"application/commonground\":{\"source\":\"iana\"},\"application/conference-info+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/cose\":{\"source\":\"iana\"},\"application/cose-key\":{\"source\":\"iana\"},\"application/cose-key-set\":{\"source\":\"iana\"},\"application/cpl+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/csrattrs\":{\"source\":\"iana\"},\"application/csta+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/cstadata+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/csvm+json\":{\"source\":\"iana\",\"compressible\":true},\"application/cu-seeme\":{\"source\":\"apache\",\"extensions\":[\"cu\"]},\"application/cwt\":{\"source\":\"iana\"},\"application/cybercash\":{\"source\":\"iana\"},\"application/dart\":{\"compressible\":true},\"application/dash+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"mpd\"]},\"application/dashdelta\":{\"source\":\"iana\"},\"application/davmount+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"davmount\"]},\"application/dca-rft\":{\"source\":\"iana\"},\"application/dcd\":{\"source\":\"iana\"},\"application/dec-dx\":{\"source\":\"iana\"},\"application/dialog-info+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/dicom\":{\"source\":\"iana\"},\"application/dicom+json\":{\"source\":\"iana\",\"compressible\":true},\"application/dicom+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/dii\":{\"source\":\"iana\"},\"application/dit\":{\"source\":\"iana\"},\"application/dns\":{\"source\":\"iana\"},\"application/dns+json\":{\"source\":\"iana\",\"compressible\":true},\"application/dns-message\":{\"source\":\"iana\"},\"application/docbook+xml\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"dbk\"]},\"application/dots+cbor\":{\"source\":\"iana\"},\"application/dskpp+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/dssc+der\":{\"source\":\"iana\",\"extensions\":[\"dssc\"]},\"application/dssc+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xdssc\"]},\"application/dvcs\":{\"source\":\"iana\"},\"application/ecmascript\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"ecma\",\"es\"]},\"application/edi-consent\":{\"source\":\"iana\"},\"application/edi-x12\":{\"source\":\"iana\",\"compressible\":false},\"application/edifact\":{\"source\":\"iana\",\"compressible\":false},\"application/efi\":{\"source\":\"iana\"},\"application/emergencycalldata.cap+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true},\"application/emergencycalldata.comment+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/emergencycalldata.control+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/emergencycalldata.deviceinfo+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/emergencycalldata.ecall.msd\":{\"source\":\"iana\"},\"application/emergencycalldata.providerinfo+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/emergencycalldata.serviceinfo+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/emergencycalldata.subscriberinfo+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/emergencycalldata.veds+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/emma+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"emma\"]},\"application/emotionml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"emotionml\"]},\"application/encaprtp\":{\"source\":\"iana\"},\"application/epp+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/epub+zip\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"epub\"]},\"application/eshop\":{\"source\":\"iana\"},\"application/exi\":{\"source\":\"iana\",\"extensions\":[\"exi\"]},\"application/expect-ct-report+json\":{\"source\":\"iana\",\"compressible\":true},\"application/fastinfoset\":{\"source\":\"iana\"},\"application/fastsoap\":{\"source\":\"iana\"},\"application/fdt+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"fdt\"]},\"application/fhir+json\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true},\"application/fhir+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true},\"application/fido.trusted-apps+json\":{\"compressible\":true},\"application/fits\":{\"source\":\"iana\"},\"application/flexfec\":{\"source\":\"iana\"},\"application/font-sfnt\":{\"source\":\"iana\"},\"application/font-tdpfr\":{\"source\":\"iana\",\"extensions\":[\"pfr\"]},\"application/font-woff\":{\"source\":\"iana\",\"compressible\":false},\"application/framework-attributes+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/geo+json\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"geojson\"]},\"application/geo+json-seq\":{\"source\":\"iana\"},\"application/geopackage+sqlite3\":{\"source\":\"iana\"},\"application/geoxacml+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/gltf-buffer\":{\"source\":\"iana\"},\"application/gml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"gml\"]},\"application/gpx+xml\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"gpx\"]},\"application/gxf\":{\"source\":\"apache\",\"extensions\":[\"gxf\"]},\"application/gzip\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"gz\"]},\"application/h224\":{\"source\":\"iana\"},\"application/held+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/hjson\":{\"extensions\":[\"hjson\"]},\"application/http\":{\"source\":\"iana\"},\"application/hyperstudio\":{\"source\":\"iana\",\"extensions\":[\"stk\"]},\"application/ibe-key-request+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/ibe-pkg-reply+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/ibe-pp-data\":{\"source\":\"iana\"},\"application/iges\":{\"source\":\"iana\"},\"application/im-iscomposing+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true},\"application/index\":{\"source\":\"iana\"},\"application/index.cmd\":{\"source\":\"iana\"},\"application/index.obj\":{\"source\":\"iana\"},\"application/index.response\":{\"source\":\"iana\"},\"application/index.vnd\":{\"source\":\"iana\"},\"application/inkml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"ink\",\"inkml\"]},\"application/iotp\":{\"source\":\"iana\"},\"application/ipfix\":{\"source\":\"iana\",\"extensions\":[\"ipfix\"]},\"application/ipp\":{\"source\":\"iana\"},\"application/isup\":{\"source\":\"iana\"},\"application/its+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"its\"]},\"application/java-archive\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"jar\",\"war\",\"ear\"]},\"application/java-serialized-object\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"ser\"]},\"application/java-vm\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"class\"]},\"application/javascript\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true,\"extensions\":[\"js\",\"mjs\"]},\"application/jf2feed+json\":{\"source\":\"iana\",\"compressible\":true},\"application/jose\":{\"source\":\"iana\"},\"application/jose+json\":{\"source\":\"iana\",\"compressible\":true},\"application/jrd+json\":{\"source\":\"iana\",\"compressible\":true},\"application/json\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true,\"extensions\":[\"json\",\"map\"]},\"application/json-patch+json\":{\"source\":\"iana\",\"compressible\":true},\"application/json-seq\":{\"source\":\"iana\"},\"application/json5\":{\"extensions\":[\"json5\"]},\"application/jsonml+json\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"jsonml\"]},\"application/jwk+json\":{\"source\":\"iana\",\"compressible\":true},\"application/jwk-set+json\":{\"source\":\"iana\",\"compressible\":true},\"application/jwt\":{\"source\":\"iana\"},\"application/kpml-request+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/kpml-response+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/ld+json\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"jsonld\"]},\"application/lgr+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"lgr\"]},\"application/link-format\":{\"source\":\"iana\"},\"application/load-control+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/lost+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"lostxml\"]},\"application/lostsync+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/lpf+zip\":{\"source\":\"iana\",\"compressible\":false},\"application/lxf\":{\"source\":\"iana\"},\"application/mac-binhex40\":{\"source\":\"iana\",\"extensions\":[\"hqx\"]},\"application/mac-compactpro\":{\"source\":\"apache\",\"extensions\":[\"cpt\"]},\"application/macwriteii\":{\"source\":\"iana\"},\"application/mads+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"mads\"]},\"application/manifest+json\":{\"charset\":\"UTF-8\",\"compressible\":true,\"extensions\":[\"webmanifest\"]},\"application/marc\":{\"source\":\"iana\",\"extensions\":[\"mrc\"]},\"application/marcxml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"mrcx\"]},\"application/mathematica\":{\"source\":\"iana\",\"extensions\":[\"ma\",\"nb\",\"mb\"]},\"application/mathml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"mathml\"]},\"application/mathml-content+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/mathml-presentation+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/mbms-associated-procedure-description+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/mbms-deregister+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/mbms-envelope+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/mbms-msk+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/mbms-msk-response+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/mbms-protection-description+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/mbms-reception-report+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/mbms-register+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/mbms-register-response+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/mbms-schedule+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/mbms-user-service-description+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/mbox\":{\"source\":\"iana\",\"extensions\":[\"mbox\"]},\"application/media-policy-dataset+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/media_control+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/mediaservercontrol+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"mscml\"]},\"application/merge-patch+json\":{\"source\":\"iana\",\"compressible\":true},\"application/metalink+xml\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"metalink\"]},\"application/metalink4+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"meta4\"]},\"application/mets+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"mets\"]},\"application/mf4\":{\"source\":\"iana\"},\"application/mikey\":{\"source\":\"iana\"},\"application/mipc\":{\"source\":\"iana\"},\"application/mmt-aei+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"maei\"]},\"application/mmt-usd+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"musd\"]},\"application/mods+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"mods\"]},\"application/moss-keys\":{\"source\":\"iana\"},\"application/moss-signature\":{\"source\":\"iana\"},\"application/mosskey-data\":{\"source\":\"iana\"},\"application/mosskey-request\":{\"source\":\"iana\"},\"application/mp21\":{\"source\":\"iana\",\"extensions\":[\"m21\",\"mp21\"]},\"application/mp4\":{\"source\":\"iana\",\"extensions\":[\"mp4s\",\"m4p\"]},\"application/mpeg4-generic\":{\"source\":\"iana\"},\"application/mpeg4-iod\":{\"source\":\"iana\"},\"application/mpeg4-iod-xmt\":{\"source\":\"iana\"},\"application/mrb-consumer+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xdf\"]},\"application/mrb-publish+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xdf\"]},\"application/msc-ivr+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true},\"application/msc-mixer+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true},\"application/msword\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"doc\",\"dot\"]},\"application/mud+json\":{\"source\":\"iana\",\"compressible\":true},\"application/multipart-core\":{\"source\":\"iana\"},\"application/mxf\":{\"source\":\"iana\",\"extensions\":[\"mxf\"]},\"application/n-quads\":{\"source\":\"iana\",\"extensions\":[\"nq\"]},\"application/n-triples\":{\"source\":\"iana\",\"extensions\":[\"nt\"]},\"application/nasdata\":{\"source\":\"iana\"},\"application/news-checkgroups\":{\"source\":\"iana\",\"charset\":\"US-ASCII\"},\"application/news-groupinfo\":{\"source\":\"iana\",\"charset\":\"US-ASCII\"},\"application/news-transmission\":{\"source\":\"iana\"},\"application/nlsml+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/node\":{\"source\":\"iana\",\"extensions\":[\"cjs\"]},\"application/nss\":{\"source\":\"iana\"},\"application/ocsp-request\":{\"source\":\"iana\"},\"application/ocsp-response\":{\"source\":\"iana\"},\"application/octet-stream\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"bin\",\"dms\",\"lrf\",\"mar\",\"so\",\"dist\",\"distz\",\"pkg\",\"bpk\",\"dump\",\"elc\",\"deploy\",\"exe\",\"dll\",\"deb\",\"dmg\",\"iso\",\"img\",\"msi\",\"msp\",\"msm\",\"buffer\"]},\"application/oda\":{\"source\":\"iana\",\"extensions\":[\"oda\"]},\"application/odm+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/odx\":{\"source\":\"iana\"},\"application/oebps-package+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"opf\"]},\"application/ogg\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"ogx\"]},\"application/omdoc+xml\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"omdoc\"]},\"application/onenote\":{\"source\":\"apache\",\"extensions\":[\"onetoc\",\"onetoc2\",\"onetmp\",\"onepkg\"]},\"application/opc-nodeset+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/oscore\":{\"source\":\"iana\"},\"application/oxps\":{\"source\":\"iana\",\"extensions\":[\"oxps\"]},\"application/p2p-overlay+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"relo\"]},\"application/parityfec\":{\"source\":\"iana\"},\"application/passport\":{\"source\":\"iana\"},\"application/patch-ops-error+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xer\"]},\"application/pdf\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"pdf\"]},\"application/pdx\":{\"source\":\"iana\"},\"application/pem-certificate-chain\":{\"source\":\"iana\"},\"application/pgp-encrypted\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"pgp\"]},\"application/pgp-keys\":{\"source\":\"iana\"},\"application/pgp-signature\":{\"source\":\"iana\",\"extensions\":[\"asc\",\"sig\"]},\"application/pics-rules\":{\"source\":\"apache\",\"extensions\":[\"prf\"]},\"application/pidf+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true},\"application/pidf-diff+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true},\"application/pkcs10\":{\"source\":\"iana\",\"extensions\":[\"p10\"]},\"application/pkcs12\":{\"source\":\"iana\"},\"application/pkcs7-mime\":{\"source\":\"iana\",\"extensions\":[\"p7m\",\"p7c\"]},\"application/pkcs7-signature\":{\"source\":\"iana\",\"extensions\":[\"p7s\"]},\"application/pkcs8\":{\"source\":\"iana\",\"extensions\":[\"p8\"]},\"application/pkcs8-encrypted\":{\"source\":\"iana\"},\"application/pkix-attr-cert\":{\"source\":\"iana\",\"extensions\":[\"ac\"]},\"application/pkix-cert\":{\"source\":\"iana\",\"extensions\":[\"cer\"]},\"application/pkix-crl\":{\"source\":\"iana\",\"extensions\":[\"crl\"]},\"application/pkix-pkipath\":{\"source\":\"iana\",\"extensions\":[\"pkipath\"]},\"application/pkixcmp\":{\"source\":\"iana\",\"extensions\":[\"pki\"]},\"application/pls+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"pls\"]},\"application/poc-settings+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true},\"application/postscript\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"ai\",\"eps\",\"ps\"]},\"application/ppsp-tracker+json\":{\"source\":\"iana\",\"compressible\":true},\"application/problem+json\":{\"source\":\"iana\",\"compressible\":true},\"application/problem+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/provenance+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"provx\"]},\"application/prs.alvestrand.titrax-sheet\":{\"source\":\"iana\"},\"application/prs.cww\":{\"source\":\"iana\",\"extensions\":[\"cww\"]},\"application/prs.hpub+zip\":{\"source\":\"iana\",\"compressible\":false},\"application/prs.nprend\":{\"source\":\"iana\"},\"application/prs.plucker\":{\"source\":\"iana\"},\"application/prs.rdf-xml-crypt\":{\"source\":\"iana\"},\"application/prs.xsf+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/pskc+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"pskcxml\"]},\"application/pvd+json\":{\"source\":\"iana\",\"compressible\":true},\"application/qsig\":{\"source\":\"iana\"},\"application/raml+yaml\":{\"compressible\":true,\"extensions\":[\"raml\"]},\"application/raptorfec\":{\"source\":\"iana\"},\"application/rdap+json\":{\"source\":\"iana\",\"compressible\":true},\"application/rdf+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"rdf\",\"owl\"]},\"application/reginfo+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"rif\"]},\"application/relax-ng-compact-syntax\":{\"source\":\"iana\",\"extensions\":[\"rnc\"]},\"application/remote-printing\":{\"source\":\"iana\"},\"application/reputon+json\":{\"source\":\"iana\",\"compressible\":true},\"application/resource-lists+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"rl\"]},\"application/resource-lists-diff+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"rld\"]},\"application/rfc+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/riscos\":{\"source\":\"iana\"},\"application/rlmi+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/rls-services+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"rs\"]},\"application/route-apd+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"rapd\"]},\"application/route-s-tsid+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"sls\"]},\"application/route-usd+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"rusd\"]},\"application/rpki-ghostbusters\":{\"source\":\"iana\",\"extensions\":[\"gbr\"]},\"application/rpki-manifest\":{\"source\":\"iana\",\"extensions\":[\"mft\"]},\"application/rpki-publication\":{\"source\":\"iana\"},\"application/rpki-roa\":{\"source\":\"iana\",\"extensions\":[\"roa\"]},\"application/rpki-updown\":{\"source\":\"iana\"},\"application/rsd+xml\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"rsd\"]},\"application/rss+xml\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"rss\"]},\"application/rtf\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"rtf\"]},\"application/rtploopback\":{\"source\":\"iana\"},\"application/rtx\":{\"source\":\"iana\"},\"application/samlassertion+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/samlmetadata+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/sarif+json\":{\"source\":\"iana\",\"compressible\":true},\"application/sbe\":{\"source\":\"iana\"},\"application/sbml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"sbml\"]},\"application/scaip+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/scim+json\":{\"source\":\"iana\",\"compressible\":true},\"application/scvp-cv-request\":{\"source\":\"iana\",\"extensions\":[\"scq\"]},\"application/scvp-cv-response\":{\"source\":\"iana\",\"extensions\":[\"scs\"]},\"application/scvp-vp-request\":{\"source\":\"iana\",\"extensions\":[\"spq\"]},\"application/scvp-vp-response\":{\"source\":\"iana\",\"extensions\":[\"spp\"]},\"application/sdp\":{\"source\":\"iana\",\"extensions\":[\"sdp\"]},\"application/secevent+jwt\":{\"source\":\"iana\"},\"application/senml+cbor\":{\"source\":\"iana\"},\"application/senml+json\":{\"source\":\"iana\",\"compressible\":true},\"application/senml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"senmlx\"]},\"application/senml-etch+cbor\":{\"source\":\"iana\"},\"application/senml-etch+json\":{\"source\":\"iana\",\"compressible\":true},\"application/senml-exi\":{\"source\":\"iana\"},\"application/sensml+cbor\":{\"source\":\"iana\"},\"application/sensml+json\":{\"source\":\"iana\",\"compressible\":true},\"application/sensml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"sensmlx\"]},\"application/sensml-exi\":{\"source\":\"iana\"},\"application/sep+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/sep-exi\":{\"source\":\"iana\"},\"application/session-info\":{\"source\":\"iana\"},\"application/set-payment\":{\"source\":\"iana\"},\"application/set-payment-initiation\":{\"source\":\"iana\",\"extensions\":[\"setpay\"]},\"application/set-registration\":{\"source\":\"iana\"},\"application/set-registration-initiation\":{\"source\":\"iana\",\"extensions\":[\"setreg\"]},\"application/sgml\":{\"source\":\"iana\"},\"application/sgml-open-catalog\":{\"source\":\"iana\"},\"application/shf+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"shf\"]},\"application/sieve\":{\"source\":\"iana\",\"extensions\":[\"siv\",\"sieve\"]},\"application/simple-filter+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/simple-message-summary\":{\"source\":\"iana\"},\"application/simplesymbolcontainer\":{\"source\":\"iana\"},\"application/sipc\":{\"source\":\"iana\"},\"application/slate\":{\"source\":\"iana\"},\"application/smil\":{\"source\":\"iana\"},\"application/smil+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"smi\",\"smil\"]},\"application/smpte336m\":{\"source\":\"iana\"},\"application/soap+fastinfoset\":{\"source\":\"iana\"},\"application/soap+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/sparql-query\":{\"source\":\"iana\",\"extensions\":[\"rq\"]},\"application/sparql-results+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"srx\"]},\"application/spirits-event+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/sql\":{\"source\":\"iana\"},\"application/srgs\":{\"source\":\"iana\",\"extensions\":[\"gram\"]},\"application/srgs+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"grxml\"]},\"application/sru+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"sru\"]},\"application/ssdl+xml\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"ssdl\"]},\"application/ssml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"ssml\"]},\"application/stix+json\":{\"source\":\"iana\",\"compressible\":true},\"application/swid+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"swidtag\"]},\"application/tamp-apex-update\":{\"source\":\"iana\"},\"application/tamp-apex-update-confirm\":{\"source\":\"iana\"},\"application/tamp-community-update\":{\"source\":\"iana\"},\"application/tamp-community-update-confirm\":{\"source\":\"iana\"},\"application/tamp-error\":{\"source\":\"iana\"},\"application/tamp-sequence-adjust\":{\"source\":\"iana\"},\"application/tamp-sequence-adjust-confirm\":{\"source\":\"iana\"},\"application/tamp-status-query\":{\"source\":\"iana\"},\"application/tamp-status-response\":{\"source\":\"iana\"},\"application/tamp-update\":{\"source\":\"iana\"},\"application/tamp-update-confirm\":{\"source\":\"iana\"},\"application/tar\":{\"compressible\":true},\"application/taxii+json\":{\"source\":\"iana\",\"compressible\":true},\"application/td+json\":{\"source\":\"iana\",\"compressible\":true},\"application/tei+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"tei\",\"teicorpus\"]},\"application/tetra_isi\":{\"source\":\"iana\"},\"application/thraud+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"tfi\"]},\"application/timestamp-query\":{\"source\":\"iana\"},\"application/timestamp-reply\":{\"source\":\"iana\"},\"application/timestamped-data\":{\"source\":\"iana\",\"extensions\":[\"tsd\"]},\"application/tlsrpt+gzip\":{\"source\":\"iana\"},\"application/tlsrpt+json\":{\"source\":\"iana\",\"compressible\":true},\"application/tnauthlist\":{\"source\":\"iana\"},\"application/toml\":{\"compressible\":true,\"extensions\":[\"toml\"]},\"application/trickle-ice-sdpfrag\":{\"source\":\"iana\"},\"application/trig\":{\"source\":\"iana\"},\"application/ttml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"ttml\"]},\"application/tve-trigger\":{\"source\":\"iana\"},\"application/tzif\":{\"source\":\"iana\"},\"application/tzif-leap\":{\"source\":\"iana\"},\"application/ubjson\":{\"compressible\":false,\"extensions\":[\"ubj\"]},\"application/ulpfec\":{\"source\":\"iana\"},\"application/urc-grpsheet+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/urc-ressheet+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"rsheet\"]},\"application/urc-targetdesc+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"td\"]},\"application/urc-uisocketdesc+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vcard+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vcard+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vemmi\":{\"source\":\"iana\"},\"application/vividence.scriptfile\":{\"source\":\"apache\"},\"application/vnd.1000minds.decision-model+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"1km\"]},\"application/vnd.3gpp-prose+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp-prose-pc3ch+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp-v2x-local-service-information\":{\"source\":\"iana\"},\"application/vnd.3gpp.access-transfer-events+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.bsf+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.gmop+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mc-signalling-ear\":{\"source\":\"iana\"},\"application/vnd.3gpp.mcdata-affiliation-command+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcdata-info+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcdata-payload\":{\"source\":\"iana\"},\"application/vnd.3gpp.mcdata-service-config+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcdata-signalling\":{\"source\":\"iana\"},\"application/vnd.3gpp.mcdata-ue-config+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcdata-user-profile+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcptt-affiliation-command+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcptt-floor-request+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcptt-info+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcptt-location-info+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcptt-mbms-usage-info+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcptt-service-config+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcptt-signed+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcptt-ue-config+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcptt-ue-init-config+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcptt-user-profile+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcvideo-affiliation-command+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcvideo-affiliation-info+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcvideo-info+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcvideo-location-info+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcvideo-mbms-usage-info+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcvideo-service-config+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcvideo-transmission-request+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcvideo-ue-config+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mcvideo-user-profile+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.mid-call+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.pic-bw-large\":{\"source\":\"iana\",\"extensions\":[\"plb\"]},\"application/vnd.3gpp.pic-bw-small\":{\"source\":\"iana\",\"extensions\":[\"psb\"]},\"application/vnd.3gpp.pic-bw-var\":{\"source\":\"iana\",\"extensions\":[\"pvb\"]},\"application/vnd.3gpp.sms\":{\"source\":\"iana\"},\"application/vnd.3gpp.sms+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.srvcc-ext+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.srvcc-info+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.state-and-event-info+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp.ussd+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp2.bcmcsinfo+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.3gpp2.sms\":{\"source\":\"iana\"},\"application/vnd.3gpp2.tcap\":{\"source\":\"iana\",\"extensions\":[\"tcap\"]},\"application/vnd.3lightssoftware.imagescal\":{\"source\":\"iana\"},\"application/vnd.3m.post-it-notes\":{\"source\":\"iana\",\"extensions\":[\"pwn\"]},\"application/vnd.accpac.simply.aso\":{\"source\":\"iana\",\"extensions\":[\"aso\"]},\"application/vnd.accpac.simply.imp\":{\"source\":\"iana\",\"extensions\":[\"imp\"]},\"application/vnd.acucobol\":{\"source\":\"iana\",\"extensions\":[\"acu\"]},\"application/vnd.acucorp\":{\"source\":\"iana\",\"extensions\":[\"atc\",\"acutc\"]},\"application/vnd.adobe.air-application-installer-package+zip\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"air\"]},\"application/vnd.adobe.flash.movie\":{\"source\":\"iana\"},\"application/vnd.adobe.formscentral.fcdt\":{\"source\":\"iana\",\"extensions\":[\"fcdt\"]},\"application/vnd.adobe.fxp\":{\"source\":\"iana\",\"extensions\":[\"fxp\",\"fxpl\"]},\"application/vnd.adobe.partial-upload\":{\"source\":\"iana\"},\"application/vnd.adobe.xdp+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xdp\"]},\"application/vnd.adobe.xfdf\":{\"source\":\"iana\",\"extensions\":[\"xfdf\"]},\"application/vnd.aether.imp\":{\"source\":\"iana\"},\"application/vnd.afpc.afplinedata\":{\"source\":\"iana\"},\"application/vnd.afpc.afplinedata-pagedef\":{\"source\":\"iana\"},\"application/vnd.afpc.foca-charset\":{\"source\":\"iana\"},\"application/vnd.afpc.foca-codedfont\":{\"source\":\"iana\"},\"application/vnd.afpc.foca-codepage\":{\"source\":\"iana\"},\"application/vnd.afpc.modca\":{\"source\":\"iana\"},\"application/vnd.afpc.modca-formdef\":{\"source\":\"iana\"},\"application/vnd.afpc.modca-mediummap\":{\"source\":\"iana\"},\"application/vnd.afpc.modca-objectcontainer\":{\"source\":\"iana\"},\"application/vnd.afpc.modca-overlay\":{\"source\":\"iana\"},\"application/vnd.afpc.modca-pagesegment\":{\"source\":\"iana\"},\"application/vnd.ah-barcode\":{\"source\":\"iana\"},\"application/vnd.ahead.space\":{\"source\":\"iana\",\"extensions\":[\"ahead\"]},\"application/vnd.airzip.filesecure.azf\":{\"source\":\"iana\",\"extensions\":[\"azf\"]},\"application/vnd.airzip.filesecure.azs\":{\"source\":\"iana\",\"extensions\":[\"azs\"]},\"application/vnd.amadeus+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.amazon.ebook\":{\"source\":\"apache\",\"extensions\":[\"azw\"]},\"application/vnd.amazon.mobi8-ebook\":{\"source\":\"iana\"},\"application/vnd.americandynamics.acc\":{\"source\":\"iana\",\"extensions\":[\"acc\"]},\"application/vnd.amiga.ami\":{\"source\":\"iana\",\"extensions\":[\"ami\"]},\"application/vnd.amundsen.maze+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.android.ota\":{\"source\":\"iana\"},\"application/vnd.android.package-archive\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"apk\"]},\"application/vnd.anki\":{\"source\":\"iana\"},\"application/vnd.anser-web-certificate-issue-initiation\":{\"source\":\"iana\",\"extensions\":[\"cii\"]},\"application/vnd.anser-web-funds-transfer-initiation\":{\"source\":\"apache\",\"extensions\":[\"fti\"]},\"application/vnd.antix.game-component\":{\"source\":\"iana\",\"extensions\":[\"atx\"]},\"application/vnd.apache.thrift.binary\":{\"source\":\"iana\"},\"application/vnd.apache.thrift.compact\":{\"source\":\"iana\"},\"application/vnd.apache.thrift.json\":{\"source\":\"iana\"},\"application/vnd.api+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.aplextor.warrp+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.apothekende.reservation+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.apple.installer+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"mpkg\"]},\"application/vnd.apple.keynote\":{\"source\":\"iana\",\"extensions\":[\"key\"]},\"application/vnd.apple.mpegurl\":{\"source\":\"iana\",\"extensions\":[\"m3u8\"]},\"application/vnd.apple.numbers\":{\"source\":\"iana\",\"extensions\":[\"numbers\"]},\"application/vnd.apple.pages\":{\"source\":\"iana\",\"extensions\":[\"pages\"]},\"application/vnd.apple.pkpass\":{\"compressible\":false,\"extensions\":[\"pkpass\"]},\"application/vnd.arastra.swi\":{\"source\":\"iana\"},\"application/vnd.aristanetworks.swi\":{\"source\":\"iana\",\"extensions\":[\"swi\"]},\"application/vnd.artisan+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.artsquare\":{\"source\":\"iana\"},\"application/vnd.astraea-software.iota\":{\"source\":\"iana\",\"extensions\":[\"iota\"]},\"application/vnd.audiograph\":{\"source\":\"iana\",\"extensions\":[\"aep\"]},\"application/vnd.autopackage\":{\"source\":\"iana\"},\"application/vnd.avalon+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.avistar+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.balsamiq.bmml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"bmml\"]},\"application/vnd.balsamiq.bmpr\":{\"source\":\"iana\"},\"application/vnd.banana-accounting\":{\"source\":\"iana\"},\"application/vnd.bbf.usp.error\":{\"source\":\"iana\"},\"application/vnd.bbf.usp.msg\":{\"source\":\"iana\"},\"application/vnd.bbf.usp.msg+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.bekitzur-stech+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.bint.med-content\":{\"source\":\"iana\"},\"application/vnd.biopax.rdf+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.blink-idb-value-wrapper\":{\"source\":\"iana\"},\"application/vnd.blueice.multipass\":{\"source\":\"iana\",\"extensions\":[\"mpm\"]},\"application/vnd.bluetooth.ep.oob\":{\"source\":\"iana\"},\"application/vnd.bluetooth.le.oob\":{\"source\":\"iana\"},\"application/vnd.bmi\":{\"source\":\"iana\",\"extensions\":[\"bmi\"]},\"application/vnd.bpf\":{\"source\":\"iana\"},\"application/vnd.bpf3\":{\"source\":\"iana\"},\"application/vnd.businessobjects\":{\"source\":\"iana\",\"extensions\":[\"rep\"]},\"application/vnd.byu.uapi+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.cab-jscript\":{\"source\":\"iana\"},\"application/vnd.canon-cpdl\":{\"source\":\"iana\"},\"application/vnd.canon-lips\":{\"source\":\"iana\"},\"application/vnd.capasystems-pg+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.cendio.thinlinc.clientconf\":{\"source\":\"iana\"},\"application/vnd.century-systems.tcp_stream\":{\"source\":\"iana\"},\"application/vnd.chemdraw+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"cdxml\"]},\"application/vnd.chess-pgn\":{\"source\":\"iana\"},\"application/vnd.chipnuts.karaoke-mmd\":{\"source\":\"iana\",\"extensions\":[\"mmd\"]},\"application/vnd.ciedi\":{\"source\":\"iana\"},\"application/vnd.cinderella\":{\"source\":\"iana\",\"extensions\":[\"cdy\"]},\"application/vnd.cirpack.isdn-ext\":{\"source\":\"iana\"},\"application/vnd.citationstyles.style+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"csl\"]},\"application/vnd.claymore\":{\"source\":\"iana\",\"extensions\":[\"cla\"]},\"application/vnd.cloanto.rp9\":{\"source\":\"iana\",\"extensions\":[\"rp9\"]},\"application/vnd.clonk.c4group\":{\"source\":\"iana\",\"extensions\":[\"c4g\",\"c4d\",\"c4f\",\"c4p\",\"c4u\"]},\"application/vnd.cluetrust.cartomobile-config\":{\"source\":\"iana\",\"extensions\":[\"c11amc\"]},\"application/vnd.cluetrust.cartomobile-config-pkg\":{\"source\":\"iana\",\"extensions\":[\"c11amz\"]},\"application/vnd.coffeescript\":{\"source\":\"iana\"},\"application/vnd.collabio.xodocuments.document\":{\"source\":\"iana\"},\"application/vnd.collabio.xodocuments.document-template\":{\"source\":\"iana\"},\"application/vnd.collabio.xodocuments.presentation\":{\"source\":\"iana\"},\"application/vnd.collabio.xodocuments.presentation-template\":{\"source\":\"iana\"},\"application/vnd.collabio.xodocuments.spreadsheet\":{\"source\":\"iana\"},\"application/vnd.collabio.xodocuments.spreadsheet-template\":{\"source\":\"iana\"},\"application/vnd.collection+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.collection.doc+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.collection.next+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.comicbook+zip\":{\"source\":\"iana\",\"compressible\":false},\"application/vnd.comicbook-rar\":{\"source\":\"iana\"},\"application/vnd.commerce-battelle\":{\"source\":\"iana\"},\"application/vnd.commonspace\":{\"source\":\"iana\",\"extensions\":[\"csp\"]},\"application/vnd.contact.cmsg\":{\"source\":\"iana\",\"extensions\":[\"cdbcmsg\"]},\"application/vnd.coreos.ignition+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.cosmocaller\":{\"source\":\"iana\",\"extensions\":[\"cmc\"]},\"application/vnd.crick.clicker\":{\"source\":\"iana\",\"extensions\":[\"clkx\"]},\"application/vnd.crick.clicker.keyboard\":{\"source\":\"iana\",\"extensions\":[\"clkk\"]},\"application/vnd.crick.clicker.palette\":{\"source\":\"iana\",\"extensions\":[\"clkp\"]},\"application/vnd.crick.clicker.template\":{\"source\":\"iana\",\"extensions\":[\"clkt\"]},\"application/vnd.crick.clicker.wordbank\":{\"source\":\"iana\",\"extensions\":[\"clkw\"]},\"application/vnd.criticaltools.wbs+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"wbs\"]},\"application/vnd.cryptii.pipe+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.crypto-shade-file\":{\"source\":\"iana\"},\"application/vnd.ctc-posml\":{\"source\":\"iana\",\"extensions\":[\"pml\"]},\"application/vnd.ctct.ws+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.cups-pdf\":{\"source\":\"iana\"},\"application/vnd.cups-postscript\":{\"source\":\"iana\"},\"application/vnd.cups-ppd\":{\"source\":\"iana\",\"extensions\":[\"ppd\"]},\"application/vnd.cups-raster\":{\"source\":\"iana\"},\"application/vnd.cups-raw\":{\"source\":\"iana\"},\"application/vnd.curl\":{\"source\":\"iana\"},\"application/vnd.curl.car\":{\"source\":\"apache\",\"extensions\":[\"car\"]},\"application/vnd.curl.pcurl\":{\"source\":\"apache\",\"extensions\":[\"pcurl\"]},\"application/vnd.cyan.dean.root+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.cybank\":{\"source\":\"iana\"},\"application/vnd.d2l.coursepackage1p0+zip\":{\"source\":\"iana\",\"compressible\":false},\"application/vnd.d3m-dataset\":{\"source\":\"iana\"},\"application/vnd.d3m-problem\":{\"source\":\"iana\"},\"application/vnd.dart\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"dart\"]},\"application/vnd.data-vision.rdz\":{\"source\":\"iana\",\"extensions\":[\"rdz\"]},\"application/vnd.datapackage+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.dataresource+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.dbf\":{\"source\":\"iana\",\"extensions\":[\"dbf\"]},\"application/vnd.debian.binary-package\":{\"source\":\"iana\"},\"application/vnd.dece.data\":{\"source\":\"iana\",\"extensions\":[\"uvf\",\"uvvf\",\"uvd\",\"uvvd\"]},\"application/vnd.dece.ttml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"uvt\",\"uvvt\"]},\"application/vnd.dece.unspecified\":{\"source\":\"iana\",\"extensions\":[\"uvx\",\"uvvx\"]},\"application/vnd.dece.zip\":{\"source\":\"iana\",\"extensions\":[\"uvz\",\"uvvz\"]},\"application/vnd.denovo.fcselayout-link\":{\"source\":\"iana\",\"extensions\":[\"fe_launch\"]},\"application/vnd.desmume.movie\":{\"source\":\"iana\"},\"application/vnd.dir-bi.plate-dl-nosuffix\":{\"source\":\"iana\"},\"application/vnd.dm.delegation+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.dna\":{\"source\":\"iana\",\"extensions\":[\"dna\"]},\"application/vnd.document+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.dolby.mlp\":{\"source\":\"apache\",\"extensions\":[\"mlp\"]},\"application/vnd.dolby.mobile.1\":{\"source\":\"iana\"},\"application/vnd.dolby.mobile.2\":{\"source\":\"iana\"},\"application/vnd.doremir.scorecloud-binary-document\":{\"source\":\"iana\"},\"application/vnd.dpgraph\":{\"source\":\"iana\",\"extensions\":[\"dpg\"]},\"application/vnd.dreamfactory\":{\"source\":\"iana\",\"extensions\":[\"dfac\"]},\"application/vnd.drive+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.ds-keypoint\":{\"source\":\"apache\",\"extensions\":[\"kpxx\"]},\"application/vnd.dtg.local\":{\"source\":\"iana\"},\"application/vnd.dtg.local.flash\":{\"source\":\"iana\"},\"application/vnd.dtg.local.html\":{\"source\":\"iana\"},\"application/vnd.dvb.ait\":{\"source\":\"iana\",\"extensions\":[\"ait\"]},\"application/vnd.dvb.dvbisl+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.dvb.dvbj\":{\"source\":\"iana\"},\"application/vnd.dvb.esgcontainer\":{\"source\":\"iana\"},\"application/vnd.dvb.ipdcdftnotifaccess\":{\"source\":\"iana\"},\"application/vnd.dvb.ipdcesgaccess\":{\"source\":\"iana\"},\"application/vnd.dvb.ipdcesgaccess2\":{\"source\":\"iana\"},\"application/vnd.dvb.ipdcesgpdd\":{\"source\":\"iana\"},\"application/vnd.dvb.ipdcroaming\":{\"source\":\"iana\"},\"application/vnd.dvb.iptv.alfec-base\":{\"source\":\"iana\"},\"application/vnd.dvb.iptv.alfec-enhancement\":{\"source\":\"iana\"},\"application/vnd.dvb.notif-aggregate-root+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.dvb.notif-container+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.dvb.notif-generic+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.dvb.notif-ia-msglist+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.dvb.notif-ia-registration-request+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.dvb.notif-ia-registration-response+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.dvb.notif-init+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.dvb.pfr\":{\"source\":\"iana\"},\"application/vnd.dvb.service\":{\"source\":\"iana\",\"extensions\":[\"svc\"]},\"application/vnd.dxr\":{\"source\":\"iana\"},\"application/vnd.dynageo\":{\"source\":\"iana\",\"extensions\":[\"geo\"]},\"application/vnd.dzr\":{\"source\":\"iana\"},\"application/vnd.easykaraoke.cdgdownload\":{\"source\":\"iana\"},\"application/vnd.ecdis-update\":{\"source\":\"iana\"},\"application/vnd.ecip.rlp\":{\"source\":\"iana\"},\"application/vnd.ecowin.chart\":{\"source\":\"iana\",\"extensions\":[\"mag\"]},\"application/vnd.ecowin.filerequest\":{\"source\":\"iana\"},\"application/vnd.ecowin.fileupdate\":{\"source\":\"iana\"},\"application/vnd.ecowin.series\":{\"source\":\"iana\"},\"application/vnd.ecowin.seriesrequest\":{\"source\":\"iana\"},\"application/vnd.ecowin.seriesupdate\":{\"source\":\"iana\"},\"application/vnd.efi.img\":{\"source\":\"iana\"},\"application/vnd.efi.iso\":{\"source\":\"iana\"},\"application/vnd.emclient.accessrequest+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.enliven\":{\"source\":\"iana\",\"extensions\":[\"nml\"]},\"application/vnd.enphase.envoy\":{\"source\":\"iana\"},\"application/vnd.eprints.data+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.epson.esf\":{\"source\":\"iana\",\"extensions\":[\"esf\"]},\"application/vnd.epson.msf\":{\"source\":\"iana\",\"extensions\":[\"msf\"]},\"application/vnd.epson.quickanime\":{\"source\":\"iana\",\"extensions\":[\"qam\"]},\"application/vnd.epson.salt\":{\"source\":\"iana\",\"extensions\":[\"slt\"]},\"application/vnd.epson.ssf\":{\"source\":\"iana\",\"extensions\":[\"ssf\"]},\"application/vnd.ericsson.quickcall\":{\"source\":\"iana\"},\"application/vnd.espass-espass+zip\":{\"source\":\"iana\",\"compressible\":false},\"application/vnd.eszigno3+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"es3\",\"et3\"]},\"application/vnd.etsi.aoc+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.asic-e+zip\":{\"source\":\"iana\",\"compressible\":false},\"application/vnd.etsi.asic-s+zip\":{\"source\":\"iana\",\"compressible\":false},\"application/vnd.etsi.cug+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.iptvcommand+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.iptvdiscovery+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.iptvprofile+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.iptvsad-bc+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.iptvsad-cod+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.iptvsad-npvr+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.iptvservice+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.iptvsync+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.iptvueprofile+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.mcid+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.mheg5\":{\"source\":\"iana\"},\"application/vnd.etsi.overload-control-policy-dataset+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.pstn+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.sci+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.simservs+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.timestamp-token\":{\"source\":\"iana\"},\"application/vnd.etsi.tsl+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.etsi.tsl.der\":{\"source\":\"iana\"},\"application/vnd.eudora.data\":{\"source\":\"iana\"},\"application/vnd.evolv.ecig.profile\":{\"source\":\"iana\"},\"application/vnd.evolv.ecig.settings\":{\"source\":\"iana\"},\"application/vnd.evolv.ecig.theme\":{\"source\":\"iana\"},\"application/vnd.exstream-empower+zip\":{\"source\":\"iana\",\"compressible\":false},\"application/vnd.exstream-package\":{\"source\":\"iana\"},\"application/vnd.ezpix-album\":{\"source\":\"iana\",\"extensions\":[\"ez2\"]},\"application/vnd.ezpix-package\":{\"source\":\"iana\",\"extensions\":[\"ez3\"]},\"application/vnd.f-secure.mobile\":{\"source\":\"iana\"},\"application/vnd.fastcopy-disk-image\":{\"source\":\"iana\"},\"application/vnd.fdf\":{\"source\":\"iana\",\"extensions\":[\"fdf\"]},\"application/vnd.fdsn.mseed\":{\"source\":\"iana\",\"extensions\":[\"mseed\"]},\"application/vnd.fdsn.seed\":{\"source\":\"iana\",\"extensions\":[\"seed\",\"dataless\"]},\"application/vnd.ffsns\":{\"source\":\"iana\"},\"application/vnd.ficlab.flb+zip\":{\"source\":\"iana\",\"compressible\":false},\"application/vnd.filmit.zfc\":{\"source\":\"iana\"},\"application/vnd.fints\":{\"source\":\"iana\"},\"application/vnd.firemonkeys.cloudcell\":{\"source\":\"iana\"},\"application/vnd.flographit\":{\"source\":\"iana\",\"extensions\":[\"gph\"]},\"application/vnd.fluxtime.clip\":{\"source\":\"iana\",\"extensions\":[\"ftc\"]},\"application/vnd.font-fontforge-sfd\":{\"source\":\"iana\"},\"application/vnd.framemaker\":{\"source\":\"iana\",\"extensions\":[\"fm\",\"frame\",\"maker\",\"book\"]},\"application/vnd.frogans.fnc\":{\"source\":\"iana\",\"extensions\":[\"fnc\"]},\"application/vnd.frogans.ltf\":{\"source\":\"iana\",\"extensions\":[\"ltf\"]},\"application/vnd.fsc.weblaunch\":{\"source\":\"iana\",\"extensions\":[\"fsc\"]},\"application/vnd.fujitsu.oasys\":{\"source\":\"iana\",\"extensions\":[\"oas\"]},\"application/vnd.fujitsu.oasys2\":{\"source\":\"iana\",\"extensions\":[\"oa2\"]},\"application/vnd.fujitsu.oasys3\":{\"source\":\"iana\",\"extensions\":[\"oa3\"]},\"application/vnd.fujitsu.oasysgp\":{\"source\":\"iana\",\"extensions\":[\"fg5\"]},\"application/vnd.fujitsu.oasysprs\":{\"source\":\"iana\",\"extensions\":[\"bh2\"]},\"application/vnd.fujixerox.art-ex\":{\"source\":\"iana\"},\"application/vnd.fujixerox.art4\":{\"source\":\"iana\"},\"application/vnd.fujixerox.ddd\":{\"source\":\"iana\",\"extensions\":[\"ddd\"]},\"application/vnd.fujixerox.docuworks\":{\"source\":\"iana\",\"extensions\":[\"xdw\"]},\"application/vnd.fujixerox.docuworks.binder\":{\"source\":\"iana\",\"extensions\":[\"xbd\"]},\"application/vnd.fujixerox.docuworks.container\":{\"source\":\"iana\"},\"application/vnd.fujixerox.hbpl\":{\"source\":\"iana\"},\"application/vnd.fut-misnet\":{\"source\":\"iana\"},\"application/vnd.futoin+cbor\":{\"source\":\"iana\"},\"application/vnd.futoin+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.fuzzysheet\":{\"source\":\"iana\",\"extensions\":[\"fzs\"]},\"application/vnd.genomatix.tuxedo\":{\"source\":\"iana\",\"extensions\":[\"txd\"]},\"application/vnd.gentics.grd+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.geo+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.geocube+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.geogebra.file\":{\"source\":\"iana\",\"extensions\":[\"ggb\"]},\"application/vnd.geogebra.tool\":{\"source\":\"iana\",\"extensions\":[\"ggt\"]},\"application/vnd.geometry-explorer\":{\"source\":\"iana\",\"extensions\":[\"gex\",\"gre\"]},\"application/vnd.geonext\":{\"source\":\"iana\",\"extensions\":[\"gxt\"]},\"application/vnd.geoplan\":{\"source\":\"iana\",\"extensions\":[\"g2w\"]},\"application/vnd.geospace\":{\"source\":\"iana\",\"extensions\":[\"g3w\"]},\"application/vnd.gerber\":{\"source\":\"iana\"},\"application/vnd.globalplatform.card-content-mgt\":{\"source\":\"iana\"},\"application/vnd.globalplatform.card-content-mgt-response\":{\"source\":\"iana\"},\"application/vnd.gmx\":{\"source\":\"iana\",\"extensions\":[\"gmx\"]},\"application/vnd.google-apps.document\":{\"compressible\":false,\"extensions\":[\"gdoc\"]},\"application/vnd.google-apps.presentation\":{\"compressible\":false,\"extensions\":[\"gslides\"]},\"application/vnd.google-apps.spreadsheet\":{\"compressible\":false,\"extensions\":[\"gsheet\"]},\"application/vnd.google-earth.kml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"kml\"]},\"application/vnd.google-earth.kmz\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"kmz\"]},\"application/vnd.gov.sk.e-form+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.gov.sk.e-form+zip\":{\"source\":\"iana\",\"compressible\":false},\"application/vnd.gov.sk.xmldatacontainer+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.grafeq\":{\"source\":\"iana\",\"extensions\":[\"gqf\",\"gqs\"]},\"application/vnd.gridmp\":{\"source\":\"iana\"},\"application/vnd.groove-account\":{\"source\":\"iana\",\"extensions\":[\"gac\"]},\"application/vnd.groove-help\":{\"source\":\"iana\",\"extensions\":[\"ghf\"]},\"application/vnd.groove-identity-message\":{\"source\":\"iana\",\"extensions\":[\"gim\"]},\"application/vnd.groove-injector\":{\"source\":\"iana\",\"extensions\":[\"grv\"]},\"application/vnd.groove-tool-message\":{\"source\":\"iana\",\"extensions\":[\"gtm\"]},\"application/vnd.groove-tool-template\":{\"source\":\"iana\",\"extensions\":[\"tpl\"]},\"application/vnd.groove-vcard\":{\"source\":\"iana\",\"extensions\":[\"vcg\"]},\"application/vnd.hal+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.hal+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"hal\"]},\"application/vnd.handheld-entertainment+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"zmm\"]},\"application/vnd.hbci\":{\"source\":\"iana\",\"extensions\":[\"hbci\"]},\"application/vnd.hc+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.hcl-bireports\":{\"source\":\"iana\"},\"application/vnd.hdt\":{\"source\":\"iana\"},\"application/vnd.heroku+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.hhe.lesson-player\":{\"source\":\"iana\",\"extensions\":[\"les\"]},\"application/vnd.hp-hpgl\":{\"source\":\"iana\",\"extensions\":[\"hpgl\"]},\"application/vnd.hp-hpid\":{\"source\":\"iana\",\"extensions\":[\"hpid\"]},\"application/vnd.hp-hps\":{\"source\":\"iana\",\"extensions\":[\"hps\"]},\"application/vnd.hp-jlyt\":{\"source\":\"iana\",\"extensions\":[\"jlt\"]},\"application/vnd.hp-pcl\":{\"source\":\"iana\",\"extensions\":[\"pcl\"]},\"application/vnd.hp-pclxl\":{\"source\":\"iana\",\"extensions\":[\"pclxl\"]},\"application/vnd.httphone\":{\"source\":\"iana\"},\"application/vnd.hydrostatix.sof-data\":{\"source\":\"iana\",\"extensions\":[\"sfd-hdstx\"]},\"application/vnd.hyper+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.hyper-item+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.hyperdrive+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.hzn-3d-crossword\":{\"source\":\"iana\"},\"application/vnd.ibm.afplinedata\":{\"source\":\"iana\"},\"application/vnd.ibm.electronic-media\":{\"source\":\"iana\"},\"application/vnd.ibm.minipay\":{\"source\":\"iana\",\"extensions\":[\"mpy\"]},\"application/vnd.ibm.modcap\":{\"source\":\"iana\",\"extensions\":[\"afp\",\"listafp\",\"list3820\"]},\"application/vnd.ibm.rights-management\":{\"source\":\"iana\",\"extensions\":[\"irm\"]},\"application/vnd.ibm.secure-container\":{\"source\":\"iana\",\"extensions\":[\"sc\"]},\"application/vnd.iccprofile\":{\"source\":\"iana\",\"extensions\":[\"icc\",\"icm\"]},\"application/vnd.ieee.1905\":{\"source\":\"iana\"},\"application/vnd.igloader\":{\"source\":\"iana\",\"extensions\":[\"igl\"]},\"application/vnd.imagemeter.folder+zip\":{\"source\":\"iana\",\"compressible\":false},\"application/vnd.imagemeter.image+zip\":{\"source\":\"iana\",\"compressible\":false},\"application/vnd.immervision-ivp\":{\"source\":\"iana\",\"extensions\":[\"ivp\"]},\"application/vnd.immervision-ivu\":{\"source\":\"iana\",\"extensions\":[\"ivu\"]},\"application/vnd.ims.imsccv1p1\":{\"source\":\"iana\"},\"application/vnd.ims.imsccv1p2\":{\"source\":\"iana\"},\"application/vnd.ims.imsccv1p3\":{\"source\":\"iana\"},\"application/vnd.ims.lis.v2.result+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.ims.lti.v2.toolconsumerprofile+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.ims.lti.v2.toolproxy+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.ims.lti.v2.toolproxy.id+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.ims.lti.v2.toolsettings+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.ims.lti.v2.toolsettings.simple+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.informedcontrol.rms+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.informix-visionary\":{\"source\":\"iana\"},\"application/vnd.infotech.project\":{\"source\":\"iana\"},\"application/vnd.infotech.project+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.innopath.wamp.notification\":{\"source\":\"iana\"},\"application/vnd.insors.igm\":{\"source\":\"iana\",\"extensions\":[\"igm\"]},\"application/vnd.intercon.formnet\":{\"source\":\"iana\",\"extensions\":[\"xpw\",\"xpx\"]},\"application/vnd.intergeo\":{\"source\":\"iana\",\"extensions\":[\"i2g\"]},\"application/vnd.intertrust.digibox\":{\"source\":\"iana\"},\"application/vnd.intertrust.nncp\":{\"source\":\"iana\"},\"application/vnd.intu.qbo\":{\"source\":\"iana\",\"extensions\":[\"qbo\"]},\"application/vnd.intu.qfx\":{\"source\":\"iana\",\"extensions\":[\"qfx\"]},\"application/vnd.iptc.g2.catalogitem+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.iptc.g2.conceptitem+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.iptc.g2.knowledgeitem+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.iptc.g2.newsitem+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.iptc.g2.newsmessage+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.iptc.g2.packageitem+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.iptc.g2.planningitem+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.ipunplugged.rcprofile\":{\"source\":\"iana\",\"extensions\":[\"rcprofile\"]},\"application/vnd.irepository.package+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"irp\"]},\"application/vnd.is-xpr\":{\"source\":\"iana\",\"extensions\":[\"xpr\"]},\"application/vnd.isac.fcs\":{\"source\":\"iana\",\"extensions\":[\"fcs\"]},\"application/vnd.iso11783-10+zip\":{\"source\":\"iana\",\"compressible\":false},\"application/vnd.jam\":{\"source\":\"iana\",\"extensions\":[\"jam\"]},\"application/vnd.japannet-directory-service\":{\"source\":\"iana\"},\"application/vnd.japannet-jpnstore-wakeup\":{\"source\":\"iana\"},\"application/vnd.japannet-payment-wakeup\":{\"source\":\"iana\"},\"application/vnd.japannet-registration\":{\"source\":\"iana\"},\"application/vnd.japannet-registration-wakeup\":{\"source\":\"iana\"},\"application/vnd.japannet-setstore-wakeup\":{\"source\":\"iana\"},\"application/vnd.japannet-verification\":{\"source\":\"iana\"},\"application/vnd.japannet-verification-wakeup\":{\"source\":\"iana\"},\"application/vnd.jcp.javame.midlet-rms\":{\"source\":\"iana\",\"extensions\":[\"rms\"]},\"application/vnd.jisp\":{\"source\":\"iana\",\"extensions\":[\"jisp\"]},\"application/vnd.joost.joda-archive\":{\"source\":\"iana\",\"extensions\":[\"joda\"]},\"application/vnd.jsk.isdn-ngn\":{\"source\":\"iana\"},\"application/vnd.kahootz\":{\"source\":\"iana\",\"extensions\":[\"ktz\",\"ktr\"]},\"application/vnd.kde.karbon\":{\"source\":\"iana\",\"extensions\":[\"karbon\"]},\"application/vnd.kde.kchart\":{\"source\":\"iana\",\"extensions\":[\"chrt\"]},\"application/vnd.kde.kformula\":{\"source\":\"iana\",\"extensions\":[\"kfo\"]},\"application/vnd.kde.kivio\":{\"source\":\"iana\",\"extensions\":[\"flw\"]},\"application/vnd.kde.kontour\":{\"source\":\"iana\",\"extensions\":[\"kon\"]},\"application/vnd.kde.kpresenter\":{\"source\":\"iana\",\"extensions\":[\"kpr\",\"kpt\"]},\"application/vnd.kde.kspread\":{\"source\":\"iana\",\"extensions\":[\"ksp\"]},\"application/vnd.kde.kword\":{\"source\":\"iana\",\"extensions\":[\"kwd\",\"kwt\"]},\"application/vnd.kenameaapp\":{\"source\":\"iana\",\"extensions\":[\"htke\"]},\"application/vnd.kidspiration\":{\"source\":\"iana\",\"extensions\":[\"kia\"]},\"application/vnd.kinar\":{\"source\":\"iana\",\"extensions\":[\"kne\",\"knp\"]},\"application/vnd.koan\":{\"source\":\"iana\",\"extensions\":[\"skp\",\"skd\",\"skt\",\"skm\"]},\"application/vnd.kodak-descriptor\":{\"source\":\"iana\",\"extensions\":[\"sse\"]},\"application/vnd.las\":{\"source\":\"iana\"},\"application/vnd.las.las+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.las.las+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"lasxml\"]},\"application/vnd.laszip\":{\"source\":\"iana\"},\"application/vnd.leap+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.liberty-request+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.llamagraphics.life-balance.desktop\":{\"source\":\"iana\",\"extensions\":[\"lbd\"]},\"application/vnd.llamagraphics.life-balance.exchange+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"lbe\"]},\"application/vnd.logipipe.circuit+zip\":{\"source\":\"iana\",\"compressible\":false},\"application/vnd.loom\":{\"source\":\"iana\"},\"application/vnd.lotus-1-2-3\":{\"source\":\"iana\",\"extensions\":[\"123\"]},\"application/vnd.lotus-approach\":{\"source\":\"iana\",\"extensions\":[\"apr\"]},\"application/vnd.lotus-freelance\":{\"source\":\"iana\",\"extensions\":[\"pre\"]},\"application/vnd.lotus-notes\":{\"source\":\"iana\",\"extensions\":[\"nsf\"]},\"application/vnd.lotus-organizer\":{\"source\":\"iana\",\"extensions\":[\"org\"]},\"application/vnd.lotus-screencam\":{\"source\":\"iana\",\"extensions\":[\"scm\"]},\"application/vnd.lotus-wordpro\":{\"source\":\"iana\",\"extensions\":[\"lwp\"]},\"application/vnd.macports.portpkg\":{\"source\":\"iana\",\"extensions\":[\"portpkg\"]},\"application/vnd.mapbox-vector-tile\":{\"source\":\"iana\"},\"application/vnd.marlin.drm.actiontoken+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.marlin.drm.conftoken+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.marlin.drm.license+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.marlin.drm.mdcf\":{\"source\":\"iana\"},\"application/vnd.mason+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.maxmind.maxmind-db\":{\"source\":\"iana\"},\"application/vnd.mcd\":{\"source\":\"iana\",\"extensions\":[\"mcd\"]},\"application/vnd.medcalcdata\":{\"source\":\"iana\",\"extensions\":[\"mc1\"]},\"application/vnd.mediastation.cdkey\":{\"source\":\"iana\",\"extensions\":[\"cdkey\"]},\"application/vnd.meridian-slingshot\":{\"source\":\"iana\"},\"application/vnd.mfer\":{\"source\":\"iana\",\"extensions\":[\"mwf\"]},\"application/vnd.mfmp\":{\"source\":\"iana\",\"extensions\":[\"mfm\"]},\"application/vnd.micro+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.micrografx.flo\":{\"source\":\"iana\",\"extensions\":[\"flo\"]},\"application/vnd.micrografx.igx\":{\"source\":\"iana\",\"extensions\":[\"igx\"]},\"application/vnd.microsoft.portable-executable\":{\"source\":\"iana\"},\"application/vnd.microsoft.windows.thumbnail-cache\":{\"source\":\"iana\"},\"application/vnd.miele+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.mif\":{\"source\":\"iana\",\"extensions\":[\"mif\"]},\"application/vnd.minisoft-hp3000-save\":{\"source\":\"iana\"},\"application/vnd.mitsubishi.misty-guard.trustweb\":{\"source\":\"iana\"},\"application/vnd.mobius.daf\":{\"source\":\"iana\",\"extensions\":[\"daf\"]},\"application/vnd.mobius.dis\":{\"source\":\"iana\",\"extensions\":[\"dis\"]},\"application/vnd.mobius.mbk\":{\"source\":\"iana\",\"extensions\":[\"mbk\"]},\"application/vnd.mobius.mqy\":{\"source\":\"iana\",\"extensions\":[\"mqy\"]},\"application/vnd.mobius.msl\":{\"source\":\"iana\",\"extensions\":[\"msl\"]},\"application/vnd.mobius.plc\":{\"source\":\"iana\",\"extensions\":[\"plc\"]},\"application/vnd.mobius.txf\":{\"source\":\"iana\",\"extensions\":[\"txf\"]},\"application/vnd.mophun.application\":{\"source\":\"iana\",\"extensions\":[\"mpn\"]},\"application/vnd.mophun.certificate\":{\"source\":\"iana\",\"extensions\":[\"mpc\"]},\"application/vnd.motorola.flexsuite\":{\"source\":\"iana\"},\"application/vnd.motorola.flexsuite.adsi\":{\"source\":\"iana\"},\"application/vnd.motorola.flexsuite.fis\":{\"source\":\"iana\"},\"application/vnd.motorola.flexsuite.gotap\":{\"source\":\"iana\"},\"application/vnd.motorola.flexsuite.kmr\":{\"source\":\"iana\"},\"application/vnd.motorola.flexsuite.ttc\":{\"source\":\"iana\"},\"application/vnd.motorola.flexsuite.wem\":{\"source\":\"iana\"},\"application/vnd.motorola.iprm\":{\"source\":\"iana\"},\"application/vnd.mozilla.xul+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xul\"]},\"application/vnd.ms-3mfdocument\":{\"source\":\"iana\"},\"application/vnd.ms-artgalry\":{\"source\":\"iana\",\"extensions\":[\"cil\"]},\"application/vnd.ms-asf\":{\"source\":\"iana\"},\"application/vnd.ms-cab-compressed\":{\"source\":\"iana\",\"extensions\":[\"cab\"]},\"application/vnd.ms-color.iccprofile\":{\"source\":\"apache\"},\"application/vnd.ms-excel\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"xls\",\"xlm\",\"xla\",\"xlc\",\"xlt\",\"xlw\"]},\"application/vnd.ms-excel.addin.macroenabled.12\":{\"source\":\"iana\",\"extensions\":[\"xlam\"]},\"application/vnd.ms-excel.sheet.binary.macroenabled.12\":{\"source\":\"iana\",\"extensions\":[\"xlsb\"]},\"application/vnd.ms-excel.sheet.macroenabled.12\":{\"source\":\"iana\",\"extensions\":[\"xlsm\"]},\"application/vnd.ms-excel.template.macroenabled.12\":{\"source\":\"iana\",\"extensions\":[\"xltm\"]},\"application/vnd.ms-fontobject\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"eot\"]},\"application/vnd.ms-htmlhelp\":{\"source\":\"iana\",\"extensions\":[\"chm\"]},\"application/vnd.ms-ims\":{\"source\":\"iana\",\"extensions\":[\"ims\"]},\"application/vnd.ms-lrm\":{\"source\":\"iana\",\"extensions\":[\"lrm\"]},\"application/vnd.ms-office.activex+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.ms-officetheme\":{\"source\":\"iana\",\"extensions\":[\"thmx\"]},\"application/vnd.ms-opentype\":{\"source\":\"apache\",\"compressible\":true},\"application/vnd.ms-outlook\":{\"compressible\":false,\"extensions\":[\"msg\"]},\"application/vnd.ms-package.obfuscated-opentype\":{\"source\":\"apache\"},\"application/vnd.ms-pki.seccat\":{\"source\":\"apache\",\"extensions\":[\"cat\"]},\"application/vnd.ms-pki.stl\":{\"source\":\"apache\",\"extensions\":[\"stl\"]},\"application/vnd.ms-playready.initiator+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.ms-powerpoint\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"ppt\",\"pps\",\"pot\"]},\"application/vnd.ms-powerpoint.addin.macroenabled.12\":{\"source\":\"iana\",\"extensions\":[\"ppam\"]},\"application/vnd.ms-powerpoint.presentation.macroenabled.12\":{\"source\":\"iana\",\"extensions\":[\"pptm\"]},\"application/vnd.ms-powerpoint.slide.macroenabled.12\":{\"source\":\"iana\",\"extensions\":[\"sldm\"]},\"application/vnd.ms-powerpoint.slideshow.macroenabled.12\":{\"source\":\"iana\",\"extensions\":[\"ppsm\"]},\"application/vnd.ms-powerpoint.template.macroenabled.12\":{\"source\":\"iana\",\"extensions\":[\"potm\"]},\"application/vnd.ms-printdevicecapabilities+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.ms-printing.printticket+xml\":{\"source\":\"apache\",\"compressible\":true},\"application/vnd.ms-printschematicket+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.ms-project\":{\"source\":\"iana\",\"extensions\":[\"mpp\",\"mpt\"]},\"application/vnd.ms-tnef\":{\"source\":\"iana\"},\"application/vnd.ms-windows.devicepairing\":{\"source\":\"iana\"},\"application/vnd.ms-windows.nwprinting.oob\":{\"source\":\"iana\"},\"application/vnd.ms-windows.printerpairing\":{\"source\":\"iana\"},\"application/vnd.ms-windows.wsd.oob\":{\"source\":\"iana\"},\"application/vnd.ms-wmdrm.lic-chlg-req\":{\"source\":\"iana\"},\"application/vnd.ms-wmdrm.lic-resp\":{\"source\":\"iana\"},\"application/vnd.ms-wmdrm.meter-chlg-req\":{\"source\":\"iana\"},\"application/vnd.ms-wmdrm.meter-resp\":{\"source\":\"iana\"},\"application/vnd.ms-word.document.macroenabled.12\":{\"source\":\"iana\",\"extensions\":[\"docm\"]},\"application/vnd.ms-word.template.macroenabled.12\":{\"source\":\"iana\",\"extensions\":[\"dotm\"]},\"application/vnd.ms-works\":{\"source\":\"iana\",\"extensions\":[\"wps\",\"wks\",\"wcm\",\"wdb\"]},\"application/vnd.ms-wpl\":{\"source\":\"iana\",\"extensions\":[\"wpl\"]},\"application/vnd.ms-xpsdocument\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"xps\"]},\"application/vnd.msa-disk-image\":{\"source\":\"iana\"},\"application/vnd.mseq\":{\"source\":\"iana\",\"extensions\":[\"mseq\"]},\"application/vnd.msign\":{\"source\":\"iana\"},\"application/vnd.multiad.creator\":{\"source\":\"iana\"},\"application/vnd.multiad.creator.cif\":{\"source\":\"iana\"},\"application/vnd.music-niff\":{\"source\":\"iana\"},\"application/vnd.musician\":{\"source\":\"iana\",\"extensions\":[\"mus\"]},\"application/vnd.muvee.style\":{\"source\":\"iana\",\"extensions\":[\"msty\"]},\"application/vnd.mynfc\":{\"source\":\"iana\",\"extensions\":[\"taglet\"]},\"application/vnd.ncd.control\":{\"source\":\"iana\"},\"application/vnd.ncd.reference\":{\"source\":\"iana\"},\"application/vnd.nearst.inv+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.nervana\":{\"source\":\"iana\"},\"application/vnd.netfpx\":{\"source\":\"iana\"},\"application/vnd.neurolanguage.nlu\":{\"source\":\"iana\",\"extensions\":[\"nlu\"]},\"application/vnd.nimn\":{\"source\":\"iana\"},\"application/vnd.nintendo.nitro.rom\":{\"source\":\"iana\"},\"application/vnd.nintendo.snes.rom\":{\"source\":\"iana\"},\"application/vnd.nitf\":{\"source\":\"iana\",\"extensions\":[\"ntf\",\"nitf\"]},\"application/vnd.noblenet-directory\":{\"source\":\"iana\",\"extensions\":[\"nnd\"]},\"application/vnd.noblenet-sealer\":{\"source\":\"iana\",\"extensions\":[\"nns\"]},\"application/vnd.noblenet-web\":{\"source\":\"iana\",\"extensions\":[\"nnw\"]},\"application/vnd.nokia.catalogs\":{\"source\":\"iana\"},\"application/vnd.nokia.conml+wbxml\":{\"source\":\"iana\"},\"application/vnd.nokia.conml+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.nokia.iptv.config+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.nokia.isds-radio-presets\":{\"source\":\"iana\"},\"application/vnd.nokia.landmark+wbxml\":{\"source\":\"iana\"},\"application/vnd.nokia.landmark+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.nokia.landmarkcollection+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.nokia.n-gage.ac+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"ac\"]},\"application/vnd.nokia.n-gage.data\":{\"source\":\"iana\",\"extensions\":[\"ngdat\"]},\"application/vnd.nokia.n-gage.symbian.install\":{\"source\":\"iana\",\"extensions\":[\"n-gage\"]},\"application/vnd.nokia.ncd\":{\"source\":\"iana\"},\"application/vnd.nokia.pcd+wbxml\":{\"source\":\"iana\"},\"application/vnd.nokia.pcd+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.nokia.radio-preset\":{\"source\":\"iana\",\"extensions\":[\"rpst\"]},\"application/vnd.nokia.radio-presets\":{\"source\":\"iana\",\"extensions\":[\"rpss\"]},\"application/vnd.novadigm.edm\":{\"source\":\"iana\",\"extensions\":[\"edm\"]},\"application/vnd.novadigm.edx\":{\"source\":\"iana\",\"extensions\":[\"edx\"]},\"application/vnd.novadigm.ext\":{\"source\":\"iana\",\"extensions\":[\"ext\"]},\"application/vnd.ntt-local.content-share\":{\"source\":\"iana\"},\"application/vnd.ntt-local.file-transfer\":{\"source\":\"iana\"},\"application/vnd.ntt-local.ogw_remote-access\":{\"source\":\"iana\"},\"application/vnd.ntt-local.sip-ta_remote\":{\"source\":\"iana\"},\"application/vnd.ntt-local.sip-ta_tcp_stream\":{\"source\":\"iana\"},\"application/vnd.oasis.opendocument.chart\":{\"source\":\"iana\",\"extensions\":[\"odc\"]},\"application/vnd.oasis.opendocument.chart-template\":{\"source\":\"iana\",\"extensions\":[\"otc\"]},\"application/vnd.oasis.opendocument.database\":{\"source\":\"iana\",\"extensions\":[\"odb\"]},\"application/vnd.oasis.opendocument.formula\":{\"source\":\"iana\",\"extensions\":[\"odf\"]},\"application/vnd.oasis.opendocument.formula-template\":{\"source\":\"iana\",\"extensions\":[\"odft\"]},\"application/vnd.oasis.opendocument.graphics\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"odg\"]},\"application/vnd.oasis.opendocument.graphics-template\":{\"source\":\"iana\",\"extensions\":[\"otg\"]},\"application/vnd.oasis.opendocument.image\":{\"source\":\"iana\",\"extensions\":[\"odi\"]},\"application/vnd.oasis.opendocument.image-template\":{\"source\":\"iana\",\"extensions\":[\"oti\"]},\"application/vnd.oasis.opendocument.presentation\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"odp\"]},\"application/vnd.oasis.opendocument.presentation-template\":{\"source\":\"iana\",\"extensions\":[\"otp\"]},\"application/vnd.oasis.opendocument.spreadsheet\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"ods\"]},\"application/vnd.oasis.opendocument.spreadsheet-template\":{\"source\":\"iana\",\"extensions\":[\"ots\"]},\"application/vnd.oasis.opendocument.text\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"odt\"]},\"application/vnd.oasis.opendocument.text-master\":{\"source\":\"iana\",\"extensions\":[\"odm\"]},\"application/vnd.oasis.opendocument.text-template\":{\"source\":\"iana\",\"extensions\":[\"ott\"]},\"application/vnd.oasis.opendocument.text-web\":{\"source\":\"iana\",\"extensions\":[\"oth\"]},\"application/vnd.obn\":{\"source\":\"iana\"},\"application/vnd.ocf+cbor\":{\"source\":\"iana\"},\"application/vnd.oci.image.manifest.v1+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oftn.l10n+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oipf.contentaccessdownload+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oipf.contentaccessstreaming+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oipf.cspg-hexbinary\":{\"source\":\"iana\"},\"application/vnd.oipf.dae.svg+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oipf.dae.xhtml+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oipf.mippvcontrolmessage+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oipf.pae.gem\":{\"source\":\"iana\"},\"application/vnd.oipf.spdiscovery+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oipf.spdlist+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oipf.ueprofile+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oipf.userprofile+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.olpc-sugar\":{\"source\":\"iana\",\"extensions\":[\"xo\"]},\"application/vnd.oma-scws-config\":{\"source\":\"iana\"},\"application/vnd.oma-scws-http-request\":{\"source\":\"iana\"},\"application/vnd.oma-scws-http-response\":{\"source\":\"iana\"},\"application/vnd.oma.bcast.associated-procedure-parameter+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.bcast.drm-trigger+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.bcast.imd+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.bcast.ltkm\":{\"source\":\"iana\"},\"application/vnd.oma.bcast.notification+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.bcast.provisioningtrigger\":{\"source\":\"iana\"},\"application/vnd.oma.bcast.sgboot\":{\"source\":\"iana\"},\"application/vnd.oma.bcast.sgdd+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.bcast.sgdu\":{\"source\":\"iana\"},\"application/vnd.oma.bcast.simple-symbol-container\":{\"source\":\"iana\"},\"application/vnd.oma.bcast.smartcard-trigger+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.bcast.sprov+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.bcast.stkm\":{\"source\":\"iana\"},\"application/vnd.oma.cab-address-book+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.cab-feature-handler+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.cab-pcc+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.cab-subs-invite+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.cab-user-prefs+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.dcd\":{\"source\":\"iana\"},\"application/vnd.oma.dcdc\":{\"source\":\"iana\"},\"application/vnd.oma.dd2+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"dd2\"]},\"application/vnd.oma.drm.risd+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.group-usage-list+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.lwm2m+cbor\":{\"source\":\"iana\"},\"application/vnd.oma.lwm2m+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.lwm2m+tlv\":{\"source\":\"iana\"},\"application/vnd.oma.pal+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.poc.detailed-progress-report+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.poc.final-report+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.poc.groups+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.poc.invocation-descriptor+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.poc.optimized-progress-report+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.push\":{\"source\":\"iana\"},\"application/vnd.oma.scidm.messages+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oma.xcap-directory+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.omads-email+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true},\"application/vnd.omads-file+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true},\"application/vnd.omads-folder+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true},\"application/vnd.omaloc-supl-init\":{\"source\":\"iana\"},\"application/vnd.onepager\":{\"source\":\"iana\"},\"application/vnd.onepagertamp\":{\"source\":\"iana\"},\"application/vnd.onepagertamx\":{\"source\":\"iana\"},\"application/vnd.onepagertat\":{\"source\":\"iana\"},\"application/vnd.onepagertatp\":{\"source\":\"iana\"},\"application/vnd.onepagertatx\":{\"source\":\"iana\"},\"application/vnd.openblox.game+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"obgx\"]},\"application/vnd.openblox.game-binary\":{\"source\":\"iana\"},\"application/vnd.openeye.oeb\":{\"source\":\"iana\"},\"application/vnd.openofficeorg.extension\":{\"source\":\"apache\",\"extensions\":[\"oxt\"]},\"application/vnd.openstreetmap.data+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"osm\"]},\"application/vnd.openxmlformats-officedocument.custom-properties+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.customxmlproperties+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.drawing+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.drawingml.chartshapes+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.drawingml.diagramcolors+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.drawingml.diagramdata+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.drawingml.diagramlayout+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.drawingml.diagramstyle+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.extended-properties+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.presentationml.commentauthors+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.presentationml.comments+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.presentationml.handoutmaster+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.presentationml.notesmaster+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.presentationml.notesslide+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.presentationml.presentation\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"pptx\"]},\"application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.presentationml.presprops+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.presentationml.slide\":{\"source\":\"iana\",\"extensions\":[\"sldx\"]},\"application/vnd.openxmlformats-officedocument.presentationml.slide+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.presentationml.slidelayout+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.presentationml.slidemaster+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.presentationml.slideshow\":{\"source\":\"iana\",\"extensions\":[\"ppsx\"]},\"application/vnd.openxmlformats-officedocument.presentationml.slideshow.main+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.presentationml.slideupdateinfo+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.presentationml.tablestyles+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.presentationml.tags+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.presentationml.template\":{\"source\":\"iana\",\"extensions\":[\"potx\"]},\"application/vnd.openxmlformats-officedocument.presentationml.template.main+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.presentationml.viewprops+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.calcchain+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.chartsheet+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.connections+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.dialogsheet+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.externallink+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.pivotcachedefinition+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.pivotcacherecords+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.pivottable+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.querytable+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.revisionheaders+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.revisionlog+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.sharedstrings+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"xlsx\"]},\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheetmetadata+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.tablesinglecells+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.template\":{\"source\":\"iana\",\"extensions\":[\"xltx\"]},\"application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.usernames+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.volatiledependencies+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.theme+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.themeoverride+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.vmldrawing\":{\"source\":\"iana\"},\"application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.wordprocessingml.document\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"docx\"]},\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.glossary+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.wordprocessingml.fonttable+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.wordprocessingml.template\":{\"source\":\"iana\",\"extensions\":[\"dotx\"]},\"application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-officedocument.wordprocessingml.websettings+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-package.core-properties+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-package.digital-signature-xmlsignature+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.openxmlformats-package.relationships+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oracle.resource+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.orange.indata\":{\"source\":\"iana\"},\"application/vnd.osa.netdeploy\":{\"source\":\"iana\"},\"application/vnd.osgeo.mapguide.package\":{\"source\":\"iana\",\"extensions\":[\"mgp\"]},\"application/vnd.osgi.bundle\":{\"source\":\"iana\"},\"application/vnd.osgi.dp\":{\"source\":\"iana\",\"extensions\":[\"dp\"]},\"application/vnd.osgi.subsystem\":{\"source\":\"iana\",\"extensions\":[\"esa\"]},\"application/vnd.otps.ct-kip+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.oxli.countgraph\":{\"source\":\"iana\"},\"application/vnd.pagerduty+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.palm\":{\"source\":\"iana\",\"extensions\":[\"pdb\",\"pqa\",\"oprc\"]},\"application/vnd.panoply\":{\"source\":\"iana\"},\"application/vnd.paos.xml\":{\"source\":\"iana\"},\"application/vnd.patentdive\":{\"source\":\"iana\"},\"application/vnd.patientecommsdoc\":{\"source\":\"iana\"},\"application/vnd.pawaafile\":{\"source\":\"iana\",\"extensions\":[\"paw\"]},\"application/vnd.pcos\":{\"source\":\"iana\"},\"application/vnd.pg.format\":{\"source\":\"iana\",\"extensions\":[\"str\"]},\"application/vnd.pg.osasli\":{\"source\":\"iana\",\"extensions\":[\"ei6\"]},\"application/vnd.piaccess.application-licence\":{\"source\":\"iana\"},\"application/vnd.picsel\":{\"source\":\"iana\",\"extensions\":[\"efif\"]},\"application/vnd.pmi.widget\":{\"source\":\"iana\",\"extensions\":[\"wg\"]},\"application/vnd.poc.group-advertisement+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.pocketlearn\":{\"source\":\"iana\",\"extensions\":[\"plf\"]},\"application/vnd.powerbuilder6\":{\"source\":\"iana\",\"extensions\":[\"pbd\"]},\"application/vnd.powerbuilder6-s\":{\"source\":\"iana\"},\"application/vnd.powerbuilder7\":{\"source\":\"iana\"},\"application/vnd.powerbuilder7-s\":{\"source\":\"iana\"},\"application/vnd.powerbuilder75\":{\"source\":\"iana\"},\"application/vnd.powerbuilder75-s\":{\"source\":\"iana\"},\"application/vnd.preminet\":{\"source\":\"iana\"},\"application/vnd.previewsystems.box\":{\"source\":\"iana\",\"extensions\":[\"box\"]},\"application/vnd.proteus.magazine\":{\"source\":\"iana\",\"extensions\":[\"mgz\"]},\"application/vnd.psfs\":{\"source\":\"iana\"},\"application/vnd.publishare-delta-tree\":{\"source\":\"iana\",\"extensions\":[\"qps\"]},\"application/vnd.pvi.ptid1\":{\"source\":\"iana\",\"extensions\":[\"ptid\"]},\"application/vnd.pwg-multiplexed\":{\"source\":\"iana\"},\"application/vnd.pwg-xhtml-print+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.qualcomm.brew-app-res\":{\"source\":\"iana\"},\"application/vnd.quarantainenet\":{\"source\":\"iana\"},\"application/vnd.quark.quarkxpress\":{\"source\":\"iana\",\"extensions\":[\"qxd\",\"qxt\",\"qwd\",\"qwt\",\"qxl\",\"qxb\"]},\"application/vnd.quobject-quoxdocument\":{\"source\":\"iana\"},\"application/vnd.radisys.moml+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.radisys.msml+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.radisys.msml-audit+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.radisys.msml-audit-conf+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.radisys.msml-audit-conn+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.radisys.msml-audit-dialog+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.radisys.msml-audit-stream+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.radisys.msml-conf+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.radisys.msml-dialog+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.radisys.msml-dialog-base+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.radisys.msml-dialog-fax-detect+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.radisys.msml-dialog-fax-sendrecv+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.radisys.msml-dialog-group+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.radisys.msml-dialog-speech+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.radisys.msml-dialog-transform+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.rainstor.data\":{\"source\":\"iana\"},\"application/vnd.rapid\":{\"source\":\"iana\"},\"application/vnd.rar\":{\"source\":\"iana\",\"extensions\":[\"rar\"]},\"application/vnd.realvnc.bed\":{\"source\":\"iana\",\"extensions\":[\"bed\"]},\"application/vnd.recordare.musicxml\":{\"source\":\"iana\",\"extensions\":[\"mxl\"]},\"application/vnd.recordare.musicxml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"musicxml\"]},\"application/vnd.renlearn.rlprint\":{\"source\":\"iana\"},\"application/vnd.restful+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.rig.cryptonote\":{\"source\":\"iana\",\"extensions\":[\"cryptonote\"]},\"application/vnd.rim.cod\":{\"source\":\"apache\",\"extensions\":[\"cod\"]},\"application/vnd.rn-realmedia\":{\"source\":\"apache\",\"extensions\":[\"rm\"]},\"application/vnd.rn-realmedia-vbr\":{\"source\":\"apache\",\"extensions\":[\"rmvb\"]},\"application/vnd.route66.link66+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"link66\"]},\"application/vnd.rs-274x\":{\"source\":\"iana\"},\"application/vnd.ruckus.download\":{\"source\":\"iana\"},\"application/vnd.s3sms\":{\"source\":\"iana\"},\"application/vnd.sailingtracker.track\":{\"source\":\"iana\",\"extensions\":[\"st\"]},\"application/vnd.sar\":{\"source\":\"iana\"},\"application/vnd.sbm.cid\":{\"source\":\"iana\"},\"application/vnd.sbm.mid2\":{\"source\":\"iana\"},\"application/vnd.scribus\":{\"source\":\"iana\"},\"application/vnd.sealed.3df\":{\"source\":\"iana\"},\"application/vnd.sealed.csf\":{\"source\":\"iana\"},\"application/vnd.sealed.doc\":{\"source\":\"iana\"},\"application/vnd.sealed.eml\":{\"source\":\"iana\"},\"application/vnd.sealed.mht\":{\"source\":\"iana\"},\"application/vnd.sealed.net\":{\"source\":\"iana\"},\"application/vnd.sealed.ppt\":{\"source\":\"iana\"},\"application/vnd.sealed.tiff\":{\"source\":\"iana\"},\"application/vnd.sealed.xls\":{\"source\":\"iana\"},\"application/vnd.sealedmedia.softseal.html\":{\"source\":\"iana\"},\"application/vnd.sealedmedia.softseal.pdf\":{\"source\":\"iana\"},\"application/vnd.seemail\":{\"source\":\"iana\",\"extensions\":[\"see\"]},\"application/vnd.sema\":{\"source\":\"iana\",\"extensions\":[\"sema\"]},\"application/vnd.semd\":{\"source\":\"iana\",\"extensions\":[\"semd\"]},\"application/vnd.semf\":{\"source\":\"iana\",\"extensions\":[\"semf\"]},\"application/vnd.shade-save-file\":{\"source\":\"iana\"},\"application/vnd.shana.informed.formdata\":{\"source\":\"iana\",\"extensions\":[\"ifm\"]},\"application/vnd.shana.informed.formtemplate\":{\"source\":\"iana\",\"extensions\":[\"itp\"]},\"application/vnd.shana.informed.interchange\":{\"source\":\"iana\",\"extensions\":[\"iif\"]},\"application/vnd.shana.informed.package\":{\"source\":\"iana\",\"extensions\":[\"ipk\"]},\"application/vnd.shootproof+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.shopkick+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.shp\":{\"source\":\"iana\"},\"application/vnd.shx\":{\"source\":\"iana\"},\"application/vnd.sigrok.session\":{\"source\":\"iana\"},\"application/vnd.simtech-mindmapper\":{\"source\":\"iana\",\"extensions\":[\"twd\",\"twds\"]},\"application/vnd.siren+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.smaf\":{\"source\":\"iana\",\"extensions\":[\"mmf\"]},\"application/vnd.smart.notebook\":{\"source\":\"iana\"},\"application/vnd.smart.teacher\":{\"source\":\"iana\",\"extensions\":[\"teacher\"]},\"application/vnd.snesdev-page-table\":{\"source\":\"iana\"},\"application/vnd.software602.filler.form+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"fo\"]},\"application/vnd.software602.filler.form-xml-zip\":{\"source\":\"iana\"},\"application/vnd.solent.sdkm+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"sdkm\",\"sdkd\"]},\"application/vnd.spotfire.dxp\":{\"source\":\"iana\",\"extensions\":[\"dxp\"]},\"application/vnd.spotfire.sfs\":{\"source\":\"iana\",\"extensions\":[\"sfs\"]},\"application/vnd.sqlite3\":{\"source\":\"iana\"},\"application/vnd.sss-cod\":{\"source\":\"iana\"},\"application/vnd.sss-dtf\":{\"source\":\"iana\"},\"application/vnd.sss-ntf\":{\"source\":\"iana\"},\"application/vnd.stardivision.calc\":{\"source\":\"apache\",\"extensions\":[\"sdc\"]},\"application/vnd.stardivision.draw\":{\"source\":\"apache\",\"extensions\":[\"sda\"]},\"application/vnd.stardivision.impress\":{\"source\":\"apache\",\"extensions\":[\"sdd\"]},\"application/vnd.stardivision.math\":{\"source\":\"apache\",\"extensions\":[\"smf\"]},\"application/vnd.stardivision.writer\":{\"source\":\"apache\",\"extensions\":[\"sdw\",\"vor\"]},\"application/vnd.stardivision.writer-global\":{\"source\":\"apache\",\"extensions\":[\"sgl\"]},\"application/vnd.stepmania.package\":{\"source\":\"iana\",\"extensions\":[\"smzip\"]},\"application/vnd.stepmania.stepchart\":{\"source\":\"iana\",\"extensions\":[\"sm\"]},\"application/vnd.street-stream\":{\"source\":\"iana\"},\"application/vnd.sun.wadl+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"wadl\"]},\"application/vnd.sun.xml.calc\":{\"source\":\"apache\",\"extensions\":[\"sxc\"]},\"application/vnd.sun.xml.calc.template\":{\"source\":\"apache\",\"extensions\":[\"stc\"]},\"application/vnd.sun.xml.draw\":{\"source\":\"apache\",\"extensions\":[\"sxd\"]},\"application/vnd.sun.xml.draw.template\":{\"source\":\"apache\",\"extensions\":[\"std\"]},\"application/vnd.sun.xml.impress\":{\"source\":\"apache\",\"extensions\":[\"sxi\"]},\"application/vnd.sun.xml.impress.template\":{\"source\":\"apache\",\"extensions\":[\"sti\"]},\"application/vnd.sun.xml.math\":{\"source\":\"apache\",\"extensions\":[\"sxm\"]},\"application/vnd.sun.xml.writer\":{\"source\":\"apache\",\"extensions\":[\"sxw\"]},\"application/vnd.sun.xml.writer.global\":{\"source\":\"apache\",\"extensions\":[\"sxg\"]},\"application/vnd.sun.xml.writer.template\":{\"source\":\"apache\",\"extensions\":[\"stw\"]},\"application/vnd.sus-calendar\":{\"source\":\"iana\",\"extensions\":[\"sus\",\"susp\"]},\"application/vnd.svd\":{\"source\":\"iana\",\"extensions\":[\"svd\"]},\"application/vnd.swiftview-ics\":{\"source\":\"iana\"},\"application/vnd.sycle+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.symbian.install\":{\"source\":\"apache\",\"extensions\":[\"sis\",\"sisx\"]},\"application/vnd.syncml+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true,\"extensions\":[\"xsm\"]},\"application/vnd.syncml.dm+wbxml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"extensions\":[\"bdm\"]},\"application/vnd.syncml.dm+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true,\"extensions\":[\"xdm\"]},\"application/vnd.syncml.dm.notification\":{\"source\":\"iana\"},\"application/vnd.syncml.dmddf+wbxml\":{\"source\":\"iana\"},\"application/vnd.syncml.dmddf+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true,\"extensions\":[\"ddf\"]},\"application/vnd.syncml.dmtnds+wbxml\":{\"source\":\"iana\"},\"application/vnd.syncml.dmtnds+xml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true},\"application/vnd.syncml.ds.notification\":{\"source\":\"iana\"},\"application/vnd.tableschema+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.tao.intent-module-archive\":{\"source\":\"iana\",\"extensions\":[\"tao\"]},\"application/vnd.tcpdump.pcap\":{\"source\":\"iana\",\"extensions\":[\"pcap\",\"cap\",\"dmp\"]},\"application/vnd.think-cell.ppttc+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.tmd.mediaflex.api+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.tml\":{\"source\":\"iana\"},\"application/vnd.tmobile-livetv\":{\"source\":\"iana\",\"extensions\":[\"tmo\"]},\"application/vnd.tri.onesource\":{\"source\":\"iana\"},\"application/vnd.trid.tpt\":{\"source\":\"iana\",\"extensions\":[\"tpt\"]},\"application/vnd.triscape.mxs\":{\"source\":\"iana\",\"extensions\":[\"mxs\"]},\"application/vnd.trueapp\":{\"source\":\"iana\",\"extensions\":[\"tra\"]},\"application/vnd.truedoc\":{\"source\":\"iana\"},\"application/vnd.ubisoft.webplayer\":{\"source\":\"iana\"},\"application/vnd.ufdl\":{\"source\":\"iana\",\"extensions\":[\"ufd\",\"ufdl\"]},\"application/vnd.uiq.theme\":{\"source\":\"iana\",\"extensions\":[\"utz\"]},\"application/vnd.umajin\":{\"source\":\"iana\",\"extensions\":[\"umj\"]},\"application/vnd.unity\":{\"source\":\"iana\",\"extensions\":[\"unityweb\"]},\"application/vnd.uoml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"uoml\"]},\"application/vnd.uplanet.alert\":{\"source\":\"iana\"},\"application/vnd.uplanet.alert-wbxml\":{\"source\":\"iana\"},\"application/vnd.uplanet.bearer-choice\":{\"source\":\"iana\"},\"application/vnd.uplanet.bearer-choice-wbxml\":{\"source\":\"iana\"},\"application/vnd.uplanet.cacheop\":{\"source\":\"iana\"},\"application/vnd.uplanet.cacheop-wbxml\":{\"source\":\"iana\"},\"application/vnd.uplanet.channel\":{\"source\":\"iana\"},\"application/vnd.uplanet.channel-wbxml\":{\"source\":\"iana\"},\"application/vnd.uplanet.list\":{\"source\":\"iana\"},\"application/vnd.uplanet.list-wbxml\":{\"source\":\"iana\"},\"application/vnd.uplanet.listcmd\":{\"source\":\"iana\"},\"application/vnd.uplanet.listcmd-wbxml\":{\"source\":\"iana\"},\"application/vnd.uplanet.signal\":{\"source\":\"iana\"},\"application/vnd.uri-map\":{\"source\":\"iana\"},\"application/vnd.valve.source.material\":{\"source\":\"iana\"},\"application/vnd.vcx\":{\"source\":\"iana\",\"extensions\":[\"vcx\"]},\"application/vnd.vd-study\":{\"source\":\"iana\"},\"application/vnd.vectorworks\":{\"source\":\"iana\"},\"application/vnd.vel+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.verimatrix.vcas\":{\"source\":\"iana\"},\"application/vnd.veryant.thin\":{\"source\":\"iana\"},\"application/vnd.ves.encrypted\":{\"source\":\"iana\"},\"application/vnd.vidsoft.vidconference\":{\"source\":\"iana\"},\"application/vnd.visio\":{\"source\":\"iana\",\"extensions\":[\"vsd\",\"vst\",\"vss\",\"vsw\"]},\"application/vnd.visionary\":{\"source\":\"iana\",\"extensions\":[\"vis\"]},\"application/vnd.vividence.scriptfile\":{\"source\":\"iana\"},\"application/vnd.vsf\":{\"source\":\"iana\",\"extensions\":[\"vsf\"]},\"application/vnd.wap.sic\":{\"source\":\"iana\"},\"application/vnd.wap.slc\":{\"source\":\"iana\"},\"application/vnd.wap.wbxml\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"extensions\":[\"wbxml\"]},\"application/vnd.wap.wmlc\":{\"source\":\"iana\",\"extensions\":[\"wmlc\"]},\"application/vnd.wap.wmlscriptc\":{\"source\":\"iana\",\"extensions\":[\"wmlsc\"]},\"application/vnd.webturbo\":{\"source\":\"iana\",\"extensions\":[\"wtb\"]},\"application/vnd.wfa.p2p\":{\"source\":\"iana\"},\"application/vnd.wfa.wsc\":{\"source\":\"iana\"},\"application/vnd.windows.devicepairing\":{\"source\":\"iana\"},\"application/vnd.wmc\":{\"source\":\"iana\"},\"application/vnd.wmf.bootstrap\":{\"source\":\"iana\"},\"application/vnd.wolfram.mathematica\":{\"source\":\"iana\"},\"application/vnd.wolfram.mathematica.package\":{\"source\":\"iana\"},\"application/vnd.wolfram.player\":{\"source\":\"iana\",\"extensions\":[\"nbp\"]},\"application/vnd.wordperfect\":{\"source\":\"iana\",\"extensions\":[\"wpd\"]},\"application/vnd.wqd\":{\"source\":\"iana\",\"extensions\":[\"wqd\"]},\"application/vnd.wrq-hp3000-labelled\":{\"source\":\"iana\"},\"application/vnd.wt.stf\":{\"source\":\"iana\",\"extensions\":[\"stf\"]},\"application/vnd.wv.csp+wbxml\":{\"source\":\"iana\"},\"application/vnd.wv.csp+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.wv.ssp+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.xacml+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.xara\":{\"source\":\"iana\",\"extensions\":[\"xar\"]},\"application/vnd.xfdl\":{\"source\":\"iana\",\"extensions\":[\"xfdl\"]},\"application/vnd.xfdl.webform\":{\"source\":\"iana\"},\"application/vnd.xmi+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/vnd.xmpie.cpkg\":{\"source\":\"iana\"},\"application/vnd.xmpie.dpkg\":{\"source\":\"iana\"},\"application/vnd.xmpie.plan\":{\"source\":\"iana\"},\"application/vnd.xmpie.ppkg\":{\"source\":\"iana\"},\"application/vnd.xmpie.xlim\":{\"source\":\"iana\"},\"application/vnd.yamaha.hv-dic\":{\"source\":\"iana\",\"extensions\":[\"hvd\"]},\"application/vnd.yamaha.hv-script\":{\"source\":\"iana\",\"extensions\":[\"hvs\"]},\"application/vnd.yamaha.hv-voice\":{\"source\":\"iana\",\"extensions\":[\"hvp\"]},\"application/vnd.yamaha.openscoreformat\":{\"source\":\"iana\",\"extensions\":[\"osf\"]},\"application/vnd.yamaha.openscoreformat.osfpvg+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"osfpvg\"]},\"application/vnd.yamaha.remote-setup\":{\"source\":\"iana\"},\"application/vnd.yamaha.smaf-audio\":{\"source\":\"iana\",\"extensions\":[\"saf\"]},\"application/vnd.yamaha.smaf-phrase\":{\"source\":\"iana\",\"extensions\":[\"spf\"]},\"application/vnd.yamaha.through-ngn\":{\"source\":\"iana\"},\"application/vnd.yamaha.tunnel-udpencap\":{\"source\":\"iana\"},\"application/vnd.yaoweme\":{\"source\":\"iana\"},\"application/vnd.yellowriver-custom-menu\":{\"source\":\"iana\",\"extensions\":[\"cmp\"]},\"application/vnd.youtube.yt\":{\"source\":\"iana\"},\"application/vnd.zul\":{\"source\":\"iana\",\"extensions\":[\"zir\",\"zirz\"]},\"application/vnd.zzazz.deck+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"zaz\"]},\"application/voicexml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"vxml\"]},\"application/voucher-cms+json\":{\"source\":\"iana\",\"compressible\":true},\"application/vq-rtcpxr\":{\"source\":\"iana\"},\"application/wasm\":{\"compressible\":true,\"extensions\":[\"wasm\"]},\"application/watcherinfo+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/webpush-options+json\":{\"source\":\"iana\",\"compressible\":true},\"application/whoispp-query\":{\"source\":\"iana\"},\"application/whoispp-response\":{\"source\":\"iana\"},\"application/widget\":{\"source\":\"iana\",\"extensions\":[\"wgt\"]},\"application/winhlp\":{\"source\":\"apache\",\"extensions\":[\"hlp\"]},\"application/wita\":{\"source\":\"iana\"},\"application/wordperfect5.1\":{\"source\":\"iana\"},\"application/wsdl+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"wsdl\"]},\"application/wspolicy+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"wspolicy\"]},\"application/x-7z-compressed\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"7z\"]},\"application/x-abiword\":{\"source\":\"apache\",\"extensions\":[\"abw\"]},\"application/x-ace-compressed\":{\"source\":\"apache\",\"extensions\":[\"ace\"]},\"application/x-amf\":{\"source\":\"apache\"},\"application/x-apple-diskimage\":{\"source\":\"apache\",\"extensions\":[\"dmg\"]},\"application/x-arj\":{\"compressible\":false,\"extensions\":[\"arj\"]},\"application/x-authorware-bin\":{\"source\":\"apache\",\"extensions\":[\"aab\",\"x32\",\"u32\",\"vox\"]},\"application/x-authorware-map\":{\"source\":\"apache\",\"extensions\":[\"aam\"]},\"application/x-authorware-seg\":{\"source\":\"apache\",\"extensions\":[\"aas\"]},\"application/x-bcpio\":{\"source\":\"apache\",\"extensions\":[\"bcpio\"]},\"application/x-bdoc\":{\"compressible\":false,\"extensions\":[\"bdoc\"]},\"application/x-bittorrent\":{\"source\":\"apache\",\"extensions\":[\"torrent\"]},\"application/x-blorb\":{\"source\":\"apache\",\"extensions\":[\"blb\",\"blorb\"]},\"application/x-bzip\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"bz\"]},\"application/x-bzip2\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"bz2\",\"boz\"]},\"application/x-cbr\":{\"source\":\"apache\",\"extensions\":[\"cbr\",\"cba\",\"cbt\",\"cbz\",\"cb7\"]},\"application/x-cdlink\":{\"source\":\"apache\",\"extensions\":[\"vcd\"]},\"application/x-cfs-compressed\":{\"source\":\"apache\",\"extensions\":[\"cfs\"]},\"application/x-chat\":{\"source\":\"apache\",\"extensions\":[\"chat\"]},\"application/x-chess-pgn\":{\"source\":\"apache\",\"extensions\":[\"pgn\"]},\"application/x-chrome-extension\":{\"extensions\":[\"crx\"]},\"application/x-cocoa\":{\"source\":\"nginx\",\"extensions\":[\"cco\"]},\"application/x-compress\":{\"source\":\"apache\"},\"application/x-conference\":{\"source\":\"apache\",\"extensions\":[\"nsc\"]},\"application/x-cpio\":{\"source\":\"apache\",\"extensions\":[\"cpio\"]},\"application/x-csh\":{\"source\":\"apache\",\"extensions\":[\"csh\"]},\"application/x-deb\":{\"compressible\":false},\"application/x-debian-package\":{\"source\":\"apache\",\"extensions\":[\"deb\",\"udeb\"]},\"application/x-dgc-compressed\":{\"source\":\"apache\",\"extensions\":[\"dgc\"]},\"application/x-director\":{\"source\":\"apache\",\"extensions\":[\"dir\",\"dcr\",\"dxr\",\"cst\",\"cct\",\"cxt\",\"w3d\",\"fgd\",\"swa\"]},\"application/x-doom\":{\"source\":\"apache\",\"extensions\":[\"wad\"]},\"application/x-dtbncx+xml\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"ncx\"]},\"application/x-dtbook+xml\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"dtb\"]},\"application/x-dtbresource+xml\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"res\"]},\"application/x-dvi\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"dvi\"]},\"application/x-envoy\":{\"source\":\"apache\",\"extensions\":[\"evy\"]},\"application/x-eva\":{\"source\":\"apache\",\"extensions\":[\"eva\"]},\"application/x-font-bdf\":{\"source\":\"apache\",\"extensions\":[\"bdf\"]},\"application/x-font-dos\":{\"source\":\"apache\"},\"application/x-font-framemaker\":{\"source\":\"apache\"},\"application/x-font-ghostscript\":{\"source\":\"apache\",\"extensions\":[\"gsf\"]},\"application/x-font-libgrx\":{\"source\":\"apache\"},\"application/x-font-linux-psf\":{\"source\":\"apache\",\"extensions\":[\"psf\"]},\"application/x-font-pcf\":{\"source\":\"apache\",\"extensions\":[\"pcf\"]},\"application/x-font-snf\":{\"source\":\"apache\",\"extensions\":[\"snf\"]},\"application/x-font-speedo\":{\"source\":\"apache\"},\"application/x-font-sunos-news\":{\"source\":\"apache\"},\"application/x-font-type1\":{\"source\":\"apache\",\"extensions\":[\"pfa\",\"pfb\",\"pfm\",\"afm\"]},\"application/x-font-vfont\":{\"source\":\"apache\"},\"application/x-freearc\":{\"source\":\"apache\",\"extensions\":[\"arc\"]},\"application/x-futuresplash\":{\"source\":\"apache\",\"extensions\":[\"spl\"]},\"application/x-gca-compressed\":{\"source\":\"apache\",\"extensions\":[\"gca\"]},\"application/x-glulx\":{\"source\":\"apache\",\"extensions\":[\"ulx\"]},\"application/x-gnumeric\":{\"source\":\"apache\",\"extensions\":[\"gnumeric\"]},\"application/x-gramps-xml\":{\"source\":\"apache\",\"extensions\":[\"gramps\"]},\"application/x-gtar\":{\"source\":\"apache\",\"extensions\":[\"gtar\"]},\"application/x-gzip\":{\"source\":\"apache\"},\"application/x-hdf\":{\"source\":\"apache\",\"extensions\":[\"hdf\"]},\"application/x-httpd-php\":{\"compressible\":true,\"extensions\":[\"php\"]},\"application/x-install-instructions\":{\"source\":\"apache\",\"extensions\":[\"install\"]},\"application/x-iso9660-image\":{\"source\":\"apache\",\"extensions\":[\"iso\"]},\"application/x-java-archive-diff\":{\"source\":\"nginx\",\"extensions\":[\"jardiff\"]},\"application/x-java-jnlp-file\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"jnlp\"]},\"application/x-javascript\":{\"compressible\":true},\"application/x-keepass2\":{\"extensions\":[\"kdbx\"]},\"application/x-latex\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"latex\"]},\"application/x-lua-bytecode\":{\"extensions\":[\"luac\"]},\"application/x-lzh-compressed\":{\"source\":\"apache\",\"extensions\":[\"lzh\",\"lha\"]},\"application/x-makeself\":{\"source\":\"nginx\",\"extensions\":[\"run\"]},\"application/x-mie\":{\"source\":\"apache\",\"extensions\":[\"mie\"]},\"application/x-mobipocket-ebook\":{\"source\":\"apache\",\"extensions\":[\"prc\",\"mobi\"]},\"application/x-mpegurl\":{\"compressible\":false},\"application/x-ms-application\":{\"source\":\"apache\",\"extensions\":[\"application\"]},\"application/x-ms-shortcut\":{\"source\":\"apache\",\"extensions\":[\"lnk\"]},\"application/x-ms-wmd\":{\"source\":\"apache\",\"extensions\":[\"wmd\"]},\"application/x-ms-wmz\":{\"source\":\"apache\",\"extensions\":[\"wmz\"]},\"application/x-ms-xbap\":{\"source\":\"apache\",\"extensions\":[\"xbap\"]},\"application/x-msaccess\":{\"source\":\"apache\",\"extensions\":[\"mdb\"]},\"application/x-msbinder\":{\"source\":\"apache\",\"extensions\":[\"obd\"]},\"application/x-mscardfile\":{\"source\":\"apache\",\"extensions\":[\"crd\"]},\"application/x-msclip\":{\"source\":\"apache\",\"extensions\":[\"clp\"]},\"application/x-msdos-program\":{\"extensions\":[\"exe\"]},\"application/x-msdownload\":{\"source\":\"apache\",\"extensions\":[\"exe\",\"dll\",\"com\",\"bat\",\"msi\"]},\"application/x-msmediaview\":{\"source\":\"apache\",\"extensions\":[\"mvb\",\"m13\",\"m14\"]},\"application/x-msmetafile\":{\"source\":\"apache\",\"extensions\":[\"wmf\",\"wmz\",\"emf\",\"emz\"]},\"application/x-msmoney\":{\"source\":\"apache\",\"extensions\":[\"mny\"]},\"application/x-mspublisher\":{\"source\":\"apache\",\"extensions\":[\"pub\"]},\"application/x-msschedule\":{\"source\":\"apache\",\"extensions\":[\"scd\"]},\"application/x-msterminal\":{\"source\":\"apache\",\"extensions\":[\"trm\"]},\"application/x-mswrite\":{\"source\":\"apache\",\"extensions\":[\"wri\"]},\"application/x-netcdf\":{\"source\":\"apache\",\"extensions\":[\"nc\",\"cdf\"]},\"application/x-ns-proxy-autoconfig\":{\"compressible\":true,\"extensions\":[\"pac\"]},\"application/x-nzb\":{\"source\":\"apache\",\"extensions\":[\"nzb\"]},\"application/x-perl\":{\"source\":\"nginx\",\"extensions\":[\"pl\",\"pm\"]},\"application/x-pilot\":{\"source\":\"nginx\",\"extensions\":[\"prc\",\"pdb\"]},\"application/x-pkcs12\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"p12\",\"pfx\"]},\"application/x-pkcs7-certificates\":{\"source\":\"apache\",\"extensions\":[\"p7b\",\"spc\"]},\"application/x-pkcs7-certreqresp\":{\"source\":\"apache\",\"extensions\":[\"p7r\"]},\"application/x-pki-message\":{\"source\":\"iana\"},\"application/x-rar-compressed\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"rar\"]},\"application/x-redhat-package-manager\":{\"source\":\"nginx\",\"extensions\":[\"rpm\"]},\"application/x-research-info-systems\":{\"source\":\"apache\",\"extensions\":[\"ris\"]},\"application/x-sea\":{\"source\":\"nginx\",\"extensions\":[\"sea\"]},\"application/x-sh\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"sh\"]},\"application/x-shar\":{\"source\":\"apache\",\"extensions\":[\"shar\"]},\"application/x-shockwave-flash\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"swf\"]},\"application/x-silverlight-app\":{\"source\":\"apache\",\"extensions\":[\"xap\"]},\"application/x-sql\":{\"source\":\"apache\",\"extensions\":[\"sql\"]},\"application/x-stuffit\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"sit\"]},\"application/x-stuffitx\":{\"source\":\"apache\",\"extensions\":[\"sitx\"]},\"application/x-subrip\":{\"source\":\"apache\",\"extensions\":[\"srt\"]},\"application/x-sv4cpio\":{\"source\":\"apache\",\"extensions\":[\"sv4cpio\"]},\"application/x-sv4crc\":{\"source\":\"apache\",\"extensions\":[\"sv4crc\"]},\"application/x-t3vm-image\":{\"source\":\"apache\",\"extensions\":[\"t3\"]},\"application/x-tads\":{\"source\":\"apache\",\"extensions\":[\"gam\"]},\"application/x-tar\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"tar\"]},\"application/x-tcl\":{\"source\":\"apache\",\"extensions\":[\"tcl\",\"tk\"]},\"application/x-tex\":{\"source\":\"apache\",\"extensions\":[\"tex\"]},\"application/x-tex-tfm\":{\"source\":\"apache\",\"extensions\":[\"tfm\"]},\"application/x-texinfo\":{\"source\":\"apache\",\"extensions\":[\"texinfo\",\"texi\"]},\"application/x-tgif\":{\"source\":\"apache\",\"extensions\":[\"obj\"]},\"application/x-ustar\":{\"source\":\"apache\",\"extensions\":[\"ustar\"]},\"application/x-virtualbox-hdd\":{\"compressible\":true,\"extensions\":[\"hdd\"]},\"application/x-virtualbox-ova\":{\"compressible\":true,\"extensions\":[\"ova\"]},\"application/x-virtualbox-ovf\":{\"compressible\":true,\"extensions\":[\"ovf\"]},\"application/x-virtualbox-vbox\":{\"compressible\":true,\"extensions\":[\"vbox\"]},\"application/x-virtualbox-vbox-extpack\":{\"compressible\":false,\"extensions\":[\"vbox-extpack\"]},\"application/x-virtualbox-vdi\":{\"compressible\":true,\"extensions\":[\"vdi\"]},\"application/x-virtualbox-vhd\":{\"compressible\":true,\"extensions\":[\"vhd\"]},\"application/x-virtualbox-vmdk\":{\"compressible\":true,\"extensions\":[\"vmdk\"]},\"application/x-wais-source\":{\"source\":\"apache\",\"extensions\":[\"src\"]},\"application/x-web-app-manifest+json\":{\"compressible\":true,\"extensions\":[\"webapp\"]},\"application/x-www-form-urlencoded\":{\"source\":\"iana\",\"compressible\":true},\"application/x-x509-ca-cert\":{\"source\":\"iana\",\"extensions\":[\"der\",\"crt\",\"pem\"]},\"application/x-x509-ca-ra-cert\":{\"source\":\"iana\"},\"application/x-x509-next-ca-cert\":{\"source\":\"iana\"},\"application/x-xfig\":{\"source\":\"apache\",\"extensions\":[\"fig\"]},\"application/x-xliff+xml\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"xlf\"]},\"application/x-xpinstall\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"xpi\"]},\"application/x-xz\":{\"source\":\"apache\",\"extensions\":[\"xz\"]},\"application/x-zmachine\":{\"source\":\"apache\",\"extensions\":[\"z1\",\"z2\",\"z3\",\"z4\",\"z5\",\"z6\",\"z7\",\"z8\"]},\"application/x400-bp\":{\"source\":\"iana\"},\"application/xacml+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/xaml+xml\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"xaml\"]},\"application/xcap-att+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xav\"]},\"application/xcap-caps+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xca\"]},\"application/xcap-diff+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xdf\"]},\"application/xcap-el+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xel\"]},\"application/xcap-error+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xer\"]},\"application/xcap-ns+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xns\"]},\"application/xcon-conference-info+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/xcon-conference-info-diff+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/xenc+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xenc\"]},\"application/xhtml+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xhtml\",\"xht\"]},\"application/xhtml-voice+xml\":{\"source\":\"apache\",\"compressible\":true},\"application/xliff+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xlf\"]},\"application/xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xml\",\"xsl\",\"xsd\",\"rng\"]},\"application/xml-dtd\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"dtd\"]},\"application/xml-external-parsed-entity\":{\"source\":\"iana\"},\"application/xml-patch+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/xmpp+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/xop+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xop\"]},\"application/xproc+xml\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"xpl\"]},\"application/xslt+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xsl\",\"xslt\"]},\"application/xspf+xml\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"xspf\"]},\"application/xv+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"mxml\",\"xhvml\",\"xvml\",\"xvm\"]},\"application/yang\":{\"source\":\"iana\",\"extensions\":[\"yang\"]},\"application/yang-data+json\":{\"source\":\"iana\",\"compressible\":true},\"application/yang-data+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/yang-patch+json\":{\"source\":\"iana\",\"compressible\":true},\"application/yang-patch+xml\":{\"source\":\"iana\",\"compressible\":true},\"application/yin+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"yin\"]},\"application/zip\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"zip\"]},\"application/zlib\":{\"source\":\"iana\"},\"application/zstd\":{\"source\":\"iana\"},\"audio/1d-interleaved-parityfec\":{\"source\":\"iana\"},\"audio/32kadpcm\":{\"source\":\"iana\"},\"audio/3gpp\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"3gpp\"]},\"audio/3gpp2\":{\"source\":\"iana\"},\"audio/aac\":{\"source\":\"iana\"},\"audio/ac3\":{\"source\":\"iana\"},\"audio/adpcm\":{\"source\":\"apache\",\"extensions\":[\"adp\"]},\"audio/amr\":{\"source\":\"iana\"},\"audio/amr-wb\":{\"source\":\"iana\"},\"audio/amr-wb+\":{\"source\":\"iana\"},\"audio/aptx\":{\"source\":\"iana\"},\"audio/asc\":{\"source\":\"iana\"},\"audio/atrac-advanced-lossless\":{\"source\":\"iana\"},\"audio/atrac-x\":{\"source\":\"iana\"},\"audio/atrac3\":{\"source\":\"iana\"},\"audio/basic\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"au\",\"snd\"]},\"audio/bv16\":{\"source\":\"iana\"},\"audio/bv32\":{\"source\":\"iana\"},\"audio/clearmode\":{\"source\":\"iana\"},\"audio/cn\":{\"source\":\"iana\"},\"audio/dat12\":{\"source\":\"iana\"},\"audio/dls\":{\"source\":\"iana\"},\"audio/dsr-es201108\":{\"source\":\"iana\"},\"audio/dsr-es202050\":{\"source\":\"iana\"},\"audio/dsr-es202211\":{\"source\":\"iana\"},\"audio/dsr-es202212\":{\"source\":\"iana\"},\"audio/dv\":{\"source\":\"iana\"},\"audio/dvi4\":{\"source\":\"iana\"},\"audio/eac3\":{\"source\":\"iana\"},\"audio/encaprtp\":{\"source\":\"iana\"},\"audio/evrc\":{\"source\":\"iana\"},\"audio/evrc-qcp\":{\"source\":\"iana\"},\"audio/evrc0\":{\"source\":\"iana\"},\"audio/evrc1\":{\"source\":\"iana\"},\"audio/evrcb\":{\"source\":\"iana\"},\"audio/evrcb0\":{\"source\":\"iana\"},\"audio/evrcb1\":{\"source\":\"iana\"},\"audio/evrcnw\":{\"source\":\"iana\"},\"audio/evrcnw0\":{\"source\":\"iana\"},\"audio/evrcnw1\":{\"source\":\"iana\"},\"audio/evrcwb\":{\"source\":\"iana\"},\"audio/evrcwb0\":{\"source\":\"iana\"},\"audio/evrcwb1\":{\"source\":\"iana\"},\"audio/evs\":{\"source\":\"iana\"},\"audio/flexfec\":{\"source\":\"iana\"},\"audio/fwdred\":{\"source\":\"iana\"},\"audio/g711-0\":{\"source\":\"iana\"},\"audio/g719\":{\"source\":\"iana\"},\"audio/g722\":{\"source\":\"iana\"},\"audio/g7221\":{\"source\":\"iana\"},\"audio/g723\":{\"source\":\"iana\"},\"audio/g726-16\":{\"source\":\"iana\"},\"audio/g726-24\":{\"source\":\"iana\"},\"audio/g726-32\":{\"source\":\"iana\"},\"audio/g726-40\":{\"source\":\"iana\"},\"audio/g728\":{\"source\":\"iana\"},\"audio/g729\":{\"source\":\"iana\"},\"audio/g7291\":{\"source\":\"iana\"},\"audio/g729d\":{\"source\":\"iana\"},\"audio/g729e\":{\"source\":\"iana\"},\"audio/gsm\":{\"source\":\"iana\"},\"audio/gsm-efr\":{\"source\":\"iana\"},\"audio/gsm-hr-08\":{\"source\":\"iana\"},\"audio/ilbc\":{\"source\":\"iana\"},\"audio/ip-mr_v2.5\":{\"source\":\"iana\"},\"audio/isac\":{\"source\":\"apache\"},\"audio/l16\":{\"source\":\"iana\"},\"audio/l20\":{\"source\":\"iana\"},\"audio/l24\":{\"source\":\"iana\",\"compressible\":false},\"audio/l8\":{\"source\":\"iana\"},\"audio/lpc\":{\"source\":\"iana\"},\"audio/melp\":{\"source\":\"iana\"},\"audio/melp1200\":{\"source\":\"iana\"},\"audio/melp2400\":{\"source\":\"iana\"},\"audio/melp600\":{\"source\":\"iana\"},\"audio/mhas\":{\"source\":\"iana\"},\"audio/midi\":{\"source\":\"apache\",\"extensions\":[\"mid\",\"midi\",\"kar\",\"rmi\"]},\"audio/mobile-xmf\":{\"source\":\"iana\",\"extensions\":[\"mxmf\"]},\"audio/mp3\":{\"compressible\":false,\"extensions\":[\"mp3\"]},\"audio/mp4\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"m4a\",\"mp4a\"]},\"audio/mp4a-latm\":{\"source\":\"iana\"},\"audio/mpa\":{\"source\":\"iana\"},\"audio/mpa-robust\":{\"source\":\"iana\"},\"audio/mpeg\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"mpga\",\"mp2\",\"mp2a\",\"mp3\",\"m2a\",\"m3a\"]},\"audio/mpeg4-generic\":{\"source\":\"iana\"},\"audio/musepack\":{\"source\":\"apache\"},\"audio/ogg\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"oga\",\"ogg\",\"spx\"]},\"audio/opus\":{\"source\":\"iana\"},\"audio/parityfec\":{\"source\":\"iana\"},\"audio/pcma\":{\"source\":\"iana\"},\"audio/pcma-wb\":{\"source\":\"iana\"},\"audio/pcmu\":{\"source\":\"iana\"},\"audio/pcmu-wb\":{\"source\":\"iana\"},\"audio/prs.sid\":{\"source\":\"iana\"},\"audio/qcelp\":{\"source\":\"iana\"},\"audio/raptorfec\":{\"source\":\"iana\"},\"audio/red\":{\"source\":\"iana\"},\"audio/rtp-enc-aescm128\":{\"source\":\"iana\"},\"audio/rtp-midi\":{\"source\":\"iana\"},\"audio/rtploopback\":{\"source\":\"iana\"},\"audio/rtx\":{\"source\":\"iana\"},\"audio/s3m\":{\"source\":\"apache\",\"extensions\":[\"s3m\"]},\"audio/silk\":{\"source\":\"apache\",\"extensions\":[\"sil\"]},\"audio/smv\":{\"source\":\"iana\"},\"audio/smv-qcp\":{\"source\":\"iana\"},\"audio/smv0\":{\"source\":\"iana\"},\"audio/sofa\":{\"source\":\"iana\"},\"audio/sp-midi\":{\"source\":\"iana\"},\"audio/speex\":{\"source\":\"iana\"},\"audio/t140c\":{\"source\":\"iana\"},\"audio/t38\":{\"source\":\"iana\"},\"audio/telephone-event\":{\"source\":\"iana\"},\"audio/tetra_acelp\":{\"source\":\"iana\"},\"audio/tetra_acelp_bb\":{\"source\":\"iana\"},\"audio/tone\":{\"source\":\"iana\"},\"audio/tsvcis\":{\"source\":\"iana\"},\"audio/uemclip\":{\"source\":\"iana\"},\"audio/ulpfec\":{\"source\":\"iana\"},\"audio/usac\":{\"source\":\"iana\"},\"audio/vdvi\":{\"source\":\"iana\"},\"audio/vmr-wb\":{\"source\":\"iana\"},\"audio/vnd.3gpp.iufp\":{\"source\":\"iana\"},\"audio/vnd.4sb\":{\"source\":\"iana\"},\"audio/vnd.audiokoz\":{\"source\":\"iana\"},\"audio/vnd.celp\":{\"source\":\"iana\"},\"audio/vnd.cisco.nse\":{\"source\":\"iana\"},\"audio/vnd.cmles.radio-events\":{\"source\":\"iana\"},\"audio/vnd.cns.anp1\":{\"source\":\"iana\"},\"audio/vnd.cns.inf1\":{\"source\":\"iana\"},\"audio/vnd.dece.audio\":{\"source\":\"iana\",\"extensions\":[\"uva\",\"uvva\"]},\"audio/vnd.digital-winds\":{\"source\":\"iana\",\"extensions\":[\"eol\"]},\"audio/vnd.dlna.adts\":{\"source\":\"iana\"},\"audio/vnd.dolby.heaac.1\":{\"source\":\"iana\"},\"audio/vnd.dolby.heaac.2\":{\"source\":\"iana\"},\"audio/vnd.dolby.mlp\":{\"source\":\"iana\"},\"audio/vnd.dolby.mps\":{\"source\":\"iana\"},\"audio/vnd.dolby.pl2\":{\"source\":\"iana\"},\"audio/vnd.dolby.pl2x\":{\"source\":\"iana\"},\"audio/vnd.dolby.pl2z\":{\"source\":\"iana\"},\"audio/vnd.dolby.pulse.1\":{\"source\":\"iana\"},\"audio/vnd.dra\":{\"source\":\"iana\",\"extensions\":[\"dra\"]},\"audio/vnd.dts\":{\"source\":\"iana\",\"extensions\":[\"dts\"]},\"audio/vnd.dts.hd\":{\"source\":\"iana\",\"extensions\":[\"dtshd\"]},\"audio/vnd.dts.uhd\":{\"source\":\"iana\"},\"audio/vnd.dvb.file\":{\"source\":\"iana\"},\"audio/vnd.everad.plj\":{\"source\":\"iana\"},\"audio/vnd.hns.audio\":{\"source\":\"iana\"},\"audio/vnd.lucent.voice\":{\"source\":\"iana\",\"extensions\":[\"lvp\"]},\"audio/vnd.ms-playready.media.pya\":{\"source\":\"iana\",\"extensions\":[\"pya\"]},\"audio/vnd.nokia.mobile-xmf\":{\"source\":\"iana\"},\"audio/vnd.nortel.vbk\":{\"source\":\"iana\"},\"audio/vnd.nuera.ecelp4800\":{\"source\":\"iana\",\"extensions\":[\"ecelp4800\"]},\"audio/vnd.nuera.ecelp7470\":{\"source\":\"iana\",\"extensions\":[\"ecelp7470\"]},\"audio/vnd.nuera.ecelp9600\":{\"source\":\"iana\",\"extensions\":[\"ecelp9600\"]},\"audio/vnd.octel.sbc\":{\"source\":\"iana\"},\"audio/vnd.presonus.multitrack\":{\"source\":\"iana\"},\"audio/vnd.qcelp\":{\"source\":\"iana\"},\"audio/vnd.rhetorex.32kadpcm\":{\"source\":\"iana\"},\"audio/vnd.rip\":{\"source\":\"iana\",\"extensions\":[\"rip\"]},\"audio/vnd.rn-realaudio\":{\"compressible\":false},\"audio/vnd.sealedmedia.softseal.mpeg\":{\"source\":\"iana\"},\"audio/vnd.vmx.cvsd\":{\"source\":\"iana\"},\"audio/vnd.wave\":{\"compressible\":false},\"audio/vorbis\":{\"source\":\"iana\",\"compressible\":false},\"audio/vorbis-config\":{\"source\":\"iana\"},\"audio/wav\":{\"compressible\":false,\"extensions\":[\"wav\"]},\"audio/wave\":{\"compressible\":false,\"extensions\":[\"wav\"]},\"audio/webm\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"weba\"]},\"audio/x-aac\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"aac\"]},\"audio/x-aiff\":{\"source\":\"apache\",\"extensions\":[\"aif\",\"aiff\",\"aifc\"]},\"audio/x-caf\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"caf\"]},\"audio/x-flac\":{\"source\":\"apache\",\"extensions\":[\"flac\"]},\"audio/x-m4a\":{\"source\":\"nginx\",\"extensions\":[\"m4a\"]},\"audio/x-matroska\":{\"source\":\"apache\",\"extensions\":[\"mka\"]},\"audio/x-mpegurl\":{\"source\":\"apache\",\"extensions\":[\"m3u\"]},\"audio/x-ms-wax\":{\"source\":\"apache\",\"extensions\":[\"wax\"]},\"audio/x-ms-wma\":{\"source\":\"apache\",\"extensions\":[\"wma\"]},\"audio/x-pn-realaudio\":{\"source\":\"apache\",\"extensions\":[\"ram\",\"ra\"]},\"audio/x-pn-realaudio-plugin\":{\"source\":\"apache\",\"extensions\":[\"rmp\"]},\"audio/x-realaudio\":{\"source\":\"nginx\",\"extensions\":[\"ra\"]},\"audio/x-tta\":{\"source\":\"apache\"},\"audio/x-wav\":{\"source\":\"apache\",\"extensions\":[\"wav\"]},\"audio/xm\":{\"source\":\"apache\",\"extensions\":[\"xm\"]},\"chemical/x-cdx\":{\"source\":\"apache\",\"extensions\":[\"cdx\"]},\"chemical/x-cif\":{\"source\":\"apache\",\"extensions\":[\"cif\"]},\"chemical/x-cmdf\":{\"source\":\"apache\",\"extensions\":[\"cmdf\"]},\"chemical/x-cml\":{\"source\":\"apache\",\"extensions\":[\"cml\"]},\"chemical/x-csml\":{\"source\":\"apache\",\"extensions\":[\"csml\"]},\"chemical/x-pdb\":{\"source\":\"apache\"},\"chemical/x-xyz\":{\"source\":\"apache\",\"extensions\":[\"xyz\"]},\"font/collection\":{\"source\":\"iana\",\"extensions\":[\"ttc\"]},\"font/otf\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"otf\"]},\"font/sfnt\":{\"source\":\"iana\"},\"font/ttf\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"ttf\"]},\"font/woff\":{\"source\":\"iana\",\"extensions\":[\"woff\"]},\"font/woff2\":{\"source\":\"iana\",\"extensions\":[\"woff2\"]},\"image/aces\":{\"source\":\"iana\",\"extensions\":[\"exr\"]},\"image/apng\":{\"compressible\":false,\"extensions\":[\"apng\"]},\"image/avci\":{\"source\":\"iana\"},\"image/avcs\":{\"source\":\"iana\"},\"image/avif\":{\"compressible\":false,\"extensions\":[\"avif\"]},\"image/bmp\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"bmp\"]},\"image/cgm\":{\"source\":\"iana\",\"extensions\":[\"cgm\"]},\"image/dicom-rle\":{\"source\":\"iana\",\"extensions\":[\"drle\"]},\"image/emf\":{\"source\":\"iana\",\"extensions\":[\"emf\"]},\"image/fits\":{\"source\":\"iana\",\"extensions\":[\"fits\"]},\"image/g3fax\":{\"source\":\"iana\",\"extensions\":[\"g3\"]},\"image/gif\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"gif\"]},\"image/heic\":{\"source\":\"iana\",\"extensions\":[\"heic\"]},\"image/heic-sequence\":{\"source\":\"iana\",\"extensions\":[\"heics\"]},\"image/heif\":{\"source\":\"iana\",\"extensions\":[\"heif\"]},\"image/heif-sequence\":{\"source\":\"iana\",\"extensions\":[\"heifs\"]},\"image/hej2k\":{\"source\":\"iana\",\"extensions\":[\"hej2\"]},\"image/hsj2\":{\"source\":\"iana\",\"extensions\":[\"hsj2\"]},\"image/ief\":{\"source\":\"iana\",\"extensions\":[\"ief\"]},\"image/jls\":{\"source\":\"iana\",\"extensions\":[\"jls\"]},\"image/jp2\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"jp2\",\"jpg2\"]},\"image/jpeg\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"jpeg\",\"jpg\",\"jpe\"]},\"image/jph\":{\"source\":\"iana\",\"extensions\":[\"jph\"]},\"image/jphc\":{\"source\":\"iana\",\"extensions\":[\"jhc\"]},\"image/jpm\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"jpm\"]},\"image/jpx\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"jpx\",\"jpf\"]},\"image/jxr\":{\"source\":\"iana\",\"extensions\":[\"jxr\"]},\"image/jxra\":{\"source\":\"iana\",\"extensions\":[\"jxra\"]},\"image/jxrs\":{\"source\":\"iana\",\"extensions\":[\"jxrs\"]},\"image/jxs\":{\"source\":\"iana\",\"extensions\":[\"jxs\"]},\"image/jxsc\":{\"source\":\"iana\",\"extensions\":[\"jxsc\"]},\"image/jxsi\":{\"source\":\"iana\",\"extensions\":[\"jxsi\"]},\"image/jxss\":{\"source\":\"iana\",\"extensions\":[\"jxss\"]},\"image/ktx\":{\"source\":\"iana\",\"extensions\":[\"ktx\"]},\"image/ktx2\":{\"source\":\"iana\",\"extensions\":[\"ktx2\"]},\"image/naplps\":{\"source\":\"iana\"},\"image/pjpeg\":{\"compressible\":false},\"image/png\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"png\"]},\"image/prs.btif\":{\"source\":\"iana\",\"extensions\":[\"btif\"]},\"image/prs.pti\":{\"source\":\"iana\",\"extensions\":[\"pti\"]},\"image/pwg-raster\":{\"source\":\"iana\"},\"image/sgi\":{\"source\":\"apache\",\"extensions\":[\"sgi\"]},\"image/svg+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"svg\",\"svgz\"]},\"image/t38\":{\"source\":\"iana\",\"extensions\":[\"t38\"]},\"image/tiff\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"tif\",\"tiff\"]},\"image/tiff-fx\":{\"source\":\"iana\",\"extensions\":[\"tfx\"]},\"image/vnd.adobe.photoshop\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"psd\"]},\"image/vnd.airzip.accelerator.azv\":{\"source\":\"iana\",\"extensions\":[\"azv\"]},\"image/vnd.cns.inf2\":{\"source\":\"iana\"},\"image/vnd.dece.graphic\":{\"source\":\"iana\",\"extensions\":[\"uvi\",\"uvvi\",\"uvg\",\"uvvg\"]},\"image/vnd.djvu\":{\"source\":\"iana\",\"extensions\":[\"djvu\",\"djv\"]},\"image/vnd.dvb.subtitle\":{\"source\":\"iana\",\"extensions\":[\"sub\"]},\"image/vnd.dwg\":{\"source\":\"iana\",\"extensions\":[\"dwg\"]},\"image/vnd.dxf\":{\"source\":\"iana\",\"extensions\":[\"dxf\"]},\"image/vnd.fastbidsheet\":{\"source\":\"iana\",\"extensions\":[\"fbs\"]},\"image/vnd.fpx\":{\"source\":\"iana\",\"extensions\":[\"fpx\"]},\"image/vnd.fst\":{\"source\":\"iana\",\"extensions\":[\"fst\"]},\"image/vnd.fujixerox.edmics-mmr\":{\"source\":\"iana\",\"extensions\":[\"mmr\"]},\"image/vnd.fujixerox.edmics-rlc\":{\"source\":\"iana\",\"extensions\":[\"rlc\"]},\"image/vnd.globalgraphics.pgb\":{\"source\":\"iana\"},\"image/vnd.microsoft.icon\":{\"source\":\"iana\",\"extensions\":[\"ico\"]},\"image/vnd.mix\":{\"source\":\"iana\"},\"image/vnd.mozilla.apng\":{\"source\":\"iana\"},\"image/vnd.ms-dds\":{\"extensions\":[\"dds\"]},\"image/vnd.ms-modi\":{\"source\":\"iana\",\"extensions\":[\"mdi\"]},\"image/vnd.ms-photo\":{\"source\":\"apache\",\"extensions\":[\"wdp\"]},\"image/vnd.net-fpx\":{\"source\":\"iana\",\"extensions\":[\"npx\"]},\"image/vnd.pco.b16\":{\"source\":\"iana\",\"extensions\":[\"b16\"]},\"image/vnd.radiance\":{\"source\":\"iana\"},\"image/vnd.sealed.png\":{\"source\":\"iana\"},\"image/vnd.sealedmedia.softseal.gif\":{\"source\":\"iana\"},\"image/vnd.sealedmedia.softseal.jpg\":{\"source\":\"iana\"},\"image/vnd.svf\":{\"source\":\"iana\"},\"image/vnd.tencent.tap\":{\"source\":\"iana\",\"extensions\":[\"tap\"]},\"image/vnd.valve.source.texture\":{\"source\":\"iana\",\"extensions\":[\"vtf\"]},\"image/vnd.wap.wbmp\":{\"source\":\"iana\",\"extensions\":[\"wbmp\"]},\"image/vnd.xiff\":{\"source\":\"iana\",\"extensions\":[\"xif\"]},\"image/vnd.zbrush.pcx\":{\"source\":\"iana\",\"extensions\":[\"pcx\"]},\"image/webp\":{\"source\":\"apache\",\"extensions\":[\"webp\"]},\"image/wmf\":{\"source\":\"iana\",\"extensions\":[\"wmf\"]},\"image/x-3ds\":{\"source\":\"apache\",\"extensions\":[\"3ds\"]},\"image/x-cmu-raster\":{\"source\":\"apache\",\"extensions\":[\"ras\"]},\"image/x-cmx\":{\"source\":\"apache\",\"extensions\":[\"cmx\"]},\"image/x-freehand\":{\"source\":\"apache\",\"extensions\":[\"fh\",\"fhc\",\"fh4\",\"fh5\",\"fh7\"]},\"image/x-icon\":{\"source\":\"apache\",\"compressible\":true,\"extensions\":[\"ico\"]},\"image/x-jng\":{\"source\":\"nginx\",\"extensions\":[\"jng\"]},\"image/x-mrsid-image\":{\"source\":\"apache\",\"extensions\":[\"sid\"]},\"image/x-ms-bmp\":{\"source\":\"nginx\",\"compressible\":true,\"extensions\":[\"bmp\"]},\"image/x-pcx\":{\"source\":\"apache\",\"extensions\":[\"pcx\"]},\"image/x-pict\":{\"source\":\"apache\",\"extensions\":[\"pic\",\"pct\"]},\"image/x-portable-anymap\":{\"source\":\"apache\",\"extensions\":[\"pnm\"]},\"image/x-portable-bitmap\":{\"source\":\"apache\",\"extensions\":[\"pbm\"]},\"image/x-portable-graymap\":{\"source\":\"apache\",\"extensions\":[\"pgm\"]},\"image/x-portable-pixmap\":{\"source\":\"apache\",\"extensions\":[\"ppm\"]},\"image/x-rgb\":{\"source\":\"apache\",\"extensions\":[\"rgb\"]},\"image/x-tga\":{\"source\":\"apache\",\"extensions\":[\"tga\"]},\"image/x-xbitmap\":{\"source\":\"apache\",\"extensions\":[\"xbm\"]},\"image/x-xcf\":{\"compressible\":false},\"image/x-xpixmap\":{\"source\":\"apache\",\"extensions\":[\"xpm\"]},\"image/x-xwindowdump\":{\"source\":\"apache\",\"extensions\":[\"xwd\"]},\"message/cpim\":{\"source\":\"iana\"},\"message/delivery-status\":{\"source\":\"iana\"},\"message/disposition-notification\":{\"source\":\"iana\",\"extensions\":[\"disposition-notification\"]},\"message/external-body\":{\"source\":\"iana\"},\"message/feedback-report\":{\"source\":\"iana\"},\"message/global\":{\"source\":\"iana\",\"extensions\":[\"u8msg\"]},\"message/global-delivery-status\":{\"source\":\"iana\",\"extensions\":[\"u8dsn\"]},\"message/global-disposition-notification\":{\"source\":\"iana\",\"extensions\":[\"u8mdn\"]},\"message/global-headers\":{\"source\":\"iana\",\"extensions\":[\"u8hdr\"]},\"message/http\":{\"source\":\"iana\",\"compressible\":false},\"message/imdn+xml\":{\"source\":\"iana\",\"compressible\":true},\"message/news\":{\"source\":\"iana\"},\"message/partial\":{\"source\":\"iana\",\"compressible\":false},\"message/rfc822\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"eml\",\"mime\"]},\"message/s-http\":{\"source\":\"iana\"},\"message/sip\":{\"source\":\"iana\"},\"message/sipfrag\":{\"source\":\"iana\"},\"message/tracking-status\":{\"source\":\"iana\"},\"message/vnd.si.simp\":{\"source\":\"iana\"},\"message/vnd.wfa.wsc\":{\"source\":\"iana\",\"extensions\":[\"wsc\"]},\"model/3mf\":{\"source\":\"iana\",\"extensions\":[\"3mf\"]},\"model/e57\":{\"source\":\"iana\"},\"model/gltf+json\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"gltf\"]},\"model/gltf-binary\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"glb\"]},\"model/iges\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"igs\",\"iges\"]},\"model/mesh\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"msh\",\"mesh\",\"silo\"]},\"model/mtl\":{\"source\":\"iana\",\"extensions\":[\"mtl\"]},\"model/obj\":{\"source\":\"iana\",\"extensions\":[\"obj\"]},\"model/stl\":{\"source\":\"iana\",\"extensions\":[\"stl\"]},\"model/vnd.collada+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"dae\"]},\"model/vnd.dwf\":{\"source\":\"iana\",\"extensions\":[\"dwf\"]},\"model/vnd.flatland.3dml\":{\"source\":\"iana\"},\"model/vnd.gdl\":{\"source\":\"iana\",\"extensions\":[\"gdl\"]},\"model/vnd.gs-gdl\":{\"source\":\"apache\"},\"model/vnd.gs.gdl\":{\"source\":\"iana\"},\"model/vnd.gtw\":{\"source\":\"iana\",\"extensions\":[\"gtw\"]},\"model/vnd.moml+xml\":{\"source\":\"iana\",\"compressible\":true},\"model/vnd.mts\":{\"source\":\"iana\",\"extensions\":[\"mts\"]},\"model/vnd.opengex\":{\"source\":\"iana\",\"extensions\":[\"ogex\"]},\"model/vnd.parasolid.transmit.binary\":{\"source\":\"iana\",\"extensions\":[\"x_b\"]},\"model/vnd.parasolid.transmit.text\":{\"source\":\"iana\",\"extensions\":[\"x_t\"]},\"model/vnd.rosette.annotated-data-model\":{\"source\":\"iana\"},\"model/vnd.usdz+zip\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"usdz\"]},\"model/vnd.valve.source.compiled-map\":{\"source\":\"iana\",\"extensions\":[\"bsp\"]},\"model/vnd.vtu\":{\"source\":\"iana\",\"extensions\":[\"vtu\"]},\"model/vrml\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"wrl\",\"vrml\"]},\"model/x3d+binary\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"x3db\",\"x3dbz\"]},\"model/x3d+fastinfoset\":{\"source\":\"iana\",\"extensions\":[\"x3db\"]},\"model/x3d+vrml\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"x3dv\",\"x3dvz\"]},\"model/x3d+xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"x3d\",\"x3dz\"]},\"model/x3d-vrml\":{\"source\":\"iana\",\"extensions\":[\"x3dv\"]},\"multipart/alternative\":{\"source\":\"iana\",\"compressible\":false},\"multipart/appledouble\":{\"source\":\"iana\"},\"multipart/byteranges\":{\"source\":\"iana\"},\"multipart/digest\":{\"source\":\"iana\"},\"multipart/encrypted\":{\"source\":\"iana\",\"compressible\":false},\"multipart/form-data\":{\"source\":\"iana\",\"compressible\":false},\"multipart/header-set\":{\"source\":\"iana\"},\"multipart/mixed\":{\"source\":\"iana\"},\"multipart/multilingual\":{\"source\":\"iana\"},\"multipart/parallel\":{\"source\":\"iana\"},\"multipart/related\":{\"source\":\"iana\",\"compressible\":false},\"multipart/report\":{\"source\":\"iana\"},\"multipart/signed\":{\"source\":\"iana\",\"compressible\":false},\"multipart/vnd.bint.med-plus\":{\"source\":\"iana\"},\"multipart/voice-message\":{\"source\":\"iana\"},\"multipart/x-mixed-replace\":{\"source\":\"iana\"},\"text/1d-interleaved-parityfec\":{\"source\":\"iana\"},\"text/cache-manifest\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"appcache\",\"manifest\"]},\"text/calendar\":{\"source\":\"iana\",\"extensions\":[\"ics\",\"ifb\"]},\"text/calender\":{\"compressible\":true},\"text/cmd\":{\"compressible\":true},\"text/coffeescript\":{\"extensions\":[\"coffee\",\"litcoffee\"]},\"text/css\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true,\"extensions\":[\"css\"]},\"text/csv\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"csv\"]},\"text/csv-schema\":{\"source\":\"iana\"},\"text/directory\":{\"source\":\"iana\"},\"text/dns\":{\"source\":\"iana\"},\"text/ecmascript\":{\"source\":\"iana\"},\"text/encaprtp\":{\"source\":\"iana\"},\"text/enriched\":{\"source\":\"iana\"},\"text/flexfec\":{\"source\":\"iana\"},\"text/fwdred\":{\"source\":\"iana\"},\"text/gff3\":{\"source\":\"iana\"},\"text/grammar-ref-list\":{\"source\":\"iana\"},\"text/html\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"html\",\"htm\",\"shtml\"]},\"text/jade\":{\"extensions\":[\"jade\"]},\"text/javascript\":{\"source\":\"iana\",\"compressible\":true},\"text/jcr-cnd\":{\"source\":\"iana\"},\"text/jsx\":{\"compressible\":true,\"extensions\":[\"jsx\"]},\"text/less\":{\"compressible\":true,\"extensions\":[\"less\"]},\"text/markdown\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"markdown\",\"md\"]},\"text/mathml\":{\"source\":\"nginx\",\"extensions\":[\"mml\"]},\"text/mdx\":{\"compressible\":true,\"extensions\":[\"mdx\"]},\"text/mizar\":{\"source\":\"iana\"},\"text/n3\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true,\"extensions\":[\"n3\"]},\"text/parameters\":{\"source\":\"iana\",\"charset\":\"UTF-8\"},\"text/parityfec\":{\"source\":\"iana\"},\"text/plain\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"txt\",\"text\",\"conf\",\"def\",\"list\",\"log\",\"in\",\"ini\"]},\"text/provenance-notation\":{\"source\":\"iana\",\"charset\":\"UTF-8\"},\"text/prs.fallenstein.rst\":{\"source\":\"iana\"},\"text/prs.lines.tag\":{\"source\":\"iana\",\"extensions\":[\"dsc\"]},\"text/prs.prop.logic\":{\"source\":\"iana\"},\"text/raptorfec\":{\"source\":\"iana\"},\"text/red\":{\"source\":\"iana\"},\"text/rfc822-headers\":{\"source\":\"iana\"},\"text/richtext\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"rtx\"]},\"text/rtf\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"rtf\"]},\"text/rtp-enc-aescm128\":{\"source\":\"iana\"},\"text/rtploopback\":{\"source\":\"iana\"},\"text/rtx\":{\"source\":\"iana\"},\"text/sgml\":{\"source\":\"iana\",\"extensions\":[\"sgml\",\"sgm\"]},\"text/shaclc\":{\"source\":\"iana\"},\"text/shex\":{\"extensions\":[\"shex\"]},\"text/slim\":{\"extensions\":[\"slim\",\"slm\"]},\"text/spdx\":{\"source\":\"iana\",\"extensions\":[\"spdx\"]},\"text/strings\":{\"source\":\"iana\"},\"text/stylus\":{\"extensions\":[\"stylus\",\"styl\"]},\"text/t140\":{\"source\":\"iana\"},\"text/tab-separated-values\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"tsv\"]},\"text/troff\":{\"source\":\"iana\",\"extensions\":[\"t\",\"tr\",\"roff\",\"man\",\"me\",\"ms\"]},\"text/turtle\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"extensions\":[\"ttl\"]},\"text/ulpfec\":{\"source\":\"iana\"},\"text/uri-list\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"uri\",\"uris\",\"urls\"]},\"text/vcard\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"vcard\"]},\"text/vnd.a\":{\"source\":\"iana\"},\"text/vnd.abc\":{\"source\":\"iana\"},\"text/vnd.ascii-art\":{\"source\":\"iana\"},\"text/vnd.curl\":{\"source\":\"iana\",\"extensions\":[\"curl\"]},\"text/vnd.curl.dcurl\":{\"source\":\"apache\",\"extensions\":[\"dcurl\"]},\"text/vnd.curl.mcurl\":{\"source\":\"apache\",\"extensions\":[\"mcurl\"]},\"text/vnd.curl.scurl\":{\"source\":\"apache\",\"extensions\":[\"scurl\"]},\"text/vnd.debian.copyright\":{\"source\":\"iana\",\"charset\":\"UTF-8\"},\"text/vnd.dmclientscript\":{\"source\":\"iana\"},\"text/vnd.dvb.subtitle\":{\"source\":\"iana\",\"extensions\":[\"sub\"]},\"text/vnd.esmertec.theme-descriptor\":{\"source\":\"iana\",\"charset\":\"UTF-8\"},\"text/vnd.ficlab.flt\":{\"source\":\"iana\"},\"text/vnd.fly\":{\"source\":\"iana\",\"extensions\":[\"fly\"]},\"text/vnd.fmi.flexstor\":{\"source\":\"iana\",\"extensions\":[\"flx\"]},\"text/vnd.gml\":{\"source\":\"iana\"},\"text/vnd.graphviz\":{\"source\":\"iana\",\"extensions\":[\"gv\"]},\"text/vnd.hans\":{\"source\":\"iana\"},\"text/vnd.hgl\":{\"source\":\"iana\"},\"text/vnd.in3d.3dml\":{\"source\":\"iana\",\"extensions\":[\"3dml\"]},\"text/vnd.in3d.spot\":{\"source\":\"iana\",\"extensions\":[\"spot\"]},\"text/vnd.iptc.newsml\":{\"source\":\"iana\"},\"text/vnd.iptc.nitf\":{\"source\":\"iana\"},\"text/vnd.latex-z\":{\"source\":\"iana\"},\"text/vnd.motorola.reflex\":{\"source\":\"iana\"},\"text/vnd.ms-mediapackage\":{\"source\":\"iana\"},\"text/vnd.net2phone.commcenter.command\":{\"source\":\"iana\"},\"text/vnd.radisys.msml-basic-layout\":{\"source\":\"iana\"},\"text/vnd.senx.warpscript\":{\"source\":\"iana\"},\"text/vnd.si.uricatalogue\":{\"source\":\"iana\"},\"text/vnd.sosi\":{\"source\":\"iana\"},\"text/vnd.sun.j2me.app-descriptor\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"extensions\":[\"jad\"]},\"text/vnd.trolltech.linguist\":{\"source\":\"iana\",\"charset\":\"UTF-8\"},\"text/vnd.wap.si\":{\"source\":\"iana\"},\"text/vnd.wap.sl\":{\"source\":\"iana\"},\"text/vnd.wap.wml\":{\"source\":\"iana\",\"extensions\":[\"wml\"]},\"text/vnd.wap.wmlscript\":{\"source\":\"iana\",\"extensions\":[\"wmls\"]},\"text/vtt\":{\"source\":\"iana\",\"charset\":\"UTF-8\",\"compressible\":true,\"extensions\":[\"vtt\"]},\"text/x-asm\":{\"source\":\"apache\",\"extensions\":[\"s\",\"asm\"]},\"text/x-c\":{\"source\":\"apache\",\"extensions\":[\"c\",\"cc\",\"cxx\",\"cpp\",\"h\",\"hh\",\"dic\"]},\"text/x-component\":{\"source\":\"nginx\",\"extensions\":[\"htc\"]},\"text/x-fortran\":{\"source\":\"apache\",\"extensions\":[\"f\",\"for\",\"f77\",\"f90\"]},\"text/x-gwt-rpc\":{\"compressible\":true},\"text/x-handlebars-template\":{\"extensions\":[\"hbs\"]},\"text/x-java-source\":{\"source\":\"apache\",\"extensions\":[\"java\"]},\"text/x-jquery-tmpl\":{\"compressible\":true},\"text/x-lua\":{\"extensions\":[\"lua\"]},\"text/x-markdown\":{\"compressible\":true,\"extensions\":[\"mkd\"]},\"text/x-nfo\":{\"source\":\"apache\",\"extensions\":[\"nfo\"]},\"text/x-opml\":{\"source\":\"apache\",\"extensions\":[\"opml\"]},\"text/x-org\":{\"compressible\":true,\"extensions\":[\"org\"]},\"text/x-pascal\":{\"source\":\"apache\",\"extensions\":[\"p\",\"pas\"]},\"text/x-processing\":{\"compressible\":true,\"extensions\":[\"pde\"]},\"text/x-sass\":{\"extensions\":[\"sass\"]},\"text/x-scss\":{\"extensions\":[\"scss\"]},\"text/x-setext\":{\"source\":\"apache\",\"extensions\":[\"etx\"]},\"text/x-sfv\":{\"source\":\"apache\",\"extensions\":[\"sfv\"]},\"text/x-suse-ymp\":{\"compressible\":true,\"extensions\":[\"ymp\"]},\"text/x-uuencode\":{\"source\":\"apache\",\"extensions\":[\"uu\"]},\"text/x-vcalendar\":{\"source\":\"apache\",\"extensions\":[\"vcs\"]},\"text/x-vcard\":{\"source\":\"apache\",\"extensions\":[\"vcf\"]},\"text/xml\":{\"source\":\"iana\",\"compressible\":true,\"extensions\":[\"xml\"]},\"text/xml-external-parsed-entity\":{\"source\":\"iana\"},\"text/yaml\":{\"extensions\":[\"yaml\",\"yml\"]},\"video/1d-interleaved-parityfec\":{\"source\":\"iana\"},\"video/3gpp\":{\"source\":\"iana\",\"extensions\":[\"3gp\",\"3gpp\"]},\"video/3gpp-tt\":{\"source\":\"iana\"},\"video/3gpp2\":{\"source\":\"iana\",\"extensions\":[\"3g2\"]},\"video/bmpeg\":{\"source\":\"iana\"},\"video/bt656\":{\"source\":\"iana\"},\"video/celb\":{\"source\":\"iana\"},\"video/dv\":{\"source\":\"iana\"},\"video/encaprtp\":{\"source\":\"iana\"},\"video/flexfec\":{\"source\":\"iana\"},\"video/h261\":{\"source\":\"iana\",\"extensions\":[\"h261\"]},\"video/h263\":{\"source\":\"iana\",\"extensions\":[\"h263\"]},\"video/h263-1998\":{\"source\":\"iana\"},\"video/h263-2000\":{\"source\":\"iana\"},\"video/h264\":{\"source\":\"iana\",\"extensions\":[\"h264\"]},\"video/h264-rcdo\":{\"source\":\"iana\"},\"video/h264-svc\":{\"source\":\"iana\"},\"video/h265\":{\"source\":\"iana\"},\"video/iso.segment\":{\"source\":\"iana\"},\"video/jpeg\":{\"source\":\"iana\",\"extensions\":[\"jpgv\"]},\"video/jpeg2000\":{\"source\":\"iana\"},\"video/jpm\":{\"source\":\"apache\",\"extensions\":[\"jpm\",\"jpgm\"]},\"video/mj2\":{\"source\":\"iana\",\"extensions\":[\"mj2\",\"mjp2\"]},\"video/mp1s\":{\"source\":\"iana\"},\"video/mp2p\":{\"source\":\"iana\"},\"video/mp2t\":{\"source\":\"iana\",\"extensions\":[\"ts\"]},\"video/mp4\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"mp4\",\"mp4v\",\"mpg4\"]},\"video/mp4v-es\":{\"source\":\"iana\"},\"video/mpeg\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"mpeg\",\"mpg\",\"mpe\",\"m1v\",\"m2v\"]},\"video/mpeg4-generic\":{\"source\":\"iana\"},\"video/mpv\":{\"source\":\"iana\"},\"video/nv\":{\"source\":\"iana\"},\"video/ogg\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"ogv\"]},\"video/parityfec\":{\"source\":\"iana\"},\"video/pointer\":{\"source\":\"iana\"},\"video/quicktime\":{\"source\":\"iana\",\"compressible\":false,\"extensions\":[\"qt\",\"mov\"]},\"video/raptorfec\":{\"source\":\"iana\"},\"video/raw\":{\"source\":\"iana\"},\"video/rtp-enc-aescm128\":{\"source\":\"iana\"},\"video/rtploopback\":{\"source\":\"iana\"},\"video/rtx\":{\"source\":\"iana\"},\"video/smpte291\":{\"source\":\"iana\"},\"video/smpte292m\":{\"source\":\"iana\"},\"video/ulpfec\":{\"source\":\"iana\"},\"video/vc1\":{\"source\":\"iana\"},\"video/vc2\":{\"source\":\"iana\"},\"video/vnd.cctv\":{\"source\":\"iana\"},\"video/vnd.dece.hd\":{\"source\":\"iana\",\"extensions\":[\"uvh\",\"uvvh\"]},\"video/vnd.dece.mobile\":{\"source\":\"iana\",\"extensions\":[\"uvm\",\"uvvm\"]},\"video/vnd.dece.mp4\":{\"source\":\"iana\"},\"video/vnd.dece.pd\":{\"source\":\"iana\",\"extensions\":[\"uvp\",\"uvvp\"]},\"video/vnd.dece.sd\":{\"source\":\"iana\",\"extensions\":[\"uvs\",\"uvvs\"]},\"video/vnd.dece.video\":{\"source\":\"iana\",\"extensions\":[\"uvv\",\"uvvv\"]},\"video/vnd.directv.mpeg\":{\"source\":\"iana\"},\"video/vnd.directv.mpeg-tts\":{\"source\":\"iana\"},\"video/vnd.dlna.mpeg-tts\":{\"source\":\"iana\"},\"video/vnd.dvb.file\":{\"source\":\"iana\",\"extensions\":[\"dvb\"]},\"video/vnd.fvt\":{\"source\":\"iana\",\"extensions\":[\"fvt\"]},\"video/vnd.hns.video\":{\"source\":\"iana\"},\"video/vnd.iptvforum.1dparityfec-1010\":{\"source\":\"iana\"},\"video/vnd.iptvforum.1dparityfec-2005\":{\"source\":\"iana\"},\"video/vnd.iptvforum.2dparityfec-1010\":{\"source\":\"iana\"},\"video/vnd.iptvforum.2dparityfec-2005\":{\"source\":\"iana\"},\"video/vnd.iptvforum.ttsavc\":{\"source\":\"iana\"},\"video/vnd.iptvforum.ttsmpeg2\":{\"source\":\"iana\"},\"video/vnd.motorola.video\":{\"source\":\"iana\"},\"video/vnd.motorola.videop\":{\"source\":\"iana\"},\"video/vnd.mpegurl\":{\"source\":\"iana\",\"extensions\":[\"mxu\",\"m4u\"]},\"video/vnd.ms-playready.media.pyv\":{\"source\":\"iana\",\"extensions\":[\"pyv\"]},\"video/vnd.nokia.interleaved-multimedia\":{\"source\":\"iana\"},\"video/vnd.nokia.mp4vr\":{\"source\":\"iana\"},\"video/vnd.nokia.videovoip\":{\"source\":\"iana\"},\"video/vnd.objectvideo\":{\"source\":\"iana\"},\"video/vnd.radgamettools.bink\":{\"source\":\"iana\"},\"video/vnd.radgamettools.smacker\":{\"source\":\"iana\"},\"video/vnd.sealed.mpeg1\":{\"source\":\"iana\"},\"video/vnd.sealed.mpeg4\":{\"source\":\"iana\"},\"video/vnd.sealed.swf\":{\"source\":\"iana\"},\"video/vnd.sealedmedia.softseal.mov\":{\"source\":\"iana\"},\"video/vnd.uvvu.mp4\":{\"source\":\"iana\",\"extensions\":[\"uvu\",\"uvvu\"]},\"video/vnd.vivo\":{\"source\":\"iana\",\"extensions\":[\"viv\"]},\"video/vnd.youtube.yt\":{\"source\":\"iana\"},\"video/vp8\":{\"source\":\"iana\"},\"video/webm\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"webm\"]},\"video/x-f4v\":{\"source\":\"apache\",\"extensions\":[\"f4v\"]},\"video/x-fli\":{\"source\":\"apache\",\"extensions\":[\"fli\"]},\"video/x-flv\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"flv\"]},\"video/x-m4v\":{\"source\":\"apache\",\"extensions\":[\"m4v\"]},\"video/x-matroska\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"mkv\",\"mk3d\",\"mks\"]},\"video/x-mng\":{\"source\":\"apache\",\"extensions\":[\"mng\"]},\"video/x-ms-asf\":{\"source\":\"apache\",\"extensions\":[\"asf\",\"asx\"]},\"video/x-ms-vob\":{\"source\":\"apache\",\"extensions\":[\"vob\"]},\"video/x-ms-wm\":{\"source\":\"apache\",\"extensions\":[\"wm\"]},\"video/x-ms-wmv\":{\"source\":\"apache\",\"compressible\":false,\"extensions\":[\"wmv\"]},\"video/x-ms-wmx\":{\"source\":\"apache\",\"extensions\":[\"wmx\"]},\"video/x-ms-wvx\":{\"source\":\"apache\",\"extensions\":[\"wvx\"]},\"video/x-msvideo\":{\"source\":\"apache\",\"extensions\":[\"avi\"]},\"video/x-sgi-movie\":{\"source\":\"apache\",\"extensions\":[\"movie\"]},\"video/x-smv\":{\"source\":\"apache\",\"extensions\":[\"smv\"]},\"x-conference/x-cooltalk\":{\"source\":\"apache\",\"extensions\":[\"ice\"]},\"x-shader/x-fragment\":{\"compressible\":true},\"x-shader/x-vertex\":{\"compressible\":true}}");
@@ -35,7 +35,7 @@ module.exports = JSON.parse("{\"application/1d-interleaved-parityfec\":{\"source
 /***/ }),
 
 /***/ 88098:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"definitions\":{\"Rule\":{\"description\":\"Filtering rule as regex or string.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"minLength\":1}]},\"Rules\":{\"description\":\"Filtering rules.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A rule condition.\",\"oneOf\":[{\"$ref\":\"#/definitions/Rule\"}]}},{\"$ref\":\"#/definitions/Rule\"}]}},\"title\":\"TerserPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"test\":{\"description\":\"Include all modules that pass test assertion.\",\"oneOf\":[{\"$ref\":\"#/definitions/Rules\"}]},\"include\":{\"description\":\"Include all modules matching any of these conditions.\",\"oneOf\":[{\"$ref\":\"#/definitions/Rules\"}]},\"exclude\":{\"description\":\"Exclude all modules matching any of these conditions.\",\"oneOf\":[{\"$ref\":\"#/definitions/Rules\"}]},\"terserOptions\":{\"description\":\"Options for `terser`.\",\"additionalProperties\":true,\"type\":\"object\"},\"extractComments\":{\"description\":\"Whether comments shall be extracted to a separate file.\",\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"string\",\"minLength\":1},{\"instanceof\":\"RegExp\"},{\"instanceof\":\"Function\"},{\"additionalProperties\":false,\"properties\":{\"condition\":{\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"string\",\"minLength\":1},{\"instanceof\":\"RegExp\"},{\"instanceof\":\"Function\"}]},\"filename\":{\"anyOf\":[{\"type\":\"string\",\"minLength\":1},{\"instanceof\":\"Function\"}]},\"banner\":{\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"string\",\"minLength\":1},{\"instanceof\":\"Function\"}]}},\"type\":\"object\"}]},\"parallel\":{\"description\":\"Use multi-process parallel running to improve the build speed.\",\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"integer\"}]},\"minify\":{\"description\":\"Allows you to override default minify function.\",\"instanceof\":\"Function\"}}}");
@@ -43,7 +43,7 @@ module.exports = JSON.parse("{\"definitions\":{\"Rule\":{\"description\":\"Filte
 /***/ }),
 
 /***/ 80268:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"name\":\"terser\",\"description\":\"JavaScript parser, mangler/compressor and beautifier toolkit for ES6+\",\"homepage\":\"https://terser.org\",\"author\":\"Mihai Bazon <mihai.bazon@gmail.com> (http://lisperator.net/)\",\"license\":\"BSD-2-Clause\",\"version\":\"5.5.1\",\"engines\":{\"node\":\">=10\"},\"maintainers\":[\"Fábio Santos <fabiosantosart@gmail.com>\"],\"repository\":\"https://github.com/terser/terser\",\"main\":\"dist/bundle.min.js\",\"type\":\"module\",\"module\":\"./main.js\",\"exports\":{\".\":[{\"import\":\"./main.js\",\"require\":\"./dist/bundle.min.js\"},\"./dist/bundle.min.js\"],\"./package\":\"./package.json\",\"./package.json\":\"./package.json\"},\"types\":\"tools/terser.d.ts\",\"bin\":{\"terser\":\"bin/terser\"},\"files\":[\"bin\",\"dist\",\"lib\",\"tools\",\"LICENSE\",\"README.md\",\"CHANGELOG.md\",\"PATRONS.md\",\"main.js\"],\"dependencies\":{\"commander\":\"^2.20.0\",\"source-map\":\"~0.7.2\",\"source-map-support\":\"~0.5.19\"},\"devDependencies\":{\"@ls-lint/ls-lint\":\"^1.9.2\",\"acorn\":\"^7.4.0\",\"astring\":\"^1.4.1\",\"eslint\":\"^7.0.0\",\"eslump\":\"^2.0.0\",\"esm\":\"^3.2.25\",\"mocha\":\"^8.0.0\",\"pre-commit\":\"^1.2.2\",\"rimraf\":\"^3.0.0\",\"rollup\":\"2.0.6\",\"semver\":\"^7.1.3\"},\"scripts\":{\"test\":\"node test/compress.js && mocha test/mocha\",\"test:compress\":\"node test/compress.js\",\"test:mocha\":\"mocha test/mocha\",\"lint\":\"eslint lib\",\"lint-fix\":\"eslint --fix lib\",\"ls-lint\":\"ls-lint\",\"build\":\"rimraf dist/bundle* && rollup --config --silent\",\"prepare\":\"npm run build\",\"postversion\":\"echo 'Remember to update the changelog!'\"},\"keywords\":[\"uglify\",\"terser\",\"uglify-es\",\"uglify-js\",\"minify\",\"minifier\",\"javascript\",\"ecmascript\",\"es5\",\"es6\",\"es7\",\"es8\",\"es2015\",\"es2016\",\"es2017\",\"async\",\"await\"],\"eslintConfig\":{\"parserOptions\":{\"sourceType\":\"module\",\"ecmaVersion\":\"2020\"},\"env\":{\"node\":true,\"browser\":true,\"es2020\":true},\"globals\":{\"describe\":false,\"it\":false,\"require\":false,\"global\":false,\"process\":false},\"rules\":{\"brace-style\":[\"error\",\"1tbs\",{\"allowSingleLine\":true}],\"quotes\":[\"error\",\"double\",\"avoid-escape\"],\"no-debugger\":\"error\",\"no-undef\":\"error\",\"no-unused-vars\":[\"error\",{\"varsIgnorePattern\":\"^_$\"}],\"no-tabs\":\"error\",\"semi\":[\"error\",\"always\"],\"no-extra-semi\":\"error\",\"no-irregular-whitespace\":\"error\",\"space-before-blocks\":[\"error\",\"always\"]}},\"pre-commit\":[\"build\",\"lint-fix\",\"ls-lint\",\"test\"]}");
@@ -51,7 +51,7 @@ module.exports = JSON.parse("{\"name\":\"terser\",\"description\":\"JavaScript p
 /***/ }),
 
 /***/ 32607:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = {"i8":"5.12.3"};
@@ -59,7 +59,7 @@ module.exports = {"i8":"5.12.3"};
 /***/ }),
 
 /***/ 15546:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"definitions\":{\"Amd\":{\"description\":\"Set the value of `require.amd` and `define.amd`. Or disable AMD support.\",\"anyOf\":[{\"description\":\"You can pass `false` to disable AMD support.\",\"enum\":[false]},{\"description\":\"You can pass an object to set the value of `require.amd` and `define.amd`.\",\"type\":\"object\"}]},\"AssetGeneratorDataUrl\":{\"description\":\"The options for data url generator.\",\"anyOf\":[{\"$ref\":\"#/definitions/AssetGeneratorDataUrlOptions\"},{\"$ref\":\"#/definitions/AssetGeneratorDataUrlFunction\"}]},\"AssetGeneratorDataUrlFunction\":{\"description\":\"Function that executes for module and should return an DataUrl string.\",\"instanceof\":\"Function\",\"tsType\":\"((source: string | Buffer, context: { filename: string, module: import('../lib/Module') }) => string)\"},\"AssetGeneratorDataUrlOptions\":{\"description\":\"Options object for data url generation.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"encoding\":{\"description\":\"Asset encoding (defaults to base64).\",\"enum\":[false,\"base64\"]},\"mimetype\":{\"description\":\"Asset mimetype (getting from file extension by default).\",\"type\":\"string\"}}},\"AssetGeneratorOptions\":{\"description\":\"Generator options for asset modules.\",\"type\":\"object\",\"implements\":[\"#/definitions/AssetInlineGeneratorOptions\",\"#/definitions/AssetResourceGeneratorOptions\"],\"additionalProperties\":false,\"properties\":{\"dataUrl\":{\"$ref\":\"#/definitions/AssetGeneratorDataUrl\"},\"filename\":{\"$ref\":\"#/definitions/FilenameTemplate\"}}},\"AssetInlineGeneratorOptions\":{\"description\":\"Generator options for asset/inline modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"dataUrl\":{\"$ref\":\"#/definitions/AssetGeneratorDataUrl\"}}},\"AssetModuleFilename\":{\"description\":\"The filename of asset modules as relative path inside the 'output.path' directory.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"AssetParserDataUrlFunction\":{\"description\":\"Function that executes for module and should return whenever asset should be inlined as DataUrl.\",\"instanceof\":\"Function\",\"tsType\":\"((source: string | Buffer, context: { filename: string, module: import('../lib/Module') }) => boolean)\"},\"AssetParserDataUrlOptions\":{\"description\":\"Options object for DataUrl condition.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"maxSize\":{\"description\":\"Maximum size of asset that should be inline as modules. Default: 8kb.\",\"type\":\"number\"}}},\"AssetParserOptions\":{\"description\":\"Parser options for asset modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"dataUrlCondition\":{\"description\":\"The condition for inlining the asset as DataUrl.\",\"anyOf\":[{\"$ref\":\"#/definitions/AssetParserDataUrlOptions\"},{\"$ref\":\"#/definitions/AssetParserDataUrlFunction\"}]}}},\"AssetResourceGeneratorOptions\":{\"description\":\"Generator options for asset/resource modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"filename\":{\"$ref\":\"#/definitions/FilenameTemplate\"}}},\"AuxiliaryComment\":{\"description\":\"Add a comment in the UMD wrapper.\",\"anyOf\":[{\"description\":\"Append the same comment above each import style.\",\"type\":\"string\"},{\"$ref\":\"#/definitions/LibraryCustomUmdCommentObject\"}]},\"Bail\":{\"description\":\"Report the first error as a hard error instead of tolerating it.\",\"type\":\"boolean\"},\"CacheOptions\":{\"description\":\"Cache generated modules and chunks to improve performance for multiple incremental builds.\",\"anyOf\":[{\"description\":\"Enable in memory caching.\",\"enum\":[true]},{\"$ref\":\"#/definitions/CacheOptionsNormalized\"}]},\"CacheOptionsNormalized\":{\"description\":\"Cache generated modules and chunks to improve performance for multiple incremental builds.\",\"anyOf\":[{\"description\":\"Disable caching.\",\"enum\":[false]},{\"$ref\":\"#/definitions/MemoryCacheOptions\"},{\"$ref\":\"#/definitions/FileCacheOptions\"}]},\"Charset\":{\"description\":\"Add charset attribute for script tag.\",\"type\":\"boolean\"},\"ChunkFilename\":{\"description\":\"Specifies the filename template of output files of non-initial chunks on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilenameTemplate\"}]},\"ChunkFormat\":{\"description\":\"The format of chunks (formats included by default are 'array-push' (web/WebWorker), 'commonjs' (node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"array-push\",\"commonjs\",false]},{\"type\":\"string\"}]},\"ChunkLoadTimeout\":{\"description\":\"Number of milliseconds before chunk request expires.\",\"type\":\"number\"},\"ChunkLoading\":{\"description\":\"The method of loading chunks (methods included by default are 'jsonp' (web), 'importScripts' (WebWorker), 'require' (sync node.js), 'async-node' (async node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/ChunkLoadingType\"}]},\"ChunkLoadingGlobal\":{\"description\":\"The global variable used by webpack for loading of chunks.\",\"type\":\"string\"},\"ChunkLoadingType\":{\"description\":\"The method of loading chunks (methods included by default are 'jsonp' (web), 'importScripts' (WebWorker), 'require' (sync node.js), 'async-node' (async node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"jsonp\",\"import-scripts\",\"require\",\"async-node\"]},{\"type\":\"string\"}]},\"CompareBeforeEmit\":{\"description\":\"Check if to be emitted file already exists and have the same content before writing to output filesystem.\",\"type\":\"boolean\"},\"Context\":{\"description\":\"The base directory (absolute path!) for resolving the `entry` option. If `output.pathinfo` is set, the included pathinfo is shortened to this directory.\",\"type\":\"string\",\"absolutePath\":true},\"CrossOriginLoading\":{\"description\":\"This option enables cross-origin loading of chunks.\",\"enum\":[false,\"anonymous\",\"use-credentials\"]},\"Dependencies\":{\"description\":\"References to other configurations to depend on.\",\"type\":\"array\",\"items\":{\"description\":\"References to another configuration to depend on.\",\"type\":\"string\"}},\"DevServer\":{\"description\":\"Options for the webpack-dev-server.\",\"type\":\"object\"},\"DevTool\":{\"description\":\"A developer tool to enhance debugging (false | eval | [inline-|hidden-|eval-][nosources-][cheap-[module-]]source-map).\",\"anyOf\":[{\"enum\":[false,\"eval\"]},{\"type\":\"string\",\"pattern\":\"^(inline-|hidden-|eval-)?(nosources-)?(cheap-(module-)?)?source-map$\"}]},\"DevtoolFallbackModuleFilenameTemplate\":{\"description\":\"Similar to `output.devtoolModuleFilenameTemplate`, but used in the case of duplicate module identifiers.\",\"anyOf\":[{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"DevtoolModuleFilenameTemplate\":{\"description\":\"Filename template string of function for the sources array in a generated SourceMap.\",\"anyOf\":[{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"DevtoolNamespace\":{\"description\":\"Module namespace to use when interpolating filename template string for the sources array in a generated SourceMap. Defaults to `output.library` if not set. It's useful for avoiding runtime collisions in sourcemaps from multiple webpack projects built as libraries.\",\"type\":\"string\"},\"EmptyGeneratorOptions\":{\"description\":\"No generator options are supported for this module type.\",\"type\":\"object\",\"additionalProperties\":false},\"EmptyParserOptions\":{\"description\":\"No parser options are supported for this module type.\",\"type\":\"object\",\"additionalProperties\":false},\"EnabledChunkLoadingTypes\":{\"description\":\"List of chunk loading types enabled for use by entry points.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/ChunkLoadingType\"}},\"EnabledLibraryTypes\":{\"description\":\"List of library types enabled for use by entry points.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/LibraryType\"}},\"EnabledWasmLoadingTypes\":{\"description\":\"List of wasm loading types enabled for use by entry points.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/WasmLoadingType\"}},\"Entry\":{\"description\":\"The entry point(s) of the compilation.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryDynamic\"},{\"$ref\":\"#/definitions/EntryStatic\"}]},\"EntryDescription\":{\"description\":\"An object with entry point description.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"dependOn\":{\"description\":\"The entrypoints that the current entrypoint depend on. They must be loaded when this entrypoint is loaded.\",\"anyOf\":[{\"description\":\"The entrypoints that the current entrypoint depend on. They must be loaded when this entrypoint is loaded.\",\"type\":\"array\",\"items\":{\"description\":\"An entrypoint that the current entrypoint depend on. It must be loaded when this entrypoint is loaded.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},{\"description\":\"An entrypoint that the current entrypoint depend on. It must be loaded when this entrypoint is loaded.\",\"type\":\"string\",\"minLength\":1}]},\"filename\":{\"$ref\":\"#/definitions/EntryFilename\"},\"import\":{\"$ref\":\"#/definitions/EntryItem\"},\"layer\":{\"$ref\":\"#/definitions/Layer\"},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"runtime\":{\"$ref\":\"#/definitions/EntryRuntime\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}},\"required\":[\"import\"]},\"EntryDescriptionNormalized\":{\"description\":\"An object with entry point description.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"dependOn\":{\"description\":\"The entrypoints that the current entrypoint depend on. They must be loaded when this entrypoint is loaded.\",\"type\":\"array\",\"items\":{\"description\":\"An entrypoint that the current entrypoint depend on. It must be loaded when this entrypoint is loaded.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},\"filename\":{\"$ref\":\"#/definitions/Filename\"},\"import\":{\"description\":\"Module(s) that are loaded upon startup. The last one is exported.\",\"type\":\"array\",\"items\":{\"description\":\"Module that is loaded upon startup. Only the last one is exported.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},\"layer\":{\"$ref\":\"#/definitions/Layer\"},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"runtime\":{\"$ref\":\"#/definitions/EntryRuntime\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}}},\"EntryDynamic\":{\"description\":\"A Function returning an entry object, an entry string, an entry array or a promise to these things.\",\"instanceof\":\"Function\",\"tsType\":\"(() => EntryStatic | Promise<EntryStatic>)\"},\"EntryDynamicNormalized\":{\"description\":\"A Function returning a Promise resolving to a normalized entry.\",\"instanceof\":\"Function\",\"tsType\":\"(() => Promise<EntryStaticNormalized>)\"},\"EntryFilename\":{\"description\":\"Specifies the filename of the output file on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilenameTemplate\"}]},\"EntryItem\":{\"description\":\"Module(s) that are loaded upon startup.\",\"anyOf\":[{\"description\":\"All modules are loaded upon startup. The last one is exported.\",\"type\":\"array\",\"items\":{\"description\":\"A module that is loaded upon startup. Only the last one is exported.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},{\"description\":\"The string is resolved to a module which is loaded upon startup.\",\"type\":\"string\",\"minLength\":1}]},\"EntryNormalized\":{\"description\":\"The entry point(s) of the compilation.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryDynamicNormalized\"},{\"$ref\":\"#/definitions/EntryStaticNormalized\"}]},\"EntryObject\":{\"description\":\"Multiple entry bundles are created. The key is the entry name. The value can be a string, an array or an entry description object.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"An entry point with name.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryItem\"},{\"$ref\":\"#/definitions/EntryDescription\"}]}},\"EntryRuntime\":{\"description\":\"The name of the runtime chunk. If set a runtime chunk with this name is created or an existing entrypoint is used as runtime.\",\"type\":\"string\",\"minLength\":1},\"EntryStatic\":{\"description\":\"A static entry description.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryObject\"},{\"$ref\":\"#/definitions/EntryUnnamed\"}]},\"EntryStaticNormalized\":{\"description\":\"Multiple entry bundles are created. The key is the entry name. The value is an entry description object.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"An object with entry point description.\",\"oneOf\":[{\"$ref\":\"#/definitions/EntryDescriptionNormalized\"}]}},\"EntryUnnamed\":{\"description\":\"An entry point without name.\",\"oneOf\":[{\"$ref\":\"#/definitions/EntryItem\"}]},\"Environment\":{\"description\":\"The abilities of the environment where the webpack generated code should run.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"arrowFunction\":{\"description\":\"The environment supports arrow functions ('() => { ... }').\",\"type\":\"boolean\"},\"bigIntLiteral\":{\"description\":\"The environment supports BigInt as literal (123n).\",\"type\":\"boolean\"},\"const\":{\"description\":\"The environment supports const and let for variable declarations.\",\"type\":\"boolean\"},\"destructuring\":{\"description\":\"The environment supports destructuring ('{ a, b } = obj').\",\"type\":\"boolean\"},\"dynamicImport\":{\"description\":\"The environment supports an async import() function to import EcmaScript modules.\",\"type\":\"boolean\"},\"forOf\":{\"description\":\"The environment supports 'for of' iteration ('for (const x of array) { ... }').\",\"type\":\"boolean\"},\"module\":{\"description\":\"The environment supports EcmaScript Module syntax to import EcmaScript modules (import ... from '...').\",\"type\":\"boolean\"}}},\"Experiments\":{\"description\":\"Enables/Disables experiments (experimental features with relax SemVer compatibility).\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"asset\":{\"description\":\"Allow module type 'asset' to generate assets.\",\"type\":\"boolean\"},\"asyncWebAssembly\":{\"description\":\"Support WebAssembly as asynchronous EcmaScript Module.\",\"type\":\"boolean\"},\"layers\":{\"description\":\"Enable module and chunk layers.\",\"type\":\"boolean\"},\"outputModule\":{\"description\":\"Allow output javascript files as module source type.\",\"type\":\"boolean\"},\"syncWebAssembly\":{\"description\":\"Support WebAssembly as synchronous EcmaScript Module (outdated).\",\"type\":\"boolean\"},\"topLevelAwait\":{\"description\":\"Allow using top-level-await in EcmaScript Modules.\",\"type\":\"boolean\"}}},\"ExternalItem\":{\"description\":\"Specify dependency that shouldn't be resolved by webpack, but should become dependencies of the resulting bundle. The kind of the dependency depends on `output.libraryTarget`.\",\"anyOf\":[{\"description\":\"Every matched dependency becomes external.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"An exact matched dependency becomes external. The same string is used as external dependency.\",\"type\":\"string\"},{\"description\":\"If an dependency matches exactly a property of the object, the property value is used as dependency.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"The dependency used for the external.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A part of the target of the external.\",\"type\":\"string\",\"minLength\":1}},{\"description\":\"`true`: The dependency name is used as target of the external.\",\"type\":\"boolean\"},{\"description\":\"The target of the external.\",\"type\":\"string\"},{\"type\":\"object\"}]},\"properties\":{\"byLayer\":{\"description\":\"Specify externals depending on the layer.\",\"anyOf\":[{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#/definitions/ExternalItem\"}},{\"instanceof\":\"Function\",\"tsType\":\"((layer: string | null) => ExternalItem)\"}]}}},{\"description\":\"The function is called on each dependency (`function(context, request, callback(err, result))`).\",\"instanceof\":\"Function\",\"tsType\":\"((data: { context: string, request: string, contextInfo: import('../lib/ModuleFactory').ModuleFactoryCreateDataContextInfo }, callback: (err?: Error, result?: string) => void) => void)\"}]},\"Externals\":{\"description\":\"Specify dependencies that shouldn't be resolved by webpack, but should become dependencies of the resulting bundle. The kind of the dependency depends on `output.libraryTarget`.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/ExternalItem\"}},{\"$ref\":\"#/definitions/ExternalItem\"}]},\"ExternalsPresets\":{\"description\":\"Enable presets of externals for specific targets.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"electron\":{\"description\":\"Treat common electron built-in modules in main and preload context like 'electron', 'ipc' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"electronMain\":{\"description\":\"Treat electron built-in modules in the main context like 'app', 'ipc-main' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"electronPreload\":{\"description\":\"Treat electron built-in modules in the preload context like 'web-frame', 'ipc-renderer' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"electronRenderer\":{\"description\":\"Treat electron built-in modules in the renderer context like 'web-frame', 'ipc-renderer' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"node\":{\"description\":\"Treat node.js built-in modules like fs, path or vm as external and load them via require() when used.\",\"type\":\"boolean\"},\"nwjs\":{\"description\":\"Treat NW.js legacy nw.gui module as external and load it via require() when used.\",\"type\":\"boolean\"},\"web\":{\"description\":\"Treat references to 'http(s)://...' and 'std:...' as external and load them via import when used (Note that this changes execution order as externals are executed before any other code in the chunk).\",\"type\":\"boolean\"},\"webAsync\":{\"description\":\"Treat references to 'http(s)://...' and 'std:...' as external and load them via async import() when used (Note that this external type is an async module, which has various effects on the execution).\",\"type\":\"boolean\"}}},\"ExternalsType\":{\"description\":\"Specifies the default type of externals ('amd*', 'umd*', 'system' and 'jsonp' depend on output.libraryTarget set to the same value).\",\"enum\":[\"var\",\"module\",\"assign\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\",\"promise\",\"import\",\"script\"]},\"FileCacheOptions\":{\"description\":\"Options object for persistent file-based caching.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"buildDependencies\":{\"description\":\"Dependencies the build depends on (in multiple categories, default categories: 'defaultWebpack').\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"List of dependencies the build depends on.\",\"type\":\"array\",\"items\":{\"description\":\"Request to a dependency (resolved as directory relative to the context directory).\",\"type\":\"string\",\"minLength\":1}}},\"cacheDirectory\":{\"description\":\"Base directory for the cache (defaults to node_modules/.cache/webpack).\",\"type\":\"string\",\"absolutePath\":true},\"cacheLocation\":{\"description\":\"Locations for the cache (defaults to cacheDirectory / name).\",\"type\":\"string\",\"absolutePath\":true},\"hashAlgorithm\":{\"description\":\"Algorithm used for generation the hash (see node.js crypto package).\",\"type\":\"string\"},\"idleTimeout\":{\"description\":\"Time in ms after which idle period the cache storing should happen (only for store: 'pack' or 'idle').\",\"type\":\"number\",\"minimum\":0},\"idleTimeoutForInitialStore\":{\"description\":\"Time in ms after which idle period the initial cache storing should happen (only for store: 'pack' or 'idle').\",\"type\":\"number\",\"minimum\":0},\"immutablePaths\":{\"description\":\"List of paths that are managed by a package manager and contain a version or hash in its path so all files are immutable.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a immutable directory (usually a package manager cache directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"managedPaths\":{\"description\":\"List of paths that are managed by a package manager and can be trusted to not be modified otherwise.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a managed directory (usually a node_modules directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"name\":{\"description\":\"Name for the cache. Different names will lead to different coexisting caches.\",\"type\":\"string\"},\"store\":{\"description\":\"When to store data to the filesystem. (pack: Store data when compiler is idle in a single file).\",\"enum\":[\"pack\"]},\"type\":{\"description\":\"Filesystem caching.\",\"enum\":[\"filesystem\"]},\"version\":{\"description\":\"Version of the cache data. Different versions won't allow to reuse the cache and override existing content. Update the version when config changed in a way which doesn't allow to reuse cache. This will invalidate the cache.\",\"type\":\"string\"}},\"required\":[\"type\"]},\"Filename\":{\"description\":\"Specifies the filename of output files on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilenameTemplate\"}]},\"FilenameTemplate\":{\"description\":\"Specifies the filename template of output files on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"FilterItemTypes\":{\"description\":\"Filtering value, regexp or function.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((value: string) => boolean)\"}]},\"FilterTypes\":{\"description\":\"Filtering values.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Rule to filter.\",\"cli\":{\"helper\":true},\"oneOf\":[{\"$ref\":\"#/definitions/FilterItemTypes\"}]}},{\"$ref\":\"#/definitions/FilterItemTypes\"}]},\"GlobalObject\":{\"description\":\"An expression which is used to address the global object/scope in runtime code.\",\"type\":\"string\",\"minLength\":1},\"HashDigest\":{\"description\":\"Digest type used for the hash.\",\"type\":\"string\"},\"HashDigestLength\":{\"description\":\"Number of chars which are used for the hash.\",\"type\":\"number\",\"minimum\":1},\"HashFunction\":{\"description\":\"Algorithm used for generation the hash (see node.js crypto package).\",\"anyOf\":[{\"type\":\"string\",\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"typeof import('../lib/util/Hash')\"}]},\"HashSalt\":{\"description\":\"Any string which is added to the hash to salt it.\",\"type\":\"string\",\"minLength\":1},\"HotUpdateChunkFilename\":{\"description\":\"The filename of the Hot Update Chunks. They are inside the output.path directory.\",\"type\":\"string\",\"absolutePath\":false},\"HotUpdateGlobal\":{\"description\":\"The global variable used by webpack for loading of hot update chunks.\",\"type\":\"string\"},\"HotUpdateMainFilename\":{\"description\":\"The filename of the Hot Update Main File. It is inside the 'output.path' directory.\",\"type\":\"string\",\"absolutePath\":false},\"IgnoreWarnings\":{\"description\":\"Ignore specific warnings.\",\"type\":\"array\",\"items\":{\"description\":\"Ignore specific warnings.\",\"anyOf\":[{\"description\":\"A RegExp to select the warning message.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"file\":{\"description\":\"A RegExp to select the origin file for the warning.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},\"message\":{\"description\":\"A RegExp to select the warning message.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},\"module\":{\"description\":\"A RegExp to select the origin module for the warning.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}}},{\"description\":\"A custom function to select warnings based on the raw warning instance.\",\"instanceof\":\"Function\",\"tsType\":\"((warning: import('../lib/WebpackError'), compilation: import('../lib/Compilation')) => boolean)\"}]}},\"IgnoreWarningsNormalized\":{\"description\":\"Ignore specific warnings.\",\"type\":\"array\",\"items\":{\"description\":\"A function to select warnings based on the raw warning instance.\",\"instanceof\":\"Function\",\"tsType\":\"((warning: import('../lib/WebpackError'), compilation: import('../lib/Compilation')) => boolean)\"}},\"Iife\":{\"description\":\"Wrap javascript code into IIFE's to avoid leaking into global scope.\",\"type\":\"boolean\"},\"ImportFunctionName\":{\"description\":\"The name of the native import() function (can be exchanged for a polyfill).\",\"type\":\"string\"},\"ImportMetaName\":{\"description\":\"The name of the native import.meta object (can be exchanged for a polyfill).\",\"type\":\"string\"},\"InfrastructureLogging\":{\"description\":\"Options for infrastructure level logging.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"debug\":{\"description\":\"Enable debug logging for specific loggers.\",\"anyOf\":[{\"description\":\"Enable/Disable debug logging for all loggers.\",\"type\":\"boolean\"},{\"$ref\":\"#/definitions/FilterTypes\"}]},\"level\":{\"description\":\"Log level.\",\"enum\":[\"none\",\"error\",\"warn\",\"info\",\"log\",\"verbose\"]}}},\"JavascriptParserOptions\":{\"description\":\"Parser options for javascript modules.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"amd\":{\"$ref\":\"#/definitions/Amd\"},\"browserify\":{\"description\":\"Enable/disable special handling for browserify bundles.\",\"type\":\"boolean\"},\"commonjs\":{\"description\":\"Enable/disable parsing of CommonJs syntax.\",\"type\":\"boolean\"},\"harmony\":{\"description\":\"Enable/disable parsing of EcmaScript Modules syntax.\",\"type\":\"boolean\"},\"import\":{\"description\":\"Enable/disable parsing of import() syntax.\",\"type\":\"boolean\"},\"node\":{\"$ref\":\"#/definitions/Node\"},\"requireContext\":{\"description\":\"Enable/disable parsing of require.context syntax.\",\"type\":\"boolean\"},\"requireEnsure\":{\"description\":\"Enable/disable parsing of require.ensure syntax.\",\"type\":\"boolean\"},\"requireInclude\":{\"description\":\"Enable/disable parsing of require.include syntax.\",\"type\":\"boolean\"},\"requireJs\":{\"description\":\"Enable/disable parsing of require.js special syntax like require.config, requirejs.config, require.version and requirejs.onError.\",\"type\":\"boolean\"},\"system\":{\"description\":\"Enable/disable parsing of System.js special syntax like System.import, System.get, System.set and System.register.\",\"type\":\"boolean\"},\"url\":{\"description\":\"Enable/disable parsing of new URL() syntax.\",\"type\":\"boolean\"},\"worker\":{\"description\":\"Disable or configure parsing of WebWorker syntax like new Worker() or navigator.serviceWorker.register().\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Specify a syntax that should be parsed as WebWorker reference. 'Abc' handles 'new Abc()', 'Abc from xyz' handles 'import { Abc } from \\\"xyz\\\"; new Abc()', 'abc()' handles 'abc()', and combinations are also possible.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"boolean\"}]}}},\"Layer\":{\"description\":\"Specifies the layer in which modules of this entrypoint are placed.\",\"anyOf\":[{\"enum\":[null]},{\"type\":\"string\",\"minLength\":1}]},\"Library\":{\"description\":\"Make the output files a library, exporting the exports of the entry point.\",\"anyOf\":[{\"$ref\":\"#/definitions/LibraryName\"},{\"$ref\":\"#/definitions/LibraryOptions\"}]},\"LibraryCustomUmdCommentObject\":{\"description\":\"Set explicit comments for `commonjs`, `commonjs2`, `amd`, and `root`.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Set comment for `amd` section in UMD.\",\"type\":\"string\"},\"commonjs\":{\"description\":\"Set comment for `commonjs` (exports) section in UMD.\",\"type\":\"string\"},\"commonjs2\":{\"description\":\"Set comment for `commonjs2` (module.exports) section in UMD.\",\"type\":\"string\"},\"root\":{\"description\":\"Set comment for `root` (global variable) section in UMD.\",\"type\":\"string\"}}},\"LibraryCustomUmdObject\":{\"description\":\"Description object for all UMD variants of the library name.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Name of the exposed AMD library in the UMD.\",\"type\":\"string\",\"minLength\":1},\"commonjs\":{\"description\":\"Name of the exposed commonjs export in the UMD.\",\"type\":\"string\",\"minLength\":1},\"root\":{\"description\":\"Name of the property exposed globally by a UMD library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the name of the property exposed globally by a UMD library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}}},\"LibraryExport\":{\"description\":\"Specify which export should be exposed as library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the export that should be exposed as library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]},\"LibraryName\":{\"description\":\"The name of the library (some types allow unnamed libraries too).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A part of the library name.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1},{\"$ref\":\"#/definitions/LibraryCustomUmdObject\"}]},\"LibraryOptions\":{\"description\":\"Options for library.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"auxiliaryComment\":{\"$ref\":\"#/definitions/AuxiliaryComment\"},\"export\":{\"$ref\":\"#/definitions/LibraryExport\"},\"name\":{\"$ref\":\"#/definitions/LibraryName\"},\"type\":{\"$ref\":\"#/definitions/LibraryType\"},\"umdNamedDefine\":{\"$ref\":\"#/definitions/UmdNamedDefine\"}},\"required\":[\"type\"]},\"LibraryType\":{\"description\":\"Type of library (types included by default are 'var', 'module', 'assign', 'this', 'window', 'self', 'global', 'commonjs', 'commonjs2', 'commonjs-module', 'amd', 'amd-require', 'umd', 'umd2', 'jsonp', 'system', but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"var\",\"module\",\"assign\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\"]},{\"type\":\"string\"}]},\"Loader\":{\"description\":\"Custom values available in the loader context.\",\"type\":\"object\"},\"MemoryCacheOptions\":{\"description\":\"Options object for in-memory caching.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"type\":{\"description\":\"In memory caching.\",\"enum\":[\"memory\"]}},\"required\":[\"type\"]},\"Mode\":{\"description\":\"Enable production optimizations or development hints.\",\"enum\":[\"development\",\"production\",\"none\"]},\"ModuleOptions\":{\"description\":\"Options affecting the normal modules (`NormalModuleFactory`).\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"defaultRules\":{\"description\":\"An array of rules applied by default for modules.\",\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRules\"}]},\"exprContextCritical\":{\"description\":\"Enable warnings for full dynamic dependencies.\",\"type\":\"boolean\"},\"exprContextRecursive\":{\"description\":\"Enable recursive directory lookup for full dynamic dependencies.\",\"type\":\"boolean\"},\"exprContextRegExp\":{\"description\":\"Sets the default regular expression for full dynamic dependencies.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"boolean\"}]},\"exprContextRequest\":{\"description\":\"Set the default request for full dynamic dependencies.\",\"type\":\"string\"},\"generator\":{\"description\":\"Specify options for each generator.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Options for generating.\",\"type\":\"object\",\"additionalProperties\":true},\"properties\":{\"asset\":{\"$ref\":\"#/definitions/AssetGeneratorOptions\"},\"asset/inline\":{\"$ref\":\"#/definitions/AssetInlineGeneratorOptions\"},\"asset/resource\":{\"$ref\":\"#/definitions/AssetResourceGeneratorOptions\"},\"javascript\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"},\"javascript/auto\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"},\"javascript/dynamic\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"},\"javascript/esm\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"}}},\"noParse\":{\"description\":\"Don't parse files matching. It's matched against the full resolved request.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Don't parse files matching. It's matched against the full resolved request.\",\"anyOf\":[{\"description\":\"A regular expression, when matched the module is not parsed.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"An absolute path, when the module starts with this path it is not parsed.\",\"type\":\"string\",\"absolutePath\":true},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"minItems\":1},{\"description\":\"A regular expression, when matched the module is not parsed.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"An absolute path, when the module starts with this path it is not parsed.\",\"type\":\"string\",\"absolutePath\":true},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"parser\":{\"description\":\"Specify options for each parser.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Options for parsing.\",\"type\":\"object\",\"additionalProperties\":true},\"properties\":{\"asset\":{\"$ref\":\"#/definitions/AssetParserOptions\"},\"asset/inline\":{\"$ref\":\"#/definitions/EmptyParserOptions\"},\"asset/resource\":{\"$ref\":\"#/definitions/EmptyParserOptions\"},\"asset/source\":{\"$ref\":\"#/definitions/EmptyParserOptions\"},\"javascript\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"},\"javascript/auto\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"},\"javascript/dynamic\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"},\"javascript/esm\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"}}},\"rules\":{\"description\":\"An array of rules applied for modules.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRules\"}]},\"strictExportPresence\":{\"description\":\"Emit errors instead of warnings when imported names don't exist in imported module.\",\"type\":\"boolean\"},\"strictThisContextOnImports\":{\"description\":\"Handle the this context correctly according to the spec for namespace objects.\",\"type\":\"boolean\"},\"unknownContextCritical\":{\"description\":\"Enable warnings when using the require function in a not statically analyse-able way.\",\"type\":\"boolean\"},\"unknownContextRecursive\":{\"description\":\"Enable recursive directory lookup when using the require function in a not statically analyse-able way.\",\"type\":\"boolean\"},\"unknownContextRegExp\":{\"description\":\"Sets the regular expression when using the require function in a not statically analyse-able way.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"boolean\"}]},\"unknownContextRequest\":{\"description\":\"Sets the request when using the require function in a not statically analyse-able way.\",\"type\":\"string\"},\"unsafeCache\":{\"description\":\"Cache the resolving of module requests.\",\"anyOf\":[{\"type\":\"boolean\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"wrappedContextCritical\":{\"description\":\"Enable warnings for partial dynamic dependencies.\",\"type\":\"boolean\"},\"wrappedContextRecursive\":{\"description\":\"Enable recursive directory lookup for partial dynamic dependencies.\",\"type\":\"boolean\"},\"wrappedContextRegExp\":{\"description\":\"Set the inner regular expression for partial dynamic dependencies.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}}},\"Name\":{\"description\":\"Name of the configuration. Used when loading multiple configurations.\",\"type\":\"string\"},\"Node\":{\"description\":\"Include polyfills or mocks for various node stuff.\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/NodeOptions\"}]},\"NodeOptions\":{\"description\":\"Options object for node compatibility features.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"__dirname\":{\"description\":\"Include a polyfill for the '__dirname' variable.\",\"enum\":[false,true,\"mock\",\"eval-only\"]},\"__filename\":{\"description\":\"Include a polyfill for the '__filename' variable.\",\"enum\":[false,true,\"mock\",\"eval-only\"]},\"global\":{\"description\":\"Include a polyfill for the 'global' variable.\",\"type\":\"boolean\"}}},\"Optimization\":{\"description\":\"Enables/Disables integrated optimizations.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"checkWasmTypes\":{\"description\":\"Check for incompatible wasm types when importing/exporting from/to ESM.\",\"type\":\"boolean\"},\"chunkIds\":{\"description\":\"Define the algorithm to choose chunk ids (named: readable ids for better debugging, deterministic: numeric hash ids for better long term caching, size: numeric ids focused on minimal initial download size, total-size: numeric ids focused on minimal total download size, false: no algorithm used, as custom one can be provided via plugin).\",\"enum\":[\"natural\",\"named\",\"deterministic\",\"size\",\"total-size\",false]},\"concatenateModules\":{\"description\":\"Concatenate modules when possible to generate less modules, more efficient code and enable more optimizations by the minimizer.\",\"type\":\"boolean\"},\"emitOnErrors\":{\"description\":\"Emit assets even when errors occur. Critical errors are emitted into the generated code and will cause errors at runtime.\",\"type\":\"boolean\"},\"flagIncludedChunks\":{\"description\":\"Also flag chunks as loaded which contain a subset of the modules.\",\"type\":\"boolean\"},\"innerGraph\":{\"description\":\"Creates a module-internal dependency graph for top level symbols, exports and imports, to improve unused exports detection.\",\"type\":\"boolean\"},\"mangleExports\":{\"description\":\"Rename exports when possible to generate shorter code (depends on optimization.usedExports and optimization.providedExports, true/\\\"deterministic\\\": generate short deterministic names optimized for caching, \\\"size\\\": generate the shortest possible names).\",\"anyOf\":[{\"enum\":[\"size\",\"deterministic\"]},{\"type\":\"boolean\"}]},\"mangleWasmImports\":{\"description\":\"Reduce size of WASM by changing imports to shorter strings.\",\"type\":\"boolean\"},\"mergeDuplicateChunks\":{\"description\":\"Merge chunks which contain the same modules.\",\"type\":\"boolean\"},\"minimize\":{\"description\":\"Enable minimizing the output. Uses optimization.minimizer.\",\"type\":\"boolean\"},\"minimizer\":{\"description\":\"Minimizer(s) to use for minimizing the output.\",\"type\":\"array\",\"cli\":{\"exclude\":true},\"items\":{\"description\":\"Plugin of type object or instanceof Function.\",\"anyOf\":[{\"enum\":[\"...\"]},{\"$ref\":\"#/definitions/WebpackPluginInstance\"},{\"$ref\":\"#/definitions/WebpackPluginFunction\"}]}},\"moduleIds\":{\"description\":\"Define the algorithm to choose module ids (natural: numeric ids in order of usage, named: readable ids for better debugging, hashed: (deprecated) short hashes as ids for better long term caching, deterministic: numeric hash ids for better long term caching, size: numeric ids focused on minimal initial download size, false: no algorithm used, as custom one can be provided via plugin).\",\"enum\":[\"natural\",\"named\",\"hashed\",\"deterministic\",\"size\",false]},\"noEmitOnErrors\":{\"description\":\"Avoid emitting assets when errors occur (deprecated: use 'emitOnErrors' instead).\",\"type\":\"boolean\",\"cli\":{\"exclude\":true}},\"nodeEnv\":{\"description\":\"Set process.env.NODE_ENV to a specific value.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\"}]},\"portableRecords\":{\"description\":\"Generate records with relative paths to be able to move the context folder.\",\"type\":\"boolean\"},\"providedExports\":{\"description\":\"Figure out which exports are provided by modules to generate more efficient code.\",\"type\":\"boolean\"},\"realContentHash\":{\"description\":\"Use real [contenthash] based on final content of the assets.\",\"type\":\"boolean\"},\"removeAvailableModules\":{\"description\":\"Removes modules from chunks when these modules are already included in all parents.\",\"type\":\"boolean\"},\"removeEmptyChunks\":{\"description\":\"Remove chunks which are empty.\",\"type\":\"boolean\"},\"runtimeChunk\":{\"$ref\":\"#/definitions/OptimizationRuntimeChunk\"},\"sideEffects\":{\"description\":\"Skip over modules which contain no side effects when exports are not used (false: disabled, 'flag': only use manually placed side effects flag, true: also analyse source code for side effects).\",\"anyOf\":[{\"enum\":[\"flag\"]},{\"type\":\"boolean\"}]},\"splitChunks\":{\"description\":\"Optimize duplication and caching by splitting chunks by shared modules and cache group.\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/OptimizationSplitChunksOptions\"}]},\"usedExports\":{\"description\":\"Figure out which exports are used by modules to mangle export names, omit unused exports and generate more efficient code (true: analyse used exports for each runtime, \\\"global\\\": analyse exports globally for all runtimes combined).\",\"anyOf\":[{\"enum\":[\"global\"]},{\"type\":\"boolean\"}]}}},\"OptimizationRuntimeChunk\":{\"description\":\"Create an additional chunk which contains only the webpack runtime and chunk hash maps.\",\"anyOf\":[{\"enum\":[\"single\",\"multiple\"]},{\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"name\":{\"description\":\"The name or name factory for the runtime chunks.\",\"anyOf\":[{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]}}}]},\"OptimizationRuntimeChunkNormalized\":{\"description\":\"Create an additional chunk which contains only the webpack runtime and chunk hash maps.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"name\":{\"description\":\"The name factory for the runtime chunks.\",\"instanceof\":\"Function\",\"tsType\":\"Function\"}}}]},\"OptimizationSplitChunksCacheGroup\":{\"description\":\"Options object for describing behavior of a cache group selecting modules that should be cached together.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"automaticNameDelimiter\":{\"description\":\"Sets the name delimiter for created chunks.\",\"type\":\"string\",\"minLength\":1},\"chunks\":{\"description\":\"Select chunks for determining cache group content (defaults to \\\"initial\\\", \\\"initial\\\" and \\\"all\\\" requires adding these chunks to the HTML).\",\"anyOf\":[{\"enum\":[\"initial\",\"async\",\"all\"]},{\"instanceof\":\"Function\",\"tsType\":\"((chunk: import('../lib/Chunk')) => boolean)\"}]},\"enforce\":{\"description\":\"Ignore minimum size, minimum chunks and maximum requests and always create chunks for this cache group.\",\"type\":\"boolean\"},\"enforceSizeThreshold\":{\"description\":\"Size threshold at which splitting is enforced and other restrictions (minRemainingSize, maxAsyncRequests, maxInitialRequests) are ignored.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"filename\":{\"description\":\"Sets the template for the filename for created chunks.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"idHint\":{\"description\":\"Sets the hint for chunk id.\",\"type\":\"string\"},\"layer\":{\"description\":\"Assign modules to a cache group by module layer.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"maxAsyncRequests\":{\"description\":\"Maximum number of requests which are accepted for on-demand loading.\",\"type\":\"number\",\"minimum\":1},\"maxAsyncSize\":{\"description\":\"Maximal size hint for the on-demand chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxInitialRequests\":{\"description\":\"Maximum number of initial chunks which are accepted for an entry point.\",\"type\":\"number\",\"minimum\":1},\"maxInitialSize\":{\"description\":\"Maximal size hint for the initial chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxSize\":{\"description\":\"Maximal size hint for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minChunks\":{\"description\":\"Minimum number of times a module has to be duplicated until it's considered for splitting.\",\"type\":\"number\",\"minimum\":1},\"minRemainingSize\":{\"description\":\"Minimal size for the chunks the stay after moving the modules to a new chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minSize\":{\"description\":\"Minimal size for the created chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"name\":{\"description\":\"Give chunks for this cache group a name (chunks with equal name are merged).\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"priority\":{\"description\":\"Priority of this cache group.\",\"type\":\"number\"},\"reuseExistingChunk\":{\"description\":\"Try to reuse existing chunk (with name) when it has matching modules.\",\"type\":\"boolean\"},\"test\":{\"description\":\"Assign modules to a cache group by module name.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"type\":{\"description\":\"Assign modules to a cache group by module type.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"usedExports\":{\"description\":\"Compare used exports when checking common modules. Modules will only be put in the same chunk when exports are equal.\",\"type\":\"boolean\"}}},\"OptimizationSplitChunksGetCacheGroups\":{\"description\":\"A function returning cache groups.\",\"instanceof\":\"Function\",\"tsType\":\"((module: import('../lib/Module')) => OptimizationSplitChunksCacheGroup | OptimizationSplitChunksCacheGroup[] | void)\"},\"OptimizationSplitChunksOptions\":{\"description\":\"Options object for splitting chunks into smaller chunks.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"automaticNameDelimiter\":{\"description\":\"Sets the name delimiter for created chunks.\",\"type\":\"string\",\"minLength\":1},\"cacheGroups\":{\"description\":\"Assign modules to a cache group (modules from different cache groups are tried to keep in separate chunks, default categories: 'default', 'defaultVendors').\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Configuration for a cache group.\",\"anyOf\":[{\"enum\":[false]},{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"},{\"$ref\":\"#/definitions/OptimizationSplitChunksCacheGroup\"}]},\"not\":{\"description\":\"Using the cacheGroup shorthand syntax with a cache group named 'test' is a potential config error\\nDid you intent to define a cache group with a test instead?\\ncacheGroups: {\\n  <name>: {\\n    test: ...\\n  }\\n}.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"test\":{\"description\":\"The test property is a cache group name, but using the test option of the cache group could be intended instead.\",\"anyOf\":[{\"instanceof\":\"Function\",\"tsType\":\"Function\"},{\"type\":\"string\"},{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}]}},\"required\":[\"test\"]}},\"chunks\":{\"description\":\"Select chunks for determining shared modules (defaults to \\\"async\\\", \\\"initial\\\" and \\\"all\\\" requires adding these chunks to the HTML).\",\"anyOf\":[{\"enum\":[\"initial\",\"async\",\"all\"]},{\"instanceof\":\"Function\",\"tsType\":\"((chunk: import('../lib/Chunk')) => boolean)\"}]},\"defaultSizeTypes\":{\"description\":\"Sets the size types which are used when a number is used for sizes.\",\"type\":\"array\",\"items\":{\"description\":\"Size type, like 'javascript', 'webassembly'.\",\"type\":\"string\"},\"minLength\":1},\"enforceSizeThreshold\":{\"description\":\"Size threshold at which splitting is enforced and other restrictions (minRemainingSize, maxAsyncRequests, maxInitialRequests) are ignored.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"fallbackCacheGroup\":{\"description\":\"Options for modules not selected by any other cache group.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"automaticNameDelimiter\":{\"description\":\"Sets the name delimiter for created chunks.\",\"type\":\"string\",\"minLength\":1},\"maxAsyncSize\":{\"description\":\"Maximal size hint for the on-demand chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxInitialSize\":{\"description\":\"Maximal size hint for the initial chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxSize\":{\"description\":\"Maximal size hint for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minSize\":{\"description\":\"Minimal size for the created chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]}}},\"filename\":{\"description\":\"Sets the template for the filename for created chunks.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"hidePathInfo\":{\"description\":\"Prevents exposing path info when creating names for parts splitted by maxSize.\",\"type\":\"boolean\"},\"maxAsyncRequests\":{\"description\":\"Maximum number of requests which are accepted for on-demand loading.\",\"type\":\"number\",\"minimum\":1},\"maxAsyncSize\":{\"description\":\"Maximal size hint for the on-demand chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxInitialRequests\":{\"description\":\"Maximum number of initial chunks which are accepted for an entry point.\",\"type\":\"number\",\"minimum\":1},\"maxInitialSize\":{\"description\":\"Maximal size hint for the initial chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxSize\":{\"description\":\"Maximal size hint for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minChunks\":{\"description\":\"Minimum number of times a module has to be duplicated until it's considered for splitting.\",\"type\":\"number\",\"minimum\":1},\"minRemainingSize\":{\"description\":\"Minimal size for the chunks the stay after moving the modules to a new chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minSize\":{\"description\":\"Minimal size for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"name\":{\"description\":\"Give chunks created a name (chunks with equal name are merged).\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"usedExports\":{\"description\":\"Compare used exports when checking common modules. Modules will only be put in the same chunk when exports are equal.\",\"type\":\"boolean\"}}},\"OptimizationSplitChunksSizes\":{\"description\":\"Size description for limits.\",\"anyOf\":[{\"description\":\"Size of the javascript part of the chunk.\",\"type\":\"number\",\"minimum\":0},{\"description\":\"Specify size limits per size type.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Size of the part of the chunk with the type of the key.\",\"type\":\"number\"}}]},\"Output\":{\"description\":\"Options affecting the output of the compilation. `output` options tell webpack how to write the compiled files to disk.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"assetModuleFilename\":{\"$ref\":\"#/definitions/AssetModuleFilename\"},\"auxiliaryComment\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/AuxiliaryComment\"}]},\"charset\":{\"$ref\":\"#/definitions/Charset\"},\"chunkFilename\":{\"$ref\":\"#/definitions/ChunkFilename\"},\"chunkFormat\":{\"$ref\":\"#/definitions/ChunkFormat\"},\"chunkLoadTimeout\":{\"$ref\":\"#/definitions/ChunkLoadTimeout\"},\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"chunkLoadingGlobal\":{\"$ref\":\"#/definitions/ChunkLoadingGlobal\"},\"compareBeforeEmit\":{\"$ref\":\"#/definitions/CompareBeforeEmit\"},\"crossOriginLoading\":{\"$ref\":\"#/definitions/CrossOriginLoading\"},\"devtoolFallbackModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolFallbackModuleFilenameTemplate\"},\"devtoolModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolModuleFilenameTemplate\"},\"devtoolNamespace\":{\"$ref\":\"#/definitions/DevtoolNamespace\"},\"enabledChunkLoadingTypes\":{\"$ref\":\"#/definitions/EnabledChunkLoadingTypes\"},\"enabledLibraryTypes\":{\"$ref\":\"#/definitions/EnabledLibraryTypes\"},\"enabledWasmLoadingTypes\":{\"$ref\":\"#/definitions/EnabledWasmLoadingTypes\"},\"environment\":{\"$ref\":\"#/definitions/Environment\"},\"filename\":{\"$ref\":\"#/definitions/Filename\"},\"globalObject\":{\"$ref\":\"#/definitions/GlobalObject\"},\"hashDigest\":{\"$ref\":\"#/definitions/HashDigest\"},\"hashDigestLength\":{\"$ref\":\"#/definitions/HashDigestLength\"},\"hashFunction\":{\"$ref\":\"#/definitions/HashFunction\"},\"hashSalt\":{\"$ref\":\"#/definitions/HashSalt\"},\"hotUpdateChunkFilename\":{\"$ref\":\"#/definitions/HotUpdateChunkFilename\"},\"hotUpdateGlobal\":{\"$ref\":\"#/definitions/HotUpdateGlobal\"},\"hotUpdateMainFilename\":{\"$ref\":\"#/definitions/HotUpdateMainFilename\"},\"iife\":{\"$ref\":\"#/definitions/Iife\"},\"importFunctionName\":{\"$ref\":\"#/definitions/ImportFunctionName\"},\"importMetaName\":{\"$ref\":\"#/definitions/ImportMetaName\"},\"library\":{\"$ref\":\"#/definitions/Library\"},\"libraryExport\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/LibraryExport\"}]},\"libraryTarget\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/LibraryType\"}]},\"module\":{\"$ref\":\"#/definitions/OutputModule\"},\"path\":{\"$ref\":\"#/definitions/Path\"},\"pathinfo\":{\"$ref\":\"#/definitions/Pathinfo\"},\"publicPath\":{\"$ref\":\"#/definitions/PublicPath\"},\"scriptType\":{\"$ref\":\"#/definitions/ScriptType\"},\"sourceMapFilename\":{\"$ref\":\"#/definitions/SourceMapFilename\"},\"sourcePrefix\":{\"$ref\":\"#/definitions/SourcePrefix\"},\"strictModuleExceptionHandling\":{\"$ref\":\"#/definitions/StrictModuleExceptionHandling\"},\"umdNamedDefine\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/UmdNamedDefine\"}]},\"uniqueName\":{\"$ref\":\"#/definitions/UniqueName\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"},\"webassemblyModuleFilename\":{\"$ref\":\"#/definitions/WebassemblyModuleFilename\"},\"workerChunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"workerWasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}}},\"OutputModule\":{\"description\":\"Output javascript files as module source type.\",\"type\":\"boolean\"},\"OutputNormalized\":{\"description\":\"Normalized options affecting the output of the compilation. `output` options tell webpack how to write the compiled files to disk.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"assetModuleFilename\":{\"$ref\":\"#/definitions/AssetModuleFilename\"},\"charset\":{\"$ref\":\"#/definitions/Charset\"},\"chunkFilename\":{\"$ref\":\"#/definitions/ChunkFilename\"},\"chunkFormat\":{\"$ref\":\"#/definitions/ChunkFormat\"},\"chunkLoadTimeout\":{\"$ref\":\"#/definitions/ChunkLoadTimeout\"},\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"chunkLoadingGlobal\":{\"$ref\":\"#/definitions/ChunkLoadingGlobal\"},\"compareBeforeEmit\":{\"$ref\":\"#/definitions/CompareBeforeEmit\"},\"crossOriginLoading\":{\"$ref\":\"#/definitions/CrossOriginLoading\"},\"devtoolFallbackModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolFallbackModuleFilenameTemplate\"},\"devtoolModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolModuleFilenameTemplate\"},\"devtoolNamespace\":{\"$ref\":\"#/definitions/DevtoolNamespace\"},\"enabledChunkLoadingTypes\":{\"$ref\":\"#/definitions/EnabledChunkLoadingTypes\"},\"enabledLibraryTypes\":{\"$ref\":\"#/definitions/EnabledLibraryTypes\"},\"enabledWasmLoadingTypes\":{\"$ref\":\"#/definitions/EnabledWasmLoadingTypes\"},\"environment\":{\"$ref\":\"#/definitions/Environment\"},\"filename\":{\"$ref\":\"#/definitions/Filename\"},\"globalObject\":{\"$ref\":\"#/definitions/GlobalObject\"},\"hashDigest\":{\"$ref\":\"#/definitions/HashDigest\"},\"hashDigestLength\":{\"$ref\":\"#/definitions/HashDigestLength\"},\"hashFunction\":{\"$ref\":\"#/definitions/HashFunction\"},\"hashSalt\":{\"$ref\":\"#/definitions/HashSalt\"},\"hotUpdateChunkFilename\":{\"$ref\":\"#/definitions/HotUpdateChunkFilename\"},\"hotUpdateGlobal\":{\"$ref\":\"#/definitions/HotUpdateGlobal\"},\"hotUpdateMainFilename\":{\"$ref\":\"#/definitions/HotUpdateMainFilename\"},\"iife\":{\"$ref\":\"#/definitions/Iife\"},\"importFunctionName\":{\"$ref\":\"#/definitions/ImportFunctionName\"},\"importMetaName\":{\"$ref\":\"#/definitions/ImportMetaName\"},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"module\":{\"$ref\":\"#/definitions/OutputModule\"},\"path\":{\"$ref\":\"#/definitions/Path\"},\"pathinfo\":{\"$ref\":\"#/definitions/Pathinfo\"},\"publicPath\":{\"$ref\":\"#/definitions/PublicPath\"},\"scriptType\":{\"$ref\":\"#/definitions/ScriptType\"},\"sourceMapFilename\":{\"$ref\":\"#/definitions/SourceMapFilename\"},\"sourcePrefix\":{\"$ref\":\"#/definitions/SourcePrefix\"},\"strictModuleExceptionHandling\":{\"$ref\":\"#/definitions/StrictModuleExceptionHandling\"},\"uniqueName\":{\"$ref\":\"#/definitions/UniqueName\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"},\"webassemblyModuleFilename\":{\"$ref\":\"#/definitions/WebassemblyModuleFilename\"},\"workerChunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"workerWasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}}},\"Parallelism\":{\"description\":\"The number of parallel processed modules in the compilation.\",\"type\":\"number\",\"minimum\":1},\"Path\":{\"description\":\"The output directory as **absolute path** (required).\",\"type\":\"string\",\"absolutePath\":true},\"Pathinfo\":{\"description\":\"Include comments with information about the modules.\",\"anyOf\":[{\"enum\":[\"verbose\"]},{\"type\":\"boolean\"}]},\"Performance\":{\"description\":\"Configuration for web performance recommendations.\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/PerformanceOptions\"}]},\"PerformanceOptions\":{\"description\":\"Configuration object for web performance recommendations.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"assetFilter\":{\"description\":\"Filter function to select assets that are checked.\",\"instanceof\":\"Function\",\"tsType\":\"Function\"},\"hints\":{\"description\":\"Sets the format of the hints: warnings, errors or nothing at all.\",\"enum\":[false,\"warning\",\"error\"]},\"maxAssetSize\":{\"description\":\"File size limit (in bytes) when exceeded, that webpack will provide performance hints.\",\"type\":\"number\"},\"maxEntrypointSize\":{\"description\":\"Total size of an entry point (in bytes).\",\"type\":\"number\"}}},\"Plugins\":{\"description\":\"Add additional plugins to the compiler.\",\"type\":\"array\",\"items\":{\"description\":\"Plugin of type object or instanceof Function.\",\"anyOf\":[{\"$ref\":\"#/definitions/WebpackPluginInstance\"},{\"$ref\":\"#/definitions/WebpackPluginFunction\"}]}},\"Profile\":{\"description\":\"Capture timing information for each module.\",\"type\":\"boolean\"},\"PublicPath\":{\"description\":\"The `publicPath` specifies the public URL address of the output files when referenced in a browser.\",\"anyOf\":[{\"enum\":[\"auto\"]},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"RecordsInputPath\":{\"description\":\"Store compiler state to a json file.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\",\"absolutePath\":true}]},\"RecordsOutputPath\":{\"description\":\"Load compiler state from a json file.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\",\"absolutePath\":true}]},\"RecordsPath\":{\"description\":\"Store/Load compiler state from/to a json file. This will result in persistent ids of modules and chunks. An absolute path is expected. `recordsPath` is used for `recordsInputPath` and `recordsOutputPath` if they left undefined.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\",\"absolutePath\":true}]},\"Resolve\":{\"description\":\"Options for the resolver.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]},\"ResolveAlias\":{\"description\":\"Redirect module requests.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Alias configuration.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"alias\":{\"description\":\"New request.\",\"anyOf\":[{\"description\":\"Multiple alternative requests.\",\"type\":\"array\",\"items\":{\"description\":\"One choice of request.\",\"type\":\"string\",\"minLength\":1}},{\"description\":\"Ignore request (replace with empty module).\",\"enum\":[false]},{\"description\":\"New request.\",\"type\":\"string\",\"minLength\":1}]},\"name\":{\"description\":\"Request to be redirected.\",\"type\":\"string\"},\"onlyModule\":{\"description\":\"Redirect only exact matching request.\",\"type\":\"boolean\"}},\"required\":[\"alias\",\"name\"]}},{\"type\":\"object\",\"additionalProperties\":{\"description\":\"New request.\",\"anyOf\":[{\"description\":\"Multiple alternative requests.\",\"type\":\"array\",\"items\":{\"description\":\"One choice of request.\",\"type\":\"string\",\"minLength\":1}},{\"description\":\"Ignore request (replace with empty module).\",\"enum\":[false]},{\"description\":\"New request.\",\"type\":\"string\",\"minLength\":1}]}}]},\"ResolveLoader\":{\"description\":\"Options for the resolver when resolving loaders.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]},\"ResolveOptions\":{\"description\":\"Options object for resolving requests.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"alias\":{\"$ref\":\"#/definitions/ResolveAlias\"},\"aliasFields\":{\"description\":\"Fields in the description file (usually package.json) which are used to redirect requests inside the module.\",\"type\":\"array\",\"items\":{\"description\":\"Field in the description file (usually package.json) which are used to redirect requests inside the module.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the field path in the description file (usually package.json) which are used to redirect requests inside the module.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}},\"byDependency\":{\"description\":\"Extra resolve options per dependency category. Typical categories are \\\"commonjs\\\", \\\"amd\\\", \\\"esm\\\".\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Options object for resolving requests.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]}},\"cache\":{\"description\":\"Enable caching of successfully resolved requests (cache entries are revalidated).\",\"type\":\"boolean\"},\"cachePredicate\":{\"description\":\"Predicate function to decide which requests should be cached.\",\"instanceof\":\"Function\",\"tsType\":\"((request: import('enhanced-resolve').ResolveRequest) => boolean)\"},\"cacheWithContext\":{\"description\":\"Include the context information in the cache identifier when caching.\",\"type\":\"boolean\"},\"conditionNames\":{\"description\":\"Condition names for exports field entry point.\",\"type\":\"array\",\"items\":{\"description\":\"Condition names for exports field entry point.\",\"type\":\"string\"}},\"descriptionFiles\":{\"description\":\"Filenames used to find a description file (like a package.json).\",\"type\":\"array\",\"items\":{\"description\":\"Filename used to find a description file (like a package.json).\",\"type\":\"string\",\"minLength\":1}},\"enforceExtension\":{\"description\":\"Enforce the resolver to use one of the extensions from the extensions option (User must specify requests without extension).\",\"type\":\"boolean\"},\"exportsFields\":{\"description\":\"Field names from the description file (usually package.json) which are used to provide entry points of a package.\",\"type\":\"array\",\"items\":{\"description\":\"Field name from the description file (usually package.json) which is used to provide entry points of a package.\",\"type\":\"string\"}},\"extensions\":{\"description\":\"Extensions added to the request when trying to find the file.\",\"type\":\"array\",\"items\":{\"description\":\"Extension added to the request when trying to find the file.\",\"type\":\"string\",\"minLength\":1}},\"fallback\":{\"description\":\"Redirect module requests when normal resolving fails.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveAlias\"}]},\"fileSystem\":{\"description\":\"Filesystem for the resolver.\",\"tsType\":\"(import('../lib/util/fs').InputFileSystem)\"},\"fullySpecified\":{\"description\":\"Treats the request specified by the user as fully specified, meaning no extensions are added and the mainFiles in directories are not resolved (This doesn't affect requests from mainFields, aliasFields or aliases).\",\"type\":\"boolean\"},\"importsFields\":{\"description\":\"Field names from the description file (usually package.json) which are used to provide internal request of a package (requests starting with # are considered as internal).\",\"type\":\"array\",\"items\":{\"description\":\"Field name from the description file (usually package.json) which is used to provide internal request of a package (requests starting with # are considered as internal).\",\"type\":\"string\"}},\"mainFields\":{\"description\":\"Field names from the description file (package.json) which are used to find the default entry point.\",\"type\":\"array\",\"items\":{\"description\":\"Field name from the description file (package.json) which are used to find the default entry point.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the field path from the description file (package.json) which are used to find the default entry point.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}},\"mainFiles\":{\"description\":\"Filenames used to find the default entry point if there is no description file or main field.\",\"type\":\"array\",\"items\":{\"description\":\"Filename used to find the default entry point if there is no description file or main field.\",\"type\":\"string\",\"minLength\":1}},\"modules\":{\"description\":\"Folder names or directory paths where to find modules.\",\"type\":\"array\",\"items\":{\"description\":\"Folder name or directory path where to find modules.\",\"type\":\"string\",\"minLength\":1}},\"plugins\":{\"description\":\"Plugins for the resolver.\",\"type\":\"array\",\"cli\":{\"exclude\":true},\"items\":{\"description\":\"Plugin of type object or instanceof Function.\",\"anyOf\":[{\"enum\":[\"...\"]},{\"$ref\":\"#/definitions/ResolvePluginInstance\"}]}},\"preferRelative\":{\"description\":\"Prefer to resolve module requests as relative request and fallback to resolving as module.\",\"type\":\"boolean\"},\"resolver\":{\"description\":\"Custom resolver.\",\"tsType\":\"(import('enhanced-resolve').Resolver)\"},\"restrictions\":{\"description\":\"A list of resolve restrictions. Resolve results must fulfill all of these restrictions to resolve successfully. Other resolve paths are taken when restrictions are not met.\",\"type\":\"array\",\"items\":{\"description\":\"Resolve restriction. Resolve result must fulfill this restriction.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}]}},\"roots\":{\"description\":\"A list of directories in which requests that are server-relative URLs (starting with '/') are resolved. On non-windows system these requests are tried to resolve as absolute path first.\",\"type\":\"array\",\"items\":{\"description\":\"Directory in which requests that are server-relative URLs (starting with '/') are resolved.\",\"type\":\"string\"}},\"symlinks\":{\"description\":\"Enable resolving symlinks to the original location.\",\"type\":\"boolean\"},\"unsafeCache\":{\"description\":\"Enable caching of successfully resolved requests (cache entries are not revalidated).\",\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":true}]},\"useSyncFileSystemCalls\":{\"description\":\"Use synchronous filesystem calls for the resolver.\",\"type\":\"boolean\"}}},\"ResolvePluginInstance\":{\"description\":\"Plugin instance.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"apply\":{\"description\":\"The run point of the plugin, required method.\",\"instanceof\":\"Function\",\"tsType\":\"(resolver: import('enhanced-resolve').Resolver) => void\"}},\"required\":[\"apply\"]},\"RuleSetCondition\":{\"description\":\"A condition matcher.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"and\":{\"description\":\"Logical AND.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"not\":{\"description\":\"Logical NOT.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"or\":{\"description\":\"Logical OR.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditions\"}]}}},{\"instanceof\":\"Function\",\"tsType\":\"((value: string) => boolean)\"},{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"RuleSetConditionAbsolute\":{\"description\":\"A condition matcher matching an absolute path.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":true},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"and\":{\"description\":\"Logical AND.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"not\":{\"description\":\"Logical NOT.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"or\":{\"description\":\"Logical OR.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]}}},{\"instanceof\":\"Function\",\"tsType\":\"((value: string) => boolean)\"},{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"RuleSetConditionOrConditions\":{\"description\":\"One or multiple rule conditions.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"$ref\":\"#/definitions/RuleSetCondition\"},{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"RuleSetConditionOrConditionsAbsolute\":{\"description\":\"One or multiple rule conditions matching an absolute path.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"$ref\":\"#/definitions/RuleSetConditionAbsolute\"},{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"RuleSetConditions\":{\"description\":\"A list of rule conditions.\",\"type\":\"array\",\"items\":{\"description\":\"A rule condition.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetCondition\"}]}},\"RuleSetConditionsAbsolute\":{\"description\":\"A list of rule conditions matching an absolute path.\",\"type\":\"array\",\"items\":{\"description\":\"A rule condition matching an absolute path.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionAbsolute\"}]}},\"RuleSetLoader\":{\"description\":\"A loader request.\",\"type\":\"string\",\"minLength\":1},\"RuleSetLoaderOptions\":{\"description\":\"Options passed to a loader.\",\"anyOf\":[{\"type\":\"string\"},{\"type\":\"object\"}]},\"RuleSetRule\":{\"description\":\"A rule description with conditions and effects for modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"compiler\":{\"description\":\"Match the child compiler name.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"dependency\":{\"description\":\"Match dependency type.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"descriptionData\":{\"description\":\"Match values of properties in the description file (usually package.json).\",\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}},\"enforce\":{\"description\":\"Enforce this rule as pre or post step.\",\"enum\":[\"pre\",\"post\"]},\"exclude\":{\"description\":\"Shortcut for resource.exclude.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"generator\":{\"description\":\"The options for the module generator.\",\"type\":\"object\"},\"include\":{\"description\":\"Shortcut for resource.include.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"issuer\":{\"description\":\"Match the issuer of the module (The module pointing to this module).\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"issuerLayer\":{\"description\":\"Match layer of the issuer of this module (The module pointing to this module).\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"layer\":{\"description\":\"Specifies the layer in which the module should be placed in.\",\"type\":\"string\"},\"loader\":{\"description\":\"Shortcut for use.loader.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoader\"}]},\"mimetype\":{\"description\":\"Match module mimetype when load from Data URI.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"oneOf\":{\"description\":\"Only execute the first matching rule in this array.\",\"type\":\"array\",\"items\":{\"description\":\"A rule.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRule\"}]}},\"options\":{\"description\":\"Shortcut for use.options.\",\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoaderOptions\"}]},\"parser\":{\"description\":\"Options for parsing.\",\"type\":\"object\",\"additionalProperties\":true},\"realResource\":{\"description\":\"Match the real resource path of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"resolve\":{\"description\":\"Options for the resolver.\",\"type\":\"object\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]},\"resource\":{\"description\":\"Match the resource path of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"resourceFragment\":{\"description\":\"Match the resource fragment of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"resourceQuery\":{\"description\":\"Match the resource query of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"rules\":{\"description\":\"Match and execute these rules when this rule is matched.\",\"type\":\"array\",\"items\":{\"description\":\"A rule.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRule\"}]}},\"sideEffects\":{\"description\":\"Flags a module as with or without side effects.\",\"type\":\"boolean\"},\"test\":{\"description\":\"Shortcut for resource.test.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"type\":{\"description\":\"Module type to use for the module.\",\"type\":\"string\"},\"use\":{\"description\":\"Modifiers applied to the module when rule is matched.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetUse\"}]}}},\"RuleSetRules\":{\"description\":\"A list of rules.\",\"type\":\"array\",\"items\":{\"description\":\"A rule.\",\"anyOf\":[{\"cli\":{\"exclude\":true},\"enum\":[\"...\"]},{\"$ref\":\"#/definitions/RuleSetRule\"}]}},\"RuleSetUse\":{\"description\":\"A list of descriptions of loaders applied.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"An use item.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetUseItem\"}]}},{\"instanceof\":\"Function\",\"tsType\":\"((data: { resource: string, realResource: string, resourceQuery: string, issuer: string, compiler: string }) => RuleSetUseItem[])\"},{\"$ref\":\"#/definitions/RuleSetUseItem\"}]},\"RuleSetUseItem\":{\"description\":\"A description of an applied loader.\",\"anyOf\":[{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"ident\":{\"description\":\"Unique loader options identifier.\",\"type\":\"string\"},\"loader\":{\"description\":\"Loader name.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoader\"}]},\"options\":{\"description\":\"Loader options.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoaderOptions\"}]}}},{\"instanceof\":\"Function\",\"tsType\":\"((data: object) => RuleSetUseItem|RuleSetUseItem[])\"},{\"$ref\":\"#/definitions/RuleSetLoader\"}]},\"ScriptType\":{\"description\":\"This option enables loading async chunks via a custom script type, such as script type=\\\"module\\\".\",\"enum\":[false,\"text/javascript\",\"module\"]},\"SnapshotOptions\":{\"description\":\"Options affecting how file system snapshots are created and validated.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"buildDependencies\":{\"description\":\"Options for snapshotting build dependencies to determine if the whole cache need to be invalidated.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}},\"immutablePaths\":{\"description\":\"List of paths that are managed by a package manager and contain a version or hash in its path so all files are immutable.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a immutable directory (usually a package manager cache directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"managedPaths\":{\"description\":\"List of paths that are managed by a package manager and can be trusted to not be modified otherwise.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a managed directory (usually a node_modules directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"module\":{\"description\":\"Options for snapshotting dependencies of modules to determine if they need to be built again.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}},\"resolve\":{\"description\":\"Options for snapshotting dependencies of request resolving to determine if requests need to be re-resolved.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}},\"resolveBuildDependencies\":{\"description\":\"Options for snapshotting the resolving of build dependencies to determine if the build dependencies need to be re-resolved.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}}}},\"SourceMapFilename\":{\"description\":\"The filename of the SourceMaps for the JavaScript files. They are inside the 'output.path' directory.\",\"type\":\"string\",\"absolutePath\":false},\"SourcePrefix\":{\"description\":\"Prefixes every line of the source in the bundle with this string.\",\"type\":\"string\"},\"StatsOptions\":{\"description\":\"Stats options object.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"all\":{\"description\":\"Fallback value for stats options when an option is not defined (has precedence over local webpack defaults).\",\"type\":\"boolean\"},\"assets\":{\"description\":\"Add assets information.\",\"type\":\"boolean\"},\"assetsSort\":{\"description\":\"Sort the assets by that field.\",\"type\":\"string\"},\"assetsSpace\":{\"description\":\"Space to display assets (groups will be collapsed to fit this space).\",\"type\":\"number\"},\"builtAt\":{\"description\":\"Add built at time information.\",\"type\":\"boolean\"},\"cached\":{\"description\":\"Add information about cached (not built) modules (deprecated: use 'cachedModules' instead).\",\"type\":\"boolean\"},\"cachedAssets\":{\"description\":\"Show cached assets (setting this to `false` only shows emitted files).\",\"type\":\"boolean\"},\"cachedModules\":{\"description\":\"Add information about cached (not built) modules.\",\"type\":\"boolean\"},\"children\":{\"description\":\"Add children information.\",\"type\":\"boolean\"},\"chunkGroupAuxiliary\":{\"description\":\"Display auxiliary assets in chunk groups.\",\"type\":\"boolean\"},\"chunkGroupChildren\":{\"description\":\"Display children of chunk groups.\",\"type\":\"boolean\"},\"chunkGroupMaxAssets\":{\"description\":\"Limit of assets displayed in chunk groups.\",\"type\":\"number\"},\"chunkGroups\":{\"description\":\"Display all chunk groups with the corresponding bundles.\",\"type\":\"boolean\"},\"chunkModules\":{\"description\":\"Add built modules information to chunk information.\",\"type\":\"boolean\"},\"chunkOrigins\":{\"description\":\"Add the origins of chunks and chunk merging info.\",\"type\":\"boolean\"},\"chunkRelations\":{\"description\":\"Add information about parent, children and sibling chunks to chunk information.\",\"type\":\"boolean\"},\"chunks\":{\"description\":\"Add chunk information.\",\"type\":\"boolean\"},\"chunksSort\":{\"description\":\"Sort the chunks by that field.\",\"type\":\"string\"},\"colors\":{\"description\":\"Enables/Disables colorful output.\",\"anyOf\":[{\"description\":\"Enables/Disables colorful output.\",\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"bold\":{\"description\":\"Custom color for bold text.\",\"type\":\"string\"},\"cyan\":{\"description\":\"Custom color for cyan text.\",\"type\":\"string\"},\"green\":{\"description\":\"Custom color for green text.\",\"type\":\"string\"},\"magenta\":{\"description\":\"Custom color for magenta text.\",\"type\":\"string\"},\"red\":{\"description\":\"Custom color for red text.\",\"type\":\"string\"},\"yellow\":{\"description\":\"Custom color for yellow text.\",\"type\":\"string\"}}}]},\"context\":{\"description\":\"Context directory for request shortening.\",\"type\":\"string\",\"absolutePath\":true},\"dependentModules\":{\"description\":\"Show chunk modules that are dependencies of other modules of the chunk.\",\"type\":\"boolean\"},\"depth\":{\"description\":\"Add module depth in module graph.\",\"type\":\"boolean\"},\"entrypoints\":{\"description\":\"Display the entry points with the corresponding bundles.\",\"anyOf\":[{\"enum\":[\"auto\"]},{\"type\":\"boolean\"}]},\"env\":{\"description\":\"Add --env information.\",\"type\":\"boolean\"},\"errorDetails\":{\"description\":\"Add details to errors (like resolving log).\",\"type\":\"boolean\"},\"errorStack\":{\"description\":\"Add internal stack trace to errors.\",\"type\":\"boolean\"},\"errors\":{\"description\":\"Add errors.\",\"type\":\"boolean\"},\"errorsCount\":{\"description\":\"Add errors count.\",\"type\":\"boolean\"},\"exclude\":{\"description\":\"Please use excludeModules instead.\",\"cli\":{\"exclude\":true},\"anyOf\":[{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/FilterTypes\"}]},\"excludeAssets\":{\"description\":\"Suppress assets that match the specified filters. Filters can be Strings, RegExps or Functions.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilterTypes\"}]},\"excludeModules\":{\"description\":\"Suppress modules that match the specified filters. Filters can be Strings, RegExps, Booleans or Functions.\",\"anyOf\":[{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/FilterTypes\"}]},\"groupAssetsByChunk\":{\"description\":\"Group assets by how their are related to chunks.\",\"type\":\"boolean\"},\"groupAssetsByEmitStatus\":{\"description\":\"Group assets by their status (emitted, compared for emit or cached).\",\"type\":\"boolean\"},\"groupAssetsByExtension\":{\"description\":\"Group assets by their extension.\",\"type\":\"boolean\"},\"groupAssetsByInfo\":{\"description\":\"Group assets by their asset info (immutable, development, hotModuleReplacement, etc).\",\"type\":\"boolean\"},\"groupAssetsByPath\":{\"description\":\"Group assets by their path.\",\"type\":\"boolean\"},\"groupModulesByAttributes\":{\"description\":\"Group modules by their attributes (errors, warnings, assets, optional, orphan, or dependent).\",\"type\":\"boolean\"},\"groupModulesByCacheStatus\":{\"description\":\"Group modules by their status (cached or built and cacheable).\",\"type\":\"boolean\"},\"groupModulesByExtension\":{\"description\":\"Group modules by their extension.\",\"type\":\"boolean\"},\"groupModulesByLayer\":{\"description\":\"Group modules by their layer.\",\"type\":\"boolean\"},\"groupModulesByPath\":{\"description\":\"Group modules by their path.\",\"type\":\"boolean\"},\"hash\":{\"description\":\"Add the hash of the compilation.\",\"type\":\"boolean\"},\"ids\":{\"description\":\"Add ids.\",\"type\":\"boolean\"},\"logging\":{\"description\":\"Add logging output.\",\"anyOf\":[{\"description\":\"Specify log level of logging output.\",\"enum\":[\"none\",\"error\",\"warn\",\"info\",\"log\",\"verbose\"]},{\"description\":\"Enable/disable logging output (`true`: shows normal logging output, loglevel: log).\",\"type\":\"boolean\"}]},\"loggingDebug\":{\"description\":\"Include debug logging of specified loggers (i. e. for plugins or loaders). Filters can be Strings, RegExps or Functions.\",\"anyOf\":[{\"description\":\"Enable/Disable debug logging for all loggers.\",\"type\":\"boolean\"},{\"$ref\":\"#/definitions/FilterTypes\"}]},\"loggingTrace\":{\"description\":\"Add stack traces to logging output.\",\"type\":\"boolean\"},\"moduleAssets\":{\"description\":\"Add information about assets inside modules.\",\"type\":\"boolean\"},\"moduleTrace\":{\"description\":\"Add dependencies and origin of warnings/errors.\",\"type\":\"boolean\"},\"modules\":{\"description\":\"Add built modules information.\",\"type\":\"boolean\"},\"modulesSort\":{\"description\":\"Sort the modules by that field.\",\"type\":\"string\"},\"modulesSpace\":{\"description\":\"Space to display modules (groups will be collapsed to fit this space, value is in number of modules/groups).\",\"type\":\"number\"},\"nestedModules\":{\"description\":\"Add information about modules nested in other modules (like with module concatenation).\",\"type\":\"boolean\"},\"nestedModulesSpace\":{\"description\":\"Space to display modules nested within other modules (groups will be collapsed to fit this space, value is in number of modules/group).\",\"type\":\"number\"},\"optimizationBailout\":{\"description\":\"Show reasons why optimization bailed out for modules.\",\"type\":\"boolean\"},\"orphanModules\":{\"description\":\"Add information about orphan modules.\",\"type\":\"boolean\"},\"outputPath\":{\"description\":\"Add output path information.\",\"type\":\"boolean\"},\"performance\":{\"description\":\"Add performance hint flags.\",\"type\":\"boolean\"},\"preset\":{\"description\":\"Preset for the default values.\",\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"string\"}]},\"providedExports\":{\"description\":\"Show exports provided by modules.\",\"type\":\"boolean\"},\"publicPath\":{\"description\":\"Add public path information.\",\"type\":\"boolean\"},\"reasons\":{\"description\":\"Add information about the reasons why modules are included.\",\"type\":\"boolean\"},\"relatedAssets\":{\"description\":\"Add information about assets that are related to other assets (like SourceMaps for assets).\",\"type\":\"boolean\"},\"runtime\":{\"description\":\"Add information about runtime modules (deprecated: use 'runtimeModules' instead).\",\"type\":\"boolean\"},\"runtimeModules\":{\"description\":\"Add information about runtime modules.\",\"type\":\"boolean\"},\"source\":{\"description\":\"Add the source code of modules.\",\"type\":\"boolean\"},\"timings\":{\"description\":\"Add timing information.\",\"type\":\"boolean\"},\"usedExports\":{\"description\":\"Show exports used by modules.\",\"type\":\"boolean\"},\"version\":{\"description\":\"Add webpack version information.\",\"type\":\"boolean\"},\"warnings\":{\"description\":\"Add warnings.\",\"type\":\"boolean\"},\"warningsCount\":{\"description\":\"Add warnings count.\",\"type\":\"boolean\"},\"warningsFilter\":{\"description\":\"Suppress listing warnings that match the specified filters (they will still be counted). Filters can be Strings, RegExps or Functions.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilterTypes\"}]}}},\"StatsValue\":{\"description\":\"Stats options object or preset name.\",\"anyOf\":[{\"enum\":[\"none\",\"summary\",\"errors-only\",\"errors-warnings\",\"minimal\",\"normal\",\"detailed\",\"verbose\"]},{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/StatsOptions\"}]},\"StrictModuleExceptionHandling\":{\"description\":\"Handles exceptions in module loading correctly at a performance cost.\",\"type\":\"boolean\"},\"Target\":{\"description\":\"Environment to build for. An array of environments to build for all of them when possible.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Environment to build for.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1},{\"enum\":[false]},{\"type\":\"string\",\"minLength\":1}]},\"UmdNamedDefine\":{\"description\":\"If `output.libraryTarget` is set to umd and `output.library` is set, setting this to true will name the AMD module.\",\"type\":\"boolean\"},\"UniqueName\":{\"description\":\"A unique name of the webpack build to avoid multiple webpack runtimes to conflict when using globals.\",\"type\":\"string\",\"minLength\":1},\"WasmLoading\":{\"description\":\"The method of loading WebAssembly Modules (methods included by default are 'fetch' (web/WebWorker), 'async-node' (node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/WasmLoadingType\"}]},\"WasmLoadingType\":{\"description\":\"The method of loading WebAssembly Modules (methods included by default are 'fetch' (web/WebWorker), 'async-node' (node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"fetch-streaming\",\"fetch\",\"async-node\"]},{\"type\":\"string\"}]},\"Watch\":{\"description\":\"Enter watch mode, which rebuilds on file change.\",\"type\":\"boolean\"},\"WatchOptions\":{\"description\":\"Options for the watcher.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"aggregateTimeout\":{\"description\":\"Delay the rebuilt after the first change. Value is a time in ms.\",\"type\":\"number\"},\"followSymlinks\":{\"description\":\"Resolve symlinks and watch symlink and real file. This is usually not needed as webpack already resolves symlinks ('resolve.symlinks').\",\"type\":\"boolean\"},\"ignored\":{\"description\":\"Ignore some files from watching (glob pattern or regexp).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A glob pattern for files that should be ignored from watching.\",\"type\":\"string\",\"minLength\":1}},{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"A single glob pattern for files that should be ignored from watching.\",\"type\":\"string\",\"minLength\":1}]},\"poll\":{\"description\":\"Enable polling mode for watching.\",\"anyOf\":[{\"description\":\"`number`: use polling with specified interval.\",\"type\":\"number\"},{\"description\":\"`true`: use polling.\",\"type\":\"boolean\"}]},\"stdin\":{\"description\":\"Stop watching when stdin stream has ended.\",\"type\":\"boolean\"}}},\"WebassemblyModuleFilename\":{\"description\":\"The filename of WebAssembly modules as relative path inside the 'output.path' directory.\",\"type\":\"string\",\"absolutePath\":false},\"WebpackOptionsNormalized\":{\"description\":\"Normalized webpack options object.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"$ref\":\"#/definitions/Amd\"},\"bail\":{\"$ref\":\"#/definitions/Bail\"},\"cache\":{\"$ref\":\"#/definitions/CacheOptionsNormalized\"},\"context\":{\"$ref\":\"#/definitions/Context\"},\"dependencies\":{\"$ref\":\"#/definitions/Dependencies\"},\"devServer\":{\"$ref\":\"#/definitions/DevServer\"},\"devtool\":{\"$ref\":\"#/definitions/DevTool\"},\"entry\":{\"$ref\":\"#/definitions/EntryNormalized\"},\"experiments\":{\"$ref\":\"#/definitions/Experiments\"},\"externals\":{\"$ref\":\"#/definitions/Externals\"},\"externalsPresets\":{\"$ref\":\"#/definitions/ExternalsPresets\"},\"externalsType\":{\"$ref\":\"#/definitions/ExternalsType\"},\"ignoreWarnings\":{\"$ref\":\"#/definitions/IgnoreWarningsNormalized\"},\"infrastructureLogging\":{\"$ref\":\"#/definitions/InfrastructureLogging\"},\"loader\":{\"$ref\":\"#/definitions/Loader\"},\"mode\":{\"$ref\":\"#/definitions/Mode\"},\"module\":{\"$ref\":\"#/definitions/ModuleOptions\"},\"name\":{\"$ref\":\"#/definitions/Name\"},\"node\":{\"$ref\":\"#/definitions/Node\"},\"optimization\":{\"$ref\":\"#/definitions/Optimization\"},\"output\":{\"$ref\":\"#/definitions/OutputNormalized\"},\"parallelism\":{\"$ref\":\"#/definitions/Parallelism\"},\"performance\":{\"$ref\":\"#/definitions/Performance\"},\"plugins\":{\"$ref\":\"#/definitions/Plugins\"},\"profile\":{\"$ref\":\"#/definitions/Profile\"},\"recordsInputPath\":{\"$ref\":\"#/definitions/RecordsInputPath\"},\"recordsOutputPath\":{\"$ref\":\"#/definitions/RecordsOutputPath\"},\"resolve\":{\"$ref\":\"#/definitions/Resolve\"},\"resolveLoader\":{\"$ref\":\"#/definitions/ResolveLoader\"},\"snapshot\":{\"$ref\":\"#/definitions/SnapshotOptions\"},\"stats\":{\"$ref\":\"#/definitions/StatsValue\"},\"target\":{\"$ref\":\"#/definitions/Target\"},\"watch\":{\"$ref\":\"#/definitions/Watch\"},\"watchOptions\":{\"$ref\":\"#/definitions/WatchOptions\"}},\"required\":[\"cache\",\"snapshot\",\"entry\",\"experiments\",\"externals\",\"externalsPresets\",\"infrastructureLogging\",\"module\",\"node\",\"optimization\",\"output\",\"plugins\",\"resolve\",\"resolveLoader\",\"stats\",\"watchOptions\"]},\"WebpackPluginFunction\":{\"description\":\"Function acting as plugin.\",\"instanceof\":\"Function\",\"tsType\":\"(this: import('../lib/Compiler'), compiler: import('../lib/Compiler')) => void\"},\"WebpackPluginInstance\":{\"description\":\"Plugin instance.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"apply\":{\"description\":\"The run point of the plugin, required method.\",\"instanceof\":\"Function\",\"tsType\":\"(compiler: import('../lib/Compiler')) => void\"}},\"required\":[\"apply\"]}},\"description\":\"Options object as provided by the user.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"$ref\":\"#/definitions/Amd\"},\"bail\":{\"$ref\":\"#/definitions/Bail\"},\"cache\":{\"$ref\":\"#/definitions/CacheOptions\"},\"context\":{\"$ref\":\"#/definitions/Context\"},\"dependencies\":{\"$ref\":\"#/definitions/Dependencies\"},\"devServer\":{\"$ref\":\"#/definitions/DevServer\"},\"devtool\":{\"$ref\":\"#/definitions/DevTool\"},\"entry\":{\"$ref\":\"#/definitions/Entry\"},\"experiments\":{\"$ref\":\"#/definitions/Experiments\"},\"externals\":{\"$ref\":\"#/definitions/Externals\"},\"externalsPresets\":{\"$ref\":\"#/definitions/ExternalsPresets\"},\"externalsType\":{\"$ref\":\"#/definitions/ExternalsType\"},\"ignoreWarnings\":{\"$ref\":\"#/definitions/IgnoreWarnings\"},\"infrastructureLogging\":{\"$ref\":\"#/definitions/InfrastructureLogging\"},\"loader\":{\"$ref\":\"#/definitions/Loader\"},\"mode\":{\"$ref\":\"#/definitions/Mode\"},\"module\":{\"$ref\":\"#/definitions/ModuleOptions\"},\"name\":{\"$ref\":\"#/definitions/Name\"},\"node\":{\"$ref\":\"#/definitions/Node\"},\"optimization\":{\"$ref\":\"#/definitions/Optimization\"},\"output\":{\"$ref\":\"#/definitions/Output\"},\"parallelism\":{\"$ref\":\"#/definitions/Parallelism\"},\"performance\":{\"$ref\":\"#/definitions/Performance\"},\"plugins\":{\"$ref\":\"#/definitions/Plugins\"},\"profile\":{\"$ref\":\"#/definitions/Profile\"},\"recordsInputPath\":{\"$ref\":\"#/definitions/RecordsInputPath\"},\"recordsOutputPath\":{\"$ref\":\"#/definitions/RecordsOutputPath\"},\"recordsPath\":{\"$ref\":\"#/definitions/RecordsPath\"},\"resolve\":{\"$ref\":\"#/definitions/Resolve\"},\"resolveLoader\":{\"$ref\":\"#/definitions/ResolveLoader\"},\"snapshot\":{\"$ref\":\"#/definitions/SnapshotOptions\"},\"stats\":{\"$ref\":\"#/definitions/StatsValue\"},\"target\":{\"$ref\":\"#/definitions/Target\"},\"watch\":{\"$ref\":\"#/definitions/Watch\"},\"watchOptions\":{\"$ref\":\"#/definitions/WatchOptions\"}}}");
@@ -67,7 +67,7 @@ module.exports = JSON.parse("{\"definitions\":{\"Amd\":{\"description\":\"Set th
 /***/ }),
 
 /***/ 45674:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"definitions\":{\"BannerFunction\":{\"description\":\"The banner as function, it will be wrapped in a comment.\",\"instanceof\":\"Function\",\"tsType\":\"(data: { hash: string, chunk: import('../../lib/Chunk'), filename: string }) => string\"},\"Rule\":{\"description\":\"Filtering rule as regex or string.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"minLength\":1}]},\"Rules\":{\"description\":\"Filtering rules.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A rule condition.\",\"oneOf\":[{\"$ref\":\"#/definitions/Rule\"}]}},{\"$ref\":\"#/definitions/Rule\"}]}},\"title\":\"BannerPluginArgument\",\"anyOf\":[{\"description\":\"The banner as string, it will be wrapped in a comment.\",\"type\":\"string\",\"minLength\":1},{\"title\":\"BannerPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"banner\":{\"description\":\"Specifies the banner.\",\"anyOf\":[{\"type\":\"string\"},{\"$ref\":\"#/definitions/BannerFunction\"}]},\"entryOnly\":{\"description\":\"If true, the banner will only be added to the entry chunks.\",\"type\":\"boolean\"},\"exclude\":{\"description\":\"Exclude all modules matching any of these conditions.\",\"oneOf\":[{\"$ref\":\"#/definitions/Rules\"}]},\"include\":{\"description\":\"Include all modules matching any of these conditions.\",\"oneOf\":[{\"$ref\":\"#/definitions/Rules\"}]},\"raw\":{\"description\":\"If true, banner will not be wrapped in a comment.\",\"type\":\"boolean\"},\"test\":{\"description\":\"Include all modules that pass test assertion.\",\"oneOf\":[{\"$ref\":\"#/definitions/Rules\"}]}},\"required\":[\"banner\"]},{\"$ref\":\"#/definitions/BannerFunction\"}]}");
@@ -75,7 +75,7 @@ module.exports = JSON.parse("{\"definitions\":{\"BannerFunction\":{\"description
 /***/ }),
 
 /***/ 67983:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"title\":\"DllPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"context\":{\"description\":\"Context of requests in the manifest file (defaults to the webpack context).\",\"type\":\"string\",\"minLength\":1},\"entryOnly\":{\"description\":\"If true, only entry points will be exposed (default: true).\",\"type\":\"boolean\"},\"format\":{\"description\":\"If true, manifest json file (output) will be formatted.\",\"type\":\"boolean\"},\"name\":{\"description\":\"Name of the exposed dll function (external name, use value of 'output.library').\",\"type\":\"string\",\"minLength\":1},\"path\":{\"description\":\"Absolute path to the manifest json file (output).\",\"type\":\"string\",\"minLength\":1},\"type\":{\"description\":\"Type of the dll bundle (external type, use value of 'output.libraryTarget').\",\"type\":\"string\",\"minLength\":1}},\"required\":[\"path\"]}");
@@ -83,7 +83,7 @@ module.exports = JSON.parse("{\"title\":\"DllPluginOptions\",\"type\":\"object\"
 /***/ }),
 
 /***/ 71364:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"definitions\":{\"DllReferencePluginOptionsContent\":{\"description\":\"The mappings from request to module info.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Module info.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"buildMeta\":{\"description\":\"Meta information about the module.\",\"type\":\"object\"},\"exports\":{\"description\":\"Information about the provided exports of the module.\",\"anyOf\":[{\"description\":\"List of provided exports of the module.\",\"type\":\"array\",\"items\":{\"description\":\"Name of the export.\",\"type\":\"string\",\"minLength\":1}},{\"description\":\"Exports unknown/dynamic.\",\"enum\":[true]}]},\"id\":{\"description\":\"Module ID.\",\"anyOf\":[{\"type\":\"number\"},{\"type\":\"string\",\"minLength\":1}]}},\"required\":[\"id\"]},\"minProperties\":1},\"DllReferencePluginOptionsManifest\":{\"description\":\"An object containing content, name and type.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"content\":{\"description\":\"The mappings from request to module info.\",\"oneOf\":[{\"$ref\":\"#/definitions/DllReferencePluginOptionsContent\"}]},\"name\":{\"description\":\"The name where the dll is exposed (external name).\",\"type\":\"string\",\"minLength\":1},\"type\":{\"description\":\"The type how the dll is exposed (external type).\",\"oneOf\":[{\"$ref\":\"#/definitions/DllReferencePluginOptionsSourceType\"}]}},\"required\":[\"content\"]},\"DllReferencePluginOptionsSourceType\":{\"description\":\"The type how the dll is exposed (external type).\",\"enum\":[\"var\",\"assign\",\"this\",\"window\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\"]}},\"title\":\"DllReferencePluginOptions\",\"anyOf\":[{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"context\":{\"description\":\"Context of requests in the manifest (or content property) as absolute path.\",\"type\":\"string\",\"absolutePath\":true},\"extensions\":{\"description\":\"Extensions used to resolve modules in the dll bundle (only used when using 'scope').\",\"type\":\"array\",\"items\":{\"description\":\"An extension.\",\"type\":\"string\"}},\"manifest\":{\"description\":\"An object containing content and name or a string to the absolute path of the JSON manifest to be loaded upon compilation.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":true},{\"$ref\":\"#/definitions/DllReferencePluginOptionsManifest\"}]},\"name\":{\"description\":\"The name where the dll is exposed (external name, defaults to manifest.name).\",\"type\":\"string\",\"minLength\":1},\"scope\":{\"description\":\"Prefix which is used for accessing the content of the dll.\",\"type\":\"string\",\"minLength\":1},\"sourceType\":{\"description\":\"How the dll is exposed (libraryTarget, defaults to manifest.type).\",\"oneOf\":[{\"$ref\":\"#/definitions/DllReferencePluginOptionsSourceType\"}]},\"type\":{\"description\":\"The way how the export of the dll bundle is used.\",\"enum\":[\"require\",\"object\"]}},\"required\":[\"manifest\"]},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"content\":{\"description\":\"The mappings from request to module info.\",\"oneOf\":[{\"$ref\":\"#/definitions/DllReferencePluginOptionsContent\"}]},\"context\":{\"description\":\"Context of requests in the manifest (or content property) as absolute path.\",\"type\":\"string\",\"absolutePath\":true},\"extensions\":{\"description\":\"Extensions used to resolve modules in the dll bundle (only used when using 'scope').\",\"type\":\"array\",\"items\":{\"description\":\"An extension.\",\"type\":\"string\"}},\"name\":{\"description\":\"The name where the dll is exposed (external name).\",\"type\":\"string\",\"minLength\":1},\"scope\":{\"description\":\"Prefix which is used for accessing the content of the dll.\",\"type\":\"string\",\"minLength\":1},\"sourceType\":{\"description\":\"How the dll is exposed (libraryTarget).\",\"oneOf\":[{\"$ref\":\"#/definitions/DllReferencePluginOptionsSourceType\"}]},\"type\":{\"description\":\"The way how the export of the dll bundle is used.\",\"enum\":[\"require\",\"object\"]}},\"required\":[\"content\",\"name\"]}]}");
@@ -91,7 +91,7 @@ module.exports = JSON.parse("{\"definitions\":{\"DllReferencePluginOptionsConten
 /***/ }),
 
 /***/ 91129:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"title\":\"HashedModuleIdsPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"context\":{\"description\":\"The context directory for creating names.\",\"type\":\"string\",\"absolutePath\":true},\"hashDigest\":{\"description\":\"The encoding to use when generating the hash, defaults to 'base64'. All encodings from Node.JS' hash.digest are supported.\",\"enum\":[\"hex\",\"latin1\",\"base64\"]},\"hashDigestLength\":{\"description\":\"The prefix length of the hash digest to use, defaults to 4.\",\"type\":\"number\",\"minimum\":1},\"hashFunction\":{\"description\":\"The hashing algorithm to use, defaults to 'md4'. All functions from Node.JS' crypto.createHash are supported.\",\"type\":\"string\",\"minLength\":1}}}");
@@ -99,7 +99,7 @@ module.exports = JSON.parse("{\"title\":\"HashedModuleIdsPluginOptions\",\"type\
 /***/ }),
 
 /***/ 10337:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"title\":\"IgnorePluginOptions\",\"anyOf\":[{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"contextRegExp\":{\"description\":\"A RegExp to test the context (directory) against.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},\"resourceRegExp\":{\"description\":\"A RegExp to test the request against.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}}},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"checkResource\":{\"description\":\"A filter function for resource and context.\",\"instanceof\":\"Function\",\"tsType\":\"((resource: string, context: string) => boolean)\"}}}]}");
@@ -107,7 +107,7 @@ module.exports = JSON.parse("{\"title\":\"IgnorePluginOptions\",\"anyOf\":[{\"ty
 /***/ }),
 
 /***/ 94643:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"title\":\"JsonModulesPluginParserOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"parse\":{\"description\":\"Function that executes for a module source string and should return json-compatible data.\",\"instanceof\":\"Function\",\"tsType\":\"((input: string) => any)\"}}}");
@@ -115,7 +115,7 @@ module.exports = JSON.parse("{\"title\":\"JsonModulesPluginParserOptions\",\"typ
 /***/ }),
 
 /***/ 74098:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"title\":\"LoaderOptionsPluginOptions\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"debug\":{\"description\":\"Whether loaders should be in debug mode or not. debug will be removed as of webpack 3.\",\"type\":\"boolean\"},\"minimize\":{\"description\":\"Where loaders can be switched to minimize mode.\",\"type\":\"boolean\"},\"options\":{\"description\":\"A configuration object that can be used to configure older loaders.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"context\":{\"description\":\"The context that can be used to configure older loaders.\",\"type\":\"string\",\"absolutePath\":true}}}}}");
@@ -123,7 +123,7 @@ module.exports = JSON.parse("{\"title\":\"LoaderOptionsPluginOptions\",\"type\":
 /***/ }),
 
 /***/ 8121:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"definitions\":{\"HandlerFunction\":{\"description\":\"Function that executes for every progress step.\",\"instanceof\":\"Function\",\"tsType\":\"((percentage: number, msg: string, ...args: string[]) => void)\"},\"ProgressPluginOptions\":{\"description\":\"Options object for the ProgressPlugin.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"activeModules\":{\"description\":\"Show active modules count and one active module in progress message.\",\"type\":\"boolean\"},\"dependencies\":{\"description\":\"Show dependencies count in progress message.\",\"type\":\"boolean\"},\"dependenciesCount\":{\"description\":\"Minimum dependencies count to start with. For better progress calculation. Default: 10000.\",\"type\":\"number\"},\"entries\":{\"description\":\"Show entries count in progress message.\",\"type\":\"boolean\"},\"handler\":{\"description\":\"Function that executes for every progress step.\",\"oneOf\":[{\"$ref\":\"#/definitions/HandlerFunction\"}]},\"modules\":{\"description\":\"Show modules count in progress message.\",\"type\":\"boolean\"},\"modulesCount\":{\"description\":\"Minimum modules count to start with. For better progress calculation. Default: 5000.\",\"type\":\"number\"},\"percentBy\":{\"description\":\"Collect percent algorithm. By default it calculates by a median from modules, entries and dependencies percent.\",\"enum\":[\"entries\",\"modules\",\"dependencies\",null]},\"profile\":{\"description\":\"Collect profile data for progress steps. Default: false.\",\"enum\":[true,false,null]}}}},\"title\":\"ProgressPluginArgument\",\"anyOf\":[{\"$ref\":\"#/definitions/ProgressPluginOptions\"},{\"$ref\":\"#/definitions/HandlerFunction\"}]}");
@@ -131,7 +131,7 @@ module.exports = JSON.parse("{\"definitions\":{\"HandlerFunction\":{\"descriptio
 /***/ }),
 
 /***/ 62918:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"definitions\":{\"rule\":{\"description\":\"Include source maps for modules based on their extension (defaults to .js and .css).\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"minLength\":1}]},\"rules\":{\"description\":\"Include source maps for modules based on their extension (defaults to .js and .css).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A rule condition.\",\"oneOf\":[{\"$ref\":\"#/definitions/rule\"}]}},{\"$ref\":\"#/definitions/rule\"}]}},\"title\":\"SourceMapDevToolPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"append\":{\"description\":\"Appends the given value to the original asset. Usually the #sourceMappingURL comment. [url] is replaced with a URL to the source map file. false disables the appending.\",\"anyOf\":[{\"description\":\"Append no SourceMap comment to the bundle, but still generate SourceMaps.\",\"enum\":[false,null]},{\"type\":\"string\",\"minLength\":1}]},\"columns\":{\"description\":\"Indicates whether column mappings should be used (defaults to true).\",\"type\":\"boolean\"},\"exclude\":{\"description\":\"Exclude modules that match the given value from source map generation.\",\"oneOf\":[{\"$ref\":\"#/definitions/rules\"}]},\"fallbackModuleFilenameTemplate\":{\"description\":\"Generator string or function to create identifiers of modules for the 'sources' array in the SourceMap used only if 'moduleFilenameTemplate' would result in a conflict.\",\"anyOf\":[{\"type\":\"string\",\"minLength\":1},{\"description\":\"Custom function generating the identifier.\",\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"fileContext\":{\"description\":\"Path prefix to which the [file] placeholder is relative to.\",\"type\":\"string\"},\"filename\":{\"description\":\"Defines the output filename of the SourceMap (will be inlined if no value is provided).\",\"anyOf\":[{\"description\":\"Disable separate SourceMap file and inline SourceMap as DataUrl.\",\"enum\":[false,null]},{\"type\":\"string\",\"absolutePath\":false,\"minLength\":1}]},\"include\":{\"description\":\"Include source maps for module paths that match the given value.\",\"oneOf\":[{\"$ref\":\"#/definitions/rules\"}]},\"module\":{\"description\":\"Indicates whether SourceMaps from loaders should be used (defaults to true).\",\"type\":\"boolean\"},\"moduleFilenameTemplate\":{\"description\":\"Generator string or function to create identifiers of modules for the 'sources' array in the SourceMap.\",\"anyOf\":[{\"type\":\"string\",\"minLength\":1},{\"description\":\"Custom function generating the identifier.\",\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"namespace\":{\"description\":\"Namespace prefix to allow multiple webpack roots in the devtools.\",\"type\":\"string\"},\"noSources\":{\"description\":\"Omit the 'sourceContents' array from the SourceMap.\",\"type\":\"boolean\"},\"publicPath\":{\"description\":\"Provide a custom public path for the SourceMapping comment.\",\"type\":\"string\"},\"sourceRoot\":{\"description\":\"Provide a custom value for the 'sourceRoot' property in the SourceMap.\",\"type\":\"string\"},\"test\":{\"$ref\":\"#/definitions/rules\"}}}");
@@ -139,7 +139,7 @@ module.exports = JSON.parse("{\"definitions\":{\"rule\":{\"description\":\"Inclu
 /***/ }),
 
 /***/ 83451:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"title\":\"WatchIgnorePluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"paths\":{\"description\":\"A list of RegExps or absolute paths to directories or files that should be ignored.\",\"type\":\"array\",\"items\":{\"description\":\"RegExp or absolute path to directories or files that should be ignored.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"}]},\"minItems\":1}},\"required\":[\"paths\"]}");
@@ -147,7 +147,7 @@ module.exports = JSON.parse("{\"title\":\"WatchIgnorePluginOptions\",\"type\":\"
 /***/ }),
 
 /***/ 30300:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"definitions\":{\"AuxiliaryComment\":{\"description\":\"Add a comment in the UMD wrapper.\",\"anyOf\":[{\"description\":\"Append the same comment above each import style.\",\"type\":\"string\"},{\"$ref\":\"#/definitions/LibraryCustomUmdCommentObject\"}]},\"Exposes\":{\"description\":\"Modules that should be exposed by this container. When provided, property name is used as public name, otherwise public name is automatically inferred from request.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Modules that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesObject\"}]}},{\"$ref\":\"#/definitions/ExposesObject\"}]},\"ExposesConfig\":{\"description\":\"Advanced configuration for modules that should be exposed by this container.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"import\":{\"description\":\"Request to a module that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesItems\"}]}},\"required\":[\"import\"]},\"ExposesItem\":{\"description\":\"Module that should be exposed by this container.\",\"type\":\"string\",\"minLength\":1},\"ExposesItems\":{\"description\":\"Modules that should be exposed by this container.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/ExposesItem\"}},\"ExposesObject\":{\"description\":\"Modules that should be exposed by this container. Property names are used as public paths.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Modules that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesConfig\"},{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesItems\"}]}},\"LibraryCustomUmdCommentObject\":{\"description\":\"Set explicit comments for `commonjs`, `commonjs2`, `amd`, and `root`.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Set comment for `amd` section in UMD.\",\"type\":\"string\"},\"commonjs\":{\"description\":\"Set comment for `commonjs` (exports) section in UMD.\",\"type\":\"string\"},\"commonjs2\":{\"description\":\"Set comment for `commonjs2` (module.exports) section in UMD.\",\"type\":\"string\"},\"root\":{\"description\":\"Set comment for `root` (global variable) section in UMD.\",\"type\":\"string\"}}},\"LibraryCustomUmdObject\":{\"description\":\"Description object for all UMD variants of the library name.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Name of the exposed AMD library in the UMD.\",\"type\":\"string\",\"minLength\":1},\"commonjs\":{\"description\":\"Name of the exposed commonjs export in the UMD.\",\"type\":\"string\",\"minLength\":1},\"root\":{\"description\":\"Name of the property exposed globally by a UMD library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the name of the property exposed globally by a UMD library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}}},\"LibraryExport\":{\"description\":\"Specify which export should be exposed as library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the export that should be exposed as library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]},\"LibraryName\":{\"description\":\"The name of the library (some types allow unnamed libraries too).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A part of the library name.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1},{\"$ref\":\"#/definitions/LibraryCustomUmdObject\"}]},\"LibraryOptions\":{\"description\":\"Options for library.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"auxiliaryComment\":{\"$ref\":\"#/definitions/AuxiliaryComment\"},\"export\":{\"$ref\":\"#/definitions/LibraryExport\"},\"name\":{\"$ref\":\"#/definitions/LibraryName\"},\"type\":{\"$ref\":\"#/definitions/LibraryType\"},\"umdNamedDefine\":{\"$ref\":\"#/definitions/UmdNamedDefine\"}},\"required\":[\"type\"]},\"LibraryType\":{\"description\":\"Type of library (types included by default are 'var', 'module', 'assign', 'this', 'window', 'self', 'global', 'commonjs', 'commonjs2', 'commonjs-module', 'amd', 'amd-require', 'umd', 'umd2', 'jsonp', 'system', but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"var\",\"module\",\"assign\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\"]},{\"type\":\"string\"}]},\"UmdNamedDefine\":{\"description\":\"If `output.libraryTarget` is set to umd and `output.library` is set, setting this to true will name the AMD module.\",\"type\":\"boolean\"}},\"title\":\"ContainerPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"exposes\":{\"$ref\":\"#/definitions/Exposes\"},\"filename\":{\"description\":\"The filename for this container relative path inside the `output.path` directory.\",\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"name\":{\"description\":\"The name for this container.\",\"type\":\"string\",\"minLength\":1},\"shareScope\":{\"description\":\"The name of the share scope which is shared with the host (defaults to 'default').\",\"type\":\"string\",\"minLength\":1}},\"required\":[\"name\",\"exposes\"]}");
@@ -155,7 +155,7 @@ module.exports = JSON.parse("{\"definitions\":{\"AuxiliaryComment\":{\"descripti
 /***/ }),
 
 /***/ 1274:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"definitions\":{\"ExternalsType\":{\"description\":\"Specifies the default type of externals ('amd*', 'umd*', 'system' and 'jsonp' depend on output.libraryTarget set to the same value).\",\"enum\":[\"var\",\"module\",\"assign\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\",\"promise\",\"import\",\"script\"]},\"Remotes\":{\"description\":\"Container locations and request scopes from which modules should be resolved and loaded at runtime. When provided, property name is used as request scope, otherwise request scope is automatically inferred from container location.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Container locations and request scopes from which modules should be resolved and loaded at runtime.\",\"anyOf\":[{\"$ref\":\"#/definitions/RemotesItem\"},{\"$ref\":\"#/definitions/RemotesObject\"}]}},{\"$ref\":\"#/definitions/RemotesObject\"}]},\"RemotesConfig\":{\"description\":\"Advanced configuration for container locations from which modules should be resolved and loaded at runtime.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"external\":{\"description\":\"Container locations from which modules should be resolved and loaded at runtime.\",\"anyOf\":[{\"$ref\":\"#/definitions/RemotesItem\"},{\"$ref\":\"#/definitions/RemotesItems\"}]},\"shareScope\":{\"description\":\"The name of the share scope shared with this remote.\",\"type\":\"string\",\"minLength\":1}},\"required\":[\"external\"]},\"RemotesItem\":{\"description\":\"Container location from which modules should be resolved and loaded at runtime.\",\"type\":\"string\",\"minLength\":1},\"RemotesItems\":{\"description\":\"Container locations from which modules should be resolved and loaded at runtime.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/RemotesItem\"}},\"RemotesObject\":{\"description\":\"Container locations from which modules should be resolved and loaded at runtime. Property names are used as request scopes.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Container locations from which modules should be resolved and loaded at runtime.\",\"anyOf\":[{\"$ref\":\"#/definitions/RemotesConfig\"},{\"$ref\":\"#/definitions/RemotesItem\"},{\"$ref\":\"#/definitions/RemotesItems\"}]}}},\"title\":\"ContainerReferencePluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"remoteType\":{\"description\":\"The external type of the remote containers.\",\"oneOf\":[{\"$ref\":\"#/definitions/ExternalsType\"}]},\"remotes\":{\"$ref\":\"#/definitions/Remotes\"},\"shareScope\":{\"description\":\"The name of the share scope shared with all remotes (defaults to 'default').\",\"type\":\"string\",\"minLength\":1}},\"required\":[\"remoteType\",\"remotes\"]}");
@@ -163,7 +163,7 @@ module.exports = JSON.parse("{\"definitions\":{\"ExternalsType\":{\"description\
 /***/ }),
 
 /***/ 87760:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"definitions\":{\"AuxiliaryComment\":{\"description\":\"Add a comment in the UMD wrapper.\",\"anyOf\":[{\"description\":\"Append the same comment above each import style.\",\"type\":\"string\"},{\"$ref\":\"#/definitions/LibraryCustomUmdCommentObject\"}]},\"Exposes\":{\"description\":\"Modules that should be exposed by this container. When provided, property name is used as public name, otherwise public name is automatically inferred from request.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Modules that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesObject\"}]}},{\"$ref\":\"#/definitions/ExposesObject\"}]},\"ExposesConfig\":{\"description\":\"Advanced configuration for modules that should be exposed by this container.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"import\":{\"description\":\"Request to a module that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesItems\"}]}},\"required\":[\"import\"]},\"ExposesItem\":{\"description\":\"Module that should be exposed by this container.\",\"type\":\"string\",\"minLength\":1},\"ExposesItems\":{\"description\":\"Modules that should be exposed by this container.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/ExposesItem\"}},\"ExposesObject\":{\"description\":\"Modules that should be exposed by this container. Property names are used as public paths.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Modules that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesConfig\"},{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesItems\"}]}},\"ExternalsType\":{\"description\":\"Specifies the default type of externals ('amd*', 'umd*', 'system' and 'jsonp' depend on output.libraryTarget set to the same value).\",\"enum\":[\"var\",\"module\",\"assign\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\",\"promise\",\"import\",\"script\"]},\"LibraryCustomUmdCommentObject\":{\"description\":\"Set explicit comments for `commonjs`, `commonjs2`, `amd`, and `root`.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Set comment for `amd` section in UMD.\",\"type\":\"string\"},\"commonjs\":{\"description\":\"Set comment for `commonjs` (exports) section in UMD.\",\"type\":\"string\"},\"commonjs2\":{\"description\":\"Set comment for `commonjs2` (module.exports) section in UMD.\",\"type\":\"string\"},\"root\":{\"description\":\"Set comment for `root` (global variable) section in UMD.\",\"type\":\"string\"}}},\"LibraryCustomUmdObject\":{\"description\":\"Description object for all UMD variants of the library name.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Name of the exposed AMD library in the UMD.\",\"type\":\"string\",\"minLength\":1},\"commonjs\":{\"description\":\"Name of the exposed commonjs export in the UMD.\",\"type\":\"string\",\"minLength\":1},\"root\":{\"description\":\"Name of the property exposed globally by a UMD library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the name of the property exposed globally by a UMD library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}}},\"LibraryExport\":{\"description\":\"Specify which export should be exposed as library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the export that should be exposed as library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]},\"LibraryName\":{\"description\":\"The name of the library (some types allow unnamed libraries too).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A part of the library name.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1},{\"$ref\":\"#/definitions/LibraryCustomUmdObject\"}]},\"LibraryOptions\":{\"description\":\"Options for library.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"auxiliaryComment\":{\"$ref\":\"#/definitions/AuxiliaryComment\"},\"export\":{\"$ref\":\"#/definitions/LibraryExport\"},\"name\":{\"$ref\":\"#/definitions/LibraryName\"},\"type\":{\"$ref\":\"#/definitions/LibraryType\"},\"umdNamedDefine\":{\"$ref\":\"#/definitions/UmdNamedDefine\"}},\"required\":[\"type\"]},\"LibraryType\":{\"description\":\"Type of library (types included by default are 'var', 'module', 'assign', 'this', 'window', 'self', 'global', 'commonjs', 'commonjs2', 'commonjs-module', 'amd', 'amd-require', 'umd', 'umd2', 'jsonp', 'system', but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"var\",\"module\",\"assign\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\"]},{\"type\":\"string\"}]},\"Remotes\":{\"description\":\"Container locations and request scopes from which modules should be resolved and loaded at runtime. When provided, property name is used as request scope, otherwise request scope is automatically inferred from container location.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Container locations and request scopes from which modules should be resolved and loaded at runtime.\",\"anyOf\":[{\"$ref\":\"#/definitions/RemotesItem\"},{\"$ref\":\"#/definitions/RemotesObject\"}]}},{\"$ref\":\"#/definitions/RemotesObject\"}]},\"RemotesConfig\":{\"description\":\"Advanced configuration for container locations from which modules should be resolved and loaded at runtime.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"external\":{\"description\":\"Container locations from which modules should be resolved and loaded at runtime.\",\"anyOf\":[{\"$ref\":\"#/definitions/RemotesItem\"},{\"$ref\":\"#/definitions/RemotesItems\"}]},\"shareScope\":{\"description\":\"The name of the share scope shared with this remote.\",\"type\":\"string\",\"minLength\":1}},\"required\":[\"external\"]},\"RemotesItem\":{\"description\":\"Container location from which modules should be resolved and loaded at runtime.\",\"type\":\"string\",\"minLength\":1},\"RemotesItems\":{\"description\":\"Container locations from which modules should be resolved and loaded at runtime.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/RemotesItem\"}},\"RemotesObject\":{\"description\":\"Container locations from which modules should be resolved and loaded at runtime. Property names are used as request scopes.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Container locations from which modules should be resolved and loaded at runtime.\",\"anyOf\":[{\"$ref\":\"#/definitions/RemotesConfig\"},{\"$ref\":\"#/definitions/RemotesItem\"},{\"$ref\":\"#/definitions/RemotesItems\"}]}},\"Shared\":{\"description\":\"Modules that should be shared in the share scope. When provided, property names are used to match requested modules in this compilation.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Modules that should be shared in the share scope.\",\"anyOf\":[{\"$ref\":\"#/definitions/SharedItem\"},{\"$ref\":\"#/definitions/SharedObject\"}]}},{\"$ref\":\"#/definitions/SharedObject\"}]},\"SharedConfig\":{\"description\":\"Advanced configuration for modules that should be shared in the share scope.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"eager\":{\"description\":\"Include the provided and fallback module directly instead behind an async request. This allows to use this shared module in initial load too. All possible shared modules need to be eager too.\",\"type\":\"boolean\"},\"import\":{\"description\":\"Provided module that should be provided to share scope. Also acts as fallback module if no shared module is found in share scope or version isn't valid. Defaults to the property name.\",\"anyOf\":[{\"description\":\"No provided or fallback module.\",\"enum\":[false]},{\"$ref\":\"#/definitions/SharedItem\"}]},\"packageName\":{\"description\":\"Package name to determine required version from description file. This is only needed when package name can't be automatically determined from request.\",\"type\":\"string\",\"minLength\":1},\"requiredVersion\":{\"description\":\"Version requirement from module in share scope.\",\"anyOf\":[{\"description\":\"No version requirement check.\",\"enum\":[false]},{\"description\":\"Version as string. Can be prefixed with '^' or '~' for minimum matches. Each part of the version should be separated by a dot '.'.\",\"type\":\"string\"}]},\"shareKey\":{\"description\":\"Module is looked up under this key from the share scope.\",\"type\":\"string\",\"minLength\":1},\"shareScope\":{\"description\":\"Share scope name.\",\"type\":\"string\",\"minLength\":1},\"singleton\":{\"description\":\"Allow only a single version of the shared module in share scope (disabled by default).\",\"type\":\"boolean\"},\"strictVersion\":{\"description\":\"Do not accept shared module if version is not valid (defaults to yes, if local fallback module is available and shared module is not a singleton, otherwise no, has no effect if there is no required version specified).\",\"type\":\"boolean\"},\"version\":{\"description\":\"Version of the provided module. Will replace lower matching versions, but not higher.\",\"anyOf\":[{\"description\":\"Don't provide a version.\",\"enum\":[false]},{\"description\":\"Version as string. Each part of the version should be separated by a dot '.'.\",\"type\":\"string\"}]}}},\"SharedItem\":{\"description\":\"A module that should be shared in the share scope.\",\"type\":\"string\",\"minLength\":1},\"SharedObject\":{\"description\":\"Modules that should be shared in the share scope. Property names are used to match requested modules in this compilation. Relative requests are resolved, module requests are matched unresolved, absolute paths will match resolved requests. A trailing slash will match all requests with this prefix. In this case shareKey must also have a trailing slash.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Modules that should be shared in the share scope.\",\"anyOf\":[{\"$ref\":\"#/definitions/SharedConfig\"},{\"$ref\":\"#/definitions/SharedItem\"}]}},\"UmdNamedDefine\":{\"description\":\"If `output.libraryTarget` is set to umd and `output.library` is set, setting this to true will name the AMD module.\",\"type\":\"boolean\"}},\"title\":\"ModuleFederationPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"exposes\":{\"$ref\":\"#/definitions/Exposes\"},\"filename\":{\"description\":\"The filename of the container as relative path inside the `output.path` directory.\",\"type\":\"string\",\"absolutePath\":false},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"name\":{\"description\":\"The name of the container.\",\"type\":\"string\"},\"remoteType\":{\"description\":\"The external type of the remote containers.\",\"oneOf\":[{\"$ref\":\"#/definitions/ExternalsType\"}]},\"remotes\":{\"$ref\":\"#/definitions/Remotes\"},\"shareScope\":{\"description\":\"Share scope name used for all shared modules (defaults to 'default').\",\"type\":\"string\",\"minLength\":1},\"shared\":{\"$ref\":\"#/definitions/Shared\"}}}");
@@ -171,7 +171,7 @@ module.exports = JSON.parse("{\"definitions\":{\"AuxiliaryComment\":{\"descripti
 /***/ }),
 
 /***/ 92564:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"title\":\"ProfilingPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"outputPath\":{\"description\":\"Path to the output file e.g. `path.resolve(__dirname, 'profiling/events.json')`. Defaults to `events.json`.\",\"type\":\"string\",\"absolutePath\":true}}}");
@@ -179,7 +179,7 @@ module.exports = JSON.parse("{\"title\":\"ProfilingPluginOptions\",\"type\":\"ob
 /***/ }),
 
 /***/ 76282:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"title\":\"OccurrenceChunkIdsPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"prioritiseInitial\":{\"description\":\"Prioritise initial size over total size.\",\"type\":\"boolean\"}}}");
@@ -187,7 +187,7 @@ module.exports = JSON.parse("{\"title\":\"OccurrenceChunkIdsPluginOptions\",\"ty
 /***/ }),
 
 /***/ 63765:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"title\":\"OccurrenceModuleIdsPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"prioritiseInitial\":{\"description\":\"Prioritise initial size over total size.\",\"type\":\"boolean\"}}}");
@@ -195,7 +195,7 @@ module.exports = JSON.parse("{\"title\":\"OccurrenceModuleIdsPluginOptions\",\"t
 /***/ }),
 
 /***/ 32643:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"title\":\"AggressiveSplittingPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"chunkOverhead\":{\"description\":\"Extra cost for each chunk (Default: 9.8kiB).\",\"type\":\"number\"},\"entryChunkMultiplicator\":{\"description\":\"Extra cost multiplicator for entry chunks (Default: 10).\",\"type\":\"number\"},\"maxSize\":{\"description\":\"Byte, max size of per file (Default: 50kiB).\",\"type\":\"number\"},\"minSize\":{\"description\":\"Byte, split point. (Default: 30kiB).\",\"type\":\"number\"}}}");
@@ -203,7 +203,7 @@ module.exports = JSON.parse("{\"title\":\"AggressiveSplittingPluginOptions\",\"t
 /***/ }),
 
 /***/ 27774:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"title\":\"LimitChunkCountPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"chunkOverhead\":{\"description\":\"Constant overhead for a chunk.\",\"type\":\"number\"},\"entryChunkMultiplicator\":{\"description\":\"Multiplicator for initial chunks.\",\"type\":\"number\"},\"maxChunks\":{\"description\":\"Limit the maximum number of chunks using a value greater greater than or equal to 1.\",\"type\":\"number\",\"minimum\":1}},\"required\":[\"maxChunks\"]}");
@@ -211,7 +211,7 @@ module.exports = JSON.parse("{\"title\":\"LimitChunkCountPluginOptions\",\"type\
 /***/ }),
 
 /***/ 65069:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"title\":\"MinChunkSizePluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"chunkOverhead\":{\"description\":\"Constant overhead for a chunk.\",\"type\":\"number\"},\"entryChunkMultiplicator\":{\"description\":\"Multiplicator for initial chunks.\",\"type\":\"number\"},\"minChunkSize\":{\"description\":\"Minimum number of characters.\",\"type\":\"number\"}},\"required\":[\"minChunkSize\"]}");
@@ -219,7 +219,7 @@ module.exports = JSON.parse("{\"title\":\"MinChunkSizePluginOptions\",\"type\":\
 /***/ }),
 
 /***/ 11919:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"definitions\":{\"Consumes\":{\"description\":\"Modules that should be consumed from share scope. When provided, property names are used to match requested modules in this compilation.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Modules that should be consumed from share scope.\",\"anyOf\":[{\"$ref\":\"#/definitions/ConsumesItem\"},{\"$ref\":\"#/definitions/ConsumesObject\"}]}},{\"$ref\":\"#/definitions/ConsumesObject\"}]},\"ConsumesConfig\":{\"description\":\"Advanced configuration for modules that should be consumed from share scope.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"eager\":{\"description\":\"Include the fallback module directly instead behind an async request. This allows to use fallback module in initial load too. All possible shared modules need to be eager too.\",\"type\":\"boolean\"},\"import\":{\"description\":\"Fallback module if no shared module is found in share scope. Defaults to the property name.\",\"anyOf\":[{\"description\":\"No fallback module.\",\"enum\":[false]},{\"$ref\":\"#/definitions/ConsumesItem\"}]},\"packageName\":{\"description\":\"Package name to determine required version from description file. This is only needed when package name can't be automatically determined from request.\",\"type\":\"string\",\"minLength\":1},\"requiredVersion\":{\"description\":\"Version requirement from module in share scope.\",\"anyOf\":[{\"description\":\"No version requirement check.\",\"enum\":[false]},{\"description\":\"Version as string. Can be prefixed with '^' or '~' for minimum matches. Each part of the version should be separated by a dot '.'.\",\"type\":\"string\"}]},\"shareKey\":{\"description\":\"Module is looked up under this key from the share scope.\",\"type\":\"string\",\"minLength\":1},\"shareScope\":{\"description\":\"Share scope name.\",\"type\":\"string\",\"minLength\":1},\"singleton\":{\"description\":\"Allow only a single version of the shared module in share scope (disabled by default).\",\"type\":\"boolean\"},\"strictVersion\":{\"description\":\"Do not accept shared module if version is not valid (defaults to yes, if local fallback module is available and shared module is not a singleton, otherwise no, has no effect if there is no required version specified).\",\"type\":\"boolean\"}}},\"ConsumesItem\":{\"description\":\"A module that should be consumed from share scope.\",\"type\":\"string\",\"minLength\":1},\"ConsumesObject\":{\"description\":\"Modules that should be consumed from share scope. Property names are used to match requested modules in this compilation. Relative requests are resolved, module requests are matched unresolved, absolute paths will match resolved requests. A trailing slash will match all requests with this prefix. In this case shareKey must also have a trailing slash.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Modules that should be consumed from share scope.\",\"anyOf\":[{\"$ref\":\"#/definitions/ConsumesConfig\"},{\"$ref\":\"#/definitions/ConsumesItem\"}]}}},\"title\":\"ConsumeSharedPluginOptions\",\"description\":\"Options for consuming shared modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"consumes\":{\"$ref\":\"#/definitions/Consumes\"},\"shareScope\":{\"description\":\"Share scope name used for all consumed modules (defaults to 'default').\",\"type\":\"string\",\"minLength\":1}},\"required\":[\"consumes\"]}");
@@ -227,7 +227,7 @@ module.exports = JSON.parse("{\"definitions\":{\"Consumes\":{\"description\":\"M
 /***/ }),
 
 /***/ 45057:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = JSON.parse("{\"definitions\":{\"Provides\":{\"description\":\"Modules that should be provided as shared modules to the share scope. When provided, property name is used to match modules, otherwise this is automatically inferred from share key.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Modules that should be provided as shared modules to the share scope.\",\"anyOf\":[{\"$ref\":\"#/definitions/ProvidesItem\"},{\"$ref\":\"#/definitions/ProvidesObject\"}]}},{\"$ref\":\"#/definitions/ProvidesObject\"}]},\"ProvidesConfig\":{\"description\":\"Advanced configuration for modules that should be provided as shared modules to the share scope.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"eager\":{\"description\":\"Include the provided module directly instead behind an async request. This allows to use this shared module in initial load too. All possible shared modules need to be eager too.\",\"type\":\"boolean\"},\"shareKey\":{\"description\":\"Key in the share scope under which the shared modules should be stored.\",\"type\":\"string\",\"minLength\":1},\"shareScope\":{\"description\":\"Share scope name.\",\"type\":\"string\",\"minLength\":1},\"version\":{\"description\":\"Version of the provided module. Will replace lower matching versions, but not higher.\",\"anyOf\":[{\"description\":\"Don't provide a version.\",\"enum\":[false]},{\"description\":\"Version as string. Each part of the version should be separated by a dot '.'.\",\"type\":\"string\"}]}}},\"ProvidesItem\":{\"description\":\"Request to a module that should be provided as shared module to the share scope (will be resolved when relative).\",\"type\":\"string\",\"minLength\":1},\"ProvidesObject\":{\"description\":\"Modules that should be provided as shared modules to the share scope. Property names are used as share keys.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Modules that should be provided as shared modules to the share scope.\",\"anyOf\":[{\"$ref\":\"#/definitions/ProvidesConfig\"},{\"$ref\":\"#/definitions/ProvidesItem\"}]}}},\"title\":\"ProvideSharedPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"provides\":{\"$ref\":\"#/definitions/Provides\"},\"shareScope\":{\"description\":\"Share scope name used for all provided modules (defaults to 'default').\",\"type\":\"string\",\"minLength\":1}},\"required\":[\"provides\"]}");
@@ -235,7 +235,7 @@ module.exports = JSON.parse("{\"definitions\":{\"Provides\":{\"description\":\"M
 /***/ }),
 
 /***/ 80850:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 
@@ -252,7 +252,7 @@ function cloneNode(n) {
 /***/ }),
 
 /***/ 87595:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -386,7 +386,7 @@ var _astModuleToModuleContext = __webpack_require__(39337);
 /***/ }),
 
 /***/ 60443:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -500,7 +500,7 @@ function memIndexLiteral(value) {
 /***/ }),
 
 /***/ 73938:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 
@@ -651,7 +651,7 @@ function createPath(context) {
 /***/ }),
 
 /***/ 46403:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 
@@ -1802,7 +1802,7 @@ exports.nodeAndUnionTypes = nodeAndUnionTypes;
 /***/ }),
 
 /***/ 46443:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 
@@ -2016,7 +2016,7 @@ exports.signatures = signatures;
 /***/ }),
 
 /***/ 39337:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -2412,7 +2412,7 @@ exports.ModuleContext = ModuleContext;
 /***/ }),
 
 /***/ 14472:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -2524,7 +2524,7 @@ function traverse(node, visitors) {
 /***/ }),
 
 /***/ 46261:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -2837,7 +2837,7 @@ function getStartBlockByteOffset(n) {
 /***/ }),
 
 /***/ 24463:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 
@@ -2893,7 +2893,7 @@ function parse(input) {
 /***/ }),
 
 /***/ 83384:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 
@@ -2962,7 +2962,7 @@ exports.LinkError = LinkError;
 /***/ }),
 
 /***/ 84493:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 
@@ -3047,7 +3047,7 @@ function fromHexdump(str) {
 /***/ }),
 
 /***/ 89674:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -3170,7 +3170,7 @@ function isHexLiteral(sourceString) {
 /***/ }),
 
 /***/ 31180:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -3583,7 +3583,7 @@ exports.default = _default;
 /***/ }),
 
 /***/ 64185:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 
@@ -3628,7 +3628,7 @@ function getSectionForNode(n) {
 /***/ }),
 
 /***/ 26390:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -3756,7 +3756,7 @@ function createEmptySection(ast, uint8Buffer, section) {
 /***/ }),
 
 /***/ 81470:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -3798,7 +3798,7 @@ var _remove = __webpack_require__(53436);
 /***/ }),
 
 /***/ 53436:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -3850,7 +3850,7 @@ function removeSections(ast, uint8Buffer, section) {
 /***/ }),
 
 /***/ 50730:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -3947,7 +3947,7 @@ function resizeSectionVecSize(ast, uint8Buffer, section, deltaElements) {
 /***/ }),
 
 /***/ 30534:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -4006,7 +4006,7 @@ function decodeF64(bytes) {
 /***/ }),
 
 /***/ 71979:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 // Copyright 2012 The Obvious Corporation.
@@ -4169,7 +4169,7 @@ function highOrder(bit, buffer) {
 /***/ }),
 
 /***/ 81730:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 
@@ -4412,7 +4412,7 @@ function writeUInt64(value, buffer) {
 /***/ }),
 
 /***/ 58308:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -4478,7 +4478,7 @@ function encodeI64(v) {
 /***/ }),
 
 /***/ 10217:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 // Copyright 2012 The Obvious Corporation.
@@ -4817,7 +4817,7 @@ exports.default = _default;
 /***/ }),
 
 /***/ 77112:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 
@@ -4926,7 +4926,7 @@ function _decode(bytes) {
 /***/ }),
 
 /***/ 49401:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 
@@ -4986,7 +4986,7 @@ function _encode(arr) {
 /***/ }),
 
 /***/ 88632:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -5014,7 +5014,7 @@ var _encoder = __webpack_require__(49401);
 /***/ }),
 
 /***/ 14485:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -5332,7 +5332,7 @@ function applyOperations(ast, uint8Buffer, ops) {
 /***/ }),
 
 /***/ 84232:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -5472,7 +5472,7 @@ function addWithAST(ast, ab, newNodes) {
 /***/ }),
 
 /***/ 71474:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -5836,7 +5836,7 @@ function encodeElem(n) {
 /***/ }),
 
 /***/ 51605:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -5907,7 +5907,7 @@ exports.encodeU32 = encodeU32;
 /***/ }),
 
 /***/ 79725:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -5964,7 +5964,7 @@ function shrinkPaddedLEB128(uint8Buffer) {
 /***/ }),
 
 /***/ 59409:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -6027,7 +6027,7 @@ function shrinkPaddedLEB128(ast, uint8Buffer) {
 /***/ }),
 
 /***/ 68231:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -7826,7 +7826,7 @@ function decode(ab, opts) {
 /***/ }),
 
 /***/ 55400:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -8090,7 +8090,7 @@ function decode(buf, customOpts) {
 /***/ }),
 
 /***/ 31778:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 
@@ -8194,7 +8194,7 @@ function write(buffer, value, offset, isLE, mLen, nBytes) {
 /***/ }),
 
 /***/ 42527:
-/***/ ((module) => {
+/***/ (function(module) {
 
 module.exports = Long;
 
@@ -14904,7 +14904,7 @@ Long.fromBytesBE = function fromBytesBE(bytes, unsigned) {
 /***/ }),
 
 /***/ 42758:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -15089,7 +15089,7 @@ exports.Tracer = Tracer;
 /***/ }),
 
 /***/ 67896:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -15189,7 +15189,7 @@ module.exports = class AliasFieldPlugin {
 /***/ }),
 
 /***/ 35593:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -15306,7 +15306,7 @@ module.exports = class AliasPlugin {
 /***/ }),
 
 /***/ 25353:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -15361,7 +15361,7 @@ module.exports = class AppendPlugin {
 /***/ }),
 
 /***/ 29843:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -15846,7 +15846,7 @@ module.exports = class CachedInputFileSystem {
 /***/ }),
 
 /***/ 80037:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -15899,7 +15899,7 @@ module.exports = class CloneBasenamePlugin {
 /***/ }),
 
 /***/ 22641:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -15966,7 +15966,7 @@ module.exports = class ConditionalPlugin {
 /***/ }),
 
 /***/ 99951:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -16070,7 +16070,7 @@ module.exports = class DescriptionFilePlugin {
 /***/ }),
 
 /***/ 64674:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -16248,7 +16248,7 @@ exports.cdUp = cdUp;
 /***/ }),
 
 /***/ 46835:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -16319,7 +16319,7 @@ module.exports = class DirectoryExistsPlugin {
 /***/ }),
 
 /***/ 88990:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -16476,7 +16476,7 @@ module.exports = class ExportsFieldPlugin {
 /***/ }),
 
 /***/ 95762:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -16542,7 +16542,7 @@ module.exports = class FileExistsPlugin {
 /***/ }),
 
 /***/ 65727:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -16727,7 +16727,7 @@ module.exports = class ImportsFieldPlugin {
 /***/ }),
 
 /***/ 6241:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -16799,7 +16799,7 @@ module.exports = class JoinRequestPartPlugin {
 /***/ }),
 
 /***/ 97539:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -16848,7 +16848,7 @@ module.exports = class JoinRequestPlugin {
 /***/ }),
 
 /***/ 80309:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -16906,7 +16906,7 @@ module.exports = class LogInfoPlugin {
 /***/ }),
 
 /***/ 69263:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -16995,7 +16995,7 @@ module.exports = class MainFieldPlugin {
 /***/ }),
 
 /***/ 33318:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -17083,7 +17083,7 @@ module.exports = class ModulesInHierachicDirectoriesPlugin {
 /***/ }),
 
 /***/ 88016:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -17138,7 +17138,7 @@ module.exports = class ModulesInRootPlugin {
 /***/ }),
 
 /***/ 22299:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -17179,7 +17179,7 @@ module.exports = class NextPlugin {
 /***/ }),
 
 /***/ 79264:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -17261,7 +17261,7 @@ module.exports = class ParsePlugin {
 /***/ }),
 
 /***/ 55221:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -17372,7 +17372,7 @@ module.exports = class PnpPlugin {
 /***/ }),
 
 /***/ 19635:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -17855,7 +17855,7 @@ module.exports = Resolver;
 /***/ }),
 
 /***/ 92808:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -18495,7 +18495,7 @@ function mergeFilteredToArray(array, filter) {
 /***/ }),
 
 /***/ 41752:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -18568,7 +18568,7 @@ module.exports = class RestrictionsPlugin {
 /***/ }),
 
 /***/ 79757:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -18613,7 +18613,7 @@ module.exports = class ResultPlugin {
 /***/ }),
 
 /***/ 5571:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -18683,7 +18683,7 @@ module.exports = RootsPlugin;
 /***/ }),
 
 /***/ 29440:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -18771,7 +18771,7 @@ module.exports = class SelfReferencePlugin {
 /***/ }),
 
 /***/ 98522:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -18867,7 +18867,7 @@ module.exports = class SymlinkPlugin {
 /***/ }),
 
 /***/ 84433:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -18970,7 +18970,7 @@ module.exports = SyncAsyncFileSystemDecorator;
 /***/ }),
 
 /***/ 98176:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -19019,7 +19019,7 @@ module.exports = class TryNextPlugin {
 /***/ }),
 
 /***/ 93610:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -19094,7 +19094,7 @@ module.exports = class UnsafeCachePlugin {
 /***/ }),
 
 /***/ 9852:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -19151,7 +19151,7 @@ module.exports = class UseFilePlugin {
 /***/ }),
 
 /***/ 75356:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -19195,7 +19195,7 @@ module.exports = function createInnerContext(
 /***/ }),
 
 /***/ 8178:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -19228,7 +19228,7 @@ module.exports = function forEachBail(array, iterator, callback) {
 /***/ }),
 
 /***/ 11993:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -19263,7 +19263,7 @@ module.exports = function getInnerRequest(resolver, request) {
 /***/ }),
 
 /***/ 24639:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -19307,7 +19307,7 @@ module.exports.basename = function basename(path) {
 /***/ }),
 
 /***/ 75707:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -19446,7 +19446,7 @@ module.exports = mergeExports(resolve, {
 /***/ }),
 
 /***/ 73674:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -20059,7 +20059,7 @@ function buildImportsFieldPathTree(field) {
 /***/ }),
 
 /***/ 53692:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -20093,7 +20093,7 @@ module.exports.parseIdentifier = parseIdentifier;
 /***/ }),
 
 /***/ 83008:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -20322,7 +20322,7 @@ exports.checkExportsFieldTarget = checkExportsFieldTarget;
 /***/ }),
 
 /***/ 41636:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -20416,7 +20416,7 @@ module.exports = {
 /***/ }),
 
 /***/ 86074:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -20589,7 +20589,7 @@ module.exports = {
 /***/ }),
 
 /***/ 26844:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -20749,7 +20749,7 @@ module.exports = PatternVisitor;
 /***/ }),
 
 /***/ 19451:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -20924,7 +20924,7 @@ module.exports = Reference;
 /***/ }),
 
 /***/ 14186:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -21561,7 +21561,7 @@ module.exports = Referencer;
 /***/ }),
 
 /***/ 16174:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -21816,7 +21816,7 @@ module.exports = ScopeManager;
 /***/ }),
 
 /***/ 84891:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -22572,7 +22572,7 @@ module.exports = {
 /***/ }),
 
 /***/ 27646:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -22668,7 +22668,7 @@ module.exports = Variable;
 /***/ }),
 
 /***/ 62783:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 /*
   Copyright (C) 2014 Yusuke Suzuki <utatane.tea@gmail.com>
@@ -22792,7 +22792,7 @@ module.exports = Variable;
 /***/ }),
 
 /***/ 12466:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 /*
   Copyright (C) 2012-2013 Yusuke Suzuki <utatane.tea@gmail.com>
@@ -23600,7 +23600,7 @@ module.exports = Variable;
 /***/ }),
 
 /***/ 73168:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 /*
   Copyright (C) 2012-2013 Yusuke Suzuki <utatane.tea@gmail.com>
@@ -24389,7 +24389,7 @@ module.exports = Variable;
 /***/ }),
 
 /***/ 25877:
-/***/ ((module) => {
+/***/ (function(module) {
 
 module.exports = function (glob, opts) {
   if (typeof glob !== 'string') {
@@ -24526,7 +24526,7 @@ module.exports = function (glob, opts) {
 /***/ }),
 
 /***/ 40251:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 
@@ -24553,7 +24553,7 @@ function clone (obj) {
 /***/ }),
 
 /***/ 88715:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 var fs = __webpack_require__(35747)
 var polyfills = __webpack_require__(35363)
@@ -24914,7 +24914,7 @@ function retry () {
 /***/ }),
 
 /***/ 35672:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 var Stream = __webpack_require__(92413).Stream
 
@@ -25039,7 +25039,7 @@ function legacy (fs) {
 /***/ }),
 
 /***/ 35363:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 var constants = __webpack_require__(27619)
 
@@ -25388,7 +25388,7 @@ function patch (fs) {
 /***/ }),
 
 /***/ 34270:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 
@@ -25434,7 +25434,7 @@ function parseJson (txt, reviver, context) {
 /***/ }),
 
 /***/ 33712:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 
@@ -25453,7 +25453,7 @@ module.exports = LoadingLoaderError;
 /***/ }),
 
 /***/ 77346:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 /*
 	MIT License http://www.opensource.org/licenses/mit-license.php
@@ -25875,7 +25875,7 @@ exports.runLoaders = function runLoaders(options, callback) {
 /***/ }),
 
 /***/ 30422:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 var LoaderLoadingError = __webpack_require__(33712);
 var url;
@@ -25936,7 +25936,7 @@ function handleResult(loader, module, callback) {
 /***/ }),
 
 /***/ 26887:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 /*!
  * mime-db
@@ -25954,7 +25954,7 @@ module.exports = __webpack_require__(60756)
 /***/ }),
 
 /***/ 63835:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*!
@@ -26150,7 +26150,7 @@ function populateMaps (extensions, types) {
 /***/ }),
 
 /***/ 78193:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 
@@ -26229,7 +26229,7 @@ module.exports = pLimit;
 /***/ }),
 
 /***/ 89411:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 
@@ -26252,7 +26252,7 @@ module.exports.sync = cwd => {
 /***/ }),
 
 /***/ 32279:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 module.exports = __webpack_require__(76417).randomBytes
 
@@ -26260,7 +26260,7 @@ module.exports = __webpack_require__(76417).randomBytes
 /***/ }),
 
 /***/ 20200:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -26527,7 +26527,7 @@ module.exports = function serialize(obj, options) {
 /***/ }),
 
 /***/ 83410:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -26620,7 +26620,7 @@ module.exports = AsyncParallelBailHook;
 /***/ }),
 
 /***/ 39948:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -26665,7 +26665,7 @@ module.exports = AsyncParallelHook;
 /***/ }),
 
 /***/ 21531:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -26715,7 +26715,7 @@ module.exports = AsyncSeriesBailHook;
 /***/ }),
 
 /***/ 22365:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -26760,7 +26760,7 @@ module.exports = AsyncSeriesHook;
 /***/ }),
 
 /***/ 62677:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -26805,7 +26805,7 @@ module.exports = AsyncSeriesLoopHook;
 /***/ }),
 
 /***/ 94897:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -26860,7 +26860,7 @@ module.exports = AsyncSeriesWaterfallHook;
 /***/ }),
 
 /***/ 47743:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -27043,7 +27043,7 @@ module.exports = Hook;
 /***/ }),
 
 /***/ 9496:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -27519,7 +27519,7 @@ module.exports = HookCodeFactory;
 /***/ }),
 
 /***/ 72689:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -27588,7 +27588,7 @@ module.exports = HookMap;
 /***/ }),
 
 /***/ 25175:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -27650,7 +27650,7 @@ module.exports = MultiHook;
 /***/ }),
 
 /***/ 3508:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -27709,7 +27709,7 @@ module.exports = SyncBailHook;
 /***/ }),
 
 /***/ 71488:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -27763,7 +27763,7 @@ module.exports = SyncHook;
 /***/ }),
 
 /***/ 25882:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -27817,7 +27817,7 @@ module.exports = SyncLoopHook;
 /***/ }),
 
 /***/ 19027:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -27882,7 +27882,7 @@ module.exports = SyncWaterfallHook;
 /***/ }),
 
 /***/ 18416:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -27909,7 +27909,7 @@ exports.MultiHook = __webpack_require__(25175);
 /***/ }),
 
 /***/ 16093:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 
@@ -27921,7 +27921,7 @@ module.exports = plugin.default;
 /***/ }),
 
 /***/ 71127:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 
@@ -28529,7 +28529,7 @@ exports.default = _default;
 /***/ }),
 
 /***/ 45149:
-/***/ ((module, exports, __webpack_require__) => {
+/***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 /* module decorator */ module = __webpack_require__.nmd(module);
@@ -28806,34 +28806,34 @@ module.exports.transform = transform;
 /***/ }),
 
 /***/ 7960:
-/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "__extends": () => /* binding */ __extends,
-/* harmony export */   "__assign": () => /* binding */ __assign,
-/* harmony export */   "__rest": () => /* binding */ __rest,
-/* harmony export */   "__decorate": () => /* binding */ __decorate,
-/* harmony export */   "__param": () => /* binding */ __param,
-/* harmony export */   "__metadata": () => /* binding */ __metadata,
-/* harmony export */   "__awaiter": () => /* binding */ __awaiter,
-/* harmony export */   "__generator": () => /* binding */ __generator,
-/* harmony export */   "__createBinding": () => /* binding */ __createBinding,
-/* harmony export */   "__exportStar": () => /* binding */ __exportStar,
-/* harmony export */   "__values": () => /* binding */ __values,
-/* harmony export */   "__read": () => /* binding */ __read,
-/* harmony export */   "__spread": () => /* binding */ __spread,
-/* harmony export */   "__spreadArrays": () => /* binding */ __spreadArrays,
-/* harmony export */   "__await": () => /* binding */ __await,
-/* harmony export */   "__asyncGenerator": () => /* binding */ __asyncGenerator,
-/* harmony export */   "__asyncDelegator": () => /* binding */ __asyncDelegator,
-/* harmony export */   "__asyncValues": () => /* binding */ __asyncValues,
-/* harmony export */   "__makeTemplateObject": () => /* binding */ __makeTemplateObject,
-/* harmony export */   "__importStar": () => /* binding */ __importStar,
-/* harmony export */   "__importDefault": () => /* binding */ __importDefault,
-/* harmony export */   "__classPrivateFieldGet": () => /* binding */ __classPrivateFieldGet,
-/* harmony export */   "__classPrivateFieldSet": () => /* binding */ __classPrivateFieldSet
+/* harmony export */   "__extends": function() { return /* binding */ __extends; },
+/* harmony export */   "__assign": function() { return /* binding */ __assign; },
+/* harmony export */   "__rest": function() { return /* binding */ __rest; },
+/* harmony export */   "__decorate": function() { return /* binding */ __decorate; },
+/* harmony export */   "__param": function() { return /* binding */ __param; },
+/* harmony export */   "__metadata": function() { return /* binding */ __metadata; },
+/* harmony export */   "__awaiter": function() { return /* binding */ __awaiter; },
+/* harmony export */   "__generator": function() { return /* binding */ __generator; },
+/* harmony export */   "__createBinding": function() { return /* binding */ __createBinding; },
+/* harmony export */   "__exportStar": function() { return /* binding */ __exportStar; },
+/* harmony export */   "__values": function() { return /* binding */ __values; },
+/* harmony export */   "__read": function() { return /* binding */ __read; },
+/* harmony export */   "__spread": function() { return /* binding */ __spread; },
+/* harmony export */   "__spreadArrays": function() { return /* binding */ __spreadArrays; },
+/* harmony export */   "__await": function() { return /* binding */ __await; },
+/* harmony export */   "__asyncGenerator": function() { return /* binding */ __asyncGenerator; },
+/* harmony export */   "__asyncDelegator": function() { return /* binding */ __asyncDelegator; },
+/* harmony export */   "__asyncValues": function() { return /* binding */ __asyncValues; },
+/* harmony export */   "__makeTemplateObject": function() { return /* binding */ __makeTemplateObject; },
+/* harmony export */   "__importStar": function() { return /* binding */ __importStar; },
+/* harmony export */   "__importDefault": function() { return /* binding */ __importDefault; },
+/* harmony export */   "__classPrivateFieldGet": function() { return /* binding */ __classPrivateFieldGet; },
+/* harmony export */   "__classPrivateFieldSet": function() { return /* binding */ __classPrivateFieldSet; }
 /* harmony export */ });
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
@@ -29058,7 +29058,7 @@ function __classPrivateFieldSet(receiver, privateMap, value) {
 /***/ }),
 
 /***/ 87865:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -29863,7 +29863,7 @@ function ensureFsAccuracy(mtime) {
 /***/ }),
 
 /***/ 63766:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -29976,7 +29976,7 @@ module.exports = LinkResolver;
 /***/ }),
 
 /***/ 78243:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -30036,7 +30036,7 @@ module.exports.WatcherManager = WatcherManager;
 /***/ }),
 
 /***/ 14434:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -30182,7 +30182,7 @@ module.exports = (plan, limit) => {
 /***/ }),
 
 /***/ 28452:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -30525,7 +30525,7 @@ exports.getNumberOfWatchers = () => {
 /***/ }),
 
 /***/ 36242:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -30867,7 +30867,7 @@ module.exports = Watchpack;
 /***/ }),
 
 /***/ 30823:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -31084,7 +31084,7 @@ module.exports = APIPlugin;
 /***/ }),
 
 /***/ 67113:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -31141,7 +31141,7 @@ module.exports = AbstractMethodError;
 /***/ }),
 
 /***/ 72624:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -31249,7 +31249,7 @@ module.exports = AsyncDependenciesBlock;
 /***/ }),
 
 /***/ 88144:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -31290,7 +31290,7 @@ module.exports = AsyncDependencyToInitialChunkError;
 /***/ }),
 
 /***/ 42257:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -31356,7 +31356,7 @@ module.exports = AutomaticPrefetchPlugin;
 /***/ }),
 
 /***/ 44732:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -31477,7 +31477,7 @@ module.exports = BannerPlugin;
 /***/ }),
 
 /***/ 18338:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -31646,7 +31646,7 @@ module.exports = Cache;
 /***/ }),
 
 /***/ 12628:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -31998,7 +31998,7 @@ module.exports.MultiItemCache = MultiItemCache;
 /***/ }),
 
 /***/ 60595:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -32079,7 +32079,7 @@ module.exports = CaseSensitiveModulesWarning;
 /***/ }),
 
 /***/ 92787:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -32850,7 +32850,7 @@ module.exports = Chunk;
 /***/ }),
 
 /***/ 67518:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -34290,7 +34290,7 @@ module.exports = ChunkGraph;
 /***/ }),
 
 /***/ 57630:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -34882,7 +34882,7 @@ module.exports = ChunkGroup;
 /***/ }),
 
 /***/ 4438:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -34923,7 +34923,7 @@ module.exports = ChunkRenderError;
 /***/ }),
 
 /***/ 84454:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -35069,7 +35069,7 @@ module.exports = ChunkTemplate;
 /***/ }),
 
 /***/ 7702:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -35108,7 +35108,7 @@ module.exports = CodeGenerationError;
 /***/ }),
 
 /***/ 71051:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -35228,7 +35228,7 @@ module.exports = CodeGenerationResults;
 /***/ }),
 
 /***/ 41985:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -35271,7 +35271,7 @@ module.exports = CommentCompilationWarning;
 /***/ }),
 
 /***/ 94701:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -35414,7 +35414,7 @@ module.exports = CompatibilityPlugin;
 /***/ }),
 
 /***/ 75388:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -39122,7 +39122,7 @@ module.exports = Compilation;
 /***/ }),
 
 /***/ 51455:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -40209,7 +40209,7 @@ module.exports = Compiler;
 /***/ }),
 
 /***/ 21926:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -40375,7 +40375,7 @@ module.exports = ConcatenationScope;
 /***/ }),
 
 /***/ 93393:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -40403,7 +40403,7 @@ module.exports = class ConcurrentCompilationError extends WebpackError {
 /***/ }),
 
 /***/ 19089:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -40520,7 +40520,7 @@ module.exports = ConditionalInitFragment;
 /***/ }),
 
 /***/ 26899:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -41025,7 +41025,7 @@ module.exports = ConstPlugin;
 /***/ }),
 
 /***/ 92306:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -41065,7 +41065,7 @@ module.exports = ContextExclusionPlugin;
 /***/ }),
 
 /***/ 32834:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -42144,7 +42144,7 @@ module.exports = ContextModule;
 /***/ }),
 
 /***/ 33497:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -42540,7 +42540,7 @@ module.exports = class ContextModuleFactory extends ModuleFactory {
 /***/ }),
 
 /***/ 39498:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -42704,7 +42704,7 @@ module.exports = ContextReplacementPlugin;
 /***/ }),
 
 /***/ 76936:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -43059,7 +43059,7 @@ module.exports = DefinePlugin;
 /***/ }),
 
 /***/ 12106:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -43298,7 +43298,7 @@ module.exports = DelegatedModule;
 /***/ }),
 
 /***/ 62112:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -43397,7 +43397,7 @@ module.exports = DelegatedModuleFactoryPlugin;
 /***/ }),
 
 /***/ 91472:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -43448,7 +43448,7 @@ module.exports = DelegatedPlugin;
 /***/ }),
 
 /***/ 15267:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -43554,7 +43554,7 @@ module.exports = DependenciesBlock;
 /***/ }),
 
 /***/ 27563:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -43802,7 +43802,7 @@ module.exports = Dependency;
 /***/ }),
 
 /***/ 90909:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -43857,7 +43857,7 @@ module.exports = DependencyTemplate;
 /***/ }),
 
 /***/ 13563:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -43927,7 +43927,7 @@ module.exports = DependencyTemplates;
 /***/ }),
 
 /***/ 96830:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -43990,7 +43990,7 @@ module.exports = DllEntryPlugin;
 /***/ }),
 
 /***/ 75374:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -44148,7 +44148,7 @@ module.exports = DllModule;
 /***/ }),
 
 /***/ 47737:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -44193,7 +44193,7 @@ module.exports = DllModuleFactory;
 /***/ }),
 
 /***/ 91635:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -44265,7 +44265,7 @@ module.exports = DllPlugin;
 /***/ }),
 
 /***/ 49473:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -44433,7 +44433,7 @@ module.exports = DllReferencePlugin;
 /***/ }),
 
 /***/ 8245:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -44520,7 +44520,7 @@ module.exports = DynamicEntryPlugin;
 /***/ }),
 
 /***/ 97235:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -44618,7 +44618,7 @@ module.exports = EntryOptionPlugin;
 /***/ }),
 
 /***/ 78029:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -44693,7 +44693,7 @@ module.exports = EntryPlugin;
 /***/ }),
 
 /***/ 33660:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -44802,7 +44802,7 @@ module.exports = Entrypoint;
 /***/ }),
 
 /***/ 35887:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -44873,7 +44873,7 @@ module.exports = EnvironmentPlugin;
 /***/ }),
 
 /***/ 31183:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 /*
@@ -44942,7 +44942,7 @@ exports.cleanUpWebpackOptions = (stack, message) => {
 /***/ }),
 
 /***/ 96655:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -45047,7 +45047,7 @@ module.exports = EvalDevToolModulePlugin;
 /***/ }),
 
 /***/ 13902:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -45237,7 +45237,7 @@ module.exports = EvalSourceMapDevToolPlugin;
 /***/ }),
 
 /***/ 54227:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -46691,7 +46691,7 @@ module.exports.UsageState = UsageState;
 /***/ }),
 
 /***/ 71406:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -46770,7 +46770,7 @@ module.exports = ExportsInfoApiPlugin;
 /***/ }),
 
 /***/ 24334:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -47274,7 +47274,7 @@ module.exports = ExternalModule;
 /***/ }),
 
 /***/ 7832:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -47492,7 +47492,7 @@ module.exports = ExternalModuleFactoryPlugin;
 /***/ }),
 
 /***/ 19056:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -47537,7 +47537,7 @@ module.exports = ExternalsPlugin;
 /***/ }),
 
 /***/ 50177:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -50260,7 +50260,7 @@ module.exports.Snapshot = Snapshot;
 /***/ }),
 
 /***/ 32061:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -50323,7 +50323,7 @@ module.exports = FlagAllModulesAsUsedPlugin;
 /***/ }),
 
 /***/ 79073:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -50695,7 +50695,7 @@ module.exports = FlagDependencyExportsPlugin;
 /***/ }),
 
 /***/ 13598:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -51038,7 +51038,7 @@ module.exports = FlagDependencyUsagePlugin;
 /***/ }),
 
 /***/ 18755:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -51090,7 +51090,7 @@ module.exports = FlagUsingEvalPlugin;
 /***/ }),
 
 /***/ 14052:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -51243,7 +51243,7 @@ module.exports = Generator;
 /***/ }),
 
 /***/ 92065:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 /*
@@ -51288,7 +51288,7 @@ exports.connectChunkGroupParentAndChild = connectChunkGroupParentAndChild;
 /***/ }),
 
 /***/ 73474:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -51314,7 +51314,7 @@ module.exports = class HarmonyLinkingError extends WebpackError {
 /***/ }),
 
 /***/ 14953:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -51416,7 +51416,7 @@ module.exports.tryRunOrWebpackError = tryRunOrWebpackError;
 /***/ }),
 
 /***/ 26475:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -52140,7 +52140,7 @@ module.exports = HotModuleReplacementPlugin;
 /***/ }),
 
 /***/ 90972:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -52167,7 +52167,7 @@ module.exports = HotUpdateChunk;
 /***/ }),
 
 /***/ 83134:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -52253,7 +52253,7 @@ module.exports = IgnorePlugin;
 /***/ }),
 
 /***/ 53857:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -52300,7 +52300,7 @@ module.exports = IgnoreWarningsPlugin;
 /***/ }),
 
 /***/ 63382:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -52428,7 +52428,7 @@ module.exports = InitFragment;
 /***/ }),
 
 /***/ 27185:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -52482,7 +52482,7 @@ module.exports = InvalidDependenciesModuleWarning;
 /***/ }),
 
 /***/ 14533:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -52617,7 +52617,7 @@ module.exports = LibManifestPlugin;
 /***/ }),
 
 /***/ 82758:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -52673,7 +52673,7 @@ module.exports = LibraryTemplatePlugin;
 /***/ }),
 
 /***/ 53036:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -52749,7 +52749,7 @@ module.exports = LoaderOptionsPlugin;
 /***/ }),
 
 /***/ 54108:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -52794,7 +52794,7 @@ module.exports = LoaderTargetPlugin;
 /***/ }),
 
 /***/ 17836:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -53132,7 +53132,7 @@ module.exports = MainTemplate;
 /***/ }),
 
 /***/ 54031:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -54173,7 +54173,7 @@ module.exports = Module;
 /***/ }),
 
 /***/ 3289:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -54260,7 +54260,7 @@ module.exports = ModuleBuildError;
 /***/ }),
 
 /***/ 1939:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -54301,7 +54301,7 @@ module.exports = ModuleDependencyError;
 /***/ }),
 
 /***/ 57570:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -54348,7 +54348,7 @@ module.exports = ModuleDependencyWarning;
 /***/ }),
 
 /***/ 76422:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -54419,7 +54419,7 @@ module.exports = ModuleError;
 /***/ }),
 
 /***/ 6259:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -54476,7 +54476,7 @@ module.exports = ModuleFactory;
 /***/ }),
 
 /***/ 79843:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -54741,7 +54741,7 @@ ModuleFilenameHelpers.matchObject = (obj, str) => {
 /***/ }),
 
 /***/ 73444:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -55458,7 +55458,7 @@ module.exports.ModuleGraphConnection = ModuleGraphConnection;
 /***/ }),
 
 /***/ 39519:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -55653,7 +55653,7 @@ module.exports.CIRCULAR_CONNECTION = /** @type {typeof CIRCULAR_CONNECTION} */ (
 /***/ }),
 
 /***/ 89376:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -55917,7 +55917,7 @@ module.exports = ModuleInfoHeaderPlugin;
 /***/ }),
 
 /***/ 71318:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -56013,7 +56013,7 @@ module.exports = ModuleNotFoundError;
 /***/ }),
 
 /***/ 37734:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -56132,7 +56132,7 @@ module.exports = ModuleParseError;
 /***/ }),
 
 /***/ 89399:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -56220,7 +56220,7 @@ module.exports = ModuleProfile;
 /***/ }),
 
 /***/ 61938:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -56272,7 +56272,7 @@ module.exports = ModuleRestoreError;
 /***/ }),
 
 /***/ 20027:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -56324,7 +56324,7 @@ module.exports = ModuleStoreError;
 /***/ }),
 
 /***/ 67127:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -56483,7 +56483,7 @@ module.exports = ModuleTemplate;
 /***/ }),
 
 /***/ 10717:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -56554,7 +56554,7 @@ module.exports = ModuleWarning;
 /***/ }),
 
 /***/ 87225:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -56987,7 +56987,7 @@ module.exports = class MultiCompiler {
 /***/ }),
 
 /***/ 71012:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -57150,7 +57150,7 @@ module.exports = MultiStats;
 /***/ }),
 
 /***/ 8175:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -57235,7 +57235,7 @@ module.exports = MultiWatching;
 /***/ }),
 
 /***/ 49363:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -57271,7 +57271,7 @@ module.exports = NoEmitOnErrorsPlugin;
 /***/ }),
 
 /***/ 35722:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -57303,7 +57303,7 @@ module.exports = class NoModeWarning extends WebpackError {
 /***/ }),
 
 /***/ 591:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -57444,7 +57444,7 @@ module.exports = NodeStuffPlugin;
 /***/ }),
 
 /***/ 88376:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -58619,7 +58619,7 @@ module.exports = NormalModule;
 /***/ }),
 
 /***/ 95702:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -59530,7 +59530,7 @@ module.exports = NormalModuleFactory;
 /***/ }),
 
 /***/ 729:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -59609,7 +59609,7 @@ module.exports = NormalModuleReplacementPlugin;
 /***/ }),
 
 /***/ 90412:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 /*
@@ -59627,7 +59627,7 @@ exports.STAGE_ADVANCED = 10;
 /***/ }),
 
 /***/ 75936:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -59646,7 +59646,7 @@ module.exports = OptionsApply;
 /***/ }),
 
 /***/ 85569:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -59691,7 +59691,7 @@ module.exports = Parser;
 /***/ }),
 
 /***/ 69145:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -59749,7 +59749,7 @@ module.exports = PrefetchPlugin;
 /***/ }),
 
 /***/ 19336:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -60343,7 +60343,7 @@ module.exports = ProgressPlugin;
 /***/ }),
 
 /***/ 1204:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -60452,7 +60452,7 @@ module.exports = ProvidePlugin;
 /***/ }),
 
 /***/ 3754:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -60606,7 +60606,7 @@ module.exports = RawModule;
 /***/ }),
 
 /***/ 19464:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -60850,7 +60850,7 @@ module.exports = RecordIdsPlugin;
 /***/ }),
 
 /***/ 81460:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -60892,7 +60892,7 @@ module.exports = RequestShortener;
 /***/ }),
 
 /***/ 71919:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -60977,7 +60977,7 @@ module.exports = class RequireJsStuffPlugin {
 /***/ }),
 
 /***/ 27022:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -61133,7 +61133,7 @@ module.exports = class ResolverFactory {
 /***/ }),
 
 /***/ 48801:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 /*
@@ -61446,7 +61446,7 @@ exports.baseURI = "__webpack_require__.b";
 /***/ }),
 
 /***/ 54746:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -61662,7 +61662,7 @@ module.exports = RuntimeModule;
 /***/ }),
 
 /***/ 22496:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -62004,7 +62004,7 @@ module.exports = RuntimePlugin;
 /***/ }),
 
 /***/ 2493:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -62925,7 +62925,7 @@ module.exports = RuntimeTemplate;
 /***/ }),
 
 /***/ 17850:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -62954,7 +62954,7 @@ module.exports = SelfModuleFactory;
 /***/ }),
 
 /***/ 50787:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 /*
@@ -62989,7 +62989,7 @@ exports.formatSize = size => {
 /***/ }),
 
 /***/ 5426:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -63054,7 +63054,7 @@ module.exports = SourceMapDevToolModuleOptionsPlugin;
 /***/ }),
 
 /***/ 6280:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -63613,7 +63613,7 @@ module.exports = SourceMapDevToolPlugin;
 /***/ }),
 
 /***/ 49487:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -63699,7 +63699,7 @@ module.exports = Stats;
 /***/ }),
 
 /***/ 90751:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -64116,7 +64116,7 @@ module.exports.NUMBER_OF_IDENTIFIER_CONTINUATION_CHARS = NUMBER_OF_IDENTIFIER_CO
 /***/ }),
 
 /***/ 64519:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -64447,7 +64447,7 @@ module.exports = TemplatedPathPlugin;
 /***/ }),
 
 /***/ 55467:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -64488,7 +64488,7 @@ module.exports = UnhandledSchemeError;
 /***/ }),
 
 /***/ 61809:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -64530,7 +64530,7 @@ module.exports = UnsupportedFeatureWarning;
 /***/ }),
 
 /***/ 58594:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -64594,7 +64594,7 @@ module.exports = UseStrictPlugin;
 /***/ }),
 
 /***/ 74996:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -64649,7 +64649,7 @@ module.exports = WarnCaseSensitiveModulesPlugin;
 /***/ }),
 
 /***/ 16504:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -64713,7 +64713,7 @@ module.exports = WarnDeprecatedOptionPlugin;
 /***/ }),
 
 /***/ 25147:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -64746,7 +64746,7 @@ module.exports = WarnNoModeSetPlugin;
 /***/ }),
 
 /***/ 18956:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -64864,7 +64864,7 @@ module.exports = WatchIgnorePlugin;
 /***/ }),
 
 /***/ 52807:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -65238,7 +65238,7 @@ module.exports = Watching;
 /***/ }),
 
 /***/ 24274:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -65309,7 +65309,7 @@ module.exports = WebpackError;
 /***/ }),
 
 /***/ 8185:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -65893,7 +65893,7 @@ module.exports = WebpackOptionsApply;
 /***/ }),
 
 /***/ 55525:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -65920,7 +65920,7 @@ module.exports = WebpackOptionsDefaulter;
 /***/ }),
 
 /***/ 97834:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -66148,7 +66148,7 @@ module.exports = AssetGenerator;
 /***/ }),
 
 /***/ 22833:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -66323,7 +66323,7 @@ module.exports = AssetModulesPlugin;
 /***/ }),
 
 /***/ 9668:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -66387,7 +66387,7 @@ module.exports = AssetParser;
 /***/ }),
 
 /***/ 3297:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -66466,7 +66466,7 @@ module.exports = AssetSourceGenerator;
 /***/ }),
 
 /***/ 9428:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -66530,7 +66530,7 @@ module.exports = AwaitDependenciesInitFragment;
 /***/ }),
 
 /***/ 17301:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -66589,7 +66589,7 @@ module.exports = InferAsyncModulesPlugin;
 /***/ }),
 
 /***/ 25413:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -67906,7 +67906,7 @@ module.exports = buildChunkGraph;
 /***/ }),
 
 /***/ 68965:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -67947,7 +67947,7 @@ module.exports = AddBuildDependenciesPlugin;
 /***/ }),
 
 /***/ 41884:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -67990,7 +67990,7 @@ module.exports = AddManagedPathsPlugin;
 /***/ }),
 
 /***/ 67462:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -68162,7 +68162,7 @@ module.exports = IdleFileCachePlugin;
 /***/ }),
 
 /***/ 80662:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -68221,7 +68221,7 @@ module.exports = MemoryCachePlugin;
 /***/ }),
 
 /***/ 19780:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -69344,7 +69344,7 @@ module.exports = PackFileCacheStrategy;
 /***/ }),
 
 /***/ 52607:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -69645,7 +69645,7 @@ module.exports = ResolverCachePlugin;
 /***/ }),
 
 /***/ 79610:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -69707,7 +69707,7 @@ module.exports = getter;
 /***/ }),
 
 /***/ 35414:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -69789,7 +69789,7 @@ module.exports = mergeEtags;
 /***/ }),
 
 /***/ 84717:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -70411,7 +70411,7 @@ exports.processArguments = processArguments;
 /***/ }),
 
 /***/ 63047:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -70717,7 +70717,7 @@ module.exports = {
 /***/ }),
 
 /***/ 72829:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -71769,7 +71769,7 @@ exports.applyWebpackOptionsDefaults = applyWebpackOptionsDefaults;
 /***/ }),
 
 /***/ 92188:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -72233,7 +72233,7 @@ exports.getNormalizedWebpackOptions = getNormalizedWebpackOptions;
 /***/ }),
 
 /***/ 18129:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -72574,7 +72574,7 @@ exports.getTargetsProperties = getTargetsProperties;
 /***/ }),
 
 /***/ 22887:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -72629,7 +72629,7 @@ module.exports = ContainerEntryDependency;
 /***/ }),
 
 /***/ 97927:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -72913,7 +72913,7 @@ module.exports = ContainerEntryModule;
 /***/ }),
 
 /***/ 89490:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -72948,7 +72948,7 @@ module.exports = class ContainerEntryModuleFactory extends ModuleFactory {
 /***/ }),
 
 /***/ 83179:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -73008,7 +73008,7 @@ module.exports = ContainerExposedDependency;
 /***/ }),
 
 /***/ 93689:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -73108,7 +73108,7 @@ module.exports = ContainerPlugin;
 /***/ }),
 
 /***/ 65276:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -73249,7 +73249,7 @@ module.exports = ContainerReferencePlugin;
 /***/ }),
 
 /***/ 48901:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -73308,7 +73308,7 @@ module.exports = FallbackDependency;
 /***/ }),
 
 /***/ 69742:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -73346,7 +73346,7 @@ module.exports = FallbackItemDependency;
 /***/ }),
 
 /***/ 83812:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -73527,7 +73527,7 @@ module.exports = FallbackModule;
 /***/ }),
 
 /***/ 59489:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -73562,7 +73562,7 @@ module.exports = class FallbackModuleFactory extends ModuleFactory {
 /***/ }),
 
 /***/ 27481:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -73654,7 +73654,7 @@ module.exports = ModuleFederationPlugin;
 /***/ }),
 
 /***/ 5713:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -73831,7 +73831,7 @@ module.exports = RemoteModule;
 /***/ }),
 
 /***/ 35349:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -73966,7 +73966,7 @@ module.exports = RemoteRuntimeModule;
 /***/ }),
 
 /***/ 11194:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -74004,7 +74004,7 @@ module.exports = RemoteToExternalDependency;
 /***/ }),
 
 /***/ 57844:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 /*
@@ -74103,7 +74103,7 @@ exports.scope = scope;
 /***/ }),
 
 /***/ 17212:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -74538,7 +74538,7 @@ module.exports.Profiler = Profiler;
 /***/ }),
 
 /***/ 50781:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -74767,7 +74767,7 @@ module.exports = AMDDefineDependency;
 /***/ }),
 
 /***/ 4838:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -75121,7 +75121,7 @@ module.exports = AMDDefineDependencyParserPlugin;
 /***/ }),
 
 /***/ 71381:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -75346,7 +75346,7 @@ module.exports = AMDPlugin;
 /***/ }),
 
 /***/ 50286:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -75453,7 +75453,7 @@ module.exports = AMDRequireArrayDependency;
 /***/ }),
 
 /***/ 74654:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -75514,7 +75514,7 @@ module.exports = AMDRequireContextDependency;
 /***/ }),
 
 /***/ 82134:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -75544,7 +75544,7 @@ module.exports = AMDRequireDependenciesBlock;
 /***/ }),
 
 /***/ 70044:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -75831,7 +75831,7 @@ module.exports = AMDRequireDependenciesBlockParserPlugin;
 /***/ }),
 
 /***/ 58138:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -76019,7 +76019,7 @@ module.exports = AMDRequireDependency;
 /***/ }),
 
 /***/ 20677:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -76062,7 +76062,7 @@ module.exports = AMDRequireItemDependency;
 /***/ }),
 
 /***/ 47604:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -76118,7 +76118,7 @@ exports.AMDOptionsRuntimeModule = AMDOptionsRuntimeModule;
 /***/ }),
 
 /***/ 14268:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -76231,7 +76231,7 @@ module.exports = CachedConstDependency;
 /***/ }),
 
 /***/ 2813:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -76288,7 +76288,7 @@ exports.handleDependencyBase = (depBase, module, runtimeRequirements) => {
 /***/ }),
 
 /***/ 48075:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -76661,7 +76661,7 @@ module.exports = CommonJsExportRequireDependency;
 /***/ }),
 
 /***/ 59067:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -76829,7 +76829,7 @@ module.exports = CommonJsExportsDependency;
 /***/ }),
 
 /***/ 32108:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -77171,7 +77171,7 @@ module.exports = CommonJsExportsParserPlugin;
 /***/ }),
 
 /***/ 46131:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -77309,7 +77309,7 @@ module.exports = CommonJsFullRequireDependency;
 /***/ }),
 
 /***/ 55275:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -77663,7 +77663,7 @@ module.exports = CommonJsImportsParserPlugin;
 /***/ }),
 
 /***/ 2900:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -77955,7 +77955,7 @@ module.exports = CommonJsPlugin;
 /***/ }),
 
 /***/ 96323:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -78013,7 +78013,7 @@ module.exports = CommonJsRequireContextDependency;
 /***/ }),
 
 /***/ 81192:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -78055,7 +78055,7 @@ module.exports = CommonJsRequireDependency;
 /***/ }),
 
 /***/ 6386:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -78204,7 +78204,7 @@ module.exports = CommonJsSelfReferenceDependency;
 /***/ }),
 
 /***/ 9364:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -78312,7 +78312,7 @@ module.exports = ConstDependency;
 /***/ }),
 
 /***/ 21649:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -78458,7 +78458,7 @@ module.exports = ContextDependency;
 /***/ }),
 
 /***/ 39815:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -78695,7 +78695,7 @@ exports.create = (Dep, range, param, expr, options, contextOptions, parser) => {
 /***/ }),
 
 /***/ 67551:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -78764,7 +78764,7 @@ module.exports = ContextDependencyTemplateAsId;
 /***/ }),
 
 /***/ 33552:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -78828,7 +78828,7 @@ module.exports = ContextDependencyTemplateAsRequireCall;
 /***/ }),
 
 /***/ 32592:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -78902,7 +78902,7 @@ module.exports = ContextElementDependency;
 /***/ }),
 
 /***/ 92322:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -78937,7 +78937,7 @@ module.exports = CriticalDependencyWarning;
 /***/ }),
 
 /***/ 73725:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -78975,7 +78975,7 @@ module.exports = DelegatedSourceDependency;
 /***/ }),
 
 /***/ 63938:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -79030,7 +79030,7 @@ module.exports = DllEntryDependency;
 /***/ }),
 
 /***/ 97093:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 /*
@@ -79107,7 +79107,7 @@ exports.isEnabled = parserState => {
 /***/ }),
 
 /***/ 69325:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -79145,7 +79145,7 @@ module.exports = EntryDependency;
 /***/ }),
 
 /***/ 37826:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -79310,7 +79310,7 @@ module.exports = ExportsInfoDependency;
 /***/ }),
 
 /***/ 16546:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -79452,7 +79452,7 @@ module.exports = HarmonyAcceptDependency;
 /***/ }),
 
 /***/ 19966:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -79495,7 +79495,7 @@ module.exports = HarmonyAcceptImportDependency;
 /***/ }),
 
 /***/ 52080:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -79591,7 +79591,7 @@ module.exports = HarmonyCompatibilityDependency;
 /***/ }),
 
 /***/ 11850:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -79696,7 +79696,7 @@ module.exports = class HarmonyDetectionParserPlugin {
 /***/ }),
 
 /***/ 97078:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -79874,7 +79874,7 @@ module.exports = class HarmonyExportDependencyParserPlugin {
 /***/ }),
 
 /***/ 47717:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -80071,7 +80071,7 @@ module.exports = HarmonyExportExpressionDependency;
 /***/ }),
 
 /***/ 69764:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -80144,7 +80144,7 @@ module.exports = HarmonyExportHeaderDependency;
 /***/ }),
 
 /***/ 61621:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -81226,7 +81226,7 @@ HarmonyExportImportedSpecifierDependency.Template = class HarmonyExportImportedS
 /***/ }),
 
 /***/ 77418:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -81350,7 +81350,7 @@ module.exports = HarmonyExportInitFragment;
 /***/ }),
 
 /***/ 22867:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -81468,7 +81468,7 @@ module.exports = HarmonyExportSpecifierDependency;
 /***/ }),
 
 /***/ 79291:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 /*
@@ -81516,7 +81516,7 @@ exports.isEnabled = parserState => {
 /***/ }),
 
 /***/ 289:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -81892,7 +81892,7 @@ HarmonyImportDependency.Template = class HarmonyImportDependencyTemplate extends
 /***/ }),
 
 /***/ 76426:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -82111,7 +82111,7 @@ module.exports.harmonySpecifierTag = harmonySpecifierTag;
 /***/ }),
 
 /***/ 98335:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -82199,7 +82199,7 @@ module.exports = HarmonyImportSideEffectDependency;
 /***/ }),
 
 /***/ 71564:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -82546,7 +82546,7 @@ module.exports = HarmonyImportSpecifierDependency;
 /***/ }),
 
 /***/ 1961:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -82675,7 +82675,7 @@ module.exports = HarmonyModulesPlugin;
 /***/ }),
 
 /***/ 10358:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -82710,7 +82710,7 @@ module.exports = HarmonyTopLevelThisParserPlugin;
 /***/ }),
 
 /***/ 73449:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -82772,7 +82772,7 @@ module.exports = ImportContextDependency;
 /***/ }),
 
 /***/ 78377:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -82881,7 +82881,7 @@ module.exports = ImportDependency;
 /***/ }),
 
 /***/ 72152:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -82958,7 +82958,7 @@ module.exports = ImportEagerDependency;
 /***/ }),
 
 /***/ 41559:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -83001,7 +83001,7 @@ module.exports = ImportMetaHotAcceptDependency;
 /***/ }),
 
 /***/ 33924:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -83045,7 +83045,7 @@ module.exports = ImportMetaHotDeclineDependency;
 /***/ }),
 
 /***/ 24952:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -83237,7 +83237,7 @@ module.exports = ImportMetaPlugin;
 /***/ }),
 
 /***/ 2120:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -83513,7 +83513,7 @@ module.exports = ImportParserPlugin;
 /***/ }),
 
 /***/ 35890:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -83608,7 +83608,7 @@ module.exports = ImportPlugin;
 /***/ }),
 
 /***/ 62550:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -83683,7 +83683,7 @@ module.exports = ImportWeakDependency;
 /***/ }),
 
 /***/ 33151:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -83789,7 +83789,7 @@ module.exports.getExportsFromData = getExportsFromData;
 /***/ }),
 
 /***/ 67408:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -83824,7 +83824,7 @@ module.exports = LoaderDependency;
 /***/ }),
 
 /***/ 25844:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -83956,7 +83956,7 @@ module.exports = LoaderPlugin;
 /***/ }),
 
 /***/ 89087:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -84008,7 +84008,7 @@ module.exports = LocalModule;
 /***/ }),
 
 /***/ 54524:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -84085,7 +84085,7 @@ module.exports = LocalModuleDependency;
 /***/ }),
 
 /***/ 94353:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -84143,7 +84143,7 @@ exports.getLocalModule = (state, name, namedModule) => {
 /***/ }),
 
 /***/ 79448:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -84278,7 +84278,7 @@ module.exports = ModuleDecoratorDependency;
 /***/ }),
 
 /***/ 5462:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -84334,7 +84334,7 @@ module.exports = ModuleDependency;
 /***/ }),
 
 /***/ 57270:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -84376,7 +84376,7 @@ module.exports = ModuleDependencyTemplateAsId;
 /***/ }),
 
 /***/ 63798:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -84422,7 +84422,7 @@ module.exports = ModuleDependencyTemplateAsRequireId;
 /***/ }),
 
 /***/ 72529:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -84465,7 +84465,7 @@ module.exports = ModuleHotAcceptDependency;
 /***/ }),
 
 /***/ 53025:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -84509,7 +84509,7 @@ module.exports = ModuleHotDeclineDependency;
 /***/ }),
 
 /***/ 47454:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -84569,7 +84569,7 @@ module.exports = NullDependency;
 /***/ }),
 
 /***/ 33785:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -84601,7 +84601,7 @@ module.exports = PrefetchDependency;
 /***/ }),
 
 /***/ 76175:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -84728,7 +84728,7 @@ module.exports = ProvidedDependency;
 /***/ }),
 
 /***/ 13275:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -84860,7 +84860,7 @@ module.exports = PureExpressionDependency;
 /***/ }),
 
 /***/ 99026:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -84915,7 +84915,7 @@ module.exports = RequireContextDependency;
 /***/ }),
 
 /***/ 32113:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -84981,7 +84981,7 @@ module.exports = class RequireContextDependencyParserPlugin {
 /***/ }),
 
 /***/ 69318:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -85139,7 +85139,7 @@ module.exports = RequireContextPlugin;
 /***/ }),
 
 /***/ 33266:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -85169,7 +85169,7 @@ module.exports = RequireEnsureDependenciesBlock;
 /***/ }),
 
 /***/ 11772:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -85299,7 +85299,7 @@ module.exports = class RequireEnsureDependenciesBlockParserPlugin {
 /***/ }),
 
 /***/ 81390:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -85408,7 +85408,7 @@ module.exports = RequireEnsureDependency;
 /***/ }),
 
 /***/ 78934:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -85449,7 +85449,7 @@ module.exports = RequireEnsureItemDependency;
 /***/ }),
 
 /***/ 42749:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -85523,7 +85523,7 @@ module.exports = RequireEnsurePlugin;
 /***/ }),
 
 /***/ 15418:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -85588,7 +85588,7 @@ module.exports = RequireHeaderDependency;
 /***/ }),
 
 /***/ 49309:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -85670,7 +85670,7 @@ module.exports = RequireIncludeDependency;
 /***/ }),
 
 /***/ 13811:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -85757,7 +85757,7 @@ makeSerializable(
 /***/ }),
 
 /***/ 73924:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -85807,7 +85807,7 @@ module.exports = RequireIncludePlugin;
 /***/ }),
 
 /***/ 27569:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -85865,7 +85865,7 @@ module.exports = RequireResolveContextDependency;
 /***/ }),
 
 /***/ 24868:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -85924,7 +85924,7 @@ module.exports = RequireResolveDependency;
 /***/ }),
 
 /***/ 1217:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -85995,7 +85995,7 @@ module.exports = RequireResolveHeaderDependency;
 /***/ }),
 
 /***/ 61247:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -86076,7 +86076,7 @@ module.exports = RuntimeRequirementsDependency;
 /***/ }),
 
 /***/ 68372:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -86162,7 +86162,7 @@ module.exports = StaticExportsDependency;
 /***/ }),
 
 /***/ 37200:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -86316,7 +86316,7 @@ module.exports.SystemImportDeprecationWarning = SystemImportDeprecationWarning;
 /***/ }),
 
 /***/ 25637:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -86359,7 +86359,7 @@ module.exports = SystemRuntimeModule;
 /***/ }),
 
 /***/ 45148:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -86443,7 +86443,7 @@ module.exports = URLDependency;
 /***/ }),
 
 /***/ 16091:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -86537,7 +86537,7 @@ module.exports = URLPlugin;
 /***/ }),
 
 /***/ 27098:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -86614,7 +86614,7 @@ module.exports = UnsupportedDependency;
 /***/ }),
 
 /***/ 16912:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -86692,7 +86692,7 @@ module.exports = WebAssemblyExportImportedDependency;
 /***/ }),
 
 /***/ 54629:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -86800,7 +86800,7 @@ module.exports = WebAssemblyImportDependency;
 /***/ }),
 
 /***/ 31479:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -86897,7 +86897,7 @@ module.exports = WorkerDependency;
 /***/ }),
 
 /***/ 41006:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -87193,7 +87193,7 @@ module.exports = WorkerPlugin;
 /***/ }),
 
 /***/ 22671:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -87256,7 +87256,7 @@ module.exports = expr => {
 /***/ }),
 
 /***/ 1837:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -87329,7 +87329,7 @@ module.exports = processExportInfo;
 /***/ }),
 
 /***/ 27583:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -87405,7 +87405,7 @@ module.exports = ElectronTargetPlugin;
 /***/ }),
 
 /***/ 12339:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -87441,7 +87441,7 @@ module.exports = BuildCycleError;
 /***/ }),
 
 /***/ 82476:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -87517,7 +87517,7 @@ module.exports = formatLocation;
 /***/ }),
 
 /***/ 3588:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -87567,7 +87567,7 @@ module.exports = HotModuleReplacementRuntimeModule;
 /***/ }),
 
 /***/ 82909:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -87655,7 +87655,7 @@ module.exports = ChunkModuleIdRangePlugin;
 /***/ }),
 
 /***/ 52701:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -87733,7 +87733,7 @@ module.exports = DeterministicChunkIdsPlugin;
 /***/ }),
 
 /***/ 66233:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -87814,7 +87814,7 @@ module.exports = DeterministicModuleIdsPlugin;
 /***/ }),
 
 /***/ 400:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /* module decorator */ module = __webpack_require__.nmd(module);
@@ -87898,7 +87898,7 @@ module.exports = HashedModuleIdsPlugin;
 /***/ }),
 
 /***/ 65451:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -88351,7 +88351,7 @@ exports.assignAscendingChunkIds = assignAscendingChunkIds;
 /***/ }),
 
 /***/ 97936:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -88437,7 +88437,7 @@ module.exports = NamedChunkIdsPlugin;
 /***/ }),
 
 /***/ 94967:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -88504,7 +88504,7 @@ module.exports = NamedModuleIdsPlugin;
 /***/ }),
 
 /***/ 7069:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -88545,7 +88545,7 @@ module.exports = NaturalChunkIdsPlugin;
 /***/ }),
 
 /***/ 87194:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -88595,7 +88595,7 @@ module.exports = NaturalModuleIdsPlugin;
 /***/ }),
 
 /***/ 46088:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -88678,7 +88678,7 @@ module.exports = OccurrenceChunkIdsPlugin;
 /***/ }),
 
 /***/ 47739:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -88827,7 +88827,7 @@ module.exports = OccurrenceModuleIdsPlugin;
 /***/ }),
 
 /***/ 16520:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -89355,7 +89355,7 @@ module.exports = mergeExports(fn, {
 /***/ }),
 
 /***/ 97504:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -89470,7 +89470,7 @@ module.exports = ArrayPushCallbackChunkFormatPlugin;
 /***/ }),
 
 /***/ 98288:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -89955,7 +89955,7 @@ module.exports = BasicEvaluatedExpression;
 /***/ }),
 
 /***/ 15534:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -90117,7 +90117,7 @@ module.exports = CommonJsChunkFormatPlugin;
 /***/ }),
 
 /***/ 41952:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -90241,7 +90241,7 @@ module.exports = EnableChunkLoadingPlugin;
 /***/ }),
 
 /***/ 65408:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -90471,7 +90471,7 @@ module.exports = JavascriptGenerator;
 /***/ }),
 
 /***/ 80867:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -91548,7 +91548,7 @@ module.exports.chunkHasJs = chunkHasJs;
 /***/ }),
 
 /***/ 87507:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -95257,7 +95257,7 @@ module.exports.ALLOWED_MEMBER_TYPES_CALL_EXPRESSION = ALLOWED_MEMBER_TYPES_CALL_
 /***/ }),
 
 /***/ 98550:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -95374,7 +95374,7 @@ exports.approve = () => true;
 /***/ }),
 
 /***/ 70885:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -95546,7 +95546,7 @@ module.exports = JsonGenerator;
 /***/ }),
 
 /***/ 90578:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -95603,7 +95603,7 @@ module.exports = JsonModulesPlugin;
 /***/ }),
 
 /***/ 62580:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -95667,7 +95667,7 @@ module.exports = JsonParser;
 /***/ }),
 
 /***/ 66269:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -95855,7 +95855,7 @@ module.exports = AbstractLibraryPlugin;
 /***/ }),
 
 /***/ 92627:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -96018,7 +96018,7 @@ module.exports = AmdLibraryPlugin;
 /***/ }),
 
 /***/ 99768:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -96238,7 +96238,7 @@ module.exports = AssignLibraryPlugin;
 /***/ }),
 
 /***/ 60405:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -96460,7 +96460,7 @@ module.exports = EnableLibraryPlugin;
 /***/ }),
 
 /***/ 33556:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -96570,7 +96570,7 @@ module.exports = ExportPropertyLibraryPlugin;
 /***/ }),
 
 /***/ 38706:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -96664,7 +96664,7 @@ module.exports = JsonpLibraryPlugin;
 /***/ }),
 
 /***/ 20193:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -96905,7 +96905,7 @@ module.exports = SystemLibraryPlugin;
 /***/ }),
 
 /***/ 60919:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -97237,7 +97237,7 @@ module.exports = UmdLibraryPlugin;
 /***/ }),
 
 /***/ 26655:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 /*
@@ -97407,7 +97407,7 @@ exports.Logger = WebpackLogger;
 /***/ }),
 
 /***/ 80340:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -97625,7 +97625,7 @@ module.exports = ({ level = "info", debug = false, console }) => {
 /***/ }),
 
 /***/ 55197:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -97715,7 +97715,7 @@ module.exports = truncateArgs;
 /***/ }),
 
 /***/ 44986:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -97836,7 +97836,7 @@ module.exports = CommonJsChunkLoadingPlugin;
 /***/ }),
 
 /***/ 46613:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -97896,7 +97896,7 @@ module.exports = NodeEnvironmentPlugin;
 /***/ }),
 
 /***/ 66876:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -97923,7 +97923,7 @@ module.exports = NodeSourcePlugin;
 /***/ }),
 
 /***/ 62791:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -98002,7 +98002,7 @@ module.exports = NodeTargetPlugin;
 /***/ }),
 
 /***/ 25514:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -98043,7 +98043,7 @@ module.exports = NodeTemplatePlugin;
 /***/ }),
 
 /***/ 73206:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -98170,7 +98170,7 @@ module.exports = NodeWatchFileSystem;
 /***/ }),
 
 /***/ 55899:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -98432,7 +98432,7 @@ module.exports = ReadFileChunkLoadingRuntimeModule;
 /***/ }),
 
 /***/ 54874:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -98523,7 +98523,7 @@ module.exports = ReadFileCompileAsyncWasmPlugin;
 /***/ }),
 
 /***/ 13715:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -98621,7 +98621,7 @@ module.exports = ReadFileCompileWasmPlugin;
 /***/ }),
 
 /***/ 73940:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -98824,7 +98824,7 @@ module.exports = RequireChunkLoadingRuntimeModule;
 /***/ }),
 
 /***/ 35788:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -98966,7 +98966,7 @@ module.exports = {
 /***/ }),
 
 /***/ 19168:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -99066,7 +99066,7 @@ module.exports = AggressiveMergingPlugin;
 /***/ }),
 
 /***/ 13461:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -99396,7 +99396,7 @@ module.exports = AggressiveSplittingPlugin;
 /***/ }),
 
 /***/ 74233:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -101225,7 +101225,7 @@ module.exports = ConcatenatedModule;
 /***/ }),
 
 /***/ 38073:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -101317,7 +101317,7 @@ module.exports = EnsureChunkConditionsPlugin;
 /***/ }),
 
 /***/ 12625:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -101445,7 +101445,7 @@ module.exports = FlagIncludedChunksPlugin;
 /***/ }),
 
 /***/ 76094:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 /*
@@ -101720,7 +101720,7 @@ exports.topLevelSymbolTag = topLevelSymbolTag;
 /***/ }),
 
 /***/ 41791:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -102064,7 +102064,7 @@ module.exports = InnerGraphPlugin;
 /***/ }),
 
 /***/ 73953:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -102320,7 +102320,7 @@ module.exports = LimitChunkCountPlugin;
 /***/ }),
 
 /***/ 1746:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -102483,7 +102483,7 @@ module.exports = MangleExportsPlugin;
 /***/ }),
 
 /***/ 22763:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -102606,7 +102606,7 @@ module.exports = MergeDuplicateChunksPlugin;
 /***/ }),
 
 /***/ 13508:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -102723,7 +102723,7 @@ module.exports = MinChunkSizePlugin;
 /***/ }),
 
 /***/ 77877:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -102761,7 +102761,7 @@ module.exports = MinMaxSizeWarning;
 /***/ }),
 
 /***/ 72521:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -103588,7 +103588,7 @@ module.exports = ModuleConcatenationPlugin;
 /***/ }),
 
 /***/ 69236:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -103985,7 +103985,7 @@ module.exports = RealContentHashPlugin;
 /***/ }),
 
 /***/ 95245:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -104050,7 +104050,7 @@ module.exports = RemoveEmptyChunksPlugin;
 /***/ }),
 
 /***/ 80699:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -104179,7 +104179,7 @@ module.exports = RemoveParentModulesPlugin;
 /***/ }),
 
 /***/ 49151:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -104231,7 +104231,7 @@ module.exports = RuntimeChunkPlugin;
 /***/ }),
 
 /***/ 72617:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -104559,7 +104559,7 @@ module.exports = SideEffectsFlagPlugin;
 /***/ }),
 
 /***/ 93384:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -106229,7 +106229,7 @@ module.exports = class SplitChunksPlugin {
 /***/ }),
 
 /***/ 91889:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -106271,7 +106271,7 @@ Assets: ${assetLists}`);
 /***/ }),
 
 /***/ 20059:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -106316,7 +106316,7 @@ Entrypoints:${entrypointList}\n`);
 /***/ }),
 
 /***/ 67767:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -106346,7 +106346,7 @@ module.exports = class NoAsyncChunksWarning extends WebpackError {
 /***/ }),
 
 /***/ 84693:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -106519,7 +106519,7 @@ module.exports = class SizeLimitsPlugin {
 /***/ }),
 
 /***/ 66981:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -106571,7 +106571,7 @@ module.exports = ChunkPrefetchFunctionRuntimeModule;
 /***/ }),
 
 /***/ 29184:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -106686,7 +106686,7 @@ module.exports = ChunkPrefetchPreloadPlugin;
 /***/ }),
 
 /***/ 61326:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -106743,7 +106743,7 @@ module.exports = ChunkPrefetchStartupRuntimeModule;
 /***/ }),
 
 /***/ 13156:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -106811,7 +106811,7 @@ module.exports = ChunkPrefetchTriggerRuntimeModule;
 /***/ }),
 
 /***/ 52156:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -106858,7 +106858,7 @@ module.exports = BasicEffectRulePlugin;
 /***/ }),
 
 /***/ 87229:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -106913,7 +106913,7 @@ module.exports = BasicMatcherRulePlugin;
 /***/ }),
 
 /***/ 29883:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -106964,7 +106964,7 @@ module.exports = DescriptionDataMatcherRulePlugin;
 /***/ }),
 
 /***/ 39304:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -107351,7 +107351,7 @@ module.exports = RuleSetCompiler;
 /***/ }),
 
 /***/ 18554:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -107553,7 +107553,7 @@ module.exports = UseEffectRulePlugin;
 /***/ }),
 
 /***/ 85827:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -107629,7 +107629,7 @@ module.exports = AutoPublicPathRuntimeModule;
 /***/ }),
 
 /***/ 89477:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -107664,7 +107664,7 @@ module.exports = ChunkNameRuntimeModule;
 /***/ }),
 
 /***/ 4023:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -107709,7 +107709,7 @@ module.exports = CompatGetDefaultExportRuntimeModule;
 /***/ }),
 
 /***/ 27352:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -107796,7 +107796,7 @@ module.exports = CompatRuntimeModule;
 /***/ }),
 
 /***/ 70911:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -107874,7 +107874,7 @@ module.exports = CreateFakeNamespaceObjectRuntimeModule;
 /***/ }),
 
 /***/ 74240:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -107921,7 +107921,7 @@ module.exports = DefinePropertyGettersRuntimeModule;
 /***/ }),
 
 /***/ 39026:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -107982,7 +107982,7 @@ module.exports = EnsureChunkRuntimeModule;
 /***/ }),
 
 /***/ 88253:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -108271,7 +108271,7 @@ module.exports = GetChunkFilenameRuntimeModule;
 /***/ }),
 
 /***/ 28365:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -108308,7 +108308,7 @@ module.exports = GetFullHashRuntimeModule;
 /***/ }),
 
 /***/ 2706:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -108360,7 +108360,7 @@ module.exports = GetMainFilenameRuntimeModule;
 /***/ }),
 
 /***/ 61710:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -108415,7 +108415,7 @@ module.exports = GlobalRuntimeModule;
 /***/ }),
 
 /***/ 61725:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -108455,7 +108455,7 @@ module.exports = HasOwnPropertyRuntimeModule;
 /***/ }),
 
 /***/ 37299:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -108481,7 +108481,7 @@ module.exports = HelperRuntimeModule;
 /***/ }),
 
 /***/ 23033:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -108640,7 +108640,7 @@ module.exports = LoadScriptRuntimeModule;
 /***/ }),
 
 /***/ 2559:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -108684,7 +108684,7 @@ module.exports = MakeNamespaceObjectRuntimeModule;
 /***/ }),
 
 /***/ 25142:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -108722,7 +108722,7 @@ module.exports = PublicPathRuntimeModule;
 /***/ }),
 
 /***/ 24578:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -108759,7 +108759,7 @@ module.exports = RuntimeIdRuntimeModule;
 /***/ }),
 
 /***/ 9517:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -108838,7 +108838,7 @@ module.exports = StartupChunkDependenciesPlugin;
 /***/ }),
 
 /***/ 12153:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -108913,7 +108913,7 @@ module.exports = StartupChunkDependenciesRuntimeModule;
 /***/ }),
 
 /***/ 78605:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -108963,7 +108963,7 @@ module.exports = StartupEntrypointRuntimeModule;
 /***/ }),
 
 /***/ 77633:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -108996,7 +108996,7 @@ module.exports = SystemContextRuntimeModule;
 /***/ }),
 
 /***/ 95549:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -109040,7 +109040,7 @@ module.exports = DataUriPlugin;
 /***/ }),
 
 /***/ 58556:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -109088,7 +109088,7 @@ module.exports = FileUriPlugin;
 /***/ }),
 
 /***/ 53417:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -109159,7 +109159,7 @@ module.exports = HttpUriPlugin;
 /***/ }),
 
 /***/ 80730:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -109230,7 +109230,7 @@ module.exports = HttpsUriPlugin;
 /***/ }),
 
 /***/ 90714:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -109260,7 +109260,7 @@ module.exports = ArraySerializer;
 /***/ }),
 
 /***/ 99795:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -110153,7 +110153,7 @@ module.exports.MEASURE_END_OPERATION = MEASURE_END_OPERATION;
 /***/ }),
 
 /***/ 73255:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -110177,7 +110177,7 @@ module.exports = DateObjectSerializer;
 /***/ }),
 
 /***/ 21562:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -110212,7 +110212,7 @@ module.exports = ErrorObjectSerializer;
 /***/ }),
 
 /***/ 84013:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -110731,7 +110731,7 @@ module.exports = FileMiddleware;
 /***/ }),
 
 /***/ 19476:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -110770,7 +110770,7 @@ module.exports = MapObjectSerializer;
 /***/ }),
 
 /***/ 5828:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -110811,7 +110811,7 @@ module.exports = NullPrototypeObjectSerializer;
 /***/ }),
 
 /***/ 9814:
-/***/ ((module, exports, __webpack_require__) => {
+/***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -111492,7 +111492,7 @@ module.exports.NOT_SERIALIZABLE = NOT_SERIALIZABLE;
 /***/ }),
 
 /***/ 39162:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -111571,7 +111571,7 @@ module.exports = PlainObjectSerializer;
 /***/ }),
 
 /***/ 50650:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -111596,7 +111596,7 @@ module.exports = RegExpObjectSerializer;
 /***/ }),
 
 /***/ 60338:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -111652,7 +111652,7 @@ module.exports = Serializer;
 /***/ }),
 
 /***/ 54384:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -111791,7 +111791,7 @@ module.exports = SerializerMiddleware;
 /***/ }),
 
 /***/ 57296:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -111823,7 +111823,7 @@ module.exports = SetObjectSerializer;
 /***/ }),
 
 /***/ 1753:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -111865,7 +111865,7 @@ module.exports = SingleItemMiddleware;
 /***/ }),
 
 /***/ 50227:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -111903,7 +111903,7 @@ module.exports = ConsumeSharedFallbackDependency;
 /***/ }),
 
 /***/ 35725:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -112156,7 +112156,7 @@ module.exports = ConsumeSharedModule;
 /***/ }),
 
 /***/ 70904:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -112474,7 +112474,7 @@ module.exports = ConsumeSharedPlugin;
 /***/ }),
 
 /***/ 44921:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -112824,7 +112824,7 @@ module.exports = ConsumeSharedRuntimeModule;
 /***/ }),
 
 /***/ 50013:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -112866,7 +112866,7 @@ module.exports = ProvideForSharedDependency;
 /***/ }),
 
 /***/ 71078:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -112937,7 +112937,7 @@ module.exports = ProvideSharedDependency;
 /***/ }),
 
 /***/ 6831:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -113127,7 +113127,7 @@ module.exports = ProvideSharedModule;
 /***/ }),
 
 /***/ 2946:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -113170,7 +113170,7 @@ module.exports = ProvideSharedModuleFactory;
 /***/ }),
 
 /***/ 67184:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -113407,7 +113407,7 @@ module.exports = ProvideSharedPlugin;
 /***/ }),
 
 /***/ 3533:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -113507,7 +113507,7 @@ module.exports = SharePlugin;
 /***/ }),
 
 /***/ 17369:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -113656,7 +113656,7 @@ module.exports = ShareRuntimeModule;
 /***/ }),
 
 /***/ 5565:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -113755,7 +113755,7 @@ exports.resolveMatchedConfigs = (compilation, configs) => {
 /***/ }),
 
 /***/ 53042:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -113853,7 +113853,7 @@ exports.getRequiredVersionFromDescriptionFile = (data, packageName) => {
 /***/ }),
 
 /***/ 5798:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -115869,7 +115869,7 @@ module.exports = DefaultStatsFactoryPlugin;
 /***/ }),
 
 /***/ 64817:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -116197,7 +116197,7 @@ module.exports = DefaultStatsPresetPlugin;
 /***/ }),
 
 /***/ 62261:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -117394,7 +117394,7 @@ module.exports = DefaultStatsPrinterPlugin;
 /***/ }),
 
 /***/ 18027:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -117693,7 +117693,7 @@ module.exports = StatsFactory;
 /***/ }),
 
 /***/ 28931:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -117944,7 +117944,7 @@ module.exports = StatsPrinter;
 /***/ }),
 
 /***/ 92459:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 /*
@@ -117966,7 +117966,7 @@ exports.equals = (a, b) => {
 /***/ }),
 
 /***/ 51921:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -118267,7 +118267,7 @@ module.exports = AsyncQueue;
 /***/ }),
 
 /***/ 84695:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -118307,7 +118307,7 @@ module.exports = {
 /***/ }),
 
 /***/ 32:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -118350,7 +118350,7 @@ module.exports = Hash;
 /***/ }),
 
 /***/ 18117:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -118593,7 +118593,7 @@ module.exports = LazyBucketSortedSet;
 /***/ }),
 
 /***/ 60248:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -118800,7 +118800,7 @@ module.exports = LazySet;
 /***/ }),
 
 /***/ 85987:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -118859,7 +118859,7 @@ module.exports = Queue;
 /***/ }),
 
 /***/ 86088:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 /*
@@ -118935,7 +118935,7 @@ exports.find = find;
 /***/ }),
 
 /***/ 51326:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -119103,7 +119103,7 @@ module.exports = SortableSet;
 /***/ }),
 
 /***/ 64149:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -119277,7 +119277,7 @@ module.exports = StackedMap;
 /***/ }),
 
 /***/ 74395:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -119334,7 +119334,7 @@ module.exports = StringXor;
 /***/ }),
 
 /***/ 13590:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -119403,7 +119403,7 @@ module.exports = TupleQueue;
 /***/ }),
 
 /***/ 86465:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -119561,7 +119561,7 @@ module.exports = TupleSet;
 /***/ }),
 
 /***/ 47176:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 /*
@@ -119656,7 +119656,7 @@ exports.getProtocol = getProtocol;
 /***/ }),
 
 /***/ 92700:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 /*
@@ -120230,7 +120230,7 @@ exports.DELETE = DELETE;
 /***/ }),
 
 /***/ 21699:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -120693,7 +120693,7 @@ exports.compareLocations = (a, b) => {
 /***/ }),
 
 /***/ 29522:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -120907,7 +120907,7 @@ module.exports = compileBooleanMatcher;
 /***/ }),
 
 /***/ 34627:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -121057,7 +121057,7 @@ module.exports = algorithm => {
 /***/ }),
 
 /***/ 57651:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -121321,7 +121321,7 @@ exports.createFakeHook = (fakeHook, message, code) => {
 /***/ }),
 
 /***/ 88213:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -121758,7 +121758,7 @@ module.exports = ({ maxSize, minSize, items, getSize, getKey }) => {
 /***/ }),
 
 /***/ 33339:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -121781,7 +121781,7 @@ module.exports = function extractUrlAndGlobal(urlAndGlobal) {
 /***/ }),
 
 /***/ 76019:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -122018,7 +122018,7 @@ module.exports = (items, getDependencies) => {
 /***/ }),
 
 /***/ 71593:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -122265,7 +122265,7 @@ exports.readJson = readJson;
 /***/ }),
 
 /***/ 47779:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -122592,7 +122592,7 @@ exports.getUndoPath = (filename, enforceRelative) => {
 /***/ }),
 
 /***/ 60352:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -122791,7 +122791,7 @@ module.exports = {
 /***/ }),
 
 /***/ 55575:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -122830,7 +122830,7 @@ module.exports = (Constructor, request, name = null) => {
 /***/ }),
 
 /***/ 18003:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -122870,7 +122870,7 @@ module.exports = memoize;
 /***/ }),
 
 /***/ 45930:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -122923,7 +122923,7 @@ module.exports = (str, range) => {
 /***/ }),
 
 /***/ 44682:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -122956,7 +122956,7 @@ module.exports = propertyAccess;
 /***/ }),
 
 /***/ 26426:
-/***/ ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -123301,7 +123301,7 @@ register(
 /***/ }),
 
 /***/ 43478:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -124295,7 +124295,7 @@ exports.satisfyRuntimeCode = runtimeTemplate =>
 /***/ }),
 
 /***/ 29158:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -124378,7 +124378,7 @@ registerLoader(/^webpack\/lib\//, req => {
 /***/ }),
 
 /***/ 17824:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 /*
@@ -124556,7 +124556,7 @@ module.exports = smartGrouping;
 /***/ }),
 
 /***/ 73212:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 /*
@@ -124625,7 +124625,7 @@ exports.isSourceEqual = isSourceEqual;
 /***/ }),
 
 /***/ 19651:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -124806,7 +124806,7 @@ module.exports = validateSchema;
 /***/ }),
 
 /***/ 38733:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -124892,7 +124892,7 @@ module.exports = AsyncWasmChunkLoadingRuntimeModule;
 /***/ }),
 
 /***/ 82234:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -124953,7 +124953,7 @@ module.exports = AsyncWebAssemblyGenerator;
 /***/ }),
 
 /***/ 53148:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -125147,7 +125147,7 @@ module.exports = AsyncWebAssemblyJavascriptGenerator;
 /***/ }),
 
 /***/ 78379:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -125353,7 +125353,7 @@ module.exports = AsyncWebAssemblyModulesPlugin;
 /***/ }),
 
 /***/ 77009:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -125436,7 +125436,7 @@ module.exports = WebAssemblyParser;
 /***/ }),
 
 /***/ 34537:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -125462,7 +125462,7 @@ module.exports = class UnsupportedWebAssemblyFeatureError extends WebpackError {
 /***/ }),
 
 /***/ 53590:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -125826,7 +125826,7 @@ module.exports = WasmChunkLoadingRuntimeModule;
 /***/ }),
 
 /***/ 85489:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -125915,7 +125915,7 @@ module.exports = WasmFinalizeExportsPlugin;
 /***/ }),
 
 /***/ 85257:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -126418,7 +126418,7 @@ module.exports = WebAssemblyGenerator;
 /***/ }),
 
 /***/ 58718:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -126534,7 +126534,7 @@ ${moduleChains.map(s => `* ${s}`).join("\n")}`;
 /***/ }),
 
 /***/ 65327:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -126758,7 +126758,7 @@ module.exports = WebAssemblyJavascriptGenerator;
 /***/ }),
 
 /***/ 20178:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -126907,7 +126907,7 @@ module.exports = WebAssemblyModulesPlugin;
 /***/ }),
 
 /***/ 46757:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -127106,7 +127106,7 @@ module.exports = WebAssemblyParser;
 /***/ }),
 
 /***/ 9711:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -127179,7 +127179,7 @@ exports.MANGLED_MODULE = MANGLED_MODULE;
 /***/ }),
 
 /***/ 19599:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -127296,7 +127296,7 @@ module.exports = EnableWasmLoadingPlugin;
 /***/ }),
 
 /***/ 57878:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -127364,7 +127364,7 @@ module.exports = FetchCompileAsyncWasmPlugin;
 /***/ }),
 
 /***/ 45001:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -127440,7 +127440,7 @@ module.exports = FetchCompileWasmPlugin;
 /***/ }),
 
 /***/ 21335:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -127551,7 +127551,7 @@ module.exports = JsonpChunkLoadingPlugin;
 /***/ }),
 
 /***/ 84539:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -128054,7 +128054,7 @@ module.exports = JsonpChunkLoadingRuntimeModule;
 /***/ }),
 
 /***/ 39546:
-/***/ ((__unused_webpack_module, exports) => {
+/***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
 /*
@@ -128137,7 +128137,7 @@ exports.needEntryDeferringCode = (compilation, chunk) => {
 /***/ }),
 
 /***/ 57279:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -128183,7 +128183,7 @@ module.exports = JsonpTemplatePlugin;
 /***/ }),
 
 /***/ 82517:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -128340,7 +128340,7 @@ module.exports = webpack;
 /***/ }),
 
 /***/ 29845:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -128436,7 +128436,7 @@ module.exports = ImportScriptsChunkLoadingPlugin;
 /***/ }),
 
 /***/ 9187:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -128631,7 +128631,7 @@ module.exports = ImportScriptsChunkLoadingRuntimeModule;
 /***/ }),
 
 /***/ 39959:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -128664,7 +128664,7 @@ module.exports = WebWorkerTemplatePlugin;
 /***/ }),
 
 /***/ 57260:
-/***/ ((module) => {
+/***/ (function(module) {
 
 class Node {
 	/// value;
@@ -128739,7 +128739,7 @@ module.exports = Queue;
 /***/ }),
 
 /***/ 81956:
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 /* eslint-disable import/no-extraneous-dependencies */
 
@@ -128758,7 +128758,7 @@ module.exports = function () {
 /***/ }),
 
 /***/ 97289:
-/***/ ((module) => {
+/***/ (function(module) {
 
 module.exports = eval("require")("pnpapi");
 
@@ -128766,7 +128766,7 @@ module.exports = eval("require")("pnpapi");
 /***/ }),
 
 /***/ 42357:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("assert");;
@@ -128774,7 +128774,7 @@ module.exports = require("assert");;
 /***/ }),
 
 /***/ 3561:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("browserslist");;
@@ -128782,7 +128782,7 @@ module.exports = require("browserslist");;
 /***/ }),
 
 /***/ 64293:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("buffer");;
@@ -128790,7 +128790,7 @@ module.exports = require("buffer");;
 /***/ }),
 
 /***/ 27619:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("constants");;
@@ -128798,7 +128798,7 @@ module.exports = require("constants");;
 /***/ }),
 
 /***/ 76417:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("crypto");;
@@ -128806,7 +128806,7 @@ module.exports = require("crypto");;
 /***/ }),
 
 /***/ 28614:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("events");;
@@ -128814,7 +128814,7 @@ module.exports = require("events");;
 /***/ }),
 
 /***/ 35747:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("fs");;
@@ -128822,7 +128822,7 @@ module.exports = require("fs");;
 /***/ }),
 
 /***/ 98605:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("http");;
@@ -128830,7 +128830,7 @@ module.exports = require("http");;
 /***/ }),
 
 /***/ 57211:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("https");;
@@ -128838,7 +128838,7 @@ module.exports = require("https");;
 /***/ }),
 
 /***/ 57012:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("inspector");;
@@ -128846,7 +128846,7 @@ module.exports = require("inspector");;
 /***/ }),
 
 /***/ 59733:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("jest-worker");;
@@ -128854,7 +128854,7 @@ module.exports = require("jest-worker");;
 /***/ }),
 
 /***/ 14442:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("next/dist/compiled/find-up");;
@@ -128862,7 +128862,7 @@ module.exports = require("next/dist/compiled/find-up");;
 /***/ }),
 
 /***/ 36386:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("next/dist/compiled/neo-async");;
@@ -128870,7 +128870,7 @@ module.exports = require("next/dist/compiled/neo-async");;
 /***/ }),
 
 /***/ 79286:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("next/dist/compiled/schema-utils3");;
@@ -128878,7 +128878,7 @@ module.exports = require("next/dist/compiled/schema-utils3");;
 /***/ }),
 
 /***/ 96241:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("next/dist/compiled/source-map");;
@@ -128886,7 +128886,7 @@ module.exports = require("next/dist/compiled/source-map");;
 /***/ }),
 
 /***/ 54775:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("next/dist/compiled/terser");;
@@ -128894,7 +128894,7 @@ module.exports = require("next/dist/compiled/terser");;
 /***/ }),
 
 /***/ 55600:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("next/dist/compiled/webpack-sources2");;
@@ -128902,7 +128902,7 @@ module.exports = require("next/dist/compiled/webpack-sources2");;
 /***/ }),
 
 /***/ 12087:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("os");;
@@ -128910,7 +128910,7 @@ module.exports = require("os");;
 /***/ }),
 
 /***/ 85622:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("path");;
@@ -128918,7 +128918,7 @@ module.exports = require("path");;
 /***/ }),
 
 /***/ 61765:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("process");;
@@ -128926,7 +128926,7 @@ module.exports = require("process");;
 /***/ }),
 
 /***/ 71191:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("querystring");;
@@ -128934,7 +128934,7 @@ module.exports = require("querystring");;
 /***/ }),
 
 /***/ 92413:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("stream");;
@@ -128942,7 +128942,7 @@ module.exports = require("stream");;
 /***/ }),
 
 /***/ 78835:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("url");;
@@ -128950,7 +128950,7 @@ module.exports = require("url");;
 /***/ }),
 
 /***/ 31669:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("util");;
@@ -128958,7 +128958,7 @@ module.exports = require("util");;
 /***/ }),
 
 /***/ 92184:
-/***/ ((module) => {
+/***/ (function(module) {
 
 "use strict";
 module.exports = require("vm");;
@@ -129001,41 +129001,41 @@ module.exports = require("vm");;
 /******/ 	
 /************************************************************************/
 /******/ 	/* webpack/runtime/define property getters */
-/******/ 	(() => {
+/******/ 	!function() {
 /******/ 		// define getter functions for harmony exports
-/******/ 		__webpack_require__.d = (exports, definition) => {
+/******/ 		__webpack_require__.d = function(exports, definition) {
 /******/ 			for(var key in definition) {
 /******/ 				if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
 /******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
 /******/ 				}
 /******/ 			}
 /******/ 		};
-/******/ 	})();
+/******/ 	}();
 /******/ 	
 /******/ 	/* webpack/runtime/hasOwnProperty shorthand */
-/******/ 	(() => {
-/******/ 		__webpack_require__.o = (obj, prop) => Object.prototype.hasOwnProperty.call(obj, prop)
-/******/ 	})();
+/******/ 	!function() {
+/******/ 		__webpack_require__.o = function(obj, prop) { return Object.prototype.hasOwnProperty.call(obj, prop); }
+/******/ 	}();
 /******/ 	
 /******/ 	/* webpack/runtime/make namespace object */
-/******/ 	(() => {
+/******/ 	!function() {
 /******/ 		// define __esModule on exports
-/******/ 		__webpack_require__.r = (exports) => {
+/******/ 		__webpack_require__.r = function(exports) {
 /******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
 /******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 /******/ 			}
 /******/ 			Object.defineProperty(exports, '__esModule', { value: true });
 /******/ 		};
-/******/ 	})();
+/******/ 	}();
 /******/ 	
 /******/ 	/* webpack/runtime/node module decorator */
-/******/ 	(() => {
-/******/ 		__webpack_require__.nmd = (module) => {
+/******/ 	!function() {
+/******/ 		__webpack_require__.nmd = function(module) {
 /******/ 			module.paths = [];
 /******/ 			if (!module.children) module.children = [];
 /******/ 			return module;
 /******/ 		};
-/******/ 	})();
+/******/ 	}();
 /******/ 	
 /******/ 	/* webpack/runtime/compat */
 /******/ 	

@@ -1,9 +1,9 @@
 module.exports =
-/******/ (() => { // webpackBootstrap
+/******/ (function() { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 957:
-/***/ ((module) => {
+/***/ (function(module) {
 
 // Provide a "System" global.
 module.exports = {

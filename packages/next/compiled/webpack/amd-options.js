@@ -1,9 +1,9 @@
 module.exports =
-/******/ (() => { // webpackBootstrap
+/******/ (function() { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 929:
-/***/ ((module) => {
+/***/ (function(module) {
 
 /* globals __webpack_amd_options__ */
 module.exports = __webpack_amd_options__;
