@@ -557,7 +557,7 @@ externals['webpack-sources'] = 'next/dist/compiled/webpack-sources'
 export async function ncc_webpack_sources(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('webpack-sources')))
-    .ncc({ packageName: 'webpack-sources', externals })
+    .ncc({ packageName: 'webpack-sources', externals, target: 'es5' })
     .target('compiled/webpack-sources')
 }
 // eslint-disable-next-line camelcase
@@ -567,7 +567,7 @@ export async function ncc_webpack_sources2(task, opts) {
     .source(
       opts.src || relative(__dirname, bundleRequire.resolve('webpack-sources2'))
     )
-    .ncc({ packageName: 'webpack-sources2', externals })
+    .ncc({ packageName: 'webpack-sources2', externals, target: 'es5' })
     .target('compiled/webpack-sources2')
 }
 
@@ -580,6 +580,7 @@ export async function ncc_webpack_bundle4(task, opts) {
       bundleName: 'webpack',
       externals,
       minify: false,
+      target: 'es5',
     })
     .target('compiled/webpack')
 }
@@ -600,6 +601,7 @@ export async function ncc_webpack_bundle5(task, opts) {
         'webpack-sources': 'next/dist/compiled/webpack-sources2',
       },
       minify: false,
+      target: 'es5',
     })
     .target('compiled/webpack')
 }
