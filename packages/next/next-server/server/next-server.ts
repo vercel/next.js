@@ -351,21 +351,6 @@ export default class Server {
         ? matchedPathname.replace(/\.json$/, '')
         : matchedPathname
 
-      console.log({
-        url: req.url,
-        matchedPathnameHeader: req.headers['x-matched-path'],
-        routeMatches: req.headers['x-now-route-matches'],
-        reqUrlIsDataUrl,
-        matchedPathIsDataUrl,
-        isDataUrl,
-        parsedPath,
-        pathname,
-        query,
-        matchedPathname,
-        matchedPathnameNoExt,
-        parsedUrl,
-      })
-
       if (i18n) {
         const localePathResult = normalizeLocalePath(
           matchedPathname || '/',
@@ -387,7 +372,6 @@ export default class Server {
       })
 
       utils.handleRewrites(parsedUrl)
-      console.log('after handleRewrites', parsedUrl)
 
       // interpolate dynamic params and normalize URL if needed
       if (pageIsDynamic) {
@@ -414,28 +398,14 @@ export default class Server {
           params = utils.dynamicRouteMatcher!(matchedPathnameNoExt)
         }
 
-        console.log('before normalize', { params })
-
         if (params) {
           params = utils.normalizeDynamicRouteParams(params).params
-          console.log('after normalize', { params })
 
-          console.log('before interpolating', {
-            matchedPathname,
-            url: req.url,
-          })
           matchedPathname = utils.interpolateDynamicPath(
             matchedPathname,
             params
           )
-
           req.url = utils.interpolateDynamicPath(req.url!, params)
-
-          console.log('after interpolating', {
-            matchedPathname,
-            url: req.url,
-            interpolatedUrl: utils.interpolateDynamicPath(req.url!, params),
-          })
         }
 
         if (reqUrlIsDataUrl && matchedPathIsDataUrl) {
@@ -443,20 +413,9 @@ export default class Server {
             ...parsedPath,
             pathname: matchedPathname,
           })
-          console.log('updated req.url for data path', {
-            url: req.url,
-            potentialUpdatedUrl: formatUrl({
-              ...parsedPath,
-              pathname: matchedPathname,
-            }),
-            reqUrlIsDataUrl,
-            matchedPathIsDataUrl,
-          })
         }
         Object.assign(parsedUrl.query, params)
-        console.log('before normalize URL', req.url)
         utils.normalizeVercelUrl(req, true)
-        console.log('after normalize URL', req.url)
       }
 
       parsedUrl.pathname = `${basePath || ''}${
@@ -606,10 +565,6 @@ export default class Server {
 
     res.statusCode = 200
     try {
-      console.log('run', {
-        url: req.url,
-        parsedUrl,
-      })
       return await this.run(req, res, parsedUrl)
     } catch (err) {
       this.logError(err)
