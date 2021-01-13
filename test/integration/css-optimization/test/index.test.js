@@ -12,7 +12,7 @@ jest.setTimeout(1000 * 30)
 
 const fixturesDir = join(__dirname, '../../css-fixtures')
 const appDir = join(fixturesDir, 'basic-module')
-const nextConfig = join(fixturesDir, 'next.config.js')
+const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
 
