@@ -57,7 +57,7 @@ Your app should be up and running on [http://localhost:3000](http://localhost:30
 
 You will need to install and configure the [Sentry Vercel integration](https://docs.sentry.io/workflow/integrations/vercel). After you've completed the project linking step, all the needed environment variables will be set in your Vercel project, with the exception of `NEXT_PUBLIC_SENTRY_SERVER_ROOT_DIR`, which should be set to `/var/task/`.
 
-> **Note:** A Vercel project connected to a [Git integration](https://vercel.com/docs/v2/platform/deployments#git-integration) is required before adding the Sentry integration.
+> **Note:** A Vercel project connected to a [Git integration](https://vercel.com/docs/platform/deployments#git) is required before adding the Sentry integration.
 
 #### Without Using Vercel
 
