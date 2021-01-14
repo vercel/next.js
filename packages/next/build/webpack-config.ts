@@ -7,8 +7,11 @@ import semver from 'next/dist/compiled/semver'
 // @ts-ignore No typings yet
 import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
 import path from 'path'
-import webpack from 'webpack'
-import { Configuration } from 'webpack'
+import {
+  webpack,
+  isWebpack5,
+  init as initWebpack,
+} from 'next/dist/compiled/webpack/webpack'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -61,23 +64,16 @@ import { NextConfig } from '../next-server/server/config'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
-const isWebpack5 = parseInt(webpack.version!) === 5
-
-if (isWebpack5 && semver.lt(webpack.version!, '5.11.1')) {
-  Log.error(
-    `webpack 5 version must be greater than v5.11.1 to work properly with Next.js, please upgrade to continue!\nSee more info here: https://err.sh/next.js/invalid-webpack-5-version`
-  )
-  process.exit(1)
-}
-
-const devtoolRevertWarning = execOnce((devtool: Configuration['devtool']) => {
-  console.warn(
-    chalk.yellow.bold('Warning: ') +
-      chalk.bold(`Reverting webpack devtool to '${devtool}'.\n`) +
-      'Changing the webpack devtool in development mode will cause severe performance regressions.\n' +
-      'Read more: https://err.sh/next.js/improper-devtool'
-  )
-})
+const devtoolRevertWarning = execOnce(
+  (devtool: webpack.Configuration['devtool']) => {
+    console.warn(
+      chalk.yellow.bold('Warning: ') +
+        chalk.bold(`Reverting webpack devtool to '${devtool}'.\n`) +
+        'Changing the webpack devtool in development mode will cause severe performance regressions.\n' +
+        'Read more: https://err.sh/next.js/improper-devtool'
+    )
+  }
+)
 
 function parseJsonFile(filePath: string) {
   const JSON5 = require('next/dist/compiled/json5')
@@ -208,6 +204,12 @@ export default async function getBaseWebpackConfig(
     rewrites: Rewrite[]
   }
 ): Promise<webpack.Configuration> {
+  initWebpack(
+    config.future?.webpack5 ||
+      (config.future?.webpack5 !== false &&
+        Number(process.env.NEXT_WEBPACK5) > 0)
+  )
+
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
@@ -909,7 +911,7 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
-      hasReactRefresh && new ReactRefreshWebpackPlugin(),
+      hasReactRefresh && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client-side bundles (same behavior as webpack 4)
       isWebpack5 &&
         !isServer &&
