@@ -51,10 +51,8 @@ const externals = {
   'node-sass': 'node-sass',
   sass: 'sass',
   fibers: 'fibers',
-  klona: 'klona',
 
   chokidar: 'chokidar',
-  'loader-utils': 'loader-utils',
   'jest-worker': 'jest-worker',
 }
 // eslint-disable-next-line camelcase
@@ -327,6 +325,14 @@ export async function ncc_jsonwebtoken(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('jsonwebtoken')))
     .ncc({ packageName: 'jsonwebtoken', externals })
     .target('compiled/jsonwebtoken')
+}
+// eslint-disable-next-line camelcase
+externals['loader-utils'] = 'next/dist/compiled/loader-utils'
+export async function ncc_loader_utils(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('loader-utils')))
+    .ncc({ packageName: 'loader-utils', externals })
+    .target('compiled/loader-utils')
 }
 // eslint-disable-next-line camelcase
 externals['lodash.curry'] = 'next/dist/compiled/lodash.curry'
@@ -669,6 +675,7 @@ export async function ncc(task) {
       'ncc_is_wsl',
       'ncc_json5',
       'ncc_jsonwebtoken',
+      'ncc_loader_utils',
       'ncc_lodash_curry',
       'ncc_lru_cache',
       'ncc_mkdirp',
