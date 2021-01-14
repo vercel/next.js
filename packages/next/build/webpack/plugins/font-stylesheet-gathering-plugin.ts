@@ -130,6 +130,10 @@ export class FontStylesheetGatheringPlugin {
           parser.hooks.call
             .for('__jsx')
             .tap(this.constructor.name, jsxNodeHandler)
+          // New React JSX transform:
+          parser.hooks.call
+            .for('imported var')
+            .tap(this.constructor.name, jsxNodeHandler)
         })
     }
   }
