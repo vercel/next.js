@@ -13,7 +13,7 @@
   "dependencies": {
     "@emotion/react": "11.1.1",
     "@emotion/styled": "11.0.0",
-    "next": "latest",
+    "next": "^10.0.5",
     "react": "^17.0.1",
     "react-dom": "^17.0.1"
   }
