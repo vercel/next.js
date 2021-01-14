@@ -8,9 +8,6 @@ declare module 'cssnano-simple' {
   export = cssnanoSimple
 }
 declare module 'styled-jsx/server'
-declare module 'webpack/lib/GraphHelpers'
-declare module 'webpack/lib/DynamicEntryPlugin'
-declare module 'webpack/lib/Entrypoint'
 
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'

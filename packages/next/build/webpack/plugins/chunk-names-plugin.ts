@@ -1,9 +1,9 @@
-import { Compiler } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 // This plugin mirrors webpack 3 `filename` and `chunkfilename` behavior
 // This fixes https://github.com/webpack/webpack/issues/6598
 // This plugin is based on https://github.com/researchgate/webpack/commit/2f28947fa0c63ccbb18f39c0098bd791a2c37090
 export default class ChunkNamesPlugin {
-  apply(compiler: Compiler) {
+  apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(
       'NextJsChunkNamesPlugin',
       (compilation: any) => {

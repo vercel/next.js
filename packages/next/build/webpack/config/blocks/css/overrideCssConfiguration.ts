@@ -1,14 +1,14 @@
-import { Configuration, RuleSetRule } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { getPostCssPlugins } from './plugins'
 
 export async function __overrideCssConfiguration(
   rootDirectory: string,
   isProduction: boolean,
-  config: Configuration
+  config: webpack.Configuration
 ) {
   const postCssPlugins = await getPostCssPlugins(rootDirectory, isProduction)
 
-  function patch(rule: RuleSetRule) {
+  function patch(rule: webpack.RuleSetRule) {
     if (
       rule.options &&
       typeof rule.options === 'object' &&

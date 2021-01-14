@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "webpack5": "npm:webpack@5",
+    "schema-utils3": "npm:schema-utils@3.0.0",
+    "webpack-sources2": "npm:webpack-sources@2.2.0"
+  }
+}

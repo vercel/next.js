@@ -1,4 +1,4 @@
-import { loader } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { parse } from 'querystring'
 import { PluginMetaData, getPluginId } from '../../plugins/collect-plugins'
 
@@ -12,7 +12,7 @@ export const pluginLoaderOptions: {
   plugins: [],
 }
 
-const nextPluginLoader: loader.Loader = function () {
+const nextPluginLoader: webpack.loader.Loader = function () {
   const { middleware }: NextPluginLoaderQuery =
     typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
 

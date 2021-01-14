@@ -74,7 +74,7 @@
     "eslint": "6.8.0",
     "eslint-plugin-import": "2.20.2",
     "eslint-plugin-jest": "23.13.1",
-    "eslint-plugin-react": "7.18.0",
+    "eslint-plugin-react": "7.19.0",
     "eslint-plugin-react-hooks": "2.3.0",
     "execa": "2.0.3",
     "express": "4.17.0",

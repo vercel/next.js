@@ -2,7 +2,7 @@ import devalue from 'next/dist/compiled/devalue'
 import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
 import { join } from 'path'
 import { parse } from 'querystring'
-import { loader } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { API_ROUTE } from '../../../../lib/constants'
 import { isDynamicRoute } from '../../../../next-server/lib/router/utils'
 import { __ApiPreviewProps } from '../../../../next-server/server/api-utils'
@@ -33,7 +33,7 @@ export type ServerlessLoaderQuery = {
   i18n: string
 }
 
-const nextServerlessLoader: loader.Loader = function () {
+const nextServerlessLoader: webpack.loader.Loader = function () {
   const span = tracer.startSpan('next-serverless-loader')
   return traceFn(span, () => {
     const {

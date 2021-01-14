@@ -1,7 +1,16 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const ncc = require('@vercel/ncc')
 const { existsSync, readFileSync } = require('fs')
-const { basename, dirname, extname, join } = require('path')
+const { basename, dirname, extname, join, resolve } = require('path')
+const { Module } = require('module')
+
+// See taskfile.js bundleContext definition for explanation
+const m = new Module(resolve(__dirname, 'bundles', '_'))
+m.filename = m.id
+m.paths = Module._nodeModulePaths(m.id)
+const bundleRequire = m.require
+bundleRequire.resolve = (request, options) =>
+  Module._resolveFilename(request, m, false, options)
 
 module.exports = function (task) {
   // eslint-disable-next-line require-yield
@@ -12,7 +21,7 @@ module.exports = function (task) {
     }
     return ncc(join(__dirname, file.dir, file.base), {
       filename: file.base,
-      minify: true,
+      minify: options.minify === false ? false : true,
       ...options,
     }).then(({ code, assets }) => {
       Object.keys(assets).forEach((key) => {
@@ -43,7 +52,7 @@ module.exports = function (task) {
 // It defines `name`, `main`, `author`, and `license`. It also defines `types`.
 // n.b. types intended for development usage only.
 function writePackageManifest(packageName, main, bundleName) {
-  const packagePath = require.resolve(packageName + '/package.json')
+  const packagePath = bundleRequire.resolve(packageName + '/package.json')
   let { name, author, license } = require(packagePath)
 
   const compiledPackagePath = join(

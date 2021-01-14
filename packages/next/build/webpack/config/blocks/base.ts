@@ -1,13 +1,13 @@
 import isWslBoolean from 'next/dist/compiled/is-wsl'
 import curry from 'next/dist/compiled/lodash.curry'
-import { Configuration } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { ConfigurationContext } from '../utils'
 
 const isWindows = process.platform === 'win32' || isWslBoolean
 
 export const base = curry(function base(
   ctx: ConfigurationContext,
-  config: Configuration
+  config: webpack.Configuration
 ) {
   config.mode = ctx.isDevelopment ? 'development' : 'production'
   config.name = ctx.isServer ? 'server' : 'client'

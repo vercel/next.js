@@ -1,8 +1,7 @@
-import { Compiler, Plugin, version } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { realpathSync } from 'fs'
 import path from 'path'
-
-const isWebpack5 = parseInt(version!) === 5
 
 function deleteCache(filePath: string) {
   try {
@@ -17,12 +16,12 @@ function deleteCache(filePath: string) {
 const PLUGIN_NAME = 'NextJsRequireCacheHotReloader'
 
 // This plugin flushes require.cache after emitting the files. Providing 'hot reloading' of server files.
-export class NextJsRequireCacheHotReloader implements Plugin {
+export class NextJsRequireCacheHotReloader implements webpack.Plugin {
   prevAssets: any = null
   previousOutputPathsWebpack5: Set<string> = new Set()
   currentOutputPathsWebpack5: Set<string> = new Set()
 
-  apply(compiler: Compiler) {
+  apply(compiler: webpack.Compiler) {
     if (isWebpack5) {
       // @ts-ignored Webpack has this hooks
       compiler.hooks.assetEmitted.tap(

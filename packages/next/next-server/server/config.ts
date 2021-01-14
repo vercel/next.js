@@ -35,6 +35,7 @@ export type NextConfig = { [key: string]: any } & {
   future: {
     strictPostcssConfiguration: boolean
     excludeDefaultMomentLocales: boolean
+    webpack5: boolean
   }
 }
 
@@ -90,6 +91,7 @@ const defaultConfig: NextConfig = {
   future: {
     strictPostcssConfiguration: false,
     excludeDefaultMomentLocales: false,
+    webpack5: false,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},

@@ -16,6 +16,7 @@ import { getRawSourceMap } from './internal/helpers/getRawSourceMap'
 import { launchEditor } from './internal/helpers/launchEditor'
 
 export type OverlayMiddlewareOptions = {
+  isWebpack5?: boolean
   rootDirectory: string
   stats(): webpack.Stats | null
   serverStats(): webpack.Stats | null
@@ -28,9 +29,7 @@ export type OriginalStackFrameResponse = {
 
 type Source = { map: () => RawSourceMap } | null
 
-const isWebpack5 = parseInt(webpack.version!) === 5
-
-function getModuleId(compilation: any, module: any) {
+function getModuleId(compilation: any, module: any, isWebpack5?: boolean) {
   if (isWebpack5) {
     return compilation.chunkGraph.getModuleId(module)
   }
@@ -38,7 +37,11 @@ function getModuleId(compilation: any, module: any) {
   return module.id
 }
 
-function getModuleSource(compilation: any, module: any): any {
+function getModuleSource(
+  compilation: any,
+  module: any,
+  isWebpack5?: boolean
+): any {
   if (isWebpack5) {
     return (
       (module &&
@@ -208,9 +211,10 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       const module = [...compilation.modules].find(
-        (searchModule) => getModuleId(compilation, searchModule) === id
+        (searchModule) =>
+          getModuleId(compilation, searchModule, options.isWebpack5) === id
       )
-      return getModuleSource(compilation, module)
+      return getModuleSource(compilation, module, options.isWebpack5)
     } catch (err) {
       console.error(`Failed to lookup module by ID ("${id}"):`, err)
       return null

@@ -1,19 +1,17 @@
-import webpack, { Compiler, Plugin } from 'webpack'
-import sources from 'webpack-sources'
+import {
+  webpack,
+  isWebpack5,
+  sources,
+} from 'next/dist/compiled/webpack/webpack'
 import { PAGES_MANIFEST } from '../../../next-server/lib/constants'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 
 export type PagesManifest = { [page: string]: string }
 
-// @ts-ignore: TODO: remove ignore when webpack 5 is stable
-const { RawSource } = webpack.sources || sources
-
-const isWebpack5 = parseInt(webpack.version!) === 5
-
 // This plugin creates a pages-manifest.json from page entrypoints.
 // This is used for mapping paths like `/` to `.next/server/static/<buildid>/pages/index.js` when doing SSR
 // It's also used by next export to provide defaultPathMap
-export default class PagesManifestPlugin implements Plugin {
+export default class PagesManifestPlugin implements webpack.Plugin {
   serverless: boolean
 
   constructor(serverless: boolean) {
@@ -50,10 +48,12 @@ export default class PagesManifestPlugin implements Plugin {
       pages[pagePath] = files[0].replace(/\\/g, '/')
     }
 
-    assets[PAGES_MANIFEST] = new RawSource(JSON.stringify(pages, null, 2))
+    assets[PAGES_MANIFEST] = new sources.RawSource(
+      JSON.stringify(pages, null, 2)
+    )
   }
 
-  apply(compiler: Compiler): void {
+  apply(compiler: webpack.Compiler): void {
     if (isWebpack5) {
       compiler.hooks.make.tap('NextJsPagesManifest', (compilation) => {
         // @ts-ignore TODO: Remove ignore when webpack 5 is stable
