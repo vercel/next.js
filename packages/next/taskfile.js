@@ -439,7 +439,7 @@ export async function ncc_resolve_url_loader(task, opts) {
     .source(
       opts.src || relative(__dirname, require.resolve('resolve-url-loader'))
     )
-    .ncc({ packageName: 'resolve-url-loader', externals })
+    .ncc({ packageName: 'resolve-url-loader', externals, target: 'es5' })
     .target('compiled/resolve-url-loader')
 }
 // eslint-disable-next-line camelcase
@@ -458,6 +458,7 @@ export async function ncc_sass_loader(task, opts) {
         ...externals,
         'schema-utils': 'next/dist/compiled/schema-utils3',
       },
+      target: 'es5',
     })
     .target('compiled/sass-loader')
 }
