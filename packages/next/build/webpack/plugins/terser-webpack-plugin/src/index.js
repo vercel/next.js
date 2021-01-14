@@ -1,16 +1,17 @@
 // @ts-nocheck
 import * as path from 'path'
-
-import webpack, { ModuleFilenameHelpers, Compilation } from 'webpack'
-import sources from 'webpack-sources'
+import {
+  webpack,
+  ModuleFilenameHelpers,
+  isWebpack5,
+  sources,
+} from 'next/dist/compiled/webpack/webpack'
 import pLimit from 'p-limit'
 import jestWorker from 'jest-worker'
 import crypto from 'crypto'
 import cacache from 'next/dist/compiled/cacache'
 import { tracer, traceAsyncFn } from '../../../../tracer'
 import { spans } from '../../profiling-plugin'
-
-const isWebpack5 = parseInt(webpack.version) === 5
 
 function getEcmaVersion(environment) {
   // ES 6th
@@ -357,7 +358,7 @@ class TerserPlugin {
         compilation.hooks.processAssets.tapPromise(
           {
             name: pluginName,
-            stage: Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
+            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
           },
           (assets) =>
             this.optimize(

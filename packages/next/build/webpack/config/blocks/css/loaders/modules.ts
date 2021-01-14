@@ -1,5 +1,5 @@
 import { AcceptedPlugin } from 'postcss'
-import webpack from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
 import { cssFileResolve } from './file-resolve'
