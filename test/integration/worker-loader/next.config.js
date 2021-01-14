@@ -4,7 +4,7 @@ module.exports = {
       test: /\.worker\.(js|ts|tsx)$/,
       loader: 'worker-loader',
       options: {
-        name: 'static/[hash].worker.js',
+        filename: 'static/[hash].worker.js',
         publicPath: '/_next/',
       },
     })

@@ -183,7 +183,7 @@ jobs:
       - run: yarn list webpack react react-dom
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
 
-      - run: xvfb-run node run-tests.js test/integration/{link-ref,production,basic,async-modules,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
+      - run: xvfb-run node run-tests.js test/integration/{link-ref,production,basic,async-modules,ssr-ctx,worker-loader}/test/index.test.js test/acceptance/*.test.js
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
 
   testFirefox:
