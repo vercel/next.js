@@ -39,12 +39,10 @@ const externals = {
 
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
+  postcss: 'postcss',
 
   // webpack
   'node-libs-browser': 'node-libs-browser',
-
-  // css-loader
-  // postcss: 'postcss',
 
   // sass-loader
   // (also responsible for these dependencies in package.json)
