@@ -11,16 +11,18 @@ import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
 
+export type DomainLocales = Array<{
+  http?: true
+  domain: string
+  locales?: string[]
+  defaultLocale: string
+}>
+
 export type NextConfig = { [key: string]: any } & {
   i18n?: {
-    domains?: Array<{
-      http?: true
-      domain: string
-      locales?: string[]
-      defaultLocale: string
-    }>
     locales: string[]
     defaultLocale: string
+    domains?: DomainLocales
     localeDetection?: false
   } | null
 
@@ -29,6 +31,12 @@ export type NextConfig = { [key: string]: any } & {
   redirects?: () => Promise<Redirect[]>
 
   trailingSlash?: boolean
+
+  future: {
+    strictPostcssConfiguration: boolean
+    excludeDefaultMomentLocales: boolean
+    webpack5: boolean
+  }
 }
 
 const defaultConfig: NextConfig = {
@@ -81,7 +89,9 @@ const defaultConfig: NextConfig = {
     scriptLoader: false,
   },
   future: {
+    strictPostcssConfiguration: false,
     excludeDefaultMomentLocales: false,
+    webpack5: false,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},

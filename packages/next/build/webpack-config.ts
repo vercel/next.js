@@ -7,8 +7,11 @@ import semver from 'next/dist/compiled/semver'
 // @ts-ignore No typings yet
 import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
 import path from 'path'
-import webpack from 'webpack'
-import { Configuration } from 'webpack'
+import {
+  webpack,
+  isWebpack5,
+  init as initWebpack,
+} from 'next/dist/compiled/webpack/webpack'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -18,7 +21,6 @@ import {
 import { fileExists } from '../lib/file-exists'
 import { getPackageVersion } from '../lib/get-package-version'
 import { Rewrite } from '../lib/load-custom-routes'
-import { resolveRequest } from '../lib/resolve-request'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -62,23 +64,16 @@ import { NextConfig } from '../next-server/server/config'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
-const isWebpack5 = parseInt(webpack.version!) === 5
-
-if (isWebpack5 && semver.lt(webpack.version!, '5.11.1')) {
-  Log.error(
-    `webpack 5 version must be greater than v5.11.1 to work properly with Next.js, please upgrade to continue!\nSee more info here: https://err.sh/next.js/invalid-webpack-5-version`
-  )
-  process.exit(1)
-}
-
-const devtoolRevertWarning = execOnce((devtool: Configuration['devtool']) => {
-  console.warn(
-    chalk.yellow.bold('Warning: ') +
-      chalk.bold(`Reverting webpack devtool to '${devtool}'.\n`) +
-      'Changing the webpack devtool in development mode will cause severe performance regressions.\n' +
-      'Read more: https://err.sh/next.js/improper-devtool'
-  )
-})
+const devtoolRevertWarning = execOnce(
+  (devtool: webpack.Configuration['devtool']) => {
+    console.warn(
+      chalk.yellow.bold('Warning: ') +
+        chalk.bold(`Reverting webpack devtool to '${devtool}'.\n`) +
+        'Changing the webpack devtool in development mode will cause severe performance regressions.\n' +
+        'Read more: https://err.sh/next.js/improper-devtool'
+    )
+  }
+)
 
 function parseJsonFile(filePath: string) {
   const JSON5 = require('next/dist/compiled/json5')
@@ -193,7 +188,6 @@ export default async function getBaseWebpackConfig(
     dev = false,
     isServer = false,
     pagesDir,
-    tracer,
     target = 'server',
     reactProductionProfiling = false,
     entrypoints,
@@ -205,14 +199,17 @@ export default async function getBaseWebpackConfig(
     isServer?: boolean
     pagesDir: string
     target?: string
-    tracer?: any
     reactProductionProfiling?: boolean
     entrypoints: WebpackEntrypoints
     rewrites: Rewrite[]
   }
 ): Promise<webpack.Configuration> {
-  const productionBrowserSourceMaps =
-    config.productionBrowserSourceMaps && !isServer
+  initWebpack(
+    config.future?.webpack5 ||
+      (config.future?.webpack5 !== false &&
+        Number(process.env.NEXT_WEBPACK5) > 0)
+  )
+
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
@@ -310,7 +307,7 @@ export default async function getBaseWebpackConfig(
 
   let typeScriptPath: string | undefined
   try {
-    typeScriptPath = resolveRequest('typescript', `${dir}/`)
+    typeScriptPath = require.resolve('typescript', { paths: [dir] })
   } catch (_) {}
   const tsConfigPath = path.join(dir, 'tsconfig.json')
   const useTypeScript = Boolean(
@@ -396,8 +393,6 @@ export default async function getBaseWebpackConfig(
         []
       : [require('pnp-webpack-plugin')],
   }
-
-  const webpackMode = dev ? 'development' : 'production'
 
   const terserOptions: any = {
     parse: {
@@ -613,7 +608,7 @@ export default async function getBaseWebpackConfig(
     // exist.
     let res: string
     try {
-      res = resolveRequest(request, `${context}/`)
+      res = require.resolve(request, { paths: [context] })
     } catch (err) {
       // If the request cannot be resolved, we need to tell webpack to
       // "bundle" it so that webpack shows an error (that it cannot be
@@ -651,7 +646,7 @@ export default async function getBaseWebpackConfig(
       // we need to bundle the code (even if it _should_ be external).
       let baseRes: string | null
       try {
-        baseRes = resolveRequest(request, `${dir}/`)
+        baseRes = require.resolve(request, { paths: [dir] })
       } catch (err) {
         baseRes = null
       }
@@ -844,7 +839,6 @@ export default async function getBaseWebpackConfig(
         'error-loader',
         'next-babel-loader',
         'next-client-pages-loader',
-        'next-data-loader',
         'next-serverless-loader',
         'noop-loader',
         'next-plugin-loader',
@@ -917,15 +911,14 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
-      hasReactRefresh && new ReactRefreshWebpackPlugin(),
-      // Makes sure `Buffer` is polyfilled in client-side bundles (same behavior as webpack 4)
+      hasReactRefresh && new ReactRefreshWebpackPlugin(webpack),
+      // Makes sure `Buffer` and `process` are polyfilled in client-side bundles (same behavior as webpack 4)
       isWebpack5 &&
         !isServer &&
-        new webpack.ProvidePlugin({ Buffer: ['buffer', 'Buffer'] }),
-      // Makes sure `process` is polyfilled in client-side bundles (same behavior as webpack 4)
-      isWebpack5 &&
-        !isServer &&
-        new webpack.ProvidePlugin({ process: ['process'] }),
+        new webpack.ProvidePlugin({
+          Buffer: [require.resolve('buffer'), 'Buffer'],
+          process: [require.resolve('process')],
+        }),
       // This plugin makes sure `output.filename` is used for entry chunks
       !isWebpack5 && new ChunkNamesPlugin(),
       new webpack.DefinePlugin({
@@ -950,7 +943,10 @@ export default async function getBaseWebpackConfig(
             [`process.env.${key}`]: JSON.stringify(config.env[key]),
           }
         }, {}),
-        'process.env.NODE_ENV': JSON.stringify(webpackMode),
+        // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
+        'process.env.NODE_ENV': JSON.stringify(
+          dev ? 'development' : 'production'
+        ),
         'process.env.__NEXT_CROSS_ORIGIN': JSON.stringify(crossOrigin),
         'process.browser': JSON.stringify(!isServer),
         'process.env.__NEXT_TEST_MODE': JSON.stringify(
@@ -1016,7 +1012,7 @@ export default async function getBaseWebpackConfig(
           : undefined),
         // stub process.env with proxy to warn a missing value is
         // being accessed in development mode
-        ...(config.experimental.pageEnv && process.env.NODE_ENV !== 'production'
+        ...(config.experimental.pageEnv && dev
           ? {
               'process.env': `
             new Proxy(${isServer ? 'process.env' : '{}'}, {
@@ -1080,10 +1076,7 @@ export default async function getBaseWebpackConfig(
           buildId,
           rewrites,
         }),
-      tracer &&
-        new ProfilingPlugin({
-          tracer,
-        }),
+      new ProfilingPlugin(),
       config.experimental.optimizeFonts &&
         !dev &&
         isServer &&
@@ -1216,7 +1209,8 @@ export default async function getBaseWebpackConfig(
     isServer,
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
-    productionBrowserSourceMaps,
+    productionBrowserSourceMaps: config.productionBrowserSourceMaps,
+    future: config.future,
   })
 
   let originalDevtool = webpackConfig.devtool
@@ -1339,7 +1333,7 @@ export default async function getBaseWebpackConfig(
         (e) => (e as any).__next_css_remove !== true
       )
     }
-  } else {
+  } else if (!config.future.strictPostcssConfiguration) {
     await __overrideCssConfiguration(dir, !dev, webpackConfig)
   }
 
@@ -1428,29 +1422,32 @@ export default async function getBaseWebpackConfig(
         try {
           // Resolve the version of `@zeit/next-css` as depended on by the Sass,
           // Less or Stylus plugin.
-          const correctNextCss = resolveRequest(
-            '@zeit/next-css',
-            isCss
-              ? // Resolve `@zeit/next-css` from the base directory
-                `${dir}/`
-              : // Else, resolve it from the specific plugins
-                require.resolve(
-                  isSass
-                    ? '@zeit/next-sass'
-                    : isLess
-                    ? '@zeit/next-less'
-                    : isStylus
-                    ? '@zeit/next-stylus'
-                    : 'next'
-                )
-          )
+          const correctNextCss = require.resolve('@zeit/next-css', {
+            paths: [
+              isCss
+                ? // Resolve `@zeit/next-css` from the base directory
+                  dir
+                : // Else, resolve it from the specific plugins
+                  require.resolve(
+                    isSass
+                      ? '@zeit/next-sass'
+                      : isLess
+                      ? '@zeit/next-less'
+                      : isStylus
+                      ? '@zeit/next-stylus'
+                      : 'next'
+                  ),
+            ],
+          })
 
           // If we found `@zeit/next-css` ...
           if (correctNextCss) {
             // ... resolve the version of `css-loader` shipped with that
             // package instead of whichever was hoisted highest in your
             // `node_modules` tree.
-            const correctCssLoader = resolveRequest(use.loader, correctNextCss)
+            const correctCssLoader = require.resolve(use.loader, {
+              paths: [correctNextCss],
+            })
             if (correctCssLoader) {
               // We saved the user from a failed build!
               use.loader = correctCssLoader

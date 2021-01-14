@@ -94,6 +94,10 @@
           "path": "/docs/deployment.md"
         },
         {
+          "title": "Authentication",
+          "path": "/docs/authentication.md"
+        },
+        {
           "title": "Advanced Features",
           "routes": [
             {
@@ -287,10 +291,6 @@
             {
               "title": "CDN Support with Asset Prefix",
               "path": "/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md"
-            },
-            {
-              "title": "Build Target",
-              "path": "/docs/api-reference/next.config.js/build-target.md"
             },
             {
               "title": "Custom Webpack Config",
