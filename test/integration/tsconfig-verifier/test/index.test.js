@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
-import { writeFile } from 'fs'
-import { createFile, exists, readFile, remove } from 'fs-extra'
+import { createFile, exists, readFile, remove, writeFile } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import path from 'path'
 
