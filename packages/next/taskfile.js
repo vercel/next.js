@@ -39,7 +39,7 @@ const externals = {
 
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
-  postcss: 'postcss',
+  // postcss: 'postcss',
 
   // webpack
   'node-libs-browser': 'node-libs-browser',
