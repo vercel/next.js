@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "10.0.6-canary.0",
+  "version": "10.0.6-canary.1",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -63,10 +63,10 @@
     "@ampproject/toolbox-optimizer": "2.7.1-alpha.0",
     "@babel/runtime": "7.12.5",
     "@hapi/accept": "5.0.1",
-    "@next/env": "10.0.6-canary.0",
-    "@next/polyfill-module": "10.0.6-canary.0",
-    "@next/react-dev-overlay": "10.0.6-canary.0",
-    "@next/react-refresh-utils": "10.0.6-canary.0",
+    "@next/env": "10.0.6-canary.1",
+    "@next/polyfill-module": "10.0.6-canary.1",
+    "@next/react-dev-overlay": "10.0.6-canary.1",
+    "@next/react-refresh-utils": "10.0.6-canary.1",
     "@opentelemetry/api": "0.14.0",
     "ast-types": "0.13.2",
     "babel-plugin-transform-define": "2.0.0",
@@ -142,7 +142,7 @@
     "@babel/preset-react": "7.12.10",
     "@babel/preset-typescript": "7.12.7",
     "@babel/types": "7.12.12",
-    "@next/polyfill-nomodule": "10.0.6-canary.0",
+    "@next/polyfill-nomodule": "10.0.6-canary.1",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
@@ -231,8 +231,8 @@
     "typescript": "3.8.3",
     "unistore": "3.4.1",
     "web-vitals": "0.2.4",
-    "webpack-sources": "1.4.3",
-    "webpack": "4.44.1"
+    "webpack": "4.44.1",
+    "webpack-sources": "1.4.3"
   },
   "engines": {
     "node": ">=10.13.0"
