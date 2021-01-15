@@ -304,7 +304,7 @@ export function tryGetPreviewData(
   try {
     cookies = getCookies()
   } catch {
-    // TODO: warn
+    console.warn('Did not get data from NextApiRequestCookies')
     return false
   }
 
