@@ -163,7 +163,8 @@ export function delBasePath(path: string): string {
  * Detects whether a given url is routable by the Next.js router (browser only).
  */
 export function isLocalURL(url: string): boolean {
-  if (url.startsWith('/')) return true
+  // prevent a hydration mismatch on href for url with anchor refs
+  if (url.startsWith('/') || url.startsWith('#')) return true
   try {
     // absolute urls can be local if they are on the same origin
     const locationOrigin = getLocationOrigin()
