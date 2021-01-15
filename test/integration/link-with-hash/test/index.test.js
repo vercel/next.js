@@ -21,11 +21,7 @@ const runTests = () => {
     const browserLogs = await browser.log('browser')
     let found = false
     browserLogs.forEach((log) => {
-      if (
-        log.message.includes(
-          'Warning: Prop'
-        )
-      ) {
+      if (log.message.includes('Warning: Prop')) {
         found = true
       }
     })
