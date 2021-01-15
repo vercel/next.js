@@ -30,7 +30,6 @@
   },
   "peerDependencies": {
     "react": "^16.9.0 || ^17",
-    "react-dom": "^16.9.0 || ^17",
-    "webpack": "^4 || ^5"
+    "react-dom": "^16.9.0 || ^17"
   }
 }
