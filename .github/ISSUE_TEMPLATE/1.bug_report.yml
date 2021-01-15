@@ -12,10 +12,10 @@ inputs:
       value: If you leave out sections there is a high likelihood it will be moved to the GitHub Discussions "Help" section.
   - type: description
     attributes:
-      value: "Please first verify if your issue exists in the Next.js canary release line: `npm install next@canary`."
+      value: 'Please first verify if your issue exists in the Next.js canary release line: `npm install next@canary`.'
   - type: description
     attributes:
-      value: "next@canary is the beta version of Next.js. It includes all features and fixes that are pending to land on the stable release line."
+      value: 'next@canary is the beta version of Next.js. It includes all features and fixes that are pending to land on the stable release line.'
   - type: input
     attributes:
       label: What version of Next.js are you using?
