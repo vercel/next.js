@@ -129,7 +129,7 @@ export type GetServerSidePropsContext<
   Q extends ParsedUrlQuery = ParsedUrlQuery
 > = {
   req: IncomingMessage & {
-    cookies?: { [key: string]: any }
+    cookies: { [key: string]: string | undefined }
   }
   res: ServerResponse
   params?: Q
