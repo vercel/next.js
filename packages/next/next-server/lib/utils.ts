@@ -206,7 +206,7 @@ export interface NextApiRequest extends IncomingMessage {
    * Object of `cookies` from header
    */
   cookies: {
-    [key: string]: string
+    [key: string]: string | undefined
   }
 
   body: any
