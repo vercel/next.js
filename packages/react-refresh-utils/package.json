@@ -22,6 +22,11 @@
     "react-refresh": "0.8.3",
     "webpack": "^4 || ^5"
   },
+  "peerDependenciesMeta": {
+    "webpack": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "react-refresh": "0.8.3"
   }

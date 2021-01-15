@@ -9,8 +9,8 @@ import {
 } from 'source-map'
 import { StackFrame } from 'stacktrace-parser'
 import url from 'url'
-// eslint-disable-next-line import/no-extraneous-dependencies
 // @ts-ignore
+// eslint-disable-next-line import/no-extraneous-dependencies
 import webpack from 'webpack'
 import { getRawSourceMap } from './internal/helpers/getRawSourceMap'
 import { launchEditor } from './internal/helpers/launchEditor'
