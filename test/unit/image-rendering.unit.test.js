@@ -12,11 +12,13 @@ describe('Image rendering', () => {
       width: 100,
       height: 100,
       loading: 'eager',
+      style: { padding: '10px;' },
     })
     const html = ReactDOM.renderToString(element)
     const $ = cheerio.load(html)
     const img = $('#unit-image')
     expect(img.attr('id')).toBe('unit-image')
+    expect(img.attr('style')).toContain('padding: 10px;')
     expect(img.attr('src')).toContain('/_next/image?url=%2Ftest.png')
     expect(img.attr('srcset')).toContain('/_next/image?url=%2Ftest.png')
   })

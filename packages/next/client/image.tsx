@@ -49,7 +49,7 @@ type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
 export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
+  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading'
 > & {
   src: string
   loader?: ImageLoader
@@ -197,6 +197,7 @@ export default function Image({
   height,
   objectFit,
   objectPosition,
+  style,
   loader = defaultImageLoader,
   ...all
 }: ImageProps) {
@@ -405,6 +406,7 @@ export default function Image({
                 margin: 0,
                 border: 'none',
                 padding: 0,
+                ...style,
               }}
               alt=""
               aria-hidden={true}
@@ -420,7 +422,7 @@ export default function Image({
         decoding="async"
         className={className}
         ref={setRef}
-        style={imgStyle}
+        style={{ ...imgStyle, ...style }}
       />
       {priority ? (
         // Note how we omit the `href` attribute, as it would only be relevant
