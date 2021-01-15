@@ -1,21 +1,11 @@
-import {
-  IncomingMessage,
-  ServerResponse,
-} from 'http'
+import { IncomingMessage, ServerResponse } from 'http'
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import getRawBody from 'raw-body'
 import { PageConfig } from 'next/types'
 import { Stream } from 'stream'
-import {
-  isResSent,
-  NextApiRequest,
-  NextApiResponse,
-} from '../lib/utils'
-import {
-  decryptWithSecret,
-  encryptWithSecret,
-} from './crypto-utils'
+import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
+import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
 import { Params } from './router'
 import { sendEtagResponse } from './send-payload'
@@ -38,7 +28,7 @@ export async function apiResolver(
   apiContext: __ApiPreviewProps,
   propagateError: boolean,
   onError?: ({ err }: { err: any }) => Promise<void>
-) {
+): Promise<void> {
   const apiReq = req as NextApiRequest
   const apiRes = res as NextApiResponse
 
@@ -176,7 +166,9 @@ function parseJson(str: string): object {
  * Parse cookies from `req` header
  * @param req request object
  */
-export function getCookieParser(req: IncomingMessage) {
+export function getCookieParser(
+  req: IncomingMessage
+): () => NextApiRequestCookies {
   return function parseCookie(): NextApiRequestCookies {
     const header: undefined | string | string[] = req.headers.cookie
 
