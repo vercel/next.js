@@ -339,8 +339,8 @@ export function tryGetPreviewData(
       tokenPreviewData,
       options.previewModeSigningKey
     ) as typeof encryptedPreviewData
-  } catch {
-    // TODO: warn
+  } catch (e) {
+    console.warn(`Failed to veriry jsonwebtoken: ${e}`)
     clearPreviewData(res as NextApiResponse)
     return false
   }
