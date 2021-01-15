@@ -154,7 +154,7 @@ jobs:
       - run: exit 0
 
   testFutureDependencies:
-    name: React 17 + webpack 5 (Basic, Production, Acceptance)
+    name: Webpack 5 (Basic, Production, Acceptance)
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -171,16 +171,42 @@ jobs:
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
 
-      - run: cat package.json | jq '.resolutions.react = "^17.0.1"' > package.json.tmp && mv package.json.tmp package.json
+      - run: yarn install --check-files
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
 
-      - run: cat package.json | jq '.resolutions."react-dom" = "^17.0.1"' > package.json.tmp && mv package.json.tmp package.json
+      - run: yarn list webpack
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
+
+      - run: xvfb-run node run-tests.js test/integration/{link-ref,production,basic,async-modules,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
+
+  testLegacyReact:
+    name: React 16 + Webpack 4 (Basic, Production, Acceptance)
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      HEADLESS: true
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'docs-only')
+        id: docs-change
+
+      - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
+
+      - run: cat package.json | jq '.resolutions.react = "^16.14.0"' > package.json.tmp && mv package.json.tmp package.json
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
+
+      - run: cat package.json | jq '.resolutions."react-dom" = "^16.14.0"' > package.json.tmp && mv package.json.tmp package.json
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
 
       - run: yarn install --check-files
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
 
-      - run: yarn list webpack react react-dom
+      - run: yarn list react react-dom
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
 
       - run: xvfb-run node run-tests.js test/integration/{link-ref,production,basic,async-modules,ssr-ctx,worker-loader}/test/index.test.js test/acceptance/*.test.js
