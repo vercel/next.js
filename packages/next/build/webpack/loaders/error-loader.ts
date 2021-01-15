@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import loaderUtils from 'loader-utils'
+import loaderUtils from 'next/dist/compiled/loader-utils'
 import path from 'path'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 

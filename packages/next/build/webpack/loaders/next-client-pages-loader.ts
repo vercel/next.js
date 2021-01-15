@@ -1,4 +1,4 @@
-import loaderUtils from 'loader-utils'
+import loaderUtils from 'next/dist/compiled/loader-utils'
 import { tracer, traceFn } from '../../tracer'
 
 export type ClientPagesLoaderOptions = {

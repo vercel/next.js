@@ -1,6 +1,6 @@
 import NativeModule from 'module'
 
-import loaderUtils from 'loader-utils'
+import loaderUtils from 'next/dist/compiled/loader-utils'
 import {
   webpack,
   isWebpack5,

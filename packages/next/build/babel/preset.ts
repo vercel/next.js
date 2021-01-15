@@ -198,7 +198,7 @@ module.exports = (
       ],
       require('./plugins/amp-attributes'),
       isProduction && [
-        require('babel-plugin-transform-react-remove-prop-types'),
+        require('next/dist/compiled/babel/plugin-transform-react-remove-prop-types'),
         {
           removeImport: true,
         },

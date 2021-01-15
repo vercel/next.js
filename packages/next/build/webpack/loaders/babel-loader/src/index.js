@@ -1,5 +1,5 @@
 // import babel from 'next/dist/compiled/babel/core'
-import loaderUtils from 'loader-utils'
+import loaderUtils from 'next/dist/compiled/loader-utils'
 import { tracer, traceAsyncFn, traceFn } from '../../../../tracer'
 import cache from './cache'
 import transform from './transform'
