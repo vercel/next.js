@@ -371,22 +371,17 @@ function setPreviewData<T>(
     maxAge?: number
   } & __ApiPreviewProps
 ): NextApiResponse<T> {
-  if (
-    typeof options.previewModeId !== 'string' ||
-    options.previewModeId.length < 16
-  ) {
+  const isNotValidData = (str: string): boolean => {
+    return typeof str !== 'string' || str.length < 16
+  }
+
+  if (isNotValidData(options.previewModeId)) {
     throw new Error('invariant: invalid previewModeId')
   }
-  if (
-    typeof options.previewModeEncryptionKey !== 'string' ||
-    options.previewModeEncryptionKey.length < 16
-  ) {
+  if (isNotValidData(options.previewModeEncryptionKey)) {
     throw new Error('invariant: invalid previewModeEncryptionKey')
   }
-  if (
-    typeof options.previewModeSigningKey !== 'string' ||
-    options.previewModeSigningKey.length < 16
-  ) {
+  if (isNotValidData(options.previewModeSigningKey)) {
     throw new Error('invariant: invalid previewModeSigningKey')
   }
 
