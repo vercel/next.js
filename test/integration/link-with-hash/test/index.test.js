@@ -18,8 +18,18 @@ const appDir = join(__dirname, '..')
 const runTests = () => {
   it('should not have hydration mis-match for hash link', async () => {
     const browser = await webdriver(appPort, '/')
-    const caughtErrors = await browser.eval(`window.caughtErrors`)
-    expect(caughtErrors).toEqual([])
+    const browserLogs = await browser.log('browser')
+    let found = false
+    browserLogs.forEach((log) => {
+      if (
+        log.message.includes(
+          'Warning: Prop `%s` did not match. Server: %s Client: %s'
+        )
+      ) {
+        found = true
+      }
+    })
+    expect(found).toEqual(false)
   })
 }
 
