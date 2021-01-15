@@ -23,7 +23,7 @@ const runTests = () => {
     browserLogs.forEach((log) => {
       if (
         log.message.includes(
-          'Warning: Prop `%s` did not match. Server: %s Client: %s'
+          'Warning: Prop'
         )
       ) {
         found = true
