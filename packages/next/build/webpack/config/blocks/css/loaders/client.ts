@@ -12,6 +12,7 @@ export function getClientStyleLoader({
     ? {
         loader: require.resolve('style-loader'),
         options: {
+          esModule: false,
           // By default, style-loader injects CSS into the bottom
           // of <head>. This causes ordering problems between dev
           // and prod. To fix this, we render a <noscript> tag as
