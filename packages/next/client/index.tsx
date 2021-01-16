@@ -472,12 +472,18 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   return pageLoader
     .loadPage('/_error')
     .then(({ page: ErrorComponent, styleSheets }) => {
+      // To prevent infinite `_error` rendering when `_error` throws on client side
+      const Component =
+        lastAppProps.Component === ErrorComponent
+          ? () => <>An unexpected error has occurred</>
+          : ErrorComponent
+
       // In production we do a normal render with the `ErrorComponent` as component.
       // If we've gotten here upon initial render, we can use the props from the server.
       // Otherwise, we need to call `getInitialProps` on `App` before mounting.
       const AppTree = wrapApp(App)
       const appCtx = {
-        Component: ErrorComponent,
+        Component,
         AppTree,
         router,
         ctx: { err, pathname: page, query, asPath, AppTree },
@@ -490,7 +496,7 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
         doRender({
           ...renderErrorProps,
           err,
-          Component: ErrorComponent,
+          Component,
           styleSheets,
           props: initProps,
         })
