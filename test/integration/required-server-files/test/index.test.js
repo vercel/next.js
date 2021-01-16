@@ -273,6 +273,116 @@ describe('Required Server Files', () => {
     expect(data2.hello).toBe('world')
   })
 
+  it('should render fallback optional catch-all route correctly with x-matched-path and routes-matches', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/catch-all/[[...rest]]',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/catch-all/[[...rest]]',
+          'x-now-route-matches': '',
+        },
+      }
+    )
+    const $ = cheerio.load(html)
+    const data = JSON.parse($('#props').text())
+
+    expect($('#catch-all').text()).toBe('optional catch-all page')
+    expect(data.params).toEqual({})
+    expect(data.hello).toBe('world')
+
+    const html2 = await renderViaHTTP(
+      appPort,
+      '/catch-all/[[...rest]]',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/catch-all/[[...rest]]',
+          'x-now-route-matches': '1=hello&catchAll=hello',
+        },
+      }
+    )
+    const $2 = cheerio.load(html2)
+    const data2 = JSON.parse($2('#props').text())
+
+    expect($2('#catch-all').text()).toBe('optional catch-all page')
+    expect(data2.params).toEqual({ rest: ['hello'] })
+    expect(isNaN(data2.random)).toBe(false)
+    expect(data2.random).not.toBe(data.random)
+
+    const html3 = await renderViaHTTP(
+      appPort,
+      '/catch-all/[[..rest]]',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/catch-all/[[...rest]]',
+          'x-now-route-matches': '1=hello/world&catchAll=hello/world',
+        },
+      }
+    )
+    const $3 = cheerio.load(html3)
+    const data3 = JSON.parse($3('#props').text())
+
+    expect($3('#catch-all').text()).toBe('optional catch-all page')
+    expect(data3.params).toEqual({ rest: ['hello', 'world'] })
+    expect(isNaN(data3.random)).toBe(false)
+    expect(data3.random).not.toBe(data.random)
+  })
+
+  it('should return data correctly with x-matched-path for optional catch-all route', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/catch-all.json`,
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/catch-all/[[...rest]]',
+        },
+      }
+    )
+
+    const { pageProps: data } = await res.json()
+
+    expect(data.params).toEqual({})
+    expect(data.hello).toBe('world')
+
+    const res2 = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/catch-all/[[...rest]].json`,
+      undefined,
+      {
+        headers: {
+          'x-matched-path': `/_next/data/${buildId}/catch-all/[[...rest]].json`,
+          'x-now-route-matches': '1=hello&rest=hello',
+        },
+      }
+    )
+
+    const { pageProps: data2 } = await res2.json()
+
+    expect(data2.params).toEqual({ rest: ['hello'] })
+    expect(data2.hello).toBe('world')
+
+    const res3 = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${buildId}/catch-all/[[...rest]].json`,
+      undefined,
+      {
+        headers: {
+          'x-matched-path': `/_next/data/${buildId}/catch-all/[[...rest]].json`,
+          'x-now-route-matches': '1=hello/world&rest=hello/world',
+        },
+      }
+    )
+
+    const { pageProps: data3 } = await res3.json()
+
+    expect(data3.params).toEqual({ rest: ['hello', 'world'] })
+    expect(data3.hello).toBe('world')
+  })
+
   it('should not apply trailingSlash redirect', async () => {
     for (const path of [
       '/',
@@ -289,5 +399,24 @@ describe('Required Server Files', () => {
 
       expect(res.status).toBe(200)
     }
+  })
+
+  it('should normalize catch-all rewrite query values correctly', async () => {
+    const html = await renderViaHTTP(
+      appPort,
+      '/some-catch-all/hello/world',
+      {
+        path: 'hello/world',
+      },
+      {
+        headers: {
+          'x-matched-path': '/',
+        },
+      }
+    )
+    const $ = cheerio.load(html)
+    expect(JSON.parse($('#router').text()).query).toEqual({
+      path: ['hello', 'world'],
+    })
   })
 })
