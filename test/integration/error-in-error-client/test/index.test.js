@@ -1,0 +1,33 @@
+/* eslint-env jest */
+
+import path from 'path'
+import webdriver from 'next-webdriver'
+import {
+  nextBuild,
+  nextStart,
+  findPort,
+  killApp,
+  waitFor,
+} from 'next-test-utils'
+
+jest.setTimeout(1000 * 60 * 1)
+const appDir = path.join(__dirname, '..')
+let app
+let port
+
+describe('Handles an client Error in _error', () => {
+  beforeAll(async () => {
+    await nextBuild(appDir)
+    port = await findPort()
+    app = await nextStart(appDir, port)
+  })
+  afterAll(() => killApp(app))
+
+  it('Handles error during client transition', async () => {
+    const browser = await webdriver(port, '/')
+    await browser.waitForElementByCss('a').click()
+    await waitFor(1000)
+    const html = await browser.eval('document.body.innerHTML')
+    expect(html).toMatch(/An unexpected error has occurred/i)
+  })
+})
