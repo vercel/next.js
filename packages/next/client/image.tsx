@@ -498,26 +498,25 @@ export default function Image({
           })
         : null}
       {sizerStyle ? (
-        <>
-          <div style={sizerStyle}>
-            {sizerSvg ? (
-              <img
-                style={{ maxWidth: '100%', display: 'block' }}
-                alt=""
-                aria-hidden={true}
-                role="presentation"
-                src={`data:image/svg+xml;charset=utf-8,${sizerSvg}`}
-              />
-            ) : null}
-          </div>
-        </>
+        <div style={sizerStyle}>
+          {sizerSvg ? (
+            <img
+              style={{ maxWidth: '100%', display: 'block' }}
+              alt=""
+              aria-hidden={true}
+              role="presentation"
+              src={`data:image/svg+xml;charset=utf-8,${sizerSvg}`}
+            />
+          ) : null}
+        </div>
       ) : null}
       <noscript>
         <img
           {...rest}
+          {...imgAttributes}
           src={src}
           decoding="async"
-          style={imgStyle}
+          style={{ ...imgStyle, visibility: 'visible' }}
           className={className}
           ref={thisEl}
         />
