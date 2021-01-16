@@ -1,4 +1,4 @@
-import webpack from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import MiniCssExtractPlugin from '../../../../plugins/mini-css-extract-plugin'
 
 export function getClientStyleLoader({

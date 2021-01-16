@@ -2,7 +2,7 @@ import { EventEmitter } from 'events'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, posix } from 'path'
 import { parse } from 'url'
-import webpack from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import * as Log from '../build/output/log'
 import {
   normalizePagePath,
