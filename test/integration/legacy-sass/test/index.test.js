@@ -5,7 +5,6 @@ import { findPort, killApp, launchApp, nextBuild } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { join } from 'path'
-import { version } from 'webpack'
 
 jest.setTimeout(1000 * 60 * 1)
 
