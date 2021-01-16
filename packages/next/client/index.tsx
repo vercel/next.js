@@ -474,7 +474,7 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
     .then(({ page: ErrorComponent, styleSheets }) => {
       // To prevent infinite `_error` rendering when `_error` throws on client side
       const Component =
-        lastAppProps.Component === ErrorComponent
+        lastAppProps?.Component === ErrorComponent
           ? () => <>An unexpected error has occurred</>
           : ErrorComponent
 
