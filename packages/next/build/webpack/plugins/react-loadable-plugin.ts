@@ -88,6 +88,29 @@ function buildManifest(
           }
         })
       })
+
+      // ensure all requests are included even if no nested chunks
+      if (!manifest[request]) {
+        const requestDependency = chunkGroupOrigin.module.blocks.find(
+          (block: any) => block.request === request
+        ).dependencies[0]
+
+        let requestId
+
+        if (isWebpack5) {
+          // @ts-ignore
+          requestId = compilation.moduleGraph.getModule(requestDependency).id
+        } else {
+          requestId = requestDependency.module.id
+        }
+
+        manifest[request] = [
+          {
+            id: requestId,
+            file: requestId,
+          },
+        ]
+      }
     })
   })
 
