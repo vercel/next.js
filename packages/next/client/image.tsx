@@ -500,9 +500,6 @@ export default function Image({
           : null}
         {sizerStyle ? (
           <>
-            <noscript>
-              <div style={{ marginTop: `-${sizerStyle.paddingTop}` }} />
-            </noscript>
             <div style={sizerStyle}>
               {sizerSvg ? (
                 <img
