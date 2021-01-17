@@ -304,7 +304,7 @@ export function tryGetPreviewData(
   try {
     cookies = getCookies()
   } catch {
-    console.warn('Did not get data from NextApiRequestCookies')
+    console.warn('If you have not enabled cookies, please do so.')
     return false
   }
 
@@ -340,7 +340,7 @@ export function tryGetPreviewData(
       options.previewModeSigningKey
     ) as typeof encryptedPreviewData
   } catch (e) {
-    console.warn(`Failed to veriry jsonwebtoken: ${e}`)
+    // TODO: warn
     clearPreviewData(res as NextApiResponse)
     return false
   }
