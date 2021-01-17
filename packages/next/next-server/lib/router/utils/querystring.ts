@@ -33,7 +33,9 @@ export function urlQueryToSearchParams(
 ): URLSearchParams {
   const result = new URLSearchParams()
   Object.entries(urlQuery).forEach(([key, value]) => {
-    if (Array.isArray(value)) {
+    if (value === null || value === undefined) {
+      result.delete(key)
+    } else if (Array.isArray(value)) {
       value.forEach((item) => result.append(key, stringifyUrlQueryParam(item)))
     } else {
       result.set(key, stringifyUrlQueryParam(value))
