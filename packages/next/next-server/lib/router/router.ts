@@ -880,7 +880,11 @@ export default class Router implements BaseRouter {
       // TODO: do we need the resolved href when only a hash change?
       this.changeState(method, url, as, options)
       this.scrollToHash(cleanedAs)
-      this.notify(this.components[this.route], null)
+
+      // Since `#` scroll is already handled, excluding it by checking `cleanedAs`
+      forcedScroll =
+        forcedScroll && !cleanedAs.includes('#') ? forcedScroll : undefined
+      this.notify(this.components[this.route], forcedScroll || null)
       Router.events.emit('hashChangeComplete', as, routeProps)
       return true
     }

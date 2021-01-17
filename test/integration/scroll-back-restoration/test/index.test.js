@@ -63,6 +63,27 @@ const runTests = () => {
     expect(scrollX).toBe(newScrollX)
     expect(scrollY).toBe(newScrollY)
   })
+
+  it('should scroll to the restored position on same-page navigation back with hash links', async () => {
+    const browser = await webdriver(appPort, '/hash-changes')
+
+    await browser.eval(() =>
+      document.querySelector('#scroll-to-item-100').scrollIntoView()
+    )
+    const scrollPosition = await browser.eval('window.pageYOffset')
+
+    const scrollPositionItem100 = await browser
+      .elementByCss('#scroll-to-item-100')
+      .click()
+      .eval('window.pageYOffset')
+
+    expect(scrollPositionItem100).toBe(1790)
+
+    await browser.eval(() => window.history.back())
+    const newScrollPosition = await browser.eval('window.pageYOffset')
+
+    expect(newScrollPosition).toBe(scrollPosition)
+  })
 }
 
 describe('Scroll Restoration Support', () => {
