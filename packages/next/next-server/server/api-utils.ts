@@ -339,7 +339,7 @@ export function tryGetPreviewData(
       tokenPreviewData,
       options.previewModeSigningKey
     ) as typeof encryptedPreviewData
-  } catch (e) {
+  } catch {
     // TODO: warn
     clearPreviewData(res as NextApiResponse)
     return false
