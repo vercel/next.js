@@ -516,9 +516,9 @@ export default function Image({
           {...imgAttributes}
           src={src}
           decoding="async"
+          sizes={sizes}
           style={{ ...imgStyle, visibility: 'visible' }}
           className={className}
-          ref={thisEl}
         />
       </noscript>
       <img
