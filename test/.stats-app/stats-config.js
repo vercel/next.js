@@ -135,5 +135,39 @@ module.exports = {
         },
       ],
     },
+    {
+      title: 'Webpack 5 Mode',
+      diff: 'onOutputChange',
+      renames,
+      configFiles: [
+        {
+          path: 'next.config.js',
+          content: `
+            module.exports = {
+              generateBuildId: () => 'BUILD_ID',
+              future: {
+                webpack5: true
+              }
+            }
+          `,
+        },
+      ],
+      filesToTrack: clientGlobs,
+      // will be output to fetched-pages/${pathname}.html
+      pagesToFetch: [
+        'http://localhost:$PORT/',
+        'http://localhost:$PORT/link',
+        'http://localhost:$PORT/withRouter',
+      ],
+      pagesToBench: [
+        'http://localhost:$PORT/',
+        'http://localhost:$PORT/error-in-render',
+      ],
+      benchOptions: {
+        reqTimeout: 60,
+        concurrency: 50,
+        numRequests: 2500,
+      },
+    },
   ],
 }

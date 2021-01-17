@@ -434,17 +434,11 @@ export default async function getBaseWebpackConfig(
       cacheGroups: {
         default: false,
         vendors: false,
-        // In webpack 5 vendors was renamed to defaultVendors
-        defaultVendors: false,
       },
     },
     prodGranular: {
       chunks: 'all',
       cacheGroups: {
-        default: false,
-        vendors: false,
-        // In webpack 5 vendors was renamed to defaultVendors
-        defaultVendors: false,
         framework: {
           chunks: 'all',
           name: 'framework',
@@ -458,10 +452,13 @@ export default async function getBaseWebpackConfig(
           enforce: true,
         },
         lib: {
-          test(module: { size: Function; identifier: Function }): boolean {
+          test(module: {
+            size: Function
+            nameForCondition: Function
+          }): boolean {
             return (
               module.size() > 160000 &&
-              /node_modules[/\\]/.test(module.identifier())
+              /node_modules[/\\]/.test(module.nameForCondition() || '')
             )
           },
           name(module: {
@@ -493,26 +490,32 @@ export default async function getBaseWebpackConfig(
           minChunks: totalPages,
           priority: 20,
         },
-        shared: {
-          name(module, chunks) {
-            return (
-              crypto
-                .createHash('sha1')
-                .update(
-                  chunks.reduce(
-                    (acc: string, chunk: webpack.compilation.Chunk) => {
-                      return acc + chunk.name
-                    },
-                    ''
+        ...(isWebpack5
+          ? undefined
+          : {
+              default: false,
+              vendors: false,
+              shared: {
+                name(module, chunks) {
+                  return (
+                    crypto
+                      .createHash('sha1')
+                      .update(
+                        chunks.reduce(
+                          (acc: string, chunk: webpack.compilation.Chunk) => {
+                            return acc + chunk.name
+                          },
+                          ''
+                        )
+                      )
+                      .digest('hex') + (isModuleCSS(module) ? '_CSS' : '')
                   )
-                )
-                .digest('hex') + (isModuleCSS(module) ? '_CSS' : '')
-            )
-          },
-          priority: 10,
-          minChunks: 2,
-          reuseExistingChunk: true,
-        },
+                },
+                priority: 10,
+                minChunks: 2,
+                reuseExistingChunk: true,
+              },
+            }),
       },
       maxInitialRequests: 25,
       minSize: 20000,
