@@ -235,4 +235,4 @@ If you've ejected Create React App, here are some things to consider:
 
 ## Learn More
 
-You can learn more about Next.js by completing our [starter tutorial](/learn). If you have questions or if this guide didn't work for you, feel free to reach out to our community on [GitHub Discussions](https://github.com/vercel/next.js/discussions).
+You can learn more about Next.js by completing our [starter tutorial](https://nextjs.org/learn/basics/getting-started). If you have questions or if this guide didn't work for you, feel free to reach out to our community on [GitHub Discussions](https://github.com/vercel/next.js/discussions).
