@@ -1,7 +1,7 @@
 function addReactImport(j, root) {
   // We create an import specifier, this is the value of an import, eg:
-  // import {withRouter} from 'next/router
-  // The specifier would be `withRouter`
+  // import React from 'react'
+  // The specifier would be `React`
   const ReactDefaultSpecifier = j.importDefaultSpecifier(j.identifier('React'))
 
   // Check if this file is already importing `react`
