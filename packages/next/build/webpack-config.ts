@@ -7,8 +7,11 @@ import semver from 'next/dist/compiled/semver'
 // @ts-ignore No typings yet
 import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
 import path from 'path'
-import webpack from 'webpack'
-import { Configuration } from 'webpack'
+import {
+  webpack,
+  isWebpack5,
+  init as initWebpack,
+} from 'next/dist/compiled/webpack/webpack'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -61,23 +64,16 @@ import { NextConfig } from '../next-server/server/config'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
-const isWebpack5 = parseInt(webpack.version!) === 5
-
-if (isWebpack5 && semver.lt(webpack.version!, '5.11.1')) {
-  Log.error(
-    `webpack 5 version must be greater than v5.11.1 to work properly with Next.js, please upgrade to continue!\nSee more info here: https://err.sh/next.js/invalid-webpack-5-version`
-  )
-  process.exit(1)
-}
-
-const devtoolRevertWarning = execOnce((devtool: Configuration['devtool']) => {
-  console.warn(
-    chalk.yellow.bold('Warning: ') +
-      chalk.bold(`Reverting webpack devtool to '${devtool}'.\n`) +
-      'Changing the webpack devtool in development mode will cause severe performance regressions.\n' +
-      'Read more: https://err.sh/next.js/improper-devtool'
-  )
-})
+const devtoolRevertWarning = execOnce(
+  (devtool: webpack.Configuration['devtool']) => {
+    console.warn(
+      chalk.yellow.bold('Warning: ') +
+        chalk.bold(`Reverting webpack devtool to '${devtool}'.\n`) +
+        'Changing the webpack devtool in development mode will cause severe performance regressions.\n' +
+        'Read more: https://err.sh/next.js/improper-devtool'
+    )
+  }
+)
 
 function parseJsonFile(filePath: string) {
   const JSON5 = require('next/dist/compiled/json5')
@@ -208,6 +204,12 @@ export default async function getBaseWebpackConfig(
     rewrites: Rewrite[]
   }
 ): Promise<webpack.Configuration> {
+  initWebpack(
+    config.future?.webpack5 ||
+      (config.future?.webpack5 !== false &&
+        Number(process.env.NEXT_WEBPACK5) > 0)
+  )
+
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
@@ -432,17 +434,11 @@ export default async function getBaseWebpackConfig(
       cacheGroups: {
         default: false,
         vendors: false,
-        // In webpack 5 vendors was renamed to defaultVendors
-        defaultVendors: false,
       },
     },
     prodGranular: {
       chunks: 'all',
       cacheGroups: {
-        default: false,
-        vendors: false,
-        // In webpack 5 vendors was renamed to defaultVendors
-        defaultVendors: false,
         framework: {
           chunks: 'all',
           name: 'framework',
@@ -456,10 +452,13 @@ export default async function getBaseWebpackConfig(
           enforce: true,
         },
         lib: {
-          test(module: { size: Function; identifier: Function }): boolean {
+          test(module: {
+            size: Function
+            nameForCondition: Function
+          }): boolean {
             return (
               module.size() > 160000 &&
-              /node_modules[/\\]/.test(module.identifier())
+              /node_modules[/\\]/.test(module.nameForCondition() || '')
             )
           },
           name(module: {
@@ -491,26 +490,32 @@ export default async function getBaseWebpackConfig(
           minChunks: totalPages,
           priority: 20,
         },
-        shared: {
-          name(module, chunks) {
-            return (
-              crypto
-                .createHash('sha1')
-                .update(
-                  chunks.reduce(
-                    (acc: string, chunk: webpack.compilation.Chunk) => {
-                      return acc + chunk.name
-                    },
-                    ''
+        ...(isWebpack5
+          ? undefined
+          : {
+              default: false,
+              vendors: false,
+              shared: {
+                name(module, chunks) {
+                  return (
+                    crypto
+                      .createHash('sha1')
+                      .update(
+                        chunks.reduce(
+                          (acc: string, chunk: webpack.compilation.Chunk) => {
+                            return acc + chunk.name
+                          },
+                          ''
+                        )
+                      )
+                      .digest('hex') + (isModuleCSS(module) ? '_CSS' : '')
                   )
-                )
-                .digest('hex') + (isModuleCSS(module) ? '_CSS' : '')
-            )
-          },
-          priority: 10,
-          minChunks: 2,
-          reuseExistingChunk: true,
-        },
+                },
+                priority: 10,
+                minChunks: 2,
+                reuseExistingChunk: true,
+              },
+            }),
       },
       maxInitialRequests: 25,
       minSize: 20000,
@@ -560,9 +565,13 @@ export default async function getBaseWebpackConfig(
     config.conformance
   )
 
-  function handleExternals(context: any, request: any, callback: any) {
+  async function handleExternals(
+    context: string,
+    request: string,
+    getResolve: () => (context: string, request: string) => Promise<string>
+  ) {
     if (request === 'next') {
-      return callback(undefined, `commonjs ${request}`)
+      return `commonjs ${request}`
     }
 
     const notExternalModules = [
@@ -576,7 +585,7 @@ export default async function getBaseWebpackConfig(
     ]
 
     if (notExternalModules.indexOf(request) !== -1) {
-      return callback()
+      return
     }
 
     // We need to externalize internal requests for files intended to
@@ -598,26 +607,28 @@ export default async function getBaseWebpackConfig(
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
     if (isLocal && !isLikelyNextExternal) {
-      return callback()
+      return
     }
+
+    const resolve = getResolve()
 
     // Resolve the import with the webpack provided context, this
     // ensures we're resolving the correct version when multiple
     // exist.
     let res: string
     try {
-      res = require.resolve(request, { paths: [context] })
+      res = await resolve(context, request)
     } catch (err) {
       // If the request cannot be resolved, we need to tell webpack to
       // "bundle" it so that webpack shows an error (that it cannot be
       // resolved).
-      return callback()
+      return
     }
 
     // Same as above, if the request cannot be resolved we need to have
     // webpack "bundle" it so it surfaces the not found error.
     if (!res) {
-      return callback()
+      return
     }
 
     let isNextExternal: boolean = false
@@ -629,7 +640,7 @@ export default async function getBaseWebpackConfig(
       )
 
       if (!isNextExternal) {
-        return callback()
+        return
       }
     }
 
@@ -644,7 +655,7 @@ export default async function getBaseWebpackConfig(
       // we need to bundle the code (even if it _should_ be external).
       let baseRes: string | null
       try {
-        baseRes = require.resolve(request, { paths: [dir] })
+        baseRes = await resolve(dir, request)
       } catch (err) {
         baseRes = null
       }
@@ -658,7 +669,7 @@ export default async function getBaseWebpackConfig(
           // if res and baseRes are symlinks they could point to the the same file
           realpathSync(baseRes) !== realpathSync(res))
       ) {
-        return callback()
+        return
       }
     }
 
@@ -669,7 +680,7 @@ export default async function getBaseWebpackConfig(
         // This is the @babel/plugin-transform-runtime "helpers: true" option
         res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/))
     ) {
-      return callback()
+      return
     }
 
     // Webpack itself has to be compiled because it doesn't always use module relative paths
@@ -677,7 +688,7 @@ export default async function getBaseWebpackConfig(
       res.match(/node_modules[/\\]webpack/) ||
       res.match(/node_modules[/\\]css-loader/)
     ) {
-      return callback()
+      return
     }
 
     // Anything else that is standard JavaScript within `node_modules`
@@ -699,11 +710,10 @@ export default async function getBaseWebpackConfig(
           )
         : request
 
-      return callback(undefined, `commonjs ${externalRequest}`)
+      return `commonjs ${externalRequest}`
     }
 
     // Default behavior: bundle the code!
-    callback()
   }
 
   const emacsLockfilePattern = '**/.#*'
@@ -717,10 +727,35 @@ export default async function getBaseWebpackConfig(
       : !isServerless
       ? [
           isWebpack5
-            ? ({ context, request }, callback) =>
-                handleExternals(context, request, callback)
-            : (context, request, callback) =>
-                handleExternals(context, request, callback),
+            ? ({
+                context,
+                request,
+                getResolve,
+              }: {
+                context: string
+                request: string
+                getResolve: () => (
+                  context: string,
+                  request: string
+                ) => Promise<string>
+              }) => handleExternals(context, request, getResolve)
+            : (
+                context: string,
+                request: string,
+                callback: (err?: Error, result?: string | undefined) => void
+              ) =>
+                handleExternals(
+                  context,
+                  request,
+                  () => (resolveContext: string, requestToResolve: string) =>
+                    new Promise((resolve) =>
+                      resolve(
+                        require.resolve(requestToResolve, {
+                          paths: [resolveContext],
+                        })
+                      )
+                    )
+                ).then((result) => callback(undefined, result), callback),
         ]
       : [
           // When the 'serverless' target is used all node_modules will be compiled into the output bundles
@@ -909,7 +944,7 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean),
     },
     plugins: [
-      hasReactRefresh && new ReactRefreshWebpackPlugin(),
+      hasReactRefresh && new ReactRefreshWebpackPlugin(webpack),
       // Makes sure `Buffer` and `process` are polyfilled in client-side bundles (same behavior as webpack 4)
       isWebpack5 &&
         !isServer &&
