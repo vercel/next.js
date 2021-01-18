@@ -1,4 +1,5 @@
 import { tracer } from '../../tracer'
+import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 
 const pluginName = 'ProfilingPlugin'
 
@@ -7,7 +8,12 @@ export const spans = new WeakMap()
 export class ProfilingPlugin {
   apply(compiler: any) {
     // Only enabled when instrumentation is loaded
-    if (!tracer.getCurrentSpan()) {
+    const currentSpan = tracer.getCurrentSpan()
+    console.log({
+      currentSpan,
+      isRecording: currentSpan?.isRecording(),
+    })
+    if (!currentSpan || !currentSpan.isRecording()) {
       return
     }
 
@@ -29,13 +35,14 @@ export class ProfilingPlugin {
         })
       })
 
-      compilation.hooks.normalModuleLoader.tap(
-        pluginName,
-        (loaderContext: any, module: any) => {
-          const parentSpan = spans.get(module)
-          loaderContext.currentTraceSpan = parentSpan
-        }
-      )
+      const hook = isWebpack5
+        ? // @ts-ignore TODO: Webpack 5 types
+          webpack.NormalModule.getCompilationHooks(compilation).loader
+        : compilation.hooks.normalModuleLoader
+      hook.tap(pluginName, (loaderContext: any, module: any) => {
+        const parentSpan = spans.get(module)
+        loaderContext.currentTraceSpan = parentSpan
+      })
 
       compilation.hooks.succeedModule.tap(pluginName, (module: any) => {
         spans.get(module).end()
