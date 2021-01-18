@@ -17,13 +17,42 @@ Codemods are transformations that run on your codebase programmatically. This al
 - `--dry` Do a dry-run, no code will be edited
 - `--print` Prints the changed output for comparison
 
+## Next.js 10
+
+### `add-missing-react-import`
+
+Transforms files that do not import `React` to include the import in order for the new [React JSX transform](https://reactjs.org/blog/2020/09/22/introducing-the-new-jsx-transform.html) to work.
+
+For example:
+
+```jsx
+// my-component.js
+export default class Home extends React.Component {
+  render() {
+    return <div>Hello World</div>
+  }
+}
+```
+
+Transforms into:
+
+```jsx
+// my-component.js
+import React from 'react'
+export default class Home extends React.Component {
+  render() {
+    return <div>Hello World</div>
+  }
+}
+```
+
 ## Next.js 9
 
 ### `name-default-component`
 
 Transforms anonymous components into named components to make sure they work with [Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh).
 
-For example
+For example:
 
 ```jsx
 // my-component.js
