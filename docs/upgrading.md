@@ -40,8 +40,8 @@ The following `getInitialProps` does nothing and may be removed:
 
 ```js
 class MyApp extends App {
-  *// Remove me, I do nothing!*
-  static async getInitialProps({ *Component*, *ctx* }) {
+  // Remove me, I do nothing!
+  static async getInitialProps({ Component, ctx }) {
     let pageProps = {}
 
     if (Component.getInitialProps) {
@@ -52,7 +52,7 @@ class MyApp extends App {
   }
 
   render() {
-    *// ... etc*
+    // ... etc
   }
 }
 ```
@@ -133,7 +133,7 @@ function Home() {
 }
 
 export default withAmp(Home)
-*// or*
+// or
 export default withAmp(Home, { hybrid: true })
 ```
 
@@ -146,7 +146,7 @@ export default function Home() {
 
 export const config = {
   amp: true,
-  *// or*
+  // or
   amp: 'hybrid',
 }
 ```
@@ -158,7 +158,7 @@ Previously, exporting `pages/about.js` would result in `out/about/index.html`. T
 You can revert to the previous behavior by creating a `next.config.js` with the following content:
 
 ```js
-*// next.config.js*
+// next.config.js
 module.exports = {
   trailingSlash: true,
 }
@@ -185,13 +185,13 @@ import dynamic from 'next/dynamic'
 const HelloBundle = dynamic({
   modules: () => {
     const components = {
-      Hello1: () => import('../components/hello1').then((*m*) => m.default),
-      Hello2: () => import('../components/hello2').then((*m*) => m.default),
+      Hello1: () => import('../components/hello1').then((m) => m.default),
+      Hello2: () => import('../components/hello2').then((m) => m.default),
     }
 
     return components
   },
-  render: (*props*, { *Hello1*, *Hello2* }) => (
+  render: (props, { Hello1, Hello2 }) => (
     <div>
       <h1>{props.title}</h1>
       <Hello1 />
@@ -201,7 +201,7 @@ const HelloBundle = dynamic({
 })
 
 function DynamicBundle() {
-  return <HelloBundle *title*="Dynamic Bundle" />
+  return <HelloBundle title="Dynamic Bundle" />
 }
 
 export default DynamicBundle
@@ -215,7 +215,7 @@ import dynamic from 'next/dynamic'
 const Hello1 = dynamic(() => import('../components/hello1'))
 const Hello2 = dynamic(() => import('../components/hello2'))
 
-function HelloBundle({ *title* }) {
+function HelloBundle({ title }) {
   return (
     <div>
       <h1>{title}</h1>
@@ -226,7 +226,7 @@ function HelloBundle({ *title* }) {
 }
 
 function DynamicBundle() {
-  return <HelloBundle *title*="Dynamic Bundle" />
+  return <HelloBundle title="Dynamic Bundle" />
 }
 
 export default DynamicBundle
