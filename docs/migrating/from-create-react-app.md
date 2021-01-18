@@ -73,6 +73,15 @@ if (typeof window !== 'undefined') {
 }
 ```
 
+A recommended way of accessing Web APIs safely is by using the [`useEffect`](https://reactjs.org/docs/hooks-effect.html) hook, which only executes client-side:
+
+```jsx
+import { useEffect } from 'react'
+
+useEffect(() => {
+  // You now have access to `window`
+}, [])
+```
 ## Image Component and Image Optimization
 
 Since version **10.0.0**, Next.js has a built-in [Image Component and Automatic Image Optimization](/docs/basic-features/image-optimization.md).
