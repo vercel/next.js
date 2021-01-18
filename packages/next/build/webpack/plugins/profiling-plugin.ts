@@ -1,5 +1,5 @@
 import { tracer } from '../../tracer'
-import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 
 const pluginName = 'ProfilingPlugin'
 
