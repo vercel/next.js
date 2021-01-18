@@ -5,6 +5,15 @@ const pluginName = 'ProfilingPlugin'
 
 export const spans = new WeakMap()
 
+function getNormalModuleLoaderHook(compilation: any) {
+  if (isWebpack5) {
+    // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+    return webpack.NormalModule.getCompilationHooks(compilation).loader
+  }
+
+  return compilation.hooks.normalModuleLoader
+}
+
 export class ProfilingPlugin {
   apply(compiler: any) {
     // Only enabled when instrumentation is loaded
@@ -35,14 +44,13 @@ export class ProfilingPlugin {
         })
       })
 
-      const hook = isWebpack5
-        ? // @ts-ignore TODO: Webpack 5 types
-          webpack.NormalModule.getCompilationHooks(compilation).loader
-        : compilation.hooks.normalModuleLoader
-      hook.tap(pluginName, (loaderContext: any, module: any) => {
-        const parentSpan = spans.get(module)
-        loaderContext.currentTraceSpan = parentSpan
-      })
+      getNormalModuleLoaderHook(compilation).tap(
+        pluginName,
+        (loaderContext: any, module: any) => {
+          const parentSpan = spans.get(module)
+          loaderContext.currentTraceSpan = parentSpan
+        }
+      )
 
       compilation.hooks.succeedModule.tap(pluginName, (module: any) => {
         spans.get(module).end()
