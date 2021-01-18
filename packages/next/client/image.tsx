@@ -517,7 +517,7 @@ export default function Image({
           src={src}
           decoding="async"
           sizes={sizes}
-          style={{ ...imgStyle, visibility: 'visible' }}
+          style={{ ...imgStyle, visibility: 'inherit' }}
           className={className}
         />
       </noscript>
