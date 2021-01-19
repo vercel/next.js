@@ -130,7 +130,7 @@ export default class BuildManifestPlugin {
             }
 
             // webpack runtime is already available for polyfills on the page
-            if (file.includes('/webpack-')) {
+            if (file.includes('/webpack')) {
               return false
             }
             return true
@@ -140,7 +140,17 @@ export default class BuildManifestPlugin {
           CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
         )
         assetMap.devFiles = reactRefreshChunk
-          ? reactRefreshChunk.getFiles().filter(isJsFile)
+          ? reactRefreshChunk.getFiles().filter((file: string) => {
+              if (!isJsFile(file)) {
+                return false
+              }
+
+              // webpack runtime is already available for polyfills on the page
+              if (file.includes('/webpack')) {
+                return false
+              }
+              return true
+            })
           : []
 
         for (const entrypoint of compilation.entrypoints.values()) {
