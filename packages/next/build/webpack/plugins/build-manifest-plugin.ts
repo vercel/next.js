@@ -70,17 +70,6 @@ function isJsFile(file: string): boolean {
   return !file.endsWith('.hot-update.js') && file.endsWith('.js')
 }
 
-function getFilesArray(files: any) {
-  if (!files) {
-    return []
-  }
-  if (isWebpack5) {
-    return Array.from(files)
-  }
-
-  return files
-}
-
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
@@ -106,8 +95,6 @@ export default class BuildManifestPlugin {
     return tracer.withSpan(spans.get(compiler), () => {
       const span = tracer.startSpan('NextJsBuildManifest-createassets')
       return traceFn(span, () => {
-        const namedChunks: Map<string, webpack.compilation.Chunk> =
-          compilation.namedChunks
         const assetMap: DeepMutable<BuildManifest> = {
           polyfillFiles: [],
           devFiles: [],
@@ -129,27 +116,22 @@ export default class BuildManifestPlugin {
           }
         }
 
-        const mainJsChunk = namedChunks.get(CLIENT_STATIC_FILES_RUNTIME_MAIN)
-
-        const mainJsFiles: string[] = getFilesArray(mainJsChunk?.files).filter(
-          isJsFile
-        )
-
-        const polyfillChunk = namedChunks.get(
-          CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
-        )
-
+        const mainJsFiles = compilation.entrypoints
+          .get(CLIENT_STATIC_FILES_RUNTIME_MAIN)
+          .getFiles()
+          .filter(isJsFile)
         // Create a separate entry  for polyfills
-        assetMap.polyfillFiles = getFilesArray(polyfillChunk?.files).filter(
-          isJsFile
-        )
+        assetMap.polyfillFiles = compilation.entrypoints
+          .get(CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)
+          .getFiles()
+          .filter(isJsFile)
 
-        const reactRefreshChunk = namedChunks.get(
+        const reactRefreshChunk = compilation.entrypoints.get(
           CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
         )
-        assetMap.devFiles = getFilesArray(reactRefreshChunk?.files).filter(
-          isJsFile
-        )
+        assetMap.devFiles = reactRefreshChunk
+          ? reactRefreshChunk.getFiles().filter(isJsFile)
+          : []
 
         for (const entrypoint of compilation.entrypoints.values()) {
           const isAmpRuntime =
