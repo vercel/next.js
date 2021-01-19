@@ -342,8 +342,10 @@ export class Head extends Component<
       dangerousAsPath,
       headTags,
       unstable_runtimeJS,
+      unstable_JsPreload,
     } = this.context
     const disableRuntimeJS = unstable_runtimeJS === false
+    const disableJsPreload = unstable_JsPreload === false
 
     this.context.docComponentsRendered.Head = true
 
@@ -566,8 +568,12 @@ export class Head extends Component<
             {!process.env.__NEXT_OPTIMIZE_CSS && (
               <noscript data-n-css={this.props.nonce ?? ''} />
             )}
-            {!disableRuntimeJS && this.getPreloadDynamicChunks()}
-            {!disableRuntimeJS && this.getPreloadMainLinks(files)}
+            {!disableRuntimeJS &&
+              !disableJsPreload &&
+              this.getPreloadDynamicChunks()}
+            {!disableRuntimeJS &&
+              !disableJsPreload &&
+              this.getPreloadMainLinks(files)}
             {process.env.__NEXT_OPTIMIZE_CSS && this.getCssLinks(files)}
             {process.env.__NEXT_OPTIMIZE_CSS && (
               <noscript data-n-css={this.props.nonce ?? ''} />
