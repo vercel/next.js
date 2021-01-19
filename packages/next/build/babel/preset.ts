@@ -15,7 +15,7 @@ type StyledJsxBabelOptions =
 // Resolve styled-jsx plugins
 function styledJsxOptions(options: StyledJsxBabelOptions) {
   if (!options) {
-    return {}
+    return { styleModule: require.resolve('styled-jsx/style') }
   }
 
   if (!Array.isArray(options.plugins)) {
