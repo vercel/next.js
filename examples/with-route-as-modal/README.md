@@ -6,7 +6,7 @@ This example shows how to conditionally display a modal based on a route.
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-route-as-modal&project-name=with-route-as-modal&repository-name=with-route-as-modal)
 
