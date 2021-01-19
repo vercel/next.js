@@ -14,10 +14,14 @@ set -e
 export CI=1
 
 nextDir=$(pwd)
+tempDir=$(mktemp -d)
+trap 'rm -rf -- "$tempDir"' EXIT
 
 for testCase in "${testCases[@]}"
 do
-  testTarget=$(mktemp -d)
+  testTarget="$tempDir/$testCase"
+
+  mkdir -p "$testTarget"
 
   echo "--- Testing $testCase ---"
   cp -r "$nextDir/examples/$testCase/." "$testTarget"
