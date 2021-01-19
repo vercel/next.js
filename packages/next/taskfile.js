@@ -537,8 +537,8 @@ export async function ncc_style_loader(task, opts) {
     .ncc({
       packageName: 'style-loader',
       externals: {
-        ...externals,
-        'schema-utils': 'next/dist/compiled/schema-utils3',
+        //...externals,
+        //'schema-utils': 'next/dist/compiled/schema-utils3',
       },
     })
     .target('compiled/style-loader')
