@@ -13,24 +13,21 @@ set -e
 # Speeds up testing locally
 export CI=1
 
-rm -rf /tmp/e2e-tests
-
-initialDir=$(pwd)
+nextDir=$(pwd)
 
 for testCase in "${testCases[@]}"
 do
-  cd $initialDir
+  testTarget=$(mktemp -d)
 
   echo "--- Testing $testCase ---"
-  mkdir -p "/tmp/e2e-tests/$testCase"
-  cp -r "./examples/$testCase/." "/tmp/e2e-tests/$testCase"
-  cd "/tmp/e2e-tests/$testCase"
+  cp -r "$nextDir/examples/$testCase/." "$testTarget"
+  cd "$testTarget"
 
   touch yarn.lock
   yarn set version berry
   yarn config set pnpFallbackMode none
   yarn config set enableGlobalCache true
-  yarn link --all --private -r "$initialDir"
+  yarn link --all --private -r "$nextDir"
 
   yarn build
 done
