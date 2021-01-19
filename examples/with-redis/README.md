@@ -16,7 +16,7 @@ The example is a basic roadmap voting application where users can enter and vote
 
 Once you have access to [the environment variables you'll need](#configuration), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/with-redis&env=REDIS_URL&envDescription=Required%20to%20connect%20the%20app%20to%20Redis&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-redis%23configuration)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-redis&project-name=with-redis&repository-name=with-redis&env=REDIS_URL&envDescription=Required%20to%20connect%20the%20app%20to%20Redis&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-redis%23configuration)
 
 ## How to use
 
@@ -56,7 +56,7 @@ You can add the Lambda Store integration to your Vercel account. Once you set up
 
 #### Step 1. Deploy Your Local Project
 
-To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
 #### Step 2. Add the Lambda Store Integration to Your Vercel Account
 

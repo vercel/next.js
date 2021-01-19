@@ -8,9 +8,6 @@ declare module 'cssnano-simple' {
   export = cssnanoSimple
 }
 declare module 'styled-jsx/server'
-declare module 'webpack/lib/GraphHelpers'
-declare module 'webpack/lib/DynamicEntryPlugin'
-declare module 'webpack/lib/Entrypoint'
 
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
@@ -143,10 +140,6 @@ declare module 'next/dist/compiled/path-to-regexp' {
 }
 declare module 'next/dist/compiled/recast' {
   import m from 'recast'
-  export = m
-}
-declare module 'next/dist/compiled/resolve/index.js' {
-  import m from 'resolve'
   export = m
 }
 declare module 'next/dist/compiled/send' {

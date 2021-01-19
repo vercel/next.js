@@ -314,14 +314,13 @@ export default class Server {
       const url: any = req.url
       parsedUrl = parseUrl(url, true)
     }
+    const { basePath, i18n } = this.nextConfig
 
     // Parse the querystring ourselves if the user doesn't handle querystring parsing
     if (typeof parsedUrl.query === 'string') {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
     ;(req as any).__NEXT_INIT_QUERY = Object.assign({}, parsedUrl.query)
-
-    const { basePath, i18n } = this.nextConfig
 
     if (basePath && req.url?.startsWith(basePath)) {
       // store original URL to allow checking if basePath was
@@ -330,7 +329,101 @@ export default class Server {
       req.url = req.url!.replace(basePath, '') || '/'
     }
 
-    if (i18n && !req.url?.startsWith('/_next')) {
+    if (
+      this.minimalMode &&
+      req.headers['x-matched-path'] &&
+      typeof req.headers['x-matched-path'] === 'string'
+    ) {
+      const reqUrlIsDataUrl = req.url?.includes('/_next/data')
+      const matchedPathIsDataUrl = req.headers['x-matched-path']?.includes(
+        '/_next/data'
+      )
+      const isDataUrl = reqUrlIsDataUrl || matchedPathIsDataUrl
+
+      let parsedPath = parseUrl(
+        isDataUrl ? req.url! : (req.headers['x-matched-path'] as string),
+        true
+      )
+      const { pathname, query } = parsedPath
+      let matchedPathname = pathname as string
+
+      const matchedPathnameNoExt = isDataUrl
+        ? matchedPathname.replace(/\.json$/, '')
+        : matchedPathname
+
+      if (i18n) {
+        const localePathResult = normalizeLocalePath(
+          matchedPathname || '/',
+          i18n.locales
+        )
+
+        if (localePathResult.detectedLocale) {
+          parsedUrl.query.__nextLocale = localePathResult.detectedLocale
+        }
+      }
+
+      const pageIsDynamic = isDynamicRoute(matchedPathnameNoExt)
+      const utils = getUtils({
+        pageIsDynamic,
+        page: matchedPathnameNoExt,
+        i18n: this.nextConfig.i18n,
+        basePath: this.nextConfig.basePath,
+        rewrites: this.customRoutes.rewrites,
+      })
+
+      utils.handleRewrites(parsedUrl)
+
+      // interpolate dynamic params and normalize URL if needed
+      if (pageIsDynamic) {
+        let params: ParsedUrlQuery | false = {}
+        const paramsResult = utils.normalizeDynamicRouteParams({
+          ...parsedUrl.query,
+          ...query,
+        })
+
+        if (paramsResult.hasValidParams) {
+          params = paramsResult.params
+        } else if (req.headers['x-now-route-matches']) {
+          const opts: Record<string, string> = {}
+          params = utils.getParamsFromRouteMatches(
+            req,
+            opts,
+            (parsedUrl.query.__nextLocale as string | undefined) || ''
+          )
+
+          if (opts.locale) {
+            parsedUrl.query.__nextLocale = opts.locale
+          }
+        } else {
+          params = utils.dynamicRouteMatcher!(matchedPathnameNoExt)
+        }
+
+        if (params) {
+          params = utils.normalizeDynamicRouteParams(params).params
+
+          matchedPathname = utils.interpolateDynamicPath(
+            matchedPathname,
+            params
+          )
+          req.url = utils.interpolateDynamicPath(req.url!, params)
+        }
+
+        if (reqUrlIsDataUrl && matchedPathIsDataUrl) {
+          req.url = formatUrl({
+            ...parsedPath,
+            pathname: matchedPathname,
+          })
+        }
+        Object.assign(parsedUrl.query, params)
+        utils.normalizeVercelUrl(req, true)
+      }
+
+      parsedUrl.pathname = `${basePath || ''}${
+        matchedPathname === '/' && basePath ? '' : matchedPathname
+      }`
+    }
+
+    if (i18n) {
       // get pathname from URL with basePath stripped for locale detection
       let { pathname, ...parsed } = parseUrl(req.url || '/')
       pathname = pathname || '/'
@@ -462,88 +555,12 @@ export default class Server {
       parsedUrl.query.__nextDefaultLocale =
         detectedDomain?.defaultLocale || i18n.defaultLocale
 
-      parsedUrl.query.__nextLocale =
-        localePathResult.detectedLocale ||
-        detectedDomain?.defaultLocale ||
-        defaultLocale
-    }
-
-    if (
-      this.minimalMode &&
-      req.headers['x-matched-path'] &&
-      typeof req.headers['x-matched-path'] === 'string'
-    ) {
-      const reqUrlIsDataUrl = req.url?.includes('/_next/data')
-      const matchedPathIsDataUrl = req.headers['x-matched-path']?.includes(
-        '/_next/data'
-      )
-      const isDataUrl = reqUrlIsDataUrl || matchedPathIsDataUrl
-
-      let parsedPath = parseUrl(
-        isDataUrl ? req.url! : (req.headers['x-matched-path'] as string),
-        true
-      )
-      const { pathname, query } = parsedPath
-      let matchedPathname = pathname as string
-
-      const matchedPathnameNoExt = isDataUrl
-        ? matchedPathname.replace(/\.json$/, '')
-        : matchedPathname
-
-      // interpolate dynamic params and normalize URL if needed
-      if (isDynamicRoute(matchedPathnameNoExt)) {
-        const utils = getUtils({
-          pageIsDynamic: true,
-          page: matchedPathnameNoExt,
-          i18n: this.nextConfig.i18n,
-          basePath: this.nextConfig.basePath,
-          rewrites: this.customRoutes.rewrites,
-        })
-
-        let params: ParsedUrlQuery | false = {}
-        const paramsResult = utils.normalizeDynamicRouteParams({
-          ...parsedUrl.query,
-          ...query,
-        })
-
-        if (paramsResult.hasValidParams) {
-          params = paramsResult.params
-        } else if (req.headers['x-now-route-matches']) {
-          const opts: Record<string, string> = {}
-          params = utils.getParamsFromRouteMatches(
-            req,
-            opts,
-            (parsedUrl.query.__nextLocale as string | undefined) || ''
-          )
-
-          if (opts.locale) {
-            parsedUrl.query.__nextLocale = opts.locale
-          }
-        } else {
-          params = utils.dynamicRouteMatcher!(matchedPathname)
-        }
-
-        if (params) {
-          matchedPathname = utils.interpolateDynamicPath(
-            matchedPathname,
-            params
-          )
-
-          req.url = utils.interpolateDynamicPath(req.url!, params)
-        }
-
-        if (reqUrlIsDataUrl && matchedPathIsDataUrl) {
-          req.url = formatUrl({
-            ...parsedPath,
-            pathname: matchedPathname,
-          })
-        }
-        Object.assign(parsedUrl.query, params)
-        utils.normalizeVercelUrl(req, true)
+      if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
+        parsedUrl.query.__nextLocale =
+          localePathResult.detectedLocale ||
+          detectedDomain?.defaultLocale ||
+          defaultLocale
       }
-      parsedUrl.pathname = `${basePath || ''}${
-        parsedUrl.query.__nextLocale || ''
-      }${matchedPathname}`
     }
 
     res.statusCode = 200
@@ -908,7 +925,7 @@ export default class Server {
       match: route('/:path*'),
       type: 'route',
       name: 'Catchall render',
-      fn: async (req, res, params, parsedUrl) => {
+      fn: async (req, res, _params, parsedUrl) => {
         let { pathname, query } = parsedUrl
         if (!pathname) {
           throw new Error('pathname is undefined')
@@ -929,7 +946,7 @@ export default class Server {
           }
         }
 
-        if (params?.path?.[0] === 'api') {
+        if (pathname === '/api' || pathname.startsWith('/api/')) {
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,
@@ -1044,6 +1061,9 @@ export default class Server {
 
     const pageModule = await require(builtPagePath)
     query = { ...query, ...params }
+
+    delete query.__nextLocale
+    delete query.__nextDefaultLocale
 
     if (!this.renderOpts.dev && this._isLikeServerless) {
       if (typeof pageModule.default === 'function') {
@@ -1492,10 +1512,15 @@ export default class Server {
         if (revalidateOptions) {
           setRevalidateHeaders(res, revalidateOptions)
         }
-        await this.render404(req, res, {
-          pathname,
-          query,
-        } as UrlWithParsedQuery)
+        if (isDataReq) {
+          res.statusCode = 404
+          res.end('{"notFound":true}')
+        } else {
+          await this.render404(req, res, {
+            pathname,
+            query,
+          } as UrlWithParsedQuery)
+        }
       } else {
         sendPayload(
           req,
@@ -1739,12 +1764,15 @@ export default class Server {
       if (revalidateOptions) {
         setRevalidateHeaders(res, revalidateOptions)
       }
-      await this.render404(
-        req,
-        res,
-        { pathname, query } as UrlWithParsedQuery,
-        !!revalidateOptions
-      )
+      if (isDataReq) {
+        res.statusCode = 404
+        res.end('{"notFound":true}')
+      } else {
+        await this.render404(req, res, {
+          pathname,
+          query,
+        } as UrlWithParsedQuery)
+      }
     }
     return resHtml
   }
