@@ -433,6 +433,16 @@ export async function ncc_recast(task, opts) {
     .target('compiled/recast')
 }
 // eslint-disable-next-line camelcase
+externals['resolve-url-loader'] = 'next/dist/compiled/resolve-url-loader'
+export async function ncc_resolve_url_loader(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('resolve-url-loader'))
+    )
+    .ncc({ packageName: 'resolve-url-loader', externals })
+    .target('compiled/resolve-url-loader')
+}
+// eslint-disable-next-line camelcase
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
 export async function ncc_sass_loader(task, opts) {
   await task
@@ -686,6 +696,7 @@ export async function ncc(task) {
       'ncc_postcss_preset_env',
       'ncc_postcss_scss',
       'ncc_recast',
+      'ncc_resolve_url_loader',
       'ncc_sass_loader',
       'ncc_schema_utils',
       'ncc_schema_utils3',
