@@ -531,14 +531,15 @@ export async function ncc_strip_ansi(task, opts) {
 externals['style-loader'] = 'next/dist/compiled/style-loader'
 export async function ncc_style_loader(task, opts) {
   await task
-    .source(opts.src || relative(__dirname, require.resolve('style-loader')))
+    .source(
+      opts.src || relative(__dirname, require.resolve('style-loader/src/cjs'))
+    )
     .ncc({
       packageName: 'style-loader',
       externals: {
         ...externals,
         'schema-utils': 'next/dist/compiled/schema-utils3',
       },
-      target: 'es5',
     })
     .target('compiled/style-loader')
 }

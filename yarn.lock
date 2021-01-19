@@ -14917,9 +14917,9 @@ style-inject@^0.3.0:
   version "0.3.0"
   resolved "https://registry.yarnpkg.com/style-inject/-/style-inject-0.3.0.tgz#d21c477affec91811cc82355832a700d22bf8dd3"
 
-style-loader@1.2.1:
+style-loader@webpack-contrib/style-loader#v1.2.1:
   version "1.2.1"
-  resolved "https://registry.yarnpkg.com/style-loader/-/style-loader-1.2.1.tgz#c5cbbfbf1170d076cfdd86e0109c5bba114baa1a"
+  resolved "https://codeload.github.com/webpack-contrib/style-loader/tar.gz/5520e687422eb422309cdd0231c3592048fa1247"
   dependencies:
     loader-utils "^2.0.0"
     schema-utils "^2.6.6"
