@@ -37,6 +37,36 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  it('should navigate to page with same name as development buildId', async () => {
+    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/developments')
+    })()`)
+
+    await browser.waitForElementByCss('#developments')
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
+    expect(await browser.elementByCss('#router-default-locale').text()).toBe(
+      'en-US'
+    )
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/developments'
+    )
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/developments'
+    )
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({})
+    expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
+      locales,
+      locale: 'en-US',
+      defaultLocale: 'en-US',
+    })
+  })
+
   it('should redirect to locale domain correctly client-side', async () => {
     const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
 
