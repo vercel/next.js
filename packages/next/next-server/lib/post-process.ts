@@ -112,8 +112,9 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       )
       .forEach((element: HTMLElement) => {
         const url = element.getAttribute('data-href')
+        const nonce = element.getAttribute('nonce')
         if (url) {
-          this.fontDefinitions.push(url)
+          this.fontDefinitions.push([url, nonce])
         }
       })
   }
@@ -127,7 +128,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       return markup
     }
     for (const key in this.fontDefinitions) {
-      const url = this.fontDefinitions[key]
+      const [url, nonce] = this.fontDefinitions[key]
       const fallBackLinkTag = `<link rel="stylesheet" href="${url}"/>`
       if (
         result.indexOf(`<style data-href="${url}">`) > -1 ||
@@ -145,7 +146,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       } else {
         result = result.replace(
           '</head>',
-          `<style data-href="${url}">${fontContent}</style></head>`
+          `<style data-href="${url}" nonce="${nonce}">${fontContent}</style></head>`
         )
       }
     }
