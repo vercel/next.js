@@ -124,7 +124,17 @@ export default class BuildManifestPlugin {
         assetMap.polyfillFiles = compilation.entrypoints
           .get(CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)
           .getFiles()
-          .filter(isJsFile)
+          .filter((file: string) => {
+            if (!isJsFile(file)) {
+              return false
+            }
+
+            // webpack runtime is already available for polyfills on the page
+            if (file.includes('/webpack-')) {
+              return false
+            }
+            return true
+          })
 
         const reactRefreshChunk = compilation.entrypoints.get(
           CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
