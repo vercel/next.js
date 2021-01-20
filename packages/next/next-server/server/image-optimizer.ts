@@ -33,7 +33,13 @@ export async function imageOptimizer(
 ) {
   const { nextConfig, distDir } = server
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
-  const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
+  const {
+    deviceSizes = [],
+    imageSizes = [],
+    domains = [],
+    loader,
+    fetchOptions,
+  } = imageData
 
   if (loader !== 'default') {
     await server.render404(req, res, parsedUrl)
@@ -163,7 +169,7 @@ export async function imageOptimizer(
   let maxAge: number
 
   if (isAbsolute) {
-    const upstreamRes = await fetch(href)
+    const upstreamRes = await fetch(href, fetchOptions)
 
     if (!upstreamRes.ok) {
       res.statusCode = upstreamRes.status

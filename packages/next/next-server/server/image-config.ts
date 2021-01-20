@@ -13,6 +13,7 @@ export type ImageConfig = {
   loader: LoaderValue
   path: string
   domains?: string[]
+  fetchOptions?: RequestInit
 }
 
 export const imageConfigDefault: ImageConfig = {
