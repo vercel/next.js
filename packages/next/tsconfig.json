@@ -5,7 +5,15 @@
     "target": "ES2017",
     "esModuleInterop": true,
     "moduleResolution": "node",
-    "jsx": "react"
+    "jsx": "preserve",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true
   },
-  "exclude": ["dist", "./*.d.ts"]
+  "exclude": ["dist", "./*.d.ts"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"]
 }

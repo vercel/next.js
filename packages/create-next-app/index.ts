@@ -39,7 +39,7 @@ const program = new Commander.Command(packageJson.name)
   --example-path foo/bar
 `
   )
-  .option('--typescript', 'Enable TypeScript for this app.')
+  .option('--typescript', 'enable TypeScript for this app\n')
   .allowUnknownOption()
   .parse(process.argv)
 
