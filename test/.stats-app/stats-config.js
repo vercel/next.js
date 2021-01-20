@@ -34,12 +34,24 @@ const renames = [
     dest: '.next/static/runtime/main-HASH.js',
   },
   {
+    srcGlob: '.next/static/chunks/main-*',
+    dest: '.next/static/chunks/main-HASH.js',
+  },
+  {
     srcGlob: '.next/static/runtime/webpack-*',
     dest: '.next/static/runtime/webpack-HASH.js',
   },
   {
+    srcGlob: '.next/static/chunks/webpack-*',
+    dest: '.next/static/chunks/webpack-HASH.js',
+  },
+  {
     srcGlob: '.next/static/runtime/polyfills-*',
     dest: '.next/static/runtime/polyfills-HASH.js',
+  },
+  {
+    srcGlob: '.next/static/chunks/polyfills-*',
+    dest: '.next/static/chunks/polyfills-HASH.js',
   },
   {
     srcGlob: '.next/static/chunks/commons*',
