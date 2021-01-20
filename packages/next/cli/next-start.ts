@@ -51,9 +51,10 @@ const nextStart: cliCommand = (argv) => {
   const dir = resolve(args._[0] || '.')
   const port = args['--port'] || 3000
   const host = args['--hostname'] || '0.0.0.0'
+  const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
   startServer({ dir }, port, host)
     .then(async (app) => {
-      Log.ready(`started server on http://${host}:${port}`)
+      Log.ready(`started server on ${host}:${port}, url: ${appUrl}`)
       await app.prepare()
     })
     .catch((err) => {

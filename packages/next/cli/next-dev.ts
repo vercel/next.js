@@ -107,11 +107,11 @@ const nextDev: cliCommand = (argv) => {
 
   const port = args['--port'] || 3000
   const host = args['--hostname'] || '0.0.0.0'
-  const appUrl = `http://${host}:${port}`
+  const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
 
   startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
     .then(async (app) => {
-      startedDevelopmentServer(appUrl)
+      startedDevelopmentServer(appUrl, `${host}:${port}`)
       // Start preflight after server is listening and ignore errors:
       preflight().catch(() => {})
       // Finalize server bootup:
