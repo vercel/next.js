@@ -528,22 +528,6 @@ export async function ncc_strip_ansi(task, opts) {
     .target('compiled/strip-ansi')
 }
 // eslint-disable-next-line camelcase
-externals['style-loader'] = 'next/dist/compiled/style-loader'
-export async function ncc_style_loader(task, opts) {
-  await task
-    .source(
-      opts.src || relative(__dirname, require.resolve('style-loader/src/cjs'))
-    )
-    .ncc({
-      packageName: 'style-loader',
-      externals: {
-        ...externals,
-        'schema-utils': 'next/dist/compiled/schema-utils3',
-      },
-    })
-    .target('compiled/style-loader')
-}
-// eslint-disable-next-line camelcase
 externals['terser'] = 'next/dist/compiled/terser'
 export async function ncc_terser(task, opts) {
   await task
@@ -721,7 +705,6 @@ export async function ncc(task) {
       'ncc_source_map',
       'ncc_string_hash',
       'ncc_strip_ansi',
-      'ncc_style_loader',
       'ncc_terser',
       'ncc_text_table',
       'ncc_thread_loader',
