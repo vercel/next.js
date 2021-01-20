@@ -211,7 +211,7 @@ export async function ncc_css_loader(task, opts) {
       packageName: 'css-loader',
       externals: {
         ...externals,
-        'schema-utils': 'next/dist/compiled/schema-utils3',
+        'schema-utils': 'next/dist/compiled/schema-utils',
       },
       target: 'es5',
     })
