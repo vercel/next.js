@@ -39,6 +39,7 @@ module.exports = {
     defaultLocale: 'en-US',
     // This is a list of locale domains and the default locale they
     // should handle (these are only required when setting up domain routing)
+    // Make sure to include the subdomain (e.g. www) if applicable.
     domains: [
       {
         domain: 'example.com',
