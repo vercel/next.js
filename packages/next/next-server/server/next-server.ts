@@ -1401,9 +1401,11 @@ export default class Server {
 
     const stripNextDataPath = (path: string) => {
       if (path.includes(this.buildId)) {
-        path = denormalizePagePath(
-          (path.split(this.buildId).pop() || '/').replace(/\.json$/, '')
+        const splitPath = path.substring(
+          path.indexOf(this.buildId) + this.buildId.length
         )
+
+        path = denormalizePagePath(splitPath.replace(/\.json$/, ''))
       }
 
       if (this.nextConfig.i18n) {
