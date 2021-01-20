@@ -2,7 +2,6 @@ import chalk from 'chalk'
 import path from 'path'
 import { fileExists } from '../file-exists'
 import { getOxfordCommaList } from '../oxford-comma-list'
-import { resolveRequest } from '../resolve-request'
 import { FatalTypeScriptError } from './FatalTypeScriptError'
 
 const requiredPackages = [
@@ -22,7 +21,7 @@ export async function hasNecessaryDependencies(
 
   const missingPackages = requiredPackages.filter((p) => {
     try {
-      resolutions.set(p.pkg, resolveRequest(p.file, path.join(baseDir, '/')))
+      resolutions.set(p.pkg, require.resolve(p.file, { paths: [baseDir] }))
       return false
     } catch (_) {
       return true

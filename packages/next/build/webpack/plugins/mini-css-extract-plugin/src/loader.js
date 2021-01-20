@@ -1,12 +1,14 @@
 import NativeModule from 'module'
 
-import loaderUtils from 'loader-utils'
-import webpack from 'webpack'
-import NodeTargetPlugin from 'webpack/lib/node/NodeTargetPlugin'
+import loaderUtils from 'next/dist/compiled/loader-utils'
+import {
+  webpack,
+  isWebpack5,
+  NodeTargetPlugin,
+} from 'next/dist/compiled/webpack/webpack'
 
 import CssDependency from './CssDependency'
 
-const isWebpack5 = parseInt(webpack.version) === 5
 const pluginName = 'mini-css-extract-plugin'
 
 function evalModuleCode(loaderContext, code, filename) {

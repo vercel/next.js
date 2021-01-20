@@ -8,7 +8,7 @@ This example features how to use [react-native-web](https://github.com/necolas/r
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-react-native-web&project-name=with-react-native-web&repository-name=with-react-native-web)
 
