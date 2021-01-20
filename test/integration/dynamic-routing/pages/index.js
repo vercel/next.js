@@ -18,6 +18,26 @@ const Page = () => {
         <a id="view-post-1">View post 1</a>
       </Link>
       <br />
+      <Link href="/[name]" as="/post-1#my-hash">
+        <a id="view-post-1-hash-1">View post 1 (hash)</a>
+      </Link>
+      <br />
+      <Link href="/post-1#my-hash">
+        <a id="view-post-1-hash-1-href-only">View post 1 (hash only href)</a>
+      </Link>
+      <br />
+      <Link
+        href={{
+          hash: 'my-hash',
+          pathname: '/[name]',
+          query: { name: 'post-1' },
+        }}
+      >
+        <a id="view-post-1-hash-1-interpolated">
+          View post 1 (hash interpolated)
+        </a>
+      </Link>
+      <br />
       <Link href="/post-1">
         <a id="view-post-1-no-as">View post 1 (no as)</a>
       </Link>
