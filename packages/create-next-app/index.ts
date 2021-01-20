@@ -39,6 +39,7 @@ const program = new Commander.Command(packageJson.name)
   --example-path foo/bar
 `
   )
+  .option('--typescript', 'Enable TypeScript for this app.')
   .allowUnknownOption()
   .parse(process.argv)
 
@@ -113,6 +114,7 @@ async function run(): Promise<void> {
       useNpm: !!program.useNpm,
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
+      useTypescript: !!program.typescript,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {

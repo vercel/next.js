@@ -28,11 +28,13 @@ export async function createApp({
   useNpm,
   example,
   examplePath,
+  useTypescript,
 }: {
   appPath: string
   useNpm: boolean
   example?: string
   examplePath?: string
+  useTypescript?: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
 
@@ -124,6 +126,14 @@ export async function createApp({
   process.chdir(root)
 
   if (example) {
+    if (useTypescript) {
+      console.error(
+        `Use of the ${chalk.red(
+          '--typescript'
+        )} flag is not supported when cloning examples. The example repo is cloned exactly as is.`
+      )
+      process.exit(1)
+    }
     try {
       if (repoInfo) {
         const repoInfo2 = repoInfo
@@ -182,13 +192,32 @@ export async function createApp({
       )}, and ${chalk.cyan('next')} using ${displayedCommand}...`
     )
     console.log()
-
     await install(root, ['react', 'react-dom', 'next'], { useYarn, isOnline })
+
+    if (useTypescript) {
+      console.log()
+      console.log(
+        `Installing ${chalk.cyan('typescript')} and necessary ${chalk.cyan(
+          '@types/*'
+        )} packages as devDependencies...`
+      )
+      console.log()
+      await install(
+        root,
+        ['typescript', '@types/react', '@types/react-dom', '@types/node'],
+        { useYarn, isOnline },
+        true
+      )
+    }
     console.log()
 
     await cpy('**', root, {
       parents: true,
-      cwd: path.join(__dirname, 'templates', 'default'),
+      cwd: path.join(
+        __dirname,
+        'templates',
+        useTypescript ? 'default-typescript' : 'default'
+      ),
       rename: (name) => {
         switch (name) {
           case 'gitignore': {

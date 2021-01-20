@@ -5,14 +5,17 @@ import spawn from 'cross-spawn'
 export function install(
   root: string,
   dependencies: string[] | null,
-  { useYarn, isOnline }: { useYarn: boolean; isOnline: boolean }
+  { useYarn, isOnline }: { useYarn: boolean; isOnline: boolean },
+  devDependencies?: boolean
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     let command: string
     let args: string[]
     if (useYarn) {
       command = 'yarnpkg'
-      args = dependencies ? ['add', '--exact'] : ['install']
+      args = dependencies
+        ? ['add', '--exact'].concat(devDependencies ? ['--dev'] : [])
+        : ['install']
       if (!isOnline) {
         args.push('--offline')
       }
@@ -30,7 +33,7 @@ export function install(
       command = 'npm'
       args = ([
         'install',
-        dependencies && '--save',
+        dependencies && (devDependencies ? '--save-dev' : '--save'),
         dependencies && '--save-exact',
         '--loglevel',
         'error',
