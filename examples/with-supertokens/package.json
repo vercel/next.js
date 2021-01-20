@@ -1,0 +1,19 @@
+{
+  "name": "with-supertokens",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.8.0",
+    "react-dom": "^16.8.0",
+    "regenerator-runtime": "^0.13.7",
+    "supertokens-node": "^3.3.1",
+    "supertokens-auth-react": "^0.4.3"
+  },
+  "license": "MIT"
+}
