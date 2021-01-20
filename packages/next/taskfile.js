@@ -203,6 +203,21 @@ export async function ncc_cookie(task, opts) {
     .target('compiled/cookie')
 }
 // eslint-disable-next-line camelcase
+externals['css-loader'] = 'next/dist/compiled/css-loader'
+export async function ncc_css_loader(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('css-loader')))
+    .ncc({
+      packageName: 'css-loader',
+      externals: {
+        ...externals,
+        'schema-utils': 'next/dist/compiled/schema-utils',
+      },
+      target: 'es5',
+    })
+    .target('compiled/css-loader')
+}
+// eslint-disable-next-line camelcase
 externals['debug'] = 'next/dist/compiled/debug'
 export async function ncc_debug(task, opts) {
   await task
@@ -669,6 +684,7 @@ export async function ncc(task) {
       'ncc_conf',
       'ncc_content_type',
       'ncc_cookie',
+      'ncc_css_loader',
       'ncc_debug',
       'ncc_devalue',
       'ncc_escape_string_regexp',
