@@ -19,19 +19,6 @@ const bundleRequire = m.require
 bundleRequire.resolve = (request, options) =>
   Module._resolveFilename(request, m, false, options)
 
-export async function next__polyfill_nomodule(task, opts) {
-  await task
-    .source(
-      opts.src ||
-        relative(__dirname, require.resolve('@next/polyfill-nomodule'))
-    )
-    .target('dist/build/polyfills')
-}
-
-export async function browser_polyfills(task) {
-  await task.parallel(['next__polyfill_nomodule'])
-}
-
 const externals = {
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
@@ -656,7 +643,7 @@ export async function path_to_regexp(task, opts) {
 }
 
 export async function precompile(task) {
-  await task.parallel(['browser_polyfills', 'path_to_regexp', 'copy_ncced'])
+  await task.parallel(['path_to_regexp', 'copy_ncced'])
 }
 
 // eslint-disable-next-line camelcase
