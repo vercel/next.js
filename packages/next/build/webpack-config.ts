@@ -213,7 +213,7 @@ export default async function getBaseWebpackConfig(
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
-  const hasRewrites = rewrites.length > 0 || dev
+  const hasRewrites = rewrites.length > 0
 
   if (config.experimental.plugins) {
     plugins = await collectPlugins(dir, config.env, config.plugins)
