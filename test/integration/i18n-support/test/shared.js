@@ -37,6 +37,36 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  it('should navigate to page with same name as development buildId', async () => {
+    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/developments')
+    })()`)
+
+    await browser.waitForElementByCss('#developments')
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
+    expect(await browser.elementByCss('#router-default-locale').text()).toBe(
+      'en-US'
+    )
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/developments'
+    )
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/developments'
+    )
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({})
+    expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
+      locales,
+      locale: 'en-US',
+      defaultLocale: 'en-US',
+    })
+  })
+
   it('should redirect to locale domain correctly client-side', async () => {
     const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
 
@@ -72,6 +102,44 @@ export function runTests(ctx) {
     expect(await browser.eval('window.location.pathname')).toBe(
       `${ctx.basePath || ''}/go-BE/gssp`
     )
+  })
+
+  it('should render the correct href for locale domain', async () => {
+    let browser = await webdriver(
+      ctx.appPort,
+      `${ctx.basePath || ''}/links?nextLocale=go`
+    )
+
+    for (const [element, pathname] of [
+      ['#to-another', '/another'],
+      ['#to-gsp', '/gsp'],
+      ['#to-fallback-first', '/gsp/fallback/first'],
+      ['#to-fallback-hello', '/gsp/fallback/hello'],
+      ['#to-gssp', '/gssp'],
+      ['#to-gssp-slug', '/gssp/first'],
+    ]) {
+      const href = await browser.elementByCss(element).getAttribute('href')
+      expect(href).toBe(`https://example.com${ctx.basePath || ''}${pathname}`)
+    }
+
+    browser = await webdriver(
+      ctx.appPort,
+      `${ctx.basePath || ''}/links?nextLocale=go-BE`
+    )
+
+    for (const [element, pathname] of [
+      ['#to-another', '/another'],
+      ['#to-gsp', '/gsp'],
+      ['#to-fallback-first', '/gsp/fallback/first'],
+      ['#to-fallback-hello', '/gsp/fallback/hello'],
+      ['#to-gssp', '/gssp'],
+      ['#to-gssp-slug', '/gssp/first'],
+    ]) {
+      const href = await browser.elementByCss(element).getAttribute('href')
+      expect(href).toBe(
+        `https://example.com${ctx.basePath || ''}/go-BE${pathname}`
+      )
+    }
   })
 
   it('should navigate through history with query correctly', async () => {
@@ -187,7 +255,6 @@ export function runTests(ctx) {
             '/fr/gsp.json',
             '/fr/gsp/fallback/first.json',
             '/fr/gsp/fallback/hello.json',
-            '/fr/gsp/no-fallback/first.json',
           ]
         )
         return 'yes'
@@ -633,6 +700,71 @@ export function runTests(ctx) {
     }
   })
 
+  it('should visit API route directly correctly', async () => {
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath || ''}${
+          locale === 'en-US' ? '' : `/${locale}`
+        }/api/hello`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const data = await res.json()
+      expect(data).toEqual({
+        hello: true,
+        query: {},
+      })
+    }
+  })
+
+  it('should visit dynamic API route directly correctly', async () => {
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath || ''}${
+          locale === 'en-US' ? '' : `/${locale}`
+        }/api/post/first`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const data = await res.json()
+      expect(data).toEqual({
+        post: true,
+        query: {
+          slug: 'first',
+        },
+      })
+    }
+  })
+
+  it('should rewrite to API route correctly', async () => {
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath || ''}${
+          locale === 'en-US' ? '' : `/${locale}`
+        }/sitemap.xml`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const data = await res.json()
+      expect(data).toEqual({
+        hello: true,
+        query: {},
+      })
+    }
+  })
+
   it('should apply rewrites correctly', async () => {
     let res = await fetchViaHTTP(
       ctx.appPort,
@@ -753,7 +885,6 @@ export function runTests(ctx) {
             '/fr/gsp.json',
             '/fr/gsp/fallback/first.json',
             '/fr/gsp/fallback/hello.json',
-            '/fr/gsp/no-fallback/first.json',
           ]
         )
         return 'yes'
@@ -966,7 +1097,6 @@ export function runTests(ctx) {
             '/fr/gsp.json',
             '/fr/gsp/fallback/first.json',
             '/fr/gsp/fallback/hello.json',
-            '/fr/gsp/no-fallback/first.json',
           ]
         )
         return 'yes'
