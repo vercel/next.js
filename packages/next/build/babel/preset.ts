@@ -14,15 +14,13 @@ type StyledJsxBabelOptions =
 
 // Resolve styled-jsx plugins
 function styledJsxOptions(options: StyledJsxBabelOptions) {
-  if (!options) {
-    return {}
+  const baseOptions = { styleModule: 'next/styled-jsx/style', ...options }
+
+  if (!Array.isArray(baseOptions.plugins)) {
+    return baseOptions
   }
 
-  if (!Array.isArray(options.plugins)) {
-    return options
-  }
-
-  options.plugins = options.plugins.map(
+  const plugins = baseOptions.plugins.map(
     (plugin: StyledJsxPlugin): StyledJsxPlugin => {
       if (Array.isArray(plugin)) {
         const [name, pluginOptions] = plugin
@@ -33,7 +31,7 @@ function styledJsxOptions(options: StyledJsxBabelOptions) {
     }
   )
 
-  return options
+  return { ...baseOptions, plugins }
 }
 
 type NextBabelPresetOptions = {
