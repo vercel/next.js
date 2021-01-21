@@ -36,12 +36,18 @@ export function RouteAnnouncer() {
       aria-live="assertive" // Make the announcement immediately.
       role="alert"
       style={{
+        border: 0,
+        clip: 'rect(0 0 0 0)',
         height: '1px',
-        left: '-2px',
+        margin: '-1px',
         overflow: 'hidden',
+        padding: 0,
         position: 'absolute',
-        top: '0',
         width: '1px',
+
+        // https://medium.com/@jessebeach/beware-smushed-off-screen-accessible-text-5952a4c2cbfe
+        whiteSpace: 'nowrap',
+        wordWrap: 'normal',
       }}
     >
       {routeAnnouncement}
