@@ -51,8 +51,15 @@
     "node": ">=10.13.0"
   },
   "eslintConfig": {
-    "ignorePatterns": [
-      "templates/default-typescript/**"
+    "overrides": [
+      {
+        "files": [
+          "templates/default-typescript/pages/**/*"
+        ],
+        "rules": {
+          "import/no-extraneous-dependencies": 0
+        }
+      }
     ]
   }
 }
