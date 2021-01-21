@@ -95,8 +95,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 ### Step 5. Try preview mode
 
-
-Then click save and go back to the **Content** section, click on *Posts* and then on a post and:
+Then click save and go back to the **Content** section, click on _Posts_ and then on a post and:
 
 - **Update the title**. For example, you can add `[Draft]` in front of the title.
 - Click **Save**, but **DO NOT** click **Publish**. By doing this, the post will be in the draft state.

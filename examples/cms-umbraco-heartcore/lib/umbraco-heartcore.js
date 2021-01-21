@@ -51,7 +51,7 @@ export async function getAllPostsWithSlug() {
       }
     }
   `)
-  return data.allPost.edges.map(x => x.node)
+  return data.allPost.edges.map((x) => x.node)
 }
 
 export async function getAllPostsForHome(preview) {
@@ -81,15 +81,14 @@ export async function getAllPostsForHome(preview) {
       }
     }
   `,
-		{
-			preview,
+    {
+      preview,
       variables: {
         preview,
-			},
-		}
-
+      },
+    }
   )
-  return data.allPost.edges.map(e => e.node)
+  return data.allPost.edges.map((e) => e.node)
 }
 
 export async function getPostAndMorePosts(slug, preview) {
@@ -149,6 +148,6 @@ export async function getPostAndMorePosts(slug, preview) {
   )
   return {
     post: data.post,
-    morePosts: data.morePosts.edges.map(e => e.node)
+    morePosts: data.morePosts.edges.map((e) => e.node),
   }
 }
