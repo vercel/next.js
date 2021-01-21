@@ -16,7 +16,12 @@ export default function resolveRewrites(
   query: ParsedUrlQuery,
   resolveHref: (path: string) => string,
   locales?: string[]
-) {
+): {
+  matchedPage: boolean
+  parsedAs: ReturnType<typeof parseRelativeUrl>
+  asPath: string
+  resolvedHref?: string
+} {
   let matchedPage = false
   let parsedAs = parseRelativeUrl(asPath)
   let fsPathname = removePathTrailingSlash(
@@ -69,7 +74,6 @@ export default function resolveRewrites(
   return {
     asPath,
     parsedAs,
-    fsPathname,
     matchedPage,
     resolvedHref,
   }
