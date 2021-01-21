@@ -1,6 +1,9 @@
 import devalue from 'next/dist/compiled/devalue'
-import webpack, { Compiler, compilation as CompilationType } from 'webpack'
-import sources from 'webpack-sources'
+import {
+  webpack,
+  isWebpack5,
+  sources,
+} from 'next/dist/compiled/webpack/webpack'
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
@@ -16,10 +19,6 @@ import { Rewrite } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../next-server/lib/router/utils'
 import { tracer, traceFn } from '../../tracer'
 import { spans } from './profiling-plugin'
-// @ts-ignore: TODO: remove ignore when webpack 5 is stable
-const { RawSource } = webpack.sources || sources
-
-const isWebpack5 = parseInt(webpack.version!) === 5
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
@@ -107,7 +106,7 @@ export default class BuildManifestPlugin {
     return tracer.withSpan(spans.get(compiler), () => {
       const span = tracer.startSpan('NextJsBuildManifest-createassets')
       return traceFn(span, () => {
-        const namedChunks: Map<string, CompilationType.Chunk> =
+        const namedChunks: Map<string, webpack.compilation.Chunk> =
           compilation.namedChunks
         const assetMap: DeepMutable<BuildManifest> = {
           polyfillFiles: [],
@@ -200,20 +199,20 @@ export default class BuildManifestPlugin {
 
         const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
         assetMap.lowPriorityFiles.push(ssgManifestPath)
-        assets[ssgManifestPath] = new RawSource(srcEmptySsgManifest)
+        assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
 
         assetMap.pages = Object.keys(assetMap.pages)
           .sort()
           // eslint-disable-next-line
           .reduce((a, c) => ((a[c] = assetMap.pages[c]), a), {} as any)
 
-        assets[BUILD_MANIFEST] = new RawSource(
+        assets[BUILD_MANIFEST] = new sources.RawSource(
           JSON.stringify(assetMap, null, 2)
         )
 
         const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
 
-        assets[clientManifestPath] = new RawSource(
+        assets[clientManifestPath] = new sources.RawSource(
           `self.__BUILD_MANIFEST = ${generateClientManifest(
             compiler,
             assetMap,
@@ -226,7 +225,7 @@ export default class BuildManifestPlugin {
     })
   }
 
-  apply(compiler: Compiler) {
+  apply(compiler: webpack.Compiler) {
     if (isWebpack5) {
       compiler.hooks.make.tap('NextJsBuildManifest', (compilation) => {
         // @ts-ignore TODO: Remove ignore when webpack 5 is stable
