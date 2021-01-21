@@ -209,8 +209,7 @@ export async function createApp({
       await install(
         root,
         ['typescript', '@types/react', '@types/react-dom', '@types/node'],
-        { useYarn, isOnline },
-        true
+        { useYarn, isOnline, isDevDependency: true }
       )
     }
     console.log()
