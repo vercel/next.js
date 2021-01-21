@@ -1,6 +1,11 @@
 {
   "name": "with-apollo-ssr-get-data-from-tree",
   "version": "1.0.0",
+  "author": "Lennard Westerveld",
+  "contributors": [
+    "Lennard Westerveld <mail@lennard.pro>",
+    "Daphne Smit <hi@daphnesmit.nl>"
+  ],
   "scripts": {
     "dev": "next",
     "build": "next build",
