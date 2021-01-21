@@ -266,6 +266,10 @@
           ]
         },
         {
+          "title": "Static Optimization Indicator",
+          "path": "/docs/api-reference/next.config.js/static-optimization-indicator.md"
+        },
+        {
           "title": "next.config.js",
           "routes": [
             {
