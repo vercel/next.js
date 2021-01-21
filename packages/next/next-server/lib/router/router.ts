@@ -932,39 +932,23 @@ export default class Router implements BaseRouter {
     let resolvedAs = as
 
     if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
-      resolvedAs = resolveRewrites(
-        addBasePath(
-          addLocale(delBasePath(parseRelativeUrl(as).pathname), this.locale)
-        ),
+      const rewritesResult = resolveRewrites(
+        addBasePath(addLocale(delBasePath(as), this.locale)),
         pages,
         rewrites,
         query,
         (p: string) => this._resolveHref({ pathname: p }, pages).pathname!,
         this.locales
       )
+      resolvedAs = rewritesResult.asPath
 
-      if (resolvedAs !== as) {
-        const potentialHref = removePathTrailingSlash(
-          this._resolveHref(
-            Object.assign({}, parsed, {
-              pathname: normalizeLocalePath(
-                hasBasePath(resolvedAs) ? delBasePath(resolvedAs) : resolvedAs,
-                this.locales
-              ).pathname,
-            }),
-            pages,
-            false
-          ).pathname!
-        )
-
+      if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
         // if this directly matches a page we need to update the href to
         // allow the correct page chunk to be loaded
-        if (pages.includes(potentialHref)) {
-          route = potentialHref
-          pathname = potentialHref
-          parsed.pathname = pathname
-          url = formatWithValidation(parsed)
-        }
+        route = rewritesResult.resolvedHref
+        pathname = rewritesResult.resolvedHref
+        parsed.pathname = pathname
+        url = formatWithValidation(parsed)
       }
     }
 
@@ -1045,7 +1029,8 @@ export default class Router implements BaseRouter {
         route,
         pathname,
         query,
-        addBasePath(addLocale(resolvedAs, this.locale)),
+        as,
+        resolvedAs,
         routeProps
       )
       let { error, props, __N_SSG, __N_SSP } = routeInfo
@@ -1092,6 +1077,7 @@ export default class Router implements BaseRouter {
             notFoundRoute,
             query,
             as,
+            resolvedAs,
             { shallow: false }
           )
         }
@@ -1259,6 +1245,7 @@ export default class Router implements BaseRouter {
     pathname: string,
     query: any,
     as: string,
+    resolvedAs: string,
     routeProps: RouteProperties
   ): Promise<PrivateRouteInfo> {
     try {
@@ -1298,7 +1285,7 @@ export default class Router implements BaseRouter {
       if (__N_SSG || __N_SSP) {
         dataHref = this.pageLoader.getDataHref(
           formatWithValidation({ pathname, query }),
-          delBasePath(as),
+          resolvedAs,
           __N_SSG,
           this.locale
         )

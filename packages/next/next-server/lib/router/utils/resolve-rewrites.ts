@@ -4,6 +4,8 @@ import prepareDestination from './prepare-destination'
 import { Rewrite } from '../../../../lib/load-custom-routes'
 import { removePathTrailingSlash } from '../../../../client/normalize-trailing-slash'
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
+import { parseRelativeUrl } from './parse-relative-url'
+import { delBasePath } from '../router'
 
 const customRouteMatcher = pathMatch(true)
 
@@ -14,11 +16,23 @@ export default function resolveRewrites(
   query: ParsedUrlQuery,
   resolveHref: (path: string) => string,
   locales?: string[]
-) {
-  if (!pages.includes(normalizeLocalePath(asPath, locales).pathname)) {
+): {
+  matchedPage: boolean
+  parsedAs: ReturnType<typeof parseRelativeUrl>
+  asPath: string
+  resolvedHref?: string
+} {
+  let matchedPage = false
+  let parsedAs = parseRelativeUrl(asPath)
+  let fsPathname = removePathTrailingSlash(
+    normalizeLocalePath(delBasePath(parsedAs.pathname), locales).pathname
+  )
+  let resolvedHref
+
+  if (!pages.includes(fsPathname)) {
     for (const rewrite of rewrites) {
       const matcher = customRouteMatcher(rewrite.source)
-      const params = matcher(asPath)
+      const params = matcher(parsedAs.pathname)
 
       if (params) {
         if (!rewrite.destination) {
@@ -31,30 +45,36 @@ export default function resolveRewrites(
           query,
           true
         )
-        asPath = destRes.parsedDestination.pathname!
+        parsedAs = destRes.parsedDestination
+        asPath = destRes.newUrl
         Object.assign(query, destRes.parsedDestination.query)
 
-        const fsPathname = normalizeLocalePath(
-          removePathTrailingSlash(asPath),
-          locales
-        ).pathname
+        fsPathname = removePathTrailingSlash(
+          normalizeLocalePath(delBasePath(asPath), locales).pathname
+        )
 
         if (pages.includes(fsPathname)) {
-          asPath = fsPathname
           // check if we now match a page as this means we are done
           // resolving the rewrites
+          matchedPage = true
+          resolvedHref = fsPathname
           break
         }
 
         // check if we match a dynamic-route, if so we break the rewrites chain
-        const resolvedHref = resolveHref(fsPathname)
+        resolvedHref = resolveHref(fsPathname)
 
         if (resolvedHref !== asPath && pages.includes(resolvedHref)) {
-          asPath = fsPathname
+          matchedPage = true
           break
         }
       }
     }
   }
-  return asPath
+  return {
+    asPath,
+    parsedAs,
+    matchedPage,
+    resolvedHref,
+  }
 }

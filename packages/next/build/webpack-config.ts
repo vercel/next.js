@@ -213,7 +213,7 @@ export default async function getBaseWebpackConfig(
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
-  const hasRewrites = rewrites.length > 0 || dev
+  const hasRewrites = rewrites.length > 0
 
   if (config.experimental.plugins) {
     plugins = await collectPlugins(dir, config.env, config.plugins)
@@ -344,6 +344,9 @@ export default async function getBaseWebpackConfig(
   const clientResolveRewrites = require.resolve(
     'next/dist/next-server/lib/router/utils/resolve-rewrites'
   )
+  const clientResolveRewritesNoop = require.resolve(
+    'next/dist/next-server/lib/router/utils/resolve-rewrites-noop'
+  )
 
   const resolveConfig = {
     // Disable .mjs for node_modules bundling
@@ -385,7 +388,7 @@ export default async function getBaseWebpackConfig(
       ...getReactProfilingInProduction(),
       [clientResolveRewrites]: hasRewrites
         ? clientResolveRewrites
-        : require.resolve('next/dist/client/dev/noop.js'),
+        : clientResolveRewritesNoop,
     },
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: isWebpack5
