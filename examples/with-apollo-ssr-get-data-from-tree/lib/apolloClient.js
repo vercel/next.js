@@ -13,26 +13,27 @@ function createApolloClient(registerCache, initialState) {
         },
       },
     },
-  }).restore(initialState || {});
+  }).restore(initialState || {})
 
   if (registerCache) {
-    registerCache(cache);
+    registerCache(cache)
   }
 
   const link = new HttpLink({
     uri: 'https://nextjs-graphql-with-prisma-simple.vercel.app/api', // Server URL (must be absolute)
     credentials: 'same-origin', // Additional fetch() options like `credentials` or `headers`
   })
-  
+
   return new ApolloClient({
     ssrMode: typeof window === 'undefined',
     link,
-    cache
+    cache,
   })
 }
 
 export function initializeApollo(registerCache, initialState) {
-  const _apolloClient = apolloClient ?? createApolloClient(registerCache, initialState)
+  const _apolloClient =
+    apolloClient ?? createApolloClient(registerCache, initialState)
 
   // For SSG and SSR always create a new Apollo Client
   if (typeof window === 'undefined') return _apolloClient
@@ -43,8 +44,10 @@ export function initializeApollo(registerCache, initialState) {
   return _apolloClient
 }
 
-
 export function useApollo(registerCache, initialState) {
-  const store = useMemo(() => initializeApollo(registerCache, initialState), [registerCache, initialState])
+  const store = useMemo(() => initializeApollo(registerCache, initialState), [
+    registerCache,
+    initialState,
+  ])
   return store
 }

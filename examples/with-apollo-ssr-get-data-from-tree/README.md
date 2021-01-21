@@ -1,6 +1,6 @@
 # Apollo SSR getDataFromTree Example
-In this example you can see how you can achieve SSR data fetching on a per component basis without having to (pre)fetch in getInitialProps.
 
+In this example you can see how you can achieve SSR data fetching on a per component basis without having to (pre)fetch in getInitialProps.
 
 [Apollo](https://www.apollographql.com/client/) is a GraphQL client that allows you to easily query the exact data you need from a GraphQL server. In addition to fetching and mutating data, Apollo analyzes your queries and their results to construct a client-side cache of your data, which is kept up to date as further queries and mutations are run.
 
@@ -12,10 +12,8 @@ This function walks down the entire tree and executes every required query it en
 
 When the Promise resolves, you're ready to render your React tree and return it, along with the current state of the Apollo Client cache.
 
-
 We use a class instance called ApolloCacheControl to manage all registered caches. So we can have multiple caches in case we have multiple Apollo clients.
 After the getDataFromTree has resolved all promises we get a snapshot of the cache and hydrate that to the client where we use is as an initial state for our Apollo client.
-
 
 For the ease of making this example we took the PostList and other components from the with-apollo-ssr example.
 This example relies on [Prisma + Nexus](https://github.com/prisma-labs/nextjs-graphql-api-examples) for its GraphQL backend.

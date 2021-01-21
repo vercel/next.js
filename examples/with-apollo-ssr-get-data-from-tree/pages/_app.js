@@ -3,11 +3,12 @@ import { useApollo } from '../lib/apolloClient'
 import withApolloServerSideRender from '../lib/withApolloServerSideRender'
 import { useApolloCacheControl } from '../lib/useApolloCacheControl'
 
-function App({ Component, pageProps }) { 
-  const ApolloCacheControl = useApolloCacheControl();
-  const registerCache = (cache) => ApolloCacheControl.registerCache('cache-1', cache);
+function App({ Component, pageProps }) {
+  const ApolloCacheControl = useApolloCacheControl()
+  const registerCache = (cache) =>
+    ApolloCacheControl.registerCache('cache-1', cache)
   const initialState = ApolloCacheControl.getExtractedCache('cache-1')
-  
+
   const apolloClient = useApollo(registerCache, initialState)
 
   return (
@@ -17,4 +18,4 @@ function App({ Component, pageProps }) {
   )
 }
 
-export default withApolloServerSideRender(App);
+export default withApolloServerSideRender(App)
