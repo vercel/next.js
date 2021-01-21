@@ -49,5 +49,10 @@
   },
   "engines": {
     "node": ">=10.13.0"
+  },
+  "eslintConfig": {
+    "ignorePatterns": [
+      "templates/default-typescript/**"
+    ]
   }
 }
