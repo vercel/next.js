@@ -6,6 +6,9 @@ export default async function create(req, res) {
   const client = redis.createClient({
     url: process.env.REDIS_URL,
   })
+  if (process.env.REDIS_PASSWORD) {
+    client.auth(process.env.REDIS_PASSWORD)
+  }
   const hsetAsync = promisify(client.hset).bind(client)
   const zaddAsync = promisify(client.zadd).bind(client)
 

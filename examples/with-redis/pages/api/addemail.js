@@ -5,6 +5,9 @@ export default async function addEmail(req, res) {
   const client = redis.createClient({
     url: process.env.REDIS_URL,
   })
+  if (process.env.REDIS_PASSWORD) {
+    client.auth(process.env.REDIS_PASSWORD)
+  }
   const saddAsync = promisify(client.sadd).bind(client)
 
   const body = req.body
