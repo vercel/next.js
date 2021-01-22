@@ -1,0 +1,11 @@
+{
+  "Index": {
+    "title": "Start",
+    "description": "Diese Seite verwendet global definierte Übersetzungen aus <code>./messages/{locale}.json</code>."
+  },
+  "Navigation": {
+    "index": "Start",
+    "test": "Test",
+    "switchLocale": "Zu {locale, select, de {Deutsch} en {Englisch}} wechseln"
+  }
+}

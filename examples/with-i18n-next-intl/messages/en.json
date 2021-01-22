@@ -1,0 +1,11 @@
+{
+  "Index": {
+    "title": "Home",
+    "description": "This page uses globally defined messages from <code>./messages/{locale}.json</code>."
+  },
+  "Navigation": {
+    "index": "Home",
+    "test": "Test",
+    "switchLocale": "Switch to {locale, select, de {German} en {English}}"
+  }
+}
