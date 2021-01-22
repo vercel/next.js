@@ -1,23 +1,23 @@
 import devalue from 'next/dist/compiled/devalue'
 import {
-  webpack,
   isWebpack5,
   sources,
+  webpack,
 } from 'next/dist/compiled/webpack/webpack'
+import { Rewrite } from '../../../lib/load-custom-routes'
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
-  CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
-  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_AMP,
+  CLIENT_STATIC_FILES_RUNTIME_MAIN,
+  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
 } from '../../../next-server/lib/constants'
+import { getSortedRoutes } from '../../../next-server/lib/router/utils'
 import { BuildManifest } from '../../../next-server/server/get-page-files'
 import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
+import { traceFn, tracer } from '../../tracer'
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
-import { Rewrite } from '../../../lib/load-custom-routes'
-import { getSortedRoutes } from '../../../next-server/lib/router/utils'
-import { tracer, traceFn } from '../../tracer'
 import { spans } from './profiling-plugin'
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
@@ -117,6 +117,12 @@ export default class BuildManifestPlugin {
           ampFirstPages: [],
         }
 
+        const compilationAssets: {
+          name: string
+          source: typeof sources.RawSource
+          info: object
+        }[] = compilation.getAssets()
+
         const ampFirstEntryNames = ampFirstEntryNamesMap.get(compilation)
         if (ampFirstEntryNames) {
           for (const entryName of ampFirstEntryNames) {
@@ -135,14 +141,13 @@ export default class BuildManifestPlugin {
           isJsFile
         )
 
-        const polyfillChunk = namedChunks.get(
-          CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
-        )
-
-        // Create a separate entry  for polyfills
-        assetMap.polyfillFiles = getFilesArray(polyfillChunk?.files).filter(
-          isJsFile
-        )
+        assetMap.polyfillFiles = compilationAssets
+          .filter(
+            (p) =>
+              p.info && CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL in p.info
+          )
+          .map((v) => v.name)
+          .filter(isJsFile)
 
         const reactRefreshChunk = namedChunks.get(
           CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
@@ -233,7 +238,7 @@ export default class BuildManifestPlugin {
           {
             name: 'NextJsBuildManifest',
             // @ts-ignore TODO: Remove ignore when webpack 5 is stable
-            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ANALYSE,
           },
           (assets: any) => {
             this.createAssets(compiler, compilation, assets)

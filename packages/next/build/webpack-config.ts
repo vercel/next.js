@@ -1,17 +1,15 @@
-import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
+import chalk from 'chalk'
 import crypto from 'crypto'
 import { readFileSync, realpathSync } from 'fs'
-import chalk from 'chalk'
+import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import semver from 'next/dist/compiled/semver'
-// @ts-ignore No typings yet
-import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
-import path from 'path'
 import {
-  webpack,
-  isWebpack5,
   init as initWebpack,
+  isWebpack5,
+  webpack,
 } from 'next/dist/compiled/webpack/webpack'
+import path from 'path'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -24,13 +22,14 @@ import { Rewrite } from '../lib/load-custom-routes'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
-  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
+  CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
 } from '../next-server/lib/constants'
 import { execOnce } from '../next-server/lib/utils'
+import { NextConfig } from '../next-server/server/config'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
 import * as Log from './output/log'
@@ -44,6 +43,7 @@ import { __overrideCssConfiguration } from './webpack/config/blocks/css/override
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
+import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
@@ -53,6 +53,8 @@ import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
+// @ts-ignore No typings yet
+import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
 import WebpackConformancePlugin, {
   DuplicatePolyfillsConformanceCheck,
   GranularChunksConformanceCheck,
@@ -60,7 +62,6 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
-import { NextConfig } from '../next-server/server/config'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -298,10 +299,6 @@ export default async function getBaseWebpackConfig(
               )
             )
             .replace(/\\/g, '/'),
-        [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS]: path.join(
-          NEXT_PROJECT_ROOT_DIST_CLIENT,
-          'polyfills.js'
-        ),
       } as ClientEntries)
     : undefined
 
@@ -1149,6 +1146,13 @@ export default async function getBaseWebpackConfig(
           ].filter(Boolean),
         }),
       new WellKnownErrorsPlugin(),
+      !isServer &&
+        new CopyFilePlugin({
+          source: require.resolve('@next/polyfill-nomodule'),
+          name: `static/chunks/polyfills${dev ? '' : '-[hash]'}.js`,
+          minimize: false,
+          info: { [CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL]: 1 },
+        }),
     ].filter((Boolean as any) as ExcludesFalse),
   }
 
