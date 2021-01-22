@@ -22,7 +22,7 @@ export default class AppDocument extends Document {
 
   render() {
     return (
-      <Html lang="en">
+      <Html>
         <Head />
         <body>
           <Main />
