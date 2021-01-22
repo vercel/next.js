@@ -52,7 +52,7 @@ export const getStaticProps = ({ params, locale, locales, defaultLocale }) => {
 
 export const getStaticPaths = ({ locales, defaultLocale }) => {
   // make sure locales were provided correctly
-  if (!locales || locales.length !== 7) {
+  if (!locales || locales.length !== 11) {
     throw new Error(
       'locales missing in getStaticPaths!! got: ' + JSON.stringify(locales)
     )
@@ -62,11 +62,18 @@ export const getStaticPaths = ({ locales, defaultLocale }) => {
     throw new Error('missing defaultLocale in getStaticPaths')
   }
 
-  return {
+  const paths = [
     // the default locale will be used since one isn't defined here
-    paths: ['first', 'second'].map((slug) => ({
-      params: { slug },
-    })),
+    { params: { slug: 'first' } },
+    { params: { slug: 'second' } },
+  ]
+
+  for (const locale of locales) {
+    paths.push({ params: { slug: 'always' }, locale })
+  }
+
+  return {
+    paths,
     fallback: true,
   }
 }

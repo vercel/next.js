@@ -1,6 +1,5 @@
 import chalk from 'chalk'
 import { findConfig } from '../../../../../lib/find-config'
-import { resolveRequest } from '../../../../../lib/resolve-request'
 import browserslist from 'browserslist'
 
 type CssPluginCollection_Array = (string | [string, boolean | object])[]
@@ -57,7 +56,7 @@ async function loadPlugin(
     throw new Error(genericErrorText)
   }
 
-  const pluginPath = resolveRequest(pluginName, `${dir}/`)
+  const pluginPath = require.resolve(pluginName, { paths: [dir] })
   if (isIgnoredPlugin(pluginPath)) {
     return false
   } else if (options === true) {

@@ -24,6 +24,7 @@ export type Route = {
   statusCode?: number
   name: string
   requireBasePath?: false
+  internal?: true
   fn: (
     req: IncomingMessage,
     res: ServerResponse,
@@ -173,26 +174,39 @@ export default class Router {
       // in the pathname here to allow custom-routes to require containing
       // it or not, filesystem routes and pages must always include the basePath
       // if it is set
-      let currentPathname = parsedUrlUpdated.pathname
+      let currentPathname = parsedUrlUpdated.pathname as string
       const originalPathname = currentPathname
       const requireBasePath = testRoute.requireBasePath !== false
       const isCustomRoute = customRouteTypes.has(testRoute.type)
       const isPublicFolderCatchall = testRoute.name === 'public folder catchall'
       const keepBasePath = isCustomRoute || isPublicFolderCatchall
+      const keepLocale = isCustomRoute
+
+      const currentPathnameNoBasePath = replaceBasePath(
+        this.basePath,
+        currentPathname
+      )
 
       if (!keepBasePath) {
-        currentPathname = replaceBasePath(this.basePath, currentPathname!)
+        currentPathname = currentPathnameNoBasePath
       }
 
-      // re-add locale for custom-routes to allow matching against
-      if (isCustomRoute && parsedUrl.query.__nextLocale) {
-        if (keepBasePath) {
-          currentPathname = replaceBasePath(this.basePath, currentPathname!)
-        }
+      const localePathResult = normalizeLocalePath(
+        currentPathnameNoBasePath,
+        this.locales
+      )
+      const activeBasePath = keepBasePath ? this.basePath : ''
 
-        currentPathname = `/${parsedUrl.query.__nextLocale}${
-          currentPathname === '/' ? '' : currentPathname
-        }`
+      if (keepLocale) {
+        if (
+          !testRoute.internal &&
+          parsedUrl.query.__nextLocale &&
+          !localePathResult.detectedLocale
+        ) {
+          currentPathname = `${activeBasePath}/${parsedUrl.query.__nextLocale}${
+            currentPathnameNoBasePath === '/' ? '' : currentPathnameNoBasePath
+          }`
+        }
 
         if (
           (req as any).__nextHadTrailingSlash &&
@@ -200,10 +214,14 @@ export default class Router {
         ) {
           currentPathname += '/'
         }
-
-        if (keepBasePath) {
-          currentPathname = `${this.basePath}${currentPathname}`
-        }
+      } else {
+        currentPathname = `${
+          (req as any)._nextHadBasePath ? activeBasePath : ''
+        }${
+          activeBasePath && localePathResult.pathname === '/'
+            ? ''
+            : localePathResult.pathname
+        }`
       }
 
       const newParams = testRoute.match(currentPathname)

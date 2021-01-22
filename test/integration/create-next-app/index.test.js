@@ -187,31 +187,20 @@ describe('create next app', () => {
   if (process.platform !== 'win32') {
     it('should fall back to default template', async () => {
       await usingTempDir(async (cwd) => {
-        const runExample = (...args) => {
-          const res = run(args, { cwd })
-
-          function fallbackToTemplate(data) {
-            if (
-              /Do you want to use the default template instead/.test(
-                data.toString()
-              )
-            ) {
-              res.stdout.removeListener('data', fallbackToTemplate)
-              res.stdin.write('\n')
-            }
+        const projectName = 'fail-example'
+        const res = await run(
+          [projectName, '--example', '__internal-testing-retry'],
+          {
+            cwd,
+            input: '\n',
           }
-
-          res.stdout.on('data', fallbackToTemplate)
-
-          return res
-        }
-
-        const res = await runExample(
-          'fail-example',
-          '--example',
-          '__internal-testing-retry'
         )
         expect(res.exitCode).toBe(0)
+
+        const files = ['package.json', 'pages/index.js', '.gitignore']
+        files.forEach((file) =>
+          expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+        )
       })
     })
   }

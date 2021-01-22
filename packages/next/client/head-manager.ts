@@ -1,12 +1,13 @@
-const DOMAttributeNames: Record<string, string> = {
+export const DOMAttributeNames: Record<string, string> = {
   acceptCharset: 'accept-charset',
   className: 'class',
   htmlFor: 'for',
   httpEquiv: 'http-equiv',
+  noModule: 'noModule',
 }
 
 function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
-  const el = document.createElement(type)
+  const el: HTMLElement = document.createElement(type)
   for (const p in props) {
     if (!props.hasOwnProperty(p)) continue
     if (p === 'children' || p === 'dangerouslySetInnerHTML') continue
@@ -15,7 +16,14 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
     if (props[p] === undefined) continue
 
     const attr = DOMAttributeNames[p] || p.toLowerCase()
-    el.setAttribute(attr, props[p])
+    if (
+      type === 'script' &&
+      (attr === 'async' || attr === 'defer' || attr === 'noModule')
+    ) {
+      ;(el as HTMLScriptElement)[attr] = !!props[p]
+    } else {
+      el.setAttribute(attr, props[p])
+    }
   }
 
   const { children, dangerouslySetInnerHTML } = props
@@ -32,7 +40,7 @@ function reactElementToDOM({ type, props }: JSX.Element): HTMLElement {
   return el
 }
 
-function updateElements(type: string, components: JSX.Element[]) {
+function updateElements(type: string, components: JSX.Element[]): void {
   const headEl = document.getElementsByTagName('head')[0]
   const headCountEl: HTMLMetaElement = headEl.querySelector(
     'meta[name=next-head-count]'
@@ -76,7 +84,10 @@ function updateElements(type: string, components: JSX.Element[]) {
   headCountEl.content = (headCount - oldTags.length + newTags.length).toString()
 }
 
-export default function initHeadManager() {
+export default function initHeadManager(): {
+  mountedInstances: Set<unknown>
+  updateHead: (head: JSX.Element[]) => void
+} {
   let updatePromise: Promise<void> | null = null
 
   return {
