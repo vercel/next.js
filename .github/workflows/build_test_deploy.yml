@@ -160,7 +160,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
       HEADLESS: true
-      NEXT_WEBPACK5: 1
+      NEXT_PRIVATE_TEST_WEBPACK5_MODE: 1
 
     steps:
       - uses: actions/checkout@v2
