@@ -39,22 +39,18 @@ const externals = {
 
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
+  // postcss: 'postcss',
 
   // webpack
   'node-libs-browser': 'node-libs-browser',
-
-  // css-loader
-  // postcss: 'postcss',
 
   // sass-loader
   // (also responsible for these dependencies in package.json)
   'node-sass': 'node-sass',
   sass: 'sass',
   fibers: 'fibers',
-  klona: 'klona',
 
   chokidar: 'chokidar',
-  'loader-utils': 'loader-utils',
   'jest-worker': 'jest-worker',
 }
 // eslint-disable-next-line camelcase
@@ -207,6 +203,21 @@ export async function ncc_cookie(task, opts) {
     .target('compiled/cookie')
 }
 // eslint-disable-next-line camelcase
+externals['css-loader'] = 'next/dist/compiled/css-loader'
+export async function ncc_css_loader(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('css-loader')))
+    .ncc({
+      packageName: 'css-loader',
+      externals: {
+        ...externals,
+        'schema-utils': 'next/dist/compiled/schema-utils',
+      },
+      target: 'es5',
+    })
+    .target('compiled/css-loader')
+}
+// eslint-disable-next-line camelcase
 externals['debug'] = 'next/dist/compiled/debug'
 export async function ncc_debug(task, opts) {
   await task
@@ -329,6 +340,14 @@ export async function ncc_jsonwebtoken(task, opts) {
     .target('compiled/jsonwebtoken')
 }
 // eslint-disable-next-line camelcase
+externals['loader-utils'] = 'next/dist/compiled/loader-utils'
+export async function ncc_loader_utils(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('loader-utils')))
+    .ncc({ packageName: 'loader-utils', externals })
+    .target('compiled/loader-utils')
+}
+// eslint-disable-next-line camelcase
 externals['lodash.curry'] = 'next/dist/compiled/lodash.curry'
 export async function ncc_lodash_curry(task, opts) {
   await task
@@ -429,6 +448,16 @@ export async function ncc_recast(task, opts) {
     .target('compiled/recast')
 }
 // eslint-disable-next-line camelcase
+externals['resolve-url-loader'] = 'next/dist/compiled/resolve-url-loader'
+export async function ncc_resolve_url_loader(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('resolve-url-loader'))
+    )
+    .ncc({ packageName: 'resolve-url-loader', externals })
+    .target('compiled/resolve-url-loader')
+}
+// eslint-disable-next-line camelcase
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
 export async function ncc_sass_loader(task, opts) {
   await task
@@ -444,6 +473,7 @@ export async function ncc_sass_loader(task, opts) {
         ...externals,
         'schema-utils': 'next/dist/compiled/schema-utils3',
       },
+      target: 'es5',
     })
     .target('compiled/sass-loader')
 }
@@ -654,6 +684,7 @@ export async function ncc(task) {
       'ncc_conf',
       'ncc_content_type',
       'ncc_cookie',
+      'ncc_css_loader',
       'ncc_debug',
       'ncc_devalue',
       'ncc_escape_string_regexp',
@@ -669,6 +700,7 @@ export async function ncc(task) {
       'ncc_is_wsl',
       'ncc_json5',
       'ncc_jsonwebtoken',
+      'ncc_loader_utils',
       'ncc_lodash_curry',
       'ncc_lru_cache',
       'ncc_mkdirp',
@@ -680,6 +712,7 @@ export async function ncc(task) {
       'ncc_postcss_preset_env',
       'ncc_postcss_scss',
       'ncc_recast',
+      'ncc_resolve_url_loader',
       'ncc_sass_loader',
       'ncc_schema_utils',
       'ncc_schema_utils3',
