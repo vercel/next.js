@@ -64,11 +64,12 @@ type ExcludesFalse = <T>(x: T | false) => x is T
 
 const isWebpack5 = parseInt(webpack.version!) === 5
 
-const devtoolRevertWarning = execOnce((devtool: Configuration['devtool']) => {
+const devtoolPerformanceWarning = execOnce(() => {
   console.warn(
     chalk.yellow.bold('Warning: ') +
-      chalk.bold(`Reverting webpack devtool to '${devtool}'.\n`) +
-      'Changing the webpack devtool in development mode will cause severe performance regressions.\n' +
+      'Changing the webpack devtool in development mode will cause ' +
+      chalk.bold('severe') +
+      ' performance regressions.\n' +
       'Read more: https://err.sh/next.js/improper-devtool'
   )
 })
@@ -1219,8 +1220,7 @@ export default async function getBaseWebpackConfig(
     }
 
     if (dev && originalDevtool !== webpackConfig.devtool) {
-      webpackConfig.devtool = originalDevtool
-      devtoolRevertWarning(originalDevtool)
+      devtoolPerformanceWarning()
     }
 
     if (typeof (webpackConfig as any).then === 'function') {

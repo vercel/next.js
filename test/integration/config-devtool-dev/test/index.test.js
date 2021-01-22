@@ -16,7 +16,7 @@ jest.setTimeout(1000 * 30)
 const appDir = join(__dirname, '../')
 
 describe('devtool set in developmemt mode in next config', () => {
-  it('should warn and revert when a devtool is set in development mode', async () => {
+  it('should warn when a devtool is set in development mode', async () => {
     let stderr = ''
 
     const appPort = await findPort()
@@ -29,7 +29,7 @@ describe('devtool set in developmemt mode in next config', () => {
 
     const found = await check(
       () => stderr,
-      /Reverting webpack devtool to /,
+      /devtool in development mode will cause/,
       false
     )
 
