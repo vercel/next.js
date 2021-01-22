@@ -25,7 +25,7 @@ export default function transformer(file, api, options) {
 
   let hasModifications: boolean
 
-  const isJSX = (node): boolean =>
+  const returnsJSX = (node): boolean =>
     node.type === 'JSXElement' ||
     (node.type === 'BlockStatement' &&
       j(node)
@@ -46,7 +46,7 @@ export default function transformer(file, api, options) {
 
     const isArrowFunction =
       node.declaration.type === 'ArrowFunctionExpression' &&
-      isJSX(node.declaration.body)
+      returnsJSX(node.declaration.body)
     const isAnonymousFunction =
       node.declaration.type === 'FunctionDeclaration' && !node.declaration.id
 
