@@ -4,7 +4,7 @@ import { renderStatic } from '../shared/renderer'
 export default class AppDocument extends Document {
   static async getInitialProps(ctx) {
     const page = await ctx.renderPage()
-    const { css, ids } = await renderStatic(() => page.html)
+    const { css, ids } = await renderStatic(page.html)
     const initialProps = await Document.getInitialProps(ctx)
     return {
       ...initialProps,
