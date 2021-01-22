@@ -204,10 +204,7 @@ export default async function getBaseWebpackConfig(
     rewrites: Rewrite[]
   }
 ): Promise<webpack.Configuration> {
-  initWebpack(
-    config.future?.webpack5 ||
-      Number(process.env.NEXT_PRIVATE_TEST_WEBPACK5_MODE) > 0
-  )
+  initWebpack(!!config.future?.webpack5)
 
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
