@@ -3,9 +3,6 @@ import { useForm } from 'react-hook-form'
 const Login = () => {
   const { register, errors, handleSubmit } = useForm()
   const login = handleSubmit(({ username, password, remember }) => {
-    console.log(
-      `username:${username}, password:${password}, remember:${remember}`
-    )
     // Handle login logic with username, password and remember form data
   })
 
