@@ -35,7 +35,9 @@ export default class extends Component {
             Home
           </a>
         </Link>
-        <div id="counter">Counter: {this.getCurrentCounter()}</div>
+        <div id="counter" style={{ marginBottom: 4000 }}>
+          Counter: {this.getCurrentCounter()}
+        </div>
         <div id="get-initial-props-run-count">
           getInitialProps run count: {this.props.getInitialPropsRunCount}
         </div>

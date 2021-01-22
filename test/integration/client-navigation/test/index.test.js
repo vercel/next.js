@@ -854,6 +854,21 @@ describe('Client Navigation', () => {
 
       await browser.close()
     })
+
+    it('should keep the scroll position on shallow routing', async () => {
+      const browser = await webdriver(context.appPort, '/nav/shallow-routing')
+      await browser.eval(() =>
+        document.querySelector('#increase').scrollIntoView()
+      )
+      const scrollPosition = await browser.eval('window.pageYOffset')
+
+      const newScrollPosition = await browser
+        .elementByCss('#increase')
+        .click()
+        .eval('window.pageYOffset')
+
+      expect(newScrollPosition).toBe(scrollPosition)
+    })
   })
 
   describe('with URL objects', () => {
