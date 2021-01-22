@@ -1,12 +1,33 @@
-import { deserializeContext } from '@fleur/next'
+import { deserializeContext, NextJsOps } from '@fleur/next'
 import { FleurContext } from '@fleur/react'
 import { AppProps } from 'next/dist/next-server/lib/router/router'
+import { useRef } from 'react'
+import { useEffect } from 'react'
 import { getOrCreateFleurContext } from '../lib/fleur'
 
-export default function FleurApp({ Component, pageProps }: AppProps) {
+export default function FleurApp({
+  Component,
+  pageProps: { __FLEUR_STATE__, ...pageProps },
+}: AppProps) {
+  const isFirstRendering = useRef<boolean>(true)
+
   const fleurContext = getOrCreateFleurContext(
-    deserializeContext(pageProps.__FLEUR_STATE__)
+    deserializeContext(__FLEUR_STATE__)
   )
+
+  useEffect(() => {
+    if (isFirstRendering.current) return
+
+    // Rehydrate page state on client side page transition
+    fleurContext.executeOperation(
+      NextJsOps.rehydrateServerSideProps,
+      deserializeContext(__FLEUR_STATE__)
+    )
+  }, [__FLEUR_STATE__, fleurContext])
+
+  useEffect(() => {
+    isFirstRendering.current = false
+  }, [])
 
   return (
     <FleurContext value={fleurContext}>

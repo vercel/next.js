@@ -6,7 +6,6 @@ import { Counter } from './counter'
 import { Nav } from './nav'
 
 export function Page() {
-  // const dispatch = useDispatch()
   const { executeOperation } = useFleurContext()
 
   // Tick the time every second

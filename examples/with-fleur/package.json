@@ -8,9 +8,9 @@
     "test": "jest"
   },
   "dependencies": {
-    "@fleur/fleur": "2.0.0",
-    "@fleur/next": "0.8.0-dev.6",
-    "@fleur/react": "4.0.1",
+    "@fleur/fleur": "3.0.0-beta.2",
+    "@fleur/next": "1.0.0-dev.3",
+    "@fleur/react": "5.0.0-beta.1",
     "next": "latest",
     "react": "17.0.1",
     "react-dom": "^16.12.0"
