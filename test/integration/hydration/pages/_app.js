@@ -1,1 +1,3 @@
-export default ({ Component, pageProps }) => <Component {...pageProps} />
+export default function CustomApp({ Component, pageProps }) {
+  return <Component {...pageProps} />
+}

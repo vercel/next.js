@@ -30,8 +30,8 @@ The `metric` object returned to the function consists of a number of properties:
 
 - `id`: Unique identifier for the metric in the context of the current page load
 - `name`: Metric name
-- `startTime`: First recorded timestamp of the performance entry (if applicable)
-- `value`: Value, or duration, of performance entry
+- `startTime`: First recorded timestamp of the performance entry in [milliseconds](https://developer.mozilla.org/en-US/docs/Web/API/DOMHighResTimeStamp) (if applicable)
+- `value`: Value, or duration in [milliseconds](https://developer.mozilla.org/en-US/docs/Web/API/DOMHighResTimeStamp), of the performance entry
 - `label`: Type of metric (`web-vital` or `custom`)
 
 There are two types of metrics that are tracked:
@@ -158,15 +158,36 @@ export function reportWebVitals(metric) {
 >
 > ```js
 > export function reportWebVitals({ id, name, label, value }) {
->   ga('send', 'event', {
->     eventCategory:
+>   // Use `window.gtag` if you initialized Google Analytics as this example:
+>   // https://github.com/vercel/next.js/blob/canary/examples/with-google-analytics/pages/_document.js
+>   window.gtag('event', name, {
+>     event_category:
 >       label === 'web-vital' ? 'Web Vitals' : 'Next.js custom metric',
->     eventAction: name,
->     eventValue: Math.round(name === 'CLS' ? value * 1000 : value), // values must be integers
->     eventLabel: id, // id unique to current page load
->     nonInteraction: true, // avoids affecting bounce rate.
+>     value: Math.round(name === 'CLS' ? value * 1000 : value), // values must be integers
+>     event_label: id, // id unique to current page load
+>     non_interaction: true, // avoids affecting bounce rate.
 >   })
 > }
 > ```
 >
 > Read more about sending results to Google Analytics [here](https://github.com/GoogleChrome/web-vitals#send-the-results-to-google-analytics).
+
+## TypeScript
+
+If you are using TypeScript, you can use the built-in type `NextWebVitalsMetric`:
+
+```ts
+// pages/_app.tsx
+
+import type { AppProps, NextWebVitalsMetric } from 'next/app'
+
+function MyApp({ Component, pageProps }: AppProps) {
+  return <Component {...pageProps} />
+}
+
+export function reportWebVitals(metric: NextWebVitalsMetric) {
+  console.log(metric)
+}
+
+export default MyApp
+```

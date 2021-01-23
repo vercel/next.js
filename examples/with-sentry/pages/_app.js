@@ -1,9 +1,6 @@
-import * as Sentry from '@sentry/node'
+import { init } from '../utils/sentry'
 
-Sentry.init({
-  enabled: process.env.NODE_ENV === 'production',
-  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
-})
+init()
 
 export default function App({ Component, pageProps, err }) {
   // Workaround for https://github.com/vercel/next.js/issues/8592

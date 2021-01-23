@@ -6,23 +6,12 @@ This approach is very helpful when you are trying to incrementally migrate your 
 
 ## How to use
 
-### Using `create-next-app`
-
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example custom-routes-proxying custom-routes-proxying-app
 # or
 yarn create next-app --example custom-routes-proxying custom-routes-proxying-app
-```
-
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/vercel/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/custom-routes-proxying
-cd custom-routes-proxying
 ```
 
 ### Step 4. Run Next.js in development mode
@@ -39,4 +28,4 @@ yarn dev
 
 Test out visiting one of the Next.js pages https://localhost:3000/ and then a non-Next.js page like http://localhost:3000/legacy-first.html or http://localhost:3000/another-legacy.html which will be proxied to the upstream server since it doesn't match any pages/assets in Next.js.
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)). Note: to deploy this example you will need to configure an existing upstream server.
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)). Note: to deploy this example you will need to configure an existing upstream server.

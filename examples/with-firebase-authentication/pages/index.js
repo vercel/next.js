@@ -35,7 +35,7 @@ const Index = () => {
         <p>You're signed in. Email: {user.email}</p>
         <p
           style={{
-            display: 'inlinelock',
+            display: 'inline-block',
             color: 'blue',
             textDecoration: 'underline',
             cursor: 'pointer',
@@ -51,7 +51,7 @@ const Index = () => {
         </Link>
       </div>
       {error && <div>Failed to fetch food!</div>}
-      {data ? (
+      {data && !error ? (
         <div>Your favorite food is {data.food}.</div>
       ) : (
         <div>Loading...</div>

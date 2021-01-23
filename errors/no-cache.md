@@ -78,7 +78,7 @@ cache:
 Using GitHub's [actions/cache](https://github.com/actions/cache), add the following step in your workflow file:
 
 ```yaml
-uses: actions/cache@v1
+uses: actions/cache@v2
 with:
   path: ${{ github.workspace }}/.next/cache
   key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}

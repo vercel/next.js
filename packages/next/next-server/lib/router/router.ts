@@ -2,64 +2,341 @@
 // tslint:disable:no-console
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
-import { parse, UrlObject } from 'url'
+import { UrlObject } from 'url'
+import {
+  normalizePathTrailingSlash,
+  removePathTrailingSlash,
+} from '../../../client/normalize-trailing-slash'
+import { GoodPageCache, StyleSheetTuple } from '../../../client/page-loader'
+import {
+  getClientBuildManifest,
+  isAssetError,
+  markAssetError,
+} from '../../../client/route-loader'
+import { DomainLocales } from '../../server/config'
+import { denormalizePagePath } from '../../server/denormalize-page-path'
+import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt, { MittEmitter } from '../mitt'
 import {
   AppContextType,
   formatWithValidation,
+  getLocationOrigin,
   getURL,
   loadGetInitialProps,
   NextPageContext,
   ST,
+  NEXT_DATA,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
+import { parseRelativeUrl } from './utils/parse-relative-url'
+import { searchParamsToUrlQuery } from './utils/querystring'
+import resolveRewrites from './utils/resolve-rewrites'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
-import { normalizeTrailingSlash } from './normalize-trailing-slash'
-import getAssetPathFromRoute from './utils/get-asset-path-from-route'
+
+declare global {
+  interface Window {
+    /* prod */
+    __NEXT_DATA__: NEXT_DATA
+  }
+}
+
+interface RouteProperties {
+  shallow: boolean
+}
+
+interface TransitionOptions {
+  shallow?: boolean
+  locale?: string | false
+  scroll?: boolean
+}
+
+interface NextHistoryState {
+  url: string
+  as: string
+  options: TransitionOptions
+}
+
+type HistoryState =
+  | null
+  | { __N: false }
+  | ({ __N: true; idx: number } & NextHistoryState)
+
+let detectDomainLocale: typeof import('../i18n/detect-domain-locale').detectDomainLocale
+
+if (process.env.__NEXT_I18N_SUPPORT) {
+  detectDomainLocale = require('../i18n/detect-domain-locale')
+    .detectDomainLocale
+}
 
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
+function buildCancellationError() {
+  return Object.assign(new Error('Route Cancelled'), {
+    cancelled: true,
+  })
+}
+
+function addPathPrefix(path: string, prefix?: string) {
+  return prefix && path.startsWith('/')
+    ? path === '/'
+      ? normalizePathTrailingSlash(prefix)
+      : `${prefix}${pathNoQueryHash(path) === '/' ? path.substring(1) : path}`
+    : path
+}
+
+export function getDomainLocale(
+  path: string,
+  locale?: string | false,
+  locales?: string[],
+  domainLocales?: DomainLocales
+) {
+  if (process.env.__NEXT_I18N_SUPPORT) {
+    locale = locale || normalizeLocalePath(path, locales).detectedLocale
+
+    const detectedDomain = detectDomainLocale(domainLocales, undefined, locale)
+
+    if (detectedDomain) {
+      return `http${detectedDomain.http ? '' : 's'}://${detectedDomain.domain}${
+        basePath || ''
+      }${locale === detectedDomain.defaultLocale ? '' : `/${locale}`}${path}`
+    }
+    return false
+  }
+
+  return false
+}
+
+export function addLocale(
+  path: string,
+  locale?: string | false,
+  defaultLocale?: string
+) {
+  if (process.env.__NEXT_I18N_SUPPORT) {
+    return locale &&
+      locale !== defaultLocale &&
+      !path.startsWith('/' + locale + '/') &&
+      path !== '/' + locale
+      ? addPathPrefix(path, '/' + locale)
+      : path
+  }
+  return path
+}
+
+export function delLocale(path: string, locale?: string) {
+  if (process.env.__NEXT_I18N_SUPPORT) {
+    return locale &&
+      (path.startsWith('/' + locale + '/') || path === '/' + locale)
+      ? path.substr(locale.length + 1) || '/'
+      : path
+  }
+  return path
+}
+
+function pathNoQueryHash(path: string) {
+  const queryIndex = path.indexOf('?')
+  const hashIndex = path.indexOf('#')
+
+  if (queryIndex > -1 || hashIndex > -1) {
+    path = path.substring(0, queryIndex > -1 ? queryIndex : hashIndex)
+  }
+  return path
+}
+
+export function hasBasePath(path: string): boolean {
+  path = pathNoQueryHash(path)
+  return path === basePath || path.startsWith(basePath + '/')
+}
+
 export function addBasePath(path: string): string {
-  return `${basePath}${path}`
+  // we only add the basepath on relative urls
+  return addPathPrefix(path, basePath)
 }
 
 export function delBasePath(path: string): string {
-  return path.substr(basePath.length)
+  path = path.slice(basePath.length)
+  if (!path.startsWith('/')) path = `/${path}`
+  return path
 }
 
-function toRoute(path: string): string {
-  return path.replace(/\/$/, '') || '/'
-}
-
-function prepareRoute(path: string) {
-  return toRoute(delBasePath(path || '') || '/')
+/**
+ * Detects whether a given url is routable by the Next.js router (browser only).
+ */
+export function isLocalURL(url: string): boolean {
+  // prevent a hydration mismatch on href for url with anchor refs
+  if (url.startsWith('/') || url.startsWith('#')) return true
+  try {
+    // absolute urls can be local if they are on the same origin
+    const locationOrigin = getLocationOrigin()
+    const resolved = new URL(url, locationOrigin)
+    return resolved.origin === locationOrigin && hasBasePath(resolved.pathname)
+  } catch (_) {
+    return false
+  }
 }
 
 type Url = UrlObject | string
 
-function prepareUrlAs(url: Url, as: Url) {
-  // If url and as provided as an object representation,
-  // we'll format them into the string version here.
-  url = typeof url === 'object' ? formatWithValidation(url) : url
-  as = typeof as === 'object' ? formatWithValidation(as) : as
+export function interpolateAs(
+  route: string,
+  asPathname: string,
+  query: ParsedUrlQuery
+) {
+  let interpolatedRoute = ''
 
-  url = addBasePath(
-    normalizeTrailingSlash(url, !!process.env.__NEXT_TRAILING_SLASH)
-  )
-  as = as
-    ? addBasePath(
-        normalizeTrailingSlash(as, !!process.env.__NEXT_TRAILING_SLASH)
+  const dynamicRegex = getRouteRegex(route)
+  const dynamicGroups = dynamicRegex.groups
+  const dynamicMatches =
+    // Try to match the dynamic route against the asPath
+    (asPathname !== route ? getRouteMatcher(dynamicRegex)(asPathname) : '') ||
+    // Fall back to reading the values from the href
+    // TODO: should this take priority; also need to change in the router.
+    query
+
+  interpolatedRoute = route
+  const params = Object.keys(dynamicGroups)
+
+  if (
+    !params.every((param) => {
+      let value = dynamicMatches[param] || ''
+      const { repeat, optional } = dynamicGroups[param]
+
+      // support single-level catch-all
+      // TODO: more robust handling for user-error (passing `/`)
+      let replaced = `[${repeat ? '...' : ''}${param}]`
+      if (optional) {
+        replaced = `${!value ? '/' : ''}[${replaced}]`
+      }
+      if (repeat && !Array.isArray(value)) value = [value]
+
+      return (
+        (optional || param in dynamicMatches) &&
+        // Interpolate group into data URL if present
+        (interpolatedRoute =
+          interpolatedRoute!.replace(
+            replaced,
+            repeat
+              ? (value as string[])
+                  .map(
+                    // these values should be fully encoded instead of just
+                    // path delimiter escaped since they are being inserted
+                    // into the URL and we expect URL encoded segments
+                    // when parsing dynamic route params
+                    (segment) => encodeURIComponent(segment)
+                  )
+                  .join('/')
+              : encodeURIComponent(value as string)
+          ) || '/')
       )
-    : as
+    })
+  ) {
+    interpolatedRoute = '' // did not satisfy all requirements
 
+    // n.b. We ignore this error because we handle warning for this case in
+    // development in the `<Link>` component directly.
+  }
   return {
-    url,
-    as,
+    params,
+    result: interpolatedRoute,
   }
 }
 
-type ComponentRes = { page: ComponentType; mod: any }
+function omitParmsFromQuery(query: ParsedUrlQuery, params: string[]) {
+  const filteredQuery: ParsedUrlQuery = {}
+
+  Object.keys(query).forEach((key) => {
+    if (!params.includes(key)) {
+      filteredQuery[key] = query[key]
+    }
+  })
+  return filteredQuery
+}
+
+/**
+ * Resolves a given hyperlink with a certain router state (basePath not included).
+ * Preserves absolute urls.
+ */
+export function resolveHref(
+  currentPath: string,
+  href: Url,
+  resolveAs?: boolean
+): string {
+  // we use a dummy base url for relative urls
+  const base = new URL(currentPath, 'http://n')
+  const urlAsString =
+    typeof href === 'string' ? href : formatWithValidation(href)
+  // Return because it cannot be routed by the Next.js router
+  if (!isLocalURL(urlAsString)) {
+    return (resolveAs ? [urlAsString] : urlAsString) as string
+  }
+  try {
+    const finalUrl = new URL(urlAsString, base)
+    finalUrl.pathname = normalizePathTrailingSlash(finalUrl.pathname)
+    let interpolatedAs = ''
+
+    if (
+      isDynamicRoute(finalUrl.pathname) &&
+      finalUrl.searchParams &&
+      resolveAs
+    ) {
+      const query = searchParamsToUrlQuery(finalUrl.searchParams)
+
+      const { result, params } = interpolateAs(
+        finalUrl.pathname,
+        finalUrl.pathname,
+        query
+      )
+
+      if (result) {
+        interpolatedAs = formatWithValidation({
+          pathname: result,
+          hash: finalUrl.hash,
+          query: omitParmsFromQuery(query, params),
+        })
+      }
+    }
+
+    // if the origin didn't change, it means we received a relative href
+    const resolvedHref =
+      finalUrl.origin === base.origin
+        ? finalUrl.href.slice(finalUrl.origin.length)
+        : finalUrl.href
+
+    return (resolveAs
+      ? [resolvedHref, interpolatedAs || resolvedHref]
+      : resolvedHref) as string
+  } catch (_) {
+    return (resolveAs ? [urlAsString] : urlAsString) as string
+  }
+}
+
+function stripOrigin(url: string) {
+  const origin = getLocationOrigin()
+
+  return url.startsWith(origin) ? url.substring(origin.length) : url
+}
+
+function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
+  // If url and as provided as an object representation,
+  // we'll format them into the string version here.
+  let [resolvedHref, resolvedAs] = resolveHref(router.pathname, url, true)
+  const origin = getLocationOrigin()
+  const hrefHadOrigin = resolvedHref.startsWith(origin)
+  const asHadOrigin = resolvedAs && resolvedAs.startsWith(origin)
+
+  resolvedHref = stripOrigin(resolvedHref)
+  resolvedAs = resolvedAs ? stripOrigin(resolvedAs) : resolvedAs
+
+  const preparedUrl = hrefHadOrigin ? resolvedHref : addBasePath(resolvedHref)
+  const preparedAs = as
+    ? stripOrigin(resolveHref(router.pathname, as))
+    : resolvedAs || resolvedHref
+
+  return {
+    url: preparedUrl,
+    as: asHadOrigin ? preparedAs : addBasePath(preparedAs),
+  }
+}
 
 export type BaseRouter = {
   route: string
@@ -67,6 +344,10 @@ export type BaseRouter = {
   query: ParsedUrlQuery
   asPath: string
   basePath: string
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
+  domainLocales?: DomainLocales
 }
 
 export type NextRouter = BaseRouter &
@@ -80,86 +361,103 @@ export type NextRouter = BaseRouter &
     | 'beforePopState'
     | 'events'
     | 'isFallback'
+    | 'isReady'
   >
 
 export type PrefetchOptions = {
   priority?: boolean
+  locale?: string | false
 }
 
-type RouteInfo = {
+export type PrivateRouteInfo =
+  | (Omit<CompletePrivateRouteInfo, 'styleSheets'> & { initial: true })
+  | CompletePrivateRouteInfo
+
+export type CompletePrivateRouteInfo = {
   Component: ComponentType
+  styleSheets: StyleSheetTuple[]
   __N_SSG?: boolean
   __N_SSP?: boolean
-  props?: any
+  props?: Record<string, any>
   err?: Error
   error?: any
 }
 
-type Subscription = (data: RouteInfo, App?: ComponentType) => Promise<void>
+export type AppProps = Pick<CompletePrivateRouteInfo, 'Component' | 'err'> & {
+  router: Router
+} & Record<string, any>
+export type AppComponent = ComponentType<AppProps>
 
-type BeforePopStateCallback = (state: any) => boolean
+type Subscription = (
+  data: PrivateRouteInfo,
+  App: AppComponent,
+  resetScroll: { x: number; y: number } | null
+) => Promise<void>
+
+type BeforePopStateCallback = (state: NextHistoryState) => boolean
 
 type ComponentLoadCancel = (() => void) | null
 
 type HistoryMethod = 'replaceState' | 'pushState'
 
-function fetchNextData(
-  pathname: string,
-  query: ParsedUrlQuery | null,
-  isServerRender: boolean,
-  cb?: (...args: any) => any
-) {
-  let attempts = isServerRender ? 3 : 1
-  function getResponse(): Promise<any> {
-    return fetch(
-      formatWithValidation({
-        pathname: addBasePath(
-          // @ts-ignore __NEXT_DATA__
-          `/_next/data/${__NEXT_DATA__.buildId}${getAssetPathFromRoute(
-            pathname,
-            '.json'
-          )}`
-        ),
-        query,
-      }),
-      {
-        // Cookies are required to be present for Next.js' SSG "Preview Mode".
-        // Cookies may also be required for `getServerSideProps`.
-        //
-        // > `fetch` won’t send cookies, unless you set the credentials init
-        // > option.
-        // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
-        //
-        // > For maximum browser compatibility when it comes to sending &
-        // > receiving cookies, always supply the `credentials: 'same-origin'`
-        // > option instead of relying on the default.
-        // https://github.com/github/fetch#caveats
-        credentials: 'same-origin',
-      }
-    ).then((res) => {
-      if (!res.ok) {
-        if (--attempts > 0 && res.status >= 500) {
-          return getResponse()
-        }
-        throw new Error(`Failed to load static props`)
-      }
-      return res.json()
-    })
-  }
+const manualScrollRestoration =
+  process.env.__NEXT_SCROLL_RESTORATION &&
+  typeof window !== 'undefined' &&
+  'scrollRestoration' in window.history &&
+  !!(function () {
+    try {
+      let v = '__next'
+      // eslint-disable-next-line no-sequences
+      return sessionStorage.setItem(v, v), sessionStorage.removeItem(v), true
+    } catch (n) {}
+  })()
 
-  return getResponse()
-    .then((data) => {
-      return cb ? cb(data) : data
-    })
-    .catch((err: Error) => {
-      // We should only trigger a server-side transition if this was caused
-      // on a client-side transition. Otherwise, we'd get into an infinite
-      // loop.
-      if (!isServerRender) {
-        ;(err as any).code = 'PAGE_LOAD_ERROR'
+const SSG_DATA_NOT_FOUND = Symbol('SSG_DATA_NOT_FOUND')
+
+function fetchRetry(url: string, attempts: number): Promise<any> {
+  return fetch(url, {
+    // Cookies are required to be present for Next.js' SSG "Preview Mode".
+    // Cookies may also be required for `getServerSideProps`.
+    //
+    // > `fetch` won’t send cookies, unless you set the credentials init
+    // > option.
+    // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+    //
+    // > For maximum browser compatibility when it comes to sending &
+    // > receiving cookies, always supply the `credentials: 'same-origin'`
+    // > option instead of relying on the default.
+    // https://github.com/github/fetch#caveats
+    credentials: 'same-origin',
+  }).then((res) => {
+    if (!res.ok) {
+      if (attempts > 1 && res.status >= 500) {
+        return fetchRetry(url, attempts - 1)
       }
-      throw err
-    })
+      if (res.status === 404) {
+        return res.json().then((data) => {
+          if (data.notFound) {
+            return { notFound: SSG_DATA_NOT_FOUND }
+          }
+          throw new Error(`Failed to load static props`)
+        })
+      }
+      throw new Error(`Failed to load static props`)
+    }
+    return res.json()
+  })
+}
+
+function fetchNextData(dataHref: string, isServerRender: boolean) {
+  return fetchRetry(dataHref, isServerRender ? 3 : 1).catch((err: Error) => {
+    // We should only trigger a server-side transition if this was caused
+    // on a client-side transition. Otherwise, we'd get into an infinite
+    // loop.
+
+    if (!isServerRender) {
+      markAssetError(err)
+    }
+    throw err
+  })
 }
 
 export default class Router implements BaseRouter {
@@ -172,7 +470,7 @@ export default class Router implements BaseRouter {
   /**
    * Map of all components loaded in `Router`
    */
-  components: { [pathname: string]: RouteInfo }
+  components: { [pathname: string]: PrivateRouteInfo }
   // Static Data Cache
   sdc: { [asPath: string]: object } = {}
   sub: Subscription
@@ -180,9 +478,18 @@ export default class Router implements BaseRouter {
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
   events: MittEmitter
-  _wrapApp: (App: ComponentType) => any
+  _wrapApp: (App: AppComponent) => any
   isSsr: boolean
   isFallback: boolean
+  _inFlightRoute?: string
+  _shallow?: boolean
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
+  domainLocales?: DomainLocales
+  isReady: boolean
+
+  private _idx: number = 0
 
   static events: MittEmitter = mitt()
 
@@ -199,19 +506,27 @@ export default class Router implements BaseRouter {
       err,
       subscription,
       isFallback,
+      locale,
+      locales,
+      defaultLocale,
+      domainLocales,
     }: {
       subscription: Subscription
       initialProps: any
       pageLoader: any
       Component: ComponentType
-      App: ComponentType
-      wrapApp: (App: ComponentType) => any
+      App: AppComponent
+      wrapApp: (App: AppComponent) => any
       err?: Error
       isFallback: boolean
+      locale?: string
+      locales?: string[]
+      defaultLocale?: string
+      domainLocales?: DomainLocales
     }
   ) {
     // represents the current component key
-    this.route = toRoute(pathname)
+    this.route = removePathTrailingSlash(pathname)
 
     // set up the component cache (by route keys)
     this.components = {}
@@ -221,6 +536,7 @@ export default class Router implements BaseRouter {
     if (pathname !== '/_error') {
       this.components[this.route] = {
         Component,
+        initial: true,
         props: initialProps,
         err,
         __N_SSG: initialProps && initialProps.__N_SSG,
@@ -228,7 +544,12 @@ export default class Router implements BaseRouter {
       }
     }
 
-    this.components['/_app'] = { Component: App }
+    this.components['/_app'] = {
+      Component: App as ComponentType,
+      styleSheets: [
+        /* /_app does not need its stylesheets managed */
+      ],
+    }
 
     // Backwards compat for Router.router.events
     // TODO: Should be remove the following major version as it was never documented
@@ -239,11 +560,10 @@ export default class Router implements BaseRouter {
     this.query = query
     // if auto prerendered and dynamic route wait to update asPath
     // until after mount to prevent hydration mismatch
-    this.asPath =
-      // @ts-ignore this is temporarily global (attached to window)
-      isDynamicRoute(pathname) && __NEXT_DATA__.autoExport
-        ? pathname
-        : delBasePath(as)
+    const autoExportDynamic =
+      isDynamicRoute(pathname) && self.__NEXT_DATA__.autoExport
+
+    this.asPath = autoExportDynamic ? pathname : as
     this.basePath = basePath
     this.sub = subscription
     this.clc = null
@@ -254,6 +574,19 @@ export default class Router implements BaseRouter {
 
     this.isFallback = isFallback
 
+    this.isReady = !!(
+      self.__NEXT_DATA__.gssp ||
+      self.__NEXT_DATA__.gip ||
+      (!autoExportDynamic && !self.location.search)
+    )
+
+    if (process.env.__NEXT_I18N_SUPPORT) {
+      this.locale = locale
+      this.locales = locales
+      this.defaultLocale = defaultLocale
+      this.domainLocales = domainLocales
+    }
+
     if (typeof window !== 'undefined') {
       // make sure "as" doesn't start with double slashes or else it can
       // throw an error as it's considered invalid
@@ -263,27 +596,27 @@ export default class Router implements BaseRouter {
         this.changeState(
           'replaceState',
           formatWithValidation({ pathname: addBasePath(pathname), query }),
-          addBasePath(as)
+          getURL(),
+          { locale }
         )
       }
 
       window.addEventListener('popstate', this.onPopState)
-    }
-  }
 
-  // @deprecated backwards compatibility even though it's a private method.
-  static _rewriteUrlForNextExport(url: string): string {
-    if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
-      const rewriteUrlForNextExport = require('./rewrite-url-for-export')
-        .rewriteUrlForNextExport
-      return rewriteUrlForNextExport(url)
-    } else {
-      return url
+      // enable custom scroll restoration handling when available
+      // otherwise fallback to browser's default handling
+      if (process.env.__NEXT_SCROLL_RESTORATION) {
+        if (manualScrollRestoration) {
+          window.history.scrollRestoration = 'manual'
+        }
+      }
     }
   }
 
   onPopState = (e: PopStateEvent): void => {
-    if (!e.state) {
+    const state = e.state as HistoryState
+
+    if (!state) {
       // We get state as undefined for two reasons.
       //  1. With older safari (< 8) and older chrome (< 34)
       //  2. When the URL changed with #
@@ -302,57 +635,59 @@ export default class Router implements BaseRouter {
       return
     }
 
+    if (!state.__N) {
+      return
+    }
+
+    let forcedScroll: { x: number; y: number } | undefined
+    const { url, as, options, idx } = state
+    if (process.env.__NEXT_SCROLL_RESTORATION) {
+      if (manualScrollRestoration) {
+        if (this._idx !== idx) {
+          // Snapshot current scroll position:
+          try {
+            sessionStorage.setItem(
+              '__next_scroll_' + this._idx,
+              JSON.stringify({ x: self.pageXOffset, y: self.pageYOffset })
+            )
+          } catch {}
+
+          // Restore old scroll position:
+          try {
+            const v = sessionStorage.getItem('__next_scroll_' + idx)
+            forcedScroll = JSON.parse(v!)
+          } catch {
+            forcedScroll = { x: 0, y: 0 }
+          }
+        }
+      }
+    }
+    this._idx = idx
+
+    const { pathname } = parseRelativeUrl(url)
+
     // Make sure we don't re-render on initial load,
     // can be caused by navigating back from an external site
-    if (
-      e.state &&
-      this.isSsr &&
-      e.state.as === this.asPath &&
-      parse(e.state.url).pathname === this.pathname
-    ) {
+    if (this.isSsr && as === this.asPath && pathname === this.pathname) {
       return
     }
 
     // If the downstream application returns falsy, return.
     // They will then be responsible for handling the event.
-    if (this._bps && !this._bps(e.state)) {
+    if (this._bps && !this._bps(state)) {
       return
     }
 
-    const { url, as, options } = e.state
-    if (process.env.NODE_ENV !== 'production') {
-      if (typeof url === 'undefined' || typeof as === 'undefined') {
-        console.warn(
-          '`popstate` event triggered but `event.state` did not have `url` or `as` https://err.sh/vercel/next.js/popstate-state-empty'
-        )
-      }
-    }
-    this.change('replaceState', url, as, options)
-  }
-
-  update(route: string, mod: any) {
-    const Component: ComponentType = mod.default || mod
-    const data = this.components[route]
-    if (!data) {
-      throw new Error(`Cannot update unavailable route: ${route}`)
-    }
-
-    const newData = Object.assign({}, data, {
-      Component,
-      __N_SSG: mod.__N_SSG,
-      __N_SSP: mod.__N_SSP,
-    })
-    this.components[route] = newData
-
-    // pages/_app.js updated
-    if (route === '/_app') {
-      this.notify(this.components[this.route])
-      return
-    }
-
-    if (route === this.route) {
-      this.notify(newData)
-    }
+    this.change(
+      'replaceState',
+      url,
+      as,
+      Object.assign<{}, TransitionOptions, TransitionOptions>({}, options, {
+        shallow: options.shallow && this._shallow,
+        locale: options.locale || this.defaultLocale,
+      }),
+      forcedScroll
+    )
   }
 
   reload(): void {
@@ -372,8 +707,21 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  push(url: Url, as: Url = url, options = {}) {
-    ;({ url, as } = prepareUrlAs(url, as))
+  push(url: Url, as?: Url, options: TransitionOptions = {}) {
+    if (process.env.__NEXT_SCROLL_RESTORATION) {
+      // TODO: remove in the future when we update history before route change
+      // is complete, as the popstate event should handle this capture.
+      if (manualScrollRestoration) {
+        try {
+          // Snapshot scroll position right before navigating to a new page:
+          sessionStorage.setItem(
+            '__next_scroll_' + this._idx,
+            JSON.stringify({ x: self.pageXOffset, y: self.pageYOffset })
+          )
+        } catch {}
+      }
+    }
+    ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('pushState', url, as, options)
   }
 
@@ -383,156 +731,409 @@ export default class Router implements BaseRouter {
    * @param as masks `url` for the browser
    * @param options object you can define `shallow` and other options
    */
-  replace(url: Url, as: Url = url, options = {}) {
-    ;({ url, as } = prepareUrlAs(url, as))
+  replace(url: Url, as?: Url, options: TransitionOptions = {}) {
+    ;({ url, as } = prepareUrlAs(this, url, as))
     return this.change('replaceState', url, as, options)
   }
 
-  change(
+  private async change(
     method: HistoryMethod,
     url: string,
     as: string,
-    options: any
+    options: TransitionOptions,
+    forcedScroll?: { x: number; y: number }
   ): Promise<boolean> {
-    return new Promise((resolve, reject) => {
-      if (!options._h) {
-        this.isSsr = false
-      }
-      // marking route changes as a navigation start entry
-      if (ST) {
-        performance.mark('routeChange')
+    if (!isLocalURL(url)) {
+      window.location.href = url
+      return false
+    }
+
+    // for static pages with query params in the URL we delay
+    // marking the router ready until after the query is updated
+    if ((options as any)._h) {
+      this.isReady = true
+    }
+
+    // Default to scroll reset behavior unless explicitly specified to be
+    // `false`! This makes the behavior between using `Router#push` and a
+    // `<Link />` consistent.
+    options.scroll = !!(options.scroll ?? true)
+
+    let localeChange = options.locale !== this.locale
+
+    if (process.env.__NEXT_I18N_SUPPORT) {
+      this.locale =
+        options.locale === false
+          ? this.defaultLocale
+          : options.locale || this.locale
+
+      if (typeof options.locale === 'undefined') {
+        options.locale = this.locale
       }
 
-      // Add the ending slash to the paths. So, we can serve the
-      // "<page>/index.html" directly for the SSR page.
-      if (process.env.__NEXT_EXPORT_TRAILING_SLASH) {
-        const rewriteUrlForNextExport = require('./rewrite-url-for-export')
-          .rewriteUrlForNextExport
-        // @ts-ignore this is temporarily global (attached to window)
-        if (__NEXT_DATA__.nextExport) {
-          as = rewriteUrlForNextExport(as)
+      const parsedAs = parseRelativeUrl(hasBasePath(as) ? delBasePath(as) : as)
+      const localePathResult = normalizeLocalePath(
+        parsedAs.pathname,
+        this.locales
+      )
+
+      if (localePathResult.detectedLocale) {
+        this.locale = localePathResult.detectedLocale
+        parsedAs.pathname = addBasePath(parsedAs.pathname)
+        as = formatWithValidation(parsedAs)
+        url = addBasePath(
+          normalizeLocalePath(
+            hasBasePath(url) ? delBasePath(url) : url,
+            this.locales
+          ).pathname
+        )
+      }
+      let didNavigate = false
+
+      // we need to wrap this in the env check again since regenerator runtime
+      // moves this on its own due to the return
+      if (process.env.__NEXT_I18N_SUPPORT) {
+        // if the locale isn't configured hard navigate to show 404 page
+        if (!this.locales?.includes(this.locale!)) {
+          parsedAs.pathname = addLocale(parsedAs.pathname, this.locale)
+          window.location.href = formatWithValidation(parsedAs)
+          // this was previously a return but was removed in favor
+          // of better dead code elimination with regenerator runtime
+          didNavigate = true
         }
       }
 
-      this.abortComponentLoad(as)
+      const detectedDomain = detectDomainLocale(
+        this.domainLocales,
+        undefined,
+        this.locale
+      )
 
-      // If the url change is only related to a hash change
-      // We should not proceed. We should only change the state.
-
-      // WARNING: `_h` is an internal option for handing Next.js client-side
-      // hydration. Your app should _never_ use this property. It may change at
-      // any time without notice.
-      if (!options._h && this.onlyAHashChange(as)) {
-        this.asPath = as
-        Router.events.emit('hashChangeStart', as)
-        this.changeState(method, url, as, options)
-        this.scrollToHash(as)
-        Router.events.emit('hashChangeComplete', as)
-        return resolve(true)
-      }
-
-      let { pathname, query, protocol } = parse(url, true)
-
-      // url and as should always be prefixed with basePath by this
-      // point by either next/link or router.push/replace so strip the
-      // basePath from the pathname to match the pages dir 1-to-1
-      pathname = pathname ? delBasePath(pathname) : pathname
-
-      if (!pathname || protocol) {
-        if (process.env.NODE_ENV !== 'production') {
-          throw new Error(
-            `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
-          )
+      // we need to wrap this in the env check again since regenerator runtime
+      // moves this on its own due to the return
+      if (process.env.__NEXT_I18N_SUPPORT) {
+        // if we are navigating to a domain locale ensure we redirect to the
+        // correct domain
+        if (
+          !didNavigate &&
+          detectedDomain &&
+          self.location.hostname !== detectedDomain.domain
+        ) {
+          const asNoBasePath = delBasePath(as)
+          window.location.href = `http${detectedDomain.http ? '' : 's'}://${
+            detectedDomain.domain
+          }${addBasePath(
+            `${
+              this.locale === detectedDomain.defaultLocale
+                ? ''
+                : `/${this.locale}`
+            }${asNoBasePath === '/' ? '' : asNoBasePath}` || '/'
+          )}`
+          // this was previously a return but was removed in favor
+          // of better dead code elimination with regenerator runtime
+          didNavigate = true
         }
-        return resolve(false)
       }
 
-      // If asked to change the current URL we should reload the current page
-      // (not location.reload() but reload getInitialProps and other Next.js stuffs)
-      // We also need to set the method = replaceState always
-      // as this should not go into the history (That's how browsers work)
-      // We should compare the new asPath to the current asPath, not the url
-      if (!this.urlIsNew(as)) {
-        method = 'replaceState'
+      if (didNavigate) {
+        return new Promise(() => {})
+      }
+    }
+
+    if (!(options as any)._h) {
+      this.isSsr = false
+    }
+    // marking route changes as a navigation start entry
+    if (ST) {
+      performance.mark('routeChange')
+    }
+
+    const { shallow = false } = options
+    const routeProps = { shallow }
+
+    if (this._inFlightRoute) {
+      this.abortComponentLoad(this._inFlightRoute, routeProps)
+    }
+
+    as = addBasePath(
+      addLocale(
+        hasBasePath(as) ? delBasePath(as) : as,
+        options.locale,
+        this.defaultLocale
+      )
+    )
+    const cleanedAs = delLocale(
+      hasBasePath(as) ? delBasePath(as) : as,
+      this.locale
+    )
+    this._inFlightRoute = as
+
+    // If the url change is only related to a hash change
+    // We should not proceed. We should only change the state.
+
+    // WARNING: `_h` is an internal option for handing Next.js client-side
+    // hydration. Your app should _never_ use this property. It may change at
+    // any time without notice.
+    if (!(options as any)._h && this.onlyAHashChange(cleanedAs)) {
+      this.asPath = cleanedAs
+      Router.events.emit('hashChangeStart', as, routeProps)
+      // TODO: do we need the resolved href when only a hash change?
+      this.changeState(method, url, as, options)
+      this.scrollToHash(cleanedAs)
+      this.notify(this.components[this.route], null)
+      Router.events.emit('hashChangeComplete', as, routeProps)
+      return true
+    }
+
+    let parsed = parseRelativeUrl(url)
+    let { pathname, query } = parsed
+
+    // The build manifest needs to be loaded before auto-static dynamic pages
+    // get their query parameters to allow ensuring they can be parsed properly
+    // when rewritten to
+    let pages: any, rewrites: any
+    try {
+      pages = await this.pageLoader.getPageList()
+      ;({ __rewrites: rewrites } = await getClientBuildManifest())
+    } catch (err) {
+      // If we fail to resolve the page list or client-build manifest, we must
+      // do a server-side transition:
+      window.location.href = as
+      return false
+    }
+
+    parsed = this._resolveHref(parsed, pages) as typeof parsed
+
+    if (parsed.pathname !== pathname) {
+      pathname = parsed.pathname
+      url = formatWithValidation(parsed)
+    }
+
+    // url and as should always be prefixed with basePath by this
+    // point by either next/link or router.push/replace so strip the
+    // basePath from the pathname to match the pages dir 1-to-1
+    pathname = pathname
+      ? removePathTrailingSlash(delBasePath(pathname))
+      : pathname
+
+    // If asked to change the current URL we should reload the current page
+    // (not location.reload() but reload getInitialProps and other Next.js stuffs)
+    // We also need to set the method = replaceState always
+    // as this should not go into the history (That's how browsers work)
+    // We should compare the new asPath to the current asPath, not the url
+    if (!this.urlIsNew(cleanedAs) && !localeChange) {
+      method = 'replaceState'
+    }
+
+    let route = removePathTrailingSlash(pathname)
+
+    // we need to resolve the as value using rewrites for dynamic SSG
+    // pages to allow building the data URL correctly
+    let resolvedAs = as
+
+    if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
+      const rewritesResult = resolveRewrites(
+        addBasePath(addLocale(delBasePath(as), this.locale)),
+        pages,
+        rewrites,
+        query,
+        (p: string) => this._resolveHref({ pathname: p }, pages).pathname!,
+        this.locales
+      )
+      resolvedAs = rewritesResult.asPath
+
+      if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
+        // if this directly matches a page we need to update the href to
+        // allow the correct page chunk to be loaded
+        route = rewritesResult.resolvedHref
+        pathname = rewritesResult.resolvedHref
+        parsed.pathname = pathname
+        url = formatWithValidation(parsed)
+      }
+    }
+
+    if (!isLocalURL(as)) {
+      if (process.env.NODE_ENV !== 'production') {
+        throw new Error(
+          `Invalid href: "${url}" and as: "${as}", received relative href and external as` +
+            `\nSee more info: https://err.sh/next.js/invalid-relative-url-external-as`
+        )
       }
 
-      const route = toRoute(pathname)
-      const { shallow = false } = options
-      const cleanedAs = delBasePath(as)
+      window.location.href = as
+      return false
+    }
 
-      if (isDynamicRoute(route)) {
-        const { pathname: asPathname } = parse(cleanedAs)
-        const routeRegex = getRouteRegex(route)
-        const routeMatch = getRouteMatcher(routeRegex)(asPathname)
-        if (!routeMatch) {
-          const missingParams = Object.keys(routeRegex.groups).filter(
-            (param) => !query[param]
-          )
+    resolvedAs = delLocale(delBasePath(resolvedAs), this.locale)
 
-          if (missingParams.length > 0) {
-            if (process.env.NODE_ENV !== 'production') {
-              console.warn(
-                `Mismatching \`as\` and \`href\` failed to manually provide ` +
-                  `the params: ${missingParams.join(
-                    ', '
-                  )} in the \`href\`'s \`query\``
-              )
-            }
+    if (isDynamicRoute(route)) {
+      const parsedAs = parseRelativeUrl(resolvedAs)
+      const asPathname = parsedAs.pathname
 
-            return reject(
-              new Error(
-                `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). ` +
-                  `Read more: https://err.sh/vercel/next.js/incompatible-href-as`
-              )
+      const routeRegex = getRouteRegex(route)
+      const routeMatch = getRouteMatcher(routeRegex)(asPathname)
+      const shouldInterpolate = route === asPathname
+      const interpolatedAs = shouldInterpolate
+        ? interpolateAs(route, asPathname, query)
+        : ({} as { result: undefined; params: undefined })
+
+      if (!routeMatch || (shouldInterpolate && !interpolatedAs.result)) {
+        const missingParams = Object.keys(routeRegex.groups).filter(
+          (param) => !query[param]
+        )
+
+        if (missingParams.length > 0) {
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn(
+              `${
+                shouldInterpolate
+                  ? `Interpolating href`
+                  : `Mismatching \`as\` and \`href\``
+              } failed to manually provide ` +
+                `the params: ${missingParams.join(
+                  ', '
+                )} in the \`href\`'s \`query\``
             )
           }
-        } else {
-          // Merge params into `query`, overwriting any specified in search
-          Object.assign(query, routeMatch)
+
+          throw new Error(
+            (shouldInterpolate
+              ? `The provided \`href\` (${url}) value is missing query values (${missingParams.join(
+                  ', '
+                )}) to be interpolated properly. `
+              : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) +
+              `Read more: https://err.sh/vercel/next.js/${
+                shouldInterpolate
+                  ? 'href-interpolation-failed'
+                  : 'incompatible-href-as'
+              }`
+          )
+        }
+      } else if (shouldInterpolate) {
+        as = formatWithValidation(
+          Object.assign({}, parsedAs, {
+            pathname: interpolatedAs.result,
+            query: omitParmsFromQuery(query, interpolatedAs.params!),
+          })
+        )
+      } else {
+        // Merge params into `query`, overwriting any specified in search
+        Object.assign(query, routeMatch)
+      }
+    }
+
+    Router.events.emit('routeChangeStart', as, routeProps)
+
+    try {
+      let routeInfo = await this.getRouteInfo(
+        route,
+        pathname,
+        query,
+        as,
+        resolvedAs,
+        routeProps
+      )
+      let { error, props, __N_SSG, __N_SSP } = routeInfo
+
+      // handle redirect on client-transition
+      if ((__N_SSG || __N_SSP) && props) {
+        if ((props as any).pageProps && (props as any).pageProps.__N_REDIRECT) {
+          const destination = (props as any).pageProps.__N_REDIRECT
+
+          // check if destination is internal (resolves to a page) and attempt
+          // client-navigation if it is falling back to hard navigation if
+          // it's not
+          if (destination.startsWith('/')) {
+            const parsedHref = parseRelativeUrl(destination)
+            this._resolveHref(parsedHref, pages, false)
+
+            if (pages.includes(parsedHref.pathname)) {
+              const { url: newUrl, as: newAs } = prepareUrlAs(
+                this,
+                destination,
+                destination
+              )
+              return this.change(method, newUrl, newAs, options)
+            }
+          }
+
+          window.location.href = destination
+          return new Promise(() => {})
+        }
+
+        // handle SSG data 404
+        if (props.notFound === SSG_DATA_NOT_FOUND) {
+          let notFoundRoute
+
+          try {
+            await this.fetchComponent('/404')
+            notFoundRoute = '/404'
+          } catch (_) {
+            notFoundRoute = '/_error'
+          }
+
+          routeInfo = await this.getRouteInfo(
+            notFoundRoute,
+            notFoundRoute,
+            query,
+            as,
+            resolvedAs,
+            { shallow: false }
+          )
         }
       }
 
-      Router.events.emit('routeChangeStart', as)
+      Router.events.emit('beforeHistoryChange', as, routeProps)
+      this.changeState(method, url, as, options)
 
-      // If shallow is true and the route exists in the router cache we reuse the previous result
-      this.getRouteInfo(route, pathname, query, as, shallow).then(
-        (routeInfo) => {
-          const { error } = routeInfo
+      if (process.env.NODE_ENV !== 'production') {
+        const appComp: any = this.components['/_app'].Component
+        ;(window as any).next.isPrerendered =
+          appComp.getInitialProps === appComp.origGetInitialProps &&
+          !(routeInfo.Component as any).getInitialProps
+      }
 
-          if (error && error.cancelled) {
-            return resolve(false)
-          }
+      // shallow routing is only allowed for same page URL changes.
+      const isValidShallowRoute = options.shallow && this.route === route
+      await this.set(
+        route,
+        pathname!,
+        query,
+        cleanedAs,
+        routeInfo,
+        forcedScroll ||
+          (isValidShallowRoute || !options.scroll ? null : { x: 0, y: 0 })
+      ).catch((e) => {
+        if (e.cancelled) error = error || e
+        else throw e
+      })
 
-          Router.events.emit('beforeHistoryChange', as)
-          this.changeState(method, url, as, options)
+      if (error) {
+        Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
+        throw error
+      }
 
-          if (process.env.NODE_ENV !== 'production') {
-            const appComp: any = this.components['/_app'].Component
-            ;(window as any).next.isPrerendered =
-              appComp.getInitialProps === appComp.origGetInitialProps &&
-              !(routeInfo.Component as any).getInitialProps
-          }
+      if (process.env.__NEXT_I18N_SUPPORT) {
+        if (this.locale) {
+          document.documentElement.lang = this.locale
+        }
+      }
+      Router.events.emit('routeChangeComplete', as, routeProps)
 
-          this.set(route, pathname!, query, cleanedAs, routeInfo).then(() => {
-            if (error) {
-              Router.events.emit('routeChangeError', error, as)
-              throw error
-            }
-
-            Router.events.emit('routeChangeComplete', as)
-            return resolve(true)
-          })
-        },
-        reject
-      )
-    })
+      return true
+    } catch (err) {
+      if (err.cancelled) {
+        return false
+      }
+      throw err
+    }
   }
 
   changeState(
     method: HistoryMethod,
     url: string,
     as: string,
-    options = {}
+    options: TransitionOptions = {}
   ): void {
     if (process.env.NODE_ENV !== 'production') {
       if (typeof window.history === 'undefined') {
@@ -547,12 +1148,15 @@ export default class Router implements BaseRouter {
     }
 
     if (method !== 'pushState' || getURL() !== as) {
+      this._shallow = options.shallow
       window.history[method](
         {
           url,
           as,
           options,
-        },
+          __N: true,
+          idx: this._idx = method !== 'pushState' ? this._idx : this._idx + 1,
+        } as HistoryState,
         // Most browsers currently ignores this parameter, although they may use it in the future.
         // Passing the empty string here should be safe against future changes to the method.
         // https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState
@@ -562,136 +1166,165 @@ export default class Router implements BaseRouter {
     }
   }
 
-  getRouteInfo(
+  async handleRouteInfoError(
+    err: Error & { code: any; cancelled: boolean },
+    pathname: string,
+    query: ParsedUrlQuery,
+    as: string,
+    routeProps: RouteProperties,
+    loadErrorFail?: boolean
+  ): Promise<CompletePrivateRouteInfo> {
+    if (err.cancelled) {
+      // bubble up cancellation errors
+      throw err
+    }
+
+    if (isAssetError(err) || loadErrorFail) {
+      Router.events.emit('routeChangeError', err, as, routeProps)
+
+      // If we can't load the page it could be one of following reasons
+      //  1. Page doesn't exists
+      //  2. Page does exist in a different zone
+      //  3. Internal error while loading the page
+
+      // So, doing a hard reload is the proper way to deal with this.
+      window.location.href = as
+
+      // Changing the URL doesn't block executing the current code path.
+      // So let's throw a cancellation error stop the routing logic.
+      throw buildCancellationError()
+    }
+
+    try {
+      let Component: ComponentType
+      let styleSheets: StyleSheetTuple[]
+      let props: Record<string, any> | undefined
+
+      if (
+        typeof Component! === 'undefined' ||
+        typeof styleSheets! === 'undefined'
+      ) {
+        ;({ page: Component, styleSheets } = await this.fetchComponent(
+          '/_error'
+        ))
+      }
+
+      const routeInfo: CompletePrivateRouteInfo = {
+        props,
+        Component,
+        styleSheets,
+        err,
+        error: err,
+      }
+
+      if (!routeInfo.props) {
+        try {
+          routeInfo.props = await this.getInitialProps(Component, {
+            err,
+            pathname,
+            query,
+          } as any)
+        } catch (gipErr) {
+          console.error('Error in error page `getInitialProps`: ', gipErr)
+          routeInfo.props = {}
+        }
+      }
+
+      return routeInfo
+    } catch (routeInfoErr) {
+      return this.handleRouteInfoError(
+        routeInfoErr,
+        pathname,
+        query,
+        as,
+        routeProps,
+        true
+      )
+    }
+  }
+
+  async getRouteInfo(
     route: string,
     pathname: string,
     query: any,
     as: string,
-    shallow: boolean = false
-  ): Promise<RouteInfo> {
-    const cachedRouteInfo = this.components[route]
-
-    // If there is a shallow route transition possible
-    // If the route is already rendered on the screen.
-    if (shallow && cachedRouteInfo && this.route === route) {
-      return Promise.resolve(cachedRouteInfo)
-    }
-
-    const handleError = (
-      err: Error & { code: any; cancelled: boolean },
-      loadErrorFail?: boolean
-    ) => {
-      return new Promise((resolve) => {
-        if (err.code === 'PAGE_LOAD_ERROR' || loadErrorFail) {
-          // If we can't load the page it could be one of following reasons
-          //  1. Page doesn't exists
-          //  2. Page does exist in a different zone
-          //  3. Internal error while loading the page
-
-          // So, doing a hard reload is the proper way to deal with this.
-          window.location.href = as
-
-          // Changing the URL doesn't block executing the current code path.
-          // So, we need to mark it as a cancelled error and stop the routing logic.
-          err.cancelled = true
-          // @ts-ignore TODO: fix the control flow here
-          return resolve({ error: err })
-        }
-
-        if (err.cancelled) {
-          // @ts-ignore TODO: fix the control flow here
-          return resolve({ error: err })
-        }
-
-        resolve(
-          this.fetchComponent('/_error')
-            .then((res) => {
-              const { page: Component } = res
-              const routeInfo: RouteInfo = { Component, err }
-              return new Promise((resolveRouteInfo) => {
-                this.getInitialProps(Component, {
-                  err,
-                  pathname,
-                  query,
-                } as any).then(
-                  (props) => {
-                    routeInfo.props = props
-                    routeInfo.error = err
-                    resolveRouteInfo(routeInfo)
-                  },
-                  (gipErr) => {
-                    console.error(
-                      'Error in error page `getInitialProps`: ',
-                      gipErr
-                    )
-                    routeInfo.error = err
-                    routeInfo.props = {}
-                    resolveRouteInfo(routeInfo)
-                  }
-                )
-              }) as Promise<RouteInfo>
-            })
-            .catch((routeInfoErr) => handleError(routeInfoErr, true))
-        )
-      }) as Promise<RouteInfo>
-    }
-
-    return (new Promise((resolve, reject) => {
-      if (cachedRouteInfo) {
-        return resolve(cachedRouteInfo)
+    resolvedAs: string,
+    routeProps: RouteProperties
+  ): Promise<PrivateRouteInfo> {
+    try {
+      const existingRouteInfo: PrivateRouteInfo | undefined = this.components[
+        route
+      ]
+      if (routeProps.shallow && existingRouteInfo && this.route === route) {
+        return existingRouteInfo
       }
 
-      this.fetchComponent(route).then(
-        (res) =>
-          resolve({
+      const cachedRouteInfo: CompletePrivateRouteInfo | undefined =
+        existingRouteInfo && 'initial' in existingRouteInfo
+          ? undefined
+          : existingRouteInfo
+      const routeInfo: CompletePrivateRouteInfo = cachedRouteInfo
+        ? cachedRouteInfo
+        : await this.fetchComponent(route).then((res) => ({
             Component: res.page,
+            styleSheets: res.styleSheets,
             __N_SSG: res.mod.__N_SSG,
             __N_SSP: res.mod.__N_SSP,
-          }),
-        reject
-      )
-    }) as Promise<RouteInfo>)
-      .then((routeInfo: RouteInfo) => {
-        const { Component, __N_SSG, __N_SSP } = routeInfo
+          }))
 
-        if (process.env.NODE_ENV !== 'production') {
-          const { isValidElementType } = require('react-is')
-          if (!isValidElementType(Component)) {
-            throw new Error(
-              `The default export is not a React Component in page: "${pathname}"`
-            )
-          }
+      const { Component, __N_SSG, __N_SSP } = routeInfo
+
+      if (process.env.NODE_ENV !== 'production') {
+        const { isValidElementType } = require('react-is')
+        if (!isValidElementType(Component)) {
+          throw new Error(
+            `The default export is not a React Component in page: "${pathname}"`
+          )
         }
+      }
 
-        return this._getData<RouteInfo>(() =>
-          __N_SSG
-            ? this._getStaticData(as)
-            : __N_SSP
-            ? this._getServerData(as)
-            : this.getInitialProps(
-                Component,
-                // we provide AppTree later so this needs to be `any`
-                {
-                  pathname,
-                  query,
-                  asPath: as,
-                } as any
-              )
-        ).then((props) => {
-          routeInfo.props = props
-          this.components[route] = routeInfo
-          return routeInfo
-        })
-      })
-      .catch(handleError)
+      let dataHref: string | undefined
+
+      if (__N_SSG || __N_SSP) {
+        dataHref = this.pageLoader.getDataHref(
+          formatWithValidation({ pathname, query }),
+          resolvedAs,
+          __N_SSG,
+          this.locale
+        )
+      }
+
+      const props = await this._getData<CompletePrivateRouteInfo>(() =>
+        __N_SSG
+          ? this._getStaticData(dataHref!)
+          : __N_SSP
+          ? this._getServerData(dataHref!)
+          : this.getInitialProps(
+              Component,
+              // we provide AppTree later so this needs to be `any`
+              {
+                pathname,
+                query,
+                asPath: as,
+              } as any
+            )
+      )
+
+      routeInfo.props = props
+      this.components[route] = routeInfo
+      return routeInfo
+    } catch (err) {
+      return this.handleRouteInfoError(err, pathname, query, as, routeProps)
+    }
   }
 
   set(
     route: string,
     pathname: string,
-    query: any,
+    query: ParsedUrlQuery,
     as: string,
-    data: RouteInfo
+    data: PrivateRouteInfo,
+    resetScroll: { x: number; y: number } | null
   ): Promise<void> {
     this.isFallback = false
 
@@ -699,7 +1332,7 @@ export default class Router implements BaseRouter {
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    return this.notify(data)
+    return this.notify(data, resetScroll)
   }
 
   /**
@@ -758,42 +1391,100 @@ export default class Router implements BaseRouter {
     return this.asPath !== asPath
   }
 
+  _resolveHref(parsedHref: UrlObject, pages: string[], applyBasePath = true) {
+    const { pathname } = parsedHref
+    const cleanPathname = removePathTrailingSlash(
+      denormalizePagePath(applyBasePath ? delBasePath(pathname!) : pathname!)
+    )
+
+    if (cleanPathname === '/404' || cleanPathname === '/_error') {
+      return parsedHref
+    }
+
+    // handle resolving href for dynamic routes
+    if (!pages.includes(cleanPathname!)) {
+      // eslint-disable-next-line array-callback-return
+      pages.some((page) => {
+        if (
+          isDynamicRoute(page) &&
+          getRouteRegex(page).re.test(cleanPathname!)
+        ) {
+          parsedHref.pathname = applyBasePath ? addBasePath(page) : page
+          return true
+        }
+      })
+    }
+    parsedHref.pathname = removePathTrailingSlash(parsedHref.pathname!)
+    return parsedHref
+  }
+
   /**
    * Prefetch page code, you may wait for the data during page rendering.
    * This feature only works in production!
    * @param url the href of prefetched page
    * @param asPath the as path of the prefetched page
    */
-  prefetch(
+  async prefetch(
     url: string,
     asPath: string = url,
     options: PrefetchOptions = {}
   ): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const { pathname, protocol } = parse(url)
+    let parsed = parseRelativeUrl(url)
 
-      if (!pathname || protocol) {
-        if (process.env.NODE_ENV !== 'production') {
-          throw new Error(
-            `Invalid href passed to router: ${url} https://err.sh/vercel/next.js/invalid-href-passed`
-          )
-        }
-        return
-      }
+    let { pathname } = parsed
 
-      // Prefetch is not supported in development mode because it would trigger on-demand-entries
-      if (process.env.NODE_ENV !== 'production') {
-        return
+    if (process.env.__NEXT_I18N_SUPPORT) {
+      if (options.locale === false) {
+        pathname = normalizeLocalePath!(pathname, this.locales).pathname
+        parsed.pathname = pathname
+        url = formatWithValidation(parsed)
+
+        let parsedAs = parseRelativeUrl(asPath)
+        const localePathResult = normalizeLocalePath!(
+          parsedAs.pathname,
+          this.locales
+        )
+        parsedAs.pathname = localePathResult.pathname
+        options.locale = localePathResult.detectedLocale || this.defaultLocale
+        asPath = formatWithValidation(parsedAs)
       }
-      const route = toRoute(pathname)
-      Promise.all([
-        this.pageLoader.prefetchData(url, asPath),
-        this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
-      ]).then(() => resolve(), reject)
-    })
+    }
+
+    const pages = await this.pageLoader.getPageList()
+
+    parsed = this._resolveHref(parsed, pages, false) as typeof parsed
+
+    if (parsed.pathname !== pathname) {
+      pathname = parsed.pathname
+      url = formatWithValidation(parsed)
+    }
+
+    // Prefetch is not supported in development mode because it would trigger on-demand-entries
+    if (process.env.NODE_ENV !== 'production') {
+      return
+    }
+
+    const route = removePathTrailingSlash(pathname)
+    await Promise.all([
+      this.pageLoader._isSsg(url).then((isSsg: boolean) => {
+        return isSsg
+          ? this._getStaticData(
+              this.pageLoader.getDataHref(
+                url,
+                asPath,
+                true,
+                typeof options.locale !== 'undefined'
+                  ? options.locale
+                  : this.locale
+              )
+            )
+          : false
+      }),
+      this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
+    ])
   }
 
-  async fetchComponent(route: string): Promise<ComponentRes> {
+  async fetchComponent(route: string): Promise<GoodPageCache> {
     let cancelled = false
     const cancel = (this.clc = () => {
       cancelled = true
@@ -837,23 +1528,19 @@ export default class Router implements BaseRouter {
     })
   }
 
-  _getStaticData = (asPath: string): Promise<object> => {
-    const pathname = prepareRoute(parse(asPath).pathname!)
-
-    return process.env.NODE_ENV === 'production' && this.sdc[pathname]
-      ? Promise.resolve(this.sdc[pathname])
-      : fetchNextData(
-          pathname,
-          null,
-          this.isSsr,
-          (data) => (this.sdc[pathname] = data)
-        )
+  _getStaticData(dataHref: string): Promise<object> {
+    const { href: cacheKey } = new URL(dataHref, window.location.href)
+    if (process.env.NODE_ENV === 'production' && this.sdc[cacheKey]) {
+      return Promise.resolve(this.sdc[cacheKey])
+    }
+    return fetchNextData(dataHref, this.isSsr).then((data) => {
+      this.sdc[cacheKey] = data
+      return data
+    })
   }
 
-  _getServerData = (asPath: string): Promise<object> => {
-    let { pathname, query } = parse(asPath, true)
-    pathname = prepareRoute(pathname!)
-    return fetchNextData(pathname, query, this.isSsr)
+  _getServerData(dataHref: string): Promise<object> {
+    return fetchNextData(dataHref, this.isSsr)
   }
 
   getInitialProps(
@@ -861,7 +1548,7 @@ export default class Router implements BaseRouter {
     ctx: NextPageContext
   ): Promise<any> {
     const { Component: App } = this.components['/_app']
-    const AppTree = this._wrapApp(App)
+    const AppTree = this._wrapApp(App as AppComponent)
     ctx.AppTree = AppTree
     return loadGetInitialProps<AppContextType<Router>>(App, {
       AppTree,
@@ -871,17 +1558,27 @@ export default class Router implements BaseRouter {
     })
   }
 
-  abortComponentLoad(as: string): void {
+  abortComponentLoad(as: string, routeProps: RouteProperties): void {
     if (this.clc) {
-      const e = new Error('Route Cancelled')
-      ;(e as any).cancelled = true
-      Router.events.emit('routeChangeError', e, as)
+      Router.events.emit(
+        'routeChangeError',
+        buildCancellationError(),
+        as,
+        routeProps
+      )
       this.clc()
       this.clc = null
     }
   }
 
-  notify(data: RouteInfo): Promise<void> {
-    return this.sub(data, this.components['/_app'].Component)
+  notify(
+    data: PrivateRouteInfo,
+    resetScroll: { x: number; y: number } | null
+  ): Promise<void> {
+    return this.sub(
+      data,
+      this.components['/_app'].Component as AppComponent,
+      resetScroll
+    )
   }
 }

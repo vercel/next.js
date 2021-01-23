@@ -1,5 +1,4 @@
 module.exports = {
-  experimental: {
-    // <placeholder>
-  },
+  // trailingSlash: boolean,
+  // basePath: '/docs',
 }

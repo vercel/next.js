@@ -1,5 +1,4 @@
 import client, { previewClient } from './sanity'
-import sanityImage from '@sanity/image-url'
 
 const getUniquePosts = (posts) => {
   const slugs = new Set()
@@ -24,8 +23,6 @@ const postFields = `
 `
 
 const getClient = (preview) => (preview ? previewClient : client)
-
-export const imageBuilder = sanityImage(client)
 
 export async function getPreviewPostBySlug(slug) {
   const data = await getClient(true).fetch(

@@ -2,8 +2,6 @@
 // Improved version of https://github.com/Yaffle/EventSource/
 // Available under MIT License (MIT)
 // Only tries to support IE11 and nothing below
-import fetch from 'next/dist/build/polyfills/unfetch'
-
 var document = window.document
 var Response = window.Response
 var TextDecoder = window.TextDecoder
@@ -280,7 +278,7 @@ XHRWrapper.prototype.open = function (method, url) {
   // XDomainRequest#abort removes onprogress, onerror, onload
   xhr.onload = onFinish
   xhr.onerror = onFinish
-  // improper fix to match Firefox behaviour, but it is better than just ignore abort
+  // improper fix to match Firefox behavior, but it is better than just ignore abort
   // see https://bugzilla.mozilla.org/show_bug.cgi?id=768596
   // https://bugzilla.mozilla.org/show_bug.cgi?id=880200
   // https://code.google.com/p/chromium/issues/detail?id=153570

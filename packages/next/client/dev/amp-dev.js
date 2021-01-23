@@ -1,5 +1,4 @@
 /* globals __webpack_hash__ */
-import fetch from 'next/dist/build/polyfills/unfetch'
 import EventSourcePolyfill from './event-source-polyfill'
 import { getEventSourceWrapper } from './error-overlay/eventsource'
 import { setupPing } from './on-demand-entries-utils'
@@ -41,7 +40,11 @@ async function tryApplyUpdates() {
     const res = await fetch(`${hotUpdatePath}${curHash}.hot-update.json`)
     const jsonData = await res.json()
     const curPage = page === '/' ? 'index' : page
-    const pageUpdated = Object.keys(jsonData.c).some((mod) => {
+    // webpack 5 uses an array instead
+    const pageUpdated = (Array.isArray(jsonData.c)
+      ? jsonData.c
+      : Object.keys(jsonData.c)
+    ).some((mod) => {
       return (
         mod.indexOf(
           `pages${curPage.substr(0, 1) === '/' ? curPage : `/${curPage}`}`

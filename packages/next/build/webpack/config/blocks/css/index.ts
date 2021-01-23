@@ -1,6 +1,6 @@
 import curry from 'next/dist/compiled/lodash.curry'
 import path from 'path'
-import webpack, { Configuration } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
@@ -26,21 +26,25 @@ const regexSassModules = /\.module\.(scss|sass)$/
 
 export const css = curry(async function css(
   ctx: ConfigurationContext,
-  config: Configuration
+  config: webpack.Configuration
 ) {
-  const { prependData: sassPrependData, ...sassOptions } = ctx.sassOptions
+  const {
+    prependData: sassPrependData,
+    additionalData: sassAdditionalData,
+    ...sassOptions
+  } = ctx.sassOptions
 
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
     // First, process files with `sass-loader`: this inlines content, and
     // compiles away the proprietary syntax.
     {
-      loader: require.resolve('sass-loader'),
+      loader: require.resolve('next/dist/compiled/sass-loader'),
       options: {
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
         sourceMap: true,
         sassOptions,
-        prependData: sassPrependData,
+        additionalData: sassPrependData || sassAdditionalData,
       },
     },
     // Then, `sass-loader` will have passed-through CSS imports as-is instead
@@ -49,7 +53,7 @@ export const css = curry(async function css(
     // To fix this, we use `resolve-url-loader` to rewrite the CSS
     // imports to real file paths.
     {
-      loader: require.resolve('resolve-url-loader'),
+      loader: require.resolve('next/dist/compiled/resolve-url-loader'),
       options: {
         // Source maps are not required here, but we may as well emit
         // them.
@@ -74,10 +78,7 @@ export const css = curry(async function css(
   const postCssPlugins = await getPostCssPlugins(
     ctx.rootDirectory,
     ctx.isProduction,
-    // TODO: In the future, we should stop supporting old CSS setups and
-    // unconditionally inject ours. When that happens, we should remove this
-    // function argument.
-    true
+    !ctx.future.strictPostcssConfiguration
   )
 
   // CSS cannot be imported in _document. This comes before everything because
@@ -102,7 +103,7 @@ export const css = curry(async function css(
   )
 
   // CSS Modules support must be enabled on the server and client so the class
-  // names are availble for SSR or Prerendering.
+  // names are available for SSR or Prerendering.
   fns.push(
     loader({
       oneOf: [
@@ -154,7 +155,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: [regexCssModules, regexSassModules].filter(Boolean),
+          test: [regexCssModules, regexSassModules],
           use: {
             loader: 'error-loader',
             options: {
@@ -171,13 +172,13 @@ export const css = curry(async function css(
       loader({
         oneOf: [
           {
-            test: [regexCssGlobal, regexSassGlobal].filter(Boolean),
+            test: [regexCssGlobal, regexSassGlobal],
             use: require.resolve('next/dist/compiled/ignore-loader'),
           },
         ],
       })
     )
-  } else if (ctx.customAppFile) {
+  } else {
     fns.push(
       loader({
         oneOf: [
@@ -188,28 +189,59 @@ export const css = curry(async function css(
             // See https://github.com/webpack/webpack/issues/6571
             sideEffects: true,
             test: regexCssGlobal,
-            issuer: { and: [ctx.customAppFile] },
+            // We only allow Global CSS to be imported anywhere in the
+            // application if it comes from node_modules. This is a best-effort
+            // heuristic that makes a safety trade-off for better
+            // interoperability with npm packages that require CSS. Without
+            // this ability, the component's CSS would have to be included for
+            // the entire app instead of specific page where it's required.
+            include: { and: [/node_modules/] },
+            // Global CSS is only supported in the user's application, not in
+            // node_modules.
+            issuer: {
+              and: [ctx.rootDirectory],
+              not: [/node_modules/],
+            },
             use: getGlobalCssLoader(ctx, postCssPlugins),
           },
         ],
       })
     )
-    fns.push(
-      loader({
-        oneOf: [
-          {
-            // A global Sass import always has side effects. Webpack will tree
-            // shake the Sass without this option if the issuer claims to have
-            // no side-effects.
-            // See https://github.com/webpack/webpack/issues/6571
-            sideEffects: true,
-            test: regexSassGlobal,
-            issuer: { and: [ctx.customAppFile] },
-            use: getGlobalCssLoader(ctx, postCssPlugins, sassPreprocessors),
-          },
-        ],
-      })
-    )
+
+    if (ctx.customAppFile) {
+      fns.push(
+        loader({
+          oneOf: [
+            {
+              // A global CSS import always has side effects. Webpack will tree
+              // shake the CSS without this option if the issuer claims to have
+              // no side-effects.
+              // See https://github.com/webpack/webpack/issues/6571
+              sideEffects: true,
+              test: regexCssGlobal,
+              issuer: { and: [ctx.customAppFile] },
+              use: getGlobalCssLoader(ctx, postCssPlugins),
+            },
+          ],
+        })
+      )
+      fns.push(
+        loader({
+          oneOf: [
+            {
+              // A global Sass import always has side effects. Webpack will tree
+              // shake the Sass without this option if the issuer claims to have
+              // no side-effects.
+              // See https://github.com/webpack/webpack/issues/6571
+              sideEffects: true,
+              test: regexSassGlobal,
+              issuer: { and: [ctx.customAppFile] },
+              use: getGlobalCssLoader(ctx, postCssPlugins, sassPreprocessors),
+            },
+          ],
+        })
+      )
+    }
   }
 
   // Throw an error for Global CSS used inside of `node_modules`
@@ -217,7 +249,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: [regexCssGlobal, regexSassGlobal].filter(Boolean),
+          test: [regexCssGlobal, regexSassGlobal],
           issuer: { and: [/node_modules/] },
           use: {
             loader: 'error-loader',
@@ -235,7 +267,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: [regexCssGlobal, regexSassGlobal].filter(Boolean),
+          test: [regexCssGlobal, regexSassGlobal],
           use: {
             loader: 'error-loader',
             options: {
@@ -280,6 +312,7 @@ export const css = curry(async function css(
     // Extract CSS as CSS file(s) in the client-side production bundle.
     fns.push(
       plugin(
+        // @ts-ignore webpack 5 compat
         new MiniCssExtractPlugin({
           filename: 'static/css/[contenthash].css',
           chunkFilename: 'static/css/[contenthash].css',
@@ -293,7 +326,7 @@ export const css = curry(async function css(
           // selector), this assumption is required to code-split CSS.
           //
           // If this warning were to trigger, it'd be unactionable by the user,
-          // but also not valid -- so we disable it.
+          // but likely not valid -- so we disable it.
           ignoreOrder: true,
         })
       )

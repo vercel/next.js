@@ -1,5 +1,5 @@
 {
-  "name": "with-css-modules",
+  "name": "with-next-css",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -11,5 +11,6 @@
     "next": "^9.1.8-canary.11",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
-  }
+  },
+  "license": "MIT"
 }

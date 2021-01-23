@@ -1,0 +1,27 @@
+on:
+  push:
+    branches: [canary]
+    paths-ignore:
+      - 'bench/**'
+      - 'docs/**'
+      - 'errors/**'
+      - 'examples/**'
+
+name: Test macOS
+
+jobs:
+  testMacOS:
+    name: macOS (Basic, Production, Acceptance)
+    runs-on: macos-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+      NEXT_TEST_JOB: 1
+      HEADLESS: true
+
+    steps:
+      - uses: actions/checkout@v2
+      - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+      - run: yarn install --frozen-lockfile --check-files || yarn install --frozen-lockfile --check-files
+      - run: node run-tests.js test/integration/production/test/index.test.js
+      - run: node run-tests.js test/integration/basic/test/index.test.js
+      - run: node run-tests.js test/acceptance/*

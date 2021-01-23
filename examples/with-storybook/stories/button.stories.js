@@ -1,17 +1,25 @@
 import React from 'react'
-import { action } from '@storybook/addon-actions'
 import { Button } from '@storybook/react/demo'
 
-export default { title: 'Button' }
+export default {
+  title: 'Button',
+  argTypes: { onClick: { action: 'clicked' } },
+}
 
-export const withText = () => (
-  <Button onClick={action('clicked')}>Hello Button</Button>
-)
+const TemplateWithText = (args) => <Button {...args}>Hello Button</Button>
 
-export const withSomeEmoji = () => (
-  <Button onClick={action('clicked')}>
+const TemplateWithEmoji = (args) => (
+  <Button {...args}>
     <span role="img" aria-label="so cool">
       😀 😎 👍 💯
     </span>
   </Button>
 )
+
+export const withText = TemplateWithText.bind({})
+
+withText.args = {}
+
+export const withSomeEmoji = TemplateWithEmoji.bind({})
+
+withSomeEmoji.args = {}

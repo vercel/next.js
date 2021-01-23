@@ -4,6 +4,8 @@ description: Optimized pages include an indicator to let you know if it's being 
 
 # Static Optimization Indicator
 
+> **Note:** This indicator was removed in Next.js version 10.0.1. We recommend upgrading to the latest version of Next.js.
+
 When a page qualifies for [Automatic Static Optimization](/docs/advanced-features/automatic-static-optimization.md) we show an indicator to let you know.
 
 This is helpful since automatic static optimization can be very beneficial and knowing immediately in development if the page qualifies can be useful.
@@ -17,19 +19,3 @@ module.exports = {
   },
 }
 ```
-
-## Related
-
-<div class="card">
-  <a href="/docs/api-reference/next.config.js/introduction.md">
-    <b>Introduction to next.config.js:</b>
-    <small>Learn more about the configuration file used by Next.js.</small>
-  </a>
-</div>
-
-<div class="card">
-  <a href="/docs/advanced-features/automatic-static-optimization.md">
-    <b>Automatic Static Optimization:</b>
-    <small>Next.js automatically optimizes your app to be static HTML whenever possible. Learn how it works here.</small>
-  </a>
-</div>

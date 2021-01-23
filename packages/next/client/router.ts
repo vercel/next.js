@@ -37,6 +37,10 @@ const urlPropertyFields = [
   'components',
   'isFallback',
   'basePath',
+  'locale',
+  'locales',
+  'defaultLocale',
+  'isReady',
 ]
 const routerEvents = [
   'routeChangeStart',
@@ -62,7 +66,7 @@ Object.defineProperty(singletonRouter, 'events', {
   },
 })
 
-urlPropertyFields.forEach((field) => {
+urlPropertyFields.forEach((field: string) => {
   // Here we need to use Object.defineProperty because, we need to return
   // the property assigned to the actual router
   // The value might get changed as we change routes and this is the
@@ -75,7 +79,7 @@ urlPropertyFields.forEach((field) => {
   })
 })
 
-coreMethodFields.forEach((field) => {
+coreMethodFields.forEach((field: string) => {
   // We don't really know the types here, so we add them later instead
   ;(singletonRouter as any)[field] = (...args: any[]) => {
     const router = getRouter() as any
@@ -83,7 +87,7 @@ coreMethodFields.forEach((field) => {
   }
 })
 
-routerEvents.forEach((event) => {
+routerEvents.forEach((event: string) => {
   singletonRouter.ready(() => {
     Router.events.on(event, (...args) => {
       const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(
@@ -94,9 +98,7 @@ routerEvents.forEach((event) => {
         try {
           _singletonRouter[eventField](...args)
         } catch (err) {
-          // tslint:disable-next-line:no-console
           console.error(`Error when running the Router event: ${eventField}`)
-          // tslint:disable-next-line:no-console
           console.error(`${err.message}\n${err.stack}`)
         }
       }
@@ -146,7 +148,10 @@ export function makePublicRouterInstance(router: Router): NextRouter {
 
   for (const property of urlPropertyFields) {
     if (typeof _router[property] === 'object') {
-      instance[property] = Object.assign({}, _router[property]) // makes sure query is not stateful
+      instance[property] = Object.assign(
+        Array.isArray(_router[property]) ? [] : {},
+        _router[property]
+      ) // makes sure query is not stateful
       continue
     }
 

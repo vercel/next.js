@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Avatar from '../components/avatar'
-import Date from '../components/date'
+import DateComponent from '../components/date'
 import CoverImage from '../components/cover-image'
 
 export default function HeroPost({
@@ -24,7 +24,7 @@ export default function HeroPost({
             </Link>
           </h3>
           <div className="mb-4 md:mb-0 text-lg">
-            <Date dateString={date} />
+            <DateComponent dateString={date} />
           </div>
         </div>
         <div>

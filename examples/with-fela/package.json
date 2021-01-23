@@ -14,5 +14,6 @@
     "react": "latest",
     "react-dom": "latest",
     "react-fela": "latest"
-  }
+  },
+  "license": "MIT"
 }

@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 
 export function getGlobalImportError(file: string | null) {
   return `Global CSS ${chalk.bold(
@@ -7,7 +7,7 @@ export function getGlobalImportError(file: string | null) {
     'Custom <App>'
   )}. Due to the Global nature of stylesheets, and to avoid conflicts, Please move all first-party global CSS imports to ${chalk.cyan(
     file ? file : 'pages/_app.js'
-  )}.\nRead more: https://err.sh/next.js/css-global`
+  )}. Or convert the import to Component-Level CSS (CSS Modules).\nRead more: https://err.sh/next.js/css-global`
 }
 
 export function getGlobalModuleImportError() {
