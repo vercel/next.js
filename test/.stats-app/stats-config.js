@@ -34,12 +34,24 @@ const renames = [
     dest: '.next/static/runtime/main-HASH.js',
   },
   {
+    srcGlob: '.next/static/chunks/main-*',
+    dest: '.next/static/chunks/main-HASH.js',
+  },
+  {
     srcGlob: '.next/static/runtime/webpack-*',
     dest: '.next/static/runtime/webpack-HASH.js',
   },
   {
+    srcGlob: '.next/static/chunks/webpack-*',
+    dest: '.next/static/chunks/webpack-HASH.js',
+  },
+  {
     srcGlob: '.next/static/runtime/polyfills-*',
     dest: '.next/static/runtime/polyfills-HASH.js',
+  },
+  {
+    srcGlob: '.next/static/chunks/polyfills-*',
+    dest: '.next/static/chunks/polyfills-HASH.js',
   },
   {
     srcGlob: '.next/static/chunks/commons*',
@@ -134,6 +146,40 @@ module.exports = {
           globs: ['.next/serverless/pages/**/*'],
         },
       ],
+    },
+    {
+      title: 'Webpack 5 Mode',
+      diff: 'onOutputChange',
+      renames,
+      configFiles: [
+        {
+          path: 'next.config.js',
+          content: `
+            module.exports = {
+              generateBuildId: () => 'BUILD_ID',
+              future: {
+                webpack5: true
+              }
+            }
+          `,
+        },
+      ],
+      filesToTrack: clientGlobs,
+      // will be output to fetched-pages/${pathname}.html
+      pagesToFetch: [
+        'http://localhost:$PORT/',
+        'http://localhost:$PORT/link',
+        'http://localhost:$PORT/withRouter',
+      ],
+      pagesToBench: [
+        'http://localhost:$PORT/',
+        'http://localhost:$PORT/error-in-render',
+      ],
+      benchOptions: {
+        reqTimeout: 60,
+        concurrency: 50,
+        numRequests: 2500,
+      },
     },
   ],
 }

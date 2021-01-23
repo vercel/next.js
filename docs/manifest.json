@@ -213,6 +213,14 @@
             {
               "title": "Migrating from Gatsby",
               "path": "/docs/migrating/from-gatsby.md"
+            },
+            {
+              "title": "Migrating from Create React App",
+              "path": "/docs/migrating/from-create-react-app.md"
+            },
+            {
+              "title": "Migrating from React Router",
+              "path": "/docs/migrating/from-react-router.md"
             }
           ]
         },
@@ -256,6 +264,10 @@
               "path": "/docs/api-reference/data-fetching/getInitialProps.md"
             }
           ]
+        },
+        {
+          "title": "Static Optimization Indicator",
+          "path": "/docs/api-reference/next.config.js/static-optimization-indicator.md"
         },
         {
           "title": "next.config.js",

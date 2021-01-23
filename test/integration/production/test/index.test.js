@@ -10,6 +10,7 @@ import {
   stopApp,
   waitFor,
   getPageFileFromPagesManifest,
+  check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import {
@@ -858,6 +859,27 @@ describe('Production Usage', () => {
       }
     }
     expect(missing).toBe(false)
+  })
+
+  it('should preserve query when hard navigating from page 404', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push({
+        pathname: '/non-existent',
+        query: { hello: 'world' }
+      })
+    })()`)
+
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /page could not be found/
+    )
+
+    expect(await browser.eval('window.beforeNav')).toBe(null)
+    expect(await browser.eval('window.location.hash')).toBe('')
+    expect(await browser.eval('window.location.search')).toBe('?hello=world')
+    expect(await browser.eval('window.location.pathname')).toBe('/non-existent')
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
