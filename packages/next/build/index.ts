@@ -1263,7 +1263,7 @@ export default async function build(
         hasReportWebVitals: namedExports?.includes('reportWebVitals') ?? false,
         rewritesCount: rewrites.length,
         headersCount: headers.length,
-        redirectsCount: redirects.length - 1, // reduce one for trailing slash
+        redirectsCount: redirects.length - 2, // subtract two for internal redirects
       })
     )
 
