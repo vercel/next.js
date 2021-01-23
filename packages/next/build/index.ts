@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 import { promises, writeFileSync } from 'fs'
 import Worker from 'jest-worker'
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import devalue from 'next/dist/compiled/devalue'
 import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
 import findUp from 'next/dist/compiled/find-up'
@@ -495,6 +495,7 @@ export default async function build(
 
   let customAppGetInitialProps: boolean | undefined
   let namedExports: Array<string> | undefined
+  let isNextImageImported: boolean | undefined
 
   process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
@@ -583,6 +584,10 @@ export default async function build(
           if (workerResult.isHybridAmp) {
             isHybridAmp = true
             hybridAmpPages.add(page)
+          }
+
+          if (workerResult.isNextImageImported) {
+            isNextImageImported = true
           }
 
           if (workerResult.hasStaticProps) {
@@ -808,7 +813,7 @@ export default async function build(
               }
             }
 
-            if (isSsg && !isFallback) {
+            if (isSsg) {
               // remove non-locale prefixed variant from defaultMap
               delete defaultMap[page]
             }
@@ -1132,6 +1137,7 @@ export default async function build(
       version: 1,
       hasExportPathMap: typeof config.exportPathMap === 'function',
       exportTrailingSlash: config.trailingSlash === true,
+      isNextImageImported: isNextImageImported === true,
     }),
     'utf8'
   )

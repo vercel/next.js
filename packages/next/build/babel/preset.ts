@@ -1,4 +1,6 @@
-import { PluginItem } from '@babel/core'
+import { PluginItem } from 'next/dist/compiled/babel/core'
+import { dirname } from 'path'
+
 const env = process.env.NODE_ENV
 const isProduction = env === 'production'
 const isDevelopment = env === 'development'
@@ -111,11 +113,11 @@ module.exports = (
     sourceType: 'unambiguous',
     presets: [
       customModernPreset || [
-        require('@babel/preset-env').default,
+        require('next/dist/compiled/babel/preset-env'),
         presetEnvConfig,
       ],
       [
-        require('@babel/preset-react'),
+        require('next/dist/compiled/babel/preset-react'),
         {
           // This adds @babel/plugin-transform-react-jsx-source and
           // @babel/plugin-transform-react-jsx-self automatically in development
@@ -125,7 +127,7 @@ module.exports = (
         },
       ],
       [
-        require('@babel/preset-typescript'),
+        require('next/dist/compiled/babel/preset-typescript'),
         { allowNamespaces: true, ...options['preset-typescript'] },
       ],
     ],
@@ -149,26 +151,28 @@ module.exports = (
           lib: true,
         },
       ],
-      require('@babel/plugin-syntax-dynamic-import'),
+      require('next/dist/compiled/babel/plugin-syntax-dynamic-import'),
       require('./plugins/react-loadable-plugin'),
       [
-        require('@babel/plugin-proposal-class-properties'),
+        require('next/dist/compiled/babel/plugin-proposal-class-properties'),
         options['class-properties'] || {},
       ],
       [
-        require('@babel/plugin-proposal-object-rest-spread'),
+        require('next/dist/compiled/babel/plugin-proposal-object-rest-spread'),
         {
           useBuiltIns: true,
         },
       ],
       !isServer && [
-        require('@babel/plugin-transform-runtime'),
+        require('next/dist/compiled/babel/plugin-transform-runtime'),
         {
           corejs: false,
           helpers: true,
           regenerator: true,
           useESModules: supportsESM && presetEnvConfig.modules !== 'commonjs',
-          absoluteRuntime: process.versions.pnp ? __dirname : undefined,
+          absoluteRuntime: dirname(
+            require.resolve('@babel/runtime/package.json')
+          ),
           ...options['transform-runtime'],
         },
       ],
@@ -185,11 +189,11 @@ module.exports = (
           removeImport: true,
         },
       ],
-      isServer && require('@babel/plugin-syntax-bigint'),
+      isServer && require('next/dist/compiled/babel/plugin-syntax-bigint'),
       // Always compile numeric separator because the resulting number is
       // smaller.
-      require('@babel/plugin-proposal-numeric-separator'),
-      require('@babel/plugin-proposal-export-namespace-from'),
+      require('next/dist/compiled/babel/plugin-proposal-numeric-separator'),
+      require('next/dist/compiled/babel/plugin-proposal-export-namespace-from'),
     ].filter(Boolean),
   }
 }
