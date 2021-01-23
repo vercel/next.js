@@ -273,9 +273,8 @@ export async function getStaticProps() {
     props: {
       posts: await Promise.all(posts),
     },
-  };
+  }
 }
-
 
 export default Blog
 ```
