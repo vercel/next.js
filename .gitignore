@@ -25,12 +25,14 @@ test/**/next-env.d.ts
 
 # Editors
 **/.idea
+**/.#*
 
 # examples
 examples/**/out
 examples/**/.env*.local
 
 pr-stats.md
+test-timings.json
 
 # Vercel
 .vercel

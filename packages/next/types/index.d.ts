@@ -37,6 +37,18 @@ declare module 'react' {
   }
 }
 
+export type Redirect =
+  | {
+      statusCode: 301 | 302 | 303 | 307 | 308
+      destination: string
+      basePath?: false
+    }
+  | {
+      permanent: boolean
+      destination: string
+      basePath?: false
+    }
+
 /**
  * `Page` type, use it as a guide to create `pages`.
  */
@@ -62,6 +74,7 @@ export type PageConfig = {
   }
   env?: Array<string>
   unstable_runtimeJS?: false
+  unstable_JsPreload?: false
 }
 
 export {
@@ -70,11 +83,6 @@ export {
   NextApiResponse,
   NextApiRequest,
   NextApiHandler,
-}
-
-type Redirect = {
-  permanent: boolean
-  destination: string
 }
 
 export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
@@ -121,7 +129,9 @@ export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
 export type GetServerSidePropsContext<
   Q extends ParsedUrlQuery = ParsedUrlQuery
 > = {
-  req: IncomingMessage
+  req: IncomingMessage & {
+    cookies?: { [key: string]: any }
+  }
   res: ServerResponse
   params?: Q
   query: ParsedUrlQuery

@@ -1,3 +1,7 @@
+---
+description: Next.js has built-in support for internationalized routing and language detection. Learn more here.
+---
+
 # Internationalized Routing
 
 <details>
@@ -35,6 +39,7 @@ module.exports = {
     defaultLocale: 'en-US',
     // This is a list of locale domains and the default locale they
     // should handle (these are only required when setting up domain routing)
+    // Note: subdomains must be included in the domain value to be matched e.g. "fr.example.com".
     domains: [
       {
         domain: 'example.com',
@@ -87,7 +92,7 @@ By using domain routing you can configure locales to be served from different do
 // next.config.js
 module.exports = {
   i18n: {
-    locales: ['en-US', 'fr', 'nl-NL'],
+    locales: ['en-US', 'fr', 'nl-NL', 'nl-BE'],
     defaultLocale: 'en-US',
 
     domains: [
@@ -102,6 +107,9 @@ module.exports = {
       {
         domain: 'example.nl',
         defaultLocale: 'nl-NL',
+        // specify other locales that should be redirected
+        // to this domain
+        locales: ['nl-BE'],
       },
     ],
   },
@@ -113,6 +121,7 @@ For example if you have `pages/blog.js` the following urls will be available:
 - `example.com/blog`
 - `example.fr/blog`
 - `example.nl/blog`
+- `example.nl/nl-BE/blog`
 
 ## Automatic Locale Detection
 
@@ -127,15 +136,30 @@ When using Domain Routing, if a user with the `Accept-Language` header `fr;q=0.9
 
 When using Sub-path Routing, the user would be redirected to `/fr`.
 
+### Disabling Automatic Locale Detection
+
+The automatic locale detection can be disabled with:
+
+```js
+// next.config.js
+module.exports = {
+  i18n: {
+    localeDetection: false,
+  },
+}
+```
+
+When `localeDetection` is set to `false` Next.js will no longer automatically redirect based on the user's preferred locale and will only provide locale information detected from either the locale based domain or locale path as described above.
+
 ## Accessing the locale information
 
-You can access the locale information via the Next.js router. For example, using the [`useRouter()`](https://nextjs.org/docs/api-reference/next/router#userouter) hook the following properties are available:
+You can access the locale information via the Next.js router. For example, using the [`useRouter()`](/docs/api-reference/next/router.md#userouter) hook the following properties are available:
 
 - `locale` contains the currently active locale.
 - `locales` contains all configured locales.
 - `defaultLocale` contains the configured default locale.
 
-When [pre-rendering](/docs/basic-features/pages#static-generation-recommended) pages with `getStaticProps` or `getServerSideProps`, the locale information is provided in [the context](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) provided to the function.
+When [pre-rendering](/docs/basic-features/pages.md#static-generation-recommended) pages with `getStaticProps` or `getServerSideProps`, the locale information is provided in [the context](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) provided to the function.
 
 When leveraging `getStaticPaths`, the configured locales are provided in the context parameter of the function under `locales` and the configured defaultLocale under `defaultLocale`.
 
@@ -191,6 +215,12 @@ export default function IndexPage(props) {
 }
 ```
 
+## Leveraging the NEXT_LOCALE cookie
+
+Next.js supports overriding the accept-language header with a `NEXT_LOCALE=the-locale` cookie. This cookie can be set using a language switcher and then when a user comes back to the site it will leverage the locale specified in the cookie.
+
+For example, if a user prefers the locale `fr` but a `NEXT_LOCALE=en` cookie is set the `en` locale will be used instead until the cookie is removed or expired.
+
 ## Search Engine Optimization
 
 Since Next.js knows what language the user is visiting it will automatically add the `lang` attribute to the `<html>` tag.
@@ -199,9 +229,11 @@ Next.js doesn't know about variants of a page so it's up to you to add the `href
 
 ## How does this work with Static Generation?
 
+> Note that Internationalized Routing does not integrate with [`next export`](/docs/advanced-features/static-html-export.md) as `next export` does not leverage the Next.js routing layer. Hybrid Next.js applications that do not use `next export` are fully supported.
+
 ### Automatically Statically Optimized Pages
 
-For pages that are automatically statically optimized, a version of the page will be generated for each locale.
+For pages that are [automatically statically optimized](/docs/advanced-features/automatic-static-optimization.md), a version of the page will be generated for each locale.
 
 ### Non-dynamic getStaticProps Pages
 
@@ -232,7 +264,7 @@ export async function getStaticProps({ locale }) {
 
 ### Dynamic getStaticProps Pages
 
-For dynamic `getStaticProps` pages, any locale variants of the page that is desired to be prerendered needs to be returned from [`getStaticPaths`](/docs/basic-features/data-fetching#getstaticpaths-static-generation). Along with the `params` object that can be returned for the `paths`, you can also return a `locale` field specifying which locale you want to render. For example:
+For dynamic `getStaticProps` pages, any locale variants of the page that is desired to be prerendered needs to be returned from [`getStaticPaths`](/docs/basic-features/data-fetching.md#getstaticpaths-static-generation). Along with the `params` object that can be returned for the `paths`, you can also return a `locale` field specifying which locale you want to render. For example:
 
 ```js
 // pages/blog/[slug].js

@@ -9,3 +9,19 @@ export default function Page() {
     </>
   )
 }
+
+export const getStaticProps = () => {
+  return {
+    props: {
+      hello: 'world',
+      random: Math.random(),
+    },
+  }
+}
+
+export const getStaticPaths = () => {
+  return {
+    paths: ['/world', '/top-level-slug'],
+    fallback: false,
+  }
+}
