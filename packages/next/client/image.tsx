@@ -267,8 +267,8 @@ export default function Image({
   const heightInt = getInt(height)
   const qualityInt = getInt(quality)
 
-  let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
-  let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
+  let wrapperStyle: JSX.IntrinsicElements['span']['style'] | undefined
+  let sizerStyle: JSX.IntrinsicElements['span']['style'] | undefined
   let sizerSvg: string | undefined
   let imgStyle: ImgElementStyle | undefined = {
     visibility: isVisible ? 'inherit' : 'hidden',
@@ -394,9 +394,9 @@ export default function Image({
     imgStyle = undefined
   }
   return (
-    <div style={wrapperStyle}>
+    <span style={wrapperStyle}>
       {sizerStyle ? (
-        <div style={sizerStyle}>
+        <span style={sizerStyle}>
           {sizerSvg ? (
             <img
               style={{
@@ -412,7 +412,7 @@ export default function Image({
               src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
             />
           ) : null}
-        </div>
+        </span>
       ) : null}
       <img
         {...rest}
@@ -446,7 +446,7 @@ export default function Image({
           ></link>
         </Head>
       ) : null}
-    </div>
+    </span>
   )
 }
 
