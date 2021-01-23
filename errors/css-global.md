@@ -8,7 +8,7 @@ Global CSS cannot be used in files other than your [Custom `<App>`](https://next
 
 #### Possible Ways to Fix It
 
-To avoid conflicts, relocate all Global CSS imports to your [`pages/_app.js` file](https://nextjs.org/docs/advanced-features/custom-app).
+To avoid conflicts, relocate all first-party Global CSS imports to your [`pages/_app.js` file](https://nextjs.org/docs/advanced-features/custom-app).
 
 #### Example
 
