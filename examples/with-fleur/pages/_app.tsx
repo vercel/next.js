@@ -23,11 +23,12 @@ export default function FleurApp({
 // You can fetch data you need in before page rendering
 // import App from 'next/app'
 // import { bindFleurContext, FleurishNextAppContext } from '@fleur/next'
+//
 // FleurApp.getInitialProps = async (context: FleurishNextAppContext) => {
 //   const fleurContext = getOrCreateFleurContext()
 //   const appContext = bindFleurContext(fleurContext, context)
-
+//
 //   // Example: await appContext.executeOperation(AppOps.fetchSession)
-
+//
 //   return App.getInitialProps(appContext)
 // }
