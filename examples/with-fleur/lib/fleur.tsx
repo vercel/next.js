@@ -1,4 +1,6 @@
 import { AppContext as FleurAppContext } from '@fleur/fleur'
+import { deserializeContext, NextJsOps } from '@fleur/next'
+import { useRef, useEffect } from 'react'
 import { createContext } from '../domains'
 
 const FLEUR_CONTEXT_KEY = '__FLEUR_CONTEXT__'
@@ -25,4 +27,25 @@ export const getOrCreateFleurContext = (state: any = null): FleurAppContext => {
   clientStatic[FLEUR_CONTEXT_KEY] = context
 
   return context
+}
+
+/** Rehydrate serverSideProps to Stores */
+export const useFleurRehydration = (
+  context: FleurAppContext,
+  state: string | null
+) => {
+  const isFirstRendering = useRef<boolean>(true)
+
+  useEffect(() => {
+    if (isFirstRendering.current) return
+    if (state == null) return
+
+    // Rehydrate serverSideProps on client side page transition
+    context.executeOperation(
+      NextJsOps.rehydrateServerSideProps,
+      deserializeContext(state)
+    )
+  }, [context, state])
+
+  isFirstRendering.current = false
 }
