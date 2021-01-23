@@ -17,6 +17,7 @@ export default function FleurApp({
 
   useEffect(() => {
     if (isFirstRendering.current) return
+    if (__FLEUR_STATE__ == null) return
 
     // Rehydrate page state on client side page transition
     fleurContext.executeOperation(
