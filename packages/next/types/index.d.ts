@@ -155,6 +155,8 @@ export type GetServerSideProps<
   context: GetServerSidePropsContext<Q>
 ) => Promise<GetServerSidePropsResult<P>>
 
+export type GetServerSidePostRenderProps = GetServerSideProps
+
 export type InferGetServerSidePropsType<T> = T extends GetServerSideProps<
   infer P,
   any

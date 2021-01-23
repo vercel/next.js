@@ -26,6 +26,8 @@ export const PUBLIC_DIR_MIDDLEWARE_CONFLICT = `You can not have a '_next' folder
 
 export const SSG_GET_INITIAL_PROPS_CONFLICT = `You can not use getInitialProps with getStaticProps. To use SSG, please remove your getInitialProps`
 
+export const NON_SSG_GET__POST_RENDER_SERVER_SIDE_PROPS = `You can not use getServerSidePostRenderProps with getServerSideProps. getServerSidePostRenderProps is only for SSG pages (getStaticProps)`
+
 export const SERVER_PROPS_GET_INIT_PROPS_CONFLICT = `You can not use getInitialProps with getServerSideProps. Please remove getInitialProps.`
 
 export const SERVER_PROPS_SSG_CONFLICT = `You can not use getStaticProps or getStaticPaths with getServerSideProps. To use SSG, please remove getServerSideProps`

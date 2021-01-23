@@ -41,7 +41,12 @@ import {
   isDynamicRoute,
 } from '../lib/router/utils'
 import * as envConfig from '../lib/runtime-config'
-import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
+import {
+  isResSent,
+  NextApiRequest,
+  NextApiResponse,
+  NEXT_DATA,
+} from '../lib/utils'
 import {
   apiResolver,
   setLazyProp,
@@ -58,7 +63,12 @@ import pathMatch from '../lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
-import { RenderOpts, RenderOptsPartial, renderToHTML } from './render'
+import {
+  RenderOpts,
+  RenderOptsPartial,
+  renderToHTML,
+  handleGetServerSideProps,
+} from './render'
 import { getPagePath, requireFontManifest } from './require'
 import Router, {
   DynamicRoutes,
@@ -91,6 +101,11 @@ import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
 import escapePathDelimiters from '../lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../../build/webpack/loaders/next-serverless-loader/utils'
+import { GetServerSidePropsResult } from '../../types'
+import {
+  htmlDeEscapeJsonString,
+  htmlEscapeJsonString,
+} from '../../server/htmlescape'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -1334,13 +1349,79 @@ export default class Server {
     }
   }
 
+  private async addServerSidePostRenderProps(
+    html: string | null,
+    req: IncomingMessage,
+    res: ServerResponse,
+    result: FindComponentsResult,
+    opts: RenderOptsPartial,
+    pathname: string
+  ): Promise<string | null> {
+    const { getServerSidePostRenderProps } = result.components
+    if (getServerSidePostRenderProps && html) {
+      let data: GetServerSidePropsResult<{ [k: string]: any }> | null
+
+      data = await handleGetServerSideProps(
+        getServerSidePostRenderProps,
+        req,
+        res,
+        pathname,
+        result.query,
+        opts,
+        {},
+        false,
+        'getServerSidePostRenderProps'
+      )
+
+      const regex1 = RegExp(/ id="__NEXT_DATA__"[^>]*>/, 'gm')
+      const regex2 = RegExp(/<\/[\s]*script>/, 'gm')
+
+      const match1 = regex1.exec(html)
+      if (match1 === null) {
+        throw new Error('') // TODO
+      }
+      const scriptTagEndIndex = regex1.lastIndex
+      if (regex1.exec(html) !== null) {
+        throw new Error('') // TODO
+      }
+      regex2.lastIndex = scriptTagEndIndex
+
+      const closingTagMatch = regex2.exec(html)
+
+      if (closingTagMatch === null) {
+        throw new Error('') // TODO
+      }
+
+      const startIndex = scriptTagEndIndex
+      const endIndex = regex2.lastIndex - closingTagMatch[0].length
+      const nextData = JSON.parse(
+        htmlDeEscapeJsonString(html.substr(startIndex, endIndex - startIndex))
+      ) as NEXT_DATA
+
+      nextData.props.pageProps = {
+        ...nextData.props?.pageProps,
+        ...(data as any).props,
+      }
+      const nextDataStr = htmlEscapeJsonString(JSON.stringify(nextData))
+
+      return `${html.substr(0, startIndex)}${nextDataStr}${html.substr(
+        endIndex
+      )}`
+    } else {
+      return html
+    }
+  }
+
   private async renderToHTMLWithComponents(
     req: IncomingMessage,
     res: ServerResponse,
     pathname: string,
-    { components, query }: FindComponentsResult,
+    result: FindComponentsResult,
     opts: RenderOptsPartial
   ): Promise<string | null> {
+    const { components, query } = result
+    const addServerSidePostRenderProps = (html: string) =>
+      this.addServerSidePostRenderProps(html, req, res, result, opts, pathname)
     const is404Page = pathname === '/404'
 
     const isLikeServerless =
@@ -1525,7 +1606,7 @@ export default class Server {
         sendPayload(
           req,
           res,
-          data,
+          await addServerSidePostRenderProps(data as string),
           isDataReq ? 'json' : 'html',
           {
             generateEtags: this.renderOpts.generateEtags,
@@ -1705,10 +1786,16 @@ export default class Server {
           html = renderResult.html
         }
 
-        sendPayload(req, res, html, 'html', {
-          generateEtags: this.renderOpts.generateEtags,
-          poweredByHeader: this.renderOpts.poweredByHeader,
-        })
+        sendPayload(
+          req,
+          res,
+          await addServerSidePostRenderProps(html),
+          'html',
+          {
+            generateEtags: this.renderOpts.generateEtags,
+            poweredByHeader: this.renderOpts.poweredByHeader,
+          }
+        )
         return null
       }
     }
@@ -1739,7 +1826,9 @@ export default class Server {
         sendPayload(
           req,
           res,
-          isDataReq ? JSON.stringify(pageData) : html,
+          isDataReq
+            ? JSON.stringify(pageData)
+            : await addServerSidePostRenderProps(html),
           isDataReq ? 'json' : 'html',
           {
             generateEtags: this.renderOpts.generateEtags,
@@ -1774,7 +1863,14 @@ export default class Server {
         } as UrlWithParsedQuery)
       }
     }
-    return resHtml
+    return await this.addServerSidePostRenderProps(
+      resHtml,
+      req,
+      res,
+      result,
+      opts,
+      pathname
+    )
   }
 
   public async renderToHTML(
@@ -1800,7 +1896,6 @@ export default class Server {
           }
         }
       }
-
       if (this.dynamicRoutes) {
         for (const dynamicRoute of this.dynamicRoutes) {
           const params = dynamicRoute.match(pathname)
