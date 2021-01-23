@@ -1,10 +1,7 @@
 import { AppProps } from 'next/dist/next-server/lib/router/router'
 import { FleurishFunctionApp, appWithFleur } from '../lib/fleur'
 
-const FleurApp: FleurishFunctionApp = ({
-  Component,
-  pageProps: { __FLEUR_STATE__, ...pageProps },
-}: AppProps) => {
+const FleurApp: FleurishFunctionApp = ({ Component, pageProps }: AppProps) => {
   return <Component {...pageProps} />
 }
 

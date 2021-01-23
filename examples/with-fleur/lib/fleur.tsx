@@ -49,7 +49,10 @@ export interface FleurishFunctionApp<P = {}> {
 }
 
 export function appWithFleur<P>(App: FleurishFunctionApp<P>) {
-  const FleurishApp = ({ __FLEUR_STATE__, ...props }: any) => {
+  const FleurishApp = ({
+    pageProps: { __FLEUR_STATE__, ...pageProps },
+    ...props
+  }: AppProps & P) => {
     const fleurContext = useMemo(
       () => getOrCreateFleurContext(deserializeContext(__FLEUR_STATE__)),
       [__FLEUR_STATE__]
@@ -59,7 +62,7 @@ export function appWithFleur<P>(App: FleurishFunctionApp<P>) {
 
     return (
       <FleurContext value={fleurContext}>
-        <App {...props} />
+        <App pageProps={pageProps} {...(props as any)} />
       </FleurContext>
     )
   }
