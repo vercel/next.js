@@ -1,18 +1,14 @@
 import { serializeContext } from '@fleur/next'
-import { GetStaticPropsResult } from 'next'
+import { GetStaticProps } from 'next'
 import { Page } from '../components/page'
 import { TimerOps } from '../domains/timer'
-import { getOrCreateFleurContext } from '../lib/fleur'
+import { getOrCreateFleurContext, FleurSSProps } from '../lib/fleur'
 
 export default function SSG() {
   return <Page />
 }
 
-export async function getStaticProps(): Promise<
-  GetStaticPropsResult<{
-    __FLEUR_STATE__: string
-  }>
-> {
+export const getStaticProps: GetStaticProps<FleurSSProps> = async () => {
   const context = getOrCreateFleurContext()
 
   await context.executeOperation(TimerOps.increment)

@@ -1,18 +1,14 @@
 import { serializeContext } from '@fleur/next'
-import { GetServerSidePropsResult } from 'next'
+import { GetServerSideProps } from 'next'
 import { Page } from '../components/page'
 import { TimerOps } from '../domains/timer'
-import { getOrCreateFleurContext } from '../lib/fleur'
+import { FleurSSProps, getOrCreateFleurContext } from '../lib/fleur'
 
 export default function SSR() {
   return <Page />
 }
 
-export async function getServerSideProps(): Promise<
-  GetServerSidePropsResult<{
-    __FLEUR_STATE__: string
-  }>
-> {
+export const getServerSideProps: GetServerSideProps<FleurSSProps> = async () => {
   const context = getOrCreateFleurContext()
 
   await context.executeOperation(TimerOps.increment)
