@@ -24,6 +24,7 @@ body {
   margin: 0 auto;
 }
 ```
+
 Create a [`pages/_app.js` file](https://nextjs.org/docs/advanced-features/custom-app) if not already present. Then [`import`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import) the [`styles.css` file](https://nextjs.org/docs/basic-features/built-in-css-support#adding-a-global-stylesheet).
 
 ```jsx
