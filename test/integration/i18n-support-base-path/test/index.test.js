@@ -21,7 +21,20 @@ const ctx = {
   appDir,
 }
 
-describe('i18n Support', () => {
+describe('i18n Support basePath', () => {
+  beforeAll(async () => {
+    ctx.externalPort = await findPort()
+    ctx.externalApp = http.createServer((req, res) => {
+      res.statusCode = 200
+      res.end(JSON.stringify({ url: req.url, external: true }))
+    })
+    await new Promise((resolve, reject) => {
+      ctx.externalApp.listen(ctx.externalPort, (err) =>
+        err ? reject(err) : resolve()
+      )
+    })
+  })
+
   describe('dev mode', () => {
     const curCtx = {
       ...ctx,
@@ -29,6 +42,7 @@ describe('i18n Support', () => {
     }
     beforeAll(async () => {
       nextConfig.replace('// basePath', 'basePath')
+      nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
       await fs.remove(join(appDir, '.next'))
       curCtx.appPort = await findPort()
       curCtx.app = await launchApp(appDir, curCtx.appPort)
@@ -44,6 +58,7 @@ describe('i18n Support', () => {
   describe('production mode', () => {
     beforeAll(async () => {
       nextConfig.replace('// basePath', 'basePath')
+      nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
       await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)
       ctx.appPort = await findPort()
@@ -64,6 +79,7 @@ describe('i18n Support', () => {
       await fs.remove(join(appDir, '.next'))
       nextConfig.replace('// target', 'target')
       nextConfig.replace('// basePath', 'basePath')
+      nextConfig.replace(/__EXTERNAL_PORT__/g, ctx.externalPort)
 
       await nextBuild(appDir)
       ctx.appPort = await findPort()
@@ -118,6 +134,60 @@ describe('i18n Support', () => {
       })
     })
 
+    it('should resolve rewrites correctly', async () => {
+      const serverFile = getPageFileFromPagesManifest(appDir, '/another')
+      const appPort = await findPort()
+      const mod = require(join(appDir, '.next/serverless', serverFile))
+
+      const server = http.createServer(async (req, res) => {
+        try {
+          await mod.render(req, res)
+        } catch (err) {
+          res.statusCode = 500
+          res.end('internal err')
+        }
+      })
+
+      await new Promise((resolve, reject) => {
+        server.listen(appPort, (err) => (err ? reject(err) : resolve()))
+      })
+      console.log('listening on', appPort)
+
+      const requests = await Promise.all(
+        [
+          '/en-US/rewrite-1',
+          '/nl/rewrite-2',
+          '/fr/rewrite-3',
+          '/en-US/rewrite-4',
+          '/fr/rewrite-4',
+        ].map((path) =>
+          fetchViaHTTP(appPort, `${ctx.basePath}${path}`, undefined, {
+            redirect: 'manual',
+          })
+        )
+      )
+
+      server.close()
+
+      const checks = [
+        ['en-US', '/rewrite-1'],
+        ['nl', '/rewrite-2'],
+        ['nl', '/rewrite-3'],
+        ['en-US', '/rewrite-4'],
+        ['fr', '/rewrite-4'],
+      ]
+
+      for (let i = 0; i < requests.length; i++) {
+        const res = requests[i]
+        const [locale, asPath] = checks[i]
+        const $ = cheerio.load(await res.text())
+        expect($('html').attr('lang')).toBe(locale)
+        expect($('#router-locale').text()).toBe(locale)
+        expect($('#router-pathname').text()).toBe('/another')
+        expect($('#router-as-path').text()).toBe(asPath)
+      }
+    })
+
     runTests(ctx)
   })
 
@@ -143,20 +213,31 @@ describe('i18n Support', () => {
 
       expect(routesManifest.i18n).toEqual({
         localeDetection: false,
-        locales: ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en'],
+        locales: [
+          'en-US',
+          'nl-NL',
+          'nl-BE',
+          'nl',
+          'fr-BE',
+          'fr',
+          'en',
+          'go',
+          'go-BE',
+          'do',
+          'do-BE',
+        ],
         defaultLocale: 'en-US',
         domains: [
           {
             http: true,
-            domain: 'example.be',
-            defaultLocale: 'nl-BE',
-            locales: ['nl', 'nl-NL', 'nl-BE'],
+            domain: 'example.do',
+            defaultLocale: 'do',
+            locales: ['do-BE'],
           },
           {
-            http: true,
-            domain: 'example.fr',
-            defaultLocale: 'fr',
-            locales: ['fr-BE'],
+            domain: 'example.com',
+            defaultLocale: 'go',
+            locales: ['go-BE'],
           },
         ],
       })

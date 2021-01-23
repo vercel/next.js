@@ -380,6 +380,44 @@ function runTests({ w, isDev, domains }) {
     expect(json2).toStrictEqual(json1)
   })
 
+  it('should use cached image file when parameters are the same for svg', async () => {
+    await fs.remove(imagesDir)
+
+    const query = { url: '/test.svg', w, q: 80 }
+    const opts = { headers: { accept: 'image/webp' } }
+
+    const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res1.status).toBe(200)
+    expect(res1.headers.get('Content-Type')).toBe('image/svg+xml')
+    const json1 = await fsToJson(imagesDir)
+    expect(Object.keys(json1).length).toBe(1)
+
+    const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res2.status).toBe(200)
+    expect(res2.headers.get('Content-Type')).toBe('image/svg+xml')
+    const json2 = await fsToJson(imagesDir)
+    expect(json2).toStrictEqual(json1)
+  })
+
+  it('should use cached image file when parameters are the same for animated gif', async () => {
+    await fs.remove(imagesDir)
+
+    const query = { url: '/animated.gif', w, q: 80 }
+    const opts = { headers: { accept: 'image/webp' } }
+
+    const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res1.status).toBe(200)
+    expect(res1.headers.get('Content-Type')).toBe('image/gif')
+    const json1 = await fsToJson(imagesDir)
+    expect(Object.keys(json1).length).toBe(1)
+
+    const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res2.status).toBe(200)
+    expect(res2.headers.get('Content-Type')).toBe('image/gif')
+    const json2 = await fsToJson(imagesDir)
+    expect(json2).toStrictEqual(json1)
+  })
+
   it('should set 304 status without body when etag matches if-none-match', async () => {
     const query = { url: '/test.jpg', w, q: 80 }
     const opts1 = { headers: { accept: 'image/webp' } }
@@ -544,6 +582,31 @@ describe('Image Optimizer', () => {
 
       expect(stderr).toContain(
         'Specified images.imageSizes should be an Array of numbers that are between 1 and 10000, received invalid values (0, 12000)'
+      )
+    })
+
+    it('should error when loader contains invalid value', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            loader: 'notreal',
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        'Specified images.loader should be one of (default, imgix, cloudinary, akamai), received invalid value (notreal)'
       )
     })
   })

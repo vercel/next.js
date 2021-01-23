@@ -652,6 +652,7 @@ const runTests = (isDev = false) => {
             ),
             source: '/:path+/',
             statusCode: 308,
+            internal: true,
           },
           {
             destination: '/:lang/about',
