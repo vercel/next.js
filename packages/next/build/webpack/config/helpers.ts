@@ -1,9 +1,9 @@
 import curry from 'next/dist/compiled/lodash.curry'
-import { Configuration, Plugin, RuleSetRule } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 
 export const loader = curry(function loader(
-  rule: RuleSetRule,
-  config: Configuration
+  rule: webpack.RuleSetRule,
+  config: webpack.Configuration
 ) {
   if (!config.module) {
     config.module = { rules: [] }
@@ -22,8 +22,8 @@ export const loader = curry(function loader(
 })
 
 export const unshiftLoader = curry(function unshiftLoader(
-  rule: RuleSetRule,
-  config: Configuration
+  rule: webpack.RuleSetRule,
+  config: webpack.Configuration
 ) {
   if (!config.module) {
     config.module = { rules: [] }
@@ -41,7 +41,10 @@ export const unshiftLoader = curry(function unshiftLoader(
   return config
 })
 
-export const plugin = curry(function plugin(p: Plugin, config: Configuration) {
+export const plugin = curry(function plugin(
+  p: webpack.Plugin,
+  config: webpack.Configuration
+) {
   if (!config.plugins) {
     config.plugins = []
   }

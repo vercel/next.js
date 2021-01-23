@@ -9,9 +9,9 @@ This example sets up the boilerplate for an AMP First Site. You can see a live v
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/amp-first)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/amp-first&project-name=amp-first&repository-name=amp-first)
 
 ## How to use
 
@@ -60,7 +60,7 @@ Things you need to do after installing the boilerplate:
       ```
 
 - **amp-list & amp-mustache:** mustache templates conflict with JSX and it's template literals need to be escaped. A simple approach is to escape them via back ticks: `` src={`{{imageUrl}}`} ``.
-- **amp-script:** you can use [amp-script](https://amp.dev/documentation/components/amp-script/) to add custom JavaScript to your AMP pages. The boilerplate includes a helper [`components/amp/AmpScript.js`](components/amp/AmpScript.js) to simplify using amp-script. The helper also supports embedding inline scripts. Good to know: Next.js uses [AMP Optimizer](https://github.com/ampproject/amp-toolbox/tree/master/packages/optimizer) under the hood, which automatically adds the needed script hashes for [inline amp-scripts](https://amp.dev/documentation/components/amp-script/#load-javascript-from-a-local-element).
+- **amp-script:** you can use [amp-script](https://amp.dev/documentation/components/amp-script/) to add custom JavaScript to your AMP pages. The boilerplate includes a helper [`components/amp/AmpScript.js`](components/amp/AmpScript.js) to simplify using `amp-script`. The helper also supports embedding inline scripts. Good to know: Next.js uses [AMP Optimizer](https://github.com/ampproject/amp-toolbox/tree/master/packages/optimizer) under the hood, which automatically adds the needed script hashes for [inline amp-scripts](https://amp.dev/documentation/components/amp-script/#load-javascript-from-a-local-element).
 
 ## Deployment
 
@@ -76,4 +76,4 @@ To start the application in production mode, run:
 $ yarn start
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
