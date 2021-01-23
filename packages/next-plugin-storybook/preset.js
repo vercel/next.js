@@ -15,6 +15,7 @@ async function webpackFinal(config) {
     target: 'server',
     config: nextConfig,
     buildId: 'storybook',
+    rewrites: [],
   })
 
   config.plugins = [...config.plugins, ...nextWebpackConfig.plugins]
@@ -27,7 +28,7 @@ async function webpackFinal(config) {
   config.module.rules = [
     ...config.module.rules.filter((rule) => {
       // the rules we're filtering use RegExp for the test
-      if (!rule.test instanceof RegExp) return true
+      if (!(rule.test instanceof RegExp)) return true
       // use Next.js' built-in CSS
       if (rule.test.test('hello.css')) {
         return false

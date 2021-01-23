@@ -1,8 +1,6 @@
 module.exports = {
-  future: {
-    removeDeprecatedGapUtilities: true,
-  },
   purge: ['./components/**/*.{js,ts,jsx,tsx}', './pages/**/*.{js,ts,jsx,tsx}'],
+  darkMode: 'media', // 'media' or 'class'
   theme: {
     extend: {
       colors: {
@@ -10,6 +8,8 @@ module.exports = {
       },
     },
   },
-  variants: {},
+  variants: {
+    extend: {},
+  },
   plugins: [],
 }

@@ -28,5 +28,9 @@ export default () => (
       <a id="to-params">to params</a>
     </Link>
     <br />
+    <Link href="/rewriting-to-auto-export">
+      <a id="to-rewritten-dynamic">to rewritten dynamic</a>
+    </Link>
+    <br />
   </>
 )

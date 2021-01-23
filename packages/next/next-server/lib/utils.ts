@@ -5,8 +5,9 @@ import { UrlObject } from 'url'
 import { formatUrl } from './router/utils/format-url'
 import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
-import { Env } from '../../lib/load-env-config'
+import { Env } from '@next/env'
 import { BuildManifest } from '../server/get-page-files'
+import { DomainLocales } from '../server/config'
 
 /**
  * Types used by both next and next-server
@@ -81,8 +82,6 @@ export type BaseContext = {
   [k: string]: any
 }
 
-export type HeadEntry = [string, { [key: string]: any }]
-
 export type NEXT_DATA = {
   props: Record<string, any>
   page: string
@@ -100,7 +99,10 @@ export type NEXT_DATA = {
   customServer?: boolean
   gip?: boolean
   appGip?: boolean
-  head: HeadEntry[]
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
+  domainLocales?: DomainLocales
 }
 
 /**
@@ -185,7 +187,10 @@ export type DocumentProps = DocumentInitialProps & {
   canonicalBase: string
   headTags: any[]
   unstable_runtimeJS?: false
+  unstable_JsPreload?: false
   devOnlyCacheBusterQueryString: string
+  scriptLoader: { defer?: string[]; eager?: any[] }
+  locale?: string
 }
 
 /**
