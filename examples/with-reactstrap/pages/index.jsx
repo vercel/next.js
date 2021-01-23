@@ -80,7 +80,7 @@ export default function Home() {
                   </CardText>
                   <Button
                     color="primary"
-                    href="https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=example&utm_campaign=next-example"
+                    href="https://vercel.com/new?utm_source=github&utm_medium=example&utm_campaign=next-example"
                   >
                     More &rarr;
                   </Button>

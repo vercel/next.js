@@ -1,6 +1,6 @@
-import { useRef, useState, Suspense } from 'react'
+import { useRef, useState } from 'react'
 import { Canvas, useFrame } from 'react-three-fiber'
-import { OrbitControls, StandardEffects, Box } from 'drei'
+import { OrbitControls, Box } from 'drei'
 
 const MyBox = (props) => {
   const mesh = useRef()
@@ -28,7 +28,7 @@ const MyBox = (props) => {
   )
 }
 
-const BirdsPage = () => {
+const BoxesPage = () => {
   return [
     <h1>Click on me - Hover me :)</h1>,
     <Canvas camera={{ position: [0, 0, 35] }}>
@@ -39,11 +39,8 @@ const BirdsPage = () => {
       <MyBox position={[0, 10, 0]} />
       <MyBox position={[0, -10, 0]} />
       <OrbitControls />
-      <Suspense fallback={null}>
-        <StandardEffects smaa />
-      </Suspense>
     </Canvas>,
   ]
 }
 
-export default BirdsPage
+export default BoxesPage

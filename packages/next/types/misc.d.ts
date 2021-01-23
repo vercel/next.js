@@ -1,16 +1,13 @@
 /* eslint-disable import/no-extraneous-dependencies */
-declare module '@babel/plugin-transform-modules-commonjs'
+declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
+declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
 declare module 'browserslist'
 declare module 'cssnano-simple' {
-  import { Plugin } from 'postcss'
-  const cssnanoSimple: Plugin<{}>
+  import { OldPlugin } from 'postcss'
+  const cssnanoSimple: OldPlugin<{}>
   export = cssnanoSimple
 }
 declare module 'styled-jsx/server'
-declare module 'unfetch'
-declare module 'webpack/lib/GraphHelpers'
-declare module 'webpack/lib/DynamicEntryPlugin'
-declare module 'webpack/lib/Entrypoint'
 
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
@@ -48,9 +45,14 @@ declare module 'next/dist/compiled/arg/index.js' {
   export = arg
 }
 
-declare module 'next/dist/compiled/chalk' {
-  import m from 'chalk'
-  export = m
+declare module 'next/dist/compiled/babel/code-frame' {
+  export * from '@babel/code-frame'
+}
+declare module 'next/dist/compiled/babel/preset-env' {
+  export default any
+}
+declare module 'next/dist/compiled/babel/core' {
+  export * from '@babel/core'
 }
 declare module 'next/dist/compiled/ci-info' {
   import m from 'ci-info'
@@ -80,21 +82,8 @@ declare module 'next/dist/compiled/devalue' {
   import m from 'devalue'
   export = m
 }
-declare module 'next/dist/compiled/dotenv' {
-  import m from 'dotenv'
-  export = m
-}
-
-declare module 'next/dist/compiled/dotenv-expand' {
-  import m from 'dotenv-expand'
-  export = m
-}
 declare module 'next/dist/compiled/escape-string-regexp' {
   import m from 'escape-string-regexp'
-  export = m
-}
-declare module 'next/dist/compiled/etag' {
-  import m from 'etag'
   export = m
 }
 declare module 'next/dist/compiled/find-up' {
@@ -137,12 +126,8 @@ declare module 'next/dist/compiled/lru-cache' {
   import m from 'lru-cache'
   export = m
 }
-declare module 'next/dist/compiled/nanoid/index.js' {
-  function nanoid(size?: number): string
-  export = nanoid
-}
-declare module 'next/dist/compiled/node-fetch' {
-  import m from 'node-fetch'
+declare module 'next/dist/compiled/nanoid/index.cjs' {
+  import m from 'nanoid'
   export = m
 }
 declare module 'next/dist/compiled/ora' {
@@ -153,16 +138,8 @@ declare module 'next/dist/compiled/path-to-regexp' {
   import m from 'path-to-regexp'
   export = m
 }
-declare module 'next/dist/compiled/raw-body' {
-  import m from 'raw-body'
-  export = m
-}
 declare module 'next/dist/compiled/recast' {
   import m from 'recast'
-  export = m
-}
-declare module 'next/dist/compiled/resolve/index.js' {
-  import m from 'resolve'
   export = m
 }
 declare module 'next/dist/compiled/send' {
@@ -189,6 +166,10 @@ declare module 'next/dist/compiled/semver' {
   import m from 'semver'
   export = m
 }
+declare module 'next/dist/compiled/postcss-scss' {
+  import m from 'postcss-scss'
+  export = m
+}
 declare module 'next/dist/compiled/text-table' {
   function textTable(
     rows: Array<Array<{}>>,
@@ -205,8 +186,11 @@ declare module 'next/dist/compiled/unistore' {
   import m from 'unistore'
   export = m
 }
+declare module 'next/dist/compiled/web-vitals' {
+  import m from 'web-vitals'
+  export = m
+}
 
-declare module 'next/dist/compiled/terser-webpack-plugin'
 declare module 'next/dist/compiled/comment-json' {
   import m from 'comment-json'
   export = m

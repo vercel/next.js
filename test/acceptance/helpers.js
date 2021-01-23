@@ -1,5 +1,5 @@
 import * as fs from 'fs-extra'
-import nanoid from 'nanoid'
+import { nanoid } from 'nanoid'
 import { findPort, killApp, launchApp } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import path from 'path'
@@ -37,7 +37,6 @@ export async function sandbox(
     env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
   })
   const browser = await webdriver(appPort, '/')
-
   return [
     {
       sandboxDirectory,

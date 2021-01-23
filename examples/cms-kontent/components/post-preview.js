@@ -1,5 +1,5 @@
 import Avatar from '../components/avatar'
-import DateFormater from '../components/date-formater'
+import DateFormatter from '../components/date-formatter'
 import CoverImage from './cover-image'
 import Link from 'next/link'
 
@@ -22,7 +22,7 @@ export default function PostPreview({
         </Link>
       </h3>
       <div className="text-lg mb-4">
-        <DateFormater dateString={date} />
+        <DateFormatter dateString={date} />
       </div>
       <p className="text-lg leading-relaxed mb-4">{excerpt}</p>
       <Avatar name={author.name} picture={author.picture} />

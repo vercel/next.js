@@ -1,15 +1,15 @@
 import { IncomingMessage, ServerResponse } from 'http'
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
-import generateETag from 'next/dist/compiled/etag'
-import fresh from 'next/dist/compiled/fresh'
-import getRawBody from 'next/dist/compiled/raw-body'
+import getRawBody from 'raw-body'
 import { PageConfig } from 'next/types'
 import { Stream } from 'stream'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
 import { Params } from './router'
+import { sendEtagResponse } from './send-payload'
+import generateETag from 'etag'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -56,7 +56,7 @@ export async function apiResolver(
     )
 
     // Parsing of body
-    if (bodyParser) {
+    if (bodyParser && !apiReq.body) {
       apiReq.body = await parseBody(
         apiReq,
         config.api && config.api.bodyParser && config.api.bodyParser.sizeLimit
@@ -163,34 +163,6 @@ function parseJson(str: string): object {
 }
 
 /**
- * Parsing query arguments from request `url` string
- * @param url of request
- * @returns Object with key name of query argument and its value
- */
-export function getQueryParser({ url }: IncomingMessage) {
-  return function parseQuery(): NextApiRequestQuery {
-    const { URL } = require('url')
-    // we provide a placeholder base url because we only want searchParams
-    const params = new URL(url, 'https://n').searchParams
-
-    const query: { [key: string]: string | string[] } = {}
-    for (const [key, value] of params) {
-      if (query[key]) {
-        if (Array.isArray(query[key])) {
-          ;(query[key] as string[]).push(value)
-        } else {
-          query[key] = [query[key], value]
-        }
-      } else {
-        query[key] = value
-      }
-    }
-
-    return query
-  }
-}
-
-/**
  * Parse cookies from `req` header
  * @param req request object
  */
@@ -240,25 +212,10 @@ export function redirect(
       `Invalid redirect arguments. Please use a single argument URL, e.g. res.redirect('/destination') or use a status code and URL, e.g. res.redirect(307, '/destination').`
     )
   }
-  res.writeHead(statusOrUrl, { Location: url }).end()
+  res.writeHead(statusOrUrl, { Location: url })
+  res.write('')
+  res.end()
   return res
-}
-
-function sendEtagResponse(
-  req: NextApiRequest,
-  res: NextApiResponse,
-  body: string | Buffer
-): boolean {
-  const etag = generateETag(body)
-
-  if (fresh(req.headers, { etag })) {
-    res.statusCode = 304
-    res.end()
-    return true
-  }
-
-  res.setHeader('ETag', etag)
-  return false
 }
 
 /**
@@ -289,8 +246,8 @@ export function sendData(
 
   const isJSONLike = ['object', 'number', 'boolean'].includes(typeof body)
   const stringifiedBody = isJSONLike ? JSON.stringify(body) : body
-
-  if (sendEtagResponse(req, res, stringifiedBody)) {
+  const etag = generateETag(stringifiedBody)
+  if (sendEtagResponse(req, res, etag)) {
     return
   }
 

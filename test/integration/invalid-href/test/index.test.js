@@ -102,6 +102,10 @@ describe('Invalid hrefs', () => {
       await noError('/second')
     })
 
+    it('does not show error when internal href is used with external as', async () => {
+      await noError('/invalid-relative', true)
+    })
+
     it('shows error when dynamic route mismatch is used on Link', async () => {
       const browser = await webdriver(appPort, '/dynamic-route-mismatch')
       try {
@@ -135,6 +139,12 @@ describe('Invalid hrefs', () => {
       const $ = cheerio.load(await res.text())
       expect($('#click-me').attr('href')).toBe('https://')
     })
+
+    it('renders a link with mailto: href', async () => {
+      const res = await fetchViaHTTP(appPort, '/first')
+      const $ = cheerio.load(await res.text())
+      expect($('#click-me').attr('href')).toBe('mailto:idk@idk.com')
+    })
   })
 
   describe('dev mode', () => {
@@ -156,6 +166,14 @@ describe('Invalid hrefs', () => {
       await showsError(
         '/dynamic-route-mismatch',
         /The provided `as` value \(\/blog\/post-1\) is incompatible with the `href` value \(\/\[post\]\)/,
+        true
+      )
+    })
+
+    it('shows error when internal href is used with external as', async () => {
+      await showsError(
+        '/invalid-relative',
+        /Invalid href: "\/second" and as: "mailto:hello@example\.com", received relative href and external as/,
         true
       )
     })

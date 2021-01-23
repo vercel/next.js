@@ -39,6 +39,7 @@ describe('Client Navigation', () => {
       '/fragment-syntax',
       '/custom-extension',
       '/styled-jsx',
+      '/styled-jsx-external',
       '/with-cdm',
       '/url-prop',
       '/url-prop-override',
@@ -443,7 +444,127 @@ describe('Client Navigation', () => {
     })
   })
 
+  describe('resets scroll at the correct time', () => {
+    it('should reset scroll before the new page runs its lifecycles (<Link />)', async () => {
+      let browser
+      try {
+        browser = await webdriver(
+          context.appPort,
+          '/nav/long-page-to-snap-scroll'
+        )
+
+        // Scrolls to item 400 on the page
+        await browser
+          .waitForElementByCss('#long-page-to-snap-scroll')
+          .elementByCss('#scroll-to-item-400')
+          .click()
+
+        const scrollPosition = await browser.eval('window.pageYOffset')
+        expect(scrollPosition).toBe(7208)
+
+        // Go to snap scroll page
+        await browser
+          .elementByCss('#goto-snap-scroll-position')
+          .click()
+          .waitForElementByCss('#scroll-pos-y')
+
+        const snappedScrollPosition = await browser.eval(
+          'document.getElementById("scroll-pos-y").innerText'
+        )
+        expect(snappedScrollPosition).toBe('0')
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should reset scroll before the new page runs its lifecycles (Router#push)', async () => {
+      let browser
+      try {
+        browser = await webdriver(
+          context.appPort,
+          '/nav/long-page-to-snap-scroll'
+        )
+
+        // Scrolls to item 400 on the page
+        await browser
+          .waitForElementByCss('#long-page-to-snap-scroll')
+          .elementByCss('#scroll-to-item-400')
+          .click()
+
+        const scrollPosition = await browser.eval('window.pageYOffset')
+        expect(scrollPosition).toBe(7208)
+
+        // Go to snap scroll page
+        await browser
+          .elementByCss('#goto-snap-scroll-position-imperative')
+          .click()
+          .waitForElementByCss('#scroll-pos-y')
+
+        const snappedScrollPosition = await browser.eval(
+          'document.getElementById("scroll-pos-y").innerText'
+        )
+        expect(snappedScrollPosition).toBe('0')
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
+    it('should intentionally not reset scroll before the new page runs its lifecycles (Router#push)', async () => {
+      let browser
+      try {
+        browser = await webdriver(
+          context.appPort,
+          '/nav/long-page-to-snap-scroll'
+        )
+
+        // Scrolls to item 400 on the page
+        await browser
+          .waitForElementByCss('#long-page-to-snap-scroll')
+          .elementByCss('#scroll-to-item-400')
+          .click()
+
+        const scrollPosition = await browser.eval('window.pageYOffset')
+        expect(scrollPosition).toBe(7208)
+
+        // Go to snap scroll page
+        await browser
+          .elementByCss('#goto-snap-scroll-position-imperative-noscroll')
+          .click()
+          .waitForElementByCss('#scroll-pos-y')
+
+        const snappedScrollPosition = await browser.eval(
+          'document.getElementById("scroll-pos-y").innerText'
+        )
+        expect(snappedScrollPosition).not.toBe('0')
+        expect(Number(snappedScrollPosition)).toBeGreaterThanOrEqual(7208)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+  })
+
   describe('with hash changes', () => {
+    describe('check hydration mis-match', () => {
+      it('should not have hydration mis-match for hash link', async () => {
+        const browser = await webdriver(context.appPort, '/nav/hash-changes')
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          console.log('log.message', log.message)
+          if (log.message.includes('Warning: Prop')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(false)
+      })
+    })
+
     describe('when hash change via Link', () => {
       it('should not run getInitialProps', async () => {
         const browser = await webdriver(context.appPort, '/nav/hash-changes')
@@ -749,6 +870,41 @@ describe('Client Navigation', () => {
 
       await browser.close()
     })
+
+    it('should keep the scroll position on shallow routing', async () => {
+      const browser = await webdriver(context.appPort, '/nav/shallow-routing')
+      await browser.eval(() =>
+        document.querySelector('#increase').scrollIntoView()
+      )
+      const scrollPosition = await browser.eval('window.pageYOffset')
+
+      expect(scrollPosition).toBeGreaterThan(3000)
+
+      await browser.elementByCss('#increase').click()
+      await waitFor(500)
+      const newScrollPosition = await browser.eval('window.pageYOffset')
+
+      expect(newScrollPosition).toBe(scrollPosition)
+
+      await browser.elementByCss('#increase2').click()
+      await waitFor(500)
+      const newScrollPosition2 = await browser.eval('window.pageYOffset')
+
+      expect(newScrollPosition2).toBe(0)
+
+      await browser.eval(() =>
+        document.querySelector('#invalidShallow').scrollIntoView()
+      )
+      const scrollPositionDown = await browser.eval('window.pageYOffset')
+
+      expect(scrollPositionDown).toBeGreaterThan(3000)
+
+      await browser.elementByCss('#invalidShallow').click()
+      await waitFor(500)
+      const newScrollPosition3 = await browser.eval('window.pageYOffset')
+
+      expect(newScrollPosition3).toBe(0)
+    })
   })
 
   describe('with URL objects', () => {
@@ -816,6 +972,26 @@ describe('Client Navigation', () => {
       expect(stackLength).toBe(3)
 
       await browser.close()
+    })
+
+    it('should handle undefined in router.push', async () => {
+      const browser = await webdriver(context.appPort, '/nav/query-params')
+      await browser.elementByCss('#click-me').click()
+      const query = JSON.parse(
+        await browser.waitForElementByCss('#query-value').text()
+      )
+      expect(query).toEqual({
+        param1: '',
+        param2: '',
+        param3: '',
+        param4: '0',
+        param5: 'false',
+        param7: '',
+        param8: '',
+        param9: '',
+        param10: '',
+        param11: ['', '', '', '0', 'false', '', '', '', '', ''],
+      })
     })
   })
 
@@ -1204,6 +1380,26 @@ describe('Client Navigation', () => {
   })
 
   describe('updating head while client routing', () => {
+    it('should only execute async and defer scripts once', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.appPort, '/head')
+
+        await browser.waitForElementByCss('h1')
+        await waitFor(2000)
+        expect(
+          Number(await browser.eval('window.__test_async_executions'))
+        ).toBe(1)
+        expect(
+          Number(await browser.eval('window.__test_defer_executions'))
+        ).toBe(1)
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
     it('should update head during client routing', async () => {
       let browser
       try {
@@ -1223,6 +1419,27 @@ describe('Client Navigation', () => {
             .elementByCss('meta[name="description"]')
             .getAttribute('content')
         ).toBe('Head Two')
+
+        await browser
+          .elementByCss('#to-head-1')
+          .click()
+          .waitForElementByCss('#head-1', 3000)
+        expect(
+          await browser
+            .elementByCss('meta[name="description"]')
+            .getAttribute('content')
+        ).toBe('Head One')
+
+        await browser
+          .elementByCss('#to-head-3')
+          .click()
+          .waitForElementByCss('#head-3', 3000)
+        expect(
+          await browser
+            .elementByCss('meta[name="description"]')
+            .getAttribute('content')
+        ).toBe('Head Three')
+        expect(await browser.eval('document.title')).toBe('')
 
         await browser
           .elementByCss('#to-head-1')
@@ -1358,6 +1575,7 @@ describe('Client Navigation', () => {
 
   renderingSuite(
     (p, q) => renderViaHTTP(context.appPort, p, q),
-    (p, q) => fetchViaHTTP(context.appPort, p, q)
+    (p, q) => fetchViaHTTP(context.appPort, p, q),
+    context
   )
 })
