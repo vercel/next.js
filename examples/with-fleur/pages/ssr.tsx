@@ -9,13 +9,13 @@ export default function SSR() {
 }
 
 export const getServerSideProps: GetServerSideProps<FleurSSProps> = async () => {
-  const context = getOrCreateFleurContext()
+  const fleurCtx = getOrCreateFleurContext()
 
-  await context.executeOperation(TimerOps.increment)
-  await context.executeOperation(TimerOps.tick, {
+  await fleurCtx.executeOperation(TimerOps.increment)
+  await fleurCtx.executeOperation(TimerOps.tick, {
     light: false,
     lastUpdate: Date.now(),
   })
 
-  return { props: { __FLEUR_STATE__: serializeContext(context) } }
+  return { props: { __FLEUR_STATE__: serializeContext(fleurCtx) } }
 }
