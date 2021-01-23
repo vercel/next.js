@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-Next.js is universal, which means it executes code first server-side with NodeJS, then on the client-side, `window` object is not defined in NodeJS, so some methods are not supported or availale at build time.
+Next.js is universal, which means it executes code first server-side with NodeJS, then on the client-side, `window` object is not defined in NodeJS, so some methods are not supported at build time.
 During SSR you might have tried to access a router method `push`, `replace`, `back`, which is not supported.
 
 #### Possible Ways to Fix It
