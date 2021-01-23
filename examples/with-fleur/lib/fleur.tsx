@@ -1,9 +1,21 @@
 import { AppContext as FleurAppContext } from '@fleur/fleur'
-import { deserializeContext, NextJsOps } from '@fleur/next'
+import {
+  bindFleurContext,
+  deserializeContext,
+  FleurishNextAppContext,
+  NextJsOps,
+} from '@fleur/next'
+import { FleurContext } from '@fleur/react'
+import { AppInitialProps, AppProps, AppContext } from 'next/app'
+import { useMemo } from 'react'
 import { useRef, useEffect } from 'react'
 import { createContext } from '../domains'
 
 const FLEUR_CONTEXT_KEY = '__FLEUR_CONTEXT__'
+
+export type FleurSSProps = {
+  __FLEUR_STATE__: string
+}
 
 // Keep context static without expose to global(likes window)
 const clientStatic = {}
@@ -29,8 +41,53 @@ export const getOrCreateFleurContext = (state: any = null): FleurAppContext => {
   return context
 }
 
+export interface FleurishFunctionApp<P = {}> {
+  (props: AppProps & P): JSX.Element
+  getInitialProps?(
+    appContext: FleurishNextAppContext
+  ): Promise<Record<string, any> & Partial<AppInitialProps>>
+}
+
+export function appWithFleur<P>(App: FleurishFunctionApp<P>) {
+  const FleurishApp = ({ __FLEUR_STATE__, ...props }: any) => {
+    const fleurContext = useMemo(
+      () => getOrCreateFleurContext(deserializeContext(__FLEUR_STATE__)),
+      [__FLEUR_STATE__]
+    )
+
+    useFleurRehydration(fleurContext, __FLEUR_STATE__)
+
+    return (
+      <FleurContext value={fleurContext}>
+        <App {...props} />
+      </FleurContext>
+    )
+  }
+
+  if (App.getInitialProps) {
+    FleurishApp.getInitialProps = async (
+      nextAppContext: AppContext
+    ): Promise<AppInitialProps> => {
+      const fleurContext = getOrCreateFleurContext()
+      const fleurishAppContext = bindFleurContext(fleurContext, nextAppContext)
+
+      const appProps = await App.getInitialProps?.(fleurishAppContext)
+      const pageProps = await fleurishAppContext.Component.getInitialProps?.(
+        fleurishAppContext.ctx
+      )
+
+      return {
+        ...appProps,
+        pageProps: pageProps,
+      }
+    }
+  }
+
+  return FleurishApp
+}
+
 /** Rehydrate serverSideProps to Stores */
-export const useFleurRehydration = (
+const useFleurRehydration = (
   context: FleurAppContext,
   state: string | null
 ) => {
