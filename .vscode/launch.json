@@ -42,6 +42,16 @@
       "port": 9229,
       "skipFiles": ["<node_internals>/**"],
       "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"]
+    },
+    {
+      "name": "Launch this example",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["run", "debug", "dev", "${fileDirname}"],
+      "skipFiles": ["<node_internals>/**"],
+      "port": 9229
     }
   ]
 }
