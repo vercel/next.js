@@ -515,7 +515,7 @@ export default async function loadCustomRoutes(
     source: '/:before*/{(/+)}:after(|.*/[^/.]+|[^/.]+)',
     destination: '/:before*/:after',
     permanent: true,
-  })
+  } as Redirect)
 
   return {
     headers,
