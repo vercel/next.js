@@ -1,6 +1,8 @@
 /* eslint-disable */
 const withLess = require('@zeit/next-less')
 const lessToJS = require('less-vars-to-js')
+const cssVarsToLessAntd = require('postcss-css-vars-to-less-antd')
+const { parse } = require('postcss')
 const fs = require('fs')
 const path = require('path')
 
@@ -9,10 +11,14 @@ const themeVariables = lessToJS(
   fs.readFileSync(path.resolve(__dirname, './assets/antd-custom.less'), 'utf8')
 )
 
+// Support convert css variable to less
+const process = parse(fs.readFileSync('./assets/globals.css', 'utf8'))
+const newThemeVariables = cssVarsToLessAntd(process, themeVariables)
+
 module.exports = withLess({
   lessLoaderOptions: {
     javascriptEnabled: true,
-    modifyVars: themeVariables, // make your antd custom effective
+    modifyVars: newThemeVariables, // make your antd custom effective
   },
   webpack: (config, { isServer }) => {
     if (isServer) {
