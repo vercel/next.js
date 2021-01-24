@@ -3,6 +3,7 @@ import { UrlObject } from 'url'
 import {
   addBasePath,
   addLocale,
+  getDomainLocale,
   isLocalURL,
   NextRouter,
   PrefetchOptions,
@@ -40,7 +41,7 @@ function prefetch(
   as: string,
   options?: PrefetchOptions
 ): void {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined' || !router) return
   if (!isLocalURL(href)) return
   // Prefetch the JSON page if asked (only in the client)
   // We need to handle a prefetch error here since we may be
@@ -61,7 +62,7 @@ function prefetch(
   prefetched[href + '%' + as + (curLocale ? '%' + curLocale : '')] = true
 }
 
-function isModifiedEvent(event: React.MouseEvent) {
+function isModifiedEvent(event: React.MouseEvent): boolean {
   const { target } = event.currentTarget as HTMLAnchorElement
   return (
     (target && target !== '_self') ||
@@ -98,15 +99,17 @@ function linkClicked(
   }
 
   // replace state instead of push if prop is present
-  router[replace ? 'replace' : 'push'](href, as, { shallow, locale }).then(
-    (success: boolean) => {
-      if (!success) return
-      if (scroll) {
-        window.scrollTo(0, 0)
-        document.body.focus()
-      }
+  router[replace ? 'replace' : 'push'](href, as, {
+    shallow,
+    locale,
+    scroll,
+  }).then((success: boolean) => {
+    if (!success) return
+    if (scroll) {
+      // FIXME: proper route announcing at Router level, not Link:
+      document.body.focus()
     }
-  )
+  })
 }
 
 function Link(props: React.PropsWithChildren<LinkProps>) {
@@ -295,13 +298,19 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
   // defined, we specify the current 'href', so that repetition is not needed by the user
   if (props.passHref || (child.type === 'a' && !('href' in child.props))) {
-    childProps.href = addBasePath(
-      addLocale(
-        as,
-        typeof locale !== 'undefined' ? locale : router && router.locale,
-        router && router.defaultLocale
-      )
+    const curLocale =
+      typeof locale !== 'undefined' ? locale : router && router.locale
+
+    const localeDomain = getDomainLocale(
+      as,
+      curLocale,
+      router && router.locales,
+      router && router.domainLocales
     )
+
+    childProps.href =
+      localeDomain ||
+      addBasePath(addLocale(as, curLocale, router && router.defaultLocale))
   }
 
   return React.cloneElement(child, childProps)

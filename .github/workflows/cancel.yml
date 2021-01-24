@@ -1,0 +1,17 @@
+name: Cancel
+on:
+  pull_request_target:
+    types:
+      - edited
+      - synchronize
+
+jobs:
+  cancel:
+    name: 'Cancel Previous Runs'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: styfle/cancel-workflow-action@0.5.0
+        with:
+          workflow_id: 444921, 444987
+          access_token: ${{ github.token }}
