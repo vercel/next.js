@@ -515,6 +515,7 @@ export default async function loadCustomRoutes(
     source: '/:before*/{(/+)}:after(|.*/[^/.]+|[^/.]+)',
     destination: '/:before*/:after',
     permanent: true,
+    locale: config.i18n ? false : undefined,
   } as Redirect)
 
   return {
