@@ -37,9 +37,9 @@ At the end, a `.env.local` [file](https://nextjs.org/docs/basic-features/environ
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```
-npx create-next-app --example with-graphql-faunadb with-graphql-faunadb
+npx create-next-app --example with-graphql-faunadb with-graphql-faunadb-app
 # or
-yarn create next-app --example with-graphql-faunadb with-graphql-faunadb
+yarn create next-app --example with-graphql-faunadb with-graphql-faunadb-app
 ```
 
 ### Run locally
