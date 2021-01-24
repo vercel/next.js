@@ -399,13 +399,13 @@ To use class components with `withRouter`, the component needs to accept a route
 
 ```tsx
 import React from 'react'
-import { withRouter, SingletonRouter } from 'next/router'
+import { withRouter, NextRouter } from 'next/router'
 
-interface WithRouterComponent {
-  router: SingletonRouter
+interface WithRouterProps {
+  router: NextRouter
 }
 
-interface MyComponentProps extends WithRouterComponent {}
+interface MyComponentProps extends WithRouterProps {}
 
 class MyComponent extends React.Component<MyComponentProps> {
   render() {
