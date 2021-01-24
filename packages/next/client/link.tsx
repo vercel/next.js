@@ -257,8 +257,10 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     },
     [childRef, setIntersectionRef]
   )
+  const isLocalUrl: boolean = isLocalURL(href)
+
   useEffect(() => {
-    const shouldPrefetch = isVisible && p && isLocalURL(href)
+    const shouldPrefetch = isVisible && p && isLocalURL
     const curLocale =
       typeof locale !== 'undefined' ? locale : router && router.locale
     const isPrefetched =
@@ -288,7 +290,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   }
 
   childProps.onMouseEnter = (e: React.MouseEvent) => {
-    if (!isLocalURL(href)) return
+    if (!isLocalUrl) return
     if (child.props && typeof child.props.onMouseEnter === 'function') {
       child.props.onMouseEnter(e)
     }
