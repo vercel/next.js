@@ -2,10 +2,14 @@ import { AppContext as FleurAppContext } from '@fleur/fleur'
 import {
   bindFleurContext,
   deserializeContext,
+  FleurishGetServerSidePropsContext,
+  FleurishGetStaticPropsContext,
   FleurishNextAppContext,
   NextJsOps,
+  serializeContext,
 } from '@fleur/next'
 import { FleurContext } from '@fleur/react'
+import { GetServerSidePropsResult, GetStaticPropsResult } from 'next'
 import { AppInitialProps, AppProps, AppContext } from 'next/app'
 import { useMemo } from 'react'
 import { useRef, useEffect } from 'react'
@@ -111,4 +115,58 @@ const useFleurRehydration = (
   }, [context, state])
 
   isFirstRendering.current = false
+}
+
+export const getServerSidePropsWithFleur = <
+  GSSP extends (
+    context: FleurishGetServerSidePropsContext
+  ) => Promise<GetServerSidePropsResult<any>>
+>(
+  getServerSideProps: GSSP
+) => {
+  return async (
+    context: FleurishGetServerSidePropsContext
+  ): Promise<ReturnType<GSSP>> => {
+    const fleurCtx = getOrCreateFleurContext()
+    context.executeOperation = fleurCtx.executeOperation
+    context.getStore = fleurCtx.getStore
+
+    const result = await getServerSideProps(context)
+
+    if ('props' in result) {
+      return {
+        ...result,
+        props: { ...result.props, __FLEUR_STATE__: serializeContext(fleurCtx) },
+      }
+    }
+
+    return result
+  }
+}
+
+export const getStaticPropsWithFleur = <
+  GSP extends (
+    context: FleurishGetStaticPropsContext
+  ) => Promise<GetStaticPropsResult<any>>
+>(
+  getStaticProps: GSP
+) => {
+  return async (
+    context: FleurishGetStaticPropsContext
+  ): Promise<ReturnType<GSP>> => {
+    const fleurCtx = getOrCreateFleurContext()
+    context.executeOperation = fleurCtx.executeOperation
+    context.getStore = fleurCtx.getStore
+
+    const result = await getStaticProps(context)
+
+    if ('props' in result) {
+      return {
+        ...result,
+        props: { ...result.props, __FLEUR_STATE__: serializeContext(fleurCtx) },
+      }
+    }
+
+    return result
+  }
 }

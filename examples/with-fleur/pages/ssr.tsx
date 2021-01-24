@@ -1,27 +1,24 @@
-import { serializeContext } from '@fleur/next'
-import { GetServerSideProps, NextPage } from 'next'
+import { FleurishNextPage } from '@fleur/next'
 import { Page } from '../components/page'
 import { TimerOps } from '../domains/timer'
-import { FleurSSProps, getOrCreateFleurContext } from '../lib/fleur'
+import { getServerSidePropsWithFleur } from '../lib/fleur'
 
 interface Props {}
 
-export const SSR: NextPage<Props> = () => {
+export const SSR: FleurishNextPage<Props> = () => {
   return <Page />
 }
 
 export default SSR
 
-export const getServerSideProps: GetServerSideProps<
-  FleurSSProps & Props
-> = async () => {
-  const fleurCtx = getOrCreateFleurContext()
+export const getServerSideProps = getServerSidePropsWithFleur(
+  async (context) => {
+    await context.executeOperation(TimerOps.increment)
+    await context.executeOperation(TimerOps.tick, {
+      light: false,
+      lastUpdate: Date.now(),
+    })
 
-  await fleurCtx.executeOperation(TimerOps.increment)
-  await fleurCtx.executeOperation(TimerOps.tick, {
-    light: false,
-    lastUpdate: Date.now(),
-  })
-
-  return { props: { __FLEUR_STATE__: serializeContext(fleurCtx) } }
-}
+    return { props: {} }
+  }
+)
