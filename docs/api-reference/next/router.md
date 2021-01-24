@@ -395,7 +395,7 @@ export default withRouter(Page)
 
 ### Typescript
 
-To use class components with `withRouter`, the component needs to accept a router prop like so
+To use class components with `withRouter`, the component needs to accept a router prop:
 
 ```tsx
 import React from 'react'
