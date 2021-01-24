@@ -48,7 +48,10 @@ export interface FleurishFunctionApp<P = {}> {
   ): Promise<Record<string, any> & Partial<AppInitialProps>>
 }
 
-export function appWithFleur<P>(App: FleurishFunctionApp<P>) {
+export function appWithFleur<P>(
+  App: FleurishFunctionApp<P>,
+  { enableGetIntialProps }: { enableGetIntialProps: boolean }
+) {
   const FleurishApp = ({
     pageProps: { __FLEUR_STATE__, ...pageProps },
     ...props
@@ -67,7 +70,7 @@ export function appWithFleur<P>(App: FleurishFunctionApp<P>) {
     )
   }
 
-  if (App.getInitialProps) {
+  if (enableGetIntialProps) {
     FleurishApp.getInitialProps = async (
       nextAppContext: AppContext
     ): Promise<AppInitialProps> => {
@@ -81,7 +84,7 @@ export function appWithFleur<P>(App: FleurishFunctionApp<P>) {
 
       return {
         ...appProps,
-        pageProps: pageProps,
+        pageProps,
       }
     }
   }

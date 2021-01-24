@@ -12,4 +12,8 @@ const FleurApp: FleurishFunctionApp = ({ Component, pageProps }: AppProps) => {
 //   return {}
 // }
 
-export default appWithFleur(FleurApp)
+export default appWithFleur(FleurApp, {
+  // If you want to use `getInitialProps`, set it to `true`
+  // (If enabled, automatically static rendering will no longer work)
+  enableGetIntialProps: false,
+})
