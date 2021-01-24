@@ -4,7 +4,9 @@ import { Page } from '../components/page'
 import { TimerOps } from '../domains/timer'
 import { FleurSSProps, getOrCreateFleurContext } from '../lib/fleur'
 
-const Index: NextPage<{}, FleurSSProps> = () => {
+interface Props {}
+
+const Index: NextPage<Props, FleurSSProps> = () => {
   return <Page />
 }
 

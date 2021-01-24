@@ -1,12 +1,16 @@
 import { serializeContext } from '@fleur/next'
-import { GetStaticProps } from 'next'
+import { GetStaticProps, NextPage } from 'next'
 import { Page } from '../components/page'
 import { TimerOps } from '../domains/timer'
 import { getOrCreateFleurContext, FleurSSProps } from '../lib/fleur'
 
-export default function SSG() {
+interface Props {}
+
+export const SSG: NextPage<Props> = () => {
   return <Page />
 }
+
+export default SSG
 
 export const getStaticProps: GetStaticProps<FleurSSProps> = async () => {
   const fleurCtx = getOrCreateFleurContext()
