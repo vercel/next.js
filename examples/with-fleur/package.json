@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@fleur/fleur": "3.0.0",
-    "@fleur/next": "1.0.0-dev.3",
+    "@fleur/next": "1.0.0-dev.5",
     "@fleur/react": "5.0.0-beta.1",
     "next": "latest",
     "react": "17.0.1",
