@@ -407,10 +407,14 @@ function processRoutes<T>(
 
       r.source = `/:nextInternalLocale(${config.i18n.locales
         .map((locale: string) => escapeStringRegexp(locale))
-        .join('|')})${r.source}`
+        .join('|')})${
+        r.source === '/' && !config.trailingSlash ? '' : r.source
+      }`
 
       if (r.destination && r.destination?.startsWith('/')) {
-        r.destination = `/:nextInternalLocale${r.destination}`
+        r.destination = `/:nextInternalLocale${
+          r.destination === '/' && !config.trailingSlash ? '' : r.destination
+        }`
       }
     }
     r.source = `${srcBasePath}${r.source}`

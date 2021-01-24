@@ -1,19 +1,21 @@
 /* eslint-env jest */
 
-import { join } from 'path'
+import cheerio from 'cheerio'
+import fs from 'fs-extra'
 import {
-  killApp,
-  findPort,
-  launchApp,
-  nextStart,
-  nextBuild,
   check,
-  hasRedbox,
+  findPort,
   getRedboxHeader,
+  hasRedbox,
+  killApp,
+  launchApp,
+  nextBuild,
+  nextStart,
+  renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import fs from 'fs-extra'
+import { join } from 'path'
 
 jest.setTimeout(1000 * 30)
 
@@ -42,7 +44,28 @@ async function getComputed(browser, id, prop) {
     return val
   }
   if (typeof val === 'string') {
-    return parseInt(val, 10)
+    const v = parseInt(val, 10)
+    if (isNaN(v)) {
+      return val
+    }
+    return v
+  }
+  return null
+}
+
+async function getComputedStyle(browser, id, prop) {
+  const val = await browser.eval(
+    `window.getComputedStyle(document.getElementById('${id}')).${prop}`
+  )
+  if (typeof val === 'number') {
+    return val
+  }
+  if (typeof val === 'string') {
+    const v = parseInt(val, 10)
+    if (isNaN(v)) {
+      return val
+    }
+    return v
   }
   return null
 }
@@ -80,7 +103,7 @@ function runTests(mode) {
       expect(
         await hasImageMatchingUrl(
           browser,
-          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=1200&q=75`
+          `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=828&q=75`
         )
       ).toBe(true)
     } finally {
@@ -88,6 +111,62 @@ function runTests(mode) {
         await browser.close()
       }
     }
+  })
+
+  it('should preload priority images', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/priority')
+
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
+
+        if (result === 0) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      const links = await browser.elementsByCss('link[rel=preload][as=image]')
+      const entries = []
+      for (const link of links) {
+        const imagesrcset = await link.getAttribute('imagesrcset')
+        const imagesizes = await link.getAttribute('imagesizes')
+        entries.push({ imagesrcset, imagesizes })
+      }
+      expect(entries).toEqual([
+        {
+          imagesizes: null,
+          imagesrcset:
+            '/_next/image?url=%2Ftest.jpg&w=640&q=75 1x, /_next/image?url=%2Ftest.jpg&w=828&q=75 2x',
+        },
+        {
+          imagesizes: '100vw',
+          imagesrcset:
+            '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
+        },
+      ])
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should not pass through user-provided srcset (causing a flash)', async () => {
+    const html = await renderViaHTTP(appPort, '/drop-srcset')
+    const $html = cheerio.load(html)
+
+    const els = [].slice.apply($html('img'))
+    expect(els.length).toBe(1)
+
+    const [el] = els
+    expect(el.attribs.src).toBeDefined()
+    expect(el.attribs.srcset).toBeUndefined()
+    expect(el.attribs.srcSet).toBeUndefined()
   })
 
   it('should update the image on src change', async () => {
@@ -222,9 +301,7 @@ function runTests(mode) {
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
       )
-      expect(await browser.elementById(id).getAttribute('sizes')).toBe(
-        '(max-width: 640px) 640px, (max-width: 750px) 750px, (max-width: 828px) 828px, (max-width: 1080px) 1080px, (max-width: 1200px) 1200px, (max-width: 1920px) 1920px, (max-width: 2048px) 2048px, 3840px'
-      )
+      expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
       await browser.setDimensions({
         width: width + delta,
         height: height + delta,
@@ -264,9 +341,7 @@ function runTests(mode) {
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
       )
-      expect(await browser.elementById(id).getAttribute('sizes')).toBe(
-        '(max-width: 640px) 640px, (max-width: 750px) 750px, (max-width: 828px) 828px, (max-width: 1080px) 1080px, (max-width: 1200px) 1200px, (max-width: 1920px) 1920px, (max-width: 2048px) 2048px, 3840px'
-      )
+      expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
       await browser.setDimensions({
         width: width + delta,
         height: height + delta,
@@ -306,9 +381,7 @@ function runTests(mode) {
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
       )
-      expect(await browser.elementById(id).getAttribute('sizes')).toBe(
-        '(max-width: 640px) 640px, (max-width: 750px) 750px, (max-width: 828px) 828px, (max-width: 1080px) 1080px, (max-width: 1200px) 1200px, (max-width: 1920px) 1920px, (max-width: 2048px) 2048px, 3840px'
-      )
+      expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
       expect(await getComputed(browser, id, 'width')).toBe(width)
       expect(await getComputed(browser, id, 'height')).toBe(height)
       const delta = 150
@@ -390,7 +463,7 @@ function runTests(mode) {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/missing-src')
 
-      await hasRedbox(browser)
+      expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         'Image is missing required "src" property. Make sure you pass "src" in props to the `next/image` component. Received: {"width":200}'
       )
@@ -399,7 +472,7 @@ function runTests(mode) {
     it('should show invalid src error', async () => {
       const browser = await webdriver(appPort, '/invalid-src')
 
-      await hasRedbox(browser)
+      expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
       )
@@ -408,7 +481,7 @@ function runTests(mode) {
     it('should show invalid src error when protocol-relative', async () => {
       const browser = await webdriver(appPort, '/invalid-src-proto-relative')
 
-      await hasRedbox(browser)
+      expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
       )
@@ -417,12 +490,82 @@ function runTests(mode) {
     it('should show invalid unsized error', async () => {
       const browser = await webdriver(appPort, '/invalid-unsized')
 
-      await hasRedbox(browser)
+      expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         'Image with src "/test.png" has deprecated "unsized" property, which was removed in favor of the "layout=\'fill\'" property'
       )
     })
   }
+
+  it('should correctly inherit the visibilty of the parent component', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/hidden-parent')
+
+      const id = 'hidden-image'
+
+      // Wait for image to load:
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById(${JSON.stringify(id)}).naturalWidth`
+        )
+
+        if (result < 1) {
+          throw new Error('Image not ready')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await waitFor(1000)
+
+      const desiredVisibilty = await getComputed(
+        browser,
+        id,
+        'style.visibility'
+      )
+      expect(desiredVisibilty).toBe('inherit')
+
+      const actualVisibility = await getComputedStyle(browser, id, 'visibility')
+      expect(actualVisibility).toBe('hidden')
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should correctly ignore prose styles', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/prose')
+
+      const id = 'prose-image'
+
+      // Wait for image to load:
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById(${JSON.stringify(id)}).naturalWidth`
+        )
+
+        if (result < 1) {
+          throw new Error('Image not ready')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      await waitFor(1000)
+
+      const computedWidth = await getComputed(browser, id, 'width')
+      const computedHeight = await getComputed(browser, id, 'height')
+      expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1, 1)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
 
   // Tests that use the `unsized` attribute:
   if (mode !== 'dev') {

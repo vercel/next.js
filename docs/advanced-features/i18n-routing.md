@@ -39,6 +39,7 @@ module.exports = {
     defaultLocale: 'en-US',
     // This is a list of locale domains and the default locale they
     // should handle (these are only required when setting up domain routing)
+    // Note: subdomains must be included in the domain value to be matched e.g. "fr.example.com".
     domains: [
       {
         domain: 'example.com',
@@ -213,6 +214,12 @@ export default function IndexPage(props) {
   )
 }
 ```
+
+## Leveraging the NEXT_LOCALE cookie
+
+Next.js supports overriding the accept-language header with a `NEXT_LOCALE=the-locale` cookie. This cookie can be set using a language switcher and then when a user comes back to the site it will leverage the locale specified in the cookie.
+
+For example, if a user prefers the locale `fr` but a `NEXT_LOCALE=en` cookie is set the `en` locale will be used instead until the cookie is removed or expired.
 
 ## Search Engine Optimization
 

@@ -11,22 +11,32 @@ import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
 
+export type DomainLocales = Array<{
+  http?: true
+  domain: string
+  locales?: string[]
+  defaultLocale: string
+}>
+
 export type NextConfig = { [key: string]: any } & {
-  i18n: {
-    domains?: Array<{
-      http?: true
-      domain: string
-      locales?: string[]
-      defaultLocale: string
-    }>
+  i18n?: {
     locales: string[]
     defaultLocale: string
+    domains?: DomainLocales
     localeDetection?: false
   } | null
 
   headers?: () => Promise<Header[]>
   rewrites?: () => Promise<Rewrite[]>
   redirects?: () => Promise<Redirect[]>
+
+  trailingSlash?: boolean
+
+  future: {
+    strictPostcssConfiguration: boolean
+    excludeDefaultMomentLocales: boolean
+    webpack5: boolean
+  }
 }
 
 const defaultConfig: NextConfig = {
@@ -59,6 +69,7 @@ const defaultConfig: NextConfig = {
   sassOptions: {},
   trailingSlash: false,
   i18n: null,
+  productionBrowserSourceMaps: false,
   experimental: {
     cpus: Math.max(
       1,
@@ -71,14 +82,16 @@ const defaultConfig: NextConfig = {
     reactMode: 'legacy',
     workerThreads: false,
     pageEnv: false,
-    productionBrowserSourceMaps: false,
+    optimizeFonts: false,
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
     scriptLoader: false,
   },
   future: {
+    strictPostcssConfiguration: false,
     excludeDefaultMomentLocales: false,
+    webpack5: Number(process.env.NEXT_PRIVATE_TEST_WEBPACK5_MODE) > 0,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
@@ -336,6 +349,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       ) {
         images.path += '/'
       }
+    }
+
+    if (images.path === imageConfigDefault.path && result.basePath) {
+      images.path = `${result.basePath}${images.path}`
     }
   }
 
