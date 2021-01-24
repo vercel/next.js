@@ -20,10 +20,8 @@ import { isInAmpMode } from '../lib/amp'
 import { AmpStateContext } from '../lib/amp-context'
 import {
   AMP_RENDER_TARGET,
-  PERMANENT_REDIRECT_STATUS,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
-  TEMPORARY_REDIRECT_STATUS,
 } from '../lib/constants'
 import { defaultHead } from '../lib/head'
 import { HeadManagerContext } from '../lib/head-manager-context'
@@ -52,6 +50,12 @@ import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import optimizeAmp from './optimize-amp'
+import {
+  allowedStatusCodes,
+  getRedirectStatus,
+  Redirect,
+} from '../../lib/load-custom-routes'
+import { DomainLocales } from './config'
 
 function noRouter() {
   const message =
@@ -68,8 +72,10 @@ class ServerRouter implements NextRouter {
   events: any
   isFallback: boolean
   locale?: string
+  isReady: boolean
   locales?: string[]
   defaultLocale?: string
+  domainLocales?: DomainLocales
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
@@ -78,10 +84,12 @@ class ServerRouter implements NextRouter {
     query: ParsedUrlQuery,
     as: string,
     { isFallback }: { isFallback: boolean },
+    isReady: boolean,
     basePath: string,
     locale?: string,
     locales?: string[],
-    defaultLocale?: string
+    defaultLocale?: string,
+    domainLocales?: DomainLocales
   ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
@@ -92,7 +100,10 @@ class ServerRouter implements NextRouter {
     this.locale = locale
     this.locales = locales
     this.defaultLocale = defaultLocale
+    this.isReady = isReady
+    this.domainLocales = domainLocales
   }
+
   push(): any {
     noRouter()
   }
@@ -159,15 +170,19 @@ export type RenderOptsPartial = {
   previewProps: __ApiPreviewProps
   basePath: string
   unstable_runtimeJS?: false
+  unstable_JsPreload?: false
   optimizeFonts: boolean
   fontManifest?: FontManifest
   optimizeImages: boolean
+  optimizeCss: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
+  distDir?: string
   locale?: string
   locales?: string[]
   defaultLocale?: string
+  domainLocales?: DomainLocales
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -204,10 +219,13 @@ function renderDocument(
     gip,
     appGip,
     unstable_runtimeJS,
+    unstable_JsPreload,
     devOnlyCacheBusterQueryString,
+    scriptLoader,
     locale,
     locales,
     defaultLocale,
+    domainLocales,
   }: RenderOpts & {
     props: any
     docComponentsRendered: DocumentProps['docComponentsRendered']
@@ -229,6 +247,7 @@ function renderDocument(
     gip?: boolean
     appGip?: boolean
     devOnlyCacheBusterQueryString: string
+    scriptLoader: any
   }
 ): string {
   return (
@@ -257,22 +276,7 @@ function renderDocument(
             locale,
             locales,
             defaultLocale,
-            head: React.Children.toArray(docProps.head || [])
-              .map((elem) => {
-                const { children } = elem?.props
-                return [
-                  elem?.type,
-                  {
-                    ...elem?.props,
-                    children: children
-                      ? typeof children === 'string'
-                        ? children
-                        : children.join('')
-                      : undefined,
-                  },
-                ]
-              })
-              .filter(Boolean) as any,
+            domainLocales,
           },
           buildManifest,
           docComponentsRendered,
@@ -286,7 +290,9 @@ function renderDocument(
           assetPrefix,
           headTags,
           unstable_runtimeJS,
+          unstable_JsPreload,
           devOnlyCacheBusterQueryString,
+          scriptLoader,
           locale,
           ...docProps,
         })}
@@ -304,44 +310,52 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
   )
 }
 
-type Redirect = {
-  permanent: boolean
-  destination: string
-}
+function checkRedirectValues(
+  redirect: Redirect,
+  req: IncomingMessage,
+  method: 'getStaticProps' | 'getServerSideProps'
+) {
+  const { destination, permanent, statusCode, basePath } = redirect
+  let errors: string[] = []
 
-function checkRedirectValues(redirect: Redirect, req: IncomingMessage) {
-  const { destination, permanent } = redirect
-  let invalidPermanent = typeof permanent !== 'boolean'
-  let invalidDestination = typeof destination !== 'string'
+  const hasStatusCode = typeof statusCode !== 'undefined'
+  const hasPermanent = typeof permanent !== 'undefined'
 
-  if (invalidPermanent || invalidDestination) {
+  if (hasPermanent && hasStatusCode) {
+    errors.push(`\`permanent\` and \`statusCode\` can not both be provided`)
+  } else if (hasPermanent && typeof permanent !== 'boolean') {
+    errors.push(`\`permanent\` must be \`true\` or \`false\``)
+  } else if (hasStatusCode && !allowedStatusCodes.has(statusCode!)) {
+    errors.push(
+      `\`statusCode\` must undefined or one of ${[...allowedStatusCodes].join(
+        ', '
+      )}`
+    )
+  }
+  const destinationType = typeof destination
+
+  if (destinationType !== 'string') {
+    errors.push(
+      `\`destination\` should be string but received ${destinationType}`
+    )
+  }
+
+  const basePathType = typeof basePath
+
+  if (basePathType !== 'undefined' && basePathType !== 'boolean') {
+    errors.push(
+      `\`basePath\` should be undefined or a false, received ${basePathType}`
+    )
+  }
+
+  if (errors.length > 0) {
     throw new Error(
-      `Invalid redirect object returned from getStaticProps for ${req.url}\n` +
-        `Expected${
-          invalidPermanent
-            ? ` \`permanent\` to be boolean but received ${typeof permanent}`
-            : ''
-        }${invalidPermanent && invalidDestination ? ' and' : ''}${
-          invalidDestination
-            ? ` \`destinatino\` to be string but received ${typeof destination}`
-            : ''
-        }\n` +
+      `Invalid redirect object returned from ${method} for ${req.url}\n` +
+        errors.join(' and ') +
+        '\n' +
         `See more info here: https://err.sh/vercel/next.js/invalid-redirect-gssp`
     )
   }
-}
-
-function handleRedirect(res: ServerResponse, redirect: Redirect) {
-  const statusCode = redirect.permanent
-    ? PERMANENT_REDIRECT_STATUS
-    : TEMPORARY_REDIRECT_STATUS
-
-  if (redirect.permanent) {
-    res.setHeader('Refresh', `0;url=${redirect.destination}`)
-  }
-  res.statusCode = statusCode
-  res.setHeader('Location', redirect.destination)
-  res.end()
 }
 
 export async function renderToHTML(
@@ -357,6 +371,9 @@ export async function renderToHTML(
   renderOpts.devOnlyCacheBusterQueryString = renderOpts.dev
     ? renderOpts.devOnlyCacheBusterQueryString || `?ts=${Date.now()}`
     : ''
+
+  // don't modify original query object
+  query = Object.assign({}, query)
 
   const {
     err,
@@ -414,7 +431,7 @@ export async function renderToHTML(
   const isFallback = !!query.__nextFallback
   delete query.__nextFallback
   delete query.__nextLocale
-  delete query.__next404
+  delete query.__nextDefaultLocale
 
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.nextExport
@@ -497,8 +514,11 @@ export async function renderToHTML(
             }
           : {}),
       }
+      renderOpts.resolvedAsPath = `${pathname}${
+        // ensure trailing slash is present for non-dynamic auto-export pages
+        req.url!.endsWith('/') && pathname !== '/' && !pageIsDynamic ? '/' : ''
+      }`
       req.url = pathname
-      renderOpts.resolvedAsPath = pathname
       renderOpts.nextExport = true
     }
 
@@ -513,6 +533,7 @@ export async function renderToHTML(
 
   // url will always be set
   const asPath: string = renderOpts.resolvedAsPath || (req.url as string)
+  const routerIsReady = !!(getServerSideProps || hasPageGetInitialProps)
   const router = new ServerRouter(
     pathname,
     query,
@@ -520,10 +541,12 @@ export async function renderToHTML(
     {
       isFallback: isFallback,
     },
+    routerIsReady,
     basePath,
     renderOpts.locale,
     renderOpts.locales,
-    renderOpts.defaultLocale
+    renderOpts.defaultLocale,
+    renderOpts.domainLocales
   )
   const ctx = {
     err,
@@ -554,6 +577,8 @@ export async function renderToHTML(
 
   let head: JSX.Element[] = defaultHead(inAmpMode)
 
+  let scriptLoader: any = {}
+
   const AppContainer = ({ children }: any) => (
     <RouterContext.Provider value={router}>
       <AmpStateContext.Provider value={ampState}>
@@ -562,6 +587,10 @@ export async function renderToHTML(
             updateHead: (state) => {
               head = state
             },
+            updateScripts: (scripts) => {
+              scriptLoader = scripts
+            },
+            scripts: {},
             mountedInstances: new Set(),
           }}
         >
@@ -607,6 +636,7 @@ export async function renderToHTML(
             : undefined),
           locales: renderOpts.locales,
           locale: renderOpts.locale,
+          defaultLocale: renderOpts.defaultLocale,
         })
       } catch (staticPropsError) {
         // remove not found error code to prevent triggering legacy
@@ -625,8 +655,8 @@ export async function renderToHTML(
         (key) =>
           key !== 'revalidate' &&
           key !== 'props' &&
-          key !== 'unstable_redirect' &&
-          key !== 'unstable_notFound'
+          key !== 'redirect' &&
+          key !== 'notFound'
       )
 
       if (invalidKeys.includes('unstable_revalidate')) {
@@ -637,17 +667,35 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getStaticProps', invalidKeys))
       }
 
-      if (data.unstable_notFound) {
-        ;(renderOpts as any).ssgNotFound = true
-        ;(renderOpts as any).revalidate = false
-        return null
+      if (process.env.NODE_ENV !== 'production') {
+        if (
+          typeof (data as any).notFound !== 'undefined' &&
+          typeof (data as any).redirect !== 'undefined'
+        ) {
+          throw new Error(
+            `\`redirect\` and \`notFound\` can not both be returned from ${
+              isSSG ? 'getStaticProps' : 'getServerSideProps'
+            } at the same time. Page: ${pathname}\nSee more info here: https://err.sh/next.js/gssp-mixed-not-found-redirect`
+          )
+        }
+      }
+
+      if ('notFound' in data && data.notFound) {
+        if (pathname === '/404') {
+          throw new Error(
+            `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
+          )
+        }
+
+        ;(renderOpts as any).isNotFound = true
       }
 
       if (
-        data.unstable_redirect &&
-        typeof data.unstable_redirect === 'object'
+        'redirect' in data &&
+        data.redirect &&
+        typeof data.redirect === 'object'
       ) {
-        checkRedirectValues(data.unstable_redirect, req)
+        checkRedirectValues(data.redirect as Redirect, req, 'getStaticProps')
 
         if (isBuildTimeSSG) {
           throw new Error(
@@ -656,19 +704,20 @@ export async function renderToHTML(
           )
         }
 
-        if (isDataReq) {
-          data.props = {
-            __N_REDIRECT: data.unstable_redirect.destination,
-          }
-        } else {
-          handleRedirect(res, data.unstable_redirect)
-          return null
+        ;(data as any).props = {
+          __N_REDIRECT: data.redirect.destination,
+          __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
         }
+        if (typeof data.redirect.basePath !== 'undefined') {
+          ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
+        }
+        ;(renderOpts as any).isRedirect = true
       }
 
       if (
         (dev || isBuildTimeSSG) &&
-        !isSerializableProps(pathname, 'getStaticProps', data.props)
+        !(renderOpts as any).isNotFound &&
+        !isSerializableProps(pathname, 'getStaticProps', (data as any).props)
       ) {
         // this fn should throw an error instead of ever returning `false`
         throw new Error(
@@ -676,41 +725,65 @@ export async function renderToHTML(
         )
       }
 
-      if (typeof data.revalidate === 'number') {
-        if (!Number.isInteger(data.revalidate)) {
+      if ('revalidate' in data) {
+        if (typeof data.revalidate === 'number') {
+          if (!Number.isInteger(data.revalidate)) {
+            throw new Error(
+              `A page's revalidate option must be seconds expressed as a natural number for ${req.url}. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
+                `\nTry changing the value to '${Math.ceil(
+                  data.revalidate
+                )}' or using \`Math.ceil()\` if you're computing the value.`
+            )
+          } else if (data.revalidate <= 0) {
+            throw new Error(
+              `A page's revalidate option can not be less than or equal to zero for ${req.url}. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
+                `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
+                `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
+            )
+          } else if (data.revalidate > 31536000) {
+            // if it's greater than a year for some reason error
+            console.warn(
+              `Warning: A page's revalidate option was set to more than a year for ${req.url}. This may have been done in error.` +
+                `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
+            )
+          }
+        } else if (data.revalidate === true) {
+          // When enabled, revalidate after 1 second. This value is optimal for
+          // the most up-to-date page possible, but without a 1-to-1
+          // request-refresh ratio.
+          data.revalidate = 1
+        } else if (
+          data.revalidate === false ||
+          typeof data.revalidate === 'undefined'
+        ) {
+          // By default, we never revalidate.
+          data.revalidate = false
+        } else {
           throw new Error(
-            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
-              `\nTry changing the value to '${Math.ceil(
-                data.revalidate
-              )}' or using \`Math.ceil()\` if you're computing the value.`
-          )
-        } else if (data.revalidate <= 0) {
-          throw new Error(
-            `A page's revalidate option can not be less than or equal to zero. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
-              `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
-              `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
-          )
-        } else if (data.revalidate > 31536000) {
-          // if it's greater than a year for some reason error
-          console.warn(
-            `Warning: A page's revalidate option was set to more than a year. This may have been done in error.` +
-              `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
+            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers and strings cannot be used. Received '${JSON.stringify(
+              data.revalidate
+            )}' for ${req.url}`
           )
         }
-      } else if (data.revalidate === true) {
-        // When enabled, revalidate after 1 second. This value is optimal for
-        // the most up-to-date page possible, but without a 1-to-1
-        // request-refresh ratio.
-        data.revalidate = 1
       } else {
         // By default, we never revalidate.
-        data.revalidate = false
+        ;(data as any).revalidate = false
       }
 
-      props.pageProps = Object.assign({}, props.pageProps, data.props)
+      // this must come after revalidate is attached
+      if ((renderOpts as any).isNotFound) {
+        return null
+      }
+
+      props.pageProps = Object.assign(
+        {},
+        props.pageProps,
+        'props' in data ? data.props : undefined
+      )
       // pass up revalidate and props for export
       // TODO: change this to a different passing mechanism
-      ;(renderOpts as any).revalidate = data.revalidate
+      ;(renderOpts as any).revalidate =
+        'revalidate' in data ? data.revalidate : undefined
       ;(renderOpts as any).pageData = props
     }
 
@@ -733,6 +806,7 @@ export async function renderToHTML(
             : undefined),
           locales: renderOpts.locales,
           locale: renderOpts.locale,
+          defaultLocale: renderOpts.defaultLocale,
         })
       } catch (serverSidePropsError) {
         // remove not found error code to prevent triggering legacy
@@ -748,32 +822,58 @@ export async function renderToHTML(
       }
 
       const invalidKeys = Object.keys(data).filter(
-        (key) => key !== 'props' && key !== 'unstable_redirect'
+        (key) => key !== 'props' && key !== 'redirect' && key !== 'notFound'
       )
+
+      if ((data as any).unstable_notFound) {
+        throw new Error(
+          `unstable_notFound has been renamed to notFound, please update the field to continue. Page: ${pathname}`
+        )
+      }
+      if ((data as any).unstable_redirect) {
+        throw new Error(
+          `unstable_redirect has been renamed to redirect, please update the field to continue. Page: ${pathname}`
+        )
+      }
 
       if (invalidKeys.length) {
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
       }
 
-      if (
-        data.unstable_redirect &&
-        typeof data.unstable_redirect === 'object'
-      ) {
-        checkRedirectValues(data.unstable_redirect, req)
-
-        if (isDataReq) {
-          data.props = {
-            __N_REDIRECT: data.unstable_redirect.destination,
-          }
-        } else {
-          handleRedirect(res, data.unstable_redirect)
-          return null
+      if ('notFound' in data && data.notFound) {
+        if (pathname === '/404') {
+          throw new Error(
+            `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
+          )
         }
+
+        ;(renderOpts as any).isNotFound = true
+        return null
+      }
+
+      if ('redirect' in data && typeof data.redirect === 'object') {
+        checkRedirectValues(
+          data.redirect as Redirect,
+          req,
+          'getServerSideProps'
+        )
+        ;(data as any).props = {
+          __N_REDIRECT: data.redirect.destination,
+          __N_REDIRECT_STATUS: getRedirectStatus(data.redirect),
+        }
+        if (typeof data.redirect.basePath !== 'undefined') {
+          ;(data as any).props.__N_REDIRECT_BASE_PATH = data.redirect.basePath
+        }
+        ;(renderOpts as any).isRedirect = true
       }
 
       if (
         (dev || isBuildTimeSSG) &&
-        !isSerializableProps(pathname, 'getServerSideProps', data.props)
+        !isSerializableProps(
+          pathname,
+          'getServerSideProps',
+          (data as any).props
+        )
       ) {
         // this fn should throw an error instead of ever returning `false`
         throw new Error(
@@ -781,7 +881,7 @@ export async function renderToHTML(
         )
       }
 
-      props.pageProps = Object.assign({}, props.pageProps, data.props)
+      props.pageProps = Object.assign({}, props.pageProps, (data as any).props)
       ;(renderOpts as any).pageData = props
     }
   } catch (dataFetchError) {
@@ -803,9 +903,11 @@ export async function renderToHTML(
     )
   }
 
-  // We only need to do this if we want to support calling
-  // _app's getInitialProps for getServerSideProps if not this can be removed
-  if (isDataReq && !isSSG) return props
+  // Avoid rendering page un-necessarily for getServerSideProps data request
+  // and getServerSideProps/getStaticProps redirects
+  if ((isDataReq && !isSSG) || (renderOpts as any).isRedirect) {
+    return props
+  }
 
   // We don't call getStaticProps or getServerSideProps while generating
   // the fallback so make sure to set pageProps to an empty object
@@ -920,6 +1022,7 @@ export async function renderToHTML(
       process.env.NODE_ENV === 'production'
         ? pageConfig.unstable_runtimeJS
         : undefined,
+    unstable_JsPreload: pageConfig.unstable_JsPreload,
     dangerousAsPath: router.asPath,
     ampState,
     props,
@@ -938,6 +1041,7 @@ export async function renderToHTML(
     gip: hasPageGetInitialProps ? true : undefined,
     appGip: !defaultAppGetInitialProps ? true : undefined,
     devOnlyCacheBusterQueryString,
+    scriptLoader,
   })
 
   if (process.env.NODE_ENV !== 'production') {
@@ -978,16 +1082,33 @@ export async function renderToHTML(
     }
   }
 
-  html = await postProcess(
-    html,
-    {
-      getFontDefinition,
-    },
-    {
-      optimizeFonts: renderOpts.optimizeFonts,
-      optimizeImages: renderOpts.optimizeImages,
-    }
-  )
+  // Avoid postProcess if both flags are false
+  if (process.env.__NEXT_OPTIMIZE_FONTS || process.env.__NEXT_OPTIMIZE_IMAGES) {
+    html = await postProcess(
+      html,
+      { getFontDefinition },
+      {
+        optimizeFonts: renderOpts.optimizeFonts,
+        optimizeImages: renderOpts.optimizeImages,
+      }
+    )
+  }
+
+  if (renderOpts.optimizeCss) {
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    const Critters = require('critters')
+    const cssOptimizer = new Critters({
+      ssrMode: true,
+      reduceInlineStyles: false,
+      path: renderOpts.distDir,
+      publicPath: '/_next/',
+      preload: 'media',
+      fonts: false,
+      ...renderOpts.optimizeCss,
+    })
+
+    html = await cssOptimizer.process(html)
+  }
 
   if (inAmpMode || hybridAmp) {
     // fix &amp being escaped for amphtml rel link

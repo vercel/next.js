@@ -1,19 +1,25 @@
 /* eslint-disable class-methods-use-this */
 
-import webpack from 'webpack'
-import sources from 'webpack-sources'
+import {
+  webpack,
+  isWebpack5,
+  onWebpackInit,
+  sources,
+} from 'next/dist/compiled/webpack/webpack'
 
 import CssDependency from './CssDependency'
 import CssModule from './CssModule'
 
-const { ConcatSource, SourceMapSource, OriginalSource } =
-  webpack.sources || sources
-const {
-  Template,
-  util: { createHash },
-} = webpack
+// Destructurings of live bindings must register for updates
+let ConcatSource, SourceMapSource, OriginalSource, Template, createHash
+onWebpackInit(function () {
+  ;({ ConcatSource, SourceMapSource, OriginalSource } = sources)
+  ;({
+    Template,
+    util: { createHash },
+  } = webpack)
+})
 
-const isWebpack5 = parseInt(webpack.version) === 5
 const MODULE_TYPE = 'css/mini-extract'
 
 const pluginName = 'mini-css-extract-plugin'
@@ -162,7 +168,7 @@ class MiniCssExtractPlugin {
 
         if (modules) {
           if (isWebpack5) {
-            const xor = new (require('webpack/lib/util/StringXor'))()
+            const xor = new (require('next/dist/compiled/webpack/webpack').StringXor)()
             for (const m of modules) {
               if (m.type === MODULE_TYPE) {
                 xor.add(compilation.chunkGraph.getModuleHash(m, chunk.runtime))

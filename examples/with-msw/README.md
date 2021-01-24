@@ -8,13 +8,13 @@ In this example we integrate Mock Service Worker with Next by following the next
 1. Setup a [Service Worker instance](./mocks/browser.js) that would intercept all runtime client-side requests via `setupWorker` function.
 1. Setup a ["server" instance](./mocks/server.js) to intercept any server/build time requests (e.g. the one happening in `getServerSideProps`) via `setupServer` function.
 
-Mocking is enabled using the `NEXT_PUBLIC_API_MOCKING` environment variable, which for the sake of the example is saved inside `.env` instead of `.env.development`. In a real app you should move the variable to `.env.development` because mocking should only be done for development.
+Mocking is enabled using the `NEXT_PUBLIC_API_MOCKING` environment variable. By default, mocking is enabled for both development and production. This allows you to have working preview deployments before implementing an actual API. To disable MSW for a specific environment, change the environment variable value in the file corresponding to the environment from `enabled` to `disabled`.
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-msw)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-msw&project-name=with-msw&repository-name=with-msw)
 
 ## How to use
 
@@ -26,4 +26,4 @@ npx create-next-app --example with-msw with-msw-app
 yarn create next-app --example with-msw with-msw-app
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
