@@ -12,7 +12,9 @@ export const SSR: NextPage<Props> = () => {
 
 export default SSR
 
-export const getServerSideProps: GetServerSideProps<FleurSSProps> = async () => {
+export const getServerSideProps: GetServerSideProps<
+  FleurSSProps & Props
+> = async () => {
   const fleurCtx = getOrCreateFleurContext()
 
   await fleurCtx.executeOperation(TimerOps.increment)

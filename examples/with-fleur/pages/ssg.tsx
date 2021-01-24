@@ -12,7 +12,9 @@ export const SSG: NextPage<Props> = () => {
 
 export default SSG
 
-export const getStaticProps: GetStaticProps<FleurSSProps> = async () => {
+export const getStaticProps: GetStaticProps<
+  FleurSSProps & Props
+> = async () => {
   const fleurCtx = getOrCreateFleurContext()
 
   await fleurCtx.executeOperation(TimerOps.increment)
