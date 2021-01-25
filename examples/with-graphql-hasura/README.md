@@ -1,6 +1,6 @@
 # Hasura GraphQL Starter Example 
 
-This simple TODO example shows you how to use [Hasura's self-hosted GraphQL](https://github.com/hasura/graphql-engine/) in your Next.js project.
+This example shows you how to use [Hasura's self-hosted GraphQL Engine](https://github.com/hasura/graphql-engine/) in your Next.js project.
 
 Demo: https://with-graphql-hasura.vercel.app/
 
