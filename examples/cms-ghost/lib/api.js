@@ -1,7 +1,8 @@
 import GhostContentAPI from '@tryghost/content-api'
+import { GHOST_API_URL_DEFAULT, GHOST_API_KEY_DEFAULT } from './defaults.js'
 
-const GHOST_API_URL = process.env.GHOST_API_URL || 'https://cms.gotsby.org'
-const GHOST_API_KEY = process.env.GHOST_API_KEY || '387f956eaa95345f7bb484d0b8'
+const GHOST_API_URL = process.env.GHOST_API_URL || GHOST_API_URL_DEFAULT
+const GHOST_API_KEY = process.env.GHOST_API_KEY || GHOST_API_KEY_DEFAULT
 
 const api = new GhostContentAPI({
   url: GHOST_API_URL,
