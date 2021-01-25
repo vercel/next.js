@@ -16,9 +16,11 @@ async function main() {
     .map((file) => file && file.trim())
     .filter(Boolean)
 
-  let hasNonDocsChange = changedFiles.some((file) => {
-    return !DOCS_FOLDERS.some((folder) => file.startsWith(folder + '/'))
-  })
+  let hasNonDocsChange =
+    !changedFiles.length ||
+    changedFiles.some((file) => {
+      return !DOCS_FOLDERS.some((folder) => file.startsWith(folder + '/'))
+    })
 
   const args = process.argv.slice(process.argv.indexOf(__filename) + 1)
 
