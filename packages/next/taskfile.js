@@ -36,6 +36,10 @@ const externals = {
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
   'caniuse-lite': 'caniuse-lite', // FIXME: `autoprefixer` will still bundle this because it uses direct imports
+  'caniuse-lite/data/features/border-radius':
+    'caniuse-lite/data/features/border-radius',
+  'caniuse-lite/data/features/css-featurequeries.js':
+    'caniuse-lite/data/features/css-featurequeries',
 
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
