@@ -304,7 +304,7 @@ export function tryGetPreviewData(
   try {
     cookies = getCookies()
   } catch {
-    console.warn('If you have not enabled cookies, please do so.')
+    // TODO: warn
     return false
   }
 
