@@ -14,10 +14,16 @@ export default function PostPreview({
   return (
     <div>
       <div className="mb-5">
-        <CoverImage slug={slug} title={title} url={coverImage} />
+        <CoverImage
+          slug={slug}
+          title={title}
+          url={coverImage}
+          width={2000}
+          height={1216}
+        />
       </div>
       <h3 className="text-3xl mb-3 leading-snug">
-        <Link as={`/posts/${slug}`} href="/posts/[slug]">
+        <Link href={`/posts/${slug}`}>
           <a className="hover:underline">{title}</a>
         </Link>
       </h3>

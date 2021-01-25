@@ -1,24 +1,18 @@
 import cn from 'classnames'
 import Link from 'next/link'
-import Imgix from 'react-imgix'
+import Image from 'next/image'
 
-export default function CoverImage({ title, url, slug }) {
+export default function CoverImage({ title, url, slug, width, height }) {
   const image = (
-    <Imgix
+    <Image
       src={url}
       alt={`Cover Image for ${title}`}
-      className={cn('lazyload shadow-small w-full', {
-        'hover:shadow-medium transition-shadow duration-200': slug,
+      className={cn('shadow-sm', {
+        'hover:shadow-md transition-shadow duration-200': slug,
       })}
-      sizes="100vw"
-      attributeConfig={{
-        src: 'data-src',
-        srcSet: 'data-srcset',
-        sizes: 'data-sizes',
-      }}
-      htmlAttributes={{
-        src: `${url}?auto=format,compress&q=1&blur=500&w=auto`,
-      }}
+      layout="responsive"
+      width={width}
+      height={height}
     />
   )
   return (
