@@ -41,7 +41,7 @@ async function main() {
       cmd.on('error', (err) => reject(err))
     })
   } else {
-    console.log('Only docs changes exiting...')
+    console.log('docs only change')
   }
 }
 

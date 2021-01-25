@@ -19,7 +19,7 @@ jobs:
       - run: yarn install --frozen-lockfile --check-files
       - run: node run-tests.js --timings --write-timings -g 1/1
       - name: Check docs only change
-        run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'docs-only')
+        run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
         id: docs-change
       - run: echo ${{steps.docs-change.outputs.DOCS_CHANGE}}
       - uses: actions/cache@v2
@@ -47,13 +47,13 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/cache@v2
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}
       - run: ./check-pre-compiled.sh
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testUnit:
     name: Test Unit
@@ -65,14 +65,14 @@ jobs:
       HEADLESS: true
     steps:
       - uses: actions/cache@v2
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}
 
       - run: node run-tests.js --timings --type unit -g 1/1
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testIntegration:
     name: Test Integration
@@ -89,7 +89,7 @@ jobs:
     steps:
       - run: echo ${{needs.build.outputs.docsChange}}
       - uses: actions/cache@v2
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
@@ -97,10 +97,10 @@ jobs:
 
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: xvfb-run node run-tests.js --timings -g ${{ matrix.group }}/6 -c 3
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testElectron:
     name: Test Electron
@@ -113,7 +113,7 @@ jobs:
       TEST_ELECTRON: 1
     steps:
       - uses: actions/cache@v2
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
@@ -121,13 +121,13 @@ jobs:
 
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: yarn add -W --dev spectron@7.0.0 electron@5.0.0
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: xvfb-run node run-tests.js test/integration/with-electron/test/index.test.js
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testYarnPnP:
     runs-on: ubuntu-latest
@@ -137,14 +137,14 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'docs-only')
+      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
         id: docs-change
 
       - run: yarn install --frozen-lockfile --check-files
-        if: ${{steps.docs-change.outputs.DOCS_CHANGE != 'docs-only'}}
+        if: ${{steps.docs-change.outputs.DOCS_CHANGE != 'docs only change'}}
 
       - run: bash ./test-pnp.sh
-        if: ${{steps.docs-change.outputs.DOCS_CHANGE != 'docs-only'}}
+        if: ${{steps.docs-change.outputs.DOCS_CHANGE != 'docs only change'}}
 
   testsPass:
     name: thank you, next
@@ -165,17 +165,17 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'docs-only')
+      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
         id: docs-change
 
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
       - run: yarn install --check-files
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
       - run: xvfb-run node run-tests.js test/integration/{link-ref,production,basic,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
   testLegacyReact:
     name: React 16 + Webpack 4 (Basic, Production, Acceptance)
@@ -188,26 +188,26 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'docs-only')
+      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
         id: docs-change
 
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
       - run: cat package.json | jq '.resolutions.react = "^16.14.0"' > package.json.tmp && mv package.json.tmp package.json
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
       - run: cat package.json | jq '.resolutions."react-dom" = "^16.14.0"' > package.json.tmp && mv package.json.tmp package.json
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
       - run: yarn install --check-files
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
       - run: yarn list react react-dom
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
       - run: xvfb-run node run-tests.js test/integration/{link-ref,production,basic,async-modules,font-optimization,ssr-ctx,worker-loader}/test/index.test.js test/acceptance/*.test.js
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
   testFirefox:
     name: Test Firefox (production)
@@ -219,13 +219,13 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/cache@v2
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}
       - run: node run-tests.js test/integration/production/test/index.test.js
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testSafari:
     name: Test Safari (production)
@@ -240,13 +240,13 @@ jobs:
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     steps:
       - uses: actions/cache@v2
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production/test/index.test.js'
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testSafariOld:
     name: Test Safari 10.1 (nav)
@@ -262,13 +262,13 @@ jobs:
       BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
     steps:
       - uses: actions/cache@v2
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
         id: restore-build
         with:
           path: ./*
           key: ${{ github.sha }}
       - run: '[[ -z "$BROWSERSTACK_ACCESS_KEY" ]] && echo "Skipping for PR" || node run-tests.js test/integration/production-nav/test/index.test.js'
-        if: ${{needs.build.outputs.docsChange != 'docs-only'}}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   publishRelease:
     name: Potentially publish release
