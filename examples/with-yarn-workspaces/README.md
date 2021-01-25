@@ -31,6 +31,6 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 ## Useful Links
 
 - [Documentation](https://yarnpkg.com/en/docs/workspaces)
-- [yarn workspaces](https://yarnpkg.com/lang/en/docs/cli/workspace)
-- [yarn workspace](https://yarnpkg.com/lang/en/docs/cli/workspaces)
+- [yarn workspace](https://yarnpkg.com/lang/en/docs/cli/workspace)
+- [yarn workspaces](https://yarnpkg.com/lang/en/docs/cli/workspaces)
 - [next-transpile-modules](https://www.npmjs.com/package/next-transpile-modules)
