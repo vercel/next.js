@@ -160,7 +160,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
       HEADLESS: true
-      NEXT_WEBPACK5: 1
+      NEXT_PRIVATE_TEST_WEBPACK5_MODE: 1
 
     steps:
       - uses: actions/checkout@v2
@@ -174,7 +174,7 @@ jobs:
       - run: yarn install --check-files
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
 
-      - run: xvfb-run node run-tests.js test/integration/{link-ref,production,basic,async-modules,font-optimization,ssr-ctx,worker-loader}/test/index.test.js test/acceptance/*.test.js
+      - run: xvfb-run node run-tests.js test/integration/{link-ref,production,basic,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs-only' }}
 
   testLegacyReact:

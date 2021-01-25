@@ -74,6 +74,7 @@ export type PageConfig = {
   }
   env?: Array<string>
   unstable_runtimeJS?: false
+  unstable_JsPreload?: false
 }
 
 export {
