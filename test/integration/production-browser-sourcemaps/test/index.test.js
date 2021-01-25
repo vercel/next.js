@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import fs from 'fs-extra'
 import { join } from 'path'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getPageFileFromBuildManifest } from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -24,6 +24,24 @@ function runTests() {
       expect(browserFiles.includes(`${file}.map`)).toBe(true)
     })
   })
+
+  it('correctly generated the source map', async () => {
+    const map = JSON.parse(
+      await fs.readFile(
+        join(
+          appDir,
+          '.next',
+          (await getPageFileFromBuildManifest(appDir, '/static')) + '.map'
+        ),
+        'utf8'
+      )
+    )
+
+    expect(map.sources).toContainEqual(
+      expect.stringMatching(/pages[/\\]static\.js/)
+    )
+    expect(map.names).toContainEqual('StaticPage')
+  })
 }
 
 describe('Production browser sourcemaps', () => {
@@ -43,9 +61,7 @@ describe('Production browser sourcemaps', () => {
         `
         module.exports = {
           target: 'serverless',
-          experimental: {
-            productionBrowserSourceMaps: true
-          }
+          productionBrowserSourceMaps: true
         }
       `
       )
