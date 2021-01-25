@@ -43,7 +43,7 @@ export type AppType<IP = any> = NextComponentType<
   AppPropsType<IP>
 >
 
-export type AppTreeType<IP> = ComponentType<
+export type AppTreeType<IP = any> = ComponentType<
   AppInitialProps<IP> & { [name: string]: any }
 >
 
