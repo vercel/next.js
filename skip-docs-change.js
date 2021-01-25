@@ -7,6 +7,10 @@ const DOCS_FOLDERS = ['bench', 'docs', 'errors', 'examples']
 
 async function main() {
   await exec('git fetch origin canary')
+
+  console.log(await exec('git branch'))
+  console.log(await exec('git remote -v'))
+
   const { stdout: changedFilesOutput } = await exec(
     'git diff origin/canary --name-only'
   )
