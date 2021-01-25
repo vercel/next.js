@@ -1,6 +1,6 @@
 import curry from 'next/dist/compiled/lodash.curry'
 import path from 'path'
-import webpack, { Configuration } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
@@ -26,7 +26,7 @@ const regexSassModules = /\.module\.(scss|sass)$/
 
 export const css = curry(async function css(
   ctx: ConfigurationContext,
-  config: Configuration
+  config: webpack.Configuration
 ) {
   const {
     prependData: sassPrependData,
@@ -38,7 +38,7 @@ export const css = curry(async function css(
     // First, process files with `sass-loader`: this inlines content, and
     // compiles away the proprietary syntax.
     {
-      loader: require.resolve('sass-loader'),
+      loader: require.resolve('next/dist/compiled/sass-loader'),
       options: {
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
@@ -53,7 +53,7 @@ export const css = curry(async function css(
     // To fix this, we use `resolve-url-loader` to rewrite the CSS
     // imports to real file paths.
     {
-      loader: require.resolve('resolve-url-loader'),
+      loader: require.resolve('next/dist/compiled/resolve-url-loader'),
       options: {
         // Source maps are not required here, but we may as well emit
         // them.

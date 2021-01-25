@@ -7,17 +7,20 @@ const DOCS_FOLDERS = ['bench', 'docs', 'errors', 'examples']
 
 async function main() {
   await exec('git fetch origin canary')
+
   const { stdout: changedFilesOutput } = await exec(
-    'git diff $(git merge-base --fork-point canary) --name-only'
+    'git diff origin/canary --name-only'
   )
   const changedFiles = changedFilesOutput
     .split('\n')
     .map((file) => file && file.trim())
     .filter(Boolean)
 
-  let hasNonDocsChange = changedFiles.some((file) => {
-    return !DOCS_FOLDERS.some((folder) => file.startsWith(folder + '/'))
-  })
+  let hasNonDocsChange =
+    !changedFiles.length ||
+    changedFiles.some((file) => {
+      return !DOCS_FOLDERS.some((folder) => file.startsWith(folder + '/'))
+    })
 
   const args = process.argv.slice(process.argv.indexOf(__filename) + 1)
 
@@ -41,7 +44,7 @@ async function main() {
       cmd.on('error', (err) => reject(err))
     })
   } else {
-    console.log('Only docs changes exiting...')
+    console.log('docs only change')
   }
 }
 
