@@ -15,6 +15,8 @@ async function main() {
     .map((file) => file && file.trim())
     .filter(Boolean)
 
+  console.log(changedFiles)
+
   let hasNonDocsChange = changedFiles.some((file) => {
     return !DOCS_FOLDERS.some((folder) => file.startsWith(folder + '/'))
   })
