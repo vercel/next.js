@@ -1,8 +1,9 @@
 /* eslint-env jest */
-
+import assert from 'assert'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
+  check,
   findPort,
   killApp,
   launchApp,
@@ -16,7 +17,7 @@ let app
 let appPort
 const appDir = join(__dirname, '../')
 
-const runTests = () => {
+const runTests = (dev) => {
   it('should route to /blog/another/ correctly', async () => {
     const browser = await webdriver(appPort, '/')
     await browser.elementByCss('#to-blog-another').click()
@@ -72,6 +73,25 @@ const runTests = () => {
       'top level slug top-level-slug'
     )
   })
+
+  if (!dev) {
+    it('should preload SSG routes correctly', async () => {
+      const browser = await webdriver(appPort, '/')
+
+      await check(async () => {
+        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
+        hrefs.sort()
+
+        assert.deepEqual(
+          hrefs.map((href) =>
+            new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
+          ),
+          ['/top-level-slug.json', '/world.json']
+        )
+        return 'yes'
+      }, 'yes')
+    })
+  }
 }
 
 describe('href resolving trailing-slash', () => {
@@ -82,7 +102,7 @@ describe('href resolving trailing-slash', () => {
     })
     afterAll(() => killApp(app))
 
-    runTests()
+    runTests(true)
   })
 
   describe('production mode', () => {

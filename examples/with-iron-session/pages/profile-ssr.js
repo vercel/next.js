@@ -24,7 +24,7 @@ const SsrProfile = ({ user }) => {
             <a href={githubUrl(user.login)}>{githubUrl(user.login)}</a>, reduced
             to `login` and `avatar_url`.
           </p>
-          <pre>{JSON.stringify(user, undefined, 2)}</pre>
+          <pre>{JSON.stringify(user, null, 2)}</pre>
         </>
       )}
     </Layout>
@@ -34,11 +34,13 @@ const SsrProfile = ({ user }) => {
 export const getServerSideProps = withSession(async function ({ req, res }) {
   const user = req.session.get('user')
 
-  if (user === undefined) {
-    res.setHeader('location', '/login')
-    res.statusCode = 302
-    res.end()
-    return { props: {} }
+  if (!user) {
+    return {
+      redirect: {
+        destination: '/login',
+        permanent: false,
+      },
+    }
   }
 
   return {
