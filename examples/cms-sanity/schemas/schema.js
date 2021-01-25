@@ -72,8 +72,8 @@ export default createSchema({
           title: 'Slug',
           type: 'slug',
           options: {
-            source: "title"
-          }
+            source: 'title',
+          },
         },
       ],
     },
