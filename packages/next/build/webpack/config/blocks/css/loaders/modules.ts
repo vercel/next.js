@@ -1,5 +1,5 @@
 import { AcceptedPlugin } from 'postcss'
-import webpack from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
 import { cssFileResolve } from './file-resolve'
@@ -25,7 +25,7 @@ export function getCssModuleLoader(
 
   // Resolve CSS `@import`s and `url()`s
   loaders.push({
-    loader: require.resolve('css-loader'),
+    loader: require.resolve('next/dist/compiled/css-loader'),
     options: {
       importLoaders: 1 + preProcessors.length,
       sourceMap: true,

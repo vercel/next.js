@@ -74,6 +74,7 @@ export type PageConfig = {
   }
   env?: Array<string>
   unstable_runtimeJS?: false
+  unstable_JsPreload?: false
 }
 
 export {
@@ -128,7 +129,9 @@ export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
 export type GetServerSidePropsContext<
   Q extends ParsedUrlQuery = ParsedUrlQuery
 > = {
-  req: IncomingMessage
+  req: IncomingMessage & {
+    cookies?: { [key: string]: any }
+  }
   res: ServerResponse
   params?: Q
   query: ParsedUrlQuery

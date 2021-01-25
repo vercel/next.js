@@ -29,7 +29,7 @@ export default function handler(req, res) {
 }
 ```
 
-For an API route to work, you need to export as default a function (a.k.a **request handler**), which then receives the following parameters:
+For an API route to work, you need to export a function as default (a.k.a **request handler**), which then receives the following parameters:
 
 - `req`: An instance of [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage), plus some pre-built middlewares you can see [here](/docs/api-routes/api-middlewares.md)
 - `res`: An instance of [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse), plus some helper functions you can see [here](/docs/api-routes/response-helpers.md)
