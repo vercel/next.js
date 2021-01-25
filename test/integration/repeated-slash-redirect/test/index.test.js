@@ -32,6 +32,7 @@ function getPathWithNormalizedQuery(url) {
 
 const runTests = (isDev = false) => {
   const cases = [
+    ['//hello/world', '/hello/world'],
     ['/hello//world', '/hello/world'],
     ['/hello/world//', '/hello/world'],
     ['/hello///world', '/hello/world'],

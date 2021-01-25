@@ -270,7 +270,7 @@ export function resolveHref(
     return (resolveAs ? [urlAsString] : urlAsString) as string
   }
   try {
-    const finalUrl = new URL(urlAsString, base)
+    const finalUrl = new URL(urlAsString.replace(/^\/+/, '/'), base)
     finalUrl.pathname = normalizePathSlashes(finalUrl.pathname)
     let interpolatedAs = ''
 
