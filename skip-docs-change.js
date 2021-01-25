@@ -8,9 +8,6 @@ const DOCS_FOLDERS = ['bench', 'docs', 'errors', 'examples']
 async function main() {
   await exec('git fetch origin canary')
 
-  console.log(await exec('git branch'))
-  console.log(await exec('git remote -v'))
-
   const { stdout: changedFilesOutput } = await exec(
     'git diff origin/canary --name-only'
   )
@@ -18,8 +15,6 @@ async function main() {
     .split('\n')
     .map((file) => file && file.trim())
     .filter(Boolean)
-
-  console.log(changedFiles)
 
   let hasNonDocsChange = changedFiles.some((file) => {
     return !DOCS_FOLDERS.some((folder) => file.startsWith(folder + '/'))
