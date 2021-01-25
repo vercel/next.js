@@ -253,7 +253,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
 
     styleSheets.set(
       href,
-      (prom = fetch(href)
+      (prom = fetch(href, { mode: 'no-cors' })
         .then((res) => {
           if (!res.ok) {
             throw new Error(`Failed to load stylesheet: ${href}`)
@@ -295,7 +295,13 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
             entrypoints.has(route)
               ? []
               : Promise.all(scripts.map(maybeExecuteScript)),
-            Promise.all(css.map(fetchStyleSheet)),
+            Promise.all(
+              css.map(
+                (href: string) =>
+                  document.querySelector(`link[href^="${href}"]`) ||
+                  fetchStyleSheet(href)
+              )
+            ),
           ] as const)
 
           const entrypoint: RouteEntrypoint = await Promise.race([
