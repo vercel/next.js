@@ -364,6 +364,10 @@ export function tryGetPreviewData(
   }
 }
 
+function isNotValidData (str: string): boolean {
+  return typeof str !== 'string' || str.length < 16
+}
+
 function setPreviewData<T>(
   res: NextApiResponse<T>,
   data: object | string, // TODO: strict runtime type checking
@@ -371,10 +375,6 @@ function setPreviewData<T>(
     maxAge?: number
   } & __ApiPreviewProps
 ): NextApiResponse<T> {
-  const isNotValidData = (str: string): boolean => {
-    return typeof str !== 'string' || str.length < 16
-  }
-
   if (isNotValidData(options.previewModeId)) {
     throw new Error('invariant: invalid previewModeId')
   }
