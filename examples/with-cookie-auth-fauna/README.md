@@ -54,7 +54,7 @@ You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source
 
 #### Deploy Your Local Project
 
-To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
 **Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
 
@@ -62,4 +62,4 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/select-scope?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/with-cookie-auth-fauna&id=70107786&env=FAUNA_SERVER_KEY&envDescription=API%20Keys%20required%20by%20Fauna%20CMS&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-cookie-auth-fauna%23run-locally)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-cookie-auth-fauna&project-name=with-cookie-auth-fauna&repository-name=with-cookie-auth-fauna&env=FAUNA_SERVER_KEY&envDescription=API%20Keys%20required%20by%20Fauna%20CMS&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-cookie-auth-fauna%23run-locally)

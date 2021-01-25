@@ -39,6 +39,56 @@ module.exports = {
 - `source` is the incoming request path pattern.
 - `destination` is the path you want to route to.
 
+## Rewrite parameters
+
+When using parameters in a rewrite the parameters will be passed in the query by default when none of the parameters are used in the `destination`.
+
+```js
+module.exports = {
+  async rewrites() {
+    return [
+      {
+        source: '/old-about/:path*',
+        destination: '/about', // The :path parameter isn't used here so will be automatically passed in the query
+      },
+    ]
+  },
+}
+```
+
+If a parameter is used in the destination none of the parameters will be automatically passed in the query.
+
+```js
+module.exports = {
+  async rewrites() {
+    return [
+      {
+        source: '/docs/:path*',
+        destination: '/:path*', // The :path parameter is used here so will not be automatically passed in the query
+      },
+    ]
+  },
+}
+```
+
+You can still pass the parameters manually in the query if one is already used in the destination by specifying the query in the `destination`.
+
+```js
+module.exports = {
+  async rewrites() {
+    return [
+      {
+        source: '/:first/:second',
+        destination: '/:first?second=:second',
+        // Since the :first parameter is used in the destination the :second parameter
+        // will not automatically be added in the query although we can manually add it
+        // as shown above
+      },
+    ]
+  },
+}
+```
+
 ## Path Matching
 
 Path matches are allowed, for example `/blog/:slug` will match `/blog/hello-world` (no nested paths):
@@ -154,9 +204,10 @@ module.exports = {
         destination: '/another', // automatically becomes /docs/another
       },
       {
-        // does not add /docs since basePath: false is set
+        // does not add /docs to /without-basePath since basePath: false is set
+        // Note: this can not be used for internal rewrites e.g. `destination: '/another'`
         source: '/without-basePath',
-        destination: '/another',
+        destination: 'https://example.com',
         basePath: false,
       },
     ]
@@ -166,7 +217,7 @@ module.exports = {
 
 ### Rewrites with i18n support
 
-When leveraging [`i18n` support](/docs/advanced-features/i18n-routing.md) with rewrites each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the rewrite:
+When leveraging [`i18n` support](/docs/advanced-features/i18n-routing.md) with rewrites each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the rewrite. If `locale: false` is used you must prefix the `source` and `destination` with a locale for it to be matched correctly.
 
 ```js
 module.exports = {
@@ -185,6 +236,12 @@ module.exports = {
         // does not handle locales automatically since locale: false is set
         source: '/nl/with-locale-manual',
         destination: '/nl/another',
+        locale: false,
+      },
+      {
+        // this matches '/' since `en` is the defaultLocale
+        source: '/en',
+        destination: '/en/another',
         locale: false,
       },
     ]
