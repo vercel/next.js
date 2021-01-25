@@ -273,6 +273,7 @@ export default async function exportPage({
                   optimizeImages,
                   /// @ts-ignore
                   optimizeCss,
+                  distDir,
                   fontManifest: optimizeFonts
                     ? requireFontManifest(distDir, serverless)
                     : null,
