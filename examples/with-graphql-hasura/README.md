@@ -1,4 +1,4 @@
-# Hasura Graphql Starter Example 
+# Hasura GraphQL Starter Example 
 
 This simple TODO example shows you how to use [Hasura's self-hosted GraphQL](https://github.com/hasura/graphql-engine/) in your Next.js project.
 
@@ -32,4 +32,3 @@ npx create-next-app --example with-graphql-hasura with-graphql-hasura
 # or
 yarn create next-app --example with-graphql-hasura with-graphql-hasura
 ```
-
