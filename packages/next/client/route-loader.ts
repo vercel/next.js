@@ -55,7 +55,7 @@ function withFuture<T>(
     return Promise.resolve(entry)
   }
   let resolver: (entrypoint: T) => void
-  const prom = new Promise<T>((resolve) => {
+  const prom: Promise<T> = new Promise<T>((resolve) => {
     resolver = resolve
   })
   map.set(key, (entry = { resolve: resolver!, future: prom }))
@@ -120,7 +120,7 @@ export function markAssetError(err: Error): Error {
   return Object.defineProperty(err, ASSET_LOAD_ERROR, {})
 }
 
-export function isAssetError(err?: Error) {
+export function isAssetError(err?: Error): boolean | undefined {
   return err && ASSET_LOAD_ERROR in err
 }
 
@@ -166,7 +166,9 @@ export function getClientBuildManifest(): Promise<ClientBuildManifest> {
     return Promise.resolve(self.__BUILD_MANIFEST)
   }
 
-  const onBuildManifest = new Promise<ClientBuildManifest>((resolve) => {
+  const onBuildManifest: Promise<ClientBuildManifest> = new Promise<
+    ClientBuildManifest
+  >((resolve) => {
     // Mandatory because this is not concurrent safe:
     const cb = self.__BUILD_MANIFEST_CB
     self.__BUILD_MANIFEST_CB = () => {
@@ -229,7 +231,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
   > = new Map()
 
   function maybeExecuteScript(src: string): Promise<unknown> {
-    let prom = loadedScripts.get(src)
+    let prom: Promise<unknown> | undefined = loadedScripts.get(src)
     if (prom) {
       return prom
     }
@@ -244,7 +246,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
   }
 
   function fetchStyleSheet(href: string): Promise<RouteStyleSheet> {
-    let prom = styleSheets.get(href)
+    let prom: Promise<RouteStyleSheet> | undefined = styleSheets.get(href)
     if (prom) {
       return prom
     }
@@ -269,7 +271,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
     whenEntrypoint(route: string) {
       return withFuture(route, entrypoints)
     },
-    onEntrypoint(route, execute) {
+    onEntrypoint(route: string, execute: () => unknown) {
       Promise.resolve(execute)
         .then((fn) => fn())
         .then(
@@ -285,7 +287,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
           if (old && 'resolve' in old) old.resolve(input)
         })
     },
-    loadRoute(route) {
+    loadRoute(route: string) {
       return withFuture<RouteLoaderEntry>(route, routes, async () => {
         try {
           const { scripts, css } = await getFilesForRoute(assetPrefix, route)
@@ -296,7 +298,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
             Promise.all(css.map(fetchStyleSheet)),
           ] as const)
 
-          const entrypoint = await Promise.race([
+          const entrypoint: RouteEntrypoint = await Promise.race([
             this.whenEntrypoint(route),
             idleTimeout<RouteLoaderEntry>(
               MS_MAX_IDLE_DELAY,
@@ -315,7 +317,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
         }
       })
     },
-    prefetch(route) {
+    prefetch(route: string): Promise<void> {
       // https://github.com/GoogleChromeLabs/quicklink/blob/453a661fa1fa940e2d2e044452398e38c67a98fb/src/index.mjs#L115-L118
       // License: Apache 2.0
       let cn

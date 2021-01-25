@@ -49,6 +49,7 @@ The following is the definition of the `router` object returned by both [`useRou
 - `locale`: `String` - The active locale (if enabled).
 - `locales`: `String[]` - All supported locales (if enabled).
 - `defaultLocale`: `String` - The current default locale (if enabled).
+- `isReady`: `boolean` - Whether the router fields are updated client-side and ready for use. Should only be used inside of `useEffect` methods and not for conditionally rendering on the server.
 
 Additionally, the following methods are also included inside `router`:
 
@@ -100,7 +101,7 @@ export default function Page() {
 }
 ```
 
-Redirecting the user to `pages/login.js`, useful for pages behind authentication:
+Redirecting the user to `pages/login.js`, useful for pages behind [authentication](/docs/authentication):
 
 ```jsx
 import { useEffect } from 'react'
@@ -400,4 +401,27 @@ function Page({ router }) {
 }
 
 export default withRouter(Page)
+```
+
+### Typescript
+
+To use class components with `withRouter`, the component needs to accept a router prop:
+
+```tsx
+import React from 'react'
+import { withRouter, NextRouter } from 'next/router'
+
+interface WithRouterProps {
+  router: NextRouter
+}
+
+interface MyComponentProps extends WithRouterProps {}
+
+class MyComponent extends React.Component<MyComponentProps> {
+  render() {
+    return <p>{this.props.router.pathname}</p>
+  }
+}
+
+export default withRouter(MyComponent)
 ```

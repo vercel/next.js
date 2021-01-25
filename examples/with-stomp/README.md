@@ -18,4 +18,4 @@ yarn create next-app --example with-stomp with-stomp-app
 
 You'll need to provide the STOMP url of your server before running the app. Open [`.env`](.env) and update the `NEXT_PUBLIC_STOMP_SERVER` environment variable.
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

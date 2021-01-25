@@ -28,4 +28,4 @@ yarn dev
 
 Test out visiting one of the Next.js pages https://localhost:3000/ and then a non-Next.js page like http://localhost:3000/legacy-first.html or http://localhost:3000/another-legacy.html which will be proxied to the upstream server since it doesn't match any pages/assets in Next.js.
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)). Note: to deploy this example you will need to configure an existing upstream server.
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)). Note: to deploy this example you will need to configure an existing upstream server.

@@ -3,7 +3,7 @@ import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { runTests, locales } from './shared'
+import { runTests, locales, nonDomainLocales } from './shared'
 import webdriver from 'next-webdriver'
 import {
   nextBuild,
@@ -213,20 +213,31 @@ describe('i18n Support', () => {
 
       expect(routesManifest.i18n).toEqual({
         localeDetection: false,
-        locales: ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en'],
+        locales: [
+          'en-US',
+          'nl-NL',
+          'nl-BE',
+          'nl',
+          'fr-BE',
+          'fr',
+          'en',
+          'go',
+          'go-BE',
+          'do',
+          'do-BE',
+        ],
         defaultLocale: 'en-US',
         domains: [
           {
             http: true,
-            domain: 'example.be',
-            defaultLocale: 'nl-BE',
-            locales: ['nl', 'nl-NL', 'nl-BE'],
+            domain: 'example.do',
+            defaultLocale: 'do',
+            locales: ['do-BE'],
           },
           {
-            http: true,
-            domain: 'example.fr',
-            defaultLocale: 'fr',
-            locales: ['fr-BE'],
+            domain: 'example.com',
+            defaultLocale: 'go',
+            locales: ['go-BE'],
           },
         ],
       })
@@ -255,7 +266,7 @@ describe('i18n Support', () => {
     })
 
     it('should set locale from detected path', async () => {
-      for (const locale of locales) {
+      for (const locale of nonDomainLocales) {
         const res = await fetchViaHTTP(
           ctx.appPort,
           `/${locale}`,
@@ -297,7 +308,7 @@ describe('i18n Support', () => {
     })
 
     it('should redirect correctly', async () => {
-      for (const locale of locales) {
+      for (const locale of nonDomainLocales) {
         const res = await fetchViaHTTP(curCtx.appPort, '/', undefined, {
           redirect: 'manual',
           headers: {
@@ -318,7 +329,7 @@ describe('i18n Support', () => {
     })
 
     it('should serve pages correctly with locale prefix', async () => {
-      for (const locale of locales) {
+      for (const locale of nonDomainLocales) {
         for (const [pathname, asPath] of [
           ['/', '/'],
           ['/links', '/links/'],
@@ -350,7 +361,7 @@ describe('i18n Support', () => {
     })
 
     it('should navigate between pages correctly', async () => {
-      for (const locale of locales) {
+      for (const locale of nonDomainLocales) {
         const localePath = `/${locale !== 'en-US' ? `${locale}/` : ''}`
         const browser = await webdriver(curCtx.appPort, localePath)
 
