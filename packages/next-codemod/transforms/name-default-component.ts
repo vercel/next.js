@@ -54,8 +54,8 @@ export default function transformer(file, api, options) {
       return
     }
 
-    const fileName: string = basename(file.path, extname(file.path))
-    let name: string = camelCase(fileName)
+    const fileName = basename(file.path, extname(file.path))
+    let name = camelCase(fileName)
 
     // If the generated name looks off, don't add a name
     if (!isValidIdentifier(name)) {
