@@ -36,6 +36,10 @@ const externals = {
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
   'caniuse-lite': 'caniuse-lite', // FIXME: `autoprefixer` will still bundle this because it uses direct imports
+  'caniuse-lite/data/features/border-radius':
+    'caniuse-lite/data/features/border-radius',
+  'caniuse-lite/data/features/css-featurequeries.js':
+    'caniuse-lite/data/features/css-featurequeries',
 
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
@@ -362,14 +366,6 @@ export async function ncc_lru_cache(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('lru-cache')))
     .ncc({ packageName: 'lru-cache', externals })
     .target('compiled/lru-cache')
-}
-// eslint-disable-next-line camelcase
-externals['mkdirp'] = 'next/dist/compiled/mkdirp'
-export async function ncc_mkdirp(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('mkdirp')))
-    .ncc({ packageName: 'mkdirp', externals })
-    .target('compiled/mkdirp')
 }
 // eslint-disable-next-line camelcase
 externals['nanoid'] = 'next/dist/compiled/nanoid'
@@ -703,7 +699,6 @@ export async function ncc(task) {
       'ncc_loader_utils',
       'ncc_lodash_curry',
       'ncc_lru_cache',
-      'ncc_mkdirp',
       'ncc_nanoid',
       'ncc_neo_async',
       'ncc_ora',
