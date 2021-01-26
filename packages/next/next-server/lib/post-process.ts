@@ -89,7 +89,7 @@ async function processHTML(
 }
 
 class FontOptimizerMiddleware implements PostProcessMiddleware {
-  fontDefinitions: Array<string> = []
+  fontDefinitions: (string | undefined)[][] = []
   inspect(
     originalDom: HTMLElement,
     _data: postProcessData,
@@ -138,7 +138,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         // The font is already optimized and probably the response is cached
         continue
       }
-      const fontContent = options.getFontDefinition(url)
+      const fontContent = options.getFontDefinition(url as string)
       if (!fontContent) {
         /**
          * In case of unreachable font definitions, fallback to default link tag.
