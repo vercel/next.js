@@ -169,7 +169,8 @@ describe('pnpm support', () => {
         expect(await browser.waitForElementByCss('#world').text()).toBe('World')
         await browser.close()
       } finally {
-        await appProcess.kill('SIGTERM', { forceKillAfterTimeout: 2000 })
+        await appProcess.kill('SIGTERM')
+        await waitFor(5000)
       }
     })
   })
