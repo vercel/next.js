@@ -6,7 +6,7 @@ This example aims to provide a fully customizable example of the famous medium e
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-draft-js&project-name=with-draft-js&repository-name=with-draft-js)
 
@@ -15,7 +15,7 @@ Deploy the example using [Vercel](https://vercel.com):
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-draft-js
+npx create-next-app --example with-draft-js with-draft-js-app
 # or
 yarn create next-app --example with-draft-js with-draft-js-app
 ```

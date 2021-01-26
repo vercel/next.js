@@ -18,10 +18,6 @@ export class ProfilingPlugin {
   apply(compiler: any) {
     // Only enabled when instrumentation is loaded
     const currentSpan = tracer.getCurrentSpan()
-    console.log({
-      currentSpan,
-      isRecording: currentSpan?.isRecording(),
-    })
     if (!currentSpan || !currentSpan.isRecording()) {
       return
     }
