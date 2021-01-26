@@ -117,12 +117,6 @@ export default async function build(
 ): Promise<void> {
   const span = tracer.startSpan('next-build')
   return traceAsyncFn(span, async () => {
-    if (!(await isWriteable(dir))) {
-      throw new Error(
-        '> Build directory is not writeable. https://err.sh/vercel/next.js/build-dir-not-writeable'
-      )
-    }
-
     // attempt to load global env values so they are available in next.config.js
     const { loadedEnvFiles } = traceFn(tracer.startSpan('load-dotenv'), () =>
       loadEnvConfig(dir, false, Log)
@@ -363,9 +357,27 @@ export default async function build(
       i18n: config.i18n || undefined,
     }))
 
-    await traceAsyncFn(tracer.startSpan('create-distdir'), () =>
-      promises.mkdir(distDir, { recursive: true })
+    const distDirCreated = await traceAsyncFn(
+      tracer.startSpan('create-distdir'),
+      async () => {
+        try {
+          await promises.mkdir(distDir, { recursive: true })
+          return true
+        } catch (err) {
+          if (err.code === 'EPERM') {
+            return false
+          }
+          throw err
+        }
+      }
     )
+
+    if (!distDirCreated || !(await isWriteable(distDir))) {
+      throw new Error(
+        '> Build directory is not writeable. https://err.sh/vercel/next.js/build-dir-not-writeable'
+      )
+    }
+
     // We need to write the manifest with rewrites before build
     // so serverless can import the manifest
     await traceAsyncFn(tracer.startSpan('write-routes-manifest'), () =>

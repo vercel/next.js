@@ -36,6 +36,10 @@ const externals = {
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
   'caniuse-lite': 'caniuse-lite', // FIXME: `autoprefixer` will still bundle this because it uses direct imports
+  'caniuse-lite/data/features/border-radius':
+    'caniuse-lite/data/features/border-radius',
+  'caniuse-lite/data/features/css-featurequeries.js':
+    'caniuse-lite/data/features/css-featurequeries',
 
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
@@ -201,6 +205,21 @@ export async function ncc_cookie(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('cookie')))
     .ncc({ packageName: 'cookie', externals })
     .target('compiled/cookie')
+}
+// eslint-disable-next-line camelcase
+externals['css-loader'] = 'next/dist/compiled/css-loader'
+export async function ncc_css_loader(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('css-loader')))
+    .ncc({
+      packageName: 'css-loader',
+      externals: {
+        ...externals,
+        'schema-utils': 'next/dist/compiled/schema-utils',
+      },
+      target: 'es5',
+    })
+    .target('compiled/css-loader')
 }
 // eslint-disable-next-line camelcase
 externals['debug'] = 'next/dist/compiled/debug'
@@ -661,6 +680,7 @@ export async function ncc(task) {
       'ncc_conf',
       'ncc_content_type',
       'ncc_cookie',
+      'ncc_css_loader',
       'ncc_debug',
       'ncc_devalue',
       'ncc_escape_string_regexp',
