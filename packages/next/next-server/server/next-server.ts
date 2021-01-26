@@ -1347,11 +1347,12 @@ export default class Server {
       typeof components.Component === 'object' &&
       typeof (components.Component as any).renderReqToHTML === 'function'
     const isSSG = !!components.getStaticProps
-    const isServerProps = !!components.getServerSideProps
+    const hasServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
+    const hasGetInitialProps = !!(components.Component as any).getInitialProps
 
     // Toggle whether or not this is a Data request
-    const isDataReq = !!query._nextDataReq && (isSSG || isServerProps)
+    const isDataReq = !!query._nextDataReq && (isSSG || hasServerProps)
     delete query._nextDataReq
 
     // we need to ensure the status code if /404 is visited directly
@@ -1379,7 +1380,7 @@ export default class Server {
     let previewData: string | false | object | undefined
     let isPreviewMode = false
 
-    if (isServerProps || isSSG) {
+    if (hasServerProps || isSSG) {
       previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
       isPreviewMode = previewData !== false
     }
@@ -1603,17 +1604,18 @@ export default class Server {
             locale,
             locales,
             defaultLocale,
-            // For getServerSideProps we need to ensure we use the original URL
+            // For getServerSideProps and getInitialProps we need to ensure we use the original URL
             // and not the resolved URL to prevent a hydration mismatch on
             // asPath
-            resolvedAsPath: isServerProps
-              ? formatUrl({
-                  // we use the original URL pathname less the _next/data prefix if
-                  // present
-                  pathname: `${urlPathname}${hadTrailingSlash ? '/' : ''}`,
-                  query: origQuery,
-                })
-              : resolvedUrl,
+            resolvedAsPath:
+              hasServerProps || hasGetInitialProps
+                ? formatUrl({
+                    // we use the original URL pathname less the _next/data prefix if
+                    // present
+                    pathname: `${urlPathname}${hadTrailingSlash ? '/' : ''}`,
+                    query: origQuery,
+                  })
+                : resolvedUrl,
           }
 
           renderResult = await renderToHTML(
@@ -1720,7 +1722,7 @@ export default class Server {
     let resHtml = html
 
     const revalidateOptions =
-      !this.renderOpts.dev || (isServerProps && !isDataReq)
+      !this.renderOpts.dev || (hasServerProps && !isDataReq)
         ? {
             private: isPreviewMode,
             stateful: !isSSG,
@@ -1731,7 +1733,7 @@ export default class Server {
     if (
       !isResSent(res) &&
       !isNotFound &&
-      (isSSG || isDataReq || isServerProps)
+      (isSSG || isDataReq || hasServerProps)
     ) {
       if (isRedirect && !isDataReq) {
         await handleRedirect(pageData)
