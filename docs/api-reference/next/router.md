@@ -44,11 +44,12 @@ The following is the definition of the `router` object returned by both [`useRou
 - `pathname`: `String` - Current route. That is the path of the page in `/pages`
 - `query`: `Object` - The query string parsed to an object. It will be an empty object during prerendering if the page doesn't have [data fetching requirements](/docs/basic-features/data-fetching.md). Defaults to `{}`
 - `asPath`: `String` - The path (including the query) shown in the browser without the configured `basePath` or `locale`.
-- `isFallback`: `boolean` - Whether the current page is in [fallback mode](/docs/basic-features/data-fetching#fallback-pages).
-- `basePath`: `String` - The active [basePath](/docs/api-reference/next.config.js/basepath) (if enabled).
+- `isFallback`: `boolean` - Whether the current page is in [fallback mode](/docs/basic-features/data-fetching.md#fallback-pages).
+- `basePath`: `String` - The active [basePath](/docs/api-reference/next.config.js/basepath.md) (if enabled).
 - `locale`: `String` - The active locale (if enabled).
 - `locales`: `String[]` - All supported locales (if enabled).
 - `defaultLocale`: `String` - The current default locale (if enabled).
+- `isReady`: `boolean` - Whether the router fields are updated client-side and ready for use. Should only be used inside of `useEffect` methods and not for conditionally rendering on the server.
 
 Additionally, the following methods are also included inside `router`:
 
@@ -100,7 +101,7 @@ export default function Page() {
 }
 ```
 
-Redirecting the user to `pages/login.js`, useful for pages behind authentication:
+Redirecting the user to `pages/login.js`, useful for pages behind [authentication](/docs/authentication):
 
 ```jsx
 import { useEffect } from 'react'
@@ -310,13 +311,13 @@ export default function Page() {
 
 You can listen to different events happening inside the Next.js Router. Here's a list of supported events:
 
-- `routeChangeStart(url)` - Fires when a route starts to change
-- `routeChangeComplete(url)` - Fires when a route changed completely
-- `routeChangeError(err, url)` - Fires when there's an error when changing routes, or a route load is cancelled
+- `routeChangeStart(url, { shallow })` - Fires when a route starts to change
+- `routeChangeComplete(url, { shallow })` - Fires when a route changed completely
+- `routeChangeError(err, url, { shallow })` - Fires when there's an error when changing routes, or a route load is cancelled
   - `err.cancelled` - Indicates if the navigation was cancelled
-- `beforeHistoryChange(url)` - Fires just before changing the browser's history
-- `hashChangeStart(url)` - Fires when the hash will change but not the page
-- `hashChangeComplete(url)` - Fires when the hash has changed but not the page
+- `beforeHistoryChange(url, { shallow })` - Fires just before changing the browser's history
+- `hashChangeStart(url, { shallow })` - Fires when the hash will change but not the page
+- `hashChangeComplete(url, { shallow })` - Fires when the hash has changed but not the page
 
 > **Note:** Here `url` is the URL shown in the browser, including the [`basePath`](/docs/api-reference/next.config.js/basepath.md).
 
@@ -332,8 +333,12 @@ export default function MyApp({ Component, pageProps }) {
   const router = useRouter()
 
   useEffect(() => {
-    const handleRouteChange = (url) => {
-      console.log('App is changing to: ', url)
+    const handleRouteChange = (url, { shallow }) => {
+      console.log(
+        `App is changing to ${url} ${
+          shallow ? 'with' : 'without'
+        } shallow routing`
+      )
     }
 
     router.events.on('routeChangeStart', handleRouteChange)
@@ -396,4 +401,27 @@ function Page({ router }) {
 }
 
 export default withRouter(Page)
+```
+
+### Typescript
+
+To use class components with `withRouter`, the component needs to accept a router prop:
+
+```tsx
+import React from 'react'
+import { withRouter, NextRouter } from 'next/router'
+
+interface WithRouterProps {
+  router: NextRouter
+}
+
+interface MyComponentProps extends WithRouterProps {}
+
+class MyComponent extends React.Component<MyComponentProps> {
+  render() {
+    return <p>{this.props.router.pathname}</p>
+  }
+}
+
+export default withRouter(MyComponent)
 ```

@@ -27,6 +27,10 @@ export default function Index() {
         <a id="to-slug">to /top-level-slug/</a>
       </Link>
       <br />
+      <Link as="/world" href="/[slug]">
+        <a id="to-slug-manual">to /world/</a>
+      </Link>
+      <br />
     </>
   )
 }
