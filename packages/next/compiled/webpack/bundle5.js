@@ -54,7 +54,7 @@ module.exports = JSON.parse("{\"name\":\"terser\",\"description\":\"JavaScript p
 /***/ (function(module) {
 
 "use strict";
-module.exports = {"i8":"5.16.0"};
+module.exports = {"i8":"5.18.0"};
 
 /***/ }),
 
@@ -62,7 +62,7 @@ module.exports = {"i8":"5.16.0"};
 /***/ (function(module) {
 
 "use strict";
-module.exports = JSON.parse("{\"definitions\":{\"Amd\":{\"description\":\"Set the value of `require.amd` and `define.amd`. Or disable AMD support.\",\"anyOf\":[{\"description\":\"You can pass `false` to disable AMD support.\",\"enum\":[false]},{\"description\":\"You can pass an object to set the value of `require.amd` and `define.amd`.\",\"type\":\"object\"}]},\"AssetGeneratorDataUrl\":{\"description\":\"The options for data url generator.\",\"anyOf\":[{\"$ref\":\"#/definitions/AssetGeneratorDataUrlOptions\"},{\"$ref\":\"#/definitions/AssetGeneratorDataUrlFunction\"}]},\"AssetGeneratorDataUrlFunction\":{\"description\":\"Function that executes for module and should return an DataUrl string.\",\"instanceof\":\"Function\",\"tsType\":\"((source: string | Buffer, context: { filename: string, module: import('../lib/Module') }) => string)\"},\"AssetGeneratorDataUrlOptions\":{\"description\":\"Options object for data url generation.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"encoding\":{\"description\":\"Asset encoding (defaults to base64).\",\"enum\":[false,\"base64\"]},\"mimetype\":{\"description\":\"Asset mimetype (getting from file extension by default).\",\"type\":\"string\"}}},\"AssetGeneratorOptions\":{\"description\":\"Generator options for asset modules.\",\"type\":\"object\",\"implements\":[\"#/definitions/AssetInlineGeneratorOptions\",\"#/definitions/AssetResourceGeneratorOptions\"],\"additionalProperties\":false,\"properties\":{\"dataUrl\":{\"$ref\":\"#/definitions/AssetGeneratorDataUrl\"},\"filename\":{\"$ref\":\"#/definitions/FilenameTemplate\"}}},\"AssetInlineGeneratorOptions\":{\"description\":\"Generator options for asset/inline modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"dataUrl\":{\"$ref\":\"#/definitions/AssetGeneratorDataUrl\"}}},\"AssetModuleFilename\":{\"description\":\"The filename of asset modules as relative path inside the 'output.path' directory.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"AssetParserDataUrlFunction\":{\"description\":\"Function that executes for module and should return whenever asset should be inlined as DataUrl.\",\"instanceof\":\"Function\",\"tsType\":\"((source: string | Buffer, context: { filename: string, module: import('../lib/Module') }) => boolean)\"},\"AssetParserDataUrlOptions\":{\"description\":\"Options object for DataUrl condition.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"maxSize\":{\"description\":\"Maximum size of asset that should be inline as modules. Default: 8kb.\",\"type\":\"number\"}}},\"AssetParserOptions\":{\"description\":\"Parser options for asset modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"dataUrlCondition\":{\"description\":\"The condition for inlining the asset as DataUrl.\",\"anyOf\":[{\"$ref\":\"#/definitions/AssetParserDataUrlOptions\"},{\"$ref\":\"#/definitions/AssetParserDataUrlFunction\"}]}}},\"AssetResourceGeneratorOptions\":{\"description\":\"Generator options for asset/resource modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"filename\":{\"$ref\":\"#/definitions/FilenameTemplate\"}}},\"AuxiliaryComment\":{\"description\":\"Add a comment in the UMD wrapper.\",\"anyOf\":[{\"description\":\"Append the same comment above each import style.\",\"type\":\"string\"},{\"$ref\":\"#/definitions/LibraryCustomUmdCommentObject\"}]},\"Bail\":{\"description\":\"Report the first error as a hard error instead of tolerating it.\",\"type\":\"boolean\"},\"CacheOptions\":{\"description\":\"Cache generated modules and chunks to improve performance for multiple incremental builds.\",\"anyOf\":[{\"description\":\"Enable in memory caching.\",\"enum\":[true]},{\"$ref\":\"#/definitions/CacheOptionsNormalized\"}]},\"CacheOptionsNormalized\":{\"description\":\"Cache generated modules and chunks to improve performance for multiple incremental builds.\",\"anyOf\":[{\"description\":\"Disable caching.\",\"enum\":[false]},{\"$ref\":\"#/definitions/MemoryCacheOptions\"},{\"$ref\":\"#/definitions/FileCacheOptions\"}]},\"Charset\":{\"description\":\"Add charset attribute for script tag.\",\"type\":\"boolean\"},\"ChunkFilename\":{\"description\":\"Specifies the filename template of output files of non-initial chunks on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilenameTemplate\"}]},\"ChunkFormat\":{\"description\":\"The format of chunks (formats included by default are 'array-push' (web/WebWorker), 'commonjs' (node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"array-push\",\"commonjs\",false]},{\"type\":\"string\"}]},\"ChunkLoadTimeout\":{\"description\":\"Number of milliseconds before chunk request expires.\",\"type\":\"number\"},\"ChunkLoading\":{\"description\":\"The method of loading chunks (methods included by default are 'jsonp' (web), 'importScripts' (WebWorker), 'require' (sync node.js), 'async-node' (async node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/ChunkLoadingType\"}]},\"ChunkLoadingGlobal\":{\"description\":\"The global variable used by webpack for loading of chunks.\",\"type\":\"string\"},\"ChunkLoadingType\":{\"description\":\"The method of loading chunks (methods included by default are 'jsonp' (web), 'importScripts' (WebWorker), 'require' (sync node.js), 'async-node' (async node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"jsonp\",\"import-scripts\",\"require\",\"async-node\"]},{\"type\":\"string\"}]},\"CompareBeforeEmit\":{\"description\":\"Check if to be emitted file already exists and have the same content before writing to output filesystem.\",\"type\":\"boolean\"},\"Context\":{\"description\":\"The base directory (absolute path!) for resolving the `entry` option. If `output.pathinfo` is set, the included pathinfo is shortened to this directory.\",\"type\":\"string\",\"absolutePath\":true},\"CrossOriginLoading\":{\"description\":\"This option enables cross-origin loading of chunks.\",\"enum\":[false,\"anonymous\",\"use-credentials\"]},\"Dependencies\":{\"description\":\"References to other configurations to depend on.\",\"type\":\"array\",\"items\":{\"description\":\"References to another configuration to depend on.\",\"type\":\"string\"}},\"DevServer\":{\"description\":\"Options for the webpack-dev-server.\",\"type\":\"object\"},\"DevTool\":{\"description\":\"A developer tool to enhance debugging (false | eval | [inline-|hidden-|eval-][nosources-][cheap-[module-]]source-map).\",\"anyOf\":[{\"enum\":[false,\"eval\"]},{\"type\":\"string\",\"pattern\":\"^(inline-|hidden-|eval-)?(nosources-)?(cheap-(module-)?)?source-map$\"}]},\"DevtoolFallbackModuleFilenameTemplate\":{\"description\":\"Similar to `output.devtoolModuleFilenameTemplate`, but used in the case of duplicate module identifiers.\",\"anyOf\":[{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"DevtoolModuleFilenameTemplate\":{\"description\":\"Filename template string of function for the sources array in a generated SourceMap.\",\"anyOf\":[{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"DevtoolNamespace\":{\"description\":\"Module namespace to use when interpolating filename template string for the sources array in a generated SourceMap. Defaults to `output.library` if not set. It's useful for avoiding runtime collisions in sourcemaps from multiple webpack projects built as libraries.\",\"type\":\"string\"},\"EmptyGeneratorOptions\":{\"description\":\"No generator options are supported for this module type.\",\"type\":\"object\",\"additionalProperties\":false},\"EmptyParserOptions\":{\"description\":\"No parser options are supported for this module type.\",\"type\":\"object\",\"additionalProperties\":false},\"EnabledChunkLoadingTypes\":{\"description\":\"List of chunk loading types enabled for use by entry points.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/ChunkLoadingType\"}},\"EnabledLibraryTypes\":{\"description\":\"List of library types enabled for use by entry points.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/LibraryType\"}},\"EnabledWasmLoadingTypes\":{\"description\":\"List of wasm loading types enabled for use by entry points.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/WasmLoadingType\"}},\"Entry\":{\"description\":\"The entry point(s) of the compilation.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryDynamic\"},{\"$ref\":\"#/definitions/EntryStatic\"}]},\"EntryDescription\":{\"description\":\"An object with entry point description.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"dependOn\":{\"description\":\"The entrypoints that the current entrypoint depend on. They must be loaded when this entrypoint is loaded.\",\"anyOf\":[{\"description\":\"The entrypoints that the current entrypoint depend on. They must be loaded when this entrypoint is loaded.\",\"type\":\"array\",\"items\":{\"description\":\"An entrypoint that the current entrypoint depend on. It must be loaded when this entrypoint is loaded.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},{\"description\":\"An entrypoint that the current entrypoint depend on. It must be loaded when this entrypoint is loaded.\",\"type\":\"string\",\"minLength\":1}]},\"filename\":{\"$ref\":\"#/definitions/EntryFilename\"},\"import\":{\"$ref\":\"#/definitions/EntryItem\"},\"layer\":{\"$ref\":\"#/definitions/Layer\"},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"runtime\":{\"$ref\":\"#/definitions/EntryRuntime\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}},\"required\":[\"import\"]},\"EntryDescriptionNormalized\":{\"description\":\"An object with entry point description.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"dependOn\":{\"description\":\"The entrypoints that the current entrypoint depend on. They must be loaded when this entrypoint is loaded.\",\"type\":\"array\",\"items\":{\"description\":\"An entrypoint that the current entrypoint depend on. It must be loaded when this entrypoint is loaded.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},\"filename\":{\"$ref\":\"#/definitions/Filename\"},\"import\":{\"description\":\"Module(s) that are loaded upon startup. The last one is exported.\",\"type\":\"array\",\"items\":{\"description\":\"Module that is loaded upon startup. Only the last one is exported.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},\"layer\":{\"$ref\":\"#/definitions/Layer\"},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"runtime\":{\"$ref\":\"#/definitions/EntryRuntime\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}}},\"EntryDynamic\":{\"description\":\"A Function returning an entry object, an entry string, an entry array or a promise to these things.\",\"instanceof\":\"Function\",\"tsType\":\"(() => EntryStatic | Promise<EntryStatic>)\"},\"EntryDynamicNormalized\":{\"description\":\"A Function returning a Promise resolving to a normalized entry.\",\"instanceof\":\"Function\",\"tsType\":\"(() => Promise<EntryStaticNormalized>)\"},\"EntryFilename\":{\"description\":\"Specifies the filename of the output file on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilenameTemplate\"}]},\"EntryItem\":{\"description\":\"Module(s) that are loaded upon startup.\",\"anyOf\":[{\"description\":\"All modules are loaded upon startup. The last one is exported.\",\"type\":\"array\",\"items\":{\"description\":\"A module that is loaded upon startup. Only the last one is exported.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},{\"description\":\"The string is resolved to a module which is loaded upon startup.\",\"type\":\"string\",\"minLength\":1}]},\"EntryNormalized\":{\"description\":\"The entry point(s) of the compilation.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryDynamicNormalized\"},{\"$ref\":\"#/definitions/EntryStaticNormalized\"}]},\"EntryObject\":{\"description\":\"Multiple entry bundles are created. The key is the entry name. The value can be a string, an array or an entry description object.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"An entry point with name.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryItem\"},{\"$ref\":\"#/definitions/EntryDescription\"}]}},\"EntryRuntime\":{\"description\":\"The name of the runtime chunk. If set a runtime chunk with this name is created or an existing entrypoint is used as runtime.\",\"type\":\"string\",\"minLength\":1},\"EntryStatic\":{\"description\":\"A static entry description.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryObject\"},{\"$ref\":\"#/definitions/EntryUnnamed\"}]},\"EntryStaticNormalized\":{\"description\":\"Multiple entry bundles are created. The key is the entry name. The value is an entry description object.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"An object with entry point description.\",\"oneOf\":[{\"$ref\":\"#/definitions/EntryDescriptionNormalized\"}]}},\"EntryUnnamed\":{\"description\":\"An entry point without name.\",\"oneOf\":[{\"$ref\":\"#/definitions/EntryItem\"}]},\"Environment\":{\"description\":\"The abilities of the environment where the webpack generated code should run.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"arrowFunction\":{\"description\":\"The environment supports arrow functions ('() => { ... }').\",\"type\":\"boolean\"},\"bigIntLiteral\":{\"description\":\"The environment supports BigInt as literal (123n).\",\"type\":\"boolean\"},\"const\":{\"description\":\"The environment supports const and let for variable declarations.\",\"type\":\"boolean\"},\"destructuring\":{\"description\":\"The environment supports destructuring ('{ a, b } = obj').\",\"type\":\"boolean\"},\"dynamicImport\":{\"description\":\"The environment supports an async import() function to import EcmaScript modules.\",\"type\":\"boolean\"},\"forOf\":{\"description\":\"The environment supports 'for of' iteration ('for (const x of array) { ... }').\",\"type\":\"boolean\"},\"module\":{\"description\":\"The environment supports EcmaScript Module syntax to import EcmaScript modules (import ... from '...').\",\"type\":\"boolean\"}}},\"Experiments\":{\"description\":\"Enables/Disables experiments (experimental features with relax SemVer compatibility).\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"asset\":{\"description\":\"Allow module type 'asset' to generate assets.\",\"type\":\"boolean\"},\"asyncWebAssembly\":{\"description\":\"Support WebAssembly as asynchronous EcmaScript Module.\",\"type\":\"boolean\"},\"layers\":{\"description\":\"Enable module and chunk layers.\",\"type\":\"boolean\"},\"outputModule\":{\"description\":\"Allow output javascript files as module source type.\",\"type\":\"boolean\"},\"syncWebAssembly\":{\"description\":\"Support WebAssembly as synchronous EcmaScript Module (outdated).\",\"type\":\"boolean\"},\"topLevelAwait\":{\"description\":\"Allow using top-level-await in EcmaScript Modules.\",\"type\":\"boolean\"}}},\"ExternalItem\":{\"description\":\"Specify dependency that shouldn't be resolved by webpack, but should become dependencies of the resulting bundle. The kind of the dependency depends on `output.libraryTarget`.\",\"anyOf\":[{\"description\":\"Every matched dependency becomes external.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"An exact matched dependency becomes external. The same string is used as external dependency.\",\"type\":\"string\"},{\"description\":\"If an dependency matches exactly a property of the object, the property value is used as dependency.\",\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#/definitions/ExternalItemValue\"},\"properties\":{\"byLayer\":{\"description\":\"Specify externals depending on the layer.\",\"anyOf\":[{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#/definitions/ExternalItem\"}},{\"instanceof\":\"Function\",\"tsType\":\"((layer: string | null) => ExternalItem)\"}]}}},{\"description\":\"The function is called on each dependency (`function(context, request, callback(err, result))`).\",\"instanceof\":\"Function\",\"tsType\":\"(((data: ExternalItemFunctionData, callback: (err?: Error, result?: ExternalItemValue) => void) => void) | ((data: ExternalItemFunctionData) => Promise<ExternalItemValue>))\"}]},\"ExternalItemFunctionData\":{\"description\":\"Data object passed as argument when a function is set for 'externals'.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"context\":{\"description\":\"The directory in which the request is placed.\",\"type\":\"string\"},\"contextInfo\":{\"description\":\"Contextual information.\",\"type\":\"object\",\"tsType\":\"import('../lib/ModuleFactory').ModuleFactoryCreateDataContextInfo\"},\"getResolve\":{\"description\":\"Get a resolve function with the current resolver options.\",\"instanceof\":\"Function\",\"tsType\":\"((options?: ResolveOptions) => ((context: string, request: string, callback: (err?: Error, result?: string) => void) => void) | ((context: string, request: string) => Promise<string>))\"},\"request\":{\"description\":\"The request as written by the user in the require/import expression/statement.\",\"type\":\"string\"}}},\"ExternalItemValue\":{\"description\":\"The dependency used for the external.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A part of the target of the external.\",\"type\":\"string\",\"minLength\":1}},{\"description\":\"`true`: The dependency name is used as target of the external.\",\"type\":\"boolean\"},{\"description\":\"The target of the external.\",\"type\":\"string\"},{\"type\":\"object\"}]},\"Externals\":{\"description\":\"Specify dependencies that shouldn't be resolved by webpack, but should become dependencies of the resulting bundle. The kind of the dependency depends on `output.libraryTarget`.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/ExternalItem\"}},{\"$ref\":\"#/definitions/ExternalItem\"}]},\"ExternalsPresets\":{\"description\":\"Enable presets of externals for specific targets.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"electron\":{\"description\":\"Treat common electron built-in modules in main and preload context like 'electron', 'ipc' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"electronMain\":{\"description\":\"Treat electron built-in modules in the main context like 'app', 'ipc-main' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"electronPreload\":{\"description\":\"Treat electron built-in modules in the preload context like 'web-frame', 'ipc-renderer' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"electronRenderer\":{\"description\":\"Treat electron built-in modules in the renderer context like 'web-frame', 'ipc-renderer' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"node\":{\"description\":\"Treat node.js built-in modules like fs, path or vm as external and load them via require() when used.\",\"type\":\"boolean\"},\"nwjs\":{\"description\":\"Treat NW.js legacy nw.gui module as external and load it via require() when used.\",\"type\":\"boolean\"},\"web\":{\"description\":\"Treat references to 'http(s)://...' and 'std:...' as external and load them via import when used (Note that this changes execution order as externals are executed before any other code in the chunk).\",\"type\":\"boolean\"},\"webAsync\":{\"description\":\"Treat references to 'http(s)://...' and 'std:...' as external and load them via async import() when used (Note that this external type is an async module, which has various effects on the execution).\",\"type\":\"boolean\"}}},\"ExternalsType\":{\"description\":\"Specifies the default type of externals ('amd*', 'umd*', 'system' and 'jsonp' depend on output.libraryTarget set to the same value).\",\"enum\":[\"var\",\"module\",\"assign\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\",\"promise\",\"import\",\"script\"]},\"FileCacheOptions\":{\"description\":\"Options object for persistent file-based caching.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"buildDependencies\":{\"description\":\"Dependencies the build depends on (in multiple categories, default categories: 'defaultWebpack').\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"List of dependencies the build depends on.\",\"type\":\"array\",\"items\":{\"description\":\"Request to a dependency (resolved as directory relative to the context directory).\",\"type\":\"string\",\"minLength\":1}}},\"cacheDirectory\":{\"description\":\"Base directory for the cache (defaults to node_modules/.cache/webpack).\",\"type\":\"string\",\"absolutePath\":true},\"cacheLocation\":{\"description\":\"Locations for the cache (defaults to cacheDirectory / name).\",\"type\":\"string\",\"absolutePath\":true},\"hashAlgorithm\":{\"description\":\"Algorithm used for generation the hash (see node.js crypto package).\",\"type\":\"string\"},\"idleTimeout\":{\"description\":\"Time in ms after which idle period the cache storing should happen (only for store: 'pack' or 'idle').\",\"type\":\"number\",\"minimum\":0},\"idleTimeoutForInitialStore\":{\"description\":\"Time in ms after which idle period the initial cache storing should happen (only for store: 'pack' or 'idle').\",\"type\":\"number\",\"minimum\":0},\"immutablePaths\":{\"description\":\"List of paths that are managed by a package manager and contain a version or hash in its path so all files are immutable.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a immutable directory (usually a package manager cache directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"managedPaths\":{\"description\":\"List of paths that are managed by a package manager and can be trusted to not be modified otherwise.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a managed directory (usually a node_modules directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"name\":{\"description\":\"Name for the cache. Different names will lead to different coexisting caches.\",\"type\":\"string\"},\"store\":{\"description\":\"When to store data to the filesystem. (pack: Store data when compiler is idle in a single file).\",\"enum\":[\"pack\"]},\"type\":{\"description\":\"Filesystem caching.\",\"enum\":[\"filesystem\"]},\"version\":{\"description\":\"Version of the cache data. Different versions won't allow to reuse the cache and override existing content. Update the version when config changed in a way which doesn't allow to reuse cache. This will invalidate the cache.\",\"type\":\"string\"}},\"required\":[\"type\"]},\"Filename\":{\"description\":\"Specifies the filename of output files on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilenameTemplate\"}]},\"FilenameTemplate\":{\"description\":\"Specifies the filename template of output files on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"FilterItemTypes\":{\"description\":\"Filtering value, regexp or function.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((value: string) => boolean)\"}]},\"FilterTypes\":{\"description\":\"Filtering values.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Rule to filter.\",\"cli\":{\"helper\":true},\"oneOf\":[{\"$ref\":\"#/definitions/FilterItemTypes\"}]}},{\"$ref\":\"#/definitions/FilterItemTypes\"}]},\"GlobalObject\":{\"description\":\"An expression which is used to address the global object/scope in runtime code.\",\"type\":\"string\",\"minLength\":1},\"HashDigest\":{\"description\":\"Digest type used for the hash.\",\"type\":\"string\"},\"HashDigestLength\":{\"description\":\"Number of chars which are used for the hash.\",\"type\":\"number\",\"minimum\":1},\"HashFunction\":{\"description\":\"Algorithm used for generation the hash (see node.js crypto package).\",\"anyOf\":[{\"type\":\"string\",\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"typeof import('../lib/util/Hash')\"}]},\"HashSalt\":{\"description\":\"Any string which is added to the hash to salt it.\",\"type\":\"string\",\"minLength\":1},\"HotUpdateChunkFilename\":{\"description\":\"The filename of the Hot Update Chunks. They are inside the output.path directory.\",\"type\":\"string\",\"absolutePath\":false},\"HotUpdateGlobal\":{\"description\":\"The global variable used by webpack for loading of hot update chunks.\",\"type\":\"string\"},\"HotUpdateMainFilename\":{\"description\":\"The filename of the Hot Update Main File. It is inside the 'output.path' directory.\",\"type\":\"string\",\"absolutePath\":false},\"IgnoreWarnings\":{\"description\":\"Ignore specific warnings.\",\"type\":\"array\",\"items\":{\"description\":\"Ignore specific warnings.\",\"anyOf\":[{\"description\":\"A RegExp to select the warning message.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"file\":{\"description\":\"A RegExp to select the origin file for the warning.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},\"message\":{\"description\":\"A RegExp to select the warning message.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},\"module\":{\"description\":\"A RegExp to select the origin module for the warning.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}}},{\"description\":\"A custom function to select warnings based on the raw warning instance.\",\"instanceof\":\"Function\",\"tsType\":\"((warning: import('../lib/WebpackError'), compilation: import('../lib/Compilation')) => boolean)\"}]}},\"IgnoreWarningsNormalized\":{\"description\":\"Ignore specific warnings.\",\"type\":\"array\",\"items\":{\"description\":\"A function to select warnings based on the raw warning instance.\",\"instanceof\":\"Function\",\"tsType\":\"((warning: import('../lib/WebpackError'), compilation: import('../lib/Compilation')) => boolean)\"}},\"Iife\":{\"description\":\"Wrap javascript code into IIFE's to avoid leaking into global scope.\",\"type\":\"boolean\"},\"ImportFunctionName\":{\"description\":\"The name of the native import() function (can be exchanged for a polyfill).\",\"type\":\"string\"},\"ImportMetaName\":{\"description\":\"The name of the native import.meta object (can be exchanged for a polyfill).\",\"type\":\"string\"},\"InfrastructureLogging\":{\"description\":\"Options for infrastructure level logging.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"debug\":{\"description\":\"Enable debug logging for specific loggers.\",\"anyOf\":[{\"description\":\"Enable/Disable debug logging for all loggers.\",\"type\":\"boolean\"},{\"$ref\":\"#/definitions/FilterTypes\"}]},\"level\":{\"description\":\"Log level.\",\"enum\":[\"none\",\"error\",\"warn\",\"info\",\"log\",\"verbose\"]}}},\"JavascriptParserOptions\":{\"description\":\"Parser options for javascript modules.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"amd\":{\"$ref\":\"#/definitions/Amd\"},\"browserify\":{\"description\":\"Enable/disable special handling for browserify bundles.\",\"type\":\"boolean\"},\"commonjs\":{\"description\":\"Enable/disable parsing of CommonJs syntax.\",\"type\":\"boolean\"},\"harmony\":{\"description\":\"Enable/disable parsing of EcmaScript Modules syntax.\",\"type\":\"boolean\"},\"import\":{\"description\":\"Enable/disable parsing of import() syntax.\",\"type\":\"boolean\"},\"node\":{\"$ref\":\"#/definitions/Node\"},\"requireContext\":{\"description\":\"Enable/disable parsing of require.context syntax.\",\"type\":\"boolean\"},\"requireEnsure\":{\"description\":\"Enable/disable parsing of require.ensure syntax.\",\"type\":\"boolean\"},\"requireInclude\":{\"description\":\"Enable/disable parsing of require.include syntax.\",\"type\":\"boolean\"},\"requireJs\":{\"description\":\"Enable/disable parsing of require.js special syntax like require.config, requirejs.config, require.version and requirejs.onError.\",\"type\":\"boolean\"},\"system\":{\"description\":\"Enable/disable parsing of System.js special syntax like System.import, System.get, System.set and System.register.\",\"type\":\"boolean\"},\"url\":{\"description\":\"Enable/disable parsing of new URL() syntax.\",\"type\":\"boolean\"},\"worker\":{\"description\":\"Disable or configure parsing of WebWorker syntax like new Worker() or navigator.serviceWorker.register().\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Specify a syntax that should be parsed as WebWorker reference. 'Abc' handles 'new Abc()', 'Abc from xyz' handles 'import { Abc } from \\\"xyz\\\"; new Abc()', 'abc()' handles 'abc()', and combinations are also possible.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"boolean\"}]}}},\"Layer\":{\"description\":\"Specifies the layer in which modules of this entrypoint are placed.\",\"anyOf\":[{\"enum\":[null]},{\"type\":\"string\",\"minLength\":1}]},\"Library\":{\"description\":\"Make the output files a library, exporting the exports of the entry point.\",\"anyOf\":[{\"$ref\":\"#/definitions/LibraryName\"},{\"$ref\":\"#/definitions/LibraryOptions\"}]},\"LibraryCustomUmdCommentObject\":{\"description\":\"Set explicit comments for `commonjs`, `commonjs2`, `amd`, and `root`.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Set comment for `amd` section in UMD.\",\"type\":\"string\"},\"commonjs\":{\"description\":\"Set comment for `commonjs` (exports) section in UMD.\",\"type\":\"string\"},\"commonjs2\":{\"description\":\"Set comment for `commonjs2` (module.exports) section in UMD.\",\"type\":\"string\"},\"root\":{\"description\":\"Set comment for `root` (global variable) section in UMD.\",\"type\":\"string\"}}},\"LibraryCustomUmdObject\":{\"description\":\"Description object for all UMD variants of the library name.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Name of the exposed AMD library in the UMD.\",\"type\":\"string\",\"minLength\":1},\"commonjs\":{\"description\":\"Name of the exposed commonjs export in the UMD.\",\"type\":\"string\",\"minLength\":1},\"root\":{\"description\":\"Name of the property exposed globally by a UMD library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the name of the property exposed globally by a UMD library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}}},\"LibraryExport\":{\"description\":\"Specify which export should be exposed as library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the export that should be exposed as library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]},\"LibraryName\":{\"description\":\"The name of the library (some types allow unnamed libraries too).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A part of the library name.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1},{\"$ref\":\"#/definitions/LibraryCustomUmdObject\"}]},\"LibraryOptions\":{\"description\":\"Options for library.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"auxiliaryComment\":{\"$ref\":\"#/definitions/AuxiliaryComment\"},\"export\":{\"$ref\":\"#/definitions/LibraryExport\"},\"name\":{\"$ref\":\"#/definitions/LibraryName\"},\"type\":{\"$ref\":\"#/definitions/LibraryType\"},\"umdNamedDefine\":{\"$ref\":\"#/definitions/UmdNamedDefine\"}},\"required\":[\"type\"]},\"LibraryType\":{\"description\":\"Type of library (types included by default are 'var', 'module', 'assign', 'assign-properties', 'this', 'window', 'self', 'global', 'commonjs', 'commonjs2', 'commonjs-module', 'amd', 'amd-require', 'umd', 'umd2', 'jsonp', 'system', but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"var\",\"module\",\"assign\",\"assign-properties\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\"]},{\"type\":\"string\"}]},\"Loader\":{\"description\":\"Custom values available in the loader context.\",\"type\":\"object\"},\"MemoryCacheOptions\":{\"description\":\"Options object for in-memory caching.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"type\":{\"description\":\"In memory caching.\",\"enum\":[\"memory\"]}},\"required\":[\"type\"]},\"Mode\":{\"description\":\"Enable production optimizations or development hints.\",\"enum\":[\"development\",\"production\",\"none\"]},\"ModuleOptions\":{\"description\":\"Options affecting the normal modules (`NormalModuleFactory`).\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"defaultRules\":{\"description\":\"An array of rules applied by default for modules.\",\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRules\"}]},\"exprContextCritical\":{\"description\":\"Enable warnings for full dynamic dependencies.\",\"type\":\"boolean\"},\"exprContextRecursive\":{\"description\":\"Enable recursive directory lookup for full dynamic dependencies.\",\"type\":\"boolean\"},\"exprContextRegExp\":{\"description\":\"Sets the default regular expression for full dynamic dependencies.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"boolean\"}]},\"exprContextRequest\":{\"description\":\"Set the default request for full dynamic dependencies.\",\"type\":\"string\"},\"generator\":{\"description\":\"Specify options for each generator.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Options for generating.\",\"type\":\"object\",\"additionalProperties\":true},\"properties\":{\"asset\":{\"$ref\":\"#/definitions/AssetGeneratorOptions\"},\"asset/inline\":{\"$ref\":\"#/definitions/AssetInlineGeneratorOptions\"},\"asset/resource\":{\"$ref\":\"#/definitions/AssetResourceGeneratorOptions\"},\"javascript\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"},\"javascript/auto\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"},\"javascript/dynamic\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"},\"javascript/esm\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"}}},\"noParse\":{\"description\":\"Don't parse files matching. It's matched against the full resolved request.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Don't parse files matching. It's matched against the full resolved request.\",\"anyOf\":[{\"description\":\"A regular expression, when matched the module is not parsed.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"An absolute path, when the module starts with this path it is not parsed.\",\"type\":\"string\",\"absolutePath\":true},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"minItems\":1},{\"description\":\"A regular expression, when matched the module is not parsed.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"An absolute path, when the module starts with this path it is not parsed.\",\"type\":\"string\",\"absolutePath\":true},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"parser\":{\"description\":\"Specify options for each parser.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Options for parsing.\",\"type\":\"object\",\"additionalProperties\":true},\"properties\":{\"asset\":{\"$ref\":\"#/definitions/AssetParserOptions\"},\"asset/inline\":{\"$ref\":\"#/definitions/EmptyParserOptions\"},\"asset/resource\":{\"$ref\":\"#/definitions/EmptyParserOptions\"},\"asset/source\":{\"$ref\":\"#/definitions/EmptyParserOptions\"},\"javascript\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"},\"javascript/auto\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"},\"javascript/dynamic\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"},\"javascript/esm\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"}}},\"rules\":{\"description\":\"An array of rules applied for modules.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRules\"}]},\"strictExportPresence\":{\"description\":\"Emit errors instead of warnings when imported names don't exist in imported module.\",\"type\":\"boolean\"},\"strictThisContextOnImports\":{\"description\":\"Handle the this context correctly according to the spec for namespace objects.\",\"type\":\"boolean\"},\"unknownContextCritical\":{\"description\":\"Enable warnings when using the require function in a not statically analyse-able way.\",\"type\":\"boolean\"},\"unknownContextRecursive\":{\"description\":\"Enable recursive directory lookup when using the require function in a not statically analyse-able way.\",\"type\":\"boolean\"},\"unknownContextRegExp\":{\"description\":\"Sets the regular expression when using the require function in a not statically analyse-able way.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"boolean\"}]},\"unknownContextRequest\":{\"description\":\"Sets the request when using the require function in a not statically analyse-able way.\",\"type\":\"string\"},\"unsafeCache\":{\"description\":\"Cache the resolving of module requests.\",\"anyOf\":[{\"type\":\"boolean\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"wrappedContextCritical\":{\"description\":\"Enable warnings for partial dynamic dependencies.\",\"type\":\"boolean\"},\"wrappedContextRecursive\":{\"description\":\"Enable recursive directory lookup for partial dynamic dependencies.\",\"type\":\"boolean\"},\"wrappedContextRegExp\":{\"description\":\"Set the inner regular expression for partial dynamic dependencies.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}}},\"Name\":{\"description\":\"Name of the configuration. Used when loading multiple configurations.\",\"type\":\"string\"},\"Node\":{\"description\":\"Include polyfills or mocks for various node stuff.\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/NodeOptions\"}]},\"NodeOptions\":{\"description\":\"Options object for node compatibility features.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"__dirname\":{\"description\":\"Include a polyfill for the '__dirname' variable.\",\"enum\":[false,true,\"mock\",\"eval-only\"]},\"__filename\":{\"description\":\"Include a polyfill for the '__filename' variable.\",\"enum\":[false,true,\"mock\",\"eval-only\"]},\"global\":{\"description\":\"Include a polyfill for the 'global' variable.\",\"type\":\"boolean\"}}},\"Optimization\":{\"description\":\"Enables/Disables integrated optimizations.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"checkWasmTypes\":{\"description\":\"Check for incompatible wasm types when importing/exporting from/to ESM.\",\"type\":\"boolean\"},\"chunkIds\":{\"description\":\"Define the algorithm to choose chunk ids (named: readable ids for better debugging, deterministic: numeric hash ids for better long term caching, size: numeric ids focused on minimal initial download size, total-size: numeric ids focused on minimal total download size, false: no algorithm used, as custom one can be provided via plugin).\",\"enum\":[\"natural\",\"named\",\"deterministic\",\"size\",\"total-size\",false]},\"concatenateModules\":{\"description\":\"Concatenate modules when possible to generate less modules, more efficient code and enable more optimizations by the minimizer.\",\"type\":\"boolean\"},\"emitOnErrors\":{\"description\":\"Emit assets even when errors occur. Critical errors are emitted into the generated code and will cause errors at runtime.\",\"type\":\"boolean\"},\"flagIncludedChunks\":{\"description\":\"Also flag chunks as loaded which contain a subset of the modules.\",\"type\":\"boolean\"},\"innerGraph\":{\"description\":\"Creates a module-internal dependency graph for top level symbols, exports and imports, to improve unused exports detection.\",\"type\":\"boolean\"},\"mangleExports\":{\"description\":\"Rename exports when possible to generate shorter code (depends on optimization.usedExports and optimization.providedExports, true/\\\"deterministic\\\": generate short deterministic names optimized for caching, \\\"size\\\": generate the shortest possible names).\",\"anyOf\":[{\"enum\":[\"size\",\"deterministic\"]},{\"type\":\"boolean\"}]},\"mangleWasmImports\":{\"description\":\"Reduce size of WASM by changing imports to shorter strings.\",\"type\":\"boolean\"},\"mergeDuplicateChunks\":{\"description\":\"Merge chunks which contain the same modules.\",\"type\":\"boolean\"},\"minimize\":{\"description\":\"Enable minimizing the output. Uses optimization.minimizer.\",\"type\":\"boolean\"},\"minimizer\":{\"description\":\"Minimizer(s) to use for minimizing the output.\",\"type\":\"array\",\"cli\":{\"exclude\":true},\"items\":{\"description\":\"Plugin of type object or instanceof Function.\",\"anyOf\":[{\"enum\":[\"...\"]},{\"$ref\":\"#/definitions/WebpackPluginInstance\"},{\"$ref\":\"#/definitions/WebpackPluginFunction\"}]}},\"moduleIds\":{\"description\":\"Define the algorithm to choose module ids (natural: numeric ids in order of usage, named: readable ids for better debugging, hashed: (deprecated) short hashes as ids for better long term caching, deterministic: numeric hash ids for better long term caching, size: numeric ids focused on minimal initial download size, false: no algorithm used, as custom one can be provided via plugin).\",\"enum\":[\"natural\",\"named\",\"hashed\",\"deterministic\",\"size\",false]},\"noEmitOnErrors\":{\"description\":\"Avoid emitting assets when errors occur (deprecated: use 'emitOnErrors' instead).\",\"type\":\"boolean\",\"cli\":{\"exclude\":true}},\"nodeEnv\":{\"description\":\"Set process.env.NODE_ENV to a specific value.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\"}]},\"portableRecords\":{\"description\":\"Generate records with relative paths to be able to move the context folder.\",\"type\":\"boolean\"},\"providedExports\":{\"description\":\"Figure out which exports are provided by modules to generate more efficient code.\",\"type\":\"boolean\"},\"realContentHash\":{\"description\":\"Use real [contenthash] based on final content of the assets.\",\"type\":\"boolean\"},\"removeAvailableModules\":{\"description\":\"Removes modules from chunks when these modules are already included in all parents.\",\"type\":\"boolean\"},\"removeEmptyChunks\":{\"description\":\"Remove chunks which are empty.\",\"type\":\"boolean\"},\"runtimeChunk\":{\"$ref\":\"#/definitions/OptimizationRuntimeChunk\"},\"sideEffects\":{\"description\":\"Skip over modules which contain no side effects when exports are not used (false: disabled, 'flag': only use manually placed side effects flag, true: also analyse source code for side effects).\",\"anyOf\":[{\"enum\":[\"flag\"]},{\"type\":\"boolean\"}]},\"splitChunks\":{\"description\":\"Optimize duplication and caching by splitting chunks by shared modules and cache group.\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/OptimizationSplitChunksOptions\"}]},\"usedExports\":{\"description\":\"Figure out which exports are used by modules to mangle export names, omit unused exports and generate more efficient code (true: analyse used exports for each runtime, \\\"global\\\": analyse exports globally for all runtimes combined).\",\"anyOf\":[{\"enum\":[\"global\"]},{\"type\":\"boolean\"}]}}},\"OptimizationRuntimeChunk\":{\"description\":\"Create an additional chunk which contains only the webpack runtime and chunk hash maps.\",\"anyOf\":[{\"enum\":[\"single\",\"multiple\"]},{\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"name\":{\"description\":\"The name or name factory for the runtime chunks.\",\"anyOf\":[{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]}}}]},\"OptimizationRuntimeChunkNormalized\":{\"description\":\"Create an additional chunk which contains only the webpack runtime and chunk hash maps.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"name\":{\"description\":\"The name factory for the runtime chunks.\",\"instanceof\":\"Function\",\"tsType\":\"Function\"}}}]},\"OptimizationSplitChunksCacheGroup\":{\"description\":\"Options object for describing behavior of a cache group selecting modules that should be cached together.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"automaticNameDelimiter\":{\"description\":\"Sets the name delimiter for created chunks.\",\"type\":\"string\",\"minLength\":1},\"chunks\":{\"description\":\"Select chunks for determining cache group content (defaults to \\\"initial\\\", \\\"initial\\\" and \\\"all\\\" requires adding these chunks to the HTML).\",\"anyOf\":[{\"enum\":[\"initial\",\"async\",\"all\"]},{\"instanceof\":\"Function\",\"tsType\":\"((chunk: import('../lib/Chunk')) => boolean)\"}]},\"enforce\":{\"description\":\"Ignore minimum size, minimum chunks and maximum requests and always create chunks for this cache group.\",\"type\":\"boolean\"},\"enforceSizeThreshold\":{\"description\":\"Size threshold at which splitting is enforced and other restrictions (minRemainingSize, maxAsyncRequests, maxInitialRequests) are ignored.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"filename\":{\"description\":\"Sets the template for the filename for created chunks.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"idHint\":{\"description\":\"Sets the hint for chunk id.\",\"type\":\"string\"},\"layer\":{\"description\":\"Assign modules to a cache group by module layer.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"maxAsyncRequests\":{\"description\":\"Maximum number of requests which are accepted for on-demand loading.\",\"type\":\"number\",\"minimum\":1},\"maxAsyncSize\":{\"description\":\"Maximal size hint for the on-demand chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxInitialRequests\":{\"description\":\"Maximum number of initial chunks which are accepted for an entry point.\",\"type\":\"number\",\"minimum\":1},\"maxInitialSize\":{\"description\":\"Maximal size hint for the initial chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxSize\":{\"description\":\"Maximal size hint for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minChunks\":{\"description\":\"Minimum number of times a module has to be duplicated until it's considered for splitting.\",\"type\":\"number\",\"minimum\":1},\"minRemainingSize\":{\"description\":\"Minimal size for the chunks the stay after moving the modules to a new chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minSize\":{\"description\":\"Minimal size for the created chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"name\":{\"description\":\"Give chunks for this cache group a name (chunks with equal name are merged).\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"priority\":{\"description\":\"Priority of this cache group.\",\"type\":\"number\"},\"reuseExistingChunk\":{\"description\":\"Try to reuse existing chunk (with name) when it has matching modules.\",\"type\":\"boolean\"},\"test\":{\"description\":\"Assign modules to a cache group by module name.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"type\":{\"description\":\"Assign modules to a cache group by module type.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"usedExports\":{\"description\":\"Compare used exports when checking common modules. Modules will only be put in the same chunk when exports are equal.\",\"type\":\"boolean\"}}},\"OptimizationSplitChunksGetCacheGroups\":{\"description\":\"A function returning cache groups.\",\"instanceof\":\"Function\",\"tsType\":\"((module: import('../lib/Module')) => OptimizationSplitChunksCacheGroup | OptimizationSplitChunksCacheGroup[] | void)\"},\"OptimizationSplitChunksOptions\":{\"description\":\"Options object for splitting chunks into smaller chunks.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"automaticNameDelimiter\":{\"description\":\"Sets the name delimiter for created chunks.\",\"type\":\"string\",\"minLength\":1},\"cacheGroups\":{\"description\":\"Assign modules to a cache group (modules from different cache groups are tried to keep in separate chunks, default categories: 'default', 'defaultVendors').\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Configuration for a cache group.\",\"anyOf\":[{\"enum\":[false]},{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"},{\"$ref\":\"#/definitions/OptimizationSplitChunksCacheGroup\"}]},\"not\":{\"description\":\"Using the cacheGroup shorthand syntax with a cache group named 'test' is a potential config error\\nDid you intent to define a cache group with a test instead?\\ncacheGroups: {\\n  <name>: {\\n    test: ...\\n  }\\n}.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"test\":{\"description\":\"The test property is a cache group name, but using the test option of the cache group could be intended instead.\",\"anyOf\":[{\"instanceof\":\"Function\",\"tsType\":\"Function\"},{\"type\":\"string\"},{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}]}},\"required\":[\"test\"]}},\"chunks\":{\"description\":\"Select chunks for determining shared modules (defaults to \\\"async\\\", \\\"initial\\\" and \\\"all\\\" requires adding these chunks to the HTML).\",\"anyOf\":[{\"enum\":[\"initial\",\"async\",\"all\"]},{\"instanceof\":\"Function\",\"tsType\":\"((chunk: import('../lib/Chunk')) => boolean)\"}]},\"defaultSizeTypes\":{\"description\":\"Sets the size types which are used when a number is used for sizes.\",\"type\":\"array\",\"items\":{\"description\":\"Size type, like 'javascript', 'webassembly'.\",\"type\":\"string\"},\"minLength\":1},\"enforceSizeThreshold\":{\"description\":\"Size threshold at which splitting is enforced and other restrictions (minRemainingSize, maxAsyncRequests, maxInitialRequests) are ignored.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"fallbackCacheGroup\":{\"description\":\"Options for modules not selected by any other cache group.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"automaticNameDelimiter\":{\"description\":\"Sets the name delimiter for created chunks.\",\"type\":\"string\",\"minLength\":1},\"maxAsyncSize\":{\"description\":\"Maximal size hint for the on-demand chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxInitialSize\":{\"description\":\"Maximal size hint for the initial chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxSize\":{\"description\":\"Maximal size hint for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minSize\":{\"description\":\"Minimal size for the created chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]}}},\"filename\":{\"description\":\"Sets the template for the filename for created chunks.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"hidePathInfo\":{\"description\":\"Prevents exposing path info when creating names for parts splitted by maxSize.\",\"type\":\"boolean\"},\"maxAsyncRequests\":{\"description\":\"Maximum number of requests which are accepted for on-demand loading.\",\"type\":\"number\",\"minimum\":1},\"maxAsyncSize\":{\"description\":\"Maximal size hint for the on-demand chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxInitialRequests\":{\"description\":\"Maximum number of initial chunks which are accepted for an entry point.\",\"type\":\"number\",\"minimum\":1},\"maxInitialSize\":{\"description\":\"Maximal size hint for the initial chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxSize\":{\"description\":\"Maximal size hint for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minChunks\":{\"description\":\"Minimum number of times a module has to be duplicated until it's considered for splitting.\",\"type\":\"number\",\"minimum\":1},\"minRemainingSize\":{\"description\":\"Minimal size for the chunks the stay after moving the modules to a new chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minSize\":{\"description\":\"Minimal size for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"name\":{\"description\":\"Give chunks created a name (chunks with equal name are merged).\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"usedExports\":{\"description\":\"Compare used exports when checking common modules. Modules will only be put in the same chunk when exports are equal.\",\"type\":\"boolean\"}}},\"OptimizationSplitChunksSizes\":{\"description\":\"Size description for limits.\",\"anyOf\":[{\"description\":\"Size of the javascript part of the chunk.\",\"type\":\"number\",\"minimum\":0},{\"description\":\"Specify size limits per size type.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Size of the part of the chunk with the type of the key.\",\"type\":\"number\"}}]},\"Output\":{\"description\":\"Options affecting the output of the compilation. `output` options tell webpack how to write the compiled files to disk.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"assetModuleFilename\":{\"$ref\":\"#/definitions/AssetModuleFilename\"},\"auxiliaryComment\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/AuxiliaryComment\"}]},\"charset\":{\"$ref\":\"#/definitions/Charset\"},\"chunkFilename\":{\"$ref\":\"#/definitions/ChunkFilename\"},\"chunkFormat\":{\"$ref\":\"#/definitions/ChunkFormat\"},\"chunkLoadTimeout\":{\"$ref\":\"#/definitions/ChunkLoadTimeout\"},\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"chunkLoadingGlobal\":{\"$ref\":\"#/definitions/ChunkLoadingGlobal\"},\"compareBeforeEmit\":{\"$ref\":\"#/definitions/CompareBeforeEmit\"},\"crossOriginLoading\":{\"$ref\":\"#/definitions/CrossOriginLoading\"},\"devtoolFallbackModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolFallbackModuleFilenameTemplate\"},\"devtoolModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolModuleFilenameTemplate\"},\"devtoolNamespace\":{\"$ref\":\"#/definitions/DevtoolNamespace\"},\"enabledChunkLoadingTypes\":{\"$ref\":\"#/definitions/EnabledChunkLoadingTypes\"},\"enabledLibraryTypes\":{\"$ref\":\"#/definitions/EnabledLibraryTypes\"},\"enabledWasmLoadingTypes\":{\"$ref\":\"#/definitions/EnabledWasmLoadingTypes\"},\"environment\":{\"$ref\":\"#/definitions/Environment\"},\"filename\":{\"$ref\":\"#/definitions/Filename\"},\"globalObject\":{\"$ref\":\"#/definitions/GlobalObject\"},\"hashDigest\":{\"$ref\":\"#/definitions/HashDigest\"},\"hashDigestLength\":{\"$ref\":\"#/definitions/HashDigestLength\"},\"hashFunction\":{\"$ref\":\"#/definitions/HashFunction\"},\"hashSalt\":{\"$ref\":\"#/definitions/HashSalt\"},\"hotUpdateChunkFilename\":{\"$ref\":\"#/definitions/HotUpdateChunkFilename\"},\"hotUpdateGlobal\":{\"$ref\":\"#/definitions/HotUpdateGlobal\"},\"hotUpdateMainFilename\":{\"$ref\":\"#/definitions/HotUpdateMainFilename\"},\"iife\":{\"$ref\":\"#/definitions/Iife\"},\"importFunctionName\":{\"$ref\":\"#/definitions/ImportFunctionName\"},\"importMetaName\":{\"$ref\":\"#/definitions/ImportMetaName\"},\"library\":{\"$ref\":\"#/definitions/Library\"},\"libraryExport\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/LibraryExport\"}]},\"libraryTarget\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/LibraryType\"}]},\"module\":{\"$ref\":\"#/definitions/OutputModule\"},\"path\":{\"$ref\":\"#/definitions/Path\"},\"pathinfo\":{\"$ref\":\"#/definitions/Pathinfo\"},\"publicPath\":{\"$ref\":\"#/definitions/PublicPath\"},\"scriptType\":{\"$ref\":\"#/definitions/ScriptType\"},\"sourceMapFilename\":{\"$ref\":\"#/definitions/SourceMapFilename\"},\"sourcePrefix\":{\"$ref\":\"#/definitions/SourcePrefix\"},\"strictModuleExceptionHandling\":{\"$ref\":\"#/definitions/StrictModuleExceptionHandling\"},\"umdNamedDefine\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/UmdNamedDefine\"}]},\"uniqueName\":{\"$ref\":\"#/definitions/UniqueName\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"},\"webassemblyModuleFilename\":{\"$ref\":\"#/definitions/WebassemblyModuleFilename\"},\"workerChunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"workerWasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}}},\"OutputModule\":{\"description\":\"Output javascript files as module source type.\",\"type\":\"boolean\"},\"OutputNormalized\":{\"description\":\"Normalized options affecting the output of the compilation. `output` options tell webpack how to write the compiled files to disk.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"assetModuleFilename\":{\"$ref\":\"#/definitions/AssetModuleFilename\"},\"charset\":{\"$ref\":\"#/definitions/Charset\"},\"chunkFilename\":{\"$ref\":\"#/definitions/ChunkFilename\"},\"chunkFormat\":{\"$ref\":\"#/definitions/ChunkFormat\"},\"chunkLoadTimeout\":{\"$ref\":\"#/definitions/ChunkLoadTimeout\"},\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"chunkLoadingGlobal\":{\"$ref\":\"#/definitions/ChunkLoadingGlobal\"},\"compareBeforeEmit\":{\"$ref\":\"#/definitions/CompareBeforeEmit\"},\"crossOriginLoading\":{\"$ref\":\"#/definitions/CrossOriginLoading\"},\"devtoolFallbackModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolFallbackModuleFilenameTemplate\"},\"devtoolModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolModuleFilenameTemplate\"},\"devtoolNamespace\":{\"$ref\":\"#/definitions/DevtoolNamespace\"},\"enabledChunkLoadingTypes\":{\"$ref\":\"#/definitions/EnabledChunkLoadingTypes\"},\"enabledLibraryTypes\":{\"$ref\":\"#/definitions/EnabledLibraryTypes\"},\"enabledWasmLoadingTypes\":{\"$ref\":\"#/definitions/EnabledWasmLoadingTypes\"},\"environment\":{\"$ref\":\"#/definitions/Environment\"},\"filename\":{\"$ref\":\"#/definitions/Filename\"},\"globalObject\":{\"$ref\":\"#/definitions/GlobalObject\"},\"hashDigest\":{\"$ref\":\"#/definitions/HashDigest\"},\"hashDigestLength\":{\"$ref\":\"#/definitions/HashDigestLength\"},\"hashFunction\":{\"$ref\":\"#/definitions/HashFunction\"},\"hashSalt\":{\"$ref\":\"#/definitions/HashSalt\"},\"hotUpdateChunkFilename\":{\"$ref\":\"#/definitions/HotUpdateChunkFilename\"},\"hotUpdateGlobal\":{\"$ref\":\"#/definitions/HotUpdateGlobal\"},\"hotUpdateMainFilename\":{\"$ref\":\"#/definitions/HotUpdateMainFilename\"},\"iife\":{\"$ref\":\"#/definitions/Iife\"},\"importFunctionName\":{\"$ref\":\"#/definitions/ImportFunctionName\"},\"importMetaName\":{\"$ref\":\"#/definitions/ImportMetaName\"},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"module\":{\"$ref\":\"#/definitions/OutputModule\"},\"path\":{\"$ref\":\"#/definitions/Path\"},\"pathinfo\":{\"$ref\":\"#/definitions/Pathinfo\"},\"publicPath\":{\"$ref\":\"#/definitions/PublicPath\"},\"scriptType\":{\"$ref\":\"#/definitions/ScriptType\"},\"sourceMapFilename\":{\"$ref\":\"#/definitions/SourceMapFilename\"},\"sourcePrefix\":{\"$ref\":\"#/definitions/SourcePrefix\"},\"strictModuleExceptionHandling\":{\"$ref\":\"#/definitions/StrictModuleExceptionHandling\"},\"uniqueName\":{\"$ref\":\"#/definitions/UniqueName\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"},\"webassemblyModuleFilename\":{\"$ref\":\"#/definitions/WebassemblyModuleFilename\"},\"workerChunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"workerWasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}}},\"Parallelism\":{\"description\":\"The number of parallel processed modules in the compilation.\",\"type\":\"number\",\"minimum\":1},\"Path\":{\"description\":\"The output directory as **absolute path** (required).\",\"type\":\"string\",\"absolutePath\":true},\"Pathinfo\":{\"description\":\"Include comments with information about the modules.\",\"anyOf\":[{\"enum\":[\"verbose\"]},{\"type\":\"boolean\"}]},\"Performance\":{\"description\":\"Configuration for web performance recommendations.\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/PerformanceOptions\"}]},\"PerformanceOptions\":{\"description\":\"Configuration object for web performance recommendations.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"assetFilter\":{\"description\":\"Filter function to select assets that are checked.\",\"instanceof\":\"Function\",\"tsType\":\"Function\"},\"hints\":{\"description\":\"Sets the format of the hints: warnings, errors or nothing at all.\",\"enum\":[false,\"warning\",\"error\"]},\"maxAssetSize\":{\"description\":\"File size limit (in bytes) when exceeded, that webpack will provide performance hints.\",\"type\":\"number\"},\"maxEntrypointSize\":{\"description\":\"Total size of an entry point (in bytes).\",\"type\":\"number\"}}},\"Plugins\":{\"description\":\"Add additional plugins to the compiler.\",\"type\":\"array\",\"items\":{\"description\":\"Plugin of type object or instanceof Function.\",\"anyOf\":[{\"$ref\":\"#/definitions/WebpackPluginInstance\"},{\"$ref\":\"#/definitions/WebpackPluginFunction\"}]}},\"Profile\":{\"description\":\"Capture timing information for each module.\",\"type\":\"boolean\"},\"PublicPath\":{\"description\":\"The `publicPath` specifies the public URL address of the output files when referenced in a browser.\",\"anyOf\":[{\"enum\":[\"auto\"]},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"RecordsInputPath\":{\"description\":\"Store compiler state to a json file.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\",\"absolutePath\":true}]},\"RecordsOutputPath\":{\"description\":\"Load compiler state from a json file.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\",\"absolutePath\":true}]},\"RecordsPath\":{\"description\":\"Store/Load compiler state from/to a json file. This will result in persistent ids of modules and chunks. An absolute path is expected. `recordsPath` is used for `recordsInputPath` and `recordsOutputPath` if they left undefined.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\",\"absolutePath\":true}]},\"Resolve\":{\"description\":\"Options for the resolver.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]},\"ResolveAlias\":{\"description\":\"Redirect module requests.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Alias configuration.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"alias\":{\"description\":\"New request.\",\"anyOf\":[{\"description\":\"Multiple alternative requests.\",\"type\":\"array\",\"items\":{\"description\":\"One choice of request.\",\"type\":\"string\",\"minLength\":1}},{\"description\":\"Ignore request (replace with empty module).\",\"enum\":[false]},{\"description\":\"New request.\",\"type\":\"string\",\"minLength\":1}]},\"name\":{\"description\":\"Request to be redirected.\",\"type\":\"string\"},\"onlyModule\":{\"description\":\"Redirect only exact matching request.\",\"type\":\"boolean\"}},\"required\":[\"alias\",\"name\"]}},{\"type\":\"object\",\"additionalProperties\":{\"description\":\"New request.\",\"anyOf\":[{\"description\":\"Multiple alternative requests.\",\"type\":\"array\",\"items\":{\"description\":\"One choice of request.\",\"type\":\"string\",\"minLength\":1}},{\"description\":\"Ignore request (replace with empty module).\",\"enum\":[false]},{\"description\":\"New request.\",\"type\":\"string\",\"minLength\":1}]}}]},\"ResolveLoader\":{\"description\":\"Options for the resolver when resolving loaders.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]},\"ResolveOptions\":{\"description\":\"Options object for resolving requests.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"alias\":{\"$ref\":\"#/definitions/ResolveAlias\"},\"aliasFields\":{\"description\":\"Fields in the description file (usually package.json) which are used to redirect requests inside the module.\",\"type\":\"array\",\"items\":{\"description\":\"Field in the description file (usually package.json) which are used to redirect requests inside the module.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the field path in the description file (usually package.json) which are used to redirect requests inside the module.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}},\"byDependency\":{\"description\":\"Extra resolve options per dependency category. Typical categories are \\\"commonjs\\\", \\\"amd\\\", \\\"esm\\\".\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Options object for resolving requests.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]}},\"cache\":{\"description\":\"Enable caching of successfully resolved requests (cache entries are revalidated).\",\"type\":\"boolean\"},\"cachePredicate\":{\"description\":\"Predicate function to decide which requests should be cached.\",\"instanceof\":\"Function\",\"tsType\":\"((request: import('enhanced-resolve').ResolveRequest) => boolean)\"},\"cacheWithContext\":{\"description\":\"Include the context information in the cache identifier when caching.\",\"type\":\"boolean\"},\"conditionNames\":{\"description\":\"Condition names for exports field entry point.\",\"type\":\"array\",\"items\":{\"description\":\"Condition names for exports field entry point.\",\"type\":\"string\"}},\"descriptionFiles\":{\"description\":\"Filenames used to find a description file (like a package.json).\",\"type\":\"array\",\"items\":{\"description\":\"Filename used to find a description file (like a package.json).\",\"type\":\"string\",\"minLength\":1}},\"enforceExtension\":{\"description\":\"Enforce the resolver to use one of the extensions from the extensions option (User must specify requests without extension).\",\"type\":\"boolean\"},\"exportsFields\":{\"description\":\"Field names from the description file (usually package.json) which are used to provide entry points of a package.\",\"type\":\"array\",\"items\":{\"description\":\"Field name from the description file (usually package.json) which is used to provide entry points of a package.\",\"type\":\"string\"}},\"extensions\":{\"description\":\"Extensions added to the request when trying to find the file.\",\"type\":\"array\",\"items\":{\"description\":\"Extension added to the request when trying to find the file.\",\"type\":\"string\",\"minLength\":1}},\"fallback\":{\"description\":\"Redirect module requests when normal resolving fails.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveAlias\"}]},\"fileSystem\":{\"description\":\"Filesystem for the resolver.\",\"tsType\":\"(import('../lib/util/fs').InputFileSystem)\"},\"fullySpecified\":{\"description\":\"Treats the request specified by the user as fully specified, meaning no extensions are added and the mainFiles in directories are not resolved (This doesn't affect requests from mainFields, aliasFields or aliases).\",\"type\":\"boolean\"},\"importsFields\":{\"description\":\"Field names from the description file (usually package.json) which are used to provide internal request of a package (requests starting with # are considered as internal).\",\"type\":\"array\",\"items\":{\"description\":\"Field name from the description file (usually package.json) which is used to provide internal request of a package (requests starting with # are considered as internal).\",\"type\":\"string\"}},\"mainFields\":{\"description\":\"Field names from the description file (package.json) which are used to find the default entry point.\",\"type\":\"array\",\"items\":{\"description\":\"Field name from the description file (package.json) which are used to find the default entry point.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the field path from the description file (package.json) which are used to find the default entry point.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}},\"mainFiles\":{\"description\":\"Filenames used to find the default entry point if there is no description file or main field.\",\"type\":\"array\",\"items\":{\"description\":\"Filename used to find the default entry point if there is no description file or main field.\",\"type\":\"string\",\"minLength\":1}},\"modules\":{\"description\":\"Folder names or directory paths where to find modules.\",\"type\":\"array\",\"items\":{\"description\":\"Folder name or directory path where to find modules.\",\"type\":\"string\",\"minLength\":1}},\"plugins\":{\"description\":\"Plugins for the resolver.\",\"type\":\"array\",\"cli\":{\"exclude\":true},\"items\":{\"description\":\"Plugin of type object or instanceof Function.\",\"anyOf\":[{\"enum\":[\"...\"]},{\"$ref\":\"#/definitions/ResolvePluginInstance\"}]}},\"preferAbsolute\":{\"description\":\"Prefer to resolve server-relative URLs (starting with '/') as absolute paths before falling back to resolve in 'resolve.roots'.\",\"type\":\"boolean\"},\"preferRelative\":{\"description\":\"Prefer to resolve module requests as relative request and fallback to resolving as module.\",\"type\":\"boolean\"},\"resolver\":{\"description\":\"Custom resolver.\",\"tsType\":\"(import('enhanced-resolve').Resolver)\"},\"restrictions\":{\"description\":\"A list of resolve restrictions. Resolve results must fulfill all of these restrictions to resolve successfully. Other resolve paths are taken when restrictions are not met.\",\"type\":\"array\",\"items\":{\"description\":\"Resolve restriction. Resolve result must fulfill this restriction.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}]}},\"roots\":{\"description\":\"A list of directories in which requests that are server-relative URLs (starting with '/') are resolved.\",\"type\":\"array\",\"items\":{\"description\":\"Directory in which requests that are server-relative URLs (starting with '/') are resolved.\",\"type\":\"string\"}},\"symlinks\":{\"description\":\"Enable resolving symlinks to the original location.\",\"type\":\"boolean\"},\"unsafeCache\":{\"description\":\"Enable caching of successfully resolved requests (cache entries are not revalidated).\",\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":true}]},\"useSyncFileSystemCalls\":{\"description\":\"Use synchronous filesystem calls for the resolver.\",\"type\":\"boolean\"}}},\"ResolvePluginInstance\":{\"description\":\"Plugin instance.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"apply\":{\"description\":\"The run point of the plugin, required method.\",\"instanceof\":\"Function\",\"tsType\":\"(resolver: import('enhanced-resolve').Resolver) => void\"}},\"required\":[\"apply\"]},\"RuleSetCondition\":{\"description\":\"A condition matcher.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"and\":{\"description\":\"Logical AND.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"not\":{\"description\":\"Logical NOT.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"or\":{\"description\":\"Logical OR.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditions\"}]}}},{\"instanceof\":\"Function\",\"tsType\":\"((value: string) => boolean)\"},{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"RuleSetConditionAbsolute\":{\"description\":\"A condition matcher matching an absolute path.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":true},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"and\":{\"description\":\"Logical AND.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"not\":{\"description\":\"Logical NOT.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"or\":{\"description\":\"Logical OR.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]}}},{\"instanceof\":\"Function\",\"tsType\":\"((value: string) => boolean)\"},{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"RuleSetConditionOrConditions\":{\"description\":\"One or multiple rule conditions.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"$ref\":\"#/definitions/RuleSetCondition\"},{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"RuleSetConditionOrConditionsAbsolute\":{\"description\":\"One or multiple rule conditions matching an absolute path.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"$ref\":\"#/definitions/RuleSetConditionAbsolute\"},{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"RuleSetConditions\":{\"description\":\"A list of rule conditions.\",\"type\":\"array\",\"items\":{\"description\":\"A rule condition.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetCondition\"}]}},\"RuleSetConditionsAbsolute\":{\"description\":\"A list of rule conditions matching an absolute path.\",\"type\":\"array\",\"items\":{\"description\":\"A rule condition matching an absolute path.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionAbsolute\"}]}},\"RuleSetLoader\":{\"description\":\"A loader request.\",\"type\":\"string\",\"minLength\":1},\"RuleSetLoaderOptions\":{\"description\":\"Options passed to a loader.\",\"anyOf\":[{\"type\":\"string\"},{\"type\":\"object\"}]},\"RuleSetRule\":{\"description\":\"A rule description with conditions and effects for modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"compiler\":{\"description\":\"Match the child compiler name.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"dependency\":{\"description\":\"Match dependency type.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"descriptionData\":{\"description\":\"Match values of properties in the description file (usually package.json).\",\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}},\"enforce\":{\"description\":\"Enforce this rule as pre or post step.\",\"enum\":[\"pre\",\"post\"]},\"exclude\":{\"description\":\"Shortcut for resource.exclude.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"generator\":{\"description\":\"The options for the module generator.\",\"type\":\"object\"},\"include\":{\"description\":\"Shortcut for resource.include.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"issuer\":{\"description\":\"Match the issuer of the module (The module pointing to this module).\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"issuerLayer\":{\"description\":\"Match layer of the issuer of this module (The module pointing to this module).\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"layer\":{\"description\":\"Specifies the layer in which the module should be placed in.\",\"type\":\"string\"},\"loader\":{\"description\":\"Shortcut for use.loader.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoader\"}]},\"mimetype\":{\"description\":\"Match module mimetype when load from Data URI.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"oneOf\":{\"description\":\"Only execute the first matching rule in this array.\",\"type\":\"array\",\"items\":{\"description\":\"A rule.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRule\"}]}},\"options\":{\"description\":\"Shortcut for use.options.\",\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoaderOptions\"}]},\"parser\":{\"description\":\"Options for parsing.\",\"type\":\"object\",\"additionalProperties\":true},\"realResource\":{\"description\":\"Match the real resource path of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"resolve\":{\"description\":\"Options for the resolver.\",\"type\":\"object\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]},\"resource\":{\"description\":\"Match the resource path of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"resourceFragment\":{\"description\":\"Match the resource fragment of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"resourceQuery\":{\"description\":\"Match the resource query of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"rules\":{\"description\":\"Match and execute these rules when this rule is matched.\",\"type\":\"array\",\"items\":{\"description\":\"A rule.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRule\"}]}},\"sideEffects\":{\"description\":\"Flags a module as with or without side effects.\",\"type\":\"boolean\"},\"test\":{\"description\":\"Shortcut for resource.test.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"type\":{\"description\":\"Module type to use for the module.\",\"type\":\"string\"},\"use\":{\"description\":\"Modifiers applied to the module when rule is matched.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetUse\"}]}}},\"RuleSetRules\":{\"description\":\"A list of rules.\",\"type\":\"array\",\"items\":{\"description\":\"A rule.\",\"anyOf\":[{\"cli\":{\"exclude\":true},\"enum\":[\"...\"]},{\"$ref\":\"#/definitions/RuleSetRule\"}]}},\"RuleSetUse\":{\"description\":\"A list of descriptions of loaders applied.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"An use item.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetUseItem\"}]}},{\"instanceof\":\"Function\",\"tsType\":\"((data: { resource: string, realResource: string, resourceQuery: string, issuer: string, compiler: string }) => RuleSetUseItem[])\"},{\"$ref\":\"#/definitions/RuleSetUseItem\"}]},\"RuleSetUseItem\":{\"description\":\"A description of an applied loader.\",\"anyOf\":[{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"ident\":{\"description\":\"Unique loader options identifier.\",\"type\":\"string\"},\"loader\":{\"description\":\"Loader name.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoader\"}]},\"options\":{\"description\":\"Loader options.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoaderOptions\"}]}}},{\"instanceof\":\"Function\",\"tsType\":\"((data: object) => RuleSetUseItem|RuleSetUseItem[])\"},{\"$ref\":\"#/definitions/RuleSetLoader\"}]},\"ScriptType\":{\"description\":\"This option enables loading async chunks via a custom script type, such as script type=\\\"module\\\".\",\"enum\":[false,\"text/javascript\",\"module\"]},\"SnapshotOptions\":{\"description\":\"Options affecting how file system snapshots are created and validated.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"buildDependencies\":{\"description\":\"Options for snapshotting build dependencies to determine if the whole cache need to be invalidated.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}},\"immutablePaths\":{\"description\":\"List of paths that are managed by a package manager and contain a version or hash in its path so all files are immutable.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a immutable directory (usually a package manager cache directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"managedPaths\":{\"description\":\"List of paths that are managed by a package manager and can be trusted to not be modified otherwise.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a managed directory (usually a node_modules directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"module\":{\"description\":\"Options for snapshotting dependencies of modules to determine if they need to be built again.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}},\"resolve\":{\"description\":\"Options for snapshotting dependencies of request resolving to determine if requests need to be re-resolved.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}},\"resolveBuildDependencies\":{\"description\":\"Options for snapshotting the resolving of build dependencies to determine if the build dependencies need to be re-resolved.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}}}},\"SourceMapFilename\":{\"description\":\"The filename of the SourceMaps for the JavaScript files. They are inside the 'output.path' directory.\",\"type\":\"string\",\"absolutePath\":false},\"SourcePrefix\":{\"description\":\"Prefixes every line of the source in the bundle with this string.\",\"type\":\"string\"},\"StatsOptions\":{\"description\":\"Stats options object.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"all\":{\"description\":\"Fallback value for stats options when an option is not defined (has precedence over local webpack defaults).\",\"type\":\"boolean\"},\"assets\":{\"description\":\"Add assets information.\",\"type\":\"boolean\"},\"assetsSort\":{\"description\":\"Sort the assets by that field.\",\"type\":\"string\"},\"assetsSpace\":{\"description\":\"Space to display assets (groups will be collapsed to fit this space).\",\"type\":\"number\"},\"builtAt\":{\"description\":\"Add built at time information.\",\"type\":\"boolean\"},\"cached\":{\"description\":\"Add information about cached (not built) modules (deprecated: use 'cachedModules' instead).\",\"type\":\"boolean\"},\"cachedAssets\":{\"description\":\"Show cached assets (setting this to `false` only shows emitted files).\",\"type\":\"boolean\"},\"cachedModules\":{\"description\":\"Add information about cached (not built) modules.\",\"type\":\"boolean\"},\"children\":{\"description\":\"Add children information.\",\"type\":\"boolean\"},\"chunkGroupAuxiliary\":{\"description\":\"Display auxiliary assets in chunk groups.\",\"type\":\"boolean\"},\"chunkGroupChildren\":{\"description\":\"Display children of chunk groups.\",\"type\":\"boolean\"},\"chunkGroupMaxAssets\":{\"description\":\"Limit of assets displayed in chunk groups.\",\"type\":\"number\"},\"chunkGroups\":{\"description\":\"Display all chunk groups with the corresponding bundles.\",\"type\":\"boolean\"},\"chunkModules\":{\"description\":\"Add built modules information to chunk information.\",\"type\":\"boolean\"},\"chunkModulesSpace\":{\"description\":\"Space to display chunk modules (groups will be collapsed to fit this space, value is in number of modules/group).\",\"type\":\"number\"},\"chunkOrigins\":{\"description\":\"Add the origins of chunks and chunk merging info.\",\"type\":\"boolean\"},\"chunkRelations\":{\"description\":\"Add information about parent, children and sibling chunks to chunk information.\",\"type\":\"boolean\"},\"chunks\":{\"description\":\"Add chunk information.\",\"type\":\"boolean\"},\"chunksSort\":{\"description\":\"Sort the chunks by that field.\",\"type\":\"string\"},\"colors\":{\"description\":\"Enables/Disables colorful output.\",\"anyOf\":[{\"description\":\"Enables/Disables colorful output.\",\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"bold\":{\"description\":\"Custom color for bold text.\",\"type\":\"string\"},\"cyan\":{\"description\":\"Custom color for cyan text.\",\"type\":\"string\"},\"green\":{\"description\":\"Custom color for green text.\",\"type\":\"string\"},\"magenta\":{\"description\":\"Custom color for magenta text.\",\"type\":\"string\"},\"red\":{\"description\":\"Custom color for red text.\",\"type\":\"string\"},\"yellow\":{\"description\":\"Custom color for yellow text.\",\"type\":\"string\"}}}]},\"context\":{\"description\":\"Context directory for request shortening.\",\"type\":\"string\",\"absolutePath\":true},\"dependentModules\":{\"description\":\"Show chunk modules that are dependencies of other modules of the chunk.\",\"type\":\"boolean\"},\"depth\":{\"description\":\"Add module depth in module graph.\",\"type\":\"boolean\"},\"entrypoints\":{\"description\":\"Display the entry points with the corresponding bundles.\",\"anyOf\":[{\"enum\":[\"auto\"]},{\"type\":\"boolean\"}]},\"env\":{\"description\":\"Add --env information.\",\"type\":\"boolean\"},\"errorDetails\":{\"description\":\"Add details to errors (like resolving log).\",\"type\":\"boolean\"},\"errorStack\":{\"description\":\"Add internal stack trace to errors.\",\"type\":\"boolean\"},\"errors\":{\"description\":\"Add errors.\",\"type\":\"boolean\"},\"errorsCount\":{\"description\":\"Add errors count.\",\"type\":\"boolean\"},\"exclude\":{\"description\":\"Please use excludeModules instead.\",\"cli\":{\"exclude\":true},\"anyOf\":[{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/FilterTypes\"}]},\"excludeAssets\":{\"description\":\"Suppress assets that match the specified filters. Filters can be Strings, RegExps or Functions.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilterTypes\"}]},\"excludeModules\":{\"description\":\"Suppress modules that match the specified filters. Filters can be Strings, RegExps, Booleans or Functions.\",\"anyOf\":[{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/FilterTypes\"}]},\"groupAssetsByChunk\":{\"description\":\"Group assets by how their are related to chunks.\",\"type\":\"boolean\"},\"groupAssetsByEmitStatus\":{\"description\":\"Group assets by their status (emitted, compared for emit or cached).\",\"type\":\"boolean\"},\"groupAssetsByExtension\":{\"description\":\"Group assets by their extension.\",\"type\":\"boolean\"},\"groupAssetsByInfo\":{\"description\":\"Group assets by their asset info (immutable, development, hotModuleReplacement, etc).\",\"type\":\"boolean\"},\"groupAssetsByPath\":{\"description\":\"Group assets by their path.\",\"type\":\"boolean\"},\"groupModulesByAttributes\":{\"description\":\"Group modules by their attributes (errors, warnings, assets, optional, orphan, or dependent).\",\"type\":\"boolean\"},\"groupModulesByCacheStatus\":{\"description\":\"Group modules by their status (cached or built and cacheable).\",\"type\":\"boolean\"},\"groupModulesByExtension\":{\"description\":\"Group modules by their extension.\",\"type\":\"boolean\"},\"groupModulesByLayer\":{\"description\":\"Group modules by their layer.\",\"type\":\"boolean\"},\"groupModulesByPath\":{\"description\":\"Group modules by their path.\",\"type\":\"boolean\"},\"hash\":{\"description\":\"Add the hash of the compilation.\",\"type\":\"boolean\"},\"ids\":{\"description\":\"Add ids.\",\"type\":\"boolean\"},\"logging\":{\"description\":\"Add logging output.\",\"anyOf\":[{\"description\":\"Specify log level of logging output.\",\"enum\":[\"none\",\"error\",\"warn\",\"info\",\"log\",\"verbose\"]},{\"description\":\"Enable/disable logging output (`true`: shows normal logging output, loglevel: log).\",\"type\":\"boolean\"}]},\"loggingDebug\":{\"description\":\"Include debug logging of specified loggers (i. e. for plugins or loaders). Filters can be Strings, RegExps or Functions.\",\"anyOf\":[{\"description\":\"Enable/Disable debug logging for all loggers.\",\"type\":\"boolean\"},{\"$ref\":\"#/definitions/FilterTypes\"}]},\"loggingTrace\":{\"description\":\"Add stack traces to logging output.\",\"type\":\"boolean\"},\"moduleAssets\":{\"description\":\"Add information about assets inside modules.\",\"type\":\"boolean\"},\"moduleTrace\":{\"description\":\"Add dependencies and origin of warnings/errors.\",\"type\":\"boolean\"},\"modules\":{\"description\":\"Add built modules information.\",\"type\":\"boolean\"},\"modulesSort\":{\"description\":\"Sort the modules by that field.\",\"type\":\"string\"},\"modulesSpace\":{\"description\":\"Space to display modules (groups will be collapsed to fit this space, value is in number of modules/groups).\",\"type\":\"number\"},\"nestedModules\":{\"description\":\"Add information about modules nested in other modules (like with module concatenation).\",\"type\":\"boolean\"},\"nestedModulesSpace\":{\"description\":\"Space to display modules nested within other modules (groups will be collapsed to fit this space, value is in number of modules/group).\",\"type\":\"number\"},\"optimizationBailout\":{\"description\":\"Show reasons why optimization bailed out for modules.\",\"type\":\"boolean\"},\"orphanModules\":{\"description\":\"Add information about orphan modules.\",\"type\":\"boolean\"},\"outputPath\":{\"description\":\"Add output path information.\",\"type\":\"boolean\"},\"performance\":{\"description\":\"Add performance hint flags.\",\"type\":\"boolean\"},\"preset\":{\"description\":\"Preset for the default values.\",\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"string\"}]},\"providedExports\":{\"description\":\"Show exports provided by modules.\",\"type\":\"boolean\"},\"publicPath\":{\"description\":\"Add public path information.\",\"type\":\"boolean\"},\"reasons\":{\"description\":\"Add information about the reasons why modules are included.\",\"type\":\"boolean\"},\"relatedAssets\":{\"description\":\"Add information about assets that are related to other assets (like SourceMaps for assets).\",\"type\":\"boolean\"},\"runtime\":{\"description\":\"Add information about runtime modules (deprecated: use 'runtimeModules' instead).\",\"type\":\"boolean\"},\"runtimeModules\":{\"description\":\"Add information about runtime modules.\",\"type\":\"boolean\"},\"source\":{\"description\":\"Add the source code of modules.\",\"type\":\"boolean\"},\"timings\":{\"description\":\"Add timing information.\",\"type\":\"boolean\"},\"usedExports\":{\"description\":\"Show exports used by modules.\",\"type\":\"boolean\"},\"version\":{\"description\":\"Add webpack version information.\",\"type\":\"boolean\"},\"warnings\":{\"description\":\"Add warnings.\",\"type\":\"boolean\"},\"warningsCount\":{\"description\":\"Add warnings count.\",\"type\":\"boolean\"},\"warningsFilter\":{\"description\":\"Suppress listing warnings that match the specified filters (they will still be counted). Filters can be Strings, RegExps or Functions.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilterTypes\"}]}}},\"StatsValue\":{\"description\":\"Stats options object or preset name.\",\"anyOf\":[{\"enum\":[\"none\",\"summary\",\"errors-only\",\"errors-warnings\",\"minimal\",\"normal\",\"detailed\",\"verbose\"]},{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/StatsOptions\"}]},\"StrictModuleExceptionHandling\":{\"description\":\"Handles exceptions in module loading correctly at a performance cost.\",\"type\":\"boolean\"},\"Target\":{\"description\":\"Environment to build for. An array of environments to build for all of them when possible.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Environment to build for.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1},{\"enum\":[false]},{\"type\":\"string\",\"minLength\":1}]},\"UmdNamedDefine\":{\"description\":\"If `output.libraryTarget` is set to umd and `output.library` is set, setting this to true will name the AMD module.\",\"type\":\"boolean\"},\"UniqueName\":{\"description\":\"A unique name of the webpack build to avoid multiple webpack runtimes to conflict when using globals.\",\"type\":\"string\",\"minLength\":1},\"WasmLoading\":{\"description\":\"The method of loading WebAssembly Modules (methods included by default are 'fetch' (web/WebWorker), 'async-node' (node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/WasmLoadingType\"}]},\"WasmLoadingType\":{\"description\":\"The method of loading WebAssembly Modules (methods included by default are 'fetch' (web/WebWorker), 'async-node' (node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"fetch-streaming\",\"fetch\",\"async-node\"]},{\"type\":\"string\"}]},\"Watch\":{\"description\":\"Enter watch mode, which rebuilds on file change.\",\"type\":\"boolean\"},\"WatchOptions\":{\"description\":\"Options for the watcher.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"aggregateTimeout\":{\"description\":\"Delay the rebuilt after the first change. Value is a time in ms.\",\"type\":\"number\"},\"followSymlinks\":{\"description\":\"Resolve symlinks and watch symlink and real file. This is usually not needed as webpack already resolves symlinks ('resolve.symlinks').\",\"type\":\"boolean\"},\"ignored\":{\"description\":\"Ignore some files from watching (glob pattern or regexp).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A glob pattern for files that should be ignored from watching.\",\"type\":\"string\",\"minLength\":1}},{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"A single glob pattern for files that should be ignored from watching.\",\"type\":\"string\",\"minLength\":1}]},\"poll\":{\"description\":\"Enable polling mode for watching.\",\"anyOf\":[{\"description\":\"`number`: use polling with specified interval.\",\"type\":\"number\"},{\"description\":\"`true`: use polling.\",\"type\":\"boolean\"}]},\"stdin\":{\"description\":\"Stop watching when stdin stream has ended.\",\"type\":\"boolean\"}}},\"WebassemblyModuleFilename\":{\"description\":\"The filename of WebAssembly modules as relative path inside the 'output.path' directory.\",\"type\":\"string\",\"absolutePath\":false},\"WebpackOptionsNormalized\":{\"description\":\"Normalized webpack options object.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"$ref\":\"#/definitions/Amd\"},\"bail\":{\"$ref\":\"#/definitions/Bail\"},\"cache\":{\"$ref\":\"#/definitions/CacheOptionsNormalized\"},\"context\":{\"$ref\":\"#/definitions/Context\"},\"dependencies\":{\"$ref\":\"#/definitions/Dependencies\"},\"devServer\":{\"$ref\":\"#/definitions/DevServer\"},\"devtool\":{\"$ref\":\"#/definitions/DevTool\"},\"entry\":{\"$ref\":\"#/definitions/EntryNormalized\"},\"experiments\":{\"$ref\":\"#/definitions/Experiments\"},\"externals\":{\"$ref\":\"#/definitions/Externals\"},\"externalsPresets\":{\"$ref\":\"#/definitions/ExternalsPresets\"},\"externalsType\":{\"$ref\":\"#/definitions/ExternalsType\"},\"ignoreWarnings\":{\"$ref\":\"#/definitions/IgnoreWarningsNormalized\"},\"infrastructureLogging\":{\"$ref\":\"#/definitions/InfrastructureLogging\"},\"loader\":{\"$ref\":\"#/definitions/Loader\"},\"mode\":{\"$ref\":\"#/definitions/Mode\"},\"module\":{\"$ref\":\"#/definitions/ModuleOptions\"},\"name\":{\"$ref\":\"#/definitions/Name\"},\"node\":{\"$ref\":\"#/definitions/Node\"},\"optimization\":{\"$ref\":\"#/definitions/Optimization\"},\"output\":{\"$ref\":\"#/definitions/OutputNormalized\"},\"parallelism\":{\"$ref\":\"#/definitions/Parallelism\"},\"performance\":{\"$ref\":\"#/definitions/Performance\"},\"plugins\":{\"$ref\":\"#/definitions/Plugins\"},\"profile\":{\"$ref\":\"#/definitions/Profile\"},\"recordsInputPath\":{\"$ref\":\"#/definitions/RecordsInputPath\"},\"recordsOutputPath\":{\"$ref\":\"#/definitions/RecordsOutputPath\"},\"resolve\":{\"$ref\":\"#/definitions/Resolve\"},\"resolveLoader\":{\"$ref\":\"#/definitions/ResolveLoader\"},\"snapshot\":{\"$ref\":\"#/definitions/SnapshotOptions\"},\"stats\":{\"$ref\":\"#/definitions/StatsValue\"},\"target\":{\"$ref\":\"#/definitions/Target\"},\"watch\":{\"$ref\":\"#/definitions/Watch\"},\"watchOptions\":{\"$ref\":\"#/definitions/WatchOptions\"}},\"required\":[\"cache\",\"snapshot\",\"entry\",\"experiments\",\"externals\",\"externalsPresets\",\"infrastructureLogging\",\"module\",\"node\",\"optimization\",\"output\",\"plugins\",\"resolve\",\"resolveLoader\",\"stats\",\"watchOptions\"]},\"WebpackPluginFunction\":{\"description\":\"Function acting as plugin.\",\"instanceof\":\"Function\",\"tsType\":\"(this: import('../lib/Compiler'), compiler: import('../lib/Compiler')) => void\"},\"WebpackPluginInstance\":{\"description\":\"Plugin instance.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"apply\":{\"description\":\"The run point of the plugin, required method.\",\"instanceof\":\"Function\",\"tsType\":\"(compiler: import('../lib/Compiler')) => void\"}},\"required\":[\"apply\"]}},\"description\":\"Options object as provided by the user.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"$ref\":\"#/definitions/Amd\"},\"bail\":{\"$ref\":\"#/definitions/Bail\"},\"cache\":{\"$ref\":\"#/definitions/CacheOptions\"},\"context\":{\"$ref\":\"#/definitions/Context\"},\"dependencies\":{\"$ref\":\"#/definitions/Dependencies\"},\"devServer\":{\"$ref\":\"#/definitions/DevServer\"},\"devtool\":{\"$ref\":\"#/definitions/DevTool\"},\"entry\":{\"$ref\":\"#/definitions/Entry\"},\"experiments\":{\"$ref\":\"#/definitions/Experiments\"},\"externals\":{\"$ref\":\"#/definitions/Externals\"},\"externalsPresets\":{\"$ref\":\"#/definitions/ExternalsPresets\"},\"externalsType\":{\"$ref\":\"#/definitions/ExternalsType\"},\"ignoreWarnings\":{\"$ref\":\"#/definitions/IgnoreWarnings\"},\"infrastructureLogging\":{\"$ref\":\"#/definitions/InfrastructureLogging\"},\"loader\":{\"$ref\":\"#/definitions/Loader\"},\"mode\":{\"$ref\":\"#/definitions/Mode\"},\"module\":{\"$ref\":\"#/definitions/ModuleOptions\"},\"name\":{\"$ref\":\"#/definitions/Name\"},\"node\":{\"$ref\":\"#/definitions/Node\"},\"optimization\":{\"$ref\":\"#/definitions/Optimization\"},\"output\":{\"$ref\":\"#/definitions/Output\"},\"parallelism\":{\"$ref\":\"#/definitions/Parallelism\"},\"performance\":{\"$ref\":\"#/definitions/Performance\"},\"plugins\":{\"$ref\":\"#/definitions/Plugins\"},\"profile\":{\"$ref\":\"#/definitions/Profile\"},\"recordsInputPath\":{\"$ref\":\"#/definitions/RecordsInputPath\"},\"recordsOutputPath\":{\"$ref\":\"#/definitions/RecordsOutputPath\"},\"recordsPath\":{\"$ref\":\"#/definitions/RecordsPath\"},\"resolve\":{\"$ref\":\"#/definitions/Resolve\"},\"resolveLoader\":{\"$ref\":\"#/definitions/ResolveLoader\"},\"snapshot\":{\"$ref\":\"#/definitions/SnapshotOptions\"},\"stats\":{\"$ref\":\"#/definitions/StatsValue\"},\"target\":{\"$ref\":\"#/definitions/Target\"},\"watch\":{\"$ref\":\"#/definitions/Watch\"},\"watchOptions\":{\"$ref\":\"#/definitions/WatchOptions\"}}}");
+module.exports = JSON.parse("{\"definitions\":{\"Amd\":{\"description\":\"Set the value of `require.amd` and `define.amd`. Or disable AMD support.\",\"anyOf\":[{\"description\":\"You can pass `false` to disable AMD support.\",\"enum\":[false]},{\"description\":\"You can pass an object to set the value of `require.amd` and `define.amd`.\",\"type\":\"object\"}]},\"AssetGeneratorDataUrl\":{\"description\":\"The options for data url generator.\",\"anyOf\":[{\"$ref\":\"#/definitions/AssetGeneratorDataUrlOptions\"},{\"$ref\":\"#/definitions/AssetGeneratorDataUrlFunction\"}]},\"AssetGeneratorDataUrlFunction\":{\"description\":\"Function that executes for module and should return an DataUrl string.\",\"instanceof\":\"Function\",\"tsType\":\"((source: string | Buffer, context: { filename: string, module: import('../lib/Module') }) => string)\"},\"AssetGeneratorDataUrlOptions\":{\"description\":\"Options object for data url generation.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"encoding\":{\"description\":\"Asset encoding (defaults to base64).\",\"enum\":[false,\"base64\"]},\"mimetype\":{\"description\":\"Asset mimetype (getting from file extension by default).\",\"type\":\"string\"}}},\"AssetGeneratorOptions\":{\"description\":\"Generator options for asset modules.\",\"type\":\"object\",\"implements\":[\"#/definitions/AssetInlineGeneratorOptions\",\"#/definitions/AssetResourceGeneratorOptions\"],\"additionalProperties\":false,\"properties\":{\"dataUrl\":{\"$ref\":\"#/definitions/AssetGeneratorDataUrl\"},\"filename\":{\"$ref\":\"#/definitions/FilenameTemplate\"}}},\"AssetInlineGeneratorOptions\":{\"description\":\"Generator options for asset/inline modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"dataUrl\":{\"$ref\":\"#/definitions/AssetGeneratorDataUrl\"}}},\"AssetModuleFilename\":{\"description\":\"The filename of asset modules as relative path inside the 'output.path' directory.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"AssetParserDataUrlFunction\":{\"description\":\"Function that executes for module and should return whenever asset should be inlined as DataUrl.\",\"instanceof\":\"Function\",\"tsType\":\"((source: string | Buffer, context: { filename: string, module: import('../lib/Module') }) => boolean)\"},\"AssetParserDataUrlOptions\":{\"description\":\"Options object for DataUrl condition.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"maxSize\":{\"description\":\"Maximum size of asset that should be inline as modules. Default: 8kb.\",\"type\":\"number\"}}},\"AssetParserOptions\":{\"description\":\"Parser options for asset modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"dataUrlCondition\":{\"description\":\"The condition for inlining the asset as DataUrl.\",\"anyOf\":[{\"$ref\":\"#/definitions/AssetParserDataUrlOptions\"},{\"$ref\":\"#/definitions/AssetParserDataUrlFunction\"}]}}},\"AssetResourceGeneratorOptions\":{\"description\":\"Generator options for asset/resource modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"filename\":{\"$ref\":\"#/definitions/FilenameTemplate\"}}},\"AuxiliaryComment\":{\"description\":\"Add a comment in the UMD wrapper.\",\"anyOf\":[{\"description\":\"Append the same comment above each import style.\",\"type\":\"string\"},{\"$ref\":\"#/definitions/LibraryCustomUmdCommentObject\"}]},\"Bail\":{\"description\":\"Report the first error as a hard error instead of tolerating it.\",\"type\":\"boolean\"},\"CacheOptions\":{\"description\":\"Cache generated modules and chunks to improve performance for multiple incremental builds.\",\"anyOf\":[{\"description\":\"Enable in memory caching.\",\"enum\":[true]},{\"$ref\":\"#/definitions/CacheOptionsNormalized\"}]},\"CacheOptionsNormalized\":{\"description\":\"Cache generated modules and chunks to improve performance for multiple incremental builds.\",\"anyOf\":[{\"description\":\"Disable caching.\",\"enum\":[false]},{\"$ref\":\"#/definitions/MemoryCacheOptions\"},{\"$ref\":\"#/definitions/FileCacheOptions\"}]},\"Charset\":{\"description\":\"Add charset attribute for script tag.\",\"type\":\"boolean\"},\"ChunkFilename\":{\"description\":\"Specifies the filename template of output files of non-initial chunks on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilenameTemplate\"}]},\"ChunkFormat\":{\"description\":\"The format of chunks (formats included by default are 'array-push' (web/WebWorker), 'commonjs' (node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"array-push\",\"commonjs\",false]},{\"type\":\"string\"}]},\"ChunkLoadTimeout\":{\"description\":\"Number of milliseconds before chunk request expires.\",\"type\":\"number\"},\"ChunkLoading\":{\"description\":\"The method of loading chunks (methods included by default are 'jsonp' (web), 'importScripts' (WebWorker), 'require' (sync node.js), 'async-node' (async node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/ChunkLoadingType\"}]},\"ChunkLoadingGlobal\":{\"description\":\"The global variable used by webpack for loading of chunks.\",\"type\":\"string\"},\"ChunkLoadingType\":{\"description\":\"The method of loading chunks (methods included by default are 'jsonp' (web), 'importScripts' (WebWorker), 'require' (sync node.js), 'async-node' (async node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"jsonp\",\"import-scripts\",\"require\",\"async-node\"]},{\"type\":\"string\"}]},\"CompareBeforeEmit\":{\"description\":\"Check if to be emitted file already exists and have the same content before writing to output filesystem.\",\"type\":\"boolean\"},\"Context\":{\"description\":\"The base directory (absolute path!) for resolving the `entry` option. If `output.pathinfo` is set, the included pathinfo is shortened to this directory.\",\"type\":\"string\",\"absolutePath\":true},\"CrossOriginLoading\":{\"description\":\"This option enables cross-origin loading of chunks.\",\"enum\":[false,\"anonymous\",\"use-credentials\"]},\"Dependencies\":{\"description\":\"References to other configurations to depend on.\",\"type\":\"array\",\"items\":{\"description\":\"References to another configuration to depend on.\",\"type\":\"string\"}},\"DevServer\":{\"description\":\"Options for the webpack-dev-server.\",\"type\":\"object\"},\"DevTool\":{\"description\":\"A developer tool to enhance debugging (false | eval | [inline-|hidden-|eval-][nosources-][cheap-[module-]]source-map).\",\"anyOf\":[{\"enum\":[false,\"eval\"]},{\"type\":\"string\",\"pattern\":\"^(inline-|hidden-|eval-)?(nosources-)?(cheap-(module-)?)?source-map$\"}]},\"DevtoolFallbackModuleFilenameTemplate\":{\"description\":\"Similar to `output.devtoolModuleFilenameTemplate`, but used in the case of duplicate module identifiers.\",\"anyOf\":[{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"DevtoolModuleFilenameTemplate\":{\"description\":\"Filename template string of function for the sources array in a generated SourceMap.\",\"anyOf\":[{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"DevtoolNamespace\":{\"description\":\"Module namespace to use when interpolating filename template string for the sources array in a generated SourceMap. Defaults to `output.library` if not set. It's useful for avoiding runtime collisions in sourcemaps from multiple webpack projects built as libraries.\",\"type\":\"string\"},\"EmptyGeneratorOptions\":{\"description\":\"No generator options are supported for this module type.\",\"type\":\"object\",\"additionalProperties\":false},\"EmptyParserOptions\":{\"description\":\"No parser options are supported for this module type.\",\"type\":\"object\",\"additionalProperties\":false},\"EnabledChunkLoadingTypes\":{\"description\":\"List of chunk loading types enabled for use by entry points.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/ChunkLoadingType\"}},\"EnabledLibraryTypes\":{\"description\":\"List of library types enabled for use by entry points.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/LibraryType\"}},\"EnabledWasmLoadingTypes\":{\"description\":\"List of wasm loading types enabled for use by entry points.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/WasmLoadingType\"}},\"Entry\":{\"description\":\"The entry point(s) of the compilation.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryDynamic\"},{\"$ref\":\"#/definitions/EntryStatic\"}]},\"EntryDescription\":{\"description\":\"An object with entry point description.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"dependOn\":{\"description\":\"The entrypoints that the current entrypoint depend on. They must be loaded when this entrypoint is loaded.\",\"anyOf\":[{\"description\":\"The entrypoints that the current entrypoint depend on. They must be loaded when this entrypoint is loaded.\",\"type\":\"array\",\"items\":{\"description\":\"An entrypoint that the current entrypoint depend on. It must be loaded when this entrypoint is loaded.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},{\"description\":\"An entrypoint that the current entrypoint depend on. It must be loaded when this entrypoint is loaded.\",\"type\":\"string\",\"minLength\":1}]},\"filename\":{\"$ref\":\"#/definitions/EntryFilename\"},\"import\":{\"$ref\":\"#/definitions/EntryItem\"},\"layer\":{\"$ref\":\"#/definitions/Layer\"},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"runtime\":{\"$ref\":\"#/definitions/EntryRuntime\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}},\"required\":[\"import\"]},\"EntryDescriptionNormalized\":{\"description\":\"An object with entry point description.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"dependOn\":{\"description\":\"The entrypoints that the current entrypoint depend on. They must be loaded when this entrypoint is loaded.\",\"type\":\"array\",\"items\":{\"description\":\"An entrypoint that the current entrypoint depend on. It must be loaded when this entrypoint is loaded.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},\"filename\":{\"$ref\":\"#/definitions/Filename\"},\"import\":{\"description\":\"Module(s) that are loaded upon startup. The last one is exported.\",\"type\":\"array\",\"items\":{\"description\":\"Module that is loaded upon startup. Only the last one is exported.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},\"layer\":{\"$ref\":\"#/definitions/Layer\"},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"runtime\":{\"$ref\":\"#/definitions/EntryRuntime\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}}},\"EntryDynamic\":{\"description\":\"A Function returning an entry object, an entry string, an entry array or a promise to these things.\",\"instanceof\":\"Function\",\"tsType\":\"(() => EntryStatic | Promise<EntryStatic>)\"},\"EntryDynamicNormalized\":{\"description\":\"A Function returning a Promise resolving to a normalized entry.\",\"instanceof\":\"Function\",\"tsType\":\"(() => Promise<EntryStaticNormalized>)\"},\"EntryFilename\":{\"description\":\"Specifies the filename of the output file on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilenameTemplate\"}]},\"EntryItem\":{\"description\":\"Module(s) that are loaded upon startup.\",\"anyOf\":[{\"description\":\"All modules are loaded upon startup. The last one is exported.\",\"type\":\"array\",\"items\":{\"description\":\"A module that is loaded upon startup. Only the last one is exported.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},{\"description\":\"The string is resolved to a module which is loaded upon startup.\",\"type\":\"string\",\"minLength\":1}]},\"EntryNormalized\":{\"description\":\"The entry point(s) of the compilation.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryDynamicNormalized\"},{\"$ref\":\"#/definitions/EntryStaticNormalized\"}]},\"EntryObject\":{\"description\":\"Multiple entry bundles are created. The key is the entry name. The value can be a string, an array or an entry description object.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"An entry point with name.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryItem\"},{\"$ref\":\"#/definitions/EntryDescription\"}]}},\"EntryRuntime\":{\"description\":\"The name of the runtime chunk. If set a runtime chunk with this name is created or an existing entrypoint is used as runtime.\",\"type\":\"string\",\"minLength\":1},\"EntryStatic\":{\"description\":\"A static entry description.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryObject\"},{\"$ref\":\"#/definitions/EntryUnnamed\"}]},\"EntryStaticNormalized\":{\"description\":\"Multiple entry bundles are created. The key is the entry name. The value is an entry description object.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"An object with entry point description.\",\"oneOf\":[{\"$ref\":\"#/definitions/EntryDescriptionNormalized\"}]}},\"EntryUnnamed\":{\"description\":\"An entry point without name.\",\"oneOf\":[{\"$ref\":\"#/definitions/EntryItem\"}]},\"Environment\":{\"description\":\"The abilities of the environment where the webpack generated code should run.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"arrowFunction\":{\"description\":\"The environment supports arrow functions ('() => { ... }').\",\"type\":\"boolean\"},\"bigIntLiteral\":{\"description\":\"The environment supports BigInt as literal (123n).\",\"type\":\"boolean\"},\"const\":{\"description\":\"The environment supports const and let for variable declarations.\",\"type\":\"boolean\"},\"destructuring\":{\"description\":\"The environment supports destructuring ('{ a, b } = obj').\",\"type\":\"boolean\"},\"dynamicImport\":{\"description\":\"The environment supports an async import() function to import EcmaScript modules.\",\"type\":\"boolean\"},\"forOf\":{\"description\":\"The environment supports 'for of' iteration ('for (const x of array) { ... }').\",\"type\":\"boolean\"},\"module\":{\"description\":\"The environment supports EcmaScript Module syntax to import EcmaScript modules (import ... from '...').\",\"type\":\"boolean\"}}},\"Experiments\":{\"description\":\"Enables/Disables experiments (experimental features with relax SemVer compatibility).\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"asset\":{\"description\":\"Allow module type 'asset' to generate assets.\",\"type\":\"boolean\"},\"asyncWebAssembly\":{\"description\":\"Support WebAssembly as asynchronous EcmaScript Module.\",\"type\":\"boolean\"},\"layers\":{\"description\":\"Enable module and chunk layers.\",\"type\":\"boolean\"},\"lazyCompilation\":{\"description\":\"Compile entrypoints and import()s only when they are accessed.\",\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"backend\":{\"description\":\"A custom backend.\",\"instanceof\":\"Function\",\"tsType\":\"(((compiler: import('../lib/Compiler'), client: string, callback: (err?: Error, api?: any) => void) => void) | ((compiler: import('../lib/Compiler'), client: string) => Promise<any>))\"},\"client\":{\"description\":\"A custom client.\",\"type\":\"string\"},\"entries\":{\"description\":\"Enable/disable lazy compilation for entries.\",\"type\":\"boolean\"}}}]},\"outputModule\":{\"description\":\"Allow output javascript files as module source type.\",\"type\":\"boolean\"},\"syncWebAssembly\":{\"description\":\"Support WebAssembly as synchronous EcmaScript Module (outdated).\",\"type\":\"boolean\"},\"topLevelAwait\":{\"description\":\"Allow using top-level-await in EcmaScript Modules.\",\"type\":\"boolean\"}}},\"ExternalItem\":{\"description\":\"Specify dependency that shouldn't be resolved by webpack, but should become dependencies of the resulting bundle. The kind of the dependency depends on `output.libraryTarget`.\",\"anyOf\":[{\"description\":\"Every matched dependency becomes external.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"An exact matched dependency becomes external. The same string is used as external dependency.\",\"type\":\"string\"},{\"description\":\"If an dependency matches exactly a property of the object, the property value is used as dependency.\",\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#/definitions/ExternalItemValue\"},\"properties\":{\"byLayer\":{\"description\":\"Specify externals depending on the layer.\",\"anyOf\":[{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#/definitions/ExternalItem\"}},{\"instanceof\":\"Function\",\"tsType\":\"((layer: string | null) => ExternalItem)\"}]}}},{\"description\":\"The function is called on each dependency (`function(context, request, callback(err, result))`).\",\"instanceof\":\"Function\",\"tsType\":\"(((data: ExternalItemFunctionData, callback: (err?: Error, result?: ExternalItemValue) => void) => void) | ((data: ExternalItemFunctionData) => Promise<ExternalItemValue>))\"}]},\"ExternalItemFunctionData\":{\"description\":\"Data object passed as argument when a function is set for 'externals'.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"context\":{\"description\":\"The directory in which the request is placed.\",\"type\":\"string\"},\"contextInfo\":{\"description\":\"Contextual information.\",\"type\":\"object\",\"tsType\":\"import('../lib/ModuleFactory').ModuleFactoryCreateDataContextInfo\"},\"getResolve\":{\"description\":\"Get a resolve function with the current resolver options.\",\"instanceof\":\"Function\",\"tsType\":\"((options?: ResolveOptions) => ((context: string, request: string, callback: (err?: Error, result?: string) => void) => void) | ((context: string, request: string) => Promise<string>))\"},\"request\":{\"description\":\"The request as written by the user in the require/import expression/statement.\",\"type\":\"string\"}}},\"ExternalItemValue\":{\"description\":\"The dependency used for the external.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A part of the target of the external.\",\"type\":\"string\",\"minLength\":1}},{\"description\":\"`true`: The dependency name is used as target of the external.\",\"type\":\"boolean\"},{\"description\":\"The target of the external.\",\"type\":\"string\"},{\"type\":\"object\"}]},\"Externals\":{\"description\":\"Specify dependencies that shouldn't be resolved by webpack, but should become dependencies of the resulting bundle. The kind of the dependency depends on `output.libraryTarget`.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/ExternalItem\"}},{\"$ref\":\"#/definitions/ExternalItem\"}]},\"ExternalsPresets\":{\"description\":\"Enable presets of externals for specific targets.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"electron\":{\"description\":\"Treat common electron built-in modules in main and preload context like 'electron', 'ipc' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"electronMain\":{\"description\":\"Treat electron built-in modules in the main context like 'app', 'ipc-main' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"electronPreload\":{\"description\":\"Treat electron built-in modules in the preload context like 'web-frame', 'ipc-renderer' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"electronRenderer\":{\"description\":\"Treat electron built-in modules in the renderer context like 'web-frame', 'ipc-renderer' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"node\":{\"description\":\"Treat node.js built-in modules like fs, path or vm as external and load them via require() when used.\",\"type\":\"boolean\"},\"nwjs\":{\"description\":\"Treat NW.js legacy nw.gui module as external and load it via require() when used.\",\"type\":\"boolean\"},\"web\":{\"description\":\"Treat references to 'http(s)://...' and 'std:...' as external and load them via import when used (Note that this changes execution order as externals are executed before any other code in the chunk).\",\"type\":\"boolean\"},\"webAsync\":{\"description\":\"Treat references to 'http(s)://...' and 'std:...' as external and load them via async import() when used (Note that this external type is an async module, which has various effects on the execution).\",\"type\":\"boolean\"}}},\"ExternalsType\":{\"description\":\"Specifies the default type of externals ('amd*', 'umd*', 'system' and 'jsonp' depend on output.libraryTarget set to the same value).\",\"enum\":[\"var\",\"module\",\"assign\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\",\"promise\",\"import\",\"script\"]},\"FileCacheOptions\":{\"description\":\"Options object for persistent file-based caching.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"buildDependencies\":{\"description\":\"Dependencies the build depends on (in multiple categories, default categories: 'defaultWebpack').\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"List of dependencies the build depends on.\",\"type\":\"array\",\"items\":{\"description\":\"Request to a dependency (resolved as directory relative to the context directory).\",\"type\":\"string\",\"minLength\":1}}},\"cacheDirectory\":{\"description\":\"Base directory for the cache (defaults to node_modules/.cache/webpack).\",\"type\":\"string\",\"absolutePath\":true},\"cacheLocation\":{\"description\":\"Locations for the cache (defaults to cacheDirectory / name).\",\"type\":\"string\",\"absolutePath\":true},\"hashAlgorithm\":{\"description\":\"Algorithm used for generation the hash (see node.js crypto package).\",\"type\":\"string\"},\"idleTimeout\":{\"description\":\"Time in ms after which idle period the cache storing should happen (only for store: 'pack' or 'idle').\",\"type\":\"number\",\"minimum\":0},\"idleTimeoutForInitialStore\":{\"description\":\"Time in ms after which idle period the initial cache storing should happen (only for store: 'pack' or 'idle').\",\"type\":\"number\",\"minimum\":0},\"immutablePaths\":{\"description\":\"List of paths that are managed by a package manager and contain a version or hash in its path so all files are immutable.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a immutable directory (usually a package manager cache directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"managedPaths\":{\"description\":\"List of paths that are managed by a package manager and can be trusted to not be modified otherwise.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a managed directory (usually a node_modules directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"name\":{\"description\":\"Name for the cache. Different names will lead to different coexisting caches.\",\"type\":\"string\"},\"store\":{\"description\":\"When to store data to the filesystem. (pack: Store data when compiler is idle in a single file).\",\"enum\":[\"pack\"]},\"type\":{\"description\":\"Filesystem caching.\",\"enum\":[\"filesystem\"]},\"version\":{\"description\":\"Version of the cache data. Different versions won't allow to reuse the cache and override existing content. Update the version when config changed in a way which doesn't allow to reuse cache. This will invalidate the cache.\",\"type\":\"string\"}},\"required\":[\"type\"]},\"Filename\":{\"description\":\"Specifies the filename of output files on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilenameTemplate\"}]},\"FilenameTemplate\":{\"description\":\"Specifies the filename template of output files on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"FilterItemTypes\":{\"description\":\"Filtering value, regexp or function.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((value: string) => boolean)\"}]},\"FilterTypes\":{\"description\":\"Filtering values.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Rule to filter.\",\"cli\":{\"helper\":true},\"oneOf\":[{\"$ref\":\"#/definitions/FilterItemTypes\"}]}},{\"$ref\":\"#/definitions/FilterItemTypes\"}]},\"GeneratorOptionsByModuleType\":{\"description\":\"Specify options for each generator.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Options for generating.\",\"type\":\"object\",\"additionalProperties\":true},\"properties\":{\"asset\":{\"$ref\":\"#/definitions/AssetGeneratorOptions\"},\"asset/inline\":{\"$ref\":\"#/definitions/AssetInlineGeneratorOptions\"},\"asset/resource\":{\"$ref\":\"#/definitions/AssetResourceGeneratorOptions\"},\"javascript\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"},\"javascript/auto\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"},\"javascript/dynamic\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"},\"javascript/esm\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"}}},\"GlobalObject\":{\"description\":\"An expression which is used to address the global object/scope in runtime code.\",\"type\":\"string\",\"minLength\":1},\"HashDigest\":{\"description\":\"Digest type used for the hash.\",\"type\":\"string\"},\"HashDigestLength\":{\"description\":\"Number of chars which are used for the hash.\",\"type\":\"number\",\"minimum\":1},\"HashFunction\":{\"description\":\"Algorithm used for generation the hash (see node.js crypto package).\",\"anyOf\":[{\"type\":\"string\",\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"typeof import('../lib/util/Hash')\"}]},\"HashSalt\":{\"description\":\"Any string which is added to the hash to salt it.\",\"type\":\"string\",\"minLength\":1},\"HotUpdateChunkFilename\":{\"description\":\"The filename of the Hot Update Chunks. They are inside the output.path directory.\",\"type\":\"string\",\"absolutePath\":false},\"HotUpdateGlobal\":{\"description\":\"The global variable used by webpack for loading of hot update chunks.\",\"type\":\"string\"},\"HotUpdateMainFilename\":{\"description\":\"The filename of the Hot Update Main File. It is inside the 'output.path' directory.\",\"type\":\"string\",\"absolutePath\":false},\"IgnoreWarnings\":{\"description\":\"Ignore specific warnings.\",\"type\":\"array\",\"items\":{\"description\":\"Ignore specific warnings.\",\"anyOf\":[{\"description\":\"A RegExp to select the warning message.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"file\":{\"description\":\"A RegExp to select the origin file for the warning.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},\"message\":{\"description\":\"A RegExp to select the warning message.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},\"module\":{\"description\":\"A RegExp to select the origin module for the warning.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}}},{\"description\":\"A custom function to select warnings based on the raw warning instance.\",\"instanceof\":\"Function\",\"tsType\":\"((warning: import('../lib/WebpackError'), compilation: import('../lib/Compilation')) => boolean)\"}]}},\"IgnoreWarningsNormalized\":{\"description\":\"Ignore specific warnings.\",\"type\":\"array\",\"items\":{\"description\":\"A function to select warnings based on the raw warning instance.\",\"instanceof\":\"Function\",\"tsType\":\"((warning: import('../lib/WebpackError'), compilation: import('../lib/Compilation')) => boolean)\"}},\"Iife\":{\"description\":\"Wrap javascript code into IIFE's to avoid leaking into global scope.\",\"type\":\"boolean\"},\"ImportFunctionName\":{\"description\":\"The name of the native import() function (can be exchanged for a polyfill).\",\"type\":\"string\"},\"ImportMetaName\":{\"description\":\"The name of the native import.meta object (can be exchanged for a polyfill).\",\"type\":\"string\"},\"InfrastructureLogging\":{\"description\":\"Options for infrastructure level logging.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"debug\":{\"description\":\"Enable debug logging for specific loggers.\",\"anyOf\":[{\"description\":\"Enable/Disable debug logging for all loggers.\",\"type\":\"boolean\"},{\"$ref\":\"#/definitions/FilterTypes\"}]},\"level\":{\"description\":\"Log level.\",\"enum\":[\"none\",\"error\",\"warn\",\"info\",\"log\",\"verbose\"]}}},\"JavascriptParserOptions\":{\"description\":\"Parser options for javascript modules.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"amd\":{\"$ref\":\"#/definitions/Amd\"},\"browserify\":{\"description\":\"Enable/disable special handling for browserify bundles.\",\"type\":\"boolean\"},\"commonjs\":{\"description\":\"Enable/disable parsing of CommonJs syntax.\",\"type\":\"boolean\"},\"commonjsMagicComments\":{\"description\":\"Enable/disable parsing of magic comments in CommonJs syntax.\",\"type\":\"boolean\"},\"exprContextCritical\":{\"description\":\"Enable warnings for full dynamic dependencies.\",\"type\":\"boolean\"},\"exprContextRecursive\":{\"description\":\"Enable recursive directory lookup for full dynamic dependencies.\",\"type\":\"boolean\"},\"exprContextRegExp\":{\"description\":\"Sets the default regular expression for full dynamic dependencies.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"boolean\"}]},\"exprContextRequest\":{\"description\":\"Set the default request for full dynamic dependencies.\",\"type\":\"string\"},\"harmony\":{\"description\":\"Enable/disable parsing of EcmaScript Modules syntax.\",\"type\":\"boolean\"},\"import\":{\"description\":\"Enable/disable parsing of import() syntax.\",\"type\":\"boolean\"},\"node\":{\"$ref\":\"#/definitions/Node\"},\"requireContext\":{\"description\":\"Enable/disable parsing of require.context syntax.\",\"type\":\"boolean\"},\"requireEnsure\":{\"description\":\"Enable/disable parsing of require.ensure syntax.\",\"type\":\"boolean\"},\"requireInclude\":{\"description\":\"Enable/disable parsing of require.include syntax.\",\"type\":\"boolean\"},\"requireJs\":{\"description\":\"Enable/disable parsing of require.js special syntax like require.config, requirejs.config, require.version and requirejs.onError.\",\"type\":\"boolean\"},\"strictExportPresence\":{\"description\":\"Emit errors instead of warnings when imported names don't exist in imported module.\",\"type\":\"boolean\"},\"strictThisContextOnImports\":{\"description\":\"Handle the this context correctly according to the spec for namespace objects.\",\"type\":\"boolean\"},\"system\":{\"description\":\"Enable/disable parsing of System.js special syntax like System.import, System.get, System.set and System.register.\",\"type\":\"boolean\"},\"unknownContextCritical\":{\"description\":\"Enable warnings when using the require function in a not statically analyse-able way.\",\"type\":\"boolean\"},\"unknownContextRecursive\":{\"description\":\"Enable recursive directory lookup when using the require function in a not statically analyse-able way.\",\"type\":\"boolean\"},\"unknownContextRegExp\":{\"description\":\"Sets the regular expression when using the require function in a not statically analyse-able way.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"boolean\"}]},\"unknownContextRequest\":{\"description\":\"Sets the request when using the require function in a not statically analyse-able way.\",\"type\":\"string\"},\"url\":{\"description\":\"Enable/disable parsing of new URL() syntax.\",\"type\":\"boolean\"},\"worker\":{\"description\":\"Disable or configure parsing of WebWorker syntax like new Worker() or navigator.serviceWorker.register().\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Specify a syntax that should be parsed as WebWorker reference. 'Abc' handles 'new Abc()', 'Abc from xyz' handles 'import { Abc } from \\\"xyz\\\"; new Abc()', 'abc()' handles 'abc()', and combinations are also possible.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"boolean\"}]},\"wrappedContextCritical\":{\"description\":\"Enable warnings for partial dynamic dependencies.\",\"type\":\"boolean\"},\"wrappedContextRecursive\":{\"description\":\"Enable recursive directory lookup for partial dynamic dependencies.\",\"type\":\"boolean\"},\"wrappedContextRegExp\":{\"description\":\"Set the inner regular expression for partial dynamic dependencies.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}}},\"Layer\":{\"description\":\"Specifies the layer in which modules of this entrypoint are placed.\",\"anyOf\":[{\"enum\":[null]},{\"type\":\"string\",\"minLength\":1}]},\"Library\":{\"description\":\"Make the output files a library, exporting the exports of the entry point.\",\"anyOf\":[{\"$ref\":\"#/definitions/LibraryName\"},{\"$ref\":\"#/definitions/LibraryOptions\"}]},\"LibraryCustomUmdCommentObject\":{\"description\":\"Set explicit comments for `commonjs`, `commonjs2`, `amd`, and `root`.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Set comment for `amd` section in UMD.\",\"type\":\"string\"},\"commonjs\":{\"description\":\"Set comment for `commonjs` (exports) section in UMD.\",\"type\":\"string\"},\"commonjs2\":{\"description\":\"Set comment for `commonjs2` (module.exports) section in UMD.\",\"type\":\"string\"},\"root\":{\"description\":\"Set comment for `root` (global variable) section in UMD.\",\"type\":\"string\"}}},\"LibraryCustomUmdObject\":{\"description\":\"Description object for all UMD variants of the library name.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Name of the exposed AMD library in the UMD.\",\"type\":\"string\",\"minLength\":1},\"commonjs\":{\"description\":\"Name of the exposed commonjs export in the UMD.\",\"type\":\"string\",\"minLength\":1},\"root\":{\"description\":\"Name of the property exposed globally by a UMD library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the name of the property exposed globally by a UMD library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}}},\"LibraryExport\":{\"description\":\"Specify which export should be exposed as library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the export that should be exposed as library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]},\"LibraryName\":{\"description\":\"The name of the library (some types allow unnamed libraries too).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A part of the library name.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1},{\"$ref\":\"#/definitions/LibraryCustomUmdObject\"}]},\"LibraryOptions\":{\"description\":\"Options for library.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"auxiliaryComment\":{\"$ref\":\"#/definitions/AuxiliaryComment\"},\"export\":{\"$ref\":\"#/definitions/LibraryExport\"},\"name\":{\"$ref\":\"#/definitions/LibraryName\"},\"type\":{\"$ref\":\"#/definitions/LibraryType\"},\"umdNamedDefine\":{\"$ref\":\"#/definitions/UmdNamedDefine\"}},\"required\":[\"type\"]},\"LibraryType\":{\"description\":\"Type of library (types included by default are 'var', 'module', 'assign', 'assign-properties', 'this', 'window', 'self', 'global', 'commonjs', 'commonjs2', 'commonjs-module', 'amd', 'amd-require', 'umd', 'umd2', 'jsonp', 'system', but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"var\",\"module\",\"assign\",\"assign-properties\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\"]},{\"type\":\"string\"}]},\"Loader\":{\"description\":\"Custom values available in the loader context.\",\"type\":\"object\"},\"MemoryCacheOptions\":{\"description\":\"Options object for in-memory caching.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"type\":{\"description\":\"In memory caching.\",\"enum\":[\"memory\"]}},\"required\":[\"type\"]},\"Mode\":{\"description\":\"Enable production optimizations or development hints.\",\"enum\":[\"development\",\"production\",\"none\"]},\"ModuleOptions\":{\"description\":\"Options affecting the normal modules (`NormalModuleFactory`).\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"defaultRules\":{\"description\":\"An array of rules applied by default for modules.\",\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRules\"}]},\"exprContextCritical\":{\"description\":\"Enable warnings for full dynamic dependencies.\",\"type\":\"boolean\"},\"exprContextRecursive\":{\"description\":\"Enable recursive directory lookup for full dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.exprContextRecursive'.\",\"type\":\"boolean\"},\"exprContextRegExp\":{\"description\":\"Sets the default regular expression for full dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.exprContextRegExp'.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"boolean\"}]},\"exprContextRequest\":{\"description\":\"Set the default request for full dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.exprContextRequest'.\",\"type\":\"string\"},\"generator\":{\"$ref\":\"#/definitions/GeneratorOptionsByModuleType\"},\"noParse\":{\"$ref\":\"#/definitions/NoParse\"},\"parser\":{\"$ref\":\"#/definitions/ParserOptionsByModuleType\"},\"rules\":{\"description\":\"An array of rules applied for modules.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRules\"}]},\"strictExportPresence\":{\"description\":\"Emit errors instead of warnings when imported names don't exist in imported module. Deprecated: This option has moved to 'module.parser.javascript.strictExportPresence'.\",\"type\":\"boolean\"},\"strictThisContextOnImports\":{\"description\":\"Handle the this context correctly according to the spec for namespace objects. Deprecated: This option has moved to 'module.parser.javascript.strictThisContextOnImports'.\",\"type\":\"boolean\"},\"unknownContextCritical\":{\"description\":\"Enable warnings when using the require function in a not statically analyse-able way. Deprecated: This option has moved to 'module.parser.javascript.unknownContextCritical'.\",\"type\":\"boolean\"},\"unknownContextRecursive\":{\"description\":\"Enable recursive directory lookup when using the require function in a not statically analyse-able way. Deprecated: This option has moved to 'module.parser.javascript.unknownContextRecursive'.\",\"type\":\"boolean\"},\"unknownContextRegExp\":{\"description\":\"Sets the regular expression when using the require function in a not statically analyse-able way. Deprecated: This option has moved to 'module.parser.javascript.unknownContextRegExp'.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"boolean\"}]},\"unknownContextRequest\":{\"description\":\"Sets the request when using the require function in a not statically analyse-able way. Deprecated: This option has moved to 'module.parser.javascript.unknownContextRequest'.\",\"type\":\"string\"},\"unsafeCache\":{\"description\":\"Cache the resolving of module requests.\",\"anyOf\":[{\"type\":\"boolean\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"wrappedContextCritical\":{\"description\":\"Enable warnings for partial dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.wrappedContextCritical'.\",\"type\":\"boolean\"},\"wrappedContextRecursive\":{\"description\":\"Enable recursive directory lookup for partial dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.wrappedContextRecursive'.\",\"type\":\"boolean\"},\"wrappedContextRegExp\":{\"description\":\"Set the inner regular expression for partial dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.wrappedContextRegExp'.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}}},\"ModuleOptionsNormalized\":{\"description\":\"Options affecting the normal modules (`NormalModuleFactory`).\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"defaultRules\":{\"description\":\"An array of rules applied by default for modules.\",\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRules\"}]},\"generator\":{\"$ref\":\"#/definitions/GeneratorOptionsByModuleType\"},\"noParse\":{\"$ref\":\"#/definitions/NoParse\"},\"parser\":{\"$ref\":\"#/definitions/ParserOptionsByModuleType\"},\"rules\":{\"description\":\"An array of rules applied for modules.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRules\"}]},\"unsafeCache\":{\"description\":\"Cache the resolving of module requests.\",\"anyOf\":[{\"type\":\"boolean\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]}},\"required\":[\"defaultRules\",\"generator\",\"parser\",\"rules\"]},\"Name\":{\"description\":\"Name of the configuration. Used when loading multiple configurations.\",\"type\":\"string\"},\"NoParse\":{\"description\":\"Don't parse files matching. It's matched against the full resolved request.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Don't parse files matching. It's matched against the full resolved request.\",\"anyOf\":[{\"description\":\"A regular expression, when matched the module is not parsed.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"An absolute path, when the module starts with this path it is not parsed.\",\"type\":\"string\",\"absolutePath\":true},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"minItems\":1},{\"description\":\"A regular expression, when matched the module is not parsed.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"An absolute path, when the module starts with this path it is not parsed.\",\"type\":\"string\",\"absolutePath\":true},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"Node\":{\"description\":\"Include polyfills or mocks for various node stuff.\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/NodeOptions\"}]},\"NodeOptions\":{\"description\":\"Options object for node compatibility features.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"__dirname\":{\"description\":\"Include a polyfill for the '__dirname' variable.\",\"enum\":[false,true,\"mock\",\"eval-only\"]},\"__filename\":{\"description\":\"Include a polyfill for the '__filename' variable.\",\"enum\":[false,true,\"mock\",\"eval-only\"]},\"global\":{\"description\":\"Include a polyfill for the 'global' variable.\",\"type\":\"boolean\"}}},\"Optimization\":{\"description\":\"Enables/Disables integrated optimizations.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"checkWasmTypes\":{\"description\":\"Check for incompatible wasm types when importing/exporting from/to ESM.\",\"type\":\"boolean\"},\"chunkIds\":{\"description\":\"Define the algorithm to choose chunk ids (named: readable ids for better debugging, deterministic: numeric hash ids for better long term caching, size: numeric ids focused on minimal initial download size, total-size: numeric ids focused on minimal total download size, false: no algorithm used, as custom one can be provided via plugin).\",\"enum\":[\"natural\",\"named\",\"deterministic\",\"size\",\"total-size\",false]},\"concatenateModules\":{\"description\":\"Concatenate modules when possible to generate less modules, more efficient code and enable more optimizations by the minimizer.\",\"type\":\"boolean\"},\"emitOnErrors\":{\"description\":\"Emit assets even when errors occur. Critical errors are emitted into the generated code and will cause errors at runtime.\",\"type\":\"boolean\"},\"flagIncludedChunks\":{\"description\":\"Also flag chunks as loaded which contain a subset of the modules.\",\"type\":\"boolean\"},\"innerGraph\":{\"description\":\"Creates a module-internal dependency graph for top level symbols, exports and imports, to improve unused exports detection.\",\"type\":\"boolean\"},\"mangleExports\":{\"description\":\"Rename exports when possible to generate shorter code (depends on optimization.usedExports and optimization.providedExports, true/\\\"deterministic\\\": generate short deterministic names optimized for caching, \\\"size\\\": generate the shortest possible names).\",\"anyOf\":[{\"enum\":[\"size\",\"deterministic\"]},{\"type\":\"boolean\"}]},\"mangleWasmImports\":{\"description\":\"Reduce size of WASM by changing imports to shorter strings.\",\"type\":\"boolean\"},\"mergeDuplicateChunks\":{\"description\":\"Merge chunks which contain the same modules.\",\"type\":\"boolean\"},\"minimize\":{\"description\":\"Enable minimizing the output. Uses optimization.minimizer.\",\"type\":\"boolean\"},\"minimizer\":{\"description\":\"Minimizer(s) to use for minimizing the output.\",\"type\":\"array\",\"cli\":{\"exclude\":true},\"items\":{\"description\":\"Plugin of type object or instanceof Function.\",\"anyOf\":[{\"enum\":[\"...\"]},{\"$ref\":\"#/definitions/WebpackPluginInstance\"},{\"$ref\":\"#/definitions/WebpackPluginFunction\"}]}},\"moduleIds\":{\"description\":\"Define the algorithm to choose module ids (natural: numeric ids in order of usage, named: readable ids for better debugging, hashed: (deprecated) short hashes as ids for better long term caching, deterministic: numeric hash ids for better long term caching, size: numeric ids focused on minimal initial download size, false: no algorithm used, as custom one can be provided via plugin).\",\"enum\":[\"natural\",\"named\",\"hashed\",\"deterministic\",\"size\",false]},\"noEmitOnErrors\":{\"description\":\"Avoid emitting assets when errors occur (deprecated: use 'emitOnErrors' instead).\",\"type\":\"boolean\",\"cli\":{\"exclude\":true}},\"nodeEnv\":{\"description\":\"Set process.env.NODE_ENV to a specific value.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\"}]},\"portableRecords\":{\"description\":\"Generate records with relative paths to be able to move the context folder.\",\"type\":\"boolean\"},\"providedExports\":{\"description\":\"Figure out which exports are provided by modules to generate more efficient code.\",\"type\":\"boolean\"},\"realContentHash\":{\"description\":\"Use real [contenthash] based on final content of the assets.\",\"type\":\"boolean\"},\"removeAvailableModules\":{\"description\":\"Removes modules from chunks when these modules are already included in all parents.\",\"type\":\"boolean\"},\"removeEmptyChunks\":{\"description\":\"Remove chunks which are empty.\",\"type\":\"boolean\"},\"runtimeChunk\":{\"$ref\":\"#/definitions/OptimizationRuntimeChunk\"},\"sideEffects\":{\"description\":\"Skip over modules which contain no side effects when exports are not used (false: disabled, 'flag': only use manually placed side effects flag, true: also analyse source code for side effects).\",\"anyOf\":[{\"enum\":[\"flag\"]},{\"type\":\"boolean\"}]},\"splitChunks\":{\"description\":\"Optimize duplication and caching by splitting chunks by shared modules and cache group.\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/OptimizationSplitChunksOptions\"}]},\"usedExports\":{\"description\":\"Figure out which exports are used by modules to mangle export names, omit unused exports and generate more efficient code (true: analyse used exports for each runtime, \\\"global\\\": analyse exports globally for all runtimes combined).\",\"anyOf\":[{\"enum\":[\"global\"]},{\"type\":\"boolean\"}]}}},\"OptimizationRuntimeChunk\":{\"description\":\"Create an additional chunk which contains only the webpack runtime and chunk hash maps.\",\"anyOf\":[{\"enum\":[\"single\",\"multiple\"]},{\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"name\":{\"description\":\"The name or name factory for the runtime chunks.\",\"anyOf\":[{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]}}}]},\"OptimizationRuntimeChunkNormalized\":{\"description\":\"Create an additional chunk which contains only the webpack runtime and chunk hash maps.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"name\":{\"description\":\"The name factory for the runtime chunks.\",\"instanceof\":\"Function\",\"tsType\":\"Function\"}}}]},\"OptimizationSplitChunksCacheGroup\":{\"description\":\"Options object for describing behavior of a cache group selecting modules that should be cached together.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"automaticNameDelimiter\":{\"description\":\"Sets the name delimiter for created chunks.\",\"type\":\"string\",\"minLength\":1},\"chunks\":{\"description\":\"Select chunks for determining cache group content (defaults to \\\"initial\\\", \\\"initial\\\" and \\\"all\\\" requires adding these chunks to the HTML).\",\"anyOf\":[{\"enum\":[\"initial\",\"async\",\"all\"]},{\"instanceof\":\"Function\",\"tsType\":\"((chunk: import('../lib/Chunk')) => boolean)\"}]},\"enforce\":{\"description\":\"Ignore minimum size, minimum chunks and maximum requests and always create chunks for this cache group.\",\"type\":\"boolean\"},\"enforceSizeThreshold\":{\"description\":\"Size threshold at which splitting is enforced and other restrictions (minRemainingSize, maxAsyncRequests, maxInitialRequests) are ignored.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"filename\":{\"description\":\"Sets the template for the filename for created chunks.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"idHint\":{\"description\":\"Sets the hint for chunk id.\",\"type\":\"string\"},\"layer\":{\"description\":\"Assign modules to a cache group by module layer.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"maxAsyncRequests\":{\"description\":\"Maximum number of requests which are accepted for on-demand loading.\",\"type\":\"number\",\"minimum\":1},\"maxAsyncSize\":{\"description\":\"Maximal size hint for the on-demand chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxInitialRequests\":{\"description\":\"Maximum number of initial chunks which are accepted for an entry point.\",\"type\":\"number\",\"minimum\":1},\"maxInitialSize\":{\"description\":\"Maximal size hint for the initial chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxSize\":{\"description\":\"Maximal size hint for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minChunks\":{\"description\":\"Minimum number of times a module has to be duplicated until it's considered for splitting.\",\"type\":\"number\",\"minimum\":1},\"minRemainingSize\":{\"description\":\"Minimal size for the chunks the stay after moving the modules to a new chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minSize\":{\"description\":\"Minimal size for the created chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"name\":{\"description\":\"Give chunks for this cache group a name (chunks with equal name are merged).\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"priority\":{\"description\":\"Priority of this cache group.\",\"type\":\"number\"},\"reuseExistingChunk\":{\"description\":\"Try to reuse existing chunk (with name) when it has matching modules.\",\"type\":\"boolean\"},\"test\":{\"description\":\"Assign modules to a cache group by module name.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"type\":{\"description\":\"Assign modules to a cache group by module type.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"usedExports\":{\"description\":\"Compare used exports when checking common modules. Modules will only be put in the same chunk when exports are equal.\",\"type\":\"boolean\"}}},\"OptimizationSplitChunksGetCacheGroups\":{\"description\":\"A function returning cache groups.\",\"instanceof\":\"Function\",\"tsType\":\"((module: import('../lib/Module')) => OptimizationSplitChunksCacheGroup | OptimizationSplitChunksCacheGroup[] | void)\"},\"OptimizationSplitChunksOptions\":{\"description\":\"Options object for splitting chunks into smaller chunks.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"automaticNameDelimiter\":{\"description\":\"Sets the name delimiter for created chunks.\",\"type\":\"string\",\"minLength\":1},\"cacheGroups\":{\"description\":\"Assign modules to a cache group (modules from different cache groups are tried to keep in separate chunks, default categories: 'default', 'defaultVendors').\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Configuration for a cache group.\",\"anyOf\":[{\"enum\":[false]},{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"},{\"$ref\":\"#/definitions/OptimizationSplitChunksCacheGroup\"}]},\"not\":{\"description\":\"Using the cacheGroup shorthand syntax with a cache group named 'test' is a potential config error\\nDid you intent to define a cache group with a test instead?\\ncacheGroups: {\\n  <name>: {\\n    test: ...\\n  }\\n}.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"test\":{\"description\":\"The test property is a cache group name, but using the test option of the cache group could be intended instead.\",\"anyOf\":[{\"instanceof\":\"Function\",\"tsType\":\"Function\"},{\"type\":\"string\"},{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}]}},\"required\":[\"test\"]}},\"chunks\":{\"description\":\"Select chunks for determining shared modules (defaults to \\\"async\\\", \\\"initial\\\" and \\\"all\\\" requires adding these chunks to the HTML).\",\"anyOf\":[{\"enum\":[\"initial\",\"async\",\"all\"]},{\"instanceof\":\"Function\",\"tsType\":\"((chunk: import('../lib/Chunk')) => boolean)\"}]},\"defaultSizeTypes\":{\"description\":\"Sets the size types which are used when a number is used for sizes.\",\"type\":\"array\",\"items\":{\"description\":\"Size type, like 'javascript', 'webassembly'.\",\"type\":\"string\"},\"minLength\":1},\"enforceSizeThreshold\":{\"description\":\"Size threshold at which splitting is enforced and other restrictions (minRemainingSize, maxAsyncRequests, maxInitialRequests) are ignored.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"fallbackCacheGroup\":{\"description\":\"Options for modules not selected by any other cache group.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"automaticNameDelimiter\":{\"description\":\"Sets the name delimiter for created chunks.\",\"type\":\"string\",\"minLength\":1},\"maxAsyncSize\":{\"description\":\"Maximal size hint for the on-demand chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxInitialSize\":{\"description\":\"Maximal size hint for the initial chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxSize\":{\"description\":\"Maximal size hint for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minSize\":{\"description\":\"Minimal size for the created chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]}}},\"filename\":{\"description\":\"Sets the template for the filename for created chunks.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"hidePathInfo\":{\"description\":\"Prevents exposing path info when creating names for parts splitted by maxSize.\",\"type\":\"boolean\"},\"maxAsyncRequests\":{\"description\":\"Maximum number of requests which are accepted for on-demand loading.\",\"type\":\"number\",\"minimum\":1},\"maxAsyncSize\":{\"description\":\"Maximal size hint for the on-demand chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxInitialRequests\":{\"description\":\"Maximum number of initial chunks which are accepted for an entry point.\",\"type\":\"number\",\"minimum\":1},\"maxInitialSize\":{\"description\":\"Maximal size hint for the initial chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxSize\":{\"description\":\"Maximal size hint for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minChunks\":{\"description\":\"Minimum number of times a module has to be duplicated until it's considered for splitting.\",\"type\":\"number\",\"minimum\":1},\"minRemainingSize\":{\"description\":\"Minimal size for the chunks the stay after moving the modules to a new chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minSize\":{\"description\":\"Minimal size for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"name\":{\"description\":\"Give chunks created a name (chunks with equal name are merged).\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"usedExports\":{\"description\":\"Compare used exports when checking common modules. Modules will only be put in the same chunk when exports are equal.\",\"type\":\"boolean\"}}},\"OptimizationSplitChunksSizes\":{\"description\":\"Size description for limits.\",\"anyOf\":[{\"description\":\"Size of the javascript part of the chunk.\",\"type\":\"number\",\"minimum\":0},{\"description\":\"Specify size limits per size type.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Size of the part of the chunk with the type of the key.\",\"type\":\"number\"}}]},\"Output\":{\"description\":\"Options affecting the output of the compilation. `output` options tell webpack how to write the compiled files to disk.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"assetModuleFilename\":{\"$ref\":\"#/definitions/AssetModuleFilename\"},\"auxiliaryComment\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/AuxiliaryComment\"}]},\"charset\":{\"$ref\":\"#/definitions/Charset\"},\"chunkFilename\":{\"$ref\":\"#/definitions/ChunkFilename\"},\"chunkFormat\":{\"$ref\":\"#/definitions/ChunkFormat\"},\"chunkLoadTimeout\":{\"$ref\":\"#/definitions/ChunkLoadTimeout\"},\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"chunkLoadingGlobal\":{\"$ref\":\"#/definitions/ChunkLoadingGlobal\"},\"compareBeforeEmit\":{\"$ref\":\"#/definitions/CompareBeforeEmit\"},\"crossOriginLoading\":{\"$ref\":\"#/definitions/CrossOriginLoading\"},\"devtoolFallbackModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolFallbackModuleFilenameTemplate\"},\"devtoolModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolModuleFilenameTemplate\"},\"devtoolNamespace\":{\"$ref\":\"#/definitions/DevtoolNamespace\"},\"enabledChunkLoadingTypes\":{\"$ref\":\"#/definitions/EnabledChunkLoadingTypes\"},\"enabledLibraryTypes\":{\"$ref\":\"#/definitions/EnabledLibraryTypes\"},\"enabledWasmLoadingTypes\":{\"$ref\":\"#/definitions/EnabledWasmLoadingTypes\"},\"environment\":{\"$ref\":\"#/definitions/Environment\"},\"filename\":{\"$ref\":\"#/definitions/Filename\"},\"globalObject\":{\"$ref\":\"#/definitions/GlobalObject\"},\"hashDigest\":{\"$ref\":\"#/definitions/HashDigest\"},\"hashDigestLength\":{\"$ref\":\"#/definitions/HashDigestLength\"},\"hashFunction\":{\"$ref\":\"#/definitions/HashFunction\"},\"hashSalt\":{\"$ref\":\"#/definitions/HashSalt\"},\"hotUpdateChunkFilename\":{\"$ref\":\"#/definitions/HotUpdateChunkFilename\"},\"hotUpdateGlobal\":{\"$ref\":\"#/definitions/HotUpdateGlobal\"},\"hotUpdateMainFilename\":{\"$ref\":\"#/definitions/HotUpdateMainFilename\"},\"iife\":{\"$ref\":\"#/definitions/Iife\"},\"importFunctionName\":{\"$ref\":\"#/definitions/ImportFunctionName\"},\"importMetaName\":{\"$ref\":\"#/definitions/ImportMetaName\"},\"library\":{\"$ref\":\"#/definitions/Library\"},\"libraryExport\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/LibraryExport\"}]},\"libraryTarget\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/LibraryType\"}]},\"module\":{\"$ref\":\"#/definitions/OutputModule\"},\"path\":{\"$ref\":\"#/definitions/Path\"},\"pathinfo\":{\"$ref\":\"#/definitions/Pathinfo\"},\"publicPath\":{\"$ref\":\"#/definitions/PublicPath\"},\"scriptType\":{\"$ref\":\"#/definitions/ScriptType\"},\"sourceMapFilename\":{\"$ref\":\"#/definitions/SourceMapFilename\"},\"sourcePrefix\":{\"$ref\":\"#/definitions/SourcePrefix\"},\"strictModuleExceptionHandling\":{\"$ref\":\"#/definitions/StrictModuleExceptionHandling\"},\"umdNamedDefine\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/UmdNamedDefine\"}]},\"uniqueName\":{\"$ref\":\"#/definitions/UniqueName\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"},\"webassemblyModuleFilename\":{\"$ref\":\"#/definitions/WebassemblyModuleFilename\"},\"workerChunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"workerWasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}}},\"OutputModule\":{\"description\":\"Output javascript files as module source type.\",\"type\":\"boolean\"},\"OutputNormalized\":{\"description\":\"Normalized options affecting the output of the compilation. `output` options tell webpack how to write the compiled files to disk.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"assetModuleFilename\":{\"$ref\":\"#/definitions/AssetModuleFilename\"},\"charset\":{\"$ref\":\"#/definitions/Charset\"},\"chunkFilename\":{\"$ref\":\"#/definitions/ChunkFilename\"},\"chunkFormat\":{\"$ref\":\"#/definitions/ChunkFormat\"},\"chunkLoadTimeout\":{\"$ref\":\"#/definitions/ChunkLoadTimeout\"},\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"chunkLoadingGlobal\":{\"$ref\":\"#/definitions/ChunkLoadingGlobal\"},\"compareBeforeEmit\":{\"$ref\":\"#/definitions/CompareBeforeEmit\"},\"crossOriginLoading\":{\"$ref\":\"#/definitions/CrossOriginLoading\"},\"devtoolFallbackModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolFallbackModuleFilenameTemplate\"},\"devtoolModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolModuleFilenameTemplate\"},\"devtoolNamespace\":{\"$ref\":\"#/definitions/DevtoolNamespace\"},\"enabledChunkLoadingTypes\":{\"$ref\":\"#/definitions/EnabledChunkLoadingTypes\"},\"enabledLibraryTypes\":{\"$ref\":\"#/definitions/EnabledLibraryTypes\"},\"enabledWasmLoadingTypes\":{\"$ref\":\"#/definitions/EnabledWasmLoadingTypes\"},\"environment\":{\"$ref\":\"#/definitions/Environment\"},\"filename\":{\"$ref\":\"#/definitions/Filename\"},\"globalObject\":{\"$ref\":\"#/definitions/GlobalObject\"},\"hashDigest\":{\"$ref\":\"#/definitions/HashDigest\"},\"hashDigestLength\":{\"$ref\":\"#/definitions/HashDigestLength\"},\"hashFunction\":{\"$ref\":\"#/definitions/HashFunction\"},\"hashSalt\":{\"$ref\":\"#/definitions/HashSalt\"},\"hotUpdateChunkFilename\":{\"$ref\":\"#/definitions/HotUpdateChunkFilename\"},\"hotUpdateGlobal\":{\"$ref\":\"#/definitions/HotUpdateGlobal\"},\"hotUpdateMainFilename\":{\"$ref\":\"#/definitions/HotUpdateMainFilename\"},\"iife\":{\"$ref\":\"#/definitions/Iife\"},\"importFunctionName\":{\"$ref\":\"#/definitions/ImportFunctionName\"},\"importMetaName\":{\"$ref\":\"#/definitions/ImportMetaName\"},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"module\":{\"$ref\":\"#/definitions/OutputModule\"},\"path\":{\"$ref\":\"#/definitions/Path\"},\"pathinfo\":{\"$ref\":\"#/definitions/Pathinfo\"},\"publicPath\":{\"$ref\":\"#/definitions/PublicPath\"},\"scriptType\":{\"$ref\":\"#/definitions/ScriptType\"},\"sourceMapFilename\":{\"$ref\":\"#/definitions/SourceMapFilename\"},\"sourcePrefix\":{\"$ref\":\"#/definitions/SourcePrefix\"},\"strictModuleExceptionHandling\":{\"$ref\":\"#/definitions/StrictModuleExceptionHandling\"},\"uniqueName\":{\"$ref\":\"#/definitions/UniqueName\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"},\"webassemblyModuleFilename\":{\"$ref\":\"#/definitions/WebassemblyModuleFilename\"},\"workerChunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"workerWasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}}},\"Parallelism\":{\"description\":\"The number of parallel processed modules in the compilation.\",\"type\":\"number\",\"minimum\":1},\"ParserOptionsByModuleType\":{\"description\":\"Specify options for each parser.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Options for parsing.\",\"type\":\"object\",\"additionalProperties\":true},\"properties\":{\"asset\":{\"$ref\":\"#/definitions/AssetParserOptions\"},\"asset/inline\":{\"$ref\":\"#/definitions/EmptyParserOptions\"},\"asset/resource\":{\"$ref\":\"#/definitions/EmptyParserOptions\"},\"asset/source\":{\"$ref\":\"#/definitions/EmptyParserOptions\"},\"javascript\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"},\"javascript/auto\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"},\"javascript/dynamic\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"},\"javascript/esm\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"}}},\"Path\":{\"description\":\"The output directory as **absolute path** (required).\",\"type\":\"string\",\"absolutePath\":true},\"Pathinfo\":{\"description\":\"Include comments with information about the modules.\",\"anyOf\":[{\"enum\":[\"verbose\"]},{\"type\":\"boolean\"}]},\"Performance\":{\"description\":\"Configuration for web performance recommendations.\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/PerformanceOptions\"}]},\"PerformanceOptions\":{\"description\":\"Configuration object for web performance recommendations.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"assetFilter\":{\"description\":\"Filter function to select assets that are checked.\",\"instanceof\":\"Function\",\"tsType\":\"Function\"},\"hints\":{\"description\":\"Sets the format of the hints: warnings, errors or nothing at all.\",\"enum\":[false,\"warning\",\"error\"]},\"maxAssetSize\":{\"description\":\"File size limit (in bytes) when exceeded, that webpack will provide performance hints.\",\"type\":\"number\"},\"maxEntrypointSize\":{\"description\":\"Total size of an entry point (in bytes).\",\"type\":\"number\"}}},\"Plugins\":{\"description\":\"Add additional plugins to the compiler.\",\"type\":\"array\",\"items\":{\"description\":\"Plugin of type object or instanceof Function.\",\"anyOf\":[{\"$ref\":\"#/definitions/WebpackPluginInstance\"},{\"$ref\":\"#/definitions/WebpackPluginFunction\"}]}},\"Profile\":{\"description\":\"Capture timing information for each module.\",\"type\":\"boolean\"},\"PublicPath\":{\"description\":\"The `publicPath` specifies the public URL address of the output files when referenced in a browser.\",\"anyOf\":[{\"enum\":[\"auto\"]},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"RecordsInputPath\":{\"description\":\"Store compiler state to a json file.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\",\"absolutePath\":true}]},\"RecordsOutputPath\":{\"description\":\"Load compiler state from a json file.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\",\"absolutePath\":true}]},\"RecordsPath\":{\"description\":\"Store/Load compiler state from/to a json file. This will result in persistent ids of modules and chunks. An absolute path is expected. `recordsPath` is used for `recordsInputPath` and `recordsOutputPath` if they left undefined.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\",\"absolutePath\":true}]},\"Resolve\":{\"description\":\"Options for the resolver.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]},\"ResolveAlias\":{\"description\":\"Redirect module requests.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Alias configuration.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"alias\":{\"description\":\"New request.\",\"anyOf\":[{\"description\":\"Multiple alternative requests.\",\"type\":\"array\",\"items\":{\"description\":\"One choice of request.\",\"type\":\"string\",\"minLength\":1}},{\"description\":\"Ignore request (replace with empty module).\",\"enum\":[false]},{\"description\":\"New request.\",\"type\":\"string\",\"minLength\":1}]},\"name\":{\"description\":\"Request to be redirected.\",\"type\":\"string\"},\"onlyModule\":{\"description\":\"Redirect only exact matching request.\",\"type\":\"boolean\"}},\"required\":[\"alias\",\"name\"]}},{\"type\":\"object\",\"additionalProperties\":{\"description\":\"New request.\",\"anyOf\":[{\"description\":\"Multiple alternative requests.\",\"type\":\"array\",\"items\":{\"description\":\"One choice of request.\",\"type\":\"string\",\"minLength\":1}},{\"description\":\"Ignore request (replace with empty module).\",\"enum\":[false]},{\"description\":\"New request.\",\"type\":\"string\",\"minLength\":1}]}}]},\"ResolveLoader\":{\"description\":\"Options for the resolver when resolving loaders.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]},\"ResolveOptions\":{\"description\":\"Options object for resolving requests.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"alias\":{\"$ref\":\"#/definitions/ResolveAlias\"},\"aliasFields\":{\"description\":\"Fields in the description file (usually package.json) which are used to redirect requests inside the module.\",\"type\":\"array\",\"items\":{\"description\":\"Field in the description file (usually package.json) which are used to redirect requests inside the module.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the field path in the description file (usually package.json) which are used to redirect requests inside the module.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}},\"byDependency\":{\"description\":\"Extra resolve options per dependency category. Typical categories are \\\"commonjs\\\", \\\"amd\\\", \\\"esm\\\".\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Options object for resolving requests.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]}},\"cache\":{\"description\":\"Enable caching of successfully resolved requests (cache entries are revalidated).\",\"type\":\"boolean\"},\"cachePredicate\":{\"description\":\"Predicate function to decide which requests should be cached.\",\"instanceof\":\"Function\",\"tsType\":\"((request: import('enhanced-resolve').ResolveRequest) => boolean)\"},\"cacheWithContext\":{\"description\":\"Include the context information in the cache identifier when caching.\",\"type\":\"boolean\"},\"conditionNames\":{\"description\":\"Condition names for exports field entry point.\",\"type\":\"array\",\"items\":{\"description\":\"Condition names for exports field entry point.\",\"type\":\"string\"}},\"descriptionFiles\":{\"description\":\"Filenames used to find a description file (like a package.json).\",\"type\":\"array\",\"items\":{\"description\":\"Filename used to find a description file (like a package.json).\",\"type\":\"string\",\"minLength\":1}},\"enforceExtension\":{\"description\":\"Enforce the resolver to use one of the extensions from the extensions option (User must specify requests without extension).\",\"type\":\"boolean\"},\"exportsFields\":{\"description\":\"Field names from the description file (usually package.json) which are used to provide entry points of a package.\",\"type\":\"array\",\"items\":{\"description\":\"Field name from the description file (usually package.json) which is used to provide entry points of a package.\",\"type\":\"string\"}},\"extensions\":{\"description\":\"Extensions added to the request when trying to find the file.\",\"type\":\"array\",\"items\":{\"description\":\"Extension added to the request when trying to find the file.\",\"type\":\"string\",\"minLength\":1}},\"fallback\":{\"description\":\"Redirect module requests when normal resolving fails.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveAlias\"}]},\"fileSystem\":{\"description\":\"Filesystem for the resolver.\",\"tsType\":\"(import('../lib/util/fs').InputFileSystem)\"},\"fullySpecified\":{\"description\":\"Treats the request specified by the user as fully specified, meaning no extensions are added and the mainFiles in directories are not resolved (This doesn't affect requests from mainFields, aliasFields or aliases).\",\"type\":\"boolean\"},\"importsFields\":{\"description\":\"Field names from the description file (usually package.json) which are used to provide internal request of a package (requests starting with # are considered as internal).\",\"type\":\"array\",\"items\":{\"description\":\"Field name from the description file (usually package.json) which is used to provide internal request of a package (requests starting with # are considered as internal).\",\"type\":\"string\"}},\"mainFields\":{\"description\":\"Field names from the description file (package.json) which are used to find the default entry point.\",\"type\":\"array\",\"items\":{\"description\":\"Field name from the description file (package.json) which are used to find the default entry point.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the field path from the description file (package.json) which are used to find the default entry point.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}},\"mainFiles\":{\"description\":\"Filenames used to find the default entry point if there is no description file or main field.\",\"type\":\"array\",\"items\":{\"description\":\"Filename used to find the default entry point if there is no description file or main field.\",\"type\":\"string\",\"minLength\":1}},\"modules\":{\"description\":\"Folder names or directory paths where to find modules.\",\"type\":\"array\",\"items\":{\"description\":\"Folder name or directory path where to find modules.\",\"type\":\"string\",\"minLength\":1}},\"plugins\":{\"description\":\"Plugins for the resolver.\",\"type\":\"array\",\"cli\":{\"exclude\":true},\"items\":{\"description\":\"Plugin of type object or instanceof Function.\",\"anyOf\":[{\"enum\":[\"...\"]},{\"$ref\":\"#/definitions/ResolvePluginInstance\"}]}},\"preferAbsolute\":{\"description\":\"Prefer to resolve server-relative URLs (starting with '/') as absolute paths before falling back to resolve in 'resolve.roots'.\",\"type\":\"boolean\"},\"preferRelative\":{\"description\":\"Prefer to resolve module requests as relative request and fallback to resolving as module.\",\"type\":\"boolean\"},\"resolver\":{\"description\":\"Custom resolver.\",\"tsType\":\"(import('enhanced-resolve').Resolver)\"},\"restrictions\":{\"description\":\"A list of resolve restrictions. Resolve results must fulfill all of these restrictions to resolve successfully. Other resolve paths are taken when restrictions are not met.\",\"type\":\"array\",\"items\":{\"description\":\"Resolve restriction. Resolve result must fulfill this restriction.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}]}},\"roots\":{\"description\":\"A list of directories in which requests that are server-relative URLs (starting with '/') are resolved.\",\"type\":\"array\",\"items\":{\"description\":\"Directory in which requests that are server-relative URLs (starting with '/') are resolved.\",\"type\":\"string\"}},\"symlinks\":{\"description\":\"Enable resolving symlinks to the original location.\",\"type\":\"boolean\"},\"unsafeCache\":{\"description\":\"Enable caching of successfully resolved requests (cache entries are not revalidated).\",\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":true}]},\"useSyncFileSystemCalls\":{\"description\":\"Use synchronous filesystem calls for the resolver.\",\"type\":\"boolean\"}}},\"ResolvePluginInstance\":{\"description\":\"Plugin instance.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"apply\":{\"description\":\"The run point of the plugin, required method.\",\"instanceof\":\"Function\",\"tsType\":\"(resolver: import('enhanced-resolve').Resolver) => void\"}},\"required\":[\"apply\"]},\"RuleSetCondition\":{\"description\":\"A condition matcher.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"and\":{\"description\":\"Logical AND.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"not\":{\"description\":\"Logical NOT.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"or\":{\"description\":\"Logical OR.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditions\"}]}}},{\"instanceof\":\"Function\",\"tsType\":\"((value: string) => boolean)\"},{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"RuleSetConditionAbsolute\":{\"description\":\"A condition matcher matching an absolute path.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":true},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"and\":{\"description\":\"Logical AND.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"not\":{\"description\":\"Logical NOT.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"or\":{\"description\":\"Logical OR.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]}}},{\"instanceof\":\"Function\",\"tsType\":\"((value: string) => boolean)\"},{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"RuleSetConditionOrConditions\":{\"description\":\"One or multiple rule conditions.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"$ref\":\"#/definitions/RuleSetCondition\"},{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"RuleSetConditionOrConditionsAbsolute\":{\"description\":\"One or multiple rule conditions matching an absolute path.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"$ref\":\"#/definitions/RuleSetConditionAbsolute\"},{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"RuleSetConditions\":{\"description\":\"A list of rule conditions.\",\"type\":\"array\",\"items\":{\"description\":\"A rule condition.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetCondition\"}]}},\"RuleSetConditionsAbsolute\":{\"description\":\"A list of rule conditions matching an absolute path.\",\"type\":\"array\",\"items\":{\"description\":\"A rule condition matching an absolute path.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionAbsolute\"}]}},\"RuleSetLoader\":{\"description\":\"A loader request.\",\"type\":\"string\",\"minLength\":1},\"RuleSetLoaderOptions\":{\"description\":\"Options passed to a loader.\",\"anyOf\":[{\"type\":\"string\"},{\"type\":\"object\"}]},\"RuleSetRule\":{\"description\":\"A rule description with conditions and effects for modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"compiler\":{\"description\":\"Match the child compiler name.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"dependency\":{\"description\":\"Match dependency type.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"descriptionData\":{\"description\":\"Match values of properties in the description file (usually package.json).\",\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}},\"enforce\":{\"description\":\"Enforce this rule as pre or post step.\",\"enum\":[\"pre\",\"post\"]},\"exclude\":{\"description\":\"Shortcut for resource.exclude.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"generator\":{\"description\":\"The options for the module generator.\",\"type\":\"object\"},\"include\":{\"description\":\"Shortcut for resource.include.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"issuer\":{\"description\":\"Match the issuer of the module (The module pointing to this module).\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"issuerLayer\":{\"description\":\"Match layer of the issuer of this module (The module pointing to this module).\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"layer\":{\"description\":\"Specifies the layer in which the module should be placed in.\",\"type\":\"string\"},\"loader\":{\"description\":\"Shortcut for use.loader.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoader\"}]},\"mimetype\":{\"description\":\"Match module mimetype when load from Data URI.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"oneOf\":{\"description\":\"Only execute the first matching rule in this array.\",\"type\":\"array\",\"items\":{\"description\":\"A rule.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRule\"}]}},\"options\":{\"description\":\"Shortcut for use.options.\",\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoaderOptions\"}]},\"parser\":{\"description\":\"Options for parsing.\",\"type\":\"object\",\"additionalProperties\":true},\"realResource\":{\"description\":\"Match the real resource path of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"resolve\":{\"description\":\"Options for the resolver.\",\"type\":\"object\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]},\"resource\":{\"description\":\"Match the resource path of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"resourceFragment\":{\"description\":\"Match the resource fragment of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"resourceQuery\":{\"description\":\"Match the resource query of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"rules\":{\"description\":\"Match and execute these rules when this rule is matched.\",\"type\":\"array\",\"items\":{\"description\":\"A rule.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRule\"}]}},\"sideEffects\":{\"description\":\"Flags a module as with or without side effects.\",\"type\":\"boolean\"},\"test\":{\"description\":\"Shortcut for resource.test.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"type\":{\"description\":\"Module type to use for the module.\",\"type\":\"string\"},\"use\":{\"description\":\"Modifiers applied to the module when rule is matched.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetUse\"}]}}},\"RuleSetRules\":{\"description\":\"A list of rules.\",\"type\":\"array\",\"items\":{\"description\":\"A rule.\",\"anyOf\":[{\"cli\":{\"exclude\":true},\"enum\":[\"...\"]},{\"$ref\":\"#/definitions/RuleSetRule\"}]}},\"RuleSetUse\":{\"description\":\"A list of descriptions of loaders applied.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"An use item.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetUseItem\"}]}},{\"instanceof\":\"Function\",\"tsType\":\"((data: { resource: string, realResource: string, resourceQuery: string, issuer: string, compiler: string }) => RuleSetUseItem[])\"},{\"$ref\":\"#/definitions/RuleSetUseItem\"}]},\"RuleSetUseItem\":{\"description\":\"A description of an applied loader.\",\"anyOf\":[{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"ident\":{\"description\":\"Unique loader options identifier.\",\"type\":\"string\"},\"loader\":{\"description\":\"Loader name.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoader\"}]},\"options\":{\"description\":\"Loader options.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoaderOptions\"}]}}},{\"instanceof\":\"Function\",\"tsType\":\"((data: object) => RuleSetUseItem|RuleSetUseItem[])\"},{\"$ref\":\"#/definitions/RuleSetLoader\"}]},\"ScriptType\":{\"description\":\"This option enables loading async chunks via a custom script type, such as script type=\\\"module\\\".\",\"enum\":[false,\"text/javascript\",\"module\"]},\"SnapshotOptions\":{\"description\":\"Options affecting how file system snapshots are created and validated.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"buildDependencies\":{\"description\":\"Options for snapshotting build dependencies to determine if the whole cache need to be invalidated.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}},\"immutablePaths\":{\"description\":\"List of paths that are managed by a package manager and contain a version or hash in its path so all files are immutable.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a immutable directory (usually a package manager cache directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"managedPaths\":{\"description\":\"List of paths that are managed by a package manager and can be trusted to not be modified otherwise.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a managed directory (usually a node_modules directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"module\":{\"description\":\"Options for snapshotting dependencies of modules to determine if they need to be built again.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}},\"resolve\":{\"description\":\"Options for snapshotting dependencies of request resolving to determine if requests need to be re-resolved.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}},\"resolveBuildDependencies\":{\"description\":\"Options for snapshotting the resolving of build dependencies to determine if the build dependencies need to be re-resolved.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}}}},\"SourceMapFilename\":{\"description\":\"The filename of the SourceMaps for the JavaScript files. They are inside the 'output.path' directory.\",\"type\":\"string\",\"absolutePath\":false},\"SourcePrefix\":{\"description\":\"Prefixes every line of the source in the bundle with this string.\",\"type\":\"string\"},\"StatsOptions\":{\"description\":\"Stats options object.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"all\":{\"description\":\"Fallback value for stats options when an option is not defined (has precedence over local webpack defaults).\",\"type\":\"boolean\"},\"assets\":{\"description\":\"Add assets information.\",\"type\":\"boolean\"},\"assetsSort\":{\"description\":\"Sort the assets by that field.\",\"type\":\"string\"},\"assetsSpace\":{\"description\":\"Space to display assets (groups will be collapsed to fit this space).\",\"type\":\"number\"},\"builtAt\":{\"description\":\"Add built at time information.\",\"type\":\"boolean\"},\"cached\":{\"description\":\"Add information about cached (not built) modules (deprecated: use 'cachedModules' instead).\",\"type\":\"boolean\"},\"cachedAssets\":{\"description\":\"Show cached assets (setting this to `false` only shows emitted files).\",\"type\":\"boolean\"},\"cachedModules\":{\"description\":\"Add information about cached (not built) modules.\",\"type\":\"boolean\"},\"children\":{\"description\":\"Add children information.\",\"type\":\"boolean\"},\"chunkGroupAuxiliary\":{\"description\":\"Display auxiliary assets in chunk groups.\",\"type\":\"boolean\"},\"chunkGroupChildren\":{\"description\":\"Display children of chunk groups.\",\"type\":\"boolean\"},\"chunkGroupMaxAssets\":{\"description\":\"Limit of assets displayed in chunk groups.\",\"type\":\"number\"},\"chunkGroups\":{\"description\":\"Display all chunk groups with the corresponding bundles.\",\"type\":\"boolean\"},\"chunkModules\":{\"description\":\"Add built modules information to chunk information.\",\"type\":\"boolean\"},\"chunkModulesSpace\":{\"description\":\"Space to display chunk modules (groups will be collapsed to fit this space, value is in number of modules/group).\",\"type\":\"number\"},\"chunkOrigins\":{\"description\":\"Add the origins of chunks and chunk merging info.\",\"type\":\"boolean\"},\"chunkRelations\":{\"description\":\"Add information about parent, children and sibling chunks to chunk information.\",\"type\":\"boolean\"},\"chunks\":{\"description\":\"Add chunk information.\",\"type\":\"boolean\"},\"chunksSort\":{\"description\":\"Sort the chunks by that field.\",\"type\":\"string\"},\"colors\":{\"description\":\"Enables/Disables colorful output.\",\"anyOf\":[{\"description\":\"Enables/Disables colorful output.\",\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"bold\":{\"description\":\"Custom color for bold text.\",\"type\":\"string\"},\"cyan\":{\"description\":\"Custom color for cyan text.\",\"type\":\"string\"},\"green\":{\"description\":\"Custom color for green text.\",\"type\":\"string\"},\"magenta\":{\"description\":\"Custom color for magenta text.\",\"type\":\"string\"},\"red\":{\"description\":\"Custom color for red text.\",\"type\":\"string\"},\"yellow\":{\"description\":\"Custom color for yellow text.\",\"type\":\"string\"}}}]},\"context\":{\"description\":\"Context directory for request shortening.\",\"type\":\"string\",\"absolutePath\":true},\"dependentModules\":{\"description\":\"Show chunk modules that are dependencies of other modules of the chunk.\",\"type\":\"boolean\"},\"depth\":{\"description\":\"Add module depth in module graph.\",\"type\":\"boolean\"},\"entrypoints\":{\"description\":\"Display the entry points with the corresponding bundles.\",\"anyOf\":[{\"enum\":[\"auto\"]},{\"type\":\"boolean\"}]},\"env\":{\"description\":\"Add --env information.\",\"type\":\"boolean\"},\"errorDetails\":{\"description\":\"Add details to errors (like resolving log).\",\"type\":\"boolean\"},\"errorStack\":{\"description\":\"Add internal stack trace to errors.\",\"type\":\"boolean\"},\"errors\":{\"description\":\"Add errors.\",\"type\":\"boolean\"},\"errorsCount\":{\"description\":\"Add errors count.\",\"type\":\"boolean\"},\"exclude\":{\"description\":\"Please use excludeModules instead.\",\"cli\":{\"exclude\":true},\"anyOf\":[{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/FilterTypes\"}]},\"excludeAssets\":{\"description\":\"Suppress assets that match the specified filters. Filters can be Strings, RegExps or Functions.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilterTypes\"}]},\"excludeModules\":{\"description\":\"Suppress modules that match the specified filters. Filters can be Strings, RegExps, Booleans or Functions.\",\"anyOf\":[{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/FilterTypes\"}]},\"groupAssetsByChunk\":{\"description\":\"Group assets by how their are related to chunks.\",\"type\":\"boolean\"},\"groupAssetsByEmitStatus\":{\"description\":\"Group assets by their status (emitted, compared for emit or cached).\",\"type\":\"boolean\"},\"groupAssetsByExtension\":{\"description\":\"Group assets by their extension.\",\"type\":\"boolean\"},\"groupAssetsByInfo\":{\"description\":\"Group assets by their asset info (immutable, development, hotModuleReplacement, etc).\",\"type\":\"boolean\"},\"groupAssetsByPath\":{\"description\":\"Group assets by their path.\",\"type\":\"boolean\"},\"groupModulesByAttributes\":{\"description\":\"Group modules by their attributes (errors, warnings, assets, optional, orphan, or dependent).\",\"type\":\"boolean\"},\"groupModulesByCacheStatus\":{\"description\":\"Group modules by their status (cached or built and cacheable).\",\"type\":\"boolean\"},\"groupModulesByExtension\":{\"description\":\"Group modules by their extension.\",\"type\":\"boolean\"},\"groupModulesByLayer\":{\"description\":\"Group modules by their layer.\",\"type\":\"boolean\"},\"groupModulesByPath\":{\"description\":\"Group modules by their path.\",\"type\":\"boolean\"},\"hash\":{\"description\":\"Add the hash of the compilation.\",\"type\":\"boolean\"},\"ids\":{\"description\":\"Add ids.\",\"type\":\"boolean\"},\"logging\":{\"description\":\"Add logging output.\",\"anyOf\":[{\"description\":\"Specify log level of logging output.\",\"enum\":[\"none\",\"error\",\"warn\",\"info\",\"log\",\"verbose\"]},{\"description\":\"Enable/disable logging output (`true`: shows normal logging output, loglevel: log).\",\"type\":\"boolean\"}]},\"loggingDebug\":{\"description\":\"Include debug logging of specified loggers (i. e. for plugins or loaders). Filters can be Strings, RegExps or Functions.\",\"anyOf\":[{\"description\":\"Enable/Disable debug logging for all loggers.\",\"type\":\"boolean\"},{\"$ref\":\"#/definitions/FilterTypes\"}]},\"loggingTrace\":{\"description\":\"Add stack traces to logging output.\",\"type\":\"boolean\"},\"moduleAssets\":{\"description\":\"Add information about assets inside modules.\",\"type\":\"boolean\"},\"moduleTrace\":{\"description\":\"Add dependencies and origin of warnings/errors.\",\"type\":\"boolean\"},\"modules\":{\"description\":\"Add built modules information.\",\"type\":\"boolean\"},\"modulesSort\":{\"description\":\"Sort the modules by that field.\",\"type\":\"string\"},\"modulesSpace\":{\"description\":\"Space to display modules (groups will be collapsed to fit this space, value is in number of modules/groups).\",\"type\":\"number\"},\"nestedModules\":{\"description\":\"Add information about modules nested in other modules (like with module concatenation).\",\"type\":\"boolean\"},\"nestedModulesSpace\":{\"description\":\"Space to display modules nested within other modules (groups will be collapsed to fit this space, value is in number of modules/group).\",\"type\":\"number\"},\"optimizationBailout\":{\"description\":\"Show reasons why optimization bailed out for modules.\",\"type\":\"boolean\"},\"orphanModules\":{\"description\":\"Add information about orphan modules.\",\"type\":\"boolean\"},\"outputPath\":{\"description\":\"Add output path information.\",\"type\":\"boolean\"},\"performance\":{\"description\":\"Add performance hint flags.\",\"type\":\"boolean\"},\"preset\":{\"description\":\"Preset for the default values.\",\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"string\"}]},\"providedExports\":{\"description\":\"Show exports provided by modules.\",\"type\":\"boolean\"},\"publicPath\":{\"description\":\"Add public path information.\",\"type\":\"boolean\"},\"reasons\":{\"description\":\"Add information about the reasons why modules are included.\",\"type\":\"boolean\"},\"relatedAssets\":{\"description\":\"Add information about assets that are related to other assets (like SourceMaps for assets).\",\"type\":\"boolean\"},\"runtime\":{\"description\":\"Add information about runtime modules (deprecated: use 'runtimeModules' instead).\",\"type\":\"boolean\"},\"runtimeModules\":{\"description\":\"Add information about runtime modules.\",\"type\":\"boolean\"},\"source\":{\"description\":\"Add the source code of modules.\",\"type\":\"boolean\"},\"timings\":{\"description\":\"Add timing information.\",\"type\":\"boolean\"},\"usedExports\":{\"description\":\"Show exports used by modules.\",\"type\":\"boolean\"},\"version\":{\"description\":\"Add webpack version information.\",\"type\":\"boolean\"},\"warnings\":{\"description\":\"Add warnings.\",\"type\":\"boolean\"},\"warningsCount\":{\"description\":\"Add warnings count.\",\"type\":\"boolean\"},\"warningsFilter\":{\"description\":\"Suppress listing warnings that match the specified filters (they will still be counted). Filters can be Strings, RegExps or Functions.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilterTypes\"}]}}},\"StatsValue\":{\"description\":\"Stats options object or preset name.\",\"anyOf\":[{\"enum\":[\"none\",\"summary\",\"errors-only\",\"errors-warnings\",\"minimal\",\"normal\",\"detailed\",\"verbose\"]},{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/StatsOptions\"}]},\"StrictModuleExceptionHandling\":{\"description\":\"Handles exceptions in module loading correctly at a performance cost.\",\"type\":\"boolean\"},\"Target\":{\"description\":\"Environment to build for. An array of environments to build for all of them when possible.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Environment to build for.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1},{\"enum\":[false]},{\"type\":\"string\",\"minLength\":1}]},\"UmdNamedDefine\":{\"description\":\"If `output.libraryTarget` is set to umd and `output.library` is set, setting this to true will name the AMD module.\",\"type\":\"boolean\"},\"UniqueName\":{\"description\":\"A unique name of the webpack build to avoid multiple webpack runtimes to conflict when using globals.\",\"type\":\"string\",\"minLength\":1},\"WasmLoading\":{\"description\":\"The method of loading WebAssembly Modules (methods included by default are 'fetch' (web/WebWorker), 'async-node' (node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/WasmLoadingType\"}]},\"WasmLoadingType\":{\"description\":\"The method of loading WebAssembly Modules (methods included by default are 'fetch' (web/WebWorker), 'async-node' (node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"fetch-streaming\",\"fetch\",\"async-node\"]},{\"type\":\"string\"}]},\"Watch\":{\"description\":\"Enter watch mode, which rebuilds on file change.\",\"type\":\"boolean\"},\"WatchOptions\":{\"description\":\"Options for the watcher.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"aggregateTimeout\":{\"description\":\"Delay the rebuilt after the first change. Value is a time in ms.\",\"type\":\"number\"},\"followSymlinks\":{\"description\":\"Resolve symlinks and watch symlink and real file. This is usually not needed as webpack already resolves symlinks ('resolve.symlinks').\",\"type\":\"boolean\"},\"ignored\":{\"description\":\"Ignore some files from watching (glob pattern or regexp).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A glob pattern for files that should be ignored from watching.\",\"type\":\"string\",\"minLength\":1}},{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"A single glob pattern for files that should be ignored from watching.\",\"type\":\"string\",\"minLength\":1}]},\"poll\":{\"description\":\"Enable polling mode for watching.\",\"anyOf\":[{\"description\":\"`number`: use polling with specified interval.\",\"type\":\"number\"},{\"description\":\"`true`: use polling.\",\"type\":\"boolean\"}]},\"stdin\":{\"description\":\"Stop watching when stdin stream has ended.\",\"type\":\"boolean\"}}},\"WebassemblyModuleFilename\":{\"description\":\"The filename of WebAssembly modules as relative path inside the 'output.path' directory.\",\"type\":\"string\",\"absolutePath\":false},\"WebpackOptionsNormalized\":{\"description\":\"Normalized webpack options object.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"$ref\":\"#/definitions/Amd\"},\"bail\":{\"$ref\":\"#/definitions/Bail\"},\"cache\":{\"$ref\":\"#/definitions/CacheOptionsNormalized\"},\"context\":{\"$ref\":\"#/definitions/Context\"},\"dependencies\":{\"$ref\":\"#/definitions/Dependencies\"},\"devServer\":{\"$ref\":\"#/definitions/DevServer\"},\"devtool\":{\"$ref\":\"#/definitions/DevTool\"},\"entry\":{\"$ref\":\"#/definitions/EntryNormalized\"},\"experiments\":{\"$ref\":\"#/definitions/Experiments\"},\"externals\":{\"$ref\":\"#/definitions/Externals\"},\"externalsPresets\":{\"$ref\":\"#/definitions/ExternalsPresets\"},\"externalsType\":{\"$ref\":\"#/definitions/ExternalsType\"},\"ignoreWarnings\":{\"$ref\":\"#/definitions/IgnoreWarningsNormalized\"},\"infrastructureLogging\":{\"$ref\":\"#/definitions/InfrastructureLogging\"},\"loader\":{\"$ref\":\"#/definitions/Loader\"},\"mode\":{\"$ref\":\"#/definitions/Mode\"},\"module\":{\"$ref\":\"#/definitions/ModuleOptionsNormalized\"},\"name\":{\"$ref\":\"#/definitions/Name\"},\"node\":{\"$ref\":\"#/definitions/Node\"},\"optimization\":{\"$ref\":\"#/definitions/Optimization\"},\"output\":{\"$ref\":\"#/definitions/OutputNormalized\"},\"parallelism\":{\"$ref\":\"#/definitions/Parallelism\"},\"performance\":{\"$ref\":\"#/definitions/Performance\"},\"plugins\":{\"$ref\":\"#/definitions/Plugins\"},\"profile\":{\"$ref\":\"#/definitions/Profile\"},\"recordsInputPath\":{\"$ref\":\"#/definitions/RecordsInputPath\"},\"recordsOutputPath\":{\"$ref\":\"#/definitions/RecordsOutputPath\"},\"resolve\":{\"$ref\":\"#/definitions/Resolve\"},\"resolveLoader\":{\"$ref\":\"#/definitions/ResolveLoader\"},\"snapshot\":{\"$ref\":\"#/definitions/SnapshotOptions\"},\"stats\":{\"$ref\":\"#/definitions/StatsValue\"},\"target\":{\"$ref\":\"#/definitions/Target\"},\"watch\":{\"$ref\":\"#/definitions/Watch\"},\"watchOptions\":{\"$ref\":\"#/definitions/WatchOptions\"}},\"required\":[\"cache\",\"snapshot\",\"entry\",\"experiments\",\"externals\",\"externalsPresets\",\"infrastructureLogging\",\"module\",\"node\",\"optimization\",\"output\",\"plugins\",\"resolve\",\"resolveLoader\",\"stats\",\"watchOptions\"]},\"WebpackPluginFunction\":{\"description\":\"Function acting as plugin.\",\"instanceof\":\"Function\",\"tsType\":\"(this: import('../lib/Compiler'), compiler: import('../lib/Compiler')) => void\"},\"WebpackPluginInstance\":{\"description\":\"Plugin instance.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"apply\":{\"description\":\"The run point of the plugin, required method.\",\"instanceof\":\"Function\",\"tsType\":\"(compiler: import('../lib/Compiler')) => void\"}},\"required\":[\"apply\"]}},\"description\":\"Options object as provided by the user.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"$ref\":\"#/definitions/Amd\"},\"bail\":{\"$ref\":\"#/definitions/Bail\"},\"cache\":{\"$ref\":\"#/definitions/CacheOptions\"},\"context\":{\"$ref\":\"#/definitions/Context\"},\"dependencies\":{\"$ref\":\"#/definitions/Dependencies\"},\"devServer\":{\"$ref\":\"#/definitions/DevServer\"},\"devtool\":{\"$ref\":\"#/definitions/DevTool\"},\"entry\":{\"$ref\":\"#/definitions/Entry\"},\"experiments\":{\"$ref\":\"#/definitions/Experiments\"},\"externals\":{\"$ref\":\"#/definitions/Externals\"},\"externalsPresets\":{\"$ref\":\"#/definitions/ExternalsPresets\"},\"externalsType\":{\"$ref\":\"#/definitions/ExternalsType\"},\"ignoreWarnings\":{\"$ref\":\"#/definitions/IgnoreWarnings\"},\"infrastructureLogging\":{\"$ref\":\"#/definitions/InfrastructureLogging\"},\"loader\":{\"$ref\":\"#/definitions/Loader\"},\"mode\":{\"$ref\":\"#/definitions/Mode\"},\"module\":{\"$ref\":\"#/definitions/ModuleOptions\"},\"name\":{\"$ref\":\"#/definitions/Name\"},\"node\":{\"$ref\":\"#/definitions/Node\"},\"optimization\":{\"$ref\":\"#/definitions/Optimization\"},\"output\":{\"$ref\":\"#/definitions/Output\"},\"parallelism\":{\"$ref\":\"#/definitions/Parallelism\"},\"performance\":{\"$ref\":\"#/definitions/Performance\"},\"plugins\":{\"$ref\":\"#/definitions/Plugins\"},\"profile\":{\"$ref\":\"#/definitions/Profile\"},\"recordsInputPath\":{\"$ref\":\"#/definitions/RecordsInputPath\"},\"recordsOutputPath\":{\"$ref\":\"#/definitions/RecordsOutputPath\"},\"recordsPath\":{\"$ref\":\"#/definitions/RecordsPath\"},\"resolve\":{\"$ref\":\"#/definitions/Resolve\"},\"resolveLoader\":{\"$ref\":\"#/definitions/ResolveLoader\"},\"snapshot\":{\"$ref\":\"#/definitions/SnapshotOptions\"},\"stats\":{\"$ref\":\"#/definitions/StatsValue\"},\"target\":{\"$ref\":\"#/definitions/Target\"},\"watch\":{\"$ref\":\"#/definitions/Watch\"},\"watchOptions\":{\"$ref\":\"#/definitions/WatchOptions\"}}}");
 
 /***/ }),
 
@@ -10152,7 +10152,7 @@ Long.fromBytesBE = function fromBytesBE(bytes, unsigned) {
     // Labels in scope.
     this.labels = [];
     // Thus-far undefined exports.
-    this.undefinedExports = {};
+    this.undefinedExports = Object.create(null);
 
     // If enabled, skip leading hashbang line.
     if (this.pos === 0 && options.allowHashBang && this.input.slice(0, 2) === "#!")
@@ -10366,7 +10366,7 @@ Long.fromBytesBE = function fromBytesBE(bytes, unsigned) {
   // to its body instead of creating a new node.
 
   pp$1.parseTopLevel = function(node) {
-    var exports = {};
+    var exports = Object.create(null);
     if (!node.body) { node.body = []; }
     while (this.type !== types.eof) {
       var stmt = this.parseStatement(null, true, exports);
@@ -12492,7 +12492,7 @@ Long.fromBytesBE = function fromBytesBE(bytes, unsigned) {
   // or "arguments" and duplicate parameters.
 
   pp$3.checkParams = function(node, allowDuplicates) {
-    var nameHash = {};
+    var nameHash = Object.create(null);
     for (var i = 0, list = node.params; i < list.length; i += 1)
       {
       var param = list[i];
@@ -14822,7 +14822,7 @@ Long.fromBytesBE = function fromBytesBE(bytes, unsigned) {
 
   // Acorn is a tiny, fast JavaScript parser written in JavaScript.
 
-  var version = "8.0.4";
+  var version = "8.0.5";
 
   Parser.acorn = {
     Parser: Parser,
@@ -31393,12 +31393,16 @@ class AutomaticPrefetchPlugin {
 		);
 		let lastModules = null;
 		compiler.hooks.afterCompile.tap("AutomaticPrefetchPlugin", compilation => {
-			lastModules = Array.from(compilation.modules)
-				.filter(m => m instanceof NormalModule)
-				.map((/** @type {NormalModule} */ m) => ({
-					context: m.context,
-					request: m.request
-				}));
+			lastModules = [];
+
+			for (const m of compilation.modules) {
+				if (m instanceof NormalModule) {
+					lastModules.push({
+						context: m.context,
+						request: m.request
+					});
+				}
+			}
 		});
 		compiler.hooks.make.tapAsync(
 			"AutomaticPrefetchPlugin",
@@ -31413,7 +31417,10 @@ class AutomaticPrefetchPlugin {
 							callback
 						);
 					},
-					callback
+					err => {
+						lastModules = null;
+						callback(err);
+					}
 				);
 			}
 		);
@@ -31756,6 +31763,7 @@ class MultiItemCache {
 	 */
 	constructor(items) {
 		this._items = items;
+		if (items.length === 1) return /** @type {any} */ (items[0]);
 	}
 
 	/**
@@ -32932,6 +32940,7 @@ module.exports = Chunk;
 const util = __webpack_require__(31669);
 const ModuleGraphConnection = __webpack_require__(39519);
 const SortableSet = __webpack_require__(51326);
+const StringXor = __webpack_require__(74395);
 const {
 	compareModulesById,
 	compareIterables,
@@ -32940,12 +32949,14 @@ const {
 	compareSelect,
 	compareIds
 } = __webpack_require__(21699);
+const createHash = __webpack_require__(34627);
 const findGraphRoots = __webpack_require__(76019);
 const {
 	RuntimeSpecMap,
 	RuntimeSpecSet,
 	runtimeToString,
-	mergeRuntime
+	mergeRuntime,
+	forEachRuntime
 } = __webpack_require__(43478);
 
 /** @typedef {import("./AsyncDependenciesBlock")} AsyncDependenciesBlock */
@@ -32971,11 +32982,12 @@ const compareModuleIterables = compareIterables(compareModulesByIdentifier);
  * @property {number=} entryChunkMultiplicator multiplicator for initial chunks
  */
 
-/**
- * @typedef {Object} ModuleHashInfo
- * @property {string} hash
- * @property {string} renderedHash
- */
+class ModuleHashInfo {
+	constructor(hash, renderedHash) {
+		this.hash = hash;
+		this.renderedHash = renderedHash;
+	}
+}
 
 /** @template T @typedef {(set: SortableSet<T>) => T[]} SetToArrayFunction<T> */
 
@@ -33094,6 +33106,10 @@ class ChunkGraphModule {
 		this.id = null;
 		/** @type {RuntimeSpecMap<Set<string>> | undefined} */
 		this.runtimeRequirements = undefined;
+		/** @type {RuntimeSpecMap<string>} */
+		this.graphHashes = undefined;
+		/** @type {RuntimeSpecMap<string>} */
+		this.graphHashesWithConnections = undefined;
 	}
 }
 
@@ -34020,6 +34036,15 @@ class ChunkGraph {
 		return cgc.fullHashModules;
 	}
 
+	/**
+	 * @param {Chunk} chunk the chunk
+	 * @returns {ReadonlySet<RuntimeModule> | undefined} set of modules (do not modify)
+	 */
+	getChunkFullHashModulesSet(chunk) {
+		const cgc = this._getChunkGraphChunk(chunk);
+		return cgc.fullHashModules;
+	}
+
 	/** @typedef {[Module, Entrypoint | undefined]} EntryModuleWithChunkGroup */
 
 	/**
@@ -34098,14 +34123,20 @@ class ChunkGraph {
 	}
 
 	/**
+	 * @template T
 	 * @param {Module} module the module
+	 * @param {RuntimeSpecMap<T>} hashes hashes data
 	 * @param {RuntimeSpec} runtime the runtime
-	 * @returns {ModuleHashInfo} hash
+	 * @returns {T} hash
 	 */
-	_getModuleHashInfo(module, runtime) {
-		const cgm = this._getChunkGraphModule(module);
-		const hashes = cgm.hashes;
-		if (hashes && runtime === undefined) {
+	_getModuleHashInfo(module, hashes, runtime) {
+		if (!hashes) {
+			throw new Error(
+				`Module ${module.identifier()} has no hash info for runtime ${runtimeToString(
+					runtime
+				)} (hashes not set at all)`
+			);
+		} else if (runtime === undefined) {
 			const hashInfoItems = new Set(hashes.values());
 			if (hashInfoItems.size !== 1) {
 				throw new Error(
@@ -34118,14 +34149,15 @@ Caller might not support runtime-dependent code generation (opt-out via optimiza
 			}
 			return hashInfoItems.values().next().value;
 		} else {
-			const hashInfo = hashes && hashes.get(runtime);
+			const hashInfo = hashes.get(runtime);
 			if (!hashInfo) {
 				throw new Error(
 					`Module ${module.identifier()} has no hash info for runtime ${runtimeToString(
 						runtime
-					)} (available runtimes ${
-						hashes && Array.from(hashes.keys(), runtimeToString).join(", ")
-					})`
+					)} (available runtimes ${Array.from(
+						hashes.keys(),
+						runtimeToString
+					).join(", ")})`
 				);
 			}
 			return hashInfo;
@@ -34149,7 +34181,9 @@ Caller might not support runtime-dependent code generation (opt-out via optimiza
 	 * @returns {string} hash
 	 */
 	getModuleHash(module, runtime) {
-		return this._getModuleHashInfo(module, runtime).hash;
+		const cgm = this._getChunkGraphModule(module);
+		const hashes = cgm.hashes;
+		return this._getModuleHashInfo(module, hashes, runtime).hash;
 	}
 
 	/**
@@ -34158,7 +34192,9 @@ Caller might not support runtime-dependent code generation (opt-out via optimiza
 	 * @returns {string} hash
 	 */
 	getRenderedModuleHash(module, runtime) {
-		return this._getModuleHashInfo(module, runtime).renderedHash;
+		const cgm = this._getChunkGraphModule(module);
+		const hashes = cgm.hashes;
+		return this._getModuleHashInfo(module, hashes, runtime).renderedHash;
 	}
 
 	/**
@@ -34173,7 +34209,7 @@ Caller might not support runtime-dependent code generation (opt-out via optimiza
 		if (cgm.hashes === undefined) {
 			cgm.hashes = new RuntimeSpecMap();
 		}
-		cgm.hashes.set(runtime, { hash, renderedHash });
+		cgm.hashes.set(runtime, new ModuleHashInfo(hash, renderedHash));
 	}
 
 	/**
@@ -34253,6 +34289,91 @@ Caller might not support runtime-dependent code generation (opt-out via optimiza
 		const cgc = this._getChunkGraphChunk(chunk);
 		const runtimeRequirements = cgc.runtimeRequirements;
 		return runtimeRequirements === undefined ? EMPTY_SET : runtimeRequirements;
+	}
+
+	getModuleGraphHash(module, runtime, withConnections = true) {
+		const cgm = this._getChunkGraphModule(module);
+		if (cgm.graphHashes === undefined) {
+			cgm.graphHashes = new RuntimeSpecMap();
+		}
+		const graphHash = cgm.graphHashes.provide(runtime, () => {
+			const hash = createHash("md4");
+			hash.update(`${cgm.id}`);
+			hash.update(`${this.moduleGraph.isAsync(module)}`);
+			this.moduleGraph.getExportsInfo(module).updateHash(hash, runtime);
+			return /** @type {string} */ (hash.digest("hex"));
+		});
+		if (!withConnections) return graphHash;
+		if (cgm.graphHashesWithConnections === undefined) {
+			cgm.graphHashesWithConnections = new RuntimeSpecMap();
+		}
+		const activeStateToString = state => {
+			if (state === false) return "false";
+			if (state === true) return "true";
+			if (state === ModuleGraphConnection.TRANSITIVE_ONLY) return "transitive";
+			throw new Error("Not implemented active state");
+		};
+		const strict = module.buildMeta && module.buildMeta.strictHarmonyModule;
+		return cgm.graphHashesWithConnections.provide(runtime, () => {
+			const connections = this.moduleGraph.getOutgoingConnections(module);
+			/** @type {Map<string, Module | Set<Module>>} */
+			const connectedModules = new Map();
+			for (const connection of connections) {
+				let stateInfo;
+				if (typeof runtime === "string") {
+					const state = connection.getActiveState(runtime);
+					if (state === false) continue;
+					stateInfo = activeStateToString(state);
+				} else {
+					const states = new Set();
+					stateInfo = "";
+					forEachRuntime(
+						runtime,
+						runtime => {
+							const state = connection.getActiveState(runtime);
+							states.add(state);
+							stateInfo += runtime + activeStateToString(state);
+						},
+						true
+					);
+					if (states.size === 1) {
+						const state = states.values().next().value;
+						if (state === false) continue;
+						stateInfo = activeStateToString(state);
+					}
+				}
+				const module = connection.module;
+				stateInfo += module.getExportsType(this.moduleGraph, strict);
+				const oldModule = connectedModules.get(stateInfo);
+				if (oldModule === undefined) {
+					connectedModules.set(stateInfo, module);
+				} else if (oldModule instanceof Set) {
+					oldModule.add(module);
+				} else if (oldModule !== module) {
+					connectedModules.set(stateInfo, new Set([oldModule, module]));
+				}
+			}
+			if (connectedModules.size === 0) return graphHash;
+			const connectedModulesInOrder =
+				connectedModules.size > 1
+					? Array.from(connectedModules).sort(([a], [b]) => (a < b ? -1 : 1))
+					: connectedModules;
+			const hash = createHash("md4");
+			for (const [stateInfo, modules] of connectedModulesInOrder) {
+				hash.update(stateInfo);
+				if (modules instanceof Set) {
+					const xor = new StringXor();
+					for (const m of modules) {
+						xor.add(this.getModuleGraphHash(m, runtime, false));
+					}
+					xor.updateHash(hash);
+				} else {
+					hash.update(this.getModuleGraphHash(modules, runtime, false));
+				}
+			}
+			hash.update(graphHash);
+			return /** @type {string} */ (hash.digest("hex"));
+		});
 	}
 
 	/**
@@ -35197,6 +35318,8 @@ module.exports = CodeGenerationError;
 
 
 
+const { provide } = __webpack_require__(59874);
+const createHash = __webpack_require__(34627);
 const { runtimeToString, RuntimeSpecMap } = __webpack_require__(43478);
 
 /** @typedef {import("webpack-sources").Source} Source */
@@ -35208,6 +35331,8 @@ class CodeGenerationResults {
 	constructor() {
 		/** @type {Map<Module, RuntimeSpecMap<CodeGenerationResult>>} */
 		this.map = new Map();
+		/** @type {Map<Module, RuntimeSpecMap<string>>} */
+		this.hashes = new Map();
 	}
 
 	/**
@@ -35256,6 +35381,24 @@ Caller might not support runtime-dependent code generation (opt-out via optimiza
 	/**
 	 * @param {Module} module the module
 	 * @param {RuntimeSpec} runtime runtime(s)
+	 * @returns {boolean} true, when we have data for this
+	 */
+	has(module, runtime) {
+		const entry = this.map.get(module);
+		if (entry === undefined) {
+			return false;
+		}
+		if (runtime === undefined) {
+			const results = new Set(entry.values());
+			return results.size === 1;
+		} else {
+			return entry.has(runtime);
+		}
+	}
+
+	/**
+	 * @param {Module} module the module
+	 * @param {RuntimeSpec} runtime runtime(s)
 	 * @param {string} sourceType the source type
 	 * @returns {Source} a source
 	 */
@@ -35286,18 +35429,31 @@ Caller might not support runtime-dependent code generation (opt-out via optimiza
 	/**
 	 * @param {Module} module the module
 	 * @param {RuntimeSpec} runtime runtime(s)
+	 * @returns {any} hash of the code generation
+	 */
+	getHash(module, runtime) {
+		const info = this.get(module, runtime);
+		if (info.hash !== undefined) return info.hash;
+		const hash = createHash("md4");
+		for (const [type, source] of info.sources) {
+			hash.update(type);
+			source.updateHash(hash);
+		}
+		if (info.runtimeRequirements) {
+			for (const rr of info.runtimeRequirements) hash.update(rr);
+		}
+		return (info.hash = /** @type {string} */ (hash.digest("hex")));
+	}
+
+	/**
+	 * @param {Module} module the module
+	 * @param {RuntimeSpec} runtime runtime(s)
 	 * @param {CodeGenerationResult} result result from module
 	 * @returns {void}
 	 */
 	add(module, runtime, result) {
-		const map = this.map.get(module);
-		if (map !== undefined) {
-			map.set(runtime, result);
-		} else {
-			const newMap = new RuntimeSpecMap();
-			newMap.set(runtime, result);
-			this.map.set(module, newMap);
-		}
+		const map = provide(this.map, module, () => new RuntimeSpecMap());
+		map.set(runtime, result);
 	}
 }
 
@@ -37671,77 +37827,83 @@ Or do you want to use the entrypoints '${name}' and '${runtime}' independently o
 
 						this.logger.time("hashing");
 						this.hooks.beforeHash.call();
-						this.createHash();
+						const codeGenerationJobs = this.createHash();
 						this.hooks.afterHash.call();
 						this.logger.timeEnd("hashing");
 
-						if (shouldRecord) {
-							this.logger.time("record hash");
-							this.hooks.recordHash.call(this.records);
-							this.logger.timeEnd("record hash");
-						}
+						this._runCodeGenerationJobs(codeGenerationJobs, err => {
+							if (err) {
+								return callback(err);
+							}
 
-						this.logger.time("module assets");
-						this.clearAssets();
+							if (shouldRecord) {
+								this.logger.time("record hash");
+								this.hooks.recordHash.call(this.records);
+								this.logger.timeEnd("record hash");
+							}
 
-						this.hooks.beforeModuleAssets.call();
-						this.createModuleAssets();
-						this.logger.timeEnd("module assets");
+							this.logger.time("module assets");
+							this.clearAssets();
 
-						const cont = () => {
-							this.logger.time("process assets");
-							this.hooks.processAssets.callAsync(this.assets, err => {
-								if (err) {
-									return callback(
-										makeWebpackError(err, "Compilation.hooks.processAssets")
-									);
-								}
-								this.hooks.afterProcessAssets.call(this.assets);
-								this.logger.timeEnd("process assets");
-								this.assets = soonFrozenObjectDeprecation(
-									this.assets,
-									"Compilation.assets",
-									"DEP_WEBPACK_COMPILATION_ASSETS",
-									`BREAKING CHANGE: No more changes should happen to Compilation.assets after sealing the Compilation.
-	Do changes to assets earlier, e. g. in Compilation.hooks.processAssets.
-	Make sure to select an appropriate stage from Compilation.PROCESS_ASSETS_STAGE_*.`
-								);
+							this.hooks.beforeModuleAssets.call();
+							this.createModuleAssets();
+							this.logger.timeEnd("module assets");
 
-								this.summarizeDependencies();
-								if (shouldRecord) {
-									this.hooks.record.call(this, this.records);
-								}
-
-								if (this.hooks.needAdditionalSeal.call()) {
-									this.unseal();
-									return this.seal(callback);
-								}
-								return this.hooks.afterSeal.callAsync(err => {
+							const cont = () => {
+								this.logger.time("process assets");
+								this.hooks.processAssets.callAsync(this.assets, err => {
 									if (err) {
 										return callback(
-											makeWebpackError(err, "Compilation.hooks.afterSeal")
+											makeWebpackError(err, "Compilation.hooks.processAssets")
 										);
 									}
-									this.fileSystemInfo.logStatistics();
-									callback();
-								});
-							});
-						};
+									this.hooks.afterProcessAssets.call(this.assets);
+									this.logger.timeEnd("process assets");
+									this.assets = soonFrozenObjectDeprecation(
+										this.assets,
+										"Compilation.assets",
+										"DEP_WEBPACK_COMPILATION_ASSETS",
+										`BREAKING CHANGE: No more changes should happen to Compilation.assets after sealing the Compilation.
+	Do changes to assets earlier, e. g. in Compilation.hooks.processAssets.
+	Make sure to select an appropriate stage from Compilation.PROCESS_ASSETS_STAGE_*.`
+									);
 
-						this.logger.time("create chunk assets");
-						if (this.hooks.shouldGenerateChunkAssets.call() !== false) {
-							this.hooks.beforeChunkAssets.call();
-							this.createChunkAssets(err => {
+									this.summarizeDependencies();
+									if (shouldRecord) {
+										this.hooks.record.call(this, this.records);
+									}
+
+									if (this.hooks.needAdditionalSeal.call()) {
+										this.unseal();
+										return this.seal(callback);
+									}
+									return this.hooks.afterSeal.callAsync(err => {
+										if (err) {
+											return callback(
+												makeWebpackError(err, "Compilation.hooks.afterSeal")
+											);
+										}
+										this.fileSystemInfo.logStatistics();
+										callback();
+									});
+								});
+							};
+
+							this.logger.time("create chunk assets");
+							if (this.hooks.shouldGenerateChunkAssets.call() !== false) {
+								this.hooks.beforeChunkAssets.call();
+								this.createChunkAssets(err => {
+									this.logger.timeEnd("create chunk assets");
+									if (err) {
+										return callback(err);
+									}
+									cont();
+								});
+							} else {
 								this.logger.timeEnd("create chunk assets");
-								if (err) {
-									return callback(err);
-								}
 								cont();
-							});
-						} else {
-							this.logger.timeEnd("create chunk assets");
-							cont();
-						}
+							}
+						});
 					});
 				}
 			);
@@ -37786,16 +37948,8 @@ Or do you want to use the entrypoints '${name}' and '${runtime}' independently o
 	}
 
 	codeGeneration(callback) {
-		let statModulesFromCache = 0;
-		let statModulesGenerated = 0;
-		const {
-			chunkGraph,
-			moduleGraph,
-			dependencyTemplates,
-			runtimeTemplate
-		} = this;
-		const results = (this.codeGenerationResults = new CodeGenerationResults());
-		const errors = [];
+		const { chunkGraph } = this;
+		this.codeGenerationResults = new CodeGenerationResults();
 		/** @type {{module: Module, hash: string, runtime: RuntimeSpec, runtimes: RuntimeSpec[]}[]} */
 		const jobs = [];
 		for (const module of this.modules) {
@@ -37822,52 +37976,41 @@ Or do you want to use the entrypoints '${name}' and '${runtime}' independently o
 			}
 		}
 
+		this._runCodeGenerationJobs(jobs, callback);
+	}
+
+	_runCodeGenerationJobs(jobs, callback) {
+		let statModulesFromCache = 0;
+		let statModulesGenerated = 0;
+		const {
+			chunkGraph,
+			moduleGraph,
+			dependencyTemplates,
+			runtimeTemplate
+		} = this;
+		const results = this.codeGenerationResults;
+		const errors = [];
 		asyncLib.eachLimit(
 			jobs,
 			this.options.parallelism,
 			({ module, hash, runtime, runtimes }, callback) => {
-				const cache = new MultiItemCache(
-					runtimes.map(runtime =>
-						this._codeGenerationCache.getItemCache(
-							`${module.identifier()}|${getRuntimeKey(runtime)}`,
-							`${hash}|${dependencyTemplates.getHash()}`
-						)
-					)
+				this._codeGenerationModule(
+					module,
+					runtime,
+					runtimes,
+					hash,
+					dependencyTemplates,
+					chunkGraph,
+					moduleGraph,
+					runtimeTemplate,
+					errors,
+					results,
+					(err, codeGenerated) => {
+						if (codeGenerated) statModulesGenerated++;
+						else statModulesFromCache++;
+						callback(err);
+					}
 				);
-				cache.get((err, cachedResult) => {
-					if (err) return callback(err);
-					let result;
-					if (!cachedResult) {
-						statModulesGenerated++;
-						try {
-							this.codeGeneratedModules.add(module);
-							result = module.codeGeneration({
-								chunkGraph,
-								moduleGraph,
-								dependencyTemplates,
-								runtimeTemplate,
-								runtime
-							});
-						} catch (err) {
-							errors.push(new CodeGenerationError(module, err));
-							result = cachedResult = {
-								sources: new Map(),
-								runtimeRequirements: null
-							};
-						}
-					} else {
-						statModulesFromCache++;
-						result = cachedResult;
-					}
-					for (const runtime of runtimes) {
-						results.add(module, runtime, result);
-					}
-					if (!cachedResult) {
-						cache.store(result, callback);
-					} else {
-						callback();
-					}
-				});
 			},
 			err => {
 				if (err) return callback(err);
@@ -37888,6 +38031,76 @@ Or do you want to use the entrypoints '${name}' and '${runtime}' independently o
 				callback();
 			}
 		);
+	}
+
+	/**
+	 * @param {Module} module module
+	 * @param {RuntimeSpec} runtime runtime
+	 * @param {RuntimeSpec[]} runtimes runtimes
+	 * @param {string} hash hash
+	 * @param {DependencyTemplates} dependencyTemplates dependencyTemplates
+	 * @param {ChunkGraph} chunkGraph chunkGraph
+	 * @param {ModuleGraph} moduleGraph moduleGraph
+	 * @param {RuntimeTemplate} runtimeTemplate runtimeTemplate
+	 * @param {WebpackError[]} errors errors
+	 * @param {CodeGenerationResults} results results
+	 * @param {function(WebpackError=, boolean=): void} callback callback
+	 */
+	_codeGenerationModule(
+		module,
+		runtime,
+		runtimes,
+		hash,
+		dependencyTemplates,
+		chunkGraph,
+		moduleGraph,
+		runtimeTemplate,
+		errors,
+		results,
+		callback
+	) {
+		let codeGenerated = false;
+		const cache = new MultiItemCache(
+			runtimes.map(runtime =>
+				this._codeGenerationCache.getItemCache(
+					`${module.identifier()}|${getRuntimeKey(runtime)}`,
+					`${hash}|${dependencyTemplates.getHash()}`
+				)
+			)
+		);
+		cache.get((err, cachedResult) => {
+			if (err) return callback(err);
+			let result;
+			if (!cachedResult) {
+				try {
+					codeGenerated = true;
+					this.codeGeneratedModules.add(module);
+					result = module.codeGeneration({
+						chunkGraph,
+						moduleGraph,
+						dependencyTemplates,
+						runtimeTemplate,
+						runtime
+					});
+				} catch (err) {
+					errors.push(new CodeGenerationError(module, err));
+					result = cachedResult = {
+						sources: new Map(),
+						runtimeRequirements: null
+					};
+				}
+			} else {
+				result = cachedResult;
+			}
+			for (const runtime of runtimes) {
+				results.add(module, runtime, result);
+			}
+			if (!cachedResult) {
+				cache.store(result, err => callback(err, codeGenerated));
+			} else {
+				callback(null, codeGenerated);
+			}
+		});
 	}
 
 	/**
@@ -38316,20 +38529,14 @@ Or do you want to use the entrypoints '${name}' and '${runtime}' independently o
 		for (const module of this.modules) {
 			for (const runtime of chunkGraph.getModuleRuntimes(module)) {
 				statModulesHashed++;
-				const moduleHash = createHash(hashFunction);
-				module.updateHash(moduleHash, {
+				this._createModuleHash(
+					module,
 					chunkGraph,
 					runtime,
-					runtimeTemplate
-				});
-				const moduleHashDigest = /** @type {string} */ (moduleHash.digest(
-					hashDigest
-				));
-				chunkGraph.setModuleHashes(
-					module,
-					runtime,
-					moduleHashDigest,
-					moduleHashDigest.substr(0, hashDigestLength)
+					hashFunction,
+					runtimeTemplate,
+					hashDigest,
+					hashDigestLength
 				);
 			}
 		}
@@ -38338,6 +38545,33 @@ Or do you want to use the entrypoints '${name}' and '${runtime}' independently o
 				Math.round((100 * statModulesHashed) / this.modules.size) / 100
 			} variants per module in average)`
 		);
+	}
+
+	_createModuleHash(
+		module,
+		chunkGraph,
+		runtime,
+		hashFunction,
+		runtimeTemplate,
+		hashDigest,
+		hashDigestLength
+	) {
+		const moduleHash = createHash(hashFunction);
+		module.updateHash(moduleHash, {
+			chunkGraph,
+			runtime,
+			runtimeTemplate
+		});
+		const moduleHashDigest = /** @type {string} */ (moduleHash.digest(
+			hashDigest
+		));
+		chunkGraph.setModuleHashes(
+			module,
+			runtime,
+			moduleHashDigest,
+			moduleHashDigest.substr(0, hashDigestLength)
+		);
+		return moduleHashDigest;
 	}
 
 	createHash() {
@@ -38420,31 +38654,49 @@ This prevents using hashes of each other and should be avoided.`
 		});
 		this.logger.timeEnd("hashing: sort chunks");
 		const fullHashChunks = new Set();
+		/** @type {{module: Module, hash: string, runtime: RuntimeSpec, runtimes: RuntimeSpec[]}[]} */
+		const codeGenerationJobs = [];
+		/** @type {Map<string, Map<Module, {module: Module, hash: string, runtime: RuntimeSpec, runtimes: RuntimeSpec[]}>>} */
+		const codeGenerationJobsMap = new Map();
 		const processChunk = chunk => {
 			// Last minute module hash generation for modules that depend on chunk hashes
 			this.logger.time("hashing: hash runtime modules");
+			const runtime = chunk.runtime;
 			for (const module of chunkGraph.getChunkModulesIterable(chunk)) {
-				if (!chunkGraph.hasModuleHashes(module, chunk.runtime)) {
-					const moduleHash = createHash(hashFunction);
-					module.updateHash(moduleHash, {
-						chunkGraph,
-						runtime: chunk.runtime,
-						runtimeTemplate
-					});
-					const moduleHashDigest = /** @type {string} */ (moduleHash.digest(
-						hashDigest
-					));
-					chunkGraph.setModuleHashes(
+				if (!chunkGraph.hasModuleHashes(module, runtime)) {
+					const hash = this._createModuleHash(
 						module,
-						chunk.runtime,
-						moduleHashDigest,
-						moduleHashDigest.substr(0, hashDigestLength)
+						chunkGraph,
+						runtime,
+						hashFunction,
+						runtimeTemplate,
+						hashDigest,
+						hashDigestLength
 					);
+					let hashMap = codeGenerationJobsMap.get(hash);
+					if (hashMap) {
+						const moduleJob = hashMap.get(module);
+						if (moduleJob) {
+							moduleJob.runtimes.push(runtime);
+							continue;
+						}
+					} else {
+						hashMap = new Map();
+						codeGenerationJobsMap.set(hash, hashMap);
+					}
+					const job = {
+						module,
+						hash,
+						runtime,
+						runtimes: [runtime]
+					};
+					hashMap.set(module, job);
+					codeGenerationJobs.push(job);
 				}
 			}
 			this.logger.timeAggregate("hashing: hash runtime modules");
-			const chunkHash = createHash(hashFunction);
 			this.logger.time("hashing: hash chunks");
+			const chunkHash = createHash(hashFunction);
 			try {
 				if (outputOptions.hashSalt) {
 					chunkHash.update(outputOptions.hashSalt);
@@ -38497,12 +38749,14 @@ This prevents using hashes of each other and should be avoided.`
 				const moduleHashDigest = /** @type {string} */ (moduleHash.digest(
 					hashDigest
 				));
+				const oldHash = chunkGraph.getModuleHash(module, chunk.runtime);
 				chunkGraph.setModuleHashes(
 					module,
 					chunk.runtime,
 					moduleHashDigest,
 					moduleHashDigest.substr(0, hashDigestLength)
 				);
+				codeGenerationJobsMap.get(oldHash).get(module).hash = moduleHashDigest;
 			}
 			const chunkHash = createHash(hashFunction);
 			chunkHash.update(chunk.hash);
@@ -38515,6 +38769,7 @@ This prevents using hashes of each other and should be avoided.`
 			this.hooks.contentHash.call(chunk);
 		}
 		this.logger.timeEnd("hashing: process full hash modules");
+		return codeGenerationJobs;
 	}
 
 	/**
@@ -39379,6 +39634,8 @@ class Compiler {
 			invalid: new SyncHook(["filename", "changeTime"]),
 			/** @type {SyncHook<[]>} */
 			watchClose: new SyncHook([]),
+			/** @type {AsyncSeriesHook<[]>} */
+			shutdown: new AsyncSeriesHook([]),
 
 			/** @type {SyncBailHook<[string, string, any[]], true>} */
 			infrastructureLog: new SyncBailHook(["origin", "type", "args"]),
@@ -40208,7 +40465,7 @@ ${other}`);
 			context: this.options.context,
 			fs: this.inputFileSystem,
 			resolverFactory: this.resolverFactory,
-			options: this.options.module || {},
+			options: this.options.module,
 			associatedObjectForCache: this.root,
 			layers: this.options.experiments.layers
 		});
@@ -40286,7 +40543,10 @@ ${other}`);
 	 * @returns {void}
 	 */
 	close(callback) {
-		this.cache.shutdown(callback);
+		this.hooks.shutdown.callAsync(err => {
+			if (err) return callback(err);
+			this.cache.shutdown(callback);
+		});
 	}
 }
 
@@ -43815,13 +44075,7 @@ class Dependency {
 	 * @param {UpdateHashContext} context context
 	 * @returns {void}
 	 */
-	updateHash(hash, context) {
-		const { chunkGraph } = context;
-		const module = chunkGraph.moduleGraph.getModule(this);
-		if (module) {
-			hash.update(chunkGraph.getModuleId(module) + "");
-		}
-	}
+	updateHash(hash, context) {}
 
 	/**
 	 * implement this method to allow the occurrence order plugin to count correctly
@@ -46015,15 +46269,27 @@ class ExportsInfo {
 	 * @returns {void}
 	 */
 	updateHash(hash, runtime) {
+		this._updateHash(hash, runtime, new Set());
+	}
+
+	/**
+	 * @param {Hash} hash the hash
+	 * @param {RuntimeSpec} runtime the runtime
+	 * @param {Set<ExportsInfo>} alreadyVisitedExportsInfo for circular references
+	 * @returns {void}
+	 */
+	_updateHash(hash, runtime, alreadyVisitedExportsInfo) {
+		const set = new Set(alreadyVisitedExportsInfo);
+		set.add(this);
 		for (const exportInfo of this.orderedExports) {
 			if (exportInfo.hasInfo(this._otherExportsInfo, runtime)) {
-				exportInfo.updateHash(hash, runtime);
+				exportInfo._updateHash(hash, runtime, set);
 			}
 		}
-		this._sideEffectsOnlyInfo.updateHash(hash, runtime);
-		this._otherExportsInfo.updateHash(hash, runtime);
+		this._sideEffectsOnlyInfo._updateHash(hash, runtime, set);
+		this._otherExportsInfo._updateHash(hash, runtime, set);
 		if (this._redirectTo !== undefined) {
-			this._redirectTo.updateHash(hash, runtime);
+			this._redirectTo._updateHash(hash, runtime, set);
 		}
 	}
 
@@ -46669,10 +46935,17 @@ class ExportInfo {
 	}
 
 	updateHash(hash, runtime) {
+		this._updateHash(hash, runtime, new Set());
+	}
+
+	_updateHash(hash, runtime, alreadyVisitedExportsInfo) {
 		hash.update(`${this._usedName || this.name}`);
 		hash.update(`${this.getUsed(runtime)}`);
 		hash.update(`${this.provided}`);
 		hash.update(`${this.terminalBinding}`);
+		if (this.exportsInfo && !alreadyVisitedExportsInfo.has(this.exportsInfo)) {
+			this.exportsInfo._updateHash(hash, runtime, alreadyVisitedExportsInfo);
+		}
 	}
 
 	getUsedInfo() {
@@ -51722,6 +51995,7 @@ const {
 /** @typedef {import("./Compiler")} Compiler */
 /** @typedef {import("./Module")} Module */
 /** @typedef {import("./RuntimeModule")} RuntimeModule */
+/** @typedef {import("./util/runtime").RuntimeSpec} RuntimeSpec */
 
 /**
  * @typedef {Object} HMRJavascriptParserHooks
@@ -51999,37 +52273,61 @@ class HotModuleReplacementPlugin {
 				/** @type {TupleSet<[Module, Chunk]>} */
 				const updatedModules = new TupleSet();
 				/** @type {TupleSet<[Module, Chunk]>} */
-				const lazyHashedModules = new TupleSet();
+				const fullHashModules = new TupleSet();
+				/** @type {TupleSet<[Module, RuntimeSpec]>} */
+				const nonCodeGeneratedModules = new TupleSet();
 				compilation.hooks.fullHash.tap("HotModuleReplacementPlugin", hash => {
 					const chunkGraph = compilation.chunkGraph;
 					const records = compilation.records;
 					for (const chunk of compilation.chunks) {
-						/** @type {Set<Module>} */
-						const lazyHashedModulesInThisChunk = new Set();
-						const fullHashModules = chunkGraph.getChunkFullHashModulesIterable(
+						const getModuleHash = module => {
+							if (
+								compilation.codeGenerationResults.has(module, chunk.runtime)
+							) {
+								return compilation.codeGenerationResults.getHash(
+									module,
+									chunk.runtime
+								);
+							} else {
+								nonCodeGeneratedModules.add(module, chunk.runtime);
+								return chunkGraph.getModuleHash(module, chunk.runtime);
+							}
+						};
+						const fullHashModulesInThisChunk = chunkGraph.getChunkFullHashModulesSet(
 							chunk
 						);
-						if (fullHashModules !== undefined) {
-							for (const module of fullHashModules) {
-								lazyHashedModules.add(module, chunk);
-								lazyHashedModulesInThisChunk.add(module);
+						if (fullHashModulesInThisChunk !== undefined) {
+							for (const module of fullHashModulesInThisChunk) {
+								fullHashModules.add(module, chunk);
 							}
 						}
 						const modules = chunkGraph.getChunkModulesIterable(chunk);
 						if (modules !== undefined) {
-							if (
-								records.chunkModuleHashes &&
-								records.fullHashChunkModuleHashes
-							) {
-								for (const module of modules) {
-									const key = `${chunk.id}|${module.identifier()}`;
-									const hash = chunkGraph.getModuleHash(module, chunk.runtime);
-									if (lazyHashedModulesInThisChunk.has(module)) {
-										if (records.fullHashChunkModuleHashes[key] !== hash) {
-											updatedModules.add(module, chunk);
+							if (records.chunkModuleHashes) {
+								if (fullHashModulesInThisChunk !== undefined) {
+									for (const module of modules) {
+										const key = `${chunk.id}|${module.identifier()}`;
+										const hash = getModuleHash(module);
+										if (
+											fullHashModulesInThisChunk.has(
+												/** @type {RuntimeModule} */ (module)
+											)
+										) {
+											if (records.fullHashChunkModuleHashes[key] !== hash) {
+												updatedModules.add(module, chunk);
+											}
+											fullHashChunkModuleHashes[key] = hash;
+										} else {
+											if (records.chunkModuleHashes[key] !== hash) {
+												updatedModules.add(module, chunk);
+											}
+											chunkModuleHashes[key] = hash;
 										}
-										fullHashChunkModuleHashes[key] = hash;
-									} else {
+									}
+								} else {
+									for (const module of modules) {
+										const key = `${chunk.id}|${module.identifier()}`;
+										const hash = getModuleHash(module);
 										if (records.chunkModuleHashes[key] !== hash) {
 											updatedModules.add(module, chunk);
 										}
@@ -52037,12 +52335,24 @@ class HotModuleReplacementPlugin {
 									}
 								}
 							} else {
-								for (const module of modules) {
-									const key = `${chunk.id}|${module.identifier()}`;
-									const hash = chunkGraph.getModuleHash(module, chunk.runtime);
-									if (lazyHashedModulesInThisChunk.has(module)) {
-										fullHashChunkModuleHashes[key] = hash;
-									} else {
+								if (fullHashModulesInThisChunk !== undefined) {
+									for (const module of modules) {
+										const key = `${chunk.id}|${module.identifier()}`;
+										const hash = getModuleHash(module);
+										if (
+											fullHashModulesInThisChunk.has(
+												/** @type {RuntimeModule} */ (module)
+											)
+										) {
+											fullHashChunkModuleHashes[key] = hash;
+										} else {
+											chunkModuleHashes[key] = hash;
+										}
+									}
+								} else {
+									for (const module of modules) {
+										const key = `${chunk.id}|${module.identifier()}`;
+										const hash = getModuleHash(module);
 										chunkModuleHashes[key] = hash;
 									}
 								}
@@ -52071,9 +52381,14 @@ class HotModuleReplacementPlugin {
 						) {
 							return;
 						}
-						for (const [module, chunk] of lazyHashedModules) {
+						for (const [module, chunk] of fullHashModules) {
 							const key = `${chunk.id}|${module.identifier()}`;
-							const hash = chunkGraph.getModuleHash(module, chunk.runtime);
+							const hash = nonCodeGeneratedModules.has(module, chunk.runtime)
+								? chunkGraph.getModuleHash(module, chunk.runtime)
+								: compilation.codeGenerationResults.getHash(
+										module,
+										chunk.runtime
+								  );
 							if (records.chunkModuleHashes[key] !== hash) {
 								updatedModules.add(module, chunk);
 							}
@@ -52183,7 +52498,12 @@ class HotModuleReplacementPlugin {
 									const runtimes = chunkGraph.getModuleRuntimes(module);
 									if (oldRuntime === newRuntime && runtimes.has(newRuntime)) {
 										// Module is still in the same runtime combination
-										const hash = chunkGraph.getModuleHash(module, newRuntime);
+										const hash = nonCodeGeneratedModules.has(module, newRuntime)
+											? chunkGraph.getModuleHash(module, newRuntime)
+											: compilation.codeGenerationResults.getHash(
+													module,
+													newRuntime
+											  );
 										if (hash !== oldHash) {
 											if (module.type === "runtime") {
 												newRuntimeModules = newRuntimeModules || [];
@@ -53513,6 +53833,7 @@ const makeSerializable = __webpack_require__(55575);
  * @property {Map<string, Source>} sources the resulting sources for all source types
  * @property {Map<string, any>=} data the resulting data for all source types
  * @property {ReadonlySet<string>} runtimeRequirements the runtime requirements
+ * @property {string=} hash a hash of the code generation result (will be automatically calculated from sources and runtimeRequirements if not provided)
  */
 
 /**
@@ -54149,9 +54470,7 @@ class Module extends DependenciesBlock {
 		}
 	) {
 		const { chunkGraph, runtime } = context;
-		hash.update(`${chunkGraph.getModuleId(this)}`);
-		const exportsInfo = chunkGraph.moduleGraph.getExportsInfo(this);
-		exportsInfo.updateHash(hash, runtime);
+		hash.update(chunkGraph.getModuleGraphHash(this, runtime));
 		if (this.presentationalDependencies !== undefined) {
 			for (const dep of this.presentationalDependencies) {
 				dep.updateHash(hash, context);
@@ -58963,7 +59282,7 @@ const { cachedCleverMerge, cachedSetProperty } = __webpack_require__(92700);
 const { join } = __webpack_require__(71593);
 const { parseResource } = __webpack_require__(47779);
 
-/** @typedef {import("../declarations/WebpackOptions").ModuleOptions} ModuleOptions */
+/** @typedef {import("../declarations/WebpackOptions").ModuleOptionsNormalized} ModuleOptions */
 /** @typedef {import("./Generator")} Generator */
 /** @typedef {import("./ModuleFactory").ModuleFactoryCreateData} ModuleFactoryCreateData */
 /** @typedef {import("./ModuleFactory").ModuleFactoryResult} ModuleFactoryResult */
@@ -64383,34 +64702,43 @@ class Template {
 
 	/**
 	 * @param {RuntimeModule[]} runtimeModules array of runtime modules in order
-	 * @param {RenderContext} renderContext render context
+	 * @param {RenderContext & { codeGenerationResults?: CodeGenerationResults }} renderContext render context
 	 * @returns {Source} rendered runtime modules in a Source object
 	 */
 	static renderRuntimeModules(runtimeModules, renderContext) {
 		const source = new ConcatSource();
 		for (const module of runtimeModules) {
-			const codeGenResult = module.codeGeneration({
-				chunkGraph: renderContext.chunkGraph,
-				dependencyTemplates: renderContext.dependencyTemplates,
-				moduleGraph: renderContext.moduleGraph,
-				runtimeTemplate: renderContext.runtimeTemplate,
-				runtime: renderContext.chunk.runtime
-			});
-			if (codeGenResult) {
-				const moduleSource = codeGenResult.sources.get("runtime");
-				if (moduleSource) {
-					source.add(Template.toNormalComment(module.identifier()) + "\n");
-					if (!module.shouldIsolate()) {
-						source.add(moduleSource);
-					} else if (renderContext.runtimeTemplate.supportsArrowFunction()) {
-						source.add("(() => {\n");
-						source.add(new PrefixSource("\t", moduleSource));
-						source.add("\n})();\n\n");
-					} else {
-						source.add("!function() {\n");
-						source.add(new PrefixSource("\t", moduleSource));
-						source.add("\n}();\n\n");
-					}
+			const codeGenerationResults = renderContext.codeGenerationResults;
+			let runtimeSource;
+			if (codeGenerationResults) {
+				runtimeSource = codeGenerationResults.getSource(
+					module,
+					renderContext.chunk.runtime,
+					"runtime"
+				);
+			} else {
+				const codeGenResult = module.codeGeneration({
+					chunkGraph: renderContext.chunkGraph,
+					dependencyTemplates: renderContext.dependencyTemplates,
+					moduleGraph: renderContext.moduleGraph,
+					runtimeTemplate: renderContext.runtimeTemplate,
+					runtime: renderContext.chunk.runtime
+				});
+				if (!codeGenResult) continue;
+				runtimeSource = codeGenResult.sources.get("runtime");
+			}
+			if (runtimeSource) {
+				source.add(Template.toNormalComment(module.identifier()) + "\n");
+				if (!module.shouldIsolate()) {
+					source.add(runtimeSource);
+				} else if (renderContext.runtimeTemplate.supportsArrowFunction()) {
+					source.add("(() => {\n");
+					source.add(new PrefixSource("\t", runtimeSource));
+					source.add("\n})();\n\n");
+				} else {
+					source.add("!function() {\n");
+					source.add(new PrefixSource("\t", runtimeSource));
+					source.add("\n}();\n\n");
 				}
 			}
 		}
@@ -65986,6 +66314,23 @@ class WebpackOptionsApply extends OptionsApply {
 			}).apply(compiler);
 		}
 
+		if (options.experiments.lazyCompilation) {
+			const LazyCompilationPlugin = __webpack_require__(8856);
+			new LazyCompilationPlugin({
+				backend:
+					(typeof options.experiments.lazyCompilation === "object" &&
+						options.experiments.lazyCompilation.backend) ||
+					__webpack_require__(18111),
+				client:
+					(typeof options.experiments.lazyCompilation === "object" &&
+						options.experiments.lazyCompilation.client) ||
+					options.externalsPresets.node ? __webpack_require__.ab + "lazy-compilation-node.js" : __webpack_require__.ab + "lazy-compilation-web.js",
+				entries:
+					typeof options.experiments.lazyCompilation !== "object" ||
+					options.experiments.lazyCompilation.entries !== false
+			}).apply(compiler);
+		}
+
 		new EntryOptionPlugin().apply(compiler);
 		compiler.hooks.entryOption.call(options.context, options.entry);
 
@@ -65998,16 +66343,15 @@ class WebpackOptionsApply extends OptionsApply {
 
 		new CompatibilityPlugin().apply(compiler);
 		new HarmonyModulesPlugin({
-			module: options.module,
 			topLevelAwait: options.experiments.topLevelAwait
 		}).apply(compiler);
 		if (options.amd !== false) {
 			const AMDPlugin = __webpack_require__(71381);
 			const RequireJsStuffPlugin = __webpack_require__(71919);
-			new AMDPlugin(options.module, options.amd || {}).apply(compiler);
+			new AMDPlugin(options.amd || {}).apply(compiler);
 			new RequireJsStuffPlugin().apply(compiler);
 		}
-		new CommonJsPlugin(options.module).apply(compiler);
+		new CommonJsPlugin().apply(compiler);
 		new LoaderPlugin().apply(compiler);
 		if (options.node !== false) {
 			const NodeStuffPlugin = __webpack_require__(591);
@@ -66021,8 +66365,8 @@ class WebpackOptionsApply extends OptionsApply {
 		new RequireIncludePlugin().apply(compiler);
 		new RequireEnsurePlugin().apply(compiler);
 		new RequireContextPlugin().apply(compiler);
-		new ImportPlugin(options.module).apply(compiler);
-		new SystemPlugin(options.module).apply(compiler);
+		new ImportPlugin().apply(compiler);
+		new SystemPlugin().apply(compiler);
 		new ImportMetaPlugin().apply(compiler);
 		new URLPlugin().apply(compiler);
 
@@ -68667,7 +69011,10 @@ const { formatSize } = __webpack_require__(50787);
 const LazySet = __webpack_require__(60248);
 const makeSerializable = __webpack_require__(55575);
 const memoize = __webpack_require__(18003);
-const { createFileSerializer } = __webpack_require__(29158);
+const {
+	createFileSerializer,
+	NOT_SERIALIZABLE
+} = __webpack_require__(29158);
 
 /** @typedef {import("../../declarations/WebpackOptions").SnapshotOptions} SnapshotOptions */
 /** @typedef {import("../Cache").Etag} Etag */
@@ -69181,6 +69528,7 @@ class PackContentItems {
 					write(value);
 				} catch (e) {
 					rollback(s);
+					if (e === NOT_SERIALIZABLE) continue;
 					logger.warn(
 						`Skipped not serializable cache item '${key}': ${e.message}`
 					);
@@ -71179,7 +71527,7 @@ const {
 /** @typedef {import("../../declarations/WebpackOptions").LibraryOptions} LibraryOptions */
 /** @typedef {import("../../declarations/WebpackOptions").Loader} Loader */
 /** @typedef {import("../../declarations/WebpackOptions").Mode} Mode */
-/** @typedef {import("../../declarations/WebpackOptions").ModuleOptions} ModuleOptions */
+/** @typedef {import("../../declarations/WebpackOptions").ModuleOptionsNormalized} ModuleOptions */
 /** @typedef {import("../../declarations/WebpackOptions").Node} WebpackNode */
 /** @typedef {import("../../declarations/WebpackOptions").Optimization} Optimization */
 /** @typedef {import("../../declarations/WebpackOptions").OutputNormalized} Output */
@@ -71498,10 +71846,25 @@ const applySnapshotDefaults = (snapshot, { production }) => {
 };
 
 /**
- * @param {JavascriptParserOptions} options options
+ * @param {JavascriptParserOptions} parserOptions parser options
  * @returns {void}
  */
-const applyJavascriptParserOptionsDefaults = options => {};
+const applyJavascriptParserOptionsDefaults = parserOptions => {
+	D(parserOptions, "unknownContextRequest", ".");
+	D(parserOptions, "unknownContextRegExp", false);
+	D(parserOptions, "unknownContextRecursive", true);
+	D(parserOptions, "unknownContextCritical", true);
+	D(parserOptions, "exprContextRequest", ".");
+	D(parserOptions, "exprContextRegExp", false);
+	D(parserOptions, "exprContextRecursive", true);
+	D(parserOptions, "exprContextCritical", true);
+	D(parserOptions, "wrappedContextRegExp", /.*/);
+	D(parserOptions, "wrappedContextRecursive", true);
+	D(parserOptions, "wrappedContextCritical", false);
+
+	D(parserOptions, "strictExportPresence", false);
+	D(parserOptions, "strictThisContextOnImports", false);
+};
 
 /**
  * @param {ModuleOptions} module options
@@ -71515,21 +71878,6 @@ const applyModuleDefaults = (
 	module,
 	{ cache, syncWebAssembly, asyncWebAssembly }
 ) => {
-	D(module, "unknownContextRequest", ".");
-	D(module, "unknownContextRegExp", false);
-	D(module, "unknownContextRecursive", true);
-	D(module, "unknownContextCritical", true);
-	D(module, "exprContextRequest", ".");
-	D(module, "exprContextRegExp", false);
-	D(module, "exprContextRecursive", true);
-	D(module, "exprContextCritical", true);
-	D(module, "wrappedContextRegExp", /.*/);
-	D(module, "wrappedContextRecursive", true);
-	D(module, "wrappedContextCritical", false);
-
-	D(module, "strictExportPresence", false);
-	D(module, "strictThisContextOnImports", false);
-
 	if (cache) {
 		D(module, "unsafeCache", module => {
 			const name = module.nameForCondition();
@@ -72287,15 +72635,31 @@ const optionalNestedArray = (value, fn) =>
  * @template R
  * @param {Record<string, T>|undefined} value value or not
  * @param {function(T): R} fn nested handler
+ * @param {Record<string, function(T): R>=} customKeys custom nested handler for some keys
  * @returns {Record<string, R>} result value
  */
-const keyedNestedConfig = (value, fn) =>
-	value === undefined
-		? {}
-		: Object.keys(value).reduce(
-				(obj, key) => ((obj[key] = fn(value[key])), obj),
-				/** @type {Record<string, R>} */ ({})
-		  );
+const keyedNestedConfig = (value, fn, customKeys) => {
+	const result =
+		value === undefined
+			? {}
+			: Object.keys(value).reduce(
+					(obj, key) => (
+						(obj[key] = (customKeys && key in customKeys
+							? customKeys[key]
+							: fn)(value[key])),
+						obj
+					),
+					/** @type {Record<string, R>} */ ({})
+			  );
+	if (customKeys) {
+		for (const key of Object.keys(customKeys)) {
+			if (!(key in result)) {
+				result[key] = customKeys[key](/** @type {T} */ ({}));
+			}
+		}
+	}
+	return result;
+};
 
 /**
  * @param {WebpackOptions} config input config
@@ -72384,9 +72748,28 @@ const getNormalizedWebpackOptions = config => {
 		loader: cloneObject(config.loader),
 		mode: config.mode,
 		module: nestedConfig(config.module, module => ({
-			...module,
-			parser: cloneObject(module.parser),
+			noParse: module.noParse,
+			unsafeCache: module.unsafeCache,
+			parser: keyedNestedConfig(module.parser, cloneObject, {
+				javascript: parserOptions => ({
+					unknownContextRequest: module.unknownContextRequest,
+					unknownContextRegExp: module.unknownContextRegExp,
+					unknownContextRecursive: module.unknownContextRecursive,
+					unknownContextCritical: module.unknownContextCritical,
+					exprContextRequest: module.exprContextRequest,
+					exprContextRegExp: module.exprContextRegExp,
+					exprContextRecursive: module.exprContextRecursive,
+					exprContextCritical: module.exprContextCritical,
+					wrappedContextRegExp: module.wrappedContextRegExp,
+					wrappedContextRecursive: module.wrappedContextRecursive,
+					wrappedContextCritical: module.wrappedContextCritical,
+					strictExportPresence: module.strictExportPresence,
+					strictThisContextOnImports: module.strictThisContextOnImports,
+					...parserOptions
+				})
+			}),
 			generator: cloneObject(module.generator),
+			defaultRules: optionalNestedArray(module.defaultRules, r => [...r]),
 			rules: nestedArray(module.rules, r => [...r])
 		})),
 		name: config.name,
@@ -74563,6 +74946,7 @@ class Profiler {
 	constructor(inspector) {
 		this.session = undefined;
 		this.inspector = inspector;
+		this._startTime = 0;
 	}
 
 	hasSession() {
@@ -74581,6 +74965,9 @@ class Profiler {
 			this.session = undefined;
 			return Promise.resolve();
 		}
+
+		const hrtime = process.hrtime();
+		this._startTime = hrtime[0] * 1000000 + Math.round(hrtime[1] / 1000);
 
 		return Promise.all([
 			this.sendCommand("Profiler.setSamplingInterval", {
@@ -74616,7 +75003,22 @@ class Profiler {
 	}
 
 	stopProfiling() {
-		return this.sendCommand("Profiler.stop");
+		return this.sendCommand("Profiler.stop").then(({ profile }) => {
+			const hrtime = process.hrtime();
+			const endTime = hrtime[0] * 1000000 + Math.round(hrtime[1] / 1000);
+			if (profile.startTime < this._startTime || profile.endTime > endTime) {
+				// In some cases timestamps mismatch and we need to adjust them
+				// Both process.hrtime and the inspector timestamps claim to be relative
+				// to a unknown point in time. But they do not guarantee that this is the
+				// same point in time.
+				const duration = profile.endTime - profile.startTime;
+				const ownDuration = endTime - this._startTime;
+				const untracked = Math.max(0, ownDuration - duration);
+				profile.startTime = this._startTime + untracked / 2;
+				profile.endTime = endTime - untracked / 2;
+			}
+			return { profile };
+		});
 	}
 }
 
@@ -75584,16 +75986,14 @@ const ConstDependency = __webpack_require__(9364);
 const LocalModuleDependency = __webpack_require__(54524);
 const UnsupportedDependency = __webpack_require__(27098);
 
-/** @typedef {import("../../declarations/WebpackOptions").ModuleOptions} ModuleOptions */
+/** @typedef {import("../../declarations/WebpackOptions").ModuleOptionsNormalized} ModuleOptions */
 /** @typedef {import("../Compiler")} Compiler */
 
 class AMDPlugin {
 	/**
-	 * @param {ModuleOptions} options the plugin options
 	 * @param {Record<string, any>} amdOptions the AMD options
 	 */
-	constructor(options, amdOptions) {
-		this.options = options;
+	constructor(amdOptions) {
 		this.amdOptions = amdOptions;
 	}
 
@@ -75603,7 +76003,6 @@ class AMDPlugin {
 	 * @returns {void}
 	 */
 	apply(compiler) {
-		const options = this.options;
 		const amdOptions = this.amdOptions;
 		compiler.hooks.compilation.tap(
 			"AMDPlugin",
@@ -75707,8 +76106,10 @@ class AMDPlugin {
 							);
 					};
 
-					new AMDRequireDependenciesBlockParserPlugin(options).apply(parser);
-					new AMDDefineDependencyParserPlugin(options).apply(parser);
+					new AMDRequireDependenciesBlockParserPlugin(parserOptions).apply(
+						parser
+					);
+					new AMDDefineDependencyParserPlugin(parserOptions).apply(parser);
 
 					tapOptionsHooks("define.amd", "define", () => "amd");
 					tapOptionsHooks("require.amd", "require", () => ["amd"]);
@@ -77749,7 +78150,9 @@ module.exports = CommonJsFullRequireDependency;
 
 
 
+const CommentCompilationWarning = __webpack_require__(41985);
 const RuntimeGlobals = __webpack_require__(48801);
+const UnsupportedFeatureWarning = __webpack_require__(61809);
 const {
 	evaluateToIdentifier,
 	evaluateToString,
@@ -77768,7 +78171,12 @@ const RequireResolveContextDependency = __webpack_require__(27569);
 const RequireResolveDependency = __webpack_require__(24868);
 const RequireResolveHeaderDependency = __webpack_require__(1217);
 
+/** @typedef {import("../../declarations/WebpackOptions").JavascriptParserOptions} JavascriptParserOptions */
+
 class CommonJsImportsParserPlugin {
+	/**
+	 * @param {JavascriptParserOptions} options parser options
+	 */
 	constructor(options) {
 		this.options = options;
 	}
@@ -77917,8 +78325,43 @@ class CommonJsImportsParserPlugin {
 			parser.state.current.addDependency(dep);
 			return true;
 		};
-
 		const createRequireHandler = callNew => expr => {
+			if (options.commonjsMagicComments) {
+				const {
+					options: requireOptions,
+					errors: commentErrors
+				} = parser.parseCommentOptions(expr.range);
+
+				if (commentErrors) {
+					for (const e of commentErrors) {
+						const { comment } = e;
+						parser.state.module.addWarning(
+							new CommentCompilationWarning(
+								`Compilation error while processing magic comment(-s): /*${comment.value}*/: ${e.message}`,
+								comment.loc
+							)
+						);
+					}
+				}
+				if (requireOptions) {
+					if (requireOptions.webpackIgnore !== undefined) {
+						if (typeof requireOptions.webpackIgnore !== "boolean") {
+							parser.state.module.addWarning(
+								new UnsupportedFeatureWarning(
+									`\`webpackIgnore\` expected a boolean, but received: ${requireOptions.webpackIgnore}.`,
+									expr.loc
+								)
+							);
+						} else {
+							// Do not instrument `require()` if `webpackIgnore` is `true`
+							if (requireOptions.webpackIgnore) {
+								return true;
+							}
+						}
+					}
+				}
+			}
+
 			if (expr.arguments.length !== 1) return;
 			let localModule;
 			const param = parser.evaluateExpression(expr.arguments[0]);
@@ -78129,12 +78572,7 @@ const {
 const CommonJsExportRequireDependency = __webpack_require__(48075);
 
 class CommonJsPlugin {
-	constructor(options) {
-		this.options = options;
-	}
-
 	apply(compiler) {
-		const options = this.options;
 		compiler.hooks.compilation.tap(
 			"CommonJsPlugin",
 			(compilation, { contextModuleFactory, normalModuleFactory }) => {
@@ -78310,7 +78748,7 @@ class CommonJsPlugin {
 						evaluateToIdentifier("module.hot", "module", () => ["hot"], null)
 					);
 
-					new CommonJsImportsParserPlugin(options).apply(parser);
+					new CommonJsImportsParserPlugin(parserOptions).apply(parser);
 					new CommonJsExportsParserPlugin(compilation.moduleGraph).apply(
 						parser
 					);
@@ -78901,7 +79339,8 @@ module.exports = ContextDependency;
 const { parseResource } = __webpack_require__(47779);
 
 /** @typedef {import("estree").Node} EsTreeNode */
-/** @typedef {import("../../declarations/WebpackOptions").ModuleOptions} ModuleOptions */
+/** @typedef {import("../../declarations/WebpackOptions").JavascriptParserOptions} JavascriptParserOptions */
+/** @typedef {import("../../declarations/WebpackOptions").ModuleOptionsNormalized} ModuleOptions */
 /** @typedef {import("../javascript/BasicEvaluatedExpression")} BasicEvaluatedExpression */
 /** @typedef {import("../javascript/JavascriptParser")} JavascriptParser */
 /** @typedef {import("./ContextDependency")} ContextDependency */
@@ -78938,7 +79377,7 @@ const splitContextFromPrefix = prefix => {
  * @param {[number, number]} range source range
  * @param {BasicEvaluatedExpression} param context param
  * @param {EsTreeNode} expr expr
- * @param {ModuleOptions} options options for context creation
+ * @param {Pick<JavascriptParserOptions, `${"expr"|"wrapped"}Context${"Critical"|"Recursive"|"RegExp"}` | "exprContextRequest">} options options for context creation
  * @param {PartialContextDependencyOptions} contextOptions options for the ContextModule
  * @param {JavascriptParser} parser the parser
  * @returns {ContextDependency} the created Dependency
@@ -79663,26 +80102,6 @@ class ExportsInfoDependency extends NullDependency {
 		this.property = property;
 	}
 
-	/**
-	 * Update the hash
-	 * @param {Hash} hash hash to be updated
-	 * @param {UpdateHashContext} context context
-	 * @returns {void}
-	 */
-	updateHash(hash, context) {
-		const { chunkGraph, runtime } = context;
-		const { moduleGraph } = chunkGraph;
-		const module = moduleGraph.getParentModule(this);
-		const value = getProperty(
-			moduleGraph,
-			module,
-			this.exportName,
-			this.property,
-			runtime
-		);
-		hash.update(value === undefined ? "undefined" : JSON.stringify(value));
-	}
-
 	serialize(context) {
 		const { write } = context;
 		write(this.range);
@@ -80149,8 +80568,7 @@ const HarmonyImportSideEffectDependency = __webpack_require__(98335);
 
 module.exports = class HarmonyExportDependencyParserPlugin {
 	constructor(options) {
-		const { module: moduleOptions } = options;
-		this.strictExportPresence = moduleOptions.strictExportPresence;
+		this.strictExportPresence = options.strictExportPresence;
 	}
 
 	apply(parser) {
@@ -81259,35 +81677,6 @@ class HarmonyExportImportedSpecifierDependency extends HarmonyImportDependency {
 		return errors;
 	}
 
-	/**
-	 * Update the hash
-	 * @param {Hash} hash hash to be updated
-	 * @param {UpdateHashContext} context context
-	 * @returns {void}
-	 */
-	updateHash(hash, context) {
-		const { chunkGraph, runtime } = context;
-		super.updateHash(hash, context);
-
-		const mode = this.getMode(chunkGraph.moduleGraph, runtime);
-
-		hash.update(mode.type);
-		if (mode.items) {
-			for (const item of mode.items) {
-				hash.update(item.name);
-				hash.update(item.ids.join());
-				if (item.checked) hash.update("checked");
-			}
-		}
-		if (mode.ignored) {
-			hash.update("ignored");
-			for (const k of mode.ignored) {
-				hash.update(k);
-			}
-		}
-		hash.update(mode.name || "");
-	}
-
 	serialize(context) {
 		const { write } = context;
 
@@ -82147,47 +82536,6 @@ class HarmonyImportDependency extends ModuleDependency {
 		}
 	}
 
-	/**
-	 * Update the hash
-	 * @param {Hash} hash hash to be updated
-	 * @param {UpdateHashContext} context context
-	 * @returns {void}
-	 */
-	updateHash(hash, context) {
-		const { chunkGraph, runtime, runtimeTemplate } = context;
-		const { moduleGraph } = chunkGraph;
-		super.updateHash(hash, context);
-		hash.update(`${this.sourceOrder}`);
-		const connection = moduleGraph.getConnection(this);
-		if (connection) {
-			const importedModule = connection.module;
-			if (importedModule) {
-				const parentModule = moduleGraph.getParentModule(this);
-				hash.update(
-					importedModule.getExportsType(
-						moduleGraph,
-						parentModule.buildMeta && parentModule.buildMeta.strictHarmonyModule
-					)
-				);
-				if (moduleGraph.isAsync(importedModule)) hash.update("async");
-			}
-			if (runtimeTemplate) {
-				const runtimeRequirements = new Set();
-				hash.update(
-					runtimeTemplate.runtimeConditionExpression({
-						chunkGraph,
-						runtimeCondition: filterRuntime(runtime, runtime => {
-							return connection.isTargetActive(runtime);
-						}),
-						runtime,
-						runtimeRequirements
-					})
-				);
-				for (const rr of runtimeRequirements) hash.update(rr);
-			}
-		}
-	}
-
 	serialize(context) {
 		const { write } = context;
 		write(this.sourceOrder);
@@ -82360,9 +82708,8 @@ const harmonySpecifierTag = Symbol("harmony import");
 
 module.exports = class HarmonyImportDependencyParserPlugin {
 	constructor(options) {
-		const { module: moduleOptions } = options;
-		this.strictExportPresence = moduleOptions.strictExportPresence;
-		this.strictThisContextOnImports = moduleOptions.strictThisContextOnImports;
+		this.strictExportPresence = options.strictExportPresence;
+		this.strictThisContextOnImports = options.strictThisContextOnImports;
 	}
 
 	/**
@@ -82815,25 +83162,6 @@ class HarmonyImportSpecifierDependency extends HarmonyImportDependency {
 		return 0;
 	}
 
-	/**
-	 * Update the hash
-	 * @param {Hash} hash hash to be updated
-	 * @param {UpdateHashContext} context context
-	 * @returns {void}
-	 */
-	updateHash(hash, context) {
-		const { chunkGraph, runtime } = context;
-		super.updateHash(hash, context);
-		const moduleGraph = chunkGraph.moduleGraph;
-		const importedModule = moduleGraph.getModule(this);
-		const ids = this.getIds(moduleGraph);
-		hash.update(ids.join());
-		if (importedModule) {
-			const exportsInfo = moduleGraph.getExportsInfo(importedModule);
-			hash.update(`${exportsInfo.getUsedName(ids, runtime)}`);
-		}
-	}
-
 	serialize(context) {
 		const { write } = context;
 		write(this.ids);
@@ -83069,8 +83397,8 @@ class HarmonyModulesPlugin {
 						return;
 
 					new HarmonyDetectionParserPlugin(this.options).apply(parser);
-					new HarmonyImportDependencyParserPlugin(this.options).apply(parser);
-					new HarmonyExportDependencyParserPlugin(this.options).apply(parser);
+					new HarmonyImportDependencyParserPlugin(parserOptions).apply(parser);
+					new HarmonyExportDependencyParserPlugin(parserOptions).apply(parser);
 					new HarmonyTopLevelThisParserPlugin().apply(parser);
 				};
 
@@ -83947,17 +84275,12 @@ const ImportWeakDependency = __webpack_require__(62550);
 /** @typedef {import("../Compiler")} Compiler */
 
 class ImportPlugin {
-	constructor(options) {
-		this.options = options;
-	}
-
 	/**
 	 * Apply the plugin
 	 * @param {Compiler} compiler the compiler instance
 	 * @returns {void}
 	 */
 	apply(compiler) {
-		const options = this.options;
 		compiler.hooks.compilation.tap(
 			"ImportPlugin",
 			(compilation, { contextModuleFactory, normalModuleFactory }) => {
@@ -84001,7 +84324,7 @@ class ImportPlugin {
 					if (parserOptions.import !== undefined && !parserOptions.import)
 						return;
 
-					new ImportParserPlugin(options).apply(parser);
+					new ImportParserPlugin(parserOptions).apply(parser);
 				};
 
 				normalModuleFactory.hooks.parser
@@ -84176,7 +84499,6 @@ class JsonExportsDependency extends NullDependency {
 	 */
 	updateHash(hash, context) {
 		hash.update(this.exports ? JSON.stringify(this.exports) : "undefined");
-		super.updateHash(hash, context);
 	}
 
 	serialize(context) {
@@ -84632,7 +84954,6 @@ class ModuleDecoratorDependency extends NullDependency {
 	 * @returns {void}
 	 */
 	updateHash(hash, context) {
-		super.updateHash(hash, context);
 		hash.update(this.decorator);
 		hash.update(`${this.allowExportsAccess}`);
 	}
@@ -84949,14 +85270,6 @@ class NullDependency extends Dependency {
 		return "null";
 	}
 
-	/**
-	 * Update the hash
-	 * @param {Hash} hash hash to be updated
-	 * @param {UpdateHashContext} context context
-	 * @returns {void}
-	 */
-	updateHash(hash, context) {}
-
 	serialize({ write }) {
 		write(this.loc);
 	}
@@ -85072,7 +85385,6 @@ class ProvidedDependency extends ModuleDependency {
 	 * @returns {void}
 	 */
 	updateHash(hash, context) {
-		super.updateHash(hash, context);
 		hash.update(this.identifier);
 		hash.update(this.path ? this.path.join(",") : "null");
 	}
@@ -86539,18 +86851,6 @@ class StaticExportsDependency extends NullDependency {
 		};
 	}
 
-	/**
-	 * Update the hash
-	 * @param {Hash} hash hash to be updated
-	 * @param {UpdateHashContext} context context
-	 * @returns {void}
-	 */
-	updateHash(hash, context) {
-		hash.update(JSON.stringify(this.exports));
-		if (this.canMangle) hash.update("canMangle");
-		super.updateHash(hash, context);
-	}
-
 	serialize(context) {
 		const { write } = context;
 		write(this.exports);
@@ -86601,10 +86901,6 @@ const SystemRuntimeModule = __webpack_require__(25637);
 /** @typedef {import("../Compiler")} Compiler */
 
 class SystemPlugin {
-	constructor(options) {
-		this.options = options;
-	}
-
 	/**
 	 * Apply the plugin
 	 * @param {Compiler} compiler the compiler instance
@@ -88133,6 +88429,456 @@ class HotModuleReplacementRuntimeModule extends RuntimeModule {
 }
 
 module.exports = HotModuleReplacementRuntimeModule;
+
+
+/***/ }),
+
+/***/ 8856:
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+/*
+	MIT License http://www.opensource.org/licenses/mit-license.php
+	Author Tobias Koppers @sokra
+*/
+
+
+
+const { RawSource } = __webpack_require__(55600);
+const AsyncDependenciesBlock = __webpack_require__(72624);
+const Dependency = __webpack_require__(27563);
+const Module = __webpack_require__(54031);
+const ModuleFactory = __webpack_require__(6259);
+const RuntimeGlobals = __webpack_require__(48801);
+const Template = __webpack_require__(90751);
+const CommonJsRequireDependency = __webpack_require__(81192);
+const { registerNotSerializable } = __webpack_require__(29158);
+
+/** @typedef {import("../../declarations/WebpackOptions")} WebpackOptions */
+/** @typedef {import("../Compilation")} Compilation */
+/** @typedef {import("../Compiler")} Compiler */
+/** @typedef {import("../Dependency").UpdateHashContext} UpdateHashContext */
+/** @typedef {import("../Module").BuildMeta} BuildMeta */
+/** @typedef {import("../Module").CodeGenerationContext} CodeGenerationContext */
+/** @typedef {import("../Module").CodeGenerationResult} CodeGenerationResult */
+/** @typedef {import("../Module").LibIdentOptions} LibIdentOptions */
+/** @typedef {import("../Module").NeedBuildContext} NeedBuildContext */
+/** @typedef {import("../ModuleFactory").ModuleFactoryCreateData} ModuleFactoryCreateData */
+/** @typedef {import("../ModuleFactory").ModuleFactoryResult} ModuleFactoryResult */
+/** @typedef {import("../RequestShortener")} RequestShortener */
+/** @typedef {import("../ResolverFactory").ResolverWithOptions} ResolverWithOptions */
+/** @typedef {import("../WebpackError")} WebpackError */
+/** @typedef {import("../util/Hash")} Hash */
+/** @typedef {import("../util/fs").InputFileSystem} InputFileSystem */
+
+const TYPES = new Set(["javascript"]);
+
+class LazyCompilationDependency extends Dependency {
+	constructor(originalModule) {
+		super();
+		this.originalModule = originalModule;
+	}
+
+	get category() {
+		return "esm";
+	}
+
+	get type() {
+		return "lazy import()";
+	}
+
+	/**
+	 * @returns {string | null} an identifier to merge equal requests
+	 */
+	getResourceIdentifier() {
+		return this.originalModule.identifier();
+	}
+}
+
+registerNotSerializable(LazyCompilationDependency);
+
+class LazyCompilationProxyModule extends Module {
+	constructor(context, originalModule, request, client, data, active) {
+		super("lazy-compilation-proxy", context, originalModule.layer);
+		this.originalModule = originalModule;
+		this.request = request;
+		this.client = client;
+		this.data = data;
+		this.active = active;
+	}
+
+	/**
+	 * @returns {string} a unique identifier of the module
+	 */
+	identifier() {
+		return `lazy-compilation-proxy|${this.originalModule.identifier()}`;
+	}
+
+	/**
+	 * @param {RequestShortener} requestShortener the request shortener
+	 * @returns {string} a user readable identifier of the module
+	 */
+	readableIdentifier(requestShortener) {
+		return `lazy-compilation-proxy ${this.originalModule.readableIdentifier(
+			requestShortener
+		)}`;
+	}
+
+	/**
+	 * Assuming this module is in the cache. Update the (cached) module with
+	 * the fresh module from the factory. Usually updates internal references
+	 * and properties.
+	 * @param {Module} module fresh module
+	 * @returns {void}
+	 */
+	updateCacheModule(module) {
+		super.updateCacheModule(module);
+		const m = /** @type {LazyCompilationProxyModule} */ (module);
+		this.active = m.active;
+	}
+
+	/**
+	 * @param {LibIdentOptions} options options
+	 * @returns {string | null} an identifier for library inclusion
+	 */
+	libIdent(options) {
+		return `${this.originalModule.libIdent(options)}!lazy-compilation-proxy`;
+	}
+
+	/**
+	 * @param {NeedBuildContext} context context info
+	 * @param {function(WebpackError=, boolean=): void} callback callback function, returns true, if the module needs a rebuild
+	 * @returns {void}
+	 */
+	needBuild(context, callback) {
+		callback(null, !this.buildInfo || this.buildInfo.active !== this.active);
+	}
+
+	/**
+	 * @param {WebpackOptions} options webpack options
+	 * @param {Compilation} compilation the compilation
+	 * @param {ResolverWithOptions} resolver the resolver
+	 * @param {InputFileSystem} fs the file system
+	 * @param {function(WebpackError=): void} callback callback function
+	 * @returns {void}
+	 */
+	build(options, compilation, resolver, fs, callback) {
+		this.buildInfo = {
+			active: this.active
+		};
+		/** @type {BuildMeta} */
+		this.buildMeta = {};
+		this.clearDependenciesAndBlocks();
+		const dep = new CommonJsRequireDependency(this.client);
+		this.addDependency(dep);
+		if (this.active) {
+			const dep = new LazyCompilationDependency(this.originalModule);
+			const block = new AsyncDependenciesBlock({});
+			block.addDependency(dep);
+			this.addBlock(block);
+		}
+		callback();
+	}
+
+	/**
+	 * @returns {Set<string>} types available (do not mutate)
+	 */
+	getSourceTypes() {
+		return TYPES;
+	}
+
+	/**
+	 * @param {string=} type the source type for which the size should be estimated
+	 * @returns {number} the estimated size of the module (must be non-zero)
+	 */
+	size(type) {
+		return 200;
+	}
+
+	/**
+	 * @param {CodeGenerationContext} context context for code generation
+	 * @returns {CodeGenerationResult} result
+	 */
+	codeGeneration({ runtimeTemplate, chunkGraph, moduleGraph }) {
+		const sources = new Map();
+		const runtimeRequirements = new Set();
+		runtimeRequirements.add(RuntimeGlobals.module);
+		const clientDep = /** @type {CommonJsRequireDependency} */ (this
+			.dependencies[0]);
+		const clientModule = moduleGraph.getModule(clientDep);
+		const block = this.blocks[0];
+		const client = Template.asString([
+			`var client = ${runtimeTemplate.moduleExports({
+				module: clientModule,
+				chunkGraph,
+				request: clientDep.userRequest,
+				runtimeRequirements
+			})}`,
+			`var data = ${JSON.stringify(this.data)};`
+		]);
+		const keepActive = Template.asString([
+			`var dispose = client.keepAlive({ data, active: ${JSON.stringify(
+				!!block
+			)}, module, onError });`
+		]);
+		let source;
+		if (block) {
+			const dep = block.dependencies[0];
+			const module = moduleGraph.getModule(dep);
+			source = Template.asString([
+				client,
+				`module.exports = ${runtimeTemplate.moduleNamespacePromise({
+					chunkGraph,
+					block,
+					module,
+					request: this.request,
+					strict: false, // TODO this should be inherited from the original module
+					message: "import()",
+					runtimeRequirements
+				})};`,
+				"if (module.hot) {",
+				Template.indent([
+					"module.hot.accept();",
+					`module.hot.accept(${JSON.stringify(
+						chunkGraph.getModuleId(module)
+					)}, function() { module.hot.invalidate(); });`,
+					"module.hot.dispose(function(data) { delete data.resolveSelf; dispose(data); });",
+					"if (module.hot.data && module.hot.data.resolveSelf) module.hot.data.resolveSelf(module.exports);"
+				]),
+				"}",
+				"function onError() { /* ignore */ }",
+				keepActive
+			]);
+		} else {
+			source = Template.asString([
+				client,
+				"var resolveSelf, onError;",
+				`module.exports = new Promise(function(resolve, reject) { resolveSelf = resolve; onError = reject; });`,
+				"if (module.hot) {",
+				Template.indent([
+					"module.hot.accept();",
+					"if (module.hot.data && module.hot.data.resolveSelf) module.hot.data.resolveSelf(module.exports);",
+					"module.hot.dispose(function(data) { data.resolveSelf = resolveSelf; dispose(data); });"
+				]),
+				"}",
+				keepActive
+			]);
+		}
+		sources.set("javascript", new RawSource(source));
+		return {
+			sources,
+			runtimeRequirements
+		};
+	}
+
+	/**
+	 * @param {Hash} hash the hash used to track dependencies
+	 * @param {UpdateHashContext} context context
+	 * @returns {void}
+	 */
+	updateHash(hash, context) {
+		super.updateHash(hash, context);
+		hash.update(this.active ? "active" : "");
+		hash.update(JSON.stringify(this.data));
+	}
+}
+
+registerNotSerializable(LazyCompilationProxyModule);
+
+class LazyCompilationDependencyFactory extends ModuleFactory {
+	constructor(factory) {
+		super();
+		this._factory = factory;
+	}
+
+	/**
+	 * @param {ModuleFactoryCreateData} data data object
+	 * @param {function(Error=, ModuleFactoryResult=): void} callback callback
+	 * @returns {void}
+	 */
+	create(data, callback) {
+		const dependency = /** @type {LazyCompilationDependency} */ (data
+			.dependencies[0]);
+		callback(null, {
+			module: dependency.originalModule
+		});
+	}
+}
+
+class LazyCompilationPlugin {
+	/**
+	 * @param {Object} options options
+	 * @param {(function(Compiler, string, function(Error?, any?): void): void) | function(Compiler, string): Promise<any>} options.backend the backend
+	 * @param {string} options.client the client reference
+	 * @param {boolean} options.entries true, when entries are lazy compiled
+	 */
+	constructor({ backend, client, entries }) {
+		this.backend = backend;
+		this.client = client;
+		this.entries = entries;
+	}
+	/**
+	 * Apply the plugin
+	 * @param {Compiler} compiler the compiler instance
+	 * @returns {void}
+	 */
+	apply(compiler) {
+		let backend;
+		compiler.hooks.beforeCompile.tapAsync(
+			"LazyCompilationPlugin",
+			(params, callback) => {
+				if (backend !== undefined) return callback();
+				const promise = this.backend(compiler, this.client, (err, result) => {
+					if (err) return callback(err);
+					backend = result;
+					callback();
+				});
+				if (promise && promise.then) {
+					promise.then(b => {
+						backend = b;
+						callback();
+					}, callback);
+				}
+			}
+		);
+		compiler.hooks.thisCompilation.tap(
+			"LazyCompilationPlugin",
+			(compilation, { normalModuleFactory }) => {
+				normalModuleFactory.hooks.module.tap(
+					"LazyCompilationPlugin",
+					(originalModule, createData, resolveData) => {
+						if (
+							resolveData.dependencies.every(
+								dep =>
+									dep.type === "import()" ||
+									(this.entries && dep.type === "entry")
+							) &&
+							!/webpack[/\\]hot[/\\]|webpack-dev-server[/\\]client/.test(
+								resolveData.request
+							)
+						) {
+							const moduleInfo = backend.module(originalModule);
+							if (!moduleInfo) return;
+							const { client, data, active } = moduleInfo;
+
+							return new LazyCompilationProxyModule(
+								compiler.context,
+								originalModule,
+								resolveData.request,
+								client,
+								data,
+								active
+							);
+						}
+					}
+				);
+				compilation.dependencyFactories.set(
+					LazyCompilationDependency,
+					new LazyCompilationDependencyFactory()
+				);
+			}
+		);
+		compiler.hooks.shutdown.tapAsync("LazyCompilationPlugin", callback => {
+			backend.dispose(callback);
+		});
+	}
+}
+
+module.exports = LazyCompilationPlugin;
+
+
+/***/ }),
+
+/***/ 18111:
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+/*
+	MIT License http://www.opensource.org/licenses/mit-license.php
+	Author Tobias Koppers @sokra
+*/
+
+
+
+const http = __webpack_require__(98605);
+
+/** @typedef {import("../Compiler")} Compiler */
+
+/**
+ * @param {Compiler} compiler compiler
+ * @param {string} client client reference
+ * @param {function(Error?, any?): void} callback callback
+ * @returns {void}
+ */
+module.exports = (compiler, client, callback) => {
+	const logger = compiler.getInfrastructureLogger("LazyCompilationBackend");
+	const activeModules = new Map();
+	const prefix = "/lazy-compilation-using-";
+	const server = http.createServer((req, res) => {
+		const keys = req.url.slice(prefix.length).split("@");
+		req.socket.on("close", () => {
+			setTimeout(() => {
+				for (const key of keys) {
+					const oldValue = activeModules.get(key) || 0;
+					activeModules.set(key, oldValue - 1);
+					if (oldValue === 1) {
+						logger.log(
+							`${key} is no longer in use. Next compilation will skip this module.`
+						);
+					}
+				}
+			}, 120000);
+		});
+		req.socket.setNoDelay(true);
+		res.writeHead(200, {
+			"content-type": "text/event-stream",
+			"Access-Control-Allow-Origin": "*"
+		});
+		res.write("\n");
+		let moduleActivated = false;
+		for (const key of keys) {
+			const oldValue = activeModules.get(key) || 0;
+			activeModules.set(key, oldValue + 1);
+			if (oldValue === 0) {
+				logger.log(`${key} is now in use and will be compiled.`);
+				moduleActivated = true;
+			}
+		}
+		if (moduleActivated && compiler.watching) compiler.watching.invalidate();
+	});
+	server.listen(err => {
+		if (err) return callback(err);
+		const addr = server.address();
+		if (typeof addr === "string") throw new Error("addr must not be a string");
+		const urlBase =
+			addr.address === "::" || addr.address === "0.0.0.0"
+				? `http://localhost:${addr.port}`
+				: addr.family === "IPv6"
+				? `http://[${addr.address}]:${addr.port}`
+				: `http://${addr.address}:${addr.port}`;
+		logger.log(
+			`Server-Sent-Events server for lazy compilation open at ${urlBase}.`
+		);
+		callback(null, {
+			dispose(callback) {
+				server.close(callback);
+			},
+			module(originalModule) {
+				const key = `${encodeURIComponent(
+					originalModule.identifier().replace(/\\/g, "/").replace(/@/g, "_")
+				).replace(/%(2F|3A|24|26|2B|2C|3B|3D|3A)/g, decodeURIComponent)}`;
+				const active = activeModules.get(key) > 0;
+				return {
+					client: `webpack/hot/lazy-compilation-${
+						compiler.options.externalsPresets.node ? "node" : "web"
+					}.js?${encodeURIComponent(urlBase + prefix)}`,
+					data: key,
+					active
+				};
+			}
+		});
+	});
+};
 
 
 /***/ }),
@@ -92140,6 +92886,7 @@ const { SyncBailHook, HookMap } = __webpack_require__(18416);
 const vm = __webpack_require__(92184);
 const Parser = __webpack_require__(85569);
 const StackedMap = __webpack_require__(64149);
+const binarySearchBounds = __webpack_require__(87442);
 const memoize = __webpack_require__(18003);
 const BasicEvaluatedExpression = __webpack_require__(98288);
 
@@ -94755,13 +95502,17 @@ class JavascriptParser extends Parser {
 	}
 
 	walkCallExpression(expression) {
+		const isSimpleFunction = fn => {
+			return fn.params.every(p => p.type === "Identifier");
+		};
 		if (
 			expression.callee.type === "MemberExpression" &&
 			expression.callee.object.type.endsWith("FunctionExpression") &&
 			!expression.callee.computed &&
 			(expression.callee.property.name === "call" ||
 				expression.callee.property.name === "bind") &&
-			expression.arguments.length > 0
+			expression.arguments.length > 0 &&
+			isSimpleFunction(expression.callee.object)
 		) {
 			// (function(…) { }.call/bind(?, …))
 			this._walkIIFE(
@@ -94769,7 +95520,10 @@ class JavascriptParser extends Parser {
 				expression.arguments.slice(1),
 				expression.arguments[0]
 			);
-		} else if (expression.callee.type.endsWith("FunctionExpression")) {
+		} else if (
+			expression.callee.type.endsWith("FunctionExpression") &&
+			isSimpleFunction(expression.callee)
+		) {
 			// (function(…) { }(…))
 			this._walkIIFE(expression.callee, expression.arguments, null);
 		} else {
@@ -95506,9 +96260,16 @@ class JavascriptParser extends Parser {
 	}
 
 	getComments(range) {
-		return this.comments.filter(
-			comment => comment.range[0] >= range[0] && comment.range[1] <= range[1]
-		);
+		const [rangeStart, rangeEnd] = range;
+		const compare = (comment, needle) => comment.range[0] - needle;
+		let idx = binarySearchBounds.ge(this.comments, rangeStart, compare);
+		let commentsInRange = [];
+		while (this.comments[idx] && this.comments[idx].range[1] <= rangeEnd) {
+			commentsInRange.push(this.comments[idx]);
+			idx++;
+		}
+
+		return commentsInRange;
 	}
 
 	/**
@@ -101647,18 +102408,6 @@ ${defineGetters}`
 				throw err;
 			}
 		}
-	}
-
-	/**
-	 * @param {ChunkGraph} chunkGraph the chunk graph
-	 * @param {DependencyTemplates} dependencyTemplates dependency templates
-	 * @param {RuntimeSpec} runtime the runtime
-	 * @returns {string} hash
-	 */
-	_getHashDigest(chunkGraph, dependencyTemplates, runtime) {
-		const hash = chunkGraph.getModuleHash(this, runtime);
-		const dtHash = dependencyTemplates.getHash();
-		return `${hash}-${dtHash}`;
 	}
 
 	/**
@@ -111816,11 +112565,13 @@ class ObjectMiddleware extends SerializerMiddleware {
 				try {
 					process(value);
 				} catch (e) {
-					if (hasDebugInfoAttached === undefined)
-						hasDebugInfoAttached = new WeakSet();
-					if (!hasDebugInfoAttached.has(e)) {
-						e.message += `\nwhile serializing ${stackToString(value)}`;
-						hasDebugInfoAttached.add(e);
+					if (e !== NOT_SERIALIZABLE) {
+						if (hasDebugInfoAttached === undefined)
+							hasDebugInfoAttached = new WeakSet();
+						if (!hasDebugInfoAttached.has(e)) {
+							e.message += `\nwhile serializing ${stackToString(value)}`;
+							hasDebugInfoAttached.add(e);
+						}
 					}
 					throw e;
 				}
@@ -116555,6 +117306,7 @@ const NAMED_PRESETS = {
 		runtimeModules: true,
 		exclude: false,
 		modulesSpace: Infinity,
+		chunkModulesSpace: Infinity,
 		assetsSpace: Infinity,
 		children: true
 	},
@@ -119438,6 +120190,36 @@ module.exports = LazySet;
 
 /***/ }),
 
+/***/ 59874:
+/***/ (function(__unused_webpack_module, exports) {
+
+"use strict";
+/*
+	MIT License http://www.opensource.org/licenses/mit-license.php
+	Author Tobias Koppers @sokra
+*/
+
+
+
+/**
+ * @template K
+ * @template V
+ * @param {Map<K, V>} map a map
+ * @param {K} key the key
+ * @param {function(): V} computer compute value
+ * @returns {V} value
+ */
+exports.provide = (map, key, computer) => {
+	const value = map.get(key);
+	if (value !== undefined) return value;
+	const newValue = computer();
+	map.set(key, newValue);
+	return newValue;
+};
+
+
+/***/ }),
+
 /***/ 85987:
 /***/ (function(module) {
 
@@ -120290,6 +121072,100 @@ function getProtocol(specifier) {
 
 exports.getScheme = getScheme;
 exports.getProtocol = getProtocol;
+
+
+/***/ }),
+
+/***/ 87442:
+/***/ (function(module) {
+
+"use strict";
+/*
+	MIT License http://www.opensource.org/licenses/mit-license.php
+	Author Mikola Lysenko @mikolalysenko
+*/
+
+
+
+/* cspell:disable-next-line */
+// Refactor: Peter Somogyvari @petermetz
+
+const compileSearch = (funcName, predicate, reversed, extraArgs, earlyOut) => {
+	const code = [
+		"function ",
+		funcName,
+		"(a,l,h,",
+		extraArgs.join(","),
+		"){",
+		earlyOut ? "" : "var i=",
+		reversed ? "l-1" : "h+1",
+		";while(l<=h){var m=(l+h)>>>1,x=a[m]"
+	];
+
+	if (earlyOut) {
+		if (predicate.indexOf("c") < 0) {
+			code.push(";if(x===y){return m}else if(x<=y){");
+		} else {
+			code.push(";var p=c(x,y);if(p===0){return m}else if(p<=0){");
+		}
+	} else {
+		code.push(";if(", predicate, "){i=m;");
+	}
+	if (reversed) {
+		code.push("l=m+1}else{h=m-1}");
+	} else {
+		code.push("h=m-1}else{l=m+1}");
+	}
+	code.push("}");
+	if (earlyOut) {
+		code.push("return -1};");
+	} else {
+		code.push("return i};");
+	}
+	return code.join("");
+};
+
+const compileBoundsSearch = (predicate, reversed, suffix, earlyOut) => {
+	const arg1 = compileSearch(
+		"A",
+		"x" + predicate + "y",
+		reversed,
+		["y"],
+		earlyOut
+	);
+
+	const arg2 = compileSearch(
+		"P",
+		"c(x,y)" + predicate + "0",
+		reversed,
+		["y", "c"],
+		earlyOut
+	);
+
+	const fnHeader = "function dispatchBinarySearch";
+
+	const fnBody =
+		"(a,y,c,l,h){\
+if(typeof(c)==='function'){\
+return P(a,(l===void 0)?0:l|0,(h===void 0)?a.length-1:h|0,y,c)\
+}else{\
+return A(a,(c===void 0)?0:c|0,(l===void 0)?a.length-1:l|0,y)\
+}}\
+return dispatchBinarySearch";
+
+	const fnArgList = [arg1, arg2, fnHeader, suffix, fnBody, suffix];
+	const fnSource = fnArgList.join("");
+	const result = new Function(fnSource);
+	return result();
+};
+
+module.exports = {
+	ge: compileBoundsSearch(">=", false, "GE"),
+	gt: compileBoundsSearch(">", false, "GT"),
+	lt: compileBoundsSearch("<", true, "LT"),
+	le: compileBoundsSearch("<=", true, "LE"),
+	eq: compileBoundsSearch("-", true, "EQ", true)
+};
 
 
 /***/ }),
@@ -121558,9 +122434,11 @@ module.exports = compileBooleanMatcher;
 
 const Hash = __webpack_require__(32);
 
-const BULK_SIZE = 1000;
+const BULK_SIZE = 2000;
 
-const digestCache = new Map();
+// We are using an object instead of a Map as this will stay static during the runtime
+// so access to it can be optimized by v8
+const digestCaches = {};
 
 class BulkUpdateDecorator extends Hash {
 	/**
@@ -121615,11 +122493,15 @@ class BulkUpdateDecorator extends Hash {
 	 * @returns {string|Buffer} digest
 	 */
 	digest(encoding) {
-		let cacheKey;
+		let digestCache;
 		if (this.hash === undefined) {
 			// short data for hash, we can use caching
-			cacheKey = `${this.hashKey}-${encoding}-${this.buffer}`;
-			const cacheEntry = digestCache.get(cacheKey);
+			const cacheKey = `${this.hashKey}-${encoding}`;
+			digestCache = digestCaches[cacheKey];
+			if (digestCache === undefined) {
+				digestCache = digestCaches[cacheKey] = new Map();
+			}
+			const cacheEntry = digestCache.get(this.buffer);
 			if (cacheEntry !== undefined) return cacheEntry;
 			this.hash = this.hashFactory();
 		}
@@ -121629,8 +122511,8 @@ class BulkUpdateDecorator extends Hash {
 		const digestResult = this.hash.digest(encoding);
 		const result =
 			typeof digestResult === "string" ? digestResult : digestResult.toString();
-		if (cacheKey !== undefined) {
-			digestCache.set(cacheKey, result);
+		if (digestCache !== undefined) {
+			digestCache.set(this.buffer, result);
 		}
 		return result;
 	}
@@ -124110,14 +124992,16 @@ exports.getEntryRuntime = (compilation, name, options) => {
 /**
  * @param {RuntimeSpec} runtime runtime
  * @param {function(string): void} fn functor
+ * @param {boolean} deterministicOrder enforce a deterministic order
  * @returns {void}
  */
-exports.forEachRuntime = (runtime, fn) => {
+exports.forEachRuntime = (runtime, fn, deterministicOrder = false) => {
 	if (runtime === undefined) {
 		fn(undefined);
 	} else if (typeof runtime === "string") {
 		fn(runtime);
 	} else {
+		if (deterministicOrder) runtime.sort();
 		for (const r of runtime) {
 			fn(r);
 		}
@@ -124502,6 +125386,15 @@ class RuntimeSpecMap {
 
 	set(runtime, value) {
 		this._map.set(getRuntimeKey(runtime), value);
+	}
+
+	provide(runtime, computer) {
+		const key = getRuntimeKey(runtime);
+		const value = this._map.get(key);
+		if (value !== undefined) return value;
+		const newValue = computer();
+		this._map.set(key, newValue);
+		return newValue;
 	}
 
 	delete(runtime) {
