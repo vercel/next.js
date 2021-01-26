@@ -1,11 +1,6 @@
 name: Cancel
 on:
   pull_request_target:
-    branches:
-      # don't run cancel job for branches named canary until
-      # it no longer cancels the main canary branches jobs
-      - '**'
-      - '!canary'
     types:
       - edited
       - synchronize
