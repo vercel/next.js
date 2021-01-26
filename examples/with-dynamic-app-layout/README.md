@@ -4,7 +4,7 @@ Shows how to use `pages/_app.js` to implement _dynamic_ layouts for pages. This 
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-dynamic-app-layout&project-name=with-dynamic-app-layout&repository-name=with-dynamic-app-layout)
 

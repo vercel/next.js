@@ -20706,1453 +20706,6 @@ module.exports = function defineProperty(obj, prop, val) {
 
 /***/ }),
 
-/***/ 22706:
-/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
-
-"use strict";
-
-
-/**
- * Module dependencies
- */
-
-var toRegex = __webpack_require__(51279);
-var unique = __webpack_require__(19009);
-var extend = __webpack_require__(28727);
-
-/**
- * Local dependencies
- */
-
-var compilers = __webpack_require__(46109);
-var parsers = __webpack_require__(49665);
-var Braces = __webpack_require__(68297);
-var utils = __webpack_require__(68130);
-var MAX_LENGTH = 1024 * 64;
-var cache = {};
-
-/**
- * Convert the given `braces` pattern into a regex-compatible string. By default, only one string is generated for every input string. Set `options.expand` to true to return an array of patterns (similar to Bash or minimatch. Before using `options.expand`, it's recommended that you read the [performance notes](#performance)).
- *
- * ```js
- * var braces = require('braces');
- * console.log(braces('{a,b,c}'));
- * //=> ['(a|b|c)']
- *
- * console.log(braces('{a,b,c}', {expand: true}));
- * //=> ['a', 'b', 'c']
- * ```
- * @param {String} `str`
- * @param {Object} `options`
- * @return {String}
- * @api public
- */
-
-function braces(pattern, options) {
-  var key = utils.createKey(String(pattern), options);
-  var arr = [];
-
-  var disabled = options && options.cache === false;
-  if (!disabled && cache.hasOwnProperty(key)) {
-    return cache[key];
-  }
-
-  if (Array.isArray(pattern)) {
-    for (var i = 0; i < pattern.length; i++) {
-      arr.push.apply(arr, braces.create(pattern[i], options));
-    }
-  } else {
-    arr = braces.create(pattern, options);
-  }
-
-  if (options && options.nodupes === true) {
-    arr = unique(arr);
-  }
-
-  if (!disabled) {
-    cache[key] = arr;
-  }
-  return arr;
-}
-
-/**
- * Expands a brace pattern into an array. This method is called by the main [braces](#braces) function when `options.expand` is true. Before using this method it's recommended that you read the [performance notes](#performance)) and advantages of using [.optimize](#optimize) instead.
- *
- * ```js
- * var braces = require('braces');
- * console.log(braces.expand('a/{b,c}/d'));
- * //=> ['a/b/d', 'a/c/d'];
- * ```
- * @param {String} `pattern` Brace pattern
- * @param {Object} `options`
- * @return {Array} Returns an array of expanded values.
- * @api public
- */
-
-braces.expand = function(pattern, options) {
-  return braces.create(pattern, extend({}, options, {expand: true}));
-};
-
-/**
- * Expands a brace pattern into a regex-compatible, optimized string. This method is called by the main [braces](#braces) function by default.
- *
- * ```js
- * var braces = require('braces');
- * console.log(braces.expand('a/{b,c}/d'));
- * //=> ['a/(b|c)/d']
- * ```
- * @param {String} `pattern` Brace pattern
- * @param {Object} `options`
- * @return {Array} Returns an array of expanded values.
- * @api public
- */
-
-braces.optimize = function(pattern, options) {
-  return braces.create(pattern, options);
-};
-
-/**
- * Processes a brace pattern and returns either an expanded array (if `options.expand` is true), a highly optimized regex-compatible string. This method is called by the main [braces](#braces) function.
- *
- * ```js
- * var braces = require('braces');
- * console.log(braces.create('user-{200..300}/project-{a,b,c}-{1..10}'))
- * //=> 'user-(20[0-9]|2[1-9][0-9]|300)/project-(a|b|c)-([1-9]|10)'
- * ```
- * @param {String} `pattern` Brace pattern
- * @param {Object} `options`
- * @return {Array} Returns an array of expanded values.
- * @api public
- */
-
-braces.create = function(pattern, options) {
-  if (typeof pattern !== 'string') {
-    throw new TypeError('expected a string');
-  }
-
-  var maxLength = (options && options.maxLength) || MAX_LENGTH;
-  if (pattern.length >= maxLength) {
-    throw new Error('expected pattern to be less than ' + maxLength + ' characters');
-  }
-
-  function create() {
-    if (pattern === '' || pattern.length < 3) {
-      return [pattern];
-    }
-
-    if (utils.isEmptySets(pattern)) {
-      return [];
-    }
-
-    if (utils.isQuotedString(pattern)) {
-      return [pattern.slice(1, -1)];
-    }
-
-    var proto = new Braces(options);
-    var result = !options || options.expand !== true
-      ? proto.optimize(pattern, options)
-      : proto.expand(pattern, options);
-
-    // get the generated pattern(s)
-    var arr = result.output;
-
-    // filter out empty strings if specified
-    if (options && options.noempty === true) {
-      arr = arr.filter(Boolean);
-    }
-
-    // filter out duplicates if specified
-    if (options && options.nodupes === true) {
-      arr = unique(arr);
-    }
-
-    Object.defineProperty(arr, 'result', {
-      enumerable: false,
-      value: result
-    });
-
-    return arr;
-  }
-
-  return memoize('create', pattern, options, create);
-};
-
-/**
- * Create a regular expression from the given string `pattern`.
- *
- * ```js
- * var braces = require('braces');
- *
- * console.log(braces.makeRe('id-{200..300}'));
- * //=> /^(?:id-(20[0-9]|2[1-9][0-9]|300))$/
- * ```
- * @param {String} `pattern` The pattern to convert to regex.
- * @param {Object} `options`
- * @return {RegExp}
- * @api public
- */
-
-braces.makeRe = function(pattern, options) {
-  if (typeof pattern !== 'string') {
-    throw new TypeError('expected a string');
-  }
-
-  var maxLength = (options && options.maxLength) || MAX_LENGTH;
-  if (pattern.length >= maxLength) {
-    throw new Error('expected pattern to be less than ' + maxLength + ' characters');
-  }
-
-  function makeRe() {
-    var arr = braces(pattern, options);
-    var opts = extend({strictErrors: false}, options);
-    return toRegex(arr, opts);
-  }
-
-  return memoize('makeRe', pattern, options, makeRe);
-};
-
-/**
- * Parse the given `str` with the given `options`.
- *
- * ```js
- * var braces = require('braces');
- * var ast = braces.parse('a/{b,c}/d');
- * console.log(ast);
- * // { type: 'root',
- * //   errors: [],
- * //   input: 'a/{b,c}/d',
- * //   nodes:
- * //    [ { type: 'bos', val: '' },
- * //      { type: 'text', val: 'a/' },
- * //      { type: 'brace',
- * //        nodes:
- * //         [ { type: 'brace.open', val: '{' },
- * //           { type: 'text', val: 'b,c' },
- * //           { type: 'brace.close', val: '}' } ] },
- * //      { type: 'text', val: '/d' },
- * //      { type: 'eos', val: '' } ] }
- * ```
- * @param {String} `pattern` Brace pattern to parse
- * @param {Object} `options`
- * @return {Object} Returns an AST
- * @api public
- */
-
-braces.parse = function(pattern, options) {
-  var proto = new Braces(options);
-  return proto.parse(pattern, options);
-};
-
-/**
- * Compile the given `ast` or string with the given `options`.
- *
- * ```js
- * var braces = require('braces');
- * var ast = braces.parse('a/{b,c}/d');
- * console.log(braces.compile(ast));
- * // { options: { source: 'string' },
- * //   state: {},
- * //   compilers:
- * //    { eos: [Function],
- * //      noop: [Function],
- * //      bos: [Function],
- * //      brace: [Function],
- * //      'brace.open': [Function],
- * //      text: [Function],
- * //      'brace.close': [Function] },
- * //   output: [ 'a/(b|c)/d' ],
- * //   ast:
- * //    { ... },
- * //   parsingErrors: [] }
- * ```
- * @param {Object|String} `ast` AST from [.parse](#parse). If a string is passed it will be parsed first.
- * @param {Object} `options`
- * @return {Object} Returns an object that has an `output` property with the compiled string.
- * @api public
- */
-
-braces.compile = function(ast, options) {
-  var proto = new Braces(options);
-  return proto.compile(ast, options);
-};
-
-/**
- * Clear the regex cache.
- *
- * ```js
- * braces.clearCache();
- * ```
- * @api public
- */
-
-braces.clearCache = function() {
-  cache = braces.cache = {};
-};
-
-/**
- * Memoize a generated regex or function. A unique key is generated
- * from the method name, pattern, and user-defined options. Set
- * options.memoize to false to disable.
- */
-
-function memoize(type, pattern, options, fn) {
-  var key = utils.createKey(type + ':' + pattern, options);
-  var disabled = options && options.cache === false;
-  if (disabled) {
-    braces.clearCache();
-    return fn(pattern, options);
-  }
-
-  if (cache.hasOwnProperty(key)) {
-    return cache[key];
-  }
-
-  var res = fn(pattern, options);
-  cache[key] = res;
-  return res;
-}
-
-/**
- * Expose `Braces` constructor and methods
- * @type {Function}
- */
-
-braces.Braces = Braces;
-braces.compilers = compilers;
-braces.parsers = parsers;
-braces.cache = cache;
-
-/**
- * Expose `braces`
- * @type {Function}
- */
-
-module.exports = braces;
-
-
-/***/ }),
-
-/***/ 68297:
-/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
-
-"use strict";
-
-
-var extend = __webpack_require__(28727);
-var Snapdragon = __webpack_require__(79285);
-var compilers = __webpack_require__(46109);
-var parsers = __webpack_require__(49665);
-var utils = __webpack_require__(68130);
-
-/**
- * Customize Snapdragon parser and renderer
- */
-
-function Braces(options) {
-  this.options = extend({}, options);
-}
-
-/**
- * Initialize braces
- */
-
-Braces.prototype.init = function(options) {
-  if (this.isInitialized) return;
-  this.isInitialized = true;
-  var opts = utils.createOptions({}, this.options, options);
-  this.snapdragon = this.options.snapdragon || new Snapdragon(opts);
-  this.compiler = this.snapdragon.compiler;
-  this.parser = this.snapdragon.parser;
-
-  compilers(this.snapdragon, opts);
-  parsers(this.snapdragon, opts);
-
-  /**
-   * Call Snapdragon `.parse` method. When AST is returned, we check to
-   * see if any unclosed braces are left on the stack and, if so, we iterate
-   * over the stack and correct the AST so that compilers are called in the correct
-   * order and unbalance braces are properly escaped.
-   */
-
-  utils.define(this.snapdragon, 'parse', function(pattern, options) {
-    var parsed = Snapdragon.prototype.parse.apply(this, arguments);
-    this.parser.ast.input = pattern;
-
-    var stack = this.parser.stack;
-    while (stack.length) {
-      addParent({type: 'brace.close', val: ''}, stack.pop());
-    }
-
-    function addParent(node, parent) {
-      utils.define(node, 'parent', parent);
-      parent.nodes.push(node);
-    }
-
-    // add non-enumerable parser reference
-    utils.define(parsed, 'parser', this.parser);
-    return parsed;
-  });
-};
-
-/**
- * Decorate `.parse` method
- */
-
-Braces.prototype.parse = function(ast, options) {
-  if (ast && typeof ast === 'object' && ast.nodes) return ast;
-  this.init(options);
-  return this.snapdragon.parse(ast, options);
-};
-
-/**
- * Decorate `.compile` method
- */
-
-Braces.prototype.compile = function(ast, options) {
-  if (typeof ast === 'string') {
-    ast = this.parse(ast, options);
-  } else {
-    this.init(options);
-  }
-  return this.snapdragon.compile(ast, options);
-};
-
-/**
- * Expand
- */
-
-Braces.prototype.expand = function(pattern) {
-  var ast = this.parse(pattern, {expand: true});
-  return this.compile(ast, {expand: true});
-};
-
-/**
- * Optimize
- */
-
-Braces.prototype.optimize = function(pattern) {
-  var ast = this.parse(pattern, {optimize: true});
-  return this.compile(ast, {optimize: true});
-};
-
-/**
- * Expose `Braces`
- */
-
-module.exports = Braces;
-
-
-/***/ }),
-
-/***/ 46109:
-/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
-
-"use strict";
-
-
-var utils = __webpack_require__(68130);
-
-module.exports = function(braces, options) {
-  braces.compiler
-
-    /**
-     * bos
-     */
-
-    .set('bos', function() {
-      if (this.output) return;
-      this.ast.queue = isEscaped(this.ast) ? [this.ast.val] : [];
-      this.ast.count = 1;
-    })
-
-    /**
-     * Square brackets
-     */
-
-    .set('bracket', function(node) {
-      var close = node.close;
-      var open = !node.escaped ? '[' : '\\[';
-      var negated = node.negated;
-      var inner = node.inner;
-
-      inner = inner.replace(/\\(?=[\\\w]|$)/g, '\\\\');
-      if (inner === ']-') {
-        inner = '\\]\\-';
-      }
-
-      if (negated && inner.indexOf('.') === -1) {
-        inner += '.';
-      }
-      if (negated && inner.indexOf('/') === -1) {
-        inner += '/';
-      }
-
-      var val = open + negated + inner + close;
-      var queue = node.parent.queue;
-      var last = utils.arrayify(queue.pop());
-
-      queue.push(utils.join(last, val));
-      queue.push.apply(queue, []);
-    })
-
-    /**
-     * Brace
-     */
-
-    .set('brace', function(node) {
-      node.queue = isEscaped(node) ? [node.val] : [];
-      node.count = 1;
-      return this.mapVisit(node.nodes);
-    })
-
-    /**
-     * Open
-     */
-
-    .set('brace.open', function(node) {
-      node.parent.open = node.val;
-    })
-
-    /**
-     * Inner
-     */
-
-    .set('text', function(node) {
-      var queue = node.parent.queue;
-      var escaped = node.escaped;
-      var segs = [node.val];
-
-      if (node.optimize === false) {
-        options = utils.extend({}, options, {optimize: false});
-      }
-
-      if (node.multiplier > 1) {
-        node.parent.count *= node.multiplier;
-      }
-
-      if (options.quantifiers === true && utils.isQuantifier(node.val)) {
-        escaped = true;
-
-      } else if (node.val.length > 1) {
-        if (isType(node.parent, 'brace') && !isEscaped(node)) {
-          var expanded = utils.expand(node.val, options);
-          segs = expanded.segs;
-
-          if (expanded.isOptimized) {
-            node.parent.isOptimized = true;
-          }
-
-          // if nothing was expanded, we probably have a literal brace
-          if (!segs.length) {
-            var val = (expanded.val || node.val);
-            if (options.unescape !== false) {
-              // unescape unexpanded brace sequence/set separators
-              val = val.replace(/\\([,.])/g, '$1');
-              // strip quotes
-              val = val.replace(/["'`]/g, '');
-            }
-
-            segs = [val];
-            escaped = true;
-          }
-        }
-
-      } else if (node.val === ',') {
-        if (options.expand) {
-          node.parent.queue.push(['']);
-          segs = [''];
-        } else {
-          segs = ['|'];
-        }
-      } else {
-        escaped = true;
-      }
-
-      if (escaped && isType(node.parent, 'brace')) {
-        if (node.parent.nodes.length <= 4 && node.parent.count === 1) {
-          node.parent.escaped = true;
-        } else if (node.parent.length <= 3) {
-          node.parent.escaped = true;
-        }
-      }
-
-      if (!hasQueue(node.parent)) {
-        node.parent.queue = segs;
-        return;
-      }
-
-      var last = utils.arrayify(queue.pop());
-      if (node.parent.count > 1 && options.expand) {
-        last = multiply(last, node.parent.count);
-        node.parent.count = 1;
-      }
-
-      queue.push(utils.join(utils.flatten(last), segs.shift()));
-      queue.push.apply(queue, segs);
-    })
-
-    /**
-     * Close
-     */
-
-    .set('brace.close', function(node) {
-      var queue = node.parent.queue;
-      var prev = node.parent.parent;
-      var last = prev.queue.pop();
-      var open = node.parent.open;
-      var close = node.val;
-
-      if (open && close && isOptimized(node, options)) {
-        open = '(';
-        close = ')';
-      }
-
-      // if a close brace exists, and the previous segment is one character
-      // don't wrap the result in braces or parens
-      var ele = utils.last(queue);
-      if (node.parent.count > 1 && options.expand) {
-        ele = multiply(queue.pop(), node.parent.count);
-        node.parent.count = 1;
-        queue.push(ele);
-      }
-
-      if (close && typeof ele === 'string' && ele.length === 1) {
-        open = '';
-        close = '';
-      }
-
-      if ((isLiteralBrace(node, options) || noInner(node)) && !node.parent.hasEmpty) {
-        queue.push(utils.join(open, queue.pop() || ''));
-        queue = utils.flatten(utils.join(queue, close));
-      }
-
-      if (typeof last === 'undefined') {
-        prev.queue = [queue];
-      } else {
-        prev.queue.push(utils.flatten(utils.join(last, queue)));
-      }
-    })
-
-    /**
-     * eos
-     */
-
-    .set('eos', function(node) {
-      if (this.input) return;
-
-      if (options.optimize !== false) {
-        this.output = utils.last(utils.flatten(this.ast.queue));
-      } else if (Array.isArray(utils.last(this.ast.queue))) {
-        this.output = utils.flatten(this.ast.queue.pop());
-      } else {
-        this.output = utils.flatten(this.ast.queue);
-      }
-
-      if (node.parent.count > 1 && options.expand) {
-        this.output = multiply(this.output, node.parent.count);
-      }
-
-      this.output = utils.arrayify(this.output);
-      this.ast.queue = [];
-    });
-
-};
-
-/**
- * Multiply the segments in the current brace level
- */
-
-function multiply(queue, n, options) {
-  return utils.flatten(utils.repeat(utils.arrayify(queue), n));
-}
-
-/**
- * Return true if `node` is escaped
- */
-
-function isEscaped(node) {
-  return node.escaped === true;
-}
-
-/**
- * Returns true if regex parens should be used for sets. If the parent `type`
- * is not `brace`, then we're on a root node, which means we should never
- * expand segments and open/close braces should be `{}` (since this indicates
- * a brace is missing from the set)
- */
-
-function isOptimized(node, options) {
-  if (node.parent.isOptimized) return true;
-  return isType(node.parent, 'brace')
-    && !isEscaped(node.parent)
-    && options.expand !== true;
-}
-
-/**
- * Returns true if the value in `node` should be wrapped in a literal brace.
- * @return {Boolean}
- */
-
-function isLiteralBrace(node, options) {
-  return isEscaped(node.parent) || options.optimize !== false;
-}
-
-/**
- * Returns true if the given `node` does not have an inner value.
- * @return {Boolean}
- */
-
-function noInner(node, type) {
-  if (node.parent.queue.length === 1) {
-    return true;
-  }
-  var nodes = node.parent.nodes;
-  return nodes.length === 3
-    && isType(nodes[0], 'brace.open')
-    && !isType(nodes[1], 'text')
-    && isType(nodes[2], 'brace.close');
-}
-
-/**
- * Returns true if the given `node` is the given `type`
- * @return {Boolean}
- */
-
-function isType(node, type) {
-  return typeof node !== 'undefined' && node.type === type;
-}
-
-/**
- * Returns true if the given `node` has a non-empty queue.
- * @return {Boolean}
- */
-
-function hasQueue(node) {
-  return Array.isArray(node.queue) && node.queue.length;
-}
-
-
-/***/ }),
-
-/***/ 49665:
-/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
-
-"use strict";
-
-
-var Node = __webpack_require__(12579);
-var utils = __webpack_require__(68130);
-
-/**
- * Braces parsers
- */
-
-module.exports = function(braces, options) {
-  braces.parser
-    .set('bos', function() {
-      if (!this.parsed) {
-        this.ast = this.nodes[0] = new Node(this.ast);
-      }
-    })
-
-    /**
-     * Character parsers
-     */
-
-    .set('escape', function() {
-      var pos = this.position();
-      var m = this.match(/^(?:\\(.)|\$\{)/);
-      if (!m) return;
-
-      var prev = this.prev();
-      var last = utils.last(prev.nodes);
-
-      var node = pos(new Node({
-        type: 'text',
-        multiplier: 1,
-        val: m[0]
-      }));
-
-      if (node.val === '\\\\') {
-        return node;
-      }
-
-      if (node.val === '${') {
-        var str = this.input;
-        var idx = -1;
-        var ch;
-
-        while ((ch = str[++idx])) {
-          this.consume(1);
-          node.val += ch;
-          if (ch === '\\') {
-            node.val += str[++idx];
-            continue;
-          }
-          if (ch === '}') {
-            break;
-          }
-        }
-      }
-
-      if (this.options.unescape !== false) {
-        node.val = node.val.replace(/\\([{}])/g, '$1');
-      }
-
-      if (last.val === '"' && this.input.charAt(0) === '"') {
-        last.val = node.val;
-        this.consume(1);
-        return;
-      }
-
-      return concatNodes.call(this, pos, node, prev, options);
-    })
-
-    /**
-     * Brackets: "[...]" (basic, this is overridden by
-     * other parsers in more advanced implementations)
-     */
-
-    .set('bracket', function() {
-      var isInside = this.isInside('brace');
-      var pos = this.position();
-      var m = this.match(/^(?:\[([!^]?)([^\]]{2,}|\]-)(\]|[^*+?]+)|\[)/);
-      if (!m) return;
-
-      var prev = this.prev();
-      var val = m[0];
-      var negated = m[1] ? '^' : '';
-      var inner = m[2] || '';
-      var close = m[3] || '';
-
-      if (isInside && prev.type === 'brace') {
-        prev.text = prev.text || '';
-        prev.text += val;
-      }
-
-      var esc = this.input.slice(0, 2);
-      if (inner === '' && esc === '\\]') {
-        inner += esc;
-        this.consume(2);
-
-        var str = this.input;
-        var idx = -1;
-        var ch;
-
-        while ((ch = str[++idx])) {
-          this.consume(1);
-          if (ch === ']') {
-            close = ch;
-            break;
-          }
-          inner += ch;
-        }
-      }
-
-      return pos(new Node({
-        type: 'bracket',
-        val: val,
-        escaped: close !== ']',
-        negated: negated,
-        inner: inner,
-        close: close
-      }));
-    })
-
-    /**
-     * Empty braces (we capture these early to
-     * speed up processing in the compiler)
-     */
-
-    .set('multiplier', function() {
-      var isInside = this.isInside('brace');
-      var pos = this.position();
-      var m = this.match(/^\{((?:,|\{,+\})+)\}/);
-      if (!m) return;
-
-      this.multiplier = true;
-      var prev = this.prev();
-      var val = m[0];
-
-      if (isInside && prev.type === 'brace') {
-        prev.text = prev.text || '';
-        prev.text += val;
-      }
-
-      var node = pos(new Node({
-        type: 'text',
-        multiplier: 1,
-        match: m,
-        val: val
-      }));
-
-      return concatNodes.call(this, pos, node, prev, options);
-    })
-
-    /**
-     * Open
-     */
-
-    .set('brace.open', function() {
-      var pos = this.position();
-      var m = this.match(/^\{(?!(?:[^\\}]?|,+)\})/);
-      if (!m) return;
-
-      var prev = this.prev();
-      var last = utils.last(prev.nodes);
-
-      // if the last parsed character was an extglob character
-      // we need to _not optimize_ the brace pattern because
-      // it might be mistaken for an extglob by a downstream parser
-      if (last && last.val && isExtglobChar(last.val.slice(-1))) {
-        last.optimize = false;
-      }
-
-      var open = pos(new Node({
-        type: 'brace.open',
-        val: m[0]
-      }));
-
-      var node = pos(new Node({
-        type: 'brace',
-        nodes: []
-      }));
-
-      node.push(open);
-      prev.push(node);
-      this.push('brace', node);
-    })
-
-    /**
-     * Close
-     */
-
-    .set('brace.close', function() {
-      var pos = this.position();
-      var m = this.match(/^\}/);
-      if (!m || !m[0]) return;
-
-      var brace = this.pop('brace');
-      var node = pos(new Node({
-        type: 'brace.close',
-        val: m[0]
-      }));
-
-      if (!this.isType(brace, 'brace')) {
-        if (this.options.strict) {
-          throw new Error('missing opening "{"');
-        }
-        node.type = 'text';
-        node.multiplier = 0;
-        node.escaped = true;
-        return node;
-      }
-
-      var prev = this.prev();
-      var last = utils.last(prev.nodes);
-      if (last.text) {
-        var lastNode = utils.last(last.nodes);
-        if (lastNode.val === ')' && /[!@*?+]\(/.test(last.text)) {
-          var open = last.nodes[0];
-          var text = last.nodes[1];
-          if (open.type === 'brace.open' && text && text.type === 'text') {
-            text.optimize = false;
-          }
-        }
-      }
-
-      if (brace.nodes.length > 2) {
-        var first = brace.nodes[1];
-        if (first.type === 'text' && first.val === ',') {
-          brace.nodes.splice(1, 1);
-          brace.nodes.push(first);
-        }
-      }
-
-      brace.push(node);
-    })
-
-    /**
-     * Capture boundary characters
-     */
-
-    .set('boundary', function() {
-      var pos = this.position();
-      var m = this.match(/^[$^](?!\{)/);
-      if (!m) return;
-      return pos(new Node({
-        type: 'text',
-        val: m[0]
-      }));
-    })
-
-    /**
-     * One or zero, non-comma characters wrapped in braces
-     */
-
-    .set('nobrace', function() {
-      var isInside = this.isInside('brace');
-      var pos = this.position();
-      var m = this.match(/^\{[^,]?\}/);
-      if (!m) return;
-
-      var prev = this.prev();
-      var val = m[0];
-
-      if (isInside && prev.type === 'brace') {
-        prev.text = prev.text || '';
-        prev.text += val;
-      }
-
-      return pos(new Node({
-        type: 'text',
-        multiplier: 0,
-        val: val
-      }));
-    })
-
-    /**
-     * Text
-     */
-
-    .set('text', function() {
-      var isInside = this.isInside('brace');
-      var pos = this.position();
-      var m = this.match(/^((?!\\)[^${}[\]])+/);
-      if (!m) return;
-
-      var prev = this.prev();
-      var val = m[0];
-
-      if (isInside && prev.type === 'brace') {
-        prev.text = prev.text || '';
-        prev.text += val;
-      }
-
-      var node = pos(new Node({
-        type: 'text',
-        multiplier: 1,
-        val: val
-      }));
-
-      return concatNodes.call(this, pos, node, prev, options);
-    });
-};
-
-/**
- * Returns true if the character is an extglob character.
- */
-
-function isExtglobChar(ch) {
-  return ch === '!' || ch === '@' || ch === '*' || ch === '?' || ch === '+';
-}
-
-/**
- * Combine text nodes, and calculate empty sets (`{,,}`)
- * @param {Function} `pos` Function to calculate node position
- * @param {Object} `node` AST node
- * @return {Object}
- */
-
-function concatNodes(pos, node, parent, options) {
-  node.orig = node.val;
-  var prev = this.prev();
-  var last = utils.last(prev.nodes);
-  var isEscaped = false;
-
-  if (node.val.length > 1) {
-    var a = node.val.charAt(0);
-    var b = node.val.slice(-1);
-
-    isEscaped = (a === '"' && b === '"')
-      || (a === "'" && b === "'")
-      || (a === '`' && b === '`');
-  }
-
-  if (isEscaped && options.unescape !== false) {
-    node.val = node.val.slice(1, node.val.length - 1);
-    node.escaped = true;
-  }
-
-  if (node.match) {
-    var match = node.match[1];
-    if (!match || match.indexOf('}') === -1) {
-      match = node.match[0];
-    }
-
-    // replace each set with a single ","
-    var val = match.replace(/\{/g, ',').replace(/\}/g, '');
-    node.multiplier *= val.length;
-    node.val = '';
-  }
-
-  var simpleText = last.type === 'text'
-    && last.multiplier === 1
-    && node.multiplier === 1
-    && node.val;
-
-  if (simpleText) {
-    last.val += node.val;
-    return;
-  }
-
-  prev.push(node);
-}
-
-
-/***/ }),
-
-/***/ 68130:
-/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
-
-"use strict";
-
-
-var splitString = __webpack_require__(33218);
-var utils = module.exports;
-
-/**
- * Module dependencies
- */
-
-utils.extend = __webpack_require__(28727);
-utils.flatten = __webpack_require__(27299);
-utils.isObject = __webpack_require__(96667);
-utils.fillRange = __webpack_require__(35955);
-utils.repeat = __webpack_require__(69523);
-utils.unique = __webpack_require__(19009);
-
-utils.define = function(obj, key, val) {
-  Object.defineProperty(obj, key, {
-    writable: true,
-    configurable: true,
-    enumerable: false,
-    value: val
-  });
-};
-
-/**
- * Returns true if the given string contains only empty brace sets.
- */
-
-utils.isEmptySets = function(str) {
-  return /^(?:\{,\})+$/.test(str);
-};
-
-/**
- * Returns true if the given string contains only empty brace sets.
- */
-
-utils.isQuotedString = function(str) {
-  var open = str.charAt(0);
-  if (open === '\'' || open === '"' || open === '`') {
-    return str.slice(-1) === open;
-  }
-  return false;
-};
-
-/**
- * Create the key to use for memoization. The unique key is generated
- * by iterating over the options and concatenating key-value pairs
- * to the pattern string.
- */
-
-utils.createKey = function(pattern, options) {
-  var id = pattern;
-  if (typeof options === 'undefined') {
-    return id;
-  }
-  var keys = Object.keys(options);
-  for (var i = 0; i < keys.length; i++) {
-    var key = keys[i];
-    id += ';' + key + '=' + String(options[key]);
-  }
-  return id;
-};
-
-/**
- * Normalize options
- */
-
-utils.createOptions = function(options) {
-  var opts = utils.extend.apply(null, arguments);
-  if (typeof opts.expand === 'boolean') {
-    opts.optimize = !opts.expand;
-  }
-  if (typeof opts.optimize === 'boolean') {
-    opts.expand = !opts.optimize;
-  }
-  if (opts.optimize === true) {
-    opts.makeRe = true;
-  }
-  return opts;
-};
-
-/**
- * Join patterns in `a` to patterns in `b`
- */
-
-utils.join = function(a, b, options) {
-  options = options || {};
-  a = utils.arrayify(a);
-  b = utils.arrayify(b);
-
-  if (!a.length) return b;
-  if (!b.length) return a;
-
-  var len = a.length;
-  var idx = -1;
-  var arr = [];
-
-  while (++idx < len) {
-    var val = a[idx];
-    if (Array.isArray(val)) {
-      for (var i = 0; i < val.length; i++) {
-        val[i] = utils.join(val[i], b, options);
-      }
-      arr.push(val);
-      continue;
-    }
-
-    for (var j = 0; j < b.length; j++) {
-      var bval = b[j];
-
-      if (Array.isArray(bval)) {
-        arr.push(utils.join(val, bval, options));
-      } else {
-        arr.push(val + bval);
-      }
-    }
-  }
-  return arr;
-};
-
-/**
- * Split the given string on `,` if not escaped.
- */
-
-utils.split = function(str, options) {
-  var opts = utils.extend({sep: ','}, options);
-  if (typeof opts.keepQuotes !== 'boolean') {
-    opts.keepQuotes = true;
-  }
-  if (opts.unescape === false) {
-    opts.keepEscaping = true;
-  }
-  return splitString(str, opts, utils.escapeBrackets(opts));
-};
-
-/**
- * Expand ranges or sets in the given `pattern`.
- *
- * @param {String} `str`
- * @param {Object} `options`
- * @return {Object}
- */
-
-utils.expand = function(str, options) {
-  var opts = utils.extend({rangeLimit: 10000}, options);
-  var segs = utils.split(str, opts);
-  var tok = { segs: segs };
-
-  if (utils.isQuotedString(str)) {
-    return tok;
-  }
-
-  if (opts.rangeLimit === true) {
-    opts.rangeLimit = 10000;
-  }
-
-  if (segs.length > 1) {
-    if (opts.optimize === false) {
-      tok.val = segs[0];
-      return tok;
-    }
-
-    tok.segs = utils.stringifyArray(tok.segs);
-  } else if (segs.length === 1) {
-    var arr = str.split('..');
-
-    if (arr.length === 1) {
-      tok.val = tok.segs[tok.segs.length - 1] || tok.val || str;
-      tok.segs = [];
-      return tok;
-    }
-
-    if (arr.length === 2 && arr[0] === arr[1]) {
-      tok.escaped = true;
-      tok.val = arr[0];
-      tok.segs = [];
-      return tok;
-    }
-
-    if (arr.length > 1) {
-      if (opts.optimize !== false) {
-        opts.optimize = true;
-        delete opts.expand;
-      }
-
-      if (opts.optimize !== true) {
-        var min = Math.min(arr[0], arr[1]);
-        var max = Math.max(arr[0], arr[1]);
-        var step = arr[2] || 1;
-
-        if (opts.rangeLimit !== false && ((max - min) / step >= opts.rangeLimit)) {
-          throw new RangeError('expanded array length exceeds range limit. Use options.rangeLimit to increase or disable the limit.');
-        }
-      }
-
-      arr.push(opts);
-      tok.segs = utils.fillRange.apply(null, arr);
-
-      if (!tok.segs.length) {
-        tok.escaped = true;
-        tok.val = str;
-        return tok;
-      }
-
-      if (opts.optimize === true) {
-        tok.segs = utils.stringifyArray(tok.segs);
-      }
-
-      if (tok.segs === '') {
-        tok.val = str;
-      } else {
-        tok.val = tok.segs[0];
-      }
-      return tok;
-    }
-  } else {
-    tok.val = str;
-  }
-  return tok;
-};
-
-/**
- * Ensure commas inside brackets and parens are not split.
- * @param {Object} `tok` Token from the `split-string` module
- * @return {undefined}
- */
-
-utils.escapeBrackets = function(options) {
-  return function(tok) {
-    if (tok.escaped && tok.val === 'b') {
-      tok.val = '\\b';
-      return;
-    }
-
-    if (tok.val !== '(' && tok.val !== '[') return;
-    var opts = utils.extend({}, options);
-    var brackets = [];
-    var parens = [];
-    var stack = [];
-    var val = tok.val;
-    var str = tok.str;
-    var i = tok.idx - 1;
-
-    while (++i < str.length) {
-      var ch = str[i];
-
-      if (ch === '\\') {
-        val += (opts.keepEscaping === false ? '' : ch) + str[++i];
-        continue;
-      }
-
-      if (ch === '(') {
-        parens.push(ch);
-        stack.push(ch);
-      }
-
-      if (ch === '[') {
-        brackets.push(ch);
-        stack.push(ch);
-      }
-
-      if (ch === ')') {
-        parens.pop();
-        stack.pop();
-        if (!stack.length) {
-          val += ch;
-          break;
-        }
-      }
-
-      if (ch === ']') {
-        brackets.pop();
-        stack.pop();
-        if (!stack.length) {
-          val += ch;
-          break;
-        }
-      }
-      val += ch;
-    }
-
-    tok.split = false;
-    tok.val = val.slice(1);
-    tok.idx = i;
-  };
-};
-
-/**
- * Returns true if the given string looks like a regex quantifier
- * @return {Boolean}
- */
-
-utils.isQuantifier = function(str) {
-  return /^(?:[0-9]?,[0-9]|[0-9],)$/.test(str);
-};
-
-/**
- * Cast `val` to an array.
- * @param {*} `val`
- */
-
-utils.stringifyArray = function(arr) {
-  return [utils.arrayify(arr).join('|')];
-};
-
-/**
- * Cast `val` to an array.
- * @param {*} `val`
- */
-
-utils.arrayify = function(arr) {
-  if (typeof arr === 'undefined') {
-    return [];
-  }
-  if (typeof arr === 'string') {
-    return [arr];
-  }
-  return arr;
-};
-
-/**
- * Returns true if the given `str` is a non-empty string
- * @return {Boolean}
- */
-
-utils.isString = function(str) {
-  return str != null && typeof str === 'string';
-};
-
-/**
- * Get the last element from `array`
- * @param {Array} `array`
- * @return {*}
- */
-
-utils.last = function(arr, n) {
-  return arr[arr.length - (n || 1)];
-};
-
-utils.escapeRegex = function(str) {
-  return str.replace(/\\?([!^*?()[\]{}+?/])/g, '\\$1');
-};
-
-
-/***/ }),
-
 /***/ 63375:
 /***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
@@ -30653,222 +29206,6 @@ module.exports = function (data, opts) {
 
 /***/ }),
 
-/***/ 35955:
-/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
-
-"use strict";
-/*!
- * fill-range <https://github.com/jonschlinkert/fill-range>
- *
- * Copyright (c) 2014-2015, 2017, Jon Schlinkert.
- * Released under the MIT License.
- */
-
-
-
-var util = __webpack_require__(31669);
-var isNumber = __webpack_require__(87218);
-var extend = __webpack_require__(28727);
-var repeat = __webpack_require__(6332);
-var toRegex = __webpack_require__(1353);
-
-/**
- * Return a range of numbers or letters.
- *
- * @param  {String} `start` Start of the range
- * @param  {String} `stop` End of the range
- * @param  {String} `step` Increment or decrement to use.
- * @param  {Function} `fn` Custom function to modify each element in the range.
- * @return {Array}
- */
-
-function fillRange(start, stop, step, options) {
-  if (typeof start === 'undefined') {
-    return [];
-  }
-
-  if (typeof stop === 'undefined' || start === stop) {
-    // special case, for handling negative zero
-    var isString = typeof start === 'string';
-    if (isNumber(start) && !toNumber(start)) {
-      return [isString ? '0' : 0];
-    }
-    return [start];
-  }
-
-  if (typeof step !== 'number' && typeof step !== 'string') {
-    options = step;
-    step = undefined;
-  }
-
-  if (typeof options === 'function') {
-    options = { transform: options };
-  }
-
-  var opts = extend({step: step}, options);
-  if (opts.step && !isValidNumber(opts.step)) {
-    if (opts.strictRanges === true) {
-      throw new TypeError('expected options.step to be a number');
-    }
-    return [];
-  }
-
-  opts.isNumber = isValidNumber(start) && isValidNumber(stop);
-  if (!opts.isNumber && !isValid(start, stop)) {
-    if (opts.strictRanges === true) {
-      throw new RangeError('invalid range arguments: ' + util.inspect([start, stop]));
-    }
-    return [];
-  }
-
-  opts.isPadded = isPadded(start) || isPadded(stop);
-  opts.toString = opts.stringify
-    || typeof opts.step === 'string'
-    || typeof start === 'string'
-    || typeof stop === 'string'
-    || !opts.isNumber;
-
-  if (opts.isPadded) {
-    opts.maxLength = Math.max(String(start).length, String(stop).length);
-  }
-
-  // support legacy minimatch/fill-range options
-  if (typeof opts.optimize === 'boolean') opts.toRegex = opts.optimize;
-  if (typeof opts.makeRe === 'boolean') opts.toRegex = opts.makeRe;
-  return expand(start, stop, opts);
-}
-
-function expand(start, stop, options) {
-  var a = options.isNumber ? toNumber(start) : start.charCodeAt(0);
-  var b = options.isNumber ? toNumber(stop) : stop.charCodeAt(0);
-
-  var step = Math.abs(toNumber(options.step)) || 1;
-  if (options.toRegex && step === 1) {
-    return toRange(a, b, start, stop, options);
-  }
-
-  var zero = {greater: [], lesser: []};
-  var asc = a < b;
-  var arr = new Array(Math.round((asc ? b - a : a - b) / step));
-  var idx = 0;
-
-  while (asc ? a <= b : a >= b) {
-    var val = options.isNumber ? a : String.fromCharCode(a);
-    if (options.toRegex && (val >= 0 || !options.isNumber)) {
-      zero.greater.push(val);
-    } else {
-      zero.lesser.push(Math.abs(val));
-    }
-
-    if (options.isPadded) {
-      val = zeros(val, options);
-    }
-
-    if (options.toString) {
-      val = String(val);
-    }
-
-    if (typeof options.transform === 'function') {
-      arr[idx++] = options.transform(val, a, b, step, idx, arr, options);
-    } else {
-      arr[idx++] = val;
-    }
-
-    if (asc) {
-      a += step;
-    } else {
-      a -= step;
-    }
-  }
-
-  if (options.toRegex === true) {
-    return toSequence(arr, zero, options);
-  }
-  return arr;
-}
-
-function toRange(a, b, start, stop, options) {
-  if (options.isPadded) {
-    return toRegex(start, stop, options);
-  }
-
-  if (options.isNumber) {
-    return toRegex(Math.min(a, b), Math.max(a, b), options);
-  }
-
-  var start = String.fromCharCode(Math.min(a, b));
-  var stop = String.fromCharCode(Math.max(a, b));
-  return '[' + start + '-' + stop + ']';
-}
-
-function toSequence(arr, zeros, options) {
-  var greater = '', lesser = '';
-  if (zeros.greater.length) {
-    greater = zeros.greater.join('|');
-  }
-  if (zeros.lesser.length) {
-    lesser = '-(' + zeros.lesser.join('|') + ')';
-  }
-  var res = greater && lesser
-    ? greater + '|' + lesser
-    : greater || lesser;
-
-  if (options.capture) {
-    return '(' + res + ')';
-  }
-  return res;
-}
-
-function zeros(val, options) {
-  if (options.isPadded) {
-    var str = String(val);
-    var len = str.length;
-    var dash = '';
-    if (str.charAt(0) === '-') {
-      dash = '-';
-      str = str.slice(1);
-    }
-    var diff = options.maxLength - len;
-    var pad = repeat('0', diff);
-    val = (dash + pad + str);
-  }
-  if (options.stringify) {
-    return String(val);
-  }
-  return val;
-}
-
-function toNumber(val) {
-  return Number(val) || 0;
-}
-
-function isPadded(str) {
-  return /^-?0\d/.test(str);
-}
-
-function isValid(min, max) {
-  return (isValidNumber(min) || isValidLetter(min))
-      && (isValidNumber(max) || isValidLetter(max));
-}
-
-function isValidLetter(ch) {
-  return typeof ch === 'string' && ch.length === 1 && /^\w+$/.test(ch);
-}
-
-function isValidNumber(n) {
-  return isNumber(n) && !/\./.test(n);
-}
-
-/**
- * Expose `fillRange`
- * @type {Function}
- */
-
-module.exports = fillRange;
-
-
-/***/ }),
-
 /***/ 43086:
 /***/ (function(module) {
 
@@ -34287,7 +32624,7 @@ module.exports = function normalize(path) {
  */
 
 var util = __webpack_require__(31669);
-var braces = __webpack_require__(22706);
+var braces = __webpack_require__(50559);
 var toRegex = __webpack_require__(51279);
 var extend = __webpack_require__(3767);
 
@@ -35662,6 +33999,1515 @@ utils.unixify = function(options) {
 
 /***/ }),
 
+/***/ 50559:
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+
+
+/**
+ * Module dependencies
+ */
+
+var toRegex = __webpack_require__(51279);
+var unique = __webpack_require__(19009);
+var extend = __webpack_require__(92845);
+
+/**
+ * Local dependencies
+ */
+
+var compilers = __webpack_require__(90808);
+var parsers = __webpack_require__(46362);
+var Braces = __webpack_require__(12638);
+var utils = __webpack_require__(38640);
+var MAX_LENGTH = 1024 * 64;
+var cache = {};
+
+/**
+ * Convert the given `braces` pattern into a regex-compatible string. By default, only one string is generated for every input string. Set `options.expand` to true to return an array of patterns (similar to Bash or minimatch. Before using `options.expand`, it's recommended that you read the [performance notes](#performance)).
+ *
+ * ```js
+ * var braces = require('braces');
+ * console.log(braces('{a,b,c}'));
+ * //=> ['(a|b|c)']
+ *
+ * console.log(braces('{a,b,c}', {expand: true}));
+ * //=> ['a', 'b', 'c']
+ * ```
+ * @param {String} `str`
+ * @param {Object} `options`
+ * @return {String}
+ * @api public
+ */
+
+function braces(pattern, options) {
+  var key = utils.createKey(String(pattern), options);
+  var arr = [];
+
+  var disabled = options && options.cache === false;
+  if (!disabled && cache.hasOwnProperty(key)) {
+    return cache[key];
+  }
+
+  if (Array.isArray(pattern)) {
+    for (var i = 0; i < pattern.length; i++) {
+      arr.push.apply(arr, braces.create(pattern[i], options));
+    }
+  } else {
+    arr = braces.create(pattern, options);
+  }
+
+  if (options && options.nodupes === true) {
+    arr = unique(arr);
+  }
+
+  if (!disabled) {
+    cache[key] = arr;
+  }
+  return arr;
+}
+
+/**
+ * Expands a brace pattern into an array. This method is called by the main [braces](#braces) function when `options.expand` is true. Before using this method it's recommended that you read the [performance notes](#performance)) and advantages of using [.optimize](#optimize) instead.
+ *
+ * ```js
+ * var braces = require('braces');
+ * console.log(braces.expand('a/{b,c}/d'));
+ * //=> ['a/b/d', 'a/c/d'];
+ * ```
+ * @param {String} `pattern` Brace pattern
+ * @param {Object} `options`
+ * @return {Array} Returns an array of expanded values.
+ * @api public
+ */
+
+braces.expand = function(pattern, options) {
+  return braces.create(pattern, extend({}, options, {expand: true}));
+};
+
+/**
+ * Expands a brace pattern into a regex-compatible, optimized string. This method is called by the main [braces](#braces) function by default.
+ *
+ * ```js
+ * var braces = require('braces');
+ * console.log(braces.expand('a/{b,c}/d'));
+ * //=> ['a/(b|c)/d']
+ * ```
+ * @param {String} `pattern` Brace pattern
+ * @param {Object} `options`
+ * @return {Array} Returns an array of expanded values.
+ * @api public
+ */
+
+braces.optimize = function(pattern, options) {
+  return braces.create(pattern, options);
+};
+
+/**
+ * Processes a brace pattern and returns either an expanded array (if `options.expand` is true), a highly optimized regex-compatible string. This method is called by the main [braces](#braces) function.
+ *
+ * ```js
+ * var braces = require('braces');
+ * console.log(braces.create('user-{200..300}/project-{a,b,c}-{1..10}'))
+ * //=> 'user-(20[0-9]|2[1-9][0-9]|300)/project-(a|b|c)-([1-9]|10)'
+ * ```
+ * @param {String} `pattern` Brace pattern
+ * @param {Object} `options`
+ * @return {Array} Returns an array of expanded values.
+ * @api public
+ */
+
+braces.create = function(pattern, options) {
+  if (typeof pattern !== 'string') {
+    throw new TypeError('expected a string');
+  }
+
+  var maxLength = (options && options.maxLength) || MAX_LENGTH;
+  if (pattern.length >= maxLength) {
+    throw new Error('expected pattern to be less than ' + maxLength + ' characters');
+  }
+
+  function create() {
+    if (pattern === '' || pattern.length < 3) {
+      return [pattern];
+    }
+
+    if (utils.isEmptySets(pattern)) {
+      return [];
+    }
+
+    if (utils.isQuotedString(pattern)) {
+      return [pattern.slice(1, -1)];
+    }
+
+    var proto = new Braces(options);
+    var result = !options || options.expand !== true
+      ? proto.optimize(pattern, options)
+      : proto.expand(pattern, options);
+
+    // get the generated pattern(s)
+    var arr = result.output;
+
+    // filter out empty strings if specified
+    if (options && options.noempty === true) {
+      arr = arr.filter(Boolean);
+    }
+
+    // filter out duplicates if specified
+    if (options && options.nodupes === true) {
+      arr = unique(arr);
+    }
+
+    Object.defineProperty(arr, 'result', {
+      enumerable: false,
+      value: result
+    });
+
+    return arr;
+  }
+
+  return memoize('create', pattern, options, create);
+};
+
+/**
+ * Create a regular expression from the given string `pattern`.
+ *
+ * ```js
+ * var braces = require('braces');
+ *
+ * console.log(braces.makeRe('id-{200..300}'));
+ * //=> /^(?:id-(20[0-9]|2[1-9][0-9]|300))$/
+ * ```
+ * @param {String} `pattern` The pattern to convert to regex.
+ * @param {Object} `options`
+ * @return {RegExp}
+ * @api public
+ */
+
+braces.makeRe = function(pattern, options) {
+  if (typeof pattern !== 'string') {
+    throw new TypeError('expected a string');
+  }
+
+  var maxLength = (options && options.maxLength) || MAX_LENGTH;
+  if (pattern.length >= maxLength) {
+    throw new Error('expected pattern to be less than ' + maxLength + ' characters');
+  }
+
+  function makeRe() {
+    var arr = braces(pattern, options);
+    var opts = extend({strictErrors: false}, options);
+    return toRegex(arr, opts);
+  }
+
+  return memoize('makeRe', pattern, options, makeRe);
+};
+
+/**
+ * Parse the given `str` with the given `options`.
+ *
+ * ```js
+ * var braces = require('braces');
+ * var ast = braces.parse('a/{b,c}/d');
+ * console.log(ast);
+ * // { type: 'root',
+ * //   errors: [],
+ * //   input: 'a/{b,c}/d',
+ * //   nodes:
+ * //    [ { type: 'bos', val: '' },
+ * //      { type: 'text', val: 'a/' },
+ * //      { type: 'brace',
+ * //        nodes:
+ * //         [ { type: 'brace.open', val: '{' },
+ * //           { type: 'text', val: 'b,c' },
+ * //           { type: 'brace.close', val: '}' } ] },
+ * //      { type: 'text', val: '/d' },
+ * //      { type: 'eos', val: '' } ] }
+ * ```
+ * @param {String} `pattern` Brace pattern to parse
+ * @param {Object} `options`
+ * @return {Object} Returns an AST
+ * @api public
+ */
+
+braces.parse = function(pattern, options) {
+  var proto = new Braces(options);
+  return proto.parse(pattern, options);
+};
+
+/**
+ * Compile the given `ast` or string with the given `options`.
+ *
+ * ```js
+ * var braces = require('braces');
+ * var ast = braces.parse('a/{b,c}/d');
+ * console.log(braces.compile(ast));
+ * // { options: { source: 'string' },
+ * //   state: {},
+ * //   compilers:
+ * //    { eos: [Function],
+ * //      noop: [Function],
+ * //      bos: [Function],
+ * //      brace: [Function],
+ * //      'brace.open': [Function],
+ * //      text: [Function],
+ * //      'brace.close': [Function] },
+ * //   output: [ 'a/(b|c)/d' ],
+ * //   ast:
+ * //    { ... },
+ * //   parsingErrors: [] }
+ * ```
+ * @param {Object|String} `ast` AST from [.parse](#parse). If a string is passed it will be parsed first.
+ * @param {Object} `options`
+ * @return {Object} Returns an object that has an `output` property with the compiled string.
+ * @api public
+ */
+
+braces.compile = function(ast, options) {
+  var proto = new Braces(options);
+  return proto.compile(ast, options);
+};
+
+/**
+ * Clear the regex cache.
+ *
+ * ```js
+ * braces.clearCache();
+ * ```
+ * @api public
+ */
+
+braces.clearCache = function() {
+  cache = braces.cache = {};
+};
+
+/**
+ * Memoize a generated regex or function. A unique key is generated
+ * from the method name, pattern, and user-defined options. Set
+ * options.memoize to false to disable.
+ */
+
+function memoize(type, pattern, options, fn) {
+  var key = utils.createKey(type + ':' + pattern, options);
+  var disabled = options && options.cache === false;
+  if (disabled) {
+    braces.clearCache();
+    return fn(pattern, options);
+  }
+
+  if (cache.hasOwnProperty(key)) {
+    return cache[key];
+  }
+
+  var res = fn(pattern, options);
+  cache[key] = res;
+  return res;
+}
+
+/**
+ * Expose `Braces` constructor and methods
+ * @type {Function}
+ */
+
+braces.Braces = Braces;
+braces.compilers = compilers;
+braces.parsers = parsers;
+braces.cache = cache;
+
+/**
+ * Expose `braces`
+ * @type {Function}
+ */
+
+module.exports = braces;
+
+
+/***/ }),
+
+/***/ 12638:
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+
+
+var extend = __webpack_require__(92845);
+var Snapdragon = __webpack_require__(79285);
+var compilers = __webpack_require__(90808);
+var parsers = __webpack_require__(46362);
+var utils = __webpack_require__(38640);
+
+/**
+ * Customize Snapdragon parser and renderer
+ */
+
+function Braces(options) {
+  this.options = extend({}, options);
+}
+
+/**
+ * Initialize braces
+ */
+
+Braces.prototype.init = function(options) {
+  if (this.isInitialized) return;
+  this.isInitialized = true;
+  var opts = utils.createOptions({}, this.options, options);
+  this.snapdragon = this.options.snapdragon || new Snapdragon(opts);
+  this.compiler = this.snapdragon.compiler;
+  this.parser = this.snapdragon.parser;
+
+  compilers(this.snapdragon, opts);
+  parsers(this.snapdragon, opts);
+
+  /**
+   * Call Snapdragon `.parse` method. When AST is returned, we check to
+   * see if any unclosed braces are left on the stack and, if so, we iterate
+   * over the stack and correct the AST so that compilers are called in the correct
+   * order and unbalance braces are properly escaped.
+   */
+
+  utils.define(this.snapdragon, 'parse', function(pattern, options) {
+    var parsed = Snapdragon.prototype.parse.apply(this, arguments);
+    this.parser.ast.input = pattern;
+
+    var stack = this.parser.stack;
+    while (stack.length) {
+      addParent({type: 'brace.close', val: ''}, stack.pop());
+    }
+
+    function addParent(node, parent) {
+      utils.define(node, 'parent', parent);
+      parent.nodes.push(node);
+    }
+
+    // add non-enumerable parser reference
+    utils.define(parsed, 'parser', this.parser);
+    return parsed;
+  });
+};
+
+/**
+ * Decorate `.parse` method
+ */
+
+Braces.prototype.parse = function(ast, options) {
+  if (ast && typeof ast === 'object' && ast.nodes) return ast;
+  this.init(options);
+  return this.snapdragon.parse(ast, options);
+};
+
+/**
+ * Decorate `.compile` method
+ */
+
+Braces.prototype.compile = function(ast, options) {
+  if (typeof ast === 'string') {
+    ast = this.parse(ast, options);
+  } else {
+    this.init(options);
+  }
+  return this.snapdragon.compile(ast, options);
+};
+
+/**
+ * Expand
+ */
+
+Braces.prototype.expand = function(pattern) {
+  var ast = this.parse(pattern, {expand: true});
+  return this.compile(ast, {expand: true});
+};
+
+/**
+ * Optimize
+ */
+
+Braces.prototype.optimize = function(pattern) {
+  var ast = this.parse(pattern, {optimize: true});
+  return this.compile(ast, {optimize: true});
+};
+
+/**
+ * Expose `Braces`
+ */
+
+module.exports = Braces;
+
+
+/***/ }),
+
+/***/ 90808:
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+
+
+var utils = __webpack_require__(38640);
+
+module.exports = function(braces, options) {
+  braces.compiler
+
+    /**
+     * bos
+     */
+
+    .set('bos', function() {
+      if (this.output) return;
+      this.ast.queue = isEscaped(this.ast) ? [this.ast.val] : [];
+      this.ast.count = 1;
+    })
+
+    /**
+     * Square brackets
+     */
+
+    .set('bracket', function(node) {
+      var close = node.close;
+      var open = !node.escaped ? '[' : '\\[';
+      var negated = node.negated;
+      var inner = node.inner;
+
+      inner = inner.replace(/\\(?=[\\\w]|$)/g, '\\\\');
+      if (inner === ']-') {
+        inner = '\\]\\-';
+      }
+
+      if (negated && inner.indexOf('.') === -1) {
+        inner += '.';
+      }
+      if (negated && inner.indexOf('/') === -1) {
+        inner += '/';
+      }
+
+      var val = open + negated + inner + close;
+      var queue = node.parent.queue;
+      var last = utils.arrayify(queue.pop());
+
+      queue.push(utils.join(last, val));
+      queue.push.apply(queue, []);
+    })
+
+    /**
+     * Brace
+     */
+
+    .set('brace', function(node) {
+      node.queue = isEscaped(node) ? [node.val] : [];
+      node.count = 1;
+      return this.mapVisit(node.nodes);
+    })
+
+    /**
+     * Open
+     */
+
+    .set('brace.open', function(node) {
+      node.parent.open = node.val;
+    })
+
+    /**
+     * Inner
+     */
+
+    .set('text', function(node) {
+      var queue = node.parent.queue;
+      var escaped = node.escaped;
+      var segs = [node.val];
+
+      if (node.optimize === false) {
+        options = utils.extend({}, options, {optimize: false});
+      }
+
+      if (node.multiplier > 1) {
+        node.parent.count *= node.multiplier;
+      }
+
+      if (options.quantifiers === true && utils.isQuantifier(node.val)) {
+        escaped = true;
+
+      } else if (node.val.length > 1) {
+        if (isType(node.parent, 'brace') && !isEscaped(node)) {
+          var expanded = utils.expand(node.val, options);
+          segs = expanded.segs;
+
+          if (expanded.isOptimized) {
+            node.parent.isOptimized = true;
+          }
+
+          // if nothing was expanded, we probably have a literal brace
+          if (!segs.length) {
+            var val = (expanded.val || node.val);
+            if (options.unescape !== false) {
+              // unescape unexpanded brace sequence/set separators
+              val = val.replace(/\\([,.])/g, '$1');
+              // strip quotes
+              val = val.replace(/["'`]/g, '');
+            }
+
+            segs = [val];
+            escaped = true;
+          }
+        }
+
+      } else if (node.val === ',') {
+        if (options.expand) {
+          node.parent.queue.push(['']);
+          segs = [''];
+        } else {
+          segs = ['|'];
+        }
+      } else {
+        escaped = true;
+      }
+
+      if (escaped && isType(node.parent, 'brace')) {
+        if (node.parent.nodes.length <= 4 && node.parent.count === 1) {
+          node.parent.escaped = true;
+        } else if (node.parent.length <= 3) {
+          node.parent.escaped = true;
+        }
+      }
+
+      if (!hasQueue(node.parent)) {
+        node.parent.queue = segs;
+        return;
+      }
+
+      var last = utils.arrayify(queue.pop());
+      if (node.parent.count > 1 && options.expand) {
+        last = multiply(last, node.parent.count);
+        node.parent.count = 1;
+      }
+
+      queue.push(utils.join(utils.flatten(last), segs.shift()));
+      queue.push.apply(queue, segs);
+    })
+
+    /**
+     * Close
+     */
+
+    .set('brace.close', function(node) {
+      var queue = node.parent.queue;
+      var prev = node.parent.parent;
+      var last = prev.queue.pop();
+      var open = node.parent.open;
+      var close = node.val;
+
+      if (open && close && isOptimized(node, options)) {
+        open = '(';
+        close = ')';
+      }
+
+      // if a close brace exists, and the previous segment is one character
+      // don't wrap the result in braces or parens
+      var ele = utils.last(queue);
+      if (node.parent.count > 1 && options.expand) {
+        ele = multiply(queue.pop(), node.parent.count);
+        node.parent.count = 1;
+        queue.push(ele);
+      }
+
+      if (close && typeof ele === 'string' && ele.length === 1) {
+        open = '';
+        close = '';
+      }
+
+      if ((isLiteralBrace(node, options) || noInner(node)) && !node.parent.hasEmpty) {
+        queue.push(utils.join(open, queue.pop() || ''));
+        queue = utils.flatten(utils.join(queue, close));
+      }
+
+      if (typeof last === 'undefined') {
+        prev.queue = [queue];
+      } else {
+        prev.queue.push(utils.flatten(utils.join(last, queue)));
+      }
+    })
+
+    /**
+     * eos
+     */
+
+    .set('eos', function(node) {
+      if (this.input) return;
+
+      if (options.optimize !== false) {
+        this.output = utils.last(utils.flatten(this.ast.queue));
+      } else if (Array.isArray(utils.last(this.ast.queue))) {
+        this.output = utils.flatten(this.ast.queue.pop());
+      } else {
+        this.output = utils.flatten(this.ast.queue);
+      }
+
+      if (node.parent.count > 1 && options.expand) {
+        this.output = multiply(this.output, node.parent.count);
+      }
+
+      this.output = utils.arrayify(this.output);
+      this.ast.queue = [];
+    });
+
+};
+
+/**
+ * Multiply the segments in the current brace level
+ */
+
+function multiply(queue, n, options) {
+  return utils.flatten(utils.repeat(utils.arrayify(queue), n));
+}
+
+/**
+ * Return true if `node` is escaped
+ */
+
+function isEscaped(node) {
+  return node.escaped === true;
+}
+
+/**
+ * Returns true if regex parens should be used for sets. If the parent `type`
+ * is not `brace`, then we're on a root node, which means we should never
+ * expand segments and open/close braces should be `{}` (since this indicates
+ * a brace is missing from the set)
+ */
+
+function isOptimized(node, options) {
+  if (node.parent.isOptimized) return true;
+  return isType(node.parent, 'brace')
+    && !isEscaped(node.parent)
+    && options.expand !== true;
+}
+
+/**
+ * Returns true if the value in `node` should be wrapped in a literal brace.
+ * @return {Boolean}
+ */
+
+function isLiteralBrace(node, options) {
+  return isEscaped(node.parent) || options.optimize !== false;
+}
+
+/**
+ * Returns true if the given `node` does not have an inner value.
+ * @return {Boolean}
+ */
+
+function noInner(node, type) {
+  if (node.parent.queue.length === 1) {
+    return true;
+  }
+  var nodes = node.parent.nodes;
+  return nodes.length === 3
+    && isType(nodes[0], 'brace.open')
+    && !isType(nodes[1], 'text')
+    && isType(nodes[2], 'brace.close');
+}
+
+/**
+ * Returns true if the given `node` is the given `type`
+ * @return {Boolean}
+ */
+
+function isType(node, type) {
+  return typeof node !== 'undefined' && node.type === type;
+}
+
+/**
+ * Returns true if the given `node` has a non-empty queue.
+ * @return {Boolean}
+ */
+
+function hasQueue(node) {
+  return Array.isArray(node.queue) && node.queue.length;
+}
+
+
+/***/ }),
+
+/***/ 46362:
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+
+
+var Node = __webpack_require__(12579);
+var utils = __webpack_require__(38640);
+
+/**
+ * Braces parsers
+ */
+
+module.exports = function(braces, options) {
+  braces.parser
+    .set('bos', function() {
+      if (!this.parsed) {
+        this.ast = this.nodes[0] = new Node(this.ast);
+      }
+    })
+
+    /**
+     * Character parsers
+     */
+
+    .set('escape', function() {
+      var pos = this.position();
+      var m = this.match(/^(?:\\(.)|\$\{)/);
+      if (!m) return;
+
+      var prev = this.prev();
+      var last = utils.last(prev.nodes);
+
+      var node = pos(new Node({
+        type: 'text',
+        multiplier: 1,
+        val: m[0]
+      }));
+
+      if (node.val === '\\\\') {
+        return node;
+      }
+
+      if (node.val === '${') {
+        var str = this.input;
+        var idx = -1;
+        var ch;
+
+        while ((ch = str[++idx])) {
+          this.consume(1);
+          node.val += ch;
+          if (ch === '\\') {
+            node.val += str[++idx];
+            continue;
+          }
+          if (ch === '}') {
+            break;
+          }
+        }
+      }
+
+      if (this.options.unescape !== false) {
+        node.val = node.val.replace(/\\([{}])/g, '$1');
+      }
+
+      if (last.val === '"' && this.input.charAt(0) === '"') {
+        last.val = node.val;
+        this.consume(1);
+        return;
+      }
+
+      return concatNodes.call(this, pos, node, prev, options);
+    })
+
+    /**
+     * Brackets: "[...]" (basic, this is overridden by
+     * other parsers in more advanced implementations)
+     */
+
+    .set('bracket', function() {
+      var isInside = this.isInside('brace');
+      var pos = this.position();
+      var m = this.match(/^(?:\[([!^]?)([^\]]{2,}|\]-)(\]|[^*+?]+)|\[)/);
+      if (!m) return;
+
+      var prev = this.prev();
+      var val = m[0];
+      var negated = m[1] ? '^' : '';
+      var inner = m[2] || '';
+      var close = m[3] || '';
+
+      if (isInside && prev.type === 'brace') {
+        prev.text = prev.text || '';
+        prev.text += val;
+      }
+
+      var esc = this.input.slice(0, 2);
+      if (inner === '' && esc === '\\]') {
+        inner += esc;
+        this.consume(2);
+
+        var str = this.input;
+        var idx = -1;
+        var ch;
+
+        while ((ch = str[++idx])) {
+          this.consume(1);
+          if (ch === ']') {
+            close = ch;
+            break;
+          }
+          inner += ch;
+        }
+      }
+
+      return pos(new Node({
+        type: 'bracket',
+        val: val,
+        escaped: close !== ']',
+        negated: negated,
+        inner: inner,
+        close: close
+      }));
+    })
+
+    /**
+     * Empty braces (we capture these early to
+     * speed up processing in the compiler)
+     */
+
+    .set('multiplier', function() {
+      var isInside = this.isInside('brace');
+      var pos = this.position();
+      var m = this.match(/^\{((?:,|\{,+\})+)\}/);
+      if (!m) return;
+
+      this.multiplier = true;
+      var prev = this.prev();
+      var val = m[0];
+
+      if (isInside && prev.type === 'brace') {
+        prev.text = prev.text || '';
+        prev.text += val;
+      }
+
+      var node = pos(new Node({
+        type: 'text',
+        multiplier: 1,
+        match: m,
+        val: val
+      }));
+
+      return concatNodes.call(this, pos, node, prev, options);
+    })
+
+    /**
+     * Open
+     */
+
+    .set('brace.open', function() {
+      var pos = this.position();
+      var m = this.match(/^\{(?!(?:[^\\}]?|,+)\})/);
+      if (!m) return;
+
+      var prev = this.prev();
+      var last = utils.last(prev.nodes);
+
+      // if the last parsed character was an extglob character
+      // we need to _not optimize_ the brace pattern because
+      // it might be mistaken for an extglob by a downstream parser
+      if (last && last.val && isExtglobChar(last.val.slice(-1))) {
+        last.optimize = false;
+      }
+
+      var open = pos(new Node({
+        type: 'brace.open',
+        val: m[0]
+      }));
+
+      var node = pos(new Node({
+        type: 'brace',
+        nodes: []
+      }));
+
+      node.push(open);
+      prev.push(node);
+      this.push('brace', node);
+    })
+
+    /**
+     * Close
+     */
+
+    .set('brace.close', function() {
+      var pos = this.position();
+      var m = this.match(/^\}/);
+      if (!m || !m[0]) return;
+
+      var brace = this.pop('brace');
+      var node = pos(new Node({
+        type: 'brace.close',
+        val: m[0]
+      }));
+
+      if (!this.isType(brace, 'brace')) {
+        if (this.options.strict) {
+          throw new Error('missing opening "{"');
+        }
+        node.type = 'text';
+        node.multiplier = 0;
+        node.escaped = true;
+        return node;
+      }
+
+      var prev = this.prev();
+      var last = utils.last(prev.nodes);
+      if (last.text) {
+        var lastNode = utils.last(last.nodes);
+        if (lastNode.val === ')' && /[!@*?+]\(/.test(last.text)) {
+          var open = last.nodes[0];
+          var text = last.nodes[1];
+          if (open.type === 'brace.open' && text && text.type === 'text') {
+            text.optimize = false;
+          }
+        }
+      }
+
+      if (brace.nodes.length > 2) {
+        var first = brace.nodes[1];
+        if (first.type === 'text' && first.val === ',') {
+          brace.nodes.splice(1, 1);
+          brace.nodes.push(first);
+        }
+      }
+
+      brace.push(node);
+    })
+
+    /**
+     * Capture boundary characters
+     */
+
+    .set('boundary', function() {
+      var pos = this.position();
+      var m = this.match(/^[$^](?!\{)/);
+      if (!m) return;
+      return pos(new Node({
+        type: 'text',
+        val: m[0]
+      }));
+    })
+
+    /**
+     * One or zero, non-comma characters wrapped in braces
+     */
+
+    .set('nobrace', function() {
+      var isInside = this.isInside('brace');
+      var pos = this.position();
+      var m = this.match(/^\{[^,]?\}/);
+      if (!m) return;
+
+      var prev = this.prev();
+      var val = m[0];
+
+      if (isInside && prev.type === 'brace') {
+        prev.text = prev.text || '';
+        prev.text += val;
+      }
+
+      return pos(new Node({
+        type: 'text',
+        multiplier: 0,
+        val: val
+      }));
+    })
+
+    /**
+     * Text
+     */
+
+    .set('text', function() {
+      var isInside = this.isInside('brace');
+      var pos = this.position();
+      var m = this.match(/^((?!\\)[^${}[\]])+/);
+      if (!m) return;
+
+      var prev = this.prev();
+      var val = m[0];
+
+      if (isInside && prev.type === 'brace') {
+        prev.text = prev.text || '';
+        prev.text += val;
+      }
+
+      var node = pos(new Node({
+        type: 'text',
+        multiplier: 1,
+        val: val
+      }));
+
+      return concatNodes.call(this, pos, node, prev, options);
+    });
+};
+
+/**
+ * Returns true if the character is an extglob character.
+ */
+
+function isExtglobChar(ch) {
+  return ch === '!' || ch === '@' || ch === '*' || ch === '?' || ch === '+';
+}
+
+/**
+ * Combine text nodes, and calculate empty sets (`{,,}`)
+ * @param {Function} `pos` Function to calculate node position
+ * @param {Object} `node` AST node
+ * @return {Object}
+ */
+
+function concatNodes(pos, node, parent, options) {
+  node.orig = node.val;
+  var prev = this.prev();
+  var last = utils.last(prev.nodes);
+  var isEscaped = false;
+
+  if (node.val.length > 1) {
+    var a = node.val.charAt(0);
+    var b = node.val.slice(-1);
+
+    isEscaped = (a === '"' && b === '"')
+      || (a === "'" && b === "'")
+      || (a === '`' && b === '`');
+  }
+
+  if (isEscaped && options.unescape !== false) {
+    node.val = node.val.slice(1, node.val.length - 1);
+    node.escaped = true;
+  }
+
+  if (node.match) {
+    var match = node.match[1];
+    if (!match || match.indexOf('}') === -1) {
+      match = node.match[0];
+    }
+
+    // replace each set with a single ","
+    var val = match.replace(/\{/g, ',').replace(/\}/g, '');
+    node.multiplier *= val.length;
+    node.val = '';
+  }
+
+  var simpleText = last.type === 'text'
+    && last.multiplier === 1
+    && node.multiplier === 1
+    && node.val;
+
+  if (simpleText) {
+    last.val += node.val;
+    return;
+  }
+
+  prev.push(node);
+}
+
+
+/***/ }),
+
+/***/ 38640:
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+
+
+var splitString = __webpack_require__(33218);
+var utils = module.exports;
+
+/**
+ * Module dependencies
+ */
+
+utils.extend = __webpack_require__(92845);
+utils.flatten = __webpack_require__(27299);
+utils.isObject = __webpack_require__(96667);
+utils.fillRange = __webpack_require__(82593);
+utils.repeat = __webpack_require__(69523);
+utils.unique = __webpack_require__(19009);
+
+utils.define = function(obj, key, val) {
+  Object.defineProperty(obj, key, {
+    writable: true,
+    configurable: true,
+    enumerable: false,
+    value: val
+  });
+};
+
+/**
+ * Returns true if the given string contains only empty brace sets.
+ */
+
+utils.isEmptySets = function(str) {
+  return /^(?:\{,\})+$/.test(str);
+};
+
+/**
+ * Returns true if the given string contains only empty brace sets.
+ */
+
+utils.isQuotedString = function(str) {
+  var open = str.charAt(0);
+  if (open === '\'' || open === '"' || open === '`') {
+    return str.slice(-1) === open;
+  }
+  return false;
+};
+
+/**
+ * Create the key to use for memoization. The unique key is generated
+ * by iterating over the options and concatenating key-value pairs
+ * to the pattern string.
+ */
+
+utils.createKey = function(pattern, options) {
+  var id = pattern;
+  if (typeof options === 'undefined') {
+    return id;
+  }
+  var keys = Object.keys(options);
+  for (var i = 0; i < keys.length; i++) {
+    var key = keys[i];
+    id += ';' + key + '=' + String(options[key]);
+  }
+  return id;
+};
+
+/**
+ * Normalize options
+ */
+
+utils.createOptions = function(options) {
+  var opts = utils.extend.apply(null, arguments);
+  if (typeof opts.expand === 'boolean') {
+    opts.optimize = !opts.expand;
+  }
+  if (typeof opts.optimize === 'boolean') {
+    opts.expand = !opts.optimize;
+  }
+  if (opts.optimize === true) {
+    opts.makeRe = true;
+  }
+  return opts;
+};
+
+/**
+ * Join patterns in `a` to patterns in `b`
+ */
+
+utils.join = function(a, b, options) {
+  options = options || {};
+  a = utils.arrayify(a);
+  b = utils.arrayify(b);
+
+  if (!a.length) return b;
+  if (!b.length) return a;
+
+  var len = a.length;
+  var idx = -1;
+  var arr = [];
+
+  while (++idx < len) {
+    var val = a[idx];
+    if (Array.isArray(val)) {
+      for (var i = 0; i < val.length; i++) {
+        val[i] = utils.join(val[i], b, options);
+      }
+      arr.push(val);
+      continue;
+    }
+
+    for (var j = 0; j < b.length; j++) {
+      var bval = b[j];
+
+      if (Array.isArray(bval)) {
+        arr.push(utils.join(val, bval, options));
+      } else {
+        arr.push(val + bval);
+      }
+    }
+  }
+  return arr;
+};
+
+/**
+ * Split the given string on `,` if not escaped.
+ */
+
+utils.split = function(str, options) {
+  var opts = utils.extend({sep: ','}, options);
+  if (typeof opts.keepQuotes !== 'boolean') {
+    opts.keepQuotes = true;
+  }
+  if (opts.unescape === false) {
+    opts.keepEscaping = true;
+  }
+  return splitString(str, opts, utils.escapeBrackets(opts));
+};
+
+/**
+ * Expand ranges or sets in the given `pattern`.
+ *
+ * @param {String} `str`
+ * @param {Object} `options`
+ * @return {Object}
+ */
+
+utils.expand = function(str, options) {
+  var opts = utils.extend({rangeLimit: 10000}, options);
+  var segs = utils.split(str, opts);
+  var tok = { segs: segs };
+
+  if (utils.isQuotedString(str)) {
+    return tok;
+  }
+
+  if (opts.rangeLimit === true) {
+    opts.rangeLimit = 10000;
+  }
+
+  if (segs.length > 1) {
+    if (opts.optimize === false) {
+      tok.val = segs[0];
+      return tok;
+    }
+
+    tok.segs = utils.stringifyArray(tok.segs);
+  } else if (segs.length === 1) {
+    var arr = str.split('..');
+
+    if (arr.length === 1) {
+      tok.val = tok.segs[tok.segs.length - 1] || tok.val || str;
+      tok.segs = [];
+      return tok;
+    }
+
+    if (arr.length === 2 && arr[0] === arr[1]) {
+      tok.escaped = true;
+      tok.val = arr[0];
+      tok.segs = [];
+      return tok;
+    }
+
+    if (arr.length > 1) {
+      if (opts.optimize !== false) {
+        opts.optimize = true;
+        delete opts.expand;
+      }
+
+      if (opts.optimize !== true) {
+        var min = Math.min(arr[0], arr[1]);
+        var max = Math.max(arr[0], arr[1]);
+        var step = arr[2] || 1;
+
+        if (opts.rangeLimit !== false && ((max - min) / step >= opts.rangeLimit)) {
+          throw new RangeError('expanded array length exceeds range limit. Use options.rangeLimit to increase or disable the limit.');
+        }
+      }
+
+      arr.push(opts);
+      tok.segs = utils.fillRange.apply(null, arr);
+
+      if (!tok.segs.length) {
+        tok.escaped = true;
+        tok.val = str;
+        return tok;
+      }
+
+      if (opts.optimize === true) {
+        tok.segs = utils.stringifyArray(tok.segs);
+      }
+
+      if (tok.segs === '') {
+        tok.val = str;
+      } else {
+        tok.val = tok.segs[0];
+      }
+      return tok;
+    }
+  } else {
+    tok.val = str;
+  }
+  return tok;
+};
+
+/**
+ * Ensure commas inside brackets and parens are not split.
+ * @param {Object} `tok` Token from the `split-string` module
+ * @return {undefined}
+ */
+
+utils.escapeBrackets = function(options) {
+  return function(tok) {
+    if (tok.escaped && tok.val === 'b') {
+      tok.val = '\\b';
+      return;
+    }
+
+    if (tok.val !== '(' && tok.val !== '[') return;
+    var opts = utils.extend({}, options);
+    var brackets = [];
+    var parens = [];
+    var stack = [];
+    var val = tok.val;
+    var str = tok.str;
+    var i = tok.idx - 1;
+
+    while (++i < str.length) {
+      var ch = str[i];
+
+      if (ch === '\\') {
+        val += (opts.keepEscaping === false ? '' : ch) + str[++i];
+        continue;
+      }
+
+      if (ch === '(') {
+        parens.push(ch);
+        stack.push(ch);
+      }
+
+      if (ch === '[') {
+        brackets.push(ch);
+        stack.push(ch);
+      }
+
+      if (ch === ')') {
+        parens.pop();
+        stack.pop();
+        if (!stack.length) {
+          val += ch;
+          break;
+        }
+      }
+
+      if (ch === ']') {
+        brackets.pop();
+        stack.pop();
+        if (!stack.length) {
+          val += ch;
+          break;
+        }
+      }
+      val += ch;
+    }
+
+    tok.split = false;
+    tok.val = val.slice(1);
+    tok.idx = i;
+  };
+};
+
+/**
+ * Returns true if the given string looks like a regex quantifier
+ * @return {Boolean}
+ */
+
+utils.isQuantifier = function(str) {
+  return /^(?:[0-9]?,[0-9]|[0-9],)$/.test(str);
+};
+
+/**
+ * Cast `val` to an array.
+ * @param {*} `val`
+ */
+
+utils.stringifyArray = function(arr) {
+  return [utils.arrayify(arr).join('|')];
+};
+
+/**
+ * Cast `val` to an array.
+ * @param {*} `val`
+ */
+
+utils.arrayify = function(arr) {
+  if (typeof arr === 'undefined') {
+    return [];
+  }
+  if (typeof arr === 'string') {
+    return [arr];
+  }
+  return arr;
+};
+
+/**
+ * Returns true if the given `str` is a non-empty string
+ * @return {Boolean}
+ */
+
+utils.isString = function(str) {
+  return str != null && typeof str === 'string';
+};
+
+/**
+ * Get the last element from `array`
+ * @param {Array} `array`
+ * @return {*}
+ */
+
+utils.last = function(arr, n) {
+  return arr[arr.length - (n || 1)];
+};
+
+utils.escapeRegex = function(str) {
+  return str.replace(/\\?([!^*?()[\]{}+?/])/g, '\\$1');
+};
+
+
+/***/ }),
+
+/***/ 92845:
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+
+
+var isObject = __webpack_require__(4585);
+
+module.exports = function extend(o/*, objects*/) {
+  if (!isObject(o)) { o = {}; }
+
+  var len = arguments.length;
+  for (var i = 1; i < len; i++) {
+    var obj = arguments[i];
+
+    if (isObject(obj)) {
+      assign(o, obj);
+    }
+  }
+  return o;
+};
+
+function assign(a, b) {
+  for (var key in b) {
+    if (hasOwn(b, key)) {
+      a[key] = b[key];
+    }
+  }
+}
+
+/**
+ * Returns true if the given `key` is an own property of `obj`.
+ */
+
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+
+/***/ }),
+
+/***/ 4585:
+/***/ (function(module) {
+
+"use strict";
+/*!
+ * is-extendable <https://github.com/jonschlinkert/is-extendable>
+ *
+ * Copyright (c) 2015, Jon Schlinkert.
+ * Licensed under the MIT License.
+ */
+
+
+
+module.exports = function isExtendable(val) {
+  return typeof val !== 'undefined' && val !== null
+    && (typeof val === 'object' || typeof val === 'function');
+};
+
+
+/***/ }),
+
 /***/ 35851:
 /***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
@@ -35772,6 +35618,284 @@ function hasOwn(obj, key) {
 function isEnum(obj, key) {
   return Object.prototype.propertyIsEnumerable.call(obj, key);
 }
+
+
+/***/ }),
+
+/***/ 82593:
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+/*!
+ * fill-range <https://github.com/jonschlinkert/fill-range>
+ *
+ * Copyright (c) 2014-2015, 2017, Jon Schlinkert.
+ * Released under the MIT License.
+ */
+
+
+
+var util = __webpack_require__(31669);
+var isNumber = __webpack_require__(87218);
+var extend = __webpack_require__(13342);
+var repeat = __webpack_require__(6332);
+var toRegex = __webpack_require__(11846);
+
+/**
+ * Return a range of numbers or letters.
+ *
+ * @param  {String} `start` Start of the range
+ * @param  {String} `stop` End of the range
+ * @param  {String} `step` Increment or decrement to use.
+ * @param  {Function} `fn` Custom function to modify each element in the range.
+ * @return {Array}
+ */
+
+function fillRange(start, stop, step, options) {
+  if (typeof start === 'undefined') {
+    return [];
+  }
+
+  if (typeof stop === 'undefined' || start === stop) {
+    // special case, for handling negative zero
+    var isString = typeof start === 'string';
+    if (isNumber(start) && !toNumber(start)) {
+      return [isString ? '0' : 0];
+    }
+    return [start];
+  }
+
+  if (typeof step !== 'number' && typeof step !== 'string') {
+    options = step;
+    step = undefined;
+  }
+
+  if (typeof options === 'function') {
+    options = { transform: options };
+  }
+
+  var opts = extend({step: step}, options);
+  if (opts.step && !isValidNumber(opts.step)) {
+    if (opts.strictRanges === true) {
+      throw new TypeError('expected options.step to be a number');
+    }
+    return [];
+  }
+
+  opts.isNumber = isValidNumber(start) && isValidNumber(stop);
+  if (!opts.isNumber && !isValid(start, stop)) {
+    if (opts.strictRanges === true) {
+      throw new RangeError('invalid range arguments: ' + util.inspect([start, stop]));
+    }
+    return [];
+  }
+
+  opts.isPadded = isPadded(start) || isPadded(stop);
+  opts.toString = opts.stringify
+    || typeof opts.step === 'string'
+    || typeof start === 'string'
+    || typeof stop === 'string'
+    || !opts.isNumber;
+
+  if (opts.isPadded) {
+    opts.maxLength = Math.max(String(start).length, String(stop).length);
+  }
+
+  // support legacy minimatch/fill-range options
+  if (typeof opts.optimize === 'boolean') opts.toRegex = opts.optimize;
+  if (typeof opts.makeRe === 'boolean') opts.toRegex = opts.makeRe;
+  return expand(start, stop, opts);
+}
+
+function expand(start, stop, options) {
+  var a = options.isNumber ? toNumber(start) : start.charCodeAt(0);
+  var b = options.isNumber ? toNumber(stop) : stop.charCodeAt(0);
+
+  var step = Math.abs(toNumber(options.step)) || 1;
+  if (options.toRegex && step === 1) {
+    return toRange(a, b, start, stop, options);
+  }
+
+  var zero = {greater: [], lesser: []};
+  var asc = a < b;
+  var arr = new Array(Math.round((asc ? b - a : a - b) / step));
+  var idx = 0;
+
+  while (asc ? a <= b : a >= b) {
+    var val = options.isNumber ? a : String.fromCharCode(a);
+    if (options.toRegex && (val >= 0 || !options.isNumber)) {
+      zero.greater.push(val);
+    } else {
+      zero.lesser.push(Math.abs(val));
+    }
+
+    if (options.isPadded) {
+      val = zeros(val, options);
+    }
+
+    if (options.toString) {
+      val = String(val);
+    }
+
+    if (typeof options.transform === 'function') {
+      arr[idx++] = options.transform(val, a, b, step, idx, arr, options);
+    } else {
+      arr[idx++] = val;
+    }
+
+    if (asc) {
+      a += step;
+    } else {
+      a -= step;
+    }
+  }
+
+  if (options.toRegex === true) {
+    return toSequence(arr, zero, options);
+  }
+  return arr;
+}
+
+function toRange(a, b, start, stop, options) {
+  if (options.isPadded) {
+    return toRegex(start, stop, options);
+  }
+
+  if (options.isNumber) {
+    return toRegex(Math.min(a, b), Math.max(a, b), options);
+  }
+
+  var start = String.fromCharCode(Math.min(a, b));
+  var stop = String.fromCharCode(Math.max(a, b));
+  return '[' + start + '-' + stop + ']';
+}
+
+function toSequence(arr, zeros, options) {
+  var greater = '', lesser = '';
+  if (zeros.greater.length) {
+    greater = zeros.greater.join('|');
+  }
+  if (zeros.lesser.length) {
+    lesser = '-(' + zeros.lesser.join('|') + ')';
+  }
+  var res = greater && lesser
+    ? greater + '|' + lesser
+    : greater || lesser;
+
+  if (options.capture) {
+    return '(' + res + ')';
+  }
+  return res;
+}
+
+function zeros(val, options) {
+  if (options.isPadded) {
+    var str = String(val);
+    var len = str.length;
+    var dash = '';
+    if (str.charAt(0) === '-') {
+      dash = '-';
+      str = str.slice(1);
+    }
+    var diff = options.maxLength - len;
+    var pad = repeat('0', diff);
+    val = (dash + pad + str);
+  }
+  if (options.stringify) {
+    return String(val);
+  }
+  return val;
+}
+
+function toNumber(val) {
+  return Number(val) || 0;
+}
+
+function isPadded(str) {
+  return /^-?0\d/.test(str);
+}
+
+function isValid(min, max) {
+  return (isValidNumber(min) || isValidLetter(min))
+      && (isValidNumber(max) || isValidLetter(max));
+}
+
+function isValidLetter(ch) {
+  return typeof ch === 'string' && ch.length === 1 && /^\w+$/.test(ch);
+}
+
+function isValidNumber(n) {
+  return isNumber(n) && !/\./.test(n);
+}
+
+/**
+ * Expose `fillRange`
+ * @type {Function}
+ */
+
+module.exports = fillRange;
+
+
+/***/ }),
+
+/***/ 13342:
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+
+
+var isObject = __webpack_require__(27244);
+
+module.exports = function extend(o/*, objects*/) {
+  if (!isObject(o)) { o = {}; }
+
+  var len = arguments.length;
+  for (var i = 1; i < len; i++) {
+    var obj = arguments[i];
+
+    if (isObject(obj)) {
+      assign(o, obj);
+    }
+  }
+  return o;
+};
+
+function assign(a, b) {
+  for (var key in b) {
+    if (hasOwn(b, key)) {
+      a[key] = b[key];
+    }
+  }
+}
+
+/**
+ * Returns true if the given `key` is an own property of `obj`.
+ */
+
+function hasOwn(obj, key) {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+
+/***/ }),
+
+/***/ 27244:
+/***/ (function(module) {
+
+"use strict";
+/*!
+ * is-extendable <https://github.com/jonschlinkert/is-extendable>
+ *
+ * Copyright (c) 2015, Jon Schlinkert.
+ * Licensed under the MIT License.
+ */
+
+
+
+module.exports = function isExtendable(val) {
+  return typeof val !== 'undefined' && val !== null
+    && (typeof val === 'object' || typeof val === 'function');
+};
 
 
 /***/ }),
@@ -35930,6 +36054,308 @@ function isBuffer(val) {
   }
   return false;
 }
+
+
+/***/ }),
+
+/***/ 11846:
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+/*!
+ * to-regex-range <https://github.com/jonschlinkert/to-regex-range>
+ *
+ * Copyright (c) 2015, 2017, Jon Schlinkert.
+ * Released under the MIT License.
+ */
+
+
+
+var repeat = __webpack_require__(6332);
+var isNumber = __webpack_require__(87218);
+var cache = {};
+
+function toRegexRange(min, max, options) {
+  if (isNumber(min) === false) {
+    throw new RangeError('toRegexRange: first argument is invalid.');
+  }
+
+  if (typeof max === 'undefined' || min === max) {
+    return String(min);
+  }
+
+  if (isNumber(max) === false) {
+    throw new RangeError('toRegexRange: second argument is invalid.');
+  }
+
+  options = options || {};
+  var relax = String(options.relaxZeros);
+  var shorthand = String(options.shorthand);
+  var capture = String(options.capture);
+  var key = min + ':' + max + '=' + relax + shorthand + capture;
+  if (cache.hasOwnProperty(key)) {
+    return cache[key].result;
+  }
+
+  var a = Math.min(min, max);
+  var b = Math.max(min, max);
+
+  if (Math.abs(a - b) === 1) {
+    var result = min + '|' + max;
+    if (options.capture) {
+      return '(' + result + ')';
+    }
+    return result;
+  }
+
+  var isPadded = padding(min) || padding(max);
+  var positives = [];
+  var negatives = [];
+
+  var tok = {min: min, max: max, a: a, b: b};
+  if (isPadded) {
+    tok.isPadded = isPadded;
+    tok.maxLen = String(tok.max).length;
+  }
+
+  if (a < 0) {
+    var newMin = b < 0 ? Math.abs(b) : 1;
+    var newMax = Math.abs(a);
+    negatives = splitToPatterns(newMin, newMax, tok, options);
+    a = tok.a = 0;
+  }
+
+  if (b >= 0) {
+    positives = splitToPatterns(a, b, tok, options);
+  }
+
+  tok.negatives = negatives;
+  tok.positives = positives;
+  tok.result = siftPatterns(negatives, positives, options);
+
+  if (options.capture && (positives.length + negatives.length) > 1) {
+    tok.result = '(' + tok.result + ')';
+  }
+
+  cache[key] = tok;
+  return tok.result;
+}
+
+function siftPatterns(neg, pos, options) {
+  var onlyNegative = filterPatterns(neg, pos, '-', false, options) || [];
+  var onlyPositive = filterPatterns(pos, neg, '', false, options) || [];
+  var intersected = filterPatterns(neg, pos, '-?', true, options) || [];
+  var subpatterns = onlyNegative.concat(intersected).concat(onlyPositive);
+  return subpatterns.join('|');
+}
+
+function splitToRanges(min, max) {
+  min = Number(min);
+  max = Number(max);
+
+  var nines = 1;
+  var stops = [max];
+  var stop = +countNines(min, nines);
+
+  while (min <= stop && stop <= max) {
+    stops = push(stops, stop);
+    nines += 1;
+    stop = +countNines(min, nines);
+  }
+
+  var zeros = 1;
+  stop = countZeros(max + 1, zeros) - 1;
+
+  while (min < stop && stop <= max) {
+    stops = push(stops, stop);
+    zeros += 1;
+    stop = countZeros(max + 1, zeros) - 1;
+  }
+
+  stops.sort(compare);
+  return stops;
+}
+
+/**
+ * Convert a range to a regex pattern
+ * @param {Number} `start`
+ * @param {Number} `stop`
+ * @return {String}
+ */
+
+function rangeToPattern(start, stop, options) {
+  if (start === stop) {
+    return {pattern: String(start), digits: []};
+  }
+
+  var zipped = zip(String(start), String(stop));
+  var len = zipped.length, i = -1;
+
+  var pattern = '';
+  var digits = 0;
+
+  while (++i < len) {
+    var numbers = zipped[i];
+    var startDigit = numbers[0];
+    var stopDigit = numbers[1];
+
+    if (startDigit === stopDigit) {
+      pattern += startDigit;
+
+    } else if (startDigit !== '0' || stopDigit !== '9') {
+      pattern += toCharacterClass(startDigit, stopDigit);
+
+    } else {
+      digits += 1;
+    }
+  }
+
+  if (digits) {
+    pattern += options.shorthand ? '\\d' : '[0-9]';
+  }
+
+  return { pattern: pattern, digits: [digits] };
+}
+
+function splitToPatterns(min, max, tok, options) {
+  var ranges = splitToRanges(min, max);
+  var len = ranges.length;
+  var idx = -1;
+
+  var tokens = [];
+  var start = min;
+  var prev;
+
+  while (++idx < len) {
+    var range = ranges[idx];
+    var obj = rangeToPattern(start, range, options);
+    var zeros = '';
+
+    if (!tok.isPadded && prev && prev.pattern === obj.pattern) {
+      if (prev.digits.length > 1) {
+        prev.digits.pop();
+      }
+      prev.digits.push(obj.digits[0]);
+      prev.string = prev.pattern + toQuantifier(prev.digits);
+      start = range + 1;
+      continue;
+    }
+
+    if (tok.isPadded) {
+      zeros = padZeros(range, tok);
+    }
+
+    obj.string = zeros + obj.pattern + toQuantifier(obj.digits);
+    tokens.push(obj);
+    start = range + 1;
+    prev = obj;
+  }
+
+  return tokens;
+}
+
+function filterPatterns(arr, comparison, prefix, intersection, options) {
+  var res = [];
+
+  for (var i = 0; i < arr.length; i++) {
+    var tok = arr[i];
+    var ele = tok.string;
+
+    if (options.relaxZeros !== false) {
+      if (prefix === '-' && ele.charAt(0) === '0') {
+        if (ele.charAt(1) === '{') {
+          ele = '0*' + ele.replace(/^0\{\d+\}/, '');
+        } else {
+          ele = '0*' + ele.slice(1);
+        }
+      }
+    }
+
+    if (!intersection && !contains(comparison, 'string', ele)) {
+      res.push(prefix + ele);
+    }
+
+    if (intersection && contains(comparison, 'string', ele)) {
+      res.push(prefix + ele);
+    }
+  }
+  return res;
+}
+
+/**
+ * Zip strings (`for in` can be used on string characters)
+ */
+
+function zip(a, b) {
+  var arr = [];
+  for (var ch in a) arr.push([a[ch], b[ch]]);
+  return arr;
+}
+
+function compare(a, b) {
+  return a > b ? 1 : b > a ? -1 : 0;
+}
+
+function push(arr, ele) {
+  if (arr.indexOf(ele) === -1) arr.push(ele);
+  return arr;
+}
+
+function contains(arr, key, val) {
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i][key] === val) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function countNines(min, len) {
+  return String(min).slice(0, -len) + repeat('9', len);
+}
+
+function countZeros(integer, zeros) {
+  return integer - (integer % Math.pow(10, zeros));
+}
+
+function toQuantifier(digits) {
+  var start = digits[0];
+  var stop = digits[1] ? (',' + digits[1]) : '';
+  if (!stop && (!start || start === 1)) {
+    return '';
+  }
+  return '{' + start + stop + '}';
+}
+
+function toCharacterClass(a, b) {
+  return '[' + a + ((b - a === 1) ? '' : '-') + b + ']';
+}
+
+function padding(str) {
+  return /^-?(0+)\d/.exec(str);
+}
+
+function padZeros(val, tok) {
+  if (tok.isPadded) {
+    var diff = Math.abs(tok.maxLen - String(val).length);
+    switch (diff) {
+      case 0:
+        return '';
+      case 1:
+        return '0';
+      default: {
+        return '0{' + diff + '}';
+      }
+    }
+  }
+  return val;
+}
+
+/**
+ * Expose `toRegexRange`
+ */
+
+module.exports = toRegexRange;
 
 
 /***/ }),
@@ -48202,308 +48628,6 @@ function filter(arr) {
   }
   return res;
 }
-
-
-/***/ }),
-
-/***/ 1353:
-/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
-
-"use strict";
-/*!
- * to-regex-range <https://github.com/jonschlinkert/to-regex-range>
- *
- * Copyright (c) 2015, 2017, Jon Schlinkert.
- * Released under the MIT License.
- */
-
-
-
-var repeat = __webpack_require__(6332);
-var isNumber = __webpack_require__(87218);
-var cache = {};
-
-function toRegexRange(min, max, options) {
-  if (isNumber(min) === false) {
-    throw new RangeError('toRegexRange: first argument is invalid.');
-  }
-
-  if (typeof max === 'undefined' || min === max) {
-    return String(min);
-  }
-
-  if (isNumber(max) === false) {
-    throw new RangeError('toRegexRange: second argument is invalid.');
-  }
-
-  options = options || {};
-  var relax = String(options.relaxZeros);
-  var shorthand = String(options.shorthand);
-  var capture = String(options.capture);
-  var key = min + ':' + max + '=' + relax + shorthand + capture;
-  if (cache.hasOwnProperty(key)) {
-    return cache[key].result;
-  }
-
-  var a = Math.min(min, max);
-  var b = Math.max(min, max);
-
-  if (Math.abs(a - b) === 1) {
-    var result = min + '|' + max;
-    if (options.capture) {
-      return '(' + result + ')';
-    }
-    return result;
-  }
-
-  var isPadded = padding(min) || padding(max);
-  var positives = [];
-  var negatives = [];
-
-  var tok = {min: min, max: max, a: a, b: b};
-  if (isPadded) {
-    tok.isPadded = isPadded;
-    tok.maxLen = String(tok.max).length;
-  }
-
-  if (a < 0) {
-    var newMin = b < 0 ? Math.abs(b) : 1;
-    var newMax = Math.abs(a);
-    negatives = splitToPatterns(newMin, newMax, tok, options);
-    a = tok.a = 0;
-  }
-
-  if (b >= 0) {
-    positives = splitToPatterns(a, b, tok, options);
-  }
-
-  tok.negatives = negatives;
-  tok.positives = positives;
-  tok.result = siftPatterns(negatives, positives, options);
-
-  if (options.capture && (positives.length + negatives.length) > 1) {
-    tok.result = '(' + tok.result + ')';
-  }
-
-  cache[key] = tok;
-  return tok.result;
-}
-
-function siftPatterns(neg, pos, options) {
-  var onlyNegative = filterPatterns(neg, pos, '-', false, options) || [];
-  var onlyPositive = filterPatterns(pos, neg, '', false, options) || [];
-  var intersected = filterPatterns(neg, pos, '-?', true, options) || [];
-  var subpatterns = onlyNegative.concat(intersected).concat(onlyPositive);
-  return subpatterns.join('|');
-}
-
-function splitToRanges(min, max) {
-  min = Number(min);
-  max = Number(max);
-
-  var nines = 1;
-  var stops = [max];
-  var stop = +countNines(min, nines);
-
-  while (min <= stop && stop <= max) {
-    stops = push(stops, stop);
-    nines += 1;
-    stop = +countNines(min, nines);
-  }
-
-  var zeros = 1;
-  stop = countZeros(max + 1, zeros) - 1;
-
-  while (min < stop && stop <= max) {
-    stops = push(stops, stop);
-    zeros += 1;
-    stop = countZeros(max + 1, zeros) - 1;
-  }
-
-  stops.sort(compare);
-  return stops;
-}
-
-/**
- * Convert a range to a regex pattern
- * @param {Number} `start`
- * @param {Number} `stop`
- * @return {String}
- */
-
-function rangeToPattern(start, stop, options) {
-  if (start === stop) {
-    return {pattern: String(start), digits: []};
-  }
-
-  var zipped = zip(String(start), String(stop));
-  var len = zipped.length, i = -1;
-
-  var pattern = '';
-  var digits = 0;
-
-  while (++i < len) {
-    var numbers = zipped[i];
-    var startDigit = numbers[0];
-    var stopDigit = numbers[1];
-
-    if (startDigit === stopDigit) {
-      pattern += startDigit;
-
-    } else if (startDigit !== '0' || stopDigit !== '9') {
-      pattern += toCharacterClass(startDigit, stopDigit);
-
-    } else {
-      digits += 1;
-    }
-  }
-
-  if (digits) {
-    pattern += options.shorthand ? '\\d' : '[0-9]';
-  }
-
-  return { pattern: pattern, digits: [digits] };
-}
-
-function splitToPatterns(min, max, tok, options) {
-  var ranges = splitToRanges(min, max);
-  var len = ranges.length;
-  var idx = -1;
-
-  var tokens = [];
-  var start = min;
-  var prev;
-
-  while (++idx < len) {
-    var range = ranges[idx];
-    var obj = rangeToPattern(start, range, options);
-    var zeros = '';
-
-    if (!tok.isPadded && prev && prev.pattern === obj.pattern) {
-      if (prev.digits.length > 1) {
-        prev.digits.pop();
-      }
-      prev.digits.push(obj.digits[0]);
-      prev.string = prev.pattern + toQuantifier(prev.digits);
-      start = range + 1;
-      continue;
-    }
-
-    if (tok.isPadded) {
-      zeros = padZeros(range, tok);
-    }
-
-    obj.string = zeros + obj.pattern + toQuantifier(obj.digits);
-    tokens.push(obj);
-    start = range + 1;
-    prev = obj;
-  }
-
-  return tokens;
-}
-
-function filterPatterns(arr, comparison, prefix, intersection, options) {
-  var res = [];
-
-  for (var i = 0; i < arr.length; i++) {
-    var tok = arr[i];
-    var ele = tok.string;
-
-    if (options.relaxZeros !== false) {
-      if (prefix === '-' && ele.charAt(0) === '0') {
-        if (ele.charAt(1) === '{') {
-          ele = '0*' + ele.replace(/^0\{\d+\}/, '');
-        } else {
-          ele = '0*' + ele.slice(1);
-        }
-      }
-    }
-
-    if (!intersection && !contains(comparison, 'string', ele)) {
-      res.push(prefix + ele);
-    }
-
-    if (intersection && contains(comparison, 'string', ele)) {
-      res.push(prefix + ele);
-    }
-  }
-  return res;
-}
-
-/**
- * Zip strings (`for in` can be used on string characters)
- */
-
-function zip(a, b) {
-  var arr = [];
-  for (var ch in a) arr.push([a[ch], b[ch]]);
-  return arr;
-}
-
-function compare(a, b) {
-  return a > b ? 1 : b > a ? -1 : 0;
-}
-
-function push(arr, ele) {
-  if (arr.indexOf(ele) === -1) arr.push(ele);
-  return arr;
-}
-
-function contains(arr, key, val) {
-  for (var i = 0; i < arr.length; i++) {
-    if (arr[i][key] === val) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function countNines(min, len) {
-  return String(min).slice(0, -len) + repeat('9', len);
-}
-
-function countZeros(integer, zeros) {
-  return integer - (integer % Math.pow(10, zeros));
-}
-
-function toQuantifier(digits) {
-  var start = digits[0];
-  var stop = digits[1] ? (',' + digits[1]) : '';
-  if (!stop && (!start || start === 1)) {
-    return '';
-  }
-  return '{' + start + stop + '}';
-}
-
-function toCharacterClass(a, b) {
-  return '[' + a + ((b - a === 1) ? '' : '-') + b + ']';
-}
-
-function padding(str) {
-  return /^-?(0+)\d/.exec(str);
-}
-
-function padZeros(val, tok) {
-  if (tok.isPadded) {
-    var diff = Math.abs(tok.maxLen - String(val).length);
-    switch (diff) {
-      case 0:
-        return '';
-      case 1:
-        return '0';
-      default: {
-        return '0{' + diff + '}';
-      }
-    }
-  }
-  return val;
-}
-
-/**
- * Expose `toRegexRange`
- */
-
-module.exports = toRegexRange;
 
 
 /***/ }),
