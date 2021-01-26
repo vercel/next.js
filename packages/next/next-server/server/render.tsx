@@ -44,7 +44,11 @@ import {
   NextComponentType,
   RenderPage,
 } from '../lib/utils'
-import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
+import {
+  tryGetPreviewData,
+  NextApiRequestCookies,
+  __ApiPreviewProps,
+} from './api-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
@@ -797,7 +801,7 @@ export async function renderToHTML(
       try {
         data = await getServerSideProps({
           req: req as IncomingMessage & {
-            cookies: { [key: string]: string }
+            cookies: NextApiRequestCookies
           },
           res,
           query,
