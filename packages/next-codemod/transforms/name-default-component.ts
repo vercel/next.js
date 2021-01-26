@@ -1,7 +1,7 @@
 import { basename, extname } from 'path'
 
 const camelCase = (value: string): string => {
-  const val: string = value.replace(/[-_\s.]+(.)?/g, (_match, chr) =>
+  const val = value.replace(/[-_\s.]+(.)?/g, (_match, chr) =>
     chr ? chr.toUpperCase() : ''
   )
   return val.substr(0, 1).toUpperCase() + val.substr(1)
