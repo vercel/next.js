@@ -364,7 +364,7 @@ export function tryGetPreviewData(
   }
 }
 
-function isNotValidData (str: string): boolean {
+function isNotValidData(str: string): boolean {
   return typeof str !== 'string' || str.length < 16
 }
 
