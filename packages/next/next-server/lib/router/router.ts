@@ -881,9 +881,17 @@ export default class Router implements BaseRouter {
       this.changeState(method, url, as, options)
       this.scrollToHash(cleanedAs)
 
-      // Since `#` scroll is already handled, excluding it by checking `cleanedAs`
+      // making sure that scroll position is restored
+      // when scrollRestoration is enabled and this is navigation from url with hash to non-hash url
+      const isScrollRestorationEnabled =
+        !!process.env.__NEXT_SCROLL_RESTORATION &&
+        !!manualScrollRestoration &&
+        !!forcedScroll
       forcedScroll =
-        forcedScroll && !cleanedAs.includes('#') ? forcedScroll : undefined
+        isScrollRestorationEnabled && !cleanedAs.includes('#')
+          ? forcedScroll
+          : undefined
+
       this.notify(this.components[this.route], forcedScroll || null)
       Router.events.emit('hashChangeComplete', as, routeProps)
       return true
@@ -936,39 +944,23 @@ export default class Router implements BaseRouter {
     let resolvedAs = as
 
     if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
-      resolvedAs = resolveRewrites(
-        addBasePath(
-          addLocale(delBasePath(parseRelativeUrl(as).pathname), this.locale)
-        ),
+      const rewritesResult = resolveRewrites(
+        addBasePath(addLocale(delBasePath(as), this.locale)),
         pages,
         rewrites,
         query,
         (p: string) => this._resolveHref({ pathname: p }, pages).pathname!,
         this.locales
       )
+      resolvedAs = rewritesResult.asPath
 
-      if (resolvedAs !== as) {
-        const potentialHref = removePathTrailingSlash(
-          this._resolveHref(
-            Object.assign({}, parsed, {
-              pathname: normalizeLocalePath(
-                hasBasePath(resolvedAs) ? delBasePath(resolvedAs) : resolvedAs,
-                this.locales
-              ).pathname,
-            }),
-            pages,
-            false
-          ).pathname!
-        )
-
+      if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
         // if this directly matches a page we need to update the href to
         // allow the correct page chunk to be loaded
-        if (pages.includes(potentialHref)) {
-          route = potentialHref
-          pathname = potentialHref
-          parsed.pathname = pathname
-          url = formatWithValidation(parsed)
-        }
+        route = rewritesResult.resolvedHref
+        pathname = rewritesResult.resolvedHref
+        parsed.pathname = pathname
+        url = formatWithValidation(parsed)
       }
     }
 
@@ -1049,7 +1041,8 @@ export default class Router implements BaseRouter {
         route,
         pathname,
         query,
-        addBasePath(addLocale(resolvedAs, this.locale)),
+        as,
+        resolvedAs,
         routeProps
       )
       let { error, props, __N_SSG, __N_SSP } = routeInfo
@@ -1096,6 +1089,7 @@ export default class Router implements BaseRouter {
             notFoundRoute,
             query,
             as,
+            resolvedAs,
             { shallow: false }
           )
         }
@@ -1111,13 +1105,16 @@ export default class Router implements BaseRouter {
           !(routeInfo.Component as any).getInitialProps
       }
 
+      // shallow routing is only allowed for same page URL changes.
+      const isValidShallowRoute = options.shallow && this.route === route
       await this.set(
         route,
         pathname!,
         query,
         cleanedAs,
         routeInfo,
-        forcedScroll || (options.scroll ? { x: 0, y: 0 } : null)
+        forcedScroll ||
+          (isValidShallowRoute || !options.scroll ? null : { x: 0, y: 0 })
       ).catch((e) => {
         if (e.cancelled) error = error || e
         else throw e
@@ -1263,6 +1260,7 @@ export default class Router implements BaseRouter {
     pathname: string,
     query: any,
     as: string,
+    resolvedAs: string,
     routeProps: RouteProperties
   ): Promise<PrivateRouteInfo> {
     try {
@@ -1302,7 +1300,7 @@ export default class Router implements BaseRouter {
       if (__N_SSG || __N_SSP) {
         dataHref = this.pageLoader.getDataHref(
           formatWithValidation({ pathname, query }),
-          delBasePath(as),
+          resolvedAs,
           __N_SSG,
           this.locale
         )
