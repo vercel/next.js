@@ -796,7 +796,9 @@ export async function renderToHTML(
 
       try {
         data = await getServerSideProps({
-          req,
+          req: req as IncomingMessage & {
+            cookies: { [key: string]: string }
+          },
           res,
           query,
           resolvedUrl: renderOpts.resolvedUrl as string,
