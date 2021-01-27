@@ -18,7 +18,7 @@ export default function Home() {
   }
 
   async function fetchUserData() {
-    const res = await fetch("/api/user")
+    const res = await fetch('/api/user')
     const json = await res.json()
     alert(JSON.stringify(json))
   }

@@ -7,7 +7,10 @@ import SuperTokensNode from 'supertokens-node'
 import SessionNode from 'supertokens-node/recipe/session'
 import EmailPasswordNode from 'supertokens-node/recipe/emailpassword'
 const port = process.env.APP_PORT || 3000
-const websiteDomain = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${port}`
+const websiteDomain =
+  process.env.APP_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  `http://localhost:${port}`
 const apiBasePath = '/api/auth/'
 
 // Client Side configs.
@@ -22,7 +25,7 @@ if (typeof window !== 'undefined') {
     recipeList: [
       EmailPasswordReact.init({
         emailVerificationFeature: {
-          mode: 'REQUIRED'
+          mode: 'REQUIRED',
         },
       }),
       SessionReact.init(),
@@ -43,7 +46,6 @@ if (typeof window !== 'undefined') {
     recipeList: [EmailPasswordNode.init(), SessionNode.init()],
   })
 }
-
 
 function MyApp({ Component, pageProps }) {
   return <Component {...pageProps} />
