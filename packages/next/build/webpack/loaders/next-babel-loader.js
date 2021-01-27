@@ -1,14 +1,13 @@
-import babelLoader from 'next/dist/compiled/babel-loader'
-import hash from 'next/dist/compiled/string-hash'
-import { basename, join } from 'path'
+import { join } from 'path'
 import * as Log from '../../output/log'
+import babelLoader from './babel-loader/src/index'
 
-// increment 'n' to invalidate cache
+// increment 'o' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'n' + '-'
+const cacheKey = 'babel-cache-' + 'o' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
-module.exports = babelLoader.custom((babel) => {
+const customBabelLoader = babelLoader((babel) => {
   const presetItem = babel.createConfigItem(nextBabelPreset, {
     type: 'preset',
   })
@@ -37,7 +36,6 @@ module.exports = babelLoader.custom((babel) => {
       const loader = Object.assign(
         opts.cache
           ? {
-              cacheCompression: false,
               cacheDirectory: join(opts.distDir, 'cache', 'next-babel-loader'),
               cacheIdentifier:
                 cacheKey +
@@ -150,17 +148,6 @@ module.exports = babelLoader.custom((babel) => {
         options.plugins.push(diallowExportAll)
       }
 
-      if (isServer && source.indexOf('next/data') !== -1) {
-        const nextDataPlugin = babel.createConfigItem(
-          [
-            require('../../babel/plugins/next-data'),
-            { key: basename(filename) + '-' + hash(filename) },
-          ],
-          { type: 'plugin' }
-        )
-        options.plugins.push(nextDataPlugin)
-      }
-
       // If the file has `module.exports` we have to transpile commonjs because Babel adds `import` statements
       // That break webpack, since webpack doesn't support combining commonjs and esmodules
       if (source.indexOf('module.exports') !== -1) {
@@ -168,7 +155,7 @@ module.exports = babelLoader.custom((babel) => {
       }
 
       options.plugins.push([
-        require.resolve('babel-plugin-transform-define'),
+        require.resolve('next/dist/compiled/babel/plugin-transform-define'),
         {
           'process.env.NODE_ENV': development ? 'development' : 'production',
           'typeof window': isServer ? 'undefined' : 'object',
@@ -210,3 +197,5 @@ module.exports = babelLoader.custom((babel) => {
     },
   }
 })
+
+export default customBabelLoader

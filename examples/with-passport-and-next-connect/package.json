@@ -14,7 +14,8 @@
     "passport-local": "^1.0.0",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
-    "swr": "^0.1.18"
+    "swr": "^0.1.18",
+    "uuidv4": "6.2.5"
   },
   "license": "MIT"
 }

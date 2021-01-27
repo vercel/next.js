@@ -11,7 +11,7 @@ const Home = () => {
       <p>Steps to test the example:</p>
 
       <ol>
-        <li>Click Login and enter an username and password.</li>
+        <li>Click Login and enter a username and password.</li>
         <li>
           You'll be redirected to Home. Click on Profile, notice how your
           session is being used through a token stored in a cookie.
@@ -22,11 +22,20 @@ const Home = () => {
         </li>
       </ol>
 
-      {user && <p>Currently logged in as: {JSON.stringify(user)}</p>}
+      {user && (
+        <>
+          <p>Currently logged in as:</p>
+          <pre>{JSON.stringify(user, null, 2)}</pre>
+        </>
+      )}
 
       <style jsx>{`
         li {
           margin-bottom: 0.5rem;
+        }
+        pre {
+          white-space: pre-wrap;
+          word-wrap: break-word;
         }
       `}</style>
     </Layout>

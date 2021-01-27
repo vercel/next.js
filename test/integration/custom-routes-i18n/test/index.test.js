@@ -30,7 +30,7 @@ const runTests = () => {
     for (const [path, dest] of [
       ['/redirect-1', '/destination-1'],
       ['/en/redirect-1', '/destination-1'],
-      ['/fr/redirect-1', 'http://example.fr/destination-1'],
+      ['/fr/redirect-1', '/fr/destination-1'],
       ['/nl-NL/redirect-2', '/destination-2'],
       ['/fr/redirect-2', false],
     ]) {
@@ -94,7 +94,13 @@ const runTests = () => {
       await browser.elementByCss('#to-about').click()
 
       await check(async () => {
-        const data = JSON.parse(await browser.elementByCss('#data').text())
+        const data = JSON.parse(
+          cheerio
+            .load(await browser.eval('document.documentElement.innerHTML'))(
+              '#data'
+            )
+            .text()
+        )
         console.log(data)
         return data.url === `${expectedIndex ? '/fr' : ''}/about`
           ? 'success'
@@ -108,7 +114,13 @@ const runTests = () => {
         .click()
 
       await check(async () => {
-        const data = JSON.parse(await browser.elementByCss('#data').text())
+        const data = JSON.parse(
+          cheerio
+            .load(await browser.eval('document.documentElement.innerHTML'))(
+              '#data'
+            )
+            .text()
+        )
         console.log(data)
         return data.url === `${expectedIndex ? '/fr' : ''}/hello`
           ? 'success'
