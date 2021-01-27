@@ -27,12 +27,10 @@ export default function About() {
 export function getStaticProps({ locale }) {
   return {
     props: {
-      messages: locale
-        ? {
-            ...require(`../messages/shared/${locale}.json`),
-            ...require(`../messages/about/${locale}.json`),
-          }
-        : undefined,
+      messages: {
+        ...require(`../messages/shared/${locale}.json`),
+        ...require(`../messages/about/${locale}.json`),
+      },
     },
   }
 }

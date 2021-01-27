@@ -22,12 +22,10 @@ export default function Index() {
 export function getStaticProps({ locale }) {
   return {
     props: {
-      messages: locale
-        ? {
-            ...require(`../messages/shared/${locale}.json`),
-            ...require(`../messages/index/${locale}.json`),
-          }
-        : undefined,
+      messages: {
+        ...require(`../messages/shared/${locale}.json`),
+        ...require(`../messages/index/${locale}.json`),
+      },
     },
   }
 }
