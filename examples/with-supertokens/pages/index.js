@@ -1,6 +1,5 @@
 import React from 'react'
 import Head from 'next/head'
-import 'regenerator-runtime/runtime'
 import styles from '../styles/Home.module.css'
 import EmailPassword from 'supertokens-auth-react/recipe/emailpassword'
 import dynamic from 'next/dynamic'

@@ -1,6 +1,5 @@
 import '../styles/globals.css'
 import React from 'react'
-// import 'regenerator-runtime/runtime'
 import SuperTokensReact from 'supertokens-auth-react'
 import EmailPasswordReact from 'supertokens-auth-react/recipe/emailpassword'
 import SessionReact from 'supertokens-auth-react/recipe/session'
@@ -11,7 +10,7 @@ const port = process.env.APP_PORT || 3000
 const websiteDomain = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${port}`
 const apiBasePath = '/api/auth/'
 
-// Server Side configs.
+// Client Side configs.
 if (typeof window !== 'undefined') {
   SuperTokensReact.init({
     appInfo: {
@@ -30,7 +29,7 @@ if (typeof window !== 'undefined') {
     ],
   })
 } else {
-  // Client Side configs.
+  // Server Side configs.
   SuperTokensNode.init({
     supertokens: {
       connectionURI: 'https://try.supertokens.io', // Replace with your SuperTokens core instance. See https://supertokens.io/docs/emailpassword/quick-setup/supertokens-core/overview
