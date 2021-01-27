@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "next",
     "build": "next build",
-    "start": "next start",
-    "test": "NODE_OPTIONS='--inspect' jest --watch --runInBand --testPathIgnorePatterns=[]"
+    "start": "next start"
   },
   "dependencies": {
     "@apollo/client": "^3.3.6",
