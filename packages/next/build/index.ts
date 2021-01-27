@@ -1164,15 +1164,18 @@ export default async function build(
                 // TODO: do we want to show all locale variants in build output
                 for (const locale of i18n.locales) {
                   const localePage = `/${locale}${page === '/' ? '' : page}`
-                  finalPrerenderRoutes[localePage] = {
-                    initialRevalidateSeconds:
-                      exportConfig.initialPageRevalidationMap[localePage],
-                    srcRoute: null,
-                    dataRoute: path.posix.join(
-                      '/_next/data',
-                      buildId,
-                      `${file}.json`
-                    ),
+
+                  if (!ssgNotFoundPaths.includes(localePage)) {
+                    finalPrerenderRoutes[localePage] = {
+                      initialRevalidateSeconds:
+                        exportConfig.initialPageRevalidationMap[localePage],
+                      srcRoute: null,
+                      dataRoute: path.posix.join(
+                        '/_next/data',
+                        buildId,
+                        `${file}.json`
+                      ),
+                    }
                   }
                 }
               } else {

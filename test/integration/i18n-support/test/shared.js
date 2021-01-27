@@ -555,10 +555,6 @@ export function runTests(ctx) {
             \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
             \\"dataRoute\\": \\"/_next/data/BUILD_ID/en/gsp/fallback/always.json\\"
           },
-          \\"/en/not-found\\": {
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
-          },
           \\"/fr\\": {
             \\"initialRevalidateSeconds\\": false,
             \\"srcRoute\\": null,
@@ -768,10 +764,6 @@ export function runTests(ctx) {
             \\"initialRevalidateSeconds\\": false,
             \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
             \\"dataRoute\\": \\"/_next/data/BUILD_ID/nl/gsp/fallback/always.json\\"
-          },
-          \\"/nl/not-found\\": {
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
           }
         }"
       `)
