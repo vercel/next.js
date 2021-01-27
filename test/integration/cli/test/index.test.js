@@ -204,6 +204,7 @@ describe('CLI Usage', () => {
     test('--port', async () => {
       const port = await findPort()
       const output = await runNextCommandDev([dir, '--port', port], true)
+      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
@@ -214,12 +215,14 @@ describe('CLI Usage', () => {
       const output = await runNextCommandDev([dir, '--port', port], true, {
         env: { NODE_OPTIONS: '--inspect' },
       })
+      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
     test('-p', async () => {
       const port = await findPort()
       const output = await runNextCommandDev([dir, '-p', port], true)
+      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
@@ -262,7 +265,8 @@ describe('CLI Usage', () => {
         [dir, '--hostname', '0.0.0.0', '--port', port],
         true
       )
-      expect(output).toMatch(new RegExp(`http://0.0.0.0:${port}`))
+      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
+      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
     test('-H', async () => {
@@ -271,7 +275,8 @@ describe('CLI Usage', () => {
         [dir, '-H', '0.0.0.0', '--port', port],
         true
       )
-      expect(output).toMatch(new RegExp(`http://0.0.0.0:${port}`))
+      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
+      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
     test('should warn when unknown argument provided', async () => {
