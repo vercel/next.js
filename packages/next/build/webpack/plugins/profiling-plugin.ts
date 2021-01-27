@@ -1,5 +1,6 @@
 import { tracer } from '../../tracer'
 import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { Span } from '@opentelemetry/api'
 
 const pluginName = 'ProfilingPlugin'
 
@@ -22,6 +23,11 @@ export class ProfilingPlugin {
       return
     }
 
+    this.traceTopLevelHooks(compiler)
+    this.traceCompilationHooks(compiler)
+  }
+
+  traceTopLevelHooks(compiler: any) {
     compiler.hooks.compile.tap(pluginName, () => {
       const span = tracer.startSpan('webpack-compile', {
         attributes: { name: compiler.name },
@@ -31,6 +37,27 @@ export class ProfilingPlugin {
     compiler.hooks.done.tap(pluginName, () => {
       spans.get(compiler).end()
     })
+  }
+
+  traceHookPair(spanName: string, startHook: any, stopHook: any) {
+    const reportedSpanName = `webpack-compilation-${spanName}`
+    let span: Span | null = null
+    startHook.tap(pluginName, () => (span = tracer.startSpan(reportedSpanName)))
+    stopHook.tap(pluginName, () => span?.end())
+  }
+
+  traceLoopedHook(spanName: string, startHook: any, stopHook: any) {
+    const reportedSpanName = `webpack-compilation-${spanName}`
+    let span: Span | null = null
+    startHook.tap(pluginName, () => {
+      if (span) {
+        span = tracer.startSpan(reportedSpanName)
+      }
+    })
+    stopHook.tap(pluginName, () => span?.end())
+  }
+
+  traceCompilationHooks(compiler: any) {
     compiler.hooks.compilation.tap(pluginName, (compilation: any) => {
       compilation.hooks.buildModule.tap(pluginName, (module: any) => {
         tracer.withSpan(spans.get(compiler), () => {
@@ -51,6 +78,37 @@ export class ProfilingPlugin {
       compilation.hooks.succeedModule.tap(pluginName, (module: any) => {
         spans.get(module).end()
       })
+
+      this.traceHookPair(
+        'chunk-graph',
+        compilation.hooks.beforeChunks,
+        compilation.hooks.afterChunks
+      )
+      this.traceHookPair(
+        'optimize',
+        compilation.hooks.optimize,
+        compilation.hooks.reviveModules
+      )
+      this.traceLoopedHook(
+        'optimize-modules',
+        compilation.hooks.optimizeModules,
+        compilation.hooks.afterOptimizeModules
+      )
+      this.traceLoopedHook(
+        'optimize-chunks',
+        compilation.hooks.optimizeChunks,
+        compilation.hooks.afterOptimizeChunks
+      )
+      this.traceHookPair(
+        'optimize-tree',
+        compilation.hooks.optimizeTree,
+        compilation.hooks.afterOptimizeTree
+      )
+      this.traceHookPair(
+        'hash',
+        compilation.hooks.beforeHash,
+        compilation.hooks.afterHash
+      )
     })
   }
 }
