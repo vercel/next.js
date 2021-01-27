@@ -90,10 +90,12 @@ export {
   NextApiHandler,
 }
 
+export type PreviewData = string | false | object | undefined
+
 export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
   params?: Q
   preview?: boolean
-  previewData?: any
+  previewData?: PreviewData
   locale?: string
   locales?: string[]
   defaultLocale?: string
@@ -141,7 +143,7 @@ export type GetServerSidePropsContext<
   params?: Q
   query: ParsedUrlQuery
   preview?: boolean
-  previewData?: any
+  previewData?: PreviewData
   resolvedUrl: string
   locale?: string
   locales?: string[]
