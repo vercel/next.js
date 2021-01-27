@@ -257,7 +257,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     },
     [childRef, setIntersectionRef]
   )
-  const isLocalUrl: boolean = isLocalURL(href)
+  const isLocalUrl = isLocalURL(href)
 
   useEffect(() => {
     const shouldPrefetch = isVisible && p && isLocalURL
