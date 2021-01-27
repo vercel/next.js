@@ -170,6 +170,7 @@ export type RenderOptsPartial = {
   previewProps: __ApiPreviewProps
   basePath: string
   unstable_runtimeJS?: false
+  unstable_JsPreload?: false
   optimizeFonts: boolean
   fontManifest?: FontManifest
   optimizeImages: boolean
@@ -218,6 +219,7 @@ function renderDocument(
     gip,
     appGip,
     unstable_runtimeJS,
+    unstable_JsPreload,
     devOnlyCacheBusterQueryString,
     scriptLoader,
     locale,
@@ -288,6 +290,7 @@ function renderDocument(
           assetPrefix,
           headTags,
           unstable_runtimeJS,
+          unstable_JsPreload,
           devOnlyCacheBusterQueryString,
           scriptLoader,
           locale,
@@ -1019,6 +1022,7 @@ export async function renderToHTML(
       process.env.NODE_ENV === 'production'
         ? pageConfig.unstable_runtimeJS
         : undefined,
+    unstable_JsPreload: pageConfig.unstable_JsPreload,
     dangerousAsPath: router.asPath,
     ampState,
     props,

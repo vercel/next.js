@@ -115,6 +115,69 @@ describe('CLI Usage', () => {
       expect(code).toBe(expectedExitCode)
       expect(signal).toBe(expectedExitSignal)
     })
+
+    test('too old of react version', async () => {
+      const { stderr } = await runNextCommand(['build', dirOldReact], {
+        stderr: true,
+      })
+
+      expect(stderr).toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
+    })
+
+    test('too old of react-dom version', async () => {
+      const { stderr } = await runNextCommand(['build', dirOldReactDom], {
+        stderr: true,
+      })
+
+      expect(stderr).toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
+    })
+
+    test('experimental react version', async () => {
+      const { stderr } = await runNextCommand(['build', dirExperimentalReact], {
+        stderr: true,
+      })
+
+      expect(stderr).not.toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
+    })
+
+    test('experimental react-dom version', async () => {
+      const { stderr } = await runNextCommand(
+        ['build', dirExperimentalReactDom],
+        {
+          stderr: true,
+        }
+      )
+
+      expect(stderr).not.toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
+    })
+
+    test('recommended react version', async () => {
+      const { stderr } = await runNextCommand(['build'], {
+        stderr: true,
+      })
+
+      expect(stderr).not.toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
+    })
+
+    test('recommended react-dom version', async () => {
+      const { stderr } = await runNextCommand(['build'], {
+        stderr: true,
+      })
+
+      expect(stderr).not.toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
+    })
   })
 
   describe('dev', () => {
@@ -296,9 +359,8 @@ describe('CLI Usage', () => {
       })
 
       expect(stderr).toMatch(
-        'Fast Refresh is disabled in your application due to an outdated `react` version'
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
       )
-      expect(stderr).not.toMatch(`react-dom`)
 
       await killApp(instance)
     })
@@ -315,9 +377,8 @@ describe('CLI Usage', () => {
       })
 
       expect(stderr).toMatch(
-        'Fast Refresh is disabled in your application due to an outdated `react-dom` version'
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
       )
-      expect(stderr).not.toMatch('`react`')
 
       await killApp(instance)
     })
@@ -333,9 +394,9 @@ describe('CLI Usage', () => {
         },
       })
 
-      expect(stderr).not.toMatch('disabled')
-      expect(stderr).not.toMatch('outdated')
-      expect(stderr).not.toMatch(`react-dom`)
+      expect(stderr).not.toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
 
       await killApp(instance)
     })
@@ -351,9 +412,45 @@ describe('CLI Usage', () => {
         },
       })
 
-      expect(stderr).not.toMatch('disabled')
-      expect(stderr).not.toMatch('outdated')
-      expect(stderr).not.toMatch('`react`')
+      expect(stderr).not.toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
+
+      await killApp(instance)
+    })
+
+    test('recommended react version', async () => {
+      const port = await findPort()
+
+      let stderr = ''
+      let instance = await launchApp(dir, port, {
+        stderr: true,
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+
+      expect(stderr).not.toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
+
+      await killApp(instance)
+    })
+
+    test('recommended react-dom version', async () => {
+      const port = await findPort()
+
+      let stderr = ''
+      let instance = await launchApp(dir, port, {
+        stderr: true,
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+
+      expect(stderr).not.toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
 
       await killApp(instance)
     })
