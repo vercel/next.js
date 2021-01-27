@@ -1,11 +1,13 @@
-import { useTranslations } from 'next-intl'
+import { useIntl, useTranslations } from 'next-intl'
 import { useRouter } from 'next/router'
 import Code from '../components/Code'
 import PageLayout from '../components/PageLayout'
 
 export default function About() {
-  const { locale } = useRouter()
   const t = useTranslations('About')
+  const { locale } = useRouter()
+  const intl = useIntl()
+  const lastUpdated = new Date('2021-01-26T17:04:45.567Z')
 
   return (
     <PageLayout title={t('title')}>
@@ -17,7 +19,8 @@ export default function About() {
       </p>
       <p>
         {t('lastUpdated', {
-          lastUpdated: new Date('2021-01-27T15:58:45.567Z'),
+          lastUpdated,
+          lastUpdatedRelative: intl.formatRelativeTime(lastUpdated),
         })}
       </p>
     </PageLayout>
@@ -31,6 +34,7 @@ export function getStaticProps({ locale }) {
         ...require(`../messages/shared/${locale}.json`),
         ...require(`../messages/about/${locale}.json`),
       },
+      now: new Date().toISOString(),
     },
   }
 }

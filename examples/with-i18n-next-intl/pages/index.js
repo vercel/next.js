@@ -4,8 +4,8 @@ import Code from '../components/Code'
 import PageLayout from '../components/PageLayout'
 
 export default function Index() {
-  const { locale } = useRouter()
   const t = useTranslations('Index')
+  const { locale } = useRouter()
 
   return (
     <PageLayout title={t('title')}>
