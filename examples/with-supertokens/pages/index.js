@@ -19,7 +19,7 @@ export default function Home() {
   }
 
   async function fetchUserData() {
-    const res = await fetch(`${window.location.origin}/api/user`)
+    const res = await fetch("/api/user")
     const json = await res.json()
     alert(JSON.stringify(json))
   }

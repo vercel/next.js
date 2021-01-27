@@ -1,32 +1,50 @@
 import '../styles/globals.css'
 import React from 'react'
-import 'regenerator-runtime/runtime'
-import SuperTokens from 'supertokens-auth-react'
-import EmailPassword from 'supertokens-auth-react/recipe/emailpassword'
-import Session from 'supertokens-auth-react/recipe/session'
+// import 'regenerator-runtime/runtime'
+import SuperTokensReact from 'supertokens-auth-react'
+import EmailPasswordReact from 'supertokens-auth-react/recipe/emailpassword'
+import SessionReact from 'supertokens-auth-react/recipe/session'
+import SuperTokensNode from 'supertokens-node'
+import SessionNode from 'supertokens-node/recipe/session'
+import EmailPasswordNode from 'supertokens-node/recipe/emailpassword'
+const port = process.env.APP_PORT || 3000
+const websiteDomain = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${port}`
+const apiBasePath = '/api/auth/'
 
-const websitePort = process.env.APP_PORT || 3000
-const websiteDomain =
-  process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${websitePort}`
-
+// Server Side configs.
 if (typeof window !== 'undefined') {
-  SuperTokens.init({
+  SuperTokensReact.init({
     appInfo: {
       appName: 'SuperTokens Demo App',
       websiteDomain,
       apiDomain: websiteDomain,
-      apiBasePath: 'api/auth',
+      apiBasePath,
     },
     recipeList: [
-      EmailPassword.init({
+      EmailPasswordReact.init({
         emailVerificationFeature: {
-          mode: 'REQUIRED',
+          mode: 'REQUIRED'
         },
       }),
-      Session.init(),
+      SessionReact.init(),
     ],
   })
+} else {
+  // Client Side configs.
+  SuperTokensNode.init({
+    supertokens: {
+      connectionURI: 'https://try.supertokens.io', // Replace with your SuperTokens core instance. See https://supertokens.io/docs/emailpassword/quick-setup/supertokens-core/overview
+    },
+    appInfo: {
+      appName: 'SuperTokens Demo App',
+      websiteDomain,
+      apiDomain: websiteDomain,
+      apiBasePath,
+    },
+    recipeList: [EmailPasswordNode.init(), SessionNode.init()],
+  })
 }
+
 
 function MyApp({ Component, pageProps }) {
   return <Component {...pageProps} />
