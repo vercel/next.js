@@ -3,9 +3,9 @@ import { useRouter } from 'next/router'
 import Code from '../components/Code'
 import PageLayout from '../components/PageLayout'
 
-export default function Test() {
+export default function About() {
   const { locale } = useRouter()
-  const t = useTranslations('Test')
+  const t = useTranslations('About')
 
   return (
     <PageLayout title={t('title')}>
@@ -17,7 +17,7 @@ export default function Test() {
       </p>
       <p>
         {t('lastUpdated', {
-          lastUpdated: new Date('2021-01-22T15:58:45.567Z'),
+          lastUpdated: new Date('2021-01-27T15:58:45.567Z'),
         })}
       </p>
     </PageLayout>
@@ -27,7 +27,12 @@ export default function Test() {
 export function getStaticProps({ locale }) {
   return {
     props: {
-      messages: locale ? require(`../messages/test/${locale}.json`) : undefined,
+      messages: locale
+        ? {
+            ...require(`../messages/shared/${locale}.json`),
+            ...require(`../messages/about/${locale}.json`),
+          }
+        : undefined,
     },
   }
 }

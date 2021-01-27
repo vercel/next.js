@@ -14,8 +14,8 @@ export default function Navigation() {
         <Link href="/">
           <a>{t('index')}</a>
         </Link>
-        <Link href="/test">
-          <a>{t('test')}</a>
+        <Link href="/about">
+          <a>{t('about')}</a>
         </Link>
       </div>
       <Link href={route} locale={otherLocale}>

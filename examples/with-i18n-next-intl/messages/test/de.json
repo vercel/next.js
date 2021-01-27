@@ -1,7 +1,0 @@
-{
-  "Test": {
-    "title": "Ein Test",
-    "description": "Diese Seite verwendet separate Übersetzungen aus <code>./messages/test/{locale}.json</code>. Diese Übersetzungen werden auf der Startseite nicht geladen.",
-    "lastUpdated": "Dieses Beispiel wurde aktualisiert am {lastUpdated, date, short}"
-  }
-}

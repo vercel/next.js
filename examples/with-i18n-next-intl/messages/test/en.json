@@ -1,7 +1,0 @@
-{
-  "Test": {
-    "title": "A test",
-    "description": "This page uses separate messages from <code>./messages/test/{locale}.json</code>. These messages aren't loaded on the start page.",
-    "lastUpdated": "This example was updated on {lastUpdated, date, short}"
-  }
-}
