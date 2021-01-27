@@ -1,6 +1,6 @@
-# Tailwind CSS example
+# Next.js + Tailwind CSS Example
 
-This example is a basic starting point for using [Tailwind CSS](https://tailwindcss.com) with Next.js.
+This example shows how to use [Tailwind CSS](https://tailwindcss.com/) (v2) with Next.js. It follows the steps outlined in the official [Tailwind docs](https://tailwindcss.com/docs/guides/nextjs).
 
 ## Deploy your own
 
@@ -19,12 +19,3 @@ yarn create next-app --example with-tailwindcss with-tailwindcss-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
-
-## Notes
-
-This example includes the following [PostCSS](https://github.com/postcss/postcss) plugins:
-
-- [tailwindcss](https://tailwindcss.com) - utility-first CSS framework
-- [autoprefixer](https://github.com/postcss/autoprefixer) - plugin to parse CSS and add vendor prefixes to CSS rules using values from [Can I Use](https://caniuse.com).
-
-To control the generated stylesheet's filesize, this example uses Tailwind CSS' [`purge` option](https://tailwindcss.com/docs/controlling-file-size/#removing-unused-css) to remove unused CSS.
