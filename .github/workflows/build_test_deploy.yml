@@ -15,6 +15,9 @@ jobs:
       docsChange: ${{ steps.docs-change.outputs.DOCS_CHANGE }}
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 25
+
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
       - run: yarn install --frozen-lockfile --check-files
       - run: node run-tests.js --timings --write-timings -g 1/1
@@ -136,6 +139,8 @@ jobs:
       YARN_COMPRESSION_LEVEL: '0'
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 25
 
       - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
         id: docs-change
@@ -164,6 +169,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 25
 
       - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
         id: docs-change
@@ -187,6 +194,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 25
 
       - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
         id: docs-change

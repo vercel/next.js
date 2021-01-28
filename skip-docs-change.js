@@ -9,7 +9,7 @@ async function main() {
   await exec('git fetch origin canary')
 
   const { stdout: changedFilesOutput } = await exec(
-    'git diff origin/canary --name-only'
+    'git diff origin/canary... --name-only'
   )
   const changedFiles = changedFilesOutput
     .split('\n')
