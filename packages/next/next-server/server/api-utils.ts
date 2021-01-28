@@ -231,7 +231,7 @@ export function sendData(
   res: NextApiResponse,
   body: any
 ): void {
-  if (body === null) {
+  if (body === null || body === undefined) {
     res.end()
     return
   }

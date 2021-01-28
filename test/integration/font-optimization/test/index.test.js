@@ -52,6 +52,17 @@ function runTests() {
     )
   })
 
+  it('should pass nonce to the inlined font definition', async () => {
+    const html = await renderViaHTTP(appPort, '/nonce')
+    expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+    expect(html).toContain(
+      '<link rel="stylesheet" nonce="VmVyY2Vs" data-href="https://fonts.googleapis.com/css2?family=Modak"/>'
+    )
+    expect(html).toMatch(
+      /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Modak" nonce="VmVyY2Vs">.*<\/style>/
+    )
+  })
+
   it('should inline the google fonts for static pages with Next/Head', async () => {
     const html = await renderViaHTTP(appPort, '/static-head')
     expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
