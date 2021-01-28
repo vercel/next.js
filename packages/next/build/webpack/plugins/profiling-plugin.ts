@@ -81,7 +81,7 @@ export class ProfilingPlugin {
     const reportedSpanName = `webpack-compilation-${spanName}`
     let span: Span | null = null
     startHook.tap(pluginName, () => {
-      if (span) {
+      if (!span) {
         tracer.withSpan(parentSpan, () => {
           span = tracer.startSpan(reportedSpanName)
         })
