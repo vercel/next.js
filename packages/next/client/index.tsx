@@ -46,6 +46,7 @@ declare global {
 type RenderRouteInfo = PrivateRouteInfo & {
   App: AppComponent
   scroll?: { x: number; y: number } | null
+  browser?: boolean
 }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 
@@ -360,15 +361,16 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     wrapApp,
     err: initialErr,
     isFallback: Boolean(isFallback),
-    subscription: (info, App, scroll) =>
+    subscription: (info, App, scroll, browser) =>
       render(
         Object.assign<
           {},
-          Omit<RenderRouteInfo, 'App' | 'scroll'>,
-          Pick<RenderRouteInfo, 'App' | 'scroll'>
+          Omit<RenderRouteInfo, 'App' | 'scroll' | 'browser'>,
+          Pick<RenderRouteInfo, 'App' | 'scroll' | 'browser'>
         >({}, info, {
           App,
           scroll,
+          browser,
         }) as RenderRouteInfo
       ),
     locale,
@@ -500,7 +502,11 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 
 let reactRoot: any = null
 let shouldUseHydrate: boolean = typeof ReactDOM.hydrate === 'function'
-function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement): void {
+function renderReactElement(
+  reactEl: JSX.Element,
+  domEl: HTMLElement,
+  synchronous: boolean
+): void {
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
     if (!reactRoot) {
       const opts = { hydrate: true }
@@ -509,7 +515,12 @@ function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement): void {
           ? (ReactDOM as any).unstable_createRoot(domEl, opts)
           : (ReactDOM as any).unstable_createBlockingRoot(domEl, opts)
     }
-    reactRoot.render(reactEl)
+    if (synchronous) {
+      // TODO: Find out why @types/react-dom doesn't expose this already
+      ;(ReactDOM as any).flushSync(() => reactRoot.render(reactEl))
+    } else {
+      reactRoot.render(reactEl)
+    }
   } else {
     // mark start of hydrate/render
     if (ST) {
@@ -620,7 +631,7 @@ const wrapApp = (App: AppComponent) => (
 
 let lastAppProps: AppProps
 function doRender(input: RenderRouteInfo): Promise<any> {
-  let { App, Component, props, err }: RenderRouteInfo = input
+  let { App, Component, props, err, browser }: RenderRouteInfo = input
   let styleSheets: StyleSheetTuple[] | undefined =
     'initial' in input ? undefined : input.styleSheets
   Component = Component || lastAppProps.Component
@@ -790,7 +801,8 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     ) : (
       elem
     ),
-    appElement!
+    appElement!,
+    browser === true
   )
 
   return renderPromise

@@ -391,7 +391,8 @@ export type AppComponent = ComponentType<AppProps>
 type Subscription = (
   data: PrivateRouteInfo,
   App: AppComponent,
-  resetScroll: { x: number; y: number } | null
+  resetScroll: { x: number; y: number } | null,
+  browser: boolean
 ) => Promise<void>
 
 type BeforePopStateCallback = (state: NextHistoryState) => boolean
@@ -686,7 +687,8 @@ export default class Router implements BaseRouter {
         shallow: options.shallow && this._shallow,
         locale: options.locale || this.defaultLocale,
       }),
-      forcedScroll
+      forcedScroll,
+      true
     )
   }
 
@@ -741,7 +743,8 @@ export default class Router implements BaseRouter {
     url: string,
     as: string,
     options: TransitionOptions,
-    forcedScroll?: { x: number; y: number }
+    forcedScroll?: { x: number; y: number },
+    browser?: boolean
   ): Promise<boolean> {
     if (!isLocalURL(url)) {
       window.location.href = url
@@ -880,7 +883,7 @@ export default class Router implements BaseRouter {
       // TODO: do we need the resolved href when only a hash change?
       this.changeState(method, url, as, options)
       this.scrollToHash(cleanedAs)
-      this.notify(this.components[this.route], null)
+      this.notify(this.components[this.route], null, browser || false)
       Router.events.emit('hashChangeComplete', as, routeProps)
       return true
     }
@@ -1102,7 +1105,8 @@ export default class Router implements BaseRouter {
         cleanedAs,
         routeInfo,
         forcedScroll ||
-          (isValidShallowRoute || !options.scroll ? null : { x: 0, y: 0 })
+          (isValidShallowRoute || !options.scroll ? null : { x: 0, y: 0 }),
+        browser || false
       ).catch((e) => {
         if (e.cancelled) error = error || e
         else throw e
@@ -1324,7 +1328,8 @@ export default class Router implements BaseRouter {
     query: ParsedUrlQuery,
     as: string,
     data: PrivateRouteInfo,
-    resetScroll: { x: number; y: number } | null
+    resetScroll: { x: number; y: number } | null,
+    browser: boolean
   ): Promise<void> {
     this.isFallback = false
 
@@ -1332,7 +1337,7 @@ export default class Router implements BaseRouter {
     this.pathname = pathname
     this.query = query
     this.asPath = as
-    return this.notify(data, resetScroll)
+    return this.notify(data, resetScroll, browser)
   }
 
   /**
@@ -1573,12 +1578,14 @@ export default class Router implements BaseRouter {
 
   notify(
     data: PrivateRouteInfo,
-    resetScroll: { x: number; y: number } | null
+    resetScroll: { x: number; y: number } | null,
+    browser: boolean
   ): Promise<void> {
     return this.sub(
       data,
       this.components['/_app'].Component as AppComponent,
-      resetScroll
+      resetScroll,
+      browser
     )
   }
 }
