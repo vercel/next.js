@@ -33,6 +33,8 @@ import { stringify } from 'querystring'
 import { Rewrite } from '../lib/load-custom-routes'
 import { difference } from '../build/utils'
 import { NextConfig } from '../next-server/server/config'
+import { tracer } from '../build/tracer'
+import { Span } from '@opentelemetry/api'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -139,6 +141,7 @@ function erroredPages(compilation: webpack.compilation.Compilation) {
 }
 
 export default class HotReloader {
+  private span: Span | null
   private dir: string
   private buildId: string
   private middlewares: any[]
@@ -180,6 +183,7 @@ export default class HotReloader {
     this.stats = null
     this.serverStats = null
     this.serverPrevDocumentHash = null
+    this.span = null
 
     this.config = config
     this.previewProps = previewProps
@@ -191,6 +195,7 @@ export default class HotReloader {
     res: ServerResponse,
     parsedUrl: UrlObject
   ): Promise<{ finished?: true }> {
+    this.span = tracer.startSpan('hot-reload')
     // Usually CORS support is not needed for the hot-reloader (this is dev only feature)
     // With when the app runs for multi-zones support behind a proxy,
     // the current page is trying to access this URL via assetPrefix.
@@ -260,6 +265,8 @@ export default class HotReloader {
         })
       })
     }
+
+    this.span?.end?.()
 
     return { finished }
   }

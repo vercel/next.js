@@ -3,6 +3,7 @@ import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { Span } from '@opentelemetry/api'
 
 const pluginName = 'ProfilingPlugin'
+const forceTrace = false
 
 export const spans = new WeakMap()
 
@@ -19,7 +20,7 @@ export class ProfilingPlugin {
   apply(compiler: any) {
     // Only enabled when instrumentation is loaded
     const currentSpan = tracer.getCurrentSpan()
-    if (!currentSpan || !currentSpan.isRecording()) {
+    if (!currentSpan || (!currentSpan.isRecording() && !forceTrace)) {
       return
     }
 
@@ -36,6 +37,22 @@ export class ProfilingPlugin {
     })
     compiler.hooks.done.tap(pluginName, () => {
       spans.get(compiler).end()
+    })
+
+    compiler.hooks.watchRun.tap(pluginName, () => {
+      const span = tracer.startSpan('webpack-watchrun')
+      spans.set(compiler, span)
+    })
+    compiler.hooks.watchClose.tap(pluginName, () => {
+      spans.get(compiler)?.end()
+    })
+
+    compiler.hooks.environment.tap(pluginName, () => {
+      const span = tracer.startSpan('webpack-prepare-env')
+      spans.set(compiler, span)
+    })
+    compiler.hooks.afterEnvironment.tap(pluginName, () => {
+      spans.get(compiler)?.end()
     })
   }
 
