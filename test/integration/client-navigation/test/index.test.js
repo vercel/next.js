@@ -883,11 +883,24 @@ describe('Client Navigation', () => {
 
       expect(scrollPositionDown).toBeGreaterThan(3000)
 
-      await browser.elementByCss('#invalidShallow').click()
+      await browser.elementByCss('#increase3').click()
       await waitFor(500)
       const newScrollPosition3 = await browser.eval('window.pageYOffset')
 
       expect(newScrollPosition3).toBe(0)
+
+      await browser.eval(() =>
+        document.querySelector('#increase3').scrollIntoView()
+      )
+      const scrollPositionDown2 = await browser.eval('window.pageYOffset')
+
+      expect(scrollPositionDown2).toBeGreaterThan(3000)
+
+      await browser.elementByCss('#invalidShallow').click()
+      await waitFor(500)
+      const newScrollPosition4 = await browser.eval('window.pageYOffset')
+
+      expect(newScrollPosition4).toBe(0)
     })
   })
 

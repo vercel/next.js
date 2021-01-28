@@ -27,6 +27,12 @@ export default class extends Component {
     Router.push(href, href, { shallow: true })
   }
 
+  increaseWithScroll() {
+    const counter = this.getCurrentCounter()
+    const href = `/nav/shallow-routing?counter=${counter + 1}`
+    Router.push(href, href, { shallow: true, scroll: true })
+  }
+
   increaseNonShallow() {
     const counter = this.getCurrentCounter()
     const href = `/nav/shallow-routing?counter=${counter + 1}`
@@ -57,6 +63,9 @@ export default class extends Component {
         </button>
         <button id="increase2" onClick={() => this.increaseNonShallow()}>
           Increase Non-Shallow
+        </button>
+        <button id="increase3" onClick={() => this.increaseWithScroll()}>
+          Increase With Scroll
         </button>
         <button id="invalidShallow" onClick={() => this.gotoNavShallow()}>
           Invalid Shallow Nav
