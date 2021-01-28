@@ -1,0 +1,9 @@
+export default function Page() {
+  return <div />
+}
+
+export async function getServurSideProps(context) {
+  return {
+    props: {test: ''}
+  }
+}

@@ -1,0 +1,17 @@
+export default function Page() {
+  return <div />
+}
+
+export const getStaticpaths = () => {
+  return {
+    paths: [
+      { params: {} }
+    ],
+    fallback: false
+  }
+}
+export async function getStaticProps(context) {
+  return {
+    props: {test: ''},
+  }
+}

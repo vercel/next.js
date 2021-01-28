@@ -173,6 +173,13 @@ const customBabelLoader = babelLoader((babel) => {
         }
       }
 
+      if (!isServer && isPageFile) {
+        options.plugins.push([
+          require.resolve('../../babel/plugins/no-typos'),
+          {},
+        ])
+      }
+
       // As next-server/lib has stateful modules we have to transpile commonjs
       options.overrides = [
         ...(options.overrides || []),
