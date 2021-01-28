@@ -102,6 +102,11 @@ export default class extends Component {
         <Link href="/nav/hash-changes#item-400">
           <a id="scroll-to-hash">Scroll to hash</a>
         </Link>
+
+        <p>Add prefix slash</p>
+        <Link href={`add-prefix-slash`}>
+          <a id="add-prefix-slash">Add prefix slash</a>
+        </Link>
       </div>
     )
   }
