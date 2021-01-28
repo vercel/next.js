@@ -3,7 +3,7 @@ import execa from 'execa'
 import fs from 'fs-extra'
 import os from 'os'
 import path from 'path'
-import { findPort, renderViaHTTP, waitFor } from 'next-test-utils'
+import { findPort, killProcess, renderViaHTTP, waitFor } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 const pnpmExecutable = path.join(
@@ -169,7 +169,7 @@ describe('pnpm support', () => {
         expect(await browser.waitForElementByCss('#world').text()).toBe('World')
         await browser.close()
       } finally {
-        await appProcess.kill('SIGTERM')
+        await killProcess(appProcess.pid)
         await waitFor(5000)
       }
     })
