@@ -56,25 +56,54 @@ export class ProfilingPlugin {
     })
   }
 
-  traceHookPair(spanName: string, startHook: any, stopHook: any) {
+  traceHookPair(
+    spanName: string,
+    parentSpan: Span,
+    startHook: any,
+    stopHook: any
+  ) {
     const reportedSpanName = `webpack-compilation-${spanName}`
     let span: Span | null = null
-    startHook.tap(pluginName, () => (span = tracer.startSpan(reportedSpanName)))
-    stopHook.tap(pluginName, () => span?.end())
+    startHook.tap(pluginName, () => {
+      tracer.withSpan(parentSpan, () => {
+        span = tracer.startSpan(reportedSpanName)
+      })
+    })
+    stopHook.tap(pluginName, () => span?.end?.())
   }
 
-  traceLoopedHook(spanName: string, startHook: any, stopHook: any) {
+  traceLoopedHook(
+    spanName: string,
+    parentSpan: Span,
+    startHook: any,
+    stopHook: any
+  ) {
     const reportedSpanName = `webpack-compilation-${spanName}`
     let span: Span | null = null
     startHook.tap(pluginName, () => {
       if (span) {
-        span = tracer.startSpan(reportedSpanName)
+        tracer.withSpan(parentSpan, () => {
+          span = tracer.startSpan(reportedSpanName)
+        })
       }
     })
-    stopHook.tap(pluginName, () => span?.end())
+    stopHook.tap(pluginName, () => span?.end?.())
   }
 
   traceCompilationHooks(compiler: any) {
+    let compilationSpan: Span | null = null
+    compiler.hooks.compilation.intercept({
+      tap() {
+        const parentSpan = spans.get(compiler)
+        tracer.withSpan(parentSpan, () => {
+          compilationSpan = tracer.startSpan('compile')
+        })
+      },
+      done() {
+        compilationSpan?.end?.()
+      },
+    })
+
     compiler.hooks.compilation.tap(pluginName, (compilation: any) => {
       compilation.hooks.buildModule.tap(pluginName, (module: any) => {
         tracer.withSpan(spans.get(compiler), () => {
@@ -98,31 +127,37 @@ export class ProfilingPlugin {
 
       this.traceHookPair(
         'chunk-graph',
+        compilationSpan || spans.get(compiler),
         compilation.hooks.beforeChunks,
         compilation.hooks.afterChunks
       )
       this.traceHookPair(
         'optimize',
+        compilationSpan || spans.get(compiler),
         compilation.hooks.optimize,
         compilation.hooks.reviveModules
       )
       this.traceLoopedHook(
         'optimize-modules',
+        compilationSpan || spans.get(compiler),
         compilation.hooks.optimizeModules,
         compilation.hooks.afterOptimizeModules
       )
       this.traceLoopedHook(
         'optimize-chunks',
+        compilationSpan || spans.get(compiler),
         compilation.hooks.optimizeChunks,
         compilation.hooks.afterOptimizeChunks
       )
       this.traceHookPair(
         'optimize-tree',
+        compilationSpan || spans.get(compiler),
         compilation.hooks.optimizeTree,
         compilation.hooks.afterOptimizeTree
       )
       this.traceHookPair(
         'hash',
+        compilationSpan || spans.get(compiler),
         compilation.hooks.beforeHash,
         compilation.hooks.afterHash
       )
