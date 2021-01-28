@@ -362,6 +362,7 @@ export type NextRouter = BaseRouter &
     | 'events'
     | 'isFallback'
     | 'isReady'
+    | 'isPreview'
   >
 
 export type PrefetchOptions = {
@@ -488,6 +489,7 @@ export default class Router implements BaseRouter {
   defaultLocale?: string
   domainLocales?: DomainLocales
   isReady: boolean
+  isPreview: boolean
 
   private _idx: number = 0
 
@@ -510,6 +512,7 @@ export default class Router implements BaseRouter {
       locales,
       defaultLocale,
       domainLocales,
+      isPreview,
     }: {
       subscription: Subscription
       initialProps: any
@@ -523,6 +526,7 @@ export default class Router implements BaseRouter {
       locales?: string[]
       defaultLocale?: string
       domainLocales?: DomainLocales
+      isPreview?: boolean
     }
   ) {
     // represents the current component key
@@ -579,6 +583,7 @@ export default class Router implements BaseRouter {
       self.__NEXT_DATA__.gip ||
       (!autoExportDynamic && !self.location.search)
     )
+    this.isPreview = !!isPreview
 
     if (process.env.__NEXT_I18N_SUPPORT) {
       this.locale = locale
