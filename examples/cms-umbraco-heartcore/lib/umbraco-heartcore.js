@@ -115,7 +115,7 @@ export async function getPostAndMorePosts(slug, preview) {
           }
         }
       }
-			morePosts: allPost(first: 2, where: { NOT: { url: $slug } }, orderBy: [date_DESC], preview: $preview) {
+      morePosts: allPost(first: 2, where: { NOT: { url: $slug } }, orderBy: [date_DESC], preview: $preview) {
         edges {
           node {
             title:name
