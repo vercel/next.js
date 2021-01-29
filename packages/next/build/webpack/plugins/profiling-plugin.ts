@@ -79,14 +79,14 @@ export class ProfilingPlugin {
       (span) => spans.set(compiler, span)
     )
     this.traceHookPair(
-      'webpack-watch-run',
-      compiler.hooks.watchRun,
-      compiler.hooks.watchClose
-    )
-    this.traceHookPair(
       'webpack-prepare-env',
       compiler.hooks.environment,
       compiler.hooks.afterEnvironment
+    )
+    this.traceHookPair(
+      'webpack-invalidated',
+      compiler.hooks.invalid,
+      compiler.hooks.done
     )
   }
 
