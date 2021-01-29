@@ -97,7 +97,7 @@ function getWidths(
     layout === 'fill' ||
     layout === 'responsive'
   ) {
-    if (sizes) {
+    if (sizes && layout === 'fill') {
       const percentSizes = [...sizes.matchAll(/(^|\s)(1?\d?\d)vw/g)].map((m) =>
         parseInt(m[2])
       )

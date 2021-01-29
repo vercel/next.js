@@ -381,12 +381,6 @@ function runTests(mode) {
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
       )
-      expect(await browser.elementById('fill3').getAttribute('srcset')).toBe(
-        '/_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
-      )
-      expect(await browser.elementById('fill4').getAttribute('srcset')).toBe(
-        '/_next/image?url=%2Fwide.png&amp;w=16&amp;q=75 16w, /_next/image?url=%2Fwide.png&amp;w=32&amp;q=75 32w, /_next/image?url=%2Fwide.png&amp;w=48&amp;q=75 48w, /_next/image?url=%2Fwide.png&amp;w=64&amp;q=75 64w, /_next/image?url=%2Fwide.png&amp;w=96&amp;q=75 96w, /_next/image?url=%2Fwide.png&amp;w=128&amp;q=75 128w, /_next/image?url=%2Fwide.png&amp;w=256&amp;q=75 256w, /_next/image?url=%2Fwide.png&amp;w=384&amp;q=75 384w, /_next/image?url=%2Fwide.png&amp;w=640&amp;q=75 640w, /_next/image?url=%2Fwide.png&amp;w=750&amp;q=75 750w, /_next/image?url=%2Fwide.png&amp;w=828&amp;q=75 828w, /_next/image?url=%2Fwide.png&amp;w=1080&amp;q=75 1080w, /_next/image?url=%2Fwide.png&amp;w=1200&amp;q=75 1200w, /_next/image?url=%2Fwide.png&amp;w=1920&amp;q=75 1920w, /_next/image?url=%2Fwide.png&amp;w=2048&amp;q=75 2048w, /_next/image?url=%2Fwide.png&amp;w=3840&amp;q=75 3840w'
-      )
       expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
       expect(await getComputed(browser, id, 'width')).toBe(width)
       expect(await getComputed(browser, id, 'height')).toBe(height)
@@ -416,6 +410,14 @@ function runTests(mode) {
       )
       expect(objectFit).toBe('cover')
       expect(objectPosition).toBe('left center')
+      await browser.eval(`document.getElementById("fill3").scrollIntoView()`)
+      expect(await browser.elementById('fill3').getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+      )
+      await browser.eval(`document.getElementById("fill4").scrollIntoView()`)
+      expect(await browser.elementById('fill4').getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&amp;w=16&amp;q=75 16w, /_next/image?url=%2Fwide.png&amp;w=32&amp;q=75 32w, /_next/image?url=%2Fwide.png&amp;w=48&amp;q=75 48w, /_next/image?url=%2Fwide.png&amp;w=64&amp;q=75 64w, /_next/image?url=%2Fwide.png&amp;w=96&amp;q=75 96w, /_next/image?url=%2Fwide.png&amp;w=128&amp;q=75 128w, /_next/image?url=%2Fwide.png&amp;w=256&amp;q=75 256w, /_next/image?url=%2Fwide.png&amp;w=384&amp;q=75 384w, /_next/image?url=%2Fwide.png&amp;w=640&amp;q=75 640w, /_next/image?url=%2Fwide.png&amp;w=750&amp;q=75 750w, /_next/image?url=%2Fwide.png&amp;w=828&amp;q=75 828w, /_next/image?url=%2Fwide.png&amp;w=1080&amp;q=75 1080w, /_next/image?url=%2Fwide.png&amp;w=1200&amp;q=75 1200w, /_next/image?url=%2Fwide.png&amp;w=1920&amp;q=75 1920w, /_next/image?url=%2Fwide.png&amp;w=2048&amp;q=75 2048w, /_next/image?url=%2Fwide.png&amp;w=3840&amp;q=75 3840w'
+      )
     } finally {
       if (browser) {
         await browser.close()
