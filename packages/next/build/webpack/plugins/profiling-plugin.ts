@@ -8,6 +8,7 @@ import {
 } from '@opentelemetry/api'
 
 const pluginName = 'ProfilingPlugin'
+export const spans = new WeakMap()
 
 function getNormalModuleLoaderHook(compilation: any) {
   if (isWebpack5) {
@@ -64,13 +65,15 @@ export class ProfilingPlugin {
     parentName: string | null,
     startHook: any,
     stopHook: any,
-    attrs?: any
+    attrs?: any,
+    onSetSpan?: (span: Span | undefined) => void
   ) {
     let span: Span | undefined
     startHook.tap(pluginName, () => {
       span = parentName
         ? this.traceWithParent(parentName, spanName, attrs)
         : tracer.startSpan(spanName, attrs)
+      onSetSpan?.(span)
     })
     stopHook.tap(pluginName, () => span?.end?.())
   }
@@ -114,9 +117,8 @@ export class ProfilingPlugin {
       null,
       compiler.hooks.compile,
       compiler.hooks.done,
-      {
-        attributes: { name: compiler.name },
-      }
+      { attributes: { name: compiler.name } },
+      (span) => spans.set(compiler, span)
     )
     this.traceHookPair(
       'webpack-watch-run',
