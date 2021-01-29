@@ -26,12 +26,19 @@ import * as querystring from './querystring'
 
 const slashedProtocols = /https?|ftp|gopher|file/
 
-export function formatUrl(urlObj: UrlObject) {
-  let { auth, hostname } = urlObj
+function getProtocol(urlObj: UrlObject): string {
   let protocol = urlObj.protocol || ''
-  let pathname = urlObj.pathname || ''
-  let hash = urlObj.hash || ''
-  let query = urlObj.query || ''
+
+  if (protocol?.substr(-1) !== ':') {
+    protocol += ':'
+  }
+
+  return protocol
+}
+
+export function formatUrl(urlObj: UrlObject): string {
+  let { auth } = urlObj
+  const { hostname } = urlObj
   let host: string | false = false
 
   auth = auth ? encodeURIComponent(auth).replace(/%3A/i, ':') + '@' : ''
@@ -45,26 +52,33 @@ export function formatUrl(urlObj: UrlObject) {
     }
   }
 
+  let query = urlObj.query || ''
+
   if (query && typeof query === 'object') {
     query = String(querystring.urlQueryToSearchParams(query as ParsedUrlQuery))
   }
 
-  let search = urlObj.search || (query && `?${query}`) || ''
+  const protocol = getProtocol(urlObj)
 
-  if (protocol && protocol.substr(-1) !== ':') protocol += ':'
+  let pathname = urlObj.pathname || ''
 
   if (
     urlObj.slashes ||
     ((!protocol || slashedProtocols.test(protocol)) && host !== false)
   ) {
     host = '//' + (host || '')
-    if (pathname && pathname[0] !== '/') pathname = '/' + pathname
+    if (pathname?.[0] !== '/') pathname = '/' + pathname
   } else if (!host) {
     host = ''
   }
 
-  if (hash && hash[0] !== '#') hash = '#' + hash
-  if (search && search[0] !== '?') search = '?' + search
+  let hash = urlObj.hash || ''
+
+  if (hash?.[0] !== '#') hash = '#' + hash
+
+  let search = urlObj.search || (query && `?${query}`) || ''
+
+  if (search?.[0] !== '?') search = '?' + search
 
   pathname = pathname.replace(/[?#]/g, encodeURIComponent)
   search = search.replace('#', '%23')
