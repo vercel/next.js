@@ -10,11 +10,11 @@ export function stackPush(compiler: any, spanName: string, attrs?: any): any {
 
   if (!stack) {
     compilerStacks.set(compiler, (stack = []))
-    span = tracer.startSpan(spanName, attrs)
+    span = tracer.startSpan(spanName, attrs ? attrs() : undefined)
   } else {
     const parent = stack[stack.length - 1]
     tracer.withSpan(parent, () => {
-      span = tracer.startSpan(spanName, attrs)
+      span = tracer.startSpan(spanName, attrs ? attrs() : undefined)
     })
   }
 

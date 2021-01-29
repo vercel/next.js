@@ -75,7 +75,9 @@ export class ProfilingPlugin {
       'webpack-compile',
       compiler.hooks.compile,
       compiler.hooks.done,
-      { attributes: { name: compiler.name } },
+      () => {
+        return { attributes: { name: compiler.name } }
+      },
       (span) => spans.set(compiler, span)
     )
     this.traceHookPair(
