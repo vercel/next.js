@@ -53,6 +53,13 @@ function getSearch(urlObj: UrlObject, query: string): string {
   return search.replace('#', '%23')
 }
 
+function getHash(urlObj: UrlObject): string {
+  let hash = urlObj.hash || ''
+
+  if (hash?.[0] !== '#') hash = '#' + hash
+  return hash
+}
+
 export function formatUrl(urlObj: UrlObject): string {
   let { auth } = urlObj
   const { hostname } = urlObj
@@ -85,11 +92,8 @@ export function formatUrl(urlObj: UrlObject): string {
   }
   pathname = pathname.replace(/[?#]/g, encodeURIComponent)
 
-  let hash = urlObj.hash || ''
-
-  if (hash?.[0] !== '#') hash = '#' + hash
-
   const search = getSearch(urlObj, query)
+  const hash = getHash(urlObj)
 
   return `${protocol}${host}${pathname}${search}${hash}`
 }
