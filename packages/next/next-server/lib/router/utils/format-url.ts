@@ -44,6 +44,15 @@ function getProtocol(urlObj: UrlObject): string {
   return protocol
 }
 
+function getSearch(urlObj: UrlObject, query: string): string {
+  let search = urlObj.search || (query && `?${query}`) || ''
+
+  if (search?.[0] !== '?') {
+    search = '?' + search
+  }
+  return search.replace('#', '%23')
+}
+
 export function formatUrl(urlObj: UrlObject): string {
   let { auth } = urlObj
   const { hostname } = urlObj
@@ -74,17 +83,13 @@ export function formatUrl(urlObj: UrlObject): string {
   } else if (!host) {
     host = ''
   }
+  pathname = pathname.replace(/[?#]/g, encodeURIComponent)
 
   let hash = urlObj.hash || ''
 
   if (hash?.[0] !== '#') hash = '#' + hash
 
-  let search = urlObj.search || (query && `?${query}`) || ''
-
-  if (search?.[0] !== '?') search = '?' + search
-
-  pathname = pathname.replace(/[?#]/g, encodeURIComponent)
-  search = search.replace('#', '%23')
+  const search = getSearch(urlObj, query)
 
   return `${protocol}${host}${pathname}${search}${hash}`
 }
