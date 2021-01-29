@@ -31,7 +31,7 @@ function tracingIsEnabled() {
 export class ProfilingPlugin {
   // Map should be defined on ProfilingPlugin instance to avoid collisions
   // when multiple compilers are running concurrently.
-  spans: Map<string, Span> | undefined
+  spans: Map<string, Span | undefined> | undefined
 
   apply(compiler: any) {
     // Only enable plugin when instrumentation is loaded
@@ -73,6 +73,7 @@ export class ProfilingPlugin {
       span = parentName
         ? this.traceWithParent(parentName, spanName, attrs)
         : tracer.startSpan(spanName, attrs)
+      this.spans?.set?.(spanName, span)
       onSetSpan?.(span)
     })
     stopHook.tap(pluginName, () => span?.end?.())
@@ -84,10 +85,11 @@ export class ProfilingPlugin {
     startHook: any,
     stopHook: any
   ) {
-    let span: Span | null = null
+    let span: Span | undefined
     startHook.tap(pluginName, () => {
       if (!span) {
         this.traceWithParent(parentName, spanName)
+        this.spans?.set(spanName, span)
       }
     })
     stopHook.tap(pluginName, () => span?.end?.())
@@ -103,6 +105,7 @@ export class ProfilingPlugin {
     hook.intercept({
       tap: () => {
         span = this.traceWithParent(parentName, spanName)
+        this.spans?.set(spanName, span)
         onSet?.(span)
       },
       done: () => {
@@ -136,8 +139,6 @@ export class ProfilingPlugin {
   }
 
   traceCompilationHooks(compiler: any) {
-    this.traceHook('compilation', 'webpack-compile', compiler.hooks.compilation)
-
     compiler.hooks.compilation.tap(pluginName, (compilation: any) => {
       compilation.hooks.buildModule.tap(pluginName, (module: any) => {
         const compilerSpan = this.spans?.get(compiler)
@@ -162,40 +163,48 @@ export class ProfilingPlugin {
       compilation.hooks.succeedModule.tap(pluginName, (module: any) => {
         this.spans?.get?.(module)?.end()
       })
+      if (isWebpack5) {
+        this.traceHookPair(
+          'webpack-compilation',
+          'webpack-compile',
+          compilation.hooks.beforeCompile,
+          compilation.hooks.afterCompile
+        )
+      }
 
       this.traceHookPair(
         'webpack-compilation-chunk-graph',
-        'compilation',
+        'webpack-compile',
         compilation.hooks.beforeChunks,
         compilation.hooks.afterChunks
       )
       this.traceHookPair(
         'webpack-compilation-optimize',
-        'compilation',
+        'webpack-compile',
         compilation.hooks.optimize,
         compilation.hooks.reviveModules
       )
       this.traceLoopedHook(
         'webpack-compilation-optimize-modules',
-        'compilation',
+        'webpack-compile',
         compilation.hooks.optimizeModules,
         compilation.hooks.afterOptimizeModules
       )
       this.traceLoopedHook(
         'webpack-compilation-optimize-chunks',
-        'compilation',
+        'webpack-compile',
         compilation.hooks.optimizeChunks,
         compilation.hooks.afterOptimizeChunks
       )
       this.traceHookPair(
         'webpack-compilation-optimize-tree',
-        'compilation',
+        'webpack-compile',
         compilation.hooks.optimizeTree,
         compilation.hooks.afterOptimizeTree
       )
       this.traceHookPair(
         'webpack-compilation-hash',
-        'compilation',
+        'webpack-compile',
         compilation.hooks.beforeHash,
         compilation.hooks.afterHash
       )
