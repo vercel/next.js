@@ -20,6 +20,7 @@ const program = new Commander.Command(packageJson.name)
     projectPath = name
   })
   .option('--use-npm')
+  .option('--use-pnpm')
   .option(
     '-e, --example [name]|[github-url]',
     `
@@ -111,6 +112,7 @@ async function run(): Promise<void> {
     await createApp({
       appPath: resolvedProjectPath,
       useNpm: !!program.useNpm,
+      usePnpm: !!program.usePnpm,
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
     })
@@ -131,7 +133,11 @@ async function run(): Promise<void> {
       throw reason
     }
 
-    await createApp({ appPath: resolvedProjectPath, useNpm: !!program.useNpm })
+    await createApp({
+      appPath: resolvedProjectPath,
+      useNpm: !!program.useNpm,
+      usePnpm: !!program.usePnpm,
+    })
   }
 }
 

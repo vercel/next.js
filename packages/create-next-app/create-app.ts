@@ -26,11 +26,13 @@ export class DownloadError extends Error {}
 export async function createApp({
   appPath,
   useNpm,
+  usePnpm,
   example,
   examplePath,
 }: {
   appPath: string
   useNpm: boolean
+  usePnpm: boolean
   example?: string
   examplePath?: string
 }): Promise<void> {
@@ -112,11 +114,11 @@ export async function createApp({
     process.exit(1)
   }
 
-  const useYarn = useNpm ? false : shouldUseYarn()
+  const useYarn = useNpm || usePnpm ? false : shouldUseYarn()
   const isOnline = !useYarn || (await getOnline())
   const originalDirectory = process.cwd()
 
-  const displayedCommand = useYarn ? 'yarn' : 'npm'
+  const displayedCommand = useYarn ? 'yarn' : usePnpm ? 'pnpm' : 'npm'
   console.log(`Creating a new Next.js app in ${chalk.green(root)}.`)
   console.log()
 
@@ -162,7 +164,7 @@ export async function createApp({
     console.log('Installing packages. This might take a couple of minutes.')
     console.log()
 
-    await install(root, null, { useYarn, isOnline })
+    await install(root, null, { useYarn, usePnpm, isOnline })
     console.log()
   } else {
     const packageJson = {
@@ -183,7 +185,11 @@ export async function createApp({
     )
     console.log()
 
-    await install(root, ['react', 'react-dom', 'next'], { useYarn, isOnline })
+    await install(root, ['react', 'react-dom', 'next'], {
+      useYarn,
+      usePnpm,
+      isOnline,
+    })
     console.log()
 
     await cpy('**', root, {
@@ -222,10 +228,14 @@ export async function createApp({
   console.log(`${chalk.green('Success!')} Created ${appName} at ${appPath}`)
   console.log('Inside that directory, you can run several commands:')
   console.log()
-  console.log(chalk.cyan(`  ${displayedCommand} ${useYarn ? '' : 'run '}dev`))
+  console.log(
+    chalk.cyan(`  ${displayedCommand} ${useYarn || usePnpm ? '' : 'run '}dev`)
+  )
   console.log('    Starts the development server.')
   console.log()
-  console.log(chalk.cyan(`  ${displayedCommand} ${useYarn ? '' : 'run '}build`))
+  console.log(
+    chalk.cyan(`  ${displayedCommand} ${useYarn || usePnpm ? '' : 'run '}build`)
+  )
   console.log('    Builds the app for production.')
   console.log()
   console.log(chalk.cyan(`  ${displayedCommand} start`))
