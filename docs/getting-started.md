@@ -41,6 +41,8 @@ npm install next react react-dom
 yarn add next react react-dom
 ```
 
+> **Note**: [Yarn 2](https://yarnpkg.com/getting-started/install) is supported as best-effort within Next.js. For best results, use NPM or Yarn 1.
+
 Open `package.json` and add the following `scripts`:
 
 ```json
