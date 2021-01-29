@@ -117,11 +117,7 @@ function runTests() {
 
 describe('Font optimization for SSR apps', () => {
   beforeAll(async () => {
-    await fs.writeFile(
-      nextConfig,
-      `module.exports = { experimental: {optimizeFonts: true} }`,
-      'utf8'
-    )
+    await fs.writeFile(nextConfig, `module.exports = {}`, 'utf8')
 
     if (fs.pathExistsSync(join(appDir, '.next'))) {
       await fs.remove(join(appDir, '.next'))
@@ -140,7 +136,7 @@ describe('Font optimization for serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
-      `module.exports = { target: 'serverless', experimental: {optimizeFonts: true} }`,
+      `module.exports = { target: 'serverless' }`,
       'utf8'
     )
     await nextBuild(appDir)
@@ -157,7 +153,7 @@ describe('Font optimization for emulated serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
-      `module.exports = { target: 'experimental-serverless-trace', experimental: {optimizeFonts: true} }`,
+      `module.exports = { target: 'experimental-serverless-trace' }`,
       'utf8'
     )
     await nextBuild(appDir)

@@ -49,7 +49,6 @@ interface ExportPageInput {
   serverRuntimeConfig: string
   subFolders?: boolean
   serverless: boolean
-  optimizeFonts: boolean
   optimizeImages: boolean
   optimizeCss: any
   spanContext: any
@@ -70,7 +69,6 @@ interface RenderOpts {
   ampSkipValidation?: boolean
   hybridAmp?: boolean
   inAmpMode?: boolean
-  optimizeFonts?: boolean
   optimizeImages?: boolean
   optimizeCss?: any
   fontManifest?: FontManifest
@@ -96,7 +94,6 @@ export default async function exportPage({
   serverRuntimeConfig,
   subFolders,
   serverless,
-  optimizeFonts,
   optimizeImages,
   optimizeCss,
 }: ExportPageInput): Promise<ExportPageResults> {
@@ -268,15 +265,11 @@ export default async function exportPage({
                 {
                   ampPath: renderAmpPath,
                   /// @ts-ignore
-                  optimizeFonts,
-                  /// @ts-ignore
                   optimizeImages,
                   /// @ts-ignore
                   optimizeCss,
                   distDir,
-                  fontManifest: optimizeFonts
-                    ? requireFontManifest(distDir, serverless)
-                    : null,
+                  fontManifest: requireFontManifest(distDir, serverless),
                   locale: locale!,
                   locales: renderOpts.locales!,
                 },
@@ -318,13 +311,9 @@ export default async function exportPage({
             } else {
               /**
                * This sets environment variable to be used at the time of static export by head.tsx.
-               * Using this from process.env allows targeting both serverless and SSR by calling
-               * `process.env.__NEXT_OPTIMIZE_FONTS`.
-               * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being cleaned up.
+               * Using this from process.env allows targeting both serverless and SSR
+               * TODO: Remove this when experimental flags are being cleaned up.
                */
-              if (optimizeFonts) {
-                process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
-              }
               if (optimizeImages) {
                 process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
               }
@@ -336,12 +325,9 @@ export default async function exportPage({
                 ...renderOpts,
                 ampPath: renderAmpPath,
                 params,
-                optimizeFonts,
                 optimizeImages,
                 optimizeCss,
-                fontManifest: optimizeFonts
-                  ? requireFontManifest(distDir, serverless)
-                  : null,
+                fontManifest: requireFontManifest(distDir, serverless),
                 locale: locale as string,
               }
               // @ts-ignore

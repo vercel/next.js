@@ -82,7 +82,6 @@ const defaultConfig: NextConfig = {
     reactMode: 'legacy',
     workerThreads: false,
     pageEnv: false,
-    optimizeFonts: false,
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,

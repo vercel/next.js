@@ -1006,9 +1006,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_REACT_MODE': JSON.stringify(
           config.experimental.reactMode
         ),
-        'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
-          config.experimental.optimizeFonts && !dev
-        ),
         'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
           config.experimental.optimizeImages
         ),
@@ -1110,9 +1107,7 @@ export default async function getBaseWebpackConfig(
           rewrites,
         }),
       new ProfilingPlugin(),
-      config.experimental.optimizeFonts &&
-        !dev &&
-        isServer &&
+      isServer &&
         (function () {
           const {
             FontStylesheetGatheringPlugin,
@@ -1200,7 +1195,6 @@ export default async function getBaseWebpackConfig(
       plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
       reactMode: config.experimental.reactMode,
-      optimizeFonts: config.experimental.optimizeFonts,
       optimizeImages: config.experimental.optimizeImages,
       optimizeCss: config.experimental.optimizeCss,
       scrollRestoration: config.experimental.scrollRestoration,

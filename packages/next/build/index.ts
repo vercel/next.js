@@ -410,12 +410,10 @@ export default async function build(
           BUILD_MANIFEST,
           PRERENDER_MANIFEST,
           REACT_LOADABLE_MANIFEST,
-          config.experimental.optimizeFonts
-            ? path.join(
-                isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-                FONT_MANIFEST
-              )
-            : null,
+          path.join(
+            isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+            FONT_MANIFEST
+          ),
           BUILD_ID_FILE,
         ]
           .filter(nonNullable)
