@@ -92,6 +92,9 @@ import cookie from 'next/dist/compiled/cookie'
 import escapePathDelimiters from '../lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../../build/webpack/loaders/next-serverless-loader/utils'
 
+// Disable browserslist warning that will show up and be unactionable for users.
+process.env.BROWSERSLIST_IGNORE_OLD_DATA = 'true'
+
 const getCustomRouteMatcher = pathMatch(true)
 
 type Middleware = (
