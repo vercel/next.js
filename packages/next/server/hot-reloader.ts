@@ -33,7 +33,6 @@ import { stringify } from 'querystring'
 import { Rewrite } from '../lib/load-custom-routes'
 import { difference } from '../build/utils'
 import { NextConfig } from '../next-server/server/config'
-import { Span } from '@opentelemetry/api'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -140,7 +139,6 @@ function erroredPages(compilation: webpack.compilation.Compilation) {
 }
 
 export default class HotReloader {
-  private span: Span | null
   private dir: string
   private buildId: string
   private middlewares: any[]
@@ -182,7 +180,6 @@ export default class HotReloader {
     this.stats = null
     this.serverStats = null
     this.serverPrevDocumentHash = null
-    this.span = null
 
     this.config = config
     this.previewProps = previewProps

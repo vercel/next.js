@@ -83,7 +83,6 @@ export class ProfilingPlugin {
       compiler.hooks.watchRun,
       compiler.hooks.watchClose
     )
-
     this.traceHookPair(
       'webpack-prepare-env',
       compiler.hooks.environment,
