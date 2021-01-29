@@ -26,7 +26,9 @@ const Page = () => {
           layout="fill"
           objectFit="cover"
           objectPosition="left center"
-          sizes="50vw"
+          sizes="(min-width: 1200px) 90vw, 
+                 (min-width: 800px) 30vw,
+                 100vw"
         />
       </div>
     </div>

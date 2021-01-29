@@ -98,11 +98,15 @@ function getWidths(
     layout === 'responsive'
   ) {
     if (sizes) {
-      const percentSize = sizes.match(/^(1?\d?\d)vw$/)
-      if (percentSize) {
-        const ratio = parseInt(percentSize[1]) * 0.01
+      const percentSizes = [...sizes.matchAll(/(^|\s)(1?\d?\d)vw/g)].map((m) =>
+        parseInt(m[2])
+      )
+      if (percentSizes.length) {
+        const smallestRatio = Math.min(...percentSizes) * 0.01
         return {
-          widths: allSizes.filter((s) => s >= configDeviceSizes[0] * ratio),
+          widths: allSizes.filter(
+            (s) => s >= configDeviceSizes[0] * smallestRatio
+          ),
           kind: 'w',
         }
       }
