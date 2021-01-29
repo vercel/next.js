@@ -314,14 +314,13 @@ export default class Server {
       const url: any = req.url
       parsedUrl = parseUrl(url, true)
     }
+    const { basePath, i18n } = this.nextConfig
 
     // Parse the querystring ourselves if the user doesn't handle querystring parsing
     if (typeof parsedUrl.query === 'string') {
       parsedUrl.query = parseQs(parsedUrl.query)
     }
     ;(req as any).__NEXT_INIT_QUERY = Object.assign({}, parsedUrl.query)
-
-    const { basePath, i18n } = this.nextConfig
 
     if (basePath && req.url?.startsWith(basePath)) {
       // store original URL to allow checking if basePath was
@@ -330,7 +329,101 @@ export default class Server {
       req.url = req.url!.replace(basePath, '') || '/'
     }
 
-    if (i18n && !req.url?.startsWith('/_next')) {
+    if (
+      this.minimalMode &&
+      req.headers['x-matched-path'] &&
+      typeof req.headers['x-matched-path'] === 'string'
+    ) {
+      const reqUrlIsDataUrl = req.url?.includes('/_next/data')
+      const matchedPathIsDataUrl = req.headers['x-matched-path']?.includes(
+        '/_next/data'
+      )
+      const isDataUrl = reqUrlIsDataUrl || matchedPathIsDataUrl
+
+      let parsedPath = parseUrl(
+        isDataUrl ? req.url! : (req.headers['x-matched-path'] as string),
+        true
+      )
+      const { pathname, query } = parsedPath
+      let matchedPathname = pathname as string
+
+      const matchedPathnameNoExt = isDataUrl
+        ? matchedPathname.replace(/\.json$/, '')
+        : matchedPathname
+
+      if (i18n) {
+        const localePathResult = normalizeLocalePath(
+          matchedPathname || '/',
+          i18n.locales
+        )
+
+        if (localePathResult.detectedLocale) {
+          parsedUrl.query.__nextLocale = localePathResult.detectedLocale
+        }
+      }
+
+      const pageIsDynamic = isDynamicRoute(matchedPathnameNoExt)
+      const utils = getUtils({
+        pageIsDynamic,
+        page: matchedPathnameNoExt,
+        i18n: this.nextConfig.i18n,
+        basePath: this.nextConfig.basePath,
+        rewrites: this.customRoutes.rewrites,
+      })
+
+      utils.handleRewrites(parsedUrl)
+
+      // interpolate dynamic params and normalize URL if needed
+      if (pageIsDynamic) {
+        let params: ParsedUrlQuery | false = {}
+        const paramsResult = utils.normalizeDynamicRouteParams({
+          ...parsedUrl.query,
+          ...query,
+        })
+
+        if (paramsResult.hasValidParams) {
+          params = paramsResult.params
+        } else if (req.headers['x-now-route-matches']) {
+          const opts: Record<string, string> = {}
+          params = utils.getParamsFromRouteMatches(
+            req,
+            opts,
+            (parsedUrl.query.__nextLocale as string | undefined) || ''
+          )
+
+          if (opts.locale) {
+            parsedUrl.query.__nextLocale = opts.locale
+          }
+        } else {
+          params = utils.dynamicRouteMatcher!(matchedPathnameNoExt)
+        }
+
+        if (params) {
+          params = utils.normalizeDynamicRouteParams(params).params
+
+          matchedPathname = utils.interpolateDynamicPath(
+            matchedPathname,
+            params
+          )
+          req.url = utils.interpolateDynamicPath(req.url!, params)
+        }
+
+        if (reqUrlIsDataUrl && matchedPathIsDataUrl) {
+          req.url = formatUrl({
+            ...parsedPath,
+            pathname: matchedPathname,
+          })
+        }
+        Object.assign(parsedUrl.query, params)
+        utils.normalizeVercelUrl(req, true)
+      }
+
+      parsedUrl.pathname = `${basePath || ''}${
+        matchedPathname === '/' && basePath ? '' : matchedPathname
+      }`
+    }
+
+    if (i18n) {
       // get pathname from URL with basePath stripped for locale detection
       let { pathname, ...parsed } = parseUrl(req.url || '/')
       pathname = pathname || '/'
@@ -462,88 +555,12 @@ export default class Server {
       parsedUrl.query.__nextDefaultLocale =
         detectedDomain?.defaultLocale || i18n.defaultLocale
 
-      parsedUrl.query.__nextLocale =
-        localePathResult.detectedLocale ||
-        detectedDomain?.defaultLocale ||
-        defaultLocale
-    }
-
-    if (
-      this.minimalMode &&
-      req.headers['x-matched-path'] &&
-      typeof req.headers['x-matched-path'] === 'string'
-    ) {
-      const reqUrlIsDataUrl = req.url?.includes('/_next/data')
-      const matchedPathIsDataUrl = req.headers['x-matched-path']?.includes(
-        '/_next/data'
-      )
-      const isDataUrl = reqUrlIsDataUrl || matchedPathIsDataUrl
-
-      let parsedPath = parseUrl(
-        isDataUrl ? req.url! : (req.headers['x-matched-path'] as string),
-        true
-      )
-      const { pathname, query } = parsedPath
-      let matchedPathname = pathname as string
-
-      const matchedPathnameNoExt = isDataUrl
-        ? matchedPathname.replace(/\.json$/, '')
-        : matchedPathname
-
-      // interpolate dynamic params and normalize URL if needed
-      if (isDynamicRoute(matchedPathnameNoExt)) {
-        const utils = getUtils({
-          pageIsDynamic: true,
-          page: matchedPathnameNoExt,
-          i18n: this.nextConfig.i18n,
-          basePath: this.nextConfig.basePath,
-          rewrites: this.customRoutes.rewrites,
-        })
-
-        let params: ParsedUrlQuery | false = {}
-        const paramsResult = utils.normalizeDynamicRouteParams({
-          ...parsedUrl.query,
-          ...query,
-        })
-
-        if (paramsResult.hasValidParams) {
-          params = paramsResult.params
-        } else if (req.headers['x-now-route-matches']) {
-          const opts: Record<string, string> = {}
-          params = utils.getParamsFromRouteMatches(
-            req,
-            opts,
-            (parsedUrl.query.__nextLocale as string | undefined) || ''
-          )
-
-          if (opts.locale) {
-            parsedUrl.query.__nextLocale = opts.locale
-          }
-        } else {
-          params = utils.dynamicRouteMatcher!(matchedPathname)
-        }
-
-        if (params) {
-          matchedPathname = utils.interpolateDynamicPath(
-            matchedPathname,
-            params
-          )
-
-          req.url = utils.interpolateDynamicPath(req.url!, params)
-        }
-
-        if (reqUrlIsDataUrl && matchedPathIsDataUrl) {
-          req.url = formatUrl({
-            ...parsedPath,
-            pathname: matchedPathname,
-          })
-        }
-        Object.assign(parsedUrl.query, params)
-        utils.normalizeVercelUrl(req, true)
+      if (!this.minimalMode || !parsedUrl.query.__nextLocale) {
+        parsedUrl.query.__nextLocale =
+          localePathResult.detectedLocale ||
+          detectedDomain?.defaultLocale ||
+          defaultLocale
       }
-      parsedUrl.pathname = `${basePath || ''}${
-        parsedUrl.query.__nextLocale || ''
-      }${matchedPathname}`
     }
 
     res.statusCode = 200
@@ -1330,11 +1347,12 @@ export default class Server {
       typeof components.Component === 'object' &&
       typeof (components.Component as any).renderReqToHTML === 'function'
     const isSSG = !!components.getStaticProps
-    const isServerProps = !!components.getServerSideProps
+    const hasServerProps = !!components.getServerSideProps
     const hasStaticPaths = !!components.getStaticPaths
+    const hasGetInitialProps = !!(components.Component as any).getInitialProps
 
     // Toggle whether or not this is a Data request
-    const isDataReq = !!query._nextDataReq && (isSSG || isServerProps)
+    const isDataReq = !!query._nextDataReq && (isSSG || hasServerProps)
     delete query._nextDataReq
 
     // we need to ensure the status code if /404 is visited directly
@@ -1362,7 +1380,7 @@ export default class Server {
     let previewData: string | false | object | undefined
     let isPreviewMode = false
 
-    if (isServerProps || isSSG) {
+    if (hasServerProps || isSSG) {
       previewData = tryGetPreviewData(req, res, this.renderOpts.previewProps)
       isPreviewMode = previewData !== false
     }
@@ -1384,9 +1402,11 @@ export default class Server {
 
     const stripNextDataPath = (path: string) => {
       if (path.includes(this.buildId)) {
-        path = denormalizePagePath(
-          (path.split(this.buildId).pop() || '/').replace(/\.json$/, '')
+        const splitPath = path.substring(
+          path.indexOf(this.buildId) + this.buildId.length
         )
+
+        path = denormalizePagePath(splitPath.replace(/\.json$/, ''))
       }
 
       if (this.nextConfig.i18n) {
@@ -1555,6 +1575,8 @@ export default class Server {
               locale,
               locales,
               defaultLocale,
+              optimizeCss: this.renderOpts.optimizeCss,
+              distDir: this.distDir,
               fontManifest: this.renderOpts.fontManifest,
               domainLocales: this.renderOpts.domainLocales,
             }
@@ -1584,17 +1606,18 @@ export default class Server {
             locale,
             locales,
             defaultLocale,
-            // For getServerSideProps we need to ensure we use the original URL
+            // For getServerSideProps and getInitialProps we need to ensure we use the original URL
             // and not the resolved URL to prevent a hydration mismatch on
             // asPath
-            resolvedAsPath: isServerProps
-              ? formatUrl({
-                  // we use the original URL pathname less the _next/data prefix if
-                  // present
-                  pathname: `${urlPathname}${hadTrailingSlash ? '/' : ''}`,
-                  query: origQuery,
-                })
-              : resolvedUrl,
+            resolvedAsPath:
+              hasServerProps || hasGetInitialProps
+                ? formatUrl({
+                    // we use the original URL pathname less the _next/data prefix if
+                    // present
+                    pathname: `${urlPathname}${hadTrailingSlash ? '/' : ''}`,
+                    query: origQuery,
+                  })
+                : resolvedUrl,
           }
 
           renderResult = await renderToHTML(
@@ -1701,7 +1724,7 @@ export default class Server {
     let resHtml = html
 
     const revalidateOptions =
-      !this.renderOpts.dev || (isServerProps && !isDataReq)
+      !this.renderOpts.dev || (hasServerProps && !isDataReq)
         ? {
             private: isPreviewMode,
             stateful: !isSSG,
@@ -1712,7 +1735,7 @@ export default class Server {
     if (
       !isResSent(res) &&
       !isNotFound &&
-      (isSSG || isDataReq || isServerProps)
+      (isSSG || isDataReq || hasServerProps)
     ) {
       if (isRedirect && !isDataReq) {
         await handleRedirect(pageData)
