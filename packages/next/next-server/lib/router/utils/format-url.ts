@@ -26,43 +26,12 @@ import * as querystring from './querystring'
 
 const slashedProtocols = /https?|ftp|gopher|file/
 
-function getQuery(urlObj: UrlObject): string {
-  let query = urlObj.query || ''
-
-  if (query && typeof query === 'object') {
-    query = String(querystring.urlQueryToSearchParams(query as ParsedUrlQuery))
-  }
-  return query
-}
-
-function getProtocol(urlObj: UrlObject): string {
+export function formatUrl(urlObj: UrlObject) {
+  let { auth, hostname } = urlObj
   let protocol = urlObj.protocol || ''
-
-  if (protocol?.substr(-1) !== ':') {
-    protocol += ':'
-  }
-  return protocol
-}
-
-function getSearch(urlObj: UrlObject, query: string): string {
-  let search = urlObj.search || (query && `?${query}`) || ''
-
-  if (search?.[0] !== '?') {
-    search = '?' + search
-  }
-  return search.replace('#', '%23')
-}
-
-function getHash(urlObj: UrlObject): string {
+  let pathname = urlObj.pathname || ''
   let hash = urlObj.hash || ''
-
-  if (hash?.[0] !== '#') hash = '#' + hash
-  return hash
-}
-
-export function formatUrl(urlObj: UrlObject): string {
-  let { auth } = urlObj
-  const { hostname } = urlObj
+  let query = urlObj.query || ''
   let host: string | false = false
 
   auth = auth ? encodeURIComponent(auth).replace(/%3A/i, ':') + '@' : ''
@@ -76,24 +45,29 @@ export function formatUrl(urlObj: UrlObject): string {
     }
   }
 
-  const query = getQuery(urlObj)
-  const protocol = getProtocol(urlObj)
+  if (query && typeof query === 'object') {
+    query = String(querystring.urlQueryToSearchParams(query as ParsedUrlQuery))
+  }
 
-  let pathname = urlObj.pathname || ''
+  let search = urlObj.search || (query && `?${query}`) || ''
+
+  if (protocol && protocol.substr(-1) !== ':') protocol += ':'
 
   if (
     urlObj.slashes ||
     ((!protocol || slashedProtocols.test(protocol)) && host !== false)
   ) {
     host = '//' + (host || '')
-    if (pathname?.[0] !== '/') pathname = '/' + pathname
+    if (pathname && pathname[0] !== '/') pathname = '/' + pathname
   } else if (!host) {
     host = ''
   }
-  pathname = pathname.replace(/[?#]/g, encodeURIComponent)
 
-  const search = getSearch(urlObj, query)
-  const hash = getHash(urlObj)
+  if (hash && hash[0] !== '#') hash = '#' + hash
+  if (search && search[0] !== '?') search = '?' + search
+
+  pathname = pathname.replace(/[?#]/g, encodeURIComponent)
+  search = search.replace('#', '%23')
 
   return `${protocol}${host}${pathname}${search}${hash}`
 }
