@@ -25,6 +25,7 @@ import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { createRouter, makePublicRouterInstance } from './router'
+import { BridgeContext } from '../next-server/lib/experimental-bridge'
 
 /// <reference types="react-dom/experimental" />
 
@@ -509,12 +510,19 @@ function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement): void {
           ? (ReactDOM as any).unstable_createRoot(domEl, opts)
           : (ReactDOM as any).unstable_createBlockingRoot(domEl, opts)
     }
-    reactRoot.render(reactEl)
+    reactRoot.render(
+      <BridgeContext.Provider value={process.env.__NEXT_REACT_MODE as any}>
+        {reactEl}
+      </BridgeContext.Provider>
+    )
   } else {
     // mark start of hydrate/render
     if (ST) {
       performance.mark('beforeRender')
     }
+    reactEl = (
+      <BridgeContext.Provider value="legacy">{reactEl}</BridgeContext.Provider>
+    )
 
     // The check for `.hydrate` is there to support React alternatives like preact
     if (shouldUseHydrate) {

@@ -60,6 +60,7 @@ import {
   Redirect,
 } from '../../lib/load-custom-routes'
 import { DomainLocales } from './config'
+import { BridgeContext } from '../lib/experimental-bridge'
 
 function noRouter() {
   const message =
@@ -584,28 +585,32 @@ export async function renderToHTML(
   let scriptLoader: any = {}
 
   const AppContainer = ({ children }: any) => (
-    <RouterContext.Provider value={router}>
-      <AmpStateContext.Provider value={ampState}>
-        <HeadManagerContext.Provider
-          value={{
-            updateHead: (state) => {
-              head = state
-            },
-            updateScripts: (scripts) => {
-              scriptLoader = scripts
-            },
-            scripts: {},
-            mountedInstances: new Set(),
-          }}
-        >
-          <LoadableContext.Provider
-            value={(moduleName) => reactLoadableModules.push(moduleName)}
+    <BridgeContext.Provider
+      value={process.env.__NEXT_REACT_MODE ?? ('legacy' as any)}
+    >
+      <RouterContext.Provider value={router}>
+        <AmpStateContext.Provider value={ampState}>
+          <HeadManagerContext.Provider
+            value={{
+              updateHead: (state) => {
+                head = state
+              },
+              updateScripts: (scripts) => {
+                scriptLoader = scripts
+              },
+              scripts: {},
+              mountedInstances: new Set(),
+            }}
           >
-            {children}
-          </LoadableContext.Provider>
-        </HeadManagerContext.Provider>
-      </AmpStateContext.Provider>
-    </RouterContext.Provider>
+            <LoadableContext.Provider
+              value={(moduleName) => reactLoadableModules.push(moduleName)}
+            >
+              {children}
+            </LoadableContext.Provider>
+          </HeadManagerContext.Provider>
+        </AmpStateContext.Provider>
+      </RouterContext.Provider>
+    </BridgeContext.Provider>
   )
 
   try {
