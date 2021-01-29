@@ -26,13 +26,21 @@ import * as querystring from './querystring'
 
 const slashedProtocols = /https?|ftp|gopher|file/
 
+function getQuery(urlObj: UrlObject): string {
+  let query = urlObj.query || ''
+
+  if (query && typeof query === 'object') {
+    query = String(querystring.urlQueryToSearchParams(query as ParsedUrlQuery))
+  }
+  return query
+}
+
 function getProtocol(urlObj: UrlObject): string {
   let protocol = urlObj.protocol || ''
 
   if (protocol?.substr(-1) !== ':') {
     protocol += ':'
   }
-
   return protocol
 }
 
@@ -52,12 +60,7 @@ export function formatUrl(urlObj: UrlObject): string {
     }
   }
 
-  let query = urlObj.query || ''
-
-  if (query && typeof query === 'object') {
-    query = String(querystring.urlQueryToSearchParams(query as ParsedUrlQuery))
-  }
-
+  const query = getQuery(urlObj)
   const protocol = getProtocol(urlObj)
 
   let pathname = urlObj.pathname || ''
