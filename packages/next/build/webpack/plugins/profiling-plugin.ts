@@ -21,9 +21,9 @@ function getNormalModuleLoaderHook(compilation: any) {
 
 function tracingIsEnabled() {
   const tracerProvider: any = trace.getTracerProvider()
-  if (Object.getPrototypeOf(tracerProvider) === ProxyTracerProvider) {
+  if (tracerProvider instanceof ProxyTracerProvider) {
     const proxyDelegate: any = tracerProvider.getDelegate()
-    return Object.getPrototypeOf(proxyDelegate) !== NoopTracerProvider
+    return !(proxyDelegate instanceof NoopTracerProvider)
   }
   return false
 }
