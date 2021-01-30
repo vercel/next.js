@@ -31,6 +31,12 @@ export type NextConfig = { [key: string]: any } & {
   redirects?: () => Promise<Redirect[]>
 
   trailingSlash?: boolean
+
+  future: {
+    strictPostcssConfiguration: boolean
+    excludeDefaultMomentLocales: boolean
+    webpack5: boolean
+  }
 }
 
 const defaultConfig: NextConfig = {
@@ -83,7 +89,9 @@ const defaultConfig: NextConfig = {
     scriptLoader: false,
   },
   future: {
+    strictPostcssConfiguration: false,
     excludeDefaultMomentLocales: false,
+    webpack5: Number(process.env.NEXT_PRIVATE_TEST_WEBPACK5_MODE) > 0,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
