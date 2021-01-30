@@ -10,6 +10,7 @@ import { interopDefault } from './load-components'
 import { Params } from './router'
 import { sendEtagResponse } from './send-payload'
 import generateETag from 'etag'
+import { PreviewData } from '../../types'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
@@ -293,7 +294,7 @@ export function tryGetPreviewData(
   req: IncomingMessage,
   res: ServerResponse,
   options: __ApiPreviewProps
-): object | string | false {
+): PreviewData {
   // Read cached preview data if present
   if (SYMBOL_PREVIEW_DATA in req) {
     return (req as any)[SYMBOL_PREVIEW_DATA] as any
