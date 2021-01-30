@@ -2,7 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import getRawBody from 'raw-body'
-import { PageConfig } from 'next/types'
+import { PageConfig, PreviewData } from 'next/types'
 import { Stream } from 'stream'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
@@ -10,7 +10,6 @@ import { interopDefault } from './load-components'
 import { Params } from './router'
 import { sendEtagResponse } from './send-payload'
 import generateETag from 'etag'
-import { PreviewData } from '../../types'
 
 export type NextApiRequestCookies = { [key: string]: string }
 export type NextApiRequestQuery = { [key: string]: string | string[] }
