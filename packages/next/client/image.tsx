@@ -92,26 +92,27 @@ function getWidths(
   layout: LayoutValue,
   sizes: string | undefined
 ): { widths: number[]; kind: 'w' | 'x' } {
+  if (sizes && (layout === 'fill' || layout === 'responsive')) {
+    // Find all the "vw" percent sizes used in the sizes prop
+    const percentSizes = [...sizes.matchAll(/(^|\s)(1?\d?\d)vw/g)].map((m) =>
+      parseInt(m[2])
+    )
+    if (percentSizes.length) {
+      const smallestRatio = Math.min(...percentSizes) * 0.01
+      return {
+        widths: allSizes.filter(
+          (s) => s >= configDeviceSizes[0] * smallestRatio
+        ),
+        kind: 'w',
+      }
+    }
+    return { widths: allSizes, kind: 'w' }
+  }
   if (
     typeof width !== 'number' ||
     layout === 'fill' ||
     layout === 'responsive'
   ) {
-    if (sizes && layout === 'fill') {
-      const percentSizes = [...sizes.matchAll(/(^|\s)(1?\d?\d)vw/g)].map((m) =>
-        parseInt(m[2])
-      )
-      if (percentSizes.length) {
-        const smallestRatio = Math.min(...percentSizes) * 0.01
-        return {
-          widths: allSizes.filter(
-            (s) => s >= configDeviceSizes[0] * smallestRatio
-          ),
-          kind: 'w',
-        }
-      }
-      return { widths: allSizes, kind: 'w' }
-    }
     return { widths: configDeviceSizes, kind: 'w' }
   }
 
