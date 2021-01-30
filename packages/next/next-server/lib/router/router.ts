@@ -849,7 +849,9 @@ export default class Router implements BaseRouter {
     }
 
     const { shallow = false } = options
-    const routeProps = { shallow }
+    let parsed = parseRelativeUrl(url)
+    let { pathname, query } = parsed
+    const routeProps = { href: url, as, pathname, query, shallow }
 
     if (this._inFlightRoute) {
       this.abortComponentLoad(this._inFlightRoute, routeProps)
@@ -884,9 +886,6 @@ export default class Router implements BaseRouter {
       Router.events.emit('hashChangeComplete', as, routeProps)
       return true
     }
-
-    let parsed = parseRelativeUrl(url)
-    let { pathname, query } = parsed
 
     // The build manifest needs to be loaded before auto-static dynamic pages
     // get their query parameters to allow ensuring they can be parsed properly
