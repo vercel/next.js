@@ -11,6 +11,9 @@
     "jscodeshift": "^0.6.4",
     "meow": "7.0.1"
   },
+  "devDependencies": {
+    "typescript": "3.8.3"
+  },
   "files": [
     "transforms/*.js",
     "bin/*.js"
