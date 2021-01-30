@@ -42,6 +42,10 @@ declare global {
 }
 
 interface RouteProperties {
+  href: string
+  as: string
+  pathname: string
+  query: ParsedUrlQuery
   shallow: boolean
 }
 
