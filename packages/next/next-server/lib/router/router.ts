@@ -890,7 +890,7 @@ export default class Router implements BaseRouter {
       this.locale
     )
     this._inFlightRoute = as
-    this._inFlightHref = delLocale(hasBasePath(url) ? delBasePath(url) : url)
+    this._inFlightHref = url
 
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
