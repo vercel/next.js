@@ -42,6 +42,10 @@ declare global {
 }
 
 interface RouteProperties {
+  href: string
+  as: string
+  pathname: string
+  query: ParsedUrlQuery
   shallow: boolean
 }
 
@@ -482,6 +486,8 @@ export default class Router implements BaseRouter {
   isSsr: boolean
   isFallback: boolean
   _inFlightRoute?: string
+  _inFlightHref?: string
+  _inFlightPathname?: string
   _shallow?: boolean
   locale?: string
   locales?: string[]
@@ -848,11 +854,28 @@ export default class Router implements BaseRouter {
       performance.mark('routeChange')
     }
 
-    const { shallow = false } = options
-    const routeProps = { shallow }
+    let parsed = parseRelativeUrl(url)
+    let { pathname, query } = parsed
+
+    // This is what we know so far
+    // We will need to fill in href, as, pathname before we pass routeProps beyond this function
+    const baseRouteProps = {
+      query,
+      shallow: options.shallow ?? false,
+    }
 
     if (this._inFlightRoute) {
-      this.abortComponentLoad(this._inFlightRoute, routeProps)
+      const href = this._inFlightHref as string
+      this.abortComponentLoad(this._inFlightRoute, {
+        ...baseRouteProps,
+        href: delLocale(hasBasePath(href) ? delBasePath(href) : href),
+        as: delLocale(
+          hasBasePath(this._inFlightRoute)
+            ? delBasePath(this._inFlightRoute)
+            : this._inFlightRoute
+        ),
+        pathname: this._inFlightPathname as string,
+      })
     }
 
     as = addBasePath(
@@ -867,6 +890,7 @@ export default class Router implements BaseRouter {
       this.locale
     )
     this._inFlightRoute = as
+    this._inFlightHref = url
 
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
@@ -876,6 +900,12 @@ export default class Router implements BaseRouter {
     // any time without notice.
     if (!(options as any)._h && this.onlyAHashChange(cleanedAs)) {
       this.asPath = cleanedAs
+      const routeProps: RouteProperties = {
+        ...baseRouteProps,
+        href: delLocale(hasBasePath(url) ? delBasePath(url) : url),
+        as: delLocale(hasBasePath(as) ? delBasePath(as) : url),
+        pathname: this.pathname, // old pathname still applies if we're only changing hash
+      }
       Router.events.emit('hashChangeStart', as, routeProps)
       // TODO: do we need the resolved href when only a hash change?
       this.changeState(method, url, as, options)
@@ -884,9 +914,6 @@ export default class Router implements BaseRouter {
       Router.events.emit('hashChangeComplete', as, routeProps)
       return true
     }
-
-    let parsed = parseRelativeUrl(url)
-    let { pathname, query } = parsed
 
     // The build manifest needs to be loaded before auto-static dynamic pages
     // get their query parameters to allow ensuring they can be parsed properly
@@ -951,6 +978,8 @@ export default class Router implements BaseRouter {
         url = formatWithValidation(parsed)
       }
     }
+
+    this._inFlightPathname = route
 
     if (!isLocalURL(as)) {
       if (process.env.NODE_ENV !== 'production') {
@@ -1022,6 +1051,13 @@ export default class Router implements BaseRouter {
       }
     }
 
+    const routeProps: RouteProperties = {
+      ...baseRouteProps,
+      href: delLocale(hasBasePath(url) ? delBasePath(url) : url), // does this value already exist somewhere?
+      as: resolvedAs,
+      pathname: route,
+    }
+
     Router.events.emit('routeChangeStart', as, routeProps)
 
     try {
@@ -1078,7 +1114,13 @@ export default class Router implements BaseRouter {
             query,
             as,
             resolvedAs,
-            { shallow: false }
+            {
+              href: notFoundRoute,
+              pathname: notFoundRoute,
+              as: resolvedAs,
+              query,
+              shallow: false,
+            }
           )
         }
       }

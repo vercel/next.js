@@ -924,9 +924,39 @@ const runTests = (dev = false) => {
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
-        ['routeChangeStart', `${basePath}/other-page`, { shallow: false }],
-        ['beforeHistoryChange', `${basePath}/other-page`, { shallow: false }],
-        ['routeChangeComplete', `${basePath}/other-page`, { shallow: false }],
+        [
+          'routeChangeStart',
+          `${basePath}/other-page`,
+          {
+            href: `/other-page`,
+            as: `/other-page`,
+            pathname: '/other-page',
+            query: {},
+            shallow: false,
+          },
+        ],
+        [
+          'beforeHistoryChange',
+          `${basePath}/other-page`,
+          {
+            href: `/other-page`,
+            as: `/other-page`,
+            pathname: '/other-page',
+            query: {},
+            shallow: false,
+          },
+        ],
+        [
+          'routeChangeComplete',
+          `${basePath}/other-page`,
+          {
+            href: `/other-page`,
+            as: `/other-page`,
+            pathname: '/other-page',
+            query: {},
+            shallow: false,
+          },
+        ],
       ])
     } finally {
       await browser.close()
@@ -941,11 +971,27 @@ const runTests = (dev = false) => {
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
-        ['hashChangeStart', `${basePath}/hello#some-hash`, { shallow: false }],
+        [
+          'hashChangeStart',
+          `${basePath}/hello#some-hash`,
+          {
+            href: `/hello#some-hash`,
+            as: `/hello#some-hash`,
+            pathname: '/hello',
+            query: {},
+            shallow: false,
+          },
+        ],
         [
           'hashChangeComplete',
           `${basePath}/hello#some-hash`,
-          { shallow: false },
+          {
+            href: `/hello#some-hash`,
+            as: `/hello#some-hash`,
+            pathname: '/hello',
+            query: {},
+            shallow: false,
+          },
         ],
       ])
     } finally {
@@ -966,17 +1012,63 @@ const runTests = (dev = false) => {
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
-        ['routeChangeStart', `${basePath}/slow-route`, { shallow: false }],
+        [
+          'routeChangeStart',
+          `${basePath}/slow-route`,
+          {
+            href: '/slow-route',
+            as: '/slow-route',
+            pathname: '/slow-route',
+            query: {},
+            shallow: false,
+          },
+        ],
         [
           'routeChangeError',
           'Route Cancelled',
           true,
           `${basePath}/slow-route`,
-          { shallow: false },
+          {
+            href: '/slow-route',
+            as: '/slow-route',
+            pathname: '/slow-route',
+            query: {},
+            shallow: false,
+          },
         ],
-        ['routeChangeStart', `${basePath}/other-page`, { shallow: false }],
-        ['beforeHistoryChange', `${basePath}/other-page`, { shallow: false }],
-        ['routeChangeComplete', `${basePath}/other-page`, { shallow: false }],
+        [
+          'routeChangeStart',
+          `${basePath}/other-page`,
+          {
+            href: `/other-page`,
+            as: `/other-page`,
+            pathname: '/other-page',
+            query: {},
+            shallow: false,
+          },
+        ],
+        [
+          'beforeHistoryChange',
+          `${basePath}/other-page`,
+          {
+            href: `/other-page`,
+            as: `/other-page`,
+            pathname: '/other-page',
+            query: {},
+            shallow: false,
+          },
+        ],
+        [
+          'routeChangeComplete',
+          `${basePath}/other-page`,
+          {
+            href: `/other-page`,
+            as: `/other-page`,
+            pathname: '/other-page',
+            query: {},
+            shallow: false,
+          },
+        ],
       ])
     } finally {
       await browser.close()
@@ -993,13 +1085,29 @@ const runTests = (dev = false) => {
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
-        ['routeChangeStart', `${basePath}/error-route`, { shallow: false }],
+        [
+          'routeChangeStart',
+          `${basePath}/error-route`,
+          {
+            href: '/error-route',
+            as: '/error-route',
+            pathname: '/error-route',
+            query: {},
+            shallow: false,
+          },
+        ],
         [
           'routeChangeError',
           'Failed to load static props',
           null,
           `${basePath}/error-route`,
-          { shallow: false },
+          {
+            href: '/error-route',
+            as: '/error-route',
+            pathname: '/error-route',
+            query: {},
+            shallow: false,
+          },
         ],
       ])
     } finally {
