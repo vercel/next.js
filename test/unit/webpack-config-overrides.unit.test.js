@@ -1,5 +1,18 @@
 /* eslint-env jest */
 import { attachReactRefresh } from 'next/dist/build/webpack-config'
+import * as storybookPlugin from '../../packages/next-plugin-storybook/preset'
+
+describe('next-plugin-storybook filterModuleRules', () => {
+  it('should filter module rules correctly', async () => {
+    const input = {
+      module: { rules: [{ test: 'babel-loader' }, { test: /.*\.css/ }] },
+    }
+    const expected = [{ test: 'babel-loader' }]
+
+    const output = storybookPlugin.filterModuleRules(input)
+    expect(output).toEqual(expected)
+  })
+})
 
 describe('webpack-config attachReactRefresh', () => {
   it('should skip adding when unrelated', () => {

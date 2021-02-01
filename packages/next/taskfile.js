@@ -36,6 +36,10 @@ const externals = {
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
   'caniuse-lite': 'caniuse-lite', // FIXME: `autoprefixer` will still bundle this because it uses direct imports
+  'caniuse-lite/data/features/border-radius':
+    'caniuse-lite/data/features/border-radius',
+  'caniuse-lite/data/features/css-featurequeries.js':
+    'caniuse-lite/data/features/css-featurequeries',
 
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
@@ -203,6 +207,21 @@ export async function ncc_cookie(task, opts) {
     .target('compiled/cookie')
 }
 // eslint-disable-next-line camelcase
+externals['css-loader'] = 'next/dist/compiled/css-loader'
+export async function ncc_css_loader(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('css-loader')))
+    .ncc({
+      packageName: 'css-loader',
+      externals: {
+        ...externals,
+        'schema-utils': 'next/dist/compiled/schema-utils',
+      },
+      target: 'es5',
+    })
+    .target('compiled/css-loader')
+}
+// eslint-disable-next-line camelcase
 externals['debug'] = 'next/dist/compiled/debug'
 export async function ncc_debug(task, opts) {
   await task
@@ -347,14 +366,6 @@ export async function ncc_lru_cache(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('lru-cache')))
     .ncc({ packageName: 'lru-cache', externals })
     .target('compiled/lru-cache')
-}
-// eslint-disable-next-line camelcase
-externals['mkdirp'] = 'next/dist/compiled/mkdirp'
-export async function ncc_mkdirp(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('mkdirp')))
-    .ncc({ packageName: 'mkdirp', externals })
-    .target('compiled/mkdirp')
 }
 // eslint-disable-next-line camelcase
 externals['nanoid'] = 'next/dist/compiled/nanoid'
@@ -669,6 +680,7 @@ export async function ncc(task) {
       'ncc_conf',
       'ncc_content_type',
       'ncc_cookie',
+      'ncc_css_loader',
       'ncc_debug',
       'ncc_devalue',
       'ncc_escape_string_regexp',
@@ -687,7 +699,6 @@ export async function ncc(task) {
       'ncc_loader_utils',
       'ncc_lodash_curry',
       'ncc_lru_cache',
-      'ncc_mkdirp',
       'ncc_nanoid',
       'ncc_neo_async',
       'ncc_ora',

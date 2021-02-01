@@ -89,7 +89,7 @@ async function processHTML(
 }
 
 class FontOptimizerMiddleware implements PostProcessMiddleware {
-  fontDefinitions: Array<string> = []
+  fontDefinitions: (string | undefined)[][] = []
   inspect(
     originalDom: HTMLElement,
     _data: postProcessData,
@@ -112,8 +112,10 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       )
       .forEach((element: HTMLElement) => {
         const url = element.getAttribute('data-href')
+        const nonce = element.getAttribute('nonce')
+
         if (url) {
-          this.fontDefinitions.push(url)
+          this.fontDefinitions.push([url, nonce])
         }
       })
   }
@@ -127,7 +129,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       return markup
     }
     for (const key in this.fontDefinitions) {
-      const url = this.fontDefinitions[key]
+      const [url, nonce] = this.fontDefinitions[key]
       const fallBackLinkTag = `<link rel="stylesheet" href="${url}"/>`
       if (
         result.indexOf(`<style data-href="${url}">`) > -1 ||
@@ -136,16 +138,17 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         // The font is already optimized and probably the response is cached
         continue
       }
-      const fontContent = options.getFontDefinition(url)
+      const fontContent = options.getFontDefinition(url as string)
       if (!fontContent) {
         /**
          * In case of unreachable font definitions, fallback to default link tag.
          */
         result = result.replace('</head>', `${fallBackLinkTag}</head>`)
       } else {
+        const nonceStr = nonce ? ` nonce="${nonce}"` : ''
         result = result.replace(
           '</head>',
-          `<style data-href="${url}">${fontContent}</style></head>`
+          `<style data-href="${url}"${nonceStr}>${fontContent}</style></head>`
         )
       }
     }
