@@ -634,6 +634,10 @@ export async function renderToHTML(
       ctx,
     })
 
+    if ((isSSG || getServerSideProps) && isPreview) {
+      props.__N_PREVIEW = true
+    }
+
     if (isSSG) {
       props[STATIC_PROPS_ID] = true
     }
@@ -793,6 +797,7 @@ export async function renderToHTML(
         props.pageProps,
         'props' in data ? data.props : undefined
       )
+
       // pass up revalidate and props for export
       // TODO: change this to a different passing mechanism
       ;(renderOpts as any).revalidate =

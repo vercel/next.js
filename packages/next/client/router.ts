@@ -41,6 +41,7 @@ const urlPropertyFields = [
   'locales',
   'defaultLocale',
   'isReady',
+  'isPreview',
 ]
 const routerEvents = [
   'routeChangeStart',

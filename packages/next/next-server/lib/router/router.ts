@@ -1066,6 +1066,8 @@ export default class Router implements BaseRouter {
           return new Promise(() => {})
         }
 
+        this.isPreview = !!props.__N_PREVIEW
+
         // handle SSG data 404
         if (props.notFound === SSG_DATA_NOT_FOUND) {
           let notFoundRoute
@@ -1536,7 +1538,11 @@ export default class Router implements BaseRouter {
 
   _getStaticData(dataHref: string): Promise<object> {
     const { href: cacheKey } = new URL(dataHref, window.location.href)
-    if (process.env.NODE_ENV === 'production' && this.sdc[cacheKey]) {
+    if (
+      process.env.NODE_ENV === 'production' &&
+      !this.isPreview &&
+      this.sdc[cacheKey]
+    ) {
       return Promise.resolve(this.sdc[cacheKey])
     }
     return fetchNextData(dataHref, this.isSsr).then((data) => {
