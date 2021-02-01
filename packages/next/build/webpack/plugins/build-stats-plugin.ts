@@ -1,8 +1,10 @@
 import fs from 'fs'
 import path from 'path'
+// @ts-ignore no types package
+import bfj from 'next/dist/compiled/bfj'
 import { spans } from './profiling-plugin'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { tracer, traceFn, traceAsyncFn } from '../../tracer'
+import { tracer, traceAsyncFn } from '../../tracer'
 
 // This plugin creates a stats.json for a build when enabled
 export default class BuildStatsPlugin {
@@ -18,20 +20,20 @@ export default class BuildStatsPlugin {
       async (compilation, callback) => {
         tracer.withSpan(spans.get(compiler), async () => {
           try {
-            const statsSpan = tracer.startSpan('NextJsBuildStats-stats-toJSON')
-
-            const statsString = traceFn(statsSpan, () => {
-              return JSON.stringify(compilation.toJson())
-            })
-            const writeStatsSpan = tracer.startSpan(
-              'NextJsBuildStats-stats-writeStats'
-            )
-
+            const writeStatsSpan = tracer.startSpan('NextJsBuildStats')
             await traceAsyncFn(writeStatsSpan, () => {
-              return fs.promises.writeFile(
-                path.join(this.distDir, 'next-stats.json'),
-                statsString
-              )
+              return new Promise((resolve, reject) => {
+                const stats = compilation.toJson()
+                const fileStream = fs.createWriteStream(
+                  path.join(this.distDir, 'next-stats.json')
+                )
+                const jsonStream = bfj.streamify(stats)
+                jsonStream.pipe(fileStream)
+                jsonStream.on('error', reject)
+                fileStream.on('error', reject)
+                jsonStream.on('dataError', reject)
+                fileStream.on('close', resolve)
+              })
             })
             callback()
           } catch (err) {

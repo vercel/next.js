@@ -178,6 +178,7 @@
     "babel-plugin-dynamic-import-node": "2.3.3",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
+    "bfj": "7.0.2",
     "cacache": "15.0.5",
     "cache-loader": "4.1.0",
     "ci-info": "watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540",
