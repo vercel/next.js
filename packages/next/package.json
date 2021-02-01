@@ -45,7 +45,7 @@
     "next": "./dist/bin/next"
   },
   "scripts": {
-    "build": "taskr",
+    "dev": "taskr",
     "release": "taskr release",
     "prepublish": "npm run release && yarn types",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
