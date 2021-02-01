@@ -12,7 +12,7 @@
     "react": "17.0.1",
     "react-dom": "17.0.1",
     "supertokens-auth-react": "^0.5.1",
-    "supertokens-node": "^3.3.1"
+    "supertokens-node": "^3.4.0"
   },
   "license": "MIT"
 }
