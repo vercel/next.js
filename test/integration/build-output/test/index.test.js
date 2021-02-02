@@ -104,7 +104,7 @@ describe('Build Output', () => {
       expect(parseFloat(err404FirstLoad)).toBeCloseTo(67, 1)
       expect(err404FirstLoad.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(sharedByAll)).toBeCloseTo(63.5, 1)
+      expect(parseFloat(sharedByAll)).toBeCloseTo(63.6, 1)
       expect(sharedByAll.endsWith('kB')).toBe(true)
 
       if (_appSize.endsWith('kB')) {

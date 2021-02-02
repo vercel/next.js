@@ -782,6 +782,10 @@ describe('Production Usage', () => {
     expect(existsSync(join(appDir, '.next', 'profile-events.json'))).toBe(false)
   })
 
+  it('should not emit stats', async () => {
+    expect(existsSync(join(appDir, '.next', 'next-stats.json'))).toBe(false)
+  })
+
   it('should contain the Next.js version in window export', async () => {
     let browser
     try {
