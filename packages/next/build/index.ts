@@ -395,6 +395,17 @@ export default async function build(
       PAGES_MANIFEST
     )
 
+    // `sharp` is optional so may not be installed
+    const ignore: string[] = []
+    try {
+      ignore.push(
+        path.relative(
+          dir,
+          path.join(path.dirname(require.resolve('sharp')), '**/*')
+        )
+      )
+    } catch {}
+
     const requiredServerFiles = traceFn(
       tracer.startSpan('generate-required-server-files'),
       () => ({
@@ -420,12 +431,7 @@ export default async function build(
         ]
           .filter(nonNullable)
           .map((file) => path.join(config.distDir, file)),
-        ignore: [
-          path.relative(
-            dir,
-            path.join(path.dirname(require.resolve('sharp')), '**/*')
-          ),
-        ],
+        ignore,
       })
     )
 
