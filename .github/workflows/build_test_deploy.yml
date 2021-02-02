@@ -282,7 +282,7 @@ jobs:
   publishRelease:
     name: Potentially publish release
     runs-on: ubuntu-latest
-    needs: [testsPass]
+    needs: build
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:

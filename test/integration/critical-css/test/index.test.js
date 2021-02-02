@@ -65,3 +65,21 @@ describe('CSS optimization for serverless apps', () => {
   afterAll(() => killApp(app))
   runTests()
 })
+
+describe('Font optimization for emulated serverless apps', () => {
+  beforeAll(async () => {
+    await fs.writeFile(
+      nextConfig,
+      `module.exports = { target: 'experimental-serverless-trace', experimental: {optimizeCss: true} }`,
+      'utf8'
+    )
+    await nextBuild(appDir)
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+  })
+  afterAll(async () => {
+    await killApp(app)
+    await fs.remove(nextConfig)
+  })
+  runTests()
+})
