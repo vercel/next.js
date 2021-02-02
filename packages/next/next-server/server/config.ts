@@ -87,6 +87,7 @@ const defaultConfig: NextConfig = {
     optimizeCss: false,
     scrollRestoration: false,
     scriptLoader: false,
+    stats: !!process.env.VERCEL_ANALYTICS_ID,
   },
   future: {
     strictPostcssConfiguration: false,
