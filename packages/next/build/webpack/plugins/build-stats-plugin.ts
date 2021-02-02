@@ -17,17 +17,17 @@ export default class BuildStatsPlugin {
   apply(compiler: webpack.Compiler) {
     compiler.hooks.done.tapAsync(
       'NextJsBuildStats',
-      async (compilation, callback) => {
+      async (stats, callback) => {
         tracer.withSpan(spans.get(compiler), async () => {
           try {
             const writeStatsSpan = tracer.startSpan('NextJsBuildStats')
             await traceAsyncFn(writeStatsSpan, () => {
               return new Promise((resolve, reject) => {
-                const stats = compilation.toJson()
+                const statsJson = stats.toJson()
                 const fileStream = fs.createWriteStream(
                   path.join(this.distDir, 'next-stats.json')
                 )
-                const jsonStream = bfj.streamify(stats)
+                const jsonStream = bfj.streamify(statsJson)
                 jsonStream.pipe(fileStream)
                 jsonStream.on('error', reject)
                 fileStream.on('error', reject)
