@@ -1575,6 +1575,8 @@ export default class Server {
               locale,
               locales,
               defaultLocale,
+              optimizeCss: this.renderOpts.optimizeCss,
+              distDir: this.distDir,
               fontManifest: this.renderOpts.fontManifest,
               domainLocales: this.renderOpts.domainLocales,
             }
