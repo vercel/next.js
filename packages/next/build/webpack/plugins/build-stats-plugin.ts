@@ -23,7 +23,9 @@ export default class BuildStatsPlugin {
             const writeStatsSpan = tracer.startSpan('NextJsBuildStats')
             await traceAsyncFn(writeStatsSpan, () => {
               return new Promise((resolve, reject) => {
-                const statsJson = stats.toJson()
+                const statsJson = stats.toJson({
+                  source: false,
+                })
                 const fileStream = fs.createWriteStream(
                   path.join(this.distDir, 'next-stats.json')
                 )
