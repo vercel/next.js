@@ -6,7 +6,7 @@ import { spans } from './profiling-plugin'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { tracer, traceAsyncFn } from '../../tracer'
 
-const STATS_VERSION = 1
+const STATS_VERSION = 0
 
 // This plugin creates a stats.json for a build when enabled
 export default class BuildStatsPlugin {

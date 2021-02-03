@@ -17,7 +17,7 @@ describe('Build Stats', () => {
     const statsString = await fs.readFile(statsPath, 'utf8')
     const statsData = JSON.parse(statsString)
 
-    expect(statsData.version).toBe(1)
+    expect(statsData.version).toBe(0)
     expect(typeof statsData.stats).toBe('object')
   })
 })
