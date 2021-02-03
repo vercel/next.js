@@ -43,6 +43,7 @@ import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
+import BuildStatsPlugin from './webpack/plugins/build-stats-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
@@ -1108,6 +1109,11 @@ export default async function getBaseWebpackConfig(
         new BuildManifestPlugin({
           buildId,
           rewrites,
+        }),
+      !isServer &&
+        config.experimental.stats &&
+        new BuildStatsPlugin({
+          distDir,
         }),
       new ProfilingPlugin(),
       config.experimental.optimizeFonts &&
