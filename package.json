@@ -6,7 +6,7 @@
   ],
   "scripts": {
     "lerna": "lerna",
-    "dev": "lerna run build --stream --parallel",
+    "dev": "lerna run dev --stream --parallel",
     "dev2": "while true; do yarn --check-files && yarn dev; done",
     "testonly": "jest --runInBand",
     "testheadless": "cross-env HEADLESS=true yarn testonly",
