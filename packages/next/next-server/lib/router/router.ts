@@ -1324,9 +1324,6 @@ export default class Router implements BaseRouter {
     resetScroll: { x: number; y: number } | null
   ): Promise<void> {
     this.isFallback = false
-
-    console.log({ route, resetScroll })
-
     this.route = route
     this.pathname = pathname
     this.query = query
