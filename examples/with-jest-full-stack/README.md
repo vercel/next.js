@@ -21,3 +21,7 @@ yarn create next-app --example with-jest with-jest-app
 ```bash
 npm test
 ```
+
+## Create a server-only test
+
+End your test with `.server.test.js` or place it in `__tests__/server`.
