@@ -31,6 +31,7 @@ export type ServerlessLoaderQuery = {
   previewProps: string
   loadedEnvFiles: string
   i18n: string
+  distDirPath: string
   optimizeCss: any
 }
 
@@ -55,6 +56,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
       previewProps,
       loadedEnvFiles,
       i18n,
+      distDirPath,
       optimizeCss,
     }: ServerlessLoaderQuery =
       typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
@@ -191,7 +193,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         basePath: "${basePath}",
         pageIsDynamic: ${pageIsDynamicRoute},
         encodedPreviewProps: ${encodedPreviewProps},
-        distDir: "${distDir}",
+        distDir: "${distDirPath}",
         optimizeCss: ${optimizeCss},
         experimental: {
           onError,
