@@ -105937,7 +105937,7 @@ module.exports.end = end
 module.exports = function () {
   return {
     BasicEvaluatedExpression: __webpack_require__(96770),
-    NodeEnvironmentPlugin: __webpack_require__(38334),
+    NodeEnvironmentPlugin: __webpack_require__(52520),
     NodeTargetPlugin: __webpack_require__(59743),
     ModuleFilenameHelpers: __webpack_require__(71474),
     GraphHelpers: __webpack_require__(32973),
@@ -105945,14 +105945,6 @@ module.exports = function () {
     webpack: __webpack_require__(92929),
   }
 }
-
-
-/***/ }),
-
-/***/ 38334:
-/***/ (function(module) {
-
-module.exports = eval("require")("webpack/lib/NodeEnvironmentPlugin");
 
 
 /***/ }),

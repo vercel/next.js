@@ -7,11 +7,11 @@ const hookPropertyMap = new Map([
   ['webpack/lib/webpack', 'next/dist/compiled/webpack/webpack-lib'],
   ['webpack/lib/webpack.js', 'next/dist/compiled/webpack/webpack-lib'],
   [
-    'webpack/lib/NodeEnvironmentPlugin',
+    'webpack/lib/node/NodeEnvironmentPlugin',
     'next/dist/compiled/webpack/NodeEnvironmentPlugin',
   ],
   [
-    'webpack/lib/NodeEnvironmentPlugin.js',
+    'webpack/lib/node/NodeEnvironmentPlugin.js',
     'next/dist/compiled/webpack/NodeEnvironmentPlugin',
   ],
   [
