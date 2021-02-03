@@ -1,4 +1,4 @@
-# Redirects Example
+# Headers Example
 
 This example shows how to use [headers in Next.js](https://nextjs.org/docs/api-reference/next.config.js/headers) to add custom HTTP headers into your Next.js app.
 
