@@ -144,6 +144,14 @@ export async function ncc_babel_bundle_packages(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['bfj'] = 'next/dist/compiled/bfj'
+export async function ncc_bfj(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('bfj')))
+    .ncc({ packageName: 'bfj' })
+    .target('compiled/bfj')
+}
+// eslint-disable-next-line camelcase
 externals['cacache'] = 'next/dist/compiled/cacache'
 export async function ncc_cacache(task, opts) {
   await task
@@ -366,14 +374,6 @@ export async function ncc_lru_cache(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('lru-cache')))
     .ncc({ packageName: 'lru-cache', externals })
     .target('compiled/lru-cache')
-}
-// eslint-disable-next-line camelcase
-externals['mkdirp'] = 'next/dist/compiled/mkdirp'
-export async function ncc_mkdirp(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('mkdirp')))
-    .ncc({ packageName: 'mkdirp', externals })
-    .target('compiled/mkdirp')
 }
 // eslint-disable-next-line camelcase
 externals['nanoid'] = 'next/dist/compiled/nanoid'
@@ -680,6 +680,7 @@ export async function ncc(task) {
       'ncc_async_sema',
       'ncc_babel_bundle',
       'ncc_babel_bundle_packages',
+      'ncc_bfj',
       'ncc_cacache',
       'ncc_cache_loader',
       'ncc_ci_info',
@@ -707,7 +708,6 @@ export async function ncc(task) {
       'ncc_loader_utils',
       'ncc_lodash_curry',
       'ncc_lru_cache',
-      'ncc_mkdirp',
       'ncc_nanoid',
       'ncc_neo_async',
       'ncc_ora',

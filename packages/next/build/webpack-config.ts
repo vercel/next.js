@@ -43,6 +43,7 @@ import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
+import BuildStatsPlugin from './webpack/plugins/build-stats-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
@@ -1013,7 +1014,7 @@ export default async function getBaseWebpackConfig(
           config.experimental.optimizeImages
         ),
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
-          !!config.experimental.optimizeCss && !dev
+          config.experimental.optimizeCss && !dev
         ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
@@ -1109,6 +1110,11 @@ export default async function getBaseWebpackConfig(
           buildId,
           rewrites,
         }),
+      !isServer &&
+        config.experimental.stats &&
+        new BuildStatsPlugin({
+          distDir,
+        }),
       new ProfilingPlugin(),
       config.experimental.optimizeFonts &&
         !dev &&
@@ -1202,6 +1208,7 @@ export default async function getBaseWebpackConfig(
       reactMode: config.experimental.reactMode,
       optimizeFonts: config.experimental.optimizeFonts,
       optimizeImages: config.experimental.optimizeImages,
+      optimizeCss: config.experimental.optimizeCss,
       scrollRestoration: config.experimental.scrollRestoration,
       basePath: config.basePath,
       pageEnv: config.experimental.pageEnv,

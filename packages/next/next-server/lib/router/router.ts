@@ -1367,8 +1367,9 @@ export default class Router implements BaseRouter {
 
   scrollToHash(as: string): void {
     const [, hash] = as.split('#')
-    // Scroll to top if the hash is just `#` with no value
-    if (hash === '') {
+    // Scroll to top if the hash is just `#` with no value or `#top`
+    // To mirror browsers
+    if (hash === '' || hash === 'top') {
       window.scrollTo(0, 0)
       return
     }
