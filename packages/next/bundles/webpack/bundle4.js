@@ -9,5 +9,6 @@ module.exports = function () {
     GraphHelpers: require('webpack/lib/GraphHelpers'),
     sources: require('webpack-sources'),
     webpack: require('webpack'),
+    package: require('webpack/package.json'),
   }
 }

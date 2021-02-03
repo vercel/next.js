@@ -4,6 +4,8 @@
 
 const hookPropertyMap = new Map([
   ['webpack', 'next/dist/compiled/webpack/webpack-lib'],
+  ['webpack/package', 'next/dist/compiled/webpack/package'],
+  ['webpack/package.json', 'next/dist/compiled/webpack/package'],
   ['webpack/lib/webpack', 'next/dist/compiled/webpack/webpack-lib'],
   ['webpack/lib/webpack.js', 'next/dist/compiled/webpack/webpack-lib'],
   [
