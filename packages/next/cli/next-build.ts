@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync } from 'fs'
+import { existsSync, realpathSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
 import { resolve } from 'path'
 import * as Log from '../build/output/log'
@@ -48,7 +48,7 @@ const nextBuild: cliCommand = (argv) => {
   if (args['--profile']) {
     Log.warn('Profiling is enabled. Note: This may affect performance')
   }
-  const dir = resolve(args._[0] || '.')
+  const dir = resolve(args._[0] || realpathSync.native('.'))
 
   // Check if the provided directory exists
   if (!existsSync(dir)) {

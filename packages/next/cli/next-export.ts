@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { resolve, join } from 'path'
-import { existsSync } from 'fs'
+import { existsSync, realpathSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
 import exportApp from '../export'
 import { printAndExit } from '../server/lib/utils'
@@ -47,7 +47,7 @@ const nextExport: cliCommand = (argv) => {
     process.exit(0)
   }
 
-  const dir = resolve(args._[0] || '.')
+  const dir = resolve(args._[0] || realpathSync.native('.'))
 
   // Check if pages dir exists and warn if not
   if (!existsSync(dir)) {
