@@ -1,11 +1,17 @@
-import GoogleTagManager from '../components/GoogleTagManager'
+import * as gtm from '../lib/gtm'
 
-function MyApp({ Component, pageProps }) {
-  return (
-    <GoogleTagManager>
-      <Component {...pageProps} />
-    </GoogleTagManager>
-  )
+export function reportWebVitals(metric) {
+  switch (metric.name) {
+    case 'Next.js-hydration':
+      // register right after hydration
+      return gtm.pageview(window.location.href)
+    case 'Next.js-route-change-to-render':
+      // register pageviews after client-side transitions
+      return gtm.pageview(window.location.href)
+    default:
+  }
 }
 
-export default MyApp
+export default function App({ Component, pageProps }) {
+  return <Component {...pageProps} />
+}
