@@ -7,7 +7,7 @@ export default function About() {
   const t = useTranslations('About')
   const { locale } = useRouter()
   const intl = useIntl()
-  const lastUpdated = new Date('2021-01-26T17:04:45.567Z')
+  const lastUpdated = new Date(2021, 0, 26, 17, 4, 45)
 
   return (
     <PageLayout title={t('title')}>
@@ -34,7 +34,7 @@ export function getStaticProps({ locale }) {
         ...require(`../messages/shared/${locale}.json`),
         ...require(`../messages/about/${locale}.json`),
       },
-      now: new Date().toISOString(),
+      now: new Date().getTime(),
     },
   }
 }
