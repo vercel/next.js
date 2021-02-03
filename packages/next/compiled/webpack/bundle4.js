@@ -105944,7 +105944,7 @@ module.exports = function () {
     sources: __webpack_require__(53665),
     webpack: __webpack_require__(92929),
     package: {
-      version: __webpack_require__(71618)/* .version */ .i8
+      version: __webpack_require__(71618)/* .version */ .i8,
     },
   }
 }
