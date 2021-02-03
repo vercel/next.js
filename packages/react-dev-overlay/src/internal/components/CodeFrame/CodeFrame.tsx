@@ -55,7 +55,7 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
       .then(
         () => {},
         () => {
-          // TODO: report error
+          console.error('There was an issue opening this code in your editor.')
         }
       )
   }, [stackFrame])
