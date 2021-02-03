@@ -31,7 +31,6 @@ export type ServerlessLoaderQuery = {
   previewProps: string
   loadedEnvFiles: string
   i18n: string
-  distDirPath: string
   optimizeCss: any
 }
 
@@ -56,11 +55,11 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
       previewProps,
       loadedEnvFiles,
       i18n,
-      distDirPath,
       optimizeCss,
     }: ServerlessLoaderQuery =
       typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
 
+    const distDirPath = distDir.replace(/\\/g, '/')
     const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
     const reactLoadableManifest = join(
       distDir,

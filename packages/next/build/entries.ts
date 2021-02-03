@@ -82,14 +82,13 @@ export function createEntrypoints(
     absoluteDocumentPath: pages['/_document'],
     absoluteErrorPath: pages['/_error'],
     absolute404Path: pages['/404'] || '',
-    distDir: DOT_NEXT_ALIAS,
+    distDir: distDir || DOT_NEXT_ALIAS,
     buildId,
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags,
     poweredByHeader: config.poweredByHeader,
     canonicalBase: config.amp.canonicalBase,
     basePath: config.basePath,
-    distDirPath: distDir,
     optimizeCss: config.experimental.optimizeCss,
     runtimeConfig: hasRuntimeConfig
       ? JSON.stringify({
