@@ -3,6 +3,7 @@ const fs = require('fs-extra')
 const exec = require('../util/exec')
 const { remove } = require('fs-extra')
 const logger = require('../util/logger')
+const semver = require('semver')
 
 module.exports = (actionInfo) => {
   return {
@@ -22,8 +23,9 @@ module.exports = (actionInfo) => {
         const curTag = tags[i]
         // stable doesn't include `-canary` or `-beta`
         if (!curTag.includes('-') && !ref.includes(curTag)) {
-          lastStableTag = curTag
-          break
+          if (!lastStableTag || semver.gt(curTag, lastStableTag)) {
+            lastStableTag = curTag
+          }
         }
       }
       return lastStableTag
