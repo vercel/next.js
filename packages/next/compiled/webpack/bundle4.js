@@ -105937,11 +105937,15 @@ module.exports.end = end
 module.exports = function () {
   return {
     BasicEvaluatedExpression: __webpack_require__(96770),
+    NodeEnvironmentPlugin: __webpack_require__(52520),
     NodeTargetPlugin: __webpack_require__(59743),
     ModuleFilenameHelpers: __webpack_require__(71474),
     GraphHelpers: __webpack_require__(32973),
     sources: __webpack_require__(53665),
     webpack: __webpack_require__(92929),
+    package: {
+      version: __webpack_require__(71618)/* .version */ .i8,
+    },
   }
 }
 
