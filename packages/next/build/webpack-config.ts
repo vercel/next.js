@@ -1118,6 +1118,7 @@ export default async function getBaseWebpackConfig(
         config.experimental.stats &&
         new BuildStatsPlugin({
           distDir,
+          dir,
         }),
       new ProfilingPlugin(),
       config.experimental.optimizeFonts &&

@@ -8,7 +8,7 @@ import { tracer, traceAsyncFn } from '../../tracer'
 
 const STATS_VERSION = 0
 
-function reduceSize(stats: any) {
+function reduceSize(stats: any, dir: string) {
   const modules = new Map()
   stats.chunks = stats.chunks.map((chunk: any) => {
     const reducedChunk: any = {
@@ -26,7 +26,8 @@ function reduceSize(stats: any) {
         type: module.type,
         moduleType: module.moduleType,
         size: module.size,
-        identifier: module.identifier,
+        // use relative dir for module identifiers to reduce size
+        identifier: path.relative(dir, module.identifier),
       }
 
       if (module.reasons) {
@@ -40,7 +41,7 @@ function reduceSize(stats: any) {
           }
 
           reducedModule.reasons.push({
-            moduleIdentifier: reason.moduleIdentifier,
+            moduleIdentifier: path.relative(dir, reason.moduleIdentifier),
           })
         }
       }
@@ -69,9 +70,11 @@ function reduceSize(stats: any) {
 // This plugin creates a stats.json for a build when enabled
 export default class BuildStatsPlugin {
   private distDir: string
+  private dir: string
 
-  constructor(options: { distDir: string }) {
+  constructor(options: { distDir: string; dir: string }) {
     this.distDir = options.distDir
+    this.dir = options.dir
   }
 
   apply(compiler: webpack.Compiler) {
@@ -96,7 +99,8 @@ export default class BuildStatsPlugin {
                     chunkModules: true,
                     // @ts-ignore this option exists
                     ids: true,
-                  })
+                  }),
+                  this.dir
                 )
                 const fileStream = fs.createWriteStream(
                   path.join(this.distDir, 'next-stats.json')
