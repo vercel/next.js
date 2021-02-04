@@ -58,6 +58,11 @@ function reduceSize(stats: any) {
   })
 
   stats.modules = [...modules.entries()]
+
+  for (const entrypointName in stats.entrypoints) {
+    delete stats.entrypoints[entrypointName].assets
+  }
+
   return stats
 }
 
