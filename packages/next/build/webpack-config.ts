@@ -1110,7 +1110,8 @@ export default async function getBaseWebpackConfig(
           buildId,
           rewrites,
         }),
-      !isServer &&
+      !dev &&
+        !isServer &&
         config.experimental.stats &&
         new BuildStatsPlugin({
           distDir,
