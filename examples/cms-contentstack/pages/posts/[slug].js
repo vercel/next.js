@@ -60,7 +60,7 @@ export async function getStaticProps({ params, preview = false }) {
     'author',
   ])
   let data = preview
-    ? await Stack.getPeviewData(entryData[0].uid)
+    ? await Stack.getPreviewData(entryData[0].uid)
     : entryData[0]
   return {
     props: {

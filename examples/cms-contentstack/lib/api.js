@@ -12,6 +12,7 @@ const Stack = Contentstack.Stack({
 })
 process.env.contentstack_custom_host &&
   Stack.setHost(process.env.contentstack_custom_host)
+
 const createUrl =
   process.env.contentstack_region === 'us'
     ? 'cdn.contentstack.io/v3'
@@ -55,7 +56,7 @@ export default {
       )
     })
   },
-  getPeviewData(entryID) {
+  getPreviewData(entryID) {
     return new Promise((resolve, reject) => {
       axios({
         method: 'get',

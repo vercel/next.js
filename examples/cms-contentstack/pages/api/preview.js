@@ -9,7 +9,7 @@ export default async function preview(req, res) {
 
   // Fetch the headless CMS to check if the provided `slug` exists
   const slugEntry = await Stack.getSpecificEntry('post', '/' + slug, 'author')
-  const post = await Stack.getPeviewData(slugEntry[0].uid)
+  const post = await Stack.getPreviewData(slugEntry[0].uid)
 
   // If the slug doesn't exist prevent preview mode from being enabled
   if (!post) {
