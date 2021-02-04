@@ -26,6 +26,7 @@ function reduceSize(stats: any) {
         type: module.type,
         moduleType: module.moduleType,
         size: module.size,
+        identifier: module.identifier,
       }
 
       if (module.reasons) {
@@ -44,13 +45,13 @@ function reduceSize(stats: any) {
         }
       }
       // Identifier is part of the Map
-      modules.set(module.identifier, reducedModule)
+      modules.set(module.id, reducedModule)
 
       if (!reducedChunk.modules) {
         reducedChunk.modules = []
       }
 
-      reducedChunk.modules.push(module.identifier)
+      reducedChunk.modules.push(module.id)
     }
 
     return reducedChunk
@@ -87,10 +88,8 @@ export default class BuildStatsPlugin {
                     errors: false,
                     warnings: false,
                     maxModules: Infinity,
-                    // @ts-ignore this option exists
-                    chunkGroups: true,
-                    chunkOrigins: true,
                     chunkModules: true,
+                    // @ts-ignore this option exists
                     ids: true,
                   })
                 )
