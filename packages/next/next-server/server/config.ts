@@ -501,6 +501,10 @@ export default function loadConfig(
 
   // If config file was found
   if (path?.length) {
+    // hook the Node.js require so that webpack requires are
+    // routed to the bundled webpack version
+    require('../../build/webpack/require-hook')
+
     const userConfigModule = require(path)
     const userConfig = normalizeConfig(
       phase,
