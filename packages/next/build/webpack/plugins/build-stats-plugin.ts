@@ -6,6 +6,8 @@ import { spans } from './profiling-plugin'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { tracer, traceAsyncFn } from '../../tracer'
 
+const STATS_VERSION = 0
+
 // This plugin creates a stats.json for a build when enabled
 export default class BuildStatsPlugin {
   private distDir: string
@@ -29,7 +31,10 @@ export default class BuildStatsPlugin {
                 const fileStream = fs.createWriteStream(
                   path.join(this.distDir, 'next-stats.json')
                 )
-                const jsonStream = bfj.streamify(statsJson)
+                const jsonStream = bfj.streamify({
+                  version: STATS_VERSION,
+                  stats: statsJson,
+                })
                 jsonStream.pipe(fileStream)
                 jsonStream.on('error', reject)
                 fileStream.on('error', reject)
