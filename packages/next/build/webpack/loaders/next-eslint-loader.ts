@@ -13,29 +13,23 @@ const fn: loader.Loader = function (
   const options = getOptions(this)
   let compilationError = null
 
-  if (options.type !== 'default' && options.type !== 'eslint') {
-    console.log(
-      `\n> The experimental enableBuildTimeLinting flag is enabled incorrectly. Please specify a value of "default" or "eslint".`
-    )
-  } else {
-    const linter = new Linter(this, {
-      ...options,
-      cwd: this._compiler.options.context,
-    })
+  const linter = new Linter(this, {
+    ...options,
+    cwd: this._compiler.options.context,
+  })
 
-    this.cacheable()
+  this.cacheable()
 
-    // return early if cached
-    if (options.cache) {
-      cacheLoader(linter, content.toString(), map)
-      return
-    }
-    const report = linter.lint(content)
-    report && linter.printOutput(report)
-    // Do not fail build during dev due to lint errors.
-    if (!options.dev && report && report?.errorCount > 0) {
-      compilationError = new Error(`Build failed due to ESLint errors.`)
-    }
+  // return early if cached
+  if (options.cache) {
+    cacheLoader(linter, content.toString(), map)
+    return
+  }
+  const report = linter.lint(content)
+  report && linter.printOutput(report)
+  // Do not fail build during dev due to lint errors.
+  if (!options.dev && report && report?.errorCount > 0) {
+    compilationError = new Error(`Build failed due to ESLint errors.`)
   }
 
   // this.callback(compilationError, content, map, { sharedBabelAST: ast })

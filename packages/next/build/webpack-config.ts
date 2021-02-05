@@ -923,7 +923,8 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
-        config.experimental.enableBuildTimeLinting &&
+        (config.experimental.enableBuildTimeLinting === 'eslint' ||
+          config.experimental.enableBuildTimeLinting === 'default') &&
           isServer && {
             test: /\.(tsx|ts|js|mjs|jsx)$/,
             enforce: 'pre',

@@ -20,7 +20,9 @@ export default function cacheLoader(
   const callback = loaderContext.async()
 
   const dirFiles = readdirSync(options.dir)
-  const eslintrc = dirFiles.find((file) => file.startsWith('.eslintrc'))
+  const eslintrc = dirFiles.find((file) =>
+    /^.eslintrc.?(js|json|yaml|yml)?$/.test(file)
+  )
 
   let cacheIdentifier
   if (eslintrc) {
