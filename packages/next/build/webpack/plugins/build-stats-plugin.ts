@@ -39,7 +39,9 @@ function reduceSize(stats: any) {
             reducedModule.reasons = []
           }
 
-          reducedModule.reasons.push(reason.id)
+          reducedModule.reasons.push({
+            id: reason.id,
+          })
         }
       }
       // Identifier is part of the Map
