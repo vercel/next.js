@@ -1,10 +1,13 @@
 import cache from './cache'
+import { readdirSync } from 'fs'
+
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { RawSourceMap } from 'source-map'
 import { Linter } from './linter'
 import { CLIEngine } from 'eslint'
 import { join } from 'path'
 
+const objectHash = require('object-hash')
 const { version } = require('next/package.json')
 
 export default function cacheLoader(
@@ -15,10 +18,21 @@ export default function cacheLoader(
   const stringContent = content.toString()
   const { loaderContext, options } = linter
   const callback = loaderContext.async()
-  const cacheIdentifier = JSON.stringify({
-    'next-eslint-loader': version,
-    eslint: CLIEngine.version,
-  })
+
+  const dirFiles = readdirSync(options.dir)
+  const eslintrc = dirFiles.find((file) => file.startsWith('.eslintrc'))
+
+  let cacheIdentifier
+  if (eslintrc) {
+    cacheIdentifier = objectHash(require(join(options.dir, eslintrc)))
+  } else {
+    // Original cache identifier does not bust cache when .eslintrc changes. See: https://github.com/webpack-contrib/eslint-loader/issues/214
+    cacheIdentifier = JSON.stringify({
+      'next-eslint-loader': version,
+      eslint: CLIEngine.version,
+    })
+  }
+
   cache({
     cacheDirectory: join(options.distDir, 'cache', 'next-eslint-loader'),
     cacheIdentifier,

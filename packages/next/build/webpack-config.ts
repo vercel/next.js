@@ -931,6 +931,7 @@ export default async function getBaseWebpackConfig(
             use: [
               {
                 options: {
+                  dir,
                   distDir,
                   dev,
                   cache: true,
