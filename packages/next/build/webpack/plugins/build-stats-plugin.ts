@@ -18,7 +18,7 @@ function reduceSize(stats: any) {
     }
 
     for (const module of chunk.modules) {
-      if (!module.identifier) {
+      if (!module.name) {
         continue
       }
 
@@ -26,12 +26,12 @@ function reduceSize(stats: any) {
         type: module.type,
         moduleType: module.moduleType,
         size: module.size,
-        identifier: module.identifier,
+        name: module.name,
       }
 
       if (module.reasons) {
         for (const reason of module.reasons) {
-          if (!reason.moduleIdentifier) {
+          if (!reason.name) {
             continue
           }
 
@@ -40,11 +40,11 @@ function reduceSize(stats: any) {
           }
 
           reducedModule.reasons.push({
-            moduleIdentifier: reason.moduleIdentifier,
+            id: reason.id,
           })
         }
       }
-      // Identifier is part of the Map
+
       modules.set(module.id, reducedModule)
 
       if (!reducedChunk.modules) {
