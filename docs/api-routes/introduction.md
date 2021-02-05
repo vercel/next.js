@@ -23,7 +23,7 @@ For example, the following API route `pages/api/user.js` returns a `json` respon
 
 ```js
 export default function handler(req, res) {
-  res.status(200).json({ name: 'John Doe' }))
+  res.status(200).json({ name: 'John Doe' })
 }
 ```
 

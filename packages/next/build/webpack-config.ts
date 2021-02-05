@@ -43,6 +43,7 @@ import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
+import BuildStatsPlugin from './webpack/plugins/build-stats-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
@@ -205,6 +206,9 @@ export default async function getBaseWebpackConfig(
   }
 ): Promise<webpack.Configuration> {
   initWebpack(!!config.future?.webpack5)
+  // hook the Node.js require so that webpack requires are
+  // routed to the bundled and now initialized webpack version
+  require('./webpack/require-hook')
 
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
@@ -1108,6 +1112,12 @@ export default async function getBaseWebpackConfig(
         new BuildManifestPlugin({
           buildId,
           rewrites,
+        }),
+      !dev &&
+        !isServer &&
+        config.experimental.stats &&
+        new BuildStatsPlugin({
+          distDir,
         }),
       new ProfilingPlugin(),
       config.experimental.optimizeFonts &&
