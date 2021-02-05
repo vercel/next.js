@@ -100,9 +100,19 @@ export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
 }
 
 export type GetStaticPropsResult<P> =
-  | { props: P; revalidate?: number | boolean }
-  | { redirect: Redirect; revalidate?: number | boolean }
-  | { notFound: true }
+  | {
+      props: P
+      revalidate?: number | boolean
+      redirect?: never
+      notFound?: never
+    }
+  | {
+      redirect: Redirect
+      revalidate?: number | boolean
+      props?: never
+      notFound?: never
+    }
+  | { notFound: true; props?: never; revalidate?: never; redirect?: never }
 
 export type GetStaticProps<
   P extends { [key: string]: any } = { [key: string]: any },
@@ -149,9 +159,9 @@ export type GetServerSidePropsContext<
 }
 
 export type GetServerSidePropsResult<P> =
-  | { props: P }
-  | { redirect: Redirect }
-  | { notFound: true }
+  | { props: P; redirect?: never; notFound?: never }
+  | { redirect: Redirect; props?: never; notFound?: never }
+  | { notFound: true; props?: never; redirect?: never }
 
 export type GetServerSideProps<
   P extends { [key: string]: any } = { [key: string]: any },
