@@ -45,7 +45,7 @@ Similarly, the route `/post/abc?foo=bar` will have the following `query` object:
 However, route parameters will override query parameters with the same name. For example, the route `/post/abc?pid=123` will have the following `query` object:
 
 ```json
-{ "pid": "123" }
+{ "pid": "abc" }
 ```
 
 Multiple dynamic route segments work the same way. The page `pages/post/[pid]/[comment].js` will match the route `/post/abc/a-comment` and its `query` object will be:
