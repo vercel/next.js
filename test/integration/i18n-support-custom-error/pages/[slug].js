@@ -24,7 +24,7 @@ export const getStaticProps = async (ctx) => {
 }
 
 export const getStaticPaths = async ({ locales }) => {
-  const mySlugs = ['my-custom-path-1', 'my-custom-path-1']
+  const mySlugs = ['my-custom-path-1', 'my-custom-path-2']
 
   return {
     paths: locales.reduce(
