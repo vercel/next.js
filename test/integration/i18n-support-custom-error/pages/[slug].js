@@ -6,19 +6,22 @@ const SlugPage = (props) => {
   return router.isFallback ? null : (
     <>
       <div>{props.title}</div>
+      <div id="props">{JSON.stringify(props)}</div>
     </>
   )
 }
 
-export const getStaticProps = async (ctx) => {
-  if (ctx.params.slug === 'my-custom-path-3') {
+export const getStaticProps = async ({ locale, params }) => {
+  if (params.slug === 'my-custom-gone-path') {
     return {
       notFound: true,
     }
   }
   return {
     props: {
-      title: ctx.params.slug,
+      locale,
+      params,
+      title: params.slug,
     },
   }
 }
