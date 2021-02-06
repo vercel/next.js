@@ -1,5 +1,5 @@
 {
-  "name": "with-zeit-fetch",
+  "name": "with-vercel-fetch",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
