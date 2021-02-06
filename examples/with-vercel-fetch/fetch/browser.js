@@ -1,4 +1,3 @@
-import createFetch from '@vercel/fetch'
-import unfetch from 'unfetch'
+import fetch from 'unfetch'
 
-export default createFetch(unfetch)
+export default fetch
