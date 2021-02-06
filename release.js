@@ -121,7 +121,7 @@ const buildChangelog = (sections, authors) => {
 
   if (authors.size > 0) {
     text += '### Credits \n\n'
-    text += 'Huge thanks to '
+    text += 'Huge thanks to trzk '
 
     let index = 1
     authors.forEach((author) => {
