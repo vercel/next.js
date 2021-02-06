@@ -128,7 +128,7 @@ export async function parseBody(
     const maxBuffer = bytes.parse(limit)
     buffer = await getStream.buffer(req, { maxBuffer })
   } catch (e) {
-    if (e.type === 'entity.too.large') {
+    if (e.name === 'MaxBufferError') {
       throw new ApiError(413, `Body exceeded ${limit} limit`)
     } else {
       throw new ApiError(400, 'Invalid body')
