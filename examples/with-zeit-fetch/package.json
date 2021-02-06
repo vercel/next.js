@@ -7,7 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@zeit/fetch": "5.1.1",
+    "@vercel/fetch": "6.1.0",
     "next": "latest",
     "node-fetch": "2.6.1",
     "react": "^16.8.4",

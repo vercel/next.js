@@ -1,6 +1,6 @@
 # @vercel/fetch example
 
-This example shows how to use [`@vercel/fetch`](https://www.npmjs.com/package/@zeit/fetch) in a Next.js application.
+This example shows how to use [`@vercel/fetch`](https://www.npmjs.com/package/@vercel/fetch) in a Next.js application.
 
 ## Deploy your own
 

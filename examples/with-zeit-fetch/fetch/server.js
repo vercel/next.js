@@ -1,3 +1,4 @@
-import zeitFetch from '@zeit/fetch'
+import createFetch from '@vercel/fetch'
 
-export default zeitFetch()
+// since we aren't providing createFetch a fetcher it will use node-fetch as the fetcher
+export default createFetch()
