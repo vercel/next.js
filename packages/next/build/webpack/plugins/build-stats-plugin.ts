@@ -41,7 +41,7 @@ function reduceSize(stats: any) {
 
     if (module.reasons) {
       for (const reason of module.reasons) {
-        if (!reason.moduleName) {
+        if (!reason.moduleName || reason.moduleId === module.id) {
           continue
         }
 
