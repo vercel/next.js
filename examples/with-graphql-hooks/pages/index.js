@@ -3,7 +3,7 @@ import graphQLRequest from '../lib/graphql-request'
 import App from '../components/app'
 import Header from '../components/header'
 import PostList, {
-  allPostsQuery,
+  ALL_POSTS_QUERY,
   allPostsQueryOptions,
 } from '../components/post-list'
 
@@ -19,7 +19,7 @@ export default function Home() {
 export async function getStaticProps() {
   const client = initializeGraphQL()
 
-  await graphQLRequest(client, allPostsQuery, allPostsQueryOptions())
+  await graphQLRequest(client, ALL_POSTS_QUERY, allPostsQueryOptions())
 
   return {
     props: {

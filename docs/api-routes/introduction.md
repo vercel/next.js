@@ -19,17 +19,15 @@ API routes provide a straightforward solution to build your **API** with Next.js
 
 Any file inside the folder `pages/api` is mapped to `/api/*` and will be treated as an API endpoint instead of a `page`. They are server-side only bundles and won't increase your client-side bundle size.
 
-For example, the following API route `pages/api/user.js` handles a `json` response:
+For example, the following API route `pages/api/user.js` returns a `json` response with a status code of `200`:
 
 ```js
 export default function handler(req, res) {
-  res.statusCode = 200
-  res.setHeader('Content-Type', 'application/json')
-  res.end(JSON.stringify({ name: 'John Doe' }))
+  res.status(200).json({ name: 'John Doe' })
 }
 ```
 
-For an API route to work, you need to export as default a function (a.k.a **request handler**), which then receives the following parameters:
+For an API route to work, you need to export a function as default (a.k.a **request handler**), which then receives the following parameters:
 
 - `req`: An instance of [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage), plus some pre-built middlewares you can see [here](/docs/api-routes/api-middlewares.md)
 - `res`: An instance of [http.ServerResponse](https://nodejs.org/api/http.html#http_class_http_serverresponse), plus some helper functions you can see [here](/docs/api-routes/response-helpers.md)
