@@ -34,7 +34,6 @@ export async function imageOptimizer(
   const { nextConfig, distDir } = server
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
   const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
-  const sizes = [...deviceSizes, ...imageSizes]
 
   if (loader !== 'default') {
     await server.render404(req, res, parsedUrl)
@@ -114,6 +113,8 @@ export async function imageOptimizer(
     res.end('"w" parameter (width) must be a number greater than 0')
     return { finished: true }
   }
+
+  const sizes = [...deviceSizes, ...imageSizes]
 
   if (!sizes.includes(width)) {
     res.statusCode = 400
@@ -217,17 +218,19 @@ export async function imageOptimizer(
     }
   }
 
+  const expireAt = maxAge * 1000 + now
+
   if (upstreamType) {
     const vector = VECTOR_TYPES.includes(upstreamType)
     const animate =
       ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
     if (vector || animate) {
+      await writeToCacheDir(hashDir, upstreamType, expireAt, upstreamBuffer)
       sendResponse(req, res, upstreamType, upstreamBuffer)
       return { finished: true }
     }
   }
 
-  const expireAt = maxAge * 1000 + now
   let contentType: string
 
   if (mimeType) {
@@ -275,17 +278,26 @@ export async function imageOptimizer(
     }
 
     const optimizedBuffer = await transformer.toBuffer()
-    await promises.mkdir(hashDir, { recursive: true })
-    const extension = getExtension(contentType)
-    const etag = getHash([optimizedBuffer])
-    const filename = join(hashDir, `${expireAt}.${etag}.${extension}`)
-    await promises.writeFile(filename, optimizedBuffer)
+    await writeToCacheDir(hashDir, contentType, expireAt, optimizedBuffer)
     sendResponse(req, res, contentType, optimizedBuffer)
   } catch (error) {
     sendResponse(req, res, upstreamType, upstreamBuffer)
   }
 
   return { finished: true }
+}
+
+async function writeToCacheDir(
+  dir: string,
+  contentType: string,
+  expireAt: number,
+  buffer: Buffer
+) {
+  await promises.mkdir(dir, { recursive: true })
+  const extension = getExtension(contentType)
+  const etag = getHash([buffer])
+  const filename = join(dir, `${expireAt}.${etag}.${extension}`)
+  await promises.writeFile(filename, buffer)
 }
 
 function sendResponse(

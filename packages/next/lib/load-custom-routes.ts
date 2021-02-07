@@ -407,10 +407,14 @@ function processRoutes<T>(
 
       r.source = `/:nextInternalLocale(${config.i18n.locales
         .map((locale: string) => escapeStringRegexp(locale))
-        .join('|')})${r.source}`
+        .join('|')})${
+        r.source === '/' && !config.trailingSlash ? '' : r.source
+      }`
 
       if (r.destination && r.destination?.startsWith('/')) {
-        r.destination = `/:nextInternalLocale${r.destination}`
+        r.destination = `/:nextInternalLocale${
+          r.destination === '/' && !config.trailingSlash ? '' : r.destination
+        }`
       }
     }
     r.source = `${srcBasePath}${r.source}`
@@ -466,12 +470,14 @@ export default async function loadCustomRoutes(
         destination: '/:file',
         permanent: true,
         locale: config.i18n ? false : undefined,
+        internal: true,
       } as Redirect,
       {
         source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
         destination: '/:notfile/',
         permanent: true,
         locale: config.i18n ? false : undefined,
+        internal: true,
       } as Redirect
     )
     if (config.basePath) {
@@ -481,6 +487,7 @@ export default async function loadCustomRoutes(
         permanent: true,
         basePath: false,
         locale: config.i18n ? false : undefined,
+        internal: true,
       } as Redirect)
     }
   } else {
@@ -489,6 +496,7 @@ export default async function loadCustomRoutes(
       destination: '/:path+',
       permanent: true,
       locale: config.i18n ? false : undefined,
+      internal: true,
     } as Redirect)
     if (config.basePath) {
       redirects.unshift({
@@ -497,6 +505,7 @@ export default async function loadCustomRoutes(
         permanent: true,
         basePath: false,
         locale: config.i18n ? false : undefined,
+        internal: true,
       } as Redirect)
     }
   }

@@ -50,7 +50,7 @@ You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source
 
 To deploy the apps to Vercel, we'll use [monorepos support](https://vercel.com/blog/monorepos) to create a new project for each app.
 
-To get started, push the example to GitHub/GitLab/Bitbucket and [import your repo to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example). We're not interested in the root directory, so make sure to select the `blog` directory (do not start with `home`):
+To get started, push the example to GitHub/GitLab/Bitbucket and [import your repo to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example). We're not interested in the root directory, so make sure to select the `blog` directory (do not start with `home`):
 
 ![Import flow for blog app](docs/import-blog.jpg)
 
@@ -61,7 +61,7 @@ Click continue and finish the import process. After that's done copy the domain 
 BLOG_URL="https://with-zones-blog.vercel.app"
 ```
 
-Now we'll go over the [import flow](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example) again using the same repo but this time select the `home` directory instead:
+Now we'll go over the [import flow](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) again using the same repo but this time select the `home` directory instead:
 
 ![Import flow for home app](docs/import-home.jpg)
 

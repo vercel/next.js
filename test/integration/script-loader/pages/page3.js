@@ -7,7 +7,7 @@ const Page = () => {
         {`(window.onload = function () {
             const newDiv = document.createElement('div')
             newDiv.id = 'onload-div'
-            document.querySelector('.container').appendChild(newDiv)
+            document.querySelector('body').appendChild(newDiv)
           })`}
       </Script>
       <Script

@@ -42,6 +42,9 @@ const HashChanges = ({ count }) => {
           </div>
         )
       })}
+      <Link href="#top">
+        <a id="via-top-hash">Via Top Hash</a>
+      </Link>
       <div id="asPath">ASPATH: {router.asPath}</div>
       <div id="pathname">PATHNAME: {router.pathname}</div>
     </div>
