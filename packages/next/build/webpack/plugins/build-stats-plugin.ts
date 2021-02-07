@@ -9,7 +9,6 @@ import { tracer, traceAsyncFn } from '../../tracer'
 const STATS_VERSION = 0
 
 function reduceSize(stats: any) {
-  const modules = new Map()
   stats.chunks = stats.chunks.map((chunk: any) => {
     const reducedChunk: any = {
       id: chunk.id,
@@ -18,34 +17,9 @@ function reduceSize(stats: any) {
     }
 
     for (const module of chunk.modules) {
-      if (!module.name) {
+      if (!module.id) {
         continue
       }
-
-      const reducedModule: any = {
-        type: module.type,
-        moduleType: module.moduleType,
-        size: module.size,
-        name: module.name,
-      }
-
-      if (module.reasons) {
-        for (const reason of module.reasons) {
-          if (!reason.name) {
-            continue
-          }
-
-          if (!reducedModule.reasons) {
-            reducedModule.reasons = []
-          }
-
-          reducedModule.reasons.push({
-            id: reason.id,
-          })
-        }
-      }
-
-      modules.set(module.id, reducedModule)
 
       if (!reducedChunk.modules) {
         reducedChunk.modules = []
@@ -57,7 +31,30 @@ function reduceSize(stats: any) {
     return reducedChunk
   })
 
-  stats.modules = [...modules.entries()]
+  stats.modules = stats.modules.map((module: any) => {
+    const reducedModule: any = {
+      type: module.type,
+      moduleType: module.moduleType,
+      size: module.size,
+      name: module.name,
+    }
+
+    if (module.reasons) {
+      for (const reason of module.reasons) {
+        if (!reason.moduleName || reason.moduleId === module.id) {
+          continue
+        }
+
+        if (!reducedModule.reasons) {
+          reducedModule.reasons = []
+        }
+
+        reducedModule.reasons.push(reason.moduleId)
+      }
+    }
+
+    return [module.id, reducedModule]
+  })
 
   for (const entrypointName in stats.entrypoints) {
     delete stats.entrypoints[entrypointName].assets
@@ -94,6 +91,7 @@ export default class BuildStatsPlugin {
                     warnings: false,
                     maxModules: Infinity,
                     chunkModules: true,
+                    modules: true,
                     // @ts-ignore this option exists
                     ids: true,
                   })
