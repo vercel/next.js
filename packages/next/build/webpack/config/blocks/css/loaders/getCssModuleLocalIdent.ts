@@ -28,14 +28,15 @@ export function getCssModuleLocalIdent(
     5
   )
 
+  const generateClassName =
+    process.env.NODE_ENV === 'development'
+      ? fileNameOrFolder + '_' + exportName
+      : ''
+
   // Have webpack interpolate the `[folder]` or `[name]` to its real value.
   return (
     loaderUtils
-      .interpolateName(
-        context,
-        fileNameOrFolder + '_' + exportName + '__' + hash,
-        options
-      )
+      .interpolateName(context, generateClassName + '__' + hash, options)
       .replace(
         // Webpack name interpolation returns `about.module_root__2oFM9` for
         // `.root {}` inside a file named `about.module.css`. Let's simplify
