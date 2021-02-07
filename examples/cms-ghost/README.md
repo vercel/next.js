@@ -5,7 +5,6 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 > This boilerplate demonstrates simple usage and best practices. If you are looking for a more feature richt Next.js generator for Ghost including the Casper theme,
 > check out [next-cms-ghost](https://github.com/styxlab/next-cms-ghost).
 
-
 ## Deploy your own
 
 Once you have access to [the environment variables you'll need](#step-2-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
