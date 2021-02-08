@@ -52,6 +52,17 @@ function runTests() {
     )
   })
 
+  it('should pass nonce to the inlined font definition', async () => {
+    const html = await renderViaHTTP(appPort, '/nonce')
+    expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+    expect(html).toContain(
+      '<link rel="stylesheet" nonce="VmVyY2Vs" data-href="https://fonts.googleapis.com/css2?family=Modak"/>'
+    )
+    expect(html).toMatch(
+      /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Modak" nonce="VmVyY2Vs">.*<\/style>/
+    )
+  })
+
   it('should inline the google fonts for static pages with Next/Head', async () => {
     const html = await renderViaHTTP(appPort, '/static-head')
     expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
@@ -82,7 +93,7 @@ function runTests() {
     )
   })
 
-  it('should minify the css', async () => {
+  it.skip('should minify the css', async () => {
     const snapshotJson = JSON.parse(
       await fs.readFile(join(__dirname, 'manifest-snapshot.json'), {
         encoding: 'utf-8',
@@ -104,7 +115,7 @@ function runTests() {
   })
 }
 
-describe.skip('Font optimization for SSR apps', () => {
+describe('Font optimization for SSR apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
@@ -125,7 +136,7 @@ describe.skip('Font optimization for SSR apps', () => {
   runTests()
 })
 
-describe.skip('Font optimization for serverless apps', () => {
+describe('Font optimization for serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
@@ -142,7 +153,7 @@ describe.skip('Font optimization for serverless apps', () => {
   runTests()
 })
 
-describe.skip('Font optimization for emulated serverless apps', () => {
+describe('Font optimization for emulated serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
@@ -151,12 +162,46 @@ describe.skip('Font optimization for emulated serverless apps', () => {
     )
     await nextBuild(appDir)
     appPort = await findPort()
-    await startServerlessEmulator(appDir, appPort)
+    app = await startServerlessEmulator(appDir, appPort)
     builtServerPagesDir = join(appDir, '.next', 'serverless')
     builtPage = (file) => join(builtServerPagesDir, file)
   })
   afterAll(async () => {
+    await killApp(app)
     await fs.remove(nextConfig)
   })
   runTests()
+})
+
+describe('Font optimization for unreachable font definitions.', () => {
+  beforeAll(async () => {
+    await fs.writeFile(nextConfig, `module.exports = { }`, 'utf8')
+    await nextBuild(appDir)
+    await fs.writeFile(
+      join(appDir, '.next', 'server', 'font-manifest.json'),
+      '[]',
+      'utf8'
+    )
+    appPort = await findPort()
+    app = await nextStart(appDir, appPort)
+    builtServerPagesDir = join(appDir, '.next', 'serverless')
+    builtPage = (file) => join(builtServerPagesDir, file)
+  })
+  afterAll(() => killApp(app))
+  it('should fallback to normal stylesheet if the contents of the fonts are unreachable', async () => {
+    const html = await renderViaHTTP(appPort, '/stars')
+    expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+    expect(html).toContain(
+      '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@700"/>'
+    )
+  })
+  it('should not inline multiple fallback link tag', async () => {
+    await renderViaHTTP(appPort, '/stars')
+    // second render to make sure that the page is requested more than once.
+    const html = await renderViaHTTP(appPort, '/stars')
+    expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+    expect(html).not.toContain(
+      '<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Voces"/><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@700"/><link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Voces"/><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@700"/>'
+    )
+  })
 })

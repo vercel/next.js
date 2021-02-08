@@ -17,7 +17,17 @@ import {
 
 jest.setTimeout(1000 * 60 * 2)
 
-export const locales = ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en']
+const domainLocales = ['go', 'go-BE', 'do', 'do-BE']
+export const nonDomainLocales = [
+  'en-US',
+  'nl-NL',
+  'nl-BE',
+  'nl',
+  'fr-BE',
+  'fr',
+  'en',
+]
+export const locales = [...nonDomainLocales, ...domainLocales]
 
 async function addDefaultLocaleCookie(browser) {
   // make sure default locale is used in case browser isn't set to
@@ -27,6 +37,195 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  it('should navigate to page with same name as development buildId', async () => {
+    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/developments')
+    })()`)
+
+    await browser.waitForElementByCss('#developments')
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(await browser.elementByCss('#router-locale').text()).toBe('en-US')
+    expect(await browser.elementByCss('#router-default-locale').text()).toBe(
+      'en-US'
+    )
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/developments'
+    )
+    expect(await browser.elementByCss('#router-as-path').text()).toBe(
+      '/developments'
+    )
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({})
+    expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
+      locales,
+      locale: 'en-US',
+      defaultLocale: 'en-US',
+    })
+  })
+
+  it('should redirect to locale domain correctly client-side', async () => {
+    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+
+    await browser.eval(`(function() {
+      window.next.router.push(
+        window.next.router.pathname,
+        window.next.router.asPath,
+        {
+          locale: 'go'
+        }
+      )
+    })()`)
+
+    await check(() => browser.eval('window.location.hostname'), /example\.com/)
+    expect(await browser.eval('window.location.pathname')).toBe(
+      ctx.basePath || '/'
+    )
+
+    await browser.get(browser.initUrl)
+    await browser.waitForElementByCss('#index')
+
+    await browser.eval(`(function() {
+      window.next.router.push(
+        '/gssp',
+        undefined,
+        {
+          locale: 'go-BE'
+        }
+      )
+    })()`)
+
+    await check(() => browser.eval('window.location.hostname'), /example\.com/)
+    expect(await browser.eval('window.location.pathname')).toBe(
+      `${ctx.basePath || ''}/go-BE/gssp`
+    )
+  })
+
+  it('should render the correct href for locale domain', async () => {
+    let browser = await webdriver(
+      ctx.appPort,
+      `${ctx.basePath || ''}/links?nextLocale=go`
+    )
+
+    for (const [element, pathname] of [
+      ['#to-another', '/another'],
+      ['#to-gsp', '/gsp'],
+      ['#to-fallback-first', '/gsp/fallback/first'],
+      ['#to-fallback-hello', '/gsp/fallback/hello'],
+      ['#to-gssp', '/gssp'],
+      ['#to-gssp-slug', '/gssp/first'],
+    ]) {
+      const href = await browser.elementByCss(element).getAttribute('href')
+      expect(href).toBe(`https://example.com${ctx.basePath || ''}${pathname}`)
+    }
+
+    browser = await webdriver(
+      ctx.appPort,
+      `${ctx.basePath || ''}/links?nextLocale=go-BE`
+    )
+
+    for (const [element, pathname] of [
+      ['#to-another', '/another'],
+      ['#to-gsp', '/gsp'],
+      ['#to-fallback-first', '/gsp/fallback/first'],
+      ['#to-fallback-hello', '/gsp/fallback/hello'],
+      ['#to-gssp', '/gssp'],
+      ['#to-gssp-slug', '/gssp/first'],
+    ]) {
+      const href = await browser.elementByCss(element).getAttribute('href')
+      expect(href).toBe(
+        `https://example.com${ctx.basePath || ''}/go-BE${pathname}`
+      )
+    }
+  })
+
+  it('should navigate through history with query correctly', async () => {
+    const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push(
+        window.next.router.pathname,
+        window.next.router.asPath,
+        { locale: 'nl' }
+      )
+    })()`)
+
+    await check(() => browser.elementByCss('#router-locale').text(), 'nl')
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    await browser.eval(`(function() {
+      window.next.router.push(
+        '/gssp?page=1'
+      )
+    })()`)
+
+    await check(async () => {
+      const html = await browser.eval('document.documentElement.innerHTML')
+      const props = JSON.parse(cheerio.load(html)('#props').text())
+
+      assert.deepEqual(props, {
+        locale: 'nl',
+        locales,
+        defaultLocale: 'en-US',
+        query: { page: '1' },
+      })
+      return 'success'
+    }, 'success')
+
+    await browser
+      .back()
+      .waitForElementByCss('#index')
+      .forward()
+      .waitForElementByCss('#gssp')
+
+    const props2 = JSON.parse(await browser.elementByCss('#props').text())
+    expect(props2).toEqual({
+      locale: 'nl',
+      locales,
+      defaultLocale: 'en-US',
+      query: { page: '1' },
+    })
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
+  if (!ctx.isDev) {
+    it('should not contain backslashes in pages-manifest', async () => {
+      const pagesManifestContent = await fs.readFile(
+        join(ctx.buildPagesDir, '../pages-manifest.json'),
+        'utf8'
+      )
+      expect(pagesManifestContent).not.toContain('\\')
+      expect(pagesManifestContent).toContain('/')
+    })
+  }
+
+  it('should resolve href correctly when dynamic route matches locale prefixed', async () => {
+    const browser = await webdriver(ctx.appPort, `${ctx.basePath}/nl`)
+    await browser.eval('window.beforeNav = 1')
+
+    await browser.eval(`(function() {
+      window.next.router.push('/post-1?a=b')
+    })()`)
+    await browser.waitForElementByCss('#post')
+
+    const router = JSON.parse(await browser.elementByCss('#router').text())
+    expect(router.query).toEqual({ post: 'post-1', a: 'b' })
+    expect(router.pathname).toBe('/[post]')
+    expect(router.asPath).toBe('/post-1?a=b')
+    expect(router.locale).toBe('nl')
+
+    await browser.back().waitForElementByCss('#index')
+    expect(await browser.elementByCss('#router-locale').text()).toBe('nl')
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(
+      JSON.parse(await browser.elementByCss('#router-query').text())
+    ).toEqual({})
+  })
+
   it('should use default locale when no locale is in href with locale false', async () => {
     const browser = await webdriver(
       ctx.appPort,
@@ -158,20 +357,19 @@ export function runTests(ctx) {
       )
 
       expect(routesManifest.i18n).toEqual({
-        locales: ['en-US', 'nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en'],
+        locales,
         defaultLocale: 'en-US',
         domains: [
           {
             http: true,
-            domain: 'example.be',
-            defaultLocale: 'nl-BE',
-            locales: ['nl', 'nl-NL', 'nl-BE'],
+            domain: 'example.do',
+            defaultLocale: 'do',
+            locales: ['do-BE'],
           },
           {
-            http: true,
-            domain: 'example.fr',
-            defaultLocale: 'fr',
-            locales: ['fr-BE'],
+            domain: 'example.com',
+            defaultLocale: 'go',
+            locales: ['go-BE'],
           },
         ],
       })
@@ -181,173 +379,436 @@ export function runTests(ctx) {
       const prerenderManifest = await fs.readJSON(
         join(ctx.appDir, '.next/prerender-manifest.json')
       )
+      const staticRoutes = {}
+      const dynamicRoutes = {}
 
-      for (const key of Object.keys(prerenderManifest.dynamicRoutes)) {
+      for (const key of Object.keys(prerenderManifest.routes).sort()) {
+        const item = prerenderManifest.routes[key]
+        staticRoutes[key] = item
+      }
+
+      for (const key of Object.keys(prerenderManifest.dynamicRoutes).sort()) {
         const item = prerenderManifest.dynamicRoutes[key]
         item.routeRegex = normalizeRegEx(item.routeRegex)
         item.dataRouteRegex = normalizeRegEx(item.dataRouteRegex)
+        dynamicRoutes[key] = item
       }
 
-      expect(prerenderManifest.routes).toEqual({
-        '/': {
-          dataRoute: `/_next/data/${ctx.buildId}/index.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: null,
-        },
-        '/404': {
-          dataRoute: `/_next/data/${ctx.buildId}/404.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: null,
-        },
-        '/en-US/gsp/fallback/always': {
-          dataRoute: `/_next/data/${ctx.buildId}/en-US/gsp/fallback/always.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: '/gsp/fallback/[slug]',
-        },
-        '/en-US/gsp/fallback/first': {
-          dataRoute: `/_next/data/${ctx.buildId}/en-US/gsp/fallback/first.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: '/gsp/fallback/[slug]',
-        },
-        '/en-US/gsp/fallback/second': {
-          dataRoute: `/_next/data/${ctx.buildId}/en-US/gsp/fallback/second.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: '/gsp/fallback/[slug]',
-        },
-        '/en-US/gsp/no-fallback/first': {
-          dataRoute: `/_next/data/${ctx.buildId}/en-US/gsp/no-fallback/first.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: '/gsp/no-fallback/[slug]',
-        },
-        '/en-US/gsp/no-fallback/second': {
-          dataRoute: `/_next/data/${ctx.buildId}/en-US/gsp/no-fallback/second.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: '/gsp/no-fallback/[slug]',
-        },
-        '/en-US/not-found/blocking-fallback/first': {
-          dataRoute: `/_next/data/${ctx.buildId}/en-US/not-found/blocking-fallback/first.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: '/not-found/blocking-fallback/[slug]',
-        },
-        '/en-US/not-found/blocking-fallback/second': {
-          dataRoute: `/_next/data/${ctx.buildId}/en-US/not-found/blocking-fallback/second.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: '/not-found/blocking-fallback/[slug]',
-        },
-        '/en-US/not-found/fallback/first': {
-          dataRoute: `/_next/data/${ctx.buildId}/en-US/not-found/fallback/first.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: '/not-found/fallback/[slug]',
-        },
-        '/en-US/not-found/fallback/second': {
-          dataRoute: `/_next/data/${ctx.buildId}/en-US/not-found/fallback/second.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: '/not-found/fallback/[slug]',
-        },
-        '/en/gsp/fallback/always': {
-          dataRoute: `/_next/data/${ctx.buildId}/en/gsp/fallback/always.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: '/gsp/fallback/[slug]',
-        },
-        '/fr-BE/gsp/fallback/always': {
-          dataRoute: `/_next/data/${ctx.buildId}/fr-BE/gsp/fallback/always.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: '/gsp/fallback/[slug]',
-        },
-        '/fr/gsp/fallback/always': {
-          dataRoute: `/_next/data/${ctx.buildId}/fr/gsp/fallback/always.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: '/gsp/fallback/[slug]',
-        },
-        '/frank': {
-          dataRoute: `/_next/data/${ctx.buildId}/frank.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: null,
-        },
-        '/gsp': {
-          dataRoute: `/_next/data/${ctx.buildId}/gsp.json`,
-          srcRoute: null,
-          initialRevalidateSeconds: false,
-        },
-        '/nl-BE/gsp/fallback/always': {
-          dataRoute: `/_next/data/${ctx.buildId}/nl-BE/gsp/fallback/always.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: '/gsp/fallback/[slug]',
-        },
-        '/nl-NL/gsp/fallback/always': {
-          dataRoute: `/_next/data/${ctx.buildId}/nl-NL/gsp/fallback/always.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: '/gsp/fallback/[slug]',
-        },
-        '/nl-NL/gsp/no-fallback/second': {
-          dataRoute: `/_next/data/${ctx.buildId}/nl-NL/gsp/no-fallback/second.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: '/gsp/no-fallback/[slug]',
-        },
-        '/nl/gsp/fallback/always': {
-          dataRoute: `/_next/data/${ctx.buildId}/nl/gsp/fallback/always.json`,
-          initialRevalidateSeconds: false,
-          srcRoute: '/gsp/fallback/[slug]',
-        },
-        '/not-found': {
-          dataRoute: `/_next/data/${ctx.buildId}/not-found.json`,
-          srcRoute: null,
-          initialRevalidateSeconds: false,
-        },
-      })
-      expect(prerenderManifest.dynamicRoutes).toEqual({
-        '/gsp/fallback/[slug]': {
-          routeRegex: normalizeRegEx(
-            '^\\/gsp\\/fallback\\/([^\\/]+?)(?:\\/)?$'
-          ),
-          dataRoute: `/_next/data/${ctx.buildId}/gsp/fallback/[slug].json`,
-          fallback: '/gsp/fallback/[slug].html',
-          dataRouteRegex: normalizeRegEx(
-            `^\\/_next\\/data\\/${escapeRegex(
-              ctx.buildId
-            )}\\/gsp\\/fallback\\/([^\\/]+?)\\.json$`
-          ),
-        },
-        '/gsp/no-fallback/[slug]': {
-          routeRegex: normalizeRegEx(
-            '^\\/gsp\\/no\\-fallback\\/([^\\/]+?)(?:\\/)?$'
-          ),
-          dataRoute: `/_next/data/${ctx.buildId}/gsp/no-fallback/[slug].json`,
-          fallback: false,
-          dataRouteRegex: normalizeRegEx(
-            `^/_next/data/${escapeRegex(
-              ctx.buildId
-            )}/gsp/no\\-fallback/([^/]+?)\\.json$`
-          ),
-        },
-        '/not-found/blocking-fallback/[slug]': {
-          dataRoute: `/_next/data/${ctx.buildId}/not-found/blocking-fallback/[slug].json`,
-          dataRouteRegex: normalizeRegEx(
-            `^\\/_next\\/data\\/${escapeRegex(
-              ctx.buildId
-            )}\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)\\.json$`
-          ),
-          fallback: null,
-          routeRegex: normalizeRegEx(
-            `^\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)(?:\\/)?$`
-          ),
-        },
-        '/not-found/fallback/[slug]': {
-          dataRoute: `/_next/data/${ctx.buildId}/not-found/fallback/[slug].json`,
-          dataRouteRegex: normalizeRegEx(
-            `^\\/_next\\/data\\/${escapeRegex(
-              ctx.buildId
-            )}\\/not\\-found\\/fallback\\/([^\\/]+?)\\.json$`
-          ),
-          fallback: '/not-found/fallback/[slug].html',
-          routeRegex: normalizeRegEx('^/not\\-found/fallback/([^/]+?)(?:/)?$'),
-        },
-      })
+      expect(
+        JSON.stringify(staticRoutes, null, 2)
+          .replace(/\\\\/g, '\\')
+          .replace(new RegExp(escapeRegex(ctx.buildId), 'g'), 'BUILD_ID')
+      ).toMatchInlineSnapshot(`
+        "{
+          \\"/do\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
+          },
+          \\"/do-BE\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
+          },
+          \\"/do-BE/404\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
+          },
+          \\"/do-BE/frank\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
+          },
+          \\"/do-BE/gsp\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
+          },
+          \\"/do-BE/gsp/fallback/always\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/do-BE/gsp/fallback/always.json\\"
+          },
+          \\"/do-BE/not-found\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
+          },
+          \\"/do/404\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
+          },
+          \\"/do/frank\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
+          },
+          \\"/do/gsp\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
+          },
+          \\"/do/gsp/fallback/always\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/do/gsp/fallback/always.json\\"
+          },
+          \\"/do/not-found\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
+          },
+          \\"/en\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
+          },
+          \\"/en-US\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
+          },
+          \\"/en-US/404\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
+          },
+          \\"/en-US/frank\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
+          },
+          \\"/en-US/gsp\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
+          },
+          \\"/en-US/gsp/fallback/always\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/gsp/fallback/always.json\\"
+          },
+          \\"/en-US/gsp/fallback/first\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/gsp/fallback/first.json\\"
+          },
+          \\"/en-US/gsp/fallback/second\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/gsp/fallback/second.json\\"
+          },
+          \\"/en-US/gsp/no-fallback/first\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/no-fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/gsp/no-fallback/first.json\\"
+          },
+          \\"/en-US/gsp/no-fallback/second\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/no-fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/gsp/no-fallback/second.json\\"
+          },
+          \\"/en-US/not-found\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
+          },
+          \\"/en-US/not-found/blocking-fallback/first\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/not-found/blocking-fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/first.json\\"
+          },
+          \\"/en-US/not-found/blocking-fallback/second\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/not-found/blocking-fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/second.json\\"
+          },
+          \\"/en-US/not-found/fallback/first\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/not-found/fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/not-found/fallback/first.json\\"
+          },
+          \\"/en-US/not-found/fallback/second\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/not-found/fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/not-found/fallback/second.json\\"
+          },
+          \\"/en/404\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
+          },
+          \\"/en/frank\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
+          },
+          \\"/en/gsp\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
+          },
+          \\"/en/gsp/fallback/always\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en/gsp/fallback/always.json\\"
+          },
+          \\"/fr\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
+          },
+          \\"/fr-BE\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
+          },
+          \\"/fr-BE/404\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
+          },
+          \\"/fr-BE/frank\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
+          },
+          \\"/fr-BE/gsp\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
+          },
+          \\"/fr-BE/gsp/fallback/always\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/fr-BE/gsp/fallback/always.json\\"
+          },
+          \\"/fr-BE/not-found\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
+          },
+          \\"/fr/404\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
+          },
+          \\"/fr/frank\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
+          },
+          \\"/fr/gsp\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
+          },
+          \\"/fr/gsp/fallback/always\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/fr/gsp/fallback/always.json\\"
+          },
+          \\"/fr/not-found\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
+          },
+          \\"/go\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
+          },
+          \\"/go-BE\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
+          },
+          \\"/go-BE/404\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
+          },
+          \\"/go-BE/frank\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
+          },
+          \\"/go-BE/gsp\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
+          },
+          \\"/go-BE/gsp/fallback/always\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/go-BE/gsp/fallback/always.json\\"
+          },
+          \\"/go-BE/not-found\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
+          },
+          \\"/go/404\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
+          },
+          \\"/go/frank\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
+          },
+          \\"/go/gsp\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
+          },
+          \\"/go/gsp/fallback/always\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/go/gsp/fallback/always.json\\"
+          },
+          \\"/go/not-found\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
+          },
+          \\"/nl\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
+          },
+          \\"/nl-BE\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
+          },
+          \\"/nl-BE/404\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
+          },
+          \\"/nl-BE/frank\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
+          },
+          \\"/nl-BE/gsp\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
+          },
+          \\"/nl-BE/gsp/fallback/always\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/nl-BE/gsp/fallback/always.json\\"
+          },
+          \\"/nl-BE/not-found\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
+          },
+          \\"/nl-NL\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
+          },
+          \\"/nl-NL/404\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
+          },
+          \\"/nl-NL/frank\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
+          },
+          \\"/nl-NL/gsp\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
+          },
+          \\"/nl-NL/gsp/fallback/always\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/nl-NL/gsp/fallback/always.json\\"
+          },
+          \\"/nl-NL/gsp/no-fallback/second\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/no-fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/nl-NL/gsp/no-fallback/second.json\\"
+          },
+          \\"/nl-NL/not-found\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
+          },
+          \\"/nl/404\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
+          },
+          \\"/nl/frank\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
+          },
+          \\"/nl/gsp\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": null,
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
+          },
+          \\"/nl/gsp/fallback/always\\": {
+            \\"initialRevalidateSeconds\\": false,
+            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/nl/gsp/fallback/always.json\\"
+          }
+        }"
+      `)
+
+      expect(
+        JSON.stringify(dynamicRoutes, null, 2)
+          .replace(/\\\\/g, '\\')
+          .replace(new RegExp(escapeRegex(ctx.buildId), 'g'), 'BUILD_ID')
+          .replace(
+            new RegExp(escapeRegex(escapeRegex(ctx.buildId)), 'g'),
+            'BUILD_ID'
+          )
+      ).toMatchInlineSnapshot(`
+        "{
+          \\"/gsp/fallback/[slug]\\": {
+            \\"routeRegex\\": \\"^\\\\/gsp\\\\/fallback\\\\/([^\\\\/]+?)(?:\\\\/)?$\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp/fallback/[slug].json\\",
+            \\"fallback\\": \\"/gsp/fallback/[slug].html\\",
+            \\"dataRouteRegex\\": \\"^\\\\/_next\\\\/data\\\\/BUILD_ID\\\\/gsp\\\\/fallback\\\\/([^\\\\/]+?)\\\\.json$\\"
+          },
+          \\"/gsp/no-fallback/[slug]\\": {
+            \\"routeRegex\\": \\"^\\\\/gsp\\\\/no\\\\-fallback\\\\/([^\\\\/]+?)(?:\\\\/)?$\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp/no-fallback/[slug].json\\",
+            \\"fallback\\": false,
+            \\"dataRouteRegex\\": \\"^\\\\/_next\\\\/data\\\\/BUILD_ID\\\\/gsp\\\\/no\\\\-fallback\\\\/([^\\\\/]+?)\\\\.json$\\"
+          },
+          \\"/not-found/blocking-fallback/[slug]\\": {
+            \\"routeRegex\\": \\"^\\\\/not\\\\-found\\\\/blocking\\\\-fallback\\\\/([^\\\\/]+?)(?:\\\\/)?$\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found/blocking-fallback/[slug].json\\",
+            \\"fallback\\": null,
+            \\"dataRouteRegex\\": \\"^\\\\/_next\\\\/data\\\\/BUILD_ID\\\\/not\\\\-found\\\\/blocking\\\\-fallback\\\\/([^\\\\/]+?)\\\\.json$\\"
+          },
+          \\"/not-found/fallback/[slug]\\": {
+            \\"routeRegex\\": \\"^\\\\/not\\\\-found\\\\/fallback\\\\/([^\\\\/]+?)(?:\\\\/)?$\\",
+            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found/fallback/[slug].json\\",
+            \\"fallback\\": \\"/not-found/fallback/[slug].html\\",
+            \\"dataRouteRegex\\": \\"^\\\\/_next\\\\/data\\\\/BUILD_ID\\\\/not\\\\-found\\\\/fallback\\\\/([^\\\\/]+?)\\\\.json$\\"
+          }
+        }"
+      `)
     })
   }
 
   it('should resolve auto-export dynamic route correctly', async () => {
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       const res = await fetchViaHTTP(
         ctx.appPort,
         `${ctx.basePath}/${locale}/dynamic/first`,
@@ -362,7 +823,7 @@ export function runTests(ctx) {
   })
 
   it('should navigate to auto-export dynamic page', async () => {
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       const browser = await webdriver(ctx.appPort, `${ctx.basePath}/${locale}`)
       await browser.eval('window.beforeNav = 1')
 
@@ -406,15 +867,37 @@ export function runTests(ctx) {
     }
   })
 
+  it('should apply trailingSlash redirect correctly', async () => {
+    for (const [testPath, path, hostname, query] of [
+      ['/first/', '/first', 'localhost', {}],
+      ['/en/', '/en', 'localhost', {}],
+      ['/en/another/', '/en/another', 'localhost', {}],
+      ['/fr/', '/fr', 'localhost', {}],
+      ['/fr/another/', '/fr/another', 'localhost', {}],
+    ]) {
+      const res = await fetchViaHTTP(ctx.appPort, testPath, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(308)
+
+      const parsed = url.parse(res.headers.get('location'), true)
+      expect(parsed.pathname).toBe(path)
+      expect(parsed.hostname).toBe(hostname)
+      expect(parsed.query).toEqual(query)
+    }
+  })
+
   it('should apply redirects correctly', async () => {
-    for (const [path, shouldRedirect, locale] of [
+    for (const [path, shouldRedirect, locale, pathname] of [
       ['/en-US/redirect-1', true],
       ['/en/redirect-1', false],
       ['/nl/redirect-2', true],
       ['/fr/redirect-2', false],
-      ['/redirect-3', true, '/en-US'],
+      ['/redirect-3', true],
       ['/en/redirect-3', true, '/en'],
       ['/nl-NL/redirect-3', true, '/nl-NL'],
+      ['/redirect-4', true, null, '/'],
+      ['/nl/redirect-4', true, null, '/nl'],
     ]) {
       const res = await fetchViaHTTP(
         ctx.appPort,
@@ -425,12 +908,12 @@ export function runTests(ctx) {
         }
       )
 
-      expect(res.status).toBe(shouldRedirect ? 307 : 404)
+      expect(res.status).toBe(shouldRedirect ? 307 : 200)
 
       if (shouldRedirect) {
         const parsed = url.parse(res.headers.get('location'), true)
         expect(parsed.pathname).toBe(
-          `${ctx.basePath}${locale || ''}/somewhere-else`
+          `${ctx.basePath}${locale || ''}${pathname || '/somewhere-else'}`
         )
         expect(parsed.query).toEqual({})
       }
@@ -455,8 +938,73 @@ export function runTests(ctx) {
           redirect: 'manual',
         }
       )
-      expect(res.status).toBe(404)
+      expect(res.status).toBe(200)
       expect(res.headers.get('x-hello')).toBe(shouldAdd ? 'world' : null)
+    }
+  })
+
+  it('should visit API route directly correctly', async () => {
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath || ''}${
+          locale === 'en-US' ? '' : `/${locale}`
+        }/api/hello`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const data = await res.json()
+      expect(data).toEqual({
+        hello: true,
+        query: {},
+      })
+    }
+  })
+
+  it('should visit dynamic API route directly correctly', async () => {
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath || ''}${
+          locale === 'en-US' ? '' : `/${locale}`
+        }/api/post/first`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const data = await res.json()
+      expect(data).toEqual({
+        post: true,
+        query: {
+          slug: 'first',
+        },
+      })
+    }
+  })
+
+  it('should rewrite to API route correctly', async () => {
+    for (const locale of locales) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath || ''}${
+          locale === 'en-US' ? '' : `/${locale}`
+        }/sitemap.xml`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const data = await res.json()
+      expect(data).toEqual({
+        hello: true,
+        query: {},
+      })
     }
   })
 
@@ -515,7 +1063,7 @@ export function runTests(ctx) {
     expect($('#router-pathname').text()).toBe('/another')
     expect($('#router-as-path').text()).toBe('/rewrite-3')
 
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       res = await fetchViaHTTP(
         ctx.appPort,
         `${ctx.basePath}/${locale}/rewrite-4`,
@@ -1028,7 +1576,7 @@ export function runTests(ctx) {
       undefined,
       {
         headers: {
-          host: 'example.fr',
+          host: 'example.do',
         },
       }
     )
@@ -1038,8 +1586,8 @@ export function runTests(ctx) {
     const html = await res.text()
     const $ = cheerio.load(html)
 
-    expect($('html').attr('lang')).toBe('fr')
-    expect($('#router-locale').text()).toBe('fr')
+    expect($('html').attr('lang')).toBe('do')
+    expect($('#router-locale').text()).toBe('do')
     expect($('#router-as-path').text()).toBe('/')
     expect($('#router-pathname').text()).toBe('/')
     // expect(JSON.parse($('#router-locales').text())).toEqual(['fr','fr-BE'])
@@ -1051,7 +1599,7 @@ export function runTests(ctx) {
       undefined,
       {
         headers: {
-          host: 'example.be',
+          host: 'example.com',
         },
       }
     )
@@ -1061,8 +1609,8 @@ export function runTests(ctx) {
     const html2 = await res2.text()
     const $2 = cheerio.load(html2)
 
-    expect($2('html').attr('lang')).toBe('nl-BE')
-    expect($2('#router-locale').text()).toBe('nl-BE')
+    expect($2('html').attr('lang')).toBe('go')
+    expect($2('#router-locale').text()).toBe('go')
     expect($2('#router-as-path').text()).toBe('/')
     expect($2('#router-pathname').text()).toBe('/')
     // expect(JSON.parse($2('#router-locales').text())).toEqual(['nl-BE','fr-BE'])
@@ -1072,11 +1620,11 @@ export function runTests(ctx) {
   it('should not strip locale prefix for default locale with locale domains', async () => {
     const res = await fetchViaHTTP(
       ctx.appPort,
-      `${ctx.basePath}/fr`,
+      `${ctx.basePath}/do`,
       undefined,
       {
         headers: {
-          host: 'example.fr',
+          host: 'example.do',
         },
         redirect: 'manual',
       }
@@ -1090,11 +1638,11 @@ export function runTests(ctx) {
 
     const res2 = await fetchViaHTTP(
       ctx.appPort,
-      `${ctx.basePath}/nl-BE`,
+      `${ctx.basePath}/go`,
       undefined,
       {
         headers: {
-          host: 'example.be',
+          host: 'example.com',
         },
         redirect: 'manual',
       }
@@ -1153,8 +1701,8 @@ export function runTests(ctx) {
     const checks = [
       // test domain, locale prefix, redirect result
       // ['example.be', 'nl-BE', 'http://example.be/'],
-      ['example.be', 'fr', 'http://example.fr/'],
-      ['example.fr', 'nl-BE', 'http://example.be/'],
+      ['example.com', 'do', 'http://example.do/'],
+      ['example.do', 'go', 'https://example.com/'],
       // ['example.fr', 'fr', 'http://example.fr/'],
     ]
 
@@ -1185,15 +1733,14 @@ export function runTests(ctx) {
         // used for testing, this should not be needed in most cases
         // as production domains should always use https
         http: true,
-        domain: 'example.be',
-        defaultLocale: 'nl-BE',
-        locales: ['nl', 'nl-NL', 'nl-BE'],
+        domain: 'example.do',
+        defaultLocale: 'do',
+        locales: ['do-BE'],
       },
       {
-        http: true,
-        domain: 'example.fr',
-        defaultLocale: 'fr',
-        locales: ['fr-BE'],
+        domain: 'example.com',
+        defaultLocale: 'go',
+        locales: ['go-BE'],
       },
     ]
     const domainLocales = domainItems.reduce((prev, cur) => {
@@ -1223,6 +1770,14 @@ export function runTests(ctx) {
       const shouldRedirect =
         expectedDomainItem.domain !== domain ||
         locale !== expectedDomainItem.defaultLocale
+
+      console.log('checking', {
+        domain,
+        locale,
+        shouldRedirect,
+        expectedDomainItem,
+        status: res.status,
+      })
 
       expect(res.status).toBe(shouldRedirect ? 307 : 200)
 
@@ -1254,10 +1809,10 @@ export function runTests(ctx) {
     }
   })
 
-  it('should provide correctly defaultLocale for locale domain', async () => {
+  it('should provide defaultLocale correctly for locale domain', async () => {
     for (const { host, locale } of [
-      { host: 'example.fr', locale: 'fr' },
-      { host: 'example.be', locale: 'nl-BE' },
+      { host: 'example.do', locale: 'do' },
+      { host: 'example.com', locale: 'go' },
     ]) {
       const res = await fetchViaHTTP(
         ctx.appPort,
@@ -1280,13 +1835,14 @@ export function runTests(ctx) {
         defaultLocale: locale,
         locale,
         locales,
+        query: {},
       })
       expect(JSON.parse($('#router-locales').text())).toEqual(locales)
     }
   })
 
   it('should generate AMP pages with all locales', async () => {
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       const localePath = locale !== 'en-US' ? `/${locale}` : ''
       const html = await renderViaHTTP(
         ctx.appPort,
@@ -1320,7 +1876,7 @@ export function runTests(ctx) {
   })
 
   it('should work with AMP first page with all locales', async () => {
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       const localePath = locale !== 'en-US' ? `/${locale}` : ''
       const html = await renderViaHTTP(
         ctx.appPort,
@@ -1339,7 +1895,7 @@ export function runTests(ctx) {
   })
 
   it('should generate fallbacks with all locales', async () => {
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       const html = await renderViaHTTP(
         ctx.appPort,
         `${ctx.basePath}/${locale}/gsp/fallback/${Math.random()}`
@@ -1350,7 +1906,7 @@ export function runTests(ctx) {
   })
 
   it('should generate auto-export page with all locales', async () => {
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       const html = await renderViaHTTP(ctx.appPort, `${ctx.basePath}/${locale}`)
       const $ = cheerio.load(html)
       expect($('html').attr('lang')).toBe(locale)
@@ -1373,7 +1929,7 @@ export function runTests(ctx) {
   })
 
   it('should generate non-dynamic GSP page with all locales', async () => {
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       const html = await renderViaHTTP(
         ctx.appPort,
         `${ctx.basePath}/${locale}/gsp`
@@ -1403,7 +1959,7 @@ export function runTests(ctx) {
     it('should not output GSP pages that returned notFound', async () => {
       const skippedLocales = ['en', 'nl']
 
-      for (const locale of locales) {
+      for (const locale of nonDomainLocales) {
         const pagePath = join(ctx.buildPagesDir, locale, 'not-found.html')
         const dataPath = join(ctx.buildPagesDir, locale, 'not-found.json')
         console.log(pagePath)
@@ -1416,7 +1972,7 @@ export function runTests(ctx) {
   it('should 404 for GSP pages that returned notFound', async () => {
     const skippedLocales = ['en', 'nl']
 
-    for (const locale of locales) {
+    for (const locale of nonDomainLocales) {
       const res = await fetchViaHTTP(
         ctx.appPort,
         `${ctx.basePath}/${locale}/not-found`
@@ -1494,7 +2050,7 @@ export function runTests(ctx) {
 
     expect(props.is404).toBe(true)
     expect(props.locale).toBe('en')
-    expect(await browser.eval('window.beforeNav')).toBe(null)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should render 404 for fallback page that returned 404 on client transition', async () => {
@@ -1898,6 +2454,7 @@ export function runTests(ctx) {
     expect(JSON.parse($('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      query: {},
       defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
@@ -2109,6 +2666,7 @@ export function runTests(ctx) {
     expect(JSON.parse($('#props').text())).toEqual({
       locale: 'en-US',
       locales,
+      query: {},
       defaultLocale: 'en-US',
     })
     expect($('#router-locale').text()).toBe('en-US')
@@ -2122,6 +2680,7 @@ export function runTests(ctx) {
     expect(JSON.parse($2('#props').text())).toEqual({
       locale: 'nl-NL',
       locales,
+      query: {},
       defaultLocale: 'en-US',
     })
     expect($2('#router-locale').text()).toBe('nl-NL')

@@ -2,15 +2,44 @@ import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import os from 'os'
 import { basename, extname } from 'path'
+import { execOnce } from '../lib/utils'
 import * as Log from '../../build/output/log'
 import { CONFIG_FILE } from '../lib/constants'
-import { execOnce } from '../lib/utils'
+import { Header, Rewrite, Redirect } from '../../lib/load-custom-routes'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
 
-const defaultConfig: { [key: string]: any } = {
+export type DomainLocales = Array<{
+  http?: true
+  domain: string
+  locales?: string[]
+  defaultLocale: string
+}>
+
+export type NextConfig = { [key: string]: any } & {
+  i18n?: {
+    locales: string[]
+    defaultLocale: string
+    domains?: DomainLocales
+    localeDetection?: false
+  } | null
+
+  headers?: () => Promise<Header[]>
+  rewrites?: () => Promise<Rewrite[]>
+  redirects?: () => Promise<Redirect[]>
+
+  trailingSlash?: boolean
+
+  future: {
+    strictPostcssConfiguration: boolean
+    excludeDefaultMomentLocales: boolean
+    webpack5: boolean
+  }
+}
+
+const defaultConfig: NextConfig = {
   env: [],
   webpack: null,
   webpackDevMiddleware: null,
@@ -39,7 +68,8 @@ const defaultConfig: { [key: string]: any } = {
   basePath: '',
   sassOptions: {},
   trailingSlash: false,
-  i18n: false,
+  i18n: null,
+  productionBrowserSourceMaps: false,
   experimental: {
     cpus: Math.max(
       1,
@@ -52,14 +82,17 @@ const defaultConfig: { [key: string]: any } = {
     reactMode: 'legacy',
     workerThreads: false,
     pageEnv: false,
-    productionBrowserSourceMaps: false,
     optimizeFonts: false,
     optimizeImages: false,
+    optimizeCss: false,
     scrollRestoration: false,
     scriptLoader: false,
+    stats: false,
   },
   future: {
+    strictPostcssConfiguration: false,
     excludeDefaultMomentLocales: false,
+    webpack5: Number(process.env.NEXT_PRIVATE_TEST_WEBPACK5_MODE) > 0,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
@@ -318,6 +351,10 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         images.path += '/'
       }
     }
+
+    if (images.path === imageConfigDefault.path && result.basePath) {
+      images.path = `${result.basePath}${images.path}`
+    }
   }
 
   if (result.i18n) {
@@ -351,7 +388,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     }
 
     if (i18n.domains) {
-      const invalidDomainItems = i18n.domains.filter((item: any) => {
+      const invalidDomainItems = i18n.domains.filter((item) => {
         if (!item || typeof item !== 'object') return true
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
@@ -362,7 +399,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
           for (const locale of item.locales) {
             if (typeof locale !== 'string') hasInvalidLocale = true
 
-            for (const domainItem of i18n.domains) {
+            for (const domainItem of i18n.domains || []) {
               if (domainItem === item) continue
               if (domainItem.locales && domainItem.locales.includes(locale)) {
                 console.warn(
@@ -419,7 +456,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     // make sure default Locale is at the front
     i18n.locales = [
       i18n.defaultLocale,
-      ...i18n.locales.filter((locale: string) => locale !== i18n.defaultLocale),
+      ...i18n.locales.filter((locale) => locale !== i18n.defaultLocale),
     ]
 
     const localeDetectionType = typeof i18n.localeDetection

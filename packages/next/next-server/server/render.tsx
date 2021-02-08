@@ -44,7 +44,11 @@ import {
   NextComponentType,
   RenderPage,
 } from '../lib/utils'
-import { tryGetPreviewData, __ApiPreviewProps } from './api-utils'
+import {
+  tryGetPreviewData,
+  NextApiRequestCookies,
+  __ApiPreviewProps,
+} from './api-utils'
 import { denormalizePagePath } from './denormalize-page-path'
 import { FontManifest, getFontDefinitionFromManifest } from './font-utils'
 import { LoadComponentsReturnType, ManifestItem } from './load-components'
@@ -55,6 +59,7 @@ import {
   getRedirectStatus,
   Redirect,
 } from '../../lib/load-custom-routes'
+import { DomainLocales } from './config'
 
 function noRouter() {
   const message =
@@ -71,8 +76,10 @@ class ServerRouter implements NextRouter {
   events: any
   isFallback: boolean
   locale?: string
+  isReady: boolean
   locales?: string[]
   defaultLocale?: string
+  domainLocales?: DomainLocales
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
@@ -81,10 +88,12 @@ class ServerRouter implements NextRouter {
     query: ParsedUrlQuery,
     as: string,
     { isFallback }: { isFallback: boolean },
+    isReady: boolean,
     basePath: string,
     locale?: string,
     locales?: string[],
-    defaultLocale?: string
+    defaultLocale?: string,
+    domainLocales?: DomainLocales
   ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
@@ -95,7 +104,10 @@ class ServerRouter implements NextRouter {
     this.locale = locale
     this.locales = locales
     this.defaultLocale = defaultLocale
+    this.isReady = isReady
+    this.domainLocales = domainLocales
   }
+
   push(): any {
     noRouter()
   }
@@ -162,15 +174,19 @@ export type RenderOptsPartial = {
   previewProps: __ApiPreviewProps
   basePath: string
   unstable_runtimeJS?: false
+  unstable_JsPreload?: false
   optimizeFonts: boolean
   fontManifest?: FontManifest
   optimizeImages: boolean
+  optimizeCss: any
   devOnlyCacheBusterQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
+  distDir?: string
   locale?: string
   locales?: string[]
   defaultLocale?: string
+  domainLocales?: DomainLocales
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -207,11 +223,13 @@ function renderDocument(
     gip,
     appGip,
     unstable_runtimeJS,
+    unstable_JsPreload,
     devOnlyCacheBusterQueryString,
     scriptLoader,
     locale,
     locales,
     defaultLocale,
+    domainLocales,
   }: RenderOpts & {
     props: any
     docComponentsRendered: DocumentProps['docComponentsRendered']
@@ -262,6 +280,7 @@ function renderDocument(
             locale,
             locales,
             defaultLocale,
+            domainLocales,
           },
           buildManifest,
           docComponentsRendered,
@@ -275,6 +294,7 @@ function renderDocument(
           assetPrefix,
           headTags,
           unstable_runtimeJS,
+          unstable_JsPreload,
           devOnlyCacheBusterQueryString,
           scriptLoader,
           locale,
@@ -517,6 +537,7 @@ export async function renderToHTML(
 
   // url will always be set
   const asPath: string = renderOpts.resolvedAsPath || (req.url as string)
+  const routerIsReady = !!(getServerSideProps || hasPageGetInitialProps)
   const router = new ServerRouter(
     pathname,
     query,
@@ -524,10 +545,12 @@ export async function renderToHTML(
     {
       isFallback: isFallback,
     },
+    routerIsReady,
     basePath,
     renderOpts.locale,
     renderOpts.locales,
-    renderOpts.defaultLocale
+    renderOpts.defaultLocale,
+    renderOpts.domainLocales
   )
   const ctx = {
     err,
@@ -706,32 +729,46 @@ export async function renderToHTML(
         )
       }
 
-      if ('revalidate' in data && typeof data.revalidate === 'number') {
-        if (!Number.isInteger(data.revalidate)) {
+      if ('revalidate' in data) {
+        if (typeof data.revalidate === 'number') {
+          if (!Number.isInteger(data.revalidate)) {
+            throw new Error(
+              `A page's revalidate option must be seconds expressed as a natural number for ${req.url}. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
+                `\nTry changing the value to '${Math.ceil(
+                  data.revalidate
+                )}' or using \`Math.ceil()\` if you're computing the value.`
+            )
+          } else if (data.revalidate <= 0) {
+            throw new Error(
+              `A page's revalidate option can not be less than or equal to zero for ${req.url}. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
+                `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
+                `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
+            )
+          } else if (data.revalidate > 31536000) {
+            // if it's greater than a year for some reason error
+            console.warn(
+              `Warning: A page's revalidate option was set to more than a year for ${req.url}. This may have been done in error.` +
+                `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
+            )
+          }
+        } else if (data.revalidate === true) {
+          // When enabled, revalidate after 1 second. This value is optimal for
+          // the most up-to-date page possible, but without a 1-to-1
+          // request-refresh ratio.
+          data.revalidate = 1
+        } else if (
+          data.revalidate === false ||
+          typeof data.revalidate === 'undefined'
+        ) {
+          // By default, we never revalidate.
+          data.revalidate = false
+        } else {
           throw new Error(
-            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers, such as '${data.revalidate}', cannot be used.` +
-              `\nTry changing the value to '${Math.ceil(
-                data.revalidate
-              )}' or using \`Math.ceil()\` if you're computing the value.`
-          )
-        } else if (data.revalidate <= 0) {
-          throw new Error(
-            `A page's revalidate option can not be less than or equal to zero. A revalidate option of zero means to revalidate after _every_ request, and implies stale data cannot be tolerated.` +
-              `\n\nTo never revalidate, you can set revalidate to \`false\` (only ran once at build-time).` +
-              `\nTo revalidate as soon as possible, you can set the value to \`1\`.`
-          )
-        } else if (data.revalidate > 31536000) {
-          // if it's greater than a year for some reason error
-          console.warn(
-            `Warning: A page's revalidate option was set to more than a year. This may have been done in error.` +
-              `\nTo only run getStaticProps at build-time and not revalidate at runtime, you can set \`revalidate\` to \`false\`!`
+            `A page's revalidate option must be seconds expressed as a natural number. Mixed numbers and strings cannot be used. Received '${JSON.stringify(
+              data.revalidate
+            )}' for ${req.url}`
           )
         }
-      } else if ('revalidate' in data && data.revalidate === true) {
-        // When enabled, revalidate after 1 second. This value is optimal for
-        // the most up-to-date page possible, but without a 1-to-1
-        // request-refresh ratio.
-        data.revalidate = 1
       } else {
         // By default, we never revalidate.
         ;(data as any).revalidate = false
@@ -763,7 +800,9 @@ export async function renderToHTML(
 
       try {
         data = await getServerSideProps({
-          req,
+          req: req as IncomingMessage & {
+            cookies: NextApiRequestCookies
+          },
           res,
           query,
           resolvedUrl: renderOpts.resolvedUrl as string,
@@ -807,7 +846,7 @@ export async function renderToHTML(
         throw new Error(invalidKeysMsg('getServerSideProps', invalidKeys))
       }
 
-      if ('notFound' in data) {
+      if ('notFound' in data && data.notFound) {
         if (pathname === '/404') {
           throw new Error(
             `The /404 page can not return notFound in "getStaticProps", please remove it to continue!`
@@ -989,6 +1028,7 @@ export async function renderToHTML(
       process.env.NODE_ENV === 'production'
         ? pageConfig.unstable_runtimeJS
         : undefined,
+    unstable_JsPreload: pageConfig.unstable_JsPreload,
     dangerousAsPath: router.asPath,
     ampState,
     props,
@@ -1048,16 +1088,33 @@ export async function renderToHTML(
     }
   }
 
-  html = await postProcess(
-    html,
-    {
-      getFontDefinition,
-    },
-    {
-      optimizeFonts: renderOpts.optimizeFonts,
-      optimizeImages: renderOpts.optimizeImages,
-    }
-  )
+  // Avoid postProcess if both flags are false
+  if (process.env.__NEXT_OPTIMIZE_FONTS || process.env.__NEXT_OPTIMIZE_IMAGES) {
+    html = await postProcess(
+      html,
+      { getFontDefinition },
+      {
+        optimizeFonts: renderOpts.optimizeFonts,
+        optimizeImages: renderOpts.optimizeImages,
+      }
+    )
+  }
+
+  if (renderOpts.optimizeCss) {
+    // eslint-disable-next-line import/no-extraneous-dependencies
+    const Critters = require('critters')
+    const cssOptimizer = new Critters({
+      ssrMode: true,
+      reduceInlineStyles: false,
+      path: renderOpts.distDir,
+      publicPath: '/_next/',
+      preload: 'media',
+      fonts: false,
+      ...renderOpts.optimizeCss,
+    })
+
+    html = await cssOptimizer.process(html)
+  }
 
   if (inAmpMode || hybridAmp) {
     // fix &amp being escaped for amphtml rel link

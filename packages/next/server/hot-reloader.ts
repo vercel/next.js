@@ -4,7 +4,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative as relativePath } from 'path'
 import { UrlObject } from 'url'
-import webpack from 'webpack'
+import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { createEntrypoints, createPagesMapping } from '../build/entries'
 import { watchCompilers } from '../build/output'
 import getBaseWebpackConfig from '../build/webpack-config'
@@ -32,6 +32,7 @@ import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-p
 import { stringify } from 'querystring'
 import { Rewrite } from '../lib/load-custom-routes'
 import { difference } from '../build/utils'
+import { NextConfig } from '../next-server/server/config'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -143,7 +144,7 @@ export default class HotReloader {
   private middlewares: any[]
   private pagesDir: string
   private webpackHotMiddleware: (NextHandleFunction & any) | null
-  private config: any
+  private config: NextConfig
   private stats: webpack.Stats | null
   private serverStats: webpack.Stats | null
   private clientError: Error | null = null
@@ -164,7 +165,7 @@ export default class HotReloader {
       previewProps,
       rewrites,
     }: {
-      config: object
+      config: NextConfig
       pagesDir: string
       buildId: string
       previewProps: __ApiPreviewProps
@@ -545,6 +546,7 @@ export default class HotReloader {
       this.onDemandEntries.middleware,
       this.webpackHotMiddleware.middleware,
       getOverlayMiddleware({
+        isWebpack5,
         rootDirectory: this.dir,
         stats: () => this.stats,
         serverStats: () => this.serverStats,
