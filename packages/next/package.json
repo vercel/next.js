@@ -60,7 +60,6 @@
     ]
   },
   "dependencies": {
-    "@ampproject/toolbox-optimizer": "2.7.1-alpha.0",
     "@babel/runtime": "7.12.5",
     "@hapi/accept": "5.0.1",
     "@next/env": "10.0.7-canary.6",
@@ -120,6 +119,7 @@
     }
   },
   "devDependencies": {
+    "@ampproject/toolbox-optimizer": "2.7.1-alpha.0",
     "@babel/code-frame": "7.12.11",
     "@babel/core": "7.12.10",
     "@babel/plugin-proposal-class-properties": "7.12.1",
