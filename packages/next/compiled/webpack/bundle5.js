@@ -63602,6 +63602,22 @@ module.exports = SelfModuleFactory;
 
 /***/ }),
 
+/***/ 28805:
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+/*
+	MIT License http://www.opensource.org/licenses/mit-license.php
+	Author Sean Larkin @thelarkinn
+*/
+
+
+
+module.exports = __webpack_require__(78029);
+
+
+/***/ }),
+
 /***/ 50787:
 /***/ (function(__unused_webpack_module, exports) {
 
@@ -130392,8 +130408,16 @@ module.exports = function () {
     ModuleFilenameHelpers: __webpack_require__(79843),
     NodeTargetPlugin: __webpack_require__(62791),
     StringXor: __webpack_require__(74395),
+    SingleEntryPlugin: __webpack_require__(28805),
+    WebWorkerTemplatePlugin: __webpack_require__(39959),
+    ExternalsPlugin: __webpack_require__(19056),
+    FetchCompileWasmPlugin: __webpack_require__(45001),
+    FetchCompileAsyncWasmPlugin: __webpack_require__(57878),
     sources: __webpack_require__(16520).sources,
     webpack: __webpack_require__(16520),
+    package: {
+      version: __webpack_require__(32607)/* .version */ .i8,
+    },
   }
 }
 
