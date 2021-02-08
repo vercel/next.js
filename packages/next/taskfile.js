@@ -76,8 +76,12 @@ export async function ncc_amp_optimizer(task, opts) {
       opts.src ||
         relative(__dirname, require.resolve('@ampproject/toolbox-optimizer'))
     )
-    .ncc({ packageName: '@ampproject/toolbox-optimizer', externals })
-    .target('compiled/@ampproject/toolbox-optimizer')
+    .ncc({
+      externals,
+      precompiled: false,
+      packageName: '@ampproject/toolbox-optimizer',
+    })
+    .target('dist/compiled/@ampproject/toolbox-optimizer')
 }
 // eslint-disable-next-line camelcase
 externals['arg'] = 'distcompiled/arg'
@@ -691,7 +695,6 @@ export async function ncc(task, opts) {
     .parallel(
       [
         'ncc_amphtml_validator',
-        'ncc_amp_optimizer',
         'ncc_arg',
         'ncc_async_retry',
         'ncc_async_sema',
@@ -770,6 +773,9 @@ export async function compile(task, opts) {
       'client',
       'telemetry',
       'nextserver',
+      // we compile this each time so that fresh runtime data is pulled
+      // before each publish
+      'ncc_amp_optimizer',
     ],
     opts
   )
