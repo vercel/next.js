@@ -1,25 +1,21 @@
 /* eslint-disable no-dupe-keys */
 import Contentstack from 'contentstack'
-import axios from 'axios'
+import * as contentstack from '@contentstack/management'
+const contentstackClient = contentstack.client()
 
 const Stack = Contentstack.Stack({
   api_key: process.env.contentstack_api_key,
   delivery_token: process.env.contentstack_delivery_token,
   environment: process.env.contentstack_environment,
-  region: process.env.contentstack_region
-    ? process.env.contentstack_region
-    : 'us',
+  region:
+    process.env.contentstack_region !== 'us'
+      ? process.env.contentstack_region
+      : 'us',
 })
-process.env.contentstack_custom_host &&
+if (process.env.contentstack_custom_host) {
   Stack.setHost(process.env.contentstack_custom_host)
-
-const createUrl =
-  process.env.contentstack_region === 'us'
-    ? 'cdn.contentstack.io/v3'
-    : process.env.contentstack_custom_host
-    ? process.env.contentstack_custom_host
-    : 'eu-cdn.contentstack.com/v3'
-
+  contentstackClient.stack({ host: process.env.contentstack_custom_host })
+}
 export default {
   getEntry(ctUid, ref) {
     return new Promise((resolve, reject) => {
@@ -58,26 +54,25 @@ export default {
   },
   getPreviewData(entryID) {
     return new Promise((resolve, reject) => {
-      axios({
-        method: 'get',
-        baseURL: `https://${createUrl}/content_types/post/entries/${entryID}`,
-        headers: {
-          api_key: process.env.contentstack_api_key,
-          Authorization: process.env.contentstack_management_token,
-          'content-Type': 'application/json',
-        },
-        params: {
-          'include[]': 'more_posts',
-          'include[]': 'more_posts.author',
-          'include[]': 'author',
-        },
-      })
-        .then((resp) => {
-          resolve(resp.data.entry)
-        })
-        .catch((err) => {
-          reject(err)
-        })
+      process.env &&
+        contentstackClient
+          .stack({
+            api_key: process.env.contentstack_api_key,
+            management_token: process.env.contentstack_management_token,
+            region:
+              process.env.contentstack_region !== 'us'
+                ? process.env.contentstack_region
+                : 'us',
+          })
+          .contentType('post')
+          .entry(entryID)
+          .fetch({ 'include[]': ['more_posts', 'more_posts.author', 'author'] })
+          .then((resp) => {
+            resolve(JSON.parse(JSON.stringify(resp)))
+          })
+          .catch((err) => {
+            reject(err)
+          })
     })
   },
 }

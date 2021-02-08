@@ -8,7 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "axios": "^0.21.0",
+    "@contentstack/management": "1.1.2",
     "classnames": "^2.2.6",
     "contentstack": "^3.12.1",
     "date-fns": "^2.16.1",
