@@ -10,6 +10,8 @@ import { join } from 'path'
 const objectHash = require('object-hash')
 const { version } = require('next/package.json')
 
+import { tracer, traceFn } from '../../../tracer'
+
 export default function cacheLoader(
   linter: Linter,
   content: String,
@@ -42,12 +44,15 @@ export default function cacheLoader(
     options,
     source: content,
     transform() {
-      return linter.lint(stringContent)
+      return traceFn(tracer.startSpan('lint'), () => linter.lint(stringContent))
     },
   })
     .then((report: CLIEngine.LintReport) => {
       try {
-        report && linter.printOutput(report)
+        report &&
+          traceFn(tracer.startSpan('print-output'), () =>
+            linter.printOutput(report)
+          )
       } catch (error) {
         if (callback) {
           // TODO: enable the following AST sharing in future.

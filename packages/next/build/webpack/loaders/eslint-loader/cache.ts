@@ -21,6 +21,7 @@ import { join } from 'path'
 import { promisify } from 'util'
 import zlib from 'zlib'
 import { createHash } from 'crypto'
+import { tracer, traceAsyncFn } from '../../../tracer'
 
 // @ts-ignore
 import findCacheDir from 'find-cache-dir'
@@ -72,45 +73,59 @@ const handleCache = async (
   } = params
 
   const file = join(directory, filename(source, cacheIdentifier, options))
+  const span = tracer.startSpan('handle-cache')
 
-  try {
-    // No errors mean that the file was previously cached
-    // we just need to return it
-    const report = await read(file, cacheCompression)
+  return traceAsyncFn(span, async () => {
+    try {
+      // No errors mean that the file was previously cached
+      // we just need to return it
+      const report = await read(file, cacheCompression)
+      span.setAttribute('cache', report ? 'HIT' : 'MISS')
 
+      return report
+      // eslint-disable-next-line no-empty
+    } catch (err) {}
+
+    const fallback =
+      typeof cacheDirectory !== 'string' && directory !== os.tmpdir()
+
+    // Make sure the directory exists.
+    try {
+      fs.mkdirSync(directory, { recursive: true })
+    } catch (err) {
+      if (fallback) {
+        return handleCache(os.tmpdir(), params)
+      }
+
+      throw err
+    }
+
+    // Otherwise just transform the file
+    // return it to the user asap and write it in cache
+    const report = await traceAsyncFn(
+      tracer.startSpan('transform', {
+        attributes: {
+          file,
+          cache: 'MISS',
+        },
+      }),
+      async () => {
+        return transform(source, options)
+      }
+    )
+
+    try {
+      await write(file, cacheCompression, report)
+    } catch (err) {
+      if (fallback) {
+        // Fallback to tmpdir if node_modules folder not writable
+        return handleCache(os.tmpdir(), params)
+      }
+
+      throw err
+    }
     return report
-    // eslint-disable-next-line no-empty
-  } catch (err) {}
-
-  const fallback =
-    typeof cacheDirectory !== 'string' && directory !== os.tmpdir()
-
-  // Make sure the directory exists.
-  try {
-    fs.mkdirSync(directory, { recursive: true })
-  } catch (err) {
-    if (fallback) {
-      return handleCache(os.tmpdir(), params)
-    }
-
-    throw err
-  }
-
-  // Otherwise just transform the file
-  // return it to the user asap and write it in cache
-  const report = await transform(source, options)
-
-  try {
-    await write(file, cacheCompression, report)
-  } catch (err) {
-    if (fallback) {
-      // Fallback to tmpdir if node_modules folder not writable
-      return handleCache(os.tmpdir(), params)
-    }
-
-    throw err
-  }
-  return report
+  })
 }
 
 /**

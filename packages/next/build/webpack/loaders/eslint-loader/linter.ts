@@ -8,6 +8,8 @@ import { CLIEngine, Linter as ESLinter, ESLint } from 'eslint'
 import { loader } from 'webpack'
 import createEngine from './create-engine'
 
+import { tracer, traceFn } from '../../../tracer'
+
 export class Linter {
   public loaderContext: loader.LoaderContext
   public options: any
@@ -19,6 +21,7 @@ export class Linter {
   constructor(loaderContext: loader.LoaderContext, options: any) {
     this.loaderContext = loaderContext
     this.options = options
+
     this.resourcePath = this.parseResourcePath()
 
     // fixes for typescript
@@ -50,7 +53,10 @@ export class Linter {
     options.parser = this.isTypescript
       ? require.resolve('@typescript-eslint/parser')
       : require.resolve('@babel/eslint-parser')
-    const { engine } = createEngine(options)
+
+    const { engine } = traceFn(tracer.startSpan('create-engine'), () =>
+      createEngine(options)
+    )
     this.engine = engine
   }
 
