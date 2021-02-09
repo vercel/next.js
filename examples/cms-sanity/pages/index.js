@@ -6,7 +6,7 @@ import Intro from '../components/intro'
 import Layout from '../components/layout'
 import { CMS_NAME } from '../lib/constants'
 import { indexQuery } from '../lib/queries'
-import { getClient, overlayDrafts } from '../lib/sanity'
+import { getClient, overlayDrafts } from '../lib/sanity.server'
 
 export default function Index({ allPosts, preview }) {
   const heroPost = allPosts[0]

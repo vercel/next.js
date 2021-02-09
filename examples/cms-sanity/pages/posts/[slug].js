@@ -11,13 +11,8 @@ import Layout from '../../components/layout'
 import PostTitle from '../../components/post-title'
 import { CMS_NAME } from '../../lib/constants'
 import { postQuery, postSlugsQuery } from '../../lib/queries'
-import {
-  sanityClient,
-  getClient,
-  overlayDrafts,
-  urlForImage,
-  usePreviewSubscription,
-} from '../../lib/sanity'
+import { urlForImage, usePreviewSubscription } from '../../lib/sanity'
+import { sanityClient, getClient, overlayDrafts } from '../../lib/sanity.server'
 
 export default function Post({ data, preview }) {
   const router = useRouter()
