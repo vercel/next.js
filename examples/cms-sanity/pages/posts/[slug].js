@@ -14,18 +14,19 @@ import { postQuery, postSlugsQuery } from '../../lib/queries'
 import { urlForImage, usePreviewSubscription } from '../../lib/sanity'
 import { sanityClient, getClient, overlayDrafts } from '../../lib/sanity.server'
 
-export default function Post({ data, preview }) {
+export default function Post({ data = {}, preview }) {
   const router = useRouter()
 
+  const slug = data?.post?.slug
   const {
     data: { post, morePosts },
   } = usePreviewSubscription(postQuery, {
-    params: { slug: data.post.slug },
+    params: { slug },
     initialData: data,
-    enabled: preview,
+    enabled: preview && slug,
   })
 
-  if (!router.isFallback && !data.post?.slug) {
+  if (!router.isFallback && !slug) {
     return <ErrorPage statusCode={404} />
   }
 
