@@ -22,7 +22,9 @@ export class Linter {
     this.loaderContext = loaderContext
     this.options = options
 
-    this.resourcePath = this.parseResourcePath()
+    this.resourcePath = traceFn(tracer.startSpan('parse-resource-path'), () =>
+      this.parseResourcePath()
+    )
 
     // fixes for typescript
     if (this.resourcePath.endsWith('ts') || this.resourcePath.endsWith('tsx')) {
