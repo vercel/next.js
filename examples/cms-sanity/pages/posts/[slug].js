@@ -1,3 +1,4 @@
+import Head from 'next/head'
 import { useRouter } from 'next/router'
 import ErrorPage from 'next/error'
 import Container from '../../components/container'
@@ -7,16 +8,28 @@ import Header from '../../components/header'
 import PostHeader from '../../components/post-header'
 import SectionSeparator from '../../components/section-separator'
 import Layout from '../../components/layout'
-import { getAllPostsWithSlug, getPostAndMorePosts } from '../../lib/api'
 import PostTitle from '../../components/post-title'
-import Head from 'next/head'
 import { CMS_NAME } from '../../lib/constants'
+import { postQuery, postSlugsQuery } from '../../lib/queries'
+import { urlForImage, usePreviewSubscription } from '../../lib/sanity'
+import { sanityClient, getClient, overlayDrafts } from '../../lib/sanity.server'
 
-export default function Post({ post, morePosts, preview }) {
+export default function Post({ data = {}, preview }) {
   const router = useRouter()
-  if (!router.isFallback && !post?.slug) {
+
+  const slug = data?.post?.slug
+  const {
+    data: { post, morePosts },
+  } = usePreviewSubscription(postQuery, {
+    params: { slug },
+    initialData: data,
+    enabled: preview && slug,
+  })
+
+  if (!router.isFallback && !slug) {
     return <ErrorPage statusCode={404} />
   }
+
   return (
     <Layout preview={preview}>
       <Container>
@@ -30,7 +43,17 @@ export default function Post({ post, morePosts, preview }) {
                 <title>
                   {post.title} | Next.js Blog Example with {CMS_NAME}
                 </title>
-                {/* <meta property="og:image" content={post.ogImage.url} /> */}
+                {post.coverImage && (
+                  <meta
+                    key="ogImage"
+                    property="og:image"
+                    content={urlForImage(post.coverImage)
+                      .width(1200)
+                      .height(627)
+                      .fit('crop')
+                      .url()}
+                  />
+                )}
               </Head>
               <PostHeader
                 title={post.title}
@@ -50,25 +73,25 @@ export default function Post({ post, morePosts, preview }) {
 }
 
 export async function getStaticProps({ params, preview = false }) {
-  const data = await getPostAndMorePosts(params.slug, preview)
+  const { post, morePosts } = await getClient(preview).fetch(postQuery, {
+    slug: params.slug,
+  })
+
   return {
     props: {
       preview,
-      post: data?.post || null,
-      morePosts: data?.morePosts || null,
+      data: {
+        post,
+        morePosts: overlayDrafts(morePosts),
+      },
     },
   }
 }
 
 export async function getStaticPaths() {
-  const allPosts = await getAllPostsWithSlug()
+  const paths = await sanityClient.fetch(postSlugsQuery)
   return {
-    paths:
-      allPosts?.map((post) => ({
-        params: {
-          slug: post.slug,
-        },
-      })) || [],
+    paths: paths.map((slug) => ({ params: { slug } })),
     fallback: true,
   }
 }
