@@ -304,6 +304,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     // we only render domain locales if we are currently on a domain locale
     // so that locale links are still visitable in development/preview envs
     const localeDomain =
+      router &&
       router.isLocaleDomain &&
       getDomainLocale(
         as,
