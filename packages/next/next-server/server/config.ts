@@ -219,9 +219,9 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       )
     }
 
-    if (!result.basePath.startsWith('/')) {
+    if (!result.basePath.startsWith('/') && result.basePath !== '.') {
       throw new Error(
-        `Specified basePath has to start with a /, found "${result.basePath}"`
+        `Specified basePath has to start with a / or be a . (dot), found "${result.basePath}"`
       )
     }
 
