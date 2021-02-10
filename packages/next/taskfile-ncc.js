@@ -30,8 +30,6 @@ module.exports = function (task) {
       Object.keys(assets).forEach((key) => {
         let data = assets[key].source
 
-        console.log('outputting file to', join(file.dir, dirname(key)))
-
         this._.files.push({
           data,
           base: basename(key),
