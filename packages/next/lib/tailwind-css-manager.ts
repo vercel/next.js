@@ -124,9 +124,9 @@ const tailwindCssManager: TailwindCssManager = {
         "purge: ['./pages/**/*.{js,ts,jsx,tsx}', './components/**/*.{js,ts,jsx,tsx}']"
       fs.writeFileSync(
         configPath,
-        configCode.substr(0, lastNode.start) +
+        configCode.substr(0, lastNode.start!) +
           purgeDefaults +
-          configCode.substr(lastNode.end),
+          configCode.substr(lastNode.end!),
         'utf8'
       )
       console.log(
