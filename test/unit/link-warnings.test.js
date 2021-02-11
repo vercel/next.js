@@ -4,26 +4,26 @@
 import { act, render } from '@testing-library/react'
 import Link from 'next/link'
 
-describe('<TestComponent/>', () => {
+describe('<Link/>', () => {
   let spy
   beforeAll(() => {
     spy = jest.spyOn(console, 'error').mockImplementation(() => {})
   })
 
-  it('test a', () => {})
-
-  it('test link', () => {
-    let result
+  it('test link with unmount', () => {
     act(() => {
-      result = render(
-        <div>
-          <p>Hello</p>
-          <Link href="nowhere">hello</Link>
-        </div>
-      )
+      const { unmount } = render(<Link href="/">hello</Link>)
+      unmount()
     })
 
-    expect(result).toBeDefined()
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('test link without unmount', () => {
+    act(() => {
+      render(<Link href="/">hello</Link>)
+    })
+
     expect(spy).not.toHaveBeenCalled()
   })
 
