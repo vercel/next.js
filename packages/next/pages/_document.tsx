@@ -400,7 +400,6 @@ export class Head extends Component<
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
-        console.log(child)
         const isReactHelmet = child?.props?.['data-react-helmet']
         if (!isReactHelmet) {
           if (child?.type === 'title') {

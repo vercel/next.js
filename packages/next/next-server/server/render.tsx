@@ -583,8 +583,6 @@ export async function renderToHTML(
 
   let scriptLoader: any = {}
 
-  console.log(Document)
-
   const AppContainer = ({ children }: any) => (
     <RouterContext.Provider value={router}>
       <AmpStateContext.Provider value={ampState}>
