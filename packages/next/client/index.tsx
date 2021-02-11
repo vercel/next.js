@@ -139,7 +139,7 @@ if (process.env.__NEXT_I18N_SUPPORT) {
   }
 }
 
-if (process.env.__NEXT_SCRIPT_LOADER) {
+if (process.env.__NEXT_SCRIPT_LOADER && data.scriptLoader) {
   initScriptLoader(data.scriptLoader)
 }
 

@@ -7,7 +7,7 @@ import requestIdleCallback from './request-idle-callback'
 const ScriptCache = new Map()
 const LoadCache = new Set()
 
-interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
+export interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
   strategy?: 'defer' | 'lazy' | 'dangerouslyBlockRendering' | 'eager'
   id?: string
   onLoad?: () => void
@@ -92,7 +92,7 @@ const loadScript = (props: Props): void => {
   document.body.appendChild(el)
 }
 
-function handleClientScriptLoad(props) {
+function handleClientScriptLoad(props: Props) {
   if (props.strategy === 'defer') {
     loadScript(props)
   } else if (props.strategy === 'lazy') {
@@ -102,7 +102,7 @@ function handleClientScriptLoad(props) {
   }
 }
 
-export function initScriptLoader(scriptLoaderItems = []) {
+export function initScriptLoader(scriptLoaderItems: Props[]) {
   scriptLoaderItems.forEach(handleClientScriptLoad)
 }
 

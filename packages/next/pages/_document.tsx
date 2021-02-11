@@ -17,7 +17,9 @@ import {
 } from '../next-server/server/get-page-files'
 import { cleanAmpPath } from '../next-server/server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
-import Script from '../client/experimental-script'
+import Script, {
+  Props as ScriptLoaderProps,
+} from '../client/experimental-script'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -314,12 +316,12 @@ export class Head extends Component<
     ]
   }
 
-  handleDocumentScriptLoaderItems(children) {
+  handleDocumentScriptLoaderItems(children: React.ReactNode): ReactNode[] {
     const { scriptLoader } = this.context
-    const scriptLoaderItems = []
-    const filteredChildren = []
+    const scriptLoaderItems: ScriptLoaderProps[] = []
+    const filteredChildren: ReactNode[] = []
 
-    React.Children.forEach(children, (child) => {
+    React.Children.forEach(children, (child: any) => {
       if (child.type === Script) {
         if (child.props.strategy === 'eager') {
           scriptLoader.eager = (scriptLoader.eager || []).concat([
@@ -682,7 +684,7 @@ export class NextScript extends Component<OriginProps> {
   getPreNextScripts() {
     const { scriptLoader } = this.context
 
-    return (scriptLoader.eager || []).map((file: string) => {
+    return (scriptLoader.eager || []).map((file: ScriptLoaderProps) => {
       const { strategy, ...props } = file
       return (
         <script
