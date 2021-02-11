@@ -17,6 +17,7 @@ import {
 } from '../next-server/server/get-page-files'
 import { cleanAmpPath } from '../next-server/server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
+import Script from '../client/experimental-script'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -313,6 +314,34 @@ export class Head extends Component<
     ]
   }
 
+  handleDocumentScriptLoaderItems(children) {
+    const { scriptLoader } = this.context
+    const scriptLoaderItems = []
+    const filteredChildren = []
+
+    React.Children.forEach(children, (child) => {
+      if (child.type === Script) {
+        if (child.props.strategy === 'eager') {
+          scriptLoader.eager = (scriptLoader.eager || []).concat([
+            {
+              ...child.props,
+            },
+          ])
+          return
+        } else if (['lazy', 'defer'].includes(child.props.strategy)) {
+          scriptLoaderItems.push(child.props)
+          return
+        }
+      }
+
+      filteredChildren.push(child)
+    })
+
+    this.context.__NEXT_DATA__.scriptLoader = scriptLoaderItems
+
+    return filteredChildren
+  }
+
   makeStylesheetInert(node: ReactNode): ReactNode[] {
     return React.Children.map(node, (c: any) => {
       if (
@@ -371,6 +400,7 @@ export class Head extends Component<
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
+        console.log(child)
         const isReactHelmet = child?.props?.['data-react-helmet']
         if (!isReactHelmet) {
           if (child?.type === 'title') {
@@ -400,6 +430,10 @@ export class Head extends Component<
       !inAmpMode
     ) {
       children = this.makeStylesheetInert(children)
+    }
+
+    if (process.env.__NEXT_SCRIPT_LOADER) {
+      children = this.handleDocumentScriptLoaderItems(children)
     }
 
     let hasAmphtmlRel = false
@@ -650,9 +684,10 @@ export class NextScript extends Component<OriginProps> {
     const { scriptLoader } = this.context
 
     return (scriptLoader.eager || []).map((file: string) => {
+      const { strategy, ...props } = file
       return (
         <script
-          {...file}
+          {...props}
           nonce={this.props.nonce}
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN

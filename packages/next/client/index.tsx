@@ -25,6 +25,7 @@ import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
 import { createRouter, makePublicRouterInstance } from './router'
+import { initScriptLoader } from './experimental-script'
 
 /// <reference types="react-dom/experimental" />
 
@@ -136,6 +137,10 @@ if (process.env.__NEXT_I18N_SUPPORT) {
       defaultLocale = detectedDomain.defaultLocale
     }
   }
+}
+
+if (process.env.__NEXT_SCRIPT_LOADER) {
+  initScriptLoader(data.scriptLoader)
 }
 
 type RegisterFn = (input: [string, () => void]) => void
