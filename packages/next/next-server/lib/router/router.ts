@@ -348,6 +348,7 @@ export type BaseRouter = {
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocales
+  isLocaleDomain: boolean
 }
 
 export type NextRouter = BaseRouter &
@@ -488,6 +489,7 @@ export default class Router implements BaseRouter {
   defaultLocale?: string
   domainLocales?: DomainLocales
   isReady: boolean
+  isLocaleDomain: boolean
 
   private _idx: number = 0
 
@@ -579,12 +581,17 @@ export default class Router implements BaseRouter {
       self.__NEXT_DATA__.gip ||
       (!autoExportDynamic && !self.location.search)
     )
+    this.isLocaleDomain = false
 
     if (process.env.__NEXT_I18N_SUPPORT) {
       this.locale = locale
       this.locales = locales
       this.defaultLocale = defaultLocale
       this.domainLocales = domainLocales
+      this.isLocaleDomain = !!detectDomainLocale(
+        domainLocales,
+        self.location.hostname
+      )
     }
 
     if (typeof window !== 'undefined') {
@@ -817,6 +824,7 @@ export default class Router implements BaseRouter {
         if (
           !didNavigate &&
           detectedDomain &&
+          this.isLocaleDomain &&
           self.location.hostname !== detectedDomain.domain
         ) {
           const asNoBasePath = delBasePath(as)
@@ -1093,13 +1101,16 @@ export default class Router implements BaseRouter {
           !(routeInfo.Component as any).getInitialProps
       }
 
+      // shallow routing is only allowed for same page URL changes.
+      const isValidShallowRoute = options.shallow && this.route === route
       await this.set(
         route,
         pathname!,
         query,
         cleanedAs,
         routeInfo,
-        forcedScroll || (options.scroll ? { x: 0, y: 0 } : null)
+        forcedScroll ||
+          (isValidShallowRoute || !options.scroll ? null : { x: 0, y: 0 })
       ).catch((e) => {
         if (e.cancelled) error = error || e
         else throw e
@@ -1364,8 +1375,9 @@ export default class Router implements BaseRouter {
 
   scrollToHash(as: string): void {
     const [, hash] = as.split('#')
-    // Scroll to top if the hash is just `#` with no value
-    if (hash === '') {
+    // Scroll to top if the hash is just `#` with no value or `#top`
+    // To mirror browsers
+    if (hash === '' || hash === 'top') {
       window.scrollTo(0, 0)
       return
     }

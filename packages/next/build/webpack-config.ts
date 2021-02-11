@@ -43,6 +43,7 @@ import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
+import BuildStatsPlugin from './webpack/plugins/build-stats-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
@@ -204,11 +205,10 @@ export default async function getBaseWebpackConfig(
     rewrites: Rewrite[]
   }
 ): Promise<webpack.Configuration> {
-  initWebpack(
-    config.future?.webpack5 ||
-      (config.future?.webpack5 !== false &&
-        Number(process.env.NEXT_WEBPACK5) > 0)
-  )
+  initWebpack(!!config.future?.webpack5)
+  // hook the Node.js require so that webpack requires are
+  // routed to the bundled and now initialized webpack version
+  require('./webpack/require-hook')
 
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
@@ -763,7 +763,7 @@ export default async function getBaseWebpackConfig(
       : [
           // When the 'serverless' target is used all node_modules will be compiled into the output bundles
           // So that the 'serverless' bundles have 0 runtime dependencies
-          '@ampproject/toolbox-optimizer', // except this one
+          'next/dist/compiled/@ampproject/toolbox-optimizer', // except this one
 
           // Mark this as external if not enabled so it doesn't cause a
           // webpack error from being missing
@@ -1017,7 +1017,7 @@ export default async function getBaseWebpackConfig(
           config.experimental.optimizeImages
         ),
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
-          !!config.experimental.optimizeCss && !dev
+          config.experimental.optimizeCss && !dev
         ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
@@ -1113,6 +1113,12 @@ export default async function getBaseWebpackConfig(
           buildId,
           rewrites,
         }),
+      !dev &&
+        !isServer &&
+        config.experimental.stats &&
+        new BuildStatsPlugin({
+          distDir,
+        }),
       new ProfilingPlugin(),
       config.experimental.optimizeFonts &&
         !dev &&
@@ -1206,6 +1212,7 @@ export default async function getBaseWebpackConfig(
       reactMode: config.experimental.reactMode,
       optimizeFonts: config.experimental.optimizeFonts,
       optimizeImages: config.experimental.optimizeImages,
+      optimizeCss: config.experimental.optimizeCss,
       scrollRestoration: config.experimental.scrollRestoration,
       basePath: config.basePath,
       pageEnv: config.experimental.pageEnv,

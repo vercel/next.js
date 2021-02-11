@@ -30,7 +30,6 @@ const Page = () => {
           document.getElementById('text').textContent += _.repeat('c', 3)
         }}
       ></Script>
-      <div id="text"></div>
     </div>
   )
 }
