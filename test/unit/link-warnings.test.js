@@ -10,13 +10,12 @@ describe('<TestComponent/>', () => {
     spy = jest.spyOn(console, 'error').mockImplementation(() => {})
   })
 
-  // Commenting out "test a" makes the problem go away.
-  // This fails with NextJS 10.x, but works with 9.5.6.
   it('test a', () => {})
 
-  it('test c', () => {
+  it('test link', () => {
+    let result
     act(() => {
-      render(
+      result = render(
         <div>
           <p>Hello</p>
           <Link href="nowhere">hello</Link>
@@ -24,6 +23,7 @@ describe('<TestComponent/>', () => {
       )
     })
 
+    expect(result).toBeDefined()
     expect(spy).not.toHaveBeenCalled()
   })
 
