@@ -13,9 +13,13 @@ export function stackPush(compiler: any, spanName: string, attrs?: any): any {
     span = tracer.startSpan(spanName, attrs ? attrs() : undefined)
   } else {
     const parent = stack[stack.length - 1]
-    tracer.withSpan(parent, () => {
+    if (parent) {
+      tracer.withSpan(parent, () => {
+        span = tracer.startSpan(spanName, attrs ? attrs() : undefined)
+      })
+    } else {
       span = tracer.startSpan(spanName, attrs ? attrs() : undefined)
-    })
+    }
   }
 
   stack.push(span)
