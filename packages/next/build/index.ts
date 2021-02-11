@@ -41,6 +41,7 @@ import {
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   SERVER_FILES_MANIFEST,
+  CLIENT_STATIC_CSS_PATH,
 } from '../next-server/lib/constants'
 import {
   getRouteRegex,
@@ -416,6 +417,9 @@ export default async function build(
                 isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
                 FONT_MANIFEST
               )
+            : null,
+          config.experimental.optimizeCss
+            ? path.join(CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_CSS_PATH, '*')
             : null,
           BUILD_ID_FILE,
         ]
