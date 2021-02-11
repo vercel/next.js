@@ -1,0 +1,21 @@
+{
+  "hasIntegrated": "local",
+  "siteUrl": "http://localhost:3000",
+  "type": "space",
+  "name": "blog-test",
+  "@version": 5,
+  "cloneInfo": {
+    "contentIdMap": {
+      "ba1fb5129adf4c379424d346666cc092": "7b0b333bd44b4e91a6f4bf93158cb62b",
+      "edcaddd1a70f494ba1955704cd88ca4f": "d50fe8eced654b2dae22c738dbeabcee",
+      "a9670a29beb04ab98fa9ad87da782363": "c9a48699668448daa6988f2fcad3cd34",
+      "e7951ec30b1c496b87b3fa2c98192a79": "006452f51b414da189e8ccc576d9805b",
+      "3ff20a4db1994618bb45ac7c8610300f": "aa5cde0446204c228a11ea6ff10fff92"
+    },
+    "modelIdMap": {
+      "c71bab5b43fa42eca870e330a39b59e0": "6d30b724c93d4198b0c0ce2d3ce390dc",
+      "06fbdb4d7ab6473f8ec8afad46acaa2a": "7f355eb3798c4d4286a5d12e8f0a3009",
+      "7a732bbf5d964e7bbeff4acef2735c8a": "3f6eda812cf2484088b1451a2150d38f"
+    }
+  }
+}

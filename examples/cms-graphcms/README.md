@@ -25,6 +25,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## Deploy your own
 

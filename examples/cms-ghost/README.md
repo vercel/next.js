@@ -26,6 +26,7 @@ Once you have access to [the environment variables you'll need](#step-2-set-up-e
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 

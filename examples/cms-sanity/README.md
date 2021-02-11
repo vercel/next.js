@@ -28,6 +28,7 @@ Once you have access to [the environment variables you'll need](#step-4-set-up-e
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 

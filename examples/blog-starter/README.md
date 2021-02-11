@@ -31,6 +31,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 - [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
+- [Builder.io](/examples/cms-builder-io)
 
 ## How to use
 
