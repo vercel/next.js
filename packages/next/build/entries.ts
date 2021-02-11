@@ -10,6 +10,7 @@ import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-lo
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
 import { NextConfig } from '../next-server/server/config'
+import tailwindCssManager from '../lib/tailwind-css-manager'
 
 type PagesMapping = {
   [page: string]: string
@@ -147,14 +148,19 @@ export function createEntrypoints(
         pageLoaderOpts
       )}!`
 
-      // Make sure next/router is a dependency of _app or else chunk splitting
-      // might cause the router to not be able to load causing hydration
-      // to fail
-
-      client[clientBundlePath] =
-        page === '/_app'
-          ? [pageLoader, require.resolve('../client/router')]
-          : pageLoader
+      if (page === '/_app') {
+        // Make sure next/router is a dependency of _app or else chunk splitting
+        // might cause the router to not be able to load causing hydration
+        // to fail
+        const dependencies = [pageLoader, require.resolve('../client/router')]
+        client[clientBundlePath] = dependencies
+        // Include managed Tailwind CSS dependency
+        if (tailwindCssManager.isActive) {
+          dependencies.push(tailwindCssManager.getResolvedCssFilename())
+        }
+      } else {
+        client[clientBundlePath] = pageLoader
+      }
     }
   })
 

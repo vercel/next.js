@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import { findConfig } from '../../../../../lib/find-config'
 import browserslist from 'browserslist'
+import tailwindCssManager from '../../../../../lib/tailwind-css-manager'
 
 type CssPluginCollection_Array = (string | [string, boolean | object])[]
 
@@ -81,26 +82,32 @@ function getDefaultPlugins(
       env: isProduction ? 'production' : 'development',
     })
   } catch {}
-
-  return [
+  const plugins: CssPluginCollection = [
     require.resolve('next/dist/compiled/postcss-flexbugs-fixes'),
-    [
-      require.resolve('next/dist/compiled/postcss-preset-env'),
-      {
-        browsers: browsers ?? ['defaults'],
-        autoprefixer: {
-          // Disable legacy flexbox support
-          flexbox: 'no-2009',
-        },
-        // Enable CSS features that have shipped to the
-        // web platform, i.e. in 2+ browsers unflagged.
-        stage: 3,
-        features: {
-          'custom-properties': false,
-        },
-      },
-    ],
   ]
+  if (tailwindCssManager.isActive) {
+    plugins.push([
+      tailwindCssManager.resolvedPluginFilename,
+      tailwindCssManager.config,
+    ])
+  }
+  plugins.push([
+    require.resolve('next/dist/compiled/postcss-preset-env'),
+    {
+      browsers: browsers ?? ['defaults'],
+      autoprefixer: {
+        // Disable legacy flexbox support
+        flexbox: 'no-2009',
+      },
+      // Enable CSS features that have shipped to the
+      // web platform, i.e. in 2+ browsers unflagged.
+      stage: 3,
+      features: {
+        'custom-properties': false,
+      },
+    },
+  ])
+  return plugins
 }
 
 export async function getPostCssPlugins(

@@ -12,6 +12,7 @@ import {
   getLocalModuleImportError,
 } from './messages'
 import { getPostCssPlugins } from './plugins'
+import tailwindCssManager from '../../../../../lib/tailwind-css-manager'
 
 // RegExps for all Style Sheet variants
 const regexLikeCss = /\.(css|scss|sass)$/
@@ -207,7 +208,19 @@ export const css = curry(async function css(
         ],
       })
     )
-
+    if (tailwindCssManager.isActive) {
+      fns.push(
+        loader({
+          oneOf: [
+            {
+              sideEffects: true,
+              test: /tailwindcss\/tailwind\.css/,
+              use: getGlobalCssLoader(ctx, postCssPlugins),
+            },
+          ],
+        })
+      )
+    }
     if (ctx.customAppFile) {
       fns.push(
         loader({

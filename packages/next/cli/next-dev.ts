@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { resolve } from 'path'
+import path, { resolve } from 'path'
 import arg from 'next/dist/compiled/arg/index.js'
-import { existsSync } from 'fs'
+import { existsSync, watchFile } from 'fs'
 import startServer from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
@@ -116,6 +116,22 @@ const nextDev: cliCommand = (argv) => {
       preflight().catch(() => {})
       // Finalize server bootup:
       await app.prepare()
+      // Watch for changes in configuration files that
+      // require a server restart to take effect
+      const { CONFIG_FILE } = require('../next-server/lib/constants')
+      const configurationFiles = [
+        { path: dir, name: CONFIG_FILE },
+        { path: dir, name: 'tailwind.config.js' },
+      ]
+      configurationFiles.forEach((file) => {
+        watchFile(path.join(file.path, file.name), (cur: any, prev: any) => {
+          if (cur.size > 0 || prev.size > 0) {
+            console.log(
+              `\n> Found a change in ${file.name}. Restart the server to see the changes in effect.`
+            )
+          }
+        })
+      })
     })
     .catch((err) => {
       if (err.code === 'EADDRINUSE') {
