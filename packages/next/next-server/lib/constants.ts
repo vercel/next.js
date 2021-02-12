@@ -21,7 +21,6 @@ export const BLOCKED_PAGES = ['/_document', '/_app']
 export const CLIENT_PUBLIC_FILES_PATH = 'public'
 export const CLIENT_STATIC_FILES_PATH = 'static'
 export const CLIENT_STATIC_FILES_RUNTIME = 'runtime'
-export const CLIENT_STATIC_CSS_PATH = 'css'
 export const AMP_RENDER_TARGET = '__NEXT_AMP_RENDER_TARGET__'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
 // static/runtime/main.js

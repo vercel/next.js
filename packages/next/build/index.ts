@@ -41,7 +41,6 @@ import {
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   SERVER_FILES_MANIFEST,
-  CLIENT_STATIC_CSS_PATH,
 } from '../next-server/lib/constants'
 import {
   getRouteRegex,
@@ -81,6 +80,7 @@ import {
   PageInfo,
   printCustomRoutes,
   printTreeView,
+  getCssFilePaths,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -417,9 +417,6 @@ export default async function build(
                 isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
                 FONT_MANIFEST
               )
-            : null,
-          config.experimental.optimizeCss
-            ? path.join(CLIENT_STATIC_FILES_PATH, CLIENT_STATIC_CSS_PATH, '*')
             : null,
           BUILD_ID_FILE,
         ]
@@ -877,6 +874,14 @@ export default async function build(
     }
 
     await writeBuildId(distDir, buildId)
+
+    if (config.experimental.optimizeCss) {
+      const cssFilePaths = getCssFilePaths(buildManifest)
+
+      requiredServerFiles.files.push(
+        ...cssFilePaths.map((filePath) => path.join(config.distDir, filePath))
+      )
+    }
 
     await promises.writeFile(
       path.join(distDir, SERVER_FILES_MANIFEST),
