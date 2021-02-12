@@ -97,7 +97,7 @@
     "jest-cli": "24.9.0",
     "ky": "0.19.1",
     "ky-universal": "0.6.0",
-    "lerna": "3.14.1",
+    "lerna": "4.0.0",
     "lint-staged": "10.1.7",
     "lost": "8.3.1",
     "minimatch": "3.0.4",

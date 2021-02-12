@@ -3,6 +3,7 @@ import api, { Span } from '@opentelemetry/api'
 export const tracer = api.trace.getTracer('next', process.env.__NEXT_VERSION)
 
 const compilerStacks = new WeakMap()
+const compilerStoppedSpans = new WeakMap()
 
 export function stackPush(compiler: any, spanName: string, attrs?: any): any {
   let stack = compilerStacks.get(compiler)
@@ -13,18 +14,20 @@ export function stackPush(compiler: any, spanName: string, attrs?: any): any {
     span = tracer.startSpan(spanName, attrs ? attrs() : undefined)
   } else {
     const parent = stack[stack.length - 1]
-    tracer.withSpan(parent, () => {
+    if (parent) {
+      tracer.withSpan(parent, () => {
+        span = tracer.startSpan(spanName, attrs ? attrs() : undefined)
+      })
+    } else {
       span = tracer.startSpan(spanName, attrs ? attrs() : undefined)
-    })
+    }
   }
 
   stack.push(span)
   return span
 }
 
-export function stackPop(compiler: any, span: any) {
-  span.end()
-
+export function stackPop(compiler: any, span: any, associatedName?: string) {
   let stack = compilerStacks.get(compiler)
   if (!stack) {
     console.warn(
@@ -32,15 +35,40 @@ export function stackPop(compiler: any, span: any) {
     )
     return
   }
-  const poppedSpan = stack.pop()
-  if (poppedSpan !== span) {
-    stack.push(poppedSpan)
-    const spanIdx = stack.indexOf(span)
-    console.warn('Attempted to pop span that was not at top of stack.')
-    if (spanIdx !== -1) {
-      console.info(
-        `Span was found at index ${spanIdx} with stack size ${stack.length}`
+
+  let stoppedSpans: Set<Span> = compilerStoppedSpans.get(compiler)
+  if (!stoppedSpans) {
+    stoppedSpans = new Set()
+    compilerStoppedSpans.set(compiler, stoppedSpans)
+  }
+  if (stoppedSpans.has(span)) {
+    console.warn(
+      `Attempted to terminate tracing span that was already stopped for ${associatedName}`
+    )
+    return
+  }
+
+  while (true) {
+    let poppedSpan = stack.pop()
+
+    if (poppedSpan === span) {
+      stoppedSpans.add(poppedSpan)
+      span.end()
+      stoppedSpans.add(span)
+      break
+    } else if (poppedSpan === undefined || stack.indexOf(span) === -1) {
+      // We've either reached the top of the stack or the stack doesn't contain
+      // the span for another reason.
+      console.warn(`Tracing span was not found in stack for: ${associatedName}`)
+      stoppedSpans.add(span)
+      span.end()
+      break
+    } else if (stack.indexOf(span) !== -1) {
+      console.warn(
+        `Attempted to pop span that was not at top of stack for: ${associatedName}`
       )
+      stoppedSpans.add(poppedSpan)
+      poppedSpan.end()
     }
   }
 }
