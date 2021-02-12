@@ -369,6 +369,15 @@ export default function Image({
     }
   }
 
+  if (layout !== 'fill' && !unsized) {
+    imgStyle = {
+      ...imgStyle,
+      // @ts-ignore TODO: remove ts-ignore when CSSType supports content-visibility
+      contentVisibility: 'auto',
+      containIntrinsicSize: heightInt,
+    }
+  }
+
   let imgAttributes: GenImgAttrsResult = {
     src:
       'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
