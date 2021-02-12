@@ -38,7 +38,7 @@ export default function Post({ post, morePosts, preview }) {
               isStatic
             >
               {(data) =>
-                (console.log('here', data) || data) && (
+                data && (
                   <article>
                     <Head>
                       <title>
@@ -74,7 +74,6 @@ export async function getStaticProps({ params, preview = false, previewData }) {
     preview,
     previewData
   )
-  console.log('here got statuc ', post)
 
   return {
     props: {

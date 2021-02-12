@@ -1,5 +1,4 @@
 export default function Avatar({ name, picture }) {
-  console.log('here ', name, picture)
   return (
     <div className="flex items-center">
       <img
