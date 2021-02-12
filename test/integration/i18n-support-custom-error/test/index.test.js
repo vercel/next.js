@@ -71,27 +71,30 @@ const runTests = () => {
     }
   })
 
-  it('should work with nested folder with same name as basePath', async () => {
+  it('should work also on client side routing', async () => {
     for (const locale of locales) {
-      const browser = await webdriver(appPort, `/${locale}/my-custom-path-1`)
+      const browser = await webdriver(
+        appPort,
+        `${locale === 'en' ? '' : `/${locale}`}/my-custom-path-1`
+      )
 
-      expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
-        locale,
-        params: {
-          slug: 'my-custom-path-1',
-        },
-        title: 'my-custom-path-1',
-      })
+      expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual(
+        expect.objectContaining({
+          locale,
+          params: { slug: 'my-custom-path-1' },
+          title: 'my-custom-path-1',
+        })
+      )
 
       await browser.eval('window.next.router.push("/my-custom-path-2")')
 
-      expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
-        locale,
-        params: {
-          slug: 'my-custom-path-2',
-        },
-        title: 'my-custom-path-2',
-      })
+      expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual(
+        expect.objectContaining({
+          locale,
+          params: { slug: 'my-custom-path-2' },
+          title: 'my-custom-path-2',
+        })
+      )
 
       await browser.eval('window.next.router.push("/my-custom-gone-path")')
 
@@ -100,7 +103,6 @@ const runTests = () => {
       ).toEqual(
         expect.objectContaining({
           locale,
-          statusCode: 404,
         })
       )
     }
