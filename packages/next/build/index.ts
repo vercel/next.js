@@ -787,7 +787,11 @@ export default async function build(
         path.relative(
           dir,
           path.join(
-            path.dirname(require.resolve('@ampproject/toolbox-optimizer')),
+            path.dirname(
+              require.resolve(
+                'next/dist/compiled/@ampproject/toolbox-optimizer'
+              )
+            ),
             '**/*'
           )
         )

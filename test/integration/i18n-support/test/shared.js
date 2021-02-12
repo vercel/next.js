@@ -67,7 +67,9 @@ export function runTests(ctx) {
     })
   })
 
-  it('should redirect to locale domain correctly client-side', async () => {
+  // this test can not currently be tested in browser without modifying the
+  // host resolution since it needs a domain to test locale domains behavior
+  it.skip('should redirect to locale domain correctly client-side', async () => {
     const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
 
     await browser.eval(`(function() {
@@ -104,7 +106,9 @@ export function runTests(ctx) {
     )
   })
 
-  it('should render the correct href for locale domain', async () => {
+  // this test can not currently be tested in browser without modifying the
+  // host resolution since it needs a domain to test locale domains behavior
+  it.skip('should render the correct href for locale domain', async () => {
     let browser = await webdriver(
       ctx.appPort,
       `${ctx.basePath || ''}/links?nextLocale=go`
@@ -139,6 +143,46 @@ export function runTests(ctx) {
       expect(href).toBe(
         `https://example.com${ctx.basePath || ''}/go-BE${pathname}`
       )
+    }
+  })
+
+  it('should render the correct href with locale domains but not on a locale domain', async () => {
+    let browser = await webdriver(
+      ctx.appPort,
+      `${ctx.basePath || ''}/links?nextLocale=go`
+    )
+
+    for (const [element, pathname] of [
+      ['#to-another', '/another'],
+      ['#to-gsp', '/gsp'],
+      ['#to-fallback-first', '/gsp/fallback/first'],
+      ['#to-fallback-hello', '/gsp/fallback/hello'],
+      ['#to-gssp', '/gssp'],
+      ['#to-gssp-slug', '/gssp/first'],
+    ]) {
+      const href = await browser.elementByCss(element).getAttribute('href')
+      const { hostname, pathname: hrefPathname } = url.parse(href)
+      expect(hostname).not.toBe('example.com')
+      expect(hrefPathname).toBe(`${ctx.basePath || ''}/go${pathname}`)
+    }
+
+    browser = await webdriver(
+      ctx.appPort,
+      `${ctx.basePath || ''}/links?nextLocale=go-BE`
+    )
+
+    for (const [element, pathname] of [
+      ['#to-another', '/another'],
+      ['#to-gsp', '/gsp'],
+      ['#to-fallback-first', '/gsp/fallback/first'],
+      ['#to-fallback-hello', '/gsp/fallback/hello'],
+      ['#to-gssp', '/gssp'],
+      ['#to-gssp-slug', '/gssp/first'],
+    ]) {
+      const href = await browser.elementByCss(element).getAttribute('href')
+      const { hostname, pathname: hrefPathname } = url.parse(href)
+      expect(hostname).not.toBe('example.com')
+      expect(hrefPathname).toBe(`${ctx.basePath || ''}/go-BE${pathname}`)
     }
   })
 

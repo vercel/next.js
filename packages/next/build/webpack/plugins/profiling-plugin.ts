@@ -54,7 +54,13 @@ export class ProfilingPlugin {
       onSetSpan?.(span)
     })
     stopHook.tap(pluginName, () => {
-      stackPop(this.compiler, span)
+      // `stopHook` may be triggered when `startHook` has not in cases
+      // where `stopHook` is used as the terminating event for more
+      // than one pair of hooks.
+      if (!span) {
+        return
+      }
+      stackPop(this.compiler, span, spanName)
     })
   }
 
@@ -66,7 +72,7 @@ export class ProfilingPlugin {
       }
     })
     stopHook.tap(pluginName, () => {
-      stackPop(this.compiler, span)
+      stackPop(this.compiler, span, spanName)
     })
   }
 

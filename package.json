@@ -50,6 +50,7 @@
     "@opentelemetry/plugin-http": "0.14.0",
     "@opentelemetry/plugin-https": "0.14.0",
     "@opentelemetry/tracing": "0.14.0",
+    "@testing-library/react": "11.2.5",
     "@types/cheerio": "0.22.16",
     "@types/fs-extra": "8.1.0",
     "@types/http-proxy": "1.17.3",
