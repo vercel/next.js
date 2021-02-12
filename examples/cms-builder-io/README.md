@@ -41,13 +41,13 @@ yarn create next-app --example cms-builder-io cms-builder-io-app
 
 ## Configuration
 
-### Install the Builder.io cli
+### Step 1 Install the Builder.io cli
 
 ```
 npm install @builder.io/cli -g
 ```
 
-### Step 1 Generate your Builder.io space
+### Step 2 Generate your Builder.io space
 
 <!-- TODO: link "private key" to a forum post or doc showing how to create that -->
 
@@ -64,7 +64,7 @@ This command when done it'll print your new space's public api key, copy it and 
 BUILDER_PUBLIC_KEY=...
 ```
 
-### Step 2. Run Next.js in development mode
+### Step 3 Run Next.js in development mode
 
 ```bash
 npm install
@@ -78,13 +78,13 @@ yarn dev
 
 Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, you can post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
-### Step 3. Try preview mode
+### Step 4 Try preview mode
 
 To try preview mode at any time while editing in Builder.io press `view current draft`, if you changed the secret defined in [constants.js](./lib/constants.js) you'll need to also change it in your `Post` [model settings](https://builder.io/models).
 
 To exit the preview mode, you can click **Click here to exit preview mode** at the top.
 
-### Step 4. Deploy on Vercel
+### Step 5 Deploy on Vercel
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
