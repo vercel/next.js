@@ -9,7 +9,7 @@ function CustomError(props) {
 
 CustomError.getInitialProps = ({ res, err, ...context }) => {
   // 410 - GONE
-  if (context.asPath === '/my-custom-gone-path') {
+  if (res && context.asPath === '/my-custom-gone-path') {
     res.statusCode = 410
   }
 
