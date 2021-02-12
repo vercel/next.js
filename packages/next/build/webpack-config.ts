@@ -937,7 +937,6 @@ export default async function getBaseWebpackConfig(
                   dev,
                   cache: true,
                   type: config.experimental.enableBuildTimeLinting,
-                  parser: '@babel/eslint-parser',
                   failOnWarning: false,
                   env: {
                     es6: true,

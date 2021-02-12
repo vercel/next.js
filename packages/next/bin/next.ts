@@ -6,7 +6,7 @@ import opentelemetryApi from '@opentelemetry/api'
 import { traceFn, tracer } from '../build/tracer'
 import loadConfig from '../next-server/server/config'
 import { PHASE_PRODUCTION_BUILD } from '../next-server/lib/constants'
-import { readdirSync } from 'fs'
+import { readFileSync, readdirSync } from 'fs'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -134,9 +134,26 @@ if (
   enableBuildTimeLinting !== 'eslint' &&
   enableBuildTimeLinting !== 'default'
 ) {
-  console.log(
-    `\n> The experimental enableBuildTimeLinting flag is enabled incorrectly. Please specify a value of "default" or "eslint".`
+  log.warn(
+    'The experimental enableBuildTimeLinting flag is enabled incorrectly. Please specify a value of "default" or "eslint".'
   )
+}
+
+if (enableBuildTimeLinting === 'eslint') {
+  const dirFiles = readdirSync(process.cwd())
+  const eslintrc = dirFiles.find((file) =>
+    /^.eslintrc.?(js|json|yaml|yml)?$/.test(file)
+  )
+
+  if (eslintrc) {
+    let eslintConfig = readFileSync(`${process.cwd()}/${eslintrc}`).toString()
+
+    if (!eslintConfig.includes('@next/next')) {
+      log.warn(
+        `The Next.js ESLint plugin is missing from ${eslintrc}. We recommend including it to prevent significant issues in your application (see https://nextjs.org/docs/linting).`
+      )
+    }
+  }
 }
 
 if (command === 'dev') {

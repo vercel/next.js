@@ -67,6 +67,7 @@
     "@next/react-dev-overlay": "10.0.9-canary.2",
     "@next/react-refresh-utils": "10.0.9-canary.2",
     "@opentelemetry/api": "0.14.0",
+    "@typescript-eslint/parser": "4.15.0",
     "ast-types": "0.13.2",
     "browserslist": "4.16.1",
     "buffer": "5.6.0",

@@ -29,6 +29,7 @@ export class Linter {
     // fixes for typescript
     if (this.resourcePath.endsWith('ts') || this.resourcePath.endsWith('tsx')) {
       this.isTypescript = true
+
       if (!options.parserOptions.plugins.includes('typescript')) {
         options.parserOptions.plugins.push('typescript')
       }
