@@ -11,7 +11,7 @@ import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import {
-  PAGES_404_GET_INITIAL_PROPS_ERROR,
+  STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
@@ -41,6 +41,7 @@ import {
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   SERVER_FILES_MANIFEST,
+  STATIC_STATUS_PAGES,
 } from '../next-server/lib/constants'
 import {
   getRouteRegex,
@@ -746,7 +747,9 @@ export default async function build(
                         !workerResult.isStatic &&
                         !workerResult.hasStaticProps
                       ) {
-                        throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
+                        throw new Error(
+                          `\`pages/404\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
+                        )
                       }
                       // we need to ensure the 404 lambda is present since we use
                       // it when _app has getInitialProps
@@ -756,6 +759,16 @@ export default async function build(
                       ) {
                         staticPages.delete(page)
                       }
+                    }
+
+                    if (
+                      STATIC_STATUS_PAGES.includes(page) &&
+                      !workerResult.isStatic &&
+                      !workerResult.hasStaticProps
+                    ) {
+                      throw new Error(
+                        `\`pages${page}\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
+                      )
                     }
                   } catch (err) {
                     if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
@@ -887,8 +900,18 @@ export default async function build(
 
     const { i18n } = config
 
+    const usedStaticStatusPages = STATIC_STATUS_PAGES.filter(
+      (page) =>
+        mappedPages[page] && mappedPages[page].startsWith('private-next-pages')
+    )
+    usedStaticStatusPages.forEach((page) => {
+      if (!ssgPages.has(page)) {
+        staticPages.add(page)
+      }
+    })
+
     await traceAsyncFn(tracer.startSpan('static-generation'), async () => {
-      if (staticPages.size > 0 || ssgPages.size > 0 || useStatic404) {
+      if (useStatic404 || ssgPages.size > 0 || staticPages.size > 0) {
         const combinedPages = [...staticPages, ...ssgPages]
 
         detectConflictingPaths(
