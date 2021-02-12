@@ -34,9 +34,9 @@ Once you have access to [the environment variables you'll need](#step-6-set-up-e
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example cms-builder-io my-headless-blog
+npx create-next-app --example cms-builder-io cms-builder-io-app
 # or
-yarn create next-app --example cms-builder-io my-headless-blog
+yarn create next-app --example cms-builder-io cms-builder-io-app
 ```
 
 ## Configuration
@@ -54,7 +54,7 @@ npm install @builder.io/cli -g
 [Signup for Builder.io](https://builder.io/signup), then go to your [organization settings page](https://builder.io/account/organization?root=true), create a private key and copy it and supply it for `[private-key]` below. For `[space-name]` create a name for your space, such as "Blog"
 
 ```
-cd my-headless-blog
+cd cms-builder-io-app
 builder create -k [private-key] -n [space-name] -d
 ```
 
