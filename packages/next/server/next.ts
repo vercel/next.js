@@ -59,8 +59,7 @@ export class CustomServer {
 
   async close() {
     const server = await this.getServer()
-    // @ts-expect-error
-    await server.close()
+    await (server as any).close()
   }
 
   private createServer(
