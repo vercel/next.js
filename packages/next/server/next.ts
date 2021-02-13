@@ -57,6 +57,12 @@ export class CustomServer {
     await server.prepare()
   }
 
+  async close() {
+    const server = await this.getServer()
+    // @ts-expect-error
+    await server.close()
+  }
+
   private createServer(
     options: NextServerConstructor & {
       conf: NextConfig
