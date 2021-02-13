@@ -47,6 +47,12 @@ export class CustomServer {
     }
   }
 
+  logError(...args: Parameters<Server['logError']>) {
+    if (this.server) {
+      this.server.logError(...args)
+    }
+  }
+
   async render(...args: Parameters<Server['render']>) {
     const server = await this.getServer()
     await server.render(...args)
@@ -55,6 +61,26 @@ export class CustomServer {
   async renderToHTML(...args: Parameters<Server['renderToHTML']>) {
     const server = await this.getServer()
     await server.renderToHTML(...args)
+  }
+
+  async renderError(...args: Parameters<Server['renderError']>) {
+    const server = await this.getServer()
+    await server.renderError(...args)
+  }
+
+  async renderErrorToHTML(...args: Parameters<Server['renderErrorToHTML']>) {
+    const server = await this.getServer()
+    await server.renderErrorToHTML(...args)
+  }
+
+  async render404(...args: Parameters<Server['render404']>) {
+    const server = await this.getServer()
+    await server.render404(...args)
+  }
+
+  async serveStatic(...args: Parameters<Server['serveStatic']>) {
+    const server = await this.getServer()
+    await server.serveStatic(...args)
   }
 
   async prepare() {
