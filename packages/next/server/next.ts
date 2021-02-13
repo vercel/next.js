@@ -52,6 +52,11 @@ export class CustomServer {
     await server.render(...args)
   }
 
+  async renderToHTML(...args: Parameters<Server['renderToHTML']>) {
+    const server = await this.getServer()
+    await server.renderToHTML(...args)
+  }
+
   async prepare() {
     const server = await this.getServer()
     await server.prepare()
