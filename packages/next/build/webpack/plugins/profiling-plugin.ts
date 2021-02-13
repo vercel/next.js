@@ -54,7 +54,13 @@ export class ProfilingPlugin {
       onSetSpan?.(span)
     })
     stopHook.tap(pluginName, () => {
-      stackPop(this.compiler, span)
+      // `stopHook` may be triggered when `startHook` has not in cases
+      // where `stopHook` is used as the terminating event for more
+      // than one pair of hooks.
+      if (!span) {
+        return
+      }
+      stackPop(this.compiler, span, spanName)
     })
   }
 
@@ -66,7 +72,7 @@ export class ProfilingPlugin {
       }
     })
     stopHook.tap(pluginName, () => {
-      stackPop(this.compiler, span)
+      stackPop(this.compiler, span, spanName)
     })
   }
 
@@ -85,14 +91,24 @@ export class ProfilingPlugin {
       compiler.hooks.environment,
       compiler.hooks.afterEnvironment
     )
-    this.traceHookPair(
-      'webpack-invalidated',
-      compiler.hooks.invalid,
-      compiler.hooks.done
-    )
+    if (compiler.options.mode === 'development') {
+      this.traceHookPair(
+        'webpack-invalidated',
+        compiler.hooks.invalid,
+        compiler.hooks.done
+      )
+    }
   }
 
   traceCompilationHooks(compiler: any) {
+    if (isWebpack5) {
+      this.traceHookPair(
+        'webpack-compilation',
+        compiler.hooks.beforeCompile,
+        compiler.hooks.afterCompile
+      )
+    }
+
     compiler.hooks.compilation.tap(pluginName, (compilation: any) => {
       compilation.hooks.buildModule.tap(pluginName, (module: any) => {
         const compilerSpan = spans.get(compiler)
@@ -117,14 +133,6 @@ export class ProfilingPlugin {
       compilation.hooks.succeedModule.tap(pluginName, (module: any) => {
         spans.get(module).end()
       })
-
-      if (isWebpack5) {
-        this.traceHookPair(
-          'webpack-compilation',
-          compilation.hooks.beforeCompile,
-          compilation.hooks.afterCompile
-        )
-      }
 
       this.traceHookPair(
         'webpack-compilation-chunk-graph',
