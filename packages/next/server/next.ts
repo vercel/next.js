@@ -17,7 +17,7 @@ type NextServerConstructor = ServerConstructor & {
   dev?: boolean
 }
 
-class CustomServer {
+export class CustomServer {
   private serverPromise?: Promise<Server>
   private server?: Server
   private reqHandlerPromise?: Promise<any>

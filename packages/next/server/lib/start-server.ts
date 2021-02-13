@@ -5,7 +5,7 @@ export default async function start(
   serverOptions: any,
   port?: number,
   hostname?: string
-): Promise<any> {
+) {
   const app = next({
     ...serverOptions,
     customServer: false,
