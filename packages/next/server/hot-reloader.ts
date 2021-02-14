@@ -41,10 +41,7 @@ export async function renderScriptError(
     'no-cache, no-store, max-age=0, must-revalidate'
   )
 
-  if (
-    (error as any).code === 'ENOENT' ||
-    error.message === 'INVALID_BUILD_ID'
-  ) {
+  if ((error as any).code === 'ENOENT') {
     res.statusCode = 404
     res.end('404 - Not Found')
     return
