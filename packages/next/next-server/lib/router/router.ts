@@ -693,7 +693,8 @@ export default class Router implements BaseRouter {
         shallow: options.shallow && this._shallow,
         locale: options.locale || this.defaultLocale,
       }),
-      forcedScroll
+      forcedScroll,
+      true
     )
   }
 
@@ -748,7 +749,8 @@ export default class Router implements BaseRouter {
     url: string,
     as: string,
     options: TransitionOptions,
-    forcedScroll?: { x: number; y: number }
+    forcedScroll?: { x: number; y: number },
+    isPopState?: boolean
   ): Promise<boolean> {
     if (!isLocalURL(url)) {
       window.location.href = url
@@ -1033,13 +1035,21 @@ export default class Router implements BaseRouter {
     Router.events.emit('routeChangeStart', as, routeProps)
 
     try {
+      const POP_STATE_SHALLOW_ROUTE_OPTION = false
+      const isSamePageURLChange = this.route === route
+      const isPopStateShallowRoute =
+        isPopState && POP_STATE_SHALLOW_ROUTE_OPTION
+      const isValidShallowRoute =
+        (options.shallow && isSamePageURLChange) || isPopStateShallowRoute
+
       let routeInfo = await this.getRouteInfo(
         route,
         pathname,
         query,
         as,
         resolvedAs,
-        routeProps
+        routeProps,
+        isValidShallowRoute
       )
       let { error, props, __N_SSG, __N_SSP } = routeInfo
 
@@ -1086,7 +1096,8 @@ export default class Router implements BaseRouter {
             query,
             as,
             resolvedAs,
-            { shallow: false }
+            { shallow: false },
+            false
           )
         }
       }
@@ -1101,8 +1112,6 @@ export default class Router implements BaseRouter {
           !(routeInfo.Component as any).getInitialProps
       }
 
-      // shallow routing is only allowed for same page URL changes.
-      const isValidShallowRoute = options.shallow && this.route === route
       await this.set(
         route,
         pathname!,
@@ -1257,13 +1266,14 @@ export default class Router implements BaseRouter {
     query: any,
     as: string,
     resolvedAs: string,
-    routeProps: RouteProperties
+    routeProps: RouteProperties,
+    isValidShallowRoute?: boolean
   ): Promise<PrivateRouteInfo> {
     try {
       const existingRouteInfo: PrivateRouteInfo | undefined = this.components[
         route
       ]
-      if (routeProps.shallow && existingRouteInfo && this.route === route) {
+      if (isValidShallowRoute && existingRouteInfo) {
         return existingRouteInfo
       }
 
