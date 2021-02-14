@@ -17,6 +17,7 @@ import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, { CustomRoutes } from '../lib/load-custom-routes'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
+  PHASE_DEVELOPMENT_SERVER,
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
 } from '../next-server/lib/constants'

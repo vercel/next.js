@@ -487,7 +487,7 @@ export function normalizeConfig(phase: string, config: any) {
   return config
 }
 
-export default function loadConfig(
+export default async function loadConfig(
   phase: string,
   dir: string,
   customConfig?: object | null
