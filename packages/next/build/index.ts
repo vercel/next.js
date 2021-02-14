@@ -85,6 +85,7 @@ import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import opentelemetryApi from '@opentelemetry/api'
+import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -102,7 +103,7 @@ export type DynamicSsgRoute = {
 }
 
 export type PrerenderManifest = {
-  version: 2
+  version: 3
   routes: { [route: string]: SsgRoute }
   dynamicRoutes: { [route: string]: DynamicSsgRoute }
   notFoundRoutes: string[]
@@ -117,12 +118,6 @@ export default async function build(
 ): Promise<void> {
   const span = tracer.startSpan('next-build')
   return traceAsyncFn(span, async () => {
-    if (!(await isWriteable(dir))) {
-      throw new Error(
-        '> Build directory is not writeable. https://err.sh/vercel/next.js/build-dir-not-writeable'
-      )
-    }
-
     // attempt to load global env values so they are available in next.config.js
     const { loadedEnvFiles } = traceFn(tracer.startSpan('load-dotenv'), () =>
       loadEnvConfig(dir, false, Log)
@@ -363,9 +358,27 @@ export default async function build(
       i18n: config.i18n || undefined,
     }))
 
-    await traceAsyncFn(tracer.startSpan('create-distdir'), () =>
-      promises.mkdir(distDir, { recursive: true })
+    const distDirCreated = await traceAsyncFn(
+      tracer.startSpan('create-distdir'),
+      async () => {
+        try {
+          await promises.mkdir(distDir, { recursive: true })
+          return true
+        } catch (err) {
+          if (err.code === 'EPERM') {
+            return false
+          }
+          throw err
+        }
+      }
     )
+
+    if (!distDirCreated || !(await isWriteable(distDir))) {
+      throw new Error(
+        '> Build directory is not writeable. https://err.sh/vercel/next.js/build-dir-not-writeable'
+      )
+    }
+
     // We need to write the manifest with rewrites before build
     // so serverless can import the manifest
     await traceAsyncFn(tracer.startSpan('write-routes-manifest'), () =>
@@ -774,7 +787,11 @@ export default async function build(
         path.relative(
           dir,
           path.join(
-            path.dirname(require.resolve('@ampproject/toolbox-optimizer')),
+            path.dirname(
+              require.resolve(
+                'next/dist/compiled/@ampproject/toolbox-optimizer'
+              )
+            ),
             '**/*'
           )
         )
@@ -868,6 +885,8 @@ export default async function build(
 
     if (postCompileSpinner) postCompileSpinner.stopAndPersist()
 
+    const { i18n } = config
+
     await traceAsyncFn(tracer.startSpan('static-generation'), async () => {
       if (staticPages.size > 0 || ssgPages.size > 0 || useStatic404) {
         const combinedPages = [...staticPages, ...ssgPages]
@@ -898,8 +917,6 @@ export default async function build(
           // n.b. we cannot handle this above in combinedPages because the dynamic
           // page must be in the `pages` array, but not in the mapping.
           exportPathMap: (defaultMap: any) => {
-            const { i18n } = config
-
             // Dynamically routed pages should be prerendered to be used as
             // a client-side skeleton (fallback) while data is being fetched.
             // This ensures the end-user never sees a 500 or slow response from the
@@ -1049,7 +1066,6 @@ export default async function build(
                 pagesManifest[page] = relativeDest
               }
 
-              const { i18n } = config
               const isNotFound = ssgNotFoundPaths.includes(page)
 
               // for SSG files with i18n the non-prerendered variants are
@@ -1124,9 +1140,12 @@ export default async function build(
           const hasAmp = hybridAmpPages.has(page)
           const file = normalizePagePath(page)
 
-          // The dynamic version of SSG pages are only prerendered if the fallback
-          // is enabled. Below, we handle the specific prerenders of these.
-          if (!(isSsg && isDynamic && !isStaticSsgFallback)) {
+          // The dynamic version of SSG pages are only prerendered if the
+          // fallback is enabled. Below, we handle the specific prerenders
+          // of these.
+          const hasHtmlOutput = !(isSsg && isDynamic && !isStaticSsgFallback)
+
+          if (hasHtmlOutput) {
             await moveExportedPage(page, page, file, isSsg, 'html')
           }
 
@@ -1140,31 +1159,46 @@ export default async function build(
           }
 
           if (isSsg) {
-            const { i18n } = config
-
-            // For a non-dynamic SSG page, we must copy its data file from export.
+            // For a non-dynamic SSG page, we must copy its data file
+            // from export, we already moved the HTML file above
             if (!isDynamic) {
-              await moveExportedPage(page, page, file, true, 'json')
+              await moveExportedPage(page, page, file, isSsg, 'json')
 
-              const revalidationMapPath = i18n
-                ? `/${i18n.defaultLocale}${page === '/' ? '' : page}`
-                : page
+              if (i18n) {
+                // TODO: do we want to show all locale variants in build output
+                for (const locale of i18n.locales) {
+                  const localePage = `/${locale}${page === '/' ? '' : page}`
 
-              finalPrerenderRoutes[page] = {
-                initialRevalidateSeconds:
-                  exportConfig.initialPageRevalidationMap[revalidationMapPath],
-                srcRoute: null,
-                dataRoute: path.posix.join(
-                  '/_next/data',
-                  buildId,
-                  `${file}.json`
-                ),
+                  if (!ssgNotFoundPaths.includes(localePage)) {
+                    finalPrerenderRoutes[localePage] = {
+                      initialRevalidateSeconds:
+                        exportConfig.initialPageRevalidationMap[localePage],
+                      srcRoute: null,
+                      dataRoute: path.posix.join(
+                        '/_next/data',
+                        buildId,
+                        `${file}.json`
+                      ),
+                    }
+                  }
+                }
+              } else {
+                finalPrerenderRoutes[page] = {
+                  initialRevalidateSeconds:
+                    exportConfig.initialPageRevalidationMap[page],
+                  srcRoute: null,
+                  dataRoute: path.posix.join(
+                    '/_next/data',
+                    buildId,
+                    `${file}.json`
+                  ),
+                }
               }
               // Set Page Revalidation Interval
               const pageInfo = pageInfos.get(page)
               if (pageInfo) {
                 pageInfo.initialRevalidateSeconds =
-                  exportConfig.initialPageRevalidationMap[revalidationMapPath]
+                  exportConfig.initialPageRevalidationMap[page]
                 pageInfos.set(page, pageInfo)
               }
             } else {
@@ -1179,7 +1213,7 @@ export default async function build(
                   page,
                   route,
                   pageFile,
-                  true,
+                  isSsg,
                   'html',
                   true
                 )
@@ -1187,7 +1221,7 @@ export default async function build(
                   page,
                   route,
                   pageFile,
-                  true,
+                  isSsg,
                   'json',
                   true
                 )
@@ -1198,7 +1232,7 @@ export default async function build(
                     page,
                     ampPage,
                     ampPage,
-                    true,
+                    isSsg,
                     'html',
                     true
                   )
@@ -1206,7 +1240,7 @@ export default async function build(
                     page,
                     ampPage,
                     ampPage,
-                    true,
+                    isSsg,
                     'json',
                     true
                   )
@@ -1294,7 +1328,7 @@ export default async function build(
         }
       })
       const prerenderManifest: PrerenderManifest = {
-        version: 2,
+        version: 3,
         routes: finalPrerenderRoutes,
         dynamicRoutes: finalDynamicRoutes,
         notFoundRoutes: ssgNotFoundPaths,
@@ -1309,10 +1343,11 @@ export default async function build(
       await generateClientSsgManifest(prerenderManifest, {
         distDir,
         buildId,
+        locales: config.i18n?.locales || [],
       })
     } else {
       const prerenderManifest: PrerenderManifest = {
-        version: 2,
+        version: 3,
         routes: {},
         dynamicRoutes: {},
         preview: previewProps,
@@ -1396,13 +1431,17 @@ export type ClientSsgManifest = Set<string>
 
 function generateClientSsgManifest(
   prerenderManifest: PrerenderManifest,
-  { buildId, distDir }: { buildId: string; distDir: string }
+  {
+    buildId,
+    distDir,
+    locales,
+  }: { buildId: string; distDir: string; locales: string[] }
 ) {
   const ssgPages: ClientSsgManifest = new Set<string>([
     ...Object.entries(prerenderManifest.routes)
       // Filter out dynamic routes
       .filter(([, { srcRoute }]) => srcRoute == null)
-      .map(([route]) => route),
+      .map(([route]) => normalizeLocalePath(route, locales).pathname),
     ...Object.keys(prerenderManifest.dynamicRoutes),
   ])
 
