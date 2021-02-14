@@ -17,6 +17,7 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { getPackageVersion } from '../lib/get-package-version'
@@ -62,6 +63,7 @@ import WebpackConformancePlugin, {
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { NextConfig } from '../next-server/server/config'
+import { relative as relativePath } from 'path'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -287,6 +289,19 @@ export default async function getBaseWebpackConfig(
     ? ({
         // Backwards compatibility
         'main.js': [],
+        ...(dev
+          ? {
+              [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: require.resolve(
+                `@next/react-refresh-utils/runtime`
+              ),
+              [CLIENT_STATIC_FILES_RUNTIME_AMP]:
+                `./` +
+                relativePath(
+                  this.dir,
+                  join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
+                ).replace(/\\/g, '/'),
+            }
+          : {}),
         [CLIENT_STATIC_FILES_RUNTIME_MAIN]:
           `./` +
           path
