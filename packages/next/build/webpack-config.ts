@@ -206,6 +206,9 @@ export default async function getBaseWebpackConfig(
   }
 ): Promise<webpack.Configuration> {
   initWebpack(!!config.future?.webpack5)
+  // hook the Node.js require so that webpack requires are
+  // routed to the bundled and now initialized webpack version
+  require('./webpack/require-hook')
 
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
@@ -760,7 +763,7 @@ export default async function getBaseWebpackConfig(
       : [
           // When the 'serverless' target is used all node_modules will be compiled into the output bundles
           // So that the 'serverless' bundles have 0 runtime dependencies
-          '@ampproject/toolbox-optimizer', // except this one
+          'next/dist/compiled/@ampproject/toolbox-optimizer', // except this one
 
           // Mark this as external if not enabled so it doesn't cause a
           // webpack error from being missing
@@ -1110,7 +1113,8 @@ export default async function getBaseWebpackConfig(
           buildId,
           rewrites,
         }),
-      !isServer &&
+      !dev &&
+        !isServer &&
         config.experimental.stats &&
         new BuildStatsPlugin({
           distDir,

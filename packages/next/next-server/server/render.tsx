@@ -80,6 +80,7 @@ class ServerRouter implements NextRouter {
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocales
+  isLocaleDomain: boolean
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
@@ -90,10 +91,11 @@ class ServerRouter implements NextRouter {
     { isFallback }: { isFallback: boolean },
     isReady: boolean,
     basePath: string,
-    locale?: string,
-    locales?: string[],
-    defaultLocale?: string,
-    domainLocales?: DomainLocales
+    locale: string | undefined,
+    locales: string[] | undefined,
+    defaultLocale: string | undefined,
+    domainLocales: DomainLocales | undefined,
+    isLocaleDomain: boolean
   ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
@@ -106,6 +108,7 @@ class ServerRouter implements NextRouter {
     this.defaultLocale = defaultLocale
     this.isReady = isReady
     this.domainLocales = domainLocales
+    this.isLocaleDomain = isLocaleDomain
   }
 
   push(): any {
@@ -550,7 +553,8 @@ export async function renderToHTML(
     renderOpts.locale,
     renderOpts.locales,
     renderOpts.defaultLocale,
-    renderOpts.domainLocales
+    renderOpts.domainLocales,
+    (req as any).__nextIsLocaleDomain
   )
   const ctx = {
     err,
