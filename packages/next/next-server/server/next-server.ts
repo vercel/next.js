@@ -27,7 +27,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PAGES_MANIFEST,
   PERMANENT_REDIRECT_STATUS,
-  PHASE_PRODUCTION_SERVER,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
@@ -283,10 +282,6 @@ export default class Server {
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
-  }
-
-  protected currentPhase(): string {
-    return PHASE_PRODUCTION_SERVER
   }
 
   public logError(err: Error): void {

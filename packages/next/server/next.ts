@@ -17,7 +17,7 @@ type NextServerConstructor = ServerConstructor & {
   dev?: boolean
 }
 
-export class CustomServer {
+export class NextServer {
   private serverPromise?: Promise<Server>
   private server?: Server
   private reqHandlerPromise?: Promise<any>
@@ -142,7 +142,7 @@ export class CustomServer {
 }
 
 // This file is used for when users run `require('next')`
-function createServer(options: NextServerConstructor): CustomServer {
+function createServer(options: NextServerConstructor): NextServer {
   const standardEnv = ['production', 'development', 'test']
 
   if (options == null) {
@@ -167,7 +167,7 @@ function createServer(options: NextServerConstructor): CustomServer {
     }
   }
 
-  return new CustomServer(options)
+  return new NextServer(options)
 }
 
 // Support commonjs `require('next')`
