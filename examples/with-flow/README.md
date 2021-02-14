@@ -4,7 +4,7 @@ This example shows how you can use Flow, with the transform-flow-strip-types bab
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-flow&project-name=with-flow&repository-name=with-flow)
 

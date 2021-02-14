@@ -46,6 +46,7 @@ Next, create a file called `.env.local` in the root directory and copy your conn
 
 ```bash
 REDIS_URL="YOUR_REDIS_CONNECTION_STRING"
+REDIS_PASSWORD="YOUR_REDIS_CONNECTION_PASSWORD"
 ```
 
 Your app is now connected to a remote Redis database!
