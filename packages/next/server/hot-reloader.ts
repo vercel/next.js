@@ -111,10 +111,6 @@ function erroredPages(compilation: webpack.compilation.Compilation) {
     }
 
     // Only pages have to be reloaded
-    if (!getRouteFromEntrypoint(name)) {
-      continue
-    }
-
     const enhancedName = getRouteFromEntrypoint(name)
 
     if (!enhancedName) {
