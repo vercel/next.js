@@ -1,5 +1,5 @@
 import { createHash } from 'crypto'
-import { tracer, traceAsyncFn } from '../../../../tracer'
+import { tracer, traceAsyncFn, traceFn } from '../../../../tracer'
 import transform from './transform'
 import cacache from 'next/dist/compiled/cacache'
 
@@ -17,13 +17,15 @@ function write(cacheDirectory, etag, data) {
 }
 
 const etag = function (source, identifier, options) {
-  const hash = createHash('md4')
+  return traceFn(tracer.startSpan('etag'), () => {
+    const hash = createHash('md4')
 
-  const contents = JSON.stringify({ source, options, identifier })
+    const contents = JSON.stringify({ source, options, identifier })
 
-  hash.update(contents)
+    hash.update(contents)
 
-  return hash.digest('hex')
+    return hash.digest('hex')
+  })
 }
 
 export default async function handleCache(params) {
