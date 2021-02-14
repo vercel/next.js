@@ -35,7 +35,7 @@ export class CustomServer {
       parsedUrl?: UrlWithParsedQuery
     ) => {
       const requestHandler = await this.getServerRequestHandler()
-      requestHandler(req, res, parsedUrl)
+      return requestHandler(req, res, parsedUrl)
     }
   }
 
@@ -55,42 +55,42 @@ export class CustomServer {
 
   async render(...args: Parameters<Server['render']>) {
     const server = await this.getServer()
-    await server.render(...args)
+    return server.render(...args)
   }
 
   async renderToHTML(...args: Parameters<Server['renderToHTML']>) {
     const server = await this.getServer()
-    await server.renderToHTML(...args)
+    return server.renderToHTML(...args)
   }
 
   async renderError(...args: Parameters<Server['renderError']>) {
     const server = await this.getServer()
-    await server.renderError(...args)
+    return server.renderError(...args)
   }
 
   async renderErrorToHTML(...args: Parameters<Server['renderErrorToHTML']>) {
     const server = await this.getServer()
-    await server.renderErrorToHTML(...args)
+    return server.renderErrorToHTML(...args)
   }
 
   async render404(...args: Parameters<Server['render404']>) {
     const server = await this.getServer()
-    await server.render404(...args)
+    return server.render404(...args)
   }
 
   async serveStatic(...args: Parameters<Server['serveStatic']>) {
     const server = await this.getServer()
-    await server.serveStatic(...args)
+    return server.serveStatic(...args)
   }
 
   async prepare() {
     const server = await this.getServer()
-    await server.prepare()
+    return server.prepare()
   }
 
   async close() {
     const server = await this.getServer()
-    await (server as any).close()
+    return (server as any).close()
   }
 
   private createServer(

@@ -4,7 +4,7 @@ import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import Server from 'next/dist/next-server/server/next-server'
+import next from 'next/dist/server/next'
 import {
   fetchViaHTTP,
   findPort,
@@ -47,7 +47,7 @@ describe('Required Server Files', () => {
     }
     await fs.rename(join(appDir, 'pages'), join(appDir, 'pages-bak'))
 
-    nextApp = new Server({
+    nextApp = next({
       conf: {},
       dir: appDir,
       quiet: false,
