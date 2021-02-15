@@ -107,8 +107,10 @@ describe('500 Page Support', () => {
     await fs.writeFile(
       pagesApp,
       `
-      const page = () => 'custom 500 page'
-      page.getInitialProps = () => ({ a: 'b' })
+      import App from 'next/app'
+
+      const page = ({ Component, pageProps }) => <Component {...pageProps} />
+      page.getInitialProps = (ctx) => App.getInitialProps(ctx)
       export default page
     `
     )
