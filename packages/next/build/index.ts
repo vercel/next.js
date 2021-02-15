@@ -1001,6 +1001,7 @@ export default async function build(
               ...staticPages,
               ...ssgPages,
               ...(useStatic404 ? ['/404'] : []),
+              ...(!hasPages500 ? ['/500'] : []),
             ]) {
               const isSsg = ssgPages.has(page)
               const isDynamic = isDynamicRoute(page)
