@@ -18,6 +18,7 @@ jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '../')
 const pages500 = join(appDir, 'pages/500.js')
+const pagesApp = join(appDir, 'pages/_app.js')
 const nextConfig = join(appDir, 'next.config.js')
 const gip500Err = /`pages\/500` can not have getInitialProps\/getServerSideProps/
 
@@ -100,6 +101,25 @@ describe('500 Page Support', () => {
     })
 
     runTests('serverless')
+  })
+
+  it('still build statically with getInitialProps in _app', async () => {
+    await fs.writeFile(
+      pagesApp,
+      `
+      const page = () => 'custom 500 page'
+      page.getInitialProps = () => ({ a: 'b' })
+      export default page
+    `
+    )
+    const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+    await fs.remove(pagesApp)
+
+    expect(stderr).not.toMatch(gip500Err)
+    expect(code).toBe(0)
+    expect(
+      await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
+    ).toBe(true)
   })
 
   it('shows error with getInitialProps in pages/500 build', async () => {
