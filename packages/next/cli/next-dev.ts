@@ -4,27 +4,32 @@ import arg from 'next/dist/compiled/arg/index.js'
 import { existsSync } from 'fs'
 import startServer from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
+import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
 
 const nextDev: cliCommand = (argv) => {
-  const args = arg(
-    {
-      // Types
-      '--help': Boolean,
-      '--port': Number,
-      '--hostname': String,
+  const validArgs: arg.Spec = {
+    // Types
+    '--help': Boolean,
+    '--port': Number,
+    '--hostname': String,
 
-      // Aliases
-      '-h': '--help',
-      '-p': '--port',
-      '-H': '--hostname',
-    },
-    { argv }
-  )
-
+    // Aliases
+    '-h': '--help',
+    '-p': '--port',
+    '-H': '--hostname',
+  }
+  let args: arg.Result<arg.Spec>
+  try {
+    args = arg(validArgs, { argv })
+  } catch (error) {
+    if (error.code === 'ARG_UNKNOWN_OPTION') {
+      return printAndExit(error.message, 1)
+    }
+    throw error
+  }
   if (args['--help']) {
-    // tslint:disable-next-line
     console.log(`
       Description
         Starts the application in development mode (hot-code reloading, error
@@ -38,7 +43,7 @@ const nextDev: cliCommand = (argv) => {
 
       Options
         --port, -p      A port number on which to start the application
-        --hostname, -H  Hostname on which to start the application
+        --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
         --help, -h      Displays this message
     `)
     process.exit(0)
@@ -51,17 +56,65 @@ const nextDev: cliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
+  async function preflight() {
+    const { getPackageVersion } = await import('../lib/get-package-version')
+    const semver = await import('next/dist/compiled/semver').then(
+      (res) => res.default
+    )
+
+    const reactVersion: string | null = await getPackageVersion({
+      cwd: dir,
+      name: 'react',
+    })
+    if (
+      reactVersion &&
+      semver.lt(reactVersion, '17.0.1') &&
+      semver.coerce(reactVersion)?.version !== '0.0.0'
+    ) {
+      Log.warn(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.' +
+          ' Read more: https://err.sh/next.js/react-version'
+      )
+    } else {
+      const reactDomVersion: string | null = await getPackageVersion({
+        cwd: dir,
+        name: 'react-dom',
+      })
+      if (
+        reactDomVersion &&
+        semver.lt(reactDomVersion, '17.0.1') &&
+        semver.coerce(reactDomVersion)?.version !== '0.0.0'
+      ) {
+        Log.warn(
+          'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.' +
+            ' Read more: https://err.sh/next.js/react-version'
+        )
+      }
+    }
+
+    const [sassVersion, nodeSassVersion] = await Promise.all([
+      getPackageVersion({ cwd: dir, name: 'sass' }),
+      getPackageVersion({ cwd: dir, name: 'node-sass' }),
+    ])
+    if (sassVersion && nodeSassVersion) {
+      Log.warn(
+        'Your project has both `sass` and `node-sass` installed as dependencies, but should only use one or the other. ' +
+          'Please remove the `node-sass` dependency from your project. ' +
+          ' Read more: https://err.sh/next.js/duplicate-sass'
+      )
+    }
+  }
+
   const port = args['--port'] || 3000
-  const appUrl = `http://${args['--hostname'] || 'localhost'}:${port}`
+  const host = args['--hostname'] || '0.0.0.0'
+  const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
 
-  startedDevelopmentServer(appUrl)
-
-  startServer(
-    { dir, dev: true, isNextDevCommand: true },
-    port,
-    args['--hostname']
-  )
+  startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
     .then(async (app) => {
+      startedDevelopmentServer(appUrl, `${host}:${port}`)
+      // Start preflight after server is listening and ignore errors:
+      preflight().catch(() => {})
+      // Finalize server bootup:
       await app.prepare()
     })
     .catch((err) => {
@@ -82,10 +135,8 @@ const nextDev: cliCommand = (argv) => {
             errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
           }
         }
-        // tslint:disable-next-line
         console.error(errorMessage)
       } else {
-        // tslint:disable-next-line
         console.error(err)
       }
       process.nextTick(() => process.exit(1))

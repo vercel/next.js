@@ -16,7 +16,7 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
     const prefixLength = lines
       .map((line) => /^>? +\d+ +\| ( *)/.exec(stripAnsi(line)))
       .filter(Boolean)
-      .map((v) => v.pop())
+      .map((v) => v!.pop()!)
       .reduce((c, n) => (isNaN(c) ? n.length : Math.min(c, n.length)), NaN)
 
     if (prefixLength > 1) {
@@ -43,7 +43,7 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
   const open = React.useCallback(() => {
     const params = new URLSearchParams()
     for (const key in stackFrame) {
-      params.append(key, (stackFrame[key] ?? '').toString())
+      params.append(key, ((stackFrame as any)[key] ?? '').toString())
     }
 
     self

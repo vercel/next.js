@@ -57,7 +57,7 @@ export async function getStaticProps() {
       initialReduxState: reduxStore.getState(),
       initialApolloState: apolloClient.cache.extract(),
     },
-    unstable_revalidate: 1,
+    revalidate: 1,
   }
 }
 

@@ -1,3 +1,5 @@
+const path = require('path')
+const fs = require('fs-extra')
 const exec = require('./util/exec')
 const logger = require('./util/logger')
 const runConfigs = require('./run')
@@ -25,6 +27,13 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
 
 ;(async () => {
   try {
+    if (await fs.pathExists(path.join(__dirname, '../SKIP_NEXT_STATS.txt'))) {
+      console.log(
+        'SKIP_NEXT_STATS.txt file present, exiting stats generation..'
+      )
+      process.exit(0)
+    }
+
     const { stdout: gitName } = await exec(
       'git config user.name && git config user.email'
     )
@@ -65,6 +74,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         logger('Release detected, resetting mainRepo to last stable tag')
         const lastStableTag = await getLastStable(mainRepoDir, actionInfo.prRef)
         if (!lastStableTag) throw new Error('failed to get last stable tag')
+        console.log('using latestStable', lastStableTag)
         await checkoutRef(lastStableTag, mainRepoDir)
 
         /* eslint-disable-next-line */

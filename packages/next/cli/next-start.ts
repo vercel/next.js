@@ -3,27 +3,32 @@
 import { resolve } from 'path'
 import arg from 'next/dist/compiled/arg/index.js'
 import startServer from '../server/lib/start-server'
+import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 import * as Log from '../build/output/log'
 
 const nextStart: cliCommand = (argv) => {
-  const args = arg(
-    {
-      // Types
-      '--help': Boolean,
-      '--port': Number,
-      '--hostname': String,
+  const validArgs: arg.Spec = {
+    // Types
+    '--help': Boolean,
+    '--port': Number,
+    '--hostname': String,
 
-      // Aliases
-      '-h': '--help',
-      '-p': '--port',
-      '-H': '--hostname',
-    },
-    { argv }
-  )
-
+    // Aliases
+    '-h': '--help',
+    '-p': '--port',
+    '-H': '--hostname',
+  }
+  let args: arg.Result<arg.Spec>
+  try {
+    args = arg(validArgs, { argv })
+  } catch (error) {
+    if (error.code === 'ARG_UNKNOWN_OPTION') {
+      return printAndExit(error.message, 1)
+    }
+    throw error
+  }
   if (args['--help']) {
-    // tslint:disable-next-line
     console.log(`
       Description
         Starts the application in production mode.
@@ -37,7 +42,7 @@ const nextStart: cliCommand = (argv) => {
 
       Options
         --port, -p      A port number on which to start the application
-        --hostname, -H  Hostname on which to start the application
+        --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
         --help, -h      Displays this message
     `)
     process.exit(0)
@@ -45,16 +50,14 @@ const nextStart: cliCommand = (argv) => {
 
   const dir = resolve(args._[0] || '.')
   const port = args['--port'] || 3000
-  startServer({ dir }, port, args['--hostname'])
+  const host = args['--hostname'] || '0.0.0.0'
+  const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
+  startServer({ dir }, port, host)
     .then(async (app) => {
-      // tslint:disable-next-line
-      Log.ready(
-        `started server on http://${args['--hostname'] || 'localhost'}:${port}`
-      )
+      Log.ready(`started server on ${host}:${port}, url: ${appUrl}`)
       await app.prepare()
     })
     .catch((err) => {
-      // tslint:disable-next-line
       console.error(err)
       process.exit(1)
     })

@@ -1,10 +1,5 @@
-import { Compiler } from 'webpack'
-import webpack from 'webpack'
-const isWebpack5 = parseInt(webpack.version!) === 5
-
-const GraphHelpers = isWebpack5
-  ? undefined
-  : require('webpack/lib/GraphHelpers')
+import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { isWebpack5, GraphHelpers } from 'next/dist/compiled/webpack/webpack'
 
 /**
  * Makes sure there are no dynamic chunks when the target is serverless
@@ -13,7 +8,7 @@ const GraphHelpers = isWebpack5
  */
 
 export class ServerlessPlugin {
-  apply(compiler: Compiler) {
+  apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap('ServerlessPlugin', (compilation) => {
       const hook = isWebpack5
         ? compilation.hooks.optimizeChunks
@@ -29,13 +24,18 @@ export class ServerlessPlugin {
           // Async chunks are usages of import() for example
           const dynamicChunks = chunk.getAllAsyncChunks()
           for (const dynamicChunk of dynamicChunks) {
-            for (const module of dynamicChunk.modulesIterable) {
-              if (isWebpack5) {
+            if (isWebpack5) {
+              // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+              for (const module of compilation.chunkGraph.getChunkModulesIterable(
+                chunk
+              )) {
                 // Add module back into the entry chunk
                 chunk.addModule(module)
-                continue
               }
+              continue
+            }
 
+            for (const module of dynamicChunk.modulesIterable) {
               // Webpack 4 has separate GraphHelpers
               GraphHelpers.connectChunkAndModule(chunk, module)
             }

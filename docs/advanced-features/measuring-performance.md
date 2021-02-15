@@ -1,14 +1,19 @@
 ---
-description: Measure and track page performance using Next.js's build-in performance relayer
+description: Measure and track page performance using Next.js Analytics
 ---
 
 # Measuring performance
 
-Next.js has a built-in relayer that allows you to analyze and measure the performance of
+[Next.js Analytics](https://nextjs.org/analytics) allows you to analyze and measure the performance of
 pages using different metrics.
 
-To measure any of the supported metrics, you will need to create a [custom
-App](/docs/advanced-features/custom-app.md) component and define a `reportWebVitals` function:
+You can start collecting your [Real Experience Score](https://vercel.com/docs/analytics#metrics) with zero-configuration on [Vercel deployments](https://vercel.com/docs/analytics). There's also support for Analytics if you're [self-hosting](https://vercel.com/docs/analytics#self-hosted).
+
+The rest of this documentation describes the built-in relayer Next.js Analytics uses.
+
+## Build Your Own
+
+First, you will need to create a [custom App](/docs/advanced-features/custom-app.md) component and define a `reportWebVitals` function:
 
 ```js
 // pages/_app.js
@@ -30,8 +35,8 @@ The `metric` object returned to the function consists of a number of properties:
 
 - `id`: Unique identifier for the metric in the context of the current page load
 - `name`: Metric name
-- `startTime`: First recorded timestamp of the performance entry (if applicable)
-- `value`: Value, or duration, of performance entry
+- `startTime`: First recorded timestamp of the performance entry in [milliseconds](https://developer.mozilla.org/en-US/docs/Web/API/DOMHighResTimeStamp) (if applicable)
+- `value`: Value, or duration in [milliseconds](https://developer.mozilla.org/en-US/docs/Web/API/DOMHighResTimeStamp), of the performance entry
 - `label`: Type of metric (`web-vital` or `custom`)
 
 There are two types of metrics that are tracked:
@@ -158,13 +163,14 @@ export function reportWebVitals(metric) {
 >
 > ```js
 > export function reportWebVitals({ id, name, label, value }) {
->   ga('send', 'event', {
->     eventCategory:
+>   // Use `window.gtag` if you initialized Google Analytics as this example:
+>   // https://github.com/vercel/next.js/blob/canary/examples/with-google-analytics/pages/_document.js
+>   window.gtag('event', name, {
+>     event_category:
 >       label === 'web-vital' ? 'Web Vitals' : 'Next.js custom metric',
->     eventAction: name,
->     eventValue: Math.round(name === 'CLS' ? value * 1000 : value), // values must be integers
->     eventLabel: id, // id unique to current page load
->     nonInteraction: true, // avoids affecting bounce rate.
+>     value: Math.round(name === 'CLS' ? value * 1000 : value), // values must be integers
+>     event_label: id, // id unique to current page load
+>     non_interaction: true, // avoids affecting bounce rate.
 >   })
 > }
 > ```

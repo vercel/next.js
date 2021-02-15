@@ -17,5 +17,6 @@
     "faunadb": "2.11.1",
     "request": "2.88.0",
     "stream-to-promise": "2.2.0"
-  }
+  },
+  "license": "MIT"
 }

@@ -5,17 +5,17 @@ if (typeof window !== 'undefined') {
   const origWarn = window.console.warn
   const origError = window.console.error
   window.console.warn = function (...args) {
-    window.caughtWarns.push(1)
+    window.caughtWarns.push(args)
     origWarn(...args)
   }
   window.console.error = function (...args) {
-    window.caughtWarns.push(1)
+    window.caughtWarns.push(args)
     origError(...args)
   }
   window.pathnames = []
 }
 
-export default () => {
+export default function Page() {
   if (typeof window !== 'undefined') {
     window.pathnames.push(window.location.pathname)
   }

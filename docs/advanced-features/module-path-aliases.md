@@ -4,11 +4,18 @@ description: Configure module path aliases that allow you to remap certain impor
 
 # Absolute Imports and Module path aliases
 
-Next.js automatically supports the `tsconfig.json` and `jsconfig.json` `"paths"` and `"baseUrl"` options.
+<details>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-absolute-imports">Absolute Imports</a></li>
+  </ul>
+</details>
+
+Next.js automatically supports the `tsconfig.json` and `jsconfig.json` `"paths"` and `"baseUrl"` options since [Next.js 9.4](https://nextjs.org/blog/next-9-4).
 
 > Note: `jsconfig.json` can be used when you don't use TypeScript
 
-These option allow you to configure module aliases, for example a common pattern is aliasing certain directories to use absolute paths.
+These options allow you to configure module aliases, for example a common pattern is aliasing certain directories to use absolute paths.
 
 One useful feature of these options is that they integrate automatically into certain editors, for example vscode.
 

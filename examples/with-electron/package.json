@@ -1,5 +1,5 @@
 {
-  "name": "electron-next-skeleton",
+  "name": "with-electron",
   "productName": "ElectronNext",
   "version": "1.0.0",
   "main": "main/index.js",
@@ -27,5 +27,6 @@
   "dependencies": {
     "electron-is-dev": "^1.1.0",
     "electron-next": "^3.1.5"
-  }
+  },
+  "license": "MIT"
 }

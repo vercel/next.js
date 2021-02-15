@@ -1,12 +1,12 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { OutputState, store as consoleStore } from './store'
 
-export function startedDevelopmentServer(appUrl: string) {
-  consoleStore.setState({ appUrl })
+export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
+  consoleStore.setState({ appUrl, bindAddr })
 }
 
 let previousClient: import('webpack').Compiler | null = null

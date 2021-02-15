@@ -2,12 +2,12 @@
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
+import opentelemetryApi from '@opentelemetry/api'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
     require.resolve(dependency)
   } catch (err) {
-    // tslint:disable-next-line
     console.warn(
       `The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install ${dependency}'`
     )
@@ -44,7 +44,6 @@ const args = arg(
 
 // Version is inlined into the file using taskr build pipeline
 if (args['--version']) {
-  // tslint:disable-next-line
   console.log(`Next.js v${process.env.__NEXT_VERSION}`)
   process.exit(0)
 }
@@ -52,10 +51,10 @@ if (args['--version']) {
 // Check if we are running `next <subcommand>` or `next`
 const foundCommand = Boolean(commands[args._[0]])
 
-// Makes sure the `next <subcommand> --help` case is covered
+// Makes sure the `next --help` case is covered
 // This help message is only showed for `next --help`
+// `next <subcommand> --help` falls through to be handled later
 if (!foundCommand && args['--help']) {
-  // tslint:disable-next-line
   console.log(`
     Usage
       $ next <command>
@@ -106,14 +105,28 @@ if (typeof React.Suspense === 'undefined') {
   )
 }
 
-commands[command]().then((exec) => exec(forwardedArgs))
+// Make sure commands gracefully respect termination signals (e.g. from Docker)
+process.on('SIGTERM', () => process.exit(0))
+process.on('SIGINT', () => process.exit(0))
+
+commands[command]()
+  .then((exec) => exec(forwardedArgs))
+  .then(async () => {
+    if (command === 'build') {
+      // @ts-ignore getDelegate exists
+      const tp = opentelemetryApi.trace.getTracerProvider().getDelegate()
+      if (tp.shutdown) {
+        await tp.shutdown()
+      }
+      process.exit(0)
+    }
+  })
 
 if (command === 'dev') {
   const { CONFIG_FILE } = require('../next-server/lib/constants')
   const { watchFile } = require('fs')
   watchFile(`${process.cwd()}/${CONFIG_FILE}`, (cur: any, prev: any) => {
     if (cur.size > 0 || prev.size > 0) {
-      // tslint:disable-next-line
       console.log(
         `\n> Found a change in ${CONFIG_FILE}. Restart the server to see the changes in effect.`
       )

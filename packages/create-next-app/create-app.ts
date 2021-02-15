@@ -20,6 +20,7 @@ import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { shouldUseYarn } from './helpers/should-use-yarn'
 import { checkNpmVersion, checkYarnVersion } from './helpers/check-version'
+import { isWriteable } from './helpers/is-writeable'
 
 export class DownloadError extends Error {}
 
@@ -94,6 +95,17 @@ export async function createApp({
   }
 
   const root = path.resolve(appPath)
+
+  if (!(await isWriteable(path.dirname(root)))) {
+    console.error(
+      'The application path is not writable, please check folder permissions and try again.'
+    )
+    console.error(
+      'It is likely you do not have write permissions for this folder.'
+    )
+    process.exit(1)
+  }
+
   const appName = path.basename(root)
 
   await makeDir(root)

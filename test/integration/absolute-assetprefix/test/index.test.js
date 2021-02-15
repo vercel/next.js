@@ -66,12 +66,12 @@ describe('absolute assetPrefix with path prefix', () => {
   afterAll(() => cdn.close())
   afterAll(() => nextConfig.restore())
 
-  it('should be able to fetch static data from a CDN', async () => {
+  it('should not fetch static data from a CDN', async () => {
     const browser = await webdriver(appPort, '/')
     await browser.waitForElementByCss('#about-link').click()
     const prop = await browser.waitForElementByCss('#prop').text()
     expect(prop).toBe('hello')
-    expect(cdnAccessLog).toContain(`/_next/data/${buildId}/about.json`)
+    expect(cdnAccessLog).not.toContain(`/_next/data/${buildId}/about.json`)
   })
 
   it('should fetch from cache correctly', async () => {
@@ -88,7 +88,7 @@ describe('absolute assetPrefix with path prefix', () => {
       cdnAccessLog.filter(
         (path) => path === `/_next/data/${buildId}/about.json`
       )
-    ).toHaveLength(1)
+    ).toHaveLength(0)
   })
 
   it('should work with getStaticPaths prerendered', async () => {
@@ -96,7 +96,7 @@ describe('absolute assetPrefix with path prefix', () => {
     await browser.waitForElementByCss('#gsp-prerender-link').click()
     const prop = await browser.waitForElementByCss('#prop').text()
     expect(prop).toBe('prerendered')
-    expect(cdnAccessLog).toContain(
+    expect(cdnAccessLog).not.toContain(
       `/_next/data/${buildId}/gsp-fallback/prerendered.json`
     )
   })
@@ -106,7 +106,7 @@ describe('absolute assetPrefix with path prefix', () => {
     await browser.waitForElementByCss('#gsp-fallback-link').click()
     const prop = await browser.waitForElementByCss('#prop').text()
     expect(prop).toBe('fallback')
-    expect(cdnAccessLog).toContain(
+    expect(cdnAccessLog).not.toContain(
       `/_next/data/${buildId}/gsp-fallback/fallback.json`
     )
   })
@@ -116,6 +116,8 @@ describe('absolute assetPrefix with path prefix', () => {
     await browser.waitForElementByCss('#gssp-link').click()
     const prop = await browser.waitForElementByCss('#prop').text()
     expect(prop).toBe('foo')
-    expect(cdnAccessLog).toContain(`/_next/data/${buildId}/gssp.json?prop=foo`)
+    expect(cdnAccessLog).not.toContain(
+      `/_next/data/${buildId}/gssp.json?prop=foo`
+    )
   })
 })
