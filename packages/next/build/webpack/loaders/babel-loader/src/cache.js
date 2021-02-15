@@ -13,7 +13,9 @@ async function read(cacheDirectory, etag) {
 }
 
 function write(cacheDirectory, etag, data) {
-  return cacache.put(cacheDirectory, etag, JSON.stringify(data))
+  return traceAsyncFn(tracer.startSpan('write-cache-file'), () =>
+    cacache.put(cacheDirectory, etag, JSON.stringify(data))
+  )
 }
 
 const etag = function (source, identifier, options) {
