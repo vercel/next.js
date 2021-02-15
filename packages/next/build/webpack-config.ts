@@ -17,7 +17,6 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
   PAGES_DIR_ALIAS,
-  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { getPackageVersion } from '../lib/get-package-version'
@@ -30,6 +29,8 @@ import {
   REACT_LOADABLE_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
 } from '../next-server/lib/constants'
 import { execOnce } from '../next-server/lib/utils'
 import { findPageFile } from '../server/lib/find-page-file'
@@ -63,7 +64,7 @@ import WebpackConformancePlugin, {
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { NextConfig } from '../next-server/server/config'
-import { relative as relativePath } from 'path'
+import { relative as relativePath, join as pathJoin } from 'path'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -297,8 +298,8 @@ export default async function getBaseWebpackConfig(
               [CLIENT_STATIC_FILES_RUNTIME_AMP]:
                 `./` +
                 relativePath(
-                  this.dir,
-                  join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
+                  dir,
+                  pathJoin(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
                 ).replace(/\\/g, '/'),
             }
           : {}),
