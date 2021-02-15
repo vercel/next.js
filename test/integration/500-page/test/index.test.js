@@ -19,6 +19,7 @@ jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 const pages500 = join(appDir, 'pages/500.js')
 const pagesApp = join(appDir, 'pages/_app.js')
+const pagesError = join(appDir, 'pages/_error.js')
 const nextConfig = join(appDir, 'next.config.js')
 const gip500Err = /`pages\/500` can not have getInitialProps\/getServerSideProps/
 
@@ -103,7 +104,7 @@ describe('500 Page Support', () => {
     runTests('serverless')
   })
 
-  it('still build statically with getInitialProps in _app', async () => {
+  it('still builds 500 statically with getInitialProps in _app', async () => {
     await fs.writeFile(
       pagesApp,
       `
@@ -117,6 +118,45 @@ describe('500 Page Support', () => {
     const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
     await fs.remove(pagesApp)
 
+    expect(stderr).not.toMatch(gip500Err)
+    expect(code).toBe(0)
+    expect(
+      await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
+    ).toBe(true)
+  })
+
+  it('builds 500 statically by default with no pages/500', async () => {
+    await fs.rename(pages500, `${pages500}.bak`)
+    const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+    await fs.rename(`${pages500}.bak`, pages500)
+
+    expect(stderr).not.toMatch(gip500Err)
+    expect(code).toBe(0)
+    expect(
+      await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
+    ).toBe(true)
+  })
+
+  it('builds 500 statically by default with no pages/500 and custom _error', async () => {
+    await fs.rename(pages500, `${pages500}.bak`)
+    await fs.writeFile(
+      pagesError,
+      `
+        function Error({ statusCode }) {
+          return <p>Error status: {statusCode}</p>
+        }
+        Error.getInitialProps = ({ res, err }) => {
+          return {
+            statusCode: res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
+          }
+        }
+        export default Error
+      `
+    )
+    const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+    await fs.rename(`${pages500}.bak`, pages500)
+    await fs.remove(pagesError)
+    console.log(stderr)
     expect(stderr).not.toMatch(gip500Err)
     expect(code).toBe(0)
     expect(
