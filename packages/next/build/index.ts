@@ -1028,7 +1028,6 @@ export default async function build(
               }
             }
           }
-          console.error(defaultMap)
           return defaultMap
         },
         trailingSlash: false,
