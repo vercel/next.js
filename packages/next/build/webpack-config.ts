@@ -1191,6 +1191,12 @@ export default async function getBaseWebpackConfig(
   if (isWebpack5) {
     // futureEmitAssets is on by default in webpack 5
     delete webpackConfig.output?.futureEmitAssets
+
+    if (isServer && dev) {
+      // Enable building of client compilation before server compilation in development
+      // @ts-ignore dependencies exists
+      webpackConfig.dependencies = ['client']
+    }
     // webpack 5 no longer polyfills Node.js modules:
     if (webpackConfig.node) delete webpackConfig.node.setImmediate
 
