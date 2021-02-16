@@ -200,14 +200,12 @@ export interface NextApiRequest extends IncomingMessage {
   /**
    * Object of `query` values from url
    */
-  query: {
-    [key: string]: string | string[]
-  }
+  query: ParsedUrlQuery
   /**
    * Object of `cookies` from header
    */
   cookies: {
-    [key: string]: string
+    [key: string]: string | undefined
   }
 
   body: any
