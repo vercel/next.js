@@ -130,6 +130,18 @@ Both of these libraries support either authentication pattern. If you're interes
 - [with-passport](https://github.com/vercel/next.js/tree/canary/examples/with-passport)
 - [with-passport-and-next-connect](https://github.com/vercel/next.js/tree/canary/examples/with-passport-and-next-connect)
 
+
+### SuperTokens
+
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-supertokens">with-supertokens</a></li>
+  </ul>
+</details>
+
+[SuperTokens](https://supertokens.io) is an open source secure authentication system with many features such as credentials login, email verification, reset password flows, and third party logins.
+
 ### Firebase
 
 <details open>
