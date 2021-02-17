@@ -126,6 +126,7 @@
     "seedrandom": "3.0.5",
     "selenium-standalone": "6.18.0",
     "selenium-webdriver": "4.0.0-alpha.7",
+    "sharp": "0.27.1",
     "shell-quote": "1.7.2",
     "styled-components": "5.1.0",
     "styled-jsx-plugin-postcss": "3.0.2",
