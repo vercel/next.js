@@ -31,7 +31,6 @@ export type ServerlessLoaderQuery = {
   previewProps: string
   loadedEnvFiles: string
   i18n: string
-  optimizeCss: any
 }
 
 const nextServerlessLoader: webpack.loader.Loader = function () {
