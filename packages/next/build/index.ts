@@ -24,6 +24,7 @@ import loadCustomRoutes, {
 } from '../lib/load-custom-routes'
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { verifyEslintSetup } from '../lib/verifyEslintSetup'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_ID_FILE,
@@ -178,6 +179,10 @@ export default async function build(
 
     eventNextPlugins(path.resolve(dir)).then((events) =>
       telemetry.record(events)
+    )
+
+    await traceAsyncFn(tracer.startSpan('verify-eslint-setup'), () =>
+      verifyEslintSetup(dir, pagesDir)
     )
 
     const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
