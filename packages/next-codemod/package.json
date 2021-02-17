@@ -16,9 +16,13 @@
     "bin/*.js"
   ],
   "scripts": {
-    "prepublish": "yarn tsc -d -p tsconfig.json",
-    "dev": "yarn tsc -d -w -p tsconfig.json",
     "test": "jest"
   },
-  "bin": "./bin/next-codemod.js"
+  "bin": "./bin/next-codemod.js",
+  "devDependencies": {
+    "@bazel/typescript": "3.2.0",
+    "@types/node": "14.14.28",
+    "jest": "26.6.3",
+    "typescript": "4.1.5"
+  }
 }

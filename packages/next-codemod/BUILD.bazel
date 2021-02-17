@@ -1,0 +1,31 @@
+load("@next-codemod-npm//@bazel/typescript:index.bzl", "ts_library")
+load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm")
+load(":jest.bzl", "jest_test")
+
+exports_files(["tsconfig.json"], visibility = ["//visibility:public"])
+
+ts_library(
+    name = "compile_ts",
+    srcs = glob(["bin/*.ts", "transforms/*.ts"]),
+    deps = [
+        "@next-codemod-npm//@types/node"
+    ],
+    tsconfig = "tsconfig.json",
+)
+
+pkg_npm(
+    name = "next_codemod",
+    srcs = ["package.json"],
+    deps = [":compile_ts"]
+)
+
+jest_test(
+    name = "test",
+    srcs = glob(["transforms/__testfixtures__/**/*", "transforms/__tests__/**/*"]),
+    jest_config = ":jest.config.js",
+    tags = [
+        # TODO: why does this fail almost all the time, but pass on local Mac?
+        "no-bazelci-mac",
+    ],
+    deps = [":node_modules", ":compile_ts"],
+)

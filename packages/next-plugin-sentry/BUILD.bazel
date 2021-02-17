@@ -1,0 +1,6 @@
+load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm")
+
+pkg_npm(
+    name = "next_plugin_sentry",
+    srcs = ["package.json", ":src", ":readme.md"]
+)

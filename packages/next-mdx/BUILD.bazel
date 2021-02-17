@@ -1,0 +1,6 @@
+load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm")
+
+pkg_npm(
+    name = "next_mdx",
+    srcs = ["package.json", ":index.js", ":readme.md"]
+)

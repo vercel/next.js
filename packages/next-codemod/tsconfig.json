@@ -5,8 +5,7 @@
     "esModuleInterop": true,
     "target": "es2015",
     "downlevelIteration": true,
-    "preserveWatchOutput": true
-  },
-  "include": ["**/*.ts"],
-  "exclude": ["node_modules"]
+    "preserveWatchOutput": true,
+    "declaration": true
+  }
 }

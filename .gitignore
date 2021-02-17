@@ -34,6 +34,9 @@ examples/**/.env*.local
 pr-stats.md
 test-timings.json
 
+# Bazel
+bazel-*
+
 # Vercel
 .vercel
 .now
