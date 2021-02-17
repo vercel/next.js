@@ -4,12 +4,15 @@ import { execOnce } from '../../../lib/utils'
 import ImageData from './image_data'
 
 const getWorker = execOnce(
-  () => new JestWorker(path.resolve(__dirname, 'impl'))
+  () =>
+    new JestWorker(path.resolve(__dirname, 'impl'), {
+      enableWorkerThreads: true,
+    })
 )
 
 export async function decodeBuffer(buffer: Buffer): Promise<ImageData> {
   const worker: typeof import('./impl') = getWorker() as any
-  return await worker.decodeBuffer(buffer)
+  return ImageData.from(await worker.decodeBuffer(buffer))
 }
 
 export async function rotate(
@@ -17,12 +20,15 @@ export async function rotate(
   numRotations: number
 ): Promise<ImageData> {
   const worker: typeof import('./impl') = getWorker() as any
-  return await worker.rotate(image, numRotations)
+  return ImageData.from(await worker.rotate(image, numRotations))
 }
 
-export async function resize(image: ImageData, { width }: { width: number }) {
+export async function resize(
+  image: ImageData,
+  { width }: { width: number }
+): Promise<ImageData> {
   const worker: typeof import('./impl') = getWorker() as any
-  return await worker.resize(image, { width })
+  return ImageData.from(await worker.resize(image, { width }))
 }
 
 export async function encodeJpeg(
@@ -30,7 +36,8 @@ export async function encodeJpeg(
   { quality }: { quality: number }
 ): Promise<Buffer> {
   const worker: typeof import('./impl') = getWorker() as any
-  return await worker.encodeJpeg(image, { quality })
+  const o = await worker.encodeJpeg(image, { quality })
+  return Buffer.from(o)
 }
 
 export async function encodeWebp(
@@ -38,10 +45,12 @@ export async function encodeWebp(
   { quality }: { quality: number }
 ): Promise<Buffer> {
   const worker: typeof import('./impl') = getWorker() as any
-  return await worker.encodeWebp(image, { quality })
+  const o = await worker.encodeWebp(image, { quality })
+  return Buffer.from(o)
 }
 
 export async function encodePng(image: ImageData): Promise<Buffer> {
   const worker: typeof import('./impl') = getWorker() as any
-  return await worker.encodePng(image)
+  const o = await worker.encodePng(image)
+  return Buffer.from(o)
 }

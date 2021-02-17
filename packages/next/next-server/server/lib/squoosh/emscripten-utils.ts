@@ -12,13 +12,13 @@ export function instantiateEmscriptenWasm(
     locateFile: () => string
   }) => {
     decode?: (
-      buffer: Buffer,
+      buffer: Buffer | Uint8Array,
       width: number,
       height: number,
       opts: any
     ) => Buffer
     encode?: (
-      buffer: Buffer,
+      buffer: Buffer | Uint8Array,
       width: number,
       height: number,
       opts: any

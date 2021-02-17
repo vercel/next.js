@@ -105,7 +105,7 @@ export const preprocessors = {
     instantiate: async () => {
       await resizeInit()
       return (
-        buffer: Buffer,
+        buffer: Buffer | Uint8Array,
         input_width: number,
         input_height: number,
         {
@@ -156,7 +156,7 @@ export const preprocessors = {
     description: 'Rotate image',
     instantiate: async () => {
       return async (
-        buffer: Buffer,
+        buffer: Buffer | Uint8Array,
         width: number,
         height: number,
         { numRotations }: { numRotations: number }
@@ -276,7 +276,12 @@ export const codecs = {
       await pngEncDecInit()
       await oxipngInit()
       return {
-        encode: (buffer: Buffer, width: number, height: number, opts: any) => {
+        encode: (
+          buffer: Buffer | Uint8Array,
+          width: number,
+          height: number,
+          opts: any
+        ) => {
           const simplePng = pngEncDec.encode(
             new Uint8Array(buffer),
             width,
