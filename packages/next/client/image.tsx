@@ -373,7 +373,7 @@ export default function Image({
     imgStyle = {
       ...imgStyle,
       // @ts-ignore TODO: remove ts-ignore when CSSType supports content-visibility
-      contentVisibility: 'auto',
+      contentVisibility: priority ? 'visible' : 'auto',
       containIntrinsicSize: heightInt,
     }
   }
