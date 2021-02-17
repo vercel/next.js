@@ -348,6 +348,7 @@ export type BaseRouter = {
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocales
+  isLocaleDomain: boolean
 }
 
 export type NextRouter = BaseRouter &
@@ -490,6 +491,7 @@ export default class Router implements BaseRouter {
   domainLocales?: DomainLocales
   isReady: boolean
   isPreview: boolean
+  isLocaleDomain: boolean
 
   private _idx: number = 0
 
@@ -584,12 +586,17 @@ export default class Router implements BaseRouter {
       (!autoExportDynamic && !self.location.search)
     )
     this.isPreview = !!isPreview
+    this.isLocaleDomain = false
 
     if (process.env.__NEXT_I18N_SUPPORT) {
       this.locale = locale
       this.locales = locales
       this.defaultLocale = defaultLocale
       this.domainLocales = domainLocales
+      this.isLocaleDomain = !!detectDomainLocale(
+        domainLocales,
+        self.location.hostname
+      )
     }
 
     if (typeof window !== 'undefined') {
@@ -822,6 +829,7 @@ export default class Router implements BaseRouter {
         if (
           !didNavigate &&
           detectedDomain &&
+          this.isLocaleDomain &&
           self.location.hostname !== detectedDomain.domain
         ) {
           const asNoBasePath = delBasePath(as)
