@@ -1,3 +1,5 @@
+import { TextDecoder } from '../text-decoder'
+
 let wasm
 
 let cachedTextDecoder = new TextDecoder('utf-8', {

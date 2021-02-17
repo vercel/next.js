@@ -1,4 +1,6 @@
 /* eslint-disable */
+import { TextDecoder } from '../text-decoder'
+
 var Module = (function () {
   // var _scriptDir = import.meta.url
 
