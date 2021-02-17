@@ -369,7 +369,7 @@ export default function Image({
     }
   }
 
-  if (layout !== 'fill' && !unsized) {
+  if (layout === 'intrinsic' || layout === 'fixed') {
     imgStyle = {
       ...imgStyle,
       // @ts-ignore TODO: remove ts-ignore when CSSType supports content-visibility
