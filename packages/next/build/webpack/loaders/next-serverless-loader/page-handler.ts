@@ -41,8 +41,6 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
     i18n,
     buildId,
-    distDir,
-    optimizeCss,
     basePath,
     assetPrefix,
     canonicalBase,
@@ -122,8 +120,6 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       previewProps: encodedPreviewProps,
       env: process.env,
       basePath,
-      distDir,
-      optimizeCss,
       ..._renderOpts,
     }
     let _nextData = false

@@ -55,11 +55,9 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
       previewProps,
       loadedEnvFiles,
       i18n,
-      optimizeCss,
     }: ServerlessLoaderQuery =
       typeof this.query === 'string' ? parse(this.query.substr(1)) : this.query
 
-    const distDirPath = distDir.replace(/\\/g, '/')
     const buildManifest = join(distDir, BUILD_MANIFEST).replace(/\\/g, '/')
     const reactLoadableManifest = join(
       distDir,
@@ -192,8 +190,6 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         basePath: "${basePath}",
         pageIsDynamic: ${pageIsDynamicRoute},
         encodedPreviewProps: ${encodedPreviewProps},
-        distDir: "${distDirPath}",
-        optimizeCss: ${optimizeCss},
         experimental: {
           onError,
           initServer,

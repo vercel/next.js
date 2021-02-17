@@ -56,7 +56,6 @@ export type ServerlessHandlerCtx = {
   canonicalBase: string
   encodedPreviewProps: __ApiPreviewProps
   i18n?: NextConfig['i18n']
-  optimizeCss: any
   experimental: {
     initServer: () => Promise<any>
     onError: ({ err }: { err: Error }) => Promise<any>

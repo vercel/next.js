@@ -67,8 +67,7 @@ export function createEntrypoints(
   buildId: string,
   previewMode: __ApiPreviewProps,
   config: NextConfig,
-  loadedEnvFiles: LoadedEnvFiles,
-  distDir: string = ''
+  loadedEnvFiles: LoadedEnvFiles
 ): Entrypoints {
   const client: WebpackEntrypoints = {}
   const server: WebpackEntrypoints = {}
@@ -82,14 +81,13 @@ export function createEntrypoints(
     absoluteDocumentPath: pages['/_document'],
     absoluteErrorPath: pages['/_error'],
     absolute404Path: pages['/404'] || '',
-    distDir: distDir || DOT_NEXT_ALIAS,
+    distDir: DOT_NEXT_ALIAS,
     buildId,
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags,
     poweredByHeader: config.poweredByHeader,
     canonicalBase: config.amp.canonicalBase,
     basePath: config.basePath,
-    optimizeCss: config.experimental.optimizeCss,
     runtimeConfig: hasRuntimeConfig
       ? JSON.stringify({
           publicRuntimeConfig: config.publicRuntimeConfig,

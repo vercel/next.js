@@ -7,7 +7,6 @@ import {
   nextStart,
   nextBuild,
   renderViaHTTP,
-  initNextServerScript,
 } from 'next-test-utils'
 import fs from 'fs-extra'
 
@@ -17,20 +16,6 @@ const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
-
-async function getBuildId() {
-  return fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
-}
-
-const startServerlessEmulator = async (dir, port) => {
-  const scriptPath = join(dir, 'server.js')
-  const env = Object.assign(
-    {},
-    { ...process.env },
-    { PORT: port, BUILD_ID: await getBuildId() }
-  )
-  return initNextServerScript(scriptPath, /ready on/i, env)
-}
 
 function runTests() {
   it('should inline critical CSS', async () => {
@@ -90,7 +75,7 @@ describe('Font optimization for emulated serverless apps', () => {
     )
     await nextBuild(appDir)
     appPort = await findPort()
-    app = await startServerlessEmulator(appDir, appPort)
+    app = await nextStart(appDir, appPort)
   })
   afterAll(async () => {
     await killApp(app)
