@@ -93,9 +93,20 @@ const loadScript = (props: Props): void => {
 }
 
 function handleClientScriptLoad(props: Props) {
-  if (props.strategy === 'defer') {
+  const { strategy = 'defer' } = props
+  if (strategy === 'defer') {
     loadScript(props)
-  } else if (props.strategy === 'lazy') {
+  } else if (strategy === 'lazy') {
+    window.addEventListener('load', () => {
+      requestIdleCallback(() => loadScript(props))
+    })
+  }
+}
+
+function loadLazyScript(props: Props) {
+  if (document.readyState === 'complete') {
+    requestIdleCallback(() => loadScript(props))
+  } else {
     window.addEventListener('load', () => {
       requestIdleCallback(() => loadScript(props))
     })
@@ -112,7 +123,7 @@ function Script(props: Props): JSX.Element | null {
     onLoad = () => {},
     dangerouslySetInnerHTML,
     children = '',
-    strategy,
+    strategy = 'defer',
     onError,
     preload = false,
     ...restProps
@@ -125,9 +136,7 @@ function Script(props: Props): JSX.Element | null {
     if (strategy === 'defer') {
       loadScript(props)
     } else if (strategy === 'lazy') {
-      window.addEventListener('load', () => {
-        requestIdleCallback(() => loadScript(props))
-      })
+      loadLazyScript(props)
     }
   }, [props, strategy])
 
@@ -183,10 +192,6 @@ function Script(props: Props): JSX.Element | null {
   }
 
   return null
-}
-
-Script.defaultProps = {
-  strategy: 'defer',
 }
 
 export default Script
