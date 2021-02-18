@@ -130,7 +130,6 @@ Both of these libraries support either authentication pattern. If you're interes
 - [with-passport](https://github.com/vercel/next.js/tree/canary/examples/with-passport)
 - [with-passport-and-next-connect](https://github.com/vercel/next.js/tree/canary/examples/with-passport-and-next-connect)
 
-
 ### SuperTokens
 
 <details open>
