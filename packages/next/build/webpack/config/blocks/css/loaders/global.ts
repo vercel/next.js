@@ -22,6 +22,9 @@ export function getGlobalCssLoader(
     )
   }
 
+  const cssOptions = { ...ctx.cssLoaderOptions }
+  delete cssOptions.modules
+
   // Resolve CSS `@import`s and `url()`s
   loaders.push({
     loader: require.resolve('next/dist/compiled/css-loader'),
@@ -33,6 +36,7 @@ export function getGlobalCssLoader(
       url: cssFileResolve,
       import: (url: string, _: any, resourcePath: string) =>
         cssFileResolve(url, resourcePath),
+      ...cssOptions,
     },
   })
 

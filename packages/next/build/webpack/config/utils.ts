@@ -13,6 +13,12 @@ export type ConfigurationContext = {
 
   assetPrefix: string
 
+  cssLoaderOptions: {
+    modules: {
+      [key: string]: any
+    }
+    [key: string]: any
+  }
   sassOptions: any
   productionBrowserSourceMaps: boolean
 

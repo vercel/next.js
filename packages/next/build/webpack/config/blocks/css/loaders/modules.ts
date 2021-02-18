@@ -23,6 +23,11 @@ export function getCssModuleLoader(
     )
   }
 
+  const cssOptions = { ...ctx.cssLoaderOptions }
+  delete cssOptions.modules
+  const cssModulesOptions = { ...ctx.cssLoaderOptions.modules }
+  delete cssModulesOptions.mode
+
   // Resolve CSS `@import`s and `url()`s
   loaders.push({
     loader: require.resolve('next/dist/compiled/css-loader'),
@@ -48,7 +53,9 @@ export function getCssModuleLoader(
         // TODO: Consider making production reduce this to a single
         // character?
         getLocalIdent: getCssModuleLocalIdent,
+        ...cssModulesOptions,
       },
+      ...cssOptions,
     },
   })
 
