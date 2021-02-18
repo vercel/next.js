@@ -294,6 +294,12 @@ export default function Image({
 
     objectFit,
     objectPosition,
+    ...(layout === 'intrinsic' || layout === 'fixed'
+      ? {
+          contentVisibility: priority ? 'visible' : 'auto',
+          containIntrinsicSize: heightInt,
+        }
+      : undefined),
   }
   if (
     typeof widthInt !== 'undefined' &&
@@ -366,15 +372,6 @@ export default function Image({
       throw new Error(
         `Image with src "${src}" must use "width" and "height" properties or "layout='fill'" property.`
       )
-    }
-  }
-
-  if (layout === 'intrinsic' || layout === 'fixed') {
-    imgStyle = {
-      ...imgStyle,
-      // @ts-ignore TODO: remove ts-ignore when CSSType supports content-visibility
-      contentVisibility: priority ? 'visible' : 'auto',
-      containIntrinsicSize: heightInt,
     }
   }
 
