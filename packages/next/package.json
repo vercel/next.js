@@ -77,6 +77,7 @@
     "cssnano-simple": "1.2.2",
     "etag": "1.8.1",
     "find-cache-dir": "3.3.1",
+    "get-orientation": "1.1.2",
     "jest-worker": "24.9.0",
     "native-url": "0.3.4",
     "node-fetch": "2.6.1",
@@ -96,9 +97,6 @@
     "use-subscription": "1.5.1",
     "vm-browserify": "1.1.2",
     "watchpack": "2.0.0-beta.13"
-  },
-  "optionalDependencies": {
-    "sharp": "0.26.3"
   },
   "peerDependencies": {
     "fibers": ">= 3.1.0",
@@ -165,7 +163,6 @@
     "@types/react-is": "16.7.1",
     "@types/semver": "7.3.1",
     "@types/send": "0.14.4",
-    "@types/sharp": "0.26.0",
     "@types/styled-jsx": "2.2.8",
     "@types/text-table": "0.2.1",
     "@types/webpack-sources": "0.1.5",
