@@ -80,6 +80,7 @@ import {
   PageInfo,
   printCustomRoutes,
   printTreeView,
+  getCssFilePaths,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -787,7 +788,11 @@ export default async function build(
         path.relative(
           dir,
           path.join(
-            path.dirname(require.resolve('@ampproject/toolbox-optimizer')),
+            path.dirname(
+              require.resolve(
+                'next/dist/compiled/@ampproject/toolbox-optimizer'
+              )
+            ),
             '**/*'
           )
         )
@@ -868,6 +873,14 @@ export default async function build(
     }
 
     await writeBuildId(distDir, buildId)
+
+    if (config.experimental.optimizeCss) {
+      const cssFilePaths = getCssFilePaths(buildManifest)
+
+      requiredServerFiles.files.push(
+        ...cssFilePaths.map((filePath) => path.join(config.distDir, filePath))
+      )
+    }
 
     await promises.writeFile(
       path.join(distDir, SERVER_FILES_MANIFEST),
