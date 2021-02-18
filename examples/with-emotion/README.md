@@ -1,14 +1,14 @@
 # Emotion Example
 
 Extract and inline critical css with
-[emotion](https://github.com/emotion-js/emotion/tree/master/packages/emotion),
-[emotion-server](https://github.com/emotion-js/emotion/tree/master/packages/emotion-server),
+[@emotion/css](https://github.com/emotion-js/emotion/tree/master/packages/css),
+[@emotion/server](https://github.com/emotion-js/emotion/tree/master/packages/server),
 [@emotion/react](https://github.com/emotion-js/emotion/tree/master/packages/react),
 and [@emotion/styled](https://github.com/emotion-js/emotion/tree/master/packages/styled).
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-emotion&project-name=with-emotion&repository-name=with-emotion)
 

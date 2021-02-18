@@ -1,8 +1,8 @@
-import { Compiler } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { getModuleBuildError } from './webpackModuleError'
 
 export class WellKnownErrorsPlugin {
-  apply(compiler: Compiler) {
+  apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap('WellKnownErrorsPlugin', (compilation) => {
       compilation.hooks.afterSeal.tapPromise(
         'WellKnownErrorsPlugin',

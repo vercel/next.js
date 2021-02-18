@@ -11,7 +11,9 @@ Quickly get started using [Create Next App](https://github.com/vercel/next.js/tr
 In your terminal, run the following command:
 
 ```bash
-npx create-next-app --example with-jest
+npx create-next-app --example with-jest with-jest-app
+# or
+yarn create next-app --example with-jest with-jest-app
 ```
 
 ## Run Jest Tests

@@ -252,6 +252,12 @@ export default async function exportApp(
       )
     }
 
+    if (outDir === join(dir, 'static')) {
+      throw new Error(
+        `The 'static' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/vercel/next.js/can-not-output-to-static`
+      )
+    }
+
     await recursiveDelete(join(outDir))
     await promises.mkdir(join(outDir, '_next', buildId), { recursive: true })
 
