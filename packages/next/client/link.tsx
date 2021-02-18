@@ -84,6 +84,7 @@ function linkClicked(
   scroll?: boolean,
   locale?: string | false
 ): void {
+  if (typeof window === 'undefined' || !router) return
   const { nodeName } = e.currentTarget
 
   if (nodeName === 'A' && (isModifiedEvent(e) || !isLocalURL(href))) {
