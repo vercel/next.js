@@ -14,7 +14,10 @@ describe('Build Stats', () => {
     await nextBuild(appDir)
     expect(await fs.pathExists(statsPath)).toBe(true)
 
-    const statsData = await fs.readFile(statsPath, 'utf8')
-    JSON.parse(statsData)
+    const statsString = await fs.readFile(statsPath, 'utf8')
+    const statsData = JSON.parse(statsString)
+
+    expect(statsData.version).toBe(0)
+    expect(typeof statsData.stats).toBe('object')
   })
 })
