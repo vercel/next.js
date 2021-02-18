@@ -421,12 +421,7 @@ export default async function build(
         ]
           .filter(nonNullable)
           .map((file) => path.join(config.distDir, file)),
-        ignore: [
-          path.relative(
-            dir,
-            path.join(path.dirname(require.resolve('sharp')), '**/*')
-          ),
-        ],
+        ignore: [] as string[],
       })
     )
 
