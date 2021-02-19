@@ -1,28 +1,12 @@
 #!/usr/bin/env node
 
 import { resolve } from 'path'
-import os from 'os'
 import arg from 'next/dist/compiled/arg/index.js'
 import startServer from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
+import { getNetworkHost } from '../lib/get-network-host'
 import * as Log from '../build/output/log'
-
-function networkHosts() {
-  const interfaces = os.networkInterfaces()
-  const hosts: string[] = []
-
-  Object.keys(interfaces).forEach((key) =>
-    interfaces[key]
-      ?.filter(({ family, address }) => {
-        return family === 'IPv4' && !address.includes('127.0.0.1')
-      })
-      .forEach(({ address }) => hosts.push(address))
-  )
-
-  return hosts
-}
-
 const nextStart: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
     // Types
@@ -66,25 +50,27 @@ const nextStart: cliCommand = (argv) => {
 
   const dir = resolve(args._[0] || '.')
   const port = args['--port'] || 3000
-  const localHost = args['--hostname'] || '0.0.0.0'
-  const appUrl = (host: string) =>
-    `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
+  const host = args['--hostname'] || '0.0.0.0'
+  const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
 
-  startServer({ dir }, port, localHost)
-    .then(async (app) => {
-      const space = ' '.repeat(8)
-      let message = `started server on - \n`
+  function logNetworkUrls() {
+    const space = ' '.repeat(8)
+    let message = `started server on - \n`
+    message += space + `local - ${host}:${port}, url: ${appUrl} \n`
+
+    const networkHost = getNetworkHost()
+    if (networkHost) {
       message +=
-        space + `local: ${localHost}:${port}, url: ${appUrl(localHost)} \n`
+        space +
+        `network - ${networkHost}:${port}, url: http://${networkHost}:${port}`
+    }
 
-      networkHosts().forEach(
-        (networkHost) =>
-          (message +=
-            space +
-            `network: ${networkHost}:${port}, url: ${appUrl(networkHost)} \n`)
-      )
+    Log.ready(message)
+  }
 
-      Log.ready(message)
+  startServer({ dir }, port, host)
+    .then(async (app) => {
+      logNetworkUrls()
       await app.prepare()
     })
     .catch((err) => {
