@@ -2,7 +2,7 @@ import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
 import { isWebpack5, webpack } from 'next/dist/compiled/webpack/webpack'
-import { join, relative as relativePath } from 'path'
+import { join } from 'path'
 import { stringify } from 'querystring'
 import { UrlObject } from 'url'
 import { createEntrypoints, createPagesMapping } from '../build/entries'
@@ -11,14 +11,10 @@ import { watchCompilers } from '../build/output'
 import { difference } from '../build/utils'
 import getBaseWebpackConfig from '../build/webpack-config'
 import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
-import { API_ROUTE, NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
+import { API_ROUTE } from '../lib/constants'
 import { Rewrite } from '../lib/load-custom-routes'
 import { recursiveDelete } from '../lib/recursive-delete'
-import {
-  BLOCKED_PAGES,
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
-  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-} from '../next-server/lib/constants'
+import { BLOCKED_PAGES } from '../next-server/lib/constants'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { NextConfig } from '../next-server/server/config-shared'
 import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
@@ -45,10 +41,7 @@ export async function renderScriptError(
     'no-cache, no-store, max-age=0, must-revalidate'
   )
 
-  if (
-    (error as any).code === 'ENOENT' ||
-    error.message === 'INVALID_BUILD_ID'
-  ) {
+  if ((error as any).code === 'ENOENT') {
     res.statusCode = 404
     res.end('404 - Not Found')
     return
@@ -118,10 +111,6 @@ function erroredPages(compilation: webpack.compilation.Compilation) {
     }
 
     // Only pages have to be reloaded
-    if (!getRouteFromEntrypoint(name)) {
-      continue
-    }
-
     const enhancedName = getRouteFromEntrypoint(name)
 
     if (!enhancedName) {
@@ -253,7 +242,7 @@ export default class HotReloader {
     const { finished } = await handlePageBundleRequest(res, parsedUrl)
 
     for (const fn of this.middlewares) {
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         fn(req, res, (err: Error) => {
           if (err) return reject(err)
           resolve()
@@ -287,18 +276,6 @@ export default class HotReloader {
       []
     )
 
-    let additionalClientEntrypoints: { [file: string]: string } = {}
-    additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] =
-      `./` +
-      relativePath(
-        this.dir,
-        join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
-      ).replace(/\\/g, '/')
-
-    additionalClientEntrypoints[
-      CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
-    ] = require.resolve(`@next/react-refresh-utils/runtime`)
-
     return Promise.all([
       getBaseWebpackConfig(this.dir, {
         dev: true,
@@ -307,7 +284,7 @@ export default class HotReloader {
         buildId: this.buildId,
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
-        entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints },
+        entrypoints: entrypoints.client,
       }),
       getBaseWebpackConfig(this.dir, {
         dev: true,
