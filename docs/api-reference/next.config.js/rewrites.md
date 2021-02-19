@@ -140,6 +140,68 @@ module.exports = {
 }
 ```
 
+## Header, Cookie, and Query Matching
+
+To only match a rewrite when header, cookie, or query values also match the `has` field can be used. Both the `source` and all `has` items must match for the rewrite to be applied.
+
+`has` items have the following fields:
+
+- `type`: `String` - must be either `header`, `cookie`, or `query`.
+- `key`: `String` - the key from the selected type to match against.
+- `value`: `String` or `undefined` - the value to check for, if undefined any value will match. A regex like string can be used to capture or a specific part of the value e.g. with `first-(?<paramName>.*)` and the value `first-second` `second` will be usable in the destination with `:paramName`.
+
+```js
+module.exports = {
+  async rewrites() {
+    return [
+      // if the header `x-rewrite-me` is present,
+      // this rewrite will be applied
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'header',
+            key: 'x-rewrite-me',
+          },
+        ],
+        destination: '/another-page',
+      },
+      // if the source, query, and cookie are matched,
+      // this rewrite will be applied
+      {
+        source: '/specific/:path*',
+        has: [
+          {
+            type: 'query',
+            key: 'page',
+            value: 'home',
+          },
+          {
+            type: 'cookie',
+            key: 'authorized',
+            value: 'true',
+          },
+        ],
+        destination: '/:path*/:page',
+      },
+      // if the header `x-authorized` is present and
+      // contains a matching value, this rewrite will be applied
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'header',
+            key: 'x-authorized',
+            value: '(?<authorized>yes|true)',
+          },
+        ],
+        destination: '/home?authorized=:authorized',
+      },
+    ]
+  },
+}
+```
+
 ## Rewriting to an external URL
 
 <details>
