@@ -371,7 +371,7 @@ export default class Server {
         rewrites: this.customRoutes.rewrites,
       })
 
-      utils.handleRewrites(parsedUrl)
+      utils.handleRewrites(req, parsedUrl)
 
       // interpolate dynamic params and normalize URL if needed
       if (pageIsDynamic) {
@@ -799,6 +799,7 @@ export default class Server {
       const headerRoute = getCustomRoute(r, 'header')
       return {
         match: headerRoute.match,
+        has: headerRoute.has,
         type: headerRoute.type,
         name: `${headerRoute.type} ${headerRoute.source} header route`,
         fn: async (_req, res, params, _parsedUrl) => {
@@ -841,6 +842,7 @@ export default class Server {
             internal: redirectRoute.internal,
             type: redirectRoute.type,
             match: redirectRoute.match,
+            has: redirectRoute.has,
             statusCode: redirectRoute.statusCode,
             name: `Redirect route ${redirectRoute.source}`,
             fn: async (req, res, params, parsedUrl) => {

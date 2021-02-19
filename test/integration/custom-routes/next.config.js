@@ -125,7 +125,7 @@ module.exports = {
             key: 'my-query',
           },
         ],
-        destination: '/with-params?value=:my-query',
+        destination: '/with-params?value=:myquery',
       },
       {
         source: '/has-rewrite-3',
@@ -269,7 +269,7 @@ module.exports = {
             key: 'my-query',
           },
         ],
-        destination: '/another?value=:my-query',
+        destination: '/another?value=:myquery',
         permanent: false,
       },
       {

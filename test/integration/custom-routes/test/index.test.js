@@ -616,6 +616,184 @@ const runTests = (isDev = false) => {
     )
   })
 
+  it('should match has header rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/has-rewrite-1', undefined, {
+      headers: {
+        'x-my-header': 'hello world!!',
+      },
+    })
+
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+
+    expect(JSON.parse($('#query').text())).toEqual({
+      myHeader: 'hello world!!',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/has-rewrite-1')
+    expect(res2.status).toBe(404)
+  })
+
+  it('should match has query rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/has-rewrite-2', {
+      'my-query': 'hellooo',
+    })
+
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+
+    expect(JSON.parse($('#query').text())).toEqual({
+      'my-query': 'hellooo',
+      myquery: 'hellooo',
+      value: 'hellooo',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/has-rewrite-2')
+    expect(res2.status).toBe(404)
+  })
+
+  it('should match has cookie rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/has-rewrite-3', undefined, {
+      headers: {
+        cookie: 'loggedIn=true',
+      },
+    })
+
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+
+    expect(JSON.parse($('#query').text())).toEqual({
+      loggedIn: 'true',
+      authorized: '1',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/has-rewrite-3')
+    expect(res2.status).toBe(404)
+  })
+
+  it('should match has header redirect correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/has-redirect-1', undefined, {
+      headers: {
+        'x-my-header': 'hello world!!',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(307)
+    const parsed = url.parse(res.headers.get('location'), true)
+
+    expect(parsed.pathname).toBe('/another')
+    expect(parsed.query).toEqual({
+      myHeader: 'hello world!!',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/has-redirect-1', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.status).toBe(404)
+  })
+
+  it('should match has query redirect correctly', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/has-redirect-2',
+      {
+        'my-query': 'hellooo',
+      },
+      {
+        redirect: 'manual',
+      }
+    )
+
+    expect(res.status).toBe(307)
+    const parsed = url.parse(res.headers.get('location'), true)
+
+    expect(parsed.pathname).toBe('/another')
+    expect(parsed.query).toEqual({
+      value: 'hellooo',
+      'my-query': 'hellooo',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/has-redirect-2', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.status).toBe(404)
+  })
+
+  it('should match has cookie redirect correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/has-redirect-3', undefined, {
+      headers: {
+        cookie: 'loggedIn=true',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(307)
+    const parsed = url.parse(res.headers.get('location'), true)
+
+    expect(parsed.pathname).toBe('/another')
+    expect(parsed.query).toEqual({
+      authorized: '1',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/has-redirect-3', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.status).toBe(404)
+  })
+
+  it('should match has header for header correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/has-header-1', undefined, {
+      headers: {
+        'x-my-header': 'hello world!!',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.headers.get('x-another')).toBe('header')
+
+    const res2 = await fetchViaHTTP(appPort, '/has-header-1', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.headers.get('x-another')).toBe(null)
+  })
+
+  it('should match has query for header correctly', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/has-header-2',
+      {
+        'my-query': 'hellooo',
+      },
+      {
+        redirect: 'manual',
+      }
+    )
+
+    expect(res.headers.get('x-added')).toBe('value')
+
+    const res2 = await fetchViaHTTP(appPort, '/has-header-2', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.headers.get('x-another')).toBe(null)
+  })
+
+  it('should match has cookie for header correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/has-header-3', undefined, {
+      headers: {
+        cookie: 'loggedIn=true',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.headers.get('x-is-user')).toBe('yuuuup')
+
+    const res2 = await fetchViaHTTP(appPort, '/has-header-3', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.headers.get('x-is-user')).toBe(null)
+  })
+
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(
@@ -798,7 +976,7 @@ const runTests = (isDev = false) => {
             statusCode: 307,
           },
           {
-            destination: '/another?value=:my-query',
+            destination: '/another?value=:myquery',
             has: [
               {
                 key: 'my-query',
@@ -1178,7 +1356,7 @@ const runTests = (isDev = false) => {
             source: '/has-rewrite-1',
           },
           {
-            destination: '/with-params?value=:my-query',
+            destination: '/with-params?value=:myquery',
             has: [
               {
                 key: 'my-query',

@@ -1,9 +1,79 @@
+import { IncomingMessage } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import { searchParamsToUrlQuery } from './querystring'
 import { parseRelativeUrl } from './parse-relative-url'
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
+import { RouteHas } from '../../../../lib/load-custom-routes'
 
 type Params = { [param: string]: any }
+
+// ensure only a-zA-Z are used for param names for proper interpolating
+// with path-to-regexp
+const getSafeParamName = (paramName: string) => {
+  let newParamName = ''
+
+  for (let i = 0; i < paramName.length; i++) {
+    const charCode = paramName.charCodeAt(i)
+
+    if (
+      (charCode > 64 && charCode < 91) || // A-Z
+      (charCode > 96 && charCode < 123) // a-z
+    ) {
+      newParamName += paramName[i]
+    }
+  }
+  return newParamName
+}
+
+export function matchHas(
+  req: IncomingMessage,
+  has: RouteHas[],
+  query: Params
+): false | Params {
+  const params: Params = {}
+  const allMatch = has.every((hasItem) => {
+    let value: undefined | string
+    let key = hasItem.key
+
+    if (hasItem.type === 'header') {
+      key = key.toLowerCase()
+      value = req.headers[key] as string
+    } else if (hasItem.type === 'cookie') {
+      value = (req as any).cookies[hasItem.key]
+    } else if (hasItem.type === 'query') {
+      value = query[key]
+    }
+
+    if (!hasItem.value && value) {
+      params[getSafeParamName(key)] = value
+      return true
+    } else if (value) {
+      const matcher = new RegExp(`^${hasItem.value}$`)
+      const matches = value.match(matcher)
+
+      if (matches) {
+        if (matches.groups) {
+          Object.keys(matches.groups).forEach((groupKey) => {
+            const safeKey = getSafeParamName(groupKey)
+
+            if (safeKey && matches.groups![groupKey]) {
+              params[safeKey] = matches.groups![groupKey]
+            }
+          })
+        } else {
+          params[getSafeParamName(key)] = matches[0]
+        }
+        return true
+      }
+    }
+    return false
+  })
+
+  if (allMatch) {
+    return params
+  }
+  return false
+}
 
 export function compileNonPath(value: string, params: Params): string {
   if (!value.includes(':')) {
