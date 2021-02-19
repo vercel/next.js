@@ -1,6 +1,7 @@
 import compression from 'next/dist/compiled/compression'
 import fs from 'fs'
 import chalk from 'chalk'
+import { init as initWebpack } from 'next/dist/compiled/webpack/webpack'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
 import { join, relative, resolve, sep } from 'path'
@@ -49,11 +50,8 @@ import {
   tryGetPreviewData,
   __ApiPreviewProps,
 } from './api-utils'
-import loadConfig, {
-  DomainLocales,
-  isTargetLikeServerless,
-  NextConfig,
-} from './config'
+import loadConfig, { isTargetLikeServerless } from './config'
+import { DomainLocales, NextConfig } from './config-shared'
 import pathMatch from '../lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
@@ -181,6 +179,9 @@ export default class Server {
     const phase = this.currentPhase()
     loadEnvConfig(this.dir, dev, Log)
 
+    // Webpack is not used in production, so we can load webpack 4 to prevent
+    // the require operation from failing, even though it's not used:
+    initWebpack(false)
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)

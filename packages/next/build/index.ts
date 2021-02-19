@@ -1,4 +1,5 @@
 import { loadEnvConfig } from '@next/env'
+import opentelemetryApi from '@opentelemetry/api'
 import chalk from 'chalk'
 import crypto from 'crypto'
 import { promises, writeFileSync } from 'fs'
@@ -42,6 +43,7 @@ import {
   SERVER_DIRECTORY,
   SERVER_FILES_MANIFEST,
 } from '../next-server/lib/constants'
+import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 import {
   getRouteRegex,
   getSortedRoutes,
@@ -51,6 +53,7 @@ import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import loadConfig, {
   isTargetLikeServerless,
 } from '../next-server/server/config'
+import { loadWebpackHook } from '../next-server/server/dummy-config'
 import { BuildManifest } from '../next-server/server/get-page-files'
 import '../next-server/server/node-polyfill-fetch'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
@@ -84,8 +87,6 @@ import {
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
-import opentelemetryApi from '@opentelemetry/api'
-import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -123,6 +124,7 @@ export default async function build(
       loadEnvConfig(dir, false, Log)
     )
 
+    await loadWebpackHook(PHASE_PRODUCTION_BUILD, dir)
     const config = traceFn(tracer.startSpan('load-next-config'), () =>
       loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
     )
