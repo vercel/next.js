@@ -1,6 +1,7 @@
+import * as log from '../../build/output/log'
 import { formatResults } from './customFormatter'
 import { ESLint } from 'eslint'
-import { readdirSync } from 'fs'
+import { readFileSync } from 'fs'
 
 export interface EslintResult {
   results?: ESLint.LintResult[]
@@ -9,16 +10,28 @@ export interface EslintResult {
 export async function runEslint(
   baseDir: string,
   pagesDir: string,
-  errorsEnabled: boolean
+  errorsEnabled: boolean,
+  eslintrcFile?: string
 ): Promise<EslintResult> {
   let options: ESLint.Options
 
-  const dirFiles = readdirSync(baseDir)
-  const eslintrc = dirFiles.find((file) =>
-    /^.eslintrc.?(js|json|yaml|yml)?$/.test(file)
-  )
+  if (eslintrcFile) {
+    const eslintConfig = readFileSync(`${baseDir}/${eslintrcFile}`).toString()
 
-  if (!eslintrc) {
+    if (!eslintConfig.includes('@next/next')) {
+      log.warn(
+        `The Next.js ESLint plugin was not detected in ${eslintrcFile}. We recommend including it to prevent significant issues in your application (see https://nextjs.org/docs/linting).`
+      )
+    }
+
+    options = {
+      useEslintrc: true,
+    }
+  } else {
+    log.info(
+      'No ESLint configuration file was detected, but checks from the Next.js ESLint plugin were included automatically (see https://nextjs.org/docs/linting).'
+    )
+
     options = {
       baseConfig: {
         extends: ['plugin:@next/next/recommended'],
@@ -32,10 +45,6 @@ export async function runEslint(
         },
       },
       useEslintrc: false,
-    }
-  } else {
-    options = {
-      useEslintrc: true,
     }
   }
 

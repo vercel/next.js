@@ -28,7 +28,7 @@ function formatMessage(
 
     output =
       output +
-      '\n  ' +
+      '\n' +
       chalk.yellow(line.toString()) +
       ':' +
       chalk.yellow(column.toString()) +

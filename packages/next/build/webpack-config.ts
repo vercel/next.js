@@ -891,7 +891,6 @@ export default async function getBaseWebpackConfig(
         'emit-file-loader',
         'error-loader',
         'next-babel-loader',
-        'next-eslint-loader',
         'next-client-pages-loader',
         'next-serverless-loader',
         'noop-loader',
@@ -923,40 +922,6 @@ export default async function getBaseWebpackConfig(
               } as any,
             ]
           : []),
-        (config.experimental.enableBuildTimeLinting === 'eslint' ||
-          config.experimental.enableBuildTimeLinting === 'default') &&
-          isServer && {
-            test: /\.(tsx|ts|js|mjs|jsx)$/,
-            enforce: 'pre',
-            include: [dir],
-            use: [
-              {
-                options: {
-                  dir,
-                  distDir,
-                  dev,
-                  cache: true,
-                  type: config.experimental.enableBuildTimeLinting,
-                  failOnWarning: false,
-                  env: {
-                    es6: true,
-                  },
-                  parserOptions: {
-                    sourceType: 'module',
-                    ecmaVersion: 2018,
-                    ecmaFeatures: {
-                      jsx: true,
-                    },
-                    plugins: ['jsx'],
-                  },
-                },
-                loader: 'next-eslint-loader',
-              },
-            ],
-            exclude: (excludePath: string) => {
-              return /node_modules/.test(excludePath)
-            },
-          },
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
           include: [dir, ...babelIncludeRegexes],

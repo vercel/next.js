@@ -3,10 +3,7 @@ import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import opentelemetryApi from '@opentelemetry/api'
-import { traceFn, tracer } from '../build/tracer'
-import loadConfig from '../next-server/server/config'
-import { PHASE_PRODUCTION_BUILD } from '../next-server/lib/constants'
-import { readFileSync, readdirSync } from 'fs'
+import { readdirSync } from 'fs'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -124,38 +121,6 @@ commands[command]()
     }
   })
 
-const config = traceFn(tracer.startSpan('load-next-config'), () =>
-  loadConfig(PHASE_PRODUCTION_BUILD, process.cwd())
-)
-const { enableBuildTimeLinting } = config.experimental
-
-if (
-  enableBuildTimeLinting &&
-  enableBuildTimeLinting !== 'eslint' &&
-  enableBuildTimeLinting !== 'default'
-) {
-  log.warn(
-    'The experimental enableBuildTimeLinting flag is enabled incorrectly. Please specify a value of "default" or "eslint".'
-  )
-}
-
-if (enableBuildTimeLinting === 'eslint') {
-  const dirFiles = readdirSync(process.cwd())
-  const eslintrc = dirFiles.find((file) =>
-    /^.eslintrc.?(js|json|yaml|yml)?$/.test(file)
-  )
-
-  if (eslintrc) {
-    let eslintConfig = readFileSync(`${process.cwd()}/${eslintrc}`).toString()
-
-    if (!eslintConfig.includes('@next/next')) {
-      log.warn(
-        `The Next.js ESLint plugin is missing from ${eslintrc}. We recommend including it to prevent significant issues in your application (see https://nextjs.org/docs/linting).`
-      )
-    }
-  }
-}
-
 if (command === 'dev') {
   const { CONFIG_FILE } = require('../next-server/lib/constants')
   const { watchFile } = require('fs')
@@ -167,20 +132,17 @@ if (command === 'dev') {
     }
   })
 
-  if (enableBuildTimeLinting === 'eslint') {
-    const dirFiles = readdirSync(process.cwd())
-    const eslintrc = dirFiles.find((file) =>
-      /^.eslintrc.?(js|json|yaml|yml)?$/.test(file)
-    )
+  const eslintrcFile = readdirSync(process.cwd()).find((file) =>
+    /^.eslintrc.?(js|json|yaml|yml)?$/.test(file)
+  )
 
-    if (eslintrc) {
-      watchFile(`${process.cwd()}/${eslintrc}`, (cur: any, prev: any) => {
-        if (cur.size > 0 || prev.size > 0) {
-          console.log(
-            `\n> Found a change in ${eslintrc}. Restart the server to see the changes in effect.`
-          )
-        }
-      })
-    }
+  if (eslintrcFile) {
+    watchFile(`${process.cwd()}/${eslintrcFile}`, (cur: any, prev: any) => {
+      if (cur.size > 0 || prev.size > 0) {
+        console.log(
+          `\n> Found a change in ${eslintrcFile}. Restart the server to see the changes in effect.`
+        )
+      }
+    })
   }
 }
