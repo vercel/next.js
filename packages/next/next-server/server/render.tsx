@@ -81,6 +81,7 @@ class ServerRouter implements NextRouter {
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocales
+  isPreview: boolean
   isLocaleDomain: boolean
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
@@ -92,11 +93,12 @@ class ServerRouter implements NextRouter {
     { isFallback }: { isFallback: boolean },
     isReady: boolean,
     basePath: string,
-    locale: string | undefined,
-    locales: string[] | undefined,
-    defaultLocale: string | undefined,
-    domainLocales: DomainLocales | undefined,
-    isLocaleDomain: boolean
+    locale?: string,
+    locales?: string[],
+    defaultLocale?: string,
+    domainLocales?: DomainLocales,
+    isPreview?: boolean,
+    isLocaleDomain?: boolean
   ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
@@ -109,7 +111,8 @@ class ServerRouter implements NextRouter {
     this.defaultLocale = defaultLocale
     this.isReady = isReady
     this.domainLocales = domainLocales
-    this.isLocaleDomain = isLocaleDomain
+    this.isPreview = !!isPreview
+    this.isLocaleDomain = !!isLocaleDomain
   }
 
   push(): any {
@@ -234,6 +237,7 @@ function renderDocument(
     locales,
     defaultLocale,
     domainLocales,
+    isPreview,
   }: RenderOpts & {
     props: any
     docComponentsRendered: DocumentProps['docComponentsRendered']
@@ -256,6 +260,7 @@ function renderDocument(
     appGip?: boolean
     devOnlyCacheBusterQueryString: string
     scriptLoader: any
+    isPreview?: boolean
   }
 ): string {
   return (
@@ -285,6 +290,7 @@ function renderDocument(
             locales,
             defaultLocale,
             domainLocales,
+            isPreview,
           },
           buildManifest,
           docComponentsRendered,
@@ -549,6 +555,17 @@ export async function renderToHTML(
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
+  let isPreview
+  let previewData: string | false | object | undefined
+
+  if ((isSSG || getServerSideProps) && !isFallback) {
+    // Reads of this are cached on the `req` object, so this should resolve
+    // instantly. There's no need to pass this data down from a previous
+    // invoke, where we'd have to consider server & serverless.
+    previewData = tryGetPreviewData(req, res, previewProps)
+    isPreview = previewData !== false
+  }
+
   // url will always be set
   const asPath: string = renderOpts.resolvedAsPath || (req.url as string)
   const routerIsReady = !!(getServerSideProps || hasPageGetInitialProps)
@@ -565,6 +582,7 @@ export async function renderToHTML(
     renderOpts.locales,
     renderOpts.defaultLocale,
     renderOpts.domainLocales,
+    isPreview,
     (req as any).__nextIsLocaleDomain
   )
   const ctx = {
@@ -631,17 +649,12 @@ export async function renderToHTML(
       ctx,
     })
 
-    if (isSSG) {
-      props[STATIC_PROPS_ID] = true
+    if ((isSSG || getServerSideProps) && isPreview) {
+      props.__N_PREVIEW = true
     }
 
-    let previewData: string | false | object | undefined
-
-    if ((isSSG || getServerSideProps) && !isFallback) {
-      // Reads of this are cached on the `req` object, so this should resolve
-      // instantly. There's no need to pass this data down from a previous
-      // invoke, where we'd have to consider server & serverless.
-      previewData = tryGetPreviewData(req, res, previewProps)
+    if (isSSG) {
+      props[STATIC_PROPS_ID] = true
     }
 
     if (isSSG && !isFallback) {
@@ -650,7 +663,7 @@ export async function renderToHTML(
       try {
         data = await getStaticProps!({
           ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
-          ...(previewData !== false
+          ...(isPreview
             ? { preview: true, previewData: previewData }
             : undefined),
           locales: renderOpts.locales,
@@ -799,6 +812,7 @@ export async function renderToHTML(
         props.pageProps,
         'props' in data ? data.props : undefined
       )
+
       // pass up revalidate and props for export
       // TODO: change this to a different passing mechanism
       ;(renderOpts as any).revalidate =
@@ -1063,6 +1077,7 @@ export async function renderToHTML(
     appGip: !defaultAppGetInitialProps ? true : undefined,
     devOnlyCacheBusterQueryString,
     scriptLoader,
+    isPreview: isPreview === true ? true : undefined,
   })
 
   if (process.env.NODE_ENV !== 'production') {
