@@ -71,6 +71,7 @@ const {
   locale,
   locales,
   domainLocales,
+  isPreview,
 } = data
 
 let { defaultLocale } = data
@@ -375,6 +376,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     locales,
     defaultLocale,
     domainLocales,
+    isPreview,
   })
 
   // call init-client middleware
