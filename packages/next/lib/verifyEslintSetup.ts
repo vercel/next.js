@@ -27,7 +27,7 @@ export async function verifyEslintSetup(
 
       if (!config.includes('@next/next')) {
         log.warn(
-          `The Next.js ESLint plugin was not detected in ${eslintrcFile}. We recommend including it to prevent significant issues in your application (see https://nextjs.org/docs/linting).`
+          `The Next.js ESLint plugin was not detected in ${eslintrcFile}. We recommend including it to prevent significant issues in your application (see https://nextjs.org/docs/basic-features/eslint).`
         )
       }
 
@@ -36,7 +36,7 @@ export async function verifyEslintSetup(
       }
     } else {
       log.info(
-        'No ESLint configuration file was detected, but checks from the Next.js ESLint plugin were included automatically (see https://nextjs.org/docs/linting).'
+        'No ESLint configuration file was detected, but checks from the Next.js ESLint plugin were included automatically (see https://nextjs.org/docs/basic-features/eslint).'
       )
 
       options = {
@@ -63,10 +63,10 @@ export async function verifyEslintSetup(
     const errors = ESLint.getErrorResults(results)
 
     if (errors?.length && !pagePath) {
-      //Only throw errors during build when all page files are linted
+      //Only throw errors during build (when all page files are linted)
       throw new Error(formatResults(baseDir, results))
     } else if (results?.length) {
-      // No errors, or in dev mode when single files are linted
+      // No errors, or in dev mode (when single files are linted)
       console.log(formatResults(baseDir, results))
     }
   } catch (err) {
