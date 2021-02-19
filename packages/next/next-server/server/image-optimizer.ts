@@ -245,7 +245,16 @@ export async function imageOptimizer(
   if (mimeType) {
     contentType = mimeType
   } else if (upstreamType?.startsWith('image/') && getExtension(upstreamType)) {
-    contentType = upstreamType
+    // use best fit media type if original image format is modern type
+    if (MODERN_TYPES.includes(upstreamType)) {
+      const bestFitMediaType = mediaType(headers.accept)
+      // use png if best fit media type is not supported by server
+      contentType = [PNG, JPEG].includes(bestFitMediaType)
+        ? PNG
+        : bestFitMediaType
+    } else {
+      contentType = upstreamType
+    }
   } else {
     contentType = JPEG
   }

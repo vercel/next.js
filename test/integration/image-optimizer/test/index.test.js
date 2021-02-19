@@ -150,6 +150,20 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('etag')).toBeTruthy()
   })
 
+  it('should transform webp to png format for old browsers', async () => {
+    const accept =
+      'image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5'
+    const query = { w, q: 75, url: '/test.webp' }
+    const opts = { headers: { accept } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/png')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
+  })
+
   it('should fail when url is missing', async () => {
     const query = { w, q: 100 }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
