@@ -4,10 +4,10 @@ import { runEslint } from './eslint/runEslint'
 export async function verifyEslintSetup(
   dir: string,
   pagesDir: string,
-  dev: boolean
+  pagePath: string | null
 ) {
   try {
-    return await runEslint(dir, pagesDir, dev)
+    return await runEslint(dir, pagesDir, pagePath)
   } catch (err) {
     console.error(chalk.red('Failed to compile.'))
     console.error(err.message)

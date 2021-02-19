@@ -512,6 +512,7 @@ export default class HotReloader {
     this.onDemandEntries = onDemandEntryHandler(this.watcher, multiCompiler, {
       pagesDir: this.pagesDir,
       pageExtensions: this.config.pageExtensions,
+      eslint: this.config.eslint?.dev,
       ...(this.config.onDemandEntries as {
         maxInactiveAge: number
         pagesBufferLength: number

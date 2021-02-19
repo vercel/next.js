@@ -16,7 +16,6 @@ import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, { CustomRoutes } from '../lib/load-custom-routes'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
-import { verifyEslintSetup } from '../lib/verifyEslintSetup'
 import {
   PHASE_DEVELOPMENT_SERVER,
   CLIENT_STATIC_FILES_PATH,
@@ -268,10 +267,6 @@ export default class DevServer extends Server {
   async prepare(): Promise<void> {
     await verifyTypeScriptSetup(this.dir, this.pagesDir!, false)
 
-    if (this.nextConfig.eslint?.dev) {
-      await verifyEslintSetup(this.dir, this.pagesDir!, true)
-    }
-
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
 
     // reload router
@@ -314,7 +309,6 @@ export default class DevServer extends Server {
 
   protected async hasPage(pathname: string): Promise<boolean> {
     let normalizedPath: string
-
     try {
       normalizedPath = normalizePagePath(pathname)
     } catch (err) {

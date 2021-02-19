@@ -4,6 +4,7 @@ import { join, posix } from 'path'
 import { parse } from 'url'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import * as Log from '../build/output/log'
+import { verifyEslintSetup } from '../lib/verifyEslintSetup'
 import {
   normalizePagePath,
   normalizePathSep,
@@ -32,11 +33,13 @@ export default function onDemandEntryHandler(
   {
     pagesDir,
     pageExtensions,
+    eslint,
     maxInactiveAge,
     pagesBufferLength,
   }: {
     pagesDir: string
     pageExtensions: string[]
+    eslint: boolean
     maxInactiveAge: number
     pagesBufferLength: number
   }
@@ -191,6 +194,9 @@ export default function onDemandEntryHandler(
             return
           }
         }
+
+        // TODO: Move out of hot-reloader into a separate process
+        if (eslint) verifyEslintSetup(process.cwd(), pagesDir, pagePath)
 
         Log.event(`build page: ${normalizedPage}`)
 

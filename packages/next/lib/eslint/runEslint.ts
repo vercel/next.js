@@ -1,7 +1,9 @@
-import * as log from '../../build/output/log'
-import { formatResults } from './customFormatter'
+import { readFileSync, readdirSync, existsSync } from 'fs'
+import { join } from 'path'
 import { ESLint } from 'eslint'
-import { readFileSync, readdirSync } from 'fs'
+
+import { formatResults } from './customFormatter'
+import * as log from '../../build/output/log'
 
 export interface EslintResult {
   results?: ESLint.LintResult[]
@@ -10,9 +12,13 @@ export interface EslintResult {
 export async function runEslint(
   baseDir: string,
   pagesDir: string,
-  dev: boolean
-): Promise<EslintResult> {
+  pagePath: string | null
+): Promise<void> {
   let options: ESLint.Options
+
+  if (pagePath && !existsSync(join(pagesDir, pagePath))) {
+    return
+  }
 
   const eslintrcFile = readdirSync(baseDir).find((file) =>
     /^.eslintrc.?(js|json|yaml|yml)?$/.test(file)
@@ -53,16 +59,16 @@ export async function runEslint(
 
   const eslint = new ESLint(options)
 
-  const results = await eslint.lintFiles([`${pagesDir}/**/*.{js,tsx}`])
+  const results = await eslint.lintFiles([
+    pagePath ? join(pagesDir, pagePath) : `${pagesDir}/**/*.{js,tsx}`,
+  ])
   const errors = ESLint.getErrorResults(results)
 
-  if (errors?.length && !dev) {
-    // Errors present (only throw during build)
+  if (errors?.length && !pagePath) {
+    //Only throw errors during build when all page files are linted
     throw new Error(formatResults(baseDir, results))
   } else if (results?.length) {
-    // No errors, or in dev mode
+    // No errors, or in dev mode when single files are linted
     console.log(formatResults(baseDir, results))
   }
-
-  return { results }
 }
