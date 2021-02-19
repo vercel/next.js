@@ -267,7 +267,10 @@ export default class DevServer extends Server {
 
   async prepare(): Promise<void> {
     await verifyTypeScriptSetup(this.dir, this.pagesDir!, false)
-    await verifyEslintSetup(this.dir, this.pagesDir!, false)
+
+    if (this.nextConfig.eslint?.dev) {
+      await verifyEslintSetup(this.dir, this.pagesDir!, true)
+    }
 
     this.customRoutes = await loadCustomRoutes(this.nextConfig)
 

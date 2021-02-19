@@ -181,9 +181,11 @@ export default async function build(
       telemetry.record(events)
     )
 
-    await traceAsyncFn(tracer.startSpan('verify-eslint-setup'), () =>
-      verifyEslintSetup(dir, pagesDir, true)
-    )
+    if (config.eslint?.build) {
+      await traceAsyncFn(tracer.startSpan('verify-eslint-setup'), () =>
+        verifyEslintSetup(dir, pagesDir, false)
+      )
+    }
 
     const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
     await traceAsyncFn(tracer.startSpan('verify-typescript-setup'), () =>

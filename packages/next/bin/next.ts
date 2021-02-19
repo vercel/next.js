@@ -3,6 +3,9 @@ import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import opentelemetryApi from '@opentelemetry/api'
+import { traceFn, tracer } from '../build/tracer'
+import loadConfig from '../next-server/server/config'
+import { PHASE_PRODUCTION_BUILD } from '../next-server/lib/constants'
 import { readdirSync } from 'fs'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
@@ -121,6 +124,10 @@ commands[command]()
     }
   })
 
+const config = traceFn(tracer.startSpan('load-next-config'), () =>
+  loadConfig(PHASE_PRODUCTION_BUILD, process.cwd())
+)
+
 if (command === 'dev') {
   const { CONFIG_FILE } = require('../next-server/lib/constants')
   const { watchFile } = require('fs')
@@ -136,7 +143,7 @@ if (command === 'dev') {
     /^.eslintrc.?(js|json|yaml|yml)?$/.test(file)
   )
 
-  if (eslintrcFile) {
+  if (eslintrcFile && config.eslint?.dev) {
     watchFile(`${process.cwd()}/${eslintrcFile}`, (cur: any, prev: any) => {
       if (cur.size > 0 || prev.size > 0) {
         console.log(

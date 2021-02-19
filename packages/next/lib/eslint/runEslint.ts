@@ -1,7 +1,7 @@
 import * as log from '../../build/output/log'
 import { formatResults } from './customFormatter'
 import { ESLint } from 'eslint'
-import { readFileSync } from 'fs'
+import { readFileSync, readdirSync } from 'fs'
 
 export interface EslintResult {
   results?: ESLint.LintResult[]
@@ -10,15 +10,18 @@ export interface EslintResult {
 export async function runEslint(
   baseDir: string,
   pagesDir: string,
-  errorsEnabled: boolean,
-  eslintrcFile?: string
+  dev: boolean
 ): Promise<EslintResult> {
   let options: ESLint.Options
 
-  if (eslintrcFile) {
-    const eslintConfig = readFileSync(`${baseDir}/${eslintrcFile}`).toString()
+  const eslintrcFile = readdirSync(baseDir).find((file) =>
+    /^.eslintrc.?(js|json|yaml|yml)?$/.test(file)
+  )
 
-    if (!eslintConfig.includes('@next/next')) {
+  if (eslintrcFile) {
+    const config = readFileSync(`${baseDir}/${eslintrcFile}`).toString()
+
+    if (!config.includes('@next/next')) {
       log.warn(
         `The Next.js ESLint plugin was not detected in ${eslintrcFile}. We recommend including it to prevent significant issues in your application (see https://nextjs.org/docs/linting).`
       )
@@ -53,11 +56,11 @@ export async function runEslint(
   const results = await eslint.lintFiles([`${pagesDir}/**/*.{js,tsx}`])
   const errors = ESLint.getErrorResults(results)
 
-  if (errors?.length && errorsEnabled) {
-    // Errors present
+  if (errors?.length && !dev) {
+    // Errors present (only throw during build)
     throw new Error(formatResults(baseDir, results))
   } else if (results?.length) {
-    // No errors, but warnings present
+    // No errors, or in dev mode
     console.log(formatResults(baseDir, results))
   }
 
