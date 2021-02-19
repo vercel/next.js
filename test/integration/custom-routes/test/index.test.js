@@ -784,6 +784,44 @@ const runTests = (isDev = false) => {
             source: '/to-external-with-query-2',
             statusCode: 307,
           },
+          {
+            destination: '/another?myHeader=:myHeader',
+            has: [
+              {
+                key: 'x-my-header',
+                type: 'header',
+                value: '(?<myHeader>.*)',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-redirect-1$'),
+            source: '/has-redirect-1',
+            statusCode: 307,
+          },
+          {
+            destination: '/another?value=:my-query',
+            has: [
+              {
+                key: 'my-query',
+                type: 'query',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-redirect-2$'),
+            source: '/has-redirect-2',
+            statusCode: 307,
+          },
+          {
+            destination: '/another?authorized=1',
+            has: [
+              {
+                key: 'loggedIn',
+                type: 'cookie',
+                value: 'true',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-redirect-3$'),
+            source: '/has-redirect-3',
+            statusCode: 307,
+          },
         ],
         headers: [
           {
@@ -941,6 +979,56 @@ const runTests = (isDev = false) => {
             ),
             source: '/catchall-header/:path*',
           },
+          {
+            has: [
+              {
+                key: 'x-my-header',
+                type: 'header',
+                value: '(?<myHeader>.*)',
+              },
+            ],
+            headers: [
+              {
+                key: 'x-another',
+                value: 'header',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-header-1$'),
+            source: '/has-header-1',
+          },
+          {
+            has: [
+              {
+                key: 'my-query',
+                type: 'query',
+              },
+            ],
+            headers: [
+              {
+                key: 'x-added',
+                value: 'value',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-header-2$'),
+            source: '/has-header-2',
+          },
+          {
+            has: [
+              {
+                key: 'loggedIn',
+                type: 'cookie',
+                value: 'true',
+              },
+            ],
+            headers: [
+              {
+                key: 'x-is-user',
+                value: 'yuuuup',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-header-3$'),
+            source: '/has-header-3',
+          },
         ],
         rewrites: [
           {
@@ -1076,6 +1164,41 @@ const runTests = (isDev = false) => {
               '^\\/catchall-query(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
             ),
             source: '/catchall-query/:path*',
+          },
+          {
+            destination: '/with-params?myHeader=:myHeader',
+            has: [
+              {
+                key: 'x-my-header',
+                type: 'header',
+                value: '(?<myHeader>.*)',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-rewrite-1$'),
+            source: '/has-rewrite-1',
+          },
+          {
+            destination: '/with-params?value=:my-query',
+            has: [
+              {
+                key: 'my-query',
+                type: 'query',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-rewrite-2$'),
+            source: '/has-rewrite-2',
+          },
+          {
+            destination: '/with-params?authorized=1',
+            has: [
+              {
+                key: 'loggedIn',
+                type: 'cookie',
+                value: 'true',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-rewrite-3$'),
+            source: '/has-rewrite-3',
           },
         ],
         dynamicRoutes: [
