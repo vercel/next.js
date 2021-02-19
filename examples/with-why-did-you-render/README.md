@@ -29,7 +29,33 @@ You can see `why-did-you-render` console logs about this redundant re-render in 
    }
    ```
 
-1. import `scripts/wdyr.js` as the first import of `_app`.
+1. Import `scripts/wdyr.js` as the first import of `_app`.
+
+1. Make sure that [`react-preset`](https://babeljs.io/docs/en/babel-preset-react) uses `@welldone-software/why-did-you-render` to import the monkey patched `React` with WDYR, by modifying `next/babel` in `babel.config.js`:
+
+```jsx
+// babel.config.js
+module.exports = function (api) {
+  const isServer = api.caller((caller) => caller?.isServer)
+  const isCallerDevelopment = api.caller((caller) => caller?.isDev)
+
+  const presets = [
+    [
+      'next/babel',
+      {
+        'preset-react': {
+          importSource:
+            !isServer && isCallerDevelopment
+              ? '@welldone-software/why-did-you-render'
+              : 'react',
+        },
+      },
+    ],
+  ]
+
+  return { presets }
+}
+```
 
 ## Deploy your own
 
