@@ -1,14 +1,18 @@
 import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
-import { WebpackHotMiddleware } from './hot-middleware'
+import { isWebpack5, webpack } from 'next/dist/compiled/webpack/webpack'
 import { join, relative as relativePath } from 'path'
+import { stringify } from 'querystring'
 import { UrlObject } from 'url'
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { createEntrypoints, createPagesMapping } from '../build/entries'
+import { isWriteable } from '../build/is-writeable'
 import { watchCompilers } from '../build/output'
+import { difference } from '../build/utils'
 import getBaseWebpackConfig from '../build/webpack-config'
+import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { API_ROUTE, NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
+import { Rewrite } from '../lib/load-custom-routes'
 import { recursiveDelete } from '../lib/recursive-delete'
 import {
   BLOCKED_PAGES,
@@ -16,23 +20,19 @@ import {
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
 } from '../next-server/lib/constants'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
-import { route } from '../next-server/server/router'
-import { findPageFile } from './lib/find-page-file'
-import onDemandEntryHandler, {
-  entries,
-  BUILDING,
-} from './on-demand-entry-handler'
+import { NextConfig } from '../next-server/server/config-shared'
+import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
 import {
   denormalizePagePath,
   normalizePathSep,
 } from '../next-server/server/normalize-page-path'
-import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
-import { isWriteable } from '../build/is-writeable'
-import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
-import { stringify } from 'querystring'
-import { Rewrite } from '../lib/load-custom-routes'
-import { difference } from '../build/utils'
-import { NextConfig } from '../next-server/server/config'
+import { route } from '../next-server/server/router'
+import { WebpackHotMiddleware } from './hot-middleware'
+import { findPageFile } from './lib/find-page-file'
+import onDemandEntryHandler, {
+  BUILDING,
+  entries,
+} from './on-demand-entry-handler'
 
 export async function renderScriptError(
   res: ServerResponse,
