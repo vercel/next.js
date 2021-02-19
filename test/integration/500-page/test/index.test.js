@@ -115,14 +115,31 @@ describe('500 Page Support', () => {
       export default page
     `
     )
-    const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+    const { stderr, stdout: buildStdout, code } = await nextBuild(appDir, [], {
+      stderr: true,
+      stdout: true,
+    })
     await fs.remove(pagesApp)
 
     expect(stderr).not.toMatch(gip500Err)
+    expect(buildStdout).toContain('rendered 500')
     expect(code).toBe(0)
     expect(
       await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
     ).toBe(true)
+
+    let appStdout = ''
+    const appPort = await findPort()
+    const app = await nextStart(appDir, appPort, {
+      onStderr(msg) {
+        appStdout += msg || ''
+      },
+    })
+
+    await renderViaHTTP(appPort, '/err')
+    await killApp(app)
+
+    expect(appStdout).not.toContain('rendered 500')
   })
 
   it('builds 500 statically by default with no pages/500', async () => {
@@ -146,6 +163,7 @@ describe('500 Page Support', () => {
           return <p>Error status: {statusCode}</p>
         }
         Error.getInitialProps = ({ res, err }) => {
+          console.error('called _error.getInitialProps')
           return {
             statusCode: res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
           }
@@ -153,15 +171,30 @@ describe('500 Page Support', () => {
         export default Error
       `
     )
-    const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+    const { stderr: buildStderr, code } = await nextBuild(appDir, [], {
+      stderr: true,
+    })
     await fs.rename(`${pages500}.bak`, pages500)
     await fs.remove(pagesError)
-    console.log(stderr)
-    expect(stderr).not.toMatch(gip500Err)
+    console.log(buildStderr)
+    expect(buildStderr).not.toMatch(gip500Err)
     expect(code).toBe(0)
     expect(
       await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
     ).toBe(true)
+
+    let appStderr = ''
+    const appPort = await findPort()
+    const app = await nextStart(appDir, appPort, {
+      onStderr(msg) {
+        appStderr += msg || ''
+      },
+    })
+
+    await renderViaHTTP(appPort, '/err')
+    await killApp(app)
+
+    expect(appStderr).toContain('called _error.getInitialProps')
   })
 
   it('shows error with getInitialProps in pages/500 build', async () => {

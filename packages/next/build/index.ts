@@ -1094,8 +1094,20 @@ export default async function build(
               relativeDest
             )
 
-            if (!isSsg) {
+            if (
+              !isSsg &&
+              !(
+                // don't add static status page to manifest if it's
+                // the default generated version e.g. no pages/500
+                (
+                  STATIC_STATUS_PAGES.includes(page) &&
+                  !usedStaticStatusPages.includes(page)
+                )
+              )
+            ) {
               pagesManifest[page] = relativeDest
+            } else {
+              console.log('not adding', page)
             }
 
             const isNotFound = ssgNotFoundPaths.includes(page)
