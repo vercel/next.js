@@ -24,18 +24,19 @@ export function detectDomainLocale(
       detectedLocale = detectedLocale.toLowerCase()
     }
 
-    for (const item of domainItems) {
-      // remove port if present
-      const domainHostname = item.domain?.split(':')[0].toLowerCase()
-      if (
-        hostname === domainHostname ||
-        detectedLocale === item.defaultLocale.toLowerCase() ||
-        item.locales?.some((locale) => locale.toLowerCase() === detectedLocale)
-      ) {
-        domainItem = item
-        break
-      }
-    }
+    domainItem =
+      // Check whether current hostname is defined in domains and return it
+      domainItems.find(
+        (item) => hostname === item.domain?.split(':')[0].toLowerCase()
+      ) ??
+      // Check for domain item that uses the detected locale
+      domainItems.find(
+        (item) =>
+          detectedLocale === item.defaultLocale.toLowerCase() ||
+          item.locales?.some(
+            (locale) => locale.toLowerCase() === detectedLocale
+          )
+      )
   }
 
   return domainItem
