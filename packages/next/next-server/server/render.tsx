@@ -59,7 +59,7 @@ import {
   getRedirectStatus,
   Redirect,
 } from '../../lib/load-custom-routes'
-import { DomainLocales } from './config'
+import { DomainLocales } from './config-shared'
 
 function noRouter() {
   const message =

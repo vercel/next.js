@@ -13,7 +13,7 @@ import {
   isAssetError,
   markAssetError,
 } from '../../../client/route-loader'
-import { DomainLocales } from '../../server/config'
+import { DomainLocales } from '../../server/config-shared'
 import { denormalizePagePath } from '../../server/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt, { MittEmitter } from '../mitt'
@@ -24,8 +24,8 @@ import {
   getURL,
   loadGetInitialProps,
   NextPageContext,
-  ST,
   NEXT_DATA,
+  ST,
 } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
