@@ -37,7 +37,7 @@ describe('Module Init Error', () => {
     try {
       await waitFor(2000)
       const text = await browser.elementByCss('#error-p').text()
-      expect(text).toBe('Error Rendered with: fail module evaluation')
+      expect(text).toBe('Error Rendered')
     } finally {
       await browser.close()
     }
