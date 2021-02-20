@@ -510,9 +510,10 @@ export default async function loadConfig(
 
   // If config file was found
   if (path?.length) {
-    const userConfigModule = supportsEsm
-      ? (await nativeImport(path)).default
-      : require(path)
+    const userConfigModule =
+      supportsEsm && path.endsWith('.mjs')
+        ? (await nativeImport(path)).default
+        : require(path)
     const userConfig = normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
