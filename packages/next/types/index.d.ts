@@ -34,12 +34,6 @@ declare module 'react' {
   interface LinkHTMLAttributes<T> extends HTMLAttributes<T> {
     nonce?: string
   }
-
-  // <style jsx> and <style jsx global> support for styled-jsx
-  interface StyleHTMLAttributes<T> extends HTMLAttributes<T> {
-    jsx?: boolean
-    global?: boolean
-  }
 }
 
 export type Redirect =

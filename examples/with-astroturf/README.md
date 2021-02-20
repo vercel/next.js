@@ -1,6 +1,6 @@
 # Example app with [astroturf](https://github.com/4Catalyzer/astroturf)
 
-This example features how to use [astroturf](https://github.com/4Catalyzer/astroturf) as the zero-runtime CSS-in-JS styling solution instead of [styled-jsx](https://github.com/zeit/styled-jsx).
+This example features how to use [astroturf](https://github.com/4Catalyzer/astroturf) as the zero-runtime CSS-in-JS styling solution instead of [styled-jsx](https://github.com/vercel/styled-jsx).
 
 ## Deploy your own
 

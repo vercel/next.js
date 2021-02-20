@@ -93,7 +93,7 @@
     "react-is": "16.13.1",
     "react-refresh": "0.8.3",
     "stream-browserify": "3.0.0",
-    "styled-jsx": "3.3.2",
+    "styled-jsx": "3.4.4",
     "use-subscription": "1.5.1",
     "vm-browserify": "1.1.2",
     "watchpack": "2.0.0-beta.13"
@@ -163,7 +163,6 @@
     "@types/react-is": "16.7.1",
     "@types/semver": "7.3.1",
     "@types/send": "0.14.4",
-    "@types/styled-jsx": "2.2.8",
     "@types/text-table": "0.2.1",
     "@types/webpack-sources": "0.1.5",
     "@vercel/ncc": "0.27.0",
