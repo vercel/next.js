@@ -6,7 +6,7 @@ import Examples from '../components/examples'
 const Index = () => {
   const dispatch = useDispatch()
   useEffect(() => {
-    setInterval(() => dispatch(startClock(), 1000))
+    setInterval(() => dispatch(startClock()), 1000)
   }, [dispatch])
 
   return <Examples />
