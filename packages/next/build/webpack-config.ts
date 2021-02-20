@@ -1039,6 +1039,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
         'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
         'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
+        'process.env.__NEXT_POP_STATE_SHALLOW_ROUTE': JSON.stringify(
+          config.experimental.popStateShallowRoute
+        ),
         ...(isServer
           ? {
               // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
