@@ -348,6 +348,7 @@ export type BaseRouter = {
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocales
+  isLocaleDomain: boolean
 }
 
 export type NextRouter = BaseRouter &
@@ -362,6 +363,7 @@ export type NextRouter = BaseRouter &
     | 'events'
     | 'isFallback'
     | 'isReady'
+    | 'isPreview'
   >
 
 export type PrefetchOptions = {
@@ -488,6 +490,8 @@ export default class Router implements BaseRouter {
   defaultLocale?: string
   domainLocales?: DomainLocales
   isReady: boolean
+  isPreview: boolean
+  isLocaleDomain: boolean
 
   private _idx: number = 0
 
@@ -510,6 +514,7 @@ export default class Router implements BaseRouter {
       locales,
       defaultLocale,
       domainLocales,
+      isPreview,
     }: {
       subscription: Subscription
       initialProps: any
@@ -523,6 +528,7 @@ export default class Router implements BaseRouter {
       locales?: string[]
       defaultLocale?: string
       domainLocales?: DomainLocales
+      isPreview?: boolean
     }
   ) {
     // represents the current component key
@@ -579,12 +585,18 @@ export default class Router implements BaseRouter {
       self.__NEXT_DATA__.gip ||
       (!autoExportDynamic && !self.location.search)
     )
+    this.isPreview = !!isPreview
+    this.isLocaleDomain = false
 
     if (process.env.__NEXT_I18N_SUPPORT) {
       this.locale = locale
       this.locales = locales
       this.defaultLocale = defaultLocale
       this.domainLocales = domainLocales
+      this.isLocaleDomain = !!detectDomainLocale(
+        domainLocales,
+        self.location.hostname
+      )
     }
 
     if (typeof window !== 'undefined') {
@@ -817,6 +829,7 @@ export default class Router implements BaseRouter {
         if (
           !didNavigate &&
           detectedDomain &&
+          this.isLocaleDomain &&
           self.location.hostname !== detectedDomain.domain
         ) {
           const asNoBasePath = delBasePath(as)
@@ -1060,6 +1073,8 @@ export default class Router implements BaseRouter {
           window.location.href = destination
           return new Promise(() => {})
         }
+
+        this.isPreview = !!props.__N_PREVIEW
 
         // handle SSG data 404
         if (props.notFound === SSG_DATA_NOT_FOUND) {
@@ -1531,7 +1546,11 @@ export default class Router implements BaseRouter {
 
   _getStaticData(dataHref: string): Promise<object> {
     const { href: cacheKey } = new URL(dataHref, window.location.href)
-    if (process.env.NODE_ENV === 'production' && this.sdc[cacheKey]) {
+    if (
+      process.env.NODE_ENV === 'production' &&
+      !this.isPreview &&
+      this.sdc[cacheKey]
+    ) {
       return Promise.resolve(this.sdc[cacheKey])
     }
     return fetchNextData(dataHref, this.isSsr).then((data) => {
