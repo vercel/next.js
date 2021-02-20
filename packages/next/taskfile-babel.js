@@ -57,6 +57,8 @@ const babelServerOpts = {
         loose: true,
         // This is handled by the Next.js webpack config that will run next/babel over the same code.
         exclude: [
+          // dynamic import() is handled by 'babel-plugin-dynamic-import-node'
+          'proposal-dynamic-import',
           'transform-typeof-symbol',
           'transform-async-to-generator',
           'transform-spread',
@@ -64,11 +66,13 @@ const babelServerOpts = {
       },
     ],
   ],
-  plugins: [
-    'babel-plugin-dynamic-import-node',
-    ['@babel/plugin-proposal-class-properties', { loose: true }],
-  ],
+  plugins: [['@babel/plugin-proposal-class-properties', { loose: true }]],
   overrides: [
+    {
+      plugins: ['babel-plugin-dynamic-import-node'],
+      // This is our escape hatch to the native node.js dynamic import:
+      exclude: /\/lib\/native-dynamic-import\.ts$/,
+    },
     {
       test: /\.tsx?$/,
       // eslint-disable-next-line import/no-extraneous-dependencies

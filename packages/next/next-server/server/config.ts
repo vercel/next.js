@@ -7,6 +7,7 @@ import * as Log from '../../build/output/log'
 import { CONFIG_FILE } from '../lib/constants'
 import { Header, Rewrite, Redirect } from '../../lib/load-custom-routes'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
+import nativeImport from '../../lib/native-dynamic-import'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
@@ -510,7 +511,7 @@ export default async function loadConfig(
   // If config file was found
   if (path?.length) {
     const userConfigModule = supportsEsm
-      ? (await import(path)).default
+      ? (await nativeImport(path)).default
       : require(path)
     const userConfig = normalizeConfig(
       phase,
