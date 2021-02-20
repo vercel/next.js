@@ -5,7 +5,7 @@ const cli = new CLIEngine({})
 const isWin = process.platform === 'win32'
 
 module.exports = {
-  '**/*.{js,jsx,ts,tsx}': (filenames) => {
+  '**/*.{js,jsx,ts,tsx,mjs}': (filenames) => {
     const escapedFileNames = filenames
       .map((filename) => `"${isWin ? filename : escape([filename])}"`)
       .join(' ')

@@ -1,5 +1,5 @@
 export default {
   env: {
-    customVar: 'hello'
-  }
+    customVar: 'hello',
+  },
 }
