@@ -39,7 +39,7 @@ description: Get to know more about Next.js with the frequently asked questions.
 
 <details>
   <summary>How do I fetch data?</summary>
-  <p>It's up to you. You can use the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch">fetch API</a> or <a href="https://swr.now.sh/">SWR</a> inside your React components for remote data fetching; or use our <a href="/docs/basic-features/data-fetching.md">data fetching methods</a> for initial data population.</p>
+  <p>It's up to you. You can use the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch">fetch API</a> or <a href="https://swr.vercel.app/">SWR</a> inside your React components for remote data fetching; or use our <a href="/docs/basic-features/data-fetching.md">data fetching methods</a> for initial data population.</p>
 </details>
 
 <details>

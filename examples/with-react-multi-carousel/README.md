@@ -8,7 +8,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-react-multi-carousel&project-name=with-react-multi-carousel&repository-name=with-react-multi-carousel)
 
-_Live Example: https://react-multi-carousel.now.sh_
+_Live Example: https://react-multi-carousel.vercel.app_
 
 ## How to use
 

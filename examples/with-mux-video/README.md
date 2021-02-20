@@ -30,7 +30,7 @@ yarn create next-app --example with-mux-video with-mux-video-app
 
 This example uses:
 
-- [SWR](https://swr.now.sh/) — dynamically changing the `refreshInterval` depending on if the client should be polling for updates or not
+- [SWR](https://swr.vercel.app/) — dynamically changing the `refreshInterval` depending on if the client should be polling for updates or not
 - [`/pages/api`](pages/api) routes — a couple endpoints for making authenticated requests to the Mux API.
 - Dynamic routes using [`getStaticPaths` and `fallback: true`](https://nextjs.org/docs/basic-features/data-fetching#getstaticpaths-static-generation), as well as dynamic API routes.
 

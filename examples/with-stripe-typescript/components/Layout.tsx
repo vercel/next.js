@@ -25,7 +25,7 @@ const Layout = ({
       />
       <meta
         name="twitter:image"
-        content="https://nextjs-typescript-react-stripe-js.now.sh/social_card.png"
+        content="https://nextjs-typescript-react-stripe-js.vercel.app/social_card.png"
       />
     </Head>
     <div className="container">
