@@ -487,6 +487,15 @@ export function normalizeConfig(phase: string, config: any) {
   return config
 }
 
+const supportsEsm = Number(process.versions.node.split('.')[0]) >= 12
+
+async function findConfigFile(dir: string): Promise<string | undefined> {
+  const files = supportsEsm
+    ? [CONFIG_FILE.replace(/\.js$/, '.mjs'), CONFIG_FILE]
+    : CONFIG_FILE
+  return findUp(files, { cwd: dir })
+}
+
 export default async function loadConfig(
   phase: string,
   dir: string,
@@ -495,13 +504,14 @@ export default async function loadConfig(
   if (customConfig) {
     return assignDefaults({ configOrigin: 'server', ...customConfig })
   }
-  const path = findUp.sync(CONFIG_FILE, {
-    cwd: dir,
-  })
+
+  const path = await findConfigFile(dir)
 
   // If config file was found
   if (path?.length) {
-    const userConfigModule = require(path)
+    const userConfigModule = supportsEsm
+      ? (await import(path)).default
+      : require(path)
     const userConfig = normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
