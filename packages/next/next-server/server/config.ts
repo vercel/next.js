@@ -488,13 +488,21 @@ export function normalizeConfig(phase: string, config: any) {
   return config
 }
 
-const supportsEsm = Number(process.versions.node.split('.')[0]) >= 12
-
 async function findConfigFile(dir: string): Promise<string | undefined> {
-  const files = supportsEsm
-    ? [CONFIG_FILE.replace(/\.js$/, '.mjs'), CONFIG_FILE]
-    : CONFIG_FILE
+  const files = [CONFIG_FILE.replace(/\.js$/, '.mjs'), CONFIG_FILE]
   return findUp(files, { cwd: dir })
+}
+
+async function importCjsOrEsm(mod: string): Promise<any> {
+  try {
+    return require(mod)
+  } catch (err) {
+    if ((err.code = 'ERR_REQUIRE_ESM')) {
+      const { default: defaultExport } = await nativeImport(mod)
+      return defaultExport
+    }
+    throw err
+  }
 }
 
 export default async function loadConfig(
@@ -510,10 +518,8 @@ export default async function loadConfig(
 
   // If config file was found
   if (path?.length) {
-    const userConfigModule =
-      supportsEsm && path.endsWith('.mjs')
-        ? (await nativeImport(path)).default
-        : require(path)
+    const userConfigModule = await importCjsOrEsm(path)
+
     const userConfig = normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
