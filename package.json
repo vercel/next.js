@@ -91,6 +91,7 @@
     "get-port": "5.1.1",
     "glob": "7.1.6",
     "gzip-size": "5.1.1",
+    "image-size": "0.9.3",
     "is-animated": "2.0.0",
     "isomorphic-unfetch": "3.0.0",
     "jest-circus": "26.0.1",
