@@ -497,7 +497,7 @@ async function importCjsOrEsm(mod: string): Promise<any> {
   try {
     return require(mod)
   } catch (err) {
-    if ((err.code = 'ERR_REQUIRE_ESM')) {
+    if (err.code === 'ERR_REQUIRE_ESM') {
       const { default: defaultExport } = await nativeImport(mod)
       return defaultExport
     }
