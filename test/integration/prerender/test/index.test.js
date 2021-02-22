@@ -525,7 +525,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     it('should use correct caching headers for a revalidate page', async () => {
       const initialRes = await fetchViaHTTP(appPort, '/')
       expect(initialRes.headers.get('cache-control')).toBe(
-        's-maxage=2, stale-while-revalidate'
+        'public, s-maxage=2, stale-while-revalidate'
       )
     })
   }

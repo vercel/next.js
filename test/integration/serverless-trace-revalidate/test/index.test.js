@@ -52,7 +52,7 @@ describe('Serverless Trace', () => {
     const url = `http://localhost:${appPort}/revalidate`
     const res = await fetch(url)
     expect(res.headers.get('Cache-Control')).toMatch(
-      's-maxage=10, stale-while-revalidate'
+      'public, s-maxage=10, stale-while-revalidate'
     )
   })
 })
