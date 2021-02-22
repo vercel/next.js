@@ -11,7 +11,7 @@ import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import {
-  PAGES_404_GET_INITIAL_PROPS_ERROR,
+  STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
@@ -41,6 +41,7 @@ import {
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
   SERVER_FILES_MANIFEST,
+  STATIC_STATUS_PAGES,
 } from '../next-server/lib/constants'
 import {
   getRouteRegex,
@@ -742,7 +743,9 @@ export default async function build(
                         !workerResult.isStatic &&
                         !workerResult.hasStaticProps
                       ) {
-                        throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
+                        throw new Error(
+                          `\`pages/404\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
+                        )
                       }
                       // we need to ensure the 404 lambda is present since we use
                       // it when _app has getInitialProps
@@ -752,6 +755,16 @@ export default async function build(
                       ) {
                         staticPages.delete(page)
                       }
+                    }
+
+                    if (
+                      STATIC_STATUS_PAGES.includes(page) &&
+                      !workerResult.isStatic &&
+                      !workerResult.hasStaticProps
+                    ) {
+                      throw new Error(
+                        `\`pages${page}\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
+                      )
                     }
                   } catch (err) {
                     if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
@@ -891,400 +904,412 @@ export default async function build(
 
     const { i18n } = config
 
+    const usedStaticStatusPages = STATIC_STATUS_PAGES.filter(
+      (page) =>
+        mappedPages[page] && mappedPages[page].startsWith('private-next-pages')
+    )
+    usedStaticStatusPages.forEach((page) => {
+      if (!ssgPages.has(page)) {
+        staticPages.add(page)
+      }
+    })
+
+    const hasPages500 = usedStaticStatusPages.includes('/500')
+
     await traceAsyncFn(tracer.startSpan('static-generation'), async () => {
-      if (staticPages.size > 0 || ssgPages.size > 0 || useStatic404) {
-        const combinedPages = [...staticPages, ...ssgPages]
+      const combinedPages = [...staticPages, ...ssgPages]
 
-        detectConflictingPaths(
-          [
-            ...combinedPages,
-            ...pageKeys.filter((page) => !combinedPages.includes(page)),
-          ],
-          ssgPages,
-          additionalSsgPaths
-        )
-        const exportApp = require('../export').default
-        const exportOptions = {
-          silent: false,
-          buildExport: true,
-          threads: config.experimental.cpus,
-          pages: combinedPages,
-          outdir: path.join(distDir, 'export'),
-          statusMessage: 'Generating static pages',
-        }
-        const exportConfig: any = {
-          ...config,
-          initialPageRevalidationMap: {},
-          ssgNotFoundPaths: [] as string[],
-          // Default map will be the collection of automatic statically exported
-          // pages and incremental pages.
-          // n.b. we cannot handle this above in combinedPages because the dynamic
-          // page must be in the `pages` array, but not in the mapping.
-          exportPathMap: (defaultMap: any) => {
-            // Dynamically routed pages should be prerendered to be used as
-            // a client-side skeleton (fallback) while data is being fetched.
-            // This ensures the end-user never sees a 500 or slow response from the
-            // server.
-            //
-            // Note: prerendering disables automatic static optimization.
-            ssgPages.forEach((page) => {
-              if (isDynamicRoute(page)) {
-                tbdPrerenderRoutes.push(page)
+      detectConflictingPaths(
+        [
+          ...combinedPages,
+          ...pageKeys.filter((page) => !combinedPages.includes(page)),
+        ],
+        ssgPages,
+        additionalSsgPaths
+      )
+      const exportApp = require('../export').default
+      const exportOptions = {
+        silent: false,
+        buildExport: true,
+        threads: config.experimental.cpus,
+        pages: combinedPages,
+        outdir: path.join(distDir, 'export'),
+        statusMessage: 'Generating static pages',
+      }
+      const exportConfig: any = {
+        ...config,
+        initialPageRevalidationMap: {},
+        ssgNotFoundPaths: [] as string[],
+        // Default map will be the collection of automatic statically exported
+        // pages and incremental pages.
+        // n.b. we cannot handle this above in combinedPages because the dynamic
+        // page must be in the `pages` array, but not in the mapping.
+        exportPathMap: (defaultMap: any) => {
+          // Dynamically routed pages should be prerendered to be used as
+          // a client-side skeleton (fallback) while data is being fetched.
+          // This ensures the end-user never sees a 500 or slow response from the
+          // server.
+          //
+          // Note: prerendering disables automatic static optimization.
+          ssgPages.forEach((page) => {
+            if (isDynamicRoute(page)) {
+              tbdPrerenderRoutes.push(page)
 
-                if (ssgStaticFallbackPages.has(page)) {
-                  // Override the rendering for the dynamic page to be treated as a
-                  // fallback render.
-                  if (i18n) {
-                    defaultMap[`/${i18n.defaultLocale}${page}`] = {
-                      page,
-                      query: { __nextFallback: true },
-                    }
-                  } else {
-                    defaultMap[page] = { page, query: { __nextFallback: true } }
+              if (ssgStaticFallbackPages.has(page)) {
+                // Override the rendering for the dynamic page to be treated as a
+                // fallback render.
+                if (i18n) {
+                  defaultMap[`/${i18n.defaultLocale}${page}`] = {
+                    page,
+                    query: { __nextFallback: true },
                   }
                 } else {
-                  // Remove dynamically routed pages from the default path map when
-                  // fallback behavior is disabled.
-                  delete defaultMap[page]
+                  defaultMap[page] = { page, query: { __nextFallback: true } }
                 }
+              } else {
+                // Remove dynamically routed pages from the default path map when
+                // fallback behavior is disabled.
+                delete defaultMap[page]
+              }
+            }
+          })
+          // Append the "well-known" routes we should prerender for, e.g. blog
+          // post slugs.
+          additionalSsgPaths.forEach((routes, page) => {
+            const encodedRoutes = additionalSsgPathsEncoded.get(page)
+
+            routes.forEach((route, routeIdx) => {
+              defaultMap[route] = {
+                page,
+                query: { __nextSsgPath: encodedRoutes?.[routeIdx] },
               }
             })
-            // Append the "well-known" routes we should prerender for, e.g. blog
-            // post slugs.
-            additionalSsgPaths.forEach((routes, page) => {
-              const encodedRoutes = additionalSsgPathsEncoded.get(page)
+          })
 
-              routes.forEach((route, routeIdx) => {
-                defaultMap[route] = {
-                  page,
-                  query: { __nextSsgPath: encodedRoutes?.[routeIdx] },
+          if (useStatic404) {
+            defaultMap['/404'] = {
+              page: hasPages404 ? '/404' : '/_error',
+            }
+          }
+
+          // ensure 500.html is always generated even if pages/500.html
+          // doesn't exist
+          if (!hasPages500) {
+            defaultMap['/500'] = {
+              page: '/_error',
+            }
+          }
+
+          if (i18n) {
+            for (const page of [
+              ...staticPages,
+              ...ssgPages,
+              ...(useStatic404 ? ['/404'] : []),
+              ...(!hasPages500 ? ['/500'] : []),
+            ]) {
+              const isSsg = ssgPages.has(page)
+              const isDynamic = isDynamicRoute(page)
+              const isFallback = isSsg && ssgStaticFallbackPages.has(page)
+
+              for (const locale of i18n.locales) {
+                // skip fallback generation for SSG pages without fallback mode
+                if (isSsg && isDynamic && !isFallback) continue
+                const outputPath = `/${locale}${page === '/' ? '' : page}`
+
+                defaultMap[outputPath] = {
+                  page: defaultMap[page]?.page || page,
+                  query: { __nextLocale: locale },
                 }
-              })
-            })
 
-            if (useStatic404) {
-              defaultMap['/404'] = {
-                page: hasPages404 ? '/404' : '/_error',
+                if (isFallback) {
+                  defaultMap[outputPath].query.__nextFallback = true
+                }
               }
+
+              if (isSsg) {
+                // remove non-locale prefixed variant from defaultMap
+                delete defaultMap[page]
+              }
+            }
+          }
+          return defaultMap
+        },
+        trailingSlash: false,
+      }
+
+      await exportApp(dir, exportOptions, exportConfig)
+
+      const postBuildSpinner = createSpinner({
+        prefixText: `${Log.prefixes.info} Finalizing page optimization`,
+      })
+      ssgNotFoundPaths = exportConfig.ssgNotFoundPaths
+
+      // remove server bundles that were exported
+      for (const page of staticPages) {
+        const serverBundle = getPagePath(page, distDir, isLikeServerless)
+        await promises.unlink(serverBundle)
+      }
+      const serverOutputDir = path.join(
+        distDir,
+        isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
+      )
+
+      const moveExportedPage = async (
+        originPage: string,
+        page: string,
+        file: string,
+        isSsg: boolean,
+        ext: 'html' | 'json',
+        additionalSsgFile = false
+      ) => {
+        return traceAsyncFn(
+          tracer.startSpan('move-exported-page'),
+          async () => {
+            file = `${file}.${ext}`
+            const orig = path.join(exportOptions.outdir, file)
+            const pagePath = getPagePath(originPage, distDir, isLikeServerless)
+
+            const relativeDest = path
+              .relative(
+                serverOutputDir,
+                path.join(
+                  path.join(
+                    pagePath,
+                    // strip leading / and then recurse number of nested dirs
+                    // to place from base folder
+                    originPage
+                      .substr(1)
+                      .split('/')
+                      .map(() => '..')
+                      .join('/')
+                  ),
+                  file
+                )
+              )
+              .replace(/\\/g, '/')
+
+            const dest = path.join(
+              distDir,
+              isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+              relativeDest
+            )
+
+            if (
+              !isSsg &&
+              !(
+                // don't add static status page to manifest if it's
+                // the default generated version e.g. no pages/500
+                (
+                  STATIC_STATUS_PAGES.includes(page) &&
+                  !usedStaticStatusPages.includes(page)
+                )
+              )
+            ) {
+              pagesManifest[page] = relativeDest
+            }
+
+            const isNotFound = ssgNotFoundPaths.includes(page)
+
+            // for SSG files with i18n the non-prerendered variants are
+            // output with the locale prefixed so don't attempt moving
+            // without the prefix
+            if ((!i18n || additionalSsgFile) && !isNotFound) {
+              await promises.mkdir(path.dirname(dest), { recursive: true })
+              await promises.rename(orig, dest)
+            } else if (i18n && !isSsg) {
+              // this will be updated with the locale prefixed variant
+              // since all files are output with the locale prefix
+              delete pagesManifest[page]
             }
 
             if (i18n) {
-              for (const page of [
-                ...staticPages,
-                ...ssgPages,
-                ...(useStatic404 ? ['/404'] : []),
-              ]) {
-                const isSsg = ssgPages.has(page)
-                const isDynamic = isDynamicRoute(page)
-                const isFallback = isSsg && ssgStaticFallbackPages.has(page)
+              if (additionalSsgFile) return
 
-                for (const locale of i18n.locales) {
-                  // skip fallback generation for SSG pages without fallback mode
-                  if (isSsg && isDynamic && !isFallback) continue
-                  const outputPath = `/${locale}${page === '/' ? '' : page}`
+              for (const locale of i18n.locales) {
+                const curPath = `/${locale}${page === '/' ? '' : page}`
+                const localeExt = page === '/' ? path.extname(file) : ''
+                const relativeDestNoPages = relativeDest.substr('pages/'.length)
 
-                  defaultMap[outputPath] = {
-                    page: defaultMap[page]?.page || page,
-                    query: { __nextLocale: locale },
-                  }
-
-                  if (isFallback) {
-                    defaultMap[outputPath].query.__nextFallback = true
-                  }
+                if (isSsg && ssgNotFoundPaths.includes(curPath)) {
+                  continue
                 }
 
-                if (isSsg) {
-                  // remove non-locale prefixed variant from defaultMap
-                  delete defaultMap[page]
-                }
-              }
-            }
-
-            return defaultMap
-          },
-          trailingSlash: false,
-        }
-
-        await exportApp(dir, exportOptions, exportConfig)
-
-        const postBuildSpinner = createSpinner({
-          prefixText: `${Log.prefixes.info} Finalizing page optimization`,
-        })
-        ssgNotFoundPaths = exportConfig.ssgNotFoundPaths
-
-        // remove server bundles that were exported
-        for (const page of staticPages) {
-          const serverBundle = getPagePath(page, distDir, isLikeServerless)
-          await promises.unlink(serverBundle)
-        }
-        const serverOutputDir = path.join(
-          distDir,
-          isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY
-        )
-
-        const moveExportedPage = async (
-          originPage: string,
-          page: string,
-          file: string,
-          isSsg: boolean,
-          ext: 'html' | 'json',
-          additionalSsgFile = false
-        ) => {
-          return traceAsyncFn(
-            tracer.startSpan('move-exported-page'),
-            async () => {
-              file = `${file}.${ext}`
-              const orig = path.join(exportOptions.outdir, file)
-              const pagePath = getPagePath(
-                originPage,
-                distDir,
-                isLikeServerless
-              )
-
-              const relativeDest = path
-                .relative(
-                  serverOutputDir,
-                  path.join(
-                    path.join(
-                      pagePath,
-                      // strip leading / and then recurse number of nested dirs
-                      // to place from base folder
-                      originPage
-                        .substr(1)
-                        .split('/')
-                        .map(() => '..')
-                        .join('/')
-                    ),
-                    file
-                  )
-                )
-                .replace(/\\/g, '/')
-
-              const dest = path.join(
-                distDir,
-                isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-                relativeDest
-              )
-
-              if (!isSsg) {
-                pagesManifest[page] = relativeDest
-              }
-
-              const isNotFound = ssgNotFoundPaths.includes(page)
-
-              // for SSG files with i18n the non-prerendered variants are
-              // output with the locale prefixed so don't attempt moving
-              // without the prefix
-              if ((!i18n || additionalSsgFile) && !isNotFound) {
-                await promises.mkdir(path.dirname(dest), { recursive: true })
-                await promises.rename(orig, dest)
-              } else if (i18n && !isSsg) {
-                // this will be updated with the locale prefixed variant
-                // since all files are output with the locale prefix
-                delete pagesManifest[page]
-              }
-
-              if (i18n) {
-                if (additionalSsgFile) return
-
-                for (const locale of i18n.locales) {
-                  const curPath = `/${locale}${page === '/' ? '' : page}`
-                  const localeExt = page === '/' ? path.extname(file) : ''
-                  const relativeDestNoPages = relativeDest.substr(
-                    'pages/'.length
-                  )
-
-                  if (isSsg && ssgNotFoundPaths.includes(curPath)) {
-                    continue
-                  }
-
-                  const updatedRelativeDest = path
-                    .join(
-                      'pages',
-                      locale + localeExt,
-                      // if it's the top-most index page we want it to be locale.EXT
-                      // instead of locale/index.html
-                      page === '/' ? '' : relativeDestNoPages
-                    )
-                    .replace(/\\/g, '/')
-
-                  const updatedOrig = path.join(
-                    exportOptions.outdir,
+                const updatedRelativeDest = path
+                  .join(
+                    'pages',
                     locale + localeExt,
-                    page === '/' ? '' : file
+                    // if it's the top-most index page we want it to be locale.EXT
+                    // instead of locale/index.html
+                    page === '/' ? '' : relativeDestNoPages
                   )
-                  const updatedDest = path.join(
-                    distDir,
-                    isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
-                    updatedRelativeDest
-                  )
+                  .replace(/\\/g, '/')
 
-                  if (!isSsg) {
-                    pagesManifest[curPath] = updatedRelativeDest
-                  }
-                  await promises.mkdir(path.dirname(updatedDest), {
-                    recursive: true,
-                  })
-                  await promises.rename(updatedOrig, updatedDest)
+                const updatedOrig = path.join(
+                  exportOptions.outdir,
+                  locale + localeExt,
+                  page === '/' ? '' : file
+                )
+                const updatedDest = path.join(
+                  distDir,
+                  isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
+                  updatedRelativeDest
+                )
+
+                if (!isSsg) {
+                  pagesManifest[curPath] = updatedRelativeDest
                 }
+                await promises.mkdir(path.dirname(updatedDest), {
+                  recursive: true,
+                })
+                await promises.rename(updatedOrig, updatedDest)
               }
             }
-          )
+          }
+        )
+      }
+
+      // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
+      if (!hasPages404 && useStatic404) {
+        await moveExportedPage('/_error', '/404', '/404', false, 'html')
+      }
+
+      if (!hasPages500) {
+        await moveExportedPage('/_error', '/500', '/500', false, 'html')
+      }
+
+      for (const page of combinedPages) {
+        const isSsg = ssgPages.has(page)
+        const isStaticSsgFallback = ssgStaticFallbackPages.has(page)
+        const isDynamic = isDynamicRoute(page)
+        const hasAmp = hybridAmpPages.has(page)
+        const file = normalizePagePath(page)
+
+        // The dynamic version of SSG pages are only prerendered if the
+        // fallback is enabled. Below, we handle the specific prerenders
+        // of these.
+        const hasHtmlOutput = !(isSsg && isDynamic && !isStaticSsgFallback)
+
+        if (hasHtmlOutput) {
+          await moveExportedPage(page, page, file, isSsg, 'html')
         }
 
-        // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
-        if (!hasPages404 && useStatic404) {
-          await moveExportedPage('/_error', '/404', '/404', false, 'html')
-        }
-
-        for (const page of combinedPages) {
-          const isSsg = ssgPages.has(page)
-          const isStaticSsgFallback = ssgStaticFallbackPages.has(page)
-          const isDynamic = isDynamicRoute(page)
-          const hasAmp = hybridAmpPages.has(page)
-          const file = normalizePagePath(page)
-
-          // The dynamic version of SSG pages are only prerendered if the
-          // fallback is enabled. Below, we handle the specific prerenders
-          // of these.
-          const hasHtmlOutput = !(isSsg && isDynamic && !isStaticSsgFallback)
-
-          if (hasHtmlOutput) {
-            await moveExportedPage(page, page, file, isSsg, 'html')
-          }
-
-          if (hasAmp && (!isSsg || (isSsg && !isDynamic))) {
-            const ampPage = `${file}.amp`
-            await moveExportedPage(page, ampPage, ampPage, isSsg, 'html')
-
-            if (isSsg) {
-              await moveExportedPage(page, ampPage, ampPage, isSsg, 'json')
-            }
-          }
+        if (hasAmp && (!isSsg || (isSsg && !isDynamic))) {
+          const ampPage = `${file}.amp`
+          await moveExportedPage(page, ampPage, ampPage, isSsg, 'html')
 
           if (isSsg) {
-            // For a non-dynamic SSG page, we must copy its data file
-            // from export, we already moved the HTML file above
-            if (!isDynamic) {
-              await moveExportedPage(page, page, file, isSsg, 'json')
+            await moveExportedPage(page, ampPage, ampPage, isSsg, 'json')
+          }
+        }
 
-              if (i18n) {
-                // TODO: do we want to show all locale variants in build output
-                for (const locale of i18n.locales) {
-                  const localePage = `/${locale}${page === '/' ? '' : page}`
+        if (isSsg) {
+          // For a non-dynamic SSG page, we must copy its data file
+          // from export, we already moved the HTML file above
+          if (!isDynamic) {
+            await moveExportedPage(page, page, file, isSsg, 'json')
 
-                  if (!ssgNotFoundPaths.includes(localePage)) {
-                    finalPrerenderRoutes[localePage] = {
-                      initialRevalidateSeconds:
-                        exportConfig.initialPageRevalidationMap[localePage],
-                      srcRoute: null,
-                      dataRoute: path.posix.join(
-                        '/_next/data',
-                        buildId,
-                        `${file}.json`
-                      ),
-                    }
+            if (i18n) {
+              // TODO: do we want to show all locale variants in build output
+              for (const locale of i18n.locales) {
+                const localePage = `/${locale}${page === '/' ? '' : page}`
+
+                if (!ssgNotFoundPaths.includes(localePage)) {
+                  finalPrerenderRoutes[localePage] = {
+                    initialRevalidateSeconds:
+                      exportConfig.initialPageRevalidationMap[localePage],
+                    srcRoute: null,
+                    dataRoute: path.posix.join(
+                      '/_next/data',
+                      buildId,
+                      `${file}.json`
+                    ),
                   }
                 }
-              } else {
-                finalPrerenderRoutes[page] = {
-                  initialRevalidateSeconds:
-                    exportConfig.initialPageRevalidationMap[page],
-                  srcRoute: null,
-                  dataRoute: path.posix.join(
-                    '/_next/data',
-                    buildId,
-                    `${file}.json`
-                  ),
-                }
-              }
-              // Set Page Revalidation Interval
-              const pageInfo = pageInfos.get(page)
-              if (pageInfo) {
-                pageInfo.initialRevalidateSeconds =
-                  exportConfig.initialPageRevalidationMap[page]
-                pageInfos.set(page, pageInfo)
               }
             } else {
-              // For a dynamic SSG page, we did not copy its data exports and only
-              // copy the fallback HTML file (if present).
-              // We must also copy specific versions of this page as defined by
-              // `getStaticPaths` (additionalSsgPaths).
-              const extraRoutes = additionalSsgPaths.get(page) || []
-              for (const route of extraRoutes) {
-                const pageFile = normalizePagePath(route)
+              finalPrerenderRoutes[page] = {
+                initialRevalidateSeconds:
+                  exportConfig.initialPageRevalidationMap[page],
+                srcRoute: null,
+                dataRoute: path.posix.join(
+                  '/_next/data',
+                  buildId,
+                  `${file}.json`
+                ),
+              }
+            }
+            // Set Page Revalidation Interval
+            const pageInfo = pageInfos.get(page)
+            if (pageInfo) {
+              pageInfo.initialRevalidateSeconds =
+                exportConfig.initialPageRevalidationMap[page]
+              pageInfos.set(page, pageInfo)
+            }
+          } else {
+            // For a dynamic SSG page, we did not copy its data exports and only
+            // copy the fallback HTML file (if present).
+            // We must also copy specific versions of this page as defined by
+            // `getStaticPaths` (additionalSsgPaths).
+            const extraRoutes = additionalSsgPaths.get(page) || []
+            for (const route of extraRoutes) {
+              const pageFile = normalizePagePath(route)
+              await moveExportedPage(page, route, pageFile, isSsg, 'html', true)
+              await moveExportedPage(page, route, pageFile, isSsg, 'json', true)
+
+              if (hasAmp) {
+                const ampPage = `${pageFile}.amp`
                 await moveExportedPage(
                   page,
-                  route,
-                  pageFile,
+                  ampPage,
+                  ampPage,
                   isSsg,
                   'html',
                   true
                 )
                 await moveExportedPage(
                   page,
-                  route,
-                  pageFile,
+                  ampPage,
+                  ampPage,
                   isSsg,
                   'json',
                   true
                 )
+              }
 
-                if (hasAmp) {
-                  const ampPage = `${pageFile}.amp`
-                  await moveExportedPage(
-                    page,
-                    ampPage,
-                    ampPage,
-                    isSsg,
-                    'html',
-                    true
-                  )
-                  await moveExportedPage(
-                    page,
-                    ampPage,
-                    ampPage,
-                    isSsg,
-                    'json',
-                    true
-                  )
-                }
+              finalPrerenderRoutes[route] = {
+                initialRevalidateSeconds:
+                  exportConfig.initialPageRevalidationMap[route],
+                srcRoute: page,
+                dataRoute: path.posix.join(
+                  '/_next/data',
+                  buildId,
+                  `${normalizePagePath(route)}.json`
+                ),
+              }
 
-                finalPrerenderRoutes[route] = {
-                  initialRevalidateSeconds:
-                    exportConfig.initialPageRevalidationMap[route],
-                  srcRoute: page,
-                  dataRoute: path.posix.join(
-                    '/_next/data',
-                    buildId,
-                    `${normalizePagePath(route)}.json`
-                  ),
-                }
-
-                // Set route Revalidation Interval
-                const pageInfo = pageInfos.get(route)
-                if (pageInfo) {
-                  pageInfo.initialRevalidateSeconds =
-                    exportConfig.initialPageRevalidationMap[route]
-                  pageInfos.set(route, pageInfo)
-                }
+              // Set route Revalidation Interval
+              const pageInfo = pageInfos.get(route)
+              if (pageInfo) {
+                pageInfo.initialRevalidateSeconds =
+                  exportConfig.initialPageRevalidationMap[route]
+                pageInfos.set(route, pageInfo)
               }
             }
           }
         }
-
-        // remove temporary export folder
-        await recursiveDelete(exportOptions.outdir)
-        await promises.rmdir(exportOptions.outdir)
-        await promises.writeFile(
-          manifestPath,
-          JSON.stringify(pagesManifest, null, 2),
-          'utf8'
-        )
-
-        if (postBuildSpinner) postBuildSpinner.stopAndPersist()
-        console.log()
       }
+
+      // remove temporary export folder
+      await recursiveDelete(exportOptions.outdir)
+      await promises.rmdir(exportOptions.outdir)
+      await promises.writeFile(
+        manifestPath,
+        JSON.stringify(pagesManifest, null, 2),
+        'utf8'
+      )
+
+      if (postBuildSpinner) postBuildSpinner.stopAndPersist()
+      console.log()
     })
 
     const analysisEnd = process.hrtime(analysisBegin)
