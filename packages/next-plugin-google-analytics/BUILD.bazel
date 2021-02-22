@@ -1,6 +1,18 @@
 load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm")
 
+PACKAGE_NAME = "next-plugin-google-analytics"
+
 pkg_npm(
-    name = "next_plugin_google_analytics",
+    name = PACKAGE_NAME,
     srcs = ["package.json", ":src", ":readme.md"]
+)
+
+alias(
+    name = "publish",
+    actual = "%s.publish" % PACKAGE_NAME,
+)
+
+alias(
+    name = "pack",
+    actual = "%s.pack" % PACKAGE_NAME,
 )

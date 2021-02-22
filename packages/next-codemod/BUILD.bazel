@@ -13,10 +13,23 @@ ts_library(
     tsconfig = "tsconfig.json",
 )
 
+PACKAGE_NAME = "next-codemod"
+
 pkg_npm(
-    name = "next_codemod",
+    name = PACKAGE_NAME,
+    package_name = PACKAGE_NAME,
     srcs = ["package.json"],
     deps = [":compile_ts"]
+)
+
+alias(
+    name = "publish",
+    actual = "%s.publish" % PACKAGE_NAME,
+)
+
+alias(
+    name = "pack",
+    actual = "%s.pack" % PACKAGE_NAME,
 )
 
 jest_test(

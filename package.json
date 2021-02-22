@@ -18,6 +18,7 @@
   ],
   "scripts": {
     "lerna": "lerna",
+    "bazel": "bazel",
     "dev": "lerna run dev --stream --parallel",
     "dev2": "while true; do yarn --check-files && yarn dev; done",
     "testonly": "jest --runInBand",

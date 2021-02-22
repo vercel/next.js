@@ -1,6 +1,18 @@
 load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm")
 
+PACKAGE_NAME = "next-plugin-sentry"
+
 pkg_npm(
-    name = "next_plugin_sentry",
+    name = PACKAGE_NAME,
     srcs = ["package.json", ":src", ":readme.md"]
+)
+
+alias(
+    name = "publish",
+    actual = "%s.publish" % PACKAGE_NAME,
+)
+
+alias(
+    name = "pack",
+    actual = "%s.pack" % PACKAGE_NAME,
 )
