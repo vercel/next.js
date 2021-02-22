@@ -294,7 +294,7 @@ export default function Image({
 
     objectFit,
     objectPosition,
-    ...(layout === 'intrinsic' || layout === 'fixed'
+    ...(!isLazy && (layout === 'intrinsic' || layout === 'fixed')
       ? {
           contentVisibility: priority ? 'visible' : 'auto',
           containIntrinsicSize: heightInt,
