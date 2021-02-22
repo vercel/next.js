@@ -83,18 +83,21 @@ export const createGuestbookEntry = async (twitterHandle, story) => {
     }
   }`
 
-  const res = await fetch(process.env.NEXT_PUBLIC_AMPLICATION_GRAPHQL_ENDPOINT, {
-    method: 'POST',
-    headers: {
-      Authorization: `Basic ${process.env.NEXT_PUBLIC_AMPLICATION_SECRET}`,
-      'Content-type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({
-      query,
-      variables: { twitterHandle, story },
-    }),
-  })
+  const res = await fetch(
+    process.env.NEXT_PUBLIC_AMPLICATION_GRAPHQL_ENDPOINT,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${process.env.NEXT_PUBLIC_AMPLICATION_SECRET}`,
+        'Content-type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables: { twitterHandle, story },
+      }),
+    }
+  )
   const data = await res.json()
 
   return data

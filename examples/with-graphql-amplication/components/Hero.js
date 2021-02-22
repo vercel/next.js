@@ -104,20 +104,20 @@ export default function Hero(props) {
         ) : !data ? (
           <p>Loading entries...</p>
         ) : (
-              entries.map((entry, index, allEntries) => {
-                const date = new Date(entry.createdAt)
-                return (
-                  <div key={entry.id}>
-                    <GuestbookEntry
-                      twitter_handle={entry.twitterHandle}
-                      story={entry.story}
-                      date={date}
-                    />
-                    {index < allEntries.length - 1 && <GuestbookEntryDivider />}
-                  </div>
-                )
-              })
-            )}
+          entries.map((entry, index, allEntries) => {
+            const date = new Date(entry.createdAt)
+            return (
+              <div key={entry.id}>
+                <GuestbookEntry
+                  twitter_handle={entry.twitterHandle}
+                  story={entry.story}
+                  date={date}
+                />
+                {index < allEntries.length - 1 && <GuestbookEntryDivider />}
+              </div>
+            )
+          })
+        )}
       </div>
       {heroEntries.styles}
       {heroFormSubmitButton.styles}
