@@ -1106,8 +1106,6 @@ export default async function build(
               )
             ) {
               pagesManifest[page] = relativeDest
-            } else {
-              console.log('not adding', page)
             }
 
             const isNotFound = ssgNotFoundPaths.includes(page)
