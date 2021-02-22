@@ -20,6 +20,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
+  STATIC_STATUS_PAGES,
 } from '../next-server/lib/constants'
 import {
   getRouteMatcher,
@@ -627,6 +628,11 @@ export default class DevServer extends Server {
     await this.devReady
     if (res.statusCode === 404 && (await this.hasPage('/404'))) {
       await this.hotReloader!.ensurePage('/404')
+    } else if (
+      STATIC_STATUS_PAGES.includes(`/${res.statusCode}`) &&
+      (await this.hasPage(`/${res.statusCode}`))
+    ) {
+      await this.hotReloader!.ensurePage(`/${res.statusCode}`)
     } else {
       await this.hotReloader!.ensurePage('/_error')
     }

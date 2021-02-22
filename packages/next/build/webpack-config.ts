@@ -835,6 +835,7 @@ export default async function getBaseWebpackConfig(
       }
     },
     watchOptions: {
+      aggregateTimeout: 5,
       ignored: [
         '**/.git/**',
         '**/node_modules/**',

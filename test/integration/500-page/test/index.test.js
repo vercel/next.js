@@ -1,0 +1,340 @@
+/* eslint-env jest */
+
+import fs from 'fs-extra'
+import { join } from 'path'
+import {
+  killApp,
+  findPort,
+  launchApp,
+  nextStart,
+  nextBuild,
+  renderViaHTTP,
+  fetchViaHTTP,
+  waitFor,
+  getPageFileFromPagesManifest,
+} from 'next-test-utils'
+
+jest.setTimeout(1000 * 60 * 2)
+
+const appDir = join(__dirname, '../')
+const pages500 = join(appDir, 'pages/500.js')
+const pagesApp = join(appDir, 'pages/_app.js')
+const pagesError = join(appDir, 'pages/_error.js')
+const nextConfig = join(appDir, 'next.config.js')
+const gip500Err = /`pages\/500` can not have getInitialProps\/getServerSideProps/
+
+let nextConfigContent
+let appPort
+let app
+
+const runTests = (mode = 'server') => {
+  it('should use pages/500', async () => {
+    const html = await renderViaHTTP(appPort, '/500')
+    expect(html).toContain('custom 500 page')
+  })
+
+  it('should set correct status code with pages/500', async () => {
+    const res = await fetchViaHTTP(appPort, '/500')
+    expect(res.status).toBe(500)
+  })
+
+  it('should not error when visited directly', async () => {
+    const res = await fetchViaHTTP(appPort, '/500')
+    expect(res.status).toBe(500)
+    expect(await res.text()).toContain('custom 500 page')
+  })
+
+  if (mode !== 'dev') {
+    it('should output 500.html during build', async () => {
+      const page = getPageFileFromPagesManifest(appDir, '/500')
+      expect(page.endsWith('.html')).toBe(true)
+    })
+
+    it('should add /500 to pages-manifest correctly', async () => {
+      const manifest = await fs.readJSON(
+        join(appDir, '.next', mode, 'pages-manifest.json')
+      )
+      expect('/500' in manifest).toBe(true)
+    })
+  }
+}
+
+describe('500 Page Support', () => {
+  describe('dev mode', () => {
+    beforeAll(async () => {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+
+    runTests('dev')
+  })
+
+  describe('server mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
+
+    runTests('server')
+  })
+
+  describe('serverless mode', () => {
+    beforeAll(async () => {
+      nextConfigContent = await fs.readFile(nextConfig, 'utf8')
+      await fs.writeFile(
+        nextConfig,
+        `
+        module.exports = {
+          target: 'serverless'
+        }
+      `
+      )
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await fs.writeFile(nextConfig, nextConfigContent)
+      await killApp(app)
+    })
+
+    runTests('serverless')
+  })
+
+  it('still builds 500 statically with getInitialProps in _app', async () => {
+    await fs.writeFile(
+      pagesApp,
+      `
+      import App from 'next/app'
+
+      const page = ({ Component, pageProps }) => <Component {...pageProps} />
+      page.getInitialProps = (ctx) => App.getInitialProps(ctx)
+      export default page
+    `
+    )
+    const { stderr, stdout: buildStdout, code } = await nextBuild(appDir, [], {
+      stderr: true,
+      stdout: true,
+    })
+    await fs.remove(pagesApp)
+
+    expect(stderr).not.toMatch(gip500Err)
+    expect(buildStdout).toContain('rendered 500')
+    expect(code).toBe(0)
+    expect(
+      await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
+    ).toBe(true)
+
+    let appStdout = ''
+    const appPort = await findPort()
+    const app = await nextStart(appDir, appPort, {
+      onStderr(msg) {
+        appStdout += msg || ''
+      },
+    })
+
+    await renderViaHTTP(appPort, '/err')
+    await killApp(app)
+
+    expect(appStdout).not.toContain('rendered 500')
+  })
+
+  it('builds 500 statically by default with no pages/500', async () => {
+    await fs.rename(pages500, `${pages500}.bak`)
+    const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+    await fs.rename(`${pages500}.bak`, pages500)
+
+    expect(stderr).not.toMatch(gip500Err)
+    expect(code).toBe(0)
+    expect(
+      await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
+    ).toBe(true)
+  })
+
+  it('builds 500 statically by default with no pages/500 and custom _error', async () => {
+    await fs.rename(pages500, `${pages500}.bak`)
+    await fs.writeFile(
+      pagesError,
+      `
+        function Error({ statusCode }) {
+          return <p>Error status: {statusCode}</p>
+        }
+        Error.getInitialProps = ({ res, err }) => {
+          console.error('called _error.getInitialProps')
+          return {
+            statusCode: res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
+          }
+        }
+        export default Error
+      `
+    )
+    const { stderr: buildStderr, code } = await nextBuild(appDir, [], {
+      stderr: true,
+    })
+    await fs.rename(`${pages500}.bak`, pages500)
+    await fs.remove(pagesError)
+    console.log(buildStderr)
+    expect(buildStderr).not.toMatch(gip500Err)
+    expect(code).toBe(0)
+    expect(
+      await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
+    ).toBe(true)
+
+    let appStderr = ''
+    const appPort = await findPort()
+    const app = await nextStart(appDir, appPort, {
+      onStderr(msg) {
+        appStderr += msg || ''
+      },
+    })
+
+    await renderViaHTTP(appPort, '/err')
+    await killApp(app)
+
+    expect(appStderr).toContain('called _error.getInitialProps')
+  })
+
+  it('shows error with getInitialProps in pages/500 build', async () => {
+    await fs.move(pages500, `${pages500}.bak`)
+    await fs.writeFile(
+      pages500,
+      `
+      const page = () => 'custom 500 page'
+      page.getInitialProps = () => ({ a: 'b' })
+      export default page
+    `
+    )
+    const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+    await fs.remove(pages500)
+    await fs.move(`${pages500}.bak`, pages500)
+
+    expect(stderr).toMatch(gip500Err)
+    expect(code).toBe(1)
+  })
+
+  it('shows error with getInitialProps in pages/500 dev', async () => {
+    await fs.move(pages500, `${pages500}.bak`)
+    await fs.writeFile(
+      pages500,
+      `
+      const page = () => 'custom 500 page'
+      page.getInitialProps = () => ({ a: 'b' })
+      export default page
+    `
+    )
+
+    let stderr = ''
+    appPort = await findPort()
+    app = await launchApp(appDir, appPort, {
+      onStderr(msg) {
+        stderr += msg || ''
+      },
+    })
+    await renderViaHTTP(appPort, '/500')
+    await waitFor(1000)
+
+    await killApp(app)
+
+    await fs.remove(pages500)
+    await fs.move(`${pages500}.bak`, pages500)
+
+    expect(stderr).toMatch(gip500Err)
+  })
+
+  it('does not show error with getStaticProps in pages/500 build', async () => {
+    await fs.move(pages500, `${pages500}.bak`)
+    await fs.writeFile(
+      pages500,
+      `
+      const page = () => 'custom 500 page'
+      export const getStaticProps = () => ({ props: { a: 'b' } })
+      export default page
+    `
+    )
+    const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+    await fs.remove(pages500)
+    await fs.move(`${pages500}.bak`, pages500)
+
+    expect(stderr).not.toMatch(gip500Err)
+    expect(code).toBe(0)
+  })
+
+  it('does not show error with getStaticProps in pages/500 dev', async () => {
+    await fs.move(pages500, `${pages500}.bak`)
+    await fs.writeFile(
+      pages500,
+      `
+      const page = () => 'custom 500 page'
+      export const getStaticProps = () => ({ props: { a: 'b' } })
+      export default page
+    `
+    )
+
+    let stderr = ''
+    appPort = await findPort()
+    app = await launchApp(appDir, appPort, {
+      onStderr(msg) {
+        stderr += msg || ''
+      },
+    })
+    await renderViaHTTP(appPort, '/abc')
+    await waitFor(1000)
+
+    await killApp(app)
+
+    await fs.remove(pages500)
+    await fs.move(`${pages500}.bak`, pages500)
+
+    expect(stderr).not.toMatch(gip500Err)
+  })
+
+  it('shows error with getServerSideProps in pages/500 build', async () => {
+    await fs.move(pages500, `${pages500}.bak`)
+    await fs.writeFile(
+      pages500,
+      `
+      const page = () => 'custom 500 page'
+      export const getServerSideProps = () => ({ props: { a: 'b' } })
+      export default page
+    `
+    )
+    const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+    await fs.remove(pages500)
+    await fs.move(`${pages500}.bak`, pages500)
+
+    expect(stderr).toMatch(gip500Err)
+    expect(code).toBe(1)
+  })
+
+  it('shows error with getServerSideProps in pages/500 dev', async () => {
+    await fs.move(pages500, `${pages500}.bak`)
+    await fs.writeFile(
+      pages500,
+      `
+      const page = () => 'custom 500 page'
+      export const getServerSideProps = () => ({ props: { a: 'b' } })
+      export default page
+    `
+    )
+
+    let stderr = ''
+    appPort = await findPort()
+    app = await launchApp(appDir, appPort, {
+      onStderr(msg) {
+        stderr += msg || ''
+      },
+    })
+    await renderViaHTTP(appPort, '/500')
+    await waitFor(1000)
+
+    await killApp(app)
+
+    await fs.remove(pages500)
+    await fs.move(`${pages500}.bak`, pages500)
+
+    expect(stderr).toMatch(gip500Err)
+  })
+})
