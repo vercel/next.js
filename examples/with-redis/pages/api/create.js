@@ -1,36 +1,25 @@
-import redis from 'redis'
-import { promisify } from 'util'
-import { v4 as uuidv4 } from 'uuid'
+import Redis from 'ioredis'
+import {fixUrl} from "./utils";
 
-export default async function create(req, res) {
-  const client = redis.createClient({
-    url: process.env.REDIS_URL,
-  })
-  if (process.env.REDIS_PASSWORD) {
-    client.auth(process.env.REDIS_PASSWORD)
-  }
-  const hsetAsync = promisify(client.hset).bind(client)
-  const zaddAsync = promisify(client.zadd).bind(client)
-
-  const body = req.body
-  const title = body['title']
-  const id = uuidv4()
-
-  client.on('error', function (err) {
-    throw err
-  })
-
-  if (title) {
-    await zaddAsync('roadmap', 0, id)
-    await hsetAsync(id, 'title', title)
-    client.quit()
-    res.json({
-      body: 'success',
-    })
-  } else {
-    client.quit()
-    res.json({
-      error: 'Feature can not be empty',
-    })
-  }
+module.exports = async (req, res) => {
+    let redis = new Redis(fixUrl(process.env.REDIS_URL));
+    const body = req.body;
+    const title = body["title"];
+    if (!title) {
+        redis.quit()
+        res.json({
+            error: "Feature can not be empty"
+        })
+    } else if (title.length < 70) {
+        await redis.zadd("roadmap", "NX", 1, title);
+        redis.quit()
+        res.json({
+            body: "success"
+        })
+    } else {
+        redis.quit()
+        res.json({
+            error: "Max 70 characters please."
+        })
+    }
 }

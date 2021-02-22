@@ -1,33 +1,24 @@
-import redis from 'redis'
-import { promisify } from 'util'
+import Redis from 'ioredis'
+import {fixUrl} from "./utils";
 
-export default async function list(req, res) {
-  const client = redis.createClient({
-    url: process.env.REDIS_URL,
-  })
-  if (process.env.REDIS_PASSWORD) {
-    client.auth(process.env.REDIS_PASSWORD)
-  }
-  client.on('error', function (err) {
-    throw err
-  })
+module.exports = async(req, res) => {
+    let redis = new Redis(fixUrl(process.env.REDIS_URL));
 
-  const body = req.body
-  const id = body['id']
-  let ip = req.headers['x-forwarded-for']
-  const saddAsync = promisify(client.sadd).bind(client)
-  let c = await saddAsync('s:' + id, ip ? ip : '-')
-  if (c === 0) {
-    client.quit()
-    res.json({
-      error: 'You can not vote an item multiple times',
-    })
-  } else {
-    const zincrbyAsync = promisify(client.zincrby).bind(client)
-    let v = await zincrbyAsync('roadmap', 1, id)
-    client.quit()
-    res.json({
-      body: v,
-    })
-  }
+    const body = req.body
+    const title = body["title"];
+    let ip = req.headers["x-forwarded-for"] || req.headers["Remote_Addr"] || "NA";
+    let c = ip === "NA" ? 1 : await redis.sadd("s:" + title, ip);
+    if(c === 0) {
+        redis.quit();
+        res.json({
+            error: "You can not vote an item multiple times"
+        })
+    } else {
+        let v = await redis.zincrby("roadmap", 1, title);
+        redis.quit();
+        res.json({
+            body: v
+        })
+    }
 }
+
