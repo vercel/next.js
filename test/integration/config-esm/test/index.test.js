@@ -31,7 +31,10 @@ function runTests() {
   })
 }
 
-describe('next.config.mjs', () => {
+const nodeVersion = Number(process.versions.node.split('.')[0])
+const skipTests = nodeVersion < 12
+
+;(skipTests ? describe.skip : describe)('next.config.mjs', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
