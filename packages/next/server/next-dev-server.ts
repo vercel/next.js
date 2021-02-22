@@ -309,6 +309,7 @@ export default class DevServer extends Server {
 
   protected async hasPage(pathname: string): Promise<boolean> {
     let normalizedPath: string
+
     try {
       normalizedPath = normalizePagePath(pathname)
     } catch (err) {

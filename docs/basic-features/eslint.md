@@ -13,7 +13,7 @@ extended by adding an `.eslintrc` file to your project.
 
 By default, Next.js provides a set of [recommended ESLint
 rules](https://github.com/vercel/next.js/blob/canary/packages/eslint-plugin-next/lib/index.js#L10-L18)
-that are automatically linted againt as part of `next build`. If you would like to control which
+that are automatically linted against as part of `next build`. If you would like to control which
 ESLint rules are checked during builds, you will need to add an `.eslintrc` file to the root of your
 project.
 
