@@ -183,7 +183,7 @@ export default async function build(
 
     if (config.eslint?.build) {
       await traceAsyncFn(tracer.startSpan('verify-eslint-setup'), () =>
-        verifyEslintSetup(dir, pagesDir, false)
+        verifyEslintSetup(dir, pagesDir, null)
       )
     }
 
