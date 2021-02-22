@@ -28,10 +28,13 @@ export function setRevalidateHeaders(
 
     res.setHeader(
       'Cache-Control',
-      `s-maxage=${options.revalidate}, stale-while-revalidate`
+      `public, s-maxage=${options.revalidate}, stale-while-revalidate`
     )
   } else if (options.revalidate === false) {
-    res.setHeader('Cache-Control', `s-maxage=31536000, stale-while-revalidate`)
+    res.setHeader(
+      'Cache-Control',
+      `public, s-maxage=31536000, stale-while-revalidate`
+    )
   }
 }
 
