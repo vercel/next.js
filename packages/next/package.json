@@ -63,6 +63,7 @@
     "@babel/runtime": "7.12.5",
     "@hapi/accept": "5.0.1",
     "@next/env": "10.0.9-canary.2",
+    "@next/eslint-plugin-next": "10.0.9-canary.2",
     "@next/polyfill-module": "10.0.9-canary.2",
     "@next/react-dev-overlay": "10.0.9-canary.2",
     "@next/react-refresh-utils": "10.0.9-canary.2",
