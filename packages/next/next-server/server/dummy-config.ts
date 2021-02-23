@@ -30,8 +30,19 @@ export async function shouldLoadWithWebpack5(
 }
 
 export async function loadWebpackHook(phase: string, dir: string) {
+  let useWebpack5 = false
   const worker: any = new Worker(__filename, { enableWorkerThreads: true })
-  const isWebpack5 = Boolean(await worker.shouldLoadWithWebpack5(phase, dir))
-  worker.end()
-  initWebpack(isWebpack5)
+  try {
+    useWebpack5 = Boolean(await worker.shouldLoadWithWebpack5(phase, dir))
+  } catch {
+    // If this errors, it likely will do so again upon boot, so we just swallow
+    // it here.
+  } finally {
+    worker.end()
+  }
+  initWebpack(useWebpack5)
+
+  // hook the Node.js require so that webpack requires are
+  // routed to the bundled and now initialized webpack version
+  require('../../build/webpack/require-hook')
 }

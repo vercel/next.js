@@ -203,10 +203,6 @@ export default async function getBaseWebpackConfig(
     rewrites: Rewrite[]
   }
 ): Promise<webpack.Configuration> {
-  // hook the Node.js require so that webpack requires are
-  // routed to the bundled and now initialized webpack version
-  require('./webpack/require-hook')
-
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
