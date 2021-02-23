@@ -1,6 +1,7 @@
 /* eslint-env jest */
 
 import fs from 'fs-extra'
+import webdriver from 'next-webdriver'
 import { join } from 'path'
 import {
   killApp,
@@ -12,6 +13,9 @@ import {
   fetchViaHTTP,
   waitFor,
   getPageFileFromPagesManifest,
+  getPagesManifest,
+  updatePagesManifest,
+  check,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -152,6 +156,36 @@ describe('500 Page Support', () => {
     expect(
       await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
     ).toBe(true)
+
+    const pagesManifest = await getPagesManifest(appDir)
+    await updatePagesManifest(
+      appDir,
+      JSON.stringify({
+        ...pagesManifest,
+        '/500': pagesManifest['/404'].replace('/404', '/500'),
+      })
+    )
+
+    // ensure static 500 hydrates correctly
+    const appPort = await findPort()
+    const app = await nextStart(appDir, appPort)
+
+    try {
+      const browser = await webdriver(appPort, '/err?hello=world')
+      const initialTitle = await browser.eval('document.title')
+
+      await check(async () => {
+        const query = await browser.eval(`window.next.router.query`)
+        return query.hello === 'world' ? 'success' : 'not yet'
+      }, 'success')
+
+      const currentTitle = await browser.eval('document.title')
+
+      expect(initialTitle).toBe(currentTitle)
+      expect(initialTitle).toBe('500: Internal Server Error')
+    } finally {
+      await killApp(app)
+    }
   })
 
   it('builds 500 statically by default with no pages/500 and custom _error', async () => {
