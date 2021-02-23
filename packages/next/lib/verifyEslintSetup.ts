@@ -1,10 +1,14 @@
 import chalk from 'chalk'
 import { ESLint } from 'eslint'
-import { readFileSync, readdirSync, existsSync } from 'fs'
+import { readdirSync, existsSync } from 'fs'
 import { join } from 'path'
 
 import { formatResults } from './eslint/customFormatter'
 import * as log from '../build/output/log'
+
+type Config = {
+  plugins: string[]
+}
 
 export async function verifyEslintSetup(
   baseDir: string,
@@ -13,6 +17,7 @@ export async function verifyEslintSetup(
 ) {
   try {
     let options: ESLint.Options
+    let completeConfig: Config
 
     if (pagePath && !existsSync(join(pagesDir, pagePath))) {
       return
@@ -23,14 +28,6 @@ export async function verifyEslintSetup(
     )
 
     if (eslintrcFile) {
-      const config = readFileSync(`${baseDir}/${eslintrcFile}`).toString()
-
-      if (!config.includes('@next/next')) {
-        log.warn(
-          `The Next.js ESLint plugin was not detected in ${eslintrcFile}. We recommend including it to prevent significant issues in your application (see https://nextjs.org/docs/basic-features/eslint).`
-        )
-      }
-
       options = {
         useEslintrc: true,
       }
@@ -60,6 +57,17 @@ export async function verifyEslintSetup(
     const results = await eslint.lintFiles([
       pagePath ? join(pagesDir, pagePath) : `${pagesDir}/**/*.{js,tsx}`,
     ])
+
+    if (eslintrcFile) {
+      completeConfig = await eslint.calculateConfigForFile(eslintrcFile)
+
+      if (!completeConfig.plugins?.includes('@next/next')) {
+        log.warn(
+          `The Next.js ESLint plugin was not detected in ${eslintrcFile}. We recommend including it to prevent significant issues in your application (see https://nextjs.org/docs/basic-features/eslint).`
+        )
+      }
+    }
+
     const errors = ESLint.getErrorResults(results)
 
     if (errors?.length && !pagePath) {
