@@ -89,6 +89,7 @@ import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
 import escapePathDelimiters from '../lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../../build/webpack/loaders/next-serverless-loader/utils'
+import { install as installWebpack } from './dummy-config'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -179,6 +180,9 @@ export default class Server {
     const phase = this.currentPhase()
     loadEnvConfig(this.dir, dev, Log)
 
+    // Default to webpack 4 if using custom server since we cannot pre-evaluate
+    // the `next.config.js`:
+    installWebpack(false)
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
