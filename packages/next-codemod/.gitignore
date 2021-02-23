@@ -1,5 +1,6 @@
 *.d.ts
 *.js
 *.js.map
+!jest.config.js
 !transforms/__tests__/**/*.js
 !transforms/__testfixtures__/**/*.js
