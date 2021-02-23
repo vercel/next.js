@@ -199,7 +199,11 @@ type Post = {
   content: string
 }
 
-export const getStaticProps = async () => {
+type StaticProps = {
+  posts: Post[]
+}
+
+export const getStaticProps<StaticProps> = async () => {
   const res = await fetch('https://.../posts')
   const posts: Post[] = await res.json()
 
