@@ -1,13 +1,13 @@
 ---
-description: Next.js uses ESLint to make it easier to find and resolve issues that affect user or
-developer experience.
+description: Next.js uses ESLint to find and resolve issues affecting the user or developer
+experience.
 ---
 
 # ESLint
 
-Next.js uses [ESLint](https://eslint.org/) to make it easier to find and resolve issues that affect
-user or developer experience. A minimal set of Next.js rules are provided by default, but can be
-extended by adding an `.eslintrc` file to your project.
+Next.js uses [ESLint](https://eslint.org/) to find and resolve issues affecting the user or
+developer experience. A minimal set of Next.js rules are provided by default, but can be extended by
+adding an `.eslintrc` file to your project.
 
 ## Default configuration
 
@@ -38,9 +38,9 @@ Here's an example of an `.eslintrc.json` file:
 - Specify `parserOptions` in the same way as the above example to enable appropriate language
   features
 
-> If you add an `.eslintrc` file to your application and not include `plugin:@next/next/recommended`
-> to the config, its rules will not be checked during development or production builds. This is
-> **not recommended**.
+> If you add an `.eslintrc` file to your application and don't include
+> `plugin:@next/next/recommended`in the config, its rules will not be checked during development or
+> production builds. This is **not recommended**.
 
 If you want to enable ESLint to run during development, or disable it for production builds; refer
 to the documentation for [ESLint Warnings and

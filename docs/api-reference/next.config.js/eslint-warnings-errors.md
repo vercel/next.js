@@ -1,5 +1,5 @@
 ---
-description: Learn to opt-in and out of ESLint during development mode and production builds.
+description: Learn how to opt-in and out of ESLint during development mode and production builds.
 ---
 
 # ESLint Warnings and Errors
@@ -12,8 +12,8 @@ project.
 If you'd like Next.js to dangerously produce production code even when your application has errors,
 you can disable ESLint running during the build process.
 
-> Be sure you are running ESLint as part of your build or deploy process, otherwise this can be
-> dangerous.
+> It's recommended to run ESLint as part of the production build process to ensure your application
+> is resilient against runtime issues.
 
 Open `next.config.js` and disable the `build` option in the `eslint` config:
 
