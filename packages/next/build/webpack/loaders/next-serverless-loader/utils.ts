@@ -371,7 +371,6 @@ export function getUtils({
         pathname: localePathResult.pathname,
       })
       ;(req as any).__nextStrippedLocale = true
-      parsedUrl.pathname = localePathResult.pathname
     }
 
     // If a detected locale is a domain specific locale and we aren't already
