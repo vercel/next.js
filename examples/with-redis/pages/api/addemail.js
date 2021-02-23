@@ -6,7 +6,7 @@ module.exports = async (req, res) => {
   const body = req.body
   const email = body['email']
 
-  redis.on('error', function(err) {
+  redis.on('error', function (err) {
     throw err
   })
 
@@ -14,12 +14,12 @@ module.exports = async (req, res) => {
     await redis.sadd('emails', email)
     redis.quit()
     res.json({
-      body: 'success'
+      body: 'success',
     })
   } else {
     redis.quit()
     res.json({
-      error: 'Invalid email'
+      error: 'Invalid email',
     })
   }
 }

@@ -7,18 +7,18 @@ module.exports = async (req, res) => {
   if (!title) {
     redis.quit()
     res.json({
-      error: 'Feature can not be empty'
+      error: 'Feature can not be empty',
     })
   } else if (title.length < 70) {
     await redis.zadd('roadmap', 'NX', 1, title)
     redis.quit()
     res.json({
-      body: 'success'
+      body: 'success',
     })
   } else {
     redis.quit()
     res.json({
-      error: 'Max 70 characters please.'
+      error: 'Max 70 characters please.',
     })
   }
 }

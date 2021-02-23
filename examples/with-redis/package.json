@@ -12,5 +12,8 @@
     "react-dom": "17.0.1",
     "react-toastify": "^6.0.8",
     "ioredis": "^4.22.0"
+  },
+  "devDependencies": {
+    "prettier": "^2.2.1"
   }
 }
