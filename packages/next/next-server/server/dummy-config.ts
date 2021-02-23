@@ -17,8 +17,11 @@ export async function shouldLoadWithWebpack5(
     return true
   }
 
-  // Default to webpack 4 for backwards compatibility:
+  // Default to webpack 4 for backwards compatibility on boot:
   initWebpack(false)
+  // hook the Node.js require so that webpack requires are
+  // routed to the bundled and now initialized webpack version
+  require('../../build/webpack/require-hook')
 
   const userConfigModule = require(path)
   const userConfig: Partial<NextConfig> = normalizeConfig(
@@ -40,8 +43,8 @@ export async function loadWebpackHook(phase: string, dir: string) {
   } finally {
     worker.end()
   }
-  initWebpack(useWebpack5)
 
+  initWebpack(useWebpack5)
   // hook the Node.js require so that webpack requires are
   // routed to the bundled and now initialized webpack version
   require('../../build/webpack/require-hook')
