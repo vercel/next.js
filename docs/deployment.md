@@ -85,15 +85,22 @@ Next.js can be deployed to any hosting provider that supports Docker containers.
 Here is a multi-stage `Dockerfile` using `node:alpine` that you can use:
 
 ```Dockerfile
-FROM node:alpine AS builder
+# Install dependencies only when needed
+FROM node:alpine AS deps
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 COPY package.json yarn.lock ./
-RUN yarn
+RUN yarn install --frozen-lockfile
+
+# Rebuild the source code only when needed
+FROM node:alpine AS builder
 COPY . .
+COPY --from=deps /app/node_modules ./node_modules
 RUN yarn build
 
-FROM node:alpine
+# Production image, copy all the files and run next
+FROM node:alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV production
@@ -102,10 +109,12 @@ RUN adduser -S nextjs -u 1001
 USER nextjs
 EXPOSE 3000
 
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/next.config.js ./
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
 
-# Uncomment this in case you want to disable telemetry.
+# Uncomment the following line in case you want to disable telemetry.
 # RUN npx next telemetry disable
 
 CMD ["node_modules/.bin/next", "start"]
