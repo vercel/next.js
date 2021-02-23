@@ -1,6 +1,9 @@
+import Redis from 'ioredis'
 
-
-export function fixUrl(url) {
+function fixUrl(url) {
+    if(!url) {
+       return "";
+    }
     if(url.startsWith("redis://") && !url.startsWith("redis://:")) {
         return url.replace("redis://", "redis://:")
     }
@@ -8,4 +11,9 @@ export function fixUrl(url) {
         return url.replace("rediss://", "rediss://:")
     }
     return url;
+}
+
+
+export function getRedis() {
+    return new Redis(fixUrl(process.env.REDIS_URL));
 }

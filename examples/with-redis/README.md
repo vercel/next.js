@@ -16,7 +16,7 @@ You can deploy Roadmap Voting App for your project/company using [Vercel and Ups
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Fupstash%2Fserverless-tutorials%2Ftree%2Fmaster%2Froadmap-voting-demo&env=LOGO&envDescription=Enter%20URL%20for%20your%20project%2Fcompany%20logo&envLink=https%3A%2F%2Fdocs.upstash.com%2Fdocs%2Ftutorials%2Froadmap_voting_app&project-name=roadmap-voting&repo-name=roadmap-voting&demo-title=Roadmap%20Voting&demo-description=Roadmap%20Voting%20Page%20for%20Your%20Project&demo-url=https%3A%2F%2Froadmap.upstash.com&integration-ids=oac_V3R1GIpkoJorr6fqyiwdhl17)
 
 ## Configuration
-The application uses [Upstash](https://upstash.com) (Serverless Redis Database) as its data storage. During deployment you will be asked to integrate Upstash. The integration dialog will help you create an Upstash database for free and link it to your Vercel project with the following steps:
+The application uses [Upstash](https://upstash.com) (Serverless Redis Database) as its data storage. During deployment, you will be asked to integrate Upstash. The integration dialog will help you create an Upstash database for free and link it to your Vercel project with the following steps:
 
 ### Deployment Steps
 After clicking the deploy button, enter a name for your project. Then you will be asked to install Upstash integration.

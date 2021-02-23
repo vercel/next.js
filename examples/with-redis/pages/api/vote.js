@@ -1,9 +1,7 @@
-import Redis from 'ioredis'
-import {fixUrl} from "./utils";
+import { getRedis } from './utils'
 
 module.exports = async(req, res) => {
-    let redis = new Redis(fixUrl(process.env.REDIS_URL));
-
+    let redis = getRedis();
     const body = req.body
     const title = body["title"];
     let ip = req.headers["x-forwarded-for"] || req.headers["Remote_Addr"] || "NA";

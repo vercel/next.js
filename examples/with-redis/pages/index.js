@@ -46,10 +46,8 @@ class Home extends React.Component {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({"title": title})
         };
-        console.log(requestOptions);
         fetch('api/vote', requestOptions)
             .then(response => response.json()).then(data => {
-                console.log(data)
                 if(data.error) {
                     toast.error(data.error, {hideProgressBar: true, autoClose: 3000});
                 } else {
@@ -82,7 +80,6 @@ class Home extends React.Component {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({"email": this.inputEmail.current.value})
         };
-        console.log(requestOptions);
         fetch('api/addemail', requestOptions)
             .then(response => response.json()).then(data => {
             if(data.error) {

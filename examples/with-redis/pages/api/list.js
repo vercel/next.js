@@ -1,8 +1,7 @@
-import {fixUrl} from "./utils";
-import Redis from 'ioredis'
+import { getRedis } from './utils'
 
 module.exports = async (req, res) => {
-    let redis = new Redis(fixUrl(process.env.REDIS_URL));
+    let redis = getRedis();
     let n = await redis.zrevrange("roadmap", 0, 100, "WITHSCORES");
     let result = []
     for (let i = 0; i < n.length - 1; i += 2) {
