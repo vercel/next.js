@@ -86,6 +86,7 @@ const defaultConfig: NextConfig = {
     optimizeCss: false,
     scrollRestoration: false,
     scriptLoader: false,
+    stats: false,
   },
   future: {
     strictPostcssConfiguration: false,

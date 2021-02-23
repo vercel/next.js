@@ -8,7 +8,7 @@ import {
   GSP_NO_RETURNED_VALUE,
   GSSP_COMPONENT_MEMBER_ERROR,
   GSSP_NO_RETURNED_VALUE,
-  PAGES_404_GET_INITIAL_PROPS_ERROR,
+  STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
@@ -22,6 +22,7 @@ import {
   AMP_RENDER_TARGET,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
+  STATIC_STATUS_PAGES,
 } from '../lib/constants'
 import { defaultHead } from '../lib/head'
 import { HeadManagerContext } from '../lib/head-manager-context'
@@ -80,6 +81,8 @@ class ServerRouter implements NextRouter {
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocales
+  isPreview: boolean
+  isLocaleDomain: boolean
   // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
   static events: MittEmitter = mitt()
 
@@ -93,7 +96,9 @@ class ServerRouter implements NextRouter {
     locale?: string,
     locales?: string[],
     defaultLocale?: string,
-    domainLocales?: DomainLocales
+    domainLocales?: DomainLocales,
+    isPreview?: boolean,
+    isLocaleDomain?: boolean
   ) {
     this.route = pathname.replace(/\/$/, '') || '/'
     this.pathname = pathname
@@ -106,6 +111,8 @@ class ServerRouter implements NextRouter {
     this.defaultLocale = defaultLocale
     this.isReady = isReady
     this.domainLocales = domainLocales
+    this.isPreview = !!isPreview
+    this.isLocaleDomain = !!isLocaleDomain
   }
 
   push(): any {
@@ -229,6 +236,7 @@ function renderDocument(
     locales,
     defaultLocale,
     domainLocales,
+    isPreview,
   }: RenderOpts & {
     props: any
     docComponentsRendered: DocumentProps['docComponentsRendered']
@@ -251,6 +259,7 @@ function renderDocument(
     appGip?: boolean
     devOnlyCacheBusterQueryString: string
     scriptLoader: any
+    isPreview?: boolean
   }
 ): string {
   return (
@@ -280,6 +289,7 @@ function renderDocument(
             locales,
             defaultLocale,
             domainLocales,
+            isPreview,
           },
           buildManifest,
           docComponentsRendered,
@@ -526,13 +536,34 @@ export async function renderToHTML(
     }
 
     if (pathname === '/404' && (hasPageGetInitialProps || getServerSideProps)) {
-      throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
+      throw new Error(
+        `\`pages/404\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
+      )
+    }
+    if (
+      STATIC_STATUS_PAGES.includes(pathname) &&
+      (hasPageGetInitialProps || getServerSideProps)
+    ) {
+      throw new Error(
+        `\`pages${pathname}\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
+      )
     }
   }
   if (isAutoExport) renderOpts.autoExport = true
   if (isSSG) renderOpts.nextExport = false
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
+
+  let isPreview
+  let previewData: string | false | object | undefined
+
+  if ((isSSG || getServerSideProps) && !isFallback) {
+    // Reads of this are cached on the `req` object, so this should resolve
+    // instantly. There's no need to pass this data down from a previous
+    // invoke, where we'd have to consider server & serverless.
+    previewData = tryGetPreviewData(req, res, previewProps)
+    isPreview = previewData !== false
+  }
 
   // url will always be set
   const asPath: string = renderOpts.resolvedAsPath || (req.url as string)
@@ -549,7 +580,9 @@ export async function renderToHTML(
     renderOpts.locale,
     renderOpts.locales,
     renderOpts.defaultLocale,
-    renderOpts.domainLocales
+    renderOpts.domainLocales,
+    isPreview,
+    (req as any).__nextIsLocaleDomain
   )
   const ctx = {
     err,
@@ -615,17 +648,12 @@ export async function renderToHTML(
       ctx,
     })
 
-    if (isSSG) {
-      props[STATIC_PROPS_ID] = true
+    if ((isSSG || getServerSideProps) && isPreview) {
+      props.__N_PREVIEW = true
     }
 
-    let previewData: string | false | object | undefined
-
-    if ((isSSG || getServerSideProps) && !isFallback) {
-      // Reads of this are cached on the `req` object, so this should resolve
-      // instantly. There's no need to pass this data down from a previous
-      // invoke, where we'd have to consider server & serverless.
-      previewData = tryGetPreviewData(req, res, previewProps)
+    if (isSSG) {
+      props[STATIC_PROPS_ID] = true
     }
 
     if (isSSG && !isFallback) {
@@ -634,7 +662,7 @@ export async function renderToHTML(
       try {
         data = await getStaticProps!({
           ...(pageIsDynamic ? { params: query as ParsedUrlQuery } : undefined),
-          ...(previewData !== false
+          ...(isPreview
             ? { preview: true, previewData: previewData }
             : undefined),
           locales: renderOpts.locales,
@@ -783,6 +811,7 @@ export async function renderToHTML(
         props.pageProps,
         'props' in data ? data.props : undefined
       )
+
       // pass up revalidate and props for export
       // TODO: change this to a different passing mechanism
       ;(renderOpts as any).revalidate =
@@ -1047,6 +1076,7 @@ export async function renderToHTML(
     appGip: !defaultAppGetInitialProps ? true : undefined,
     devOnlyCacheBusterQueryString,
     scriptLoader,
+    isPreview: isPreview === true ? true : undefined,
   })
 
   if (process.env.NODE_ENV !== 'production') {

@@ -13,10 +13,11 @@ declare global {
       callback: (deadline: RequestIdleCallbackDeadline) => void,
       opts?: RequestIdleCallbackOptions
     ) => RequestIdleCallbackHandle
+    cancelIdleCallback: (id: RequestIdleCallbackHandle) => void
   }
 }
 
-const requestIdleCallback =
+export const requestIdleCallback =
   (typeof self !== 'undefined' && self.requestIdleCallback) ||
   function (
     cb: (deadline: RequestIdleCallbackDeadline) => void
@@ -32,4 +33,8 @@ const requestIdleCallback =
     }, 1)
   }
 
-export default requestIdleCallback
+export const cancelIdleCallback =
+  (typeof self !== 'undefined' && self.cancelIdleCallback) ||
+  function (id: RequestIdleCallbackHandle) {
+    return clearTimeout(id)
+  }

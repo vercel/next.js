@@ -32,6 +32,7 @@ import {
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
+  STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
 } from '../lib/constants'
 import {
@@ -183,7 +184,7 @@ export default class Server {
     this.nextConfig = loadConfig(phase, this.dir, conf)
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
-    this.hasStaticDir = fs.existsSync(join(this.dir, 'static'))
+    this.hasStaticDir = !minimalMode && fs.existsSync(join(this.dir, 'static'))
 
     // Only serverRuntimeConfig needs the default
     // publicRuntimeConfig gets it's default in client/index.js
@@ -437,6 +438,7 @@ export default class Server {
       if (detectedDomain) {
         defaultLocale = detectedDomain.defaultLocale
         detectedLocale = defaultLocale
+        ;(req as any).__nextIsLocaleDomain = true
       }
 
       // if not domain specific locale use accept-language preferred
@@ -561,6 +563,9 @@ export default class Server {
     try {
       return await this.run(req, res, parsedUrl)
     } catch (err) {
+      if (this.minimalMode) {
+        throw err
+      }
       this.logError(err)
       res.statusCode = 500
       res.end('Internal Server Error')
@@ -1354,6 +1359,12 @@ export default class Server {
       res.statusCode = 404
     }
 
+    // ensure correct status is set when visiting a status page
+    // directly e.g. /500
+    if (STATIC_STATUS_PAGES.includes(pathname)) {
+      res.statusCode = parseInt(pathname.substr(1), 10)
+    }
+
     // handle static page
     if (typeof components.Component === 'string') {
       return components.Component
@@ -1829,14 +1840,19 @@ export default class Server {
         }
       }
     } catch (err) {
-      this.logError(err)
-
       if (err && err.code === 'DECODE_FAILED') {
+        this.logError(err)
         res.statusCode = 400
         return await this.renderErrorToHTML(err, req, res, pathname, query)
       }
       res.statusCode = 500
-      return await this.renderErrorToHTML(err, req, res, pathname, query)
+      const html = await this.renderErrorToHTML(err, req, res, pathname, query)
+
+      if (this.minimalMode) {
+        throw err
+      }
+      this.logError(err)
+      return html
     }
     res.statusCode = 404
     return await this.renderErrorToHTML(null, req, res, pathname, query)
@@ -1857,6 +1873,10 @@ export default class Server {
       )
     }
     const html = await this.renderErrorToHTML(err, req, res, pathname, query)
+
+    if (this.minimalMode && res.statusCode === 500) {
+      throw err
+    }
     if (html === null) {
       return
     }
@@ -1889,9 +1909,15 @@ export default class Server {
       result = await this.findPageComponents('/404', query)
       using404Page = result !== null
     }
+    let statusPage = `/${res.statusCode}`
+
+    if (!result && STATIC_STATUS_PAGES.includes(statusPage)) {
+      result = await this.findPageComponents(statusPage, query)
+    }
 
     if (!result) {
       result = await this.findPageComponents('/_error', query)
+      statusPage = '/_error'
     }
 
     if (
@@ -1909,7 +1935,7 @@ export default class Server {
         html = await this.renderToHTMLWithComponents(
           req,
           res,
-          using404Page ? '/404' : '/_error',
+          statusPage,
           result!,
           {
             ...this.renderOpts,
@@ -2001,9 +2027,11 @@ export default class Server {
     }
 
     let nextFilesStatic: string[] = []
-    nextFilesStatic = recursiveReadDirSync(
-      join(this.distDir, 'static')
-    ).map((f) => join('.', relative(this.dir, this.distDir), 'static', f))
+    nextFilesStatic = !this.minimalMode
+      ? recursiveReadDirSync(join(this.distDir, 'static')).map((f) =>
+          join('.', relative(this.dir, this.distDir), 'static', f)
+        )
+      : []
 
     return (this._validFilesystemPathSet = new Set<string>([
       ...nextFilesStatic,
