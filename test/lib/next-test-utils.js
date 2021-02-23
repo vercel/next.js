@@ -1,6 +1,7 @@
 import spawn from 'cross-spawn'
 import express from 'express'
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
+import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import http from 'http'
 // `next` here is the symlink in `test/node_modules/next` which points to the root directory.
@@ -584,6 +585,18 @@ export function getPagesManifest(dir) {
     return readJson(serverFile)
   }
   return readJson(path.join(dir, '.next/serverless/pages-manifest.json'))
+}
+
+export function updatePagesManifest(dir, content) {
+  const serverFile = path.join(dir, '.next/server/pages-manifest.json')
+
+  if (existsSync(serverFile)) {
+    return writeFile(serverFile, content)
+  }
+  return writeFile(
+    path.join(dir, '.next/serverless/pages-manifest.json'),
+    content
+  )
 }
 
 export function getPageFileFromPagesManifest(dir, page) {
