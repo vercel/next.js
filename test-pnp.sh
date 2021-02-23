@@ -11,6 +11,7 @@ declare -a testCases=(
 )
 
 set -e
+set -x
 
 # Speeds up testing locally
 export CI=1
