@@ -5,8 +5,7 @@ dist
 # dependencies
 node_modules
 package-lock.json
-yarn.lock
-!/yarn.lock
+examples/**/yarn.lock
 test/node_modules
 
 # logs & pids
