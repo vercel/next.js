@@ -6,7 +6,7 @@ description: Deploy your Next.js app to production with Vercel and other hosting
 
 ## Vercel (Recommended)
 
-The easiest way to deploy Next.js to production is to use the **[Vercel platform](https://vercel.com)** from the creators of Next.js. [Vercel](https://vercel.com) is an all-in-one platform with Global CDN supporting static & Jamstack deployment and Serverless Functions.
+The easiest way to deploy Next.js to production is to use the **[Vercel platform](https://vercel.com)** from the creators of Next.js. [Vercel](https://vercel.com) is a cloud platform for static sites, hybrid apps, and Serverless Functions.
 
 ### Getting started
 

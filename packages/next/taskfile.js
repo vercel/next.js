@@ -68,6 +68,22 @@ export async function ncc_amphtml_validator(task, opts) {
     .target('compiled/amphtml-validator')
 }
 // eslint-disable-next-line camelcase
+externals['@ampproject/toolbox-optimizer'] =
+  'next/dist/compiled/@ampproject/toolbox-optimizer'
+export async function ncc_amp_optimizer(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('@ampproject/toolbox-optimizer'))
+    )
+    .ncc({
+      externals,
+      precompiled: false,
+      packageName: '@ampproject/toolbox-optimizer',
+    })
+    .target('dist/compiled/@ampproject/toolbox-optimizer')
+}
+// eslint-disable-next-line camelcase
 externals['arg'] = 'distcompiled/arg'
 export async function ncc_arg(task, opts) {
   await task
@@ -757,6 +773,10 @@ export async function compile(task, opts) {
       'client',
       'telemetry',
       'nextserver',
+      'nextserver_wasm',
+      // we compile this each time so that fresh runtime data is pulled
+      // before each publish
+      'ncc_amp_optimizer',
     ],
     opts
   )
@@ -870,6 +890,7 @@ export default async function (task) {
   await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
   await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
   await task.watch('next-server/**/*.+(js|ts|tsx)', 'nextserver', opts)
+  await task.watch('next-server/**/*.+(wasm)', 'nextserver_wasm', opts)
 }
 
 export async function nextserver(task, opts) {
@@ -878,6 +899,13 @@ export async function nextserver(task, opts) {
     .babel('server', { dev: opts.dev })
     .target('dist/next-server')
   notify('Compiled server files')
+}
+
+export async function nextserver_wasm(task, opts) {
+  await task
+    .source(opts.src || 'next-server/**/*.+(wasm)')
+    .target('dist/next-server')
+  notify('Moved server wasm files')
 }
 
 export async function release(task) {

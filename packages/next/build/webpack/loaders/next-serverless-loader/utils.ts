@@ -349,6 +349,7 @@ export function getUtils({
     if (detectedDomain) {
       defaultLocale = detectedDomain.defaultLocale
       detectedLocale = defaultLocale
+      ;(req as any).__nextIsLocaleDomain = true
     }
 
     // if not domain specific locale use accept-language preferred
