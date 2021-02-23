@@ -96,7 +96,7 @@
     "styled-jsx": "3.3.2",
     "use-subscription": "1.5.1",
     "vm-browserify": "1.1.2",
-    "watchpack": "2.0.0-beta.13"
+    "watchpack": "2.1.1"
   },
   "peerDependencies": {
     "fibers": ">= 3.1.0",
