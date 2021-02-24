@@ -29,6 +29,8 @@ import {
   REACT_LOADABLE_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
 } from '../next-server/lib/constants'
 import { execOnce } from '../next-server/lib/utils'
 import { findPageFile } from '../server/lib/find-page-file'
@@ -43,6 +45,7 @@ import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
 import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
+import BuildStatsPlugin from './webpack/plugins/build-stats-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
 import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
@@ -61,6 +64,7 @@ import WebpackConformancePlugin, {
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { NextConfig } from '../next-server/server/config'
+import { relative as relativePath, join as pathJoin } from 'path'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -205,6 +209,9 @@ export default async function getBaseWebpackConfig(
   }
 ): Promise<webpack.Configuration> {
   initWebpack(!!config.future?.webpack5)
+  // hook the Node.js require so that webpack requires are
+  // routed to the bundled and now initialized webpack version
+  require('./webpack/require-hook')
 
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
@@ -283,6 +290,19 @@ export default async function getBaseWebpackConfig(
     ? ({
         // Backwards compatibility
         'main.js': [],
+        ...(dev
+          ? {
+              [CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH]: require.resolve(
+                `@next/react-refresh-utils/runtime`
+              ),
+              [CLIENT_STATIC_FILES_RUNTIME_AMP]:
+                `./` +
+                relativePath(
+                  dir,
+                  pathJoin(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
+                ).replace(/\\/g, '/'),
+            }
+          : {}),
         [CLIENT_STATIC_FILES_RUNTIME_MAIN]:
           `./` +
           path
@@ -369,15 +389,6 @@ export default async function getBaseWebpackConfig(
     ],
     alias: {
       next: NEXT_PROJECT_ROOT,
-      ...(isWebpack5 && !isServer
-        ? {
-            stream: require.resolve('stream-browserify'),
-            path: require.resolve('path-browserify'),
-            crypto: require.resolve('crypto-browserify'),
-            buffer: require.resolve('buffer'),
-            vm: require.resolve('vm-browserify'),
-          }
-        : undefined),
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
       ...getOptimizedAliases(isServer),
@@ -386,6 +397,19 @@ export default async function getBaseWebpackConfig(
         ? clientResolveRewrites
         : clientResolveRewritesNoop,
     },
+    ...(isWebpack5 && !isServer
+      ? {
+          // Full list of old polyfills is accessible here:
+          // https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42
+          fallback: {
+            buffer: require.resolve('buffer'),
+            crypto: require.resolve('crypto-browserify'),
+            path: require.resolve('path-browserify'),
+            stream: require.resolve('stream-browserify'),
+            vm: require.resolve('vm-browserify'),
+          },
+        }
+      : undefined),
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: isWebpack5
       ? // webpack 5+ has the PnP resolver built-in by default:
@@ -759,7 +783,7 @@ export default async function getBaseWebpackConfig(
       : [
           // When the 'serverless' target is used all node_modules will be compiled into the output bundles
           // So that the 'serverless' bundles have 0 runtime dependencies
-          '@ampproject/toolbox-optimizer', // except this one
+          'next/dist/compiled/@ampproject/toolbox-optimizer', // except this one
 
           // Mark this as external if not enabled so it doesn't cause a
           // webpack error from being missing
@@ -818,6 +842,7 @@ export default async function getBaseWebpackConfig(
       }
     },
     watchOptions: {
+      aggregateTimeout: 5,
       ignored: [
         '**/.git/**',
         '**/node_modules/**',
@@ -1013,7 +1038,7 @@ export default async function getBaseWebpackConfig(
           config.experimental.optimizeImages
         ),
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
-          !!config.experimental.optimizeCss && !dev
+          config.experimental.optimizeCss && !dev
         ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
@@ -1109,6 +1134,12 @@ export default async function getBaseWebpackConfig(
           buildId,
           rewrites,
         }),
+      !dev &&
+        !isServer &&
+        config.experimental.stats &&
+        new BuildStatsPlugin({
+          distDir,
+        }),
       new ProfilingPlugin(),
       config.experimental.optimizeFonts &&
         !dev &&
@@ -1165,6 +1196,12 @@ export default async function getBaseWebpackConfig(
   if (isWebpack5) {
     // futureEmitAssets is on by default in webpack 5
     delete webpackConfig.output?.futureEmitAssets
+
+    if (isServer && dev) {
+      // Enable building of client compilation before server compilation in development
+      // @ts-ignore dependencies exists
+      webpackConfig.dependencies = ['client']
+    }
     // webpack 5 no longer polyfills Node.js modules:
     if (webpackConfig.node) delete webpackConfig.node.setImmediate
 
@@ -1202,6 +1239,7 @@ export default async function getBaseWebpackConfig(
       reactMode: config.experimental.reactMode,
       optimizeFonts: config.experimental.optimizeFonts,
       optimizeImages: config.experimental.optimizeImages,
+      optimizeCss: config.experimental.optimizeCss,
       scrollRestoration: config.experimental.scrollRestoration,
       basePath: config.basePath,
       pageEnv: config.experimental.pageEnv,

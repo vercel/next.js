@@ -6,6 +6,13 @@ description: Add custom HTTP headers to your Next.js app.
 
 > This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/headers">Headers</a></li>
+  </ul>
+</details>
+
 Headers allow you to set custom HTTP headers for an incoming request path.
 
 To set custom HTTP headers you can use the `headers` key in `next.config.js`:
@@ -217,6 +224,17 @@ module.exports = {
           {
             key: 'x-hello',
             value: 'world',
+          },
+        ],
+      },
+      {
+        // this gets converted to /(en|fr|de)/(.*) so will not match the top-level
+        // `/` or `/fr` routes like /:path* would
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'x-hello',
+            value: 'worlld',
           },
         ],
       },
