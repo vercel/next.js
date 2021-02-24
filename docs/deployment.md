@@ -110,7 +110,8 @@ RUN adduser -S nextjs -u 1001
 USER nextjs
 EXPOSE 3000
 
-COPY --from=builder /app/next.config.js ./
+# You only need to copy next.config.js if you are NOT using the default configuration
+# COPY --from=builder /app/next.config.js ./
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
