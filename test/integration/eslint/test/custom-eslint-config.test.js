@@ -20,7 +20,7 @@ describe('ESLint', () => {
   it('should show warnings and errors based on custom eslint config', async () => {
     expect(code).toBe(0)
     expect(stdout).not.toContain(
-      'No ESLint configuration file was detected, but checks from the Next.js ESLint plugin were included automatically'
+      'No ESLint configuration was detected, but checks from the Next.js ESLint plugin were included automatically'
     )
     expect(stdout).toContain('./pages/index.js')
     expect(stdout).not.toContain(

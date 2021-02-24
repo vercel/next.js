@@ -17,7 +17,6 @@ export async function verifyEslintSetup(
 ) {
   try {
     let options: ESLint.Options
-    let completeConfig: Config
 
     if (pagePath && !existsSync(join(pagesDir, pagePath))) {
       return
@@ -32,12 +31,16 @@ export async function verifyEslintSetup(
         useEslintrc: true,
       }
     } else {
-      log.info(
-        'No ESLint configuration file was detected, but checks from the Next.js ESLint plugin were included automatically (see https://nextjs.org/docs/basic-features/eslint).'
-      )
+      const { eslintConfig } = require(join(baseDir, 'package.json'))
+
+      if (!eslintConfig) {
+        log.info(
+          'No ESLint configuration was detected, but checks from the Next.js ESLint plugin were included automatically (see https://nextjs.org/docs/basic-features/eslint).'
+        )
+      }
 
       options = {
-        baseConfig: {
+        baseConfig: eslintConfig ?? {
           extends: ['plugin:@next/next/recommended'],
           parserOptions: {
             ecmaVersion: 2018,
@@ -54,12 +57,10 @@ export async function verifyEslintSetup(
 
     const eslint = new ESLint(options)
 
-    const results = await eslint.lintFiles([
-      pagePath ? join(pagesDir, pagePath) : `${pagesDir}/**/*.{js,tsx}`,
-    ])
-
     if (eslintrcFile) {
-      completeConfig = await eslint.calculateConfigForFile(eslintrcFile)
+      const completeConfig: Config = await eslint.calculateConfigForFile(
+        eslintrcFile
+      )
 
       if (!completeConfig.plugins?.includes('@next/next')) {
         log.warn(
@@ -67,6 +68,10 @@ export async function verifyEslintSetup(
         )
       }
     }
+
+    const results = await eslint.lintFiles([
+      pagePath ? join(pagesDir, pagePath) : `${pagesDir}/**/*.{js,tsx}`,
+    ])
 
     const errors = ESLint.getErrorResults(results)
 

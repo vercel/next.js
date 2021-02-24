@@ -4,7 +4,7 @@ import { remove } from 'fs-extra'
 
 jest.setTimeout(1000 * 60 * 2)
 
-const appDir = join(__dirname, '../no-config')
+const appDir = join(__dirname, '../pkg-json-eslint-config')
 
 describe('ESLint', () => {
   let stdout
@@ -17,13 +17,13 @@ describe('ESLint', () => {
     }))
   })
 
-  it('should show default eslint warnings', async () => {
+  it('should show warnings and errors based on eslint config in package.json', async () => {
     expect(code).toBe(0)
-    expect(stdout).toContain(
+    expect(stdout).not.toContain(
       'No ESLint configuration was detected, but checks from the Next.js ESLint plugin were included automatically'
     )
     expect(stdout).toContain('./pages/index.js')
-    expect(stdout).toContain(
+    expect(stdout).not.toContain(
       "8:9  Warning: A synchronous script tag can impact your webpage's performance  @next/next/no-sync-scripts"
     )
     expect(stdout).toContain(
