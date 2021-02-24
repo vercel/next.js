@@ -26,7 +26,7 @@
     "git-reset": "git reset --hard HEAD",
     "git-clean": "git clean -d -x -e node_modules -e packages -f",
     "test-take2": "yarn git-reset && yarn git-clean && yarn testall",
-    "test": "yarn run bazel test //.. && yarn run testall || yarn run test-take2",
+    "test": "yarn run bazel build //... && yarn run bazel test //... && yarn run testall || yarn run test-take2",
     "lint-typescript": "lerna run typescript",
     "lint-eslint": "eslint . --ext js,jsx,ts,tsx --max-warnings=0",
     "lint-no-typescript": "run-p prettier-check lint-eslint",
