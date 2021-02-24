@@ -8,4 +8,10 @@ export default function Home() {
   )
 }
 
-Home.getInitialProps = () => ({})
+export const getServerSideProps = () => {
+  return {
+    props: {
+      hello: 'world',
+    },
+  }
+}
