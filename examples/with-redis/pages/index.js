@@ -1,32 +1,52 @@
 import Head from 'next/head'
 import { ToastContainer, toast } from 'react-toastify'
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 
 function Home() {
-  const [items, setItems] = useState(0)
   const inputNewFeature = useRef()
   const inputEmail = useRef()
+  const logo = process.env.LOGO ? process.env.LOGO : '/logo.png'
+  const [loaded, setLoaded] = useState(false)
+  const [items, setItems] = useState([])
 
   useEffect(() => {
     refreshData()
   }, [])
 
-  function refreshData() {
+  const refreshData = () => {
     fetch('api/list')
       .then((res) => res.json())
       .then(
         (result) => {
           setItems(result.body)
+          setLoaded(true)
           inputNewFeature.current.value = ''
-          inputEmail.current.value = ''
         },
         (error) => {
-          setItems([])
+          console.log(error)
+          setLoaded(true)
         }
       )
   }
 
-  function handleNewFeature(event) {
+  const vote = (event, title) => {
+    const requestOptions = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: title }),
+    }
+    fetch('api/vote', requestOptions)
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.error) {
+          toast.error(data.error, { hideProgressBar: true, autoClose: 3000 })
+        } else {
+          refreshData()
+        }
+      })
+  }
+
+  const handleNewFeature = (event) => {
     const requestOptions = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -36,7 +56,7 @@ function Home() {
       .then((response) => response.json())
       .then((data) => {
         if (data.error) {
-          toast.error(data.error, { hideProgressBar: true, autoClose: 3000 })
+          toast.error(data.error, { hideProgressBar: true, autoClose: 5000 })
         } else {
           toast.info('Your feature has been added to the list.', {
             hideProgressBar: true,
@@ -48,13 +68,12 @@ function Home() {
     event.preventDefault()
   }
 
-  function handleNewEmail(event) {
+  const handleNewEmail = (event) => {
     const requestOptions = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: inputEmail.current.value }),
     }
-    console.log(requestOptions)
     fetch('api/addemail', requestOptions)
       .then((response) => response.json())
       .then((data) => {
@@ -65,29 +84,11 @@ function Home() {
             hideProgressBar: true,
             autoClose: 3000,
           })
+          inputEmail.current.value = ''
           refreshData()
         }
       })
     event.preventDefault()
-  }
-
-  function vote(event, id) {
-    const requestOptions = {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: id }),
-    }
-    console.log(requestOptions)
-    fetch('api/vote', requestOptions)
-      .then((response) => response.json())
-      .then((data) => {
-        console.log(data)
-        if (data.error) {
-          toast.error(data.error, { hideProgressBar: true, autoClose: 3000 })
-        } else {
-          refreshData()
-        }
-      })
   }
 
   return (
@@ -99,31 +100,39 @@ function Home() {
 
       <main>
         <h1 className="title">
-          <img src="/logo.png" alt="Your Project Logo" className="logo" />
+          <img src={logo} alt="Logo" className="logo" />
         </h1>
 
         <p className="description">
-          Help us by voting our roadmap. <br />
+          Help us by voting our roadmap.
+          <br />
           <span className="blue">&#x25B2;</span>
           Vote up the features you want to see in the next release.
         </p>
 
         <div className="grid">
-          {items
-            ? items.map((item, ind) => (
-                <div className="card" key={ind}>
-                  <span>{item.title}</span>
-                  <div className="upvotediv">
-                    <a onClick={(e) => vote(e, item.id)} href={'#' + item.id}>
-                      &#x25B2; {item.score}
-                    </a>
-                  </div>
+          {loaded ? (
+            items.map((item, ind) => (
+              <div className="card" key={ind}>
+                <span>{item.title}</span>
+                <div className="upvotediv">
+                  <a
+                    onClick={(e) => vote(e, item.title)}
+                    href={'#' + item.title}
+                  >
+                    &#x25B2; {item.score}
+                  </a>
                 </div>
-              ))
-            : ''}
+              </div>
+            ))
+          ) : (
+            <div className="card">
+              <img src="/loader.gif" />
+            </div>
+          )}
 
           <div className="card">
-            <form onSubmit={(e) => handleNewFeature(e)}>
+            <form onSubmit={handleNewFeature}>
               <input
                 type="text"
                 className="noborder"
@@ -135,7 +144,7 @@ function Home() {
           </div>
 
           <div className="card">
-            <form onSubmit={(e) => handleNewEmail(e)}>
+            <form onSubmit={handleNewEmail}>
               <input
                 type="text"
                 className="noborder"
@@ -150,14 +159,14 @@ function Home() {
 
       <footer>
         <a
-          href="http://github.com/vercel/next.js/tree/canary/examples/with-redis"
+          href="https://vercel.com/integrations/upstash"
           target="_blank"
           rel="noopener noreferrer"
         >
           Powered by
           <img src="/vercel.svg" alt="Vercel Logo" />
           and
-          <img src="/lstr.png" alt="Lambda Store Logo" />
+          <img src="/upstash.png" alt="Upstash Logo" />
         </a>
       </footer>
       <ToastContainer />
