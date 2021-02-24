@@ -1,18 +1,16 @@
 load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm")
 
-PACKAGE_NAME = "next-plugin-storybook"
-
 pkg_npm(
-    name = PACKAGE_NAME,
+    name = "npm",
     srcs = ["package.json", ":preset.js", ":readme.md"]
 )
 
 alias(
     name = "publish",
-    actual = "%s.publish" % PACKAGE_NAME,
+    actual = "npm.publish",
 )
 
 alias(
     name = "pack",
-    actual = "%s.pack" % PACKAGE_NAME,
+    actual = "npm.pack",
 )

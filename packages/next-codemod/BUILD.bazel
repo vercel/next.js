@@ -16,7 +16,7 @@ ts_library(
 PACKAGE_NAME = "next-codemod"
 
 pkg_npm(
-    name = PACKAGE_NAME,
+    name = "npm",
     package_name = PACKAGE_NAME,
     srcs = ["package.json"],
     deps = [":compile_ts"]
@@ -24,12 +24,12 @@ pkg_npm(
 
 alias(
     name = "publish",
-    actual = "%s.publish" % PACKAGE_NAME,
+    actual = "npm.publish",
 )
 
 alias(
     name = "pack",
-    actual = "%s.pack" % PACKAGE_NAME,
+    actual = "npm.pack",
 )
 
 jest_test(
