@@ -1,0 +1,61 @@
+# A app with authentication and realtime GraphQL example using Next.js and Nhost
+
+This example showcases Next.js as the frontend using [Nhost](https://nhost.io/) as the backend.
+
+## Demo
+
+### [https://TBA](https://TBA)
+
+## Deploy your own
+
+Once you have access to [the environment variables you'll need](#step-4-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-nhost-auth-realtime-graphql&project-name=with-nhost-auth-realtime-graphql&repository-name=with-nhost-auth-realtime-graphql)
+
+## How to use
+
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+
+```bash
+npx create-next-app --example nhost nhost-app
+# or
+yarn create next-app --example nhost nhost-app
+```
+
+## Configuration
+
+### Step 1. Create an account and a project on Nhost
+
+[Create an account and project on Nhost](https://nhost.io).
+
+### Step 2. Create `items` database
+
+Go to your project's Hasura console. Go to the **DATA** tab in the top menu and click **SQL&** in the bottom left menu.
+
+Then copy the content from `setup/data.sql` in this example and paste it in the **Raw SQL** form in the Hasura Console. Make sure **Track this** is checked and click **Run!**.
+
+### Step 3. Add API metadata
+
+Again, in the Hasura console, click on the **gearwheel** (settings) in the top right menu. Click on **Import metadata** and select the file `setup/hasura-metadata.json` in this repository.
+
+### Step 4. Add environment variables
+
+Copy `.env.local.example` to `.env.local` and update the two URLs with your Nhost project URLs. You find the URLs in the Nhost console dashboard of your project.
+
+### Step 5. Run Next.js in development mode
+
+```bash
+npm install
+npm run dev
+
+# or
+
+yarn install
+yarn dev
+```
+
+Your app should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
+
+### Step 6. Deploy on Vercel
+
+You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
