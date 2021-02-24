@@ -3,7 +3,17 @@ dist
 .next
 
 # dependencies
-node_modules
+node_modules/*
+!node_modules/@next/
+node_modules/@next/create-next-app
+node_modules/@next/next
+node_modules/@next/env
+node_modules/@next/polyfill-module
+node_modules/@next/polyfill-nomodule
+node_modules/@next/react-dev-overlay
+node_modules/@next/react-refresh-utils
+packages/**/node_modules
+
 package-lock.json
 examples/**/yarn.lock
 test/node_modules
