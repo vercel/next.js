@@ -86,6 +86,14 @@ Required unless [`layout="fill"`](#layout).
 
 The `<Image />` component optionally accepts the following properties.
 
+### ref
+
+You can pass in a `ref` if you need direct access to the underlying root `<img>` 
+element that gets rendered by this component. This might be useful in situations
+where you need access to the root `<img>` element for animations or maybe in the
+case where you want to check the
+[image's complete property](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/complete).
+
 ### layout
 
 The layout behavior of the image as the viewport changes size. Defaults to
