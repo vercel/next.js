@@ -1,4 +1,4 @@
-# Auth & realtime GraphQL example using Next.js and Nhost
+# Auth & Realtime GraphQL Example Using Next.js and Nhost
 
 This example showcases Next.js as the frontend using [Nhost](https://nhost.io/) as the backend.
 
@@ -6,11 +6,11 @@ This example showcases Next.js as the frontend using [Nhost](https://nhost.io/) 
 
 ### [https://nhost-nextjs-example.vercel.app/](https://nhost-nextjs-example.vercel.app/)
 
-## Deploy your own
+## Deploy Your Own
 
 Once you have access to [the environment variables you'll need](#step-4-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-nhost-auth-realtime-graphql&project-name=with-nhost-auth-realtime-graphql&repository-name=with-nhost-auth-realtime-graphql)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-nhost-auth-realtime-graphql&project-name=with-nhost-auth-realtime-graphql&repository-name=with-nhost-auth-realtime-graphql&env=NEXT_PUBLIC_GRAPHQL_URL,NEXT_PUBLIC_BACKEND_URL&envDescription=Enter%20your%20Nhost%20project%27s%20URLs)
 
 ## How to use
 

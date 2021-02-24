@@ -8,7 +8,7 @@ function MyApp({ Component, pageProps }) {
     <NhostAuthProvider auth={nhost.auth}>
       <NhostApolloProvider
         auth={nhost.auth}
-        gqlEndpoint={process.env.NEXT_PUBLIC_GRAPHQL_ENDPOINT}
+        gqlEndpoint={process.env.NEXT_PUBLIC_GRAPHQL_URL}
       >
         <Component {...pageProps} />
       </NhostApolloProvider>
