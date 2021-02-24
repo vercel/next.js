@@ -80,7 +80,7 @@ Make sure your `package.json` has the `"build"` and `"start"` scripts:
 
 ### Docker Image
 
-Next.js can be deployed to any hosting provider that supports Docker containers. This is the approach you should use when you're deploying to container orchestrators such as Kubernetes or Hashicorp Nomad, or just want to run a docker container in a single node in any cloud provider.
+Next.js can be deployed to any hosting provider that supports [Docker](https://www.docker.com/) containers. You can use this approach when deploying to container orchestrators such as [Kubernetes](https://kubernetes.io/) or [HashiCorp Nomad](https://www.nomadproject.io/), or when running inside a single node in any cloud provider.
 
 Here is a multi-stage `Dockerfile` using `node:alpine` that you can use:
 
@@ -120,9 +120,9 @@ COPY --from=builder /app/node_modules ./node_modules
 CMD ["node_modules/.bin/next", "start"]
 ```
 
-Make sure to place this in the root folder of your project.
+Make sure to place this Dockerfile in the root folder of your project.
 
-You can build this with `docker build . -t my-next-js-app` and run with `docker run -p 3000:3000 my-next-js-app`.
+You can build your container with `docker build . -t my-next-js-app` and run it with `docker run -p 3000:3000 my-next-js-app`.
 
 ### Static HTML Export
 
