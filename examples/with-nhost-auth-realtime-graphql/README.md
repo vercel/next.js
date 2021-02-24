@@ -1,10 +1,10 @@
-# A app with authentication and realtime GraphQL example using Next.js and Nhost
+# Auth & realtime GraphQL example using Next.js and Nhost
 
 This example showcases Next.js as the frontend using [Nhost](https://nhost.io/) as the backend.
 
 ## Demo
 
-### [https://TBA](https://TBA)
+### [https://nhost-nextjs-example.vercel.app/](https://nhost-nextjs-example.vercel.app/)
 
 ## Deploy your own
 
@@ -30,7 +30,7 @@ yarn create next-app --example nhost nhost-app
 
 ### Step 2. Create `items` database
 
-Go to your project's Hasura console. Go to the **DATA** tab in the top menu and click **SQL&** in the bottom left menu.
+Go to your project's Hasura console. Go to the **DATA** tab in the top menu and click **SQL** in the bottom left menu.
 
 Then copy the content from `setup/data.sql` in this example and paste it in the **Raw SQL** form in the Hasura Console. Make sure **Track this** is checked and click **Run!**.
 
