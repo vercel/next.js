@@ -23,6 +23,7 @@ function Home() {
           inputNewFeature.current.value = ''
         },
         (error) => {
+          console.log(error)
           setLoaded(true)
         }
       )
