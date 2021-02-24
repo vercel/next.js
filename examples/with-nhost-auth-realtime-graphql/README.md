@@ -32,7 +32,7 @@ yarn create next-app --example nhost nhost-app
 
 Go to your project's Hasura console. Go to the **DATA** tab in the top menu and click **SQL** in the bottom left menu.
 
-Then copy the content from `setup/data.sql` in this example and paste it in the **Raw SQL** form in the Hasura Console. Make sure **Track this** is checked and click **Run!**.
+Then copy the content from `setup/data.sql` in this example and paste it in the **Raw SQL** form in the Hasura Console. Make sure **Track this** is checked and click **Run!**
 
 ### Step 3. Add API metadata
 
