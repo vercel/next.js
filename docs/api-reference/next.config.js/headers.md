@@ -227,6 +227,17 @@ module.exports = {
           },
         ],
       },
+      {
+        // this gets converted to /(en|fr|de)/(.*) so will not match the top-level
+        // `/` or `/fr` routes like /:path* would
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'x-hello',
+            value: 'worlld',
+          },
+        ],
+      },
     ]
   },
 }
