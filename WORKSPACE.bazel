@@ -7,7 +7,7 @@ workspace(
     name = "nextjs",
     # Map the @npm bazel workspace to the node_modules directory.
     # This lets Bazel use the same node_modules as other local tooling.
-    managed_directories = {"@npm": ["node_modules"], "@next-codemod-npm": ["packages/next-codemod/node_modules"]},
+    managed_directories = {"@npm": ["node_modules"], "@next-codemod-npm": ["packages/next-codemod/node_modules"], "@eslint-plugin-next-npm": ["packages/eslint-plugin-next/node_modules"]},
 )
 
 # Install the nodejs "bootstrap" package
@@ -34,4 +34,11 @@ yarn_install(
     name = "next-codemod-npm",
     package_json = "//packages/next-codemod:package.json",
     yarn_lock = "//packages/next-codemod:yarn.lock",
+)
+
+yarn_install(
+    # Name this npm so that Bazel Label references look like @npm//package
+    name = "eslint-plugin-next-npm",
+    package_json = "//packages/eslint-plugin-next:package.json",
+    yarn_lock = "//packages/eslint-plugin-next:yarn.lock",
 )

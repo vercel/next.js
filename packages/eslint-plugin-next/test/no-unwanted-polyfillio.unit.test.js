@@ -1,4 +1,4 @@
-const rule = require('@next/eslint-plugin-next/lib/rules/no-unwanted-polyfillio')
+const rule = require('../lib/rules/no-unwanted-polyfillio')
 
 const RuleTester = require('eslint').RuleTester
 

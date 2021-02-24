@@ -1,4 +1,4 @@
-const rule = require('@next/eslint-plugin-next/lib/rules/no-sync-scripts')
+const rule = require('../lib/rules/no-sync-scripts')
 
 const RuleTester = require('eslint').RuleTester
 

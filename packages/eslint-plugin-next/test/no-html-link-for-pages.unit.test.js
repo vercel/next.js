@@ -1,5 +1,5 @@
 /* eslint-env jest */
-const rule = require('@next/eslint-plugin-next/lib/rules/no-html-link-for-pages')
+const rule = require('../lib/rules/no-html-link-for-pages')
 const { Linter } = require('eslint')
 const assert = require('assert')
 const path = require('path')

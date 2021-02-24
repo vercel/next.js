@@ -1,4 +1,4 @@
-const rule = require('@next/eslint-plugin-next/lib/rules/missing-preload')
+const rule = require('../lib/rules/missing-preload')
 const RuleTester = require('eslint').RuleTester
 
 RuleTester.setDefaultConfig({

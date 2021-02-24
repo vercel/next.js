@@ -114,6 +114,7 @@
     },
     {
       "files": ["packages/**"],
+      "excludedFiles": ["*.test.js"],
       "rules": {
         "no-shadow": ["warn", { "builtinGlobals": false }],
         "import/no-extraneous-dependencies": [
