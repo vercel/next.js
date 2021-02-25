@@ -389,12 +389,13 @@ export default async function getBaseWebpackConfig(
     },
     ...(isWebpack5 && !isServer
       ? {
+          // Full list of old polyfills is accessible here:
           // https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42
           fallback: {
-            stream: require.resolve('stream-browserify'),
-            path: require.resolve('path-browserify'),
-            crypto: require.resolve('crypto-browserify'),
             buffer: require.resolve('buffer'),
+            crypto: require.resolve('crypto-browserify'),
+            path: require.resolve('path-browserify'),
+            stream: require.resolve('stream-browserify'),
             vm: require.resolve('vm-browserify'),
           },
         }
