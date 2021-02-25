@@ -4,8 +4,7 @@
   "workspaces": [
     "packages/create-next-app",
     "packages/next",
-    "packages/next-env",
-    "packages/react-refresh-utils"
+    "packages/next-env"
   ],
   "scripts": {
     "lerna": "lerna",

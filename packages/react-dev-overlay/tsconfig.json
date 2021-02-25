@@ -12,7 +12,5 @@
     "noFallthroughCasesInSwitch": true,
     "skipLibCheck": true,
     "declaration": true
-  },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
-  "exclude": ["node_modules"]
+  }
 }

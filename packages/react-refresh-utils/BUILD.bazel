@@ -1,0 +1,32 @@
+load("@react-refresh-utils-npm//@bazel/typescript:index.bzl", "ts_project")
+load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm")
+
+exports_files(["tsconfig.json"], visibility = ["//visibility:public"])
+
+ts_project(
+    name = "compile_ts",
+    source_map = True,
+    declaration = True,
+    tsconfig = "tsconfig.json",
+    deps = [
+      "@react-refresh-utils-npm//webpack",
+      "@react-refresh-utils-npm//react-refresh",
+      "@react-refresh-utils-npm//@types/node",
+    ]
+)
+
+pkg_npm(
+    name = "npm",
+    srcs = ["package.json"],
+    deps = [":compile_ts", ":README.md"]
+)
+
+alias(
+    name = "publish",
+    actual = "npm.publish",
+)
+
+alias(
+    name = "pack",
+    actual = "npm.pack",
+)

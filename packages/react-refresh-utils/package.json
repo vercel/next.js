@@ -14,10 +14,6 @@
   ],
   "author": "Joe Haddad <timer@zeit.co>",
   "license": "MIT",
-  "scripts": {
-    "prepublish": "tsc -d -p tsconfig.json",
-    "dev": "tsc -d -w -p tsconfig.json"
-  },
   "peerDependencies": {
     "react-refresh": "0.8.3",
     "webpack": "^4 || ^5"
@@ -28,6 +24,10 @@
     }
   },
   "devDependencies": {
-    "react-refresh": "0.8.3"
+    "@bazel/typescript": "3.2.1",
+    "@types/node": "14.14.31",
+    "react-refresh": "0.8.3",
+    "typescript": "4.2.2",
+    "webpack": "5.24.2"
   }
 }

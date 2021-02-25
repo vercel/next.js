@@ -6,8 +6,7 @@
     "target": "es2015",
     "lib": ["dom"],
     "downlevelIteration": true,
-    "preserveWatchOutput": true
-  },
-  "include": ["**/*.ts"],
-  "exclude": ["node_modules"]
+    "preserveWatchOutput": true,
+    "declaration": true
+  }
 }
