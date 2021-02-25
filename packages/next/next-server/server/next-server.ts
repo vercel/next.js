@@ -161,6 +161,7 @@ export default class Server {
     locales?: string[]
     defaultLocale?: string
     domainLocales?: DomainLocales
+    distDir: string
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -218,6 +219,7 @@ export default class Server {
       optimizeImages: this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       domainLocales: this.nextConfig.i18n?.domains,
+      distDir: this.distDir,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
