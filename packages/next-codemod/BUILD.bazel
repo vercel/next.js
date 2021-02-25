@@ -13,13 +13,10 @@ ts_library(
     tsconfig = "tsconfig.json",
 )
 
-PACKAGE_NAME = "next-codemod"
-
 pkg_npm(
     name = "npm",
-    package_name = PACKAGE_NAME,
     srcs = ["package.json"],
-    deps = [":compile_ts"]
+    deps = [":compile_ts", ":README.md"]
 )
 
 alias(

@@ -1,0 +1,46 @@
+load("@react-dev-overlay-npm//@bazel/typescript:index.bzl", "ts_project")
+load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm")
+
+exports_files(["tsconfig.json"], visibility = ["//visibility:public"])
+
+ts_project(
+    name = "compile_ts",
+    source_map = True,
+    declaration = True,
+    tsconfig = "tsconfig.json",
+    deps = [
+      "@react-dev-overlay-npm//@babel/code-frame",
+      "@react-dev-overlay-npm//anser",
+      "@react-dev-overlay-npm//chalk",
+      "@react-dev-overlay-npm//classnames",
+      "@react-dev-overlay-npm//css.escape",
+      "@react-dev-overlay-npm//data-uri-to-buffer",
+      "@react-dev-overlay-npm//platform",
+      "@react-dev-overlay-npm//shell-quote",
+      "@react-dev-overlay-npm//source-map",
+      "@react-dev-overlay-npm//stacktrace-parser",
+      "@react-dev-overlay-npm//strip-ansi",
+      "@react-dev-overlay-npm//react",
+      "@react-dev-overlay-npm//react-dom",
+      "@react-dev-overlay-npm//@types/node",
+      "@react-dev-overlay-npm//@types/react",
+      "@react-dev-overlay-npm//@types/react-dom",
+      "@react-dev-overlay-npm//@types/babel__code-frame",
+    ]
+)
+
+pkg_npm(
+    name = "npm",
+    srcs = ["package.json"],
+    deps = [":compile_ts", ":README.md"]
+)
+
+alias(
+    name = "publish",
+    actual = "npm.publish",
+)
+
+alias(
+    name = "pack",
+    actual = "npm.pack",
+)

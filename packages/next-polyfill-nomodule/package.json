@@ -8,10 +8,6 @@
     "url": "vercel/next.js",
     "directory": "packages/next-polyfill-nomodule"
   },
-  "scripts": {
-    "prepublish": "microbundle -i src/index.js -o dist/polyfill-nomodule.js -f iife --no-sourcemap --external none --no-pkg-main",
-    "build": "microbundle watch -i src/index.js -o dist/polyfill-nomodule.js -f iife --no-sourcemap --external none --no-pkg-main"
-  },
   "devDependencies": {
     "core-js": "3.6.5",
     "microbundle": "0.13.0",

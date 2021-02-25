@@ -1,0 +1,37 @@
+load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm")
+load("@next-polyfill-nomodule-npm//microbundle:index.bzl", "microbundle")
+
+microbundle(
+    name = "compile",
+    data = [
+        ":src/index.js",
+        ":package.json"
+    ],
+    outs = ["dist/index.js"],
+    args = [
+        "-i",
+        "$(execpath src/index.js)",
+        "-o",
+        "$(execpath dist/index.js)",
+        "-f", "iife",
+        "--no-sourcemap",
+        "--external", "none",
+        "--no-pkg-main"
+    ],
+)
+
+pkg_npm(
+    name = "npm",
+    srcs = ["package.json"],
+    deps = [":compile"]
+)
+
+alias(
+    name = "publish",
+    actual = "npm.publish",
+)
+
+alias(
+    name = "pack",
+    actual = "npm.pack",
+)

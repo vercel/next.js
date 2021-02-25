@@ -5,9 +5,6 @@
     "packages/create-next-app",
     "packages/next",
     "packages/next-env",
-    "packages/next-polyfill-module",
-    "packages/next-polyfill-nomodule",
-    "packages/react-dev-overlay",
     "packages/react-refresh-utils"
   ],
   "scripts": {

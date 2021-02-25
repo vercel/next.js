@@ -11,10 +11,6 @@
   ],
   "author": "Joe Haddad <timer@vercel.com>",
   "license": "MIT",
-  "scripts": {
-    "prepublish": "tsc -d -p tsconfig.json",
-    "dev": "tsc -d -w -p tsconfig.json"
-  },
   "dependencies": {
     "@babel/code-frame": "7.12.11",
     "anser": "1.4.9",
@@ -31,5 +27,15 @@
   "peerDependencies": {
     "react": "^16.9.0 || ^17",
     "react-dom": "^16.9.0 || ^17"
+  },
+  "devDependencies": {
+    "@bazel/typescript": "3.2.1",
+    "@types/babel__code-frame": "7.0.2",
+    "@types/node": "14.14.31",
+    "@types/react": "17.0.2",
+    "@types/react-dom": "17.0.1",
+    "react": "17.0.1",
+    "react-dom": "17.0.1",
+    "typescript": "4.2.2"
   }
 }
