@@ -1,10 +1,13 @@
 import chalk from 'chalk'
 import { ESLint } from 'eslint'
-import { readdirSync, existsSync } from 'fs'
+import { promises } from 'fs'
 import { join } from 'path'
 
-import { formatResults } from './eslint/customFormatter'
 import * as log from '../build/output/log'
+
+import { formatResults } from './eslint/customFormatter'
+import { fileExists } from './file-exists'
+import findUp from 'next/dist/compiled/find-up'
 
 type Config = {
   plugins: string[]
@@ -18,11 +21,14 @@ export async function verifyEslintSetup(
   try {
     let options: ESLint.Options
 
-    if (pagePath && !existsSync(join(pagesDir, pagePath))) {
-      return
-    }
+    let pathNotExists = Boolean(
+      pagePath && !(await fileExists(join(pagesDir, pagePath)))
+    )
 
-    const eslintrcFile = readdirSync(baseDir).find((file) =>
+    if (pathNotExists) return
+
+    const dirResults = await promises.readdir(baseDir)
+    const eslintrcFile = dirResults.find((file: string) =>
       /^.eslintrc.?(js|json|yaml|yml)?$/.test(file)
     )
 
@@ -31,7 +37,10 @@ export async function verifyEslintSetup(
         useEslintrc: true,
       }
     } else {
-      const { eslintConfig } = require(join(baseDir, 'package.json'))
+      const pkgJsonPath = await findUp('package.json', { cwd: baseDir })
+      const { eslintConfig = null } = !!pkgJsonPath
+        ? await import(pkgJsonPath!)
+        : {}
 
       if (!eslintConfig) {
         log.info(
