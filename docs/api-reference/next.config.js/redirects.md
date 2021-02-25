@@ -152,6 +152,13 @@ module.exports = {
         locale: false,
         permanent: false,
       },
+      {
+        // this gets converted to /(en|fr|de)/(.*) so will not match the top-level
+        // `/` or `/fr` routes like /:path* would
+        source: '/(.*)',
+        destination: '/another',
+        permanent: false,
+      },
     ]
   },
 }
