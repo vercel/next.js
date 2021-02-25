@@ -15,9 +15,11 @@ function getProxy(): string | undefined {
   }
 }
 
-export function getOnline(): Promise<boolean> {
+export function getOnline(
+  domain: string = 'registry.yarnpkg.com'
+): Promise<boolean> {
   return new Promise((resolve) => {
-    dns.lookup('registry.yarnpkg.com', (registryErr) => {
+    dns.lookup(domain, (registryErr) => {
       if (!registryErr) {
         return resolve(true)
       }
