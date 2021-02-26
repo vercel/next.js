@@ -1,6 +1,6 @@
 load("@create-next-app-npm//@bazel/typescript:index.bzl", "ts_project")
 load("@create-next-app-npm//@vercel/ncc:index.bzl", "ncc")
-load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm")
+load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm", "copy_to_bin")
 
 exports_files(["tsconfig.json"], visibility = ["//visibility:public"])
 
@@ -35,13 +35,18 @@ filegroup(
     srcs = glob(["templates/**/*"]),
 )
 
+copy_to_bin(
+    name = "copy_templates",
+    srcs = [":template_files"]
+)
+
 ncc(
     name = "bundle",
-    data = [":template_files", ":compile_ts", ":index.js"],
+    data = [":copy_templates", ":compile_ts", ":index.js"],
     outs = [
         "dist",
     ],
-    output_dir = True,
+    output_dir = 0,
     args = [
         "build",
         "$(execpath index.js)",
