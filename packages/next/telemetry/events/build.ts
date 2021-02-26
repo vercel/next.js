@@ -48,6 +48,9 @@ type EventBuildOptimized = {
   headersCount: number
   rewritesCount: number
   redirectsCount: number
+  headersWithHasCount: number
+  rewritesWithHasCount: number
+  redirectsWithHasCount: number
 }
 
 export function eventBuildOptimize(
