@@ -345,6 +345,7 @@ export function getUtils({
     shouldNotRedirect: boolean
   ) {
     if (!i18n) return
+    const pathname = parsedUrl.pathname || '/'
 
     let defaultLocale = i18n.defaultLocale
     let detectedLocale = detectLocaleCookie(req, i18n.locales)
@@ -368,10 +369,7 @@ export function getUtils({
     detectedLocale = detectedLocale || acceptPreferredLocale
 
     let localeDomainRedirect
-    const localePathResult = normalizeLocalePath(
-      parsedUrl.pathname!,
-      i18n.locales
-    )
+    const localePathResult = normalizeLocalePath(pathname, i18n.locales)
 
     routeNoAssetPath = normalizeLocalePath(routeNoAssetPath, i18n.locales)
       .pathname
@@ -407,7 +405,7 @@ export function getUtils({
       }
     }
 
-    const denormalizedPagePath = denormalizePagePath(parsedUrl.pathname || '/')
+    const denormalizedPagePath = denormalizePagePath(pathname)
     const detectedDefaultLocale =
       !detectedLocale ||
       detectedLocale.toLowerCase() === defaultLocale.toLowerCase()

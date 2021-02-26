@@ -32,6 +32,7 @@ import {
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
+  STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
 } from '../lib/constants'
 import {
@@ -160,6 +161,7 @@ export default class Server {
     locales?: string[]
     defaultLocale?: string
     domainLocales?: DomainLocales
+    distDir: string
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -217,6 +219,7 @@ export default class Server {
       optimizeImages: this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       domainLocales: this.nextConfig.i18n?.domains,
+      distDir: this.distDir,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -1366,6 +1369,12 @@ export default class Server {
       res.statusCode = 404
     }
 
+    // ensure correct status is set when visiting a status page
+    // directly e.g. /500
+    if (STATIC_STATUS_PAGES.includes(pathname)) {
+      res.statusCode = parseInt(pathname.substr(1), 10)
+    }
+
     // handle static page
     if (typeof components.Component === 'string') {
       return components.Component
@@ -1910,9 +1919,15 @@ export default class Server {
       result = await this.findPageComponents('/404', query)
       using404Page = result !== null
     }
+    let statusPage = `/${res.statusCode}`
+
+    if (!result && STATIC_STATUS_PAGES.includes(statusPage)) {
+      result = await this.findPageComponents(statusPage, query)
+    }
 
     if (!result) {
       result = await this.findPageComponents('/_error', query)
+      statusPage = '/_error'
     }
 
     if (
@@ -1930,7 +1945,7 @@ export default class Server {
         html = await this.renderToHTMLWithComponents(
           req,
           res,
-          using404Page ? '/404' : '/_error',
+          statusPage,
           result!,
           {
             ...this.renderOpts,

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Canvas, useFrame } from 'react-three-fiber'
-import { OrbitControls, Box } from 'drei'
+import { OrbitControls, Box } from '@react-three/drei'
 
 const MyBox = (props) => {
   const mesh = useRef()
