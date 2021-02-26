@@ -1,8 +1,9 @@
 import fs from 'fs'
 
-export function makeDir(
+export async function makeDir(
   root: string,
   options = { recursive: true }
 ): Promise<void> {
-  return fs.promises.mkdir(root, options)
+  await fs.promises.mkdir(root, options)
+  return
 }

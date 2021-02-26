@@ -2,7 +2,6 @@
   "name": "nextjs-project",
   "private": true,
   "workspaces": [
-    "packages/create-next-app",
     "packages/next"
   ],
   "scripts": {

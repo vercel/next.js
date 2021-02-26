@@ -25,7 +25,7 @@ ncc(
         "build",
         "$(execpath index.js)",
         "-o",
-        "$(execpath dist/index.js)",
+        "$(execpath dist)",
         "--minify",
         "--no-cache",
         "--no-source-map-register"

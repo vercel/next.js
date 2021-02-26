@@ -1,0 +1,70 @@
+load("@create-next-app-npm//@bazel/typescript:index.bzl", "ts_project")
+load("@create-next-app-npm//@vercel/ncc:index.bzl", "ncc")
+load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm")
+
+exports_files(["tsconfig.json"], visibility = ["//visibility:public"])
+
+ts_project(
+    name = "compile_ts",
+    srcs = [":index.ts", ":create-app.ts", ":package.json"] + glob(["helpers/*.ts"]),
+    tsconfig = "tsconfig.json",
+    deps = [
+      "@create-next-app-npm//@types/node",
+      "@create-next-app-npm//@types/cross-spawn",
+      "@create-next-app-npm//@types/async-retry",
+      "@create-next-app-npm//@types/prompts",
+      "@create-next-app-npm//@types/rimraf",
+      "@create-next-app-npm//@types/tar",
+      "@create-next-app-npm//@types/validate-npm-package-name",
+      "@create-next-app-npm//async-retry",
+      "@create-next-app-npm//chalk",
+      "@create-next-app-npm//commander",
+      "@create-next-app-npm//cpy",
+      "@create-next-app-npm//cross-spawn",
+      "@create-next-app-npm//got",
+      "@create-next-app-npm//prompts",
+      "@create-next-app-npm//rimraf",
+      "@create-next-app-npm//tar",
+      "@create-next-app-npm//update-check",
+      "@create-next-app-npm//validate-npm-package-name",
+    ]
+)
+
+filegroup(
+    name = "template_files",
+    srcs = glob(["templates/**/*"]),
+)
+
+ncc(
+    name = "bundle",
+    data = [":template_files", ":compile_ts", ":index.js"],
+    outs = [
+        "dist",
+    ],
+    output_dir = True,
+    args = [
+        "build",
+        "$(execpath index.js)",
+        "-o",
+        "$(execpath dist)",
+        "--minify",
+        "--no-cache",
+        "--no-source-map-register"
+    ],
+)
+
+pkg_npm(
+    name = "npm",
+    srcs = ["package.json"],
+    deps = [":bundle", ":README.md"]
+)
+
+alias(
+    name = "publish",
+    actual = "npm.publish",
+)
+
+alias(
+    name = "pack",
+    actual = "npm.pack",
+)
