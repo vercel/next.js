@@ -1,4 +1,4 @@
-import api, { Span } from '@opentelemetry/api'
+import api, { context, Span } from '@opentelemetry/api'
 
 export const tracer = api.trace.getTracer('next', process.env.__NEXT_VERSION)
 
@@ -15,7 +15,7 @@ export function stackPush(compiler: any, spanName: string, attrs?: any): any {
   } else {
     const parent = stack[stack.length - 1]
     if (parent) {
-      tracer.withSpan(parent, () => {
+      context.with(parent, () => {
         span = tracer.startSpan(spanName, attrs ? attrs() : undefined)
       })
     } else {
