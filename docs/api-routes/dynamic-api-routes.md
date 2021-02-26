@@ -17,7 +17,7 @@ For example, the API route `pages/api/post/[pid].js` has the following code:
 
 ```js
 export default function handler(req, res) {
-  const { pid } = req.query;
+  const { pid } = req.query
   res.end(`Post: ${pid}`)
 }
 ```
@@ -66,7 +66,7 @@ An API route for `pages/api/post/[...slug].js` could look like this:
 
 ```js
 export default function handler(req, res) {
-  const { slug } = req.query;
+  const { slug } = req.query
   res.end(`Post: ${slug.join(', ')}`)
 }
 ```
