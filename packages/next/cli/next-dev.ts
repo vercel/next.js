@@ -117,7 +117,6 @@ const nextDev: cliCommand = (argv) => {
         appUrl,
         bindAddr: `${host}:${port}`,
         appUrlNet: networkHost ? `http://${networkHost}:${port}` : null,
-        bindAddrNet: networkHost ? `${networkHost}:${port}` : null,
       })
       // Start preflight after server is listening and ignore errors:
       preflight().catch(() => {})

@@ -56,13 +56,11 @@ const nextStart: cliCommand = (argv) => {
   function logNetworkUrls() {
     const space = ' '.repeat(8)
     let message = `started server on - \n`
-    message += space + `local - ${host}:${port}, url: ${appUrl} \n`
+    message += space + `local - url: ${appUrl}, on - ${host}:${port} \n`
 
     const networkHost = getNetworkHost()
     if (networkHost) {
-      message +=
-        space +
-        `network - ${networkHost}:${port}, url: http://${networkHost}:${port}`
+      message += space + `network - url: http://${networkHost}:${port}`
     }
 
     Log.ready(message)

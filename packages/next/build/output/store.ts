@@ -7,7 +7,6 @@ export type Address = {
   appUrl: string | null
   bindAddr: string | null
   appUrlNet: string | null
-  bindAddrNet: string | null
 }
 export type OutputState =
   | (Address & { bootstrap: true })
@@ -26,7 +25,6 @@ export const store = createStore<OutputState>({
   bindAddr: null,
   bootstrap: true,
   appUrlNet: null,
-  bindAddrNet: null,
 })
 
 let lastStore: OutputState = {
@@ -34,7 +32,6 @@ let lastStore: OutputState = {
   bindAddr: null,
   bootstrap: true,
   appUrlNet: null,
-  bindAddrNet: null,
 }
 function hasStoreChanged(nextStore: OutputState) {
   if (
@@ -61,12 +58,12 @@ store.subscribe((state) => {
     let message = `started server on - \n`
 
     if (state.appUrl) {
-      message += space + `local - ${state.bindAddr}, url: ${state.appUrl} \n`
+      message +=
+        space + `local - url: ${state.appUrl}, on - ${state.bindAddr}\n`
     }
 
     if (state.appUrlNet) {
-      message +=
-        space + `network - ${state.bindAddrNet}, url: ${state.appUrlNet}`
+      message += space + `network - url: ${state.appUrlNet}`
     }
 
     Log.ready(message)
