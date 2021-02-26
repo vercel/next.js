@@ -27,4 +27,4 @@ The included helpers are:
 - `res.send(body)` - Sends the HTTP response. `body` can be a `string`, an `object` or a `Buffer`
 - `res.redirect([status,] path)` - Redirects to a specified path or URL. `status` must be a valid [HTTP status code](https://en.wikipedia.org/wiki/List_of_HTTP_status_codes). If not specified, `status` defaults to "307" "Temporary redirect".
 
-The extended req and res paramters can be used in TypeScript as ```(req: NextApiRequest, res: NextApiResponse)```
+To view an example using types, check out the [TypeScript documentation](/docs/basic-features/typescript.md#api-routes).
