@@ -1,30 +1,23 @@
-import redis from 'redis'
-import { promisify } from 'util'
+import { getRedis } from './utils'
 
-export default async function addEmail(req, res) {
-  const client = redis.createClient({
-    url: process.env.REDIS_URL,
-  })
-  if (process.env.REDIS_PASSWORD) {
-    client.auth(process.env.REDIS_PASSWORD)
-  }
-  const saddAsync = promisify(client.sadd).bind(client)
+module.exports = async (req, res) => {
+  let redis = getRedis()
 
   const body = req.body
   const email = body['email']
 
-  client.on('error', function (err) {
+  redis.on('error', function (err) {
     throw err
   })
 
   if (email && validateEmail(email)) {
-    await saddAsync('emails', email)
-    client.quit()
+    await redis.sadd('emails', email)
+    redis.quit()
     res.json({
       body: 'success',
     })
   } else {
-    client.quit()
+    redis.quit()
     res.json({
       error: 'Invalid email',
     })

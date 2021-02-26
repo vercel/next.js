@@ -20,6 +20,7 @@ let nextApp
 let appPort
 let buildId
 let requiredFilesManifest
+let errors = []
 
 describe('Required Server Files', () => {
   beforeAll(async () => {
@@ -58,7 +59,8 @@ describe('Required Server Files', () => {
       try {
         await nextApp.getRequestHandler()(req, res)
       } catch (err) {
-        console.error(err)
+        console.error('top-level', err)
+        errors.push(err)
         res.statusCode = 500
         res.end('error')
       }
@@ -418,5 +420,32 @@ describe('Required Server Files', () => {
     expect(JSON.parse($('#router').text()).query).toEqual({
       path: ['hello', 'world'],
     })
+  })
+
+  it('should bubble error correctly for gip page', async () => {
+    errors = []
+    const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('error')
+    expect(errors.length).toBe(1)
+    expect(errors[0].message).toContain('gip hit an oops')
+  })
+
+  it('should bubble error correctly for gssp page', async () => {
+    errors = []
+    const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('error')
+    expect(errors.length).toBe(1)
+    expect(errors[0].message).toContain('gssp hit an oops')
+  })
+
+  it('should bubble error correctly for gsp page', async () => {
+    errors = []
+    const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('error')
+    expect(errors.length).toBe(1)
+    expect(errors[0].message).toContain('gsp hit an oops')
   })
 })
