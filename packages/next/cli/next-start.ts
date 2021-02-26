@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { resolve } from 'path'
+import chalk from 'chalk'
 import arg from 'next/dist/compiled/arg/index.js'
 import startServer from '../server/lib/start-server'
 import { printAndExit } from '../server/lib/utils'
@@ -56,11 +57,13 @@ const nextStart: cliCommand = (argv) => {
   function logNetworkUrls() {
     const space = ' '.repeat(8)
     let message = `started server on - \n`
-    message += space + `local - url: ${appUrl}, on - ${host}:${port} \n`
+    message +=
+      space + `local - url: ${chalk.green(appUrl)}, on - ${host}:${port} \n`
 
     const networkHost = getNetworkHost()
     if (networkHost) {
-      message += space + `network - url: http://${networkHost}:${port}`
+      message +=
+        space + `network - url: ${chalk.green(`http://${networkHost}:${port}`)}`
     }
 
     Log.ready(message)

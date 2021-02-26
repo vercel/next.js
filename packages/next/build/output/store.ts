@@ -1,5 +1,6 @@
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import chalk from 'chalk'
 
 import * as Log from './log'
 
@@ -59,11 +60,12 @@ store.subscribe((state) => {
 
     if (state.appUrl) {
       message +=
-        space + `local - url: ${state.appUrl}, on - ${state.bindAddr}\n`
+        space +
+        `local - url: ${chalk.green(state.appUrl)}, on - ${state.bindAddr}\n`
     }
 
     if (state.appUrlNet) {
-      message += space + `network - url: ${state.appUrlNet}`
+      message += space + `network - url: ${chalk.green(state.appUrlNet)}`
     }
 
     Log.ready(message)
