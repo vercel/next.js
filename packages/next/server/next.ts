@@ -132,6 +132,7 @@ export class NextServer {
   }
 
   private async getServerRequestHandler() {
+    // Memoize request handler creation
     if (!this.reqHandlerPromise) {
       this.reqHandlerPromise = this.getServer().then((server) =>
         server.getRequestHandler().bind(server)
