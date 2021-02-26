@@ -189,6 +189,10 @@ export default async function exportPage({
             ...headerMocks,
           } as unknown) as ServerResponse
 
+          if (path === '/500' && page === '/_error') {
+            res.statusCode = 500
+          }
+
           envConfig.setConfig({
             serverRuntimeConfig,
             publicRuntimeConfig: renderOpts.runtimeConfig,
