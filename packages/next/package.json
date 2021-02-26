@@ -60,7 +60,9 @@
     ]
   },
   "dependencies": {
+    "@babel/core": "7.12.10",
     "@babel/runtime": "7.12.5",
+    "@babel/eslint-parser": "7.13.4",
     "@hapi/accept": "5.0.1",
     "@next/env": "10.0.9-canary.2",
     "@next/eslint-plugin-next": "10.0.9-canary.2",
@@ -68,7 +70,6 @@
     "@next/react-dev-overlay": "10.0.9-canary.2",
     "@next/react-refresh-utils": "10.0.9-canary.2",
     "@opentelemetry/api": "0.14.0",
-    "@typescript-eslint/parser": "4.15.2",
     "ast-types": "0.13.2",
     "browserslist": "4.16.1",
     "buffer": "5.6.0",
@@ -122,7 +123,6 @@
   "devDependencies": {
     "@ampproject/toolbox-optimizer": "2.7.1-alpha.0",
     "@babel/code-frame": "7.12.11",
-    "@babel/core": "7.12.10",
     "@babel/plugin-proposal-class-properties": "7.12.1",
     "@babel/plugin-proposal-export-namespace-from": "7.12.1",
     "@babel/plugin-proposal-numeric-separator": "7.12.7",

@@ -7,11 +7,7 @@ export default class DynamicPage extends React.Component {
     return { text: query.text }
   }
 
-  constructor(props) {
-    super(props)
-
-    this.state = {}
-  }
+  state = {}
 
   componentDidMount() {
     const [, hash] = location.href.split('#')

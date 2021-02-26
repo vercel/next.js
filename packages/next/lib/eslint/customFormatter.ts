@@ -26,13 +26,16 @@ function formatMessage(
   for (let i = 0; i < messages.length; i++) {
     const { message, severity, line, column, ruleId } = messages[i]
 
-    output =
-      output +
-      '\n' +
-      chalk.yellow(line.toString()) +
-      ':' +
-      chalk.yellow(column.toString()) +
-      '  '
+    output = output + '\n'
+
+    if (line && column) {
+      output =
+        output +
+        chalk.yellow(line.toString()) +
+        ':' +
+        chalk.yellow(column.toString()) +
+        '  '
+    }
 
     if (severity === MessageSeverity.Warning) {
       output += chalk.yellow.bold('Warning') + ': '

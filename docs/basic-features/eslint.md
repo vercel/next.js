@@ -22,12 +22,12 @@ Here's an example of an `.eslintrc.json` file:
 ```json
 {
   "extends": ["plugin:@next/next/recommended"],
+  "parser": "@babel/eslint-parser",
   "parserOptions": {
-    "ecmaVersion": 2018,
+    "requireConfigFile": false,
     "sourceType": "module",
-    "ecmaFeatures": {
-      "jsx": true,
-      "modules": true
+    "babelOptions": {
+      "presets": ["next/babel"]
     }
   }
 }
@@ -35,8 +35,11 @@ Here's an example of an `.eslintrc.json` file:
 
 - Extending the original base of rules (`plugin:@next/next/recommended`) is highly recommended to
   catch and fix significant Next.js issues in your application
-- Specify `parserOptions` in the same way as the above example to enable appropriate language
-  features
+- Including `@babel/eslint-parser` with the `next/babel` preset ensures that all language features
+  supported by Next.js will also be supported by ESLint. Although `@babel/eslint-parser` can parse
+  TypeScript, consider using
+  [`@typescript-eslint/parser`](https://github.com/typescript-eslint/typescript-eslint/tree/master/packages/parser)
+  if you have TypeScript enabled in your application to check for type-specific linting rules.
 
 > If you add an `.eslintrc` file to your application and don't include
 > `plugin:@next/next/recommended`in the config, its rules will not be checked during development or

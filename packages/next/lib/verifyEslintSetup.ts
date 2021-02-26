@@ -5,7 +5,6 @@ import { join } from 'path'
 
 import { formatResults } from './eslint/customFormatter'
 import { fileExists } from './file-exists'
-import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
 import * as log from '../build/output/log'
 
 import findUp from 'next/dist/compiled/find-up'
@@ -49,20 +48,15 @@ export async function verifyEslintSetup(
         )
       }
 
-      const usesTypeScript = await getTypeScriptIntent(baseDir, pagesDir)
-
       options = {
         baseConfig: eslintConfig ?? {
           extends: ['plugin:@next/next/recommended'],
-          parser: usesTypeScript
-            ? require.resolve('@typescript-eslint/parser')
-            : null,
+          parser: require.resolve('@babel/eslint-parser'),
           parserOptions: {
-            ecmaVersion: 2021,
+            requireConfigFile: false,
             sourceType: 'module',
-            ecmaFeatures: {
-              jsx: true,
-              modules: true,
+            babelOptions: {
+              presets: ['next/babel'],
             },
           },
         },
