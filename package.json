@@ -3,8 +3,7 @@
   "private": true,
   "workspaces": [
     "packages/create-next-app",
-    "packages/next",
-    "packages/next-env"
+    "packages/next"
   ],
   "scripts": {
     "lerna": "lerna",

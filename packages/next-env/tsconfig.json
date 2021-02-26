@@ -3,8 +3,11 @@
     "target": "es2015",
     "moduleResolution": "node",
     "strict": true,
-    "resolveJsonModule": true,
     "esModuleInterop": true,
-    "skipLibCheck": false
-  }
+    "skipLibCheck": false,
+    "declaration": false,
+    "sourceMap": true
+  },
+  "include": ["./index.ts"],
+  "exclude": ["node_modules"]
 }

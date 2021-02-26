@@ -1,0 +1,49 @@
+load("@next-env-npm//@bazel/typescript:index.bzl", "ts_project")
+load("@next-env-npm//@vercel/ncc:index.bzl", "ncc")
+load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm")
+
+exports_files(["tsconfig.json"], visibility = ["//visibility:public"])
+
+ts_project(
+    name = "compile_ts",
+    srcs = [":index.ts"],
+    tsconfig = "tsconfig.json",
+    source_map = True,
+    deps = [
+      "@next-env-npm//@types/node",
+      "@next-env-npm//@types/dotenv",
+      "@next-env-npm//dotenv",
+      "@next-env-npm//dotenv-expand",
+    ]
+)
+
+ncc(
+    name = "bundle",
+    data = [":compile_ts", ":index.js"],
+    outs = ["dist/index.js"],
+    args = [
+        "build",
+        "$(execpath index.js)",
+        "-o",
+        "$(execpath dist/index.js)",
+        "--minify",
+        "--no-cache",
+        "--no-source-map-register"
+    ],
+)
+
+pkg_npm(
+    name = "npm",
+    srcs = ["package.json"],
+    deps = [":bundle", ":README.md"]
+)
+
+alias(
+    name = "publish",
+    actual = "npm.publish",
+)
+
+alias(
+    name = "pack",
+    actual = "npm.pack",
+)

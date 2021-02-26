@@ -1,11 +1,13 @@
-load("@next-codemod-npm//@bazel/typescript:index.bzl", "ts_library")
+load("@next-codemod-npm//@bazel/typescript:index.bzl", "ts_project")
 load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm")
 load(":jest.bzl", "jest_test")
 
 exports_files(["tsconfig.json"], visibility = ["//visibility:public"])
 
-ts_library(
+ts_project(
     name = "compile_ts",
+    source_map = True,
+    declaration = True,
     srcs = glob(["bin/*.ts", "transforms/*.ts"]),
     deps = [
         "@next-codemod-npm//@types/node"

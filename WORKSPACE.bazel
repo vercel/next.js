@@ -15,6 +15,7 @@ workspace(
         "@next-polyfill-nomodule-npm": ["packages/next-polyfill-nomodule/node_modules"],
         "@react-dev-overlay-npm": ["packages/react-dev-overlay/node_modules"],
         "@react-refresh-utils-npm": ["packages/react-refresh-utils/node_modules"],
+        "@next-env-npm": ["packages/next-env/node_modules"],
     },
 )
 
@@ -77,4 +78,11 @@ yarn_install(
     name = "react-refresh-utils-npm",
     package_json = "//packages/react-refresh-utils:package.json",
     yarn_lock = "//packages/react-refresh-utils:yarn.lock",
+)
+
+yarn_install(
+    # Name this npm so that Bazel Label references look like @npm//package
+    name = "next-env-npm",
+    package_json = "//packages/next-env:package.json",
+    yarn_lock = "//packages/next-env:yarn.lock",
 )
