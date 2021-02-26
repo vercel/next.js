@@ -3,10 +3,11 @@ import { ESLint } from 'eslint'
 import { promises } from 'fs'
 import { join } from 'path'
 
-import * as log from '../build/output/log'
-
 import { formatResults } from './eslint/customFormatter'
 import { fileExists } from './file-exists'
+import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
+import * as log from '../build/output/log'
+
 import findUp from 'next/dist/compiled/find-up'
 
 type Config = {
@@ -48,11 +49,16 @@ export async function verifyEslintSetup(
         )
       }
 
+      const usesTypeScript = await getTypeScriptIntent(baseDir, pagesDir)
+
       options = {
         baseConfig: eslintConfig ?? {
           extends: ['plugin:@next/next/recommended'],
+          parser: usesTypeScript
+            ? require.resolve('@typescript-eslint/parser')
+            : null,
           parserOptions: {
-            ecmaVersion: 2018,
+            ecmaVersion: 2021,
             sourceType: 'module',
             ecmaFeatures: {
               jsx: true,
