@@ -79,6 +79,56 @@ describe('Conflicting SSG paths', () => {
     expect(output).toContain(`conflicts with path: "/blog/conflicting"`)
   })
 
+  it('should show proper error when a dynamic SSG routes conflicts with index path', async () => {
+    await fs.ensureDir(join(pagesDir, 'blog'))
+    await fs.writeFile(
+      join(pagesDir, '[...slug].js'),
+      `
+      export const getStaticProps = () => {
+        return {
+          props: {}
+        }
+      }
+
+      export const getStaticPaths = () => {
+        return {
+          paths: [
+            '/index',
+          ],
+          fallback: false
+        }
+      }
+
+      export default function Page() {
+        return '/blog/[slug]'
+      }
+    `
+    )
+
+    await fs.writeFile(
+      join(pagesDir, 'index.js'),
+      `
+      export default function Page() {
+        return '/'
+      }
+    `
+    )
+
+    const result = await nextBuild(appDir, undefined, {
+      stdout: true,
+      stderr: true,
+    })
+    const output = result.stdout + result.stderr
+    expect(output).toContain(
+      'Conflicting paths returned from getStaticPaths, paths must unique per page'
+    )
+    expect(output).toContain('err.sh/next.js/conflicting-ssg-paths')
+    expect(output).toContain(
+      `path: "/index" from page: "/[...slug]" conflicts with path: "/"`
+    )
+    expect(output).toContain(`conflicts with path: "/"`)
+  })
+
   it('should show proper error when a dynamic SSG route conflicts with normal route', async () => {
     await fs.ensureDir(join(pagesDir, 'hello'))
     await fs.writeFile(

@@ -898,7 +898,7 @@ export function detectConflictingPaths(
 
   additionalSsgPaths.forEach((paths, pathsPage) => {
     paths.forEach((curPath) => {
-      const lowerPath = curPath.toLowerCase()
+      const lowerPath = denormalizePagePath(curPath.toLowerCase())
       let conflictingPage = combinedPages.find(
         (page) => page.toLowerCase() === lowerPath
       )
@@ -916,7 +916,10 @@ export function detectConflictingPaths(
 
           conflictingPath = additionalSsgPaths
             .get(page)
-            ?.find((compPath) => compPath.toLowerCase() === lowerPath)
+            ?.find(
+              (compPath) =>
+                denormalizePagePath(compPath.toLowerCase()) === lowerPath
+            )
           return conflictingPath
         })
 
