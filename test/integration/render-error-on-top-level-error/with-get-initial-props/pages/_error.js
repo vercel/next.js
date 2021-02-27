@@ -4,7 +4,7 @@ const Error = ({ message }) => {
 
 Error.getInitialProps = ({ err }) => {
   return {
-    message: err.message,
+    message: err && err.message,
   }
 }
 
