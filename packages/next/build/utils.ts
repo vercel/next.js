@@ -956,3 +956,16 @@ export function detectConflictingPaths(
     process.exit(1)
   }
 }
+
+export function getCssFilePaths(buildManifest: BuildManifest): string[] {
+  const cssFiles = new Set<string>()
+  Object.values(buildManifest.pages).forEach((files) => {
+    files.forEach((file) => {
+      if (file.endsWith('.css')) {
+        cssFiles.add(file)
+      }
+    })
+  })
+
+  return [...cssFiles]
+}
