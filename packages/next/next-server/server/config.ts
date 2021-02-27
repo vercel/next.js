@@ -487,7 +487,7 @@ export function normalizeConfig(phase: string, config: any) {
   return config
 }
 
-export default function loadConfig(
+export default async function loadConfig(
   phase: string,
   dir: string,
   customConfig?: object | null
@@ -495,9 +495,8 @@ export default function loadConfig(
   if (customConfig) {
     return assignDefaults({ configOrigin: 'server', ...customConfig })
   }
-  const path = findUp.sync(CONFIG_FILE, {
-    cwd: dir,
-  })
+
+  const path = await findUp(CONFIG_FILE, { cwd: dir })
 
   // If config file was found
   if (path?.length) {
