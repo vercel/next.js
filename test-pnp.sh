@@ -1,7 +1,7 @@
 declare -a testCases=(
   # Tests the webpack require hook
-  "progressive-web-app"  
-  
+  "progressive-web-app"
+
   "with-typescript"
   "with-next-sass"
   # Tests @next/mdx
@@ -11,6 +11,7 @@ declare -a testCases=(
 )
 
 set -e
+set -x
 
 # Speeds up testing locally
 export CI=1
