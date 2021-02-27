@@ -27,11 +27,11 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PAGES_MANIFEST,
   PERMANENT_REDIRECT_STATUS,
-  PHASE_PRODUCTION_SERVER,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
+  STATIC_STATUS_PAGES,
   TEMPORARY_REDIRECT_STATUS,
 } from '../lib/constants'
 import {
@@ -49,11 +49,7 @@ import {
   tryGetPreviewData,
   __ApiPreviewProps,
 } from './api-utils'
-import loadConfig, {
-  DomainLocales,
-  isTargetLikeServerless,
-  NextConfig,
-} from './config'
+import { DomainLocales, isTargetLikeServerless, NextConfig } from './config'
 import pathMatch from '../lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
@@ -160,6 +156,7 @@ export default class Server {
     locales?: string[]
     defaultLocale?: string
     domainLocales?: DomainLocales
+    distDir: string
   }
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
@@ -171,17 +168,16 @@ export default class Server {
   public constructor({
     dir = '.',
     quiet = false,
-    conf = null,
+    conf,
     dev = false,
     minimalMode = false,
     customServer = true,
-  }: ServerConstructor & { minimalMode?: boolean } = {}) {
+  }: ServerConstructor & { conf: NextConfig; minimalMode?: boolean }) {
     this.dir = resolve(dir)
     this.quiet = quiet
-    const phase = this.currentPhase()
     loadEnvConfig(this.dir, dev, Log)
 
-    this.nextConfig = loadConfig(phase, this.dir, conf)
+    this.nextConfig = conf
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.hasStaticDir = !minimalMode && fs.existsSync(join(this.dir, 'static'))
@@ -217,6 +213,7 @@ export default class Server {
       optimizeImages: this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       domainLocales: this.nextConfig.i18n?.domains,
+      distDir: this.distDir,
     }
 
     // Only the `publicRuntimeConfig` key is exposed to the client side
@@ -288,10 +285,6 @@ export default class Server {
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
-  }
-
-  protected currentPhase(): string {
-    return PHASE_PRODUCTION_SERVER
   }
 
   public logError(err: Error): void {
@@ -1364,6 +1357,12 @@ export default class Server {
       res.statusCode = 404
     }
 
+    // ensure correct status is set when visiting a status page
+    // directly e.g. /500
+    if (STATIC_STATUS_PAGES.includes(pathname)) {
+      res.statusCode = parseInt(pathname.substr(1), 10)
+    }
+
     // handle static page
     if (typeof components.Component === 'string') {
       return components.Component
@@ -1908,9 +1907,15 @@ export default class Server {
       result = await this.findPageComponents('/404', query)
       using404Page = result !== null
     }
+    let statusPage = `/${res.statusCode}`
+
+    if (!result && STATIC_STATUS_PAGES.includes(statusPage)) {
+      result = await this.findPageComponents(statusPage, query)
+    }
 
     if (!result) {
       result = await this.findPageComponents('/_error', query)
+      statusPage = '/_error'
     }
 
     if (
@@ -1928,7 +1933,7 @@ export default class Server {
         html = await this.renderToHTMLWithComponents(
           req,
           res,
-          using404Page ? '/404' : '/_error',
+          statusPage,
           result!,
           {
             ...this.renderOpts,
