@@ -5,6 +5,7 @@ import * as Log from '../../build/output/log'
 import { CONFIG_FILE } from '../lib/constants'
 import { execOnce } from '../lib/utils'
 import { defaultConfig, normalizeConfig } from './config-shared'
+import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 
 export { DomainLocales, NextConfig, normalizeConfig } from './config-shared'
@@ -392,6 +393,8 @@ export default async function loadConfig(
   dir: string,
   customConfig?: object | null
 ) {
+  await loadWebpackHook(phase, dir)
+
   if (customConfig) {
     return assignDefaults({ configOrigin: 'server', ...customConfig })
   }
