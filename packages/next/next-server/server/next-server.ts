@@ -272,6 +272,8 @@ export default class Server {
       ),
       locales: this.nextConfig.i18n?.locales,
       flushToDisk: !minimalMode && this.nextConfig.experimental.sprFlushToDisk,
+      storageProvider: this.nextConfig.storageProvider,
+      lruCacheProvider: this.nextConfig.lruCacheProvider,
     })
 
     /**

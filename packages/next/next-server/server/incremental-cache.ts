@@ -1,15 +1,19 @@
-import { promises, readFileSync } from 'fs'
+import { readFileSync, promises } from 'fs'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from 'path'
 import { PrerenderManifest } from '../../build'
 import { PRERENDER_MANIFEST } from '../lib/constants'
+import {
+  FileSystemStorageProvider,
+  StorageProfiderInterface,
+} from './lib/storage'
 import { normalizePagePath } from './normalize-page-path'
 
 function toRoute(pathname: string): string {
   return pathname.replace(/\/$/, '').replace(/\/index$/, '') || '/'
 }
 
-type IncrementalCacheValue = {
+export type IncrementalCacheValue = {
   html?: string
   pageData?: any
   isStale?: boolean
@@ -31,6 +35,7 @@ export class IncrementalCache {
   prerenderManifest: PrerenderManifest
   cache: LRUCache<string, IncrementalCacheValue>
   locales?: string[]
+  storageProvider: StorageProfiderInterface
 
   constructor({
     max,
@@ -39,6 +44,8 @@ export class IncrementalCache {
     pagesDir,
     flushToDisk,
     locales,
+    storageProvider,
+    lruCacheProvider,
   }: {
     dev: boolean
     max?: number
@@ -46,6 +53,8 @@ export class IncrementalCache {
     pagesDir: string
     flushToDisk?: boolean
     locales?: string[]
+    storageProvider?: StorageProfiderInterface
+    lruCacheProvider?: LRUCache<string, IncrementalCacheValue>
   }) {
     this.incrementalOptions = {
       dev,
@@ -70,15 +79,19 @@ export class IncrementalCache {
       )
     }
 
-    this.cache = new LRUCache({
-      // default to 50MB limit
-      max: max || 50 * 1024 * 1024,
-      length(val) {
-        if (val.isNotFound || val.isRedirect) return 25
-        // rough estimate of size of cache value
-        return val.html!.length + JSON.stringify(val.pageData).length
-      },
-    })
+    this.storageProvider = storageProvider || new FileSystemStorageProvider()
+
+    this.cache =
+      lruCacheProvider ||
+      new LRUCache({
+        // default to 50MB limit
+        max: max || 50 * 1024 * 1024,
+        length(val) {
+          if (val.isNotFound || val.isRedirect) return 25
+          // rough estimate of size of cache value
+          return val.html!.length + JSON.stringify(val.pageData).length
+        },
+      })
   }
 
   private getSeedPath(pathname: string, ext: string): string {
@@ -116,21 +129,23 @@ export class IncrementalCache {
     if (this.incrementalOptions.dev) return
     pathname = normalizePagePath(pathname)
 
-    let data = this.cache.get(pathname)
+    // Await in case the actual cache implementation returns a promise.
+    let data = await this.cache.get(pathname)
 
-    // let's check the disk for seed data
+    // let's check the storage provider for seed data
     if (!data) {
       if (this.prerenderManifest.notFoundRoutes.includes(pathname)) {
         return { isNotFound: true, revalidateAfter: false }
       }
 
       try {
-        const html = await promises.readFile(
-          this.getSeedPath(pathname, 'html'),
-          'utf8'
+        const html = await this.storageProvider.readValue(
+          this.getSeedPath(pathname, 'html')
         )
         const pageData = JSON.parse(
-          await promises.readFile(this.getSeedPath(pathname, 'json'), 'utf8')
+          await this.storageProvider.readValue(
+            this.getSeedPath(pathname, 'json')
+          )
         )
 
         data = {
@@ -138,9 +153,10 @@ export class IncrementalCache {
           pageData,
           revalidateAfter: this.calculateRevalidate(pathname),
         }
-        this.cache.set(pathname, data)
+        // Await in case the actual cache implementation returns a promise.
+        await this.cache.set(pathname, data)
       } catch (_) {
-        // unable to get data from disk
+        // unable to get data from storage provider
       }
     }
 
@@ -187,7 +203,8 @@ export class IncrementalCache {
     }
 
     pathname = normalizePagePath(pathname)
-    this.cache.set(pathname, {
+    // Await in case the actual cache implementation returns a promise.
+    await this.cache.set(pathname, {
       ...data,
       revalidateAfter: this.calculateRevalidate(pathname),
     })
@@ -196,16 +213,16 @@ export class IncrementalCache {
     // `next build` output's manifest.
     if (this.incrementalOptions.flushToDisk && !data.isNotFound) {
       try {
-        const seedPath = this.getSeedPath(pathname, 'html')
-        await promises.mkdir(path.dirname(seedPath), { recursive: true })
-        await promises.writeFile(seedPath, data.html, 'utf8')
-        await promises.writeFile(
+        await this.storageProvider.write(
+          this.getSeedPath(pathname, 'html'),
+          data.html
+        )
+        await this.storageProvider.write(
           this.getSeedPath(pathname, 'json'),
-          JSON.stringify(data.pageData),
-          'utf8'
+          JSON.stringify(data.pageData)
         )
       } catch (error) {
-        // failed to flush to disk
+        // failed to flush to storage provider
         console.warn('Failed to update prerender files for', pathname, error)
       }
     }
