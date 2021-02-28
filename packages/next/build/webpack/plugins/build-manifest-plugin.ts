@@ -19,6 +19,7 @@ import { Rewrite } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../next-server/lib/router/utils'
 import { tracer, traceFn } from '../../tracer'
 import { spans } from './profiling-plugin'
+import { context, setSpan } from '@opentelemetry/api'
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
@@ -103,7 +104,7 @@ export default class BuildManifestPlugin {
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
-    return tracer.withSpan(spans.get(compiler), () => {
+    return context.with(setSpan(context.active(), spans.get(compiler)), () => {
       const span = tracer.startSpan('NextJsBuildManifest-createassets')
       return traceFn(span, () => {
         const namedChunks: Map<string, webpack.compilation.Chunk> =

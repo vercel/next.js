@@ -8,6 +8,7 @@ import {
 } from 'next/dist/compiled/webpack/webpack'
 import { tracer, traceAsyncFn } from '../../tracer'
 import { spans } from './profiling-plugin'
+import { context, setSpan } from '@opentelemetry/api'
 
 // https://github.com/NMFR/optimize-css-assets-webpack-plugin/blob/0a410a9bf28c7b0e81a3470a13748e68ca2f50aa/src/index.js#L20
 const CSS_REGEX = /\.css(\?.*)?$/i
@@ -70,48 +71,60 @@ export class CssMinimizerPlugin {
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
           },
           async (assets: any) => {
-            return tracer.withSpan(spans.get(compiler), () => {
-              const span = tracer.startSpan('css-minimizer-plugin', {
-                attributes: {
-                  webpackVersion: 5,
-                },
-              })
+            return context.with(
+              setSpan(context.active(), spans.get(compiler)),
+              () => {
+                const span = tracer.startSpan('css-minimizer-plugin', {
+                  attributes: {
+                    webpackVersion: 5,
+                  },
+                })
 
-              return traceAsyncFn(span, async () => {
-                const files = Object.keys(assets)
-                await Promise.all(
-                  files
-                    .filter((file) => CSS_REGEX.test(file))
-                    .map(async (file) => {
-                      const assetSpan = tracer.startSpan('minify-css', {
-                        attributes: {
-                          file,
-                        },
+                return traceAsyncFn(span, async () => {
+                  const files = Object.keys(assets)
+                  await Promise.all(
+                    files
+                      .filter((file) => CSS_REGEX.test(file))
+                      .map(async (file) => {
+                        return context.with(
+                          setSpan(context.active(), spans.get(compiler)),
+                          () => {
+
+
+
+                        const assetSpan = tracer.startSpan('minify-css', {
+                          attributes: {
+                            file,
+                          },
+                        })
+                        return traceAsyncFn(span, async () => {
+                          const asset = assets[file]
+
+                          const etag = cache.getLazyHashedEtag(asset)
+
+                          const cachedResult = await cache.getPromise(
+                            file,
+                            etag
+                          )
+
+                          assetSpan.setAttribute(
+                            'cache',
+                            cachedResult ? 'HIT' : 'MISS'
+                          )
+                          if (cachedResult) {
+                            assets[file] = cachedResult
+                            return
+                          }
+
+                          const result = await this.optimizeAsset(file, asset)
+                          await cache.storePromise(file, etag, result)
+                          assets[file] = result
+                        })
                       })
-                      return traceAsyncFn(span, async () => {
-                        const asset = assets[file]
-
-                        const etag = cache.getLazyHashedEtag(asset)
-
-                        const cachedResult = await cache.getPromise(file, etag)
-
-                        assetSpan.setAttribute(
-                          'cache',
-                          cachedResult ? 'HIT' : 'MISS'
-                        )
-                        if (cachedResult) {
-                          assets[file] = cachedResult
-                          return
-                        }
-
-                        const result = await this.optimizeAsset(file, asset)
-                        await cache.storePromise(file, etag, result)
-                        assets[file] = result
-                      })
-                    })
-                )
-              })
-            })
+                  )
+                })
+              }
+            )
           }
         )
         return
@@ -119,43 +132,46 @@ export class CssMinimizerPlugin {
       compilation.hooks.optimizeChunkAssets.tapPromise(
         'CssMinimizerPlugin',
         (chunks: webpack.compilation.Chunk[]) => {
-          return tracer.withSpan(spans.get(compiler), () => {
-            const span = tracer.startSpan('css-minimizer-plugin', {
-              attributes: {
-                webpackVersion: 4,
-                compilationName: compilation.name,
-              },
-            })
+          return context.with(
+            setSpan(context.active(), spans.get(compiler)),
+            () => {
+              const span = tracer.startSpan('css-minimizer-plugin', {
+                attributes: {
+                  webpackVersion: 4,
+                  compilationName: compilation.name,
+                },
+              })
 
-            return traceAsyncFn(span, async () => {
-              const res = await Promise.all(
-                chunks
-                  .reduce(
-                    (acc, chunk) => acc.concat(chunk.files || []),
-                    [] as string[]
-                  )
-                  .filter((entry) => CSS_REGEX.test(entry))
-                  .map(async (file) => {
-                    const assetSpan = tracer.startSpan('minify-css', {
-                      attributes: {
-                        file,
-                      },
+              return traceAsyncFn(span, async () => {
+                const res = await Promise.all(
+                  chunks
+                    .reduce(
+                      (acc, chunk) => acc.concat(chunk.files || []),
+                      [] as string[]
+                    )
+                    .filter((entry) => CSS_REGEX.test(entry))
+                    .map(async (file) => {
+                      const assetSpan = tracer.startSpan('minify-css', {
+                        attributes: {
+                          file,
+                        },
+                      })
+                      return traceAsyncFn(assetSpan, async () => {
+                        const asset = compilation.assets[file]
+                        // Makes trace attributes the same as webpack 5
+                        // When using webpack 4 the result is not cached
+                        assetSpan.setAttribute('cache', 'MISS')
+                        compilation.assets[file] = await this.optimizeAsset(
+                          file,
+                          asset
+                        )
+                      })
                     })
-                    return traceAsyncFn(assetSpan, async () => {
-                      const asset = compilation.assets[file]
-                      // Makes trace attributes the same as webpack 5
-                      // When using webpack 4 the result is not cached
-                      assetSpan.setAttribute('cache', 'MISS')
-                      compilation.assets[file] = await this.optimizeAsset(
-                        file,
-                        asset
-                      )
-                    })
-                  })
-              )
-              return res
-            })
-          })
+                )
+                return res
+              })
+            }
+          )
         }
       )
     })
