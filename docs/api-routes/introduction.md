@@ -46,6 +46,13 @@ export default function handler(req, res) {
 
 To fetch API endpoints, take a look into any of the examples at the start of this section.
 
+## Use Cases
+
+For new projects, you can build your entire API with API Routes. If you have an existing API, you do not need to forward calls to the API through an API Route. Some other use cases for API Routes are:
+
+- Masking the URL of an external service (e.g. `/api/secret` instead of `https://company.com/secret-url`)
+- Using [Environment Variables](/docs/basic-features/environment-variables.md) on the server to securely access external services.
+
 ## Caveats
 
 - API Routes [do not specify CORS headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS), meaning they are **same-origin only** by default. You can customize such behavior by wrapping the request handler with the [cors middleware](/docs/api-routes/api-middlewares.md#connectexpress-middleware-support).
