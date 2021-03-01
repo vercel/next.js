@@ -552,7 +552,7 @@ function contentstackLoader({
     return `${normalizeSrc(src)}`
   }
 
-  return `${normalizeSrc(src)}?${queryString}`
+  return `${src}?${queryString}`
 }
 
 function defaultLoader({
