@@ -1,3 +1,4 @@
+import { context, setSpan } from '@opentelemetry/api'
 import loaderUtils from 'next/dist/compiled/loader-utils'
 import { tracer, traceFn } from '../../tracer'
 
@@ -8,7 +9,7 @@ export type ClientPagesLoaderOptions = {
 
 // this parameter: https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters
 function nextClientPagesLoader(this: any) {
-  return tracer.withSpan(this.currentTraceSpan, () => {
+  return context.with(setSpan(context.active(), this.currentTraceSpan), () => {
     const span = tracer.startSpan('next-client-pages-loader')
     return traceFn(span, () => {
       const { absolutePagePath, page } = loaderUtils.getOptions(

@@ -5,6 +5,8 @@ import {
   trace,
   ProxyTracerProvider,
   NoopTracerProvider,
+  context,
+  setSpan,
 } from '@opentelemetry/api'
 
 const pluginName = 'ProfilingPlugin'
@@ -115,7 +117,8 @@ export class ProfilingPlugin {
         if (!compilerSpan) {
           return
         }
-        tracer.withSpan(compilerSpan, () => {
+
+        context.with(setSpan(context.active(), spans.get(compilerSpan)), () => {
           const span = tracer.startSpan('build-module')
           span.setAttribute('name', module.userRequest)
           spans.set(module, span)

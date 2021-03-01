@@ -32,7 +32,7 @@ function generateClientManifest(
   assetMap: BuildManifest,
   rewrites: Rewrite[]
 ): string {
-  return tracer.withSpan(spans.get(compiler), () => {
+  return context.with(setSpan(context.active(), spans.get(compiler)), () => {
     const span = tracer.startSpan('NextJsBuildManifest-generateClientManifest')
     return traceFn(span, () => {
       const clientManifest: ClientBuildManifest = {

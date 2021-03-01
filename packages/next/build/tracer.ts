@@ -1,4 +1,4 @@
-import api, { context, Span } from '@opentelemetry/api'
+import api, { context, setSpan, Span } from '@opentelemetry/api'
 
 export const tracer = api.trace.getTracer('next', process.env.__NEXT_VERSION)
 
@@ -77,7 +77,7 @@ export function traceFn<T extends (...args: unknown[]) => ReturnType<T>>(
   span: Span,
   fn: T
 ): ReturnType<T> {
-  return tracer.withSpan(span, () => {
+  return context.with(setSpan(context.active(), span), () => {
     try {
       return fn()
     } finally {
@@ -90,7 +90,7 @@ export function traceAsyncFn<T extends (...args: unknown[]) => ReturnType<T>>(
   span: Span,
   fn: T
 ): Promise<ReturnType<T>> {
-  return tracer.withSpan(span, async () => {
+  return context.with(setSpan(context.active(), span), async () => {
     try {
       return await fn()
     } finally {
