@@ -23,9 +23,9 @@ import {
   normalizePathSep,
 } from '../next-server/server/normalize-page-path'
 import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
-import { isWriteable } from '../build/is-writeable'
 import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { stringify } from 'querystring'
+import { fileExists } from '../lib/file-exists'
 import { Rewrite } from '../lib/load-custom-routes'
 import { difference } from '../build/utils'
 import { NextConfig } from '../next-server/server/config'
@@ -321,7 +321,7 @@ export default class HotReloader {
               clientBundlePath,
               absolutePagePath,
             } = entries[page]
-            const pageExists = await isWriteable(absolutePagePath)
+            const pageExists = await fileExists(absolutePagePath)
             if (!pageExists) {
               // page was removed
               delete entries[page]
