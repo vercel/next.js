@@ -1,6 +1,6 @@
 load("@next-npm//@babel/cli:index.bzl", "babel")
 load("@create-next-app-npm//@vercel/ncc:index.bzl", "ncc")
-load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm", "copy_to_bin")
+load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm", "copy_to_bin", "nodejs_binary")
 
 filegroup(
     name = "bin_files",
@@ -376,4 +376,10 @@ alias(
 alias(
     name = "pack",
     actual = "npm.pack",
+)
+
+nodejs_binary(
+    name = "next_cli",
+    data = [":npm"],
+    entry_point = "$$(execpath bin/next.js)",
 )
