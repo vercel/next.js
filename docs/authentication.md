@@ -68,7 +68,6 @@ Let's transform the profile example to use [server-side rendering](/docs/basic-f
 // pages/profile.js
 
 import withSession from '../lib/session'
-import useUser from '../lib/useUser'
 import Layout from '../components/Layout'
 
 export const getServerSideProps = withSession(async function ({ req, res }) {
