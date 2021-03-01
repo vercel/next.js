@@ -18,12 +18,14 @@ microbundle(
         "--external", "none",
         "--no-pkg-main"
     ],
+    visibility = ["//visibility:public"]
 )
 
 pkg_npm(
     name = "npm",
     srcs = ["package.json"],
-    deps = [":compile"]
+    deps = [":compile"],
+    visibility = ["//visibility:public"]
 )
 
 alias(

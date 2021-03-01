@@ -17,6 +17,7 @@ workspace(
         "@react-refresh-utils-npm": ["packages/react-refresh-utils/node_modules"],
         "@next-env-npm": ["packages/next-env/node_modules"],
         "@create-next-app-npm": ["packages/create-next-app/node_modules"],
+        "@next-npm": ["packages/next/node_modules"],
     },
 )
 
@@ -93,4 +94,11 @@ yarn_install(
     name = "create-next-app-npm",
     package_json = "//packages/create-next-app:package.json",
     yarn_lock = "//packages/create-next-app:yarn.lock",
+)
+
+yarn_install(
+    # Name this npm so that Bazel Label references look like @npm//package
+    name = "next-npm",
+    package_json = "//packages/next:package.json",
+    yarn_lock = "//packages/next:yarn.lock",
 )

@@ -42,12 +42,12 @@
     "types/global.d.ts"
   ],
   "bin": {
-    "next": "./dist/bin/next"
+    "next": "./dist/bin/next.js"
   },
   "scripts": {
     "dev": "taskr",
     "release": "taskr release",
-    "prepublish": "npm run release && yarn types",
+    "//prepublish": "npm run release && yarn types",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "typescript": "tsc --noEmit --declaration",
     "ncc-compiled": "ncc cache clean && taskr ncc"
@@ -118,6 +118,7 @@
   },
   "devDependencies": {
     "@ampproject/toolbox-optimizer": "2.7.1-alpha.0",
+    "@babel/cli": "7.13.0",
     "@babel/code-frame": "7.12.11",
     "@babel/core": "7.12.10",
     "@babel/plugin-proposal-class-properties": "7.12.1",

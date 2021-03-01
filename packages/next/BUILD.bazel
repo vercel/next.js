@@ -1,0 +1,379 @@
+load("@next-npm//@babel/cli:index.bzl", "babel")
+load("@create-next-app-npm//@vercel/ncc:index.bzl", "ncc")
+load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm", "copy_to_bin")
+
+filegroup(
+    name = "bin_files",
+    srcs = glob(["bin/**/*.ts"])
+)
+
+babel(
+    name = "bin",
+    data = [
+        ":bin_files", 
+        "babel.config.server.js",
+        "@next-npm//@babel/plugin-proposal-numeric-separator",
+        "@next-npm//@babel/preset-env",
+        "@next-npm//babel-plugin-dynamic-import-node",
+        "@next-npm//@babel/plugin-proposal-class-properties",
+        "@next-npm//@babel/preset-react",
+        "@next-npm//@babel/preset-typescript", "@next-npm//@babel/plugin-transform-runtime"
+        ],
+    output_dir = True,
+    args = [
+        "$(locations :bin_files)",
+        "--config-file",
+        "./$(execpath babel.config.server.js)",
+        "--out-dir",
+        "$(@D)",
+        "--extensions .ts",
+    ],
+)
+
+filegroup(
+    name = "cli_files",
+    srcs = glob(["cli/**/*.ts"])
+)
+
+babel(
+    name = "cli",
+    data = [
+        ":cli_files", 
+        "babel.config.server.js",
+        "@next-npm//@babel/plugin-proposal-numeric-separator",
+        "@next-npm//@babel/preset-env",
+        "@next-npm//babel-plugin-dynamic-import-node",
+        "@next-npm//@babel/plugin-proposal-class-properties",
+        "@next-npm//@babel/preset-react",
+        "@next-npm//@babel/preset-typescript", "@next-npm//@babel/plugin-transform-runtime"
+        ],
+    output_dir = True,
+    args = [
+        "$(locations :cli_files)",
+        "--config-file",
+        "./$(execpath babel.config.server.js)",
+        "--out-dir",
+        "$(@D)",
+        "--extensions .ts",
+    ],
+)
+
+filegroup(
+    name = "lib_files",
+    srcs = glob(["lib/**/*.ts"])
+)
+
+babel(
+    name = "lib",
+    data = [
+        ":lib_files", 
+        "babel.config.server.js",
+        "@next-npm//@babel/plugin-proposal-numeric-separator",
+        "@next-npm//@babel/preset-env",
+        "@next-npm//babel-plugin-dynamic-import-node",
+        "@next-npm//@babel/plugin-proposal-class-properties",
+        "@next-npm//@babel/preset-react",
+        "@next-npm//@babel/preset-typescript", "@next-npm//@babel/plugin-transform-runtime"
+        ],
+    output_dir = True,
+    args = [
+        "$(locations :lib_files)",
+        "--config-file",
+        "./$(execpath babel.config.server.js)",
+        "--out-dir",
+        "$(@D)",
+        "--extensions .ts",
+    ],
+)
+
+filegroup(
+    name = "server_files",
+    srcs = glob(["server/**/*.ts"])
+)
+
+babel(
+    name = "server",
+    data = [
+        ":server_files", 
+        "babel.config.server.js",
+        "@next-npm//@babel/plugin-proposal-numeric-separator",
+        "@next-npm//@babel/preset-env",
+        "@next-npm//babel-plugin-dynamic-import-node",
+        "@next-npm//@babel/plugin-proposal-class-properties",
+        "@next-npm//@babel/preset-react",
+        "@next-npm//@babel/preset-typescript", "@next-npm//@babel/plugin-transform-runtime"
+        ],
+    output_dir = True,
+    args = [
+        "$(locations :server_files)",
+        "--config-file",
+        "./$(execpath babel.config.server.js)",
+        "--out-dir",
+        "$(@D)",
+        "--extensions .ts",
+    ],
+)
+
+filegroup(
+    name = "build_files",
+    srcs = glob(["build/**/*.ts", "build/**/*.tsx", "build/**/*.js"])
+)
+
+babel(
+    name = "build",
+    data = [
+        ":build_files", 
+        "babel.config.server.js",
+        "@next-npm//@babel/plugin-proposal-numeric-separator",
+        "@next-npm//@babel/preset-env",
+        "@next-npm//babel-plugin-dynamic-import-node",
+        "@next-npm//@babel/plugin-proposal-class-properties",
+        "@next-npm//@babel/preset-react",
+        "@next-npm//@babel/preset-typescript", "@next-npm//@babel/plugin-transform-runtime"
+        ],
+    output_dir = True,
+    args = [
+        "$(locations :build_files)",
+        "--config-file",
+        "./$(execpath babel.config.server.js)",
+        "--out-dir",
+        "$(@D)",
+        "--extensions .ts,.tsx,.js",
+    ],
+)
+
+filegroup(
+    name = "client_files",
+    srcs = glob(["client/**/*.ts", "client/**/*.js"])
+)
+
+babel(
+    name = "client",
+    data = [
+        ":build_files", 
+        "babel.config.client.js",
+        "@next-npm//@babel/plugin-proposal-numeric-separator",
+        "@next-npm//@babel/preset-env",
+        "@next-npm//babel-plugin-dynamic-import-node",
+        "@next-npm//@babel/plugin-proposal-class-properties",
+        "@next-npm//@babel/preset-react",
+        "@next-npm//@babel/preset-typescript", "@next-npm//@babel/plugin-transform-runtime"
+        ],
+    output_dir = True,
+    args = [
+        "$(locations :build_files)",
+        "--config-file",
+        "./$(execpath babel.config.client.js)",
+        "--out-dir",
+        "$(@D)",
+        "--extensions .ts,.js",
+    ],
+)
+
+filegroup(
+    name = "export_files",
+    srcs = glob(["export/**/*.ts", "export/**/*.js"])
+)
+
+babel(
+    name = "export",
+    data = [
+        ":build_files", 
+        "babel.config.server.js",
+        "@next-npm//@babel/plugin-proposal-numeric-separator",
+        "@next-npm//@babel/preset-env",
+        "@next-npm//babel-plugin-dynamic-import-node",
+        "@next-npm//@babel/plugin-proposal-class-properties",
+        "@next-npm//@babel/preset-react",
+        "@next-npm//@babel/preset-typescript", "@next-npm//@babel/plugin-transform-runtime"
+        ],
+    output_dir = True,
+    args = [
+        "$(locations :build_files)",
+        "--config-file",
+        "./$(execpath babel.config.server.js)",
+        "--out-dir",
+        "$(@D)",
+        "--extensions .ts,.js",
+    ],
+)
+
+babel(
+    name = "pages_app",
+    data = [
+        ":pages/_app.tsx", 
+        "babel.config.client.js",
+        "@next-npm//@babel/plugin-proposal-numeric-separator",
+        "@next-npm//@babel/preset-env",
+        "@next-npm//babel-plugin-dynamic-import-node",
+        "@next-npm//@babel/plugin-proposal-class-properties",
+        "@next-npm//@babel/preset-react",
+        "@next-npm//@babel/preset-typescript", "@next-npm//@babel/plugin-transform-runtime"
+        ],
+    outs = [
+        "pages/_app.js"
+    ],
+    args = [
+        "$(execpath :pages/_app.tsx)",
+        "--config-file",
+        "./$(execpath babel.config.client.js)",
+        "--out-file",
+        "$(execpath :pages/_app.js)",
+        "--extensions .tsx",
+    ],
+)
+
+babel(
+    name = "pages_error",
+    data = [
+        ":pages/_error.tsx", 
+        "babel.config.client.js",
+        "@next-npm//@babel/plugin-proposal-numeric-separator",
+        "@next-npm//@babel/preset-env",
+        "@next-npm//babel-plugin-dynamic-import-node",
+        "@next-npm//@babel/plugin-proposal-class-properties",
+        "@next-npm//@babel/preset-react",
+        "@next-npm//@babel/preset-typescript", "@next-npm//@babel/plugin-transform-runtime"
+        ],
+    outs = [
+        "pages/_error.js"
+    ],
+    args = [
+        "$(execpath :pages/_error.tsx)",
+        "--config-file",
+        "./$(execpath babel.config.client.js)",
+        "--out-file",
+        "$(execpath :pages/_error.js)",
+        "--extensions .tsx",
+    ],
+)
+
+babel(
+    name = "pages_document",
+    data = [
+        ":pages/_document.tsx", 
+        "babel.config.server.js",
+        "@next-npm//@babel/plugin-proposal-numeric-separator",
+        "@next-npm//@babel/preset-env",
+        "@next-npm//babel-plugin-dynamic-import-node",
+        "@next-npm//@babel/plugin-proposal-class-properties",
+        "@next-npm//@babel/preset-react",
+        "@next-npm//@babel/preset-typescript", "@next-npm//@babel/plugin-transform-runtime"
+        ],
+    outs = [
+        "pages/_document.js"
+    ],
+    args = [
+        "$(execpath :pages/_document.tsx)",
+        "--config-file",
+        "./$(execpath babel.config.server.js)",
+        "--out-file",
+        "$(execpath :pages/_document.js)",
+        "--extensions .tsx",
+    ],
+)
+
+filegroup(
+    name = "telemetry_files",
+    srcs = glob(["telemetry/**/*.ts"])
+)
+
+babel(
+    name = "telemetry",
+    data = [
+        ":telemetry_files", 
+        "babel.config.server.js",
+        "@next-npm//@babel/plugin-proposal-numeric-separator",
+        "@next-npm//@babel/preset-env",
+        "@next-npm//babel-plugin-dynamic-import-node",
+        "@next-npm//@babel/plugin-proposal-class-properties",
+        "@next-npm//@babel/preset-react",
+        "@next-npm//@babel/preset-typescript", "@next-npm//@babel/plugin-transform-runtime"
+        ],
+    output_dir = True,
+    args = [
+        "$(locations :telemetry_files)",
+        "--config-file",
+        "./$(execpath babel.config.server.js)",
+        "--out-dir",
+        "$(@D)",
+        "--extensions .ts,.js",
+    ],
+)
+
+filegroup(
+    name = "nextserver_files",
+    srcs = glob(["next-server/**/!(*.d).ts", "next-server/**/*.js"])
+)
+
+babel(
+    name = "nextserver",
+    data = [
+        ":nextserver_files", 
+        "babel.config.server.js",
+        "@next-npm//@babel/plugin-proposal-numeric-separator",
+        "@next-npm//@babel/preset-env",
+        "@next-npm//babel-plugin-dynamic-import-node",
+        "@next-npm//@babel/plugin-proposal-class-properties",
+        "@next-npm//@babel/preset-react",
+        "@next-npm//@babel/preset-typescript", "@next-npm//@babel/plugin-transform-runtime"
+        ],
+    output_dir = True,
+    args = [
+        "$(locations :nextserver_files)",
+        "--config-file",
+        "./$(execpath babel.config.server.js)",
+        "--out-dir",
+        "$(@D)",
+        "--extensions .ts,.js",
+    ],
+)
+
+copy_to_bin(
+    name = "nextserver_wasm",
+    srcs = glob(["next-server/**/*.wasm"])
+)
+
+# Copy over the public api files
+copy_to_bin(
+    name = "mod_files",
+    srcs = glob(["*.d.ts", "*.js"])
+)
+
+copy_to_bin(
+    name = "compiled_files",
+    srcs = glob(["compiled/**/*"])
+)
+
+pkg_npm(
+    name = "npm",
+    srcs = ["package.json"],
+    deps = [
+        ":mod_files",
+        ":compiled_files",
+        ":nextserver",
+        ":nextserver_wasm",
+        ":telemetry",
+        ":pages_document",
+        ":pages_error",
+        ":pages_app",
+        ":export",
+        ":client",
+        ":build",
+        ":server",
+        ":lib",
+        ":cli",
+        ":bin",
+        ":README.md"
+    ]
+)
+
+alias(
+    name = "publish",
+    actual = "npm.publish",
+)
+
+alias(
+    name = "pack",
+    actual = "npm.pack",
+)

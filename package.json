@@ -1,9 +1,6 @@
 {
   "name": "nextjs-project",
   "private": true,
-  "workspaces": [
-    "packages/next"
-  ],
   "scripts": {
     "lerna": "lerna",
     "bazel": "bazel",
@@ -30,7 +27,7 @@
     "prettier-fix": "prettier --write .",
     "types": "lerna run types --stream",
     "typescript": "lerna run typescript",
-    "prepublish": "yarn run bazel build //... && lerna run prepublish",
+    "//prepublish": "yarn run bazel build //... && lerna run prepublish",
     "publish-canary": "lerna version prerelease --preid canary --force-publish && release --pre --skip-questions",
     "publish-stable": "lerna version --force-publish",
     "lint-staged": "lint-staged",
@@ -109,7 +106,6 @@
     "minimatch": "3.0.4",
     "moment": "^2.24.0",
     "node-fetch": "2.6.1",
-    "node-notifier": "5.4.0",
     "node-sass": "5.0.0",
     "npm-run-all": "4.1.5",
     "nprogress": "0.2.0",
