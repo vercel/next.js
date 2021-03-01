@@ -2,30 +2,43 @@ load("@next-npm//@babel/cli:index.bzl", "babel")
 load("@create-next-app-npm//@vercel/ncc:index.bzl", "ncc")
 load("@build_bazel_rules_nodejs//:index.bzl", "pkg_npm", "copy_to_bin", "nodejs_binary")
 
-filegroup(
-    name = "bin_files",
-    srcs = glob(["bin/**/*.ts"])
-)
 
 babel(
     name = "bin",
     data = [
-        ":bin_files", 
+        ":bin/next.ts", 
+        ":mod_files",
+        ":compiled_files",
+        ":nextserver",
+        ":nextserver_wasm",
+        ":telemetry",
+        ":pages_document",
+        ":pages_error",
+        ":pages_app",
+        ":export",
+        ":client",
+        ":build",
+        ":server",
+        ":lib",
+        ":cli",
         "babel.config.server.js",
         "@next-npm//@babel/plugin-proposal-numeric-separator",
         "@next-npm//@babel/preset-env",
         "@next-npm//babel-plugin-dynamic-import-node",
         "@next-npm//@babel/plugin-proposal-class-properties",
         "@next-npm//@babel/preset-react",
-        "@next-npm//@babel/preset-typescript", "@next-npm//@babel/plugin-transform-runtime"
-        ],
-    output_dir = True,
+        "@next-npm//@babel/preset-typescript", "@next-npm//@babel/plugin-transform-runtime",
+        # "@next-npm//chalk",
+    ],
+    outs = [
+        "bin/next.js"
+    ],
     args = [
-        "packages/next/bin",
+        "$(execpath :bin/next.ts)",
         "--config-file",
         "./$(execpath babel.config.server.js)",
-        "--out-dir",
-        "$(@D)",
+        "--out-file",
+        "$(execpath :bin/next.js)",
         "--extensions .ts",
     ],
 )
@@ -349,20 +362,6 @@ pkg_npm(
     name = "npm",
     srcs = ["package.json"],
     deps = [
-        ":mod_files",
-        ":compiled_files",
-        ":nextserver",
-        ":nextserver_wasm",
-        ":telemetry",
-        ":pages_document",
-        ":pages_error",
-        ":pages_app",
-        ":export",
-        ":client",
-        ":build",
-        ":server",
-        ":lib",
-        ":cli",
         ":bin",
         ":README.md"
     ]
@@ -380,6 +379,6 @@ alias(
 
 nodejs_binary(
     name = "next_cli",
-    data = [":npm"],
-    entry_point = "$$(execpath bin/next.js)",
+    data = [":bin"],
+    entry_point = ":bin",
 )
