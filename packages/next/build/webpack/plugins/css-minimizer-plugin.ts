@@ -82,6 +82,7 @@ export class CssMinimizerPlugin {
 
                 return traceAsyncFn(span, async () => {
                   const files = Object.keys(assets)
+
                   await Promise.all(
                     files
                       .filter((file) => CSS_REGEX.test(file))
@@ -89,37 +90,41 @@ export class CssMinimizerPlugin {
                         return context.with(
                           setSpan(context.active(), spans.get(compiler)),
                           () => {
+                            const assetSpan = tracer.startSpan('minify-css', {
+                              attributes: {
+                                file,
+                              },
+                            })
 
+                            return traceAsyncFn(span, async () => {
+                              const asset = assets[file]
 
+                              const etag = cache.getLazyHashedEtag(asset)
 
-                        const assetSpan = tracer.startSpan('minify-css', {
-                          attributes: {
-                            file,
-                          },
-                        })
-                        return traceAsyncFn(span, async () => {
-                          const asset = assets[file]
+                              const cachedResult = await cache.getPromise(
+                                file,
+                                etag
+                              )
 
-                          const etag = cache.getLazyHashedEtag(asset)
+                              assetSpan.setAttribute(
+                                'cache',
+                                cachedResult ? 'HIT' : 'MISS'
+                              )
 
-                          const cachedResult = await cache.getPromise(
-                            file,
-                            etag
-                          )
+                              if (cachedResult) {
+                                assets[file] = cachedResult
+                                return
+                              }
 
-                          assetSpan.setAttribute(
-                            'cache',
-                            cachedResult ? 'HIT' : 'MISS'
-                          )
-                          if (cachedResult) {
-                            assets[file] = cachedResult
-                            return
+                              const result = await this.optimizeAsset(
+                                file,
+                                asset
+                              )
+                              await cache.storePromise(file, etag, result)
+                              assets[file] = result
+                            })
                           }
-
-                          const result = await this.optimizeAsset(file, asset)
-                          await cache.storePromise(file, etag, result)
-                          assets[file] = result
-                        })
+                        )
                       })
                   )
                 })
