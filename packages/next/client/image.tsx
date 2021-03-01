@@ -427,6 +427,8 @@ export default function Image({
               aria-hidden={true}
               role="presentation"
               src={`data:image/svg+xml;base64,${toBase64(sizerSvg)}`}
+              width={widthInt}
+              height={heightInt}
             />
           ) : null}
         </div>
