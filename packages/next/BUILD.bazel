@@ -21,7 +21,7 @@ babel(
         ],
     output_dir = True,
     args = [
-        "$(execpaths :bin_files)",
+        "packages/next/bin",
         "--config-file",
         "./$(execpath babel.config.server.js)",
         "--out-dir",
@@ -49,7 +49,7 @@ babel(
         ],
     output_dir = True,
     args = [
-        "$(execpaths :cli_files)",
+        "packages/next/cli",
         "--config-file",
         "./$(execpath babel.config.server.js)",
         "--out-dir",
@@ -77,7 +77,7 @@ babel(
         ],
     output_dir = True,
     args = [
-        "$(execpaths :lib_files)",
+        "packages/next/lib",
         "--config-file",
         "./$(execpath babel.config.server.js)",
         "--out-dir",
@@ -105,7 +105,7 @@ babel(
         ],
     output_dir = True,
     args = [
-        "$(execpaths :server_files)",
+        "packages/next/server",
         "--config-file",
         "./$(execpath babel.config.server.js)",
         "--out-dir",
@@ -133,7 +133,7 @@ babel(
         ],
     output_dir = True,
     args = [
-        "$(execpaths :build_files)",
+        "packages/next/build",
         "--config-file",
         "./$(execpath babel.config.server.js)",
         "--out-dir",
@@ -150,7 +150,7 @@ filegroup(
 babel(
     name = "client",
     data = [
-        ":build_files", 
+        ":client_files", 
         "babel.config.client.js",
         "@next-npm//@babel/plugin-proposal-numeric-separator",
         "@next-npm//@babel/preset-env",
@@ -161,7 +161,7 @@ babel(
         ],
     output_dir = True,
     args = [
-        "$(execpaths :build_files)",
+        "packages/next/client",
         "--config-file",
         "./$(execpath babel.config.client.js)",
         "--out-dir",
@@ -178,7 +178,7 @@ filegroup(
 babel(
     name = "export",
     data = [
-        ":build_files", 
+        ":export_files", 
         "babel.config.server.js",
         "@next-npm//@babel/plugin-proposal-numeric-separator",
         "@next-npm//@babel/preset-env",
@@ -189,7 +189,7 @@ babel(
         ],
     output_dir = True,
     args = [
-        "$(execpaths :build_files)",
+        "packages/next/export",
         "--config-file",
         "./$(execpath babel.config.server.js)",
         "--out-dir",
@@ -292,7 +292,7 @@ babel(
         ],
     output_dir = True,
     args = [
-        "$(execpaths :telemetry_files)",
+        "packages/next/telemetry",
         "--config-file",
         "./$(execpath babel.config.server.js)",
         "--out-dir",
@@ -320,7 +320,7 @@ babel(
         ],
     output_dir = True,
     args = [
-        "$(execpaths :nextserver_files)",
+        "packages/next/next-server",
         "--config-file",
         "./$(execpath babel.config.server.js)",
         "--out-dir",
