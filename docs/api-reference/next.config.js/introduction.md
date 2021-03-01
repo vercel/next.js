@@ -44,7 +44,7 @@ module.exports = (phase, { defaultConfig }) => {
 }
 ```
 
-The commented lines are the place where you can put the configs allowed by `next.config.js`, which are defined [here](https://github.com/vercel/next.js/blob/canary/packages/next/next-server/server/config.ts#L12-L63).
+The commented lines are the place where you can put the configs allowed by `next.config.js`, which are defined [here](https://github.com/vercel/next.js/blob/80c9522750a269a78c5636ace777a734b9dcd767/packages/next/next-server/server/config.ts#L42-L100).
 
 However, none of the configs are required, and it's not necessary to understand what each config does. Instead, search for the features you need to enable or modify in this section and they will show you what to do.
 
