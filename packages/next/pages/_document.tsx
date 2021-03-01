@@ -717,13 +717,15 @@ export class Head extends Component<
   }
 }
 
-export function Main() {
+export function Main<P extends React.HTMLAttributes<T>, T extends HTMLElement>(
+  props?: { type?: keyof React.ReactHTML } & React.ClassAttributes<T> & Omit<P, "id" | "children" | "dangerouslySetInnerHTML"> | null
+) {
   const { inAmpMode, docComponentsRendered } = useContext(HtmlContext)
 
   docComponentsRendered.Main = true
 
   if (inAmpMode) return <>{BODY_RENDER_TARGET}</>
-  return <div id="__next">{BODY_RENDER_TARGET}</div>
+  return React.createElement(props?.type || "div", { ...props, id: "__next", children: BODY_RENDER_TARGET })
 }
 
 export class NextScript extends Component<OriginProps> {
