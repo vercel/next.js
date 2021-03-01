@@ -39,9 +39,9 @@ describe('Polyfills', () => {
   })
 
   it('should contain generated page count in output', async () => {
-    expect(output).toContain('Generating static pages (0/3)')
-    expect(output).toContain('Generating static pages (3/3)')
+    expect(output).toContain('Generating static pages (0/4)')
+    expect(output).toContain('Generating static pages (4/4)')
     // we should only have 1 segment and the initial message logged out
-    expect(output.match(/Generating static pages/g).length).toBe(2)
+    expect(output.match(/Generating static pages/g).length).toBe(5)
   })
 })
