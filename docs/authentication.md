@@ -189,6 +189,18 @@ You can either use [FirebaseUI](https://github.com/firebase/firebaseui-web-react
 
 [Userbase](https://userbase.com/) supports the static generation pattern for authentication. It's open source and allows for a high level of security with end-to-end encryption. You can learn more about it in their [official site](https://userbase.com/).
 
+### SuperTokens
+
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-supertokens">with-supertokens</a></li>
+  </ul>
+</details>
+
+[SuperTokens](https://supertokens.io) is a highly customizable, open-source solution split into modules (so you only use what you need).
+SuperTokens currently supports credentials login, email verification, password reset flows, and third-party logins.
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:
