@@ -130,17 +130,6 @@ Both of these libraries support either authentication pattern. If you're interes
 - [with-passport](https://github.com/vercel/next.js/tree/canary/examples/with-passport)
 - [with-passport-and-next-connect](https://github.com/vercel/next.js/tree/canary/examples/with-passport-and-next-connect)
 
-### SuperTokens
-
-<details open>
-  <summary><b>Examples</b></summary>
-  <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-supertokens">with-supertokens</a></li>
-  </ul>
-</details>
-
-[SuperTokens](https://supertokens.io) is an open source secure authentication system with many features such as credentials login, email verification, reset password flows, and third party logins.
-
 ### Firebase
 
 <details open>
@@ -199,6 +188,18 @@ You can either use [FirebaseUI](https://github.com/firebase/firebaseui-web-react
 </details>
 
 [Userbase](https://userbase.com/) supports the static generation pattern for authentication. It's open source and allows for a high level of security with end-to-end encryption. You can learn more about it in their [official site](https://userbase.com/).
+
+### SuperTokens
+
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-supertokens">with-supertokens</a></li>
+  </ul>
+</details>
+
+[SuperTokens](https://supertokens.io) is a highly customisable, open source auth split into modules so that you use only what you need.
+SuperTokens currently supports credentials login, email verification, reset password flows and third party logins.
 
 ## Related
 
