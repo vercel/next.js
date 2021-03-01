@@ -1,11 +1,15 @@
-import { headerBanner, headerTitle } from '../styles/header'
-
 export default function Header(props) {
   return (
     <>
-      <h1 className={headerTitle.className}>Guestbook</h1>
-      {headerBanner.styles}
-      {headerTitle.styles}
+      <h1
+        style={{
+          fontSize: '300%',
+          fontWeight: 'normal',
+          margin: ['15px', '0'],
+        }}
+      >
+        Guestbook
+      </h1>
     </>
   )
 }

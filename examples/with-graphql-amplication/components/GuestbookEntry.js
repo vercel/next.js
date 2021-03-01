@@ -1,49 +1,37 @@
-import {
-  guestbookEntry,
-  guestbookEntryUserDetail,
-  guestbookEntryUserDetailAvatar,
-  guestbookEntryUserDetailAvatarImg,
-  guestbookEntryUserDetailTimestamp,
-  guestbookEntryUserDetailBiolink,
-  guestbookEntryStory,
-  guestbookEntryShare,
-  guestbookEntryShareTwitterButton,
-  guestbookEntryShareTwitterButtonLogo1,
-  guestbookEntryShareTwitterButtonLogo2,
-} from '../styles/guestbookentry'
+import styles from './GuestbookEntry.module.css'
 
 export default function GuestbookEntry(props) {
   return (
     <>
-      <div className={guestbookEntry.className}>
-        <div className={guestbookEntryUserDetail.className}>
-          <div className={guestbookEntryUserDetailAvatar.className}>
+      <div className={styles.guestbookEntry}>
+        <div className={styles.guestbookEntryUserDetail}>
+          <div className={styles.guestbookEntryUserDetailAvatar}>
             <a
               target="_blank"
               rel="noopener noreferrer"
               href={`https://twitter.com/${props.twitter_handle}/`}
             >
               <img
-                className={guestbookEntryUserDetailAvatarImg.className}
+                className={styles.guestbookEntryUserDetailAvatarImg}
                 src={`https://twitter-avatar.now.sh/${props.twitter_handle}/`}
               />
             </a>
           </div>
           <a
-            className={guestbookEntryUserDetailBiolink.className}
+            className={styles.guestbookEntryUserDetailBiolink}
             target="_blank"
             rel="noopener noreferrer"
             href={`https://twitter.com/${props.twitter_handle}/`}
           >
             {props.twitter_handle}
           </a>
-          <span className={guestbookEntryUserDetailTimestamp.className}>
+          <span className={styles.guestbookEntryUserDetailTimestamp}>
             {props.date.toDateString()}
           </span>
         </div>
-        <div className={guestbookEntryStory.className}>{props.story}</div>
+        <div className={styles.guestbookEntryStory}>{props.story}</div>
       </div>
-      <div className={guestbookEntryShare.className}>
+      <div className={styles.guestbookEntryShare}>
         <a
           href={`http://twitter.com/share?text=${encodeURIComponent(
             props.story + ' @zeithq'
@@ -51,29 +39,18 @@ export default function GuestbookEntry(props) {
                     `}
           target="_blank"
           rel="noopener noreferrer"
-          className={guestbookEntryShareTwitterButton.className}
+          className={styles.guestbookEntryShareTwitterButton}
         >
           <img
             src="/static/twitter_icon_black.png"
-            className={guestbookEntryShareTwitterButtonLogo1.className}
+            className={styles.guestbookEntryShareTwitterButtonLogo1}
           />
           <img
-            className={guestbookEntryShareTwitterButtonLogo2.className}
+            className={styles.guestbookEntryShareTwitterButtonLogo2}
             src="/static/twitter_icon_blue.png"
           />
         </a>
       </div>
-      {guestbookEntry.styles}
-      {guestbookEntryShare.styles}
-      {guestbookEntryShareTwitterButton.styles}
-      {guestbookEntryShareTwitterButtonLogo1.styles}
-      {guestbookEntryShareTwitterButtonLogo2.styles}
-      {guestbookEntryStory.styles}
-      {guestbookEntryUserDetail.styles}
-      {guestbookEntryUserDetailAvatar.styles}
-      {guestbookEntryUserDetailAvatarImg.styles}
-      {guestbookEntryUserDetailBiolink.styles}
-      {guestbookEntryUserDetailTimestamp.styles}
     </>
   )
 }

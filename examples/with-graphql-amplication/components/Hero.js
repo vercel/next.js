@@ -3,16 +3,7 @@ import { useGuestbookEntries, createGuestbookEntry } from '../graphql/api'
 import Header from './Header'
 import GuestbookEntry from './GuestbookEntry'
 import GuestbookEntryDivider from './GuestbookEntryDivider'
-import {
-  hero,
-  heroContainer,
-  heroForm,
-  heroFormFieldset,
-  heroFormTextArea,
-  heroFormTwitterInput,
-  heroFormSubmitButton,
-  heroEntries,
-} from '../styles/hero'
+import styles from './Hero.module.css'
 
 function getEntries(data) {
   return data ? data.guestbookEntries.reverse() : []
@@ -66,16 +57,16 @@ export default function Hero(props) {
   }
 
   return (
-    <div className={heroContainer.className}>
-      <div className={hero.className}>
+    <div className={styles.heroContainer}>
+      <div className={styles.hero}>
         <Header />
-        <form className={heroForm.className} onSubmit={handleSubmit}>
+        <form className={styles.heroForm} onSubmit={handleSubmit}>
           <fieldset
-            className={heroFormFieldset.className}
+            className={styles.heroFormFieldset}
             disabled={submitting && 'disabled'}
           >
             <textarea
-              className={heroFormTextArea.className}
+              className={styles.heroFormTextArea}
               rows="5"
               cols="50"
               name="story"
@@ -84,21 +75,21 @@ export default function Hero(props) {
               value={story}
             />
             <input
-              className={heroFormTwitterInput.className}
+              className={styles.heroFormTwitterInput}
               type="text"
               placeholder="twitter handle (no '@')"
               onChange={handleTwitterChange}
               value={twitterHandle}
             />
             <input
-              className={heroFormSubmitButton.className}
+              className={styles.heroFormSubmitButton}
               type="submit"
               value="Submit"
             />
           </fieldset>
         </form>
       </div>
-      <div className={heroEntries.className}>
+      <div className={styles.heroEntries}>
         {errorMessage ? (
           <p>{errorMessage}</p>
         ) : !data ? (
@@ -119,14 +110,6 @@ export default function Hero(props) {
           })
         )}
       </div>
-      {heroEntries.styles}
-      {heroFormSubmitButton.styles}
-      {heroFormTwitterInput.styles}
-      {heroFormTextArea.styles}
-      {heroFormFieldset.styles}
-      {heroForm.styles}
-      {heroContainer.styles}
-      {hero.styles}
     </div>
   )
 }

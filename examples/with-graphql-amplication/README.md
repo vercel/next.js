@@ -14,11 +14,13 @@ You can start with this template [using `create-next-app`](#using-create-next-ap
 
 To use a live Amplication backend, create an app at [amplication.com](https://amplication.com/). Once you are in the app dashboard, go to the 'Entities' tab and create a GuestbookEntry entity with the following fields:
 
-`ID` - (auto generated)
-`Created At` - (auto generated)
-`Updated At` - (auto generated)
-`twitter_handle` - (type: Single Line Text)
-`story` - (type: Multi Line Text)
+| Field name       | Type             |
+| ---------------- | ---------------- |
+| `ID`             | (auto generated) |
+| `Created At`     | (auto generated) |
+| `Updated At`     | (auto generated) |
+| `twitter_handle` | Single Line Text |
+| `story`          | Multi Line Text  |
 
 Once you've added the fields to the entity, commit the pending changes in the 'Pending Changes' tab. Committing the change will cause Amplication to generate a new NestJS app with a Postgres backend and GraphQL resolvers for the entities you've defined. As that's being done, you will see a Build Id in the bottom bar showing the progress of the generated app build process. Once that's complete, you should see a 'Open Sandbox environment' button next to 'Download Code' in the bottom bar. For this example, you can choose to use the free hosted Sandbox environment or host the app yourself but running the downloaded generated code on a cloud platform (or locally).
 

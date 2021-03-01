@@ -1,0 +1,85 @@
+.guestbookEntry {
+  width: 100%;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.guestbookEntryUserDetail {
+  flex-shrink: 0;
+  flex-basis: 30%;
+  text-align: center;
+}
+
+.guestbookEntryUserDetailAvatar {
+  display: inline-block;
+  position: relative;
+  margin-bottom: 5px;
+  width: 70px;
+  height: 70px;
+}
+
+.guestbookEntryUserDetailAvatarImg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(50, 63, 203, 0.5);
+  opacity: 0.75;
+  transition: all 200ms ease-in-out;
+}
+
+.guestbookEntryUserDetailBiolink {
+  display: block;
+  margin-bottom: 5px;
+  text-decoration: none;
+  color: rgba(50, 63, 203, 0.5);
+  font-size: 70%;
+  transition: color 200ms ease-in-out;
+}
+
+.guestbookEntryUserDetailTimestamp {
+  display: block;
+  font-size: 70%;
+  font-weight: 200;
+  color: gray;
+}
+
+.guestbookEntryStory {
+  flex-shrink: 0;
+  flex-basis: 60%;
+  text-align: left;
+  padding-right: 15px;
+  white-space: pre-wrap;
+}
+
+.guestbookEntryShare {
+  margin-bottom: 30px;
+}
+
+.guestbookEntryShareTwitterButton {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  position: relative;
+}
+
+.guestbookEntryShareTwitterButtonLogo1 {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+}
+
+.guestbookEntryShareTwitterButtonLogo2 {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 200ms ease-in-out;
+}
