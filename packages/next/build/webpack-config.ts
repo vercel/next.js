@@ -856,10 +856,13 @@ export default async function getBaseWebpackConfig(
             },
           }
         : {}),
-      path: isServer ? path.join(outputPath, 'chunks') : outputPath,
+      path:
+        isServer && isWebpack5 ? path.join(outputPath, 'chunks') : outputPath,
       // On the server we don't use the chunkhash
       filename: isServer
-        ? '../[name].js'
+        ? isWebpack5
+          ? '../[name].js'
+          : '[name].js'
         : `static/chunks/[name]${dev ? '' : '-[chunkhash]'}.js`,
       library: isServer ? undefined : '_N_E',
       libraryTarget: isServer ? 'commonjs2' : 'assign',
