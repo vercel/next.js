@@ -74,6 +74,8 @@ In the example above we have multiple links, each one maps a path (`href`) to a 
 - `/about` → `pages/about.js`
 - `/blog/hello-world` → `pages/blog/[slug].js`
 
+Any `<Link />` in the viewport (initially or through scroll) will be preloaded by default for pages using [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation). Server-rendered routes are _not_ preloaded.
+
 ### Linking to dynamic paths
 
 You can also use interpolation to create the path, which comes in handy for [dynamic route segments](#dynamic-route-segments). For example, to show a list of posts which have been passed to the component as a prop:
