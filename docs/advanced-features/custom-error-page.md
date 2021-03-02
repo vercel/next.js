@@ -21,6 +21,8 @@ export default function Custom404() {
 }
 ```
 
+> **Note**: You can use [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) inside this page if you need to fetch data at build time.
+
 ## 500 Page
 
 By default Next.js provides a 500 error page that matches the default 404 page’s style. This page is not statically optimized as it allows server-side errors to be reported. This is why 404 and 500 (other errors) are separated.

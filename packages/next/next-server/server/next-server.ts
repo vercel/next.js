@@ -27,7 +27,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PAGES_MANIFEST,
   PERMANENT_REDIRECT_STATUS,
-  PHASE_PRODUCTION_SERVER,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
@@ -50,11 +49,7 @@ import {
   tryGetPreviewData,
   __ApiPreviewProps,
 } from './api-utils'
-import loadConfig, {
-  DomainLocales,
-  isTargetLikeServerless,
-  NextConfig,
-} from './config'
+import { DomainLocales, isTargetLikeServerless, NextConfig } from './config'
 import pathMatch from '../lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
@@ -173,17 +168,16 @@ export default class Server {
   public constructor({
     dir = '.',
     quiet = false,
-    conf = null,
+    conf,
     dev = false,
     minimalMode = false,
     customServer = true,
-  }: ServerConstructor & { minimalMode?: boolean } = {}) {
+  }: ServerConstructor & { conf: NextConfig; minimalMode?: boolean }) {
     this.dir = resolve(dir)
     this.quiet = quiet
-    const phase = this.currentPhase()
     loadEnvConfig(this.dir, dev, Log)
 
-    this.nextConfig = loadConfig(phase, this.dir, conf)
+    this.nextConfig = conf
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.hasStaticDir = !minimalMode && fs.existsSync(join(this.dir, 'static'))
@@ -293,10 +287,6 @@ export default class Server {
     }
   }
 
-  protected currentPhase(): string {
-    return PHASE_PRODUCTION_SERVER
-  }
-
   public logError(err: Error): void {
     if (this.onErrorMiddleware) {
       this.onErrorMiddleware({ err })
@@ -379,10 +369,9 @@ export default class Server {
       // interpolate dynamic params and normalize URL if needed
       if (pageIsDynamic) {
         let params: ParsedUrlQuery | false = {}
-        const paramsResult = utils.normalizeDynamicRouteParams({
-          ...parsedUrl.query,
-          ...query,
-        })
+
+        Object.assign(parsedUrl.query, query)
+        const paramsResult = utils.normalizeDynamicRouteParams(parsedUrl.query)
 
         if (paramsResult.hasValidParams) {
           params = paramsResult.params
@@ -417,6 +406,7 @@ export default class Server {
             pathname: matchedPathname,
           })
         }
+
         Object.assign(parsedUrl.query, params)
         utils.normalizeVercelUrl(req, true)
       }
