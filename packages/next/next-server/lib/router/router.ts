@@ -1070,7 +1070,9 @@ export default class Router implements BaseRouter {
     try {
       const isSamePageURLChange = this.route === route
       const isPopStateShallowRoute =
-        isPopState && !!process.env.__NEXT_POP_STATE_SHALLOW_ROUTE
+        isPopState &&
+        !!process.env.__NEXT_POP_STATE_SHALLOW_ROUTE &&
+        !isDynamicRoute(route)
       const isValidShallowRoute =
         (options.shallow && isSamePageURLChange) || isPopStateShallowRoute
 

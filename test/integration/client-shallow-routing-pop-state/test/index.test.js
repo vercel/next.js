@@ -17,19 +17,6 @@ let app
 let appPort
 
 const runTests = () => {
-  it('should NOT shallowly navigate when clicking the link', async () => {
-    const browser = await webdriver(appPort, '/first')
-    const now = await browser.waitForElementByCss('#now').text()
-
-    await browser.waitForElementByCss('#to-another').click()
-    const text = await browser.waitForElementByCss('#text').text()
-    expect(text).toBe('another')
-
-    await browser.waitForElementByCss('#to-first').click()
-    const now2 = await browser.waitForElementByCss('#now').text()
-    expect(now2).not.toBe(now)
-  })
-
   it('should shallowly navigate back in history', async () => {
     const browser = await webdriver(appPort, '/first')
     const now = await browser.waitForElementByCss('#now').text()
@@ -58,6 +45,32 @@ const runTests = () => {
     await browser.forward()
     const now3 = await browser.waitForElementByCss('#now').text()
     expect(now3).toBe(now)
+  })
+
+  it('should NOT shallowly navigate when clicking the link', async () => {
+    const browser = await webdriver(appPort, '/first')
+    const now = await browser.waitForElementByCss('#now').text()
+
+    await browser.waitForElementByCss('#to-another').click()
+    const text = await browser.waitForElementByCss('#text').text()
+    expect(text).toBe('another')
+
+    await browser.waitForElementByCss('#to-first').click()
+    const now2 = await browser.waitForElementByCss('#now').text()
+    expect(now2).not.toBe(now)
+  })
+
+  it('should NOT shallowly navigate in dynamic route', async () => {
+    const browser = await webdriver(appPort, '/2/dynamic')
+    const now = await browser.waitForElementByCss('#now').text()
+
+    await browser.waitForElementByCss('#to-another').click()
+    const text = await browser.waitForElementByCss('#text').text()
+    expect(text).toBe('another')
+
+    await browser.back()
+    const now3 = await browser.waitForElementByCss('#now').text()
+    expect(now3).not.toBe(now)
   })
 }
 
