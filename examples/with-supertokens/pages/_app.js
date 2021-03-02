@@ -16,6 +16,7 @@ const apiBasePath = '/api/auth/'
 // Client Side configs.
 if (typeof window !== 'undefined') {
   SuperTokensReact.init({
+    useReactRouterDom: false,
     appInfo: {
       appName: 'SuperTokens Demo App',
       websiteDomain,

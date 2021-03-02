@@ -7,11 +7,7 @@ import semver from 'next/dist/compiled/semver'
 // @ts-ignore No typings yet
 import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
 import path from 'path'
-import {
-  webpack,
-  isWebpack5,
-  init as initWebpack,
-} from 'next/dist/compiled/webpack/webpack'
+import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -208,11 +204,6 @@ export default async function getBaseWebpackConfig(
     rewrites: Rewrite[]
   }
 ): Promise<webpack.Configuration> {
-  initWebpack(!!config.future?.webpack5)
-  // hook the Node.js require so that webpack requires are
-  // routed to the bundled and now initialized webpack version
-  require('./webpack/require-hook')
-
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
@@ -389,15 +380,6 @@ export default async function getBaseWebpackConfig(
     ],
     alias: {
       next: NEXT_PROJECT_ROOT,
-      ...(isWebpack5 && !isServer
-        ? {
-            stream: require.resolve('stream-browserify'),
-            path: require.resolve('path-browserify'),
-            crypto: require.resolve('crypto-browserify'),
-            buffer: require.resolve('buffer'),
-            vm: require.resolve('vm-browserify'),
-          }
-        : undefined),
       [PAGES_DIR_ALIAS]: pagesDir,
       [DOT_NEXT_ALIAS]: distDir,
       ...getOptimizedAliases(isServer),
@@ -406,6 +388,19 @@ export default async function getBaseWebpackConfig(
         ? clientResolveRewrites
         : clientResolveRewritesNoop,
     },
+    ...(isWebpack5 && !isServer
+      ? {
+          // Full list of old polyfills is accessible here:
+          // https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42
+          fallback: {
+            buffer: require.resolve('buffer'),
+            crypto: require.resolve('crypto-browserify'),
+            path: require.resolve('path-browserify'),
+            stream: require.resolve('stream-browserify'),
+            vm: require.resolve('vm-browserify'),
+          },
+        }
+      : undefined),
     mainFields: isServer ? ['main', 'module'] : ['browser', 'module', 'main'],
     plugins: isWebpack5
       ? // webpack 5+ has the PnP resolver built-in by default:
@@ -838,6 +833,7 @@ export default async function getBaseWebpackConfig(
       }
     },
     watchOptions: {
+      aggregateTimeout: 5,
       ignored: [
         '**/.git/**',
         '**/node_modules/**',
@@ -1034,6 +1030,9 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
           config.experimental.optimizeCss && !dev
+        ),
+        'process.env.__NEXT_SCRIPT_LOADER': JSON.stringify(
+          !!config.experimental.scriptLoader
         ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
