@@ -1,6 +1,5 @@
 import chalk from 'chalk'
 import { ESLint } from 'eslint'
-import { promises } from 'fs'
 import { join } from 'path'
 
 import { formatResults } from './eslint/customFormatter'
@@ -27,9 +26,17 @@ export async function verifyEslintSetup(
 
     if (pathNotExists) return
 
-    const dirResults = await promises.readdir(baseDir)
-    const eslintrcFile = dirResults.find((file: string) =>
-      /^.eslintrc.?(js|json|yaml|yml)?$/.test(file)
+    const eslintrcFile = await findUp(
+      [
+        '.eslintrc.js',
+        '.eslintrc.yaml',
+        '.eslintrc.yml',
+        '.eslintrc.json',
+        '.eslintrc',
+      ],
+      {
+        cwd: baseDir,
+      }
     )
 
     if (eslintrcFile) {
