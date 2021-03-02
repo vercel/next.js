@@ -448,4 +448,58 @@ describe('Required Server Files', () => {
     expect(errors.length).toBe(1)
     expect(errors[0].message).toContain('gsp hit an oops')
   })
+
+  it('should normalize optional values correctly for SSP page', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/optional-ssp',
+      { rest: '', another: 'value' },
+      {
+        headers: {
+          'x-matched-path': '/optional-ssp/[[...rest]]',
+        },
+      }
+    )
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    const props = JSON.parse($('#props').text())
+    expect(props.params).toEqual({})
+    expect(props.query).toEqual({ another: 'value' })
+  })
+
+  it('should normalize optional values correctly for SSG page', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/optional-ssg',
+      { rest: '', another: 'value' },
+      {
+        headers: {
+          'x-matched-path': '/optional-ssg/[[...rest]]',
+        },
+      }
+    )
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    const props = JSON.parse($('#props').text())
+    expect(props.params).toEqual({})
+  })
+
+  it('should normalize optional values correctly for API page', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/optional',
+      { rest: '', another: 'value' },
+      {
+        headers: {
+          'x-matched-path': '/api/optional/[[...rest]]',
+        },
+      }
+    )
+
+    const json = await res.json()
+    expect(json.query).toEqual({ another: 'value' })
+    expect(json.url).toBe('/api/optional?another=value')
+  })
 })
