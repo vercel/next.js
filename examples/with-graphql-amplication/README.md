@@ -2,17 +2,31 @@
 
 This simple Guestbook SPA example shows you how to use [Amplication's GraphQL endpoint](https://docs.amplication.com/docs/api#graphql-api) in your Next.js project.
 
-## Why Amplication
-
 Amplication is an open‑source development tool. It helps professional Node.js developers to develop quality Node.js applications without spending time on repetitive coding tasks.
 
 Amplication auto-generates fully functional apps based on TypeScript and Node.js.
 
+## Deploy your own
+
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-graphql-amplication&project-name=guestbook-amplication&repository-name=grestbook-amplication)
+
 ## How to use
 
-You can start with this template [using `create-next-app`](#using-create-next-app) or by [downloading the repository manually](#download-manually).
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
-To use a live Amplication backend, create an app at [amplication.com](https://amplication.com/). Once you are in the app dashboard, go to the 'Entities' tab and create a GuestbookEntry entity with the following fields:
+```
+npx create-next-app --example with-graphql-amplication with-graphql-amplication-app
+# or
+yarn create next-app --example with-graphql-amplication with-graphql-amplication-app
+```
+
+Your app should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
+
+# Notes
+
+This example uses Amplication as a backend. You'll need to setup your own Amplication backend by creating an app at [amplication.com](https://amplication.com/). Once you are in the app dashboard, go to the 'Entities' tab and create a GuestbookEntry entity with the following fields:
 
 | Field name       | Type             |
 | ---------------- | ---------------- |
@@ -31,25 +45,3 @@ You will need to create a `.env.local`[file](https://nextjs.org/docs/basic-featu
 `NEXT_PUBLIC_AMPLICATION_SECRET` - Set this to your [Amplication credentials secret](https://docs.amplication.com/docs/api#authentication), which is the is the Base64 encoding of a string `username:password` with your user credentials. By default, your app comes with one user with the username "admin" and password "admin". You can use the following header to authenticate with the default user, so the secret would be `YWRtaW46YWRtaW4=`. You can access your app's Admin dashboard and create a new User to set your own username and password.
 
 With these two variables set, you should be able to start up your app with a fully functional backend and database.
-
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
-
-```
-npx create-next-app --example with-graphql-amplication with-graphql-amplication-app
-# or
-yarn create next-app --example with-graphql-amplication with-graphql-amplication-app
-```
-
-### Run locally
-
-Install packages, then run the development server:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
-Your app should be up and running on [http://localhost:3000](http://localhost:3000)!
