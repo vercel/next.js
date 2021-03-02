@@ -57,6 +57,9 @@ export const defaultConfig: NextConfig = {
     canonicalBase: '',
   },
   basePath: '',
+  cssLoaderOptions: {
+    modules: {},
+  },
   sassOptions: {},
   trailingSlash: false,
   i18n: null,
