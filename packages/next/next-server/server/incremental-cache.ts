@@ -1,4 +1,4 @@
-import { promises, readFileSync } from 'fs'
+import { promises, readFileSync, existsSync, unlinkSync } from 'fs'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import path from 'path'
 import { PrerenderManifest } from '../../build'
@@ -208,6 +208,37 @@ export class IncrementalCache {
         // failed to flush to disk
         console.warn('Failed to update prerender files for', pathname, error)
       }
+    }
+  }
+
+  resetKeys(pagesToRefresh: string[]): void {
+    try {
+      const keysToRemove = pagesToRefresh.map((page) =>
+        page.startsWith('/') ? page : path.join('/', page)
+      )
+
+      // Remove cache entries
+      this.cache.forEach((_, key) => {
+        if (keysToRemove.includes(key)) {
+          this.cache.del(key)
+        }
+      })
+
+      // Remove generated files
+      pagesToRefresh.forEach((pathname) => {
+        const htmlFilePath = this.getSeedPath(pathname, 'html')
+        const jsonFilePath = this.getSeedPath(pathname, 'json')
+
+        if (existsSync(htmlFilePath)) {
+          unlinkSync(htmlFilePath)
+        }
+
+        if (existsSync(jsonFilePath)) {
+          unlinkSync(jsonFilePath)
+        }
+      })
+    } catch (error) {
+      throw error
     }
   }
 }

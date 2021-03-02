@@ -55,6 +55,7 @@ export default class Router {
   dynamicRoutes: DynamicRoutes
   useFileSystemPublicRoutes: boolean
   locales: string[]
+  clearSSGCache: Route
 
   constructor({
     basePath = '',
@@ -67,6 +68,7 @@ export default class Router {
     pageChecker,
     useFileSystemPublicRoutes,
     locales = [],
+    clearSSGCache,
   }: {
     basePath: string
     headers: Route[]
@@ -78,6 +80,7 @@ export default class Router {
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
     locales: string[]
+    clearSSGCache: Route
   }) {
     this.basePath = basePath
     this.headers = headers
@@ -89,6 +92,7 @@ export default class Router {
     this.dynamicRoutes = dynamicRoutes
     this.useFileSystemPublicRoutes = useFileSystemPublicRoutes
     this.locales = locales
+    this.clearSSGCache = clearSSGCache
   }
 
   setDynamicRoutes(routes: DynamicRoutes = []) {
@@ -162,6 +166,7 @@ export default class Router {
           ]
         : []),
       ...this.rewrites,
+      ...[this.clearSSGCache],
       // We only check the catch-all route if public page routes hasn't been
       // disabled
       ...(this.useFileSystemPublicRoutes ? [this.catchAllRoute] : []),

@@ -48,6 +48,8 @@ import {
   getCookieParser,
   tryGetPreviewData,
   __ApiPreviewProps,
+  parseJson,
+  ApiError,
 } from './api-utils'
 import { DomainLocales, isTargetLikeServerless, NextConfig } from './config'
 import pathMatch from '../lib/router/utils/path-match'
@@ -87,6 +89,8 @@ import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
 import escapePathDelimiters from '../lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../../build/webpack/loaders/next-serverless-loader/utils'
+import { parse } from 'next/dist/compiled/content-type'
+import getRawBody from 'raw-body'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -616,6 +620,7 @@ export default class Server {
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
     locales: string[]
+    clearSSGCache: Route
   } {
     const server: Server = this
     const publicRoutes = fs.existsSync(this.publicDir)
@@ -962,6 +967,59 @@ export default class Server {
       },
     }
 
+    const clearSSGCache: Route = {
+      match: route('/api/clear-ssg-cache'),
+      type: 'route',
+      name: 'SSG pages cache clear API',
+      fn: async (req, res) => {
+        try {
+          if (req.method === 'POST') {
+            const contentType = parse(req.headers['content-type'] || '')
+            const { type, parameters } = contentType
+            const encoding = parameters.charset || 'utf-8'
+
+            if (type === 'application/json') {
+              const buffer = await getRawBody(req, { encoding })
+              const body = buffer.toString()
+              const parsedBody = parseJson(body) as {
+                pagesToRefresh: string[] | undefined
+              }
+              const pagesToRefresh = parsedBody.pagesToRefresh
+
+              if (pagesToRefresh && pagesToRefresh.length > 0) {
+                this.incrementalCache.resetKeys(pagesToRefresh)
+              } else {
+                throw new ApiError(415, 'Unsupported Media Type')
+              }
+
+              res.statusCode = 200
+              res.end('SSG cache cleared successfully')
+            } else {
+              throw new ApiError(415, 'Unsupported Media Type')
+            }
+
+            return { finished: true }
+          } else {
+            throw new ApiError(405, 'Method Not Allowed')
+          }
+        } catch (error) {
+          if (error instanceof ApiError) {
+            res.statusCode = error.statusCode
+            res.statusMessage = error.message
+            res.end(error.message)
+          } else {
+            const statusMessage = 'Internal Server Error'
+
+            res.statusCode = 500
+            res.statusMessage = statusMessage
+            res.end(statusMessage)
+          }
+
+          return { finished: true }
+        }
+      },
+    }
+
     const { useFileSystemPublicRoutes } = this.nextConfig
 
     if (useFileSystemPublicRoutes) {
@@ -979,6 +1037,7 @@ export default class Server {
       basePath: this.nextConfig.basePath,
       pageChecker: this.hasPage.bind(this),
       locales: this.nextConfig.i18n?.locales || [],
+      clearSSGCache,
     }
   }
 
