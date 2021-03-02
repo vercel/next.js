@@ -165,3 +165,8 @@ module.exports = {
 ```
 
 In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. Note: to ensure IE11 compatibility a `Refresh` header is automatically added for the 308 status code.
+
+## Other Redirects
+
+- Inside [API Routes](/docs/api-routes/response-helpers.md), you can use `res.redirect()`.
+- Inside [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) and [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering), you can redirect specific pages at request-time.
