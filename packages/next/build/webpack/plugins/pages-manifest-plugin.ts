@@ -23,7 +23,7 @@ export default class PagesManifestPlugin implements webpack.Plugin {
     const pages: PagesManifest = {}
 
     for (const entrypoint of entrypoints.values()) {
-      const pagePath = getRouteFromEntrypoint(entrypoint.name, this.serverless)
+      const pagePath = getRouteFromEntrypoint(entrypoint.name)
 
       if (!pagePath) {
         continue
