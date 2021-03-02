@@ -1144,8 +1144,12 @@ export default async function getBaseWebpackConfig(
         (function () {
           const {
             FontStylesheetGatheringPlugin,
-          } = require('./webpack/plugins/font-stylesheet-gathering-plugin')
-          return new FontStylesheetGatheringPlugin()
+          } = require('./webpack/plugins/font-stylesheet-gathering-plugin') as {
+            FontStylesheetGatheringPlugin: typeof import('./webpack/plugins/font-stylesheet-gathering-plugin').FontStylesheetGatheringPlugin
+          }
+          return new FontStylesheetGatheringPlugin({
+            isLikeServerless,
+          })
         })(),
       config.experimental.conformance &&
         !isWebpack5 &&
