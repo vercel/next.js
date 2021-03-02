@@ -531,7 +531,7 @@ function contentstackLoader({
   quality,
   format,
 }: DefaultImageLoaderProps): string {
-  // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
+  // Demo: https://images.contentstack.io/v3/assets/blteae40eb499811073/bltc5064f36b5855343/59e0c41ac0eddd140d5a8e3e/owl.jpg?format=pjpg&auto=webp&quality=75
   let params: any = {
     auto: 'webp',
     format: format || assetExtension(src),
