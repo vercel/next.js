@@ -871,7 +871,7 @@ export default async function getBaseWebpackConfig(
         : 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
-        ? `${dev ? '[name]' : '[name].[contenthash]'}.js`
+        ? `${dev ? '[name]' : 'chunks/[name].[contenthash]'}.js`
         : `static/chunks/${dev ? '[name]' : '[name].[contenthash]'}.js`,
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
