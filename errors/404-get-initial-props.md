@@ -13,3 +13,4 @@ If you want to fetch data for your `404.js` page move it to a client side fetch 
 ### Useful Links
 
 - [Automatic Static Optimization](https://nextjs.org/docs/advanced-features/automatic-static-optimization)
+- [Catch 404 urls in Next.js](https://bigbinary.com/blog/catch-404-urls-in-nextjs)
