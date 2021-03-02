@@ -13,9 +13,11 @@ export type PagesManifest = { [page: string]: string }
 // It's also used by next export to provide defaultPathMap
 export default class PagesManifestPlugin implements webpack.Plugin {
   serverless: boolean
+  dev: boolean
 
-  constructor(serverless: boolean) {
+  constructor({ serverless, dev }: { serverless: boolean; dev: boolean }) {
     this.serverless = serverless
+    this.dev = dev
   }
 
   createAssets(compilation: any, assets: any) {
@@ -47,14 +49,14 @@ export default class PagesManifestPlugin implements webpack.Plugin {
       // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
       pages[pagePath] = files[0]
 
-      if (isWebpack5) {
+      if (isWebpack5 && !this.dev) {
         pages[pagePath] = pages[pagePath].slice(3)
       }
       pages[pagePath] = pages[pagePath].replace(/\\/g, '/')
     }
 
     assets[
-      `${isWebpack5 ? '../' : ''}` + PAGES_MANIFEST
+      `${isWebpack5 && !this.dev ? '../' : ''}` + PAGES_MANIFEST
     ] = new sources.RawSource(JSON.stringify(pages, null, 2))
   }
 

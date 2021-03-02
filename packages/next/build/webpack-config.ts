@@ -788,7 +788,7 @@ export default async function getBaseWebpackConfig(
       splitChunks: isServer ? false : splitChunksConfig,
       runtimeChunk: isServer
         ? isWebpack5 && !isLikeServerless
-          ? { name: 'chunks/webpack-runtime' }
+          ? { name: `${dev ? '' : 'chunks/'}webpack-runtime` }
           : undefined
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
       minimize: !(dev || isServer),
@@ -857,10 +857,12 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
       path:
-        isServer && isWebpack5 ? path.join(outputPath, 'chunks') : outputPath,
+        isServer && isWebpack5 && !dev
+          ? path.join(outputPath, 'chunks')
+          : outputPath,
       // On the server we don't use the chunkhash
       filename: isServer
-        ? isWebpack5
+        ? isWebpack5 && !dev
           ? '../[name].js'
           : '[name].js'
         : `static/chunks/[name]${dev ? '' : '-[chunkhash]'}.js`,
@@ -1120,7 +1122,8 @@ export default async function getBaseWebpackConfig(
           contextRegExp: /(next-server|next)[\\/]dist[\\/]/,
         }),
       isServerless && isServer && new ServerlessPlugin(),
-      isServer && new PagesManifestPlugin(isLikeServerless),
+      isServer &&
+        new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
       !isWebpack5 &&
         target === 'server' &&
         isServer &&
