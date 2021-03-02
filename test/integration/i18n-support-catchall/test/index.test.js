@@ -315,11 +315,16 @@ describe('i18n Support Root Catch-all', () => {
         redirect: 'manual',
       })
 
+      const res4 = await fetchViaHTTP(port, '/fr', undefined, {
+        redirect: 'manual',
+      })
+
       server.close()
 
       expect(res.status).toBe(200)
       expect(res2.status).toBe(200)
       expect(res3.status).toBe(200)
+      expect(res4.status).toBe(200)
 
       const $ = cheerio.load(await res.text())
       const $2 = cheerio.load(await res2.text())
