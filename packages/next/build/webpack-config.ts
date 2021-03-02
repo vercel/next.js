@@ -788,7 +788,7 @@ export default async function getBaseWebpackConfig(
       splitChunks: isServer ? false : splitChunksConfig,
       runtimeChunk: isServer
         ? isWebpack5 && !isLikeServerless
-          ? { name: 'webpack-runtime' }
+          ? { name: 'chunks/webpack-runtime' }
           : undefined
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
       minimize: !(dev || isServer),
@@ -856,10 +856,10 @@ export default async function getBaseWebpackConfig(
             },
           }
         : {}),
-      path: outputPath,
+      path: isServer ? path.join(outputPath, 'chunks') : outputPath,
       // On the server we don't use the chunkhash
       filename: isServer
-        ? '[name].js'
+        ? '../[name].js'
         : `static/chunks/[name]${dev ? '' : '-[chunkhash]'}.js`,
       library: isServer ? undefined : '_N_E',
       libraryTarget: isServer ? 'commonjs2' : 'assign',
@@ -871,7 +871,7 @@ export default async function getBaseWebpackConfig(
         : 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
-        ? `${dev ? '[name]' : 'chunks/[name].[contenthash]'}.js`
+        ? `${dev ? '[name]' : '[name].[contenthash]'}.js`
         : `static/chunks/${dev ? '[name]' : '[name].[contenthash]'}.js`,
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,

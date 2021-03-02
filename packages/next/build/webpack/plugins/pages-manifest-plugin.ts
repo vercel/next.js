@@ -45,10 +45,10 @@ export default class PagesManifestPlugin implements webpack.Plugin {
       }
 
       // Write filename, replace any backslashes in path (on windows) with forwardslashes for cross-platform consistency.
-      pages[pagePath] = files[0].replace(/\\/g, '/')
+      pages[pagePath] = files[0].slice(3).replace(/\\/g, '/')
     }
 
-    assets[PAGES_MANIFEST] = new sources.RawSource(
+    assets['../' + PAGES_MANIFEST] = new sources.RawSource(
       JSON.stringify(pages, null, 2)
     )
   }
