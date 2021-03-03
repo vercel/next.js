@@ -5,7 +5,7 @@ import React from 'react'
 
 function setRef<T>(ref: React.Ref<T> | ((instance: T | null) => void) | null | undefined, value:  T | null): void {
   if (typeof ref === 'function') {
-    ref(value);
+    ref(value)
   } else if (ref) {
     /**
      * need to type cast to enforce that we
@@ -13,7 +13,7 @@ function setRef<T>(ref: React.Ref<T> | ((instance: T | null) => void) | null | u
      *
      * @see https://github.com/DefinitelyTyped/DefinitelyTyped/issues/31065#issuecomment-596081842
      */
-    (ref as React.MutableRefObject<T | null>).current = value;
+    (ref as React.MutableRefObject<T | null>).current = value
   }
 }
 
@@ -28,11 +28,11 @@ export function useForkRef<T>(refA: React.Ref<T>, refB: React.Ref<T>): React.Ref
    */
   return React.useMemo(() => {
     if (refA == null && refB == null) {
-      return null;
+      return null
     }
     return (refValue) => {
-      setRef(refA, refValue);
-      setRef(refB, refValue);
-    };
-  }, [refA, refB]);
+      setRef(refA, refValue)
+      setRef(refB, refValue)
+    }
+  }, [refA, refB])
 }

@@ -8,7 +8,7 @@ import {
   VALID_LOADERS,
 } from '../next-server/server/image-config'
 import { useIntersection } from './use-intersection'
-import { useForkRef } from './useForkRef';
+import { useForkRef } from './useForkRef'
 
 if (typeof window === 'undefined') {
   ;(global as any).__NEXT_IMAGE_IMPORTED = true
@@ -413,7 +413,7 @@ const Image = React.forwardRef<HTMLImageElement>(
       imgStyle = undefined
     }
 
-    const rootImageRef = useForkRef<HTMLImageElement>(ref, setIntersectionRef);
+    const rootImageRef = useForkRef<HTMLImageElement>(ref, setIntersectionRef)
 
     return (
       <div style={wrapperStyle}>
@@ -471,9 +471,9 @@ const Image = React.forwardRef<HTMLImageElement>(
       </div>
     )
   }
-);
+)
 
-export default Image;
+export default Image
 
 //BUILT IN LOADERS
 
