@@ -1,6 +1,6 @@
 export enum TARGET {
   CONSOLE = 'CONSOLE',
-  LOCALHOST = 'LOCALHOST',
+  ZIPKIN = 'ZIPKIN',
   TELEMETRY = 'TELEMETRY',
 }
 

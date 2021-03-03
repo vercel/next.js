@@ -2,11 +2,9 @@ import { randomBytes } from 'crypto'
 import { SpanId } from './types'
 import { report } from './report'
 
-const ONE_THOUSAND = BigInt('1000')
+const NUM_OF_MICROSEC_IN_SEC = BigInt('1000')
 
-let idCounter = 0
-const idUniqToProcess = randomBytes(16).toString('base64').slice(0, 22)
-const getId = () => `${idUniqToProcess}:${idCounter++}`
+const getId = () => randomBytes(8).toString('hex')
 
 export enum SpanStatus {
   Started,
@@ -39,12 +37,20 @@ export class Span {
   // a float64 in both JSON and JavaScript.
   stop() {
     const end: bigint = process.hrtime.bigint()
-    const duration = (end - this._start) / ONE_THOUSAND
+    const duration = (end - this._start) / NUM_OF_MICROSEC_IN_SEC
     this.status = SpanStatus.Stopped
     if (duration > Number.MAX_SAFE_INTEGER) {
       throw new Error(`Duration is too long to express as float64: ${duration}`)
     }
-    report(this.name, Number(duration), this.id, this.parentId, this.attrs)
+    const timestamp = this._start / NUM_OF_MICROSEC_IN_SEC
+    report(
+      this.name,
+      Number(duration),
+      Number(timestamp),
+      this.id,
+      this.parentId,
+      this.attrs
+    )
   }
 
   traceChild(name: string, attrs?: Object) {

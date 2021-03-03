@@ -3,6 +3,7 @@ const idToName = new Map<string, string>()
 const reportToConsole = (
   spanName: string,
   duration: number,
+  _timestamp: number,
   id: string,
   parentId?: string,
   attrs?: Object
