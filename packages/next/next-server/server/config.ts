@@ -445,7 +445,7 @@ export default async function loadConfig(
     }
 
     if (hasNextSupport) {
-      userConfig.target = 'server'
+      userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 
     return assignDefaults({

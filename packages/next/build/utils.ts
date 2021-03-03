@@ -715,7 +715,7 @@ export async function buildStaticPaths(
 export async function isPageStatic(
   page: string,
   distDir: string,
-  serverless: bollean,
+  serverless: boolean,
   runtimeEnvConfig: any,
   locales?: string[],
   defaultLocale?: string,
