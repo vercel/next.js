@@ -746,7 +746,7 @@ export async function isPageStatic(
             )
             const components = await loadComponents(distDir, page, serverless)
             const mod = components.ComponentMod
-            const Comp = components.Component
+            const Comp = mod.default || mod
 
             if (
               !Comp ||

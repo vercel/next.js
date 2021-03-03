@@ -55,6 +55,7 @@ export async function loadComponents(
       getStaticProps,
       getStaticPaths,
       getServerSideProps,
+      ComponentMod: Component,
     } as LoadComponentsReturnType
   }
 
