@@ -77,6 +77,7 @@ interface RenderOpts {
   locales?: string[]
   locale?: string
   defaultLocale?: string
+  trailingSlash?: boolean
 }
 
 type ComponentModule = ComponentType<{}> & {
@@ -191,6 +192,10 @@ export default async function exportPage({
 
           if (path === '/500' && page === '/_error') {
             res.statusCode = 500
+          }
+
+          if (renderOpts.trailingSlash && !req.url?.endsWith('/')) {
+            req.url += '/'
           }
 
           envConfig.setConfig({
