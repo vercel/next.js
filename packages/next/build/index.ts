@@ -680,7 +680,8 @@ export default async function build(
                         )
                         return staticCheckWorkers.isPageStatic(
                           page,
-                          serverBundle,
+                          distDir,
+                          isLikeServerless,
                           runtimeEnvConfig,
                           config.i18n?.locales,
                           config.i18n?.defaultLocale,
