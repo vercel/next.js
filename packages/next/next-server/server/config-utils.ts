@@ -27,6 +27,10 @@ export async function shouldLoadWithWebpack5(
     cwd: dir,
   })
 
+  if (Number(process.env.NEXT_PRIVATE_TEST_WEBPACK5_MODE) > 0) {
+    return true
+  }
+
   // No `next.config.js`:
   if (!path?.length) {
     return false // TODO: return true to default to webpack 5
