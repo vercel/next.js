@@ -725,6 +725,7 @@ export default class Router implements BaseRouter {
       Object.assign<{}, TransitionOptions, TransitionOptions>({}, options, {
         shallow: options.shallow && this._shallow,
         locale: options.locale || this.defaultLocale,
+        scroll: false,
       }),
       forcedScroll
     )
