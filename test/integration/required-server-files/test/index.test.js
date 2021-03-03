@@ -25,7 +25,11 @@ let errors = []
 describe('Required Server Files', () => {
   beforeAll(async () => {
     await fs.remove(join(appDir, '.next'))
-    await nextBuild(appDir)
+    await nextBuild(appDir, undefined, {
+      env: {
+        NOW_BUILDER: '1',
+      },
+    })
 
     buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     requiredFilesManifest = await fs.readJSON(
@@ -88,6 +92,8 @@ describe('Required Server Files', () => {
       console.log('checking', file)
       expect(await fs.exists(join(appDir, file))).toBe(true)
     }
+
+    expect(await fs.exists(join(appDir, '.next/server'))).toBe(true)
   })
 
   it('should render SSR page correctly', async () => {
