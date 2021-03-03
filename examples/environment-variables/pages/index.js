@@ -108,8 +108,8 @@ export async function getStaticProps() {
   // expose environment variables unless they start with `NEXT_PUBLIC_`
   console.log('[Node.js only] ENV_VARIABLE:', process.env.ENV_VARIABLE)
   console.log(
-    '[Node.js only] ENV_LOCAL_VARIABLE:',
-    process.env.ENV_LOCAL_VARIABLE
+    '[Node.js only] NEXT_PUBLIC_ENV_VARIABLE:',
+    process.env.NEXT_PUBLIC_ENV_VARIABLE
   )
 
   return { props: {} }
