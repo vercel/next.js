@@ -340,9 +340,9 @@ export default async function build(
       version: 3,
       pages404: true,
       basePath: config.basePath,
-      redirects: redirects.map((r) => buildCustomRoute(r, 'redirect')),
-      rewrites: rewrites.map((r) => buildCustomRoute(r, 'rewrite')),
-      headers: headers.map((r) => buildCustomRoute(r, 'header')),
+      redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
+      rewrites: rewrites.map((r: any) => buildCustomRoute(r, 'rewrite')),
+      headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
       dynamicRoutes: getSortedRoutes(pageKeys)
         .filter(isDynamicRoute)
         .map((page) => {
