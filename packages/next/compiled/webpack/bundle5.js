@@ -54,7 +54,7 @@ module.exports = JSON.parse("{\"name\":\"terser\",\"description\":\"JavaScript p
 /***/ (function(module) {
 
 "use strict";
-module.exports = {"i8":"5.24.0"};
+module.exports = {"i8":"5.24.3"};
 
 /***/ }),
 
@@ -32129,12 +32129,12 @@ const createModulesListMessage = (modules, moduleGraph) => {
 		.map(m => {
 			let message = `* ${m.identifier()}`;
 			const validReasons = Array.from(
-				moduleGraph.getIncomingConnections(m)
-			).filter(reason => reason.originModule);
+				moduleGraph.getIncomingConnectionsByOriginModule(m).keys()
+			).filter(x => x);
 
 			if (validReasons.length > 0) {
 				message += `\n    Used by ${validReasons.length} module(s), i. e.`;
-				message += `\n    ${validReasons[0].originModule.identifier()}`;
+				message += `\n    ${validReasons[0].identifier()}`;
 			}
 			return message;
 		})
@@ -33014,6 +33014,18 @@ const getArray = set => {
 };
 
 /**
+ * @param {SortableSet<Chunk>} chunks the chunks
+ * @returns {RuntimeSpecSet} runtimes
+ */
+const getModuleRuntimes = chunks => {
+	const runtimes = new RuntimeSpecSet();
+	for (const chunk of chunks) {
+		runtimes.add(chunk.runtime);
+	}
+	return runtimes;
+};
+
+/**
  * @param {SortableSet<Module>} set the set
  * @returns {Map<string, SortableSet<Module>>} modules by source type
  */
@@ -33454,11 +33466,7 @@ class ChunkGraph {
 	 */
 	getModuleRuntimes(module) {
 		const cgm = this._getChunkGraphModule(module);
-		const runtimes = new RuntimeSpecSet();
-		for (const chunk of cgm.chunks) {
-			runtimes.add(chunk.runtime);
-		}
-		return runtimes;
+		return cgm.chunks.getFromUnorderedCache(getModuleRuntimes);
 	}
 
 	/**
@@ -36526,7 +36534,7 @@ BREAKING CHANGE: Asset processing hooks in Compilation has been merged into a si
 						);
 					}
 				},
-				`${name} is deprecated (use Compilation.hook.processAssets instead and use one of Compilation.PROCESS_ASSETS_STAGE_* as stage option)`,
+				`${name} is deprecated (use Compilation.hooks.processAssets instead and use one of Compilation.PROCESS_ASSETS_STAGE_* as stage option)`,
 				code
 			);
 		};
@@ -37523,7 +37531,11 @@ BREAKING CHANGE: Asset processing hooks in Compilation has been merged into a si
 
 					for (let i = 0; i < dependencies.length; i++) {
 						const dependency = dependencies[i];
-						moduleGraph.setResolvedModule(originModule, dependency, module);
+						moduleGraph.setResolvedModule(
+							recursive ? originModule : null,
+							dependency,
+							module
+						);
 					}
 
 					moduleGraph.setIssuerIfUnset(
@@ -55063,9 +55075,11 @@ class Module extends DependenciesBlock {
 	 */
 	hasReasonForChunk(chunk, moduleGraph, chunkGraph) {
 		// check for each reason if we need the chunk
-		for (const connection of moduleGraph.getIncomingConnections(this)) {
-			if (!connection.isTargetActive(chunk.runtime)) continue;
-			const fromModule = connection.originModule;
+		for (const [
+			fromModule,
+			connections
+		] of moduleGraph.getIncomingConnectionsByOriginModule(this)) {
+			if (!connections.some(c => c.isTargetActive(chunk.runtime))) continue;
 			for (const originChunk of chunkGraph.getModuleChunksIterable(
 				fromModule
 			)) {
@@ -56064,6 +56078,7 @@ ModuleFilenameHelpers.matchObject = (obj, str) => {
 const util = __webpack_require__(31669);
 const ExportsInfo = __webpack_require__(54227);
 const ModuleGraphConnection = __webpack_require__(39519);
+const SortableSet = __webpack_require__(51326);
 
 /** @typedef {import("./DependenciesBlock")} DependenciesBlock */
 /** @typedef {import("./Dependency")} Dependency */
@@ -56071,7 +56086,6 @@ const ModuleGraphConnection = __webpack_require__(39519);
 /** @typedef {import("./Module")} Module */
 /** @typedef {import("./ModuleProfile")} ModuleProfile */
 /** @typedef {import("./RequestShortener")} RequestShortener */
-/** @template T @typedef {import("./util/SortableSet")<T>} SortableSet<t> */
 /** @typedef {import("./util/runtime").RuntimeSpec} RuntimeSpec */
 
 /**
@@ -56082,10 +56096,40 @@ const ModuleGraphConnection = __webpack_require__(39519);
 
 const EMPTY_ARRAY = [];
 
+/**
+ * @param {SortableSet<ModuleGraphConnection>} set input
+ * @returns {readonly Map<Module, readonly ModuleGraphConnection[]>} mapped by origin module
+ */
+const getConnectionsByOriginModule = set => {
+	const map = new Map();
+	/** @type {Module | 0} */
+	let lastModule = 0;
+	/** @type {ModuleGraphConnection[]} */
+	let lastList = undefined;
+	for (const connection of set) {
+		const { originModule } = connection;
+		if (lastModule === originModule) {
+			lastList.push(connection);
+		} else {
+			lastModule = originModule;
+			const list = map.get(originModule);
+			if (list !== undefined) {
+				lastList = list;
+				list.push(connection);
+			} else {
+				const list = [connection];
+				lastList = list;
+				map.set(originModule, list);
+			}
+		}
+	}
+	return map;
+};
+
 class ModuleGraphModule {
 	constructor() {
-		/** @type {Set<ModuleGraphConnection>} */
-		this.incomingConnections = new Set();
+		/** @type {SortableSet<ModuleGraphConnection>} */
+		this.incomingConnections = new SortableSet();
 		/** @type {Set<ModuleGraphConnection> | undefined} */
 		this.outgoingConnections = undefined;
 		/** @type {Module | null} */
@@ -56375,9 +56419,6 @@ class ModuleGraph {
 					newConnections.add(newConnection);
 					if (newConnection.module !== undefined) {
 						const otherMgm = this._getModuleGraphModule(newConnection.module);
-						if (otherMgm.incomingConnections === undefined) {
-							otherMgm.incomingConnections = new Set();
-						}
 						otherMgm.incomingConnections.add(newConnection);
 					}
 				}
@@ -56456,6 +56497,15 @@ class ModuleGraph {
 	getOutgoingConnections(module) {
 		const connections = this._getModuleGraphModule(module).outgoingConnections;
 		return connections === undefined ? EMPTY_ARRAY : connections;
+	}
+
+	/**
+	 * @param {Module} module the module
+	 * @returns {readonly Map<Module, readonly ModuleGraphConnection[]>} reasons why a module is included, in a map by source module
+	 */
+	getIncomingConnectionsByOriginModule(module) {
+		const connections = this._getModuleGraphModule(module).incomingConnections;
+		return connections.getFromUnorderedCache(getConnectionsByOriginModule);
 	}
 
 	/**
@@ -56832,8 +56882,8 @@ const intersectConnectionStates = (a, b) => {
 
 class ModuleGraphConnection {
 	/**
-	 * @param {Module|undefined} originModule the referencing module
-	 * @param {Dependency|undefined} dependency the referencing dependency
+	 * @param {Module|null} originModule the referencing module
+	 * @param {Dependency|null} dependency the referencing dependency
 	 * @param {Module} module the referenced module
 	 * @param {string=} explanation some extra detail
 	 * @param {boolean=} weak the reference is weak
@@ -58254,6 +58304,12 @@ module.exports = class MultiCompiler {
 		let errored = false;
 		let running = 0;
 		const parallelism = this._options.parallelism;
+		/**
+		 * @param {Node} node node
+		 * @param {Error=} err error
+		 * @param {Stats=} stats result
+		 * @returns {void}
+		 */
 		const nodeDone = (node, err, stats) => {
 			if (errored) return;
 			if (err) {
@@ -58271,27 +58327,35 @@ module.exports = class MultiCompiler {
 				);
 			}
 			node.result = stats;
+			running--;
 			if (node.state === "running") {
-				running--;
 				node.state = "done";
-				for (const child of node.children) {
-					if (child.state !== "blocked") continue;
-					if (child.parents.every(p => p.state === "done")) {
-						child.state = "queued";
-						queue.enqueue(child);
-					}
-				}
-				process.nextTick(processQueue);
 			}
+			for (const child of node.children) {
+				if (child.state !== "blocked") continue;
+				if (child.parents.every(p => p.state === "done")) {
+					child.state = "queued";
+					queue.enqueue(child);
+				}
+			}
+			process.nextTick(processQueue);
 		};
+		/**
+		 * @param {Node} node node
+		 * @returns {void}
+		 */
 		const nodeInvalid = node => {
-			if (node.state === "done") {
+			if (node.state === "done" || node.state === "running") {
 				node.state = "blocked";
-				for (const child of node.children) {
-					nodeInvalid(child);
-				}
+			}
+			for (const child of node.children) {
+				nodeInvalid(child);
 			}
 		};
+		/**
+		 * @param {Node} node node
+		 * @returns {void}
+		 */
 		const nodeChange = node => {
 			nodeInvalid(node);
 			if (
@@ -58319,6 +58383,7 @@ module.exports = class MultiCompiler {
 		const processQueue = () => {
 			while (running < parallelism && queue.length > 0 && !errored) {
 				const node = queue.dequeue();
+				if (node.state !== "queued") continue;
 				running++;
 				node.state = "running";
 				run(node.compiler, nodeDone.bind(null, node));
@@ -58350,6 +58415,7 @@ module.exports = class MultiCompiler {
 		if (this.running) {
 			return handler(new ConcurrentCompilationError());
 		}
+		this.running = true;
 
 		if (this.validateDependencies(handler)) {
 			const watchings = this._runGraph(
@@ -58384,6 +58450,7 @@ module.exports = class MultiCompiler {
 		if (this.running) {
 			return callback(new ConcurrentCompilationError());
 		}
+		this.running = true;
 
 		if (this.validateDependencies(callback)) {
 			this._runGraph(
@@ -66579,7 +66646,6 @@ class Watching {
 		this.running = false;
 		this._initial = true;
 		this._needRecords = true;
-		this._needWatcherInfo = false;
 		this.watcher = undefined;
 		this.pausedWatcher = undefined;
 		this._done = this._done.bind(this);
@@ -66609,21 +66675,6 @@ class Watching {
 				});
 			}
 			this.invalid = false;
-			if (this._needWatcherInfo) {
-				this._needWatcherInfo = false;
-				const watcher = this.pausedWatcher;
-				if (watcher) {
-					this.compiler.modifiedFiles = watcher.aggregatedChanges;
-					this.compiler.removedFiles = watcher.aggregatedRemovals;
-					this.compiler.fileTimestamps = watcher.getFileTimeInfoEntries();
-					this.compiler.contextTimestamps = watcher.getContextTimeInfoEntries();
-				} else {
-					this.compiler.modifiedFiles = undefined;
-					this.compiler.removedFiles = undefined;
-					this.compiler.fileTimestamps = undefined;
-					this.compiler.contextTimestamps = undefined;
-				}
-			}
 			this.compiler.hooks.watchRun.callAsync(this.compiler, err => {
 				if (err) return this._done(err);
 				const onCompiled = (err, compilation) => {
@@ -66802,6 +66853,11 @@ class Watching {
 				this.compiler.contextTimestamps = contextTimeInfoEntries;
 				this.compiler.removedFiles = removedFiles;
 				this.compiler.modifiedFiles = changedFiles;
+				if (this.watcher) {
+					this.pausedWatcher = this.watcher;
+					this.watcher.pause();
+					this.watcher = null;
+				}
 				this._invalidate();
 				this._onChange();
 			},
@@ -66822,7 +66878,6 @@ class Watching {
 		}
 		if (!this._initial) {
 			this.compiler.hooks.invalid.call(null, Date.now());
-			this._needWatcherInfo = true;
 		}
 		this._invalidate();
 	}
@@ -66834,6 +66889,14 @@ class Watching {
 			return;
 		}
 		if (this.watcher) {
+			this.compiler.modifiedFiles =
+				this.watcher.getAggregatedChanges &&
+				this.watcher.getAggregatedChanges();
+			this.compiler.removedFiles =
+				this.watcher.getAggregatedRemovals &&
+				this.watcher.getAggregatedRemovals();
+			this.compiler.fileTimestamps = this.watcher.getFileTimeInfoEntries();
+			this.compiler.contextTimestamps = this.watcher.getContextTimeInfoEntries();
 			this.pausedWatcher = this.watcher;
 			this.watcher.pause();
 			this.watcher = null;
@@ -66853,7 +66916,6 @@ class Watching {
 	resume() {
 		if (this.suspended) {
 			this.suspended = false;
-			this._needWatcherInfo = true;
 			this._invalidate();
 		}
 	}
@@ -68413,14 +68475,18 @@ class InferAsyncModulesPlugin {
 					}
 					for (const module of queue) {
 						moduleGraph.setAsync(module);
-						const connections = moduleGraph.getIncomingConnections(module);
-						for (const connection of connections) {
-							const dep = connection.dependency;
+						for (const [
+							originModule,
+							connections
+						] of moduleGraph.getIncomingConnectionsByOriginModule(module)) {
 							if (
-								dep instanceof HarmonyImportDependency &&
-								connection.isTargetActive(undefined)
+								connections.some(
+									c =>
+										c.dependency instanceof HarmonyImportDependency &&
+										c.isTargetActive(undefined)
+								)
 							) {
-								queue.add(connection.originModule);
+								queue.add(originModule);
 							}
 						}
 					}
@@ -91318,32 +91384,43 @@ class OccurrenceModuleIdsPlugin {
 				}
 
 				/**
-				 * @param {Iterable<ModuleGraphConnection>} connections connections
+				 * @param {Module} module module
 				 * @returns {number} count of occurs
 				 */
-				const countOccursInEntry = connections => {
+				const countOccursInEntry = module => {
 					let sum = 0;
-					for (const c of connections) {
-						if (!c.isTargetActive(undefined)) continue;
-						if (!c.originModule) continue;
-						sum += initialChunkChunkMap.get(c.originModule);
+					for (const [
+						originModule,
+						connections
+					] of moduleGraph.getIncomingConnectionsByOriginModule(module)) {
+						if (!originModule) continue;
+						if (!connections.some(c => c.isTargetActive(undefined))) continue;
+						sum += initialChunkChunkMap.get(originModule);
 					}
 					return sum;
 				};
 
 				/**
-				 * @param {Iterable<ModuleGraphConnection>} connections connections
+				 * @param {Module} module module
 				 * @returns {number} count of occurs
 				 */
-				const countOccurs = connections => {
+				const countOccurs = module => {
 					let sum = 0;
-					for (const c of connections) {
-						if (!c.isTargetActive(undefined)) continue;
-						if (!c.originModule) continue;
-						if (!c.dependency) continue;
-						const factor = c.dependency.getNumberOfIdOccurrences();
-						if (factor === 0) continue;
-						sum += factor * chunkGraph.getNumberOfModuleChunks(c.originModule);
+					for (const [
+						originModule,
+						connections
+					] of moduleGraph.getIncomingConnectionsByOriginModule(module)) {
+						if (!originModule) continue;
+						const chunkModules = chunkGraph.getNumberOfModuleChunks(
+							originModule
+						);
+						for (const c of connections) {
+							if (!c.isTargetActive(undefined)) continue;
+							if (!c.dependency) continue;
+							const factor = c.dependency.getNumberOfIdOccurrences();
+							if (factor === 0) continue;
+							sum += factor * chunkModules;
+						}
 					}
 					return sum;
 				};
@@ -91351,7 +91428,7 @@ class OccurrenceModuleIdsPlugin {
 				if (prioritiseInitial) {
 					for (const m of modulesInOccurrenceOrder) {
 						const result =
-							countOccursInEntry(moduleGraph.getIncomingConnections(m)) +
+							countOccursInEntry(m) +
 							initialChunkChunkMap.get(m) +
 							entryCountMap.get(m);
 						occursInInitialChunksMap.set(m, result);
@@ -91360,7 +91437,7 @@ class OccurrenceModuleIdsPlugin {
 
 				for (const m of modules) {
 					const result =
-						countOccurs(moduleGraph.getIncomingConnections(m)) +
+						countOccurs(m) +
 						chunkGraph.getNumberOfModuleChunks(m) +
 						entryCountMap.get(m);
 					occursInAllChunksMap.set(m, result);
@@ -93964,12 +94041,12 @@ class JavascriptModulesPlugin {
 					if (
 						result.allowInlineStartup &&
 						someInIterable(
-							moduleGraph.getIncomingConnections(entryModule),
-							c =>
-								c.originModule &&
-								c.isTargetActive(chunk.runtime) &&
+							moduleGraph.getIncomingConnectionsByOriginModule(entryModule),
+							([originModule, connections]) =>
+								originModule &&
+								connections.some(c => c.isTargetActive(chunk.runtime)) &&
 								someInIterable(
-									chunkGraph.getModuleRuntimes(c.originModule),
+									chunkGraph.getModuleRuntimes(originModule),
 									runtime =>
 										intersectRuntime(runtime, chunk.runtime) !== undefined
 								)
@@ -101182,6 +101259,12 @@ class NodeWatchFileSystem {
 					this.watcher.pause();
 				}
 			},
+			getAggregatedRemovals: () => {
+				return this.watcher && this.watcher.aggregatedRemovals;
+			},
+			getAggregatedChanges: () => {
+				return this.watcher && this.watcher.aggregatedChanges;
+			},
 			getFileTimeInfoEntries: () => {
 				if (this.watcher) {
 					return this.watcher.getTimeInfoEntries();
@@ -103678,7 +103761,10 @@ class ConcatenatedModule extends Module {
 								const path = getPathInAst(info.ast, identifier);
 								if (path && path.length > 1) {
 									const maybeProperty =
-										path[1].type === "AssignmentPattern" ? path[2] : path[1];
+										path[1].type === "AssignmentPattern" &&
+										path[1].left === path[0]
+											? path[2]
+											: path[1];
 									if (
 										maybeProperty.type === "Property" &&
 										maybeProperty.shorthand
@@ -105880,8 +105966,6 @@ module.exports = MinMaxSizeWarning;
 const asyncLib = __webpack_require__(36386);
 const ChunkGraph = __webpack_require__(67518);
 const ModuleGraph = __webpack_require__(73444);
-const ModuleRestoreError = __webpack_require__(61938);
-const ModuleStoreError = __webpack_require__(20027);
 const { STAGE_DEFAULT } = __webpack_require__(90412);
 const HarmonyImportDependency = __webpack_require__(289);
 const { compareModulesByIdentifier } = __webpack_require__(21699);
@@ -105900,6 +105984,20 @@ const ConcatenatedModule = __webpack_require__(74233);
 /** @typedef {import("../RequestShortener")} RequestShortener */
 /** @typedef {import("../util/runtime").RuntimeSpec} RuntimeSpec */
 
+/**
+ * @typedef {Object} Statistics
+ * @property {number} cached
+ * @property {number} alreadyInConfig
+ * @property {number} invalidModule
+ * @property {number} incorrectChunks
+ * @property {number} incorrectDependency
+ * @property {number} incorrectModuleDependency
+ * @property {number} incorrectChunksOfImporter
+ * @property {number} incorrectRuntimeCondition
+ * @property {number} importerFailed
+ * @property {number} added
+ */
+
 const formatBailoutReason = msg => {
 	return "ModuleConcatenation bailout: " + msg;
 };
@@ -105916,411 +106014,404 @@ class ModuleConcatenationPlugin {
 	 * @returns {void}
 	 */
 	apply(compiler) {
-		compiler.hooks.compilation.tap(
-			"ModuleConcatenationPlugin",
-			(compilation, { normalModuleFactory }) => {
-				const moduleGraph = compilation.moduleGraph;
-				const bailoutReasonMap = new Map();
-				const cache = compilation.getCache("ModuleConcatenationPlugin");
+		compiler.hooks.compilation.tap("ModuleConcatenationPlugin", compilation => {
+			const moduleGraph = compilation.moduleGraph;
+			const bailoutReasonMap = new Map();
 
-				const setBailoutReason = (module, reason) => {
-					setInnerBailoutReason(module, reason);
-					moduleGraph
-						.getOptimizationBailout(module)
-						.push(
-							typeof reason === "function"
-								? rs => formatBailoutReason(reason(rs))
-								: formatBailoutReason(reason)
-						);
-				};
+			const setBailoutReason = (module, reason) => {
+				setInnerBailoutReason(module, reason);
+				moduleGraph
+					.getOptimizationBailout(module)
+					.push(
+						typeof reason === "function"
+							? rs => formatBailoutReason(reason(rs))
+							: formatBailoutReason(reason)
+					);
+			};
 
-				const setInnerBailoutReason = (module, reason) => {
-					bailoutReasonMap.set(module, reason);
-				};
+			const setInnerBailoutReason = (module, reason) => {
+				bailoutReasonMap.set(module, reason);
+			};
 
-				const getInnerBailoutReason = (module, requestShortener) => {
-					const reason = bailoutReasonMap.get(module);
-					if (typeof reason === "function") return reason(requestShortener);
-					return reason;
-				};
+			const getInnerBailoutReason = (module, requestShortener) => {
+				const reason = bailoutReasonMap.get(module);
+				if (typeof reason === "function") return reason(requestShortener);
+				return reason;
+			};
 
-				const formatBailoutWarning = (module, problem) => requestShortener => {
-					if (typeof problem === "function") {
-						return formatBailoutReason(
-							`Cannot concat with ${module.readableIdentifier(
-								requestShortener
-							)}: ${problem(requestShortener)}`
-						);
-					}
-					const reason = getInnerBailoutReason(module, requestShortener);
-					const reasonWithPrefix = reason ? `: ${reason}` : "";
-					if (module === problem) {
-						return formatBailoutReason(
-							`Cannot concat with ${module.readableIdentifier(
-								requestShortener
-							)}${reasonWithPrefix}`
-						);
-					} else {
-						return formatBailoutReason(
-							`Cannot concat with ${module.readableIdentifier(
-								requestShortener
-							)} because of ${problem.readableIdentifier(
-								requestShortener
-							)}${reasonWithPrefix}`
-						);
-					}
-				};
+			const formatBailoutWarning = (module, problem) => requestShortener => {
+				if (typeof problem === "function") {
+					return formatBailoutReason(
+						`Cannot concat with ${module.readableIdentifier(
+							requestShortener
+						)}: ${problem(requestShortener)}`
+					);
+				}
+				const reason = getInnerBailoutReason(module, requestShortener);
+				const reasonWithPrefix = reason ? `: ${reason}` : "";
+				if (module === problem) {
+					return formatBailoutReason(
+						`Cannot concat with ${module.readableIdentifier(
+							requestShortener
+						)}${reasonWithPrefix}`
+					);
+				} else {
+					return formatBailoutReason(
+						`Cannot concat with ${module.readableIdentifier(
+							requestShortener
+						)} because of ${problem.readableIdentifier(
+							requestShortener
+						)}${reasonWithPrefix}`
+					);
+				}
+			};
 
-				compilation.hooks.optimizeChunkModules.tapAsync(
-					{
-						name: "ModuleConcatenationPlugin",
-						stage: STAGE_DEFAULT
-					},
-					(allChunks, modules, callback) => {
-						const logger = compilation.getLogger(
-							"webpack.ModuleConcatenationPlugin"
-						);
-						const { chunkGraph, moduleGraph } = compilation;
-						const relevantModules = [];
-						const possibleInners = new Set();
-						const context = {
-							chunkGraph,
-							moduleGraph
-						};
-						logger.time("select relevant modules");
-						for (const module of modules) {
-							let canBeRoot = true;
-							let canBeInner = true;
+			compilation.hooks.optimizeChunkModules.tapAsync(
+				{
+					name: "ModuleConcatenationPlugin",
+					stage: STAGE_DEFAULT
+				},
+				(allChunks, modules, callback) => {
+					const logger = compilation.getLogger(
+						"webpack.ModuleConcatenationPlugin"
+					);
+					const { chunkGraph, moduleGraph } = compilation;
+					const relevantModules = [];
+					const possibleInners = new Set();
+					const context = {
+						chunkGraph,
+						moduleGraph
+					};
+					logger.time("select relevant modules");
+					for (const module of modules) {
+						let canBeRoot = true;
+						let canBeInner = true;
 
-							const bailoutReason = module.getConcatenationBailoutReason(
-								context
-							);
-							if (bailoutReason) {
-								setBailoutReason(module, bailoutReason);
-								continue;
-							}
-
-							// Must not be an async module
-							if (moduleGraph.isAsync(module)) {
-								setBailoutReason(module, `Module is async`);
-								continue;
-							}
-
-							// Must be in strict mode
-							if (!module.buildInfo.strict) {
-								setBailoutReason(module, `Module is not in strict mode`);
-								continue;
-							}
-
-							// Module must be in any chunk (we don't want to do useless work)
-							if (chunkGraph.getNumberOfModuleChunks(module) === 0) {
-								setBailoutReason(module, "Module is not in any chunk");
-								continue;
-							}
-
-							// Exports must be known (and not dynamic)
-							const exportsInfo = moduleGraph.getExportsInfo(module);
-							const relevantExports = exportsInfo.getRelevantExports(undefined);
-							const unknownReexports = relevantExports.filter(exportInfo => {
-								return (
-									exportInfo.isReexport() && !exportInfo.getTarget(moduleGraph)
-								);
-							});
-							if (unknownReexports.length > 0) {
-								setBailoutReason(
-									module,
-									`Reexports in this module do not have a static target (${Array.from(
-										unknownReexports,
-										exportInfo =>
-											`${
-												exportInfo.name || "other exports"
-											}: ${exportInfo.getUsedInfo()}`
-									).join(", ")})`
-								);
-								continue;
-							}
-
-							// Root modules must have a static list of exports
-							const unknownProvidedExports = relevantExports.filter(
-								exportInfo => {
-									return exportInfo.provided !== true;
-								}
-							);
-							if (unknownProvidedExports.length > 0) {
-								setBailoutReason(
-									module,
-									`List of module exports is dynamic (${Array.from(
-										unknownProvidedExports,
-										exportInfo =>
-											`${
-												exportInfo.name || "other exports"
-											}: ${exportInfo.getProvidedInfo()} and ${exportInfo.getUsedInfo()}`
-									).join(", ")})`
-								);
-								canBeRoot = false;
-							}
-
-							// Module must not be an entry point
-							if (chunkGraph.isEntryModule(module)) {
-								setInnerBailoutReason(module, "Module is an entry point");
-								canBeInner = false;
-							}
-
-							if (canBeRoot) relevantModules.push(module);
-							if (canBeInner) possibleInners.add(module);
+						const bailoutReason = module.getConcatenationBailoutReason(context);
+						if (bailoutReason) {
+							setBailoutReason(module, bailoutReason);
+							continue;
 						}
-						logger.timeEnd("select relevant modules");
-						logger.debug(
-							`${relevantModules.length} potential root modules, ${possibleInners.size} potential inner modules`
-						);
-						// sort by depth
-						// modules with lower depth are more likely suited as roots
-						// this improves performance, because modules already selected as inner are skipped
-						logger.time("sort relevant modules");
-						relevantModules.sort((a, b) => {
-							return moduleGraph.getDepth(a) - moduleGraph.getDepth(b);
+
+						// Must not be an async module
+						if (moduleGraph.isAsync(module)) {
+							setBailoutReason(module, `Module is async`);
+							continue;
+						}
+
+						// Must be in strict mode
+						if (!module.buildInfo.strict) {
+							setBailoutReason(module, `Module is not in strict mode`);
+							continue;
+						}
+
+						// Module must be in any chunk (we don't want to do useless work)
+						if (chunkGraph.getNumberOfModuleChunks(module) === 0) {
+							setBailoutReason(module, "Module is not in any chunk");
+							continue;
+						}
+
+						// Exports must be known (and not dynamic)
+						const exportsInfo = moduleGraph.getExportsInfo(module);
+						const relevantExports = exportsInfo.getRelevantExports(undefined);
+						const unknownReexports = relevantExports.filter(exportInfo => {
+							return (
+								exportInfo.isReexport() && !exportInfo.getTarget(moduleGraph)
+							);
 						});
-						logger.timeEnd("sort relevant modules");
+						if (unknownReexports.length > 0) {
+							setBailoutReason(
+								module,
+								`Reexports in this module do not have a static target (${Array.from(
+									unknownReexports,
+									exportInfo =>
+										`${
+											exportInfo.name || "other exports"
+										}: ${exportInfo.getUsedInfo()}`
+								).join(", ")})`
+							);
+							continue;
+						}
 
-						logger.time("find modules to concatenate");
-						const concatConfigurations = [];
-						const usedAsInner = new Set();
-						for (const currentRoot of relevantModules) {
-							// when used by another configuration as inner:
-							// the other configuration is better and we can skip this one
-							if (usedAsInner.has(currentRoot)) continue;
-
-							let chunkRuntime = undefined;
-							for (const r of chunkGraph.getModuleRuntimes(currentRoot)) {
-								chunkRuntime = mergeRuntimeOwned(chunkRuntime, r);
+						// Root modules must have a static list of exports
+						const unknownProvidedExports = relevantExports.filter(
+							exportInfo => {
+								return exportInfo.provided !== true;
 							}
-							const exportsInfo = moduleGraph.getExportsInfo(currentRoot);
-							const filteredRuntime = filterRuntime(chunkRuntime, r =>
-								exportsInfo.isModuleUsed(r)
+						);
+						if (unknownProvidedExports.length > 0) {
+							setBailoutReason(
+								module,
+								`List of module exports is dynamic (${Array.from(
+									unknownProvidedExports,
+									exportInfo =>
+										`${
+											exportInfo.name || "other exports"
+										}: ${exportInfo.getProvidedInfo()} and ${exportInfo.getUsedInfo()}`
+								).join(", ")})`
 							);
-							const activeRuntime =
-								filteredRuntime === true
-									? chunkRuntime
-									: filteredRuntime === false
-									? undefined
-									: filteredRuntime;
+							canBeRoot = false;
+						}
 
-							// create a configuration with the root
-							const currentConfiguration = new ConcatConfiguration(
-								currentRoot,
-								activeRuntime
-							);
+						// Module must not be an entry point
+						if (chunkGraph.isEntryModule(module)) {
+							setInnerBailoutReason(module, "Module is an entry point");
+							canBeInner = false;
+						}
 
-							// cache failures to add modules
-							const failureCache = new Map();
+						if (canBeRoot) relevantModules.push(module);
+						if (canBeInner) possibleInners.add(module);
+					}
+					logger.timeEnd("select relevant modules");
+					logger.debug(
+						`${relevantModules.length} potential root modules, ${possibleInners.size} potential inner modules`
+					);
+					// sort by depth
+					// modules with lower depth are more likely suited as roots
+					// this improves performance, because modules already selected as inner are skipped
+					logger.time("sort relevant modules");
+					relevantModules.sort((a, b) => {
+						return moduleGraph.getDepth(a) - moduleGraph.getDepth(b);
+					});
+					logger.timeEnd("sort relevant modules");
 
-							// potential optional import candidates
-							/** @type {Set<Module>} */
-							const candidates = new Set();
+					/** @type {Statistics} */
+					const stats = {
+						cached: 0,
+						alreadyInConfig: 0,
+						invalidModule: 0,
+						incorrectChunks: 0,
+						incorrectDependency: 0,
+						incorrectModuleDependency: 0,
+						incorrectChunksOfImporter: 0,
+						incorrectRuntimeCondition: 0,
+						importerFailed: 0,
+						added: 0
+					};
+					let statsCandidates = 0;
+					let statsSizeSum = 0;
+					let statsEmptyConfigurations = 0;
 
-							// try to add all imports
-							for (const imp of this._getImports(
+					logger.time("find modules to concatenate");
+					const concatConfigurations = [];
+					const usedAsInner = new Set();
+					for (const currentRoot of relevantModules) {
+						// when used by another configuration as inner:
+						// the other configuration is better and we can skip this one
+						// TODO reconsider that when it's only used in a different runtime
+						if (usedAsInner.has(currentRoot)) continue;
+
+						let chunkRuntime = undefined;
+						for (const r of chunkGraph.getModuleRuntimes(currentRoot)) {
+							chunkRuntime = mergeRuntimeOwned(chunkRuntime, r);
+						}
+						const exportsInfo = moduleGraph.getExportsInfo(currentRoot);
+						const filteredRuntime = filterRuntime(chunkRuntime, r =>
+							exportsInfo.isModuleUsed(r)
+						);
+						const activeRuntime =
+							filteredRuntime === true
+								? chunkRuntime
+								: filteredRuntime === false
+								? undefined
+								: filteredRuntime;
+
+						// create a configuration with the root
+						const currentConfiguration = new ConcatConfiguration(
+							currentRoot,
+							activeRuntime
+						);
+
+						// cache failures to add modules
+						const failureCache = new Map();
+
+						// potential optional import candidates
+						/** @type {Set<Module>} */
+						const candidates = new Set();
+
+						// try to add all imports
+						for (const imp of this._getImports(
+							compilation,
+							currentRoot,
+							activeRuntime
+						)) {
+							candidates.add(imp);
+						}
+
+						for (const imp of candidates) {
+							const impCandidates = new Set();
+							const problem = this._tryToAdd(
 								compilation,
-								currentRoot,
-								activeRuntime
-							)) {
-								candidates.add(imp);
-							}
-
-							for (const imp of candidates) {
-								const impCandidates = new Set();
-								const problem = this._tryToAdd(
-									compilation,
-									currentConfiguration,
-									imp,
-									chunkRuntime,
-									activeRuntime,
-									possibleInners,
-									impCandidates,
-									failureCache,
-									chunkGraph,
-									true
-								);
-								if (problem) {
-									failureCache.set(imp, problem);
-									currentConfiguration.addWarning(imp, problem);
-								} else {
-									for (const c of impCandidates) {
-										candidates.add(c);
-									}
-								}
-							}
-							if (!currentConfiguration.isEmpty()) {
-								concatConfigurations.push(currentConfiguration);
-								for (const module of currentConfiguration.getModules()) {
-									if (module !== currentConfiguration.rootModule) {
-										usedAsInner.add(module);
-									}
-								}
+								currentConfiguration,
+								imp,
+								chunkRuntime,
+								activeRuntime,
+								possibleInners,
+								impCandidates,
+								failureCache,
+								chunkGraph,
+								true,
+								stats
+							);
+							if (problem) {
+								failureCache.set(imp, problem);
+								currentConfiguration.addWarning(imp, problem);
 							} else {
-								const optimizationBailouts = moduleGraph.getOptimizationBailout(
-									currentRoot
-								);
-								for (const warning of currentConfiguration.getWarningsSorted()) {
-									optimizationBailouts.push(
-										formatBailoutWarning(warning[0], warning[1])
-									);
+								for (const c of impCandidates) {
+									candidates.add(c);
 								}
 							}
 						}
-						logger.timeEnd("find modules to concatenate");
-						logger.debug(
-							`${concatConfigurations.length} concat configurations`
-						);
-						// HACK: Sort configurations by length and start with the longest one
-						// to get the biggest groups possible. Used modules are marked with usedModules
-						// TODO: Allow to reuse existing configuration while trying to add dependencies.
-						// This would improve performance. O(n^2) -> O(n)
-						logger.time(`sort concat configurations`);
-						concatConfigurations.sort((a, b) => {
-							return b.modules.size - a.modules.size;
-						});
-						logger.timeEnd(`sort concat configurations`);
-						const usedModules = new Set();
-
-						logger.time("create concatenated modules");
-						asyncLib.each(
-							concatConfigurations,
-							(concatConfiguration, callback) => {
-								const rootModule = concatConfiguration.rootModule;
-
-								// Avoid overlapping configurations
-								// TODO: remove this when todo above is fixed
-								if (usedModules.has(rootModule)) return callback();
-								const modules = concatConfiguration.getModules();
-								for (const m of modules) {
-									usedModules.add(m);
+						statsCandidates += candidates.size;
+						if (!currentConfiguration.isEmpty()) {
+							const modules = currentConfiguration.getModules();
+							statsSizeSum += modules.size;
+							concatConfigurations.push(currentConfiguration);
+							for (const module of modules) {
+								if (module !== currentConfiguration.rootModule) {
+									usedAsInner.add(module);
 								}
-
-								// Create a new ConcatenatedModule
-								let newModule = ConcatenatedModule.create(
-									rootModule,
-									modules,
-									concatConfiguration.runtime,
-									compiler.root
-								);
-
-								const cacheItem = cache.getItemCache(
-									newModule.identifier(),
-									null
-								);
-
-								const restore = () => {
-									cacheItem.get((err, cacheModule) => {
-										if (err) {
-											return callback(new ModuleRestoreError(newModule, err));
-										}
-
-										if (cacheModule) {
-											cacheModule.updateCacheModule(newModule);
-											newModule = cacheModule;
-										}
-
-										build();
-									});
-								};
-
-								const build = () => {
-									newModule.build(
-										compiler.options,
-										compilation,
-										null,
-										null,
-										err => {
-											if (err) {
-												if (!err.module) {
-													err.module = newModule;
-												}
-												return callback(err);
-											}
-											integrateAndStore();
-										}
-									);
-								};
-
-								const integrateAndStore = () => {
-									ChunkGraph.setChunkGraphForModule(newModule, chunkGraph);
-									ModuleGraph.setModuleGraphForModule(newModule, moduleGraph);
-
-									for (const warning of concatConfiguration.getWarningsSorted()) {
-										moduleGraph
-											.getOptimizationBailout(newModule)
-											.push(formatBailoutWarning(warning[0], warning[1]));
-									}
-									moduleGraph.cloneModuleAttributes(rootModule, newModule);
-									for (const m of modules) {
-										// add to builtModules when one of the included modules was built
-										if (compilation.builtModules.has(m)) {
-											compilation.builtModules.add(newModule);
-										}
-										if (m !== rootModule) {
-											// attach external references to the concatenated module too
-											moduleGraph.copyOutgoingModuleConnections(
-												m,
-												newModule,
-												c => {
-													return (
-														c.originModule === m &&
-														!(
-															c.dependency instanceof HarmonyImportDependency &&
-															modules.has(c.module)
-														)
-													);
-												}
-											);
-											// remove module from chunk
-											for (const chunk of chunkGraph.getModuleChunksIterable(
-												rootModule
-											)) {
-												chunkGraph.disconnectChunkAndModule(chunk, m);
-											}
-										}
-									}
-									compilation.modules.delete(rootModule);
-									// remove module from chunk
-									chunkGraph.replaceModule(rootModule, newModule);
-									// replace module references with the concatenated module
-									moduleGraph.moveModuleConnections(
-										rootModule,
-										newModule,
-										c => {
-											const otherModule =
-												c.module === rootModule ? c.originModule : c.module;
-											const innerConnection =
-												c.dependency instanceof HarmonyImportDependency &&
-												modules.has(otherModule);
-											return !innerConnection;
-										}
-									);
-									// add concatenated module to the compilation
-									compilation.modules.add(newModule);
-
-									// TODO check if module needs build to avoid caching it without change
-									cacheItem.store(newModule, err => {
-										if (err) {
-											return callback(new ModuleStoreError(newModule, err));
-										}
-
-										callback();
-									});
-								};
-
-								restore();
-							},
-							err => {
-								logger.timeEnd("create concatenated modules");
-								process.nextTick(() => callback(err));
 							}
-						);
+						} else {
+							statsEmptyConfigurations++;
+							const optimizationBailouts = moduleGraph.getOptimizationBailout(
+								currentRoot
+							);
+							for (const warning of currentConfiguration.getWarningsSorted()) {
+								optimizationBailouts.push(
+									formatBailoutWarning(warning[0], warning[1])
+								);
+							}
+						}
 					}
-				);
-			}
-		);
+					logger.timeEnd("find modules to concatenate");
+					logger.debug(
+						`${
+							concatConfigurations.length
+						} successful concat configurations (avg size: ${
+							statsSizeSum / concatConfigurations.length
+						}), ${statsEmptyConfigurations} bailed out completely`
+					);
+					logger.debug(
+						`${statsCandidates} candidates were considered for adding (${stats.cached} cached failure, ${stats.alreadyInConfig} already in config, ${stats.invalidModule} invalid module, ${stats.incorrectChunks} incorrect chunks, ${stats.incorrectDependency} incorrect dependency, ${stats.incorrectChunksOfImporter} incorrect chunks of importer, ${stats.incorrectModuleDependency} incorrect module dependency, ${stats.incorrectRuntimeCondition} incorrect runtime condition, ${stats.importerFailed} importer failed, ${stats.added} added)`
+					);
+					// HACK: Sort configurations by length and start with the longest one
+					// to get the biggest groups possible. Used modules are marked with usedModules
+					// TODO: Allow to reuse existing configuration while trying to add dependencies.
+					// This would improve performance. O(n^2) -> O(n)
+					logger.time(`sort concat configurations`);
+					concatConfigurations.sort((a, b) => {
+						return b.modules.size - a.modules.size;
+					});
+					logger.timeEnd(`sort concat configurations`);
+					const usedModules = new Set();
+
+					logger.time("create concatenated modules");
+					asyncLib.each(
+						concatConfigurations,
+						(concatConfiguration, callback) => {
+							const rootModule = concatConfiguration.rootModule;
+
+							// Avoid overlapping configurations
+							// TODO: remove this when todo above is fixed
+							if (usedModules.has(rootModule)) return callback();
+							const modules = concatConfiguration.getModules();
+							for (const m of modules) {
+								usedModules.add(m);
+							}
+
+							// Create a new ConcatenatedModule
+							let newModule = ConcatenatedModule.create(
+								rootModule,
+								modules,
+								concatConfiguration.runtime,
+								compiler.root
+							);
+
+							const build = () => {
+								newModule.build(
+									compiler.options,
+									compilation,
+									null,
+									null,
+									err => {
+										if (err) {
+											if (!err.module) {
+												err.module = newModule;
+											}
+											return callback(err);
+										}
+										integrate();
+									}
+								);
+							};
+
+							const integrate = () => {
+								ChunkGraph.setChunkGraphForModule(newModule, chunkGraph);
+								ModuleGraph.setModuleGraphForModule(newModule, moduleGraph);
+
+								for (const warning of concatConfiguration.getWarningsSorted()) {
+									moduleGraph
+										.getOptimizationBailout(newModule)
+										.push(formatBailoutWarning(warning[0], warning[1]));
+								}
+								moduleGraph.cloneModuleAttributes(rootModule, newModule);
+								for (const m of modules) {
+									// add to builtModules when one of the included modules was built
+									if (compilation.builtModules.has(m)) {
+										compilation.builtModules.add(newModule);
+									}
+									if (m !== rootModule) {
+										// attach external references to the concatenated module too
+										moduleGraph.copyOutgoingModuleConnections(
+											m,
+											newModule,
+											c => {
+												return (
+													c.originModule === m &&
+													!(
+														c.dependency instanceof HarmonyImportDependency &&
+														modules.has(c.module)
+													)
+												);
+											}
+										);
+										// remove module from chunk
+										for (const chunk of chunkGraph.getModuleChunksIterable(
+											rootModule
+										)) {
+											chunkGraph.disconnectChunkAndModule(chunk, m);
+										}
+									}
+								}
+								compilation.modules.delete(rootModule);
+								// remove module from chunk
+								chunkGraph.replaceModule(rootModule, newModule);
+								// replace module references with the concatenated module
+								moduleGraph.moveModuleConnections(rootModule, newModule, c => {
+									const otherModule =
+										c.module === rootModule ? c.originModule : c.module;
+									const innerConnection =
+										c.dependency instanceof HarmonyImportDependency &&
+										modules.has(otherModule);
+									return !innerConnection;
+								});
+								// add concatenated module to the compilation
+								compilation.modules.add(newModule);
+
+								callback();
+							};
+
+							build();
+						},
+						err => {
+							logger.timeEnd("create concatenated modules");
+							process.nextTick(() => callback(err));
+						}
+					);
+				}
+			);
+		});
 	}
 
 	/**
@@ -106374,6 +106465,7 @@ class ModuleConcatenationPlugin {
 	 * @param {Map<Module, Module | function(RequestShortener): string>} failureCache cache for problematic modules to be more performant
 	 * @param {ChunkGraph} chunkGraph the chunk graph
 	 * @param {boolean} avoidMutateOnFailure avoid mutating the config when adding fails
+	 * @param {Statistics} statistics gathering metrics
 	 * @returns {Module | function(RequestShortener): string} the problematic module
 	 */
 	_tryToAdd(
@@ -106386,20 +106478,24 @@ class ModuleConcatenationPlugin {
 		candidates,
 		failureCache,
 		chunkGraph,
-		avoidMutateOnFailure
+		avoidMutateOnFailure,
+		statistics
 	) {
 		const cacheEntry = failureCache.get(module);
 		if (cacheEntry) {
+			statistics.cached++;
 			return cacheEntry;
 		}
 
 		// Already added?
 		if (config.has(module)) {
+			statistics.alreadyInConfig++;
 			return null;
 		}
 
 		// Not possible to add?
 		if (!possibleModules.has(module)) {
+			statistics.invalidModule++;
 			failureCache.set(module, module); // cache failures for performance
 			return module;
 		}
@@ -106407,134 +106503,106 @@ class ModuleConcatenationPlugin {
 		// Module must be in the correct chunks
 		const missingChunks = Array.from(
 			chunkGraph.getModuleChunksIterable(config.rootModule)
-		)
-			.filter(chunk => !chunkGraph.isModuleInChunk(module, chunk))
-			.map(chunk => chunk.name || "unnamed chunk(s)");
+		).filter(chunk => !chunkGraph.isModuleInChunk(module, chunk));
 		if (missingChunks.length > 0) {
-			const missingChunksList = Array.from(new Set(missingChunks)).sort();
-			const chunks = Array.from(
-				new Set(
-					Array.from(chunkGraph.getModuleChunksIterable(module)).map(
-						chunk => chunk.name || "unnamed chunk(s)"
+			const problem = requestShortener => {
+				const missingChunksList = Array.from(
+					new Set(missingChunks.map(chunk => chunk.name || "unnamed chunk(s)"))
+				).sort();
+				const chunks = Array.from(
+					new Set(
+						Array.from(chunkGraph.getModuleChunksIterable(module)).map(
+							chunk => chunk.name || "unnamed chunk(s)"
+						)
 					)
-				)
-			).sort();
-			const problem = requestShortener =>
-				`Module ${module.readableIdentifier(
+				).sort();
+				return `Module ${module.readableIdentifier(
 					requestShortener
 				)} is not in the same chunk(s) (expected in chunk(s) ${missingChunksList.join(
 					", "
 				)}, module is in chunk(s) ${chunks.join(", ")})`;
+			};
+			statistics.incorrectChunks++;
 			failureCache.set(module, problem); // cache failures for performance
 			return problem;
 		}
 
 		const moduleGraph = compilation.moduleGraph;
 
-		const incomingConnections = Array.from(
-			moduleGraph.getIncomingConnections(module)
-		).filter(connection => {
-			// We are not interested in inactive connections
-			if (!connection.isActive(runtime)) return false;
-
-			// Include, but do not analyse further, connections from non-modules
-			if (!connection.originModule) return true;
-
-			// Ignore connection from orphan modules
-			if (chunkGraph.getNumberOfModuleChunks(connection.originModule) === 0)
-				return false;
-
-			// We don't care for connections from other runtimes
-			let originRuntime = undefined;
-			for (const r of chunkGraph.getModuleRuntimes(connection.originModule)) {
-				originRuntime = mergeRuntimeOwned(originRuntime, r);
-			}
-
-			return intersectRuntime(runtime, originRuntime);
-		});
-
-		const nonHarmonyConnections = incomingConnections.filter(
-			connection =>
-				!connection.originModule ||
-				!connection.dependency ||
-				!(connection.dependency instanceof HarmonyImportDependency)
+		const incomingConnections = moduleGraph.getIncomingConnectionsByOriginModule(
+			module
 		);
-		if (nonHarmonyConnections.length > 0) {
-			const problem = requestShortener => {
-				const importingModules = new Set(
-					nonHarmonyConnections.map(c => c.originModule).filter(Boolean)
-				);
-				const importingExplanations = new Set(
-					nonHarmonyConnections.map(c => c.explanation).filter(Boolean)
-				);
-				const importingModuleTypes = new Map(
-					Array.from(importingModules).map(
-						m =>
-							/** @type {[Module, Set<string>]} */ ([
-								m,
-								new Set(
-									nonHarmonyConnections
-										.filter(c => c.originModule === m)
-										.map(c => c.dependency.type)
-										.sort()
-								)
-							])
-					)
-				);
-				const names = Array.from(importingModules)
-					.map(
-						m =>
-							`${m.readableIdentifier(
-								requestShortener
-							)} (referenced with ${Array.from(
-								importingModuleTypes.get(m)
-							).join(", ")})`
-					)
-					.sort();
-				const explanations = Array.from(importingExplanations).sort();
-				if (names.length > 0 && explanations.length === 0) {
-					return `Module ${module.readableIdentifier(
-						requestShortener
-					)} is referenced from these modules with unsupported syntax: ${names.join(
-						", "
-					)}`;
-				} else if (names.length === 0 && explanations.length > 0) {
-					return `Module ${module.readableIdentifier(
-						requestShortener
-					)} is referenced by: ${explanations.join(", ")}`;
-				} else if (names.length > 0 && explanations.length > 0) {
-					return `Module ${module.readableIdentifier(
-						requestShortener
-					)} is referenced from these modules with unsupported syntax: ${names.join(
-						", "
-					)} and by: ${explanations.join(", ")}`;
-				} else {
-					return `Module ${module.readableIdentifier(
-						requestShortener
-					)} is referenced in a unsupported way`;
+
+		const incomingConnectionsFromNonModules =
+			incomingConnections.get(null) || incomingConnections.get(undefined);
+		if (incomingConnectionsFromNonModules) {
+			const activeNonModulesConnections = incomingConnectionsFromNonModules.filter(
+				connection => {
+					// We are not interested in inactive connections
+					// or connections without dependency
+					return connection.isActive(runtime) || connection.dependency;
 				}
-			};
-			failureCache.set(module, problem); // cache failures for performance
-			return problem;
+			);
+			if (activeNonModulesConnections.length > 0) {
+				const problem = requestShortener => {
+					const importingExplanations = new Set(
+						activeNonModulesConnections.map(c => c.explanation).filter(Boolean)
+					);
+					const explanations = Array.from(importingExplanations).sort();
+					return `Module ${module.readableIdentifier(
+						requestShortener
+					)} is referenced ${
+						explanations.length > 0
+							? `by: ${explanations.join(", ")}`
+							: "in an unsupported way"
+					}`;
+				};
+				statistics.incorrectDependency++;
+				failureCache.set(module, problem); // cache failures for performance
+				return problem;
+			}
 		}
 
+		/** @type {Map<Module, readonly ModuleGraph.ModuleGraphConnection[]>} */
+		const incomingConnectionsFromModules = new Map();
+		for (const [originModule, connections] of incomingConnections) {
+			if (originModule) {
+				// Ignore connection from orphan modules
+				if (chunkGraph.getNumberOfModuleChunks(originModule) === 0) continue;
+
+				// We don't care for connections from other runtimes
+				let originRuntime = undefined;
+				for (const r of chunkGraph.getModuleRuntimes(originModule)) {
+					originRuntime = mergeRuntimeOwned(originRuntime, r);
+				}
+
+				if (!intersectRuntime(runtime, originRuntime)) continue;
+
+				// We are not interested in inactive connections
+				const activeConnections = connections.filter(connection =>
+					connection.isActive(runtime)
+				);
+				if (activeConnections.length > 0)
+					incomingConnectionsFromModules.set(originModule, activeConnections);
+			}
+		}
+
+		const incomingModules = Array.from(incomingConnectionsFromModules.keys());
+
 		// Module must be in the same chunks like the referencing module
-		const otherChunkConnections = incomingConnections.filter(connection => {
+		const otherChunkModules = incomingModules.filter(originModule => {
 			for (const chunk of chunkGraph.getModuleChunksIterable(
 				config.rootModule
 			)) {
-				if (!chunkGraph.isModuleInChunk(connection.originModule, chunk)) {
+				if (!chunkGraph.isModuleInChunk(originModule, chunk)) {
 					return true;
 				}
 			}
 			return false;
 		});
-		if (otherChunkConnections.length > 0) {
+		if (otherChunkModules.length > 0) {
 			const problem = requestShortener => {
-				const importingModules = new Set(
-					otherChunkConnections.map(c => c.originModule)
-				);
-				const names = Array.from(importingModules)
+				const names = otherChunkModules
 					.map(m => m.readableIdentifier(requestShortener))
 					.sort();
 				return `Module ${module.readableIdentifier(
@@ -106543,41 +106611,90 @@ class ModuleConcatenationPlugin {
 					", "
 				)}`;
 			};
+			statistics.incorrectChunksOfImporter++;
+			failureCache.set(module, problem); // cache failures for performance
+			return problem;
+		}
+
+		/** @type {Map<Module, readonly ModuleGraph.ModuleGraphConnection[]>} */
+		const nonHarmonyConnections = new Map();
+		for (const [originModule, connections] of incomingConnectionsFromModules) {
+			const selected = connections.filter(
+				connection =>
+					!connection.dependency ||
+					!(connection.dependency instanceof HarmonyImportDependency)
+			);
+			if (selected.length > 0)
+				nonHarmonyConnections.set(originModule, connections);
+		}
+		if (nonHarmonyConnections.size > 0) {
+			const problem = requestShortener => {
+				const names = Array.from(nonHarmonyConnections)
+					.map(([originModule, connections]) => {
+						return `${originModule.readableIdentifier(
+							requestShortener
+						)} (referenced with ${Array.from(
+							new Set(
+								connections
+									.map(c => c.dependency && c.dependency.type)
+									.filter(Boolean)
+							)
+						)
+							.sort()
+							.join(", ")})`;
+					})
+					.sort();
+				return `Module ${module.readableIdentifier(
+					requestShortener
+				)} is referenced from these modules with unsupported syntax: ${names.join(
+					", "
+				)}`;
+			};
+			statistics.incorrectModuleDependency++;
 			failureCache.set(module, problem); // cache failures for performance
 			return problem;
 		}
 
 		if (runtime !== undefined && typeof runtime !== "string") {
 			// Module must be consistently referenced in the same runtimes
-			/** @type {Map<Module, boolean | RuntimeSpec>} */
-			const runtimeConditionMap = new Map();
-			for (const connection of incomingConnections) {
-				const runtimeCondition = filterRuntime(runtime, runtime => {
-					return connection.isTargetActive(runtime);
-				});
-				if (runtimeCondition === false) continue;
-				const old = runtimeConditionMap.get(connection.originModule) || false;
-				if (old === true) continue;
-				if (old !== false && runtimeCondition !== true) {
-					runtimeConditionMap.set(
-						connection.originModule,
-						mergeRuntime(old, runtimeCondition)
-					);
-				} else {
-					runtimeConditionMap.set(connection.originModule, runtimeCondition);
+			/** @type {{ originModule: Module, runtimeCondition: RuntimeSpec }[]} */
+			const otherRuntimeConnections = [];
+			outer: for (const [
+				originModule,
+				connections
+			] of incomingConnectionsFromModules) {
+				/** @type {false | RuntimeSpec} */
+				let currentRuntimeCondition = false;
+				for (const connection of connections) {
+					const runtimeCondition = filterRuntime(runtime, runtime => {
+						return connection.isTargetActive(runtime);
+					});
+					if (runtimeCondition === false) continue;
+					if (runtimeCondition === true) continue outer;
+					if (currentRuntimeCondition !== false) {
+						currentRuntimeCondition = mergeRuntime(
+							currentRuntimeCondition,
+							runtimeCondition
+						);
+					} else {
+						currentRuntimeCondition = runtimeCondition;
+					}
+				}
+				if (currentRuntimeCondition !== false) {
+					otherRuntimeConnections.push({
+						originModule,
+						runtimeCondition: currentRuntimeCondition
+					});
 				}
 			}
-			const otherRuntimeConnections = Array.from(runtimeConditionMap).filter(
-				([, runtimeCondition]) => typeof runtimeCondition !== "boolean"
-			);
 			if (otherRuntimeConnections.length > 0) {
 				const problem = requestShortener => {
 					return `Module ${module.readableIdentifier(
 						requestShortener
 					)} is runtime-dependent referenced by these modules: ${Array.from(
 						otherRuntimeConnections,
-						([module, runtimeCondition]) =>
-							`${module.readableIdentifier(
+						({ originModule, runtimeCondition }) =>
+							`${originModule.readableIdentifier(
 								requestShortener
 							)} (expected runtime ${runtimeToString(
 								runtime
@@ -106586,6 +106703,7 @@ class ModuleConcatenationPlugin {
 							)})`
 					).join(", ")}`;
 				};
+				statistics.incorrectRuntimeCondition++;
 				failureCache.set(module, problem); // cache failures for performance
 				return problem;
 			}
@@ -106599,9 +106717,7 @@ class ModuleConcatenationPlugin {
 		// Add the module
 		config.add(module);
 
-		const incomingModules = Array.from(
-			new Set(incomingConnections.map(c => c.originModule))
-		).sort(compareModulesByIdentifier);
+		incomingModules.sort(compareModulesByIdentifier);
 
 		// Every module which depends on the added module must be in the configuration too.
 		for (const originModule of incomingModules) {
@@ -106615,10 +106731,12 @@ class ModuleConcatenationPlugin {
 				candidates,
 				failureCache,
 				chunkGraph,
-				false
+				false,
+				statistics
 			);
 			if (problem) {
 				if (backup !== undefined) config.rollback(backup);
+				statistics.importerFailed++;
 				failureCache.set(module, problem); // cache failures for performance
 				return problem;
 			}
@@ -106628,6 +106746,7 @@ class ModuleConcatenationPlugin {
 		for (const imp of this._getImports(compilation, module, runtime)) {
 			candidates.add(imp);
 		}
+		statistics.added++;
 		return null;
 	}
 }
@@ -106735,6 +106854,27 @@ const addToList = (itemOrItems, list) => {
 	} else if (itemOrItems) {
 		list.add(itemOrItems);
 	}
+};
+
+/**
+ * @template T
+ * @param {T[]} input list
+ * @param {function(T): Buffer} fn map function
+ * @returns {Buffer[]} buffers without duplicates
+ */
+const mapAndDeduplicateBuffers = (input, fn) => {
+	// Buffer.equals compares size first so this should be efficient enough
+	// If it becomes a performance problem we can use a map and group by size
+	// instead of looping over all assets.
+	const result = [];
+	outer: for (const value of input) {
+		const buf = fn(value);
+		for (const other of result) {
+			if (buf.equals(other)) continue outer;
+		}
+		result.push(buf);
+	}
+	return result;
 };
 
 /**
@@ -107040,7 +107180,7 @@ ${referencingAssets
 									: computeNewContent(asset)
 							)
 						);
-						const assetsContent = assets.map(asset => {
+						const assetsContent = mapAndDeduplicateBuffers(assets, asset => {
 							if (asset.ownHashes.has(oldHash)) {
 								return asset.newSourceWithoutOwn
 									? asset.newSourceWithoutOwn.buffer()
@@ -126259,6 +126399,8 @@ const path = __webpack_require__(85622);
  * @typedef {Object} Watcher
  * @property {function(): void} close closes the watcher and all underlying file watchers
  * @property {function(): void} pause closes the watcher, but keeps underlying file watchers alive until the next watch call
+ * @property {function(): Set<string>=} getAggregatedChanges get current aggregated changes that have not yet send to callback
+ * @property {function(): Set<string>=} getAggregatedRemovals get current aggregated removals that have not yet send to callback
  * @property {function(): Map<string, FileSystemInfoEntry | "ignore">} getFileTimeInfoEntries get info about files
  * @property {function(): Map<string, FileSystemInfoEntry | "ignore">} getContextTimeInfoEntries get info about directories
  */
@@ -128438,11 +128580,11 @@ exports.parseRange = str => {
 
 /* eslint-disable eqeqeq */
 const rangeToString = range => {
+	var fixCount = range[0];
+	var str = "";
 	if (range.length === 1) {
 		return "*";
-	} else if (0 in range) {
-		var str = "";
-		var fixCount = range[0];
+	} else if (fixCount + 0.5) {
 		str +=
 			fixCount == 0
 				? ">="
@@ -128687,7 +128829,7 @@ exports.versionLtRuntimeCode = runtimeTemplate =>
 exports.rangeToStringRuntimeCode = runtimeTemplate =>
 	`var rangeToString = ${runtimeTemplate.basicFunction("range", [
 		"// see webpack/lib/util/semver.js for original code",
-		'if(1===range.length)return"*";if(0 in range){var r="",n=range[0];r+=0==n?">=":-1==n?"<":1==n?"^":2==n?"~":n>0?"=":"!=";for(var e=1,a=1;a<range.length;a++){e--,r+="u"==(typeof(t=range[a]))[0]?"-":(e>0?".":"")+(e=2,t)}return r}var g=[];for(a=1;a<range.length;a++){var t=range[a];g.push(0===t?"not("+o()+")":1===t?"("+o()+" || "+o()+")":2===t?g.pop()+" "+g.pop():rangeToString(t))}return o();function o(){return g.pop().replace(/^\\((.+)\\)$/,"$1")}'
+		'var r=range[0],n="";if(1===range.length)return"*";if(r+.5){n+=0==r?">=":-1==r?"<":1==r?"^":2==r?"~":r>0?"=":"!=";for(var e=1,a=1;a<range.length;a++){e--,n+="u"==(typeof(t=range[a]))[0]?"-":(e>0?".":"")+(e=2,t)}return n}var g=[];for(a=1;a<range.length;a++){var t=range[a];g.push(0===t?"not("+o()+")":1===t?"("+o()+" || "+o()+")":2===t?g.pop()+" "+g.pop():rangeToString(t))}return o();function o(){return g.pop().replace(/^\\((.+)\\)$/,"$1")}'
 	])}`;
 //#endregion
 
@@ -133185,7 +133327,7 @@ module.exports = eval("require")("pnpapi");
 /***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
-exports.parse=parse;exports.init=void 0;const A=1===new Uint8Array(new Uint16Array([1]).buffer)[0];function parse(E,g="@"){if(!B)return init.then(()=>parse(E));const I=E.length+1,D=(B.__heap_base.value||B.__heap_base)+4*I-B.memory.buffer.byteLength;D>0&&B.memory.grow(Math.ceil(D/65536));const w=B.sa(I-1);if((A?C:Q)(E,new Uint16Array(B.memory.buffer,w,I)),!B.parse())throw Object.assign(new Error(`Parse error ${g}:${E.slice(0,B.e()).split("\n").length}:${B.e()-E.lastIndexOf("\n",B.e()-1)}`),{idx:B.e()});const L=[],k=[];for(;B.ri();){const A=B.is(),Q=B.ie();let C;B.ip()&&(C=N(E.slice(A-1,Q+1))),L.push({n:C,s:A,e:Q,ss:B.ss(),se:B.se(),d:B.id()})}for(;B.re();)k.push(E.slice(B.es(),B.ee()));function N(A){try{return(0,eval)(A)}catch{}}return[L,k,!!B.f()]}function Q(A,Q){const C=A.length;let B=0;for(;B<C;){const C=A.charCodeAt(B);Q[B++]=(255&C)<<8|C>>>8}}function C(A,Q){const C=A.length;let B=0;for(;B<C;)Q[B]=A.charCodeAt(B++)}let B;const init=WebAssembly.compile((E="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","undefined"!=typeof window&&"function"==typeof atob?Uint8Array.from(atob(E),A=>A.charCodeAt(0)):Buffer.from(E,"base64"))).then(WebAssembly.instantiate).then(({exports:A})=>{B=A});exports.init=init;var E;
+exports.parse=parse;exports.init=void 0;const A=1===new Uint8Array(new Uint16Array([1]).buffer)[0];function parse(g,E="@"){if(!C)return init.then(()=>parse(g));const I=g.length+1,w=(C.__heap_base.value||C.__heap_base)+4*I-C.memory.buffer.byteLength;w>0&&C.memory.grow(Math.ceil(w/65536));const D=C.sa(I-1);if((A?B:Q)(g,new Uint16Array(C.memory.buffer,D,I)),!C.parse())throw Object.assign(new Error(`Parse error ${E}:${g.slice(0,C.e()).split("\n").length}:${C.e()-g.lastIndexOf("\n",C.e()-1)}`),{idx:C.e()});const L=[],k=[];for(;C.ri();){const A=C.is(),Q=C.ie();let B;C.ip()&&(B=o(g.slice(A-1,Q+1))),L.push({n:B,s:A,e:Q,ss:C.ss(),se:C.se(),d:C.id()})}for(;C.re();)k.push(g.slice(C.es(),C.ee()));function o(A){try{return(0,eval)(A)}catch{}}return[L,k,!!C.f()]}function Q(A,Q){const B=A.length;let C=0;for(;C<B;){const B=A.charCodeAt(C);Q[C++]=(255&B)<<8|B>>>8}}function B(A,Q){const B=A.length;let C=0;for(;C<B;)Q[C]=A.charCodeAt(C++)}let C;const init=WebAssembly.compile((g="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AuAIIgJBAmoiADYC4AggAkEAKALkCEkNAAsLIAELWAACQAJAIAFBIkYNACABQSdHDQFBACgC4AghARAcIAAgAUECakEAKALgCEEAKAKECBABDwtBACgC4AghARAbIAAgAUECakEAKALgCEEAKAKECBABDwsQHgtoAQJ/QQEhAQJAAkAgAEFfaiICQQVLDQBBASACdEExcQ0BCyAAQfj/A3FBKEYNACAAQUZqQf//A3FBBkkNAAJAIABBpX9qIgJBA0sNACACQQFHDQELIABBhX9qQf//A3FBBEkhAQsgAQttAQJ/AkACQANAAkAgAEH//wNxIgFBd2oiAkEXSw0AQQEgAnRBn4CABHENAgsgAUGgAUYNASAAIQIgARApDQJBACECQQBBACgC4AgiAEECajYC4AggAC8BAiIADQAMAgsLIAAhAgsgAkH//wNxC1wBAn8CQEEAKALgCCICLwEAIgNB4QBHDQBBACACQQRqNgLgCBAnIQJBACgC4AghACACECoaQQAoAuAIIQEQJyEDQQAoAuAIIQILAkAgAiAARg0AIAAgARACCyADC4kBAQV/QQAoAuAIIQBBACgC5AghAQN/IABBAmohAgJAAkAgACABTw0AIAIvAQAiA0Gkf2oiBEEBTQ0BIAIhACADQXZqIgNBA0sNAiACIQAgAw4EAAICAAALQQAgAjYC4AgQHkEADwsCQAJAIAQOAgEAAQtBACACNgLgCEHdAA8LIABBBGohAAwACwtJAQF/QQAhBwJAIAAvAQogBkcNACAALwEIIAVHDQAgAC8BBiAERw0AIAAvAQQgA0cNACAALwECIAJHDQAgAC8BACABRiEHCyAHC1MBAX9BACEIAkAgAC8BDCAHRw0AIAAvAQogBkcNACAALwEIIAVHDQAgAC8BBiAERw0AIAAvAQQgA0cNACAALwECIAJHDQAgAC8BACABRiEICyAICwsfAgBBgAgLAgAAAEGECAsQAQAAAAIAAAAABAAAcDgAAA==","undefined"!=typeof window&&"function"==typeof atob?Uint8Array.from(atob(g),A=>A.charCodeAt(0)):Buffer.from(g,"base64"))).then(WebAssembly.instantiate).then(({exports:A})=>{C=A});exports.init=init;var g;
 
 /***/ }),
 
