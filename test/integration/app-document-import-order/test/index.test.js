@@ -87,7 +87,7 @@ describe('Root components import order', () => {
     afterAll(() => killApp(app))
 
     it(
-      'root components should be imported in this order _document > _app > page in order to respect side effects',
+      'root components should be imported in this order _app > _document > page in order to respect side effects',
       respectsSideEffects
     )
 
