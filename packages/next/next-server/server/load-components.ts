@@ -59,8 +59,8 @@ export async function loadComponents(
     } as LoadComponentsReturnType
   }
 
-  const AppMod = await requirePage('/_app', distDir, serverless)
   const DocumentMod = await requirePage('/_document', distDir, serverless)
+  const AppMod = await requirePage('/_app', distDir, serverless)
   const ComponentMod = await requirePage(pathname, distDir, serverless)
 
   const [

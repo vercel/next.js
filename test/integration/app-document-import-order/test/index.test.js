@@ -38,7 +38,7 @@ describe('Root components import order', () => {
     const html = await res.text()
     const $ = cheerio.load(html)
 
-    const expectSideEffectsOrder = ['_app', '_document', 'page']
+    const expectSideEffectsOrder = ['_document', '_app', 'page']
 
     const sideEffectCalls = $('.side-effect-calls')
 
@@ -87,7 +87,7 @@ describe('Root components import order', () => {
     afterAll(() => killApp(app))
 
     it(
-      'root components should be imported in this order _app > _document > page in order to respect side effects',
+      'root components should be imported in this order _document > _app > page in order to respect side effects',
       respectsSideEffects
     )
 
