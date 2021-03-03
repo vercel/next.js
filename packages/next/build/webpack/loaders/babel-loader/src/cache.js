@@ -4,14 +4,14 @@ import transform from './transform'
 import cacache from 'next/dist/compiled/cacache'
 
 async function read(cacheDirectory, etag) {
-  const cachedResult = await trace('read-cache-file').traceAsyncFn(
+  const cachedResult = await trace('read-cache-file').traceAsyncFn(() =>
     cacache.get(cacheDirectory, etag)
   )
   return JSON.parse(cachedResult.data)
 }
 
 function write(cacheDirectory, etag, data) {
-  return trace('write-cache-file').traceAsyncFn(
+  return trace('write-cache-file').traceAsyncFn(() =>
     cacache.put(cacheDirectory, etag, JSON.stringify(data))
   )
 }

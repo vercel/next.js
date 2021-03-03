@@ -33,6 +33,10 @@ export class Span {
     this._start = process.hrtime.bigint()
   }
 
+  // Durations are reported as microseconds. This gives 1000x the precision
+  // of something like Date.now(), which reports in milliseconds.
+  // Additionally, ~285 years can be safely represented as microseconds as
+  // a float64 in both JSON and JavaScript.
   stop() {
     const end: bigint = process.hrtime.bigint()
     const duration = (end - this._start) / ONE_THOUSAND
@@ -68,10 +72,6 @@ export class Span {
   }
 }
 
-// This function reports durations in microseconds. This gives 1000x
-// the precision of something like Date.now(), which reports in
-// milliseconds.  Additionally, ~285 years can be safely represented
-// as microseconds as a float64 in both JSON and JavaScript.
 export const trace = (name: string, parentId?: SpanId, attrs?: Object) => {
   return new Span(name, parentId, attrs)
 }

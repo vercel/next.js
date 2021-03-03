@@ -106,6 +106,8 @@ if (typeof React.Suspense === 'undefined') {
 process.on('SIGTERM', () => process.exit(0))
 process.on('SIGINT', () => process.exit(0))
 
+commands[command]().then((exec) => exec(forwardedArgs))
+
 if (command === 'dev') {
   const { CONFIG_FILE } = require('../next-server/lib/constants')
   const { watchFile } = require('fs')
