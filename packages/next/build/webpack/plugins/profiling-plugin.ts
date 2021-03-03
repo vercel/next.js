@@ -1,11 +1,5 @@
 import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import {
-  traceLevel,
-  trace,
-  stackPush,
-  stackPop,
-  Span,
-} from '../../../telemetry/trace'
+import { trace, stackPush, stackPop, Span } from '../../../telemetry/trace'
 
 const pluginName = 'ProfilingPlugin'
 export const spans = new WeakMap<any, Span>()
@@ -23,10 +17,6 @@ export class ProfilingPlugin {
   compiler: any
 
   apply(compiler: any) {
-    // Only enable plugin when instrumentation is loaded
-    if (traceLevel === 0) {
-      return
-    }
     this.traceTopLevelHooks(compiler)
     this.traceCompilationHooks(compiler)
     this.compiler = compiler
