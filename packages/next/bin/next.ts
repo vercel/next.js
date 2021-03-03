@@ -2,7 +2,6 @@
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import opentelemetryApi from '@opentelemetry/api'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -106,19 +105,6 @@ if (typeof React.Suspense === 'undefined') {
 // Make sure commands gracefully respect termination signals (e.g. from Docker)
 process.on('SIGTERM', () => process.exit(0))
 process.on('SIGINT', () => process.exit(0))
-
-commands[command]()
-  .then((exec) => exec(forwardedArgs))
-  .then(async () => {
-    if (command === 'build') {
-      // @ts-ignore getDelegate exists
-      const tp = opentelemetryApi.trace.getTracerProvider().getDelegate()
-      if (tp.shutdown) {
-        await tp.shutdown()
-      }
-      process.exit(0)
-    }
-  })
 
 if (command === 'dev') {
   const { CONFIG_FILE } = require('../next-server/lib/constants')
