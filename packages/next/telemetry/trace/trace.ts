@@ -1,5 +1,5 @@
 import { randomBytes } from 'crypto'
-import { SpanId } from './types'
+import { SpanId } from './shared'
 import { report } from './report'
 
 const NUM_OF_MICROSEC_IN_SEC = BigInt('1000')

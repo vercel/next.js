@@ -1,4 +1,4 @@
-import { TARGET, SpanId } from '../types'
+import { TARGET, SpanId } from '../shared'
 import reportToConsole from './to-console'
 import reportToZipkin from './to-zipkin'
 import reportToTelemetry from './to-telemetry'

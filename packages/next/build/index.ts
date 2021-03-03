@@ -70,7 +70,7 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
-import { trace } from '../telemetry/trace'
+import { trace, setGlobal } from '../telemetry/trace'
 import {
   collectPages,
   detectConflictingPaths,
@@ -156,6 +156,7 @@ export default async function build(
     })
 
     const telemetry = new Telemetry({ distDir })
+    setGlobal('telemetry', telemetry)
 
     const publicDir = path.join(dir, 'public')
     const pagesDir = findPagesDir(dir)

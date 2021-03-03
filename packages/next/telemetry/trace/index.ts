@@ -1,6 +1,6 @@
 import { trace, Span, SpanStatus } from './trace'
 import { noop } from './report'
-import { SpanId } from './types'
+import { SpanId, setGlobal } from './shared'
 import { stackPush, stackPop } from './autoparent'
 
 const traceLevel = process.env.TRACE_LEVEL
@@ -21,4 +21,5 @@ export {
   SpanStatus,
   stackPush,
   stackPop,
+  setGlobal,
 }
