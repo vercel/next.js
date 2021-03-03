@@ -36,6 +36,11 @@ export class FontStylesheetGatheringPlugin {
   compiler?: webpack.Compiler
   gatheredStylesheets: Array<string> = []
   manifestContent: FontManifest = []
+  isLikeServerless: boolean
+
+  constructor({ isLikeServerless }: { isLikeServerless: boolean }) {
+    this.isLikeServerless = isLikeServerless
+  }
 
   private parserHandler = (
     factory: webpack.compilation.NormalModuleFactory
@@ -137,8 +142,7 @@ export class FontStylesheetGatheringPlugin {
       this.parserHandler
     )
     compiler.hooks.make.tapAsync(this.constructor.name, (compilation, cb) => {
-      // @ts-ignore
-      if (compilation.options.output.path.endsWith('serverless')) {
+      if (this.isLikeServerless) {
         /**
          * Inline font manifest for serverless case only.
          * For target: server drive the manifest through physical file and less of webpack magic.
@@ -196,7 +200,7 @@ export class FontStylesheetGatheringPlugin {
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
           },
           (assets: any) => {
-            assets[FONT_MANIFEST] = new sources.RawSource(
+            assets['../' + FONT_MANIFEST] = new sources.RawSource(
               JSON.stringify(this.manifestContent, null, '  ')
             )
           }
