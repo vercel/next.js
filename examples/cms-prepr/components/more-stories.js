@@ -1,5 +1,4 @@
 import PostPreview from '../components/post-preview'
-import HeroPost from "./hero-post";
 
 export default function MoreStories({ posts }) {
   return (

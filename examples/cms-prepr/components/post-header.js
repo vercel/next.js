@@ -15,7 +15,10 @@ export default function PostHeader({ title, coverImage, date, author }) {
       </div>
       <div className="max-w-2xl mx-auto">
         <div className="block mb-6 md:hidden">
-          <Avatar name={author.name} picture={author.cover[0].cdn_files[0].url} />
+          <Avatar
+            name={author.name}
+            picture={author.cover[0].cdn_files[0].url}
+          />
         </div>
         <div className="mb-6 text-lg">
           <Date dateString={date} />

@@ -1,19 +1,19 @@
-import { createPreprClient } from "@preprio/nodejs-sdk";
+import { createPreprClient } from '@preprio/nodejs-sdk'
 
 const prepr = createPreprClient({
-    token: process.env.PREPRIO_PRODUCTION_TOKEN,
-    timeout: 4000,
-    baseUrl: process.env.PREPRIO_API,
-});
+  token: process.env.PREPRIO_PRODUCTION_TOKEN,
+  timeout: 4000,
+  baseUrl: process.env.PREPRIO_API,
+})
 
-export { prepr };
+export { prepr }
 
 export async function getAllPostsForHome(preview) {
-
-    // Query publications
-    const data = (await prepr
-        .graphqlQuery(
-            `
+  // Query publications
+  const data =
+    (await prepr
+      .graphqlQuery(
+        `
       query {
         Posts {
           items {
@@ -38,21 +38,23 @@ export async function getAllPostsForHome(preview) {
           }
         }
       }`
-        )
-        .token(        preview
-            ? process.env.PREPRIO_PREVIEW_TOKEN
-            : process.env.PREPRIO_PRODUCTION_TOKEN)
-        .fetch() ) || []
+      )
+      .token(
+        preview
+          ? process.env.PREPRIO_PREVIEW_TOKEN
+          : process.env.PREPRIO_PRODUCTION_TOKEN
+      )
+      .fetch()) || []
 
-    return data.data.Posts.items
+  return data.data.Posts.items
 }
 
 export async function getAllPostsWithSlug() {
-
-    // Query publications
-    const data = (await prepr
-        .graphqlQuery(
-            `
+  // Query publications
+  const data =
+    (await prepr
+      .graphqlQuery(
+        `
       query {
         Posts {
           items {
@@ -60,18 +62,18 @@ export async function getAllPostsWithSlug() {
           }
         }
       }`
-        )
-        .fetch() ) || []
+      )
+      .fetch()) || []
 
-    return data.data.Posts.items
+  return data.data.Posts.items
 }
 
 export async function getPostAndMorePosts(slug, preview) {
-
-    // Query publications
-    const data = (await prepr
-        .graphqlQuery(
-            `
+  // Query publications
+  const data =
+    (await prepr
+      .graphqlQuery(
+        `
       query slugPost($slug: String!) {
         Post ( slug : $slug) {
             _id,
@@ -117,36 +119,38 @@ export async function getPostAndMorePosts(slug, preview) {
           }
         }          
       }`
-        )
-        .graphqlVariables({
-                slug: slug
-            })
-        .token(        preview
-            ? process.env.PREPRIO_PREVIEW_TOKEN
-            : process.env.PREPRIO_PRODUCTION_TOKEN)
-        .fetch() ) || []
+      )
+      .graphqlVariables({
+        slug: slug,
+      })
+      .token(
+        preview
+          ? process.env.PREPRIO_PREVIEW_TOKEN
+          : process.env.PREPRIO_PRODUCTION_TOKEN
+      )
+      .fetch()) || []
 
-    return data.data
+  return data.data
 }
 
 export async function getPreviewPostBySlug(slug) {
-
-    // Query publications
-    const data = (await prepr
-        .graphqlQuery(
-            `
+  // Query publications
+  const data =
+    (await prepr
+      .graphqlQuery(
+        `
       query preview($slug: String!) {
         Post ( slug : $slug) {
             _id,
             slug : _slug
           }          
       }`
-        )
-        .token(process.env.PREPRIO_PREVIEW_TOKEN)
-        .graphqlVariables({
-            slug: slug
-        })
-        .fetch() ) || []
+      )
+      .token(process.env.PREPRIO_PREVIEW_TOKEN)
+      .graphqlVariables({
+        slug: slug,
+      })
+      .fetch()) || []
 
-    return data.data.Post
+  return data.data.Post
 }
