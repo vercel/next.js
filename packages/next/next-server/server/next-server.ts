@@ -373,10 +373,9 @@ export default class Server {
       // interpolate dynamic params and normalize URL if needed
       if (pageIsDynamic) {
         let params: ParsedUrlQuery | false = {}
-        const paramsResult = utils.normalizeDynamicRouteParams({
-          ...parsedUrl.query,
-          ...query,
-        })
+
+        Object.assign(parsedUrl.query, query)
+        const paramsResult = utils.normalizeDynamicRouteParams(parsedUrl.query)
 
         if (paramsResult.hasValidParams) {
           params = paramsResult.params
@@ -411,6 +410,7 @@ export default class Server {
             pathname: matchedPathname,
           })
         }
+
         Object.assign(parsedUrl.query, params)
         utils.normalizeVercelUrl(req, true)
       }
