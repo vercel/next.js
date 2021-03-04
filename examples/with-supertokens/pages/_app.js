@@ -1,11 +1,11 @@
 import '../styles/globals.css'
 import React from 'react'
 import SuperTokensReact from 'supertokens-auth-react'
-import EmailPasswordReact from 'supertokens-auth-react/recipe/emailpassword'
+import ThirdPartyEmailPasswordReact from 'supertokens-auth-react/recipe/thirdpartyemailpassword'
 import SessionReact from 'supertokens-auth-react/recipe/session'
 import SuperTokensNode from 'supertokens-node'
 import SessionNode from 'supertokens-node/recipe/session'
-import EmailPasswordNode from 'supertokens-node/recipe/emailpassword'
+import ThirdPartyEmailPasswordNode from 'supertokens-node/recipe/thirdpartyemailpassword'
 const port = process.env.APP_PORT || 3000
 const websiteDomain =
   process.env.APP_URL ||
@@ -24,9 +24,16 @@ if (typeof window !== 'undefined') {
       apiBasePath,
     },
     recipeList: [
-      EmailPasswordReact.init({
+      ThirdPartyEmailPasswordReact.init({
         emailVerificationFeature: {
           mode: 'REQUIRED',
+        },
+        signInAndUpFeature: {
+          providers: [
+            ThirdPartyEmailPasswordReact.Google.init(),
+            ThirdPartyEmailPasswordReact.Github.init(),
+            ThirdPartyEmailPasswordReact.Facebook.init(),
+          ],
         },
       }),
       SessionReact.init(),
@@ -44,7 +51,25 @@ if (typeof window !== 'undefined') {
       apiDomain: websiteDomain,
       apiBasePath,
     },
-    recipeList: [EmailPasswordNode.init(), SessionNode.init()],
+    recipeList: [
+      ThirdPartyEmailPasswordNode.init({
+        providers: [
+          ThirdPartyEmailPasswordNode.Google({
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            clientId: process.env.GOOGLE_CLIENT_ID,
+          }),
+          ThirdPartyEmailPasswordNode.Github({
+            clientSecret: process.env.GITHUB_CLIENT_SECRET,
+            clientId: process.env.GITHUB_CLIENT_ID,
+          }),
+          ThirdPartyEmailPasswordNode.Facebook({
+            clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+            clientId: process.env.FACEBOOK_CLIENT_ID,
+          }),
+        ],
+      }),
+      SessionNode.init(),
+    ],
   })
 }
 
