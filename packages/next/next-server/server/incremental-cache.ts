@@ -211,11 +211,31 @@ export class IncrementalCache {
     }
   }
 
-  resetKeys(pagesToRefresh: string[]): void {
+  resetKeys(pagesToRefresh: string[], locales: string[]): void {
     try {
-      const keysToRemove = pagesToRefresh.map((page) =>
+      let keysToRemove: string[] = []
+
+      const pagesToRefreshPaths = pagesToRefresh.map((page) =>
         page.startsWith('/') ? page : path.join('/', page)
       )
+
+      const pagesToRefreshPathsWithLocales =
+        locales.length > 0
+          ? pagesToRefreshPaths
+              .map((pagePath) =>
+                locales.map((locale) => {
+                  // Root pages are just locale
+                  if (pagePath === '/index') {
+                    return path.join('/', locale)
+                  }
+
+                  return path.join('/', locale, pagePath)
+                })
+              )
+              .flat()
+          : pagesToRefreshPaths
+
+      keysToRemove = pagesToRefreshPathsWithLocales
 
       // Remove cache entries
       this.cache.forEach((_, key) => {
@@ -225,7 +245,7 @@ export class IncrementalCache {
       })
 
       // Remove generated files
-      pagesToRefresh.forEach((pathname) => {
+      pagesToRefreshPathsWithLocales.forEach((pathname) => {
         const htmlFilePath = this.getSeedPath(pathname, 'html')
         const jsonFilePath = this.getSeedPath(pathname, 'json')
 

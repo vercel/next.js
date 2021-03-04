@@ -983,11 +983,13 @@ export default class Server {
               const body = buffer.toString()
               const parsedBody = parseJson(body) as {
                 pagesToRefresh: string[] | undefined
+                locales: string[] | undefined
               }
               const pagesToRefresh = parsedBody.pagesToRefresh
+              const locales = parsedBody.locales || []
 
               if (pagesToRefresh && pagesToRefresh.length > 0) {
-                this.incrementalCache.resetKeys(pagesToRefresh)
+                this.incrementalCache.resetKeys(pagesToRefresh, locales)
               } else {
                 throw new ApiError(415, 'Unsupported Media Type')
               }
