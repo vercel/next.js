@@ -8,7 +8,7 @@ import {
   GSP_NO_RETURNED_VALUE,
   GSSP_COMPONENT_MEMBER_ERROR,
   GSSP_NO_RETURNED_VALUE,
-  PAGES_404_GET_INITIAL_PROPS_ERROR,
+  STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   SERVER_PROPS_GET_INIT_PROPS_CONFLICT,
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
@@ -22,6 +22,7 @@ import {
   AMP_RENDER_TARGET,
   SERVER_PROPS_ID,
   STATIC_PROPS_ID,
+  STATIC_STATUS_PAGES,
 } from '../lib/constants'
 import { defaultHead } from '../lib/head'
 import { HeadManagerContext } from '../lib/head-manager-context'
@@ -536,7 +537,17 @@ export async function renderToHTML(
     }
 
     if (pathname === '/404' && (hasPageGetInitialProps || getServerSideProps)) {
-      throw new Error(PAGES_404_GET_INITIAL_PROPS_ERROR)
+      throw new Error(
+        `\`pages/404\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
+      )
+    }
+    if (
+      STATIC_STATUS_PAGES.includes(pathname) &&
+      (hasPageGetInitialProps || getServerSideProps)
+    ) {
+      throw new Error(
+        `\`pages${pathname}\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
+      )
     }
   }
   if (isAutoExport) renderOpts.autoExport = true
