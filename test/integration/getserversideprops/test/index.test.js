@@ -616,6 +616,32 @@ const runTests = (dev = false) => {
     expect(curRandom).toBe(initialRandom + '')
   })
 
+  it('should dedupe server data requests', async () => {
+    const browser = await webdriver(appPort, '/')
+    await waitFor(2000)
+
+    // Keep clicking on the link
+    await browser.elementByCss('#slow').click()
+    await browser.elementByCss('#slow').click()
+    await browser.elementByCss('#slow').click()
+    await browser.elementByCss('#slow').click()
+
+    await check(() => getBrowserBodyText(browser), /a slow page/)
+
+    // Requests should be deduped
+    const hitCount = await browser.elementByCss('#hit').text()
+    expect(hitCount).toBe('hit: 1')
+
+    // Should send request again
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#slow')
+    await browser.elementByCss('#slow').click()
+    await check(() => getBrowserBodyText(browser), /a slow page/)
+
+    const newHitCount = await browser.elementByCss('#hit').text()
+    expect(newHitCount).toBe('hit: 2')
+  })
+
   if (dev) {
     it('should not show warning from url prop being returned', async () => {
       const urlPropPage = join(appDir, 'pages/url-prop.js')
