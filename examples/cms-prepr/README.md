@@ -24,7 +24,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [Storyblok](/examples/cms-storyblok)
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
-- [GraphCMS](/examples/cms-graphcms)  
+- [GraphCMS](/examples/cms-graphcms)
 - [Blog Starter](/examples/blog-starter)
 
 ## Getting Started
@@ -51,7 +51,7 @@ First, [create an account in Prepr](https://prepr.io).
 
 ### Step 2. Create Author model
 
-From your Prepr dashboard, click **Settings** -> **Models** 
+From your Prepr dashboard, click **Settings** -> **Models**
 
 Click on the arrow next to **Add model** and select **Import**.
 

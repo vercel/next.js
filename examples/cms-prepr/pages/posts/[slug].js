@@ -20,39 +20,38 @@ export default function Post({ post, morePosts, preview }) {
   }
 
   return (
-      <Layout preview={preview}>
-        <Container>
-          <Header />
-          {router.isFallback ? (
-              <PostTitle>Loading…</PostTitle>
-          ) : (
-              <>
-                <article>
-                  <Head>
-                    <title>
-                      {post.title} | Next.js Blog Example with {CMS_NAME}
-                    </title>
-                    {/* <meta property="og:image" content={post.ogImage.url} /> */}
-                  </Head>
-                  <PostHeader
-                      title={post.title}
-                      coverImage={post.cover[0].cdn_files[0].url}
-                      date={post.date}
-                      author={post.author[0]}
-                  />
-                  <PostBody content={post.content} />
-                </article>
-                <SectionSeparator />
-                {morePosts.length > 0 && <MoreStories posts={morePosts} />}
-              </>
-          )}
-        </Container>
-      </Layout>
+    <Layout preview={preview}>
+      <Container>
+        <Header />
+        {router.isFallback ? (
+          <PostTitle>Loading…</PostTitle>
+        ) : (
+          <>
+            <article>
+              <Head>
+                <title>
+                  {post.title} | Next.js Blog Example with {CMS_NAME}
+                </title>
+                {/* <meta property="og:image" content={post.ogImage.url} /> */}
+              </Head>
+              <PostHeader
+                title={post.title}
+                coverImage={post.cover[0].cdn_files[0].url}
+                date={post.date}
+                author={post.author[0]}
+              />
+              <PostBody content={post.content} />
+            </article>
+            <SectionSeparator />
+            {morePosts.length > 0 && <MoreStories posts={morePosts} />}
+          </>
+        )}
+      </Container>
+    </Layout>
   )
 }
 
 export async function getStaticProps({ params, preview = false }) {
-
   const data = await getPostAndMorePosts(params.slug, preview)
 
   return {
@@ -65,7 +64,6 @@ export async function getStaticProps({ params, preview = false }) {
 }
 
 export async function getStaticPaths() {
-
   const posts = await getAllPostsWithSlug()
 
   return {

@@ -11,27 +11,27 @@ export default function Index({ posts, preview }) {
   const heroPost = posts[0]
   const morePosts = posts.slice(1)
   return (
-      <>
-        <Layout preview={preview}>
-          <Head>
-            <title>Next.js Blog Example with {CMS_NAME}</title>
-          </Head>
-          <Container>
-            <Intro />
-            {heroPost && (
-                <HeroPost
-                    title={heroPost.title}
-                    coverImage={heroPost.cover[0].cdn_files[0].url}
-                    date={heroPost.date}
-                    author={heroPost.author[0]}
-                    slug={heroPost._slug}
-                    excerpt={heroPost.summary}
-                />
-            )}
-            {morePosts.length > 0 && <MoreStories posts={morePosts} />}
-          </Container>
-        </Layout>
-      </>
+    <>
+      <Layout preview={preview}>
+        <Head>
+          <title>Next.js Blog Example with {CMS_NAME}</title>
+        </Head>
+        <Container>
+          <Intro />
+          {heroPost && (
+            <HeroPost
+              title={heroPost.title}
+              coverImage={heroPost.cover[0].cdn_files[0].url}
+              date={heroPost.date}
+              author={heroPost.author[0]}
+              slug={heroPost._slug}
+              excerpt={heroPost.summary}
+            />
+          )}
+          {morePosts.length > 0 && <MoreStories posts={morePosts} />}
+        </Container>
+      </Layout>
+    </>
   )
 }
 
