@@ -9,6 +9,9 @@ declare module 'cssnano-simple' {
 }
 declare module 'styled-jsx/server'
 
+// Make sure `.js` modules do not throw explicit any error
+declare module '*'
+
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
   export = m

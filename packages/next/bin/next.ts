@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import * as log from '../build/output/log'
-import arg from 'next/dist/compiled/arg/index.js'
+import arg from '../compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import opentelemetryApi from '@opentelemetry/api'
 ;['react', 'react-dom'].forEach((dependency) => {
