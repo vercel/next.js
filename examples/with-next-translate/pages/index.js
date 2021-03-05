@@ -3,14 +3,25 @@ import Trans from 'next-translate/Trans'
 import useTranslation from 'next-translate/useTranslation'
 import Layout from '../components/Layout'
 
+/**
+ * detects if the current language is RTL
+ * @param {string} langCode language code ISO 639-1 codes
+ * @returns {boolean}
+ */
+function getIsRTL(langCode) {
+  const rtlLanguages = { ar: 'arabic', he: 'hebrew' }
+
+  return rtlLanguages[langCode]
+}
+
 export default function Home() {
   const { t, lang } = useTranslation()
-  const arrow =
-    lang === 'ar' ? String.fromCharCode(8592) : String.fromCharCode(8594)
+  const isRTL = getIsRTL(lang)
+  const arrow = isRTL ? String.fromCharCode(8592) : String.fromCharCode(8594)
 
   return (
     <Layout>
-      <main dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      <main dir={isRTL ? 'rtl' : 'ltr'}>
         <Trans
           i18nKey="home:title"
           components={[
@@ -42,6 +53,13 @@ export default function Home() {
             <div className="card">
               <h3>{t('home:arabic')}</h3>
               <p>{t('home:change-arabic')}</p>
+            </div>
+          </Link>
+
+          <Link href="/" locale="he">
+            <div className="card">
+              <h3>{t('home:hebrew')}</h3>
+              <p>{t('home:change-hebrew')}</p>
             </div>
           </Link>
 
@@ -137,6 +155,10 @@ export default function Home() {
           margin: 0;
           font-size: 1.25rem;
           line-height: 1.5;
+        }
+
+        [dir='rtl'] p {
+          text-align: right;
         }
 
         @media (max-width: 600px) {
