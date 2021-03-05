@@ -508,4 +508,30 @@ describe('Required Server Files', () => {
     expect(json.query).toEqual({ another: 'value' })
     expect(json.url).toBe('/api/optional?another=value')
   })
+
+  it('should match the index page correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/', undefined, {
+      headers: {
+        'x-matched-path': '/index',
+      },
+      redirect: 'manual',
+    })
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#index').text()).toBe('index page')
+  })
+
+  it('should match the root dyanmic page correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/index', undefined, {
+      headers: {
+        'x-matched-path': '/[slug]',
+      },
+      redirect: 'manual',
+    })
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#slug-page').text()).toBe('[slug] page')
+  })
 })

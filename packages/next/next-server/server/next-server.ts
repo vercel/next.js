@@ -340,7 +340,7 @@ export default class Server {
       const { pathname, query } = parsedPath
       let matchedPathname = pathname as string
 
-      const matchedPathnameNoExt = isDataUrl
+      let matchedPathnameNoExt = isDataUrl
         ? matchedPathname.replace(/\.json$/, '')
         : matchedPathname
 
@@ -353,6 +353,11 @@ export default class Server {
         if (localePathResult.detectedLocale) {
           parsedUrl.query.__nextLocale = localePathResult.detectedLocale
         }
+      }
+
+      if (isDataUrl) {
+        matchedPathname = denormalizePagePath(matchedPathname)
+        matchedPathnameNoExt = denormalizePagePath(matchedPathnameNoExt)
       }
 
       const pageIsDynamic = isDynamicRoute(matchedPathnameNoExt)
