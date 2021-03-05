@@ -4,11 +4,13 @@ import useTranslation from 'next-translate/useTranslation'
 import Layout from '../components/Layout'
 
 export default function Home() {
-  const { t } = useTranslation()
+  const { t, lang } = useTranslation()
+  const arrow =
+    lang === 'ar' ? String.fromCharCode(8592) : String.fromCharCode(8594)
 
   return (
     <Layout>
-      <main>
+      <main dir={lang === 'ar' ? 'rtl' : 'ltr'}>
         <Trans
           i18nKey="home:title"
           components={[
@@ -36,8 +38,15 @@ export default function Home() {
             </div>
           </Link>
 
+          <Link href="/" locale="ar">
+            <div className="card">
+              <h3>{t('home:arabic')}</h3>
+              <p>{t('home:change-arabic')}</p>
+            </div>
+          </Link>
+
           <a href="https://nextjs.org/docs" className="card">
-            <h3>Next.js &rarr;</h3>
+            <h3>Next.{`js ${arrow}`}</h3>
             <p>{t('home:next-docs')}</p>
           </a>
 
@@ -45,7 +54,7 @@ export default function Home() {
             href="https://github.com/vinissimus/next-translate"
             className="card"
           >
-            <h3>Learn &rarr;</h3>
+            <h3>{`Learn ${arrow}`}</h3>
             <p>{t('home:plugin-docs')}</p>
           </a>
         </div>
@@ -119,8 +128,9 @@ export default function Home() {
         }
 
         .card h3 {
-          margin: 0 0 1rem 0;
+          display: flex;
           font-size: 1.5rem;
+          margin: 0 0 1rem 0;
         }
 
         .card p {
