@@ -111,6 +111,21 @@ export async function ncc_async_sema(task, opts) {
     .target('compiled/async-sema')
 }
 
+// eslint-disable-next-line camelcase
+export async function ncc_babel_bundle(task, opts) {
+  const bundleExternals = { ...externals }
+  for (const pkg of Object.keys(babelBundlePackages))
+    delete bundleExternals[pkg]
+  await task
+    .source(opts.src || 'bundles/babel/bundle.js')
+    .ncc({
+      packageName: '@babel/core',
+      bundleName: 'babel',
+      externals: bundleExternals,
+    })
+    .target('compiled/babel')
+}
+
 const babelBundlePackages = {
   'code-frame': 'next/dist/compiled/babel/code-frame',
   '@babel/core': 'next/dist/compiled/babel/core',
@@ -683,6 +698,7 @@ export async function ncc(task, opts) {
         'ncc_arg',
         'ncc_async_retry',
         'ncc_async_sema',
+        'ncc_babel_bundle',
         'ncc_babel_bundle_packages',
         'ncc_bfj',
         'ncc_cacache',
