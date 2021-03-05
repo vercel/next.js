@@ -1,11 +1,11 @@
 import NativeModule from 'module'
 
-import loaderUtils from 'next/dist/compiled/loader-utils'
+import loaderUtils from '../../../../../compiled/loader-utils'
 import {
   webpack,
   isWebpack5,
   NodeTargetPlugin,
-} from 'next/dist/compiled/webpack/webpack'
+} from '../../../../../compiled/webpack/webpack'
 
 import CssDependency from './CssDependency'
 

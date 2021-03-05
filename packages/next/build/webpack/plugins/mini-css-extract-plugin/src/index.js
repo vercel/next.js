@@ -5,7 +5,7 @@ import {
   isWebpack5,
   onWebpackInit,
   sources,
-} from 'next/dist/compiled/webpack/webpack'
+} from '../../../../../compiled/webpack/webpack'
 
 import CssDependency from './CssDependency'
 import CssModule from './CssModule'

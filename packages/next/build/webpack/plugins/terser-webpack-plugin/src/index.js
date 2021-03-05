@@ -5,11 +5,11 @@ import {
   ModuleFilenameHelpers,
   isWebpack5,
   sources,
-} from 'next/dist/compiled/webpack/webpack'
+} from '../../../../../compiled/webpack/webpack'
 import pLimit from 'p-limit'
 import jestWorker from 'jest-worker'
 import crypto from 'crypto'
-import cacache from 'next/dist/compiled/cacache'
+import cacache from '../../../../../compiled/cacache'
 import { tracer, traceAsyncFn } from '../../../../tracer'
 import { spans } from '../../profiling-plugin'
 

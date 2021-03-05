@@ -2,7 +2,7 @@
 import { namedTypes } from 'ast-types'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { NodePath } from 'ast-types/lib/node-path'
-import { types } from 'next/dist/compiled/recast'
+import { types } from '../../../../../compiled/recast'
 import {
   CONFORMANCE_ERROR_PREFIX,
   CONFORMANCE_WARNING_PREFIX,

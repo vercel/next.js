@@ -1,4 +1,4 @@
-import findUp from 'next/dist/compiled/find-up'
+import findUp from '../../compiled/find-up'
 import { promises } from 'fs'
 import path from 'path'
 import { execOnce } from '../../next-server/lib/utils'

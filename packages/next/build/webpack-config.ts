@@ -1,13 +1,13 @@
-import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
+import { codeFrameColumns } from '../compiled/babel/code-frame'
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import crypto from 'crypto'
 import { readFileSync, realpathSync } from 'fs'
 import chalk from 'chalk'
-import semver from 'next/dist/compiled/semver'
+import semver from '../compiled/semver'
 // @ts-ignore No typings yet
 import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
 import path from 'path'
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { webpack, isWebpack5 } from '../compiled/webpack/webpack'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,

@@ -3,7 +3,7 @@ import {
   BasicEvaluatedExpression,
   isWebpack5,
   sources,
-} from 'next/dist/compiled/webpack/webpack'
+} from '../../../compiled/webpack/webpack'
 import { namedTypes } from 'ast-types'
 import {
   getFontDefinitionFromNetwork,

@@ -9,8 +9,15 @@ declare module 'cssnano-simple' {
 }
 declare module 'styled-jsx/server'
 
-// Make sure `.js` modules do not throw explicit any error
-declare module '*'
+declare module 'webpack5' {
+  import m from 'webpack'
+  export = m
+}
+
+declare module 'schema-utils3' {
+  import m from 'schema-utils'
+  export = m
+}
 
 declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
@@ -75,10 +82,6 @@ declare module 'next/dist/compiled/content-type' {
 }
 declare module 'next/dist/compiled/cookie' {
   import m from 'cookie'
-  export = m
-}
-declare module 'next/dist/compiled/debug' {
-  import m from 'debug'
   export = m
 }
 declare module 'next/dist/compiled/devalue' {

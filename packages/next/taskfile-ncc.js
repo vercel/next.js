@@ -57,7 +57,7 @@ module.exports = function (task) {
 // n.b. types intended for development usage only.
 function writePackageManifest(packageName, main, bundleName, precompiled) {
   const packagePath = bundleRequire.resolve(packageName + '/package.json')
-  let { name, author, license } = require(packagePath)
+  let { name, author, license, types, files } = require(packagePath)
 
   const compiledPackagePath = join(
     __dirname,
@@ -84,6 +84,7 @@ function writePackageManifest(packageName, main, bundleName, precompiled) {
     }
   }
 
+  const baseName = basename(main, '.' + extname(main))
   this._.files.push({
     dir: compiledPackagePath,
     base: 'package.json',
@@ -91,10 +92,39 @@ function writePackageManifest(packageName, main, bundleName, precompiled) {
       JSON.stringify(
         Object.assign(
           {},
-          { name, main: `${basename(main, '.' + extname(main))}` },
+          { name, main: `${baseName}` },
           author ? { author } : undefined,
           license ? { license } : undefined
         )
       ) + '\n',
   })
+
+  const hasAtTypes = (() => {
+    try {
+      require.resolve('@types/' + packageName)
+      return true
+    } catch (err) {
+      return false
+    }
+  })()
+
+  if (
+    types ||
+    (files && files.some((i) => i.endsWith('.d.ts'))) ||
+    hasAtTypes
+  ) {
+    this._.files.push({
+      dir: compiledPackagePath,
+      base: `${baseName}.d.ts`,
+      data: `import m from '${packageName}'
+      export = m`,
+    })
+  } else {
+    this._.files.push({
+      dir: compiledPackagePath,
+      base: `${baseName}.d.ts`,
+      data: `declare let def: any
+      export = def`,
+    })
+  }
 }

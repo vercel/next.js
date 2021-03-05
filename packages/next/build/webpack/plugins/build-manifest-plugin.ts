@@ -1,9 +1,5 @@
-import devalue from 'next/dist/compiled/devalue'
-import {
-  webpack,
-  isWebpack5,
-  sources,
-} from 'next/dist/compiled/webpack/webpack'
+import devalue from '../../../compiled/devalue'
+import { webpack, isWebpack5, sources } from '../../../compiled/webpack/webpack'
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,

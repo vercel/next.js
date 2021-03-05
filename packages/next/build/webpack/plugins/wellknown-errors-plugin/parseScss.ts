@@ -1,4 +1,4 @@
-import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
+import { codeFrameColumns } from '../../../../compiled/babel/code-frame'
 import Chalk from 'chalk'
 import { SimpleWebpackError } from './simpleWebpackError'
 

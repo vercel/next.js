@@ -4,7 +4,7 @@ import {
   PluginPass,
   types as BabelTypes,
   Visitor,
-} from 'next/dist/compiled/babel/core'
+} from '../../../compiled/babel/core'
 import { PageConfig } from 'next/types'
 import { STRING_LITERAL_DROP_BUNDLE } from '../../../next-server/lib/constants'
 

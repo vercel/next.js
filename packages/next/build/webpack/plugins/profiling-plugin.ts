@@ -1,5 +1,5 @@
 import { tracer, stackPush, stackPop } from '../../tracer'
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { webpack, isWebpack5 } from '../../../compiled/webpack/webpack'
 import {
   Span,
   trace,

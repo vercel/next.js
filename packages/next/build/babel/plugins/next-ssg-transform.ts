@@ -2,7 +2,7 @@ import {
   NodePath,
   PluginObj,
   types as BabelTypes,
-} from 'next/dist/compiled/babel/core'
+} from '../../../compiled/babel/core'
 import { SERVER_PROPS_SSG_CONFLICT } from '../../../lib/constants'
 import {
   SERVER_PROPS_ID,

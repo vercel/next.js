@@ -1,5 +1,5 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from '../../../compiled/webpack/webpack'
+import { isWebpack5 } from '../../../compiled/webpack/webpack'
 import { realpathSync } from 'fs'
 import path from 'path'
 

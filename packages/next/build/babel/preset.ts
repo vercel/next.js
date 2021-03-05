@@ -1,4 +1,4 @@
-import { PluginItem } from 'next/dist/compiled/babel/core'
+import { PluginItem } from '../../compiled/babel/core'
 import { dirname } from 'path'
 
 const isLoadIntentTest = process.env.NODE_ENV === 'test'

@@ -21,11 +21,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Implementation of this PR: https://github.com/jamiebuilds/react-loadable/pull/132
 // Modified to strip out unneeded results for Next's specific use case
 
-import {
-  webpack,
-  isWebpack5,
-  sources,
-} from 'next/dist/compiled/webpack/webpack'
+import { webpack, isWebpack5, sources } from '../../../compiled/webpack/webpack'
 
 function getModulesIterable(compilation: any, chunk: any) {
   if (isWebpack5) {

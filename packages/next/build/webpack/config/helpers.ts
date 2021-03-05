@@ -1,5 +1,5 @@
-import curry from 'next/dist/compiled/lodash.curry'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import curry from '../../../compiled/lodash.curry'
+import { webpack } from '../../../compiled/webpack/webpack'
 
 export const loader = curry(function loader(
   rule: webpack.RuleSetRule,

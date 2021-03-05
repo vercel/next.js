@@ -18,7 +18,7 @@ import accept from '@hapi/accept'
 import { detectLocaleCookie } from '../../../../next-server/lib/i18n/detect-locale-cookie'
 import { detectDomainLocale } from '../../../../next-server/lib/i18n/detect-domain-locale'
 import { denormalizePagePath } from '../../../../next-server/server/denormalize-page-path'
-import cookie from 'next/dist/compiled/cookie'
+import cookie from '../../../../compiled/cookie'
 import { TEMPORARY_REDIRECT_STATUS } from '../../../../next-server/lib/constants'
 import { NextConfig } from '../../../../next-server/server/config'
 

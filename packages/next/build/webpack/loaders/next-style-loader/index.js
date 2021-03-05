@@ -1,6 +1,6 @@
-import loaderUtils from 'next/dist/compiled/loader-utils'
+import loaderUtils from '../../../../compiled/loader-utils'
 import path from 'path'
-import { validate } from 'next/dist/compiled/schema-utils3'
+import { validate } from '../../../../compiled/schema-utils3'
 import isEqualLocals from './runtime/isEqualLocals'
 
 const schema = {

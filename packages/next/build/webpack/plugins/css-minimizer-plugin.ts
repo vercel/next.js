@@ -1,11 +1,7 @@
 import cssnanoSimple from 'cssnano-simple'
-import postcssScss from 'next/dist/compiled/postcss-scss'
+import postcssScss from '../../../compiled/postcss-scss'
 import postcss, { Parser } from 'postcss'
-import {
-  webpack,
-  isWebpack5,
-  sources,
-} from 'next/dist/compiled/webpack/webpack'
+import { webpack, isWebpack5, sources } from '../../../compiled/webpack/webpack'
 import { tracer, traceAsyncFn } from '../../tracer'
 import { spans } from './profiling-plugin'
 

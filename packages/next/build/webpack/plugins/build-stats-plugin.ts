@@ -1,9 +1,9 @@
 import fs from 'fs'
 import path from 'path'
 // @ts-ignore no types package
-import bfj from 'next/dist/compiled/bfj'
+import bfj from '../../../compiled/bfj'
 import { spans } from './profiling-plugin'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from '../../../compiled/webpack/webpack'
 import { tracer, traceAsyncFn } from '../../tracer'
 
 const STATS_VERSION = 0

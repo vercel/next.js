@@ -4,10 +4,7 @@
  * https://github.com/microsoft/TypeScript/blob/214df64e287804577afa1fea0184c18c40f7d1ca/LICENSE.txt
  */
 import path from 'path'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { debug } from 'next/dist/compiled/debug'
-
-const log = debug('next:jsconfig-paths-plugin')
+import { webpack } from '../../../compiled/webpack/webpack'
 
 export interface Pattern {
   prefix: string
@@ -142,8 +139,6 @@ export class JsConfigPathsPlugin implements webpack.ResolvePlugin {
   constructor(paths: Paths, resolvedBaseUrl: string) {
     this.paths = paths
     this.resolvedBaseUrl = resolvedBaseUrl
-    log('tsconfig.json or jsconfig.json paths: %O', paths)
-    log('resolved baseUrl: %s', resolvedBaseUrl)
   }
   apply(resolver: any) {
     const paths = this.paths
@@ -151,7 +146,6 @@ export class JsConfigPathsPlugin implements webpack.ResolvePlugin {
 
     // If no aliases are added bail out
     if (pathsKeys.length === 0) {
-      log('paths are empty, bailing out')
       return
     }
 
@@ -166,7 +160,6 @@ export class JsConfigPathsPlugin implements webpack.ResolvePlugin {
 
           // Exclude node_modules from paths support (speeds up resolving)
           if (request.path.match(NODE_MODULES_REGEX)) {
-            log('skipping request as it is inside node_modules %s', moduleName)
             return
           }
 
@@ -174,12 +167,10 @@ export class JsConfigPathsPlugin implements webpack.ResolvePlugin {
             path.posix.isAbsolute(moduleName) ||
             (process.platform === 'win32' && path.win32.isAbsolute(moduleName))
           ) {
-            log('skipping request as it is an absolute path %s', moduleName)
             return
           }
 
           if (pathIsRelative(moduleName)) {
-            log('skipping request as it is a relative path %s', moduleName)
             return
           }
 
@@ -188,7 +179,6 @@ export class JsConfigPathsPlugin implements webpack.ResolvePlugin {
           // If the module name does not match any of the patterns in `paths` we hand off resolving to webpack
           const matchedPattern = matchPatternOrExact(pathsKeys, moduleName)
           if (!matchedPattern) {
-            log('moduleName did not match any paths pattern %s', moduleName)
             return
           }
 

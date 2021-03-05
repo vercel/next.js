@@ -1,5 +1,5 @@
-import createStore from 'next/dist/compiled/unistore'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import createStore from '../../compiled/unistore'
+import stripAnsi from '../../compiled/strip-ansi'
 
 import * as Log from './log'
 

@@ -1,4 +1,4 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from '../../../compiled/webpack/webpack'
 
 const NoopLoader: webpack.loader.Loader = (source) => source
 export default NoopLoader

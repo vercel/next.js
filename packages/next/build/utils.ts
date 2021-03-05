@@ -1,10 +1,10 @@
 import '../next-server/server/node-polyfill-fetch'
 import chalk from 'chalk'
-import gzipSize from 'next/dist/compiled/gzip-size'
-import textTable from 'next/dist/compiled/text-table'
+import gzipSize from '../compiled/gzip-size'
+import textTable from '../compiled/text-table'
 import path from 'path'
 import { isValidElementType } from 'react-is'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
+import stripAnsi from '../compiled/strip-ansi'
 import {
   Redirect,
   Rewrite,

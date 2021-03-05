@@ -1,4 +1,1 @@
-export namespace webpack {
-  export type Compiler = any
-  export type Plugin = any
-}
+export * from 'next/dist/compiled/webpack/webpack'

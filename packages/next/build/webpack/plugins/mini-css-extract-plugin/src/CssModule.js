@@ -2,7 +2,7 @@ import {
   webpack,
   onWebpackInit,
   isWebpack5,
-} from 'next/dist/compiled/webpack/webpack'
+} from '../../../../../compiled/webpack/webpack'
 
 let CssModule
 

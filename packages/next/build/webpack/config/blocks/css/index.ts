@@ -1,6 +1,6 @@
-import curry from 'next/dist/compiled/lodash.curry'
+import curry from '../../../../../compiled/lodash.curry'
 import path from 'path'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack } from '../../../../../compiled/webpack/webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
