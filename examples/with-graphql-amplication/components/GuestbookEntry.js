@@ -34,7 +34,7 @@ export default function GuestbookEntry(props) {
       <div className={styles.guestbookEntryShare}>
         <a
           href={`http://twitter.com/share?text=${encodeURIComponent(
-            props.story + ' @zeithq'
+            props.story + ' @vercel'
           )}&hashtags=graphql,nextjs
                     `}
           target="_blank"
