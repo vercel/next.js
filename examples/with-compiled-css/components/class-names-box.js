@@ -1,4 +1,5 @@
 import { ClassNames } from '@compiled/react'
+import { error } from '../style/colors'
 
 export const BoxStyles = ({ children }) => (
   <ClassNames>
@@ -8,7 +9,7 @@ export const BoxStyles = ({ children }) => (
           display: flex;
           width: 100px;
           height: 100px;
-          border: 1px solid red;
+          border: 1px solid ${error};
           padding: 8px;
           flex-direction: column;
         `,

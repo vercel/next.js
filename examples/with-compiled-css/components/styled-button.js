@@ -2,7 +2,6 @@ import { styled } from '@compiled/react'
 
 export const Button = styled.button`
   color: ${(props) => props.color};
-  border: 1px solid black;
   background-color: transparent;
   padding: 6px 8px;
   border-radius: 3px;
