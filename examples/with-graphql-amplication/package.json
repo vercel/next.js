@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^17.10.1",
-    "react-dom": "^17.10.1"
+    "react": "^17.10.0",
+    "react-dom": "^17.10.0"
   },
   "devDependencies": {
     "request": "2.88.0",
