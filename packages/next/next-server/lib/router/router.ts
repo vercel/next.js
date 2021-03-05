@@ -1110,6 +1110,18 @@ export default class Router implements BaseRouter {
 
       // shallow routing is only allowed for same page URL changes.
       const isValidShallowRoute = options.shallow && this.route === route
+
+      if (
+        (options as any)._h &&
+        pathname === '/_error' &&
+        self.__NEXT_DATA__.props?.pageProps?.statusCode === 500 &&
+        props?.pageProps
+      ) {
+        // ensure statusCode is still correct for static 500 page
+        // when updating query information
+        props.pageProps.statusCode = 500
+      }
+
       await this.set(
         route,
         pathname!,
