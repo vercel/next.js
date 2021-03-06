@@ -51,7 +51,7 @@ export async function shouldLoadWithWebpack5(
 
 export async function loadWebpackHook(phase: string, dir: string) {
   let useWebpack5 = false
-  const worker: any = new Worker(__filename, { enableWorkerThreads: true })
+  const worker: any = new Worker(__filename, { enableWorkerThreads: false })
   try {
     useWebpack5 = Boolean(await worker.shouldLoadWithWebpack5(phase, dir))
   } catch {
