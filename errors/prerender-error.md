@@ -9,3 +9,4 @@ While prerendering a page an error occurred. This can occur for many reasons fro
 - Make sure to move any non-pages out of the `pages` folder
 - Check for any code that assumes a prop is available even when it might not be. e.g., have default data for all dynamic pages' props.
 - Check for any out of date modules that you might be relying on
+- Make sure your component handles `fallback` if it is enabled in `getStaticPaths`. [Fallback docs](https://nextjs.org/docs/basic-features/data-fetching#the-fallback-key-required)
