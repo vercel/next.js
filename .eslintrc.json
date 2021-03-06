@@ -114,6 +114,10 @@
     },
     {
       "files": ["packages/**"],
+      "excludedFiles": [
+        "packages/next/compiled/**/*.d.ts",
+        "packages/next/bundles/**/*.d.ts"
+      ],
       "rules": {
         "no-shadow": ["warn", { "builtinGlobals": false }],
         "import/no-extraneous-dependencies": [

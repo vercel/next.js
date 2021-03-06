@@ -43,6 +43,6 @@ export async function build(
     future,
   }
 
-  const fn = pipe(base(ctx), css(ctx))
+  const fn = pipe<webpack.Configuration>(base(ctx), css(ctx))
   return fn(config)
 }

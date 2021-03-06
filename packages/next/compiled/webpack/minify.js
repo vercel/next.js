@@ -11,7 +11,7 @@ module.exports =
 
 const {
   minify: terserMinify
-} = __nccwpck_require__(775);
+} = __nccwpck_require__(666);
 /** @typedef {import("source-map").RawSourceMap} RawSourceMap */
 
 /** @typedef {import("./index.js").ExtractCommentsOptions} ExtractCommentsOptions */
@@ -279,10 +279,10 @@ module.exports.transform = transform;
 
 /***/ }),
 
-/***/ 775:
+/***/ 666:
 /***/ (function(module) {
 
-module.exports = require("next/dist/compiled/terser");;
+module.exports = require("../terser");;
 
 /***/ })
 

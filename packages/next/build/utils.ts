@@ -247,7 +247,7 @@ export async function printTreeView(
   console.log(
     textTable(messages, {
       align: ['l', 'l', 'r'],
-      stringLength: (str) => stripAnsi(str).length,
+      stringLength: (str: any) => stripAnsi(str).length,
     })
   )
 
@@ -284,7 +284,7 @@ export async function printTreeView(
       ] as [string, string, string][],
       {
         align: ['l', 'l', 'l'],
-        stringLength: (str) => stripAnsi(str).length,
+        stringLength: (str: any) => stripAnsi(str).length,
       }
     )
   )

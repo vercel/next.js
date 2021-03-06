@@ -28008,9 +28008,9 @@ var path = _interopRequireWildcard(__webpack_require__(85622));
 
 var os = _interopRequireWildcard(__webpack_require__(12087));
 
-var _sourceMap = __webpack_require__(96241);
+var _sourceMap = __webpack_require__(14049);
 
-var _schemaUtils = __webpack_require__(79286);
+var _schemaUtils = __webpack_require__(10976);
 
 var _serializeJavascript = _interopRequireDefault(__webpack_require__(20200));
 
@@ -28610,7 +28610,7 @@ exports.default = _default;
 
 const {
   minify: terserMinify
-} = __webpack_require__(54775);
+} = __webpack_require__(666);
 /** @typedef {import("source-map").RawSourceMap} RawSourceMap */
 
 /** @typedef {import("./index.js").ExtractCommentsOptions} ExtractCommentsOptions */
@@ -31381,7 +31381,7 @@ module.exports = AsyncDependencyToInitialChunkError;
 
 
 
-const asyncLib = __webpack_require__(36386);
+const asyncLib = __webpack_require__(81791);
 const NormalModule = __webpack_require__(88376);
 const PrefetchDependency = __webpack_require__(33785);
 
@@ -31454,8 +31454,8 @@ module.exports = AutomaticPrefetchPlugin;
 
 
 
-const { validate } = __webpack_require__(79286);
-const { ConcatSource } = __webpack_require__(55600);
+const { validate } = __webpack_require__(10976);
+const { ConcatSource } = __webpack_require__(46980);
 const Compilation = __webpack_require__(75388);
 const ModuleFilenameHelpers = __webpack_require__(79843);
 const Template = __webpack_require__(90751);
@@ -31744,7 +31744,7 @@ module.exports = Cache;
 
 
 
-const asyncLib = __webpack_require__(36386);
+const asyncLib = __webpack_require__(81791);
 const getLazyHashedEtag = __webpack_require__(79610);
 const mergeEtags = __webpack_require__(35414);
 
@@ -35292,8 +35292,8 @@ module.exports = ChunkTemplate;
 
 
 
-const asyncLib = __webpack_require__(36386);
-const { validate } = __webpack_require__(79286);
+const asyncLib = __webpack_require__(81791);
+const { validate } = __webpack_require__(10976);
 const { SyncBailHook } = __webpack_require__(18416);
 const Compilation = __webpack_require__(75388);
 const { join } = __webpack_require__(71593);
@@ -36040,7 +36040,7 @@ module.exports = CompatibilityPlugin;
 
 
 
-const asyncLib = __webpack_require__(36386);
+const asyncLib = __webpack_require__(81791);
 const {
 	HookMap,
 	SyncHook,
@@ -36050,7 +36050,7 @@ const {
 	AsyncSeriesBailHook
 } = __webpack_require__(18416);
 const util = __webpack_require__(31669);
-const { CachedSource } = __webpack_require__(55600);
+const { CachedSource } = __webpack_require__(46980);
 const { MultiItemCache } = __webpack_require__(12628);
 const Chunk = __webpack_require__(92787);
 const ChunkGraph = __webpack_require__(67518);
@@ -40084,14 +40084,14 @@ module.exports = Compilation;
 
 
 const parseJson = __webpack_require__(34270);
-const asyncLib = __webpack_require__(36386);
+const asyncLib = __webpack_require__(81791);
 const {
 	SyncHook,
 	SyncBailHook,
 	AsyncParallelHook,
 	AsyncSeriesHook
 } = __webpack_require__(18416);
-const { SizeOnlySource } = __webpack_require__(55600);
+const { SizeOnlySource } = __webpack_require__(46980);
 const webpack = __webpack_require__(16520);
 const Cache = __webpack_require__(18338);
 const CacheFacade = __webpack_require__(12628);
@@ -41372,7 +41372,7 @@ module.exports = class ConcurrentCompilationError extends WebpackError {
 
 
 
-const { ConcatSource, PrefixSource } = __webpack_require__(55600);
+const { ConcatSource, PrefixSource } = __webpack_require__(46980);
 const InitFragment = __webpack_require__(63382);
 const Template = __webpack_require__(90751);
 const { mergeRuntime } = __webpack_require__(43478);
@@ -42034,7 +42034,7 @@ module.exports = ContextExclusionPlugin;
 
 
 
-const { OriginalSource, RawSource } = __webpack_require__(55600);
+const { OriginalSource, RawSource } = __webpack_require__(46980);
 const AsyncDependenciesBlock = __webpack_require__(72624);
 const { makeWebpackError } = __webpack_require__(14953);
 const Module = __webpack_require__(54031);
@@ -43113,7 +43113,7 @@ module.exports = ContextModule;
 
 
 
-const asyncLib = __webpack_require__(36386);
+const asyncLib = __webpack_require__(81791);
 const { AsyncSeriesWaterfallHook, SyncWaterfallHook } = __webpack_require__(18416);
 const ContextModule = __webpack_require__(32834);
 const ModuleFactory = __webpack_require__(6259);
@@ -44030,7 +44030,7 @@ module.exports = DefinePlugin;
 
 
 
-const { OriginalSource, RawSource } = __webpack_require__(55600);
+const { OriginalSource, RawSource } = __webpack_require__(46980);
 const Module = __webpack_require__(54031);
 const RuntimeGlobals = __webpack_require__(48801);
 const DelegatedSourceDependency = __webpack_require__(73725);
@@ -44955,7 +44955,7 @@ module.exports = DllEntryPlugin;
 
 
 
-const { RawSource } = __webpack_require__(55600);
+const { RawSource } = __webpack_require__(46980);
 const Module = __webpack_require__(54031);
 const RuntimeGlobals = __webpack_require__(48801);
 const makeSerializable = __webpack_require__(55575);
@@ -45162,7 +45162,7 @@ const DllEntryPlugin = __webpack_require__(96830);
 const FlagAllModulesAsUsedPlugin = __webpack_require__(32061);
 const LibManifestPlugin = __webpack_require__(14533);
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(67983);
 
 /** @typedef {import("../declarations/plugins/DllPlugin").DllPluginOptions} DllPluginOptions */
@@ -45237,7 +45237,7 @@ const WebpackError = __webpack_require__(24274);
 const DelegatedSourceDependency = __webpack_require__(73725);
 const makePathsRelative = __webpack_require__(47779).makePathsRelative;
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(71364);
 
 /** @typedef {import("../declarations/WebpackOptions").Externals} Externals */
@@ -45907,7 +45907,7 @@ exports.cleanUpWebpackOptions = (stack, message) => {
 
 
 
-const { ConcatSource, RawSource } = __webpack_require__(55600);
+const { ConcatSource, RawSource } = __webpack_require__(46980);
 const ExternalModule = __webpack_require__(24334);
 const ModuleFilenameHelpers = __webpack_require__(79843);
 const JavascriptModulesPlugin = __webpack_require__(80867);
@@ -46016,7 +46016,7 @@ module.exports = EvalDevToolModulePlugin;
 
 
 
-const { ConcatSource, RawSource } = __webpack_require__(55600);
+const { ConcatSource, RawSource } = __webpack_require__(46980);
 const ModuleFilenameHelpers = __webpack_require__(79843);
 const NormalModule = __webpack_require__(88376);
 const SourceMapDevToolModuleOptionsPlugin = __webpack_require__(5426);
@@ -47762,7 +47762,7 @@ module.exports = ExportsInfoApiPlugin;
 
 
 
-const { OriginalSource, RawSource } = __webpack_require__(55600);
+const { OriginalSource, RawSource } = __webpack_require__(46980);
 const ConcatenationScope = __webpack_require__(21926);
 const Module = __webpack_require__(54031);
 const RuntimeGlobals = __webpack_require__(48801);
@@ -48574,7 +48574,7 @@ module.exports = ExternalsPlugin;
 
 
 const { create: createResolver } = __webpack_require__(75707);
-const asyncLib = __webpack_require__(36386);
+const asyncLib = __webpack_require__(81791);
 const AsyncQueue = __webpack_require__(51921);
 const createHash = __webpack_require__(34627);
 const { join, dirname, relative } = __webpack_require__(71593);
@@ -51490,7 +51490,7 @@ module.exports = FlagAllModulesAsUsedPlugin;
 
 
 
-const asyncLib = __webpack_require__(36386);
+const asyncLib = __webpack_require__(81791);
 const Queue = __webpack_require__(85987);
 
 /** @typedef {import("./Compiler")} Compiler */
@@ -52538,7 +52538,7 @@ module.exports.tryRunOrWebpackError = tryRunOrWebpackError;
 
 
 const { SyncBailHook } = __webpack_require__(18416);
-const { RawSource } = __webpack_require__(55600);
+const { RawSource } = __webpack_require__(46980);
 const ChunkGraph = __webpack_require__(67518);
 const Compilation = __webpack_require__(75388);
 const HotUpdateChunk = __webpack_require__(90972);
@@ -53382,7 +53382,7 @@ module.exports = IgnoreErrorModuleFactory;
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(10337);
 
 /** @typedef {import("../declarations/plugins/IgnorePlugin").IgnorePluginOptions} IgnorePluginOptions */
@@ -53515,7 +53515,7 @@ module.exports = IgnoreWarningsPlugin;
 
 
 
-const { ConcatSource } = __webpack_require__(55600);
+const { ConcatSource } = __webpack_require__(46980);
 
 /** @typedef {import("webpack-sources").Source} Source */
 /** @typedef {import("./Generator").GenerateContext} GenerateContext */
@@ -53767,7 +53767,7 @@ module.exports = JavascriptMetaInfoPlugin;
 
 
 
-const asyncLib = __webpack_require__(36386);
+const asyncLib = __webpack_require__(81791);
 const EntryDependency = __webpack_require__(69325);
 const { someInIterable } = __webpack_require__(23039);
 const { compareModulesById } = __webpack_require__(21699);
@@ -53949,7 +53949,7 @@ module.exports = LibraryTemplatePlugin;
 const ModuleFilenameHelpers = __webpack_require__(79843);
 const NormalModule = __webpack_require__(88376);
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(74098);
 
 /** @typedef {import("../declarations/plugins/LoaderOptionsPlugin").LoaderOptionsPluginOptions} LoaderOptionsPluginOptions */
@@ -56949,7 +56949,7 @@ module.exports.CIRCULAR_CONNECTION = /** @type {typeof CIRCULAR_CONNECTION} */ (
 
 
 
-const { ConcatSource, RawSource, CachedSource } = __webpack_require__(55600);
+const { ConcatSource, RawSource, CachedSource } = __webpack_require__(46980);
 const { UsageState } = __webpack_require__(54227);
 const Template = __webpack_require__(90751);
 const JavascriptModulesPlugin = __webpack_require__(80867);
@@ -57877,7 +57877,7 @@ module.exports = ModuleWarning;
 
 
 
-const asyncLib = __webpack_require__(36386);
+const asyncLib = __webpack_require__(81791);
 const { SyncHook, MultiHook } = __webpack_require__(18416);
 
 const ConcurrentCompilationError = __webpack_require__(93393);
@@ -58579,7 +58579,7 @@ module.exports = MultiStats;
 
 
 
-const asyncLib = __webpack_require__(36386);
+const asyncLib = __webpack_require__(81791);
 
 /** @typedef {import("./MultiCompiler")} MultiCompiler */
 /** @typedef {import("./Watching")} Watching */
@@ -58876,14 +58876,14 @@ module.exports = NodeStuffPlugin;
 const parseJson = __webpack_require__(34270);
 const { getContext, runLoaders } = __webpack_require__(77346);
 const querystring = __webpack_require__(71191);
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const { HookMap, SyncHook, AsyncSeriesBailHook } = __webpack_require__(18416);
 const {
 	CachedSource,
 	OriginalSource,
 	RawSource,
 	SourceMapSource
-} = __webpack_require__(55600);
+} = __webpack_require__(46980);
 const Compilation = __webpack_require__(75388);
 const Module = __webpack_require__(54031);
 const ModuleBuildError = __webpack_require__(3289);
@@ -60062,7 +60062,7 @@ module.exports = NormalModule;
 
 
 
-const asyncLib = __webpack_require__(36386);
+const asyncLib = __webpack_require__(81791);
 const {
 	AsyncSeriesBailHook,
 	SyncWaterfallHook,
@@ -61324,7 +61324,7 @@ module.exports = PrefetchPlugin;
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(8121);
 const Compiler = __webpack_require__(51455);
 const MultiCompiler = __webpack_require__(87225);
@@ -62029,7 +62029,7 @@ module.exports = ProvidePlugin;
 
 
 
-const { OriginalSource, RawSource } = __webpack_require__(55600);
+const { OriginalSource, RawSource } = __webpack_require__(46980);
 const Module = __webpack_require__(54031);
 const makeSerializable = __webpack_require__(55575);
 
@@ -63042,8 +63042,8 @@ exports.asyncModule = "__webpack_require__.a";
 
 
 
-const { RawSource } = __webpack_require__(55600);
-const OriginalSource = __webpack_require__(55600).OriginalSource;
+const { RawSource } = __webpack_require__(46980);
+const OriginalSource = __webpack_require__(46980).OriginalSource;
 const Module = __webpack_require__(54031);
 
 /** @typedef {import("webpack-sources").Source} Source */
@@ -64668,9 +64668,9 @@ module.exports = SourceMapDevToolModuleOptionsPlugin;
 
 
 
-const asyncLib = __webpack_require__(36386);
-const { validate } = __webpack_require__(79286);
-const { ConcatSource, RawSource } = __webpack_require__(55600);
+const asyncLib = __webpack_require__(81791);
+const { validate } = __webpack_require__(10976);
+const { ConcatSource, RawSource } = __webpack_require__(46980);
 const Compilation = __webpack_require__(75388);
 const ModuleFilenameHelpers = __webpack_require__(79843);
 const ProgressPlugin = __webpack_require__(19336);
@@ -65319,7 +65319,7 @@ module.exports = Stats;
 
 
 
-const { ConcatSource, PrefixSource } = __webpack_require__(55600);
+const { ConcatSource, PrefixSource } = __webpack_require__(46980);
 
 /** @typedef {import("webpack-sources").Source} Source */
 /** @typedef {import("../declarations/WebpackOptions").Output} OutputOptions */
@@ -66375,7 +66375,7 @@ module.exports = WarnNoModeSetPlugin;
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(83451);
 
 /** @typedef {import("../declarations/plugins/WatchIgnorePlugin").WatchIgnorePluginOptions} WatchIgnorePluginOptions */
@@ -67719,7 +67719,7 @@ module.exports = WebpackOptionsDefaulter;
 
 const mimeTypes = __webpack_require__(63835);
 const path = __webpack_require__(85622);
-const { RawSource } = __webpack_require__(55600);
+const { RawSource } = __webpack_require__(46980);
 const Generator = __webpack_require__(14052);
 const RuntimeGlobals = __webpack_require__(48801);
 const createHash = __webpack_require__(34627);
@@ -67954,7 +67954,7 @@ module.exports = AssetGenerator;
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const { cleverMerge } = __webpack_require__(92700);
 const { compareModulesByIdentifier } = __webpack_require__(21699);
 const memoize = __webpack_require__(18003);
@@ -68202,7 +68202,7 @@ module.exports = AssetParser;
 
 
 
-const { RawSource } = __webpack_require__(55600);
+const { RawSource } = __webpack_require__(46980);
 const Generator = __webpack_require__(14052);
 const RuntimeGlobals = __webpack_require__(48801);
 
@@ -74528,7 +74528,7 @@ module.exports = ContainerEntryDependency;
 
 
 
-const { OriginalSource, RawSource } = __webpack_require__(55600);
+const { OriginalSource, RawSource } = __webpack_require__(46980);
 const AsyncDependenciesBlock = __webpack_require__(72624);
 const Module = __webpack_require__(54031);
 const RuntimeGlobals = __webpack_require__(48801);
@@ -74911,7 +74911,7 @@ module.exports = ContainerExposedDependency;
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(30300);
 const ContainerEntryDependency = __webpack_require__(22887);
 const ContainerEntryModuleFactory = __webpack_require__(89490);
@@ -75013,7 +75013,7 @@ module.exports = ContainerPlugin;
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(1274);
 const ExternalsPlugin = __webpack_require__(19056);
 const RuntimeGlobals = __webpack_require__(48801);
@@ -75251,7 +75251,7 @@ module.exports = FallbackItemDependency;
 
 
 
-const { RawSource } = __webpack_require__(55600);
+const { RawSource } = __webpack_require__(46980);
 const Module = __webpack_require__(54031);
 const RuntimeGlobals = __webpack_require__(48801);
 const Template = __webpack_require__(90751);
@@ -75467,7 +75467,7 @@ module.exports = class FallbackModuleFactory extends ModuleFactory {
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(87760);
 const SharePlugin = __webpack_require__(3533);
 const ContainerPlugin = __webpack_require__(93689);
@@ -75559,7 +75559,7 @@ module.exports = ModuleFederationPlugin;
 
 
 
-const { RawSource } = __webpack_require__(55600);
+const { RawSource } = __webpack_require__(46980);
 const Module = __webpack_require__(54031);
 const RuntimeGlobals = __webpack_require__(48801);
 const makeSerializable = __webpack_require__(55575);
@@ -76008,7 +76008,7 @@ exports.scope = scope;
 
 
 const { Tracer } = __webpack_require__(42758);
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(92564);
 const { dirname, mkdirpSync } = __webpack_require__(71593);
 
@@ -89594,7 +89594,7 @@ module.exports = HotModuleReplacementRuntimeModule;
 
 
 
-const { RawSource } = __webpack_require__(55600);
+const { RawSource } = __webpack_require__(46980);
 const AsyncDependenciesBlock = __webpack_require__(72624);
 const Dependency = __webpack_require__(27563);
 const Module = __webpack_require__(54031);
@@ -90317,7 +90317,7 @@ module.exports = DeterministicModuleIdsPlugin;
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(91129);
 const {
 	compareModulesByPreOrderIndexOrIdentifier
@@ -91102,7 +91102,7 @@ module.exports = NaturalModuleIdsPlugin;
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(76282);
 const { compareChunksNatural } = __webpack_require__(21699);
 const { assignAscendingChunkIds } = __webpack_require__(65451);
@@ -91185,7 +91185,7 @@ module.exports = OccurrenceChunkIdsPlugin;
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(63765);
 const {
 	compareModulesByPreOrderIndexOrIdentifier
@@ -91612,10 +91612,10 @@ module.exports = mergeExports(fn, {
 	},
 	// TODO webpack 6 deprecate
 	get WebpackOptionsValidationError() {
-		return __webpack_require__(79286).ValidationError;
+		return __webpack_require__(10976).ValidationError;
 	},
 	get ValidationError() {
-		return __webpack_require__(79286).ValidationError;
+		return __webpack_require__(10976).ValidationError;
 	},
 
 	cache: {
@@ -91839,7 +91839,7 @@ module.exports = mergeExports(fn, {
 	},
 
 	get sources() {
-		return __webpack_require__(55600);
+		return __webpack_require__(46980);
 	},
 
 	experiments: {
@@ -91868,7 +91868,7 @@ module.exports = mergeExports(fn, {
 
 
 
-const { ConcatSource } = __webpack_require__(55600);
+const { ConcatSource } = __webpack_require__(46980);
 const HotUpdateChunk = __webpack_require__(90972);
 const Template = __webpack_require__(90751);
 const { getEntryInfo } = __webpack_require__(39546);
@@ -92468,7 +92468,7 @@ module.exports = BasicEvaluatedExpression;
 
 
 
-const { ConcatSource } = __webpack_require__(55600);
+const { ConcatSource } = __webpack_require__(46980);
 const RuntimeGlobals = __webpack_require__(48801);
 const Template = __webpack_require__(90751);
 const { getEntryInfo } = __webpack_require__(39546);
@@ -92766,7 +92766,7 @@ module.exports = EnableChunkLoadingPlugin;
 
 
 const util = __webpack_require__(31669);
-const { RawSource, ReplaceSource } = __webpack_require__(55600);
+const { RawSource, ReplaceSource } = __webpack_require__(46980);
 const Generator = __webpack_require__(14052);
 const InitFragment = __webpack_require__(63382);
 const HarmonyCompatibilityDependency = __webpack_require__(52080);
@@ -93002,7 +93002,7 @@ const {
 	PrefixSource,
 	RawSource,
 	CachedSource
-} = __webpack_require__(55600);
+} = __webpack_require__(46980);
 const Compilation = __webpack_require__(75388);
 const { tryRunOrWebpackError } = __webpack_require__(14953);
 const HotUpdateChunk = __webpack_require__(90972);
@@ -97980,7 +97980,7 @@ exports.approve = () => true;
 
 
 
-const { RawSource } = __webpack_require__(55600);
+const { RawSource } = __webpack_require__(46980);
 const ConcatenationScope = __webpack_require__(21926);
 const { UsageState } = __webpack_require__(54227);
 const Generator = __webpack_require__(14052);
@@ -98173,7 +98173,7 @@ module.exports = JsonGenerator;
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const memoize = __webpack_require__(18003);
 const JsonGenerator = __webpack_require__(70885);
 const JsonParser = __webpack_require__(62580);
@@ -98558,7 +98558,7 @@ module.exports = AbstractLibraryPlugin;
 
 
 
-const { ConcatSource } = __webpack_require__(55600);
+const { ConcatSource } = __webpack_require__(46980);
 const ExternalModule = __webpack_require__(24334);
 const Template = __webpack_require__(90751);
 const AbstractLibraryPlugin = __webpack_require__(66269);
@@ -98727,7 +98727,7 @@ module.exports = AmdLibraryPlugin;
 
 
 
-const { ConcatSource } = __webpack_require__(55600);
+const { ConcatSource } = __webpack_require__(46980);
 const { UsageState } = __webpack_require__(54227);
 const Template = __webpack_require__(90751);
 const propertyAccess = __webpack_require__(44682);
@@ -99312,7 +99312,7 @@ module.exports = EnableLibraryPlugin;
 
 
 
-const { ConcatSource } = __webpack_require__(55600);
+const { ConcatSource } = __webpack_require__(46980);
 const { UsageState } = __webpack_require__(54227);
 const propertyAccess = __webpack_require__(44682);
 const { getEntryRuntime } = __webpack_require__(43478);
@@ -99433,7 +99433,7 @@ module.exports = ExportPropertyLibraryPlugin;
 
 
 
-const { ConcatSource } = __webpack_require__(55600);
+const { ConcatSource } = __webpack_require__(46980);
 const AbstractLibraryPlugin = __webpack_require__(66269);
 
 /** @typedef {import("webpack-sources").Source} Source */
@@ -99529,7 +99529,7 @@ module.exports = JsonpLibraryPlugin;
 
 
 
-const { ConcatSource } = __webpack_require__(55600);
+const { ConcatSource } = __webpack_require__(46980);
 const Template = __webpack_require__(90751);
 const propertyAccess = __webpack_require__(44682);
 const AbstractLibraryPlugin = __webpack_require__(66269);
@@ -99637,7 +99637,7 @@ module.exports = ModuleLibraryPlugin;
 
 
 
-const { ConcatSource } = __webpack_require__(55600);
+const { ConcatSource } = __webpack_require__(46980);
 const { UsageState } = __webpack_require__(54227);
 const ExternalModule = __webpack_require__(24334);
 const Template = __webpack_require__(90751);
@@ -99878,7 +99878,7 @@ module.exports = SystemLibraryPlugin;
 
 
 
-const { ConcatSource, OriginalSource } = __webpack_require__(55600);
+const { ConcatSource, OriginalSource } = __webpack_require__(46980);
 const ExternalModule = __webpack_require__(24334);
 const Template = __webpack_require__(90751);
 const AbstractLibraryPlugin = __webpack_require__(66269);
@@ -102039,7 +102039,7 @@ module.exports = AggressiveMergingPlugin;
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(32643);
 const { STAGE_ADVANCED } = __webpack_require__(90412);
 const { intersect } = __webpack_require__(86088);
@@ -102374,7 +102374,7 @@ const {
 	CachedSource,
 	ConcatSource,
 	ReplaceSource
-} = __webpack_require__(55600);
+} = __webpack_require__(46980);
 const ConcatenationScope = __webpack_require__(21926);
 const { UsageState } = __webpack_require__(54227);
 const Module = __webpack_require__(54031);
@@ -105105,7 +105105,7 @@ module.exports = InnerGraphPlugin;
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(27774);
 const { STAGE_ADVANCED } = __webpack_require__(90412);
 const LazyBucketSortedSet = __webpack_require__(18117);
@@ -105647,7 +105647,7 @@ module.exports = MergeDuplicateChunksPlugin;
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(65069);
 const { STAGE_ADVANCED } = __webpack_require__(90412);
 
@@ -105802,7 +105802,7 @@ module.exports = MinMaxSizeWarning;
 
 
 
-const asyncLib = __webpack_require__(36386);
+const asyncLib = __webpack_require__(81791);
 const ChunkGraph = __webpack_require__(67518);
 const ModuleGraph = __webpack_require__(73444);
 const ModuleRestoreError = __webpack_require__(61938);
@@ -106630,7 +106630,7 @@ module.exports = ModuleConcatenationPlugin;
 
 
 const { SyncBailHook } = __webpack_require__(18416);
-const { RawSource, CachedSource, CompatSource } = __webpack_require__(55600);
+const { RawSource, CachedSource, CompatSource } = __webpack_require__(46980);
 const Compilation = __webpack_require__(75388);
 const WebpackError = __webpack_require__(24274);
 const { compareSelect, compareStrings } = __webpack_require__(21699);
@@ -115166,7 +115166,7 @@ module.exports = ConsumeSharedFallbackDependency;
 
 
 
-const { RawSource } = __webpack_require__(55600);
+const { RawSource } = __webpack_require__(46980);
 const AsyncDependenciesBlock = __webpack_require__(72624);
 const Module = __webpack_require__(54031);
 const RuntimeGlobals = __webpack_require__(48801);
@@ -115419,7 +115419,7 @@ module.exports = ConsumeSharedModule;
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(11919);
 const ModuleNotFoundError = __webpack_require__(71318);
 const RuntimeGlobals = __webpack_require__(48801);
@@ -116433,7 +116433,7 @@ module.exports = ProvideSharedModuleFactory;
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 const schema = __webpack_require__(45057);
 const WebpackError = __webpack_require__(24274);
 const { parseOptions } = __webpack_require__(57844);
@@ -127131,7 +127131,7 @@ const { register } = __webpack_require__(29158);
 
 const Position = /** @type {TODO} */ __webpack_require__(87573).Position;
 const SourceLocation = __webpack_require__(87573).SourceLocation;
-const { ValidationError } = __webpack_require__(79286);
+const { ValidationError } = __webpack_require__(10976);
 const {
 	CachedSource,
 	ConcatSource,
@@ -127140,7 +127140,7 @@ const {
 	RawSource,
 	ReplaceSource,
 	SourceMapSource
-} = __webpack_require__(55600);
+} = __webpack_require__(46980);
 
 /** @typedef {import("acorn").Position} Position */
 /** @typedef {import("../Dependency").RealDependencyLocation} RealDependencyLocation */
@@ -128918,7 +128918,7 @@ exports.isSourceEqual = isSourceEqual;
 
 
 
-const { validate } = __webpack_require__(79286);
+const { validate } = __webpack_require__(10976);
 
 /* cSpell:disable */
 const DID_YOU_MEAN = {
@@ -129246,7 +129246,7 @@ module.exports = AsyncWebAssemblyGenerator;
 
 
 
-const { RawSource } = __webpack_require__(55600);
+const { RawSource } = __webpack_require__(46980);
 const Generator = __webpack_require__(14052);
 const InitFragment = __webpack_require__(63382);
 const RuntimeGlobals = __webpack_require__(48801);
@@ -130210,7 +130210,7 @@ module.exports = WasmFinalizeExportsPlugin;
 
 
 
-const { RawSource } = __webpack_require__(55600);
+const { RawSource } = __webpack_require__(46980);
 const Generator = __webpack_require__(14052);
 const WebAssemblyUtils = __webpack_require__(9711);
 
@@ -130829,7 +130829,7 @@ ${moduleChains.map(s => `* ${s}`).join("\n")}`;
 
 
 
-const { RawSource } = __webpack_require__(55600);
+const { RawSource } = __webpack_require__(46980);
 const { UsageState } = __webpack_require__(54227);
 const Generator = __webpack_require__(14052);
 const InitFragment = __webpack_require__(63382);
@@ -133064,6 +133064,46 @@ exports.parse=parse;exports.init=void 0;const A=1===new Uint8Array(new Uint16Arr
 
 /***/ }),
 
+/***/ 81791:
+/***/ (function(module) {
+
+"use strict";
+module.exports = require("../neo-async");;
+
+/***/ }),
+
+/***/ 10976:
+/***/ (function(module) {
+
+"use strict";
+module.exports = require("../schema-utils3");;
+
+/***/ }),
+
+/***/ 14049:
+/***/ (function(module) {
+
+"use strict";
+module.exports = require("../source-map");;
+
+/***/ }),
+
+/***/ 666:
+/***/ (function(module) {
+
+"use strict";
+module.exports = require("../terser");;
+
+/***/ }),
+
+/***/ 46980:
+/***/ (function(module) {
+
+"use strict";
+module.exports = require("../webpack-sources2");;
+
+/***/ }),
+
 /***/ 42357:
 /***/ (function(module) {
 
@@ -133149,46 +133189,6 @@ module.exports = require("inspector");;
 
 "use strict";
 module.exports = require("jest-worker");;
-
-/***/ }),
-
-/***/ 36386:
-/***/ (function(module) {
-
-"use strict";
-module.exports = require("next/dist/compiled/neo-async");;
-
-/***/ }),
-
-/***/ 79286:
-/***/ (function(module) {
-
-"use strict";
-module.exports = require("next/dist/compiled/schema-utils3");;
-
-/***/ }),
-
-/***/ 96241:
-/***/ (function(module) {
-
-"use strict";
-module.exports = require("next/dist/compiled/source-map");;
-
-/***/ }),
-
-/***/ 54775:
-/***/ (function(module) {
-
-"use strict";
-module.exports = require("next/dist/compiled/terser");;
-
-/***/ }),
-
-/***/ 55600:
-/***/ (function(module) {
-
-"use strict";
-module.exports = require("next/dist/compiled/webpack-sources2");;
 
 /***/ }),
 
