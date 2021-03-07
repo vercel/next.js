@@ -31,6 +31,7 @@ import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-pa
 import * as Log from './output/log'
 import opentelemetryApi from '@opentelemetry/api'
 import { tracer, traceAsyncFn } from './tracer'
+import { loadComponents } from '../next-server/server/load-components'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
 const fsStatGzip = (file: string) => {
@@ -713,7 +714,8 @@ export async function buildStaticPaths(
 
 export async function isPageStatic(
   page: string,
-  serverBundle: string,
+  distDir: string,
+  serverless: boolean,
   runtimeEnvConfig: any,
   locales?: string[],
   defaultLocale?: string,
@@ -742,8 +744,9 @@ export async function isPageStatic(
             require('../next-server/lib/runtime-config').setConfig(
               runtimeEnvConfig
             )
-            const mod = await require(serverBundle)
-            const Comp = await (mod.default || mod)
+            const components = await loadComponents(distDir, page, serverless)
+            const mod = components.ComponentMod
+            const Comp = mod.default || mod
 
             if (
               !Comp ||
