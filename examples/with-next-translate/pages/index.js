@@ -3,20 +3,9 @@ import Trans from 'next-translate/Trans'
 import useTranslation from 'next-translate/useTranslation'
 import Layout from '../components/Layout'
 
-/**
- * detects if the current language is RTL
- * @param {string} langCode language code ISO 639-1 codes
- * @returns {boolean}
- */
-function getIsRTL(langCode) {
-  const rtlLanguages = { ar: 'arabic', he: 'hebrew' }
-
-  return rtlLanguages[langCode]
-}
-
 export default function Home() {
   const { t, lang } = useTranslation()
-  const isRTL = getIsRTL(lang)
+  const isRTL = lang === 'ar' || lang === 'he'
   const arrow = isRTL ? String.fromCharCode(8592) : String.fromCharCode(8594)
 
   return (
