@@ -732,6 +732,12 @@ export default async function getBaseWebpackConfig(
 
   const emacsLockfilePattern = '**/.#*'
 
+  // Allowing importing TS/TSX files from outside of the project dir.
+  let externalDir
+  if (config.experimental.externalDir) {
+    externalDir = path.join(dir, config.experimental.externalDir)
+  }
+
   let webpackConfig: webpack.Configuration = {
     externals: !isServer
       ? // make sure importing "next" is handled gracefully for client
@@ -924,7 +930,9 @@ export default async function getBaseWebpackConfig(
           : []),
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
-          include: [dir, ...babelIncludeRegexes],
+          include: externalDir
+            ? [dir, externalDir, ...babelIncludeRegexes]
+            : [dir, ...babelIncludeRegexes],
           exclude: (excludePath: string) => {
             if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
               return false
