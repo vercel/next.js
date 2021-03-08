@@ -9,19 +9,13 @@ export function stackPush(compiler: any, spanName: string, attrs?: any): any {
   let stack = compilerStacks.get(compiler)
   let span
 
-  if (!stack) {
-    compilerStacks.set(compiler, (stack = []))
+  const fillSpan = () => {
     span = tracer.startSpan(spanName, attrs ? attrs() : undefined)
-  } else {
-    const parent = stack[stack.length - 1]
-    if (parent) {
-      tracer.withSpan(parent, () => {
-        span = tracer.startSpan(spanName, attrs ? attrs() : undefined)
-      })
-    } else {
-      span = tracer.startSpan(spanName, attrs ? attrs() : undefined)
-    }
   }
+
+  !stack && compilerStacks.set(compiler, (stack = []))
+  const parent = stack[stack.length - 1]
+  parent ? tracer.withSpan(parent, fillSpan) : fillSpan()
 
   stack.push(span)
   return span
