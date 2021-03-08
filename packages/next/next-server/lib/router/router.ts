@@ -1364,7 +1364,6 @@ export default class Router implements BaseRouter {
                 locale: this.locale,
                 locales: this.locales,
                 defaultLocale: this.defaultLocale,
-                domainLocales: this.domainLocales,
               } as any
             )
       )
