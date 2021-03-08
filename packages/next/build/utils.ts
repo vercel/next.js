@@ -885,7 +885,7 @@ export async function getNamedExports(
   distDir: string,
   isLikeServerless: boolean,
   runtimeEnvConfig: any
-): Array<string> {
+): Promise<Array<string>> {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
   const components = await loadComponents(distDir, page, isLikeServerless)
   let mod = components.ComponentMod
