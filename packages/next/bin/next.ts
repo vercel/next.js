@@ -17,13 +17,11 @@ import opentelemetryApi from '@opentelemetry/api'
 const defaultCommand = 'dev'
 export type cliCommand = (argv?: string[]) => void
 const commands: { [command: string]: () => Promise<cliCommand> } = {
-  build: async () => await import('../cli/next-build').then((i) => i.nextBuild),
-  start: async () => await import('../cli/next-start').then((i) => i.nextStart),
-  export: async () =>
-    await import('../cli/next-export').then((i) => i.nextExport),
-  dev: async () => await import('../cli/next-dev').then((i) => i.nextDev),
-  telemetry: async () =>
-    await import('../cli/next-telemetry').then((i) => i.nextTelemetry),
+  build: () => import('../cli/next-build').then((i) => i.nextBuild),
+  start: () => import('../cli/next-start').then((i) => i.nextStart),
+  export: () => import('../cli/next-export').then((i) => i.nextExport),
+  dev: () => import('../cli/next-dev').then((i) => i.nextDev),
+  telemetry: () => import('../cli/next-telemetry').then((i) => i.nextTelemetry),
 }
 
 const args = arg(

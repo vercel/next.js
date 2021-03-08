@@ -148,9 +148,9 @@ export default async function exportApp(
 
     const nextConfig =
       configuration ||
-      traceFn(tracer.startSpan('load-next-config'), () =>
+      (await traceAsyncFn(tracer.startSpan('load-next-config'), () =>
         loadConfig(PHASE_EXPORT, dir)
-      )
+      ))
     const threads = options.threads || Math.max(cpus().length - 1, 1)
     const distDir = join(dir, nextConfig.distDir)
 
@@ -388,7 +388,11 @@ export default async function exportApp(
         })
     )
 
-    if (!exportPathMap['/404'] && !exportPathMap['/404.html']) {
+    if (
+      !options.buildExport &&
+      !exportPathMap['/404'] &&
+      !exportPathMap['/404.html']
+    ) {
       exportPathMap['/404'] = exportPathMap['/404.html'] = {
         page: '/_error',
       }
