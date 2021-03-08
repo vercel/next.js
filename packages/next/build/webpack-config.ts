@@ -732,12 +732,6 @@ export default async function getBaseWebpackConfig(
 
   const emacsLockfilePattern = '**/.#*'
 
-  // Allowing importing TS/TSX files from outside of the root dir.
-  let externalDir
-  if (config.experimental.externalDir) {
-    externalDir = path.join(dir, config.experimental.externalDir)
-  }
-
   let webpackConfig: webpack.Configuration = {
     externals: !isServer
       ? // make sure importing "next" is handled gracefully for client
@@ -930,9 +924,10 @@ export default async function getBaseWebpackConfig(
           : []),
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
-          include: externalDir
-            ? [dir, externalDir, ...babelIncludeRegexes]
-            : [dir, ...babelIncludeRegexes],
+          ...(config.experimental.externalDir
+            ? // Allowing importing TS/TSX files from outside of the root dir.
+              {}
+            : { include: [dir, ...babelIncludeRegexes] }),
           exclude: (excludePath: string) => {
             if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
               return false
@@ -1049,6 +1044,9 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
+        ),
+        'process.env.__NEXT_EXTERNAL_DIR': JSON.stringify(
+          config.experimental.externalDir
         ),
         'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
           deviceSizes: config.images.deviceSizes,

@@ -4,6 +4,6 @@ module.exports = {
     maxInactiveAge: 1000 * 60 * 60,
   },
   experimental: {
-    externalDir: '../shared',
+    externalDir: true,
   },
 }
