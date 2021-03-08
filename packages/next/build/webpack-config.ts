@@ -732,7 +732,7 @@ export default async function getBaseWebpackConfig(
 
   const emacsLockfilePattern = '**/.#*'
 
-  // Allowing importing TS/TSX files from outside of the project dir.
+  // Allowing importing TS/TSX files from outside of the root dir.
   let externalDir
   if (config.experimental.externalDir) {
     externalDir = path.join(dir, config.experimental.externalDir)
