@@ -26,6 +26,17 @@
       "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"]
     },
     {
+      "name": "Launch app build trace",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["run", "trace-debug", "build", "test/integration/basic"],
+      "skipFiles": ["<node_internals>/**"],
+      "port": 9229,
+      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"]
+    },
+    {
       "name": "Launch app production",
       "type": "node",
       "request": "launch",
