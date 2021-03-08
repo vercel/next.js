@@ -388,7 +388,11 @@ export default async function exportApp(
         })
     )
 
-    if (!exportPathMap['/404'] && !exportPathMap['/404.html']) {
+    if (
+      !options.buildExport &&
+      !exportPathMap['/404'] &&
+      !exportPathMap['/404.html']
+    ) {
       exportPathMap['/404'] = exportPathMap['/404.html'] = {
         page: '/_error',
       }
