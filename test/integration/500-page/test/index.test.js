@@ -66,6 +66,7 @@ const runTests = (mode = 'server') => {
 describe('500 Page Support', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -76,6 +77,7 @@ describe('500 Page Support', () => {
 
   describe('server mode', () => {
     beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
@@ -96,6 +98,7 @@ describe('500 Page Support', () => {
         }
       `
       )
+      await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
@@ -119,6 +122,7 @@ describe('500 Page Support', () => {
       export default page
     `
     )
+    await fs.remove(join(appDir, '.next'))
     const { stderr, stdout: buildStdout, code } = await nextBuild(appDir, [], {
       stderr: true,
       stdout: true,
@@ -148,6 +152,7 @@ describe('500 Page Support', () => {
 
   it('builds 500 statically by default with no pages/500', async () => {
     await fs.rename(pages500, `${pages500}.bak`)
+    await fs.remove(join(appDir, '.next'))
     const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
     await fs.rename(`${pages500}.bak`, pages500)
 
@@ -188,7 +193,7 @@ describe('500 Page Support', () => {
     }
   })
 
-  it('builds 500 statically by default with no pages/500 and custom _error', async () => {
+  it('builds 500 statically by default with no pages/500 and custom _error without getInitialProps', async () => {
     await fs.rename(pages500, `${pages500}.bak`)
     await fs.writeFile(
       pagesError,
@@ -196,15 +201,11 @@ describe('500 Page Support', () => {
         function Error({ statusCode }) {
           return <p>Error status: {statusCode}</p>
         }
-        Error.getInitialProps = ({ res, err }) => {
-          console.error('called _error.getInitialProps')
-          return {
-            statusCode: res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
-          }
-        }
+
         export default Error
       `
     )
+    await fs.remove(join(appDir, '.next'))
     const { stderr: buildStderr, code } = await nextBuild(appDir, [], {
       stderr: true,
     })
@@ -216,6 +217,44 @@ describe('500 Page Support', () => {
     expect(
       await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
     ).toBe(true)
+  })
+
+  it('does not build 500 statically with no pages/500 and custom getInitialProps in _error', async () => {
+    await fs.rename(pages500, `${pages500}.bak`)
+    await fs.writeFile(
+      pagesError,
+      `
+        function Error({ statusCode }) {
+          return <p>Error status: {statusCode}</p>
+        }
+
+        Error.getInitialProps = ({ req, res, err }) => {
+          console.error('called _error.getInitialProps')
+
+          if (req.url === '/500') {
+            throw new Error('should not export /500')
+          }
+
+          return {
+            statusCode: res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
+          }
+        }
+
+        export default Error
+      `
+    )
+    await fs.remove(join(appDir, '.next'))
+    const { stderr: buildStderr, code } = await nextBuild(appDir, [], {
+      stderr: true,
+    })
+    await fs.rename(`${pages500}.bak`, pages500)
+    await fs.remove(pagesError)
+    console.log(buildStderr)
+    expect(buildStderr).not.toMatch(gip500Err)
+    expect(code).toBe(0)
+    expect(
+      await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
+    ).toBe(false)
 
     let appStderr = ''
     const appPort = await findPort()
@@ -241,6 +280,7 @@ describe('500 Page Support', () => {
       export default page
     `
     )
+    await fs.remove(join(appDir, '.next'))
     const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
     await fs.remove(pages500)
     await fs.move(`${pages500}.bak`, pages500)
@@ -288,6 +328,7 @@ describe('500 Page Support', () => {
       export default page
     `
     )
+    await fs.remove(join(appDir, '.next'))
     const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
     await fs.remove(pages500)
     await fs.move(`${pages500}.bak`, pages500)
@@ -335,6 +376,7 @@ describe('500 Page Support', () => {
       export default page
     `
     )
+    await fs.remove(join(appDir, '.next'))
     const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
     await fs.remove(pages500)
     await fs.move(`${pages500}.bak`, pages500)
