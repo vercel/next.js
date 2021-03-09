@@ -605,11 +605,43 @@ export default async function build(
           async () =>
             hasCustomErrorPage &&
             (await hasCustomGetInitialProps(
-              getPagePath('/_error', distDir, isLikeServerless),
+              '/_error',
+              distDir,
+              isLikeServerless,
               runtimeEnvConfig,
               false
             ))
         )
+        // we don't output _app in serverless mode so use _app export
+        // from _error instead
+        const appPageToCheck = isLikeServerless ? '/_error' : '/_app'
+
+        customAppGetInitialProps = await hasCustomGetInitialProps(
+          appPageToCheck,
+          distDir,
+          isLikeServerless,
+          runtimeEnvConfig,
+          true
+        )
+
+        namedExports = await getNamedExports(
+          appPageToCheck,
+          distDir,
+          isLikeServerless,
+          runtimeEnvConfig
+        )
+
+        if (customAppGetInitialProps) {
+          console.warn(
+            chalk.bold.yellow(`Warning: `) +
+              chalk.yellow(
+                `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`. This does not opt-out pages with \`getStaticProps\``
+              )
+          )
+          console.warn(
+            'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
+          )
+        }
 
         await Promise.all(
           pageKeys.map(async (page) => {
@@ -633,41 +665,6 @@ export default async function build(
                 )
 
                 if (nonReservedPage) {
-                  const serverBundle = getPagePath(
-                    page,
-                    distDir,
-                    isLikeServerless
-                  )
-
-                  if (customAppGetInitialProps === undefined) {
-                    customAppGetInitialProps = await hasCustomGetInitialProps(
-                      isLikeServerless
-                        ? serverBundle
-                        : getPagePath('/_app', distDir, isLikeServerless),
-                      runtimeEnvConfig,
-                      true
-                    )
-
-                    namedExports = getNamedExports(
-                      isLikeServerless
-                        ? serverBundle
-                        : getPagePath('/_app', distDir, isLikeServerless),
-                      runtimeEnvConfig
-                    )
-
-                    if (customAppGetInitialProps) {
-                      console.warn(
-                        chalk.bold.yellow(`Warning: `) +
-                          chalk.yellow(
-                            `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`. This does not opt-out pages with \`getStaticProps\``
-                          )
-                      )
-                      console.warn(
-                        'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
-                      )
-                    }
-                  }
-
                   try {
                     let workerResult = await traceAsyncFn(
                       tracer.startSpan('is-page-static'),
@@ -917,6 +914,7 @@ export default async function build(
     })
 
     const hasPages500 = usedStaticStatusPages.includes('/500')
+    const useDefaultStatic500 = !hasPages500 && !hasNonStaticErrorPage
 
     await traceAsyncFn(tracer.startSpan('static-generation'), async () => {
       const combinedPages = [...staticPages, ...ssgPages]
@@ -994,9 +992,7 @@ export default async function build(
             }
           }
 
-          // ensure 500.html is always generated even if pages/500.html
-          // doesn't exist
-          if (!hasPages500) {
+          if (useDefaultStatic500) {
             defaultMap['/500'] = {
               page: '/_error',
             }
@@ -1007,7 +1003,7 @@ export default async function build(
               ...staticPages,
               ...ssgPages,
               ...(useStatic404 ? ['/404'] : []),
-              ...(!hasPages500 ? ['/500'] : []),
+              ...(useDefaultStatic500 ? ['/500'] : []),
             ]) {
               const isSsg = ssgPages.has(page)
               const isDynamic = isDynamicRoute(page)
@@ -1175,7 +1171,7 @@ export default async function build(
         await moveExportedPage('/_error', '/404', '/404', false, 'html')
       }
 
-      if (!hasPages500) {
+      if (useDefaultStatic500) {
         await moveExportedPage('/_error', '/500', '/500', false, 'html')
       }
 
