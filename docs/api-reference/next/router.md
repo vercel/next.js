@@ -74,7 +74,7 @@ router.push(url, as, options)
 - `options` - Optional object with the following configuration options:
   - `scroll`: Scroll to the top of the page after a navigation. Defaults to `true`
   - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
-  - `scroll` - Optional boolean, controls scrolling to the top the page afer navigation. Defaults to `true`
+  - `scroll` - Optional boolean, controls scrolling to the top of the page after navigation. Defaults to `true`
 
 > You don't need to use `router.push` for external URLs. [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location) is better suited for those cases.
 
