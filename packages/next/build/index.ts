@@ -407,6 +407,7 @@ export default async function build(
           compress: false,
           configFile: undefined,
         },
+        appDir: dir,
         files: [
           ROUTES_MANIFEST,
           path.relative(distDir, manifestPath),
