@@ -221,6 +221,10 @@ export default function myApiRoute(req, res) {
 Both the bypass cookie value and the private key for encrypting the `previewData` change when `next build` is completed.
 This ensures that the bypass cookie can’t be guessed.
 
+### Works locally
+
+To test preview mode locally over HTTP make sure the `NODE_ENV` environment variable is set to `development`.
+
 ## Learn more
 
 The following pages might also be useful.
