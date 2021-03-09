@@ -139,6 +139,11 @@ if (process.env.__NEXT_I18N_SUPPORT) {
   }
 }
 
+if (process.env.__NEXT_SCRIPT_LOADER && data.scriptLoader) {
+  const { initScriptLoader } = require('./experimental-script')
+  initScriptLoader(data.scriptLoader)
+}
+
 type RegisterFn = (input: [string, () => void]) => void
 
 const pageLoader: PageLoader = new PageLoader(buildId, prefix)

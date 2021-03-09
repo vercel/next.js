@@ -1,18 +1,19 @@
 {
   "name": "with-redis",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
+    "ioredis": "^4.22.0",
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1",
-    "react-toastify": "^6.0.8",
-    "redis": "^3.0.2",
-    "uuid": "^8.2.0"
+    "react": "17.0.1",
+    "react-dom": "17.0.1",
+    "react-toastify": "^6.0.8"
   },
-  "license": "MIT"
+  "devDependencies": {
+    "prettier": "^2.2.1"
+  }
 }

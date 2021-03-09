@@ -125,8 +125,9 @@ export default async function build(
       loadEnvConfig(dir, false, Log)
     )
 
-    const config = traceFn(tracer.startSpan('load-next-config'), () =>
-      loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
+    const config = await traceAsyncFn(
+      tracer.startSpan('load-next-config'),
+      () => loadConfig(PHASE_PRODUCTION_BUILD, dir, conf)
     )
     const { target } = config
     const buildId = await traceAsyncFn(
@@ -677,7 +678,8 @@ export default async function build(
                         )
                         return staticCheckWorkers.isPageStatic(
                           page,
-                          serverBundle,
+                          distDir,
+                          isLikeServerless,
                           runtimeEnvConfig,
                           config.i18n?.locales,
                           config.i18n?.defaultLocale,
