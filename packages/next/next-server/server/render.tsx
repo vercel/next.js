@@ -182,8 +182,8 @@ export type RenderOptsPartial = {
   basePath: string
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
-  fontManifest?: FontManifest
   optimizeFonts: boolean
+  fontManifest?: FontManifest
   optimizeImages: boolean
   optimizeCss: any
   devOnlyCacheBusterQueryString?: string
