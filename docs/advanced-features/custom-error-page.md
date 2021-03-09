@@ -29,7 +29,7 @@ Server-rendering an error page for every visit adds complexity to responding to 
 
 ### Customizing The 500 Page
 
-To create a custom 500 page you can create a `pages/500.js` file. This file is statically generated at build time.
+To customize the 500 page you can create a `pages/500.js` file. This file is statically generated at build time.
 
 ```jsx
 // pages/500.js
