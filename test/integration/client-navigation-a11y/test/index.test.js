@@ -19,12 +19,7 @@ describe('Client Navigation accessibility', () => {
       env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
     })
 
-    const prerender = [
-      '/with-h1',
-      '/with-h1-and-tab-index',
-      '/with-main',
-      '/without-main',
-    ]
+    const prerender = ['/another-page']
 
     await Promise.all(
       prerender.map((route) => renderViaHTTP(context.appPort, route))
@@ -33,64 +28,31 @@ describe('Client Navigation accessibility', () => {
 
   afterAll(() => killApp(context.server))
 
-  describe('the next route has an h1 element', () => {
-    it('brings focus to the h1 element', async () => {
-      const browser = await webdriver(context.appPort, '/')
-      await browser
-        .waitForElementByCss('#with-h1-link')
-        .click()
-        .waitForElementByCss('#navigation-result-container')
+  it('brings focus to the body', async () => {
+    const browser = await webdriver(context.appPort, '/')
+    await browser
+      .waitForElementByCss('#another-page-link')
+      .click()
+      .waitForElementByCss('#another-page-container')
 
-      const isH1Focused = await browser.eval(
-        'document.activeElement === document.querySelector("h1")'
-      )
-      expect(isH1Focused).toBe(true)
-
-      await browser.close()
-    })
-  })
-
-  describe('the next route has a main element', () => {
-    it('brings focus to the main element', async () => {
-      const browser = await webdriver(context.appPort, '/')
-      await browser
-        .waitForElementByCss('#with-main-link')
-        .click()
-        .waitForElementByCss('#navigation-result-container')
-
-      const isMainFocused = await browser.eval(
-        'document.activeElement === document.querySelector("main")'
-      )
-      expect(isMainFocused).toBe(true)
-
-      await browser.close()
-    })
-  })
-
-  describe('the next route has neither a main nor h1 element', () => {
-    it('brings focus to the body', async () => {
-      const browser = await webdriver(context.appPort, '/')
-      await browser
-        .waitForElementByCss('#without-main-link')
-        .click()
-        .waitForElementByCss('#navigation-result-container')
-
-      const isBodyFocused = await browser.eval(
-        'document.activeElement === document.body'
-      )
-      expect(isBodyFocused).toBe(true)
-    })
+    const isBodyFocused = await browser.eval(
+      'document.activeElement === document.body'
+    )
+    expect(isBodyFocused).toBe(true)
+    await browser.close()
   })
 
   describe('tabIndex of focused element does not exist', () => {
     it('is set to -1', async () => {
       const browser = await webdriver(context.appPort, '/')
-      const tabIndex = await browser
-        .waitForElementByCss('#with-h1-link')
+      await browser
+        .waitForElementByCss('#another-page-link')
         .click()
-        .waitForElementByCss('#navigation-result-container')
-        .elementByCss('h1')
-        .getAttribute('tabIndex')
+        .waitForElementByCss('#another-page-container')
+
+      const tabIndex = await browser.eval(
+        'document.body.getAttribute("tabIndex")'
+      )
 
       expect(tabIndex).toBe('-1')
       await browser.close()
@@ -100,15 +62,17 @@ describe('Client Navigation accessibility', () => {
   describe('tabIndex of focused element exists', () => {
     it('does not change', async () => {
       const browser = await webdriver(context.appPort, '/')
-      const tabIndex = await browser
-        .waitForElementByCss('#with-h1-and-tab-index-link')
+      await browser.eval('document.body.setAttribute("tabIndex", 2)')
+      await browser
+        .waitForElementByCss('#another-page-link')
         .click()
-        .waitForElementByCss('#navigation-result-container')
-        .elementByCss('h1')
-        .getAttribute('tabIndex')
+        .waitForElementByCss('#another-page-container')
+
+      const tabIndex = await browser.eval(
+        'document.body.getAttribute("tabIndex")'
+      )
 
       expect(tabIndex).toBe('2')
-
       await browser.close()
     })
   })

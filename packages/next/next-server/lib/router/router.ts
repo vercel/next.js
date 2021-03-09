@@ -338,31 +338,23 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   }
 }
 
-// Focus a user's attention to the beginning of new content. This is done by focusing the first h1 tag. If an h1 does
-// not exist, focus the main semantic tag. If this does not exist, focus the cursor on the body. This methodology is
-// inspired by Marcy Sutton's accessible client routing user testing. More information can be found here:
-// https://www.gatsbyjs.com/blog/2019-07-11-user-testing-accessible-client-routing/
-function a11ySmartFocus() {
-  const elementToFocus =
-    document.querySelector('h1') ||
-    document.querySelector('main') ||
-    document.body
-
-  if (elementToFocus) {
-    const didTabIndexExist = elementToFocus.getAttribute('tabIndex')
+// Give focus to the body when a page changes.
+function focusOnDocumentBody() {
+  if (document.body) {
+    const didTabIndexExist = document.body.getAttribute('tabIndex')
 
     // Only elements with a tabIndex are focusable. So we add a tabIndex here just to make it focusable.
     if (!didTabIndexExist) {
-      elementToFocus.setAttribute('tabIndex', '-1')
+      document.body.setAttribute('tabIndex', '-1')
     }
 
-    elementToFocus.focus()
+    document.body.focus()
 
     // Once the focus leaves the element, we should clean up the tabIndex, if we added one. This is so the screen-reader
     // does not try to focus the element for purposes other than the initial client-navigation.
     if (!didTabIndexExist) {
-      elementToFocus.addEventListener('blur', () => {
-        elementToFocus.removeAttribute('tabIndex')
+      document.body.addEventListener('blur', () => {
+        document.body.removeAttribute('tabIndex')
       })
     }
   }
@@ -1208,7 +1200,7 @@ export default class Router implements BaseRouter {
       }
 
       if (!options.shallow) {
-        a11ySmartFocus()
+        focusOnDocumentBody()
       }
 
       Router.events.emit('routeChangeComplete', as, routeProps)

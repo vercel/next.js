@@ -1,6 +1,6 @@
 export default () => (
-  <main id="navigation-result-container">
+  <div id="another-page-container">
     <div>My heading</div>
     <div>Extraneous stuff</div>
-  </main>
+  </div>
 )
