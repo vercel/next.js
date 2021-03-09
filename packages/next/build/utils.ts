@@ -860,12 +860,16 @@ export async function isPageStatic(
 }
 
 export async function hasCustomGetInitialProps(
-  bundle: string,
+  page: string,
+  distDir: string,
+  isLikeServerless: boolean,
   runtimeEnvConfig: any,
   checkingApp: boolean
 ): Promise<boolean> {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
-  let mod = require(bundle)
+
+  const components = await loadComponents(distDir, page, isLikeServerless)
+  let mod = components.ComponentMod
 
   if (checkingApp) {
     mod = (await mod._app) || mod.default || mod
@@ -876,12 +880,17 @@ export async function hasCustomGetInitialProps(
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 
-export function getNamedExports(
-  bundle: string,
+export async function getNamedExports(
+  page: string,
+  distDir: string,
+  isLikeServerless: boolean,
   runtimeEnvConfig: any
-): Array<string> {
+): Promise<Array<string>> {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
-  return Object.keys(require(bundle))
+  const components = await loadComponents(distDir, page, isLikeServerless)
+  let mod = components.ComponentMod
+
+  return Object.keys(mod)
 }
 
 export function detectConflictingPaths(
