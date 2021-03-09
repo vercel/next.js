@@ -71,6 +71,7 @@ const {
   locale,
   locales,
   domainLocales,
+  isPreview,
 } = data
 
 let { defaultLocale } = data
@@ -136,6 +137,11 @@ if (process.env.__NEXT_I18N_SUPPORT) {
       defaultLocale = detectedDomain.defaultLocale
     }
   }
+}
+
+if (process.env.__NEXT_SCRIPT_LOADER && data.scriptLoader) {
+  const { initScriptLoader } = require('./experimental-script')
+  initScriptLoader(data.scriptLoader)
 }
 
 type RegisterFn = (input: [string, () => void]) => void
@@ -375,6 +381,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     locales,
     defaultLocale,
     domainLocales,
+    isPreview,
   })
 
   // call init-client middleware

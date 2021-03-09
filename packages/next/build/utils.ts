@@ -31,6 +31,7 @@ import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-pa
 import * as Log from './output/log'
 import opentelemetryApi from '@opentelemetry/api'
 import { tracer, traceAsyncFn } from './tracer'
+import { loadComponents } from '../next-server/server/load-components'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
 const fsStatGzip = (file: string) => {
@@ -713,7 +714,8 @@ export async function buildStaticPaths(
 
 export async function isPageStatic(
   page: string,
-  serverBundle: string,
+  distDir: string,
+  serverless: boolean,
   runtimeEnvConfig: any,
   locales?: string[],
   defaultLocale?: string,
@@ -742,8 +744,9 @@ export async function isPageStatic(
             require('../next-server/lib/runtime-config').setConfig(
               runtimeEnvConfig
             )
-            const mod = await require(serverBundle)
-            const Comp = await (mod.default || mod)
+            const components = await loadComponents(distDir, page, serverless)
+            const mod = components.ComponentMod
+            const Comp = mod.default || mod
 
             if (
               !Comp ||
@@ -857,12 +860,16 @@ export async function isPageStatic(
 }
 
 export async function hasCustomGetInitialProps(
-  bundle: string,
+  page: string,
+  distDir: string,
+  isLikeServerless: boolean,
   runtimeEnvConfig: any,
   checkingApp: boolean
 ): Promise<boolean> {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
-  let mod = require(bundle)
+
+  const components = await loadComponents(distDir, page, isLikeServerless)
+  let mod = components.ComponentMod
 
   if (checkingApp) {
     mod = (await mod._app) || mod.default || mod
@@ -873,12 +880,17 @@ export async function hasCustomGetInitialProps(
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 
-export function getNamedExports(
-  bundle: string,
+export async function getNamedExports(
+  page: string,
+  distDir: string,
+  isLikeServerless: boolean,
   runtimeEnvConfig: any
-): Array<string> {
+): Promise<Array<string>> {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
-  return Object.keys(require(bundle))
+  const components = await loadComponents(distDir, page, isLikeServerless)
+  let mod = components.ComponentMod
+
+  return Object.keys(mod)
 }
 
 export function detectConflictingPaths(
@@ -955,4 +967,17 @@ export function detectConflictingPaths(
     )
     process.exit(1)
   }
+}
+
+export function getCssFilePaths(buildManifest: BuildManifest): string[] {
+  const cssFiles = new Set<string>()
+  Object.values(buildManifest.pages).forEach((files) => {
+    files.forEach((file) => {
+      if (file.endsWith('.css')) {
+        cssFiles.add(file)
+      }
+    })
+  })
+
+  return [...cssFiles]
 }

@@ -89,8 +89,25 @@ allSizes.sort((a, b) => a - b)
 
 function getWidths(
   width: number | undefined,
-  layout: LayoutValue
+  layout: LayoutValue,
+  sizes: string | undefined
 ): { widths: number[]; kind: 'w' | 'x' } {
+  if (sizes && (layout === 'fill' || layout === 'responsive')) {
+    // Find all the "vw" percent sizes used in the sizes prop
+    const percentSizes = [...sizes.matchAll(/(^|\s)(1?\d?\d)vw/g)].map((m) =>
+      parseInt(m[2])
+    )
+    if (percentSizes.length) {
+      const smallestRatio = Math.min(...percentSizes) * 0.01
+      return {
+        widths: allSizes.filter(
+          (s) => s >= configDeviceSizes[0] * smallestRatio
+        ),
+        kind: 'w',
+      }
+    }
+    return { widths: allSizes, kind: 'w' }
+  }
   if (
     typeof width !== 'number' ||
     layout === 'fill' ||
@@ -146,7 +163,7 @@ function generateImgAttrs({
     return { src, srcSet: undefined, sizes: undefined }
   }
 
-  const { widths, kind } = getWidths(width, layout)
+  const { widths, kind } = getWidths(width, layout, sizes)
   const last = widths.length - 1
 
   return {
