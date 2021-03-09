@@ -145,7 +145,7 @@ describe('Font optimization for serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
-      `module.exports = { target: 'serverless' }`,
+      `module.exports = { target: 'serverless', optimizeFonts: true }`,
       'utf8'
     )
     await nextBuild(appDir)
@@ -162,7 +162,7 @@ describe('Font optimization for emulated serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
-      `module.exports = { target: 'experimental-serverless-trace' }`,
+      `module.exports = { target: 'experimental-serverless-trace', optimizeFonts: true }`,
       'utf8'
     )
     await nextBuild(appDir)

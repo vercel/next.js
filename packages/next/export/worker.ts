@@ -49,6 +49,7 @@ interface ExportPageInput {
   serverRuntimeConfig: string
   subFolders?: boolean
   serverless: boolean
+  optimizeFonts: boolean
   optimizeImages: boolean
   optimizeCss: any
   spanContext: any
@@ -69,6 +70,7 @@ interface RenderOpts {
   ampSkipValidation?: boolean
   hybridAmp?: boolean
   inAmpMode?: boolean
+  optimizeFonts?: boolean
   optimizeImages?: boolean
   optimizeCss?: any
   fontManifest?: FontManifest
@@ -94,6 +96,7 @@ export default async function exportPage({
   serverRuntimeConfig,
   subFolders,
   serverless,
+  optimizeFonts,
   optimizeImages,
   optimizeCss,
 }: ExportPageInput): Promise<ExportPageResults> {
@@ -269,11 +272,15 @@ export default async function exportPage({
                 {
                   ampPath: renderAmpPath,
                   /// @ts-ignore
+                  optimizeFonts,
+                  /// @ts-ignore
                   optimizeImages,
                   /// @ts-ignore
                   optimizeCss,
                   distDir,
-                  fontManifest: requireFontManifest(distDir, serverless),
+                  fontManifest: optimizeFonts
+                    ? requireFontManifest(distDir, serverless)
+                    : null,
                   locale: locale!,
                   locales: renderOpts.locales!,
                 },
@@ -318,6 +325,9 @@ export default async function exportPage({
                * Using this from process.env allows targeting both serverless and SSR
                * TODO: Remove this when experimental flags are being cleaned up.
                */
+              if (optimizeFonts) {
+                process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
+              }
               if (optimizeImages) {
                 process.env.__NEXT_OPTIMIZE_IMAGES = JSON.stringify(true)
               }
@@ -329,9 +339,12 @@ export default async function exportPage({
                 ...renderOpts,
                 ampPath: renderAmpPath,
                 params,
+                optimizeFonts,
                 optimizeImages,
                 optimizeCss,
-                fontManifest: requireFontManifest(distDir, serverless),
+                fontManifest: optimizeFonts
+                  ? requireFontManifest(distDir, serverless)
+                  : null,
                 locale: locale as string,
               }
               // @ts-ignore

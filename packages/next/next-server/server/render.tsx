@@ -183,6 +183,7 @@ export type RenderOptsPartial = {
   unstable_runtimeJS?: false
   unstable_JsPreload?: false
   fontManifest?: FontManifest
+  optimizeFonts: boolean
   optimizeImages: boolean
   optimizeCss: any
   devOnlyCacheBusterQueryString?: string
@@ -1117,13 +1118,17 @@ export async function renderToHTML(
     }
   }
 
-  html = await postProcess(
-    html,
-    { getFontDefinition },
-    {
-      optimizeImages: renderOpts.optimizeImages,
-    }
-  )
+  // Avoid postProcess if both flags are false
+  if (process.env.__NEXT_OPTIMIZE_FONTS || process.env.__NEXT_OPTIMIZE_IMAGES) {
+    html = await postProcess(
+      html,
+      { getFontDefinition },
+      {
+        optimizeFonts: renderOpts.optimizeFonts,
+        optimizeImages: renderOpts.optimizeImages,
+      }
+    )
+  }
 
   if (renderOpts.optimizeCss) {
     // eslint-disable-next-line import/no-extraneous-dependencies
