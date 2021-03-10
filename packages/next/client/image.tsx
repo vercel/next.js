@@ -441,8 +441,15 @@ export default function Image({
       <noscript>
         <img
           {...rest}
-          {...imgAttributes}
-          srcSet={imgSrcSet}
+          {...generateImgAttrs({
+            src,
+            unoptimized,
+            layout,
+            width: widthInt,
+            quality: qualityInt,
+            sizes,
+            loader,
+          })}
           src={src}
           decoding="async"
           sizes={sizes}
