@@ -27,7 +27,7 @@ export function stackPush(keyObj: any, spanName: string, attrs?: any): Span {
 export function stackPop(keyObj: any, span: any): void {
   let stack = stacks.get(keyObj)
   if (!stack) {
-    console.warn(
+    console.info(
       'Attempted to pop from non-existent stack. Key reference must be bad.'
     )
     return
@@ -39,7 +39,7 @@ export function stackPop(keyObj: any, span: any): void {
     stoppedSpansSets.set(keyObj, stoppedSpans)
   }
   if (stoppedSpans.has(span)) {
-    console.warn(
+    console.info(
       `Attempted to terminate tracing span that was already stopped for ${span.name}`
     )
     return
@@ -56,12 +56,12 @@ export function stackPop(keyObj: any, span: any): void {
     } else if (poppedSpan === undefined || stack.indexOf(span) === -1) {
       // We've either reached the top of the stack or the stack doesn't contain
       // the span for another reason.
-      console.warn(`Tracing span was not found in stack for: ${span.name}`)
+      console.info(`Tracing span was not found in stack for: ${span.name}`)
       stoppedSpans.add(span)
       span.stop()
       break
     } else if (stack.indexOf(span) !== -1) {
-      console.warn(
+      console.info(
         `Attempted to pop span that was not at top of stack for: ${span.name}`
       )
       stoppedSpans.add(poppedSpan)
