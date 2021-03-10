@@ -18,10 +18,13 @@ export function RouteAnnouncer() {
 
       if (pageHeader) {
         newRouteAnnouncement = pageHeader.innerText || pageHeader.textContent
-      } else if (document.title) {
-        newRouteAnnouncement = document.title
-      } else {
-        newRouteAnnouncement = asPath
+      }
+      if (!newRouteAnnouncement) {
+        if (document.title) {
+          newRouteAnnouncement = document.title
+        } else {
+          newRouteAnnouncement = asPath
+        }
       }
 
       setRouteAnnouncement(newRouteAnnouncement)
