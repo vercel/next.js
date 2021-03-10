@@ -1,3 +1,4 @@
+import '../styles.css'
 import { ClientContext } from 'graphql-hooks'
 import { useGraphQLClient } from '../lib/graphql-client'
 

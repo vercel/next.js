@@ -1,23 +1,9 @@
-/*
-  Example with @emotion/react
-
-  Required packages for this component:
-    "@emotion/react"
-    "@emotion/babel-plugin"
-
-  These packages can be removed if you plan on only using @emotion/react API:
-    "@emotion/css"
-    "@emotion/styled"
-    "@emotion/server"
-*/
-
-/** @jsx jsx */
-import { jsx } from '@emotion/react'
-import tw from '@tailwindcssinjs/macro'
+/* Example with @emotion/react */
+import xw, { cx } from 'xwind'
 
 //"react native style"
 const styles = {
-  button: tw`
+  button: xw`
     relative
     w-64 min-w-full
     flex justify-center
@@ -26,24 +12,20 @@ const styles = {
     text-sm leading-5 font-medium
     rounded-md
     text-white
-    bg-teal-600
-    hover:bg-teal-500
-    focus[outline-none border-teal-700 shadow-outline-teal]
-    active:bg-teal-700
+    bg-gray-600
+    hover:bg-gray-500
+    focus[outline-none ring-4 ring-gray-400]
+    active:bg-gray-700
     transition duration-150 ease-in-out
   `,
 }
 
 const ButtonReact = ({ className, children, ...props }) => (
-  <button
-    {...props}
-    css={styles.button}
-    className={['group', className].join(' ')}
-  >
-    {/* inline style */}
-    <span css={tw`absolute left-0 inset-y-0 flex items-center pl-3`}>
+  <button {...props} css={styles.button} className={cx('group', className)}>
+    {/* inline style*/}
+    <span css={xw`absolute left-0 inset-y-0 flex items-center pl-3`}>
       <svg
-        css={tw`h-5 w-5 text-teal-500 group-hover:text-teal-400 transition ease-in-out duration-150`}
+        css={xw`h-5 w-5 text-gray-500 group-hover:text-gray-400 transition ease-in-out duration-150`}
         fill="currentColor"
         viewBox="0 0 20 20"
       >

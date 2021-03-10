@@ -30,6 +30,7 @@ export class IncrementalCache {
 
   prerenderManifest: PrerenderManifest
   cache: LRUCache<string, IncrementalCacheValue>
+  locales?: string[]
 
   constructor({
     max,
@@ -37,12 +38,14 @@ export class IncrementalCache {
     distDir,
     pagesDir,
     flushToDisk,
+    locales,
   }: {
     dev: boolean
     max?: number
     distDir: string
     pagesDir: string
     flushToDisk?: boolean
+    locales?: string[]
   }) {
     this.incrementalOptions = {
       dev,
@@ -51,6 +54,7 @@ export class IncrementalCache {
       flushToDisk:
         !dev && (typeof flushToDisk !== 'undefined' ? flushToDisk : true),
     }
+    this.locales = locales
 
     if (dev) {
       this.prerenderManifest = {
@@ -147,7 +151,9 @@ export class IncrementalCache {
     ) {
       data.isStale = true
     }
-    const manifestEntry = this.prerenderManifest.routes[pathname]
+
+    const manifestPath = toRoute(pathname)
+    const manifestEntry = this.prerenderManifest.routes[manifestPath]
 
     if (data && manifestEntry) {
       data.curRevalidate = manifestEntry.initialRevalidateSeconds

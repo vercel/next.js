@@ -15,7 +15,9 @@ Next.js automatically supports the `tsconfig.json` and `jsconfig.json` `"paths"`
 
 > Note: `jsconfig.json` can be used when you don't use TypeScript
 
-These option allow you to configure module aliases, for example a common pattern is aliasing certain directories to use absolute paths.
+> Note: you need to restart dev server to reflect modifications done in `tsconfig.json` / `jsconfig.json`
+
+These options allow you to configure module aliases, for example a common pattern is aliasing certain directories to use absolute paths.
 
 One useful feature of these options is that they integrate automatically into certain editors, for example vscode.
 

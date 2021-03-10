@@ -11,13 +11,15 @@ Note: this error will only show when the `next/link` component is clicked not wh
 ```jsx
 import Link from 'next/link'
 
-export default () => (
-  <>
-    <Link href="/[post]" as="/post-1/comments">
-      <a>Invalid link</a>
-    </Link>
-  </>
-)
+export default function Page(props) {
+  return (
+    <>
+      <Link href="/[post]" as="/post-1/comments">
+        <a>Invalid link</a>
+      </Link>
+    </>
+  )
+}
 ```
 
 **Compatible `href` and `as`**
@@ -25,13 +27,15 @@ export default () => (
 ```jsx
 import Link from 'next/link'
 
-export default () => (
-  <>
-    <Link href="/[post]" as="/post-1">
-      <a>Valid link</a>
-    </Link>
-  </>
-)
+export default function Page(props) {
+  return (
+    <>
+      <Link href="/[post]" as="/post-1">
+        <a>Valid link</a>
+      </Link>
+    </>
+  )
+}
 ```
 
 #### Possible Ways to Fix It

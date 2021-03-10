@@ -36,8 +36,16 @@ function pluginSyntaxJsx() {
   return require('@babel/plugin-syntax-jsx')
 }
 
+function pluginTransformDefine() {
+  return require('babel-plugin-transform-define')
+}
+
 function pluginTransformModulesCommonjs() {
   return require('@babel/plugin-transform-modules-commonjs')
+}
+
+function pluginTransformReactRemovePropTypes() {
+  return require('babel-plugin-transform-react-remove-prop-types')
 }
 
 function pluginTransformRuntime() {
@@ -66,7 +74,9 @@ module.exports = {
   pluginSyntaxBigint,
   pluginSyntaxDynamicImport,
   pluginSyntaxJsx,
+  pluginTransformDefine,
   pluginTransformModulesCommonjs,
+  pluginTransformReactRemovePropTypes,
   pluginTransformRuntime,
   presetEnv,
   presetReact,

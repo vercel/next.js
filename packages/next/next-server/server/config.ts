@@ -1,75 +1,19 @@
 import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
-import os from 'os'
 import { basename, extname } from 'path'
 import * as Log from '../../build/output/log'
-import { CONFIG_FILE } from '../lib/constants'
+import { hasNextSupport } from '../../telemetry/ci-info'
+import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../lib/constants'
 import { execOnce } from '../lib/utils'
+import { defaultConfig, normalizeConfig } from './config-shared'
+import { loadWebpackHook } from './config-utils'
+import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
+import { loadEnvConfig } from '@next/env'
+
+export { DomainLocales, NextConfig, normalizeConfig } from './config-shared'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
-
-const defaultConfig: { [key: string]: any } = {
-  env: [],
-  webpack: null,
-  webpackDevMiddleware: null,
-  distDir: '.next',
-  assetPrefix: '',
-  configOrigin: 'default',
-  useFileSystemPublicRoutes: true,
-  generateBuildId: () => null,
-  generateEtags: true,
-  pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
-  target: 'server',
-  poweredByHeader: true,
-  compress: true,
-  analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
-  images: {
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    domains: [],
-    path: '/_next/image',
-    loader: 'default',
-  },
-  devIndicators: {
-    buildActivity: true,
-  },
-  onDemandEntries: {
-    maxInactiveAge: 60 * 1000,
-    pagesBufferLength: 2,
-  },
-  amp: {
-    canonicalBase: '',
-  },
-  basePath: '',
-  sassOptions: {},
-  trailingSlash: false,
-  i18n: false,
-  experimental: {
-    cpus: Math.max(
-      1,
-      (Number(process.env.CIRCLE_NODE_TOTAL) ||
-        (os.cpus() || { length: 1 }).length) - 1
-    ),
-    modern: false,
-    plugins: false,
-    profiling: false,
-    sprFlushToDisk: true,
-    reactMode: 'legacy',
-    workerThreads: false,
-    pageEnv: false,
-    productionBrowserSourceMaps: false,
-    optimizeFonts: false,
-    optimizeImages: false,
-    scrollRestoration: false,
-  },
-  future: {
-    excludeDefaultMomentLocales: false,
-  },
-  serverRuntimeConfig: {},
-  publicRuntimeConfig: {},
-  reactStrictMode: false,
-}
 
 const experimentalWarning = execOnce(() => {
   Log.warn(chalk.bold('You have enabled experimental feature(s).'))
@@ -215,7 +159,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   }
 
   if (result?.images) {
-    const { images } = result
+    const images: Partial<ImageConfig> = result.images
 
     if (typeof images !== 'object') {
       throw new Error(
@@ -232,7 +176,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
       if (images.domains.length > 50) {
         throw new Error(
-          `Specified images.domains exceeds length of 50, received length (${images.domains.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
+          `Specified images.domains exceeds length of 50, received length (${images.domains.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/next.js/invalid-images-config`
         )
       }
 
@@ -257,7 +201,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
       if (deviceSizes.length > 25) {
         throw new Error(
-          `Specified images.deviceSizes exceeds length of 25, received length (${deviceSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
+          `Specified images.deviceSizes exceeds length of 25, received length (${deviceSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/next.js/invalid-images-config`
         )
       }
 
@@ -283,7 +227,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
       if (imageSizes.length > 25) {
         throw new Error(
-          `Specified images.imageSizes exceeds length of 25, received length (${imageSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/nextjs/invalid-images-config`
+          `Specified images.imageSizes exceeds length of 25, received length (${imageSizes.length}), please reduce the length of the array to continue.\nSee more info here: https://err.sh/next.js/invalid-images-config`
         )
       }
 
@@ -300,12 +244,32 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       }
     }
 
+    if (!images.loader) {
+      images.loader = 'default'
+    }
+
+    if (!VALID_LOADERS.includes(images.loader)) {
+      throw new Error(
+        `Specified images.loader should be one of (${VALID_LOADERS.join(
+          ', '
+        )}), received invalid value (${
+          images.loader
+        }).\nSee more info here: https://err.sh/next.js/invalid-images-config`
+      )
+    }
+
     // Append trailing slash for non-default loaders
     if (images.path) {
-      const isDefaultLoader = !images.loader || images.loader === 'default'
-      if (!isDefaultLoader && images.path[images.path.length - 1] !== '/') {
+      if (
+        images.loader !== 'default' &&
+        images.path[images.path.length - 1] !== '/'
+      ) {
         images.path += '/'
       }
+    }
+
+    if (images.path === imageConfigDefault.path && result.basePath) {
+      images.path = `${result.basePath}${images.path}`
     }
   }
 
@@ -335,12 +299,12 @@ function assignDefaults(userConfig: { [key: string]: any }) {
 
     if (typeof i18n.domains !== 'undefined' && !Array.isArray(i18n.domains)) {
       throw new Error(
-        `Specified i18n.domains must be an array of domain objects e.g. [ { domain: 'example.fr', defaultLocale: 'fr', locales: ['fr'] } ] received ${typeof i18n.domains}.\nSee more info here: https://err.sh/nextjs/invalid-i18n-config`
+        `Specified i18n.domains must be an array of domain objects e.g. [ { domain: 'example.fr', defaultLocale: 'fr', locales: ['fr'] } ] received ${typeof i18n.domains}.\nSee more info here: https://err.sh/next.js/invalid-i18n-config`
       )
     }
 
     if (i18n.domains) {
-      const invalidDomainItems = i18n.domains.filter((item: any) => {
+      const invalidDomainItems = i18n.domains.filter((item) => {
         if (!item || typeof item !== 'object') return true
         if (!item.defaultLocale) return true
         if (!item.domain || typeof item.domain !== 'string') return true
@@ -351,7 +315,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
           for (const locale of item.locales) {
             if (typeof locale !== 'string') hasInvalidLocale = true
 
-            for (const domainItem of i18n.domains) {
+            for (const domainItem of i18n.domains || []) {
               if (domainItem === item) continue
               if (domainItem.locales && domainItem.locales.includes(locale)) {
                 console.warn(
@@ -408,7 +372,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
     // make sure default Locale is at the front
     i18n.locales = [
       i18n.defaultLocale,
-      ...i18n.locales.filter((locale: string) => locale !== i18n.defaultLocale),
+      ...i18n.locales.filter((locale) => locale !== i18n.defaultLocale),
     ]
 
     const localeDetectionType = typeof i18n.localeDetection
@@ -426,30 +390,19 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   return result
 }
 
-export function normalizeConfig(phase: string, config: any) {
-  if (typeof config === 'function') {
-    config = config(phase, { defaultConfig })
-
-    if (typeof config.then === 'function') {
-      throw new Error(
-        '> Promise returned in next config. https://err.sh/vercel/next.js/promise-in-next-config'
-      )
-    }
-  }
-  return config
-}
-
-export default function loadConfig(
+export default async function loadConfig(
   phase: string,
   dir: string,
   customConfig?: object | null
 ) {
+  await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
+  await loadWebpackHook(phase, dir)
+
   if (customConfig) {
     return assignDefaults({ configOrigin: 'server', ...customConfig })
   }
-  const path = findUp.sync(CONFIG_FILE, {
-    cwd: dir,
-  })
+
+  const path = await findUp(CONFIG_FILE, { cwd: dir })
 
   // If config file was found
   if (path?.length) {
@@ -491,6 +444,10 @@ export default function loadConfig(
           userConfig.experimental.reactMode
         } should be one of ${reactModes.join(', ')}`
       )
+    }
+
+    if (hasNextSupport) {
+      userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 
     return assignDefaults({

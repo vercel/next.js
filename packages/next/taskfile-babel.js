@@ -82,7 +82,7 @@ module.exports = function (task) {
   task.plugin('babel', {}, function* (
     file,
     serverOrClient,
-    { stripExtension } = {}
+    { stripExtension, dev } = {}
   ) {
     // Don't compile .d.ts
     if (file.base.endsWith('.d.ts')) return
@@ -111,7 +111,7 @@ module.exports = function (task) {
             ]
           : false,
       ].filter(Boolean),
-      compact: true,
+      compact: !dev,
       babelrc: false,
       configFile: false,
       cwd: __dirname,
