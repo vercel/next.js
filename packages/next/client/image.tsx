@@ -514,6 +514,7 @@ export default function Image({
         <img
           {...rest}
           {...imgAttributes}
+          srcSet={imgSrcSet}
           src={src}
           decoding="async"
           sizes={sizes}
