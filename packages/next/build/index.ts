@@ -599,7 +599,7 @@ export default async function build(
         const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
           'check-static-error-page'
         )
-        const nonStaticErrorPage = nonStaticErrorPageSpan.traceAsyncFn(
+        const nonStaticErrorPage = await nonStaticErrorPageSpan.traceAsyncFn(
           async () =>
             hasCustomErrorPage &&
             (await hasCustomGetInitialProps(
@@ -668,7 +668,7 @@ export default async function build(
                   let isPageStaticSpan = checkPageSpan.traceChild(
                     'is-page-static'
                   )
-                  let workerResult = isPageStaticSpan.traceAsyncFn(() => {
+                  let workerResult = await isPageStaticSpan.traceAsyncFn(() => {
                     return staticCheckWorkers.isPageStatic(
                       page,
                       distDir,
