@@ -665,21 +665,20 @@ export default async function build(
 
               if (nonReservedPage) {
                 try {
-                  let workerResult = await checkPageSpan
-                    .traceChild('is-page-static')
-                    .traceAsyncFn(() => {
-                      const spanContext = {}
-
-                      return staticCheckWorkers.isPageStatic(
-                        page,
-                        distDir,
-                        isLikeServerless,
-                        runtimeEnvConfig,
-                        config.i18n?.locales,
-                        config.i18n?.defaultLocale,
-                        spanContext
-                      )
-                    })
+                  let isPageStaticSpan = checkPageSpan.traceChild(
+                    'is-page-static'
+                  )
+                  let workerResult = isPageStaticSpan.traceAsyncFn(() => {
+                    return staticCheckWorkers.isPageStatic(
+                      page,
+                      distDir,
+                      isLikeServerless,
+                      runtimeEnvConfig,
+                      config.i18n?.locales,
+                      config.i18n?.defaultLocale,
+                      isPageStaticSpan.id
+                    )
+                  })
 
                   if (
                     workerResult.isStatic === false &&
