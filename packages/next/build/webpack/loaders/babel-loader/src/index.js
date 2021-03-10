@@ -23,7 +23,7 @@ export default function makeLoader(callback) {
 
 async function loader(source, inputSourceMap, overrides) {
   // this.currentTraceSpan is provided by profiling-plugin.ts
-  const loaderSpan = trace('babel-loader', this.currentTraceSpan.id)
+  const loaderSpan = trace('babel-loader', this.currentTraceSpan?.id)
 
   return loaderSpan.traceAsyncFn(async () => {
     const filename = this.resourcePath
