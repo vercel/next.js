@@ -17,6 +17,12 @@ const target =
     ? TARGET[process.env.TRACE_TARGET as TARGET]
     : TARGET.TELEMETRY
 
+if (process.env.TRACE_TARGET && !target) {
+  console.info(
+    'For TRACE_TARGET, please specify one of: CONSOLE, ZIPKIN, TELEMETRY'
+  )
+}
+
 export let report: Reporter
 if (target === TARGET.CONSOLE) {
   report = reportToConsole
