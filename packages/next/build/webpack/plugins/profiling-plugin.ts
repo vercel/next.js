@@ -63,7 +63,7 @@ export class ProfilingPlugin {
       compiler.hooks.compile,
       compiler.hooks.done,
       () => {
-        return { attributes: { name: compiler.name } }
+        return { name: compiler.name }
       },
       (span) => spans.set(compiler, span)
     )
