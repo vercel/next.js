@@ -3,21 +3,21 @@ import reportToConsole from './to-console'
 import reportToZipkin from './to-zipkin'
 import reportToTelemetry from './to-telemetry'
 
-export const noop = (
-  _spanName: string,
-  _duration: number,
-  _timestamp: number,
-  _id: SpanId,
-  _parentId?: SpanId,
-  _attrs?: Object
-) => {}
+type Reporter = (
+  spanName: string,
+  duration: number,
+  timestamp: number,
+  id: SpanId,
+  parentId?: SpanId,
+  attrs?: Object
+) => void
 
 const target =
   process.env.TRACE_TARGET && process.env.TRACE_TARGET in TARGET
     ? TARGET[process.env.TRACE_TARGET as TARGET]
     : TARGET.TELEMETRY
 
-export let report = noop
+export let report: Reporter
 if (target === TARGET.CONSOLE) {
   report = reportToConsole
 } else if (target === TARGET.ZIPKIN) {

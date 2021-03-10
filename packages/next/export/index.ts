@@ -276,7 +276,6 @@ export default async function exportApp(
       if (!options.silent) {
         Log.info('Copying "static" directory')
       }
-      /******************/
       await nextExportSpan
         .traceChild('copy-static-directory')
         .traceAsyncFn(() =>
