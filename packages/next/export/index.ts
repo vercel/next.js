@@ -46,8 +46,7 @@ import { PrerenderManifest } from '../build'
 import exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../next-server/server/require'
-import { tracer, traceFn, traceAsyncFn } from '../build/tracer'
-import opentelemetryApi from '@opentelemetry/api'
+import { trace } from '../telemetry/trace'
 
 const exists = promisify(existsOrig)
 
@@ -137,20 +136,21 @@ export default async function exportApp(
   options: ExportOptions,
   configuration?: NextConfig
 ): Promise<void> {
-  const nextExportSpan = tracer.startSpan('next-export')
-  return traceAsyncFn(nextExportSpan, async () => {
+  const nextExportSpan = trace('next-export')
+
+  return nextExportSpan.traceAsyncFn(async () => {
     dir = resolve(dir)
 
     // attempt to load global env values so they are available in next.config.js
-    traceFn(tracer.startSpan('load-dotenv'), () =>
-      loadEnvConfig(dir, false, Log)
-    )
+    nextExportSpan
+      .traceChild('load-dotenv')
+      .traceFn(() => loadEnvConfig(dir, false, Log))
 
     const nextConfig =
       configuration ||
-      (await traceAsyncFn(tracer.startSpan('load-next-config'), () =>
-        loadConfig(PHASE_EXPORT, dir)
-      ))
+      (await nextExportSpan
+        .traceChild('load-next-config')
+        .traceAsyncFn(() => loadConfig(PHASE_EXPORT, dir)))
     const threads = options.threads || Math.max(cpus().length - 1, 1)
     const distDir = join(dir, nextConfig.distDir)
 
@@ -276,9 +276,11 @@ export default async function exportApp(
       if (!options.silent) {
         Log.info('Copying "static" directory')
       }
-      await traceAsyncFn(tracer.startSpan('copy-static-directory'), () =>
-        recursiveCopy(join(dir, 'static'), join(outDir, 'static'))
-      )
+      await nextExportSpan
+        .traceChild('copy-static-directory')
+        .traceAsyncFn(() =>
+          recursiveCopy(join(dir, 'static'), join(outDir, 'static'))
+        )
     }
 
     // Copy .next/static directory
@@ -289,12 +291,14 @@ export default async function exportApp(
       if (!options.silent) {
         Log.info('Copying "static build" directory')
       }
-      await traceAsyncFn(tracer.startSpan('copy-next-static-directory'), () =>
-        recursiveCopy(
-          join(distDir, CLIENT_STATIC_FILES_PATH),
-          join(outDir, '_next', CLIENT_STATIC_FILES_PATH)
+      await nextExportSpan
+        .traceChild('copy-next-static-directory')
+        .traceAsyncFn(() =>
+          recursiveCopy(
+            join(distDir, CLIENT_STATIC_FILES_PATH),
+            join(outDir, '_next', CLIENT_STATIC_FILES_PATH)
+          )
         )
-      )
     }
 
     // Get the exportPathMap from the config file
@@ -321,14 +325,14 @@ export default async function exportApp(
     }
 
     if (!options.buildExport) {
-      const { isNextImageImported } = await traceAsyncFn(
-        tracer.startSpan('is-next-image-imported'),
-        () =>
+      const { isNextImageImported } = await nextExportSpan
+        .traceChild('is-next-image-imported')
+        .traceAsyncFn(() =>
           promises
             .readFile(join(distDir, EXPORT_MARKER), 'utf8')
             .then((text) => JSON.parse(text))
             .catch(() => ({}))
-      )
+        )
 
       if (isNextImageImported && loader === 'default' && !hasNextSupport) {
         throw new Error(
@@ -376,9 +380,9 @@ export default async function exportApp(
     if (!options.silent && !options.buildExport) {
       Log.info(`Launching ${threads} workers`)
     }
-    const exportPathMap = await traceAsyncFn(
-      tracer.startSpan('run-export-path-map'),
-      () =>
+    const exportPathMap = await nextExportSpan
+      .traceChild('run-export-path-map')
+      .traceAsyncFn(() =>
         nextConfig.exportPathMap(defaultPathMap, {
           dev: false,
           dir,
@@ -386,7 +390,7 @@ export default async function exportApp(
           distDir,
           buildId,
         })
-    )
+      )
 
     if (
       !options.buildExport &&
@@ -483,14 +487,16 @@ export default async function exportApp(
       if (!options.silent) {
         Log.info('Copying "public" directory')
       }
-      await traceAsyncFn(tracer.startSpan('copy-public-directory'), () =>
-        recursiveCopy(publicDir, outDir, {
-          filter(path) {
-            // Exclude paths used by pages
-            return !exportPathMap[path]
-          },
-        })
-      )
+      await nextExportSpan
+        .traceChild('copy-public-directory')
+        .traceAsyncFn(() =>
+          recursiveCopy(publicDir, outDir, {
+            filter(path) {
+              // Exclude paths used by pages
+              return !exportPathMap[path]
+            },
+          })
+        )
     }
 
     const worker = new Worker(require.resolve('./worker'), {
@@ -508,17 +514,10 @@ export default async function exportApp(
 
     await Promise.all(
       filteredPaths.map(async (path) => {
-        const pageExportSpan = tracer.startSpan('export-page', {
-          attributes: { path },
-        })
-        return traceAsyncFn(pageExportSpan, async () => {
-          const spanContext = {}
+        const pageExportSpan = nextExportSpan.traceChild('export-page')
+        pageExportSpan.setAttribute('path', path)
 
-          opentelemetryApi.propagation.inject(
-            opentelemetryApi.context.active(),
-            spanContext
-          )
-
+        return pageExportSpan.traceAsyncFn(async () => {
           const result = await worker.default({
             path,
             pathMap: exportPathMap[path],
@@ -533,7 +532,7 @@ export default async function exportApp(
             optimizeFonts: nextConfig.experimental.optimizeFonts,
             optimizeImages: nextConfig.experimental.optimizeImages,
             optimizeCss: nextConfig.experimental.optimizeCss,
-            spanContext,
+            parentSpanId: pageExportSpan.id,
           })
 
           for (const validation of result.ampValidations || []) {
