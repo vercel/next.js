@@ -17,7 +17,7 @@ export function RouteAnnouncer() {
       const pageHeader = document.querySelector('h1')
 
       if (pageHeader) {
-        newRouteAnnouncement = pageHeader.innerText
+        newRouteAnnouncement = pageHeader.innerText || pageHeader.textContent
       } else if (document.title) {
         newRouteAnnouncement = document.title
       } else {

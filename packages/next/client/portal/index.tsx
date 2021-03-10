@@ -29,7 +29,7 @@ export const Portal: React.FC<PortalProps> = ({ children, type }) => {
         portalNode.current.ownerDocument.body.removeChild(portalNode.current)
       }
     }
-  }, [type, forceUpdate, isMounted])
+  }, [type, isMounted])
 
   return portalNode.current ? (
     createPortal(children, portalNode.current)
