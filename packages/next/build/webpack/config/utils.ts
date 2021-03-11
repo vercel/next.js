@@ -1,5 +1,5 @@
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { NextConfig } from '../../../next-server/server/config-shared'
+import { NextConfig } from '../../../next-server/server/config'
 
 export type ConfigurationContext = {
   rootDirectory: string

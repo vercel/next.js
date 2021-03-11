@@ -1,26 +1,26 @@
-import accept from '@hapi/accept'
 import { IncomingMessage, ServerResponse } from 'http'
-import cookie from 'next/dist/compiled/cookie'
+import { format as formatUrl, UrlWithParsedQuery, parse as parseUrl } from 'url'
 import { parse as parseQs, ParsedUrlQuery } from 'querystring'
-import { format as formatUrl, parse as parseUrl, UrlWithParsedQuery } from 'url'
 import { Rewrite } from '../../../../lib/load-custom-routes'
-import { TEMPORARY_REDIRECT_STATUS } from '../../../../next-server/lib/constants'
-import { detectDomainLocale } from '../../../../next-server/lib/i18n/detect-domain-locale'
-import { detectLocaleCookie } from '../../../../next-server/lib/i18n/detect-locale-cookie'
 import { normalizeLocalePath } from '../../../../next-server/lib/i18n/normalize-locale-path'
 import pathMatch from '../../../../next-server/lib/router/utils/path-match'
-import prepareDestination from '../../../../next-server/lib/router/utils/prepare-destination'
-import { getRouteMatcher } from '../../../../next-server/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../../../next-server/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../../../../next-server/lib/router/utils/route-matcher'
+import prepareDestination from '../../../../next-server/lib/router/utils/prepare-destination'
 import { __ApiPreviewProps } from '../../../../next-server/server/api-utils'
-import { NextConfig } from '../../../../next-server/server/config-shared'
-import { denormalizePagePath } from '../../../../next-server/server/denormalize-page-path'
 import { BuildManifest } from '../../../../next-server/server/get-page-files'
 import {
   GetServerSideProps,
   GetStaticPaths,
   GetStaticProps,
 } from '../../../../types'
+import accept from '@hapi/accept'
+import { detectLocaleCookie } from '../../../../next-server/lib/i18n/detect-locale-cookie'
+import { detectDomainLocale } from '../../../../next-server/lib/i18n/detect-domain-locale'
+import { denormalizePagePath } from '../../../../next-server/server/denormalize-page-path'
+import cookie from 'next/dist/compiled/cookie'
+import { TEMPORARY_REDIRECT_STATUS } from '../../../../next-server/lib/constants'
+import { NextConfig } from '../../../../next-server/server/config'
 
 const getCustomRouteMatcher = pathMatch(true)
 

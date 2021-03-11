@@ -1,13 +1,13 @@
-import { Env } from '@next/env'
 import { IncomingMessage, ServerResponse } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
 import { UrlObject } from 'url'
-import { DomainLocales } from '../server/config-shared'
-import { BuildManifest } from '../server/get-page-files'
+import { formatUrl } from './router/utils/format-url'
 import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
-import { formatUrl } from './router/utils/format-url'
+import { Env } from '@next/env'
+import { BuildManifest } from '../server/get-page-files'
+import { DomainLocales } from '../server/config'
 
 /**
  * Types used by both next and next-server
