@@ -30,7 +30,12 @@ function getData(html) {
   const $ = cheerio.load(html)
   const nextData = $('#__NEXT_DATA__')
   const preEl = $('#props-pre')
-  return { nextData: JSON.parse(nextData.html()), pre: preEl.text() }
+  const routerData = JSON.parse($('#router').text())
+  return {
+    nextData: JSON.parse(nextData.html()),
+    pre: preEl.text(),
+    routerData,
+  }
 }
 
 function runTests(startServer = nextStart) {
@@ -51,16 +56,20 @@ function runTests(startServer = nextStart) {
 
   it('should return page on first request', async () => {
     const html = await renderViaHTTP(appPort, '/')
-    const { nextData, pre } = getData(html)
+    const { nextData, pre, routerData } = getData(html)
     expect(nextData).toMatchObject({ isFallback: false })
+    expect(nextData.isPreview).toBeUndefined()
     expect(pre).toBe('false and null')
+    expect(routerData.isPreview).toBe(false)
   })
 
   it('should return page on second request', async () => {
     const html = await renderViaHTTP(appPort, '/')
-    const { nextData, pre } = getData(html)
+    const { nextData, pre, routerData } = getData(html)
     expect(nextData).toMatchObject({ isFallback: false })
+    expect(nextData.isPreview).toBeUndefined()
     expect(pre).toBe('false and null')
+    expect(routerData.isPreview).toBe(false)
   })
 
   let previewCookieString
@@ -96,12 +105,13 @@ function runTests(startServer = nextStart) {
     )
     const html = await res.text()
 
-    const { nextData, pre } = getData(html)
+    const { nextData, pre, routerData } = getData(html)
     expect(res.headers.get('cache-control')).toBe(
       'private, no-cache, no-store, max-age=0, must-revalidate'
     )
-    expect(nextData).toMatchObject({ isFallback: false })
+    expect(nextData).toMatchObject({ isFallback: false, isPreview: true })
     expect(pre).toBe('true and {"lets":"goooo"}')
+    expect(routerData.isPreview).toBe(true)
   })
 
   it('should return correct caching headers for data preview request', async () => {

@@ -1,103 +1,19 @@
 import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
-import os from 'os'
 import { basename, extname } from 'path'
-import { execOnce } from '../lib/utils'
 import * as Log from '../../build/output/log'
-import { CONFIG_FILE } from '../lib/constants'
-import { Header, Rewrite, Redirect } from '../../lib/load-custom-routes'
+import { hasNextSupport } from '../../telemetry/ci-info'
+import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../lib/constants'
+import { execOnce } from '../lib/utils'
+import { defaultConfig, normalizeConfig } from './config-shared'
+import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
+import { loadEnvConfig } from '@next/env'
+
+export { DomainLocales, NextConfig, normalizeConfig } from './config-shared'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
-
-export type DomainLocales = Array<{
-  http?: true
-  domain: string
-  locales?: string[]
-  defaultLocale: string
-}>
-
-export type NextConfig = { [key: string]: any } & {
-  i18n?: {
-    locales: string[]
-    defaultLocale: string
-    domains?: DomainLocales
-    localeDetection?: false
-  } | null
-
-  headers?: () => Promise<Header[]>
-  rewrites?: () => Promise<Rewrite[]>
-  redirects?: () => Promise<Redirect[]>
-
-  trailingSlash?: boolean
-
-  future: {
-    strictPostcssConfiguration: boolean
-    excludeDefaultMomentLocales: boolean
-    webpack5: boolean
-  }
-}
-
-const defaultConfig: NextConfig = {
-  env: [],
-  webpack: null,
-  webpackDevMiddleware: null,
-  distDir: '.next',
-  assetPrefix: '',
-  configOrigin: 'default',
-  useFileSystemPublicRoutes: true,
-  generateBuildId: () => null,
-  generateEtags: true,
-  pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
-  target: 'server',
-  poweredByHeader: true,
-  compress: true,
-  analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
-  images: imageConfigDefault,
-  devIndicators: {
-    buildActivity: true,
-  },
-  onDemandEntries: {
-    maxInactiveAge: 60 * 1000,
-    pagesBufferLength: 2,
-  },
-  amp: {
-    canonicalBase: '',
-  },
-  basePath: '',
-  sassOptions: {},
-  trailingSlash: false,
-  i18n: null,
-  productionBrowserSourceMaps: false,
-  experimental: {
-    cpus: Math.max(
-      1,
-      (Number(process.env.CIRCLE_NODE_TOTAL) ||
-        (os.cpus() || { length: 1 }).length) - 1
-    ),
-    plugins: false,
-    profiling: false,
-    sprFlushToDisk: true,
-    reactMode: 'legacy',
-    workerThreads: false,
-    pageEnv: false,
-    optimizeFonts: false,
-    optimizeImages: false,
-    optimizeCss: false,
-    scrollRestoration: false,
-    scriptLoader: false,
-    stats: false,
-  },
-  future: {
-    strictPostcssConfiguration: false,
-    excludeDefaultMomentLocales: false,
-    webpack5: Number(process.env.NEXT_PRIVATE_TEST_WEBPACK5_MODE) > 0,
-  },
-  serverRuntimeConfig: {},
-  publicRuntimeConfig: {},
-  reactStrictMode: false,
-}
 
 const experimentalWarning = execOnce(() => {
   Log.warn(chalk.bold('You have enabled experimental feature(s).'))
@@ -474,30 +390,19 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   return result
 }
 
-export function normalizeConfig(phase: string, config: any) {
-  if (typeof config === 'function') {
-    config = config(phase, { defaultConfig })
-
-    if (typeof config.then === 'function') {
-      throw new Error(
-        '> Promise returned in next config. https://err.sh/vercel/next.js/promise-in-next-config'
-      )
-    }
-  }
-  return config
-}
-
-export default function loadConfig(
+export default async function loadConfig(
   phase: string,
   dir: string,
   customConfig?: object | null
 ) {
+  await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
+  await loadWebpackHook(phase, dir)
+
   if (customConfig) {
     return assignDefaults({ configOrigin: 'server', ...customConfig })
   }
-  const path = findUp.sync(CONFIG_FILE, {
-    cwd: dir,
-  })
+
+  const path = await findUp(CONFIG_FILE, { cwd: dir })
 
   // If config file was found
   if (path?.length) {
@@ -539,6 +444,10 @@ export default function loadConfig(
           userConfig.experimental.reactMode
         } should be one of ${reactModes.join(', ')}`
       )
+    }
+
+    if (hasNextSupport) {
+      userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 
     return assignDefaults({

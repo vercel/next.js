@@ -11,7 +11,7 @@ import {
   ROUTES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
 } from '../../../../next-server/lib/constants'
-import { tracer, traceFn } from '../../../tracer'
+import { trace } from '../../../../telemetry/trace'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -34,8 +34,8 @@ export type ServerlessLoaderQuery = {
 }
 
 const nextServerlessLoader: webpack.loader.Loader = function () {
-  const span = tracer.startSpan('next-serverless-loader')
-  return traceFn(span, () => {
+  const loaderSpan = trace('next-serverless-loader')
+  return loaderSpan.traceFn(() => {
     const {
       distDir,
       absolutePagePath,
@@ -103,9 +103,9 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         import onError from 'next-plugin-loader?middleware=on-error-server!'
         import 'next/dist/next-server/server/node-polyfill-fetch'
         import routesManifest from '${routesManifest}'
-  
+
         import { getApiHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/api-handler'
-  
+
         const apiHandler = getApiHandler({
           pageModule: require("${absolutePagePath}"),
           rewrites: routesManifest.rewrites,
@@ -129,7 +129,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
       import routesManifest from '${routesManifest}'
       import buildManifest from '${buildManifest}'
       import reactLoadableManifest from '${reactLoadableManifest}'
-  
+
       ${envLoading}
       ${runtimeConfigImports}
       ${
@@ -137,33 +137,35 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         runtimeConfigSetter
       }
       import { getPageHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/page-handler'
-  
+
+      const documentModule = require("${absoluteDocumentPath}")
+
       const appMod = require('${absoluteAppPath}')
       let App = appMod.default || appMod.then && appMod.then(mod => mod.default);
-  
+
       const compMod = require('${absolutePagePath}')
-  
+
       const Component = compMod.default || compMod.then && compMod.then(mod => mod.default)
       export default Component
       export const getStaticProps = compMod['getStaticProp' + 's'] || compMod.then && compMod.then(mod => mod['getStaticProp' + 's'])
       export const getStaticPaths = compMod['getStaticPath' + 's'] || compMod.then && compMod.then(mod => mod['getStaticPath' + 's'])
       export const getServerSideProps = compMod['getServerSideProp' + 's'] || compMod.then && compMod.then(mod => mod['getServerSideProp' + 's'])
-  
+
       // kept for detecting legacy exports
       export const unstable_getStaticParams = compMod['unstable_getStaticParam' + 's'] || compMod.then && compMod.then(mod => mod['unstable_getStaticParam' + 's'])
       export const unstable_getStaticProps = compMod['unstable_getStaticProp' + 's'] || compMod.then && compMod.then(mod => mod['unstable_getStaticProp' + 's'])
       export const unstable_getStaticPaths = compMod['unstable_getStaticPath' + 's'] || compMod.then && compMod.then(mod => mod['unstable_getStaticPath' + 's'])
       export const unstable_getServerProps = compMod['unstable_getServerProp' + 's'] || compMod.then && compMod.then(mod => mod['unstable_getServerProp' + 's'])
-  
+
       export let config = compMod['confi' + 'g'] || (compMod.then && compMod.then(mod => mod['confi' + 'g'])) || {}
       export const _app = App
-  
+
       const { renderReqToHTML, render } = getPageHandler({
         pageModule: compMod,
         pageComponent: Component,
         pageConfig: config,
         appModule: App,
-        documentModule: require("${absoluteDocumentPath}"),
+        documentModule: documentModule,
         errorModule: require("${absoluteErrorPath}"),
         notFoundModule: ${
           absolute404Path ? `require("${absolute404Path}")` : undefined
@@ -171,16 +173,16 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         pageGetStaticProps: getStaticProps,
         pageGetStaticPaths: getStaticPaths,
         pageGetServerSideProps: getServerSideProps,
-  
+
         assetPrefix: "${assetPrefix}",
         canonicalBase: "${canonicalBase}",
         generateEtags: ${generateEtags || 'false'},
         poweredByHeader: ${poweredByHeader || 'false'},
-  
+
         runtimeConfig,
         buildManifest,
         reactLoadableManifest,
-  
+
         rewrites: routesManifest.rewrites,
         i18n: ${i18n || 'undefined'},
         page: "${page}",

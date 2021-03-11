@@ -95,7 +95,7 @@ describe('Build Output', () => {
       expect(indexSize.endsWith('B')).toBe(true)
 
       // should be no bigger than 63.9 kb
-      expect(parseFloat(indexFirstLoad)).toBeCloseTo(63.9, 1)
+      expect(parseFloat(indexFirstLoad)).toBeCloseTo(64.1, 1)
       expect(indexFirstLoad.endsWith('kB')).toBe(true)
 
       expect(parseFloat(err404Size) - 3.7).toBeLessThanOrEqual(0)
@@ -104,7 +104,7 @@ describe('Build Output', () => {
       expect(parseFloat(err404FirstLoad)).toBeCloseTo(67.1, 0)
       expect(err404FirstLoad.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(sharedByAll)).toBeCloseTo(63.6, 1)
+      expect(parseFloat(sharedByAll)).toBeCloseTo(63.9, 1)
       expect(sharedByAll.endsWith('kB')).toBe(true)
 
       if (_appSize.endsWith('kB')) {
@@ -131,46 +131,6 @@ describe('Build Output', () => {
         /\.txt|\.LICENSE\./
       )
       expect(files).toEqual([])
-    })
-  })
-
-  describe('Crypto Application', () => {
-    let stdout
-    const appDir = join(fixturesDir, 'with-crypto')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    it('should not include crypto', async () => {
-      ;({ stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      }))
-
-      console.log(stdout)
-
-      const parsePageSize = (page) =>
-        stdout.match(
-          new RegExp(` ${page} .*?((?:\\d|\\.){1,} (?:\\w{1,})) `)
-        )[1]
-
-      const parsePageFirstLoad = (page) =>
-        stdout.match(
-          new RegExp(
-            ` ${page} .*?(?:(?:\\d|\\.){1,}) .*? ((?:\\d|\\.){1,} (?:\\w{1,}))`
-          )
-        )[1]
-
-      const indexSize = parsePageSize('/')
-      const indexFirstLoad = parsePageFirstLoad('/')
-
-      expect(parseFloat(indexSize)).toBeLessThanOrEqual(3.1)
-      expect(parseFloat(indexSize)).toBeGreaterThanOrEqual(2)
-      expect(indexSize.endsWith('kB')).toBe(true)
-
-      expect(parseFloat(indexFirstLoad)).toBeLessThanOrEqual(66.6)
-      expect(parseFloat(indexFirstLoad)).toBeGreaterThanOrEqual(60)
-      expect(indexFirstLoad.endsWith('kB')).toBe(true)
     })
   })
 

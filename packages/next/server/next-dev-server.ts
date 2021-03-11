@@ -20,6 +20,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
+  STATIC_STATUS_PAGES,
 } from '../next-server/lib/constants'
 import {
   getRouteMatcher,
@@ -33,10 +34,12 @@ import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import Router, { Params, route } from '../next-server/server/router'
 import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
+import { setGlobal } from '../telemetry/trace'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
 import { withCoalescedInvoke } from '../lib/coalesced-function'
+import { NextConfig } from '../next-server/server/config'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -56,7 +59,12 @@ export default class DevServer extends Server {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   }
 
-  constructor(options: ServerConstructor & { isNextDevCommand?: boolean }) {
+  constructor(
+    options: ServerConstructor & {
+      conf: NextConfig
+      isNextDevCommand?: boolean
+    }
+  ) {
     super({ ...options, dev: true })
     this.renderOpts.dev = true
     ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
@@ -113,10 +121,6 @@ export default class DevServer extends Server {
 
     this.staticPathsWorker.getStdout().pipe(process.stdout)
     this.staticPathsWorker.getStderr().pipe(process.stderr)
-  }
-
-  protected currentPhase(): string {
-    return PHASE_DEVELOPMENT_SERVER
   }
 
   protected readBuildId(): string {
@@ -294,6 +298,8 @@ export default class DevServer extends Server {
         isCustomServer: this.isCustomServer,
       })
     )
+    // This is required by the tracing subsystem.
+    setGlobal('telemetry', telemetry)
   }
 
   protected async close(): Promise<void> {
@@ -627,6 +633,11 @@ export default class DevServer extends Server {
     await this.devReady
     if (res.statusCode === 404 && (await this.hasPage('/404'))) {
       await this.hotReloader!.ensurePage('/404')
+    } else if (
+      STATIC_STATUS_PAGES.includes(`/${res.statusCode}`) &&
+      (await this.hasPage(`/${res.statusCode}`))
+    ) {
+      await this.hotReloader!.ensurePage(`/${res.statusCode}`)
     } else {
       await this.hotReloader!.ensurePage('/_error')
     }
