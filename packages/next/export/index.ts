@@ -66,6 +66,9 @@ function divideSegments(number: number, segments: number): number[] {
 const createProgress = (total: number, label: string) => {
   const segments = divideSegments(total, 4)
 
+  if (total === 0) {
+    throw new Error('invariant: progress total can not be zero')
+  }
   let currentSegmentTotal = segments.shift()
   let currentSegmentCount = 0
   let curProgress = 0
@@ -96,6 +99,8 @@ const createProgress = (total: number, label: string) => {
     curProgress++
     currentSegmentCount++
 
+    console.log({ curProgress, currentSegmentTotal, currentSegmentCount })
+
     // Make sure we only log once per fully generated segment
     if (currentSegmentCount !== currentSegmentTotal) {
       return
@@ -110,6 +115,8 @@ const createProgress = (total: number, label: string) => {
     } else {
       console.log(newText)
     }
+
+    console.log({ curProgress, total, progressSpinner })
 
     if (curProgress === total && progressSpinner) {
       progressSpinner.stop()
