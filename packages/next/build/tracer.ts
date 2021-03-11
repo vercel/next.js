@@ -13,9 +13,16 @@ export function stackPush(compiler: any, spanName: string, attrs?: any): any {
     span = tracer.startSpan(spanName, attrs ? attrs() : undefined)
   }
 
-  !stack && compilerStacks.set(compiler, (stack = []))
+  if (!stack) {
+    compilerStacks.set(compiler, (stack = []))
+  }
+
   const parent = stack[stack.length - 1]
-  parent ? tracer.withSpan(parent, fillSpan) : fillSpan()
+  if (parent) {
+    tracer.withSpan(parent, fillSpan)
+  } else {
+    fillSpan()
+  }
 
   stack.push(span)
   return span
