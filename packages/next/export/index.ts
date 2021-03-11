@@ -99,8 +99,6 @@ const createProgress = (total: number, label: string) => {
     curProgress++
     currentSegmentCount++
 
-    console.log({ curProgress, currentSegmentTotal, currentSegmentCount })
-
     // Make sure we only log once per fully generated segment
     if (currentSegmentCount !== currentSegmentTotal) {
       return
@@ -115,8 +113,6 @@ const createProgress = (total: number, label: string) => {
     } else {
       console.log(newText)
     }
-
-    console.log({ curProgress, total, progressSpinner })
 
     if (curProgress === total && progressSpinner) {
       progressSpinner.stop()
