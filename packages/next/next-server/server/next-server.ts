@@ -27,7 +27,6 @@ import {
   CLIENT_STATIC_FILES_RUNTIME,
   PAGES_MANIFEST,
   PERMANENT_REDIRECT_STATUS,
-  PHASE_PRODUCTION_SERVER,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
   SERVERLESS_DIRECTORY,
@@ -50,8 +49,7 @@ import {
   tryGetPreviewData,
   __ApiPreviewProps,
 } from './api-utils'
-import loadConfig, { isTargetLikeServerless } from './config'
-import { DomainLocales, NextConfig } from './config-shared'
+import { DomainLocales, isTargetLikeServerless, NextConfig } from './config'
 import pathMatch from '../lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
 import { loadComponents, LoadComponentsReturnType } from './load-components'
@@ -89,7 +87,6 @@ import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
 import escapePathDelimiters from '../lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../../build/webpack/loaders/next-serverless-loader/utils'
-import { install as installWebpack } from './dummy-config'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -171,20 +168,16 @@ export default class Server {
   public constructor({
     dir = '.',
     quiet = false,
-    conf = null,
+    conf,
     dev = false,
     minimalMode = false,
     customServer = true,
-  }: ServerConstructor & { minimalMode?: boolean } = {}) {
+  }: ServerConstructor & { conf: NextConfig; minimalMode?: boolean }) {
     this.dir = resolve(dir)
     this.quiet = quiet
-    const phase = this.currentPhase()
     loadEnvConfig(this.dir, dev, Log)
 
-    // Default to webpack 4 if using custom server since we cannot pre-evaluate
-    // the `next.config.js`:
-    installWebpack(false)
-    this.nextConfig = loadConfig(phase, this.dir, conf)
+    this.nextConfig = conf
     this.distDir = join(this.dir, this.nextConfig.distDir)
     this.publicDir = join(this.dir, CLIENT_PUBLIC_FILES_PATH)
     this.hasStaticDir = !minimalMode && fs.existsSync(join(this.dir, 'static'))
@@ -294,10 +287,6 @@ export default class Server {
     }
   }
 
-  protected currentPhase(): string {
-    return PHASE_PRODUCTION_SERVER
-  }
-
   public logError(err: Error): void {
     if (this.onErrorMiddleware) {
       this.onErrorMiddleware({ err })
@@ -351,7 +340,7 @@ export default class Server {
       const { pathname, query } = parsedPath
       let matchedPathname = pathname as string
 
-      const matchedPathnameNoExt = isDataUrl
+      let matchedPathnameNoExt = isDataUrl
         ? matchedPathname.replace(/\.json$/, '')
         : matchedPathname
 
@@ -364,6 +353,11 @@ export default class Server {
         if (localePathResult.detectedLocale) {
           parsedUrl.query.__nextLocale = localePathResult.detectedLocale
         }
+      }
+
+      if (isDataUrl) {
+        matchedPathname = denormalizePagePath(matchedPathname)
+        matchedPathnameNoExt = denormalizePagePath(matchedPathnameNoExt)
       }
 
       const pageIsDynamic = isDynamicRoute(matchedPathnameNoExt)
@@ -380,10 +374,9 @@ export default class Server {
       // interpolate dynamic params and normalize URL if needed
       if (pageIsDynamic) {
         let params: ParsedUrlQuery | false = {}
-        const paramsResult = utils.normalizeDynamicRouteParams({
-          ...parsedUrl.query,
-          ...query,
-        })
+
+        Object.assign(parsedUrl.query, query)
+        const paramsResult = utils.normalizeDynamicRouteParams(parsedUrl.query)
 
         if (paramsResult.hasValidParams) {
           params = paramsResult.params
@@ -418,6 +411,7 @@ export default class Server {
             pathname: matchedPathname,
           })
         }
+
         Object.assign(parsedUrl.query, params)
         utils.normalizeVercelUrl(req, true)
       }

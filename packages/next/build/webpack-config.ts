@@ -1,11 +1,13 @@
+import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
-import chalk from 'chalk'
 import crypto from 'crypto'
 import { readFileSync, realpathSync } from 'fs'
-import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
+import chalk from 'chalk'
 import semver from 'next/dist/compiled/semver'
-import { isWebpack5, webpack } from 'next/dist/compiled/webpack/webpack'
-import path, { join as pathJoin, relative as relativePath } from 'path'
+// @ts-ignore No typings yet
+import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
+import path from 'path'
+import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -17,17 +19,16 @@ import { getPackageVersion } from '../lib/get-package-version'
 import { Rewrite } from '../lib/load-custom-routes'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import {
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
-  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
 } from '../next-server/lib/constants'
 import { execOnce } from '../next-server/lib/utils'
-import { NextConfig } from '../next-server/server/config-shared'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
 import * as Log from './output/log'
@@ -51,8 +52,6 @@ import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
-// @ts-ignore No typings yet
-import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
 import WebpackConformancePlugin, {
   DuplicatePolyfillsConformanceCheck,
   GranularChunksConformanceCheck,
@@ -60,6 +59,8 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
+import { NextConfig } from '../next-server/server/config'
+import { relative as relativePath, join as pathJoin } from 'path'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -787,7 +788,7 @@ export default async function getBaseWebpackConfig(
       splitChunks: isServer ? false : splitChunksConfig,
       runtimeChunk: isServer
         ? isWebpack5 && !isLikeServerless
-          ? { name: 'webpack-runtime' }
+          ? { name: `${dev ? '' : 'chunks/'}webpack-runtime` }
           : undefined
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
       minimize: !(dev || isServer),
@@ -855,10 +856,15 @@ export default async function getBaseWebpackConfig(
             },
           }
         : {}),
-      path: outputPath,
+      path:
+        isServer && isWebpack5 && !dev
+          ? path.join(outputPath, 'chunks')
+          : outputPath,
       // On the server we don't use the chunkhash
       filename: isServer
-        ? '[name].js'
+        ? isWebpack5 && !dev
+          ? '../[name].js'
+          : '[name].js'
         : `static/chunks/[name]${dev ? '' : '-[chunkhash]'}.js`,
       library: isServer ? undefined : '_N_E',
       libraryTarget: isServer ? 'commonjs2' : 'assign',
@@ -1030,6 +1036,9 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
           config.experimental.optimizeCss && !dev
         ),
+        'process.env.__NEXT_SCRIPT_LOADER': JSON.stringify(
+          !!config.experimental.scriptLoader
+        ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),
@@ -1113,7 +1122,8 @@ export default async function getBaseWebpackConfig(
           contextRegExp: /(next-server|next)[\\/]dist[\\/]/,
         }),
       isServerless && isServer && new ServerlessPlugin(),
-      isServer && new PagesManifestPlugin(isLikeServerless),
+      isServer &&
+        new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
       !isWebpack5 &&
         target === 'server' &&
         isServer &&
@@ -1137,8 +1147,12 @@ export default async function getBaseWebpackConfig(
         (function () {
           const {
             FontStylesheetGatheringPlugin,
-          } = require('./webpack/plugins/font-stylesheet-gathering-plugin')
-          return new FontStylesheetGatheringPlugin()
+          } = require('./webpack/plugins/font-stylesheet-gathering-plugin') as {
+            FontStylesheetGatheringPlugin: typeof import('./webpack/plugins/font-stylesheet-gathering-plugin').FontStylesheetGatheringPlugin
+          }
+          return new FontStylesheetGatheringPlugin({
+            isLikeServerless,
+          })
         })(),
       config.experimental.conformance &&
         !isWebpack5 &&

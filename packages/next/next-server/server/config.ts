@@ -2,10 +2,15 @@ import chalk from 'chalk'
 import findUp from 'next/dist/compiled/find-up'
 import { basename, extname } from 'path'
 import * as Log from '../../build/output/log'
-import { CONFIG_FILE } from '../lib/constants'
+import { hasNextSupport } from '../../telemetry/ci-info'
+import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../lib/constants'
 import { execOnce } from '../lib/utils'
 import { defaultConfig, normalizeConfig } from './config-shared'
+import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
+import { loadEnvConfig } from '@next/env'
+
+export { DomainLocales, NextConfig, normalizeConfig } from './config-shared'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
 const reactModes = ['legacy', 'blocking', 'concurrent']
@@ -385,17 +390,19 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   return result
 }
 
-export default function loadConfig(
+export default async function loadConfig(
   phase: string,
   dir: string,
   customConfig?: object | null
 ) {
+  await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
+  await loadWebpackHook(phase, dir)
+
   if (customConfig) {
     return assignDefaults({ configOrigin: 'server', ...customConfig })
   }
-  const path = findUp.sync(CONFIG_FILE, {
-    cwd: dir,
-  })
+
+  const path = await findUp(CONFIG_FILE, { cwd: dir })
 
   // If config file was found
   if (path?.length) {
@@ -437,6 +444,10 @@ export default function loadConfig(
           userConfig.experimental.reactMode
         } should be one of ${reactModes.join(', ')}`
       )
+    }
+
+    if (hasNextSupport) {
+      userConfig.target = process.env.NEXT_PRIVATE_TARGET || 'server'
     }
 
     return assignDefaults({
