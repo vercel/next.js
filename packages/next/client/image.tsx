@@ -80,6 +80,7 @@ const {
   loader: configLoader,
   path: configPath,
   domains: configDomains,
+  useContentVisibility: configUseContentVisibility,
 } =
   ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
 // sort smallest to largest
@@ -294,7 +295,7 @@ export default function Image({
 
     objectFit,
     objectPosition,
-    ...(!isLazy && (layout === 'intrinsic' || layout === 'fixed')
+    ...(configUseContentVisibility && !isLazy && (layout === 'intrinsic' || layout === 'fixed')
       ? { contentVisibility: 'auto' }
       : undefined),
   }
