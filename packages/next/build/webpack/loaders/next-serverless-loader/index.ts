@@ -11,7 +11,7 @@ import {
   ROUTES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
 } from '../../../../next-server/lib/constants'
-import { tracer, traceFn } from '../../../tracer'
+import { trace } from '../../../../telemetry/trace'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -34,8 +34,8 @@ export type ServerlessLoaderQuery = {
 }
 
 const nextServerlessLoader: webpack.loader.Loader = function () {
-  const span = tracer.startSpan('next-serverless-loader')
-  return traceFn(span, () => {
+  const loaderSpan = trace('next-serverless-loader')
+  return loaderSpan.traceFn(() => {
     const {
       distDir,
       absolutePagePath,
@@ -138,6 +138,8 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
       }
       import { getPageHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/page-handler'
 
+      const documentModule = require("${absoluteDocumentPath}")
+
       const appMod = require('${absoluteAppPath}')
       let App = appMod.default || appMod.then && appMod.then(mod => mod.default);
 
@@ -163,7 +165,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         pageComponent: Component,
         pageConfig: config,
         appModule: App,
-        documentModule: require("${absoluteDocumentPath}"),
+        documentModule: documentModule,
         errorModule: require("${absoluteErrorPath}"),
         notFoundModule: ${
           absolute404Path ? `require("${absolute404Path}")` : undefined
