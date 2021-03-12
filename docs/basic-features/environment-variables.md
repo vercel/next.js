@@ -139,7 +139,7 @@ There is a small difference between `test` environment, and both `development` a
 While running unit tests you can make sure to load your environment variables the same way Next.js does by leveraging the `loadEnvConfig` function from the `@next/env` package.
 
 ```js
-// The below can be used in a jest global setup file or similar for your testing set-up
+// The below can be used in a Jest global setup file or similar for your testing set-up
 import { loadEnvConfig } from '@next/env'
 
 export default async () => {
