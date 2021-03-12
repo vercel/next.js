@@ -34,6 +34,7 @@ import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import Router, { Params, route } from '../next-server/server/router'
 import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
+import { setGlobal } from '../telemetry/trace'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
@@ -297,6 +298,8 @@ export default class DevServer extends Server {
         isCustomServer: this.isCustomServer,
       })
     )
+    // This is required by the tracing subsystem.
+    setGlobal('telemetry', telemetry)
   }
 
   protected async close(): Promise<void> {

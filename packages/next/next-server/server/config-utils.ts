@@ -1,8 +1,10 @@
+import { loadEnvConfig } from '@next/env'
 import Worker from 'jest-worker'
 import findUp from 'next/dist/compiled/find-up'
 import { init as initWebpack } from 'next/dist/compiled/webpack/webpack'
-import { CONFIG_FILE } from '../lib/constants'
+import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../lib/constants'
 import { NextConfig, normalizeConfig } from './config-shared'
+import * as Log from '../../build/output/log'
 
 let installed: boolean = false
 
@@ -23,6 +25,8 @@ export async function shouldLoadWithWebpack5(
   phase: string,
   dir: string
 ): Promise<boolean> {
+  await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
+
   const path = await findUp(CONFIG_FILE, {
     cwd: dir,
   })
@@ -51,7 +55,7 @@ export async function shouldLoadWithWebpack5(
 
 export async function loadWebpackHook(phase: string, dir: string) {
   let useWebpack5 = false
-  const worker: any = new Worker(__filename, { enableWorkerThreads: true })
+  const worker: any = new Worker(__filename, { enableWorkerThreads: false })
   try {
     useWebpack5 = Boolean(await worker.shouldLoadWithWebpack5(phase, dir))
   } catch {

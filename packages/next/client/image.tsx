@@ -167,7 +167,6 @@ function generateImgAttrs({
   const last = widths.length - 1
 
   return {
-    src: loader({ src, quality, width: widths[last] }),
     sizes: !sizes && kind === 'w' ? '100vw' : sizes,
     srcSet: widths
       .map(
@@ -177,6 +176,14 @@ function generateImgAttrs({
           }${kind}`
       )
       .join(', '),
+
+    // It's intended to keep `src` the last attribute because React updates
+    // attributes in order. If we keep `src` the first one, Safari will
+    // immediately start to fetch `src`, before `sizes` and `srcSet` are even
+    // updated by React. That causes multiple unnecessary requests if `srcSet`
+    // and `sizes` are defined.
+    // This bug cannot be reproduced in Chrome or Firefox.
+    src: loader({ src, quality, width: widths[last] }),
   }
 }
 
