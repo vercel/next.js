@@ -87,7 +87,7 @@ The `context` parameter is an object containing the following keys:
     }
 
     return {
-      props: {}, // will be passed to the page component as props
+      props: { data }, // will be passed to the page component as props
     }
   }
   ```
@@ -111,7 +111,7 @@ The `context` parameter is an object containing the following keys:
     }
 
     return {
-      props: {}, // will be passed to the page component as props
+      props: { data }, // will be passed to the page component as props
     }
   }
   ```
