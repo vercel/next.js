@@ -83,3 +83,7 @@ export async function encodePng(
   })
   return Buffer.from(r)
 }
+
+export function noop() {
+  return null
+}

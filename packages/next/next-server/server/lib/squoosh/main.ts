@@ -1,18 +1,36 @@
-import JestWorker from 'jest-worker'
+import Worker from 'jest-worker'
 import * as path from 'path'
+import os from 'os'
 import { execOnce } from '../../../lib/utils'
 import ImageData from './image_data'
 
+const CORES = (os.cpus() || { length: 1 }).length
+
 const getWorker = execOnce(
   () =>
-    new JestWorker(path.resolve(__dirname, 'impl'), {
+    new Worker(path.resolve(__dirname, 'impl'), {
       enableWorkerThreads: true,
     })
 )
 
+// Jest-worker currently holds the latest execution's arguments and return
+// value in its internal queue of every worker in the pool, due to some
+// uncollected closures and references. This increases the memory use
+// tremendously so we are calling the no-op method N times so each worker
+// will replace the references of arguments and return value, which triggers
+// the GC automatically to reduce memory usage.
+function triggerWorkerGC() {
+  const worker: typeof import('./impl') = getWorker() as any
+  for (let i = 0; i < CORES; i++) {
+    worker.noop()
+  }
+}
+
 export async function decodeBuffer(buffer: Buffer): Promise<ImageData> {
   const worker: typeof import('./impl') = getWorker() as any
-  return ImageData.from(await worker.decodeBuffer(buffer))
+  const data = ImageData.from(await worker.decodeBuffer(buffer))
+  triggerWorkerGC()
+  return data
 }
 
 export async function rotate(
@@ -20,7 +38,9 @@ export async function rotate(
   numRotations: number
 ): Promise<ImageData> {
   const worker: typeof import('./impl') = getWorker() as any
-  return ImageData.from(await worker.rotate(image, numRotations))
+  const data = ImageData.from(await worker.rotate(image, numRotations))
+  triggerWorkerGC()
+  return data
 }
 
 export async function resize(
@@ -28,7 +48,9 @@ export async function resize(
   { width }: { width: number }
 ): Promise<ImageData> {
   const worker: typeof import('./impl') = getWorker() as any
-  return ImageData.from(await worker.resize(image, { width }))
+  const data = ImageData.from(await worker.resize(image, { width }))
+  triggerWorkerGC()
+  return data
 }
 
 export async function encodeJpeg(
@@ -37,7 +59,9 @@ export async function encodeJpeg(
 ): Promise<Buffer> {
   const worker: typeof import('./impl') = getWorker() as any
   const o = await worker.encodeJpeg(image, { quality })
-  return Buffer.from(o)
+  const data = Buffer.from(o)
+  triggerWorkerGC()
+  return data
 }
 
 export async function encodeWebp(
@@ -46,11 +70,15 @@ export async function encodeWebp(
 ): Promise<Buffer> {
   const worker: typeof import('./impl') = getWorker() as any
   const o = await worker.encodeWebp(image, { quality })
-  return Buffer.from(o)
+  const data = Buffer.from(o)
+  triggerWorkerGC()
+  return data
 }
 
 export async function encodePng(image: ImageData): Promise<Buffer> {
   const worker: typeof import('./impl') = getWorker() as any
   const o = await worker.encodePng(image)
-  return Buffer.from(o)
+  const data = Buffer.from(o)
+  triggerWorkerGC()
+  return data
 }

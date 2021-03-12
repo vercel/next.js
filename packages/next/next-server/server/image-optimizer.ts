@@ -234,8 +234,15 @@ export async function imageOptimizer(
     const animate =
       ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
     if (vector || animate) {
-      await writeToCacheDir(hashDir, upstreamType, expireAt, upstreamBuffer)
-      sendResponse(req, res, upstreamType, upstreamBuffer)
+      const etag = getHash([upstreamBuffer])
+      sendResponse(req, res, upstreamType, etag, upstreamBuffer)
+      await writeToCacheDir(
+        hashDir,
+        upstreamType,
+        expireAt,
+        etag,
+        upstreamBuffer
+      )
       return { finished: true }
     }
   }
@@ -281,13 +288,21 @@ export async function imageOptimizer(
     }
 
     if (optimizedBuffer) {
-      await writeToCacheDir(hashDir, contentType, expireAt, optimizedBuffer)
-      sendResponse(req, res, contentType, optimizedBuffer)
+      const etag = getHash([optimizedBuffer])
+      sendResponse(req, res, contentType, etag, optimizedBuffer)
+      await writeToCacheDir(
+        hashDir,
+        contentType,
+        expireAt,
+        etag,
+        optimizedBuffer
+      )
     } else {
       throw new Error('Unable to optimize buffer')
     }
   } catch (error) {
-    sendResponse(req, res, upstreamType, upstreamBuffer)
+    const etag = getHash([upstreamBuffer])
+    sendResponse(req, res, upstreamType, etag, upstreamBuffer)
   }
 
   return { finished: true }
@@ -297,11 +312,11 @@ async function writeToCacheDir(
   dir: string,
   contentType: string,
   expireAt: number,
+  etag: string,
   buffer: Buffer
 ) {
   await promises.mkdir(dir, { recursive: true })
   const extension = getExtension(contentType)
-  const etag = getHash([buffer])
   const filename = join(dir, `${expireAt}.${etag}.${extension}`)
   await promises.writeFile(filename, buffer)
 }
@@ -310,9 +325,9 @@ function sendResponse(
   req: IncomingMessage,
   res: ServerResponse,
   contentType: string | null,
+  etag: string,
   buffer: Buffer
 ) {
-  const etag = getHash([buffer])
   res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
   if (sendEtagResponse(req, res, etag)) {
     return
