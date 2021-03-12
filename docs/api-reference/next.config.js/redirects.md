@@ -77,15 +77,15 @@ module.exports = {
 
 ### Regex Path Matching
 
-To match a regex path you can wrap the regex in parenthesis after a parameter, for example `/blog/:slug(\\d{1,})` will match `/blog/123` but not `/blog/abc`:
+To match a regex path you can wrap the regex in parenthesis after a parameter, for example `/post/:slug(\\d{1,})` will match `/post/123` but not `/post/abc`:
 
 ```js
 module.exports = {
   async redirects() {
     return [
       {
-        source: '/old-blog/:post(\\d{1,})',
-        destination: '/blog/:post', // Matched parameters can be used in the destination
+        source: '/post/:slug(\\d{1,})',
+        destination: '/news/:slug', // Matched parameters can be used in the destination
         permanent: false,
       },
     ]
@@ -122,7 +122,7 @@ module.exports = {
 
 ### Redirects with i18n support
 
-When leveraging [`i18n` support](/docs/advanced-features/i18n-routing.md) with redirects each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the redirect:
+When leveraging [`i18n` support](/docs/advanced-features/i18n-routing.md) with redirects each `source` and `destination` is automatically prefixed to handle the configured `locales` unless you add `locale: false` to the redirect. If `locale: false` is used you must prefix the `source` and `destination` with a locale for it to be matched correctly.
 
 ```js
 module.exports = {
@@ -145,9 +145,28 @@ module.exports = {
         locale: false,
         permanent: false,
       },
+      {
+        // this matches '/' since `en` is the defaultLocale
+        source: '/en',
+        destination: '/en/another',
+        locale: false,
+        permanent: false,
+      },
+      {
+        // this gets converted to /(en|fr|de)/(.*) so will not match the top-level
+        // `/` or `/fr` routes like /:path* would
+        source: '/(.*)',
+        destination: '/another',
+        permanent: false,
+      },
     ]
   },
 }
 ```
 
 In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. Note: to ensure IE11 compatibility a `Refresh` header is automatically added for the 308 status code.
+
+## Other Redirects
+
+- Inside [API Routes](/docs/api-routes/response-helpers.md), you can use `res.redirect()`.
+- Inside [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) and [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering), you can redirect specific pages at request-time.

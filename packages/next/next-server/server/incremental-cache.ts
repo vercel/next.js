@@ -3,7 +3,6 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import path from 'path'
 import { PrerenderManifest } from '../../build'
 import { PRERENDER_MANIFEST } from '../lib/constants'
-import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
 import { normalizePagePath } from './normalize-page-path'
 
 function toRoute(pathname: string): string {
@@ -89,10 +88,6 @@ export class IncrementalCache {
   private calculateRevalidate(pathname: string): number | false {
     pathname = toRoute(pathname)
 
-    if (!this.prerenderManifest.routes[pathname]) {
-      pathname = toRoute(normalizeLocalePath(pathname, this.locales).pathname)
-    }
-
     // in development we don't have a prerender-manifest
     // and default to always revalidating to allow easier debugging
     const curTime = new Date().getTime()
@@ -156,7 +151,9 @@ export class IncrementalCache {
     ) {
       data.isStale = true
     }
-    const manifestEntry = this.prerenderManifest.routes[pathname]
+
+    const manifestPath = toRoute(pathname)
+    const manifestEntry = this.prerenderManifest.routes[manifestPath]
 
     if (data && manifestEntry) {
       data.curRevalidate = manifestEntry.initialRevalidateSeconds

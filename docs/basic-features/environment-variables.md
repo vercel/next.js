@@ -46,6 +46,11 @@ export async function getStaticProps() {
 }
 ```
 
+> **Note**: In order to keep server-only secrets safe, Next.js replaces `process.env.*` with the correct values
+> at build time. This means that `process.env` is not a standard JavaScript object, so you’re not able to
+> use [object destructuring](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Destructuring_assignment).
+> Environment variables must be referenced as e.g. `process.env.NEXT_PUBLIC_PUBLISHABLE_KEY`, _not_ `const { NEXT_PUBLIC_PUBLISHABLE_KEY } = process.env`.
+
 > **Note**: Next.js will automatically expand variables (`$VAR`) inside of your `.env*` files.
 > This allows you to reference other secrets, like so:
 >
@@ -63,8 +68,12 @@ export async function getStaticProps() {
 > ```bash
 > # .env
 > A=abc
-> WRONG=pre$A # becomes "preabc"
-> CORRECT=pre\$A # becomes "pre$A"
+>
+> # becomes "preabc"
+> WRONG=pre$A
+>
+> # becomes "pre$A"
+> CORRECT=pre\$A
 > ```
 
 ## Exposing Environment Variables to the Browser
@@ -77,7 +86,7 @@ In order to expose a variable to the browser you have to prefix the variable wit
 NEXT_PUBLIC_ANALYTICS_ID=abcdefghijk
 ```
 
-This loads `process.env.NEXT_PUBLIC_ANALYTICS_ID` into the Node.js environment automatically. Allowing you to use it anywhere in your code. The value will be inlined into JavaScript sent to the browser because of the `NEXT_PUBLIC_` prefix.
+This loads `process.env.NEXT_PUBLIC_ANALYTICS_ID` into the Node.js environment automatically, allowing you to use it anywhere in your code. The value will be inlined into JavaScript sent to the browser because of the `NEXT_PUBLIC_` prefix. This inlining occurs at build time, so your various `NEXT_PUBLIC_` envs need to be set when the project is built.
 
 ```js
 // pages/index.js
@@ -105,15 +114,17 @@ Next.js allows you to set defaults in `.env` (all environments), `.env.developme
 
 ## Environment Variables on Vercel
 
-When deploying on [Vercel](https://vercel.com) you can configure secrets in the [Environment Variables](https://vercel.com/docs/v2/build-step#environment-variables) section of the project in the Vercel dashboard.
+When deploying your Next.js application to [Vercel](https://vercel.com), Environment Variables can be configured [in the Project Settings](https://vercel.com/docs/environment-variables).
 
-You can still use `.env`, `.env.development` and `.env.production` to add defaults.
+All types of Environment Variables should be configured there. Even Environment Variables used in Development – which can be [downloaded onto your local device](https://vercel.com/docs/environment-variables#development-environment-variables) afterwards.
 
-If you've configured [Development Environment Variables](https://vercel.com/docs/v2/build-step#development-environment-variables) you can pull them into a `.env.local` for usage on your local machine using the following command:
+If you've configured [Development Environment Variables](https://vercel.com/docs/environment-variables#development-environment-variables) you can pull them into a `.env.local` for usage on your local machine using the following command:
 
 ```bash
 vercel env pull .env.local
 ```
+
+When using the Vercel CLI to deploy make sure you add a [`.vercelignore`](https://vercel.com/guides/prevent-uploading-sourcepaths-with-vercelignore?query=vercelignore#allowlist) that includes files that should not be uploaded, generally these are the same files included in `.gitignore`.
 
 ## Test Environment Variables
 
@@ -124,3 +135,15 @@ This one is useful when running tests with tools like `jest` or `cypress` where 
 There is a small difference between `test` environment, and both `development` and `production` that you need to bear in mind: `.env.local` won't be loaded, as you expect tests to produce the same results for everyone. This way every test execution will use same env defaults across different executions by ignoring your `.env.local` (which is intended to override the default set).
 
 > **Note**: similar to Default Environment Variables, `.env.test` file should be included in your repository, but `.env.test.local` shouldn't, as `.env*.local` are intended to be ignored through `.gitignore`.
+
+While running unit tests you can make sure to load your environment variables the same way Next.js does by leveraging the `loadEnvConfig` function from the `@next/env` package.
+
+```js
+// The below can be used in a Jest global setup file or similar for your testing set-up
+import { loadEnvConfig } from '@next/env'
+
+export default async () => {
+  const projectDir = process.cwd()
+  loadEnvConfig(projectDir)
+}
+```

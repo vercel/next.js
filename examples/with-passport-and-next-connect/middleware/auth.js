@@ -6,7 +6,7 @@ const auth = nextConnect()
   .use(
     session({
       name: 'sess',
-      secret: 'some_not_random_password_that_is_at_least_32_characters', // This should be kept securely, preferably in env vars
+      secret: process.env.TOKEN_SECRET,
       cookie: {
         maxAge: 60 * 60 * 8, // 8 hours,
         httpOnly: true,

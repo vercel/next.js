@@ -1,6 +1,6 @@
-import { useRef, useState, Suspense } from 'react'
+import { useRef, useState } from 'react'
 import { Canvas, useFrame } from 'react-three-fiber'
-import { OrbitControls, StandardEffects, Box } from 'drei'
+import { OrbitControls, Box } from '@react-three/drei'
 
 const MyBox = (props) => {
   const mesh = useRef()
@@ -39,9 +39,6 @@ const BoxesPage = () => {
       <MyBox position={[0, 10, 0]} />
       <MyBox position={[0, -10, 0]} />
       <OrbitControls />
-      <Suspense fallback={null}>
-        <StandardEffects smaa />
-      </Suspense>
     </Canvas>,
   ]
 }

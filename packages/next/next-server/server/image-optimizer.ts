@@ -1,19 +1,28 @@
-import nodeUrl, { UrlWithParsedQuery } from 'url'
-import { IncomingMessage, ServerResponse } from 'http'
-import { join } from 'path'
 import { mediaType } from '@hapi/accept'
-import { createReadStream, promises } from 'fs'
 import { createHash } from 'crypto'
-import Server from './next-server'
-import { getContentType, getExtension } from './serve-static'
-import { fileExists } from '../../lib/file-exists'
+import { createReadStream, promises } from 'fs'
+import { getOrientation, Orientation } from 'get-orientation'
+import { IncomingMessage, ServerResponse } from 'http'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
+import { join } from 'path'
 import Stream from 'stream'
-import { sendEtagResponse } from './send-payload'
+import nodeUrl, { UrlWithParsedQuery } from 'url'
+import { fileExists } from '../../lib/file-exists'
 import { ImageConfig, imageConfigDefault } from './image-config'
+import ImageData from './lib/squoosh/image_data'
+import {
+  decodeBuffer,
+  encodeJpeg,
+  encodePng,
+  encodeWebp,
+  resize,
+  rotate,
+} from './lib/squoosh/main'
+import Server from './next-server'
+import { sendEtagResponse } from './send-payload'
+import { getContentType, getExtension } from './serve-static'
 
-let sharp: typeof import('sharp')
 //const AVIF = 'image/avif'
 const WEBP = 'image/webp'
 const PNG = 'image/png'
@@ -34,7 +43,6 @@ export async function imageOptimizer(
   const { nextConfig, distDir } = server
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
   const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
-  const sizes = [...deviceSizes, ...imageSizes]
 
   if (loader !== 'default') {
     await server.render404(req, res, parsedUrl)
@@ -114,6 +122,8 @@ export async function imageOptimizer(
     res.end('"w" parameter (width) must be a number greater than 0')
     return { finished: true }
   }
+
+  const sizes = [...deviceSizes, ...imageSizes]
 
   if (!sizes.includes(width)) {
     res.statusCode = 400
@@ -217,17 +227,19 @@ export async function imageOptimizer(
     }
   }
 
+  const expireAt = maxAge * 1000 + now
+
   if (upstreamType) {
     const vector = VECTOR_TYPES.includes(upstreamType)
     const animate =
       ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
     if (vector || animate) {
+      await writeToCacheDir(hashDir, upstreamType, expireAt, upstreamBuffer)
       sendResponse(req, res, upstreamType, upstreamBuffer)
       return { finished: true }
     }
   }
 
-  const expireAt = maxAge * 1000 + now
   let contentType: string
 
   if (mimeType) {
@@ -238,54 +250,60 @@ export async function imageOptimizer(
     contentType = JPEG
   }
 
-  if (!sharp) {
-    try {
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      sharp = require('sharp')
-    } catch (error) {
-      if (error.code === 'MODULE_NOT_FOUND') {
-        error.message += '\n\nLearn more: https://err.sh/next.js/install-sharp'
-        server.logError(error)
-        sendResponse(req, res, upstreamType, upstreamBuffer)
-        return { finished: true }
-      }
-      throw error
-    }
-  }
-
   try {
-    const transformer = sharp(upstreamBuffer)
-    transformer.rotate() // auto rotate based on EXIF data
-
-    const { width: metaWidth } = await transformer.metadata()
-
-    if (metaWidth && metaWidth > width) {
-      transformer.resize(width)
+    let bitmap: ImageData = await decodeBuffer(upstreamBuffer)
+    const orientation = await getOrientation(upstreamBuffer)
+    if (orientation === Orientation.RIGHT_TOP) {
+      bitmap = await rotate(bitmap, 1)
+    } else if (orientation === Orientation.BOTTOM_RIGHT) {
+      bitmap = await rotate(bitmap, 2)
+    } else if (orientation === Orientation.LEFT_BOTTOM) {
+      bitmap = await rotate(bitmap, 3)
+    } else {
+      // TODO: support more orientations
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // const _: never = orientation
     }
 
+    if (bitmap.width && bitmap.width > width) {
+      bitmap = await resize(bitmap, { width })
+    }
+
+    let optimizedBuffer: Buffer | undefined
     //if (contentType === AVIF) {
-    // Soon https://github.com/lovell/sharp/issues/2289
-    //}
+    //} else
     if (contentType === WEBP) {
-      transformer.webp({ quality })
+      optimizedBuffer = await encodeWebp(bitmap, { quality })
     } else if (contentType === PNG) {
-      transformer.png({ quality })
+      optimizedBuffer = await encodePng(bitmap)
     } else if (contentType === JPEG) {
-      transformer.jpeg({ quality })
+      optimizedBuffer = await encodeJpeg(bitmap, { quality })
     }
 
-    const optimizedBuffer = await transformer.toBuffer()
-    await promises.mkdir(hashDir, { recursive: true })
-    const extension = getExtension(contentType)
-    const etag = getHash([optimizedBuffer])
-    const filename = join(hashDir, `${expireAt}.${etag}.${extension}`)
-    await promises.writeFile(filename, optimizedBuffer)
-    sendResponse(req, res, contentType, optimizedBuffer)
+    if (optimizedBuffer) {
+      await writeToCacheDir(hashDir, contentType, expireAt, optimizedBuffer)
+      sendResponse(req, res, contentType, optimizedBuffer)
+    } else {
+      throw new Error('Unable to optimize buffer')
+    }
   } catch (error) {
     sendResponse(req, res, upstreamType, upstreamBuffer)
   }
 
   return { finished: true }
+}
+
+async function writeToCacheDir(
+  dir: string,
+  contentType: string,
+  expireAt: number,
+  buffer: Buffer
+) {
+  await promises.mkdir(dir, { recursive: true })
+  const extension = getExtension(contentType)
+  const etag = getHash([buffer])
+  const filename = join(dir, `${expireAt}.${etag}.${extension}`)
+  await promises.writeFile(filename, buffer)
 }
 
 function sendResponse(

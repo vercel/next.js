@@ -1,7 +1,7 @@
 import { ComponentType } from 'react'
-import type { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
+import { ClientBuildManifest } from '../build/webpack/plugins/build-manifest-plugin'
 import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
-import requestIdleCallback from './request-idle-callback'
+import { requestIdleCallback } from './request-idle-callback'
 
 // 3.8s was arbitrarily chosen as it's what https://web.dev/interactive
 // considers as "Good" time-to-interactive. We must assume something went
@@ -55,7 +55,7 @@ function withFuture<T>(
     return Promise.resolve(entry)
   }
   let resolver: (entrypoint: T) => void
-  const prom = new Promise<T>((resolve) => {
+  const prom: Promise<T> = new Promise<T>((resolve) => {
     resolver = resolve
   })
   map.set(key, (entry = { resolve: resolver!, future: prom }))
@@ -75,7 +75,12 @@ export interface RouteLoader {
 function hasPrefetch(link?: HTMLLinkElement): boolean {
   try {
     link = document.createElement('link')
-    return link.relList.supports('prefetch')
+    return (
+      // detect IE11 since it supports prefetch but isn't detected
+      // with relList.support
+      (!!window.MSInputMethodContext && !!(document as any).documentMode) ||
+      link.relList.supports('prefetch')
+    )
   } catch {
     return false
   }
@@ -115,7 +120,7 @@ export function markAssetError(err: Error): Error {
   return Object.defineProperty(err, ASSET_LOAD_ERROR, {})
 }
 
-export function isAssetError(err?: Error) {
+export function isAssetError(err?: Error): boolean | undefined {
   return err && ASSET_LOAD_ERROR in err
 }
 
@@ -144,10 +149,29 @@ function appendScript(
   })
 }
 
-function idleTimeout<T>(ms: number, err: Error): Promise<T> {
-  return new Promise((_resolve, reject) =>
-    requestIdleCallback(() => setTimeout(() => reject(err), ms))
-  )
+// Resolve a promise that times out after given amount of milliseconds.
+function resolvePromiseWithTimeout<T>(
+  p: Promise<T>,
+  ms: number,
+  err: Error
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let cancelled = false
+
+    p.then((r) => {
+      // Resolved, cancel the timeout
+      cancelled = true
+      resolve(r)
+    }).catch(reject)
+
+    requestIdleCallback(() =>
+      setTimeout(() => {
+        if (!cancelled) {
+          reject(err)
+        }
+      }, ms)
+    )
+  })
 }
 
 // TODO: stop exporting or cache the failure
@@ -161,7 +185,9 @@ export function getClientBuildManifest(): Promise<ClientBuildManifest> {
     return Promise.resolve(self.__BUILD_MANIFEST)
   }
 
-  const onBuildManifest = new Promise<ClientBuildManifest>((resolve) => {
+  const onBuildManifest: Promise<ClientBuildManifest> = new Promise<
+    ClientBuildManifest
+  >((resolve) => {
     // Mandatory because this is not concurrent safe:
     const cb = self.__BUILD_MANIFEST_CB
     self.__BUILD_MANIFEST_CB = () => {
@@ -169,13 +195,12 @@ export function getClientBuildManifest(): Promise<ClientBuildManifest> {
       cb && cb()
     }
   })
-  return Promise.race([
+
+  return resolvePromiseWithTimeout<ClientBuildManifest>(
     onBuildManifest,
-    idleTimeout<ClientBuildManifest>(
-      MS_MAX_IDLE_DELAY,
-      markAssetError(new Error('Failed to load client build manifest'))
-    ),
-  ])
+    MS_MAX_IDLE_DELAY,
+    markAssetError(new Error('Failed to load client build manifest'))
+  )
 }
 
 interface RouteFiles {
@@ -224,7 +249,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
   > = new Map()
 
   function maybeExecuteScript(src: string): Promise<unknown> {
-    let prom = loadedScripts.get(src)
+    let prom: Promise<unknown> | undefined = loadedScripts.get(src)
     if (prom) {
       return prom
     }
@@ -239,7 +264,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
   }
 
   function fetchStyleSheet(href: string): Promise<RouteStyleSheet> {
-    let prom = styleSheets.get(href)
+    let prom: Promise<RouteStyleSheet> | undefined = styleSheets.get(href)
     if (prom) {
       return prom
     }
@@ -264,7 +289,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
     whenEntrypoint(route: string) {
       return withFuture(route, entrypoints)
     },
-    onEntrypoint(route, execute) {
+    onEntrypoint(route: string, execute: () => unknown) {
       Promise.resolve(execute)
         .then((fn) => fn())
         .then(
@@ -280,7 +305,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
           if (old && 'resolve' in old) old.resolve(input)
         })
     },
-    loadRoute(route) {
+    loadRoute(route: string) {
       return withFuture<RouteLoaderEntry>(route, routes, async () => {
         try {
           const { scripts, css } = await getFilesForRoute(assetPrefix, route)
@@ -291,15 +316,14 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
             Promise.all(css.map(fetchStyleSheet)),
           ] as const)
 
-          const entrypoint = await Promise.race([
+          const entrypoint: RouteEntrypoint = await resolvePromiseWithTimeout(
             this.whenEntrypoint(route),
-            idleTimeout<RouteLoaderEntry>(
-              MS_MAX_IDLE_DELAY,
-              markAssetError(
-                new Error(`Route did not complete loading: ${route}`)
-              )
-            ),
-          ])
+            MS_MAX_IDLE_DELAY,
+            markAssetError(
+              new Error(`Route did not complete loading: ${route}`)
+            )
+          )
+
           const res: RouteLoaderEntry = Object.assign<
             { styles: RouteStyleSheet[] },
             RouteEntrypoint
@@ -310,7 +334,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
         }
       })
     },
-    prefetch(route) {
+    prefetch(route: string): Promise<void> {
       // https://github.com/GoogleChromeLabs/quicklink/blob/453a661fa1fa940e2d2e044452398e38c67a98fb/src/index.mjs#L115-L118
       // License: Apache 2.0
       let cn

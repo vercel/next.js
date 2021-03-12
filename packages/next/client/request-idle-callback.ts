@@ -13,12 +13,15 @@ declare global {
       callback: (deadline: RequestIdleCallbackDeadline) => void,
       opts?: RequestIdleCallbackOptions
     ) => RequestIdleCallbackHandle
+    cancelIdleCallback: (id: RequestIdleCallbackHandle) => void
   }
 }
 
-const requestIdleCallback =
+export const requestIdleCallback =
   (typeof self !== 'undefined' && self.requestIdleCallback) ||
-  function (cb: (deadline: RequestIdleCallbackDeadline) => void) {
+  function (
+    cb: (deadline: RequestIdleCallbackDeadline) => void
+  ): NodeJS.Timeout {
     let start = Date.now()
     return setTimeout(function () {
       cb({
@@ -30,4 +33,8 @@ const requestIdleCallback =
     }, 1)
   }
 
-export default requestIdleCallback
+export const cancelIdleCallback =
+  (typeof self !== 'undefined' && self.cancelIdleCallback) ||
+  function (id: RequestIdleCallbackHandle) {
+    return clearTimeout(id)
+  }
