@@ -2,10 +2,6 @@
   "name": "styled-jsx-with-csp",
   "version": "1.0.0",
   "private": true,
-  "author": {
-    "name": "Karthikeyan Ranasthala",
-    "email": "hello@karthikeyan.sh"
-  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
