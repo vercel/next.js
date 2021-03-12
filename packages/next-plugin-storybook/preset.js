@@ -25,7 +25,7 @@ async function webpackFinal(config) {
     ...nextWebpackConfig.resolve,
   }
 
-  config.module.rules = {
+  config.module.rules = [
     ...filterModuleRules(config),
     ...nextWebpackConfig.module.rules.map((rule) => {
       // we need to resolve next-babel-loader since it's not available
@@ -37,7 +37,7 @@ async function webpackFinal(config) {
       }
       return rule
     }),
-  }
+  ]
 
   return config
 }
