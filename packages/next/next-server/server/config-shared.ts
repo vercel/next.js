@@ -90,15 +90,9 @@ export const defaultConfig: NextConfig = {
   reactStrictMode: false,
 }
 
-export function normalizeConfig(phase: string, config: any) {
+export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
-    config = config(phase, { defaultConfig })
-
-    if (typeof config.then === 'function') {
-      throw new Error(
-        '> Promise returned in next config. https://err.sh/vercel/next.js/promise-in-next-config'
-      )
-    }
+    config = await config(phase, { defaultConfig })
   }
   return config
 }

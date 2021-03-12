@@ -11,15 +11,16 @@ import { UrlWithParsedQuery } from 'url'
 import Watchpack from 'watchpack'
 import { ampValidation } from '../build/output/index'
 import * as Log from '../build/output/log'
+import { withCoalescedInvoke } from '../lib/coalesced-function'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, { CustomRoutes } from '../lib/load-custom-routes'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
-  PHASE_DEVELOPMENT_SERVER,
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
+  PHASE_DEVELOPMENT_SERVER,
   STATIC_STATUS_PAGES,
 } from '../next-server/lib/constants'
 import {
@@ -29,6 +30,7 @@ import {
   isDynamicRoute,
 } from '../next-server/lib/router/utils'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
+import { NextConfig } from '../next-server/server/config'
 import Server, { ServerConstructor } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import Router, { Params, route } from '../next-server/server/router'
@@ -38,8 +40,6 @@ import { setGlobal } from '../telemetry/trace'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
-import { withCoalescedInvoke } from '../lib/coalesced-function'
-import { NextConfig } from '../next-server/server/config'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -291,7 +291,7 @@ export default class DevServer extends Server {
 
     const telemetry = new Telemetry({ distDir: this.distDir })
     telemetry.record(
-      eventCliSession(PHASE_DEVELOPMENT_SERVER, this.distDir, {
+      await eventCliSession(PHASE_DEVELOPMENT_SERVER, this.distDir, {
         cliCommand: 'dev',
         isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),

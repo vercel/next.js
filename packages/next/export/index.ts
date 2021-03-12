@@ -1,19 +1,22 @@
+import { loadEnvConfig } from '@next/env'
 import chalk from 'chalk'
-import findUp from 'next/dist/compiled/find-up'
 import {
-  promises,
-  existsSync,
   exists as existsOrig,
+  existsSync,
+  promises,
   readFileSync,
   writeFileSync,
 } from 'fs'
 import Worker from 'jest-worker'
+import findUp from 'next/dist/compiled/find-up'
 import { cpus } from 'os'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
+import { PrerenderManifest } from '../build'
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
+import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { API_ROUTE, SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveDelete } from '../lib/recursive-delete'
@@ -34,19 +37,16 @@ import loadConfig, {
   isTargetLikeServerless,
   NextConfig,
 } from '../next-server/server/config'
-import { eventCliSession } from '../telemetry/events'
-import { hasNextSupport } from '../telemetry/ci-info'
-import { Telemetry } from '../telemetry/storage'
 import {
-  normalizePagePath,
   denormalizePagePath,
+  normalizePagePath,
 } from '../next-server/server/normalize-page-path'
-import { loadEnvConfig } from '@next/env'
-import { PrerenderManifest } from '../build'
-import exportPage from './worker'
-import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../next-server/server/require'
+import { hasNextSupport } from '../telemetry/ci-info'
+import { eventCliSession } from '../telemetry/events'
+import { Telemetry } from '../telemetry/storage'
 import { trace } from '../telemetry/trace'
+import exportPage from './worker'
 
 const exists = promisify(existsOrig)
 
@@ -161,7 +161,7 @@ export default async function exportApp(
 
     if (telemetry) {
       telemetry.record(
-        eventCliSession(PHASE_EXPORT, distDir, {
+        await eventCliSession(PHASE_EXPORT, distDir, {
           cliCommand: 'export',
           isSrcDir: null,
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),

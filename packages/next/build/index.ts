@@ -11,8 +11,8 @@ import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
 import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-messages'
 import {
-  STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
+  STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -43,6 +43,7 @@ import {
   SERVER_FILES_MANIFEST,
   STATIC_STATUS_PAGES,
 } from '../next-server/lib/constants'
+import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 import {
   getRouteRegex,
   getSortedRoutes,
@@ -64,16 +65,17 @@ import {
   eventNextPlugins,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
+import { setGlobal, trace } from '../telemetry/trace'
 import { CompilerResult, runCompiler } from './compiler'
 import { createEntrypoints, createPagesMapping } from './entries'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
-import { trace, setGlobal } from '../telemetry/trace'
 import {
   collectPages,
   detectConflictingPaths,
+  getCssFilePaths,
   getJsPageSizeInKb,
   getNamedExports,
   hasCustomGetInitialProps,
@@ -81,12 +83,10 @@ import {
   PageInfo,
   printCustomRoutes,
   printTreeView,
-  getCssFilePaths,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
-import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -163,7 +163,7 @@ export default async function build(
     const hasPublicDir = await fileExists(publicDir)
 
     telemetry.record(
-      eventCliSession(PHASE_PRODUCTION_BUILD, dir, {
+      await eventCliSession(PHASE_PRODUCTION_BUILD, dir, {
         cliCommand: 'build',
         isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),

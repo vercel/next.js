@@ -57,10 +57,10 @@ type NextConfigurationPhase =
   | typeof PHASE_PRODUCTION_BUILD
   | typeof PHASE_EXPORT
 
-function getNextConfig(
+async function getNextConfig(
   phase: NextConfigurationPhase,
   dir: string
-): { [key: string]: any } | null {
+): Promise<{ [key: string]: any } | null> {
   try {
     const configurationPath = findUp.sync(CONFIG_FILE, {
       cwd: dir,
@@ -83,7 +83,7 @@ function getNextConfig(
   return null
 }
 
-export function eventCliSession(
+export async function eventCliSession(
   phase: NextConfigurationPhase,
   dir: string,
   event: Omit<
@@ -106,13 +106,13 @@ export function eventCliSession(
     | 'trailingSlashEnabled'
     | 'reactStrictMode'
   >
-): { eventName: string; payload: EventCliSessionStarted }[] {
+): Promise<{ eventName: string; payload: EventCliSessionStarted }[]> {
   // This should be an invariant, if it fails our build tooling is broken.
   if (typeof process.env.__NEXT_VERSION !== 'string') {
     return []
   }
 
-  const userConfiguration = getNextConfig(phase, dir)
+  const userConfiguration = await getNextConfig(phase, dir)
 
   const { images, i18n } = userConfiguration || {}
 

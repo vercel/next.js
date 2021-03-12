@@ -2,9 +2,9 @@ import { loadEnvConfig } from '@next/env'
 import Worker from 'jest-worker'
 import findUp from 'next/dist/compiled/find-up'
 import { init as initWebpack } from 'next/dist/compiled/webpack/webpack'
+import * as Log from '../../build/output/log'
 import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../lib/constants'
 import { NextConfig, normalizeConfig } from './config-shared'
-import * as Log from '../../build/output/log'
 
 let installed: boolean = false
 
@@ -44,7 +44,7 @@ export async function shouldLoadWithWebpack5(
   install(false)
 
   const userConfigModule = require(path)
-  const userConfig: Partial<NextConfig> = normalizeConfig(
+  const userConfig: Partial<NextConfig> = await normalizeConfig(
     phase,
     userConfigModule.default || userConfigModule
   )
