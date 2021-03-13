@@ -104,6 +104,7 @@ export default class DevServer extends Server {
       {
         maxRetries: 0,
         numWorkers: this.nextConfig.experimental.cpus,
+        enableWorkerThreads: this.nextConfig.experimental.workerThreads,
         forkOptions: {
           env: {
             ...process.env,
