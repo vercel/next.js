@@ -270,6 +270,66 @@ describe('500 Page Support', () => {
     expect(appStderr).toContain('called _error.getInitialProps')
   })
 
+  it('does not build 500 statically with no pages/500 and custom getInitialProps in _error and _app', async () => {
+    await fs.rename(pages500, `${pages500}.bak`)
+    await fs.writeFile(
+      pagesError,
+      `
+        function Error({ statusCode }) {
+          return <p>Error status: {statusCode}</p>
+        }
+
+        Error.getInitialProps = ({ req, res, err }) => {
+          console.error('called _error.getInitialProps')
+
+          if (req.url === '/500') {
+            throw new Error('should not export /500')
+          }
+
+          return {
+            statusCode: res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
+          }
+        }
+
+        export default Error
+      `
+    )
+    await fs.writeFile(
+      pagesApp,
+      `
+        function App({ pageProps, Component }) {
+          return <Component {...pageProps} />
+        }
+
+        App.getInitialProps = async ({ Component, ctx }) => {
+          // throw _app GIP err here
+          let pageProps = {}
+
+          if (Component.getInitialProps) {
+            pageProps = await Component.getInitialProps(ctx)
+          }
+
+          return { pageProps }
+        }
+
+        export default App
+      `
+    )
+    await fs.remove(join(appDir, '.next'))
+    const { stderr: buildStderr, code } = await nextBuild(appDir, [], {
+      stderr: true,
+    })
+    await fs.rename(`${pages500}.bak`, pages500)
+    await fs.remove(pagesError)
+    await fs.remove(pagesApp)
+    console.log(buildStderr)
+    expect(buildStderr).not.toMatch(gip500Err)
+    expect(code).toBe(0)
+    expect(
+      await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
+    ).toBe(false)
+  })
+
   it('shows error with getInitialProps in pages/500 build', async () => {
     await fs.move(pages500, `${pages500}.bak`)
     await fs.writeFile(
