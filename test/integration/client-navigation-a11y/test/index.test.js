@@ -19,7 +19,9 @@ describe('Client Navigation accessibility', () => {
       env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
     })
 
-    const prerender = ['/another-page']
+    const prerender = [
+      '/page-with-h1, /page-with-title, /page-without-h1-or-title',
+    ]
 
     await Promise.all(
       prerender.map((route) => renderViaHTTP(context.appPort, route))
@@ -28,52 +30,72 @@ describe('Client Navigation accessibility', () => {
 
   afterAll(() => killApp(context.server))
 
-  it('brings focus to the body', async () => {
-    const browser = await webdriver(context.appPort, '/')
-    await browser
-      .waitForElementByCss('#another-page-link')
-      .click()
-      .waitForElementByCss('#another-page-container')
-
-    const isBodyFocused = await browser.eval(
-      'document.activeElement === document.body'
-    )
-    expect(isBodyFocused).toBe(true)
-    await browser.close()
-  })
-
-  describe('tabIndex of focused element does not exist', () => {
-    it('is set to -1', async () => {
+  describe('<RouteAnnouncer />', () => {
+    it('has aria-live="assertive" and role="alert"', async () => {
       const browser = await webdriver(context.appPort, '/')
-      await browser
-        .waitForElementByCss('#another-page-link')
-        .click()
-        .waitForElementByCss('#another-page-container')
-
-      const tabIndex = await browser.eval(
-        'document.body.getAttribute("tabIndex")'
+      const routeAnnouncer = await browser.waitForElementByCss(
+        '#__next-route-announcer__'
       )
+      const ariaLiveValue = await routeAnnouncer.getAttribute('aria-live')
+      const roleValue = await routeAnnouncer.getAttribute('role')
 
-      expect(tabIndex).toBe('-1')
+      expect(ariaLiveValue).toBe('assertive')
+      expect(roleValue).toBe('alert')
       await browser.close()
     })
-  })
+    describe('There is an h1 tag', () => {
+      it('has the same innerText value as the h1 tag', async () => {
+        const browser = await webdriver(context.appPort, '/')
+        const h1Value = await browser
+          .waitForElementByCss('#page-with-h1-link')
+          .click()
+          .waitForElementByCss('#page-with-h1')
+          .elementByCss('h1')
+          .text()
 
-  describe('tabIndex of focused element exists', () => {
-    it('does not change', async () => {
-      const browser = await webdriver(context.appPort, '/')
-      await browser.eval('document.body.setAttribute("tabIndex", 2)')
-      await browser
-        .waitForElementByCss('#another-page-link')
-        .click()
-        .waitForElementByCss('#another-page-container')
+        const routeAnnouncerValue = await browser
+          .waitForElementByCss('#__next-route-announcer__')
+          .text()
 
-      const tabIndex = await browser.eval(
-        'document.body.getAttribute("tabIndex")'
-      )
+        expect(h1Value).toBe(routeAnnouncerValue)
+        await browser.close()
+      })
+    })
+    describe('There is a document.title, but no h1 tag', () => {
+      it('has the innerText equal to the value of document.title', async () => {
+        const browser = await webdriver(context.appPort, '/')
+        await browser
+          .waitForElementByCss('#page-with-title-link')
+          .click()
+          .waitForElementByCss('#page-with-title')
 
-      expect(tabIndex).toBe('2')
-      await browser.close()
+        const title = await browser.eval('document.title')
+
+        const routeAnnouncerValue = await browser
+          .waitForElementByCss('#__next-route-announcer__')
+          .text()
+
+        expect(title).toBe(routeAnnouncerValue)
+        await browser.close()
+      })
+    })
+    describe('There is neither an h1 or a title tag', () => {
+      it('has the innerText equal to the value of the pathname', async () => {
+        const browser = await webdriver(context.appPort, '/')
+        await browser
+          .waitForElementByCss('#page-without-h1-or-title-link')
+          .click()
+          .waitForElementByCss('#page-without-h1-or-title')
+
+        const pathname = '/page-without-h1-or-title'
+
+        const routeAnnouncerValue = await browser
+          .waitForElementByCss('#__next-route-announcer__')
+          .text()
+
+        expect(pathname).toBe(routeAnnouncerValue)
+        await browser.close()
+      })
     })
   })
 })

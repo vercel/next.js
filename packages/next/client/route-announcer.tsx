@@ -17,7 +17,8 @@ export function RouteAnnouncer() {
       const pageHeader = document.querySelector('h1')
 
       if (pageHeader) {
-        newRouteAnnouncement = pageHeader.innerText
+        newRouteAnnouncement =
+          pageHeader.innerText || pageHeader.textContent || ''
       } else if (document.title) {
         newRouteAnnouncement = document.title
       } else {
@@ -31,9 +32,9 @@ export function RouteAnnouncer() {
   )
 
   return (
-    <div
-      aria-atomic // Always announce the entire path.
+    <p
       aria-live="assertive" // Make the announcement immediately.
+      id="__next-route-announcer__"
       role="alert"
       style={{
         border: 0,
@@ -51,7 +52,7 @@ export function RouteAnnouncer() {
       }}
     >
       {routeAnnouncement}
-    </div>
+    </p>
   )
 }
 
