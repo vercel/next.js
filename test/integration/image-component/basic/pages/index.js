@@ -8,6 +8,13 @@ const Page = () => {
     <div>
       <p>Hello World</p>
       <Image
+        id="image-with-sizes"
+        src="/test-sizes.jpg"
+        width={2000}
+        height={100}
+        sizes="100vw"
+      />
+      <Image
         id="basic-image"
         src="foo.jpg"
         loading="eager"
