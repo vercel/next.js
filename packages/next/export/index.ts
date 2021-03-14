@@ -170,7 +170,7 @@ export default async function exportApp(
       )
     }
 
-    const subFolders = nextConfig.trailingSlash
+    const subFolders = nextConfig.trailingSlash && !options.buildExport
     const isLikeServerless = nextConfig.target !== 'server'
 
     if (!options.silent && !options.buildExport) {
@@ -367,6 +367,7 @@ export default async function exportApp(
       locale: i18n?.defaultLocale,
       defaultLocale: i18n?.defaultLocale,
       domainLocales: i18n?.domains,
+      trailingSlash: nextConfig.trailingSlash,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
