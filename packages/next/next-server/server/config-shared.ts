@@ -15,6 +15,7 @@ export type NextConfig = { [key: string]: any } & {
     defaultLocale: string
     domains?: DomainLocales
     localeDetection?: false
+    localeCookie: string
   } | null
 
   headers?: () => Promise<Header[]>

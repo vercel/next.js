@@ -385,6 +385,29 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         `Specified i18n.localeDetection should be undefined or a boolean received ${localeDetectionType}.\nSee more info here: https://err.sh/next.js/invalid-i18n-config`
       )
     }
+
+    if (i18n.localeCookie) {
+      if (typeof i18n.localeCookie !== 'string') {
+        throw new Error(`Specified i18n.localeCookie should be a string`)
+      }
+
+      i18n.localeCookie = i18n.localeCookie.trim()
+
+      if (!i18n.localeCookie) {
+        throw new Error(`Specified i18n.localeCookie should not be empty`)
+      }
+
+      // This only checks for characters not allowed in a cookie name but does
+      // not stop users from creating a cookie name with only non alpha-numeric
+      // characters
+      if (!/^[$a-zA-Z0-9_-]+$/.test(i18n.localeCookie)) {
+        throw new Error(
+          `Specified i18n.localeCookie contains invalid characters`
+        )
+      }
+    }
+
+    i18n.localeCookie = i18n.localeCookie || 'NEXT_LOCALE'
   }
 
   return result
