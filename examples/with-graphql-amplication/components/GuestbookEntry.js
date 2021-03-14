@@ -13,7 +13,7 @@ export default function GuestbookEntry(props) {
             >
               <img
                 className={styles.guestbookEntryUserDetailAvatarImg}
-                src={`https://twitter-avatar.now.sh/${props.twitter_handle}/`}
+                src={`https://unavatar.now.sh/twitter/${props.twitter_handle}/`}
               />
             </a>
           </div>
@@ -34,7 +34,7 @@ export default function GuestbookEntry(props) {
       <div className={styles.guestbookEntryShare}>
         <a
           href={`http://twitter.com/share?text=${encodeURIComponent(
-            props.story + ' @zeithq'
+            props.story + ' @vercel'
           )}&hashtags=graphql,nextjs
                     `}
           target="_blank"
