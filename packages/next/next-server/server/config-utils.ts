@@ -37,7 +37,7 @@ export async function shouldLoadWithWebpack5(
 
   // No `next.config.js`:
   if (!path?.length) {
-    return false // TODO: return true to default to webpack 5
+    return true
   }
 
   // Default to webpack 4 for backwards compatibility on boot:
@@ -49,8 +49,8 @@ export async function shouldLoadWithWebpack5(
     userConfigModule.default || userConfigModule
   )
 
-  // TODO: enable commented branch to enable webpack 5
-  return userConfig.future?.webpack5 === true /* || !userConfig.webpack */
+  // When custom webpack config is added webpack 5 is not auto-enabled
+  return userConfig.future?.webpack5 === true || !userConfig.webpack
 }
 
 export async function loadWebpackHook(phase: string, dir: string) {
