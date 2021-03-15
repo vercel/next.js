@@ -60,7 +60,7 @@ import {
   getRedirectStatus,
   Redirect,
 } from '../../lib/load-custom-routes'
-import { DomainLocales } from './config-shared'
+import { DomainLocales } from './config'
 
 function noRouter() {
   const message =
