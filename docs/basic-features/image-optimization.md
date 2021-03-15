@@ -92,6 +92,10 @@ The following Image Optimization cloud providers are included:
 
 If you need a different provider, you can use the [`loader`](/docs/api-reference/next/image.md#loader) prop with `next/image`.
 
+## Static Site Generation
+
+The [`next/image`](/docs/api-reference/next/image.md) component is designed to be used with a server side image optimization service (either a next.js server, or one of the other [loaders](/docs/basic-features/image-optimization.md#loader) available). For static image optimization at build time (during [next/export](/docs/advanced-features/static-html-export.md)) please refer to a community package such as [next-optimized-images](https://github.com/cyrilwanner/next-optimized-images).
+
 ## Caching
 
 The following describes the caching algorithm for the default [loader](#loader). For all other loaders, please refer to your cloud provider's documentation.
