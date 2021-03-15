@@ -24,7 +24,15 @@ export function install(useWebpack5: boolean) {
 export async function shouldLoadWithWebpack5(
   phase: string,
   dir: string
-): Promise<boolean> {
+): Promise<{
+  enable: boolean
+  reason:
+    | 'no-config'
+    | 'test-mode'
+    | 'future-flag'
+    | 'no-webpack-config'
+    | 'webpack-config'
+}> {
   await loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, Log)
 
   const path = await findUp(CONFIG_FILE, {
@@ -32,12 +40,18 @@ export async function shouldLoadWithWebpack5(
   })
 
   if (Number(process.env.NEXT_PRIVATE_TEST_WEBPACK5_MODE) > 0) {
-    return true
+    return {
+      enable: true,
+      reason: 'test-mode',
+    }
   }
 
   // No `next.config.js`:
   if (!path?.length) {
-    return true
+    return {
+      enable: true,
+      reason: 'no-config',
+    }
   }
 
   // Default to webpack 4 for backwards compatibility on boot:
@@ -49,15 +63,31 @@ export async function shouldLoadWithWebpack5(
     userConfigModule.default || userConfigModule
   )
 
-  // When custom webpack config is added webpack 5 is not auto-enabled
-  return userConfig.future?.webpack5 === true || !userConfig.webpack
+  if (userConfig.future?.webpack5 === true) {
+    return {
+      enable: true,
+      reason: 'future-flag',
+    }
+  }
+
+  if (!userConfig.webpack) {
+    return {
+      enable: true,
+      reason: 'future-flag',
+    }
+  }
+
+  return {
+    enable: false,
+    reason: 'webpack-config',
+  }
 }
 
 export async function loadWebpackHook(phase: string, dir: string) {
-  let useWebpack5 = false
   const worker: any = new Worker(__filename, { enableWorkerThreads: false })
+  let workerResult
   try {
-    useWebpack5 = Boolean(await worker.shouldLoadWithWebpack5(phase, dir))
+    workerResult = await worker.shouldLoadWithWebpack5(phase, dir)
   } catch {
     // If this errors, it likely will do so again upon boot, so we just swallow
     // it here.
@@ -65,5 +95,5 @@ export async function loadWebpackHook(phase: string, dir: string) {
     worker.end()
   }
 
-  install(useWebpack5)
+  install(workerResult.enable || false)
 }
