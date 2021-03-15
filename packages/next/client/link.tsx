@@ -103,12 +103,6 @@ function linkClicked(
     shallow,
     locale,
     scroll,
-  }).then((success: boolean) => {
-    if (!success) return
-    if (scroll) {
-      // FIXME: proper route announcing at Router level, not Link:
-      document.body.focus()
-    }
   })
 }
 
