@@ -67,6 +67,9 @@ function divideSegments(number: number, segments: number): number[] {
 const createProgress = (total: number, label: string) => {
   const segments = divideSegments(total, 4)
 
+  if (total === 0) {
+    throw new Error('invariant: progress total can not be zero')
+  }
   let currentSegmentTotal = segments.shift()
   let currentSegmentCount = 0
   let curProgress = 0
@@ -167,7 +170,7 @@ export default async function exportApp(
       )
     }
 
-    const subFolders = nextConfig.trailingSlash
+    const subFolders = nextConfig.trailingSlash && !options.buildExport
     const isLikeServerless = nextConfig.target !== 'server'
 
     if (!options.silent && !options.buildExport) {
@@ -360,6 +363,7 @@ export default async function exportApp(
       locale: i18n?.defaultLocale,
       defaultLocale: i18n?.defaultLocale,
       domainLocales: i18n?.domains,
+      trailingSlash: nextConfig.trailingSlash,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
