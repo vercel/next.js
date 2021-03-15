@@ -6,14 +6,34 @@ describe('isSerializableProps', () => {
     expect(() => isSerializableProps('/', 'test', null))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing props returned from \`test\` in \\"/\\".
-Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\`."
-`)
+Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Null]\`)."
+    `)
 
     expect(() => isSerializableProps('/', 'test', undefined))
       .toThrowErrorMatchingInlineSnapshot(`
 "Error serializing props returned from \`test\` in \\"/\\".
-Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\`."
-`)
+Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Undefined]\`)."
+    `)
+  })
+
+  it('handles non-plain object props', () => {
+    expect(() => isSerializableProps('/', 'test', []))
+      .toThrowErrorMatchingInlineSnapshot(`
+"Error serializing props returned from \`test\` in \\"/\\".
+Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Array]\`)."
+    `)
+
+    expect(() => isSerializableProps('/', 'test', class Foobar {}))
+      .toThrowErrorMatchingInlineSnapshot(`
+"Error serializing props returned from \`test\` in \\"/\\".
+Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Function]\`)."
+    `)
+
+    expect(() => isSerializableProps('/', 'test', function Foobar() {}))
+      .toThrowErrorMatchingInlineSnapshot(`
+"Error serializing props returned from \`test\` in \\"/\\".
+Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Function]\`)."
+    `)
   })
 
   it('allows empty props', () => {
