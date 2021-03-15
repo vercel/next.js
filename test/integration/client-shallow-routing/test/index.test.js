@@ -8,6 +8,8 @@ import {
   killApp,
   nextBuild,
   nextStart,
+  check,
+  waitFor,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -24,16 +26,21 @@ const runTests = () => {
     expect(props.params).toEqual({ slug: 'first' })
 
     await browser.elementByCss('#add-query-shallow').click()
+    await waitFor(500)
 
     const props2 = JSON.parse(await browser.elementByCss('#props').text())
     expect(props2).toEqual(props)
 
     await browser.elementByCss('#remove-query-shallow').click()
+    await waitFor(500)
 
     const props3 = JSON.parse(await browser.elementByCss('#props').text())
     expect(props3).toEqual(props)
 
     await browser.elementByCss('#to-another').click()
+    await waitFor(500)
+
+    await check(() => browser.elementByCss('#props').text(), /another/)
 
     const props4 = JSON.parse(await browser.elementByCss('#props').text())
     expect(props4.params).toEqual({ slug: 'another' })
@@ -53,11 +60,13 @@ const runTests = () => {
     expect(props.params).toEqual({ slug: 'first' })
 
     await browser.elementByCss('#add-query-shallow').click()
+    await waitFor(500)
 
     const props2 = JSON.parse(await browser.elementByCss('#props').text())
     expect(props2).toEqual(props)
 
     await browser.elementByCss('#to-another').click()
+    await waitFor(500)
 
     const props3 = JSON.parse(await browser.elementByCss('#props').text())
     expect(props3.params).toEqual({ slug: 'another' })
