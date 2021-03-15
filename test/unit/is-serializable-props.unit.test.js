@@ -5,34 +5,34 @@ describe('isSerializableProps', () => {
   it('handles null and undefined props', () => {
     expect(() => isSerializableProps('/', 'test', null))
       .toThrowErrorMatchingInlineSnapshot(`
-      "Error serializing props returned from \`test\` in \\"/\\".
-      Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Null]\`)."
+"Error serializing props returned from \`test\` in \\"/\\".
+Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Null]\`)."
     `)
 
     expect(() => isSerializableProps('/', 'test', undefined))
       .toThrowErrorMatchingInlineSnapshot(`
-      "Error serializing props returned from \`test\` in \\"/\\".
-      Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Undefined]\`)."
+"Error serializing props returned from \`test\` in \\"/\\".
+Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Undefined]\`)."
     `)
   })
 
   it('handles non-plain object props', () => {
     expect(() => isSerializableProps('/', 'test', []))
       .toThrowErrorMatchingInlineSnapshot(`
-      "Error serializing props returned from \`test\` in \\"/\\".
-      Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Array]\`)."
+"Error serializing props returned from \`test\` in \\"/\\".
+Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Array]\`)."
     `)
 
     expect(() => isSerializableProps('/', 'test', class Foobar {}))
       .toThrowErrorMatchingInlineSnapshot(`
-      "Error serializing props returned from \`test\` in \\"/\\".
-      Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Function]\`)."
+"Error serializing props returned from \`test\` in \\"/\\".
+Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Function]\`)."
     `)
 
     expect(() => isSerializableProps('/', 'test', function Foobar() {}))
       .toThrowErrorMatchingInlineSnapshot(`
-      "Error serializing props returned from \`test\` in \\"/\\".
-      Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Function]\`)."
+"Error serializing props returned from \`test\` in \\"/\\".
+Reason: Props must be returned as a plain object from test: \`{ props: { ... } }\` (received: \`[object Function]\`)."
     `)
   })
 
