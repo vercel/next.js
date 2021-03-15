@@ -1,10 +1,4 @@
 import http from 'http'
-import * as path from 'path'
-import {
-  PHASE_DEVELOPMENT_SERVER,
-  PHASE_PRODUCTION_SERVER,
-} from '../../next-server/lib/constants'
-import { loadWebpackHook } from '../../next-server/server/dummy-config'
 import next from '../next'
 
 export default async function start(
@@ -12,12 +6,6 @@ export default async function start(
   port?: number,
   hostname?: string
 ) {
-  const dir = path.resolve(serverOptions.dir || '.')
-  await loadWebpackHook(
-    serverOptions.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-    dir
-  )
-
   const app = next({
     ...serverOptions,
     customServer: false,
