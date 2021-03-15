@@ -170,7 +170,7 @@ export default async function exportApp(
       )
     }
 
-    const subFolders = nextConfig.trailingSlash
+    const subFolders = nextConfig.trailingSlash && !options.buildExport
     const isLikeServerless = nextConfig.target !== 'server'
 
     if (!options.silent && !options.buildExport) {
@@ -341,9 +341,10 @@ export default async function exportApp(
         throw new Error(
           `Image Optimization using Next.js' default loader is not compatible with \`next export\`.
   Possible solutions:
-    - Use \`next start\`, which starts the Image Optimization API.
-    - Use Vercel to deploy, which supports Image Optimization.
+    - Use \`next start\` to run a server, which includes the Image Optimization API.
+    - Use any provider which supports Image Optimization (like Vercel).
     - Configure a third-party loader in \`next.config.js\`.
+    - Use the \`loader\` prop for \`next/image\`.
   Read more: https://err.sh/next.js/export-image-api`
         )
       }
@@ -367,6 +368,7 @@ export default async function exportApp(
       locale: i18n?.defaultLocale,
       defaultLocale: i18n?.defaultLocale,
       domainLocales: i18n?.domains,
+      trailingSlash: nextConfig.trailingSlash,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig

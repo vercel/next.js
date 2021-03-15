@@ -1022,7 +1022,6 @@ export default async function build(
             }
             return defaultMap
           },
-          trailingSlash: false,
         }
 
         await exportApp(dir, exportOptions, exportConfig)
