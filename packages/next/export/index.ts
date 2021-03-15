@@ -7,7 +7,7 @@ import {
   readFileSync,
   writeFileSync,
 } from 'fs'
-import Worker from 'jest-worker'
+import { Worker } from 'jest-worker'
 import { cpus } from 'os'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
