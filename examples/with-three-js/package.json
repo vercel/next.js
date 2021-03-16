@@ -8,15 +8,15 @@
     "start": "next start"
   },
   "dependencies": {
-    "drei": "2.2.13",
-    "next": "10.0.5",
+    "@react-three/drei": "3.8.6",
+    "next": "10.0.7",
     "react": "17.0.1",
     "react-dom": "17.0.1",
-    "react-three-fiber": "5.3.11",
-    "three": "0.124.0"
+    "react-three-fiber": "5.3.19",
+    "three": "0.126.0"
   },
   "devDependencies": {
-    "next-transpile-modules": "6.0.0"
+    "next-transpile-modules": "6.3.0"
   },
   "license": "MIT"
 }
