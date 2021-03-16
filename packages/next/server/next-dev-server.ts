@@ -102,7 +102,7 @@ export default class DevServer extends Server {
     this.staticPathsWorker = new Worker(
       require.resolve('./static-paths-worker'),
       {
-        maxRetries: 0,
+        maxRetries: 1,
         numWorkers: this.nextConfig.experimental.cpus,
         forkOptions: {
           env: {
