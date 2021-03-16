@@ -54,7 +54,7 @@ module.exports = JSON.parse("{\"name\":\"terser\",\"description\":\"JavaScript p
 /***/ (function(module) {
 
 "use strict";
-module.exports = {"i8":"5.26.1"};
+module.exports = {"i8":"5.26.2"};
 
 /***/ }),
 
@@ -66289,7 +66289,7 @@ class Template {
 
 	/**
 	 * @param {RuntimeModule[]} runtimeModules array of runtime modules in order
-	 * @param {RenderContext & { codeGenerationResults?: CodeGenerationResults }} renderContext render context
+	 * @param {RenderContext & { codeGenerationResults?: CodeGenerationResults, useStrict?: boolean }} renderContext render context
 	 * @returns {Source} rendered runtime modules in a Source object
 	 */
 	static renderRuntimeModules(runtimeModules, renderContext) {
@@ -66320,10 +66320,12 @@ class Template {
 					source.add(runtimeSource);
 				} else if (renderContext.runtimeTemplate.supportsArrowFunction()) {
 					source.add("(() => {\n");
+					if (renderContext.useStrict) source.add('\t"use strict";\n');
 					source.add(new PrefixSource("\t", runtimeSource));
 					source.add("\n})();\n\n");
 				} else {
 					source.add("!function() {\n");
+					if (renderContext.useStrict) source.add('\t"use strict";\n');
 					source.add(new PrefixSource("\t", runtimeSource));
 					source.add("\n}();\n\n");
 				}
@@ -92787,16 +92789,25 @@ class ArrayPushCallbackChunkFormatPlugin {
 								chunkGraph.getChunkEntryModulesWithChunkGroupIterable(chunk)
 							);
 							if (runtimeModules.length > 0 || entries.length > 0) {
+								const strictBailout = hooks.strictRuntimeBailout.call(
+									renderContext
+								);
 								const runtime = new ConcatSource(
 									(runtimeTemplate.supportsArrowFunction()
 										? "__webpack_require__ =>"
 										: "function(__webpack_require__)") +
 										" { // webpackRuntimeModules\n",
-									'"use strict";\n\n'
+									strictBailout
+										? `// runtime can't be in strict mode because ${strictBailout}.\n\n`
+										: '"use strict";\n\n'
 								);
 								if (runtimeModules.length > 0) {
 									runtime.add(
-										Template.renderRuntimeModules(runtimeModules, renderContext)
+										Template.renderRuntimeModules(runtimeModules, {
+											...renderContext,
+											codeGenerationResults: compilation.codeGenerationResults,
+											useStrict: !!strictBailout
+										})
 									);
 								}
 								if (entries.length > 0) {
@@ -94452,7 +94463,7 @@ class JavascriptModulesPlugin {
 			if (strictBailout) {
 				source.add(
 					prefix +
-						`// runtime can't be in strict mode because ${strictBailout}.`
+						`// runtime can't be in strict mode because ${strictBailout}.\n`
 				);
 			} else {
 				allStrict = true;
