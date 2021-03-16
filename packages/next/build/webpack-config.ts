@@ -867,7 +867,7 @@ export default async function getBaseWebpackConfig(
           : '[name].js'
         : `static/chunks/[name]${dev ? '' : '-[chunkhash]'}.js`,
       library: isServer ? undefined : '_N_E',
-      libraryTarget: isServer ? 'commonjs2' : 'assign',
+      libraryTarget: isServer ? 'commonjs2' : 'var',
       hotUpdateChunkFilename: isWebpack5
         ? 'static/webpack/[id].[fullhash].hot-update.js'
         : 'static/webpack/[id].[hash].hot-update.js',
