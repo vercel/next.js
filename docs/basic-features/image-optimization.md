@@ -104,6 +104,7 @@ module.exports = {
     path: `yourBasePath/_next/image`,
   },
 }
+```
 
 ## Caching
 
