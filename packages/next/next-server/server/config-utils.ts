@@ -1,5 +1,5 @@
 import { loadEnvConfig } from '@next/env'
-import Worker from 'jest-worker'
+import { Worker } from 'jest-worker'
 import findUp from 'next/dist/compiled/find-up'
 import { init as initWebpack } from 'next/dist/compiled/webpack/webpack'
 import { CONFIG_FILE, PHASE_DEVELOPMENT_SERVER } from '../lib/constants'
