@@ -94,18 +94,6 @@ If you need a different provider, you can use the [`loader`](/docs/api-reference
 
 > The `next/image` component's default loader is not supported when using [`next export`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
 
-### Base path
-
-If you have deployed your application under a sub-path of a domain using the [`basePath`](/docs/api-reference/next.config.js/basepath.md) option, you will need to configure your images to reference this path.
-
-```js
-module.exports = {
-  images: {
-    path: `yourBasePath/_next/image`,
-  },
-}
-```
-
 ## Caching
 
 The following describes the caching algorithm for the default [loader](#loader). For all other loaders, please refer to your cloud provider's documentation.
