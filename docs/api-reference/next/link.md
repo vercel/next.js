@@ -208,3 +208,13 @@ The default behavior of `Link` is to scroll to the top of the page. When there i
   <a>Disables scrolling to the top</a>
 </Link>
 ```
+
+## External URL redirect
+
+The `Link` component can send users to an external site by simply inserting the external URL in the href attribute:
+
+```jsx
+<Link href="https://github.com/vercel/next.js">
+Visit Next.js on GitHub
+</Link>
+```
