@@ -93,6 +93,18 @@ The following Image Optimization cloud providers are included:
 If you need a different provider, you can use the [`loader`](/docs/api-reference/next/image.md#loader) prop with `next/image`.
 
 > The `next/image` component's default loader is not supported when using [`next export`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
+> 
+
+### Base path
+If you have deployed your application under a sub-path of a domain using the `basePath` config option, you will need to configure your images to reference this path.
+
+```js
+module.exports = {
+  images: {
+    path: `yourBasePath/_next/image`,
+  },
+}
+```
 
 ## Caching
 
