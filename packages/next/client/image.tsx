@@ -295,7 +295,10 @@ export default function Image({
 
     objectFit,
     objectPosition,
-    ...(configUseContentVisibility && !isLazy && (layout === 'intrinsic' || layout === 'fixed')
+    // In case the user specifies a priority image but the image is below the viewport
+    ...(configUseContentVisibility &&
+    !isLazy &&
+    (layout === 'intrinsic' || layout === 'fixed')
       ? { contentVisibility: 'auto' }
       : undefined),
   }

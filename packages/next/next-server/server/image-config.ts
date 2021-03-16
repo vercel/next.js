@@ -22,4 +22,5 @@ export const imageConfigDefault: ImageConfig = {
   path: '/_next/image',
   loader: 'default',
   domains: [],
+  useContentVisibility: false,
 }

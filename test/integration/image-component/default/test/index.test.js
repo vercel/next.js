@@ -106,6 +106,9 @@ function runTests(mode) {
           `http://localhost:${appPort}/_next/image?url=%2Ftest.jpg&w=828&q=75`
         )
       ).toBe(true)
+      expect(
+        await getComputedStyle(browser, 'basic-image', 'contentVisibility')
+      ).not.toBe('auto')
     } finally {
       if (browser) {
         await browser.close()
@@ -601,26 +604,117 @@ function runTests(mode) {
       }
     })
   }
+
+  it('should have content-visibility tag for priority images with layout-intrinsic', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/content-visibility')
+      const id = 'basic-image'
+
+      expect(await getComputedStyle(browser, id, 'contentVisibility')).toBe(
+        'auto'
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should have content-visibility tag for priority images with layout-fixed', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/content-visibility')
+      const id = 'fixed'
+
+      expect(await getComputedStyle(browser, id, 'contentVisibility')).toBe(
+        'auto'
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should not have content-visibility tag for priority images with layout-responsive', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/content-visibility')
+      const id = 'responsive'
+
+      expect(await getComputedStyle(browser, id, 'contentVisibility')).not.toBe(
+        'auto'
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
+  it('should not have content-visibility tag for priority images with layout-fill', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/content-visibility')
+      const id = 'fill'
+
+      expect(await getComputedStyle(browser, id, 'contentVisibility')).not.toBe(
+        'auto'
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
 }
 
 describe('Image Component Tests', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `
+        module.exports = {
+          experimental: {
+            useContentVisibility: true,
+          },
+        }
+      `
+      )
+      await nextBuild(appDir)
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.unlink(nextConfig)
+      await killApp(app)
+    })
 
     runTests('dev')
   })
 
   describe('server mode', () => {
     beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `
+        module.exports = {
+          experimental: {
+            useContentVisibility: true,
+          },
+        }
+      `
+      )
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.unlink(nextConfig)
+      await killApp(app)
+    })
 
     runTests('server')
   })
@@ -631,7 +725,10 @@ describe('Image Component Tests', () => {
         nextConfig,
         `
         module.exports = {
-          target: 'serverless'
+          target: 'serverless',
+          experimental: {
+            useContentVisibility: true,
+          },
         }
       `
       )
