@@ -8,6 +8,7 @@ import {
 import getAssetPathFromRoute from '../next-server/lib/router/utils/get-asset-path-from-route'
 import { isDynamicRoute } from '../next-server/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../next-server/lib/router/utils/parse-relative-url'
+import { removePathTrailingSlash } from './normalize-trailing-slash'
 import createRouteLoader, {
   getClientBuildManifest,
   RouteLoader,
@@ -96,7 +97,10 @@ export default class PageLoader {
     const route = normalizeRoute(hrefPathname)
 
     const getHrefForSlug = (path: string) => {
-      const dataRoute = getAssetPathFromRoute(addLocale(path, locale), '.json')
+      const dataRoute = getAssetPathFromRoute(
+        removePathTrailingSlash(addLocale(path, locale)),
+        '.json'
+      )
       return addBasePath(
         `/_next/data/${this.buildId}${dataRoute}${ssg ? '' : search}`
       )

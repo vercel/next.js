@@ -1,11 +1,11 @@
-import JestWorker from 'jest-worker'
+import { Worker } from 'jest-worker'
 import * as path from 'path'
 import { execOnce } from '../../../lib/utils'
 import ImageData from './image_data'
 
 const getWorker = execOnce(
   () =>
-    new JestWorker(path.resolve(__dirname, 'impl'), {
+    new Worker(path.resolve(__dirname, 'impl'), {
       enableWorkerThreads: true,
     })
 )
