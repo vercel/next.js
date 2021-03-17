@@ -21,7 +21,7 @@ const CallStackFrame: React.FC<{
 
     const params = new URLSearchParams()
     for (const key in f) {
-      params.append(key, (f[key] ?? '').toString())
+      params.append(key, ((f as any)[key] ?? '').toString())
     }
 
     self
@@ -134,8 +134,8 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
             />
           ))}
           <CodeFrame
-            stackFrame={firstFrame.originalStackFrame}
-            codeFrame={firstFrame.originalCodeFrame}
+            stackFrame={firstFrame.originalStackFrame!}
+            codeFrame={firstFrame.originalCodeFrame!}
           />
         </React.Fragment>
       ) : undefined}

@@ -31,7 +31,7 @@ describe('Handles an Error in _error', () => {
 
   it('Handles error during client transition', async () => {
     const browser = await webdriver(port, '/')
-    await browser.elementByCss('a').click()
+    await browser.waitForElementByCss('a').click()
     await waitFor(1000)
     const html = await browser.eval('document.body.innerHTML')
     expect(html).toMatch(/internal server error/i)

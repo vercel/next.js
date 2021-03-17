@@ -15,6 +15,11 @@ import {
   // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/next-server/lib/utils'
 
+import {
+  NextApiRequestCookies,
+  // @ts-ignore This path is generated at build time and conflicts otherwise
+} from '../dist/next-server/server/api-utils'
+
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
 
@@ -36,6 +41,18 @@ declare module 'react' {
     global?: boolean
   }
 }
+
+export type Redirect =
+  | {
+      statusCode: 301 | 302 | 303 | 307 | 308
+      destination: string
+      basePath?: false
+    }
+  | {
+      permanent: boolean
+      destination: string
+      basePath?: false
+    }
 
 /**
  * `Page` type, use it as a guide to create `pages`.
@@ -62,6 +79,7 @@ export type PageConfig = {
   }
   env?: Array<string>
   unstable_runtimeJS?: false
+  unstable_JsPreload?: false
 }
 
 export {
@@ -76,12 +94,15 @@ export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
   params?: Q
   preview?: boolean
   previewData?: any
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
 }
 
-export type GetStaticPropsResult<P> = {
-  props: P
-  revalidate?: number | boolean
-}
+export type GetStaticPropsResult<P> =
+  | { props: P; revalidate?: number | boolean }
+  | { redirect: Redirect; revalidate?: number | boolean }
+  | { notFound: true }
 
 export type GetStaticProps<
   P extends { [key: string]: any } = { [key: string]: any },
@@ -96,27 +117,41 @@ export type InferGetStaticPropsType<T> = T extends GetStaticProps<infer P, any>
   ? P
   : never
 
-export type GetStaticPaths<
-  P extends ParsedUrlQuery = ParsedUrlQuery
-> = () => Promise<{
-  paths: Array<string | { params: P }>
-  fallback: boolean
-}>
+export type GetStaticPathsContext = {
+  locales?: string[]
+  defaultLocale?: string
+}
+
+export type GetStaticPathsResult<P extends ParsedUrlQuery = ParsedUrlQuery> = {
+  paths: Array<string | { params: P; locale?: string }>
+  fallback: boolean | 'blocking'
+}
+
+export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
+  context: GetStaticPathsContext
+) => Promise<GetStaticPathsResult<P>>
 
 export type GetServerSidePropsContext<
   Q extends ParsedUrlQuery = ParsedUrlQuery
 > = {
-  req: IncomingMessage
+  req: IncomingMessage & {
+    cookies: NextApiRequestCookies
+  }
   res: ServerResponse
   params?: Q
   query: ParsedUrlQuery
   preview?: boolean
   previewData?: any
+  resolvedUrl: string
+  locale?: string
+  locales?: string[]
+  defaultLocale?: string
 }
 
-export type GetServerSidePropsResult<P> = {
-  props: P
-}
+export type GetServerSidePropsResult<P> =
+  | { props: P }
+  | { redirect: Redirect }
+  | { notFound: true }
 
 export type GetServerSideProps<
   P extends { [key: string]: any } = { [key: string]: any },

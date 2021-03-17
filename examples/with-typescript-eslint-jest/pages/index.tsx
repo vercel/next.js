@@ -1,4 +1,5 @@
 import Head from 'next/head'
+import Image from 'next/image'
 
 export const Home = (): JSX.Element => (
   <div className="container">
@@ -44,7 +45,7 @@ export const Home = (): JSX.Element => (
         </a>
 
         <a
-          href="https://vercel.com/import?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
+          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
           className="card"
         >
           <h3>Deploy &rarr;</h3>
@@ -59,7 +60,8 @@ export const Home = (): JSX.Element => (
         target="_blank"
         rel="noopener noreferrer"
       >
-        Powered by <img src="/vercel.svg" alt="Vercel Logo" className="logo" />
+        Powered by{' '}
+        <Image src="/vercel.svg" alt="Vercel Logo" height={'32'} width={'64'} />
       </a>
     </footer>
 
@@ -180,10 +182,6 @@ export const Home = (): JSX.Element => (
         margin: 0;
         font-size: 1.25rem;
         line-height: 1.5;
-      }
-
-      .logo {
-        height: 1em;
       }
 
       @media (max-width: 600px) {

@@ -12,7 +12,7 @@ const server = http.createServer((req, res) => {
       return render('/gssp.js')
     }
     default: {
-      res.statusCode(404)
+      res.statusCode = 404
       return res.end('404')
     }
   }

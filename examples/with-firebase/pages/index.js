@@ -1,4 +1,5 @@
 import Head from 'next/head'
+import Link from 'next/link'
 import { useEffect } from 'react'
 import { useUser } from '../context/userContext'
 import firebase from '../firebase/clientApp'
@@ -6,6 +7,8 @@ import firebase from '../firebase/clientApp'
 export default function Home() {
   // Our custom hook to get context values
   const { loadingUser, user } = useUser()
+
+  const profile = { username: 'nextjs_user', message: 'Awesome!!' }
 
   useEffect(() => {
     if (!loadingUser) {
@@ -15,6 +18,12 @@ export default function Home() {
     // You also have your firebase app initialized
     console.log(firebase)
   }, [loadingUser, user])
+
+  const createUser = async () => {
+    const db = firebase.firestore()
+    await db.collection('profile').doc(profile.username).set(profile)
+    alert('User created!!')
+  }
 
   return (
     <div className="container">
@@ -26,6 +35,19 @@ export default function Home() {
       <main>
         <h1 className="title">Next.js w/ Firebase Client-Side</h1>
         <p className="description">Fill in your credentials to get started</p>
+
+        <p className="description">
+          Cloud Firestore Security Rules write permissions are required for
+          adding users
+        </p>
+        <button onClick={createUser}>Create 'nextjs_user'</button>
+
+        <p className="description">
+          Please press the link below after adding the user
+        </p>
+        <Link href={`/profile/${profile.username}`} passHref>
+          <a>Go to SSR Page</a>
+        </Link>
       </main>
 
       <style jsx>{`
@@ -66,9 +88,14 @@ export default function Home() {
           align-items: center;
         }
 
+        button {
+          font-size: 1.5em;
+          margin: 1em 0;
+        }
+
         a {
-          color: inherit;
-          text-decoration: none;
+          color: blue;
+          font-size: 1.5em;
         }
 
         .title a {

@@ -2,7 +2,7 @@ import { ReactDevOverlay } from '@next/react-dev-overlay/lib/client'
 import crypto from 'crypto'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
-import Worker from 'jest-worker'
+import { Worker } from 'jest-worker'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
@@ -16,7 +16,12 @@ import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, { CustomRoutes } from '../lib/load-custom-routes'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
-import { PHASE_DEVELOPMENT_SERVER } from '../next-server/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  CLIENT_STATIC_FILES_PATH,
+  DEV_CLIENT_PAGES_MANIFEST,
+  STATIC_STATUS_PAGES,
+} from '../next-server/lib/constants'
 import {
   getRouteMatcher,
   getRouteRegex,
@@ -29,10 +34,12 @@ import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import Router, { Params, route } from '../next-server/server/router'
 import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
+import { setGlobal } from '../telemetry/trace'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
 import { withCoalescedInvoke } from '../lib/coalesced-function'
+import { NextConfig } from '../next-server/server/config'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -46,11 +53,18 @@ export default class DevServer extends Server {
   private webpackWatcher?: Watchpack | null
   private hotReloader?: HotReloader
   private isCustomServer: boolean
-  protected staticPathsWorker: import('jest-worker').default & {
+  protected sortedRoutes?: string[]
+
+  protected staticPathsWorker: import('jest-worker').Worker & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   }
 
-  constructor(options: ServerConstructor & { isNextDevCommand?: boolean }) {
+  constructor(
+    options: ServerConstructor & {
+      conf: NextConfig
+      isNextDevCommand?: boolean
+    }
+  ) {
     super({ ...options, dev: true })
     this.renderOpts.dev = true
     ;(this.renderOpts as any).ErrorDebug = ReactDevOverlay
@@ -88,7 +102,7 @@ export default class DevServer extends Server {
     this.staticPathsWorker = new Worker(
       require.resolve('./static-paths-worker'),
       {
-        maxRetries: 0,
+        maxRetries: 1,
         numWorkers: this.nextConfig.experimental.cpus,
         forkOptions: {
           env: {
@@ -107,10 +121,6 @@ export default class DevServer extends Server {
 
     this.staticPathsWorker.getStdout().pipe(process.stdout)
     this.staticPathsWorker.getStderr().pipe(process.stderr)
-  }
-
-  protected currentPhase(): string {
-    return PHASE_DEVELOPMENT_SERVER
   }
 
   protected readBuildId(): string {
@@ -206,8 +216,22 @@ export default class DevServer extends Server {
 
           routedPages.push(pageName)
         }
+
         try {
-          this.dynamicRoutes = getSortedRoutes(routedPages)
+          // we serve a separate manifest with all pages for the client in
+          // dev mode so that we can match a page after a rewrite on the client
+          // before it has been built and is populated in the _buildManifest
+          const sortedRoutes = getSortedRoutes(routedPages)
+
+          if (
+            !this.sortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
+          ) {
+            // emit the change so clients fetch the update
+            this.hotReloader!.send(undefined, { devPagesManifest: true })
+          }
+          this.sortedRoutes = sortedRoutes
+
+          this.dynamicRoutes = this.sortedRoutes
             .filter(isDynamicRoute)
             .map((page) => ({
               page,
@@ -257,6 +281,7 @@ export default class DevServer extends Server {
       config: this.nextConfig,
       previewProps: this.getPreviewProps(),
       buildId: this.buildId,
+      rewrites: this.customRoutes.rewrites,
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
@@ -273,6 +298,8 @@ export default class DevServer extends Server {
         isCustomServer: this.isCustomServer,
       })
     )
+    // This is required by the tracing subsystem.
+    setGlobal('telemetry', telemetry)
   }
 
   protected async close(): Promise<void> {
@@ -315,7 +342,17 @@ export default class DevServer extends Server {
     const path = `/${pathParts.join('/')}`
     // check for a public file, throwing error if there's a
     // conflicting page
-    if (await this.hasPublicFile(path)) {
+    let decodedPath: string
+
+    try {
+      decodedPath = decodeURIComponent(path)
+    } catch (_) {
+      const err: Error & { code?: string } = new Error('failed to decode param')
+      err.code = 'DECODE_FAILED'
+      throw err
+    }
+
+    if (await this.hasPublicFile(decodedPath)) {
       if (await this.hasPage(pathname!)) {
         const err = new Error(
           `A conflicting public file and page file was found for path ${pathname} https://err.sh/vercel/next.js/conflicting-public-file-page`
@@ -411,6 +448,26 @@ export default class DevServer extends Server {
       },
     })
 
+    fsRoutes.unshift({
+      match: route(
+        `/_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`
+      ),
+      type: 'route',
+      name: `_next/${CLIENT_STATIC_FILES_PATH}/${this.buildId}/${DEV_CLIENT_PAGES_MANIFEST}`,
+      fn: async (_req, res) => {
+        res.statusCode = 200
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(
+          JSON.stringify({
+            pages: this.sortedRoutes,
+          })
+        )
+        return {
+          finished: true,
+        }
+      },
+    })
+
     fsRoutes.push({
       match: route('/:path*'),
       type: 'route',
@@ -476,24 +533,41 @@ export default class DevServer extends Server {
     pathname: string
   ): Promise<{
     staticPaths: string[] | undefined
-    hasStaticFallback: boolean
+    fallbackMode: false | 'static' | 'blocking'
   }> {
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
 
     const __getStaticPaths = async () => {
+      const { publicRuntimeConfig, serverRuntimeConfig } = this.nextConfig
+      const { locales, defaultLocale } = this.nextConfig.i18n || {}
+
       const paths = await this.staticPathsWorker.loadStaticPaths(
         this.distDir,
         pathname,
-        !this.renderOpts.dev && this._isLikeServerless
+        !this.renderOpts.dev && this._isLikeServerless,
+        {
+          publicRuntimeConfig,
+          serverRuntimeConfig,
+        },
+        locales,
+        defaultLocale
       )
       return paths
     }
-    const { paths: staticPaths, fallback: hasStaticFallback } = (
+    const { paths: staticPaths, fallback } = (
       await withCoalescedInvoke(__getStaticPaths)(`staticPaths-${pathname}`, [])
     ).value
 
-    return { staticPaths, hasStaticFallback }
+    return {
+      staticPaths,
+      fallbackMode:
+        fallback === 'blocking'
+          ? 'blocking'
+          : fallback === true
+          ? 'static'
+          : false,
+    }
   }
 
   protected async ensureApiPage(pathname: string) {
@@ -559,6 +633,11 @@ export default class DevServer extends Server {
     await this.devReady
     if (res.statusCode === 404 && (await this.hasPage('/404'))) {
       await this.hotReloader!.ensurePage('/404')
+    } else if (
+      STATIC_STATUS_PAGES.includes(`/${res.statusCode}`) &&
+      (await this.hasPage(`/${res.statusCode}`))
+    ) {
+      await this.hotReloader!.ensurePage(`/${res.statusCode}`)
     } else {
       await this.hotReloader!.ensurePage('/_error')
     }
@@ -605,7 +684,7 @@ export default class DevServer extends Server {
     res: ServerResponse,
     pathParts: string[]
   ): Promise<void> {
-    const p = pathJoin(this.publicDir, ...pathParts.map(encodeURIComponent))
+    const p = pathJoin(this.publicDir, ...pathParts)
     return this.serveStatic(req, res, p)
   }
 

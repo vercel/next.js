@@ -14,12 +14,11 @@
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
-    "@storybook/addon-actions": "5.2.3",
-    "@storybook/addon-links": "5.2.3",
-    "@storybook/addons": "5.2.3",
-    "@storybook/react": "5.2.3",
+    "@storybook/addon-essentials": "6.0.26",
+    "@storybook/addon-links": "6.0.26",
+    "@storybook/react": "6.0.26",
     "babel-loader": "^8.0.5"
   }
 }

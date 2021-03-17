@@ -33,7 +33,7 @@ describe('CSS Customization', () => {
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `"@media (480px <= width < 768px){::placeholder{color:green}}.video{max-height:300px;max-width:400px}"`
+      `"@media (480px <= width < 768px){::placeholder{color:green}}.video{max-width:400px;max-height:300px}"`
     )
 
     // Contains a source map
@@ -54,7 +54,7 @@ describe('CSS Customization', () => {
     const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
     expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
       Object {
-        "mappings": "AACA,gCACE,cACE,WACF,CACF,CAGA,OACE,gBAA0B,CAA1B,eACF",
+        "mappings": "AACA,gCACE,cACE,WACF,CACF,CAGA,OACE,eAA0B,CAA1B,gBACF",
         "sourcesContent": Array [
           "/* this should pass through untransformed */
       @media (480px <= width < 768px) {
@@ -108,6 +108,39 @@ describe('Legacy Next-CSS Customization', () => {
   })
 })
 
+describe('Custom CSS Customization via Webpack', () => {
+  const appDir = join(fixturesDir, 'custom-configuration-webpack')
+
+  beforeAll(async () => {
+    await remove(join(appDir, '.next'))
+  })
+
+  it('should compile successfully', async () => {
+    const { code, stdout, stderr } = await nextBuild(appDir, [], {
+      stdout: true,
+      stderr: true,
+    })
+    expect(code).toBe(0)
+    expect(stdout).toMatch(/Compiled successfully/)
+    expect(stderr).not.toMatch(
+      /Built-in CSS support is being disabled due to custom CSS configuration being detected/
+    )
+  })
+
+  it(`should've compiled and prefixed`, async () => {
+    const cssFolder = join(appDir, '.next/static/css')
+
+    const files = await readdir(cssFolder)
+    const cssFiles = files.filter((f) => /\.css$/.test(f))
+
+    expect(cssFiles.length).toBe(1)
+    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `"@media (480px <= width < 768px){::placeholder{color:green}}.video{max-width:400px;max-height:300px}"`
+    )
+  })
+})
+
 describe('CSS Customization Array', () => {
   const appDir = join(fixturesDir, 'custom-configuration-arr')
 
@@ -132,7 +165,7 @@ describe('CSS Customization Array', () => {
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `"@media (480px <= width < 768px){a:before{content:\\"\\"}::placeholder{color:green}}.video{max-height:4800px;max-height:300rem;max-width:6400px;max-width:400rem}"`
+      `"@media (480px <= width < 768px){a:before{content:\\"\\"}::placeholder{color:green}}.video{max-width:6400px;max-height:4800px;max-width:400rem;max-height:300rem}"`
     )
 
     // Contains a source map
@@ -153,7 +186,7 @@ describe('CSS Customization Array', () => {
     const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
     expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
       Object {
-        "mappings": "AACA,gCACE,SACE,UACF,CACA,cACE,WACF,CACF,CAGA,OACE,iBAA4B,CAA5B,iBAA4B,CAA5B,gBAA4B,CAA5B,gBACF",
+        "mappings": "AACA,gCACE,SACE,UACF,CACA,cACE,WACF,CACF,CAGA,OACE,gBAA4B,CAA5B,iBAA4B,CAA5B,gBAA4B,CAA5B,iBACF",
         "sourcesContent": Array [
           "/* this should pass through untransformed */
       @media (480px <= width < 768px) {
@@ -213,7 +246,7 @@ describe('Bad CSS Customization', () => {
     expect(cssFiles.length).toBe(1)
     const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
     expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
-      `".video{max-height:300px;max-width:400px}"`
+      `".video{max-width:400px;max-height:300px}"`
     )
 
     // Contains a source map

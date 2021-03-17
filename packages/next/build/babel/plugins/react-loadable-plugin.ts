@@ -23,7 +23,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Modified to put `webpack` and `modules` under `loadableGenerated` to be backwards compatible with next/dynamic which has a `modules` key
 // Modified to support `dynamic(import('something'))` and `dynamic(import('something'), options)
 
-import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
+import {
+  NodePath,
+  PluginObj,
+  types as BabelTypes,
+} from 'next/dist/compiled/babel/core'
 
 export default function ({
   types: t,
@@ -67,9 +71,13 @@ export default function ({
 
           if (!callExpression.isCallExpression()) return
 
-          let args = callExpression.get('arguments')
+          const callExpression_ = callExpression as NodePath<
+            BabelTypes.CallExpression
+          >
+
+          let args = callExpression_.get('arguments')
           if (args.length > 2) {
-            throw callExpression.buildCodeFrameError(
+            throw callExpression_.buildCodeFrameError(
               'next/dynamic only accepts 2 arguments'
             )
           }
@@ -85,22 +93,23 @@ export default function ({
             options = args[0]
           } else {
             if (!args[1]) {
-              callExpression.node.arguments.push(t.objectExpression([]))
+              callExpression_.node.arguments.push(t.objectExpression([]))
             }
             // This is needed as the code is modified above
-            args = callExpression.get('arguments')
+            args = callExpression_.get('arguments')
             loader = args[0]
             options = args[1]
           }
 
           if (!options.isObjectExpression()) return
+          const options_ = options as NodePath<BabelTypes.ObjectExpression>
 
-          let properties = options.get('properties')
+          let properties = options_.get('properties')
           let propertiesMap: {
             [key: string]: NodePath<
               | BabelTypes.ObjectProperty
               | BabelTypes.ObjectMethod
-              | BabelTypes.SpreadProperty
+              | BabelTypes.SpreadElement
             >
           } = {}
 

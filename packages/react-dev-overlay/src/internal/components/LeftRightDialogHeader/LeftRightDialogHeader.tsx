@@ -4,7 +4,7 @@ export type LeftRightDialogHeaderProps = {
   className?: string
   previous: (() => void) | null
   next: (() => void) | null
-  close: () => void
+  close?: () => void
 }
 
 const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function LeftRightDialogHeader({
@@ -14,9 +14,9 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
   next,
   close,
 }) {
-  const buttonLeft = React.useRef<HTMLButtonElement>()
-  const buttonRight = React.useRef<HTMLButtonElement>()
-  const buttonClose = React.useRef<HTMLButtonElement>()
+  const buttonLeft = React.useRef<HTMLButtonElement | null>(null)
+  const buttonRight = React.useRef<HTMLButtonElement | null>(null)
+  const buttonClose = React.useRef<HTMLButtonElement | null>(null)
 
   const [nav, setNav] = React.useState<HTMLElement | null>(null)
   const onNav = React.useCallback((el: HTMLElement) => {
@@ -54,16 +54,18 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
           }
         }
 
-        close()
+        if (close) {
+          close()
+        }
       }
     }
 
-    root.addEventListener('keydown', handler)
+    root.addEventListener('keydown', handler as EventListener)
     if (root !== d) {
       d.addEventListener('keydown', handler)
     }
     return function () {
-      root.removeEventListener('keydown', handler)
+      root.removeEventListener('keydown', handler as EventListener)
       if (root !== d) {
         d.removeEventListener('keydown', handler)
       }
@@ -83,11 +85,11 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
       const a = root.activeElement
 
       if (previous == null) {
-        if (a === buttonLeft.current) {
+        if (buttonLeft.current && a === buttonLeft.current) {
           buttonLeft.current.blur()
         }
       } else if (next == null) {
-        if (a === buttonRight.current) {
+        if (buttonRight.current && a === buttonRight.current) {
           buttonRight.current.blur()
         }
       }
@@ -142,37 +144,39 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> = function Lef
         &nbsp;
         {children}
       </nav>
-      <button
-        ref={buttonClose}
-        type="button"
-        onClick={close}
-        aria-label="Close"
-      >
-        <span aria-hidden="true">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              d="M18 6L6 18"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M6 6L18 18"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
-      </button>
+      {close ? (
+        <button
+          ref={buttonClose}
+          type="button"
+          onClick={close}
+          aria-label="Close"
+        >
+          <span aria-hidden="true">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M18 6L6 18"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M6 6L18 18"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </button>
+      ) : null}
     </div>
   )
 }

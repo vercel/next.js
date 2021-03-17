@@ -5,7 +5,7 @@ export default function CoverImage({ title, url, slug }) {
     url.startsWith('/') ? process.env.NEXT_PUBLIC_STRAPI_API_URL : ''
   }${url}`
   return (
-    <div className="-mx-5 sm:mx-0">
+    <div className="sm:mx-0">
       {slug ? (
         <Link as={`/posts/${slug}`} href="/posts/[slug]">
           <a aria-label={title}>

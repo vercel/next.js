@@ -22,7 +22,11 @@ const appDir = join(__dirname, '../app')
 
 const getEnvFromHtml = async (path) => {
   const html = await renderViaHTTP(appPort, path)
-  return JSON.parse(cheerio.load(html)('p').text())
+  const $ = cheerio.load(html)
+  const env = JSON.parse($('p').text())
+  env.nextConfigEnv = $('#nextConfigEnv').text()
+  env.nextConfigPublicEnv = $('#nextConfigPublicEnv').text()
+  return env
 }
 
 const runTests = (mode = 'dev') => {
@@ -51,6 +55,11 @@ const runTests = (mode = 'dev') => {
     expect(data.ENV_FILE_EXPANDED_CONCAT).toBe('hello-env')
     expect(data.ENV_FILE_EXPANDED_ESCAPED).toBe('$ENV_FILE_KEY')
     expect(data.ENV_FILE_KEY_EXCLAMATION).toBe('hello!')
+    expect(data.ENV_FILE_EMPTY_FIRST).toBe(isTestEnv ? '' : '$escaped')
+    expect(data.ENV_FILE_PROCESS_ENV).toBe('env-cli')
+
+    expect(data.nextConfigEnv).toBe('hello from next.config.js')
+    expect(data.nextConfigPublicEnv).toBe('hello again from next.config.js')
   }
 
   it('should have process environment override .env', async () => {
@@ -135,6 +144,7 @@ describe('Env Config', () => {
       app = await launchApp(appDir, appPort, {
         env: {
           PROCESS_ENV_KEY: 'processenvironment',
+          ENV_FILE_PROCESS_ENV: 'env-cli',
         },
       })
     })
@@ -150,6 +160,7 @@ describe('Env Config', () => {
         env: {
           PROCESS_ENV_KEY: 'processenvironment',
           NODE_ENV: 'test',
+          ENV_FILE_PROCESS_ENV: 'env-cli',
         },
       })
     })
@@ -163,12 +174,17 @@ describe('Env Config', () => {
       const { code } = await nextBuild(appDir, [], {
         env: {
           PROCESS_ENV_KEY: 'processenvironment',
+          ENV_FILE_PROCESS_ENV: 'env-cli',
         },
       })
       if (code !== 0) throw new Error(`Build failed with exit code ${code}`)
 
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        env: {
+          ENV_FILE_PROCESS_ENV: 'env-cli',
+        },
+      })
     })
     afterAll(() => killApp(app))
 
@@ -201,6 +217,7 @@ describe('Env Config', () => {
       const { code } = await nextBuild(appDir, [], {
         env: {
           PROCESS_ENV_KEY: 'processenvironment',
+          ENV_FILE_PROCESS_ENV: 'env-cli',
         },
       })
 
@@ -213,7 +230,11 @@ describe('Env Config', () => {
         await fs.rename(file, `${file}.bak`)
       }
 
-      app = await nextStart(appDir, appPort)
+      app = await nextStart(appDir, appPort, {
+        env: {
+          ENV_FILE_PROCESS_ENV: 'env-cli',
+        },
+      })
     })
     afterAll(async () => {
       for (const file of envFiles) {

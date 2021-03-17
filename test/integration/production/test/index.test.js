@@ -10,6 +10,7 @@ import {
   stopApp,
   waitFor,
   getPageFileFromPagesManifest,
+  check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import {
@@ -32,19 +33,36 @@ jest.setTimeout(1000 * 60 * 5)
 const context = {}
 
 describe('Production Usage', () => {
+  let output = ''
   beforeAll(async () => {
-    await runNextCommand(['build', appDir])
+    const result = await runNextCommand(['build', appDir], {
+      stderr: true,
+      stdout: true,
+    })
 
     app = nextServer({
       dir: join(__dirname, '../'),
       dev: false,
       quiet: true,
     })
+    output = (result.stderr || '') + (result.stdout || '')
+    console.log(output)
+
+    if (result.code !== 0) {
+      throw new Error(`Failed to build, exited with code ${result.code}`)
+    }
 
     server = await startApp(app)
     context.appPort = appPort = server.address().port
   })
   afterAll(() => stopApp(server))
+
+  it('should contain generated page count in output', async () => {
+    expect(output).toContain('Generating static pages (0/37)')
+    expect(output).toContain('Generating static pages (37/37)')
+    // we should only have 4 segments and the initial message logged out
+    expect(output.match(/Generating static pages/g).length).toBe(5)
+  })
 
   describe('With basic usage', () => {
     it('should render the page', async () => {
@@ -69,6 +87,24 @@ describe('Production Usage', () => {
         expect(await browser.eval('window.isMatch2')).toBe(false)
       })
     }
+
+    it('should polyfill Node.js modules', async () => {
+      const browser = await webdriver(appPort, '/node-browser-polyfills')
+      await browser.waitForCondition('window.didRender')
+
+      const data = await browser
+        .waitForElementByCss('#node-browser-polyfills')
+        .text()
+      const parsedData = JSON.parse(data)
+
+      expect(parsedData.vm).toBe(105)
+      expect(parsedData.hash).toBe(
+        'b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9'
+      )
+      expect(parsedData.path).toBe('/hello/world/test.txt')
+      expect(parsedData.buffer).toBe('hello world')
+      expect(parsedData.stream).toBe(true)
+    })
 
     it('should allow etag header support', async () => {
       const url = `http://localhost:${appPort}/`
@@ -355,6 +391,31 @@ describe('Production Usage', () => {
       expect(title).toBe('hello from title')
       expect(url).toBe('/with-title')
     })
+
+    it('should reload page successfully (on bad link)', async () => {
+      const browser = await webdriver(appPort, '/to-nonexistent')
+      await browser.eval(function setup() {
+        window.__DATA_BE_GONE = 'true'
+      })
+      await browser.waitForElementByCss('#to-nonexistent-page')
+      await browser.click('#to-nonexistent-page')
+      await browser.waitForElementByCss('.about-page')
+
+      const oldData = await browser.eval(`window.__DATA_BE_GONE`)
+      expect(oldData).toBeFalsy()
+    })
+
+    it('should reload page successfully (on bad data fetch)', async () => {
+      const browser = await webdriver(appPort, '/to-shadowed-page')
+      await browser.eval(function setup() {
+        window.__DATA_BE_GONE = 'true'
+      })
+      await browser.waitForElementByCss('#to-shadowed-page').click()
+      await browser.waitForElementByCss('.about-page')
+
+      const oldData = await browser.eval(`window.__DATA_BE_GONE`)
+      expect(oldData).toBeFalsy()
+    })
   })
 
   it('should navigate to external site and back', async () => {
@@ -372,6 +433,23 @@ describe('Production Usage', () => {
     await waitFor(1000)
     const newText = await browser.elementByCss('p').text()
     expect(newText).toBe('server')
+  })
+
+  it('should navigate to page with CSS and back', async () => {
+    const browser = await webdriver(appPort, '/css-and-back')
+    const initialText = await browser.elementByCss('p').text()
+    expect(initialText).toBe('server')
+
+    await browser
+      .elementByCss('a')
+      .click()
+      .waitForElementByCss('input')
+      .back()
+      .waitForElementByCss('p')
+
+    await waitFor(1000)
+    const newText = await browser.elementByCss('p').text()
+    expect(newText).toBe('client')
   })
 
   it('should navigate to external site and back (with query)', async () => {
@@ -650,7 +728,7 @@ describe('Production Usage', () => {
   })
 
   it('should handle failed param decoding', async () => {
-    const html = await renderViaHTTP(appPort, '/%DE~%C7%1fY/')
+    const html = await renderViaHTTP(appPort, '/invalid-param/%DE~%C7%1fY/')
     expect(html).toMatch(/400/)
     expect(html).toMatch(/Bad Request/)
   })
@@ -702,6 +780,10 @@ describe('Production Usage', () => {
 
   it('should not emit profiling events', async () => {
     expect(existsSync(join(appDir, '.next', 'profile-events.json'))).toBe(false)
+  })
+
+  it('should not emit stats', async () => {
+    expect(existsSync(join(appDir, '.next', 'next-stats.json'))).toBe(false)
   })
 
   it('should contain the Next.js version in window export', async () => {
@@ -781,6 +863,27 @@ describe('Production Usage', () => {
       }
     }
     expect(missing).toBe(false)
+  })
+
+  it('should preserve query when hard navigating from page 404', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push({
+        pathname: '/non-existent',
+        query: { hello: 'world' }
+      })
+    })()`)
+
+    await check(
+      () => browser.eval('document.documentElement.innerHTML'),
+      /page could not be found/
+    )
+
+    expect(await browser.eval('window.beforeNav')).toBe(null)
+    expect(await browser.eval('window.location.hash')).toBe('')
+    expect(await browser.eval('window.location.search')).toBe('?hello=world')
+    expect(await browser.eval('window.location.pathname')).toBe('/non-existent')
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
