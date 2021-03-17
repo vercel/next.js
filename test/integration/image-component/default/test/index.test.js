@@ -166,7 +166,7 @@ function runTests(mode) {
     const [noscriptEl, el] = els
     expect(noscriptEl.attribs.src).toBeDefined()
     expect(noscriptEl.attribs.srcset).toBeDefined()
-    expect(noscriptEl.attribs.srcSet).toBeDefined()
+
     expect(el.attribs.src).toBeDefined()
     expect(el.attribs.srcset).toBeUndefined()
     expect(el.attribs.srcSet).toBeUndefined()
