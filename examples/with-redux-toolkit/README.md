@@ -4,12 +4,6 @@ This example shows how to integrate Next.js with [Redux Toolkit](https://redux-t
 
 The **Redux Toolkit** is intended to be the standard way to write Redux logic (create actions and reducers, setup the store with some default middlewares like redux devtools extension). This example demonstrates each of these features with Next.js
 
-## Typescript Setup
-
-- If you haven't already added typescript to your project, follow the instructions given [here](https://nextjs.org/docs/basic-features/typescript). If you are new to typescript, go through [this lesson](https://nextjs.org/learn/excel/typescript) on Typescript with Next.js.
-
-- Follow the instructions given on the Redux Toolkit [documentation](https://redux-toolkit.js.org/tutorials/typescript) to set up and use Redux Toolkit and React-Redux with Typescript
-
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
@@ -27,3 +21,9 @@ yarn create next-app --example with-redux-toolkit with-redux-toolkit-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+
+### TypeScript Setup (optional)
+
+If you haven't already added [TypeScript](https://www.typescriptlang.org/) to your project, follow the [steps in the Next.js documentation](https://nextjs.org/docs/basic-features/TypeScript). If you are new to TypeScript, go through the Next.js [learning lesson on TypeScript](https://nextjs.org/learn/excel/TypeScript).
+
+Once TypeScript is added, follow the instructions given on the Redux Toolkit [documentation](https://redux-toolkit.js.org/tutorials/TypeScript) to set up and use Redux Toolkit and React-Redux with TypeScript
