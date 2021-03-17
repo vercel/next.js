@@ -115,7 +115,7 @@ describe('Build Output', () => {
         expect(_appSize.endsWith(' B')).toBe(true)
       }
 
-      expect(parseFloat(webpackSize) - 912).toBeLessThanOrEqual(0)
+      expect(parseFloat(webpackSize) - 950).toBeLessThanOrEqual(0)
       expect(webpackSize.endsWith(' B')).toBe(true)
 
       expect(parseFloat(mainSize) - 7.3).toBeLessThanOrEqual(0)
