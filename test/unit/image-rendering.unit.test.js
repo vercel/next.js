@@ -17,7 +17,11 @@ describe('Image rendering', () => {
     const $ = cheerio.load(html)
     const img = $('#unit-image')
     expect(img.attr('id')).toBe('unit-image')
-    expect(img.attr('src')).toContain('/_next/image?url=%2Ftest.png')
-    expect(img.attr('srcset')).toContain('/_next/image?url=%2Ftest.png')
+    expect(img.attr('src')).toContain(
+      '/_next/image?url=%2Ftest.png' || '/test.png'
+    )
+    expect(img.attr('srcset')).toContain(
+      '/_next/image?url=%2Ftest.png' || '/test.png'
+    )
   })
 })

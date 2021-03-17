@@ -161,7 +161,7 @@ function runTests(mode) {
     const $html = cheerio.load(html)
 
     const els = [].slice.apply($html('img'))
-    expect(els.length).toBe(1)
+    expect(els.length).toBe(2)
 
     const [el] = els
     expect(el.attribs.src).toBeDefined()
