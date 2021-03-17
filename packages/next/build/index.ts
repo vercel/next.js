@@ -2,7 +2,7 @@ import { loadEnvConfig } from '@next/env'
 import chalk from 'chalk'
 import crypto from 'crypto'
 import { promises, writeFileSync } from 'fs'
-import Worker from 'jest-worker'
+import { Worker } from 'jest-worker'
 import devalue from 'next/dist/compiled/devalue'
 import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
 import findUp from 'next/dist/compiled/find-up'
@@ -1022,7 +1022,6 @@ export default async function build(
             }
             return defaultMap
           },
-          trailingSlash: false,
         }
 
         await exportApp(dir, exportOptions, exportConfig)

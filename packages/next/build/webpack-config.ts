@@ -788,7 +788,7 @@ export default async function getBaseWebpackConfig(
       splitChunks: isServer ? false : splitChunksConfig,
       runtimeChunk: isServer
         ? isWebpack5 && !isLikeServerless
-          ? { name: `${dev ? '' : 'chunks/'}webpack-runtime` }
+          ? { name: 'webpack-runtime' }
           : undefined
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
       minimize: !(dev || isServer),
@@ -1217,22 +1217,6 @@ export default async function getBaseWebpackConfig(
       webpackConfig.optimization.usedExports = false
     }
 
-    const nextPublicVariables = Object.keys(process.env)
-      .reduce((acc: string[], key: string) => {
-        if (key.startsWith('NEXT_PUBLIC_')) {
-          return [...acc, `${key}=${process.env[key]}`]
-        }
-        return acc
-      }, [])
-      .join('|')
-
-    const nextEnvVariables = Object.keys(config.env).reduce(
-      (prev: string, key: string) => {
-        return `${prev}|${key}=${config.env[key]}`
-      },
-      ''
-    )
-
     const configVars = JSON.stringify({
       crossOrigin: config.crossOrigin,
       pageExtensions: config.pageExtensions,
@@ -1257,10 +1241,8 @@ export default async function getBaseWebpackConfig(
       type: 'filesystem',
       // Includes:
       //  - Next.js version
-      //  - NEXT_PUBLIC_ variable values (they affect caching) TODO: make this module usage only
-      //  - next.config.js `env` key
       //  - next.config.js keys that affect compilation
-      version: `${process.env.__NEXT_VERSION}|${nextPublicVariables}|${nextEnvVariables}|${configVars}`,
+      version: `${process.env.__NEXT_VERSION}|${configVars}`,
       cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
     }
 
