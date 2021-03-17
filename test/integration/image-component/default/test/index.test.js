@@ -163,7 +163,10 @@ function runTests(mode) {
     const els = [].slice.apply($html('img'))
     expect(els.length).toBe(2)
 
-    const [el] = els
+    const [noscriptEl, el] = els
+    expect(noscriptEl.attribs.src).toBeDefined()
+    expect(noscriptEl.attribs.srcset).toBeDefined()
+    expect(noscriptEl.attribs.srcSet).toBeDefined()
     expect(el.attribs.src).toBeDefined()
     expect(el.attribs.srcset).toBeUndefined()
     expect(el.attribs.srcSet).toBeUndefined()
