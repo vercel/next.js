@@ -2,7 +2,7 @@ import { ReactDevOverlay } from '@next/react-dev-overlay/lib/client'
 import crypto from 'crypto'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
-import Worker from 'jest-worker'
+import { Worker } from 'jest-worker'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import findUp from 'next/dist/compiled/find-up'
 import { join as pathJoin, relative, resolve as pathResolve, sep } from 'path'
@@ -34,6 +34,7 @@ import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import Router, { Params, route } from '../next-server/server/router'
 import { eventCliSession } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
+import { setGlobal } from '../telemetry/trace'
 import HotReloader from './hot-reloader'
 import { findPageFile } from './lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
@@ -54,7 +55,7 @@ export default class DevServer extends Server {
   private isCustomServer: boolean
   protected sortedRoutes?: string[]
 
-  protected staticPathsWorker: import('jest-worker').default & {
+  protected staticPathsWorker: import('jest-worker').Worker & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   }
 
@@ -101,7 +102,7 @@ export default class DevServer extends Server {
     this.staticPathsWorker = new Worker(
       require.resolve('./static-paths-worker'),
       {
-        maxRetries: 0,
+        maxRetries: 1,
         numWorkers: this.nextConfig.experimental.cpus,
         forkOptions: {
           env: {
@@ -297,6 +298,8 @@ export default class DevServer extends Server {
         isCustomServer: this.isCustomServer,
       })
     )
+    // This is required by the tracing subsystem.
+    setGlobal('telemetry', telemetry)
   }
 
   protected async close(): Promise<void> {

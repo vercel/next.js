@@ -87,7 +87,7 @@ The `context` parameter is an object containing the following keys:
     }
 
     return {
-      props: {}, // will be passed to the page component as props
+      props: { data }, // will be passed to the page component as props
     }
   }
   ```
@@ -111,7 +111,7 @@ The `context` parameter is an object containing the following keys:
     }
 
     return {
-      props: {}, // will be passed to the page component as props
+      props: { data }, // will be passed to the page component as props
     }
   }
   ```
@@ -156,7 +156,7 @@ export async function getStaticProps() {
   const res = await fetch('https://.../posts')
   const posts = await res.json()
 
-  // By returning { props: posts }, the Blog component
+  // By returning { props: { posts } }, the Blog component
   // will receive `posts` as a prop at build time
   return {
     props: {
@@ -325,7 +325,7 @@ export async function getStaticProps() {
       content: fileContents,
     }
   })
-  // By returning { props: posts }, the Blog component
+  // By returning { props: { posts } }, the Blog component
   // will receive `posts` as a prop at build time
   return {
     props: {
