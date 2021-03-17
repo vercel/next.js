@@ -10,26 +10,33 @@ const handle = app.getRequestHandler()
 
 const ssrCache = cacheableResponse({
   ttl: 1000 * 60 * 60, // 1hour
-  get: async ({ req, res, pagePath, queryParams }) => ({
-    data: await app.renderToHTML(req, res, pagePath, queryParams),
-  }),
+  get: async ({ req, res }) => {
+    const rawResEnd = res.end
+    const data = await new Promise((resolve) => {
+      res.end = (payload) => {
+        resolve(res.statusCode === 200 && payload)
+      }
+      app.render(req, res, req.path, {
+        ...req.query,
+        ...req.params,
+      })
+    })
+    res.end = rawResEnd
+    return { data }
+  },
   send: ({ data, res }) => res.send(data),
 })
 
 app.prepare().then(() => {
   const server = express()
 
-  server.get('/', (req, res) => ssrCache({ req, res, pagePath: '/' }))
+  server.get('/', (req, res) => ssrCache({ req, res }))
 
-  server.get('/blog/:id', (req, res) => {
-    const queryParams = { id: req.params.id }
-    const pagePath = '/blog'
-    return ssrCache({ req, res, pagePath, queryParams })
-  })
+  server.get('/blog/:id', (req, res) => ssrCache({ req, res }))
 
   server.get('*', (req, res) => handle(req, res))
 
-  server.listen(port, err => {
+  server.listen(port, (err) => {
     if (err) throw err
     console.log(`> Ready on http://localhost:${port}`)
   })

@@ -1,0 +1,19 @@
+# Missing Env Value
+
+#### Why This Error Occurred
+
+In one of your pages you attempted to access an environment value that is not provided in the environment.
+
+When accessing environment variables on the client they must be prefixed with `NEXT_PUBLIC_` to signify they are safe to be inlined for the client.
+
+When accessing environment variables on the server in `getStaticProps`, `getServerSideProps`, or an API route the value must be provided in the environment at runtime.
+
+#### Possible Ways to Fix It
+
+Either remove the code accessing the env value, populate it in your `.env` file, or manually populate it in your environment before running `next dev` or `next build`.
+
+### Useful Links
+
+- [dotenv](https://npmjs.com/package/dotenv)
+- [dotenv-expand](https://npmjs.com/package/dotenv-expand)
+- [Environment Variables](https://en.wikipedia.org/wiki/Environment_variable)

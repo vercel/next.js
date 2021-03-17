@@ -7,10 +7,9 @@
     "start": "next start"
   },
   "dependencies": {
-    "isomorphic-unfetch": "^3.0.0",
     "next": "latest",
-    "react": "^16.8.4",
-    "react-dom": "^16.8.4"
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

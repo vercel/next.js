@@ -1,12 +1,10 @@
 module.exports = {
-  experimental: {
-    rewrites() {
-      return [
-        {
-          source: '/docs/:path*',
-          destination: '/:path*',
-        },
-      ]
-    },
+  rewrites() {
+    return [
+      {
+        source: '/docs/:path*',
+        destination: '/:path*',
+      },
+    ]
   },
 }

@@ -1,0 +1,25 @@
+{
+  "name": "with-atlaskit",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@atlaskit/button": "^13.3.9",
+    "@atlaskit/checkbox": "^10.1.10",
+    "@atlaskit/datetime-picker": "^9.2.8",
+    "@atlaskit/dropdown-menu": "^9.0.2",
+    "@atlaskit/field-base": "^14.0.2",
+    "next": "^9.3.1",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "styled-components": "^5.0.1"
+  },
+  "devDependencies": {
+    "babel-plugin-styled-components": "^1.10.7"
+  },
+  "license": "MIT"
+}

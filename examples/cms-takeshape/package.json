@@ -1,0 +1,25 @@
+{
+  "name": "cms-takeshape",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "classnames": "2.2.6",
+    "date-fns": "2.10.0",
+    "next": "latest",
+    "react": "^16.13.0",
+    "react-dom": "^16.13.0",
+    "remark": "11.0.2",
+    "remark-html": "10.0.0",
+    "takeshape-routing": "4.86.0"
+  },
+  "devDependencies": {
+    "@fullhuman/postcss-purgecss": "^2.1.0",
+    "postcss-preset-env": "^6.7.0",
+    "tailwindcss": "^1.2.0"
+  },
+  "license": "MIT"
+}

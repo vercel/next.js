@@ -12,7 +12,7 @@ const readline = require('readline').createInterface({
 })
 
 // In order to set up a database, we need an admin key, so let's ask the user for a key.
-readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
+readline.question(`Please provide the FaunaDB admin key\n`, (adminKey) => {
   // A graphql schema can be imported in override or merge mode: 'https://docs.fauna.com/fauna/current/api/graphql/endpoints#import'
   const options = {
     model: 'merge',
@@ -22,7 +22,7 @@ readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
   const stream = fs.createReadStream('./schema.gql').pipe(request.post(options))
 
   streamToPromise(stream)
-    .then(res => {
+    .then((res) => {
       const readableResult = res.toString()
       if (readableResult.startsWith('Invalid authorization header')) {
         console.error('You need to provide a secret, closing. Try again')
@@ -37,11 +37,11 @@ readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
         return readline.close()
       }
     })
-    .catch(err => {
+    .catch((err) => {
       console.error(err)
       console.error(`Could not import schema, closing`)
     })
-    .then(res => {
+    .then((res) => {
       // The GraphQL schema is important, this means that we now have a GuestbookEntry Collection and an entries index.
       // Then we create a token that can only read and write to that index and collection
       var client = new faunadb.Client({ secret: adminKey })
@@ -52,7 +52,7 @@ readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
             privileges: [
               {
                 resource: q.Collection('GuestbookEntry'),
-                actions: { read: true, write: true },
+                actions: { read: true, write: true, create: true },
               },
               {
                 resource: q.Index('entries'),
@@ -61,12 +61,12 @@ readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
             ],
           })
         )
-        .then(res => {
+        .then((res) => {
           console.log(
             '2. Successfully created role to read and write guestbook entries'
           )
         })
-        .catch(err => {
+        .catch((err) => {
           if (err.toString().includes('instance already exists')) {
             console.log('2. Role already exists.')
           } else {
@@ -74,11 +74,11 @@ readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
           }
         })
     })
-    .catch(err => {
+    .catch((err) => {
       console.error(err)
       console.error(`Failed to create role, closing`)
     })
-    .then(res => {
+    .then((res) => {
       // The GraphQL schema is important, this means that we now have a GuestbookEntry Collection and an entries index.
       // Then we create a token that can only read and write to that index and collection
       var client = new faunadb.Client({ secret: adminKey })
@@ -88,15 +88,33 @@ readline.question(`Please provide the FaunaDB admin key\n`, adminKey => {
             role: q.Role('GuestbookRole'),
           })
         )
-        .then(res => {
+        .then((res) => {
           console.log('3. Created key to use in client')
-          console.log(
-            'Replace the < GRAPHQL_SECRET > placehold in next.config.js with:'
-          )
-          console.log(res.secret)
+          const envFile =
+            'NEXT_PUBLIC_FAUNADB_SECRET=' +
+            res.secret +
+            '\n' +
+            'NEXT_PUBLIC_FAUNADB_GRAPHQL_ENDPOINT=https://graphql.fauna.com/graphql'
+
+          fs.writeFile('.env.local', envFile, (err) => {
+            if (err) {
+              console.error(
+                'Failed to create .env.local file. Copy the .env.local.example file and provide the secret shown below:'
+              )
+              console.log(res.secret)
+            } else {
+              console.log('4. Created .env.local file with secret\n')
+              fs.readFile('.env.local', (err, data) => {
+                if (!err) {
+                  console.log('.env.local:\n')
+                  console.log(data.toString('utf-8'))
+                }
+              })
+            }
+          })
         })
     })
-    .catch(err => {
+    .catch((err) => {
       console.error(err)
       console.error(`Failed to create key, closing`)
     })

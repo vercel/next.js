@@ -1,0 +1,19 @@
+{
+  "name": "with-iron-session",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "next-iron-session": "4.1.7",
+    "prop-types": "15.7.2",
+    "react": "16.13.1",
+    "react-dom": "16.13.1",
+    "swr": "0.2.3"
+  },
+  "license": "MIT"
+}

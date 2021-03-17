@@ -1,7 +1,7 @@
 import chalk from 'chalk'
-import Conf from 'conf'
+import Conf from 'next/dist/compiled/conf'
 import { BinaryLike, createHash, randomBytes } from 'crypto'
-import isDockerFunction from 'is-docker'
+import isDockerFunction from 'next/dist/compiled/is-docker'
 import path from 'path'
 
 import { getAnonymousMeta } from './anonymous-meta'
@@ -26,8 +26,6 @@ const TELEMETRY_KEY_ID = `telemetry.anonymousId`
 // See the `oneWayHash` function.
 const TELEMETRY_KEY_SALT = `telemetry.salt`
 
-const { NEXT_TELEMETRY_DISABLED, NEXT_TELEMETRY_DEBUG } = process.env
-
 type TelemetryEvent = { eventName: string; payload: object }
 type EventContext = {
   anonymousId: string
@@ -51,10 +49,16 @@ export class Telemetry {
   private conf: Conf<any> | null
   private sessionId: string
   private rawProjectId: string
+  private NEXT_TELEMETRY_DISABLED: any
+  private NEXT_TELEMETRY_DEBUG: any
 
   private queue: Set<Promise<RecordObject>>
 
   constructor({ distDir }: { distDir: string }) {
+    // Read in the constructor so that .env can be loaded before reading
+    const { NEXT_TELEMETRY_DISABLED, NEXT_TELEMETRY_DEBUG } = process.env
+    this.NEXT_TELEMETRY_DISABLED = NEXT_TELEMETRY_DISABLED
+    this.NEXT_TELEMETRY_DEBUG = NEXT_TELEMETRY_DEBUG
     const storageDirectory = getStorageDirectory(distDir)
 
     try {
@@ -125,7 +129,7 @@ export class Telemetry {
   }
 
   private get isDisabled(): boolean {
-    if (!!NEXT_TELEMETRY_DISABLED || !this.conf) {
+    if (!!this.NEXT_TELEMETRY_DISABLED || !this.conf) {
       return true
     }
     return this.conf.get(TELEMETRY_KEY_ENABLED, true) === false
@@ -167,18 +171,18 @@ export class Telemetry {
     }
 
     const prom = wrapper()
-      .then(value => ({
+      .then((value) => ({
         isFulfilled: true,
         isRejected: false,
         value,
       }))
-      .catch(reason => ({
+      .catch((reason) => ({
         isFulfilled: false,
         isRejected: true,
         reason,
       }))
       // Acts as `Promise#finally` because `catch` transforms the error
-      .then(res => {
+      .then((res) => {
         // Clean up the event to prevent unbounded `Set` growth
         this.queue.delete(prom)
         return res
@@ -206,7 +210,7 @@ export class Telemetry {
       return Promise.resolve()
     }
 
-    if (NEXT_TELEMETRY_DEBUG) {
+    if (this.NEXT_TELEMETRY_DEBUG) {
       // Print to standard error to simplify selecting the output
       events.forEach(({ eventName, payload }) =>
         console.error(

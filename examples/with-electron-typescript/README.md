@@ -10,44 +10,25 @@ This example show how you can use Next.js inside an Electron application to avoi
 
 For development it's going to run a HTTP server and let Next.js handle routing. In production it use `next export` to pre-generate HTML static files and use them in your app instead of running an HTTP server.
 
-**You can find a detailed documentation about how to build Electron apps with Next.js [here](https://leo.im/2017/electron-next)!**
-
 ## How to use
 
-### Using `create-next-app`
-
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npm init next-app --example with-electron-typescript with-electron-typescript-app
+npx create-next-app --example with-electron-typescript with-electron-typescript-app
 # or
 yarn create next-app --example with-electron-typescript with-electron-typescript-app
-```
-
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/with-electron-typescript
-cd with-electron-typescript
-```
-
-To install and start dev build:
-
-```bash
-yarn install && yarn build && yarn start
 ```
 
 Available commands:
 
 ```bash
-"yarn build-renderer": build and transpile Next.js layer
-"yarn build-electron": transpile electron layer
-"yarn build": build both layers
-"yarn start": start dev version
-"yarn dist": create production elctron build
-"yarn type-check": check TypeScript in project
+"build-renderer": build and transpile Next.js layer
+"build-electron": transpile electron layer
+"build": build both layers
+"dev": start dev version
+"dist": create production electron build
+"type-check": check TypeScript in project
 ```
 
 ## Notes

@@ -16,20 +16,10 @@ const server = http2.createSecureServer({
 })
 
 app.prepare().then(() => {
-  server.on('error', err => console.error(err))
-
-  // Process the various routes based on `req`
-  // `/`      -> Render index.js
-  // `/about` -> Render about.js
+  server.on('error', (err) => console.error(err))
   server.on('request', (req, res) => {
-    switch (req.url) {
-      case '/about':
-        return app.render(req, res, '/about', req.query)
-      default:
-        return app.render(req, res, '/', req.query)
-    }
+    app.render(req, res, req.url || '/', req.query)
   })
-
   server.listen(port)
 
   console.log(`Listening on HTTPS port ${port}`)

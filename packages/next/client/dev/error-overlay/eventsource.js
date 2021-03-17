@@ -10,7 +10,7 @@ function EventSourceWrapper(options) {
   }
 
   init()
-  var timer = setInterval(function() {
+  var timer = setInterval(function () {
     if (new Date() - lastActivity > options.timeout) {
       handleDisconnect()
     }
@@ -33,9 +33,11 @@ function EventSourceWrapper(options) {
     for (var i = 0; i < listeners.length; i++) {
       listeners[i](event)
     }
-    if (event.data.indexOf('action') !== -1) {
-      eventCallbacks.forEach(cb => cb(event))
-    }
+
+    eventCallbacks.forEach((cb) => {
+      if (!cb.unfiltered && event.data.indexOf('action') === -1) return
+      cb(event)
+    })
   }
 
   function handleDisconnect() {
@@ -46,10 +48,10 @@ function EventSourceWrapper(options) {
 
   return {
     close: () => {
-      clearTimeout(timer)
+      clearInterval(timer)
       source.close()
     },
-    addMessageListener: function(fn) {
+    addMessageListener: function (fn) {
       listeners.push(fn)
     },
   }
@@ -58,7 +60,7 @@ function EventSourceWrapper(options) {
 export function getEventSourceWrapper(options) {
   if (!options.ondemand) {
     return {
-      addMessageListener: cb => {
+      addMessageListener: (cb) => {
         eventCallbacks.push(cb)
       },
     }

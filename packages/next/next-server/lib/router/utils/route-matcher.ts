@@ -8,7 +8,17 @@ export function getRouteMatcher(routeRegex: ReturnType<typeof getRouteRegex>) {
       return false
     }
 
-    const decode = decodeURIComponent
+    const decode = (param: string) => {
+      try {
+        return decodeURIComponent(param)
+      } catch (_) {
+        const err: Error & { code?: string } = new Error(
+          'failed to decode param'
+        )
+        err.code = 'DECODE_FAILED'
+        throw err
+      }
+    }
     const params: { [paramName: string]: string | string[] } = {}
 
     Object.keys(groups).forEach((slugName: string) => {
@@ -16,7 +26,7 @@ export function getRouteMatcher(routeRegex: ReturnType<typeof getRouteRegex>) {
       const m = routeMatch[g.pos]
       if (m !== undefined) {
         params[slugName] = ~m.indexOf('/')
-          ? m.split('/').map(entry => decode(entry))
+          ? m.split('/').map((entry) => decode(entry))
           : g.repeat
           ? [decode(m)]
           : decode(m)

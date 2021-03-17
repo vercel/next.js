@@ -7,9 +7,12 @@ const firebaseCloudMessaging = {
     return localforage.getItem('fcm_token')
   },
 
-  init: async function() {
+  init: async function () {
     firebase.initializeApp({
-      messagingSenderId: 'your sender id',
+      apiKey: 'YOUR-API-KEY',
+      projectId: 'YOUR-PROJECT-ID',
+      messagingSenderId: 'YOUR-SENDER-ID',
+      appId: 'YOUR-APP-ID',
     })
 
     try {
@@ -18,7 +21,7 @@ const firebaseCloudMessaging = {
       }
 
       const messaging = firebase.messaging()
-      await messaging.requestPermission()
+      await Notification.requestPermission()
       const token = await messaging.getToken()
 
       localforage.setItem('fcm_token', token)

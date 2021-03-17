@@ -1,11 +1,9 @@
-import findUp from 'find-up'
-import fs from 'fs'
+import findUp from 'next/dist/compiled/find-up'
+import { promises } from 'fs'
 import path from 'path'
-import { promisify } from 'util'
-import resolve from 'next/dist/compiled/resolve/index.js'
 import { execOnce } from '../../next-server/lib/utils'
 
-const readdir = promisify(fs.readdir)
+const { version } = require('next/package.json')
 
 export type PluginMetaData = {
   requiredEnv: string[]
@@ -20,18 +18,11 @@ export type PluginMetaData = {
 // currently supported middleware
 export const VALID_MIDDLEWARE = [
   'document-head-tags-server',
-  'document-body-tags-server',
-  'document-html-props-server',
   'on-init-client',
   'on-init-server',
-  'on-error-server',
-  'on-error-client',
   'on-error-client',
   'on-error-server',
   'babel-preset-build',
-  'unstable-post-hydration',
-  'unstable-get-styles-server',
-  'unstable-enhance-app-server',
 ]
 
 type ENV_OPTIONS = { [name: string]: string }
@@ -43,7 +34,9 @@ const exitWithError = (error: string) => {
 
 async function collectPluginMeta(
   env: ENV_OPTIONS,
-  pluginPackagePath: string
+  pluginPackagePath: string,
+  pluginName: string,
+  requiredVersion: string
 ): Promise<PluginMetaData> {
   const pkgDir = path.dirname(pluginPackagePath)
   const pluginPackageJson = require(pluginPackagePath)
@@ -52,31 +45,43 @@ async function collectPluginMeta(
     'required-env': string[]
   } = pluginPackageJson.nextjs
 
+  if (pluginPackageJson.version !== requiredVersion) {
+    exitWithError(
+      `Next.js plugin versions must match the Next.js version being used, received ${pluginName}@${pluginPackageJson.version} need ${requiredVersion}`
+    )
+  }
+
   if (!pluginMetaData) {
-    exitWithError('Next.js plugins need to have a "nextjs" key in package.json')
+    exitWithError(
+      `Next.js plugins need to have a "nextjs" key in package.json for ${pluginName}`
+    )
   }
 
   if (!pluginMetaData.name) {
     exitWithError(
-      'Next.js plugins need to have a "nextjs.name" key in package.json'
+      `Next.js plugins need to have a "nextjs.name" key in package.json for ${pluginName}`
     )
   }
 
   // TODO: add err.sh explaining requirements
   let middleware: string[] = []
   try {
-    middleware = await readdir(path.join(pkgDir, 'src'))
+    middleware = (
+      await promises.readdir(path.join(pkgDir, 'src'), { withFileTypes: true })
+    )
+      .filter((dirent) => dirent.isFile())
+      .map((file) => file.name)
   } catch (err) {
     if (err.code !== 'ENOENT') {
       console.error(err)
     }
     exitWithError(
-      `Failed to read src/ directory for Next.js plugin: ${pluginMetaData.name}`
+      `Failed to read src/ directory for Next.js plugin: ${pluginName}`
     )
   }
 
   // remove the extension from the middleware
-  middleware = middleware.map(item => {
+  middleware = middleware.map((item) => {
     const parts = item.split('.')
     parts.pop()
     return parts.join('.')
@@ -92,9 +97,9 @@ async function collectPluginMeta(
 
   if (invalidMiddleware.length > 0) {
     console.error(
-      `Next.js Plugin: ${
-        pluginMetaData.name
-      } listed invalid middleware ${invalidMiddleware.join(', ')}`
+      `Next.js Plugin: ${pluginName} listed invalid middleware ${invalidMiddleware.join(
+        ', '
+      )}`
     )
   }
 
@@ -116,9 +121,7 @@ async function collectPluginMeta(
 
   if (missingEnvFields.length > 0) {
     exitWithError(
-      `Next.js Plugin: ${
-        pluginMetaData.name
-      } required env ${missingEnvFields.join(
+      `Next.js Plugin: ${pluginName} required env ${missingEnvFields.join(
         ', '
       )} but was missing in your \`next.config.js\``
     )
@@ -132,11 +135,6 @@ async function collectPluginMeta(
     pluginName: pluginMetaData.name,
     pkgName: pluginPackageJson.name,
   }
-}
-
-type SeparatedPlugins = {
-  appMiddlewarePlugins: PluginMetaData[]
-  documentMiddlewarePlugins: PluginMetaData[]
 }
 
 // clean package name so it can be used as variable
@@ -166,7 +164,7 @@ async function _collectPlugins(
   const hasPluginConfig = Array.isArray(pluginsConfig)
 
   const nextPluginConfigNames = hasPluginConfig
-    ? pluginsConfig!.map(config =>
+    ? pluginsConfig!.map((config) =>
         typeof config === 'string' ? config : config.name
       )
     : null
@@ -193,11 +191,9 @@ async function _collectPlugins(
     }
 
     // find packages with the naming convention
-    // @scope/next-plugin-[name]
     // @next/plugin-[name]
-    // next-plugin-[name]
-    const filteredDeps = dependencies.filter(name => {
-      return name.match(/(^@next\/plugin|next-plugin-)/)
+    const filteredDeps = dependencies.filter((name) => {
+      return name.match(/^@next\/plugin/)
     })
 
     if (nextPluginConfigNames) {
@@ -213,13 +209,12 @@ async function _collectPlugins(
   }
 
   const nextPluginMetaData = await Promise.all(
-    nextPluginNames.map(name =>
+    nextPluginNames.map((name) =>
       collectPluginMeta(
         env,
-        resolve.sync(path.join(name, 'package.json'), {
-          basedir: dir,
-          preserveSymlinks: true,
-        })
+        require.resolve(path.join(name, 'package.json'), { paths: [dir] }),
+        name,
+        version
       )
     )
   )
@@ -228,7 +223,7 @@ async function _collectPlugins(
     // Add plugin config from `next.config.js`
     if (hasPluginConfig) {
       const curPlugin = pluginsConfig!.find(
-        config =>
+        (config) =>
           config && typeof config === 'object' && config.name === plugin.pkgName
       )
       if (curPlugin && typeof curPlugin === 'object') {
@@ -254,6 +249,4 @@ async function _collectPlugins(
 
 // only execute it once between server/client configs
 // since the plugins need to match
-export const collectPlugins = execOnce(
-  _collectPlugins
-) as typeof _collectPlugins
+export const collectPlugins = execOnce(_collectPlugins)

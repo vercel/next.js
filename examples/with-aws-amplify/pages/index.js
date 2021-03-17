@@ -1,4 +1,4 @@
-import * as React from 'react'
+import { useReducer } from 'react'
 import { API, graphqlOperation } from 'aws-amplify'
 import nanoid from 'nanoid'
 import produce from 'immer'
@@ -17,24 +17,24 @@ API.configure(config)
 const reducer = (state, action) => {
   switch (action.type) {
     case 'add-todo': {
-      return produce(state, draft => {
+      return produce(state, (draft) => {
         draft.todos.push(action.payload)
       })
     }
     case 'delete-todo': {
       const index = state.todos.findIndex(({ id }) => action.payload === id)
       if (index === -1) return state
-      return produce(state, draft => {
+      return produce(state, (draft) => {
         draft.todos.splice(index, 1)
       })
     }
     case 'reset-current': {
-      return produce(state, draft => {
+      return produce(state, (draft) => {
         draft.currentName = ''
       })
     }
     case 'set-current': {
-      return produce(state, draft => {
+      return produce(state, (draft) => {
         draft.currentName = action.payload
       })
     }
@@ -73,8 +73,8 @@ const deleteToDo = async (dispatch, id) => {
     console.warn('Error deleting to do ', err)
   }
 }
-const App = props => {
-  const [state, dispatch] = React.useReducer(reducer, {
+const App = (props) => {
+  const [state, dispatch] = useReducer(reducer, {
     todos: props.todos,
     currentName: '',
   })
@@ -82,14 +82,14 @@ const App = props => {
     <div>
       <h3>Add a Todo</h3>
       <form
-        onSubmit={ev => {
+        onSubmit={(ev) => {
           ev.preventDefault()
           createToDo(dispatch, state.currentName)
         }}
       >
         <input
           value={state.currentName}
-          onChange={e => {
+          onChange={(e) => {
             dispatch({ type: 'set-current', payload: e.target.value })
           }}
         />
@@ -111,30 +111,38 @@ const App = props => {
     </div>
   )
 }
-App.getInitialProps = async () => {
+
+export const getStaticProps = async () => {
   let result = await API.graphql(
     graphqlOperation(getTodoList, { id: 'global' })
   )
+
   if (result.errors) {
-    console.log('Failed to fetch todolist. ', result.errors)
-    return { todos: [] }
+    console.log('Failed to fetch todolist.', result.errors)
+    throw new Error(result.errors[0].message)
   }
   if (result.data.getTodoList !== null) {
-    return { todos: result.data.getTodoList.todos.items }
+    return {
+      props: {
+        todos: result.data.getTodoList.todos.items,
+      },
+    }
   }
 
-  try {
-    await API.graphql(
-      graphqlOperation(createTodoList, {
-        input: {
-          id: 'global',
-          createdAt: `${Date.now()}`,
-        },
-      })
-    )
-  } catch (err) {
-    console.warn(err)
+  await API.graphql(
+    graphqlOperation(createTodoList, {
+      input: {
+        id: 'global',
+        createdAt: `${Date.now()}`,
+      },
+    })
+  )
+
+  return {
+    props: {
+      todos: [],
+    },
   }
-  return { todos: [] }
 }
+
 export default App

@@ -16,7 +16,7 @@ function HomePage() {
 
       <Container>
         <Toolbar bg="black">
-          <NavLink href="https://github.com/zeit/next.js/" target="_blank">
+          <NavLink href="https://github.com/vercel/next.js/" target="_blank">
             Next.js
           </NavLink>
           <NavLink ml="auto" href="http://jxnblk.com/rebass/" target="_blank">

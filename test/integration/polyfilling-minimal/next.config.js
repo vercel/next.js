@@ -1,5 +1,1 @@
-module.exports = {
-  experimental: {
-    polyfillsOptimization: true,
-  },
-}
+module.exports = {}

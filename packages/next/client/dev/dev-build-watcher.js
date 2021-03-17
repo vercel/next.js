@@ -1,6 +1,6 @@
 import { getEventSourceWrapper } from './error-overlay/eventsource'
 
-export default function initializeBuildWatcher() {
+export default function initializeBuildWatcher(toggleCallback) {
   const shadowHost = document.createElement('div')
   shadowHost.id = '__next-build-watcher'
   // Make sure container is fixed and on a high zIndex so it shows
@@ -40,7 +40,7 @@ export default function initializeBuildWatcher() {
 
   // Handle events
   const evtSource = getEventSourceWrapper({ path: '/_next/webpack-hmr' })
-  evtSource.addMessageListener(event => {
+  evtSource.addMessageListener((event) => {
     // This is the heartbeat event
     if (event.data === '\uD83D\uDC93') {
       return
@@ -52,7 +52,8 @@ export default function initializeBuildWatcher() {
   })
 
   function handleMessage(event) {
-    const obj = JSON.parse(event.data)
+    const obj =
+      typeof event === 'string' ? { action: event } : JSON.parse(event.data)
 
     // eslint-disable-next-line default-case
     switch (obj.action) {
@@ -63,6 +64,7 @@ export default function initializeBuildWatcher() {
         updateContainer()
         break
       case 'built':
+      case 'sync':
         isBuilding = false
         // Wait for the fade out transtion to complete
         timeoutId = setTimeout(() => {
@@ -73,6 +75,8 @@ export default function initializeBuildWatcher() {
         break
     }
   }
+
+  toggleCallback(handleMessage)
 
   function updateContainer() {
     if (isBuilding) {
@@ -103,8 +107,8 @@ function createContainer(prefix) {
             y2="100%"
             id="${prefix}linear-gradient"
           >
-            <stop stop-color="#FFFFFF" offset="0%" />
-            <stop stop-color="#000000" offset="100%" />
+            <stop stop-color="#000000" offset="0%" />
+            <stop stop-color="#FFFFFF" offset="100%" />
           </linearGradient>
         </defs>
         <g id="${prefix}icon-group" fill="none" stroke="url(#${prefix}linear-gradient)" stroke-width="18">
@@ -125,8 +129,9 @@ function createCss(prefix) {
       bottom: 10px;
       right: 30px;
 
-      background: #fff;
-      color: #000;
+      border-radius: 3px;
+      background: #000;
+      color: #fff;
       font: initial;
       cursor: initial;
       letter-spacing: initial;
@@ -134,7 +139,7 @@ function createCss(prefix) {
       text-transform: initial;
       visibility: initial;
 
-      padding: 8px 10px;
+      padding: 7px 10px 8px 10px;
       align-items: center;
       box-shadow: 0 11px 40px 0 rgba(0, 0, 0, 0.25), 0 2px 10px 0 rgba(0, 0, 0, 0.12);
 

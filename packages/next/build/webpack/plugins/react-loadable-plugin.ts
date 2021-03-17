@@ -21,22 +21,35 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Implementation of this PR: https://github.com/jamiebuilds/react-loadable/pull/132
 // Modified to strip out unneeded results for Next's specific use case
 
-import url from 'url'
-
 import {
-  Compiler,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  compilation,
-} from 'webpack'
+  webpack,
+  isWebpack5,
+  sources,
+} from 'next/dist/compiled/webpack/webpack'
+
+function getModulesIterable(compilation: any, chunk: any) {
+  if (isWebpack5) {
+    return compilation.chunkGraph.getChunkModulesIterable(chunk)
+  }
+
+  return chunk.modulesIterable
+}
+
+function getModuleId(compilation: any, module: any) {
+  if (isWebpack5) {
+    return compilation.chunkGraph.getModuleId(module)
+  }
+
+  return module.id
+}
 
 function buildManifest(
-  compiler: Compiler,
-  compilation: compilation.Compilation
+  _compiler: webpack.Compiler,
+  compilation: webpack.compilation.Compilation
 ) {
-  let context = compiler.options.context
   let manifest: { [k: string]: any[] } = {}
 
-  compilation.chunkGroups.forEach(chunkGroup => {
+  compilation.chunkGroups.forEach((chunkGroup) => {
     if (chunkGroup.isInitial()) {
       return
     }
@@ -46,21 +59,17 @@ function buildManifest(
 
       chunkGroup.chunks.forEach((chunk: any) => {
         chunk.files.forEach((file: string) => {
-          if (!file.match(/\.js$/) || !file.match(/^static\/chunks\//)) {
+          if (
+            !(
+              (file.endsWith('.js') || file.endsWith('.css')) &&
+              file.match(/^static\/(chunks|css)\//)
+            )
+          ) {
             return
           }
 
-          let publicPath = url.resolve(
-            compilation.outputOptions.publicPath || '',
-            file
-          )
-
-          for (const module of chunk.modulesIterable) {
-            let id = module.id
-            let name =
-              typeof module.libIdent === 'function'
-                ? module.libIdent({ context })
-                : null
+          for (const module of getModulesIterable(compilation, chunk)) {
+            let id = getModuleId(compilation, module)
 
             if (!manifest[request]) {
               manifest[request] = []
@@ -69,18 +78,13 @@ function buildManifest(
             // Avoid duplicate files
             if (
               manifest[request].some(
-                item => item.id === id && item.file === file
+                (item) => item.id === id && item.file === file
               )
             ) {
               continue
             }
 
-            manifest[request].push({
-              id,
-              name,
-              file,
-              publicPath,
-            })
+            manifest[request].push({ id, file })
           }
         })
       })
@@ -102,22 +106,35 @@ export class ReactLoadablePlugin {
     this.filename = opts.filename
   }
 
-  apply(compiler: Compiler) {
-    compiler.hooks.emit.tapAsync(
-      'ReactLoadableManifest',
-      (compilation, callback) => {
-        const manifest = buildManifest(compiler, compilation)
-        var json = JSON.stringify(manifest, null, 2)
-        compilation.assets[this.filename] = {
-          source() {
-            return json
-          },
-          size() {
-            return json.length
-          },
-        }
-        callback()
-      }
+  createAssets(compiler: any, compilation: any, assets: any) {
+    const manifest = buildManifest(compiler, compilation)
+    // @ts-ignore: TODO: remove when webpack 5 is stable
+    assets[this.filename] = new sources.RawSource(
+      JSON.stringify(manifest, null, 2)
     )
+    return assets
+  }
+
+  apply(compiler: webpack.Compiler) {
+    if (isWebpack5) {
+      compiler.hooks.make.tap('ReactLoadableManifest', (compilation) => {
+        // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+        compilation.hooks.processAssets.tap(
+          {
+            name: 'ReactLoadableManifest',
+            // @ts-ignore TODO: Remove ignore when webpack 5 is stable
+            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
+          },
+          (assets: any) => {
+            this.createAssets(compiler, compilation, assets)
+          }
+        )
+      })
+      return
+    }
+
+    compiler.hooks.emit.tap('ReactLoadableManifest', (compilation: any) => {
+      this.createAssets(compiler, compilation, compilation.assets)
+    })
   }
 }

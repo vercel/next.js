@@ -2,8 +2,6 @@
 // Improved version of https://github.com/Yaffle/EventSource/
 // Available under MIT License (MIT)
 // Only tries to support IE11 and nothing below
-import fetch from 'unfetch'
-
 var document = window.document
 var Response = window.Response
 var TextDecoder = window.TextDecoder
@@ -11,9 +9,9 @@ var TextEncoder = window.TextEncoder
 var AbortController = window.AbortController
 
 if (AbortController == undefined) {
-  AbortController = function() {
+  AbortController = function () {
     this.signal = null
-    this.abort = function() {}
+    this.abort = function () {}
   }
 }
 
@@ -22,7 +20,7 @@ function TextDecoderPolyfill() {
   this.codePoint = 0
 }
 
-TextDecoderPolyfill.prototype.decode = function(octets) {
+TextDecoderPolyfill.prototype.decode = function (octets) {
   function valid(codePoint, shift, octetsCount) {
     if (octetsCount === 1) {
       return codePoint >= 0x0080 >> shift && codePoint << shift <= 0x07ff
@@ -116,7 +114,7 @@ TextDecoderPolyfill.prototype.decode = function(octets) {
 }
 
 // Firefox < 38 throws an error with stream option
-var supportsStreamOption = function() {
+var supportsStreamOption = function () {
   try {
     return (
       new TextDecoder().decode(new TextEncoder().encode('test'), {
@@ -138,7 +136,7 @@ if (
   TextDecoder = TextDecoderPolyfill
 }
 
-var k = function() {}
+var k = function () {}
 
 function XHRWrapper(xhr) {
   this.withCredentials = false
@@ -155,7 +153,7 @@ function XHRWrapper(xhr) {
   this._abort = k
 }
 
-XHRWrapper.prototype.open = function(method, url) {
+XHRWrapper.prototype.open = function (method, url) {
   this._abort(true)
 
   var that = this
@@ -163,7 +161,7 @@ XHRWrapper.prototype.open = function(method, url) {
   var state = 1
   var timeout = 0
 
-  this._abort = function(silent) {
+  this._abort = function (silent) {
     if (that._sendTimeout !== 0) {
       clearTimeout(that._sendTimeout)
       that._sendTimeout = 0
@@ -190,7 +188,7 @@ XHRWrapper.prototype.open = function(method, url) {
     state = 0
   }
 
-  var onStart = function() {
+  var onStart = function () {
     if (state === 1) {
       // state = 2;
       var status = 0
@@ -227,7 +225,7 @@ XHRWrapper.prototype.open = function(method, url) {
       }
     }
   }
-  var onProgress = function() {
+  var onProgress = function () {
     onStart()
     if (state === 2 || state === 3) {
       state = 3
@@ -242,7 +240,7 @@ XHRWrapper.prototype.open = function(method, url) {
       that.onprogress()
     }
   }
-  var onFinish = function() {
+  var onFinish = function () {
     // Firefox 52 fires "readystatechange" (xhr.readyState === 4) without final "readystatechange" (xhr.readyState === 3)
     // IE 8 fires "onload" without "onprogress"
     onProgress()
@@ -256,7 +254,7 @@ XHRWrapper.prototype.open = function(method, url) {
       that.onreadystatechange()
     }
   }
-  var onReadyStateChange = function() {
+  var onReadyStateChange = function () {
     if (xhr != undefined) {
       // Opera 12
       if (xhr.readyState === 4) {
@@ -268,8 +266,8 @@ XHRWrapper.prototype.open = function(method, url) {
       }
     }
   }
-  var onTimeout = function() {
-    timeout = setTimeout(function() {
+  var onTimeout = function () {
+    timeout = setTimeout(function () {
       onTimeout()
     }, 500)
     if (xhr.readyState === 3) {
@@ -280,7 +278,7 @@ XHRWrapper.prototype.open = function(method, url) {
   // XDomainRequest#abort removes onprogress, onerror, onload
   xhr.onload = onFinish
   xhr.onerror = onFinish
-  // improper fix to match Firefox behaviour, but it is better than just ignore abort
+  // improper fix to match Firefox behavior, but it is better than just ignore abort
   // see https://bugzilla.mozilla.org/show_bug.cgi?id=768596
   // https://bugzilla.mozilla.org/show_bug.cgi?id=880200
   // https://code.google.com/p/chromium/issues/detail?id=153570
@@ -311,29 +309,29 @@ XHRWrapper.prototype.open = function(method, url) {
   if ('readyState' in xhr) {
     // workaround for Opera 12 issue with "progress" events
     // #91
-    timeout = setTimeout(function() {
+    timeout = setTimeout(function () {
       onTimeout()
     }, 0)
   }
 }
-XHRWrapper.prototype.abort = function() {
+XHRWrapper.prototype.abort = function () {
   this._abort(false)
 }
-XHRWrapper.prototype.getResponseHeader = function(name) {
+XHRWrapper.prototype.getResponseHeader = function (name) {
   return this._contentType
 }
-XHRWrapper.prototype.setRequestHeader = function(name, value) {
+XHRWrapper.prototype.setRequestHeader = function (name, value) {
   var xhr = this._xhr
   if ('setRequestHeader' in xhr) {
     xhr.setRequestHeader(name, value)
   }
 }
-XHRWrapper.prototype.getAllResponseHeaders = function() {
+XHRWrapper.prototype.getAllResponseHeaders = function () {
   return this._xhr.getAllResponseHeaders != undefined
     ? this._xhr.getAllResponseHeaders()
     : ''
 }
-XHRWrapper.prototype.send = function() {
+XHRWrapper.prototype.send = function () {
   // loading indicator in Safari < ? (6), Chrome < 14, Firefox
   if (
     !('ontimeout' in XMLHttpRequest.prototype) &&
@@ -342,7 +340,7 @@ XHRWrapper.prototype.send = function() {
     document.readyState !== 'complete'
   ) {
     var that = this
-    that._sendTimeout = setTimeout(function() {
+    that._sendTimeout = setTimeout(function () {
       that._sendTimeout = 0
       that.send()
     }, 4)
@@ -363,7 +361,7 @@ XHRWrapper.prototype.send = function() {
 }
 
 function toLowerCase(name) {
-  return name.replace(/[A-Z]/g, function(c) {
+  return name.replace(/[A-Z]/g, function (c) {
     return String.fromCharCode(c.charCodeAt(0) + 0x20)
   })
 }
@@ -381,13 +379,13 @@ function HeadersPolyfill(all) {
   }
   this._map = map
 }
-HeadersPolyfill.prototype.get = function(name) {
+HeadersPolyfill.prototype.get = function (name) {
   return this._map[toLowerCase(name)]
 }
 
 function XHRTransport() {}
 
-XHRTransport.prototype.open = function(
+XHRTransport.prototype.open = function (
   xhr,
   onStartCallback,
   onProgressCallback,
@@ -398,13 +396,13 @@ XHRTransport.prototype.open = function(
 ) {
   xhr.open('GET', url)
   var offset = 0
-  xhr.onprogress = function() {
+  xhr.onprogress = function () {
     var responseText = xhr.responseText
     var chunk = responseText.slice(offset)
     offset += chunk.length
     onProgressCallback(chunk)
   }
-  xhr.onreadystatechange = function() {
+  xhr.onreadystatechange = function () {
     if (xhr.readyState === 2) {
       var status = xhr.status
       var statusText = xhr.statusText
@@ -415,7 +413,7 @@ XHRTransport.prototype.open = function(
         statusText,
         contentType,
         new HeadersPolyfill(headers),
-        function() {
+        function () {
           xhr.abort()
         }
       )
@@ -436,13 +434,13 @@ XHRTransport.prototype.open = function(
 function HeadersWrapper(headers) {
   this._headers = headers
 }
-HeadersWrapper.prototype.get = function(name) {
+HeadersWrapper.prototype.get = function (name) {
   return this._headers.get(name)
 }
 
 function FetchTransport() {}
 
-FetchTransport.prototype.open = function(
+FetchTransport.prototype.open = function (
   xhr,
   onStartCallback,
   onProgressCallback,
@@ -460,23 +458,23 @@ FetchTransport.prototype.open = function(
     signal: signal,
     cache: 'no-store',
   })
-    .then(function(response) {
+    .then(function (response) {
       var reader = response.body.getReader()
       onStartCallback(
         response.status,
         response.statusText,
         response.headers.get('Content-Type'),
         new HeadersWrapper(response.headers),
-        function() {
+        function () {
           controller.abort()
           reader.cancel()
         }
       )
-      return new Promise(function(resolve, reject) {
-        var readNextChunk = function() {
+      return new Promise(function (resolve, reject) {
+        var readNextChunk = function () {
           reader
             .read()
-            .then(function(result) {
+            .then(function (result) {
               if (result.done) {
                 // Note: bytes in textDecoder are ignored
                 resolve(undefined)
@@ -486,7 +484,7 @@ FetchTransport.prototype.open = function(
                 readNextChunk()
               }
             })
-            ['catch'](function(error) {
+            ['catch'](function (error) {
               reject(error)
             })
         }
@@ -494,11 +492,11 @@ FetchTransport.prototype.open = function(
       })
     })
     .then(
-      function(result) {
+      function (result) {
         onFinishCallback()
         return result
       },
-      function(error) {
+      function (error) {
         onFinishCallback()
         return Promise.reject(error)
       }
@@ -510,12 +508,12 @@ function EventTarget() {
 }
 
 function throwError(e) {
-  setTimeout(function() {
+  setTimeout(function () {
     throw e
   }, 0)
 }
 
-EventTarget.prototype.dispatchEvent = function(event) {
+EventTarget.prototype.dispatchEvent = function (event) {
   event.target = this
   var typeListeners = this._listeners[event.type]
   if (typeListeners != undefined) {
@@ -534,7 +532,7 @@ EventTarget.prototype.dispatchEvent = function(event) {
     }
   }
 }
-EventTarget.prototype.addEventListener = function(type, listener) {
+EventTarget.prototype.addEventListener = function (type, listener) {
   type = String(type)
   var listeners = this._listeners
   var typeListeners = listeners[type]
@@ -552,7 +550,7 @@ EventTarget.prototype.addEventListener = function(type, listener) {
     typeListeners.push(listener)
   }
 }
-EventTarget.prototype.removeEventListener = function(type, listener) {
+EventTarget.prototype.removeEventListener = function (type, listener) {
   type = String(type)
   var listeners = this._listeners
   var typeListeners = listeners[type]
@@ -609,18 +607,18 @@ var contentTypeRegExp = /^text\/event\-stream;?(\s*charset\=utf\-8)?$/i
 var MINIMUM_DURATION = 1000
 var MAXIMUM_DURATION = 18000000
 
-var parseDuration = function(value, def) {
+var parseDuration = function (value, def) {
   var n = parseInt(value, 10)
   if (n !== n) {
     n = def
   }
   return clampDuration(n)
 }
-var clampDuration = function(n) {
+var clampDuration = function (n) {
   return Math.min(Math.max(n, MINIMUM_DURATION), MAXIMUM_DURATION)
 }
 
-var fire = function(that, f, event) {
+var fire = function (that, f, event) {
   try {
     if (typeof f === 'function') {
       f.call(that, event)
@@ -688,7 +686,7 @@ function start(es, url, options) {
   var fieldStart = 0
   var valueStart = 0
 
-  var onStart = function(status, statusText, contentType, headers, cancel) {
+  var onStart = function (status, statusText, contentType, headers, cancel) {
     if (currentState === CONNECTING) {
       cancelFunction = cancel
       if (
@@ -740,7 +738,7 @@ function start(es, url, options) {
     }
   }
 
-  var onProgress = function(textChunk) {
+  var onProgress = function (textChunk) {
     if (currentState === OPEN) {
       var n = -1
       for (var i = 0; i < textChunk.length; i += 1) {
@@ -790,7 +788,7 @@ function start(es, url, options) {
                 heartbeatTimeout = parseDuration(value, heartbeatTimeout)
                 if (timeout !== 0) {
                   clearTimeout(timeout)
-                  timeout = setTimeout(function() {
+                  timeout = setTimeout(function () {
                     onTimeout()
                   }, heartbeatTimeout)
                 }
@@ -837,14 +835,14 @@ function start(es, url, options) {
     }
   }
 
-  var onFinish = function() {
+  var onFinish = function () {
     if (currentState === OPEN || currentState === CONNECTING) {
       currentState = WAITING
       if (timeout !== 0) {
         clearTimeout(timeout)
         timeout = 0
       }
-      timeout = setTimeout(function() {
+      timeout = setTimeout(function () {
         onTimeout()
       }, retry)
       retry = clampDuration(Math.min(initialRetry * 16, retry * 2))
@@ -856,7 +854,7 @@ function start(es, url, options) {
     }
   }
 
-  var close = function() {
+  var close = function () {
     currentState = CLOSED
     if (cancelFunction != undefined) {
       cancelFunction()
@@ -869,7 +867,7 @@ function start(es, url, options) {
     es.readyState = CLOSED
   }
 
-  var onTimeout = function() {
+  var onTimeout = function () {
     timeout = 0
 
     if (currentState !== WAITING) {
@@ -885,7 +883,7 @@ function start(es, url, options) {
         cancelFunction = undefined
       } else {
         wasActivity = false
-        timeout = setTimeout(function() {
+        timeout = setTimeout(function () {
           onTimeout()
         }, heartbeatTimeout)
       }
@@ -893,7 +891,7 @@ function start(es, url, options) {
     }
 
     wasActivity = false
-    timeout = setTimeout(function() {
+    timeout = setTimeout(function () {
       onTimeout()
     }, heartbeatTimeout)
 
@@ -954,7 +952,7 @@ EventSourcePolyfill.prototype = Object.create(EventTarget.prototype)
 EventSourcePolyfill.prototype.CONNECTING = CONNECTING
 EventSourcePolyfill.prototype.OPEN = OPEN
 EventSourcePolyfill.prototype.CLOSED = CLOSED
-EventSourcePolyfill.prototype.close = function() {
+EventSourcePolyfill.prototype.close = function () {
   this._close()
 }
 

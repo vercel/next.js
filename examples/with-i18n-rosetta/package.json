@@ -1,0 +1,16 @@
+{
+  "name": "with-i18n-rosetta",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "rosetta": "1.0.0"
+  },
+  "license": "MIT"
+}

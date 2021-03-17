@@ -16,4 +16,4 @@ const Page = ({ title, linkTo, tick }) => (
   </div>
 )
 
-export default connect(state => state)(Page)
+export default connect((state) => state)(Page)

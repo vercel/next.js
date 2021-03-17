@@ -1,13 +1,5 @@
-module.exports = {
-  webpack: function(config) {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      react: 'preact/compat',
-      react$: 'preact/compat',
-      'react-dom': 'preact/compat',
-      'react-dom$': 'preact/compat',
-    }
+const withPreact = require('next-plugin-preact')
 
-    return config
-  },
-}
+module.exports = withPreact({
+  /* regular next.js config options here */
+})

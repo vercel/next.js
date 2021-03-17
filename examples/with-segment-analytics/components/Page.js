@@ -3,7 +3,7 @@ import Router from 'next/router'
 import Header from './Header'
 
 // Track client-side page views with Segment
-Router.events.on('routeChangeComplete', url => {
+Router.events.on('routeChangeComplete', (url) => {
   window.analytics.page(url)
 })
 

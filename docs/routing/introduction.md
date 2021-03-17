@@ -32,11 +32,13 @@ To match a dynamic segment you can use the bracket syntax. This allows you to ma
 - `pages/[username]/settings.js` → `/:username/settings` (`/foo/settings`)
 - `pages/post/[...all].js` → `/post/*` (`/post/2020/id/title`)
 
+> Check out the [Dynamic Routes documentation](/docs/routing/dynamic-routes.md) to learn more about how they work.
+
 ## Linking between pages
 
-The Next.js router allows you to do client-side route transitions between pages, similarly to a single-page application.
+The Next.js router allows you to do client-side route transitions between pages, similar to a single-page application.
 
-A special React component called `Link` is provided to do this client-side route transition.
+A React component called `Link` is provided to do this client-side route transition.
 
 ```jsx
 import Link from 'next/link'
@@ -54,27 +56,9 @@ function Home() {
           <a>About Us</a>
         </Link>
       </li>
-    </ul>
-  )
-}
-
-export default Home
-```
-
-When linking to a route with [dynamic path segments](/docs/routing/dynamic-routes.md) you have to provide `href` and `as` to make sure the router knows which JavaScript file to load.
-
-- `href` - The name of the page in the `pages` directory. For example `/blog/[slug]`.
-- `as` - The url that will be shown in the browser. For example `/blog/hello-world`.
-
-```jsx
-import Link from 'next/link'
-
-function Home() {
-  return (
-    <ul>
       <li>
-        <Link href="/blog/[slug]" as="/blog/hello-world">
-          <a>To Hello World Blog post</a>
+        <Link href="/blog/hello-world">
+          <a>Blog Post</a>
         </Link>
       </li>
     </ul>
@@ -84,12 +68,78 @@ function Home() {
 export default Home
 ```
 
+In the example above we have multiple links, each one maps a path (`href`) to a known page:
+
+- `/` → `pages/index.js`
+- `/about` → `pages/about.js`
+- `/blog/hello-world` → `pages/blog/[slug].js`
+
+Any `<Link />` in the viewport (initially or through scroll) will be prefetched by default (including the corresponding data) for pages using [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation). The corresponding data for [server-rendered](https://nextjs.org/docs/basic-features/data-fetching#getserversideprops-server-side-rendering) routes is _not_ prefetched.
+
+### Linking to dynamic paths
+
+You can also use interpolation to create the path, which comes in handy for [dynamic route segments](#dynamic-route-segments). For example, to show a list of posts which have been passed to the component as a prop:
+
+```jsx
+import Link from 'next/link'
+
+function Posts({ posts }) {
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>
+          <Link href={`/blog/${encodeURIComponent(post.slug)}`}>
+            <a>{post.title}</a>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+export default Posts
+```
+
+> [`encodeURIComponent`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/encodeURIComponent) is used in the example to keep the path utf-8 compatible.
+
+Alternatively, using a URL Object:
+
+```jsx
+import Link from 'next/link'
+
+function Posts({ posts }) {
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>
+          <Link
+            href={{
+              pathname: '/blog/[slug]',
+              query: { slug: post.slug },
+            }}
+          >
+            <a>{post.title}</a>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+export default Posts
+```
+
+Now, instead of using interpolation to create the path, we use a URL object in `href` where:
+
+- `pathname` is the name of the page in the `pages` directory. `/blog/[slug]` in this case.
+- `query` is an object with the dynamic segment. `slug` in this case.
+
 ## Injecting the router
 
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/dynamic-routing">Dynamic Routing</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/dynamic-routing">Dynamic Routing</a></li>
   </ul>
 </details>
 

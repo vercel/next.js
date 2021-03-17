@@ -1,9 +1,10 @@
-import React from 'react'
 import Header from './Header'
 
-export default ({ children }) => (
-  <div>
-    <Header />
-    {children}
-  </div>
-)
+export default function Page({ children }) {
+  return (
+    <div>
+      <Header />
+      {children}
+    </div>
+  )
+}

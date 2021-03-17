@@ -1,12 +1,12 @@
 import chalk from 'chalk'
 
-const prefixes = {
-  wait: chalk`[ {cyan wait} ] `,
-  error: chalk`[ {red error} ]`,
-  warn: chalk`[ {yellow warn} ] `,
-  ready: chalk`[ {green ready} ]`,
-  info: chalk`[ {cyan {dim info}} ] `,
-  event: chalk`[ {magenta event} ]`,
+export const prefixes = {
+  wait: chalk.cyan('wait') + '  -',
+  error: chalk.red('error') + ' -',
+  warn: chalk.yellow('warn') + '  -',
+  ready: chalk.green('ready') + ' -',
+  info: chalk.cyan('info') + '  -',
+  event: chalk.magenta('event') + ' -',
 }
 
 export function wait(...message: string[]) {
@@ -14,11 +14,11 @@ export function wait(...message: string[]) {
 }
 
 export function error(...message: string[]) {
-  console.log(prefixes.error, ...message)
+  console.error(prefixes.error, ...message)
 }
 
 export function warn(...message: string[]) {
-  console.log(prefixes.warn, ...message)
+  console.warn(prefixes.warn, ...message)
 }
 
 export function ready(...message: string[]) {

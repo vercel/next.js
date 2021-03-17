@@ -1,9 +1,9 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
-import { readFileSync, writeFileSync, renameSync, existsSync } from 'fs'
-import { join } from 'path'
-import { waitFor, check, getBrowserBodyText } from 'next-test-utils'
 import cheerio from 'cheerio'
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'fs'
+import { check, getBrowserBodyText, waitFor } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import { join } from 'path'
 
 export default (context, renderViaHTTP) => {
   describe('Hot Module Reloading', () => {
@@ -79,12 +79,13 @@ export default (context, renderViaHTTP) => {
           )
 
           // change the content
-          writeFileSync(aboutPagePath, editedContent, 'utf8')
-
-          await check(() => getBrowserBodyText(browser), /COOL page/)
-
-          // add the original content
-          writeFileSync(aboutPagePath, originalContent, 'utf8')
+          try {
+            writeFileSync(aboutPagePath, editedContent, 'utf8')
+            await check(() => getBrowserBodyText(browser), /COOL page/)
+          } finally {
+            // add the original content
+            writeFileSync(aboutPagePath, originalContent, 'utf8')
+          }
 
           await check(
             () => getBrowserBodyText(browser),
@@ -124,18 +125,16 @@ export default (context, renderViaHTTP) => {
             'COOL page'
           )
 
-          // Change the about.js page
-          writeFileSync(aboutPagePath, editedContent, 'utf8')
+          try {
+            // Change the about.js page
+            writeFileSync(aboutPagePath, editedContent, 'utf8')
 
-          // wait for 5 seconds
-          await waitFor(5000)
-
-          // Check whether the this page has reloaded or not.
-          const newText = await browser.elementByCss('p').text()
-          expect(newText).toBe('COUNT: 2')
-
-          // restore the about page content.
-          writeFileSync(aboutPagePath, originalContent, 'utf8')
+            // Check whether the this page has reloaded or not.
+            await check(() => browser.elementByCss('p').text(), /COUNT: 2/)
+          } finally {
+            // restore the about page content.
+            writeFileSync(aboutPagePath, originalContent, 'utf8')
+          }
         } finally {
           if (browser) {
             await browser.close()

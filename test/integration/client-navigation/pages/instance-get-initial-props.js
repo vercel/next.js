@@ -11,7 +11,7 @@ export default class InstanceInitialPropsPage extends React.Component {
 }
 
 function fetchData() {
-  const p = new Promise(resolve => {
+  const p = new Promise((resolve) => {
     setTimeout(() => resolve({ name: 'Anderson Leite' }), 10)
   })
   return p

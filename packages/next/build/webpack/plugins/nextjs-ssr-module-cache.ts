@@ -1,8 +1,6 @@
-import webpack from 'webpack'
-import { RawSource } from 'webpack-sources'
+import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { join, relative, dirname } from 'path'
-import { IS_BUNDLED_PAGE_REGEX } from '../../../next-server/lib/constants'
-
+import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-entrypoint'
 const SSR_MODULE_CACHE_FILENAME = 'ssr-module-cache.js'
 
 // By default webpack keeps initialized modules per-module.
@@ -26,7 +24,7 @@ export default class NextJsSsrImportPlugin {
     compiler.hooks.emit.tapAsync(
       'NextJsSSRModuleCache',
       (compilation, callback) => {
-        compilation.assets[SSR_MODULE_CACHE_FILENAME] = new RawSource(`
+        compilation.assets[SSR_MODULE_CACHE_FILENAME] = new sources.RawSource(`
       /* This cache is used by webpack for instantiated modules */
       module.exports = {}
       `)
@@ -44,7 +42,8 @@ export default class NextJsSsrImportPlugin {
                 // If the chunk is not part of the pages directory we have to keep the original behavior,
                 // otherwise webpack will error out when the file is used before the compilation finishes
                 // this is the case with mini-css-extract-plugin
-                if (!IS_BUNDLED_PAGE_REGEX.exec(chunk.name)) {
+
+                if (!getRouteFromEntrypoint(chunk.name)) {
                   return originalFn(source, chunk)
                 }
                 const pagePath = join(outputPath, dirname(chunk.name))

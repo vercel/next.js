@@ -1,0 +1,25 @@
+{
+  "name": "cms-contentful",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "setup": "node ./contentful/setup.js $CONTENTFUL_SPACE_ID $CONTENTFUL_MANAGEMENT_TOKEN"
+  },
+  "dependencies": {
+    "@contentful/rich-text-react-renderer": "14.1.1",
+    "classnames": "2.2.6",
+    "date-fns": "2.14.0",
+    "next": "latest",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
+  },
+  "devDependencies": {
+    "@fullhuman/postcss-purgecss": "^2.3.0",
+    "contentful-import": "^7.8.7",
+    "postcss-preset-env": "^6.7.0",
+    "tailwindcss": "^1.5.1"
+  },
+  "license": "MIT"
+}

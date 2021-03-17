@@ -1,8 +1,5 @@
-import React from 'react'
-
-// This import is only needed when checking authentication status directly from getInitialProps
+// This import is only included in the server build, because it's only used by getServerSideProps
 import auth0 from '../../lib/auth0'
-import { fetchUser } from '../../lib/user'
 import Layout from '../../components/layout'
 
 function Profile({ user }) {
@@ -20,41 +17,21 @@ function Profile({ user }) {
   )
 }
 
-Profile.getInitialProps = async ({ req, res }) => {
-  // On the server-side you can check authentication status directly
-  // However in general you might want to call API Routes to fetch data
-  // An example of directly checking authentication:
-  if (typeof window === 'undefined') {
-    const { user } = await auth0.getSession(req)
-    if (!user) {
-      res.writeHead(302, {
-        Location: '/api/login',
-      })
-      res.end()
-      return
-    }
-    return { user }
+export async function getServerSideProps({ req, res }) {
+  // Here you can check authentication status directly before rendering the page,
+  // however the page would be a serverless function, which is more expensive and
+  // slower than a static page with client side authentication
+  const session = await auth0.getSession(req)
+
+  if (!session || !session.user) {
+    res.writeHead(302, {
+      Location: '/api/login',
+    })
+    res.end()
+    return
   }
 
-  // To do fetches to API routes you can pass the cookie coming from the incoming request on to the fetch
-  // so that a request to the API is done on behalf of the user
-  // keep in mind that server-side fetches need a full URL, meaning that the full url has to be provided to the application
-  const cookie = req && req.headers.cookie
-  const user = await fetchUser(cookie)
-
-  // A redirect is needed to authenticate to Auth0
-  if (!user) {
-    if (typeof window === 'undefined') {
-      res.writeHead(302, {
-        Location: '/api/login',
-      })
-      return res.end()
-    }
-
-    window.location.href = '/api/login'
-  }
-
-  return { user }
+  return { props: { user: session.user } }
 }
 
 export default Profile

@@ -1,12 +1,17 @@
-import fetch from 'isomorphic-unfetch'
+import { useRouter } from 'next/router'
+import useSwr from 'swr'
 
-const User = ({ user }) => <div>{user.name}</div>
+const fetcher = (url) => fetch(url).then((res) => res.json())
 
-User.getInitialProps = async ({ query: { id } }, res) => {
-  const response = await fetch(`http://localhost:3000/api/user/${id}`)
-  const user = await response.json()
+export default function User() {
+  const router = useRouter()
+  const { data, error } = useSwr(
+    router.query.id ? `/api/user/${router.query.id}` : null,
+    fetcher
+  )
 
-  return { user }
+  if (error) return <div>Failed to load user</div>
+  if (!data) return <div>Loading...</div>
+
+  return <div>{data.name}</div>
 }
-
-export default User

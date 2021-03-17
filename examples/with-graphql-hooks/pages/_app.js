@@ -1,17 +1,13 @@
-import App from 'next/app'
-import React from 'react'
-import withGraphQLClient from '../lib/with-graphql-client'
+import '../styles.css'
 import { ClientContext } from 'graphql-hooks'
+import { useGraphQLClient } from '../lib/graphql-client'
 
-class MyApp extends App {
-  render() {
-    const { Component, pageProps, graphQLClient } = this.props
-    return (
-      <ClientContext.Provider value={graphQLClient}>
-        <Component {...pageProps} />
-      </ClientContext.Provider>
-    )
-  }
+export default function App({ Component, pageProps }) {
+  const graphQLClient = useGraphQLClient(pageProps.initialGraphQLState)
+
+  return (
+    <ClientContext.Provider value={graphQLClient}>
+      <Component {...pageProps} />
+    </ClientContext.Provider>
+  )
 }
-
-export default withGraphQLClient(MyApp)

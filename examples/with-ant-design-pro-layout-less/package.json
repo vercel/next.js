@@ -1,0 +1,30 @@
+{
+  "name": "with-ant-design-pro-layout-less",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@ant-design/icons": "4.1.0",
+    "@ant-design/pro-layout": "5.0.10",
+    "@zeit/next-less": "^1.0.1",
+    "antd": "^4.2.0",
+    "babel-plugin-import": "^1.13.0",
+    "esm": "3.2.25",
+    "less": "3.11.1",
+    "less-vars-to-js": "1.3.0",
+    "next": "latest",
+    "null-loader": "4.0.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "webpack-filter-warnings-plugin": "1.2.1"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "13.13.4",
+    "@types/react": "^16.9.36",
+    "typescript": "4.0"
+  }
+}

@@ -21,4 +21,4 @@ imported by you, in your application.
 ---
 
 If this is **first party code**, try
-[including said monorepo package in the compilation pipeline](https://github.com/zeit/next.js/tree/canary/examples/with-yarn-workspaces).
+[including said monorepo package in the compilation pipeline](https://github.com/vercel/next.js/tree/canary/examples/with-yarn-workspaces).

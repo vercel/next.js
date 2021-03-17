@@ -12,4 +12,4 @@ Use a different `distDir` or export to a different folder.
 
 ### Useful Links
 
-- [Static file serving docs](https://nextjs.org/docs#static-file-serving-eg-images)
+- [Static file serving docs](https://nextjs.org/docs/basic-features/static-file-serving)

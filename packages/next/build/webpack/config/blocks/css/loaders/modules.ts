@@ -1,12 +1,13 @@
-import postcss from 'postcss'
-import webpack from 'webpack'
+import { AcceptedPlugin } from 'postcss'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
+import { cssFileResolve } from './file-resolve'
 import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
 
 export function getCssModuleLoader(
   ctx: ConfigurationContext,
-  postCssPlugins: readonly postcss.AcceptedPlugin[],
+  postCssPlugins: readonly AcceptedPlugin[],
   preProcessors: readonly webpack.RuleSetUseItem[] = []
 ): webpack.RuleSetUseItem[] {
   const loaders: webpack.RuleSetUseItem[] = []
@@ -24,12 +25,20 @@ export function getCssModuleLoader(
 
   // Resolve CSS `@import`s and `url()`s
   loaders.push({
-    loader: require.resolve('css-loader'),
+    loader: require.resolve('next/dist/compiled/css-loader'),
     options: {
       importLoaders: 1 + preProcessors.length,
       sourceMap: true,
-      onlyLocals: ctx.isServer,
+      // Use CJS mode for backwards compatibility:
+      esModule: false,
+      url: cssFileResolve,
+      import: (url: string, _: any, resourcePath: string) =>
+        cssFileResolve(url, resourcePath),
       modules: {
+        // Do not transform class names (CJS mode backwards compatibility):
+        exportLocalsConvention: 'asIs',
+        // Server-side (Node.js) rendering support:
+        exportOnlyLocals: ctx.isServer,
         // Disallow global style exports so we can code-split CSS and
         // not worry about loading order.
         mode: 'pure',
@@ -45,10 +54,9 @@ export function getCssModuleLoader(
 
   // Compile CSS
   loaders.push({
-    loader: require.resolve('postcss-loader'),
+    loader: require.resolve('next/dist/compiled/postcss-loader'),
     options: {
-      ident: '__nextjs_postcss',
-      plugins: postCssPlugins,
+      postcssOptions: { plugins: postCssPlugins, config: false },
       sourceMap: true,
     },
   })

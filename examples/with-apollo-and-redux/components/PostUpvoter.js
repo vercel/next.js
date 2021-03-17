@@ -1,11 +1,9 @@
-import React from 'react'
-import { useMutation } from '@apollo/react-hooks'
-import gql from 'graphql-tag'
+import { gql, useMutation } from '@apollo/client'
 import PropTypes from 'prop-types'
 
-const UPDATE_POST_MUTATION = gql`
-  mutation updatePost($id: ID!, $votes: Int) {
-    updatePost(id: $id, votes: $votes) {
+const VOTE_POST = gql`
+  mutation votePost($id: String!) {
+    votePost(id: $id) {
       __typename
       id
       votes
@@ -14,13 +12,12 @@ const UPDATE_POST_MUTATION = gql`
 `
 
 const PostUpvoter = ({ votes, id }) => {
-  const [updatePost] = useMutation(UPDATE_POST_MUTATION)
+  const [votePost] = useMutation(VOTE_POST)
 
   const upvotePost = () => {
-    updatePost({
+    votePost({
       variables: {
         id,
-        votes: votes + 1,
       },
       optimisticResponse: {
         __typename: 'Mutation',

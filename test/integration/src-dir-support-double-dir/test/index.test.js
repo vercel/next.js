@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import fs from 'fs-extra'
 import {
@@ -11,7 +11,7 @@ import {
   nextStart,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
+jest.setTimeout(1000 * 60 * 5)
 
 let app
 let appPort
@@ -47,14 +47,7 @@ describe('Dynamic Routing', () => {
       const curConfig = await fs.readFile(nextConfig, 'utf8')
 
       if (curConfig.includes('target')) {
-        await fs.writeFile(
-          nextConfig,
-          `
-          module.exports = {
-            experimental: { modern: true }
-          }
-        `
-        )
+        await fs.remove(nextConfig)
       }
       await nextBuild(appDir)
 
@@ -66,18 +59,11 @@ describe('Dynamic Routing', () => {
     runTests()
   })
 
-  describe('SSR production mode', () => {
+  describe('serverless production mode', () => {
     beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
-        `
-        module.exports = {
-          target: 'serverless',
-          experimental: {
-            modern: true
-          }
-        }
-      `
+        `module.exports = { target: 'serverless' }`
       )
 
       await nextBuild(appDir)

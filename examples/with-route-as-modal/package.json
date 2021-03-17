@@ -1,0 +1,16 @@
+{
+  "name": "with-route-as-modal",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "16.13.1",
+    "react-dom": "16.13.1",
+    "react-modal": "3.11.2"
+  },
+  "license": "MIT"
+}

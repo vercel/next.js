@@ -11,7 +11,7 @@ const CIPHER_ALGORITHM = `aes-256-gcm`,
 
 const PBKDF2_ITERATIONS = 100_000 // https://support.1password.com/pbkdf2/
 
-export function encryptWithSecret(secret: Buffer, data: string) {
+export function encryptWithSecret(secret: Buffer, data: string): string {
   const iv = crypto.randomBytes(CIPHER_IV_LENGTH)
   const salt = crypto.randomBytes(CIPHER_SALT_LENGTH)
 
@@ -42,7 +42,10 @@ export function encryptWithSecret(secret: Buffer, data: string) {
   ]).toString(`hex`)
 }
 
-export function decryptWithSecret(secret: Buffer, encryptedData: string) {
+export function decryptWithSecret(
+  secret: Buffer,
+  encryptedData: string
+): string {
   const buffer = Buffer.from(encryptedData, `hex`)
 
   const salt = buffer.slice(0, CIPHER_SALT_LENGTH)

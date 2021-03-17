@@ -3,14 +3,14 @@ import { useRouter } from 'next/router'
 
 const invalidLink = 'mailto:idk@idk.com'
 
-export default () => {
+export default function Page() {
   const { query, ...router } = useRouter()
   const { method } = query
 
   return method ? (
     <a
       id="click-me"
-      onClick={e => {
+      onClick={(e) => {
         e.preventDefault()
         router[method](invalidLink)
       }}

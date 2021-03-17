@@ -1,5 +1,5 @@
-import React from 'react'
-import withSideEffect from './side-effect'
+import React, { useContext } from 'react'
+import Effect from './side-effect'
 import { AmpStateContext } from './amp-context'
 import { HeadManagerContext } from './head-manager-context'
 import { isInAmpMode } from './amp'
@@ -8,15 +8,10 @@ type WithInAmpMode = {
   inAmpMode?: boolean
 }
 
-export function defaultHead(inAmpMode = false) {
+export function defaultHead(inAmpMode = false): JSX.Element[] {
   const head = [<meta charSet="utf-8" />]
   if (!inAmpMode) {
-    head.push(
-      <meta
-        name="viewport"
-        content="width=device-width,minimum-scale=1,initial-scale=1"
-      />
-    )
+    head.push(<meta name="viewport" content="width=device-width" />)
   }
   return head
 }
@@ -66,12 +61,14 @@ function unique() {
   const metaCategories: { [metatype: string]: Set<string> } = {}
 
   return (h: React.ReactElement<any>) => {
-    let unique = true
+    let isUnique = true
+    let hasKey = false
 
     if (h.key && typeof h.key !== 'number' && h.key.indexOf('$') > 0) {
+      hasKey = true
       const key = h.key.slice(h.key.indexOf('$') + 1)
       if (keys.has(key)) {
-        unique = false
+        isUnique = false
       } else {
         keys.add(key)
       }
@@ -82,7 +79,7 @@ function unique() {
       case 'title':
       case 'base':
         if (tags.has(h.type)) {
-          unique = false
+          isUnique = false
         } else {
           tags.add(h.type)
         }
@@ -94,15 +91,15 @@ function unique() {
 
           if (metatype === 'charSet') {
             if (metaTypes.has(metatype)) {
-              unique = false
+              isUnique = false
             } else {
               metaTypes.add(metatype)
             }
           } else {
             const category = h.props[metatype]
             const categories = metaCategories[metatype] || new Set()
-            if (categories.has(category)) {
-              unique = false
+            if ((metatype !== 'name' || !hasKey) && categories.has(category)) {
+              isUnique = false
             } else {
               categories.add(category)
               metaCategories[metatype] = categories
@@ -112,13 +109,13 @@ function unique() {
         break
     }
 
-    return unique
+    return isUnique
   }
 }
 
 /**
  *
- * @param headElement List of multiple <Head> instances
+ * @param headElements List of multiple <Head> instances
  */
 function reduceComponents(
   headElements: Array<React.ReactElement<any>>,
@@ -141,36 +138,48 @@ function reduceComponents(
     .reverse()
     .map((c: React.ReactElement<any>, i: number) => {
       const key = c.key || i
+      if (
+        process.env.NODE_ENV !== 'development' &&
+        process.env.__NEXT_OPTIMIZE_FONTS &&
+        !props.inAmpMode
+      ) {
+        if (
+          c.type === 'link' &&
+          c.props['href'] &&
+          // TODO(prateekbh@): Replace this with const from `constants` when the tree shaking works.
+          ['https://fonts.googleapis.com/css'].some((url) =>
+            c.props['href'].startsWith(url)
+          )
+        ) {
+          const newProps = { ...(c.props || {}) }
+          newProps['data-href'] = newProps['href']
+          newProps['href'] = undefined
+          return React.cloneElement(c, newProps)
+        }
+      }
       return React.cloneElement(c, { key })
     })
 }
-
-const Effect = withSideEffect()
 
 /**
  * This component injects elements to `<head>` of your page.
  * To avoid duplicated `tags` in `<head>` you can use the `key` property, which will make sure every tag is only rendered once.
  */
 function Head({ children }: { children: React.ReactNode }) {
+  const ampState = useContext(AmpStateContext)
+  const headManager = useContext(HeadManagerContext)
   return (
-    <AmpStateContext.Consumer>
-      {ampState => (
-        <HeadManagerContext.Consumer>
-          {updateHead => (
-            <Effect
-              reduceComponentsToState={reduceComponents}
-              handleStateChange={updateHead}
-              inAmpMode={isInAmpMode(ampState)}
-            >
-              {children}
-            </Effect>
-          )}
-        </HeadManagerContext.Consumer>
-      )}
-    </AmpStateContext.Consumer>
+    <Effect
+      reduceComponentsToState={reduceComponents}
+      headManager={headManager}
+      inAmpMode={isInAmpMode(ampState)}
+    >
+      {children}
+    </Effect>
   )
 }
 
-Head.rewind = Effect.rewind
+// TODO: Remove in the next major release
+Head.rewind = () => {}
 
 export default Head

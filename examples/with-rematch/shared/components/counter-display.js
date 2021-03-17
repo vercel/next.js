@@ -1,33 +1,26 @@
-import React, { Component } from 'react'
-import { connect } from 'react-redux'
+import React from 'react'
+import { useSelector } from 'react-redux'
+import { useRematchDispatch } from '../utils'
 
-class CounterDisplay extends Component {
-  render() {
-    const { counter, incrementBy3 } = this.props
-
-    return (
-      <div>
-        <h3> Counter </h3>
-        <p>
-          This counter is connected via the <b>connect</b> function. Components
-          which are not pages can be connected using the connect function just
-          like redux components.
-        </p>
-        <p>Current value {counter} </p>
-        <p>
-          <button onClick={incrementBy3}>Increment by 3</button>
-        </p>
-      </div>
-    )
-  }
+const CounterDisplay = () => {
+  const counter = useSelector((state) => state.counter)
+  const { increment } = useRematchDispatch((dispatch) => ({
+    increment: dispatch.counter.increment,
+  }))
+  return (
+    <>
+      <h3> Counter </h3>
+      <p>
+        This counter is connected via the <b>useSelector</b> hook. Components
+        which are not pages can be connected using the useSelector hook just
+        like redux components.
+      </p>
+      <p>Current value {counter}</p>
+      <p>
+        <button onClick={() => increment(3)}>Increment by 3</button>
+      </p>
+    </>
+  )
 }
 
-const mapState = state => ({
-  counter: state.counter,
-})
-
-const mapDispatch = ({ counter: { increment, incrementAsync } }) => ({
-  incrementBy3: () => increment(3),
-})
-
-export default connect(mapState, mapDispatch)(CounterDisplay)
+export default CounterDisplay

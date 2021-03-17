@@ -1,13 +1,15 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
-import { join } from 'path'
 import {
   check,
   File,
-  waitFor,
-  getReactErrorOverlayContent,
   getBrowserBodyText,
+  getRedboxHeader,
+  getRedboxSource,
+  hasRedbox,
+  waitFor,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
+import { join } from 'path'
 
 export default (context, renderViaHTTP) => {
   describe('Error Recovery', () => {
@@ -46,40 +48,6 @@ export default (context, renderViaHTTP) => {
       }
     })
 
-    it('should have installed the react-overlay-editor editor handler', async () => {
-      let browser
-      const aboutPage = new File(
-        join(__dirname, '../', 'pages', 'hmr', 'about1.js')
-      )
-      try {
-        aboutPage.replace('</div>', 'div')
-        browser = await webdriver(context.appPort, '/hmr/about1')
-
-        // react-error-overlay uses the following inline style if an editorHandler is installed
-        expect(await getReactErrorOverlayContent(browser)).toMatch(
-          /style="cursor: pointer;"/
-        )
-
-        aboutPage.restore()
-
-        await check(() => getBrowserBodyText(browser), /This is the about page/)
-      } catch (err) {
-        aboutPage.restore()
-        if (browser) {
-          await check(
-            () => getBrowserBodyText(browser),
-            /This is the about page/
-          )
-        }
-
-        throw err
-      } finally {
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-
     it('should detect syntax errors and recover', async () => {
       let browser
       const aboutPage = new File(
@@ -91,7 +59,8 @@ export default (context, renderViaHTTP) => {
 
         aboutPage.replace('</div>', 'div')
 
-        expect(await getReactErrorOverlayContent(browser)).toMatch(
+        expect(await hasRedbox(browser)).toBe(true)
+        expect(await getRedboxSource(browser)).toMatch(
           /Unterminated JSX contents/
         )
 
@@ -125,9 +94,13 @@ export default (context, renderViaHTTP) => {
 
         aboutPage.replace('</div>', 'div')
 
+        // Ensure dev server has time to break:
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+
         browser = await webdriver(context.appPort, '/hmr/contact')
 
-        expect(await getReactErrorOverlayContent(browser)).toMatch(
+        expect(await hasRedbox(browser)).toBe(true)
+        expect(await getRedboxSource(browser)).toMatch(
           /Unterminated JSX contents/
         )
 
@@ -166,9 +139,8 @@ export default (context, renderViaHTTP) => {
 
         aboutPage.replace('export', 'aa=20;\nexport')
 
-        expect(await getReactErrorOverlayContent(browser)).toMatch(
-          /aa is not defined/
-        )
+        expect(await hasRedbox(browser)).toBe(true)
+        expect(await getRedboxHeader(browser)).toMatch(/aa is not defined/)
 
         aboutPage.restore()
 
@@ -195,9 +167,8 @@ export default (context, renderViaHTTP) => {
           'throw new Error("an-expected-error");\nreturn'
         )
 
-        expect(await getReactErrorOverlayContent(browser)).toMatch(
-          /an-expected-error/
-        )
+        expect(await hasRedbox(browser)).toBe(true)
+        expect(await getRedboxSource(browser)).toMatch(/an-expected-error/)
 
         aboutPage.restore()
 
@@ -233,10 +204,15 @@ export default (context, renderViaHTTP) => {
           'export default {};\nexport const fn ='
         )
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /The default export is not a React Component/
-        )
+        expect(await hasRedbox(browser)).toBe(true)
+        expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
+          " 1 of 1 unhandled error
+          Server Error
+
+          Error: The default export is not a React Component in page: \\"/hmr/about5\\"
+
+          This error happened while generating the page. Any console logs will be displayed in the terminal window."
+        `)
 
         aboutPage.restore()
 
@@ -273,9 +249,15 @@ export default (context, renderViaHTTP) => {
           'export default () => /search/;\nexport const fn ='
         )
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /Objects are not valid as a React child/
+        expect(await hasRedbox(browser)).toBe(true)
+        // TODO: Replace this when webpack 5 is the default
+        expect(
+          (await getRedboxHeader(browser)).replace(
+            '__WEBPACK_DEFAULT_EXPORT__',
+            'Unknown'
+          )
+        ).toMatch(
+          'Objects are not valid as a React child (found: /search/). If you meant to render a collection of children, use an array instead.'
         )
 
         aboutPage.restore()
@@ -313,15 +295,20 @@ export default (context, renderViaHTTP) => {
           'export default undefined;\nexport const fn ='
         )
 
-        await check(async () => {
-          const txt = await getBrowserBodyText(browser)
-          console.log(txt)
-          return txt
-        }, /The default export is not a React Component/)
+        expect(await hasRedbox(browser)).toBe(true)
+        expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
+          " 1 of 1 unhandled error
+          Server Error
+
+          Error: The default export is not a React Component in page: \\"/hmr/about7\\"
+
+          This error happened while generating the page. Any console logs will be displayed in the terminal window."
+        `)
 
         aboutPage.restore()
 
         await check(() => getBrowserBodyText(browser), /This is the about page/)
+        expect(await hasRedbox(browser, false)).toBe(false)
       } catch (err) {
         aboutPage.restore()
 
@@ -349,9 +336,13 @@ export default (context, renderViaHTTP) => {
         browser = await webdriver(context.appPort, '/hmr')
         await browser.elementByCss('#error-in-gip-link').click()
 
-        expect(await getReactErrorOverlayContent(browser)).toMatch(
-          /an-expected-error-in-gip/
-        )
+        expect(await hasRedbox(browser)).toBe(true)
+        expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
+          " 1 of 1 unhandled error
+          Unhandled Runtime Error
+
+          Error: an-expected-error-in-gip"
+        `)
 
         erroredPage.replace('throw error', 'return {}')
 
@@ -366,7 +357,7 @@ export default (context, renderViaHTTP) => {
             await waitFor(2000)
             throw new Error('waiting')
           }
-          return getReactErrorOverlayContent(browser)
+          return getRedboxSource(browser)
         }, /an-expected-error-in-gip/)
       } catch (err) {
         erroredPage.restore()
@@ -387,9 +378,15 @@ export default (context, renderViaHTTP) => {
       try {
         browser = await webdriver(context.appPort, '/hmr/error-in-gip')
 
-        expect(await getReactErrorOverlayContent(browser)).toMatch(
-          /an-expected-error-in-gip/
-        )
+        expect(await hasRedbox(browser)).toBe(true)
+        expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
+          " 1 of 1 unhandled error
+          Server Error
+
+          Error: an-expected-error-in-gip
+
+          This error happened while generating the page. Any console logs will be displayed in the terminal window."
+        `)
 
         const erroredPage = new File(
           join(__dirname, '../', 'pages', 'hmr', 'error-in-gip.js')
@@ -407,7 +404,7 @@ export default (context, renderViaHTTP) => {
             await waitFor(2000)
             throw new Error('waiting')
           }
-          return getReactErrorOverlayContent(browser)
+          return getRedboxSource(browser)
         }, /an-expected-error-in-gip/)
       } catch (err) {
         erroredPage.restore()

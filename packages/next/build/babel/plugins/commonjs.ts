@@ -1,6 +1,5 @@
-import { NodePath, PluginObj } from '@babel/core'
-import commonjsPlugin from '@babel/plugin-transform-modules-commonjs'
-import { Program } from '@babel/types'
+import { NodePath, PluginObj, types } from 'next/dist/compiled/babel/core'
+import commonjsPlugin from 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 
 // Rewrite imports using next/<something> to next-server/<something>
 export default function NextToNextServer(...args: any): PluginObj {
@@ -8,12 +7,12 @@ export default function NextToNextServer(...args: any): PluginObj {
   return {
     visitor: {
       Program: {
-        exit(path: NodePath<Program>, state) {
+        exit(path: NodePath<types.Program>, state) {
           let foundModuleExports = false
           path.traverse({
-            MemberExpression(path: any) {
-              if (path.node.object.name !== 'module') return
-              if (path.node.property.name !== 'exports') return
+            MemberExpression(expressionPath: any) {
+              if (expressionPath.node.object.name !== 'module') return
+              if (expressionPath.node.property.name !== 'exports') return
               foundModuleExports = true
             },
           })

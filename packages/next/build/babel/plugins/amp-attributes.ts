@@ -1,10 +1,9 @@
-import { NodePath, PluginObj } from '@babel/core'
-import { JSXOpeningElement } from '@babel/types'
+import { NodePath, PluginObj, types } from 'next/dist/compiled/babel/core'
 
-export default function AmpAttributePatcher(...args: any): PluginObj {
+export default function AmpAttributePatcher(): PluginObj {
   return {
     visitor: {
-      JSXOpeningElement(path: NodePath<JSXOpeningElement>) {
+      JSXOpeningElement(path: NodePath<types.JSXOpeningElement>) {
         const openingElement = path.node
 
         const { name, attributes } = openingElement

@@ -7,8 +7,8 @@ description: Add custom elements to the `head` of your page with the built-in He
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/head-elements">Head Elements</a></li>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/layout-component">Layout Component</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/head-elements">Head Elements</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/layout-component">Layout Component</a></li>
   </ul>
 </details>
 
@@ -42,18 +42,10 @@ function IndexPage() {
     <div>
       <Head>
         <title>My page title</title>
-        <meta
-          name="viewport"
-          content="initial-scale=1.0, width=device-width"
-          key="viewport"
-        />
+        <meta property="og:title" content="My page title" key="title" />
       </Head>
       <Head>
-        <meta
-          name="viewport"
-          content="initial-scale=1.2, width=device-width"
-          key="viewport"
-        />
+        <meta property="og:title" content="My new title" key="title" />
       </Head>
       <p>Hello world!</p>
     </div>
@@ -63,8 +55,9 @@ function IndexPage() {
 export default IndexPage
 ```
 
-In this case only the second `<meta name="viewport" />` is rendered.
+In this case only the second `<meta property="og:title" />` is rendered. `meta` tags with duplicate `name` attributes are automatically handled.
 
 > The contents of `head` get cleared upon unmounting the component, so make sure each page completely defines what it needs in `head`, without making assumptions about what other pages added.
 
-> `title` and `meta` elements need to be contained as **direct** children of the `Head` element, or wrapped into maximum one level of `<React.Fragment>`, otherwise the meta tags won't be correctly picked up on client-side navigations.
+`title`, `meta` or any other elements (e.g. `script`) need to be contained as **direct** children of the `Head` element,
+or wrapped into maximum one level of `<React.Fragment>` or arrays—otherwise the tags won't be correctly picked up on client-side navigations.

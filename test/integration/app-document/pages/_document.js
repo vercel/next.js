@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 import Document, { Html, Head, Main, NextScript } from 'next/document'
 
-const cspHashOf = text => {
+const cspHashOf = (text) => {
   const hash = crypto.createHash('sha256')
   hash.update(text)
   return `'sha256-${hash.digest('base64')}'`
@@ -11,13 +11,13 @@ export default class MyDocument extends Document {
   static async getInitialProps(ctx) {
     let options
 
-    const enhanceComponent = Component => props => (
+    const enhanceComponent = (Component) => (props) => (
       <div>
         <span id="render-page-enhance-component">RENDERED</span>
         <Component {...props} />
       </div>
     )
-    const enhanceApp = Component => props => (
+    const enhanceApp = (Component) => (props) => (
       <div>
         <span id="render-page-enhance-app">RENDERED</span>
         <Component {...props} />

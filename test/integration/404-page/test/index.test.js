@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import fs from 'fs-extra'
 import { join } from 'path'
 import {
@@ -11,17 +11,17 @@ import {
   renderViaHTTP,
   fetchViaHTTP,
   waitFor,
+  getPageFileFromPagesManifest,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 2
+jest.setTimeout(1000 * 60 * 2)
 
 const appDir = join(__dirname, '../')
 const pages404 = join(appDir, 'pages/404.js')
-const appPage = join(appDir, 'pages/_app.js')
 const nextConfig = join(appDir, 'next.config.js')
+const gip404Err = /`pages\/404` can not have getInitialProps\/getServerSideProps/
 
 let nextConfigContent
-let buildId
 let appPort
 let app
 
@@ -49,26 +49,16 @@ const runTests = (mode = 'server') => {
   })
 
   if (mode !== 'dev') {
-    it('should output _errors/404.html during build', async () => {
-      expect(
-        await fs.exists(
-          join(
-            appDir,
-            '.next',
-            mode === 'serverless'
-              ? 'serverless/pages'
-              : `server/static/${buildId}/pages`,
-            '_errors/404.html'
-          )
-        )
-      ).toBe(true)
+    it('should output 404.html during build', async () => {
+      const page = getPageFileFromPagesManifest(appDir, '/404')
+      expect(page.endsWith('.html')).toBe(true)
     })
 
-    it('should add _errors/404 to pages-manifest correctly', async () => {
+    it('should add /404 to pages-manifest correctly', async () => {
       const manifest = await fs.readJSON(
         join(appDir, '.next', mode, 'pages-manifest.json')
       )
-      expect('/_errors/404' in manifest).toBe(true)
+      expect('/404' in manifest).toBe(true)
     })
   }
 }
@@ -78,7 +68,6 @@ describe('404 Page Support', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
-      buildId = 'development'
     })
     afterAll(() => killApp(app))
 
@@ -90,7 +79,6 @@ describe('404 Page Support', () => {
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(() => killApp(app))
 
@@ -104,17 +92,13 @@ describe('404 Page Support', () => {
         nextConfig,
         `
         module.exports = {
-          target: 'serverless',
-          experimental: {
-            pages404: true
-          }
+          target: 'serverless'
         }
       `
       )
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     })
     afterAll(async () => {
       await fs.writeFile(nextConfig, nextConfigContent)
@@ -151,9 +135,7 @@ describe('404 Page Support', () => {
     await fs.remove(pages404)
     await fs.move(`${pages404}.bak`, pages404)
 
-    expect(stderr).toContain(
-      `\`pages/404\` can not have getInitialProps/getServerProps, https://err.sh/zeit/next.js/404-get-initial-props`
-    )
+    expect(stderr).toMatch(gip404Err)
     expect(code).toBe(1)
   })
 
@@ -183,51 +165,100 @@ describe('404 Page Support', () => {
     await fs.remove(pages404)
     await fs.move(`${pages404}.bak`, pages404)
 
-    const error = `\`pages/404\` can not have getInitialProps/getServerProps, https://err.sh/zeit/next.js/404-get-initial-props`
-
-    expect(stderr).toContain(error)
+    expect(stderr).toMatch(gip404Err)
   })
 
-  describe('_app with getInitialProps', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        appPage,
-        `
-        import NextApp from 'next/app'
-        const App = ({ Component, pageProps }) => <Component {...pageProps} />
-        App.getInitialProps = NextApp.getInitialProps
-        export default App
+  it('does not show error with getStaticProps in pages/404 build', async () => {
+    await fs.move(pages404, `${pages404}.bak`)
+    await fs.writeFile(
+      pages404,
       `
-      )
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(async () => {
-      await fs.remove(appPage)
-      await killApp(app)
-    })
+      const page = () => 'custom 404 page'
+      export const getStaticProps = () => ({ props: { a: 'b' } })
+      export default page
+    `
+    )
+    const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+    await fs.remove(pages404)
+    await fs.move(`${pages404}.bak`, pages404)
 
-    it('should not output static 404 if _app has getInitialProps', async () => {
-      expect(
-        await fs.exists(
-          join(appDir, '.next/server/static', buildId, 'pages/_errors/404.html')
-        )
-      ).toBe(false)
-    })
+    expect(stderr).not.toMatch(gip404Err)
+    expect(code).toBe(0)
+  })
 
-    it('specify to use the 404 page still in the routes-manifest', async () => {
-      const manifest = await fs.readJSON(
-        join(appDir, '.next/routes-manifest.json')
-      )
-      expect(manifest.pages404).toBe(true)
-    })
+  it('does not show error with getStaticProps in pages/404 dev', async () => {
+    await fs.move(pages404, `${pages404}.bak`)
+    await fs.writeFile(
+      pages404,
+      `
+      const page = () => 'custom 404 page'
+      export const getStaticProps = () => ({ props: { a: 'b' } })
+      export default page
+    `
+    )
 
-    it('should still use 404 page', async () => {
-      const res = await fetchViaHTTP(appPort, '/abc')
-      expect(res.status).toBe(404)
-      expect(await res.text()).toContain('custom 404 page')
+    let stderr = ''
+    appPort = await findPort()
+    app = await launchApp(appDir, appPort, {
+      onStderr(msg) {
+        stderr += msg || ''
+      },
     })
+    await renderViaHTTP(appPort, '/abc')
+    await waitFor(1000)
+
+    await killApp(app)
+
+    await fs.remove(pages404)
+    await fs.move(`${pages404}.bak`, pages404)
+
+    expect(stderr).not.toMatch(gip404Err)
+  })
+
+  it('shows error with getServerSideProps in pages/404 build', async () => {
+    await fs.move(pages404, `${pages404}.bak`)
+    await fs.writeFile(
+      pages404,
+      `
+      const page = () => 'custom 404 page'
+      export const getServerSideProps = () => ({ props: { a: 'b' } })
+      export default page
+    `
+    )
+    const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+    await fs.remove(pages404)
+    await fs.move(`${pages404}.bak`, pages404)
+
+    expect(stderr).toMatch(gip404Err)
+    expect(code).toBe(1)
+  })
+
+  it('shows error with getServerSideProps in pages/404 dev', async () => {
+    await fs.move(pages404, `${pages404}.bak`)
+    await fs.writeFile(
+      pages404,
+      `
+      const page = () => 'custom 404 page'
+      export const getServerSideProps = () => ({ props: { a: 'b' } })
+      export default page
+    `
+    )
+
+    let stderr = ''
+    appPort = await findPort()
+    app = await launchApp(appDir, appPort, {
+      onStderr(msg) {
+        stderr += msg || ''
+      },
+    })
+    await renderViaHTTP(appPort, '/abc')
+    await waitFor(1000)
+
+    await killApp(app)
+
+    await fs.remove(pages404)
+    await fs.move(`${pages404}.bak`, pages404)
+
+    expect(stderr).toMatch(gip404Err)
   })
 })

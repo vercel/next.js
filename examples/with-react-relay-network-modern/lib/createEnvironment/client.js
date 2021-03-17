@@ -12,7 +12,7 @@ const store = new Store(source)
 let storeEnvironment = null
 
 export default {
-  createEnvironment: relayData => {
+  createEnvironment: (relayData) => {
     if (storeEnvironment) return storeEnvironment
 
     storeEnvironment = new Environment({
@@ -26,7 +26,7 @@ export default {
           lookup: false,
         }),
         urlMiddleware({
-          url: req => process.env.RELAY_ENDPOINT,
+          url: (req) => process.env.NEXT_PUBLIC_RELAY_ENDPOINT,
         }),
       ]),
     })

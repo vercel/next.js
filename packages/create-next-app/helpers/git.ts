@@ -1,8 +1,9 @@
+/* eslint-disable import/no-extraneous-dependencies */
 import { execSync } from 'child_process'
 import path from 'path'
 import rimraf from 'rimraf'
 
-function isInGitRepository() {
+function isInGitRepository(): boolean {
   try {
     execSync('git rev-parse --is-inside-work-tree', { stdio: 'ignore' })
     return true
@@ -10,7 +11,7 @@ function isInGitRepository() {
   return false
 }
 
-function isInMercurialRepository() {
+function isInMercurialRepository(): boolean {
   try {
     execSync('hg --cwd . root', { stdio: 'ignore' })
     return true
@@ -18,7 +19,7 @@ function isInMercurialRepository() {
   return false
 }
 
-export function tryGitInit(root: string) {
+export function tryGitInit(root: string): boolean {
   let didInit = false
   try {
     execSync('git --version', { stdio: 'ignore' })
@@ -28,6 +29,8 @@ export function tryGitInit(root: string) {
 
     execSync('git init', { stdio: 'ignore' })
     didInit = true
+
+    execSync('git checkout -b main', { stdio: 'ignore' })
 
     execSync('git add -A', { stdio: 'ignore' })
     execSync('git commit -m "Initial commit from Create Next App"', {

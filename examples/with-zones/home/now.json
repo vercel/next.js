@@ -1,8 +1,0 @@
-{
-  "rewrites": [
-    {
-      "source": "/blog(.*)",
-      "destination": "https://with-zones-blog.now.sh$1"
-    }
-  ]
-}

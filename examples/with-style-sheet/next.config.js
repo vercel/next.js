@@ -3,9 +3,8 @@ const { RawSource } = require('webpack-sources')
 
 class StyleSheetPlugin {
   apply(compiler) {
-    compiler.plugin('emit', (compilation, cb) => {
+    compiler.hooks.emit.tap('StyleSheetPlugin', (compilation) => {
       compilation.assets['static/bundle.css'] = new RawSource(getCss())
-      cb()
     })
   }
 }

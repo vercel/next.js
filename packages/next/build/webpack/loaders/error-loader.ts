@@ -1,9 +1,9 @@
 import chalk from 'chalk'
-import loaderUtils from 'loader-utils'
+import loaderUtils from 'next/dist/compiled/loader-utils'
 import path from 'path'
-import { loader } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 
-const ErrorLoader: loader.Loader = function() {
+const ErrorLoader: webpack.loader.Loader = function () {
   const options = loaderUtils.getOptions(this) || {}
 
   const { reason = 'An unknown error has occurred' } = options

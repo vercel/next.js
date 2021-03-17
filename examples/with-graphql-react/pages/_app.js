@@ -1,4 +1,3 @@
-import 'cross-fetch/polyfill'
 import { GraphQLProvider } from 'graphql-react'
 import { withGraphQLApp } from 'next-graphql-react'
 

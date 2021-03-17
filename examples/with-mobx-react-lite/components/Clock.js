@@ -1,7 +1,13 @@
-function Clock(props) {
+import { observer } from 'mobx-react-lite'
+import { useStore } from './StoreProvider'
+
+const Clock = observer(function Clock(props) {
+  // use store from the store context
+  const store = useStore()
+
   return (
-    <div className={props.light ? 'light' : ''}>
-      {format(new Date(props.lastUpdate))}
+    <div className={store.light ? 'light' : ''}>
+      {store.timeString}
       <style jsx>{`
         div {
           padding: 15px;
@@ -17,11 +23,6 @@ function Clock(props) {
       `}</style>
     </div>
   )
-}
-
-const format = t =>
-  `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
-
-const pad = n => (n < 10 ? `0${n}` : n)
+})
 
 export default Clock

@@ -1,7 +1,6 @@
 {
   "name": "with-static-export",
   "dependencies": {
-    "isomorphic-unfetch": "^3.0.0",
     "next": "latest",
     "react": "^16.11.0",
     "react-dom": "^16.11.0",
@@ -14,5 +13,6 @@
     "export": "next export",
     "prestart": "npm run export",
     "start": "serve out"
-  }
+  },
+  "license": "MIT"
 }

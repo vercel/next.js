@@ -1,16 +1,16 @@
-import curry from 'lodash.curry'
-import { Configuration, Plugin, RuleSetRule } from 'webpack'
+import curry from 'next/dist/compiled/lodash.curry'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 
 export const loader = curry(function loader(
-  rule: RuleSetRule,
-  config: Configuration
+  rule: webpack.RuleSetRule,
+  config: webpack.Configuration
 ) {
   if (!config.module) {
     config.module = { rules: [] }
   }
 
   if (rule.oneOf) {
-    const existing = config.module.rules.find(rule => rule.oneOf)
+    const existing = config.module.rules.find((arrayRule) => arrayRule.oneOf)
     if (existing) {
       existing.oneOf!.push(...rule.oneOf)
       return config
@@ -21,16 +21,16 @@ export const loader = curry(function loader(
   return config
 })
 
-export const unshiftLoader = curry(function loader(
-  rule: RuleSetRule,
-  config: Configuration
+export const unshiftLoader = curry(function unshiftLoader(
+  rule: webpack.RuleSetRule,
+  config: webpack.Configuration
 ) {
   if (!config.module) {
     config.module = { rules: [] }
   }
 
   if (rule.oneOf) {
-    const existing = config.module.rules.find(rule => rule.oneOf)
+    const existing = config.module.rules.find((arrayRule) => arrayRule.oneOf)
     if (existing) {
       existing.oneOf!.unshift(...rule.oneOf)
       return config
@@ -41,7 +41,10 @@ export const unshiftLoader = curry(function loader(
   return config
 })
 
-export const plugin = curry(function plugin(p: Plugin, config: Configuration) {
+export const plugin = curry(function plugin(
+  p: webpack.Plugin,
+  config: webpack.Configuration
+) {
   if (!config.plugins) {
     config.plugins = []
   }

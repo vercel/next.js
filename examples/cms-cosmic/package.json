@@ -1,0 +1,28 @@
+{
+  "name": "cms-cosmic",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "classnames": "2.2.6",
+    "cosmicjs": "^3.2.43",
+    "date-fns": "2.14.0",
+    "lazysizes": "^5.2.1-rc2",
+    "next": "latest",
+    "react": "^16.13.1",
+    "react-datocms": "1.2.4",
+    "react-dom": "^16.13.1",
+    "react-imgix": "^9.0.2",
+    "remark": "12.0.0",
+    "remark-html": "11.0.2"
+  },
+  "devDependencies": {
+    "postcss-flexbugs-fixes": "4.2.1",
+    "postcss-preset-env": "^6.7.0",
+    "tailwindcss": "^1.4.6"
+  },
+  "license": "MIT"
+}

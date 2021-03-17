@@ -1,13 +1,18 @@
 {
   "name": "@next/plugin-google-analytics",
-  "version": "9.2.2-canary.21",
+  "version": "10.0.10-canary.2",
+  "repository": {
+    "url": "vercel/next.js",
+    "directory": "packages/next-plugin-google-analytics"
+  },
   "nextjs": {
     "name": "Google Analytics",
     "required-env": [
-      "GA_TRACKING_ID"
+      "NEXT_PUBLIC_GA_TRACKING_ID"
     ]
   },
   "peerDependencies": {
-    "next": "*"
+    "next": "*",
+    "react": "*"
   }
 }

@@ -1,7 +1,7 @@
 const path = require('path')
 
 exports['default'] = {
-  general: api => {
+  general: (api) => {
     const packageJSON = require(api.projectRoot + path.sep + 'package.json')
 
     return {
@@ -24,7 +24,7 @@ exports['default'] = {
       simultaneousActions: 5,
       // allow connections to be created without remoteIp and remotePort (they will be set to 0)
       enforceConnectionProperties: true,
-      // disables the whitelisting of client params
+      // disables the access list of client params
       disableParamScrubbing: false,
       // params you would like hidden from any logs
       filteredParams: [],
@@ -65,7 +65,7 @@ exports['default'] = {
 }
 
 exports.test = {
-  general: api => {
+  general: (api) => {
     return {
       id: 'test-server-' + process.pid,
       serverToken: 'serverToken-' + process.pid,
@@ -86,7 +86,7 @@ exports.test = {
 }
 
 exports.production = {
-  general: api => {
+  general: (api) => {
     return {
       fileRequestLogLevel: 'debug',
       developmentMode: false,

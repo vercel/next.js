@@ -6,25 +6,29 @@ import exportApp from '../export'
 import { printAndExit } from '../server/lib/utils'
 import { cliCommand } from '../bin/next'
 
-const nextExport: cliCommand = argv => {
-  const args = arg(
-    {
-      // Types
-      '--help': Boolean,
-      '--silent': Boolean,
-      '--outdir': String,
-      '--threads': Number,
+const nextExport: cliCommand = (argv) => {
+  const validArgs: arg.Spec = {
+    // Types
+    '--help': Boolean,
+    '--silent': Boolean,
+    '--outdir': String,
+    '--threads': Number,
 
-      // Aliases
-      '-h': '--help',
-      '-s': '--silent',
-      '-o': '--outdir',
-    },
-    { argv }
-  )
-
+    // Aliases
+    '-h': '--help',
+    '-s': '--silent',
+    '-o': '--outdir',
+  }
+  let args: arg.Result<arg.Spec>
+  try {
+    args = arg(validArgs, { argv })
+  } catch (error) {
+    if (error.code === 'ARG_UNKNOWN_OPTION') {
+      return printAndExit(error.message, 1)
+    }
+    throw error
+  }
   if (args['--help']) {
-    // tslint:disable-next-line
     console.log(`
       Description
         Exports the application for production deployment
@@ -32,8 +36,8 @@ const nextExport: cliCommand = argv => {
       Usage
         $ next export [options] <dir>
 
-      <dir> represents where the compiled dist folder should go.
-      If no directory is provided, the 'out' folder will be created in the current directory.
+      <dir> represents the directory of the Next.js application.
+      If no directory is provided, the current directory will be used.
 
       Options
         -h - list this help
@@ -58,9 +62,9 @@ const nextExport: cliCommand = argv => {
 
   exportApp(dir, options)
     .then(() => {
-      printAndExit('Export successful', 0)
+      printAndExit(`Export successful. Files written to ${options.outdir}`, 0)
     })
-    .catch(err => {
+    .catch((err) => {
       printAndExit(err)
     })
 }

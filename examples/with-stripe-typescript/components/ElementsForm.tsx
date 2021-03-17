@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 
 import CustomDonationInput from '../components/CustomDonationInput'
+import StripeTestCards from '../components/StripeTestCards'
 import PrintObject from '../components/PrintObject'
 
 import { fetchPostJSON } from '../utils/api-helpers'
@@ -33,7 +34,7 @@ const CARD_OPTIONS = {
   },
 }
 
-const ElementsForm: React.FunctionComponent = () => {
+const ElementsForm = () => {
   const [input, setInput] = useState({
     customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
     cardholderName: '',
@@ -69,13 +70,13 @@ const ElementsForm: React.FunctionComponent = () => {
     }
   }
 
-  const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = e =>
+  const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = (e) =>
     setInput({
       ...input,
       [e.currentTarget.name]: e.currentTarget.value,
     })
 
-  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async e => {
+  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault()
     // Abort if form isn't valid
     if (!e.currentTarget.reportValidity()) return
@@ -130,6 +131,7 @@ const ElementsForm: React.FunctionComponent = () => {
           currency={config.CURRENCY}
           onChange={handleInputChange}
         />
+        <StripeTestCards />
         <fieldset className="elements-style">
           <legend>Your payment details:</legend>
           <input
@@ -143,7 +145,7 @@ const ElementsForm: React.FunctionComponent = () => {
           <div className="FormRow elements-style">
             <CardElement
               options={CARD_OPTIONS}
-              onChange={e => {
+              onChange={(e) => {
                 if (e.error) {
                   setPayment({ status: 'error' })
                   setErrorMessage(e.error.message ?? 'An unknown error occured')

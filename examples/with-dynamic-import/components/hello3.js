@@ -1,1 +1,3 @@
-export default () => <p>Hello World 3 (imported dynamiclly) </p>
+export default function Hello3() {
+  return <p>Hello World 3 (imported dynamically) </p>
+}

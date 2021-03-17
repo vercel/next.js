@@ -6,4 +6,5 @@ module.exports = {
   amp: {
     canonicalBase: 'http://localhost:1234',
   },
+  // edit here
 }

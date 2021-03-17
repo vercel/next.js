@@ -9,6 +9,11 @@ jobs:
     name: PR Stats
     runs-on: ubuntu-latest
     steps:
-      - uses: zeit/next-stats-action@master
-        env:
-          COMMENT_ENDPOINT: https://next-stats.jjsweb.site/api/comment
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 25
+
+      - run: echo ::set-output name=DOCS_CHANGE::$(node skip-docs-change.js echo 'not-docs-only-change')
+        id: docs-change
+      - uses: ./.github/actions/next-stats-action
+        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}

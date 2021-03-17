@@ -17,22 +17,20 @@ export default {
         store,
         network: new RelayNetworkLayer([
           urlMiddleware({
-            url: req => process.env.RELAY_ENDPOINT,
+            url: (req) => process.env.NEXT_PUBLIC_RELAY_ENDPOINT,
           }),
           relaySSR.getMiddleware(),
         ]),
       }),
     }
   },
-  createEnvironment: (relayData, key) => {
+  createEnvironment: (relayData) => {
     const source = new RecordSource()
     const store = new Store(source)
 
     return new Environment({
       store,
-      network: Network.create(
-        () => relayData.find(([dataKey]) => dataKey === key)[1]
-      ),
+      network: Network.create(() => relayData?.[0][1] || Promise.resolve()),
     })
   },
 }

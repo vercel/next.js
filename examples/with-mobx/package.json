@@ -7,13 +7,13 @@
     "start": "next start"
   },
   "dependencies": {
-    "mobx": "^2.7.0",
-    "mobx-react": "^4.0.4",
+    "mobx": "^6.0.1",
+    "mobx-react": "^7.0.0",
     "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1"
   },
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@babel/plugin-proposal-class-properties": "^7.1.0",
     "@babel/plugin-proposal-decorators": "^7.1.0"

@@ -1,5 +1,4 @@
 const { createServer } = require('http')
-const { parse } = require('url')
 const next = require('next')
 
 const port = parseInt(process.env.PORT, 10) || 3000
@@ -9,7 +8,7 @@ const handle = app.getRequestHandler()
 
 app.prepare().then(() => {
   createServer((req, res) => {
-    const parsedUrl = parse(req.url, true)
+    const parsedUrl = new URL(req.url, 'http://w.w')
     const { pathname, query } = parsedUrl
 
     if (pathname === '/a') {
@@ -19,7 +18,7 @@ app.prepare().then(() => {
     } else {
       handle(req, res, parsedUrl)
     }
-  }).listen(port, err => {
+  }).listen(port, (err) => {
     if (err) throw err
     console.log(`> Ready on http://localhost:${port}`)
   })

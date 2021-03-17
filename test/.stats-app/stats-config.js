@@ -2,28 +2,17 @@ const clientGlobs = [
   {
     name: 'Client Bundles (main, webpack, commons)',
     globs: [
-      '.next/static/runtime/+(main|webpack)-!(*.module.js)',
-      '.next/static/chunks/!(*.module.js)',
-    ],
-  },
-  {
-    name: 'Client Bundles (main, webpack, commons) Modern',
-    globs: [
-      '.next/static/runtime/+(main|webpack)-*.module.js',
-      '.next/static/chunks/*.module.js',
+      '.next/static/runtime/+(main|webpack)-*',
+      '.next/static/chunks/!(polyfills*)',
     ],
   },
   {
     name: 'Legacy Client Bundles (polyfills)',
-    globs: ['.next/static/runtime/+(polyfills)-!(*.module.js)'],
+    globs: ['.next/static/chunks/+(polyfills)-*'],
   },
   {
     name: 'Client Pages',
-    globs: ['.next/static/*/pages/**/!(*.module.js)'],
-  },
-  {
-    name: 'Client Pages Modern',
-    globs: ['.next/static/*/pages/**/*.module.js'],
+    globs: ['.next/static/*/pages/**/*'],
   },
   {
     name: 'Client Build Manifests',
@@ -41,50 +30,41 @@ const renames = [
     dest: '.next/static/BUILD_ID/pages',
   },
   {
-    srcGlob: '.next/static/runtime/main-!(*.module.js)',
+    srcGlob: '.next/static/runtime/main-*',
     dest: '.next/static/runtime/main-HASH.js',
   },
   {
-    srcGlob: '.next/static/runtime/webpack-!(*.module.js)',
+    srcGlob: '.next/static/chunks/main-*',
+    dest: '.next/static/chunks/main-HASH.js',
+  },
+  {
+    srcGlob: '.next/static/runtime/webpack-*',
     dest: '.next/static/runtime/webpack-HASH.js',
   },
   {
-    srcGlob: '.next/static/runtime/polyfills-!(*.module.js)',
+    srcGlob: '.next/static/chunks/webpack-*',
+    dest: '.next/static/chunks/webpack-HASH.js',
+  },
+  {
+    srcGlob: '.next/static/runtime/polyfills-*',
     dest: '.next/static/runtime/polyfills-HASH.js',
   },
   {
-    srcGlob: '.next/static/chunks/commons!(*.module.js)',
+    srcGlob: '.next/static/chunks/polyfills-*',
+    dest: '.next/static/chunks/polyfills-HASH.js',
+  },
+  {
+    srcGlob: '.next/static/chunks/commons*',
     dest: '.next/static/chunks/commons.HASH.js',
   },
   {
-    srcGlob: '.next/static/chunks/framework!(*.module.js)',
+    srcGlob: '.next/static/chunks/framework*',
     dest: '.next/static/chunks/framework.HASH.js',
-  },
-  // modern
-  {
-    srcGlob: '.next/static/runtime/main-*.module.js',
-    dest: '.next/static/runtime/main-HASH.module.js',
-  },
-  {
-    srcGlob: '.next/static/runtime/webpack-*.module.js',
-    dest: '.next/static/runtime/webpack-HASH.module.js',
-  },
-  {
-    srcGlob: '.next/static/chunks/commons*.module.js',
-    dest: '.next/static/chunks/commons.HASH.module.js',
-  },
-  {
-    srcGlob: '.next/static/chunks/framework*.module.js',
-    dest: '.next/static/chunks/framework.HASH.module.js',
   },
   // misc
   {
     srcGlob: '.next/static/*/_buildManifest.js',
     dest: '.next/static/BUILD_ID/_buildManifest.js',
-  },
-  {
-    srcGlob: '.next/static/*/_buildManifest.module.js',
-    dest: '.next/static/BUILD_ID/_buildManifest.module.js',
   },
 ]
 
@@ -93,7 +73,7 @@ module.exports = {
   commentReleaseHeading: 'Stats from current release',
   appBuildCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next build',
   appStartCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next start --port $PORT',
-  mainRepo: 'zeit/next.js',
+  mainRepo: 'vercel/next.js',
   mainBranch: 'canary',
   autoMergeMain: true,
   configs: [
@@ -110,10 +90,6 @@ module.exports = {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
                 return config
-              },
-              experimental: {
-                modern: true,
-                granularChunks: true
               }
             }
           `,
@@ -126,10 +102,63 @@ module.exports = {
           path: 'next.config.js',
           content: `
             module.exports = {
+              generateBuildId: () => 'BUILD_ID'
+            }
+          `,
+        },
+      ],
+      filesToTrack: clientGlobs,
+      // will be output to fetched-pages/${pathname}.html
+      pagesToFetch: [
+        'http://localhost:$PORT/',
+        'http://localhost:$PORT/link',
+        'http://localhost:$PORT/withRouter',
+      ],
+      pagesToBench: [
+        'http://localhost:$PORT/',
+        'http://localhost:$PORT/error-in-render',
+      ],
+      benchOptions: {
+        reqTimeout: 60,
+        concurrency: 50,
+        numRequests: 2500,
+      },
+    },
+    {
+      title: 'Serverless Mode',
+      diff: false,
+      renames,
+      configFiles: [
+        {
+          path: 'next.config.js',
+          content: `
+            module.exports = {
               generateBuildId: () => 'BUILD_ID',
-              experimental: {
-                modern: true,
-                granularChunks: true
+              target: 'serverless'
+            }
+          `,
+        },
+      ],
+      filesToTrack: [
+        ...clientGlobs,
+        {
+          name: 'Serverless bundles',
+          globs: ['.next/serverless/pages/**/*'],
+        },
+      ],
+    },
+    {
+      title: 'Webpack 5 Mode',
+      diff: 'onOutputChange',
+      renames,
+      configFiles: [
+        {
+          path: 'next.config.js',
+          content: `
+            module.exports = {
+              generateBuildId: () => 'BUILD_ID',
+              future: {
+                webpack5: true
               }
             }
           `,
@@ -142,33 +171,15 @@ module.exports = {
         'http://localhost:$PORT/link',
         'http://localhost:$PORT/withRouter',
       ],
-    },
-    {
-      title: 'Serverless Mode',
-      diff: false,
-      renames,
-      configFiles: [
-        {
-          path: 'next.config.js',
-          content: `
-            module.exports = {
-              generateBuildId: () => 'BUILD_ID',
-              target: 'serverless',
-              experimental: {
-                modern: true,
-                granularChunks: true
-              }
-            }
-          `,
-        },
+      pagesToBench: [
+        'http://localhost:$PORT/',
+        'http://localhost:$PORT/error-in-render',
       ],
-      filesToTrack: [
-        ...clientGlobs,
-        {
-          name: 'Serverless bundles',
-          globs: ['.next/serverless/pages/**/*'],
-        },
-      ],
+      benchOptions: {
+        reqTimeout: 60,
+        concurrency: 50,
+        numRequests: 2500,
+      },
     },
   ],
 }

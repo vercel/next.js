@@ -1,0 +1,21 @@
+{
+  "name": "with-passport",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@hapi/iron": "6.0.0",
+    "cookie": "0.4.1",
+    "next": "latest",
+    "next-connect": "0.8.1",
+    "passport": "0.4.1",
+    "passport-local": "1.0.0",
+    "react": "latest",
+    "react-dom": "latest",
+    "swr": "0.3.0",
+    "uuid": "8.3.1"
+  },
+  "license": "MIT"
+}

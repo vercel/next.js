@@ -6,13 +6,15 @@
     "build": "next build",
     "start": "next start"
   },
-  "dependencies": {
-    "@emotion/core": "^10.0.0",
-    "@emotion/styled": "^10.0.0",
-    "babel-plugin-emotion": "^10.0.0",
-    "next": "latest",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+  "license": "MIT",
+  "devDependencies": {
+    "@emotion/babel-plugin": "11.0.0"
   },
-  "license": "ISC"
+  "dependencies": {
+    "@emotion/react": "11.1.1",
+    "@emotion/styled": "11.0.0",
+    "next": "latest",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1"
+  }
 }

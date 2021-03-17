@@ -1,0 +1,42 @@
+{
+  "name": "with-reason-relay",
+  "version": "3.0.4",
+  "description": "Example of Next.js with Relay Modern SSR",
+  "scripts": {
+    "dev": "next",
+    "build": "bsb -make-world",
+    "next": "next",
+    "start": "next start",
+    "relay": "reason-relay-compiler",
+    "schema": "graphql get-schema -e dev"
+  },
+  "author": "arnarkari93@gmail.com",
+  "license": "MIT",
+  "dependencies": {
+    "@zeit/next-css": "1.0.1",
+    "bs-fetch": "0.5.2",
+    "bs-platform": "7.2.2",
+    "graphql": "15.0.0",
+    "isomorphic-unfetch": "^3.0.0",
+    "next": "latest",
+    "next-transpile-modules": "4.0.2",
+    "react": "^16.13.0",
+    "react-dom": "^16.13.0",
+    "react-relay": "0.0.0-experimental-8cc94ddc",
+    "reason-promise": "1.0.2",
+    "reason-react": "0.7.0",
+    "reason-relay": "0.8.2",
+    "relay-config": "9.0.0",
+    "relay-runtime": "9.0.0"
+  },
+  "devDependencies": {
+    "babel-plugin-relay": "^9.0.0",
+    "graphql-cli": "^3.0.14",
+    "relay-compiler": "9.0.0"
+  },
+  "resolutions": {
+    "graphql": "15.0.0",
+    "react": "0.0.0-experimental-e5d06e34b",
+    "react-dom": "0.0.0-experimental-e5d06e34b"
+  }
+}

@@ -4,6 +4,6 @@ export default () => {
   return runtimeConfig
 }
 
-export function setConfig(configValue: any) {
+export function setConfig(configValue: any): void {
   runtimeConfig = configValue
 }

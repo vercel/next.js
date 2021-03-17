@@ -1,6 +1,5 @@
 import chalk from 'chalk'
 import { findConfig } from '../../../../../lib/find-config'
-import { resolveRequest } from '../../../../../lib/resolve-request'
 import browserslist from 'browserslist'
 
 type CssPluginCollection_Array = (string | [string, boolean | object])[]
@@ -57,7 +56,7 @@ async function loadPlugin(
     throw new Error(genericErrorText)
   }
 
-  const pluginPath = resolveRequest(pluginName, `${dir}/`)
+  const pluginPath = require.resolve(pluginName, { paths: [dir] })
   if (isIgnoredPlugin(pluginPath)) {
     return false
   } else if (options === true) {
@@ -84,9 +83,9 @@ function getDefaultPlugins(
   } catch {}
 
   return [
-    require.resolve('postcss-flexbugs-fixes'),
+    require.resolve('next/dist/compiled/postcss-flexbugs-fixes'),
     [
-      require.resolve('postcss-preset-env'),
+      require.resolve('next/dist/compiled/postcss-preset-env'),
       {
         browsers: browsers ?? ['defaults'],
         autoprefixer: {
@@ -125,7 +124,7 @@ export async function getPostCssPlugins(
   }
 
   // Warn user about configuration keys which are not respected
-  const invalidKey = Object.keys(config).find(key => key !== 'plugins')
+  const invalidKey = Object.keys(config).find((key) => key !== 'plugins')
   if (invalidKey) {
     console.warn(
       `${chalk.yellow.bold(
@@ -160,7 +159,7 @@ export async function getPostCssPlugins(
   }
 
   const parsed: CssPluginShape[] = []
-  plugins.forEach(plugin => {
+  plugins.forEach((plugin) => {
     if (plugin == null) {
       console.warn(
         `${chalk.yellow.bold('Warning')}: A ${chalk.bold(
@@ -218,7 +217,7 @@ export async function getPostCssPlugins(
   })
 
   const resolved = await Promise.all(
-    parsed.map(p => loadPlugin(dir, p[0], p[1]))
+    parsed.map((p) => loadPlugin(dir, p[0], p[1]))
   )
   const filtered: import('postcss').AcceptedPlugin[] = resolved.filter(
     Boolean

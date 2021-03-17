@@ -1,23 +1,23 @@
-import fetch from 'isomorphic-unfetch'
+import useSwr from 'swr'
 import Link from 'next/link'
 
-const Index = ({ users }) => (
-  <ul>
-    {users.map(user => (
-      <li key={user.id}>
-        <Link href="/user/[id]" as={`/user/${user.id}`}>
-          <a>{`User ${user.id}`}</a>
-        </Link>
-      </li>
-    ))}
-  </ul>
-)
+const fetcher = (url) => fetch(url).then((res) => res.json())
 
-Index.getInitialProps = async () => {
-  const response = await fetch('http://localhost:3000/api/users')
-  const users = await response.json()
+export default function Index() {
+  const { data, error } = useSwr('/api/users', fetcher)
 
-  return { users }
+  if (error) return <div>Failed to load users</div>
+  if (!data) return <div>Loading...</div>
+
+  return (
+    <ul>
+      {data.map((user) => (
+        <li key={user.id}>
+          <Link href="/user/[id]" as={`/user/${user.id}`}>
+            <a>{`User ${user.id}`}</a>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
 }
-
-export default Index

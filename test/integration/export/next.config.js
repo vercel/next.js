@@ -1,6 +1,6 @@
 const { PHASE_DEVELOPMENT_SERVER } = require('next/constants')
 
-module.exports = phase => {
+module.exports = (phase) => {
   return {
     distDir: phase === PHASE_DEVELOPMENT_SERVER ? '.next-dev' : '.next',
     publicRuntimeConfig: {
@@ -10,12 +10,15 @@ module.exports = phase => {
       bar: 'bar',
     },
     exportTrailingSlash: true,
-    exportPathMap: function() {
+    exportPathMap: function () {
       return {
         '/': { page: '/' },
+        '/index': { page: '/' },
         '/about': { page: '/about' },
         '/button-link': { page: '/button-link' },
         '/hash-link': { page: '/hash-link' },
+        '/empty-hash-link': { page: '/empty-hash-link' },
+        '/empty-query-link': { page: '/empty-query-link' },
         '/get-initial-props-with-no-query': {
           page: '/get-initial-props-with-no-query',
         },
@@ -28,7 +31,7 @@ module.exports = phase => {
         },
         '/dynamic/two': {
           page: '/dynamic',
-          query: { text: 'zeit is awesome' },
+          query: { text: 'Vercel is awesome' },
         },
         '/file-name.md': {
           page: '/dynamic',

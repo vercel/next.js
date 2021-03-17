@@ -1,7 +1,7 @@
 import { query as q } from 'faunadb'
 import { serverClient, serializeFaunaCookie } from '../../utils/fauna-auth'
 
-export default async (req, res) => {
+export default async function signup(req, res) {
   const { email, password } = await req.body
 
   try {

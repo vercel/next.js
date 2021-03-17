@@ -7,8 +7,7 @@ When using any of these, it is expected they are only used for internal navigati
 
 Either you passed a non-internal `href` to a `next/link` component or you called `Router#push` or `Router#replace` with one.
 
-Invalid `href`s include external sites (https://google.com) and `mailto:` links. In the past, usage of these invalid `href`s could have gone unnoticed but since they can cause unexpected behavior.
-We now show a warning in development for them.
+Invalid `href`s include external sites (https://google.com) and `mailto:` links. In the past, usage of these invalid `href`s could have gone unnoticed, but since they can cause unexpected behavior we now show a warning in development for them.
 
 #### Possible Ways to Fix It
 
@@ -16,4 +15,4 @@ Look for any usage of `next/link` or `next/router` that is being passed a non-in
 
 ### Useful Links
 
-- [Routing section in Documentation](https://nextjs.org/docs#routing)
+- [Routing section in Documentation](https://nextjs.org/docs/routing/introduction)

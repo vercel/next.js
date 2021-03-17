@@ -1,4 +1,3 @@
-import React from 'react'
 import App from 'next/app'
 import { prepareClientPortals } from '@jesstelford/react-portal-universal'
 

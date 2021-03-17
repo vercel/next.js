@@ -13,8 +13,8 @@ export default (context, render) => {
       it('should render dynamic import components', async () => {
         const $ = await get$('/dynamic/ssr')
         // Make sure the client side knows it has to wait for the bundle
-        expect($('body').html()).toContain(
-          '"dynamicIds":["./components/hello1.js"]'
+        expect(JSON.parse($('#__NEXT_DATA__').html()).dynamicIds).toContain(
+          './components/hello1.js'
         )
         expect($('body').text()).toMatch(/Hello World 1/)
       })
@@ -22,8 +22,8 @@ export default (context, render) => {
       it('should render dynamic import components using a function as first parameter', async () => {
         const $ = await get$('/dynamic/function')
         // Make sure the client side knows it has to wait for the bundle
-        expect($('body').html()).toContain(
-          '"dynamicIds":["./components/hello1.js"]'
+        expect(JSON.parse($('#__NEXT_DATA__').html()).dynamicIds).toContain(
+          './components/hello1.js'
         )
         expect($('body').text()).toMatch(/Hello World 1/)
       })
@@ -61,7 +61,7 @@ export default (context, render) => {
           if (global.browserName === 'chrome') {
             const logs = await browser.log('browser')
 
-            logs.forEach(logItem => {
+            logs.forEach((logItem) => {
               expect(logItem.message).not.toMatch(
                 /Expected server HTML to contain/
               )
@@ -268,7 +268,7 @@ export default (context, render) => {
 
         while (true) {
           const bodyText = await browser.elementByCss('body').text()
-          if (/ZEIT Rocks/.test(bodyText)) break
+          if (/Vercel Rocks/.test(bodyText)) break
           await waitFor(1000)
         }
 

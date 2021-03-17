@@ -8,8 +8,8 @@ const reducers = combineReducers({
 const reduxDevTools =
   typeof window !== 'undefined' && window.__REDUX_DEVTOOLS_EXTENSION__
     ? window.__REDUX_DEVTOOLS_EXTENSION__()
-    : f => f
+    : (f) => f
 
-export const initStore = initialState => {
+export const initStore = (initialState) => {
   return createStore(reducers, initialState, compose(reduxDevTools))
 }

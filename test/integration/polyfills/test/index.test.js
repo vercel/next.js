@@ -1,10 +1,10 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import { nextBuild, findPort, nextStart, killApp } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 1
+jest.setTimeout(1000 * 60 * 1)
 
 const appDir = join(__dirname, '../')
 
@@ -12,11 +12,14 @@ let appPort
 let app
 
 describe('Polyfills', () => {
+  let output = ''
+
   beforeAll(async () => {
     const { stdout, stderr } = await nextBuild(appDir, [], {
       stdout: true,
       stderr: true,
     })
+    output = (stderr || '') + (stdout + '')
     console.log(stdout)
     console.error(stderr)
     appPort = await findPort()
@@ -33,5 +36,12 @@ describe('Polyfills', () => {
     expect(text).toBe('pass')
 
     await browser.close()
+  })
+
+  it('should contain generated page count in output', async () => {
+    expect(output).toContain('Generating static pages (0/4)')
+    expect(output).toContain('Generating static pages (4/4)')
+    // we should only have 1 segment and the initial message logged out
+    expect(output.match(/Generating static pages/g).length).toBe(5)
   })
 })

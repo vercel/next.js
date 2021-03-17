@@ -1,5 +1,4 @@
-import React from 'react'
-import Document, { Head, Main, NextScript } from 'next/document'
+import Document, { Html, Head, Main, NextScript } from 'next/document'
 import { ServerStyleSheet, StyleSheetManager } from 'styled-components'
 import stylisRTLPlugin from 'stylis-plugin-rtl'
 
@@ -7,7 +6,7 @@ export default class MyDocument extends Document {
   static getInitialProps({ renderPage }) {
     const sheet = new ServerStyleSheet()
 
-    const page = renderPage(App => props =>
+    const page = renderPage((App) => (props) =>
       sheet.collectStyles(
         <StyleSheetManager stylisPlugins={[stylisRTLPlugin]}>
           <App {...props} />
@@ -21,13 +20,13 @@ export default class MyDocument extends Document {
   }
   render() {
     return (
-      <html>
+      <Html>
         <Head>{this.props.styleTags}</Head>
         <body>
           <Main />
           <NextScript />
         </body>
-      </html>
+      </Html>
     )
   }
 }

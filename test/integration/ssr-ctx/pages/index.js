@@ -1,14 +1,15 @@
 import React from 'react'
-
-const Idk = React.createContext(null)
+import { useIdk } from '../context'
 
 const Page = () => {
+  const idk = useIdk()
+
+  console.log(idk)
+
   return (
-    <div>
-      <Idk.Provider value="hello world">
-        <Idk.Consumer>{idk => <p>Value: {idk}</p>}</Idk.Consumer>
-      </Idk.Provider>
-    </div>
+    <>
+      <p>Value: {idk}</p>
+    </>
   )
 }
 

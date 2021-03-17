@@ -1,6 +1,6 @@
 # Contributing to Next.js
 
-Our Commitment to Open Source can be found [here](https://zeit.co/blog/oss)
+Our Commitment to Open Source can be found [here](https://vercel.com/oss).
 
 1. [Fork](https://help.github.com/articles/fork-a-repo/) this repository to your own GitHub account and then [clone](https://help.github.com/articles/cloning-a-repository/) it to your local device.
 2. Create a new branch `git checkout -b MY_BRANCH_NAME`
@@ -18,9 +18,9 @@ To contribute to [our examples](examples), take a look at the [“Adding example
 
 Make sure you have `chromedriver` installed for your Chrome version. You can install it with
 
-- `brew cask install chromedriver` on Mac OS X
+- `brew install --cask chromedriver` on Mac OS X
 - `chocolatey install chromedriver` on Windows
-- Or manually downloading it from the [chromedriver repo](https://chromedriver.storage.googleapis.com/index.html) and adding the binary to `<next-repo>/node_modules/.bin`
+- Or manually download the version that matches your installed chrome version (if there's no match, download a version under it, but not above) from the [chromedriver repo](https://chromedriver.storage.googleapis.com/index.html) and add the binary to `<next-repo>/node_modules/.bin`
 
 Running all tests:
 
@@ -123,7 +123,7 @@ When you add an example to the [examples](examples) directory, don’t forget to
 - Fill in `Example Name` and `Description`.
 - To add additional installation instructions, please add it where appropriate.
 - To add additional notes, add `## Notes` section at the end.
-- Remove the `Deploy your own` section if your example can’t be immediately deployed to ZEIT Now.
+- Remove the `Deploy your own` section if your example can’t be immediately deployed to Vercel.
 
 ````markdown
 # Example Name
@@ -132,15 +132,13 @@ Description
 
 ## Deploy your own
 
-Deploy the example using [ZEIT Now](https://zeit.co/now):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with ZEIT Now](https://zeit.co/button)](https://zeit.co/new/project?template=https://github.com/zeit/next.js/tree/canary/examples/DIRECTORY_NAME)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/DIRECTORY_NAME&project-name=DIRECTORY_NAME&repository-name=DIRECTORY_NAME)
 
 ## How to use
 
-### Using `create-next-app`
-
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
@@ -148,24 +146,5 @@ npx create-next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 yarn create next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 ```
 
-### Download manually
-
-Download the example:
-
-```bash
-curl https://codeload.github.com/zeit/next.js/tar.gz/canary | tar -xz --strip=2 next.js-canary/examples/DIRECTORY_NAME
-cd DIRECTORY_NAME
-```
-
-Install it and run:
-
-```bash
-npm install
-npm run dev
-# or
-yarn
-yarn dev
-```
-
-Deploy it to the cloud with [ZEIT Now](https://zeit.co/new?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 ````

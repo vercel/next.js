@@ -1,91 +1,314 @@
 /* eslint-env jest */
-/* global jasmine */
+
+import { createFile, exists, readFile, writeFile, remove } from 'fs-extra'
+import { nextBuild } from 'next-test-utils'
 import path from 'path'
-import {
-  exists,
-  remove,
-  readFile,
-  readJSON,
-  writeJSON,
-  createFile,
-} from 'fs-extra'
 
-import { launchApp, findPort, killApp, renderViaHTTP } from 'next-test-utils'
+jest.setTimeout(1000 * 60 * 5)
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 60 * 5
-
-describe('Fork ts checker plugin', () => {
+describe('tsconfig.json verifier', () => {
   const appDir = path.join(__dirname, '../')
   const tsConfig = path.join(appDir, 'tsconfig.json')
-  let appPort
-  let app
+  const tsConfigBase = path.join(appDir, 'tsconfig.base.json')
 
-  beforeAll(async () => {
-    appPort = await findPort()
-    app = await launchApp(appDir, appPort)
+  beforeEach(async () => {
+    await remove(tsConfig)
+    await remove(tsConfigBase)
   })
 
-  afterAll(async () => {
-    await killApp(app)
+  afterEach(async () => {
     await remove(tsConfig)
+    await remove(tsConfigBase)
   })
 
   it('Creates a default tsconfig.json when one is missing', async () => {
-    expect(await exists(tsConfig)).toBe(true)
-
-    const tsConfigContent = await readFile(tsConfig)
-    let parsedTsConfig
-    expect(() => {
-      parsedTsConfig = JSON.parse(tsConfigContent)
-    }).not.toThrow()
-
-    expect(parsedTsConfig.exclude[0]).toBe('node_modules')
+    expect(await exists(tsConfig)).toBe(false)
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"target\\": \\"es5\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"forceConsistentCasingInFileNames\\": true,
+          \\"noEmit\\": true,
+          \\"esModuleInterop\\": true,
+          \\"module\\": \\"esnext\\",
+          \\"moduleResolution\\": \\"node\\",
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\"
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
   })
 
   it('Works with an empty tsconfig.json (docs)', async () => {
-    await killApp(app)
-
-    await remove(tsConfig)
-    await new Promise(resolve => setTimeout(resolve, 500))
-
     expect(await exists(tsConfig)).toBe(false)
 
     await createFile(tsConfig)
-    await new Promise(resolve => setTimeout(resolve, 500))
-
+    await new Promise((resolve) => setTimeout(resolve, 500))
     expect(await readFile(tsConfig, 'utf8')).toBe('')
 
-    await killApp(app)
-    await new Promise(resolve => setTimeout(resolve, 500))
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
 
-    appPort = await findPort()
-    app = await launchApp(appDir, appPort)
-
-    const tsConfigContent = await readFile(tsConfig)
-    let parsedTsConfig
-    expect(() => {
-      parsedTsConfig = JSON.parse(tsConfigContent)
-    }).not.toThrow()
-
-    expect(parsedTsConfig.exclude[0]).toBe('node_modules')
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"target\\": \\"es5\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"forceConsistentCasingInFileNames\\": true,
+          \\"noEmit\\": true,
+          \\"esModuleInterop\\": true,
+          \\"module\\": \\"esnext\\",
+          \\"moduleResolution\\": \\"node\\",
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\"
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
   })
 
-  it('Updates an existing tsconfig.json with required value', async () => {
-    await killApp(app)
+  it('Updates an existing tsconfig.json without losing comments', async () => {
+    expect(await exists(tsConfig)).toBe(false)
 
-    let parsedTsConfig = await readJSON(tsConfig)
-    parsedTsConfig.compilerOptions.esModuleInterop = false
+    await writeFile(
+      tsConfig,
+      `
+      // top-level comment
+      {
+        // in-object comment 1
+        "compilerOptions": {
+          // in-object comment
+          "esModuleInterop": false, // this should be true
+          "module": "umd" // should not be umd
+          // end-object comment
+        }
+        // in-object comment 2
+      }
+      // end comment
+      `
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
 
-    await writeJSON(tsConfig, parsedTsConfig)
-    appPort = await findPort()
-    app = await launchApp(appDir, appPort)
-
-    parsedTsConfig = await readJSON(tsConfig)
-    expect(parsedTsConfig.compilerOptions.esModuleInterop).toBe(true)
+    // Weird comma placement until this issue is resolved:
+    // https://github.com/kaelzhang/node-comment-json/issues/21
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "// top-level comment
+      {
+        // in-object comment 1
+        \\"compilerOptions\\": {
+          // in-object comment
+          \\"esModuleInterop\\": true, // this should be true
+          \\"module\\": \\"esnext\\" // should not be umd
+          // end-object comment
+          ,
+          \\"target\\": \\"es5\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"forceConsistentCasingInFileNames\\": true,
+          \\"noEmit\\": true,
+          \\"moduleResolution\\": \\"node\\",
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\"
+        }
+        // in-object comment 2
+        ,
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      // end comment
+      "
+    `)
   })
 
-  it('Renders a TypeScript page correctly', async () => {
-    const html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/Hello TypeScript/)
+  it('allows you to set commonjs module mode', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+
+    await writeFile(
+      tsConfig,
+      `{ "compilerOptions": { "esModuleInterop": false, "module": "commonjs" } }`
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"esModuleInterop\\": true,
+          \\"module\\": \\"commonjs\\",
+          \\"target\\": \\"es5\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"forceConsistentCasingInFileNames\\": true,
+          \\"noEmit\\": true,
+          \\"moduleResolution\\": \\"node\\",
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\"
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
+  })
+
+  it('allows you to set es2020 module mode', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+
+    await writeFile(
+      tsConfig,
+      `{ "compilerOptions": { "esModuleInterop": false, "module": "es2020" } }`
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
+      "{
+        \\"compilerOptions\\": {
+          \\"esModuleInterop\\": true,
+          \\"module\\": \\"es2020\\",
+          \\"target\\": \\"es5\\",
+          \\"lib\\": [
+            \\"dom\\",
+            \\"dom.iterable\\",
+            \\"esnext\\"
+          ],
+          \\"allowJs\\": true,
+          \\"skipLibCheck\\": true,
+          \\"strict\\": false,
+          \\"forceConsistentCasingInFileNames\\": true,
+          \\"noEmit\\": true,
+          \\"moduleResolution\\": \\"node\\",
+          \\"resolveJsonModule\\": true,
+          \\"isolatedModules\\": true,
+          \\"jsx\\": \\"preserve\\"
+        },
+        \\"include\\": [
+          \\"next-env.d.ts\\",
+          \\"**/*.ts\\",
+          \\"**/*.tsx\\"
+        ],
+        \\"exclude\\": [
+          \\"node_modules\\"
+        ]
+      }
+      "
+    `)
+  })
+
+  it('allows you to extend another configuration file', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+    expect(await exists(tsConfigBase)).toBe(false)
+
+    await writeFile(
+      tsConfigBase,
+      `
+      {
+        "compilerOptions": {
+          "target": "es5",
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
+          ],
+          "allowJs": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "forceConsistentCasingInFileNames": true,
+          "noEmit": true,
+          "esModuleInterop": true,
+          "module": "esnext",
+          "moduleResolution": "node",
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "jsx": "preserve"
+        },
+        "include": [
+          "next-env.d.ts",
+          "**/*.ts",
+          "**/*.tsx"
+        ],
+        "exclude": [
+          "node_modules"
+        ]
+      }
+      `
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    await writeFile(tsConfig, `{ "extends": "./tsconfig.base.json" }`)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(
+      `"{ \\"extends\\": \\"./tsconfig.base.json\\" }"`
+    )
   })
 })

@@ -1,24 +1,24 @@
-import { Configuration, RuleSetRule } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { getPostCssPlugins } from './plugins'
 
 export async function __overrideCssConfiguration(
   rootDirectory: string,
   isProduction: boolean,
-  config: Configuration
+  config: webpack.Configuration
 ) {
   const postCssPlugins = await getPostCssPlugins(rootDirectory, isProduction)
 
-  function patch(rule: RuleSetRule) {
+  function patch(rule: webpack.RuleSetRule) {
     if (
       rule.options &&
       typeof rule.options === 'object' &&
-      rule.options['ident'] === '__nextjs_postcss'
+      typeof rule.options.postcssOptions === 'object'
     ) {
-      rule.options.plugins = postCssPlugins
+      rule.options.postcssOptions.plugins = postCssPlugins
     } else if (Array.isArray(rule.oneOf)) {
       rule.oneOf.forEach(patch)
     } else if (Array.isArray(rule.use)) {
-      rule.use.forEach(u => {
+      rule.use.forEach((u) => {
         if (typeof u === 'object') {
           patch(u)
         }
@@ -26,7 +26,7 @@ export async function __overrideCssConfiguration(
     }
   }
 
-  config.module?.rules?.forEach(entry => {
+  config.module?.rules?.forEach((entry) => {
     patch(entry)
   })
 }

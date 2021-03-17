@@ -1,11 +1,10 @@
-import React from 'react'
-import MobileDetect from 'mobile-detect'
+import { Component } from 'react'
 import { withStyles } from '@material-ui/core/styles'
 import Carousel from 'react-multi-carousel'
 
 import Image from '../components/image'
 
-const styles = theme => ({
+const styles = (theme) => ({
   root: {
     textAlign: 'center',
   },
@@ -16,25 +15,7 @@ const styles = theme => ({
   },
 })
 
-class Index extends React.Component {
-  static getInitialProps({ req, isServer }) {
-    let userAgent
-    let deviceType
-    if (req) {
-      userAgent = req.headers['user-agent']
-    } else {
-      userAgent = navigator.userAgent
-    }
-    const md = new MobileDetect(userAgent)
-    if (md.tablet()) {
-      deviceType = 'tablet'
-    } else if (md.mobile()) {
-      deviceType = 'mobile'
-    } else {
-      deviceType = 'desktop'
-    }
-    return { deviceType }
-  }
+class Index extends Component {
   render() {
     const { classes } = this.props
     const images = [
@@ -75,9 +56,9 @@ class Index extends React.Component {
           infinite
           containerClass="container-with-dots"
           itemClass="image-item"
-          deviceType={this.props.deviceType}
+          deviceType={''}
         >
-          {images.map(image => {
+          {images.map((image) => {
             return <Image url={image} alt={image} />
           })}
         </Carousel>

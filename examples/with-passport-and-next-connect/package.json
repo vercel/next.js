@@ -1,0 +1,21 @@
+{
+  "name": "with-passport-and-next-connect",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@hapi/iron": "6.0.0",
+    "cookie": "0.4.0",
+    "next": "latest",
+    "next-connect": "^0.6.1",
+    "passport": "^0.4.1",
+    "passport-local": "^1.0.0",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "swr": "^0.1.18",
+    "uuidv4": "6.2.5"
+  },
+  "license": "MIT"
+}

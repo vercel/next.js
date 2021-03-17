@@ -7,7 +7,7 @@ description: Enable AMP in a page, and control the way Next.js adds AMP to the p
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/amp">AMP</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/amp">AMP</a></li>
   </ul>
 </details>
 
@@ -22,7 +22,7 @@ export const config = { amp: true }
 The `amp` config accepts the following values:
 
 - `true` - The page will be AMP-only
-- `'hybrid'` - The page will two versions, one with AMP and another one with HTML
+- `'hybrid'` - The page will have two versions, one with AMP and another one with HTML
 
 To learn more about the `amp` config, read the sections below.
 
@@ -44,7 +44,7 @@ The page above is an AMP-only page, which means:
 
 - The page has no Next.js or React client-side runtime
 - The page is automatically optimized with [AMP Optimizer](https://github.com/ampproject/amp-toolbox/tree/master/packages/optimizer), an optimizer that applies the same transformations as AMP caches (improves performance by up to 42%)
-- The page has an user-accessible (optimized) version of the page and a search-engine indexable (unoptimized) version of the page
+- The page has a user-accessible (optimized) version of the page and a search-engine indexable (unoptimized) version of the page
 
 ## Hybrid AMP Page
 

@@ -2,7 +2,7 @@
 
 #### Why This Error Occurred
 
-The filesystem does not allow writing to the specified directory. A common cause for this error is starting a [custom server](https://nextjs.org/docs#custom-server-and-routing) in development mode on a production server, for example, [now.sh](https://zeit.co) which [doesn't allow you to write to the filesystem after your app is built](https://zeit.co/docs/deployment-types/node#file-system-specifications).
+The filesystem does not allow writing to the specified directory. A common cause for this error is starting a [custom server](https://nextjs.org/docs/advanced-features/custom-server) in development mode on a production server, for example, [Vercel](https://vercel.com) which doesn't allow you to write to the filesystem after your app is built.
 
 #### Possible Ways to Fix It
 
@@ -27,4 +27,4 @@ const app = next({ dev })
 
 ### Useful Links
 
-- [Custom Server documentation + examples](https://nextjs.org/docs#custom-server-and-routing)
+- [Custom Server documentation + examples](https://nextjs.org/docs/advanced-features/custom-server)

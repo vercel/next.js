@@ -1,0 +1,17 @@
+{
+  "name": "with-web-worker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "16.13.1",
+    "react-dom": "16.13.1",
+    "worker-plugin": "^4.0.3"
+  },
+  "license": "MIT"
+}

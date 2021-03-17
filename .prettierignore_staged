@@ -1,3 +1,8 @@
 **/.next/**
 **/_next/**
 **/dist/**
+packages/next/compiled/**/*
+packages/next/bundles/webpack/packages/*.runtime.js
+lerna.json
+packages/next-codemod/transforms/__testfixtures__/**/*
+packages/next-codemod/transforms/__tests__/**/*

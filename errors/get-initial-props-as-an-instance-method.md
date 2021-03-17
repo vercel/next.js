@@ -23,7 +23,7 @@ export default class YourEntryComponent extends React.Component {
 or
 
 ```js
-const YourEntryComponent = function() {
+const YourEntryComponent = function () {
   return 'foo'
 }
 
@@ -36,4 +36,4 @@ export default YourEntryComponent
 
 ### Useful Links
 
-- [Fetching data and component lifecycle](https://nextjs.org/docs#fetching-data-and-component-lifecycle)
+- [Fetching data and component lifecycle](https://nextjs.org/docs/api-reference/data-fetching/getInitialProps)

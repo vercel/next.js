@@ -1,4 +1,3 @@
-import React from 'react'
 import Head from 'next/head'
 import { styled } from 'linaria/react'
 
@@ -21,13 +20,13 @@ const Box = styled.div`
   }
 `
 
-export default () => {
+export default function Home() {
   return (
-    <React.Fragment>
+    <>
       <Head>
         <title>With Linaria</title>
       </Head>
       <Box>Zero runtime CSS in JS</Box>
-    </React.Fragment>
+    </>
   )
 }

@@ -1,32 +1,32 @@
-import Document, { Head, Main, NextScript } from 'next/document'
+import crypto from 'crypto'
+import Document, { Html, Head, Main, NextScript } from 'next/document'
 
-const inlineScript = (body, nonce) => (
-  <script
-    type="text/javascript"
-    dangerouslySetInnerHTML={{ __html: body }}
-    nonce={nonce}
-  />
-)
-
+const cspHashOf = (text) => {
+  const hash = crypto.createHash('sha256')
+  hash.update(text)
+  return `'sha256-${hash.digest('base64')}'`
+}
 export default class MyDocument extends Document {
-  static async getInitialProps(ctx) {
-    const initialProps = await Document.getInitialProps(ctx)
-    const { nonce } = ctx.res.locals
-    return { ...initialProps, nonce }
-  }
-
   render() {
-    const { nonce } = this.props
+    let csp = `default-src 'self'; script-src 'self' ${cspHashOf(
+      NextScript.getInlineScriptSource(this.props)
+    )}`
+    if (process.env.NODE_ENV !== 'production') {
+      csp = `style-src 'self' 'unsafe-inline'; font-src 'self' data:; default-src 'self'; script-src 'unsafe-eval' 'self' ${cspHashOf(
+        NextScript.getInlineScriptSource(this.props)
+      )}`
+    }
+
     return (
-      <html>
-        <Head nonce={nonce}>
-          {inlineScript(`console.log('Inline script with nonce')`, nonce)}
+      <Html>
+        <Head>
+          <meta httpEquiv="Content-Security-Policy" content={csp} />
         </Head>
         <body>
           <Main />
-          <NextScript nonce={nonce} />
+          <NextScript />
         </body>
-      </html>
+      </Html>
     )
   }
 }

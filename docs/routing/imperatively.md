@@ -1,5 +1,5 @@
 ---
-description: Client-side navigations are also possible using the Router API instead of the Link component. Learn more here.
+description: Client-side navigations are also possible using the Next.js Router instead of the Link component. Learn more here.
 ---
 
 # Imperatively
@@ -7,22 +7,22 @@ description: Client-side navigations are also possible using the Router API inst
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/zeit/next.js/tree/canary/examples/using-router">Using Router</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/using-router">Using Router</a></li>
   </ul>
 </details>
 
-[`next/link`](/docs/api-reference/next/link.md) should be able to cover most of your routing needs, but you can also do client-side navigations without it, take a look at the [Router API documentation](/docs/api-reference/next/router.md#router-api).
+[`next/link`](/docs/api-reference/next/link.md) should be able to cover most of your routing needs, but you can also do client-side navigations without it, take a look at the [documentation for `next/router`](/docs/api-reference/next/router.md).
 
-The following example shows the basic usage of the Router API:
+The following example shows how to do basic page navigations with [`useRouter`](/docs/api-reference/next/router.md#useRouter):
 
 ```jsx
-import Router from 'next/router'
+import { useRouter } from 'next/router'
 
 function ReadMore() {
+  const router = useRouter()
+
   return (
-    <div>
-      Click <span onClick={() => Router.push('/about')}>here</span> to read more
-    </div>
+    <span onClick={() => router.push('/about')}>Click here to read more</span>
   )
 }
 

@@ -1,7 +1,7 @@
 import { people } from '../../../data'
 
-export default ({ query: { id } }, res) => {
-  const filtered = people.filter(p => p.id === id)
+export default function personHandler({ query: { id } }, res) {
+  const filtered = people.filter((p) => p.id === id)
 
   // User with id exists
   if (filtered.length > 0) {

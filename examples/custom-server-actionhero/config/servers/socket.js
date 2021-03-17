@@ -1,6 +1,6 @@
 exports['default'] = {
   servers: {
-    socket: api => {
+    socket: (api) => {
       return {
         enabled: process.env.ENABLE_TCP_SERVER !== undefined,
         // TCP or TLS?
@@ -24,7 +24,7 @@ exports['default'] = {
 
 exports.test = {
   servers: {
-    socket: api => {
+    socket: (api) => {
       return {
         enabled: true,
         port: 1001 + (process.pid % 64535),

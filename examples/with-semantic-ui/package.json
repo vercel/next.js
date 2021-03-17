@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
-    "now-build": "next build",
+    "build": "next build",
     "start": "next start"
   },
   "dependencies": {
@@ -18,5 +18,5 @@
     "url-loader": "^1.1.2",
     "webpack": "^4.29.0"
   },
-  "license": "ISC"
+  "license": "MIT"
 }

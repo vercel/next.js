@@ -33,9 +33,9 @@ const Thumbnail = ({ id, i }) => (
         variants={frameVariants}
         transition={transition}
       >
-        <Link href="/image/[id]" as={`/image/${i}`} scroll={false}>
+        <Link href="/image/[index]" as={`/image/${i}`} scroll={false}>
           <motion.img
-            src={`https://static1.squarespace.com/static/5b475b2c50a54f54f9b4e1dc/t/${id}.jpg?format=1500w`}
+            src={`https://images.unsplash.com/${id}?auto=format&fit=crop&w=1500`}
             alt="The Barbican"
             variants={imageVariants}
             transition={transition}
@@ -69,7 +69,7 @@ const Thumbnail = ({ id, i }) => (
 
 const Gallery = () => (
   <>
-    <h1>Barbican</h1>
+    <h1>Motion</h1>
     <div className="gallery">
       <motion.div
         className="thumbnails"
@@ -118,14 +118,14 @@ const Gallery = () => (
              bottom: -130px;
            }
          }
-         
+
          @media screen and (min-width: 800px) {
            h1 {
              font-size: 180px;
              bottom: -170px;
            }
          }
-         
+
          @media screen and (min-width: 1000px) {
            h1 {
              font-size: 220px;

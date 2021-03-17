@@ -6,10 +6,10 @@ const importBlogPosts = async () => {
   const markdownFiles = require
     .context('../../content/blogPosts', false, /\.md$/)
     .keys()
-    .map(relativePath => relativePath.substring(2))
+    .map((relativePath) => relativePath.substring(2))
 
   return Promise.all(
-    markdownFiles.map(async path => {
+    markdownFiles.map(async (path) => {
       const markdown = await import(`../../content/blogPosts/${path}`)
       return { ...markdown, slug: path.substring(0, path.length - 3) }
     })
@@ -18,7 +18,7 @@ const importBlogPosts = async () => {
 
 const Blog = ({ postsList }) => (
   <Layout>
-    {postsList.map(post => (
+    {postsList.map((post) => (
       <div key={post.slug} className="post">
         <Link href="/blog/post/[slug]" as={`/blog/post/${post.slug}`}>
           <a>
@@ -40,9 +40,14 @@ const Blog = ({ postsList }) => (
   </Layout>
 )
 
-Blog.getInitialProps = async () => {
+export async function getStaticProps() {
   const postsList = await importBlogPosts()
-  return { postsList }
+
+  return {
+    props: {
+      postsList,
+    }, // will be passed to the page component as props
+  }
 }
 
 export default Blog

@@ -1,44 +1,20 @@
-import React, { Component } from 'react'
-import { connect } from 'react-redux'
-import { bindActionCreators } from 'redux'
+import { useSelector, useDispatch } from 'react-redux'
 import { incrementCount, decrementCount, resetCount } from '../store'
 
-class Counter extends Component {
-  increment = () => {
-    const { incrementCount } = this.props
-    incrementCount()
-  }
+const Counter = () => {
+  const counter = useSelector((state) => state.count)
+  const dispatch = useDispatch()
 
-  decrement = () => {
-    const { decrementCount } = this.props
-    decrementCount()
-  }
-
-  reset = () => {
-    const { resetCount } = this.props
-    resetCount()
-  }
-
-  render() {
-    const { count } = this.props
-    return (
-      <div>
-        <h1>
-          Count: <span>{count}</span>
-        </h1>
-        <button onClick={this.increment}>+1</button>
-        <button onClick={this.decrement}>-1</button>
-        <button onClick={this.reset}>Reset</button>
-      </div>
-    )
-  }
+  return (
+    <div>
+      <h1>
+        Count: <span>{counter}</span>
+      </h1>
+      <button onClick={() => dispatch(incrementCount())}>+1</button>
+      <button onClick={() => dispatch(decrementCount())}>-1</button>
+      <button onClick={() => dispatch(resetCount())}>Reset</button>
+    </div>
+  )
 }
 
-function mapStateToProps(state) {
-  const { count } = state
-  return { count }
-}
-const mapDispatchToProps = dispatch =>
-  bindActionCreators({ incrementCount, decrementCount, resetCount }, dispatch)
-
-export default connect(mapStateToProps, mapDispatchToProps)(Counter)
+export default Counter

@@ -1,5 +1,5 @@
 /* eslint-env jest */
-/* global jasmine */
+
 import { join } from 'path'
 import {
   killApp,
@@ -9,7 +9,7 @@ import {
   renderViaHTTP,
 } from 'next-test-utils'
 
-jasmine.DEFAULT_TIMEOUT_INTERVAL = 1000 * 30
+jest.setTimeout(1000 * 30)
 
 const appDir = join(__dirname, '../')
 let appPort

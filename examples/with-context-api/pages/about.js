@@ -1,4 +1,3 @@
-import React from 'react'
 import Link from 'next/link'
 import { useCount, useDispatchCount } from '../components/Counter'
 
@@ -6,11 +5,11 @@ const AboutPage = () => {
   const count = useCount()
   const dispatch = useDispatchCount()
 
-  const handleIncrease = event =>
+  const handleIncrease = (event) =>
     dispatch({
       type: 'INCREASE',
     })
-  const handleIncrease15 = event =>
+  const handleIncrease15 = (event) =>
     dispatch({
       type: 'INCREASE_BY',
       payload: 15,

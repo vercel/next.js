@@ -24,7 +24,6 @@ module.exports = withCSS(
       // Make sure entries are not getting disposed.
       maxInactiveAge: 1000 * 60 * 60,
     },
-    experimental: { css: true },
     webpack(config) {
       // When next-css is `npm link`ed we have to solve loaders from the project root
       const nextLocation = path.join(

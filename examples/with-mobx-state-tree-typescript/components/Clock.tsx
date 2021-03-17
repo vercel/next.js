@@ -1,8 +1,8 @@
-const format = t =>
+const format = (t) =>
   `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(t.getUTCSeconds())}`
-const pad = n => (n < 10 ? `0${n}` : n)
+const pad = (n) => (n < 10 ? `0${n}` : n)
 
-const Clock = props => {
+const Clock = (props) => {
   const divStyle = {
     backgroundColor: props.light ? '#999' : '#000',
     color: '#82FA58',
@@ -13,4 +13,4 @@ const Clock = props => {
   return <div style={divStyle}>{format(new Date(props.lastUpdate))}</div>
 }
 
-export { Clock }
+export default Clock
