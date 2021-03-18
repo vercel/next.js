@@ -124,21 +124,21 @@ export default class BuildManifestPlugin {
         }
       }
 
-      const mainFiles: string[] = getEntrypointFiles(
-        entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN)
+      const mainFiles = new Set(
+        getEntrypointFiles(entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN))
       )
 
       assetMap.polyfillFiles = getEntrypointFiles(
         entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)
-      )
+      ).filter((file) => !mainFiles.has(file))
 
       assetMap.devFiles = getEntrypointFiles(
         entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH)
-      )
+      ).filter((file) => !mainFiles.has(file))
 
       assetMap.ampDevFiles = getEntrypointFiles(
         entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_AMP)
-      )
+      ).filter((file) => !mainFiles.has(file))
 
       const systemEntrypoints = new Set([
         CLIENT_STATIC_FILES_RUNTIME_MAIN,
