@@ -1259,14 +1259,14 @@ export default async function getBaseWebpackConfig(
     // @ts-ignore TODO: remove ignore when webpack 5 is stable
     webpackConfig.optimization.realContentHash = false
 
-    if (process.env.__NEXT_WEBPACK_LOGGING) {
-      const logInfra = process.env.__NEXT_WEBPACK_LOGGING.includes(
+    if (process.env.NEXT_WEBPACK_LOGGING) {
+      const logInfra = process.env.NEXT_WEBPACK_LOGGING.includes(
         'infrastructure'
       )
-      const logProfileClient = process.env.__NEXT_WEBPACK_LOGGING.includes(
+      const logProfileClient = process.env.NEXT_WEBPACK_LOGGING.includes(
         'profile-client'
       )
-      const logProfileServer = process.env.__NEXT_WEBPACK_LOGGING.includes(
+      const logProfileServer = process.env.NEXT_WEBPACK_LOGGING.includes(
         'profile-server'
       )
       const logDefault = !logInfra && !logProfileClient && !logProfileServer
