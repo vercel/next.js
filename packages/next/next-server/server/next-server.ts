@@ -242,6 +242,12 @@ export default class Server {
       this.pagesManifest = require(pagesManifestPath)
     }
 
+    // Modules cache pre-warm speed up initial pages render
+    if (this.pagesManifest && !this._isLikeServerless) {
+      require(join(this.serverBuildDir, this.pagesManifest['/_document']))
+      require(join(this.serverBuildDir, this.pagesManifest['/_app']))
+    }
+
     this.customRoutes = this.getCustomRoutes()
     this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
