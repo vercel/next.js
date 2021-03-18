@@ -68,10 +68,13 @@ function generateClientManifest(
 
 function getEntrypointFiles(entrypoint: any): string[] {
   return (
-    entrypoint?.getFiles().filter((file: string) => {
-      // We don't want to include `.hot-update.js` files into the initial page
-      return /(?<!\.hot-update)\.(js|css)($|\?)/.test(file)
-    }) ?? []
+    entrypoint
+      ?.getFiles()
+      .filter((file: string) => {
+        // We don't want to include `.hot-update.js` files into the initial page
+        return /(?<!\.hot-update)\.(js|css)($|\?)/.test(file)
+      })
+      .map((file: string) => file.replace(/\\/g, '/')) ?? []
   )
 }
 
