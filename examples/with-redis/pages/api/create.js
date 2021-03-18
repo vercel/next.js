@@ -1,24 +1,31 @@
-import { getRedis } from './utils'
+import { v4 as uuidv4 } from 'uuid'
 
-module.exports = async (req, res) => {
-  let redis = getRedis()
-  const body = req.body
-  const title = body['title']
+import redis from '../../lib/redis'
+
+export default async function upvote(req, res) {
+  const { title } = req.body
+
   if (!title) {
-    redis.quit()
-    res.json({
+    res.status(400).json({
       error: 'Feature can not be empty',
     })
-  } else if (title.length < 70) {
-    await redis.zadd('roadmap', 'NX', 1, title)
-    redis.quit()
-    res.json({
+  } else if (title.length < 150) {
+    const id = uuidv4()
+    const newEntry = {
+      id,
+      title,
+      created_at: Date.now(),
+      score: 1,
+      ip: 'NA',
+    }
+
+    await redis.hset('features', id, JSON.stringify(newEntry))
+    res.status(200).json({
       body: 'success',
     })
   } else {
-    redis.quit()
-    res.json({
-      error: 'Max 70 characters please.',
+    res.status(400).json({
+      error: 'Max 150 characters please.',
     })
   }
 }
