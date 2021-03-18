@@ -244,7 +244,11 @@ export default class Server {
 
     // Pages pre-import speed up initial pages render
     if (this.pagesManifest) {
-      Object.values(this.pagesManifest).forEach((pageModule) => {
+      ;[
+        this.pagesManifest['/_document'],
+        this.pagesManifest['/_app'],
+        ...Object.values(this.pagesManifest),
+      ].forEach((pageModule) => {
         if (extname(pageModule) !== '.js') {
           return
         }
