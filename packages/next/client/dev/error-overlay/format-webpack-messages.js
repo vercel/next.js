@@ -108,6 +108,17 @@ function formatMessage(message) {
     lines[1] += '\nLearn more: https://nextjs.org/docs/messages/install-sass'
   }
 
+  // Add helpful message for users trying to use Less for the first time
+  if (lines[1] && lines[1].match(/Cannot find module.+less/)) {
+    // ./file.module.less (<<loader info>>) => ./file.module.less
+    lines[0] = lines[0].replace(/(.+) \(.+?(?=\?\?).+?\)/, '$1')
+
+    lines[1] =
+      "To use Next.js' built-in Less support, you first need to install `less`.\n"
+    lines[1] += 'Run `npm i less` or `yarn add less` inside your workspace.\n'
+    lines[1] += '\nLearn more: https://err.sh/next.js/install-less'
+  }
+
   message = lines.join('\n')
   // Internal stacks are generally useless so we strip them... with the
   // exception of stacks containing `webpack:` because they're normally
