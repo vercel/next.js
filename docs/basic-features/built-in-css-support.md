@@ -181,18 +181,38 @@ module.exports = {
 }
 ```
 
-## Less and Stylus Support
+## Less Support
 
-To support importing `.less` or `.styl` files you can use the following plugins:
+Next.js allows you to import Less using the `.less` extension. You can use component-level Less via CSS Modules and the
+`.module.less` extension.
 
-- [@zeit/next-less](https://github.com/vercel/next-plugins/tree/master/packages/next-less)
-- [@zeit/next-stylus](https://github.com/vercel/next-plugins/tree/master/packages/next-stylus)
-
-If using the less plugin, don't forget to add a dependency on less as well, otherwise you'll see an error like:
+Before you can use Next.js' built-in Less support, be sure to install `less`:
 
 ```bash
-Error: Cannot find module 'less'
+npm install less
 ```
+
+Less support has the same benefits and restrictions as the built-in CSS suport detailed above.
+
+### Customizing Less Options
+
+If you want to configure the Less compiler you can do so by using the `lessOptions` in `next.config.js`.
+
+For example to add `javascriptEnabled`:
+
+```js
+module.exports = {
+  lessOptions: {
+    javascriptEnabled: true,
+  },
+}
+```
+
+## Stylus Support
+
+To support importing `.styl` files you can use the following plugin:
+
+- [@zeit/next-stylus](https://github.com/vercel/next-plugins/tree/master/packages/next-stylus)
 
 ## CSS-in-JS
 
