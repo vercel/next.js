@@ -3,7 +3,7 @@ import fs from 'fs'
 import chalk from 'chalk'
 import { IncomingMessage, ServerResponse } from 'http'
 import Proxy from 'next/dist/compiled/http-proxy'
-import { join, relative, resolve, sep } from 'path'
+import { join, relative, resolve, sep, extname } from 'path'
 import {
   parse as parseQs,
   stringify as stringifyQs,
@@ -240,6 +240,17 @@ export default class Server {
 
     if (!dev) {
       this.pagesManifest = require(pagesManifestPath)
+    }
+
+    // Pages pre-import speed up initial pages render
+    if (this.pagesManifest) {
+      Object.values(this.pagesManifest).forEach((pageModule) => {
+        if (extname(pageModule) !== '.js') {
+          return
+        }
+
+        require(join(this.serverBuildDir, pageModule))
+      })
     }
 
     this.customRoutes = this.getCustomRoutes()
