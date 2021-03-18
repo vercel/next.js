@@ -14,7 +14,7 @@ import {
 import { getPostCssPlugins } from './plugins'
 
 // RegExps for all Style Sheet variants
-const regexLikeCss = /\.(css|scss|sass)$/
+const regexLikeCss = /\.(css|scss|sass|less)$/
 
 // RegExps for Style Sheets
 const regexCssGlobal = /(?<!\.module)\.css$/
@@ -23,6 +23,9 @@ const regexCssModules = /\.module\.css$/
 // RegExps for Syntactically Awesome Style Sheets
 const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
 const regexSassModules = /\.module\.(scss|sass)$/
+
+const regexLessGlobal = /(?<!\.module)\.less$/
+const regexLessModules = /\.module\.less$/
 
 export const css = curry(async function css(
   ctx: ConfigurationContext,
@@ -33,6 +36,7 @@ export const css = curry(async function css(
     additionalData: sassAdditionalData,
     ...sassOptions
   } = ctx.sassOptions
+  const { ...lessOptions } = ctx.lessOptions
 
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
     // First, process files with `sass-loader`: this inlines content, and
@@ -58,6 +62,16 @@ export const css = curry(async function css(
         // Source maps are not required here, but we may as well emit
         // them.
         sourceMap: true,
+      },
+    },
+  ]
+
+  const lessPreprocessors: webpack.RuleSetUseItem[] = [
+    {
+      loader: 'less-loader',
+      options: {
+        sourceMap: true,
+        lessOptions,
       },
     },
   ]
@@ -149,13 +163,36 @@ export const css = curry(async function css(
       ],
     })
   )
+  fns.push(
+    loader({
+      oneOf: [
+        // Opt-in support for Less.
+        {
+          // Less Modules should never have side effects. This setting will
+          // allow unused Less to be removed from the production build.
+          // We ensure this by disallowing `:global()` Less at the top-level
+          // via the `pure` mode in `css-loader`.
+          sideEffects: false,
+          // Less Modules are activated via this specific extension.
+          test: regexLessModules,
+          // Less Modules are only supported in the user's application. We're
+          // not yet allowing Less imports _within_ `node_modules`.
+          issuer: {
+            and: [ctx.rootDirectory],
+            not: [/node_modules/],
+          },
+          use: getCssModuleLoader(ctx, postCssPlugins, lessPreprocessors),
+        },
+      ],
+    })
+  )
 
   // Throw an error for CSS Modules used outside their supported scope
   fns.push(
     loader({
       oneOf: [
         {
-          test: [regexCssModules, regexSassModules],
+          test: [regexCssModules, regexSassModules, regexLessModules],
           use: {
             loader: 'error-loader',
             options: {
@@ -172,7 +209,7 @@ export const css = curry(async function css(
       loader({
         oneOf: [
           {
-            test: [regexCssGlobal, regexSassGlobal],
+            test: [regexCssGlobal, regexSassGlobal, regexLessGlobal],
             use: require.resolve('next/dist/compiled/ignore-loader'),
           },
         ],
@@ -241,6 +278,22 @@ export const css = curry(async function css(
           ],
         })
       )
+      fns.push(
+        loader({
+          oneOf: [
+            {
+              // A global Less import always has side effects. Webpack will tree
+              // shake the Less without this option if the issuer claims to have
+              // no side-effects.
+              // See https://github.com/webpack/webpack/issues/6571
+              sideEffects: true,
+              test: regexLessGlobal,
+              issuer: { and: [ctx.customAppFile] },
+              use: getGlobalCssLoader(ctx, postCssPlugins, lessPreprocessors),
+            },
+          ],
+        })
+      )
     }
   }
 
@@ -249,7 +302,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: [regexCssGlobal, regexSassGlobal],
+          test: [regexCssGlobal, regexSassGlobal, regexLessGlobal],
           issuer: { and: [/node_modules/] },
           use: {
             loader: 'error-loader',
@@ -267,7 +320,7 @@ export const css = curry(async function css(
     loader({
       oneOf: [
         {
-          test: [regexCssGlobal, regexSassGlobal],
+          test: [regexCssGlobal, regexSassGlobal, regexLessGlobal],
           use: {
             loader: 'error-loader',
             options: {

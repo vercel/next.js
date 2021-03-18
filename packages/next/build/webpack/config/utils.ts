@@ -14,6 +14,7 @@ export type ConfigurationContext = {
   assetPrefix: string
 
   sassOptions: any
+  lessOptions: any
   productionBrowserSourceMaps: boolean
 
   future: NextConfig['future']

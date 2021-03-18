@@ -91,6 +91,7 @@ export const defaultConfig: NextConfig = {
   },
   basePath: '',
   sassOptions: {},
+  lessOptions: {},
   trailingSlash: false,
   i18n: null,
   productionBrowserSourceMaps: false,

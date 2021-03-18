@@ -13,6 +13,7 @@ export async function build(
     isServer,
     assetPrefix,
     sassOptions,
+    lessOptions,
     productionBrowserSourceMaps,
     future,
   }: {
@@ -22,6 +23,7 @@ export async function build(
     isServer: boolean
     assetPrefix: string
     sassOptions: any
+    lessOptions: any
     productionBrowserSourceMaps: boolean
     future: NextConfig['future']
   }
@@ -39,6 +41,7 @@ export async function build(
         : assetPrefix
       : '',
     sassOptions,
+    lessOptions,
     productionBrowserSourceMaps,
     future,
   }
