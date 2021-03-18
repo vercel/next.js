@@ -13,11 +13,16 @@
   },
   "license": "MIT",
   "eslintConfig": {
-    "extends": ["plugin:@next/next/recommended"],
+    "extends": [
+      "plugin:@next/next/recommended"
+    ],
     "rules": {
       "@next/next/no-sync-scripts": "off",
       "@next/next/no-css-tags": "warn",
-      "@next/next/no-html-link-for-pages": ["error", "./"]
+      "@next/next/no-html-link-for-pages": [
+        "error",
+        "./"
+      ]
     },
     "parserOptions": {
       "ecmaVersion": 2018,
