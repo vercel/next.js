@@ -243,7 +243,7 @@ export default class Server {
     }
 
     // Pages pre-import speed up initial pages render
-    if (this.pagesManifest) {
+    if (this.pagesManifest && !this._isLikeServerless) {
       ;[
         this.pagesManifest['/_document'],
         this.pagesManifest['/_app'],
