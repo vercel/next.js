@@ -60,6 +60,24 @@ function getModuleSource(
   )
 }
 
+function getSourcePath(source: string) {
+  // Webpack prefixes certain source paths with this path
+  if (source.startsWith('webpack:///')) {
+    return source.substring(11)
+  }
+
+  // Make sure library name is filtered out as well
+  if (source.startsWith('webpack://_N_E/')) {
+    return source.substring(15)
+  }
+
+  if (source.startsWith('webpack://')) {
+    return source.substring(10)
+  }
+
+  return source
+}
+
 async function findOriginalSourcePositionAndContent(
   webpackSource: any,
   position: { line: number; column: number | null }
@@ -103,7 +121,7 @@ export async function createOriginalStackFrame({
   line: number
   column: number | null
   source: any
-  modulePath: string
+  modulePath?: string
   rootDirectory: string
   frame: any
 }): Promise<OriginalStackFrameResponse | null> {
@@ -122,7 +140,10 @@ export async function createOriginalStackFrame({
     return null
   }
 
-  const filePath = path.resolve(rootDirectory, modulePath)
+  const filePath = path.resolve(
+    rootDirectory,
+    modulePath || getSourcePath(sourcePosition.source)
+  )
 
   const originalFrame: StackFrame = {
     file: sourceContent
