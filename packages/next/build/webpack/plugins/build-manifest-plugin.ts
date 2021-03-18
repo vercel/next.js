@@ -66,20 +66,16 @@ function generateClientManifest(
   })
 }
 
-function isJsFile(file: string): boolean {
-  // We don't want to include `.hot-update.js` files into the initial page
-  return !file.endsWith('.hot-update.js') && file.endsWith('.js')
-}
-
-function getFilesArray(files: any) {
-  if (!files) {
-    return []
-  }
-  if (isWebpack5) {
-    return Array.from(files)
-  }
-
-  return files
+function getEntrypointFiles(entrypoint: any): string[] {
+  return (
+    entrypoint
+      ?.getFiles()
+      .filter((file: string) => {
+        // We don't want to include `.hot-update.js` files into the initial page
+        return /(?<!\.hot-update)\.(js|css)($|\?)/.test(file)
+      })
+      .map((file: string) => file.replace(/\\/g, '/')) ?? []
+  )
 }
 
 // This plugin creates a build-manifest.json for all assets that are being output
@@ -109,8 +105,7 @@ export default class BuildManifestPlugin {
       'NextJsBuildManifest-createassets'
     )
     return createAssetsSpan?.traceFn(() => {
-      const namedChunks: Map<string, webpack.compilation.Chunk> =
-        compilation.namedChunks
+      const entrypoints: Map<string, any> = compilation.entrypoints
       const assetMap: DeepMutable<BuildManifest> = {
         polyfillFiles: [],
         devFiles: [],
@@ -132,59 +127,41 @@ export default class BuildManifestPlugin {
         }
       }
 
-      const mainJsChunk = namedChunks.get(CLIENT_STATIC_FILES_RUNTIME_MAIN)
-
-      const mainJsFiles: string[] = getFilesArray(mainJsChunk?.files).filter(
-        isJsFile
+      const mainFiles = new Set(
+        getEntrypointFiles(entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN))
       )
 
-      const polyfillChunk = namedChunks.get(
-        CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
+      assetMap.polyfillFiles = getEntrypointFiles(
+        entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)
+      ).filter((file) => !mainFiles.has(file))
+
+      assetMap.devFiles = getEntrypointFiles(
+        entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH)
+      ).filter((file) => !mainFiles.has(file))
+
+      assetMap.ampDevFiles = getEntrypointFiles(
+        entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_AMP)
       )
 
-      // Create a separate entry  for polyfills
-      assetMap.polyfillFiles = getFilesArray(polyfillChunk?.files).filter(
-        isJsFile
-      )
-
-      const reactRefreshChunk = namedChunks.get(
-        CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
-      )
-      assetMap.devFiles = getFilesArray(reactRefreshChunk?.files).filter(
-        isJsFile
-      )
+      const systemEntrypoints = new Set([
+        CLIENT_STATIC_FILES_RUNTIME_MAIN,
+        CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
+        CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+        CLIENT_STATIC_FILES_RUNTIME_AMP,
+      ])
 
       for (const entrypoint of compilation.entrypoints.values()) {
-        const isAmpRuntime = entrypoint.name === CLIENT_STATIC_FILES_RUNTIME_AMP
+        if (systemEntrypoints.has(entrypoint.name)) continue
 
-        if (isAmpRuntime) {
-          for (const file of entrypoint.getFiles()) {
-            if (!(isJsFile(file) || file.endsWith('.css'))) {
-              continue
-            }
-
-            assetMap.ampDevFiles.push(file.replace(/\\/g, '/'))
-          }
-          continue
-        }
         const pagePath = getRouteFromEntrypoint(entrypoint.name)
 
         if (!pagePath) {
           continue
         }
 
-        const filesForEntry: string[] = []
+        const filesForPage = getEntrypointFiles(entrypoint)
 
-        // getFiles() - helper function to read the files for an entrypoint from stats object
-        for (const file of entrypoint.getFiles()) {
-          if (!(isJsFile(file) || file.endsWith('.css'))) {
-            continue
-          }
-
-          filesForEntry.push(file.replace(/\\/g, '/'))
-        }
-
-        assetMap.pages[pagePath] = [...mainJsFiles, ...filesForEntry]
+        assetMap.pages[pagePath] = [...new Set([...mainFiles, ...filesForPage])]
       }
 
       // Add the runtime build manifest file (generated later in this file)
