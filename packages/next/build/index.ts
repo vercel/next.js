@@ -177,9 +177,9 @@ export default async function build(
     )
 
     if (config.eslint?.build) {
-      await traceAsyncFn(tracer.startSpan('verify-eslint-setup'), () =>
-        verifyEslintSetup(dir, pagesDir, null)
-      )
+      await nextBuildSpan
+        .traceChild('verify-eslint-setup')
+        .traceAsyncFn(() => verifyEslintSetup(dir, pagesDir, null))
     }
 
     const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
