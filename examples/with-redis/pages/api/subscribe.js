@@ -1,24 +1,15 @@
-import { getRedis } from './utils'
+import redis from '../../lib/redis'
 
-module.exports = async (req, res) => {
-  let redis = getRedis()
-
-  const body = req.body
-  const email = body['email']
-
-  redis.on('error', function (err) {
-    throw err
-  })
+export default async function upvote(req, res) {
+  const { email } = req.body
 
   if (email && validateEmail(email)) {
     await redis.sadd('emails', email)
-    redis.quit()
-    res.json({
+    res.status(201).json({
       body: 'success',
     })
   } else {
-    redis.quit()
-    res.json({
+    res.status(400).json({
       error: 'Invalid email',
     })
   }
