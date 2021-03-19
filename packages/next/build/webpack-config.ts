@@ -1045,9 +1045,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),
-        'process.env.__NEXT_EXTERNAL_DIR': JSON.stringify(
-          config.experimental.externalDir
-        ),
         'process.env.__NEXT_IMAGE_OPTS': JSON.stringify({
           deviceSizes: config.images.deviceSizes,
           imageSizes: config.images.imageSizes,
