@@ -26,19 +26,19 @@ const runTests = () => {
     expect(props.params).toEqual({ slug: 'first' })
 
     await browser.elementByCss('#add-query-shallow').click()
-    await waitFor(500)
+    await waitFor(1000)
 
     const props2 = JSON.parse(await browser.elementByCss('#props').text())
     expect(props2).toEqual(props)
 
     await browser.elementByCss('#remove-query-shallow').click()
-    await waitFor(500)
+    await waitFor(1000)
 
     const props3 = JSON.parse(await browser.elementByCss('#props').text())
     expect(props3).toEqual(props)
 
     await browser.elementByCss('#to-another').click()
-    await waitFor(500)
+    await waitFor(1000)
 
     await check(() => browser.elementByCss('#props').text(), /another/)
 
@@ -47,6 +47,7 @@ const runTests = () => {
     expect(props4.random).not.toBe(props.random)
 
     await browser.back()
+    await waitFor(1000)
 
     const props5 = JSON.parse(await browser.elementByCss('#props').text())
     expect(props5.params).toEqual({ slug: 'first' })
