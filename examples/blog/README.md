@@ -8,6 +8,8 @@ This portfolio is built with **Next.js** and a library called [Nextra](https://n
 - Easily categorize posts with tags
 - Fast, optimized web font loading
 
+https://demo.vercel.blog
+
 ## Configuration
 
 1. Update your name in `theme.config.js` or change the footer.
