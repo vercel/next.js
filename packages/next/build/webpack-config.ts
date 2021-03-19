@@ -349,10 +349,10 @@ export default async function getBaseWebpackConfig(
   }
 
   const clientResolveRewrites = require.resolve(
-    'next/dist/next-server/lib/router/utils/resolve-rewrites'
+    '../next-server/lib/router/utils/resolve-rewrites'
   )
   const clientResolveRewritesNoop = require.resolve(
-    'next/dist/next-server/lib/router/utils/resolve-rewrites-noop'
+    '../next-server/lib/router/utils/resolve-rewrites-noop'
   )
 
   const resolveConfig = {
