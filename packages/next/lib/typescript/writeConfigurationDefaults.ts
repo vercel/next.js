@@ -91,7 +91,7 @@ export async function writeConfigurationDefaults(
   ts: typeof import('typescript'),
   tsConfigPath: string,
   isFirstTimeSetup: boolean,
-  hasBabelRc: boolean
+  hasBabelConfiguration: boolean
 ): Promise<void> {
   if (isFirstTimeSetup) {
     await fs.writeFile(tsConfigPath, '{}' + os.EOL)
@@ -131,7 +131,7 @@ export async function writeConfigurationDefaults(
           : 'parsedValue' in check
           ? check.parsedValue === ev
           : check.value === ev) &&
-        Boolean(check.isBabel) === hasBabelRc
+        Boolean(check.isBabel) === hasBabelConfiguration
       ) {
         userTsConfig.compilerOptions[optionKey] = check.value
         requiredActions.push(

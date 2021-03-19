@@ -35,14 +35,14 @@ export async function verifyTypeScriptSetup(
       deps.resolvedTypeScript
     )) as typeof import('typescript')
 
-    const hasBabelRc = await hasBabelConfiguration(dir)
+    const hasBabelConfig = await hasBabelConfiguration(dir)
 
     // Reconfigure (or create) the user's `tsconfig.json` for them:
     await writeConfigurationDefaults(
       ts,
       tsConfigPath,
       firstTimeSetup,
-      hasBabelRc
+      hasBabelConfig
     )
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
