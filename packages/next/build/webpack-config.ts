@@ -386,6 +386,9 @@ export default async function getBaseWebpackConfig(
       ...getReactProfilingInProduction(),
       [clientResolveRewrites]: hasRewrites
         ? clientResolveRewrites
+        : // With webpack 5 an alias can be pointed to false to noop
+        isWebpack5
+        ? false
         : clientResolveRewritesNoop,
     },
     ...(isWebpack5 && !isServer
