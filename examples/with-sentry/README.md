@@ -63,7 +63,7 @@ You will need to install and configure the [Sentry Vercel integration](https://d
 
 1. Set up the `NEXT_PUBLIC_SENTRY_DSN` environment variable as described above.
 2. Save your Sentry organization slug as the `SENTRY_ORG` environment variable and your project slug as the `SENTRY_PROJECT` environment variable in `.env.local`.
-3. Save your git provider's commit SHA as either `VERCEL_GITHUB_COMMIT_SHA`, `VERCEL_GITLAB_COMMIT_SHA`, or `VERCEL_BITBUCKET_COMMIT_SHA` environment variable in `.env.local`.
+3. Save your git provider's commit SHA as `VERCEL_GIT_COMMIT_SHA` environment variable in `.env.local`.
 4. Create an auth token in Sentry. The recommended way to do this is by creating a new internal integration for your organization. To do so, go into **Settings > Developer Settings > New internal integration**. After the integration is created, copy the Token.
 5. Save the token inside the `SENTRY_AUTH_TOKEN` environment variable in `.env.local`.
 6. Set `NEXT_PUBLIC_SENTRY_SERVER_ROOT_DIR` to the absolute path of the folder the Next.js app is running from
