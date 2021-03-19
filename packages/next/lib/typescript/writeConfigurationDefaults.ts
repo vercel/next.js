@@ -12,6 +12,7 @@ type DesiredCompilerOptionsShape = {
         parsedValues?: Array<any>
         value: any
         reason: string
+        isBabel?: boolean
       }
 }
 
@@ -35,9 +36,9 @@ function getDesiredCompilerOptions(
     esModuleInterop: {
       value: true,
       reason: 'requirement for babel',
+      isBabel: true,
     },
     module: {
-      parsedValue: ts.ModuleKind.ESNext,
       // All of these values work:
       parsedValues: [
         ts.ModuleKind.ES2020,
@@ -57,6 +58,7 @@ function getDesiredCompilerOptions(
     isolatedModules: {
       value: true,
       reason: 'requirement for babel',
+      isBabel: true,
     },
     jsx: {
       parsedValue: ts.JsxEmit.Preserve,
@@ -88,7 +90,8 @@ export function getRequiredConfiguration(
 export async function writeConfigurationDefaults(
   ts: typeof import('typescript'),
   tsConfigPath: string,
-  isFirstTimeSetup: boolean
+  isFirstTimeSetup: boolean,
+  hasBabelRc: boolean
 ): Promise<void> {
   if (isFirstTimeSetup) {
     await fs.writeFile(tsConfigPath, '{}' + os.EOL)
@@ -127,7 +130,8 @@ export async function writeConfigurationDefaults(
           ? check.parsedValues?.includes(ev)
           : 'parsedValue' in check
           ? check.parsedValue === ev
-          : check.value === ev)
+          : check.value === ev) &&
+        Boolean(check.isBabel) === hasBabelRc
       ) {
         userTsConfig.compilerOptions[optionKey] = check.value
         requiredActions.push(

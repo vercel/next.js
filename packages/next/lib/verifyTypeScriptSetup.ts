@@ -10,6 +10,7 @@ import { runTypeCheck, TypeCheckResult } from './typescript/runTypeCheck'
 import { TypeScriptCompileError } from './typescript/TypeScriptCompileError'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
+import { hasBabelConfiguration } from './typescript/hasBabelConfiguration'
 
 export async function verifyTypeScriptSetup(
   dir: string,
@@ -34,8 +35,15 @@ export async function verifyTypeScriptSetup(
       deps.resolvedTypeScript
     )) as typeof import('typescript')
 
+    const hasBabelRc = await hasBabelConfiguration(dir)
+
     // Reconfigure (or create) the user's `tsconfig.json` for them:
-    await writeConfigurationDefaults(ts, tsConfigPath, firstTimeSetup)
+    await writeConfigurationDefaults(
+      ts,
+      tsConfigPath,
+      firstTimeSetup,
+      hasBabelRc
+    )
     // Write out the necessary `next-env.d.ts` file to correctly register
     // Next.js' types:
     await writeAppTypeDeclarations(dir)
