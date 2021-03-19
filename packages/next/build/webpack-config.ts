@@ -788,7 +788,7 @@ export default async function getBaseWebpackConfig(
       splitChunks: isServer ? false : splitChunksConfig,
       runtimeChunk: isServer
         ? isWebpack5 && !isLikeServerless
-          ? { name: `${dev ? '' : 'chunks/'}webpack-runtime` }
+          ? { name: 'webpack-runtime' }
           : undefined
         : { name: CLIENT_STATIC_FILES_RUNTIME_WEBPACK },
       minimize: !(dev || isServer),
@@ -1220,22 +1220,6 @@ export default async function getBaseWebpackConfig(
       webpackConfig.optimization.usedExports = false
     }
 
-    const nextPublicVariables = Object.keys(process.env)
-      .reduce((acc: string[], key: string) => {
-        if (key.startsWith('NEXT_PUBLIC_')) {
-          return [...acc, `${key}=${process.env[key]}`]
-        }
-        return acc
-      }, [])
-      .join('|')
-
-    const nextEnvVariables = Object.keys(config.env).reduce(
-      (prev: string, key: string) => {
-        return `${prev}|${key}=${config.env[key]}`
-      },
-      ''
-    )
-
     const configVars = JSON.stringify({
       crossOrigin: config.crossOrigin,
       pageExtensions: config.pageExtensions,
@@ -1254,16 +1238,15 @@ export default async function getBaseWebpackConfig(
       assetPrefix: config.assetPrefix,
       target,
       reactProductionProfiling,
+      webpack: !!config.webpack,
     })
 
     const cache: any = {
       type: 'filesystem',
       // Includes:
       //  - Next.js version
-      //  - NEXT_PUBLIC_ variable values (they affect caching) TODO: make this module usage only
-      //  - next.config.js `env` key
       //  - next.config.js keys that affect compilation
-      version: `${process.env.__NEXT_VERSION}|${nextPublicVariables}|${nextEnvVariables}|${configVars}`,
+      version: `${process.env.__NEXT_VERSION}|${configVars}`,
       cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
     }
 
@@ -1278,6 +1261,55 @@ export default async function getBaseWebpackConfig(
 
     // @ts-ignore TODO: remove ignore when webpack 5 is stable
     webpackConfig.optimization.realContentHash = false
+
+    if (process.env.NEXT_WEBPACK_LOGGING) {
+      const logInfra = process.env.NEXT_WEBPACK_LOGGING.includes(
+        'infrastructure'
+      )
+      const logProfileClient = process.env.NEXT_WEBPACK_LOGGING.includes(
+        'profile-client'
+      )
+      const logProfileServer = process.env.NEXT_WEBPACK_LOGGING.includes(
+        'profile-server'
+      )
+      const logDefault = !logInfra && !logProfileClient && !logProfileServer
+
+      if (logDefault || logInfra) {
+        // @ts-ignore TODO: remove ignore when webpack 5 is stable
+        webpackConfig.infrastructureLogging = {
+          level: 'verbose',
+          debug: /FileSystemInfo/,
+        }
+      }
+
+      if (
+        logDefault ||
+        (logProfileClient && !isServer) ||
+        (logProfileServer && isServer)
+      ) {
+        webpackConfig.plugins!.push((compiler: webpack.Compiler) => {
+          compiler.hooks.done.tap('next-webpack-logging', (stats) => {
+            console.log(
+              stats.toString({
+                colors: true,
+                // @ts-ignore TODO: remove ignore when webpack 5 is stable
+                logging: logDefault ? 'log' : 'verbose',
+              })
+            )
+          })
+        })
+      }
+
+      if ((logProfileClient && !isServer) || (logProfileServer && isServer)) {
+        webpackConfig.plugins!.push(
+          new webpack.ProgressPlugin({
+            // @ts-ignore TODO: remove ignore when webpack 5 is stable
+            profile: true,
+          })
+        )
+        webpackConfig.profile = true
+      }
+    }
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {

@@ -11,7 +11,7 @@ import {
   ROUTES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
 } from '../../../../next-server/lib/constants'
-import { tracer, traceFn } from '../../../tracer'
+import { trace } from '../../../../telemetry/trace'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -34,8 +34,8 @@ export type ServerlessLoaderQuery = {
 }
 
 const nextServerlessLoader: webpack.loader.Loader = function () {
-  const span = tracer.startSpan('next-serverless-loader')
-  return traceFn(span, () => {
+  const loaderSpan = trace('next-serverless-loader')
+  return loaderSpan.traceFn(() => {
     const {
       distDir,
       absolutePagePath,
