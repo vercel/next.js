@@ -190,7 +190,7 @@ function checkCustomRoutes(
       console.error(
         `The route ${
           (route as Rewrite).source
-        } rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://err.sh/vercel/next.js/invalid-external-rewrite.md`
+        } rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://err.sh/vercel/next.js/invalid-external-rewrite`
       )
       numInvalidRoutes++
       continue
