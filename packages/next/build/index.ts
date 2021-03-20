@@ -151,8 +151,8 @@ export default async function build(
       }
     }
 
-    const buildSpinner = createSpinner({
-      prefixText: `${Log.prefixes.info} Creating an optimized production build`,
+    const typeCheckingSpinner = createSpinner({
+      prefixText: `${Log.prefixes.info} Checking validity of types`,
     })
 
     const telemetry = new Telemetry({ distDir })
@@ -181,6 +181,14 @@ export default async function build(
       .traceAsyncFn(() =>
         verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors)
       )
+
+    if (typeCheckingSpinner) {
+      typeCheckingSpinner.stopAndPersist()
+    }
+
+    const buildSpinner = createSpinner({
+      prefixText: `${Log.prefixes.info} Creating an optimized production build`,
+    })
 
     const isLikeServerless = isTargetLikeServerless(target)
 
