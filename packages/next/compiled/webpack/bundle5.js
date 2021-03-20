@@ -54,7 +54,7 @@ module.exports = JSON.parse("{\"name\":\"terser\",\"description\":\"JavaScript p
 /***/ (function(module) {
 
 "use strict";
-module.exports = {"i8":"5.27.0"};
+module.exports = {"i8":"5.27.1"};
 
 /***/ }),
 
@@ -58821,7 +58821,7 @@ module.exports = class MultiCompiler {
 					node.compiler,
 					i,
 					nodeDone.bind(null, node),
-					() => node.state !== "running",
+					() => node.state !== "done" && node.state !== "running",
 					() => nodeChange(node),
 					() => nodeInvalid(node)
 				)
