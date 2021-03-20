@@ -10,15 +10,7 @@ import Stream from 'stream'
 import nodeUrl, { UrlWithParsedQuery } from 'url'
 import { fileExists } from '../../lib/file-exists'
 import { ImageConfig, imageConfigDefault } from './image-config'
-import ImageData from './lib/squoosh/image_data'
-import {
-  decodeBuffer,
-  encodeJpeg,
-  encodePng,
-  encodeWebp,
-  resize,
-  rotate,
-} from './lib/squoosh/main'
+import { processBuffer, Operation } from './lib/squoosh/main'
 import Server from './next-server'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
@@ -251,33 +243,48 @@ export async function imageOptimizer(
   }
 
   try {
-    let bitmap: ImageData = await decodeBuffer(upstreamBuffer)
     const orientation = await getOrientation(upstreamBuffer)
+
+    const operations: Operation[] = []
+
     if (orientation === Orientation.RIGHT_TOP) {
-      bitmap = await rotate(bitmap, 1)
+      operations.push({ type: 'rotate', numRotations: 1 })
     } else if (orientation === Orientation.BOTTOM_RIGHT) {
-      bitmap = await rotate(bitmap, 2)
+      operations.push({ type: 'rotate', numRotations: 2 })
     } else if (orientation === Orientation.LEFT_BOTTOM) {
-      bitmap = await rotate(bitmap, 3)
+      operations.push({ type: 'rotate', numRotations: 3 })
     } else {
       // TODO: support more orientations
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       // const _: never = orientation
     }
 
-    if (bitmap.width && bitmap.width > width) {
-      bitmap = await resize(bitmap, { width })
-    }
+    operations.push({ type: 'resize', width })
 
     let optimizedBuffer: Buffer | undefined
     //if (contentType === AVIF) {
     //} else
     if (contentType === WEBP) {
-      optimizedBuffer = await encodeWebp(bitmap, { quality })
+      optimizedBuffer = await processBuffer(
+        upstreamBuffer,
+        operations,
+        'webp',
+        quality
+      )
     } else if (contentType === PNG) {
-      optimizedBuffer = await encodePng(bitmap)
+      optimizedBuffer = await processBuffer(
+        upstreamBuffer,
+        operations,
+        'png',
+        quality
+      )
     } else if (contentType === JPEG) {
-      optimizedBuffer = await encodeJpeg(bitmap, { quality })
+      optimizedBuffer = await processBuffer(
+        upstreamBuffer,
+        operations,
+        'jpeg',
+        quality
+      )
     }
 
     if (optimizedBuffer) {
