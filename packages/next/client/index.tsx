@@ -21,9 +21,11 @@ import {
   NEXT_DATA,
   ST,
 } from '../next-server/lib/utils'
+import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
+import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 
 /// <reference types="react-dom/experimental" />
@@ -784,6 +786,9 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       <Head callback={onHeadCommit} />
       <AppContainer>
         <App {...appProps} />
+        <Portal type="next-route-announcer">
+          <RouteAnnouncer />
+        </Portal>
       </AppContainer>
     </Root>
   )
