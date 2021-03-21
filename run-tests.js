@@ -23,7 +23,7 @@ const PROD_TEST_EXT = '.prod.test.js'
 // which types we have configured to run separate
 const configuredTestTypes = [UNIT_TEST_EXT]
 
-;(async () => {
+async function main() {
   let concurrencyIdx = process.argv.indexOf('-c')
   const concurrency =
     parseInt(process.argv[concurrencyIdx + 1], 10) || DEFAULT_CONCURRENCY
@@ -167,7 +167,7 @@ const configuredTestTypes = [UNIT_TEST_EXT]
 
   const sema = new Sema(concurrency, { capacity: testNames.length })
   const jestPath = path.join(
-    path.dirname(require.resolve('jest-cli/package')),
+    path.dirname(require.resolve('jest-cli/package.json')),
     'bin/jest.js'
   )
   const children = new Set()
@@ -319,4 +319,9 @@ const configuredTestTypes = [UNIT_TEST_EXT]
       }
     }
   }
-})()
+}
+
+main().catch((err) => {
+  console.error(err)
+  process.exit(1)
+})
