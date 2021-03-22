@@ -1,7 +1,24 @@
-import 'react-toastify/dist/ReactToastify.css'
-import '../styles/base.css'
+import '../styles/globals.css'
+import { Toaster } from 'react-hot-toast'
 
-// This default export is required in a new `pages/_app.js` file.
-export default function MyApp({ Component, pageProps }) {
-  return <Component {...pageProps} />
+function MyApp({ Component, pageProps }) {
+  return (
+    <>
+      <Component {...pageProps} />
+      <Toaster
+        position="bottom-right"
+        toastOptions={{
+          style: {
+            margin: '40px',
+            background: '#363636',
+            color: '#fff',
+            zIndex: 1,
+          },
+          duration: 5000,
+        }}
+      />
+    </>
+  )
 }
+
+export default MyApp
