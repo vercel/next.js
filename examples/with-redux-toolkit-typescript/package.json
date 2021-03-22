@@ -1,5 +1,5 @@
 {
-  "name": "with-redux-toolkit",
+  "name": "with-redux-toolkit-typescript",
   "version": "1.0.0",
   "scripts": {
     "dev": "next",
