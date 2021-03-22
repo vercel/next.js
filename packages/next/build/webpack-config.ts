@@ -924,7 +924,10 @@ export default async function getBaseWebpackConfig(
           : []),
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
-          include: [dir, ...babelIncludeRegexes],
+          ...(config.experimental.externalDir
+            ? // Allowing importing TS/TSX files from outside of the root dir.
+              {}
+            : { include: [dir, ...babelIncludeRegexes] }),
           exclude: (excludePath: string) => {
             if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
               return false

@@ -295,8 +295,6 @@ export default function Image({
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerSvg: string | undefined
   let imgStyle: ImgElementStyle | undefined = {
-    visibility: isVisible ? 'inherit' : 'hidden',
-
     position: 'absolute',
     top: 0,
     left: 0,
