@@ -37,7 +37,9 @@ export default function resolveRewrites(
       if (rewrite.has && params) {
         const hasParams = matchHas(
           {
-            headers: {},
+            headers: {
+              host: document.location.hostname,
+            },
             cookies: Object.fromEntries(
               document.cookie.split('; ').map((item) => {
                 const [key, ...value] = item.split('=')

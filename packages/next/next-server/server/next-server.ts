@@ -434,7 +434,7 @@ export default class Server {
           : detectedLocale
 
       const { host } = req?.headers || {}
-      // remove port from host and remove port if present
+      // remove port from host if present
       const hostname = host?.split(':')[0].toLowerCase()
 
       const detectedDomain = detectDomainLocale(i18n.domains, hostname)

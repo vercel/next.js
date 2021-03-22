@@ -9,11 +9,17 @@ import {
 import { execOnce } from '../next-server/lib/utils'
 import * as Log from '../build/output/log'
 
-export type RouteHas = {
-  type: 'header' | 'query' | 'cookie'
-  key: string
-  value?: string
-}
+export type RouteHas =
+  | {
+      type: 'header' | 'query' | 'cookie'
+      key: string
+      value?: string
+    }
+  | {
+      type: 'host'
+      key?: undefined
+      value: string
+    }
 
 export type Rewrite = {
   source: string
@@ -38,7 +44,7 @@ export type Redirect = Rewrite & {
 }
 
 export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
-const allowedHasTypes = new Set(['header', 'cookie', 'query'])
+const allowedHasTypes = new Set(['header', 'cookie', 'query', 'host'])
 
 export function getRedirectStatus(route: {
   statusCode?: number
@@ -240,7 +246,7 @@ function checkCustomRoutes(
         if (!allowedHasTypes.has(hasItem.type)) {
           invalidHasParts.push(`invalid type "${hasItem.type}"`)
         }
-        if (typeof hasItem.key !== 'string') {
+        if (typeof hasItem.key !== 'string' && hasItem.type !== 'host') {
           invalidHasParts.push(`invalid key "${hasItem.key}"`)
         }
         if (
@@ -248,6 +254,9 @@ function checkCustomRoutes(
           typeof hasItem.value !== 'string'
         ) {
           invalidHasParts.push(`invalid value "${hasItem.value}"`)
+        }
+        if (typeof hasItem.value === 'undefined' && hasItem.type === 'host') {
+          invalidHasParts.push(`value is required for "host" type`)
         }
 
         if (invalidHasParts.length > 0) {

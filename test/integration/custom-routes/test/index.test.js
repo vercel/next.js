@@ -671,6 +671,27 @@ const runTests = (isDev = false) => {
     expect(res2.status).toBe(404)
   })
 
+  it('should match has host rewrite correctly', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/has-rewrite-4')
+    expect(res1.status).toBe(404)
+
+    const res = await fetchViaHTTP(appPort, '/has-rewrite-4', undefined, {
+      headers: {
+        host: 'example.com',
+      },
+    })
+
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+
+    expect(JSON.parse($('#query').text())).toEqual({
+      host: '1',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/has-rewrite-3')
+    expect(res2.status).toBe(404)
+  })
+
   it('should match has header redirect correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/has-redirect-1', undefined, {
       headers: {
@@ -742,6 +763,28 @@ const runTests = (isDev = false) => {
     expect(res2.status).toBe(404)
   })
 
+  it('should match has host redirect correctly', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/has-redirect-4', undefined, {
+      redirect: 'manual',
+    })
+    expect(res1.status).toBe(404)
+
+    const res = await fetchViaHTTP(appPort, '/has-redirect-4', undefined, {
+      headers: {
+        host: 'example.com',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(307)
+    const parsed = url.parse(res.headers.get('location'), true)
+
+    expect(parsed.pathname).toBe('/another')
+    expect(parsed.query).toEqual({
+      host: '1',
+    })
+  })
+
   it('should match has header for header correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/has-header-1', undefined, {
       headers: {
@@ -792,6 +835,22 @@ const runTests = (isDev = false) => {
       redirect: 'manual',
     })
     expect(res2.headers.get('x-is-user')).toBe(null)
+  })
+
+  it('should match has host for header correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/has-header-4', undefined, {
+      headers: {
+        host: 'example.com',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.headers.get('x-is-host')).toBe('yuuuup')
+
+    const res2 = await fetchViaHTTP(appPort, '/has-header-4', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.headers.get('x-is-host')).toBe(null)
   })
 
   if (!isDev) {
@@ -998,6 +1057,18 @@ const runTests = (isDev = false) => {
             ],
             regex: normalizeRegEx('^\\/has-redirect-3$'),
             source: '/has-redirect-3',
+            statusCode: 307,
+          },
+          {
+            destination: '/another?host=1',
+            has: [
+              {
+                type: 'host',
+                value: 'example.com',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-redirect-4$'),
+            source: '/has-redirect-4',
             statusCode: 307,
           },
         ],
@@ -1207,6 +1278,22 @@ const runTests = (isDev = false) => {
             regex: normalizeRegEx('^\\/has-header-3$'),
             source: '/has-header-3',
           },
+          {
+            has: [
+              {
+                type: 'host',
+                value: 'example.com',
+              },
+            ],
+            headers: [
+              {
+                key: 'x-is-host',
+                value: 'yuuuup',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-header-4$'),
+            source: '/has-header-4',
+          },
         ],
         rewrites: [
           {
@@ -1377,6 +1464,17 @@ const runTests = (isDev = false) => {
             ],
             regex: normalizeRegEx('^\\/has-rewrite-3$'),
             source: '/has-rewrite-3',
+          },
+          {
+            destination: '/with-params?host=1',
+            has: [
+              {
+                type: 'host',
+                value: 'example.com',
+              },
+            ],
+            regex: '^\\/has-rewrite-4$',
+            source: '/has-rewrite-4',
           },
         ],
         dynamicRoutes: [

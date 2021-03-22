@@ -138,6 +138,16 @@ module.exports = {
         ],
         destination: '/with-params?authorized=1',
       },
+      {
+        source: '/has-rewrite-4',
+        has: [
+          {
+            type: 'host',
+            value: 'example.com',
+          },
+        ],
+        destination: '/with-params?host=1',
+      },
     ]
   },
   async redirects() {
@@ -282,6 +292,17 @@ module.exports = {
           },
         ],
         destination: '/another?authorized=1',
+        permanent: false,
+      },
+      {
+        source: '/has-redirect-4',
+        has: [
+          {
+            type: 'host',
+            value: 'example.com',
+          },
+        ],
+        destination: '/another?host=1',
         permanent: false,
       },
     ]
@@ -470,6 +491,21 @@ module.exports = {
         headers: [
           {
             key: 'x-is-user',
+            value: 'yuuuup',
+          },
+        ],
+      },
+      {
+        source: '/has-header-4',
+        has: [
+          {
+            type: 'host',
+            value: 'example.com',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-is-host',
             value: 'yuuuup',
           },
         ],

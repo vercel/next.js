@@ -35,17 +35,34 @@ export function matchHas(
     let value: undefined | string
     let key = hasItem.key
 
-    if (hasItem.type === 'header') {
-      key = key.toLowerCase()
-      value = req.headers[key] as string
-    } else if (hasItem.type === 'cookie') {
-      value = (req as any).cookies[hasItem.key]
-    } else if (hasItem.type === 'query') {
-      value = query[key]
+    switch (hasItem.type) {
+      case 'header': {
+        key = key!.toLowerCase()
+        value = req.headers[key] as string
+        break
+      }
+      case 'cookie': {
+        value = (req as any).cookies[hasItem.key]
+        break
+      }
+      case 'query': {
+        value = query[key!]
+        break
+      }
+      case 'host': {
+        const { host } = req?.headers || {}
+        // remove port from host if present
+        const hostname = host?.split(':')[0].toLowerCase()
+        value = hostname
+        break
+      }
+      default: {
+        break
+      }
     }
 
     if (!hasItem.value && value) {
-      params[getSafeParamName(key)] = value
+      params[getSafeParamName(key!)] = value
       return true
     } else if (value) {
       const matcher = new RegExp(`^${hasItem.value}$`)
@@ -61,7 +78,7 @@ export function matchHas(
             }
           })
         } else {
-          params[getSafeParamName(key)] = matches[0]
+          params[getSafeParamName(key || 'host')] = matches[0]
         }
         return true
       }
