@@ -171,3 +171,4 @@ export default function dynamic<P = {}>(
 
   return loadableFn(loadableOptions)
 }
+export { dynamic }

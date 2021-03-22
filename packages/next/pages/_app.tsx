@@ -59,6 +59,7 @@ export default class App<P = {}, CP = {}, S = {}> extends React.Component<
     )
   }
 }
+export { App }
 
 let warnContainer: () => void
 let warnUrl: () => void

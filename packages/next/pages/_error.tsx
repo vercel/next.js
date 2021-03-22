@@ -57,6 +57,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
     )
   }
 }
+export { Error }
 
 const styles: { [k: string]: React.CSSProperties } = {
   error: {

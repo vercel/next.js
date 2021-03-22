@@ -106,7 +106,7 @@ function linkClicked(
   })
 }
 
-function Link(props: React.PropsWithChildren<LinkProps>) {
+export function Link(props: React.PropsWithChildren<LinkProps>) {
   if (process.env.NODE_ENV !== 'production') {
     function createPropError(args: {
       key: string

@@ -114,6 +114,7 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
     )
   }
 }
+export { Document }
 
 export function Html(
   props: React.DetailedHTMLProps<
