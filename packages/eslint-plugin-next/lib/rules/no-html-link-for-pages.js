@@ -23,7 +23,6 @@ module.exports = {
       : [
           path.join(context.getCwd(), 'pages'),
           path.join(context.getCwd(), 'src', 'pages'),
-          path.join(context.getCwd(), 'build', 'pages'),
         ]
     const pagesDir = pagesDirs.find((dir) => fs.existsSync(dir))
     if (!pagesDir) {
