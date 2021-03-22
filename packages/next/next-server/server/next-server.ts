@@ -174,7 +174,7 @@ export default class Server {
     customServer = true,
   }: ServerConstructor & { conf: NextConfig; minimalMode?: boolean }) {
     this.dir = resolve(dir)
-    this.quiet = quiet
+    this.quiet = quiet || conf.experimental.quietErrorLog || false
     loadEnvConfig(this.dir, dev, Log)
 
     this.nextConfig = conf

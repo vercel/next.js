@@ -80,6 +80,7 @@ export const defaultConfig: NextConfig = {
     scriptLoader: false,
     stats: false,
     externalDir: false,
+    quietErrorLog: false,
   },
   future: {
     strictPostcssConfiguration: false,
