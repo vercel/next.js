@@ -7,14 +7,10 @@
     "start": "next start"
   },
   "dependencies": {
-    "@stitches/react": "0.0.1",
+    "@stitches/react": "0.1.0",
     "next": "latest",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
-  },
-  "devDependencies": {
-    "@types/react": "^16.9.43",
-    "typescript": "^3.9.7"
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1"
   },
   "license": "MIT"
 }

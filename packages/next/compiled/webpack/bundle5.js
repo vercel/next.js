@@ -46,7 +46,7 @@ module.exports = JSON.parse("{\"definitions\":{\"Rule\":{\"description\":\"Filte
 /***/ (function(module) {
 
 "use strict";
-module.exports = JSON.parse("{\"name\":\"terser\",\"description\":\"JavaScript parser, mangler/compressor and beautifier toolkit for ES6+\",\"homepage\":\"https://terser.org\",\"author\":\"Mihai Bazon <mihai.bazon@gmail.com> (http://lisperator.net/)\",\"license\":\"BSD-2-Clause\",\"version\":\"5.6.0\",\"engines\":{\"node\":\">=10\"},\"maintainers\":[\"Fábio Santos <fabiosantosart@gmail.com>\"],\"repository\":\"https://github.com/terser/terser\",\"main\":\"dist/bundle.min.js\",\"type\":\"module\",\"module\":\"./main.js\",\"exports\":{\".\":[{\"import\":\"./main.js\",\"require\":\"./dist/bundle.min.js\"},\"./dist/bundle.min.js\"],\"./package\":\"./package.json\",\"./package.json\":\"./package.json\"},\"types\":\"tools/terser.d.ts\",\"bin\":{\"terser\":\"bin/terser\"},\"files\":[\"bin\",\"dist\",\"lib\",\"tools\",\"LICENSE\",\"README.md\",\"CHANGELOG.md\",\"PATRONS.md\",\"main.js\"],\"dependencies\":{\"commander\":\"^2.20.0\",\"source-map\":\"~0.7.2\",\"source-map-support\":\"~0.5.19\"},\"devDependencies\":{\"@ls-lint/ls-lint\":\"^1.9.2\",\"acorn\":\"^8.0.5\",\"astring\":\"^1.6.2\",\"eslint\":\"^7.19.0\",\"eslump\":\"^2.0.0\",\"esm\":\"^3.2.25\",\"mocha\":\"^8.2.1\",\"pre-commit\":\"^1.2.2\",\"rimraf\":\"^3.0.2\",\"rollup\":\"2.38.4\",\"semver\":\"^7.3.4\"},\"scripts\":{\"test\":\"node test/compress.js && mocha test/mocha\",\"test:compress\":\"node test/compress.js\",\"test:mocha\":\"mocha test/mocha\",\"lint\":\"eslint lib\",\"lint-fix\":\"eslint --fix lib\",\"ls-lint\":\"ls-lint\",\"build\":\"rimraf dist/bundle* && rollup --config --silent\",\"prepare\":\"npm run build\",\"postversion\":\"echo 'Remember to update the changelog!'\"},\"keywords\":[\"uglify\",\"terser\",\"uglify-es\",\"uglify-js\",\"minify\",\"minifier\",\"javascript\",\"ecmascript\",\"es5\",\"es6\",\"es7\",\"es8\",\"es2015\",\"es2016\",\"es2017\",\"async\",\"await\"],\"eslintConfig\":{\"parserOptions\":{\"sourceType\":\"module\",\"ecmaVersion\":\"2020\"},\"env\":{\"node\":true,\"browser\":true,\"es2020\":true},\"globals\":{\"describe\":false,\"it\":false,\"require\":false,\"global\":false,\"process\":false},\"rules\":{\"brace-style\":[\"error\",\"1tbs\",{\"allowSingleLine\":true}],\"quotes\":[\"error\",\"double\",\"avoid-escape\"],\"no-debugger\":\"error\",\"no-undef\":\"error\",\"no-unused-vars\":[\"error\",{\"varsIgnorePattern\":\"^_$\"}],\"no-tabs\":\"error\",\"semi\":[\"error\",\"always\"],\"no-extra-semi\":\"error\",\"no-irregular-whitespace\":\"error\",\"space-before-blocks\":[\"error\",\"always\"]}},\"pre-commit\":[\"build\",\"lint-fix\",\"ls-lint\",\"test\"]}");
+module.exports = JSON.parse("{\"name\":\"terser\",\"description\":\"JavaScript parser, mangler/compressor and beautifier toolkit for ES6+\",\"homepage\":\"https://terser.org\",\"author\":\"Mihai Bazon <mihai.bazon@gmail.com> (http://lisperator.net/)\",\"license\":\"BSD-2-Clause\",\"version\":\"5.6.1\",\"engines\":{\"node\":\">=10\"},\"maintainers\":[\"Fábio Santos <fabiosantosart@gmail.com>\"],\"repository\":\"https://github.com/terser/terser\",\"main\":\"dist/bundle.min.js\",\"type\":\"module\",\"module\":\"./main.js\",\"exports\":{\".\":[{\"import\":\"./main.js\",\"require\":\"./dist/bundle.min.js\"},\"./dist/bundle.min.js\"],\"./package\":\"./package.json\",\"./package.json\":\"./package.json\"},\"types\":\"tools/terser.d.ts\",\"bin\":{\"terser\":\"bin/terser\"},\"files\":[\"bin\",\"dist\",\"lib\",\"tools\",\"LICENSE\",\"README.md\",\"CHANGELOG.md\",\"PATRONS.md\",\"main.js\"],\"dependencies\":{\"commander\":\"^2.20.0\",\"source-map\":\"~0.7.2\",\"source-map-support\":\"~0.5.19\"},\"devDependencies\":{\"@ls-lint/ls-lint\":\"^1.9.2\",\"acorn\":\"^8.0.5\",\"astring\":\"^1.6.2\",\"eslint\":\"^7.19.0\",\"eslump\":\"^2.0.0\",\"esm\":\"^3.2.25\",\"mocha\":\"^8.2.1\",\"pre-commit\":\"^1.2.2\",\"rimraf\":\"^3.0.2\",\"rollup\":\"2.38.4\",\"semver\":\"^7.3.4\"},\"scripts\":{\"test\":\"node test/compress.js && mocha test/mocha\",\"test:compress\":\"node test/compress.js\",\"test:mocha\":\"mocha test/mocha\",\"lint\":\"eslint lib\",\"lint-fix\":\"eslint --fix lib\",\"ls-lint\":\"ls-lint\",\"build\":\"rimraf dist/bundle* && rollup --config --silent\",\"prepare\":\"npm run build\",\"postversion\":\"echo 'Remember to update the changelog!'\"},\"keywords\":[\"uglify\",\"terser\",\"uglify-es\",\"uglify-js\",\"minify\",\"minifier\",\"javascript\",\"ecmascript\",\"es5\",\"es6\",\"es7\",\"es8\",\"es2015\",\"es2016\",\"es2017\",\"async\",\"await\"],\"eslintConfig\":{\"parserOptions\":{\"sourceType\":\"module\",\"ecmaVersion\":\"2020\"},\"env\":{\"node\":true,\"browser\":true,\"es2020\":true},\"globals\":{\"describe\":false,\"it\":false,\"require\":false,\"global\":false,\"process\":false},\"rules\":{\"brace-style\":[\"error\",\"1tbs\",{\"allowSingleLine\":true}],\"quotes\":[\"error\",\"double\",\"avoid-escape\"],\"no-debugger\":\"error\",\"no-undef\":\"error\",\"no-unused-vars\":[\"error\",{\"varsIgnorePattern\":\"^_$\"}],\"no-tabs\":\"error\",\"semi\":[\"error\",\"always\"],\"no-extra-semi\":\"error\",\"no-irregular-whitespace\":\"error\",\"space-before-blocks\":[\"error\",\"always\"]}},\"pre-commit\":[\"build\",\"lint-fix\",\"ls-lint\",\"test\"]}");
 
 /***/ }),
 
@@ -54,7 +54,7 @@ module.exports = JSON.parse("{\"name\":\"terser\",\"description\":\"JavaScript p
 /***/ (function(module) {
 
 "use strict";
-module.exports = {"i8":"5.26.2"};
+module.exports = {"i8":"5.27.1"};
 
 /***/ }),
 
@@ -58682,7 +58682,18 @@ module.exports = class MultiCompiler {
 	 * @returns {SetupResult[]} result of setup
 	 */
 	_runGraph(setup, run, callback) {
-		/** @typedef {{ compiler: Compiler, result: Stats, state: "blocked" | "queued" | "running" | "done", children: Node[], parents: Node[] }} Node */
+		/** @typedef {{ compiler: Compiler, result: Stats, state: "pending" | "blocked" | "queued" | "running" | "running-outdated" | "done", children: Node[], parents: Node[] }} Node */
+
+		// State transitions for nodes:
+		// -> blocked (initial)
+		// blocked -> queued [add to queue] (when all parents done)
+		// queued -> running [running++] (when processing the queue)
+		// running -> done [running--] (when compilation is done)
+		// done -> pending (when invalidated from file change)
+		// pending -> blocked (when invalidated from aggregated changes)
+		// done -> blocked (when invalidated, from parent invalidation)
+		// running -> running-outdated (when invalidated, either from change or parent invalidation)
+		// running-outdated -> blocked [running--] (when compilation is done)
 
 		/** @type {Node[]} */
 		const nodes = this.compilers.map(compiler => ({
@@ -58740,13 +58751,12 @@ module.exports = class MultiCompiler {
 			running--;
 			if (node.state === "running") {
 				node.state = "done";
-			}
-			for (const child of node.children) {
-				if (child.state !== "blocked") continue;
-				if (child.parents.every(p => p.state === "done")) {
-					child.state = "queued";
-					queue.enqueue(child);
+				for (const child of node.children) {
+					checkUnblocked(child);
 				}
+			} else if (node.state === "running-outdated") {
+				node.state = "blocked";
+				checkUnblocked(node);
 			}
 			process.nextTick(processQueue);
 		};
@@ -58754,12 +58764,28 @@ module.exports = class MultiCompiler {
 		 * @param {Node} node node
 		 * @returns {void}
 		 */
-		const nodeInvalid = node => {
-			if (node.state === "done" || node.state === "running") {
+		const nodeInvalidFromParent = node => {
+			if (node.state === "done") {
 				node.state = "blocked";
+			} else if (node.state === "running") {
+				node.state = "running-outdated";
 			}
 			for (const child of node.children) {
-				nodeInvalid(child);
+				nodeInvalidFromParent(child);
+			}
+		};
+		/**
+		 * @param {Node} node node
+		 * @returns {void}
+		 */
+		const nodeInvalid = node => {
+			if (node.state === "done") {
+				node.state = "pending";
+			} else if (node.state === "running") {
+				node.state = "running-outdated";
+			}
+			for (const child of node.children) {
+				nodeInvalidFromParent(child);
 			}
 		};
 		/**
@@ -58768,15 +58794,26 @@ module.exports = class MultiCompiler {
 		 */
 		const nodeChange = node => {
 			nodeInvalid(node);
+			if (node.state === "pending") {
+				node.state = "blocked";
+			}
+			checkUnblocked(node);
+			processQueue();
+		};
+		/**
+		 * @param {Node} node node
+		 * @returns {void}
+		 */
+		const checkUnblocked = node => {
 			if (
 				node.state === "blocked" &&
 				node.parents.every(p => p.state === "done")
 			) {
 				node.state = "queued";
 				queue.enqueue(node);
-				processQueue();
 			}
 		};
+
 		const setupResults = [];
 		nodes.forEach((node, i) => {
 			setupResults.push(
@@ -58784,7 +58821,7 @@ module.exports = class MultiCompiler {
 					node.compiler,
 					i,
 					nodeDone.bind(null, node),
-					() => node.state === "blocked" || node.state === "queued",
+					() => node.state !== "done" && node.state !== "running",
 					() => nodeChange(node),
 					() => nodeInvalid(node)
 				)
@@ -58798,7 +58835,11 @@ module.exports = class MultiCompiler {
 				node.state = "running";
 				run(node.compiler, nodeDone.bind(null, node));
 			}
-			if (!errored && running === 0) {
+			if (
+				!errored &&
+				running === 0 &&
+				nodes.every(node => node.state === "done")
+			) {
 				const stats = [];
 				for (const node of nodes) {
 					const result = node.result;
@@ -59414,7 +59455,7 @@ const {
 } = __webpack_require__(21699);
 const createHash = __webpack_require__(34627);
 const { join } = __webpack_require__(71593);
-const { contextify } = __webpack_require__(47779);
+const { contextify, absolutify } = __webpack_require__(47779);
 const makeSerializable = __webpack_require__(55575);
 const memoize = __webpack_require__(18003);
 
@@ -59818,6 +59859,30 @@ class NormalModule extends Module {
 				}
 			};
 		};
+		const getAbsolutify = memoize(() =>
+			absolutify.bindCache(compilation.compiler.root)
+		);
+		const getAbsolutifyInContext = memoize(() =>
+			absolutify.bindContextCache(this.context, compilation.compiler.root)
+		);
+		const getContextify = memoize(() =>
+			contextify.bindCache(compilation.compiler.root)
+		);
+		const getContextifyInContext = memoize(() =>
+			contextify.bindContextCache(this.context, compilation.compiler.root)
+		);
+		const utils = {
+			absolutify: (context, request) => {
+				return context === this.context
+					? getAbsolutifyInContext()(request)
+					: getAbsolutify()(context, request);
+			},
+			contextify: (context, request) => {
+				return context === this.context
+					? getContextifyInContext()(request)
+					: getContextify()(context, request);
+			}
+		};
 		const loaderContext = {
 			version: 2,
 			getOptions: schema => {
@@ -59930,6 +59995,7 @@ class NormalModule extends Module {
 				}
 				this.buildInfo.buildDependencies.add(dep);
 			},
+			utils,
 			rootContext: options.context,
 			webpack: true,
 			sourceMap: !!this.useSourceMap,
@@ -61227,7 +61293,7 @@ class NormalModuleFactory extends ModuleFactory {
 				}
 
 				// resource without scheme and without path
-				else if (/^($|\?|#)/.test(unresolvedResource)) {
+				else if (/^($|\?)/.test(unresolvedResource)) {
 					resourceData = {
 						resource: unresolvedResource,
 						data: {},
@@ -62978,6 +63044,7 @@ class RecordIdsPlugin {
 					}
 					if (records.chunks.bySource) {
 						for (const chunk of chunks) {
+							if (chunk.id !== null) continue;
 							const sources = getChunkSources(chunk);
 							for (const source of sources) {
 								const id = records.chunks.bySource[source];
@@ -92719,7 +92786,10 @@ const { RuntimeGlobals } = __webpack_require__(16520);
 const HotUpdateChunk = __webpack_require__(90972);
 const Template = __webpack_require__(90751);
 const { getCompilationHooks } = __webpack_require__(80867);
-const { generateEntryStartup } = __webpack_require__(9005);
+const {
+	generateEntryStartup,
+	updateHashForEntryStartup
+} = __webpack_require__(9005);
 
 /** @typedef {import("../Compiler")} Compiler */
 
@@ -92849,6 +92919,10 @@ class ArrayPushCallbackChunkFormatPlugin {
 						hash.update(`${runtimeTemplate.outputOptions.chunkLoadingGlobal}`);
 						hash.update(`${runtimeTemplate.outputOptions.hotUpdateGlobal}`);
 						hash.update(`${runtimeTemplate.outputOptions.globalObject}`);
+						const entries = Array.from(
+							chunkGraph.getChunkEntryModulesWithChunkGroupIterable(chunk)
+						);
+						updateHashForEntryStartup(hash, chunkGraph, entries, chunk);
 					}
 				);
 			}
@@ -93364,7 +93438,10 @@ const {
 	getChunkFilenameTemplate,
 	getCompilationHooks
 } = __webpack_require__(80867);
-const { generateEntryStartup } = __webpack_require__(9005);
+const {
+	generateEntryStartup,
+	updateHashForEntryStartup
+} = __webpack_require__(9005);
 
 /** @typedef {import("../Compiler")} Compiler */
 
@@ -93508,6 +93585,10 @@ class CommonJsChunkFormatPlugin {
 						if (chunk.hasRuntime()) return;
 						hash.update("CommonJsChunkFormatPlugin");
 						hash.update("1");
+						const entries = Array.from(
+							chunkGraph.getChunkEntryModulesWithChunkGroupIterable(chunk)
+						);
+						updateHashForEntryStartup(hash, chunkGraph, entries, chunk);
 					}
 				);
 			}
@@ -98945,6 +99026,7 @@ const Template = __webpack_require__(90751);
 const { isSubset } = __webpack_require__(86088);
 const { chunkHasJs } = __webpack_require__(80867);
 
+/** @typedef {import("../util/Hash")} Hash */
 /** @typedef {import("../Chunk")} Chunk */
 /** @typedef {import("../Compilation")} Compilation */
 /** @typedef {import("../ChunkGraph")} ChunkGraph */
@@ -99005,21 +99087,24 @@ exports.generateEntryStartup = (
 		return `__webpack_exec__(${JSON.stringify(id)})`;
 	};
 	const outputCombination = (chunks, moduleIds, final) => {
-		const old = final ? "undefined" : "0";
-		const prefix = final ? EXPORT_PREFIX : "";
 		if (chunks.size === 0) {
-			runtime.push(`${prefix}(${moduleIds.map(runModule).join(", ")});`);
+			runtime.push(
+				`${final ? EXPORT_PREFIX : ""}(${moduleIds.map(runModule).join(", ")});`
+			);
 		} else {
 			const fn = runtimeTemplate.returningFunction(
 				moduleIds.map(runModule).join(", ")
 			);
 			runtime.push(
-				`${prefix}${
+				`${final && !passive ? EXPORT_PREFIX : ""}${
 					passive
 						? RuntimeGlobals.onChunksLoaded
 						: RuntimeGlobals.startupEntrypoint
-				}(${old}, ${JSON.stringify(Array.from(chunks, c => c.id))}, ${fn});`
+				}(0, ${JSON.stringify(Array.from(chunks, c => c.id))}, ${fn});`
 			);
+			if (final && passive) {
+				runtime.push(`${EXPORT_PREFIX}${RuntimeGlobals.onChunksLoaded}();`);
+			}
 		}
 	};
 
@@ -99051,6 +99136,23 @@ exports.generateEntryStartup = (
 	}
 	runtime.push("");
 	return Template.asString(runtime);
+};
+
+/**
+ * @param {Hash} hash the hash to update
+ * @param {ChunkGraph} chunkGraph chunkGraph
+ * @param {import("../ChunkGraph").EntryModuleWithChunkGroup[]} entries entries
+ * @param {Chunk} chunk chunk
+ * @returns {void}
+ */
+exports.updateHashForEntryStartup = (hash, chunkGraph, entries, chunk) => {
+	for (const [module, entrypoint] of entries) {
+		const runtimeChunk = entrypoint.getRuntimeChunk();
+		const moduleId = chunkGraph.getModuleId(module);
+		hash.update(`${moduleId}`);
+		for (const c of getAllChunks(entrypoint, chunk, runtimeChunk))
+			hash.update(`${c.id}`);
+	}
 };
 
 /**
