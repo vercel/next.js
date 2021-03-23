@@ -436,6 +436,27 @@ export default function Image({
           ) : null}
         </div>
       ) : null}
+      {!isVisible && (
+        <noscript>
+          <img
+            {...rest}
+            {...generateImgAttrs({
+              src,
+              unoptimized,
+              layout,
+              width: widthInt,
+              quality: qualityInt,
+              sizes,
+              loader,
+            })}
+            src={src}
+            decoding="async"
+            sizes={sizes}
+            style={{ ...imgStyle, visibility: 'inherit' }}
+            className={className}
+          />
+        </noscript>
+      )}
       <img
         {...rest}
         {...imgAttributes}
