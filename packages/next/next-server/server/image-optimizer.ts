@@ -211,7 +211,8 @@ export async function imageOptimizer(
 
       upstreamBuffer = Buffer.concat(resBuffers)
       upstreamType = mockRes.getHeader('Content-Type')
-      maxAge = getMaxAge(mockRes.getHeader('Cache-Control'))
+      //   const { nextConfig, distDir } = server
+      maxAge = getMaxAge(mockRes.getHeader('Cache-Control'), imageData.maxAge)
     } catch (err) {
       res.statusCode = 500
       res.end('"url" parameter is valid but upstream response is invalid')
@@ -363,8 +364,7 @@ function parseCacheControl(str: string | null): Map<string, string> {
   return map
 }
 
-export function getMaxAge(str: string | null): number {
-  const minimum = 60
+export function getMaxAge(str: string | null, minimum = 60): number {
   const map = parseCacheControl(str)
   if (map) {
     let age = map.get('s-maxage') || map.get('max-age') || ''
