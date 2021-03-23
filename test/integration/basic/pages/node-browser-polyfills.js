@@ -66,6 +66,8 @@ export default function NodeBrowserPolyfillPage() {
       timers: true,
       tty: true,
       util: true,
+      http: true,
+      https: true,
       vm: vm.runInNewContext('a + 5', { a: 100 }),
       zlib: true,
     })

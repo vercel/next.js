@@ -54,7 +54,7 @@ describe('Basic Features', () => {
     expect(parsedData.domain).toBe(true)
     expect(parsedData.http).toBe(true)
     expect(parsedData.https).toBe(true)
-    expect(parsedData.https).toBe('\n')
+    expect(parsedData.os).toBe('\n')
     expect(parsedData.path).toBe('/hello/world/test.txt')
     expect(parsedData.process).toBe('browser')
     expect(parsedData.querystring).toBe('a=b')
