@@ -175,6 +175,41 @@ export default async function build(
       telemetry.record(events)
     )
 
+    if (config.eslint?.build) {
+      await nextBuildSpan
+        .traceChild('verify-and-lint')
+        .traceAsyncFn(async () => {
+          const lintWorkers = new Worker(
+            require.resolve('../lib/verifyAndLint'),
+            {
+              numWorkers: config.experimental.cpus,
+              enableWorkerThreads: config.experimental.workerThreads,
+            }
+          ) as Worker & {
+            verifyAndLint: typeof import('../lib/verifyAndLint').verifyAndLint
+          }
+
+          lintWorkers.getStdout().pipe(process.stdout)
+          lintWorkers.getStderr().pipe(process.stderr)
+
+          const lintResults = await lintWorkers.verifyAndLint(
+            dir,
+            pagesDir,
+            null
+          )
+
+          if (lintResults.hasErrors) {
+            console.error(chalk.red('Failed to compile.'))
+            console.error(lintResults.results)
+            process.exit(1)
+          } else if (lintResults.hasMessages) {
+            console.log(lintResults.results)
+          }
+
+          lintWorkers.end()
+        })
+    }
+
     const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
     await nextBuildSpan
       .traceChild('verify-typescript-setup')
