@@ -53,6 +53,7 @@ export async function verifyAndLint(
       : {}
 
     if (!eslintConfig) {
+      console.log()
       log.info(
         'No ESLint configuration was detected, but checks from the Next.js ESLint plugin were included automatically (see https://nextjs.org/docs/basic-features/eslint).'
       )
@@ -82,6 +83,7 @@ export async function verifyAndLint(
     )
 
     if (!completeConfig.plugins?.includes('@next/next')) {
+      console.log()
       log.warn(
         `The Next.js ESLint plugin was not detected in ${eslintrcFile}. We recommend including it to prevent significant issues in your application (see https://nextjs.org/docs/basic-features/eslint).`
       )
