@@ -50,6 +50,7 @@ The following is the definition of the `router` object returned by both [`useRou
 - `locales`: `String[]` - All supported locales (if enabled).
 - `defaultLocale`: `String` - The current default locale (if enabled).
 - `isReady`: `boolean` - Whether the router fields are updated client-side and ready for use. Should only be used inside of `useEffect` methods and not for conditionally rendering on the server.
+- `isPreview`: `boolean` - Whether the application is currently in [preview mode](/docs/advanced-features/preview-mode.md).
 
 Additionally, the following methods are also included inside `router`:
 
@@ -71,6 +72,7 @@ router.push(url, as, options)
 - `url` - The URL to navigate to
 - `as` - Optional decorator for the URL that will be shown in the browser. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked
 - `options` - Optional object with the following configuration options:
+  - `scroll` - Optional boolean, controls scrolling to the top of the page after navigation. Defaults to `true`
   - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
 
 > You don't need to use `router.push` for external URLs. [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location) is better suited for those cases.

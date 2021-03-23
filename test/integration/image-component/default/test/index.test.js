@@ -53,23 +53,6 @@ async function getComputed(browser, id, prop) {
   return null
 }
 
-async function getComputedStyle(browser, id, prop) {
-  const val = await browser.eval(
-    `window.getComputedStyle(document.getElementById('${id}')).${prop}`
-  )
-  if (typeof val === 'number') {
-    return val
-  }
-  if (typeof val === 'string') {
-    const v = parseInt(val, 10)
-    if (isNaN(v)) {
-      return val
-    }
-    return v
-  }
-  return null
-}
-
 async function getSrc(browser, id) {
   const src = await browser.elementById(id).getAttribute('src')
   if (src) {
@@ -410,6 +393,14 @@ function runTests(mode) {
       )
       expect(objectFit).toBe('cover')
       expect(objectPosition).toBe('left center')
+      await browser.eval(`document.getElementById("fill3").scrollIntoView()`)
+      expect(await browser.elementById('fill3').getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+      )
+      await browser.eval(`document.getElementById("fill4").scrollIntoView()`)
+      expect(await browser.elementById('fill4').getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&w=16&q=75 16w, /_next/image?url=%2Fwide.png&w=32&q=75 32w, /_next/image?url=%2Fwide.png&w=48&q=75 48w, /_next/image?url=%2Fwide.png&w=64&q=75 64w, /_next/image?url=%2Fwide.png&w=96&q=75 96w, /_next/image?url=%2Fwide.png&w=128&q=75 128w, /_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -429,7 +420,7 @@ function runTests(mode) {
         '/_next/image?url=%2Fwide.png&w=3840&q=75'
       )
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+        '/_next/image?url=%2Fwide.png&w=16&q=75 16w, /_next/image?url=%2Fwide.png&w=32&q=75 32w, /_next/image?url=%2Fwide.png&w=48&q=75 48w, /_next/image?url=%2Fwide.png&w=64&q=75 64w, /_next/image?url=%2Fwide.png&w=96&q=75 96w, /_next/image?url=%2Fwide.png&w=128&q=75 128w, /_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
       )
       expect(await browser.elementById(id).getAttribute('sizes')).toBe(
         '(max-width: 2048px) 1200px, 3840px'
@@ -496,44 +487,6 @@ function runTests(mode) {
       )
     })
   }
-
-  it('should correctly inherit the visibilty of the parent component', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/hidden-parent')
-
-      const id = 'hidden-image'
-
-      // Wait for image to load:
-      await check(async () => {
-        const result = await browser.eval(
-          `document.getElementById(${JSON.stringify(id)}).naturalWidth`
-        )
-
-        if (result < 1) {
-          throw new Error('Image not ready')
-        }
-
-        return 'result-correct'
-      }, /result-correct/)
-
-      await waitFor(1000)
-
-      const desiredVisibilty = await getComputed(
-        browser,
-        id,
-        'style.visibility'
-      )
-      expect(desiredVisibilty).toBe('inherit')
-
-      const actualVisibility = await getComputedStyle(browser, id, 'visibility')
-      expect(actualVisibility).toBe('hidden')
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
-  })
 
   it('should correctly ignore prose styles', async () => {
     let browser

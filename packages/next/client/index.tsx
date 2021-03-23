@@ -21,9 +21,11 @@ import {
   NEXT_DATA,
   ST,
 } from '../next-server/lib/utils'
+import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
+import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 
 /// <reference types="react-dom/experimental" />
@@ -71,6 +73,7 @@ const {
   locale,
   locales,
   domainLocales,
+  isPreview,
 } = data
 
 let { defaultLocale } = data
@@ -136,6 +139,11 @@ if (process.env.__NEXT_I18N_SUPPORT) {
       defaultLocale = detectedDomain.defaultLocale
     }
   }
+}
+
+if (process.env.__NEXT_SCRIPT_LOADER && data.scriptLoader) {
+  const { initScriptLoader } = require('./experimental-script')
+  initScriptLoader(data.scriptLoader)
 }
 
 type RegisterFn = (input: [string, () => void]) => void
@@ -375,6 +383,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     locales,
     defaultLocale,
     domainLocales,
+    isPreview,
   })
 
   // call init-client middleware
@@ -777,6 +786,9 @@ function doRender(input: RenderRouteInfo): Promise<any> {
       <Head callback={onHeadCommit} />
       <AppContainer>
         <App {...appProps} />
+        <Portal type="next-route-announcer">
+          <RouteAnnouncer />
+        </Portal>
       </AppContainer>
     </Root>
   )

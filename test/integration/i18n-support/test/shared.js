@@ -339,7 +339,7 @@ export function runTests(ctx) {
               .replace(ctx.basePath, '')
               .replace(/^\/_next\/data\/[^/]+/, '')
           ),
-          ['/en-US/gsp.json', '/fr/gsp.json', '/nl-NL/gsp.json']
+          ['/en-US/gsp.json', '/fr.json', '/fr/gsp.json', '/nl-NL/gsp.json']
         )
         return 'yes'
       }, 'yes')

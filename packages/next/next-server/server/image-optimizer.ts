@@ -1,19 +1,20 @@
-import nodeUrl, { UrlWithParsedQuery } from 'url'
-import { IncomingMessage, ServerResponse } from 'http'
-import { join } from 'path'
 import { mediaType } from '@hapi/accept'
-import { createReadStream, promises } from 'fs'
 import { createHash } from 'crypto'
-import Server from './next-server'
-import { getContentType, getExtension } from './serve-static'
-import { fileExists } from '../../lib/file-exists'
+import { createReadStream, promises } from 'fs'
+import { getOrientation, Orientation } from 'get-orientation'
+import { IncomingMessage, ServerResponse } from 'http'
 // @ts-ignore no types for is-animated
 import isAnimated from 'next/dist/compiled/is-animated'
+import { join } from 'path'
 import Stream from 'stream'
-import { sendEtagResponse } from './send-payload'
+import nodeUrl, { UrlWithParsedQuery } from 'url'
+import { fileExists } from '../../lib/file-exists'
 import { ImageConfig, imageConfigDefault } from './image-config'
+import { processBuffer, Operation } from './lib/squoosh/main'
+import Server from './next-server'
+import { sendEtagResponse } from './send-payload'
+import { getContentType, getExtension } from './serve-static'
 
-let sharp: typeof import('sharp')
 //const AVIF = 'image/avif'
 const WEBP = 'image/webp'
 const PNG = 'image/png'
@@ -241,45 +242,57 @@ export async function imageOptimizer(
     contentType = JPEG
   }
 
-  if (!sharp) {
-    try {
-      // eslint-disable-next-line import/no-extraneous-dependencies
-      sharp = require('sharp')
-    } catch (error) {
-      if (error.code === 'MODULE_NOT_FOUND') {
-        error.message += '\n\nLearn more: https://err.sh/next.js/install-sharp'
-        server.logError(error)
-        sendResponse(req, res, upstreamType, upstreamBuffer)
-        return { finished: true }
-      }
-      throw error
-    }
-  }
-
   try {
-    const transformer = sharp(upstreamBuffer)
-    transformer.rotate() // auto rotate based on EXIF data
+    const orientation = await getOrientation(upstreamBuffer)
 
-    const { width: metaWidth } = await transformer.metadata()
+    const operations: Operation[] = []
 
-    if (metaWidth && metaWidth > width) {
-      transformer.resize(width)
+    if (orientation === Orientation.RIGHT_TOP) {
+      operations.push({ type: 'rotate', numRotations: 1 })
+    } else if (orientation === Orientation.BOTTOM_RIGHT) {
+      operations.push({ type: 'rotate', numRotations: 2 })
+    } else if (orientation === Orientation.LEFT_BOTTOM) {
+      operations.push({ type: 'rotate', numRotations: 3 })
+    } else {
+      // TODO: support more orientations
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      // const _: never = orientation
     }
 
+    operations.push({ type: 'resize', width })
+
+    let optimizedBuffer: Buffer | undefined
     //if (contentType === AVIF) {
-    // Soon https://github.com/lovell/sharp/issues/2289
-    //}
+    //} else
     if (contentType === WEBP) {
-      transformer.webp({ quality })
+      optimizedBuffer = await processBuffer(
+        upstreamBuffer,
+        operations,
+        'webp',
+        quality
+      )
     } else if (contentType === PNG) {
-      transformer.png({ quality })
+      optimizedBuffer = await processBuffer(
+        upstreamBuffer,
+        operations,
+        'png',
+        quality
+      )
     } else if (contentType === JPEG) {
-      transformer.jpeg({ quality })
+      optimizedBuffer = await processBuffer(
+        upstreamBuffer,
+        operations,
+        'jpeg',
+        quality
+      )
     }
 
-    const optimizedBuffer = await transformer.toBuffer()
-    await writeToCacheDir(hashDir, contentType, expireAt, optimizedBuffer)
-    sendResponse(req, res, contentType, optimizedBuffer)
+    if (optimizedBuffer) {
+      await writeToCacheDir(hashDir, contentType, expireAt, optimizedBuffer)
+      sendResponse(req, res, contentType, optimizedBuffer)
+    } else {
+      throw new Error('Unable to optimize buffer')
+    }
   } catch (error) {
     sendResponse(req, res, upstreamType, upstreamBuffer)
   }
