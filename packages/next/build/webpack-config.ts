@@ -402,7 +402,7 @@ export default async function getBaseWebpackConfig(
             https: require.resolve('https-browserify'),
             os: require.resolve('os-browserify/browser'),
             path: require.resolve('path-browserify'),
-            punycode: require('punycode'),
+            punycode: require.resolve('punycode'),
             process: require.resolve('process/browser'),
             // Handled in separate alias
             querystring: require.resolve('querystring-es3'),
