@@ -21,7 +21,9 @@ const Box = styled.div`
   }
 `
 
-const anotherClass = css`color: blue`;
+const anotherClass = css`
+  color: blue;
+`
 
 export default function Home() {
   return (
