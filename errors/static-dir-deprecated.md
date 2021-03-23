@@ -12,7 +12,7 @@ You can move your `static` directory inside of the `public` directory and all UR
 
 **Before**
 
-```sh
+```
 static/
   my-image.jpg
 pages/
@@ -23,7 +23,7 @@ components/
 
 **After**
 
-```sh
+```
 public/
   static/
     my-image.jpg
