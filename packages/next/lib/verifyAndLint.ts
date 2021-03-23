@@ -9,6 +9,7 @@ import findUp from 'next/dist/compiled/find-up'
 
 type Config = {
   plugins: string[]
+  rules: { [key: string]: Array<number | string> }
 }
 
 export async function verifyAndLint(
@@ -42,9 +43,12 @@ export async function verifyAndLint(
     }
   )
 
+  const pagesDirRules = ['@next/next/no-html-link-for-pages']
+
   if (eslintrcFile) {
     options = {
       useEslintrc: true,
+      baseConfig: {},
     }
   } else {
     const pkgJsonPath = await findUp('package.json', { cwd: baseDir })
@@ -75,7 +79,8 @@ export async function verifyAndLint(
     }
   }
 
-  const eslint = new ESLint(options)
+  let eslint = new ESLint(options)
+  let isEnabled = false
 
   if (eslintrcFile) {
     const completeConfig: Config = await eslint.calculateConfigForFile(
@@ -87,6 +92,31 @@ export async function verifyAndLint(
       log.warn(
         `The Next.js ESLint plugin was not detected in ${eslintrcFile}. We recommend including it to prevent significant issues in your application (see https://nextjs.org/docs/basic-features/eslint).`
       )
+    }
+  } else {
+    isEnabled = true
+  }
+
+  if (isEnabled) {
+    let updatedPagesDir = false
+
+    for (const rule of pagesDirRules) {
+      if (
+        !options.baseConfig!.rules?.[rule] &&
+        !options.baseConfig!.rules?.[
+          rule.replace('@next/next', '@next/babel-plugin-next')
+        ]
+      ) {
+        if (!options.baseConfig!.rules) {
+          options.baseConfig!.rules = {}
+        }
+        options.baseConfig!.rules[rule] = [1, pagesDir]
+        updatedPagesDir = true
+      }
+    }
+
+    if (updatedPagesDir) {
+      eslint = new ESLint(options)
     }
   }
 
