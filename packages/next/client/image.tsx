@@ -295,8 +295,6 @@ export default function Image({
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerSvg: string | undefined
   let imgStyle: ImgElementStyle | undefined = {
-    visibility: isVisible ? 'inherit' : 'hidden',
-
     position: 'absolute',
     top: 0,
     left: 0,
@@ -438,6 +436,27 @@ export default function Image({
           ) : null}
         </div>
       ) : null}
+      {!isVisible && (
+        <noscript>
+          <img
+            {...rest}
+            {...generateImgAttrs({
+              src,
+              unoptimized,
+              layout,
+              width: widthInt,
+              quality: qualityInt,
+              sizes,
+              loader,
+            })}
+            src={src}
+            decoding="async"
+            sizes={sizes}
+            style={{ ...imgStyle, visibility: 'inherit' }}
+            className={className}
+          />
+        </noscript>
+      )}
       <img
         {...rest}
         {...imgAttributes}
