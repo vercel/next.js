@@ -79,6 +79,7 @@ export const defaultConfig: NextConfig = {
     scrollRestoration: false,
     scriptLoader: false,
     stats: false,
+    externalDir: false,
   },
   future: {
     strictPostcssConfiguration: false,
