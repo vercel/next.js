@@ -4,11 +4,8 @@ import { toggleMachine } from '../machines/toggleMachine'
 import { counterMachine } from '../machines/counterMachine'
 
 const IndexPage = () => {
-  const [toggleCurrent, toggleSend] = useMachine(toggleMachine, {
-    devTools: isDevEnvironment,
-  })
+  const [toggleCurrent, toggleSend] = useMachine(toggleMachine)
   const [counterCurrent, counterSend] = useMachine(counterMachine, {
-    devTools: isDevEnvironment,
     context: { count: 999 },
   })
 
