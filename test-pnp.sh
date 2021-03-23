@@ -29,6 +29,9 @@ do
   cp -r "./examples/$testCase/." "./e2e-tests/$testCase"
   cd "./e2e-tests/$testCase"
 
+  # Ensure builds do not fail due to lint errors
+  echo "module.exports = { eslint: { build: false } }" > next.config.js
+
   touch yarn.lock
   yarn set version berry
 
