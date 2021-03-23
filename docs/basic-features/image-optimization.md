@@ -100,7 +100,15 @@ The following describes the caching algorithm for the default [loader](#loader).
 
 Images are optimized dynamically upon request and stored in the `<distDir>/cache/images` directory. The optimized image file will be served for subsequent requests until the expiration is reached. When a request is made that matches a cached but expired file, the cached file is deleted before generating a new optimized image and caching the new file.
 
-The expiration (or rather Max Age) is defined by the upstream server's `Cache-Control` header.
+The expiration (or rather Max Age) is defined by the upstream server's `Cache-Control` header or by adding configuration to `next.config.js`
+
+```js
+module.exports = {
+  images: {
+    maxAge: 60,
+  },
+}
+```
 
 If `s-maxage` is found in `Cache-Control`, it is used. If no `s-maxage` is found, then `max-age` is used. If no `max-age` is found, then 60 seconds is used.
 
