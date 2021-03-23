@@ -7,8 +7,10 @@ import { counterMachine } from '../machines/counterMachine'
 /**
  * In order to use the xstate inspect module,
  * we should check that we are on client, rather than the server
+ * we also check that we are on development environment
  */
-if (typeof window !== 'undefined') {
+const isDevEnvironment = process.env.NODE_ENV === 'development'
+if (typeof window !== 'undefined' && isDevEnvironment) {
   inspect({
     iframe: false,
   })
@@ -16,10 +18,10 @@ if (typeof window !== 'undefined') {
 
 const IndexPage = () => {
   const [toggleCurrent, toggleSend] = useMachine(toggleMachine, {
-    devTools: true,
+    devTools: isDevEnvironment,
   })
   const [counterCurrent, counterSend] = useMachine(counterMachine, {
-    devTools: true,
+    devTools: isDevEnvironment,
     context: { count: 999 },
   })
 
