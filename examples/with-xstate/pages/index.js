@@ -1,20 +1,7 @@
 import { useMachine } from '@xstate/react'
-import { inspect } from '@xstate/inspect'
 import { Counter, Toggle } from '../components'
 import { toggleMachine } from '../machines/toggleMachine'
 import { counterMachine } from '../machines/counterMachine'
-
-/**
- * In order to use the xstate inspect module,
- * we should check that we are on client, rather than the server
- * we also check that we are on development environment
- */
-const isDevEnvironment = process.env.NODE_ENV === 'development'
-if (typeof window !== 'undefined' && isDevEnvironment) {
-  inspect({
-    iframe: false,
-  })
-}
 
 const IndexPage = () => {
   const [toggleCurrent, toggleSend] = useMachine(toggleMachine, {
