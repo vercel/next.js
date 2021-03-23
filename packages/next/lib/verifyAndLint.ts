@@ -44,6 +44,11 @@ export async function verifyAndLint(
   )
 
   const pagesDirRules = ['@next/next/no-html-link-for-pages']
+  const pkgJsonPath = await findUp('package.json', { cwd: baseDir })
+  const { eslintConfig = null } = !!pkgJsonPath
+    ? await import(pkgJsonPath!)
+    : {}
+  let pluginIsEnabled = false
 
   if (eslintrcFile) {
     options = {
@@ -51,16 +56,12 @@ export async function verifyAndLint(
       baseConfig: {},
     }
   } else {
-    const pkgJsonPath = await findUp('package.json', { cwd: baseDir })
-    const { eslintConfig = null } = !!pkgJsonPath
-      ? await import(pkgJsonPath!)
-      : {}
-
     if (!eslintConfig) {
       console.log()
       log.info(
         'No ESLint configuration was detected, but checks from the Next.js ESLint plugin were included automatically (see https://nextjs.org/docs/basic-features/eslint).'
       )
+      pluginIsEnabled = true
     }
 
     options = {
@@ -80,24 +81,23 @@ export async function verifyAndLint(
   }
 
   let eslint = new ESLint(options)
-  let isEnabled = false
 
-  if (eslintrcFile) {
+  // check both eslintrc and package.json config since
+  // eslint will load config from both
+  for (const configFile of [eslintrcFile, pkgJsonPath]) {
+    if (!configFile) continue
+
     const completeConfig: Config = await eslint.calculateConfigForFile(
-      eslintrcFile
+      configFile
     )
 
-    if (!completeConfig.plugins?.includes('@next/next')) {
-      console.log()
-      log.warn(
-        `The Next.js ESLint plugin was not detected in ${eslintrcFile}. We recommend including it to prevent significant issues in your application (see https://nextjs.org/docs/basic-features/eslint).`
-      )
+    if (completeConfig.plugins?.includes('@next/next')) {
+      pluginIsEnabled = true
+      break
     }
-  } else {
-    isEnabled = true
   }
 
-  if (isEnabled) {
+  if (pluginIsEnabled) {
     let updatedPagesDir = false
 
     for (const rule of pagesDirRules) {
@@ -118,6 +118,13 @@ export async function verifyAndLint(
     if (updatedPagesDir) {
       eslint = new ESLint(options)
     }
+  } else {
+    console.log()
+    log.warn(
+      `The Next.js ESLint plugin was not detected in ${
+        eslintrcFile || pkgJsonPath
+      }. We recommend including it to prevent significant issues in your application (see https://nextjs.org/docs/basic-features/eslint).`
+    )
   }
 
   const results = await eslint.lintFiles([
