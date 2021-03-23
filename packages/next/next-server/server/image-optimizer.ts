@@ -211,7 +211,6 @@ export async function imageOptimizer(
 
       upstreamBuffer = Buffer.concat(resBuffers)
       upstreamType = mockRes.getHeader('Content-Type')
-      //   const { nextConfig, distDir } = server
       maxAge = getMaxAge(mockRes.getHeader('Cache-Control'), imageData.maxAge)
     } catch (err) {
       res.statusCode = 500

@@ -10,7 +10,7 @@ export type LoaderValue = typeof VALID_LOADERS[number]
 export type ImageConfig = {
   deviceSizes: number[]
   imageSizes: number[]
-  maxAge?: 60
+  maxAge?: number
   loader: LoaderValue
   path: string
   domains?: string[]
