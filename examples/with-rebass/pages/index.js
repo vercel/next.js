@@ -1,45 +1,64 @@
-import {
-  Provider,
-  Container,
-  Heading,
-  Blockquote,
-  Toolbar,
-  NavLink,
-  Flex,
-  Box,
-} from 'rebass'
+import { Heading, Text, Link, Flex, Box } from 'rebass'
 
 function HomePage() {
   return (
-    <Provider>
-      <Heading is="h1" children="Next.js + Rebass" mb={3} center />
+    <Box
+      sx={{
+        maxWidth: 1100,
+        mx: 'auto',
+        px: 3,
+        textAlign: 'center',
+      }}
+    >
+      <Heading
+        as="h1"
+        children="Next.js + Rebass"
+        mb={3}
+        fontSize={[4, 5, 6]}
+      />
 
-      <Container>
-        <Toolbar bg="black">
-          <NavLink href="https://github.com/vercel/next.js/" target="_blank">
+      <Box>
+        <Flex px={2} color="white" bg="black" alignItems="center">
+          <Link
+            p={2}
+            fontWeight="bold"
+            href="https://github.com/vercel/next.js/"
+            sx={{
+              fontWeight: '600',
+              color: 'white',
+              textDecoration: 'none',
+            }}
+          >
             Next.js
-          </NavLink>
-          <NavLink ml="auto" href="http://jxnblk.com/rebass/" target="_blank">
+          </Link>
+          <Box mx="auto" />
+          <Link
+            variant="nav"
+            href="http://jxnblk.com/rebass/"
+            sx={{
+              fontWeight: '600',
+              color: 'white',
+              textDecoration: 'none',
+            }}
+          >
             REBASS
-          </NavLink>
-        </Toolbar>
-
-        <Flex justify="center">
-          <Box width={1 / 2}>
-            <Blockquote center fontSize={3} py={4}>
-              "Next.js is a minimalistic framework for server-rendered React
-              applications."
-            </Blockquote>
-          </Box>
-          <Box width={6 / 12}>
-            <Blockquote center fontSize={3} py={4}>
-              "Functional React UI component library, built with
-              styled-components"
-            </Blockquote>
-          </Box>
+          </Link>
         </Flex>
-      </Container>
-    </Provider>
+
+        <Box>
+          <Text center fontSize={3} py={4}>
+            "Next.js is a minimalistic framework for server-rendered React
+            applications."
+          </Text>
+        </Box>
+        <Box>
+          <Text center fontSize={3} py={2}>
+            "Functional React UI component library, built with
+            styled-components"
+          </Text>
+        </Box>
+      </Box>
+    </Box>
   )
 }
 
