@@ -12,7 +12,7 @@ describe('Re-export all exports from page is disallowed', () => {
       stderr: true,
     })
     expect(code).toBe(1)
-    expect(stderr).toMatch(/https:\/\/err\.sh\/next\.js\/export-all-in-page/)
+    expect(stderr).toMatch(/\/export-all-in-page/)
 
     expect(stderr.split('\n\n')[1]).toMatchInlineSnapshot(`
       "./pages/contact.js:3:1
@@ -29,9 +29,7 @@ describe('Re-export all exports from page is disallowed', () => {
         stderr: true,
       })
       expect(code).toBe(0)
-      expect(stderr).not.toMatch(
-        /https:\/\/err\.sh\/next\.js\/export-all-in-page/
-      )
+      expect(stderr).not.toMatch(/\/export-all-in-page/)
     } finally {
       f.restore()
     }
