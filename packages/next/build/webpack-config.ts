@@ -349,10 +349,10 @@ export default async function getBaseWebpackConfig(
   }
 
   const clientResolveRewrites = require.resolve(
-    'next/dist/next-server/lib/router/utils/resolve-rewrites'
+    '../next-server/lib/router/utils/resolve-rewrites'
   )
   const clientResolveRewritesNoop = require.resolve(
-    'next/dist/next-server/lib/router/utils/resolve-rewrites-noop'
+    '../next-server/lib/router/utils/resolve-rewrites-noop'
   )
 
   const resolveConfig = {
@@ -386,6 +386,9 @@ export default async function getBaseWebpackConfig(
       ...getReactProfilingInProduction(),
       [clientResolveRewrites]: hasRewrites
         ? clientResolveRewrites
+        : // With webpack 5 an alias can be pointed to false to noop
+        isWebpack5
+        ? false
         : clientResolveRewritesNoop,
     },
     ...(isWebpack5 && !isServer
@@ -393,11 +396,29 @@ export default async function getBaseWebpackConfig(
           // Full list of old polyfills is accessible here:
           // https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42
           fallback: {
-            buffer: require.resolve('buffer'),
+            assert: require.resolve('assert/'),
+            buffer: require.resolve('buffer/'),
+            constants: require.resolve('constants-browserify'),
             crypto: require.resolve('crypto-browserify'),
+            domain: require.resolve('domain-browser'),
+            http: require.resolve('stream-http'),
+            https: require.resolve('https-browserify'),
+            os: require.resolve('os-browserify/browser'),
             path: require.resolve('path-browserify'),
+            punycode: require.resolve('punycode'),
+            process: require.resolve('process/browser'),
+            // Handled in separate alias
+            querystring: require.resolve('querystring-es3'),
             stream: require.resolve('stream-browserify'),
+            string_decoder: require.resolve('string_decoder'),
+            sys: require.resolve('util/'),
+            timers: require.resolve('timers-browserify'),
+            tty: require.resolve('tty-browserify'),
+            // Handled in separate alias
+            // url: require.resolve('url/'),
+            util: require.resolve('util/'),
             vm: require.resolve('vm-browserify'),
+            zlib: require.resolve('browserify-zlib'),
           },
         }
       : undefined),
@@ -856,10 +877,15 @@ export default async function getBaseWebpackConfig(
             },
           }
         : {}),
-      path: outputPath,
+      path:
+        isServer && isWebpack5 && !dev
+          ? path.join(outputPath, 'chunks')
+          : outputPath,
       // On the server we don't use the chunkhash
       filename: isServer
-        ? '[name].js'
+        ? isWebpack5 && !dev
+          ? '../[name].js'
+          : '[name].js'
         : `static/chunks/[name]${dev ? '' : '-[chunkhash]'}.js`,
       library: isServer ? undefined : '_N_E',
       libraryTarget: isServer ? 'commonjs2' : 'assign',
@@ -919,7 +945,10 @@ export default async function getBaseWebpackConfig(
           : []),
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
-          include: [dir, ...babelIncludeRegexes],
+          ...(config.experimental.externalDir
+            ? // Allowing importing TS/TSX files from outside of the root dir.
+              {}
+            : { include: [dir, ...babelIncludeRegexes] }),
           exclude: (excludePath: string) => {
             if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
               return false
@@ -1117,7 +1146,8 @@ export default async function getBaseWebpackConfig(
           contextRegExp: /(next-server|next)[\\/]dist[\\/]/,
         }),
       isServerless && isServer && new ServerlessPlugin(),
-      isServer && new PagesManifestPlugin(isLikeServerless),
+      isServer &&
+        new PagesManifestPlugin({ serverless: isLikeServerless, dev }),
       !isWebpack5 &&
         target === 'server' &&
         isServer &&
@@ -1141,8 +1171,12 @@ export default async function getBaseWebpackConfig(
         (function () {
           const {
             FontStylesheetGatheringPlugin,
-          } = require('./webpack/plugins/font-stylesheet-gathering-plugin')
-          return new FontStylesheetGatheringPlugin()
+          } = require('./webpack/plugins/font-stylesheet-gathering-plugin') as {
+            FontStylesheetGatheringPlugin: typeof import('./webpack/plugins/font-stylesheet-gathering-plugin').FontStylesheetGatheringPlugin
+          }
+          return new FontStylesheetGatheringPlugin({
+            isLikeServerless,
+          })
         })(),
       config.experimental.conformance &&
         !isWebpack5 &&
@@ -1207,22 +1241,6 @@ export default async function getBaseWebpackConfig(
       webpackConfig.optimization.usedExports = false
     }
 
-    const nextPublicVariables = Object.keys(process.env)
-      .reduce((acc: string[], key: string) => {
-        if (key.startsWith('NEXT_PUBLIC_')) {
-          return [...acc, `${key}=${process.env[key]}`]
-        }
-        return acc
-      }, [])
-      .join('|')
-
-    const nextEnvVariables = Object.keys(config.env).reduce(
-      (prev: string, key: string) => {
-        return `${prev}|${key}=${config.env[key]}`
-      },
-      ''
-    )
-
     const configVars = JSON.stringify({
       crossOrigin: config.crossOrigin,
       pageExtensions: config.pageExtensions,
@@ -1241,16 +1259,15 @@ export default async function getBaseWebpackConfig(
       assetPrefix: config.assetPrefix,
       target,
       reactProductionProfiling,
+      webpack: !!config.webpack,
     })
 
     const cache: any = {
       type: 'filesystem',
       // Includes:
       //  - Next.js version
-      //  - NEXT_PUBLIC_ variable values (they affect caching) TODO: make this module usage only
-      //  - next.config.js `env` key
       //  - next.config.js keys that affect compilation
-      version: `${process.env.__NEXT_VERSION}|${nextPublicVariables}|${nextEnvVariables}|${configVars}`,
+      version: `${process.env.__NEXT_VERSION}|${configVars}`,
       cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
     }
 
@@ -1265,6 +1282,55 @@ export default async function getBaseWebpackConfig(
 
     // @ts-ignore TODO: remove ignore when webpack 5 is stable
     webpackConfig.optimization.realContentHash = false
+
+    if (process.env.NEXT_WEBPACK_LOGGING) {
+      const logInfra = process.env.NEXT_WEBPACK_LOGGING.includes(
+        'infrastructure'
+      )
+      const logProfileClient = process.env.NEXT_WEBPACK_LOGGING.includes(
+        'profile-client'
+      )
+      const logProfileServer = process.env.NEXT_WEBPACK_LOGGING.includes(
+        'profile-server'
+      )
+      const logDefault = !logInfra && !logProfileClient && !logProfileServer
+
+      if (logDefault || logInfra) {
+        // @ts-ignore TODO: remove ignore when webpack 5 is stable
+        webpackConfig.infrastructureLogging = {
+          level: 'verbose',
+          debug: /FileSystemInfo/,
+        }
+      }
+
+      if (
+        logDefault ||
+        (logProfileClient && !isServer) ||
+        (logProfileServer && isServer)
+      ) {
+        webpackConfig.plugins!.push((compiler: webpack.Compiler) => {
+          compiler.hooks.done.tap('next-webpack-logging', (stats) => {
+            console.log(
+              stats.toString({
+                colors: true,
+                // @ts-ignore TODO: remove ignore when webpack 5 is stable
+                logging: logDefault ? 'log' : 'verbose',
+              })
+            )
+          })
+        })
+      }
+
+      if ((logProfileClient && !isServer) || (logProfileServer && isServer)) {
+        webpackConfig.plugins!.push(
+          new webpack.ProgressPlugin({
+            // @ts-ignore TODO: remove ignore when webpack 5 is stable
+            profile: true,
+          })
+        )
+        webpackConfig.profile = true
+      }
+    }
   }
 
   webpackConfig = await buildConfiguration(webpackConfig, {

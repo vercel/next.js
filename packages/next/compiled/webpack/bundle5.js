@@ -46,7 +46,7 @@ module.exports = JSON.parse("{\"definitions\":{\"Rule\":{\"description\":\"Filte
 /***/ (function(module) {
 
 "use strict";
-module.exports = JSON.parse("{\"name\":\"terser\",\"description\":\"JavaScript parser, mangler/compressor and beautifier toolkit for ES6+\",\"homepage\":\"https://terser.org\",\"author\":\"Mihai Bazon <mihai.bazon@gmail.com> (http://lisperator.net/)\",\"license\":\"BSD-2-Clause\",\"version\":\"5.6.0\",\"engines\":{\"node\":\">=10\"},\"maintainers\":[\"Fábio Santos <fabiosantosart@gmail.com>\"],\"repository\":\"https://github.com/terser/terser\",\"main\":\"dist/bundle.min.js\",\"type\":\"module\",\"module\":\"./main.js\",\"exports\":{\".\":[{\"import\":\"./main.js\",\"require\":\"./dist/bundle.min.js\"},\"./dist/bundle.min.js\"],\"./package\":\"./package.json\",\"./package.json\":\"./package.json\"},\"types\":\"tools/terser.d.ts\",\"bin\":{\"terser\":\"bin/terser\"},\"files\":[\"bin\",\"dist\",\"lib\",\"tools\",\"LICENSE\",\"README.md\",\"CHANGELOG.md\",\"PATRONS.md\",\"main.js\"],\"dependencies\":{\"commander\":\"^2.20.0\",\"source-map\":\"~0.7.2\",\"source-map-support\":\"~0.5.19\"},\"devDependencies\":{\"@ls-lint/ls-lint\":\"^1.9.2\",\"acorn\":\"^8.0.5\",\"astring\":\"^1.6.2\",\"eslint\":\"^7.19.0\",\"eslump\":\"^2.0.0\",\"esm\":\"^3.2.25\",\"mocha\":\"^8.2.1\",\"pre-commit\":\"^1.2.2\",\"rimraf\":\"^3.0.2\",\"rollup\":\"2.38.4\",\"semver\":\"^7.3.4\"},\"scripts\":{\"test\":\"node test/compress.js && mocha test/mocha\",\"test:compress\":\"node test/compress.js\",\"test:mocha\":\"mocha test/mocha\",\"lint\":\"eslint lib\",\"lint-fix\":\"eslint --fix lib\",\"ls-lint\":\"ls-lint\",\"build\":\"rimraf dist/bundle* && rollup --config --silent\",\"prepare\":\"npm run build\",\"postversion\":\"echo 'Remember to update the changelog!'\"},\"keywords\":[\"uglify\",\"terser\",\"uglify-es\",\"uglify-js\",\"minify\",\"minifier\",\"javascript\",\"ecmascript\",\"es5\",\"es6\",\"es7\",\"es8\",\"es2015\",\"es2016\",\"es2017\",\"async\",\"await\"],\"eslintConfig\":{\"parserOptions\":{\"sourceType\":\"module\",\"ecmaVersion\":\"2020\"},\"env\":{\"node\":true,\"browser\":true,\"es2020\":true},\"globals\":{\"describe\":false,\"it\":false,\"require\":false,\"global\":false,\"process\":false},\"rules\":{\"brace-style\":[\"error\",\"1tbs\",{\"allowSingleLine\":true}],\"quotes\":[\"error\",\"double\",\"avoid-escape\"],\"no-debugger\":\"error\",\"no-undef\":\"error\",\"no-unused-vars\":[\"error\",{\"varsIgnorePattern\":\"^_$\"}],\"no-tabs\":\"error\",\"semi\":[\"error\",\"always\"],\"no-extra-semi\":\"error\",\"no-irregular-whitespace\":\"error\",\"space-before-blocks\":[\"error\",\"always\"]}},\"pre-commit\":[\"build\",\"lint-fix\",\"ls-lint\",\"test\"]}");
+module.exports = JSON.parse("{\"name\":\"terser\",\"description\":\"JavaScript parser, mangler/compressor and beautifier toolkit for ES6+\",\"homepage\":\"https://terser.org\",\"author\":\"Mihai Bazon <mihai.bazon@gmail.com> (http://lisperator.net/)\",\"license\":\"BSD-2-Clause\",\"version\":\"5.6.1\",\"engines\":{\"node\":\">=10\"},\"maintainers\":[\"Fábio Santos <fabiosantosart@gmail.com>\"],\"repository\":\"https://github.com/terser/terser\",\"main\":\"dist/bundle.min.js\",\"type\":\"module\",\"module\":\"./main.js\",\"exports\":{\".\":[{\"import\":\"./main.js\",\"require\":\"./dist/bundle.min.js\"},\"./dist/bundle.min.js\"],\"./package\":\"./package.json\",\"./package.json\":\"./package.json\"},\"types\":\"tools/terser.d.ts\",\"bin\":{\"terser\":\"bin/terser\"},\"files\":[\"bin\",\"dist\",\"lib\",\"tools\",\"LICENSE\",\"README.md\",\"CHANGELOG.md\",\"PATRONS.md\",\"main.js\"],\"dependencies\":{\"commander\":\"^2.20.0\",\"source-map\":\"~0.7.2\",\"source-map-support\":\"~0.5.19\"},\"devDependencies\":{\"@ls-lint/ls-lint\":\"^1.9.2\",\"acorn\":\"^8.0.5\",\"astring\":\"^1.6.2\",\"eslint\":\"^7.19.0\",\"eslump\":\"^2.0.0\",\"esm\":\"^3.2.25\",\"mocha\":\"^8.2.1\",\"pre-commit\":\"^1.2.2\",\"rimraf\":\"^3.0.2\",\"rollup\":\"2.38.4\",\"semver\":\"^7.3.4\"},\"scripts\":{\"test\":\"node test/compress.js && mocha test/mocha\",\"test:compress\":\"node test/compress.js\",\"test:mocha\":\"mocha test/mocha\",\"lint\":\"eslint lib\",\"lint-fix\":\"eslint --fix lib\",\"ls-lint\":\"ls-lint\",\"build\":\"rimraf dist/bundle* && rollup --config --silent\",\"prepare\":\"npm run build\",\"postversion\":\"echo 'Remember to update the changelog!'\"},\"keywords\":[\"uglify\",\"terser\",\"uglify-es\",\"uglify-js\",\"minify\",\"minifier\",\"javascript\",\"ecmascript\",\"es5\",\"es6\",\"es7\",\"es8\",\"es2015\",\"es2016\",\"es2017\",\"async\",\"await\"],\"eslintConfig\":{\"parserOptions\":{\"sourceType\":\"module\",\"ecmaVersion\":\"2020\"},\"env\":{\"node\":true,\"browser\":true,\"es2020\":true},\"globals\":{\"describe\":false,\"it\":false,\"require\":false,\"global\":false,\"process\":false},\"rules\":{\"brace-style\":[\"error\",\"1tbs\",{\"allowSingleLine\":true}],\"quotes\":[\"error\",\"double\",\"avoid-escape\"],\"no-debugger\":\"error\",\"no-undef\":\"error\",\"no-unused-vars\":[\"error\",{\"varsIgnorePattern\":\"^_$\"}],\"no-tabs\":\"error\",\"semi\":[\"error\",\"always\"],\"no-extra-semi\":\"error\",\"no-irregular-whitespace\":\"error\",\"space-before-blocks\":[\"error\",\"always\"]}},\"pre-commit\":[\"build\",\"lint-fix\",\"ls-lint\",\"test\"]}");
 
 /***/ }),
 
@@ -54,7 +54,7 @@ module.exports = JSON.parse("{\"name\":\"terser\",\"description\":\"JavaScript p
 /***/ (function(module) {
 
 "use strict";
-module.exports = {"i8":"5.24.0"};
+module.exports = {"i8":"5.28.0"};
 
 /***/ }),
 
@@ -62,7 +62,7 @@ module.exports = {"i8":"5.24.0"};
 /***/ (function(module) {
 
 "use strict";
-module.exports = JSON.parse("{\"definitions\":{\"Amd\":{\"description\":\"Set the value of `require.amd` and `define.amd`. Or disable AMD support.\",\"anyOf\":[{\"description\":\"You can pass `false` to disable AMD support.\",\"enum\":[false]},{\"description\":\"You can pass an object to set the value of `require.amd` and `define.amd`.\",\"type\":\"object\"}]},\"AssetFilterItemTypes\":{\"description\":\"Filtering value, regexp or function.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((name: string, asset: import('../lib/stats/DefaultStatsFactoryPlugin').StatsAsset) => boolean)\"}]},\"AssetFilterTypes\":{\"description\":\"Filtering modules.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Rule to filter.\",\"cli\":{\"helper\":true},\"oneOf\":[{\"$ref\":\"#/definitions/AssetFilterItemTypes\"}]}},{\"$ref\":\"#/definitions/AssetFilterItemTypes\"}]},\"AssetGeneratorDataUrl\":{\"description\":\"The options for data url generator.\",\"anyOf\":[{\"$ref\":\"#/definitions/AssetGeneratorDataUrlOptions\"},{\"$ref\":\"#/definitions/AssetGeneratorDataUrlFunction\"}]},\"AssetGeneratorDataUrlFunction\":{\"description\":\"Function that executes for module and should return an DataUrl string.\",\"instanceof\":\"Function\",\"tsType\":\"((source: string | Buffer, context: { filename: string, module: import('../lib/Module') }) => string)\"},\"AssetGeneratorDataUrlOptions\":{\"description\":\"Options object for data url generation.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"encoding\":{\"description\":\"Asset encoding (defaults to base64).\",\"enum\":[false,\"base64\"]},\"mimetype\":{\"description\":\"Asset mimetype (getting from file extension by default).\",\"type\":\"string\"}}},\"AssetGeneratorOptions\":{\"description\":\"Generator options for asset modules.\",\"type\":\"object\",\"implements\":[\"#/definitions/AssetInlineGeneratorOptions\",\"#/definitions/AssetResourceGeneratorOptions\"],\"additionalProperties\":false,\"properties\":{\"dataUrl\":{\"$ref\":\"#/definitions/AssetGeneratorDataUrl\"},\"filename\":{\"$ref\":\"#/definitions/FilenameTemplate\"}}},\"AssetInlineGeneratorOptions\":{\"description\":\"Generator options for asset/inline modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"dataUrl\":{\"$ref\":\"#/definitions/AssetGeneratorDataUrl\"}}},\"AssetModuleFilename\":{\"description\":\"The filename of asset modules as relative path inside the 'output.path' directory.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"AssetParserDataUrlFunction\":{\"description\":\"Function that executes for module and should return whenever asset should be inlined as DataUrl.\",\"instanceof\":\"Function\",\"tsType\":\"((source: string | Buffer, context: { filename: string, module: import('../lib/Module') }) => boolean)\"},\"AssetParserDataUrlOptions\":{\"description\":\"Options object for DataUrl condition.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"maxSize\":{\"description\":\"Maximum size of asset that should be inline as modules. Default: 8kb.\",\"type\":\"number\"}}},\"AssetParserOptions\":{\"description\":\"Parser options for asset modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"dataUrlCondition\":{\"description\":\"The condition for inlining the asset as DataUrl.\",\"anyOf\":[{\"$ref\":\"#/definitions/AssetParserDataUrlOptions\"},{\"$ref\":\"#/definitions/AssetParserDataUrlFunction\"}]}}},\"AssetResourceGeneratorOptions\":{\"description\":\"Generator options for asset/resource modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"filename\":{\"$ref\":\"#/definitions/FilenameTemplate\"}}},\"AuxiliaryComment\":{\"description\":\"Add a comment in the UMD wrapper.\",\"anyOf\":[{\"description\":\"Append the same comment above each import style.\",\"type\":\"string\"},{\"$ref\":\"#/definitions/LibraryCustomUmdCommentObject\"}]},\"Bail\":{\"description\":\"Report the first error as a hard error instead of tolerating it.\",\"type\":\"boolean\"},\"CacheOptions\":{\"description\":\"Cache generated modules and chunks to improve performance for multiple incremental builds.\",\"anyOf\":[{\"description\":\"Enable in memory caching.\",\"enum\":[true]},{\"$ref\":\"#/definitions/CacheOptionsNormalized\"}]},\"CacheOptionsNormalized\":{\"description\":\"Cache generated modules and chunks to improve performance for multiple incremental builds.\",\"anyOf\":[{\"description\":\"Disable caching.\",\"enum\":[false]},{\"$ref\":\"#/definitions/MemoryCacheOptions\"},{\"$ref\":\"#/definitions/FileCacheOptions\"}]},\"Charset\":{\"description\":\"Add charset attribute for script tag.\",\"type\":\"boolean\"},\"ChunkFilename\":{\"description\":\"Specifies the filename template of output files of non-initial chunks on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilenameTemplate\"}]},\"ChunkFormat\":{\"description\":\"The format of chunks (formats included by default are 'array-push' (web/WebWorker), 'commonjs' (node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"array-push\",\"commonjs\",false]},{\"type\":\"string\"}]},\"ChunkLoadTimeout\":{\"description\":\"Number of milliseconds before chunk request expires.\",\"type\":\"number\"},\"ChunkLoading\":{\"description\":\"The method of loading chunks (methods included by default are 'jsonp' (web), 'importScripts' (WebWorker), 'require' (sync node.js), 'async-node' (async node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/ChunkLoadingType\"}]},\"ChunkLoadingGlobal\":{\"description\":\"The global variable used by webpack for loading of chunks.\",\"type\":\"string\"},\"ChunkLoadingType\":{\"description\":\"The method of loading chunks (methods included by default are 'jsonp' (web), 'importScripts' (WebWorker), 'require' (sync node.js), 'async-node' (async node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"jsonp\",\"import-scripts\",\"require\",\"async-node\"]},{\"type\":\"string\"}]},\"Clean\":{\"description\":\"Clean the output directory before emit.\",\"anyOf\":[{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/CleanOptions\"}]},\"CleanOptions\":{\"description\":\"Advanced options for cleaning assets.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"dry\":{\"description\":\"Log the assets that should be removed instead of deleting them.\",\"type\":\"boolean\"},\"keep\":{\"description\":\"Keep these assets.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((filename: string) => boolean)\"}]}}},\"CompareBeforeEmit\":{\"description\":\"Check if to be emitted file already exists and have the same content before writing to output filesystem.\",\"type\":\"boolean\"},\"Context\":{\"description\":\"The base directory (absolute path!) for resolving the `entry` option. If `output.pathinfo` is set, the included pathinfo is shortened to this directory.\",\"type\":\"string\",\"absolutePath\":true},\"CrossOriginLoading\":{\"description\":\"This option enables cross-origin loading of chunks.\",\"enum\":[false,\"anonymous\",\"use-credentials\"]},\"Dependencies\":{\"description\":\"References to other configurations to depend on.\",\"type\":\"array\",\"items\":{\"description\":\"References to another configuration to depend on.\",\"type\":\"string\"}},\"DevServer\":{\"description\":\"Options for the webpack-dev-server.\",\"type\":\"object\"},\"DevTool\":{\"description\":\"A developer tool to enhance debugging (false | eval | [inline-|hidden-|eval-][nosources-][cheap-[module-]]source-map).\",\"anyOf\":[{\"enum\":[false,\"eval\"]},{\"type\":\"string\",\"pattern\":\"^(inline-|hidden-|eval-)?(nosources-)?(cheap-(module-)?)?source-map$\"}]},\"DevtoolFallbackModuleFilenameTemplate\":{\"description\":\"Similar to `output.devtoolModuleFilenameTemplate`, but used in the case of duplicate module identifiers.\",\"anyOf\":[{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"DevtoolModuleFilenameTemplate\":{\"description\":\"Filename template string of function for the sources array in a generated SourceMap.\",\"anyOf\":[{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"DevtoolNamespace\":{\"description\":\"Module namespace to use when interpolating filename template string for the sources array in a generated SourceMap. Defaults to `output.library` if not set. It's useful for avoiding runtime collisions in sourcemaps from multiple webpack projects built as libraries.\",\"type\":\"string\"},\"EmptyGeneratorOptions\":{\"description\":\"No generator options are supported for this module type.\",\"type\":\"object\",\"additionalProperties\":false},\"EmptyParserOptions\":{\"description\":\"No parser options are supported for this module type.\",\"type\":\"object\",\"additionalProperties\":false},\"EnabledChunkLoadingTypes\":{\"description\":\"List of chunk loading types enabled for use by entry points.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/ChunkLoadingType\"}},\"EnabledLibraryTypes\":{\"description\":\"List of library types enabled for use by entry points.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/LibraryType\"}},\"EnabledWasmLoadingTypes\":{\"description\":\"List of wasm loading types enabled for use by entry points.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/WasmLoadingType\"}},\"Entry\":{\"description\":\"The entry point(s) of the compilation.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryDynamic\"},{\"$ref\":\"#/definitions/EntryStatic\"}]},\"EntryDescription\":{\"description\":\"An object with entry point description.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"dependOn\":{\"description\":\"The entrypoints that the current entrypoint depend on. They must be loaded when this entrypoint is loaded.\",\"anyOf\":[{\"description\":\"The entrypoints that the current entrypoint depend on. They must be loaded when this entrypoint is loaded.\",\"type\":\"array\",\"items\":{\"description\":\"An entrypoint that the current entrypoint depend on. It must be loaded when this entrypoint is loaded.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},{\"description\":\"An entrypoint that the current entrypoint depend on. It must be loaded when this entrypoint is loaded.\",\"type\":\"string\",\"minLength\":1}]},\"filename\":{\"$ref\":\"#/definitions/EntryFilename\"},\"import\":{\"$ref\":\"#/definitions/EntryItem\"},\"layer\":{\"$ref\":\"#/definitions/Layer\"},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"runtime\":{\"$ref\":\"#/definitions/EntryRuntime\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}},\"required\":[\"import\"]},\"EntryDescriptionNormalized\":{\"description\":\"An object with entry point description.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"dependOn\":{\"description\":\"The entrypoints that the current entrypoint depend on. They must be loaded when this entrypoint is loaded.\",\"type\":\"array\",\"items\":{\"description\":\"An entrypoint that the current entrypoint depend on. It must be loaded when this entrypoint is loaded.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},\"filename\":{\"$ref\":\"#/definitions/Filename\"},\"import\":{\"description\":\"Module(s) that are loaded upon startup. The last one is exported.\",\"type\":\"array\",\"items\":{\"description\":\"Module that is loaded upon startup. Only the last one is exported.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},\"layer\":{\"$ref\":\"#/definitions/Layer\"},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"runtime\":{\"$ref\":\"#/definitions/EntryRuntime\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}}},\"EntryDynamic\":{\"description\":\"A Function returning an entry object, an entry string, an entry array or a promise to these things.\",\"instanceof\":\"Function\",\"tsType\":\"(() => EntryStatic | Promise<EntryStatic>)\"},\"EntryDynamicNormalized\":{\"description\":\"A Function returning a Promise resolving to a normalized entry.\",\"instanceof\":\"Function\",\"tsType\":\"(() => Promise<EntryStaticNormalized>)\"},\"EntryFilename\":{\"description\":\"Specifies the filename of the output file on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilenameTemplate\"}]},\"EntryItem\":{\"description\":\"Module(s) that are loaded upon startup.\",\"anyOf\":[{\"description\":\"All modules are loaded upon startup. The last one is exported.\",\"type\":\"array\",\"items\":{\"description\":\"A module that is loaded upon startup. Only the last one is exported.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},{\"description\":\"The string is resolved to a module which is loaded upon startup.\",\"type\":\"string\",\"minLength\":1}]},\"EntryNormalized\":{\"description\":\"The entry point(s) of the compilation.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryDynamicNormalized\"},{\"$ref\":\"#/definitions/EntryStaticNormalized\"}]},\"EntryObject\":{\"description\":\"Multiple entry bundles are created. The key is the entry name. The value can be a string, an array or an entry description object.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"An entry point with name.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryItem\"},{\"$ref\":\"#/definitions/EntryDescription\"}]}},\"EntryRuntime\":{\"description\":\"The name of the runtime chunk. If set a runtime chunk with this name is created or an existing entrypoint is used as runtime.\",\"type\":\"string\",\"minLength\":1},\"EntryStatic\":{\"description\":\"A static entry description.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryObject\"},{\"$ref\":\"#/definitions/EntryUnnamed\"}]},\"EntryStaticNormalized\":{\"description\":\"Multiple entry bundles are created. The key is the entry name. The value is an entry description object.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"An object with entry point description.\",\"oneOf\":[{\"$ref\":\"#/definitions/EntryDescriptionNormalized\"}]}},\"EntryUnnamed\":{\"description\":\"An entry point without name.\",\"oneOf\":[{\"$ref\":\"#/definitions/EntryItem\"}]},\"Environment\":{\"description\":\"The abilities of the environment where the webpack generated code should run.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"arrowFunction\":{\"description\":\"The environment supports arrow functions ('() => { ... }').\",\"type\":\"boolean\"},\"bigIntLiteral\":{\"description\":\"The environment supports BigInt as literal (123n).\",\"type\":\"boolean\"},\"const\":{\"description\":\"The environment supports const and let for variable declarations.\",\"type\":\"boolean\"},\"destructuring\":{\"description\":\"The environment supports destructuring ('{ a, b } = obj').\",\"type\":\"boolean\"},\"dynamicImport\":{\"description\":\"The environment supports an async import() function to import EcmaScript modules.\",\"type\":\"boolean\"},\"forOf\":{\"description\":\"The environment supports 'for of' iteration ('for (const x of array) { ... }').\",\"type\":\"boolean\"},\"module\":{\"description\":\"The environment supports EcmaScript Module syntax to import EcmaScript modules (import ... from '...').\",\"type\":\"boolean\"}}},\"Experiments\":{\"description\":\"Enables/Disables experiments (experimental features with relax SemVer compatibility).\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"asset\":{\"description\":\"Allow module type 'asset' to generate assets.\",\"type\":\"boolean\"},\"asyncWebAssembly\":{\"description\":\"Support WebAssembly as asynchronous EcmaScript Module.\",\"type\":\"boolean\"},\"layers\":{\"description\":\"Enable module and chunk layers.\",\"type\":\"boolean\"},\"lazyCompilation\":{\"description\":\"Compile entrypoints and import()s only when they are accessed.\",\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"backend\":{\"description\":\"A custom backend.\",\"instanceof\":\"Function\",\"tsType\":\"(((compiler: import('../lib/Compiler'), client: string, callback: (err?: Error, api?: any) => void) => void) | ((compiler: import('../lib/Compiler'), client: string) => Promise<any>))\"},\"client\":{\"description\":\"A custom client.\",\"type\":\"string\"},\"entries\":{\"description\":\"Enable/disable lazy compilation for entries.\",\"type\":\"boolean\"},\"imports\":{\"description\":\"Enable/disable lazy compilation for import() modules.\",\"type\":\"boolean\"},\"test\":{\"description\":\"Specify which entrypoints or import()ed modules should be lazily compiled. This is matched with the imported module and not the entrypoint name.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"((module: import('../lib/Module')) => boolean)\"}]}}}]},\"outputModule\":{\"description\":\"Allow output javascript files as module source type.\",\"type\":\"boolean\"},\"syncWebAssembly\":{\"description\":\"Support WebAssembly as synchronous EcmaScript Module (outdated).\",\"type\":\"boolean\"},\"topLevelAwait\":{\"description\":\"Allow using top-level-await in EcmaScript Modules.\",\"type\":\"boolean\"}}},\"ExternalItem\":{\"description\":\"Specify dependency that shouldn't be resolved by webpack, but should become dependencies of the resulting bundle. The kind of the dependency depends on `output.libraryTarget`.\",\"anyOf\":[{\"description\":\"Every matched dependency becomes external.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"An exact matched dependency becomes external. The same string is used as external dependency.\",\"type\":\"string\"},{\"description\":\"If an dependency matches exactly a property of the object, the property value is used as dependency.\",\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#/definitions/ExternalItemValue\"},\"properties\":{\"byLayer\":{\"description\":\"Specify externals depending on the layer.\",\"anyOf\":[{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#/definitions/ExternalItem\"}},{\"instanceof\":\"Function\",\"tsType\":\"((layer: string | null) => ExternalItem)\"}]}}},{\"description\":\"The function is called on each dependency (`function(context, request, callback(err, result))`).\",\"instanceof\":\"Function\",\"tsType\":\"(((data: ExternalItemFunctionData, callback: (err?: Error, result?: ExternalItemValue) => void) => void) | ((data: ExternalItemFunctionData) => Promise<ExternalItemValue>))\"}]},\"ExternalItemFunctionData\":{\"description\":\"Data object passed as argument when a function is set for 'externals'.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"context\":{\"description\":\"The directory in which the request is placed.\",\"type\":\"string\"},\"contextInfo\":{\"description\":\"Contextual information.\",\"type\":\"object\",\"tsType\":\"import('../lib/ModuleFactory').ModuleFactoryCreateDataContextInfo\"},\"getResolve\":{\"description\":\"Get a resolve function with the current resolver options.\",\"instanceof\":\"Function\",\"tsType\":\"((options?: ResolveOptions) => ((context: string, request: string, callback: (err?: Error, result?: string) => void) => void) | ((context: string, request: string) => Promise<string>))\"},\"request\":{\"description\":\"The request as written by the user in the require/import expression/statement.\",\"type\":\"string\"}}},\"ExternalItemValue\":{\"description\":\"The dependency used for the external.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A part of the target of the external.\",\"type\":\"string\",\"minLength\":1}},{\"description\":\"`true`: The dependency name is used as target of the external.\",\"type\":\"boolean\"},{\"description\":\"The target of the external.\",\"type\":\"string\"},{\"type\":\"object\"}]},\"Externals\":{\"description\":\"Specify dependencies that shouldn't be resolved by webpack, but should become dependencies of the resulting bundle. The kind of the dependency depends on `output.libraryTarget`.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/ExternalItem\"}},{\"$ref\":\"#/definitions/ExternalItem\"}]},\"ExternalsPresets\":{\"description\":\"Enable presets of externals for specific targets.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"electron\":{\"description\":\"Treat common electron built-in modules in main and preload context like 'electron', 'ipc' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"electronMain\":{\"description\":\"Treat electron built-in modules in the main context like 'app', 'ipc-main' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"electronPreload\":{\"description\":\"Treat electron built-in modules in the preload context like 'web-frame', 'ipc-renderer' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"electronRenderer\":{\"description\":\"Treat electron built-in modules in the renderer context like 'web-frame', 'ipc-renderer' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"node\":{\"description\":\"Treat node.js built-in modules like fs, path or vm as external and load them via require() when used.\",\"type\":\"boolean\"},\"nwjs\":{\"description\":\"Treat NW.js legacy nw.gui module as external and load it via require() when used.\",\"type\":\"boolean\"},\"web\":{\"description\":\"Treat references to 'http(s)://...' and 'std:...' as external and load them via import when used (Note that this changes execution order as externals are executed before any other code in the chunk).\",\"type\":\"boolean\"},\"webAsync\":{\"description\":\"Treat references to 'http(s)://...' and 'std:...' as external and load them via async import() when used (Note that this external type is an async module, which has various effects on the execution).\",\"type\":\"boolean\"}}},\"ExternalsType\":{\"description\":\"Specifies the default type of externals ('amd*', 'umd*', 'system' and 'jsonp' depend on output.libraryTarget set to the same value).\",\"enum\":[\"var\",\"module\",\"assign\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\",\"promise\",\"import\",\"script\"]},\"FileCacheOptions\":{\"description\":\"Options object for persistent file-based caching.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"buildDependencies\":{\"description\":\"Dependencies the build depends on (in multiple categories, default categories: 'defaultWebpack').\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"List of dependencies the build depends on.\",\"type\":\"array\",\"items\":{\"description\":\"Request to a dependency (resolved as directory relative to the context directory).\",\"type\":\"string\",\"minLength\":1}}},\"cacheDirectory\":{\"description\":\"Base directory for the cache (defaults to node_modules/.cache/webpack).\",\"type\":\"string\",\"absolutePath\":true},\"cacheLocation\":{\"description\":\"Locations for the cache (defaults to cacheDirectory / name).\",\"type\":\"string\",\"absolutePath\":true},\"hashAlgorithm\":{\"description\":\"Algorithm used for generation the hash (see node.js crypto package).\",\"type\":\"string\"},\"idleTimeout\":{\"description\":\"Time in ms after which idle period the cache storing should happen (only for store: 'pack' or 'idle').\",\"type\":\"number\",\"minimum\":0},\"idleTimeoutForInitialStore\":{\"description\":\"Time in ms after which idle period the initial cache storing should happen (only for store: 'pack' or 'idle').\",\"type\":\"number\",\"minimum\":0},\"immutablePaths\":{\"description\":\"List of paths that are managed by a package manager and contain a version or hash in its path so all files are immutable.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a immutable directory (usually a package manager cache directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"managedPaths\":{\"description\":\"List of paths that are managed by a package manager and can be trusted to not be modified otherwise.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a managed directory (usually a node_modules directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"name\":{\"description\":\"Name for the cache. Different names will lead to different coexisting caches.\",\"type\":\"string\"},\"store\":{\"description\":\"When to store data to the filesystem. (pack: Store data when compiler is idle in a single file).\",\"enum\":[\"pack\"]},\"type\":{\"description\":\"Filesystem caching.\",\"enum\":[\"filesystem\"]},\"version\":{\"description\":\"Version of the cache data. Different versions won't allow to reuse the cache and override existing content. Update the version when config changed in a way which doesn't allow to reuse cache. This will invalidate the cache.\",\"type\":\"string\"}},\"required\":[\"type\"]},\"Filename\":{\"description\":\"Specifies the filename of output files on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilenameTemplate\"}]},\"FilenameTemplate\":{\"description\":\"Specifies the filename template of output files on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"FilterItemTypes\":{\"description\":\"Filtering value, regexp or function.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((value: string) => boolean)\"}]},\"FilterTypes\":{\"description\":\"Filtering values.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Rule to filter.\",\"cli\":{\"helper\":true},\"oneOf\":[{\"$ref\":\"#/definitions/FilterItemTypes\"}]}},{\"$ref\":\"#/definitions/FilterItemTypes\"}]},\"GeneratorOptionsByModuleType\":{\"description\":\"Specify options for each generator.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Options for generating.\",\"type\":\"object\",\"additionalProperties\":true},\"properties\":{\"asset\":{\"$ref\":\"#/definitions/AssetGeneratorOptions\"},\"asset/inline\":{\"$ref\":\"#/definitions/AssetInlineGeneratorOptions\"},\"asset/resource\":{\"$ref\":\"#/definitions/AssetResourceGeneratorOptions\"},\"javascript\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"},\"javascript/auto\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"},\"javascript/dynamic\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"},\"javascript/esm\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"}}},\"GlobalObject\":{\"description\":\"An expression which is used to address the global object/scope in runtime code.\",\"type\":\"string\",\"minLength\":1},\"HashDigest\":{\"description\":\"Digest type used for the hash.\",\"type\":\"string\"},\"HashDigestLength\":{\"description\":\"Number of chars which are used for the hash.\",\"type\":\"number\",\"minimum\":1},\"HashFunction\":{\"description\":\"Algorithm used for generation the hash (see node.js crypto package).\",\"anyOf\":[{\"type\":\"string\",\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"typeof import('../lib/util/Hash')\"}]},\"HashSalt\":{\"description\":\"Any string which is added to the hash to salt it.\",\"type\":\"string\",\"minLength\":1},\"HotUpdateChunkFilename\":{\"description\":\"The filename of the Hot Update Chunks. They are inside the output.path directory.\",\"type\":\"string\",\"absolutePath\":false},\"HotUpdateGlobal\":{\"description\":\"The global variable used by webpack for loading of hot update chunks.\",\"type\":\"string\"},\"HotUpdateMainFilename\":{\"description\":\"The filename of the Hot Update Main File. It is inside the 'output.path' directory.\",\"type\":\"string\",\"absolutePath\":false},\"IgnoreWarnings\":{\"description\":\"Ignore specific warnings.\",\"type\":\"array\",\"items\":{\"description\":\"Ignore specific warnings.\",\"anyOf\":[{\"description\":\"A RegExp to select the warning message.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"file\":{\"description\":\"A RegExp to select the origin file for the warning.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},\"message\":{\"description\":\"A RegExp to select the warning message.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},\"module\":{\"description\":\"A RegExp to select the origin module for the warning.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}}},{\"description\":\"A custom function to select warnings based on the raw warning instance.\",\"instanceof\":\"Function\",\"tsType\":\"((warning: import('../lib/WebpackError'), compilation: import('../lib/Compilation')) => boolean)\"}]}},\"IgnoreWarningsNormalized\":{\"description\":\"Ignore specific warnings.\",\"type\":\"array\",\"items\":{\"description\":\"A function to select warnings based on the raw warning instance.\",\"instanceof\":\"Function\",\"tsType\":\"((warning: import('../lib/WebpackError'), compilation: import('../lib/Compilation')) => boolean)\"}},\"Iife\":{\"description\":\"Wrap javascript code into IIFE's to avoid leaking into global scope.\",\"type\":\"boolean\"},\"ImportFunctionName\":{\"description\":\"The name of the native import() function (can be exchanged for a polyfill).\",\"type\":\"string\"},\"ImportMetaName\":{\"description\":\"The name of the native import.meta object (can be exchanged for a polyfill).\",\"type\":\"string\"},\"InfrastructureLogging\":{\"description\":\"Options for infrastructure level logging.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"debug\":{\"description\":\"Enable debug logging for specific loggers.\",\"anyOf\":[{\"description\":\"Enable/Disable debug logging for all loggers.\",\"type\":\"boolean\"},{\"$ref\":\"#/definitions/FilterTypes\"}]},\"level\":{\"description\":\"Log level.\",\"enum\":[\"none\",\"error\",\"warn\",\"info\",\"log\",\"verbose\"]}}},\"JavascriptParserOptions\":{\"description\":\"Parser options for javascript modules.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"amd\":{\"$ref\":\"#/definitions/Amd\"},\"browserify\":{\"description\":\"Enable/disable special handling for browserify bundles.\",\"type\":\"boolean\"},\"commonjs\":{\"description\":\"Enable/disable parsing of CommonJs syntax.\",\"type\":\"boolean\"},\"commonjsMagicComments\":{\"description\":\"Enable/disable parsing of magic comments in CommonJs syntax.\",\"type\":\"boolean\"},\"exprContextCritical\":{\"description\":\"Enable warnings for full dynamic dependencies.\",\"type\":\"boolean\"},\"exprContextRecursive\":{\"description\":\"Enable recursive directory lookup for full dynamic dependencies.\",\"type\":\"boolean\"},\"exprContextRegExp\":{\"description\":\"Sets the default regular expression for full dynamic dependencies.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"boolean\"}]},\"exprContextRequest\":{\"description\":\"Set the default request for full dynamic dependencies.\",\"type\":\"string\"},\"harmony\":{\"description\":\"Enable/disable parsing of EcmaScript Modules syntax.\",\"type\":\"boolean\"},\"import\":{\"description\":\"Enable/disable parsing of import() syntax.\",\"type\":\"boolean\"},\"node\":{\"$ref\":\"#/definitions/Node\"},\"requireContext\":{\"description\":\"Enable/disable parsing of require.context syntax.\",\"type\":\"boolean\"},\"requireEnsure\":{\"description\":\"Enable/disable parsing of require.ensure syntax.\",\"type\":\"boolean\"},\"requireInclude\":{\"description\":\"Enable/disable parsing of require.include syntax.\",\"type\":\"boolean\"},\"requireJs\":{\"description\":\"Enable/disable parsing of require.js special syntax like require.config, requirejs.config, require.version and requirejs.onError.\",\"type\":\"boolean\"},\"strictExportPresence\":{\"description\":\"Emit errors instead of warnings when imported names don't exist in imported module.\",\"type\":\"boolean\"},\"strictThisContextOnImports\":{\"description\":\"Handle the this context correctly according to the spec for namespace objects.\",\"type\":\"boolean\"},\"system\":{\"description\":\"Enable/disable parsing of System.js special syntax like System.import, System.get, System.set and System.register.\",\"type\":\"boolean\"},\"unknownContextCritical\":{\"description\":\"Enable warnings when using the require function in a not statically analyse-able way.\",\"type\":\"boolean\"},\"unknownContextRecursive\":{\"description\":\"Enable recursive directory lookup when using the require function in a not statically analyse-able way.\",\"type\":\"boolean\"},\"unknownContextRegExp\":{\"description\":\"Sets the regular expression when using the require function in a not statically analyse-able way.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"boolean\"}]},\"unknownContextRequest\":{\"description\":\"Sets the request when using the require function in a not statically analyse-able way.\",\"type\":\"string\"},\"url\":{\"description\":\"Enable/disable parsing of new URL() syntax.\",\"anyOf\":[{\"enum\":[\"relative\"]},{\"type\":\"boolean\"}]},\"worker\":{\"description\":\"Disable or configure parsing of WebWorker syntax like new Worker() or navigator.serviceWorker.register().\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Specify a syntax that should be parsed as WebWorker reference. 'Abc' handles 'new Abc()', 'Abc from xyz' handles 'import { Abc } from \\\"xyz\\\"; new Abc()', 'abc()' handles 'abc()', and combinations are also possible.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"boolean\"}]},\"wrappedContextCritical\":{\"description\":\"Enable warnings for partial dynamic dependencies.\",\"type\":\"boolean\"},\"wrappedContextRecursive\":{\"description\":\"Enable recursive directory lookup for partial dynamic dependencies.\",\"type\":\"boolean\"},\"wrappedContextRegExp\":{\"description\":\"Set the inner regular expression for partial dynamic dependencies.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}}},\"Layer\":{\"description\":\"Specifies the layer in which modules of this entrypoint are placed.\",\"anyOf\":[{\"enum\":[null]},{\"type\":\"string\",\"minLength\":1}]},\"Library\":{\"description\":\"Make the output files a library, exporting the exports of the entry point.\",\"anyOf\":[{\"$ref\":\"#/definitions/LibraryName\"},{\"$ref\":\"#/definitions/LibraryOptions\"}]},\"LibraryCustomUmdCommentObject\":{\"description\":\"Set explicit comments for `commonjs`, `commonjs2`, `amd`, and `root`.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Set comment for `amd` section in UMD.\",\"type\":\"string\"},\"commonjs\":{\"description\":\"Set comment for `commonjs` (exports) section in UMD.\",\"type\":\"string\"},\"commonjs2\":{\"description\":\"Set comment for `commonjs2` (module.exports) section in UMD.\",\"type\":\"string\"},\"root\":{\"description\":\"Set comment for `root` (global variable) section in UMD.\",\"type\":\"string\"}}},\"LibraryCustomUmdObject\":{\"description\":\"Description object for all UMD variants of the library name.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Name of the exposed AMD library in the UMD.\",\"type\":\"string\",\"minLength\":1},\"commonjs\":{\"description\":\"Name of the exposed commonjs export in the UMD.\",\"type\":\"string\",\"minLength\":1},\"root\":{\"description\":\"Name of the property exposed globally by a UMD library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the name of the property exposed globally by a UMD library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}}},\"LibraryExport\":{\"description\":\"Specify which export should be exposed as library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the export that should be exposed as library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]},\"LibraryName\":{\"description\":\"The name of the library (some types allow unnamed libraries too).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A part of the library name.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1},{\"$ref\":\"#/definitions/LibraryCustomUmdObject\"}]},\"LibraryOptions\":{\"description\":\"Options for library.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"auxiliaryComment\":{\"$ref\":\"#/definitions/AuxiliaryComment\"},\"export\":{\"$ref\":\"#/definitions/LibraryExport\"},\"name\":{\"$ref\":\"#/definitions/LibraryName\"},\"type\":{\"$ref\":\"#/definitions/LibraryType\"},\"umdNamedDefine\":{\"$ref\":\"#/definitions/UmdNamedDefine\"}},\"required\":[\"type\"]},\"LibraryType\":{\"description\":\"Type of library (types included by default are 'var', 'module', 'assign', 'assign-properties', 'this', 'window', 'self', 'global', 'commonjs', 'commonjs2', 'commonjs-module', 'amd', 'amd-require', 'umd', 'umd2', 'jsonp', 'system', but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"var\",\"module\",\"assign\",\"assign-properties\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\"]},{\"type\":\"string\"}]},\"Loader\":{\"description\":\"Custom values available in the loader context.\",\"type\":\"object\"},\"MemoryCacheOptions\":{\"description\":\"Options object for in-memory caching.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"type\":{\"description\":\"In memory caching.\",\"enum\":[\"memory\"]}},\"required\":[\"type\"]},\"Mode\":{\"description\":\"Enable production optimizations or development hints.\",\"enum\":[\"development\",\"production\",\"none\"]},\"ModuleFilterItemTypes\":{\"description\":\"Filtering value, regexp or function.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((name: string, module: import('../lib/stats/DefaultStatsFactoryPlugin').StatsModule, type: 'module' | 'chunk' | 'root-of-chunk' | 'nested') => boolean)\"}]},\"ModuleFilterTypes\":{\"description\":\"Filtering modules.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Rule to filter.\",\"cli\":{\"helper\":true},\"oneOf\":[{\"$ref\":\"#/definitions/ModuleFilterItemTypes\"}]}},{\"$ref\":\"#/definitions/ModuleFilterItemTypes\"}]},\"ModuleOptions\":{\"description\":\"Options affecting the normal modules (`NormalModuleFactory`).\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"defaultRules\":{\"description\":\"An array of rules applied by default for modules.\",\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRules\"}]},\"exprContextCritical\":{\"description\":\"Enable warnings for full dynamic dependencies.\",\"type\":\"boolean\"},\"exprContextRecursive\":{\"description\":\"Enable recursive directory lookup for full dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.exprContextRecursive'.\",\"type\":\"boolean\"},\"exprContextRegExp\":{\"description\":\"Sets the default regular expression for full dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.exprContextRegExp'.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"boolean\"}]},\"exprContextRequest\":{\"description\":\"Set the default request for full dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.exprContextRequest'.\",\"type\":\"string\"},\"generator\":{\"$ref\":\"#/definitions/GeneratorOptionsByModuleType\"},\"noParse\":{\"$ref\":\"#/definitions/NoParse\"},\"parser\":{\"$ref\":\"#/definitions/ParserOptionsByModuleType\"},\"rules\":{\"description\":\"An array of rules applied for modules.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRules\"}]},\"strictExportPresence\":{\"description\":\"Emit errors instead of warnings when imported names don't exist in imported module. Deprecated: This option has moved to 'module.parser.javascript.strictExportPresence'.\",\"type\":\"boolean\"},\"strictThisContextOnImports\":{\"description\":\"Handle the this context correctly according to the spec for namespace objects. Deprecated: This option has moved to 'module.parser.javascript.strictThisContextOnImports'.\",\"type\":\"boolean\"},\"unknownContextCritical\":{\"description\":\"Enable warnings when using the require function in a not statically analyse-able way. Deprecated: This option has moved to 'module.parser.javascript.unknownContextCritical'.\",\"type\":\"boolean\"},\"unknownContextRecursive\":{\"description\":\"Enable recursive directory lookup when using the require function in a not statically analyse-able way. Deprecated: This option has moved to 'module.parser.javascript.unknownContextRecursive'.\",\"type\":\"boolean\"},\"unknownContextRegExp\":{\"description\":\"Sets the regular expression when using the require function in a not statically analyse-able way. Deprecated: This option has moved to 'module.parser.javascript.unknownContextRegExp'.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"boolean\"}]},\"unknownContextRequest\":{\"description\":\"Sets the request when using the require function in a not statically analyse-able way. Deprecated: This option has moved to 'module.parser.javascript.unknownContextRequest'.\",\"type\":\"string\"},\"unsafeCache\":{\"description\":\"Cache the resolving of module requests.\",\"anyOf\":[{\"type\":\"boolean\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"wrappedContextCritical\":{\"description\":\"Enable warnings for partial dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.wrappedContextCritical'.\",\"type\":\"boolean\"},\"wrappedContextRecursive\":{\"description\":\"Enable recursive directory lookup for partial dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.wrappedContextRecursive'.\",\"type\":\"boolean\"},\"wrappedContextRegExp\":{\"description\":\"Set the inner regular expression for partial dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.wrappedContextRegExp'.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}}},\"ModuleOptionsNormalized\":{\"description\":\"Options affecting the normal modules (`NormalModuleFactory`).\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"defaultRules\":{\"description\":\"An array of rules applied by default for modules.\",\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRules\"}]},\"generator\":{\"$ref\":\"#/definitions/GeneratorOptionsByModuleType\"},\"noParse\":{\"$ref\":\"#/definitions/NoParse\"},\"parser\":{\"$ref\":\"#/definitions/ParserOptionsByModuleType\"},\"rules\":{\"description\":\"An array of rules applied for modules.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRules\"}]},\"unsafeCache\":{\"description\":\"Cache the resolving of module requests.\",\"anyOf\":[{\"type\":\"boolean\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]}},\"required\":[\"defaultRules\",\"generator\",\"parser\",\"rules\"]},\"Name\":{\"description\":\"Name of the configuration. Used when loading multiple configurations.\",\"type\":\"string\"},\"NoParse\":{\"description\":\"Don't parse files matching. It's matched against the full resolved request.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Don't parse files matching. It's matched against the full resolved request.\",\"anyOf\":[{\"description\":\"A regular expression, when matched the module is not parsed.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"An absolute path, when the module starts with this path it is not parsed.\",\"type\":\"string\",\"absolutePath\":true},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"minItems\":1},{\"description\":\"A regular expression, when matched the module is not parsed.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"An absolute path, when the module starts with this path it is not parsed.\",\"type\":\"string\",\"absolutePath\":true},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"Node\":{\"description\":\"Include polyfills or mocks for various node stuff.\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/NodeOptions\"}]},\"NodeOptions\":{\"description\":\"Options object for node compatibility features.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"__dirname\":{\"description\":\"Include a polyfill for the '__dirname' variable.\",\"enum\":[false,true,\"mock\",\"eval-only\"]},\"__filename\":{\"description\":\"Include a polyfill for the '__filename' variable.\",\"enum\":[false,true,\"mock\",\"eval-only\"]},\"global\":{\"description\":\"Include a polyfill for the 'global' variable.\",\"type\":\"boolean\"}}},\"Optimization\":{\"description\":\"Enables/Disables integrated optimizations.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"checkWasmTypes\":{\"description\":\"Check for incompatible wasm types when importing/exporting from/to ESM.\",\"type\":\"boolean\"},\"chunkIds\":{\"description\":\"Define the algorithm to choose chunk ids (named: readable ids for better debugging, deterministic: numeric hash ids for better long term caching, size: numeric ids focused on minimal initial download size, total-size: numeric ids focused on minimal total download size, false: no algorithm used, as custom one can be provided via plugin).\",\"enum\":[\"natural\",\"named\",\"deterministic\",\"size\",\"total-size\",false]},\"concatenateModules\":{\"description\":\"Concatenate modules when possible to generate less modules, more efficient code and enable more optimizations by the minimizer.\",\"type\":\"boolean\"},\"emitOnErrors\":{\"description\":\"Emit assets even when errors occur. Critical errors are emitted into the generated code and will cause errors at runtime.\",\"type\":\"boolean\"},\"flagIncludedChunks\":{\"description\":\"Also flag chunks as loaded which contain a subset of the modules.\",\"type\":\"boolean\"},\"innerGraph\":{\"description\":\"Creates a module-internal dependency graph for top level symbols, exports and imports, to improve unused exports detection.\",\"type\":\"boolean\"},\"mangleExports\":{\"description\":\"Rename exports when possible to generate shorter code (depends on optimization.usedExports and optimization.providedExports, true/\\\"deterministic\\\": generate short deterministic names optimized for caching, \\\"size\\\": generate the shortest possible names).\",\"anyOf\":[{\"enum\":[\"size\",\"deterministic\"]},{\"type\":\"boolean\"}]},\"mangleWasmImports\":{\"description\":\"Reduce size of WASM by changing imports to shorter strings.\",\"type\":\"boolean\"},\"mergeDuplicateChunks\":{\"description\":\"Merge chunks which contain the same modules.\",\"type\":\"boolean\"},\"minimize\":{\"description\":\"Enable minimizing the output. Uses optimization.minimizer.\",\"type\":\"boolean\"},\"minimizer\":{\"description\":\"Minimizer(s) to use for minimizing the output.\",\"type\":\"array\",\"cli\":{\"exclude\":true},\"items\":{\"description\":\"Plugin of type object or instanceof Function.\",\"anyOf\":[{\"enum\":[\"...\"]},{\"$ref\":\"#/definitions/WebpackPluginInstance\"},{\"$ref\":\"#/definitions/WebpackPluginFunction\"}]}},\"moduleIds\":{\"description\":\"Define the algorithm to choose module ids (natural: numeric ids in order of usage, named: readable ids for better debugging, hashed: (deprecated) short hashes as ids for better long term caching, deterministic: numeric hash ids for better long term caching, size: numeric ids focused on minimal initial download size, false: no algorithm used, as custom one can be provided via plugin).\",\"enum\":[\"natural\",\"named\",\"hashed\",\"deterministic\",\"size\",false]},\"noEmitOnErrors\":{\"description\":\"Avoid emitting assets when errors occur (deprecated: use 'emitOnErrors' instead).\",\"type\":\"boolean\",\"cli\":{\"exclude\":true}},\"nodeEnv\":{\"description\":\"Set process.env.NODE_ENV to a specific value.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\"}]},\"portableRecords\":{\"description\":\"Generate records with relative paths to be able to move the context folder.\",\"type\":\"boolean\"},\"providedExports\":{\"description\":\"Figure out which exports are provided by modules to generate more efficient code.\",\"type\":\"boolean\"},\"realContentHash\":{\"description\":\"Use real [contenthash] based on final content of the assets.\",\"type\":\"boolean\"},\"removeAvailableModules\":{\"description\":\"Removes modules from chunks when these modules are already included in all parents.\",\"type\":\"boolean\"},\"removeEmptyChunks\":{\"description\":\"Remove chunks which are empty.\",\"type\":\"boolean\"},\"runtimeChunk\":{\"$ref\":\"#/definitions/OptimizationRuntimeChunk\"},\"sideEffects\":{\"description\":\"Skip over modules which contain no side effects when exports are not used (false: disabled, 'flag': only use manually placed side effects flag, true: also analyse source code for side effects).\",\"anyOf\":[{\"enum\":[\"flag\"]},{\"type\":\"boolean\"}]},\"splitChunks\":{\"description\":\"Optimize duplication and caching by splitting chunks by shared modules and cache group.\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/OptimizationSplitChunksOptions\"}]},\"usedExports\":{\"description\":\"Figure out which exports are used by modules to mangle export names, omit unused exports and generate more efficient code (true: analyse used exports for each runtime, \\\"global\\\": analyse exports globally for all runtimes combined).\",\"anyOf\":[{\"enum\":[\"global\"]},{\"type\":\"boolean\"}]}}},\"OptimizationRuntimeChunk\":{\"description\":\"Create an additional chunk which contains only the webpack runtime and chunk hash maps.\",\"anyOf\":[{\"enum\":[\"single\",\"multiple\"]},{\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"name\":{\"description\":\"The name or name factory for the runtime chunks.\",\"anyOf\":[{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]}}}]},\"OptimizationRuntimeChunkNormalized\":{\"description\":\"Create an additional chunk which contains only the webpack runtime and chunk hash maps.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"name\":{\"description\":\"The name factory for the runtime chunks.\",\"instanceof\":\"Function\",\"tsType\":\"Function\"}}}]},\"OptimizationSplitChunksCacheGroup\":{\"description\":\"Options object for describing behavior of a cache group selecting modules that should be cached together.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"automaticNameDelimiter\":{\"description\":\"Sets the name delimiter for created chunks.\",\"type\":\"string\",\"minLength\":1},\"chunks\":{\"description\":\"Select chunks for determining cache group content (defaults to \\\"initial\\\", \\\"initial\\\" and \\\"all\\\" requires adding these chunks to the HTML).\",\"anyOf\":[{\"enum\":[\"initial\",\"async\",\"all\"]},{\"instanceof\":\"Function\",\"tsType\":\"((chunk: import('../lib/Chunk')) => boolean)\"}]},\"enforce\":{\"description\":\"Ignore minimum size, minimum chunks and maximum requests and always create chunks for this cache group.\",\"type\":\"boolean\"},\"enforceSizeThreshold\":{\"description\":\"Size threshold at which splitting is enforced and other restrictions (minRemainingSize, maxAsyncRequests, maxInitialRequests) are ignored.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"filename\":{\"description\":\"Sets the template for the filename for created chunks.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"idHint\":{\"description\":\"Sets the hint for chunk id.\",\"type\":\"string\"},\"layer\":{\"description\":\"Assign modules to a cache group by module layer.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"maxAsyncRequests\":{\"description\":\"Maximum number of requests which are accepted for on-demand loading.\",\"type\":\"number\",\"minimum\":1},\"maxAsyncSize\":{\"description\":\"Maximal size hint for the on-demand chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxInitialRequests\":{\"description\":\"Maximum number of initial chunks which are accepted for an entry point.\",\"type\":\"number\",\"minimum\":1},\"maxInitialSize\":{\"description\":\"Maximal size hint for the initial chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxSize\":{\"description\":\"Maximal size hint for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minChunks\":{\"description\":\"Minimum number of times a module has to be duplicated until it's considered for splitting.\",\"type\":\"number\",\"minimum\":1},\"minRemainingSize\":{\"description\":\"Minimal size for the chunks the stay after moving the modules to a new chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minSize\":{\"description\":\"Minimal size for the created chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"name\":{\"description\":\"Give chunks for this cache group a name (chunks with equal name are merged).\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"priority\":{\"description\":\"Priority of this cache group.\",\"type\":\"number\"},\"reuseExistingChunk\":{\"description\":\"Try to reuse existing chunk (with name) when it has matching modules.\",\"type\":\"boolean\"},\"test\":{\"description\":\"Assign modules to a cache group by module name.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"type\":{\"description\":\"Assign modules to a cache group by module type.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"usedExports\":{\"description\":\"Compare used exports when checking common modules. Modules will only be put in the same chunk when exports are equal.\",\"type\":\"boolean\"}}},\"OptimizationSplitChunksGetCacheGroups\":{\"description\":\"A function returning cache groups.\",\"instanceof\":\"Function\",\"tsType\":\"((module: import('../lib/Module')) => OptimizationSplitChunksCacheGroup | OptimizationSplitChunksCacheGroup[] | void)\"},\"OptimizationSplitChunksOptions\":{\"description\":\"Options object for splitting chunks into smaller chunks.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"automaticNameDelimiter\":{\"description\":\"Sets the name delimiter for created chunks.\",\"type\":\"string\",\"minLength\":1},\"cacheGroups\":{\"description\":\"Assign modules to a cache group (modules from different cache groups are tried to keep in separate chunks, default categories: 'default', 'defaultVendors').\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Configuration for a cache group.\",\"anyOf\":[{\"enum\":[false]},{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"},{\"$ref\":\"#/definitions/OptimizationSplitChunksCacheGroup\"}]},\"not\":{\"description\":\"Using the cacheGroup shorthand syntax with a cache group named 'test' is a potential config error\\nDid you intent to define a cache group with a test instead?\\ncacheGroups: {\\n  <name>: {\\n    test: ...\\n  }\\n}.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"test\":{\"description\":\"The test property is a cache group name, but using the test option of the cache group could be intended instead.\",\"anyOf\":[{\"instanceof\":\"Function\",\"tsType\":\"Function\"},{\"type\":\"string\"},{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}]}},\"required\":[\"test\"]}},\"chunks\":{\"description\":\"Select chunks for determining shared modules (defaults to \\\"async\\\", \\\"initial\\\" and \\\"all\\\" requires adding these chunks to the HTML).\",\"anyOf\":[{\"enum\":[\"initial\",\"async\",\"all\"]},{\"instanceof\":\"Function\",\"tsType\":\"((chunk: import('../lib/Chunk')) => boolean)\"}]},\"defaultSizeTypes\":{\"description\":\"Sets the size types which are used when a number is used for sizes.\",\"type\":\"array\",\"items\":{\"description\":\"Size type, like 'javascript', 'webassembly'.\",\"type\":\"string\"},\"minLength\":1},\"enforceSizeThreshold\":{\"description\":\"Size threshold at which splitting is enforced and other restrictions (minRemainingSize, maxAsyncRequests, maxInitialRequests) are ignored.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"fallbackCacheGroup\":{\"description\":\"Options for modules not selected by any other cache group.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"automaticNameDelimiter\":{\"description\":\"Sets the name delimiter for created chunks.\",\"type\":\"string\",\"minLength\":1},\"maxAsyncSize\":{\"description\":\"Maximal size hint for the on-demand chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxInitialSize\":{\"description\":\"Maximal size hint for the initial chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxSize\":{\"description\":\"Maximal size hint for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minSize\":{\"description\":\"Minimal size for the created chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]}}},\"filename\":{\"description\":\"Sets the template for the filename for created chunks.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"hidePathInfo\":{\"description\":\"Prevents exposing path info when creating names for parts splitted by maxSize.\",\"type\":\"boolean\"},\"maxAsyncRequests\":{\"description\":\"Maximum number of requests which are accepted for on-demand loading.\",\"type\":\"number\",\"minimum\":1},\"maxAsyncSize\":{\"description\":\"Maximal size hint for the on-demand chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxInitialRequests\":{\"description\":\"Maximum number of initial chunks which are accepted for an entry point.\",\"type\":\"number\",\"minimum\":1},\"maxInitialSize\":{\"description\":\"Maximal size hint for the initial chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxSize\":{\"description\":\"Maximal size hint for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minChunks\":{\"description\":\"Minimum number of times a module has to be duplicated until it's considered for splitting.\",\"type\":\"number\",\"minimum\":1},\"minRemainingSize\":{\"description\":\"Minimal size for the chunks the stay after moving the modules to a new chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minSize\":{\"description\":\"Minimal size for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"name\":{\"description\":\"Give chunks created a name (chunks with equal name are merged).\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"usedExports\":{\"description\":\"Compare used exports when checking common modules. Modules will only be put in the same chunk when exports are equal.\",\"type\":\"boolean\"}}},\"OptimizationSplitChunksSizes\":{\"description\":\"Size description for limits.\",\"anyOf\":[{\"description\":\"Size of the javascript part of the chunk.\",\"type\":\"number\",\"minimum\":0},{\"description\":\"Specify size limits per size type.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Size of the part of the chunk with the type of the key.\",\"type\":\"number\"}}]},\"Output\":{\"description\":\"Options affecting the output of the compilation. `output` options tell webpack how to write the compiled files to disk.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"assetModuleFilename\":{\"$ref\":\"#/definitions/AssetModuleFilename\"},\"auxiliaryComment\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/AuxiliaryComment\"}]},\"charset\":{\"$ref\":\"#/definitions/Charset\"},\"chunkFilename\":{\"$ref\":\"#/definitions/ChunkFilename\"},\"chunkFormat\":{\"$ref\":\"#/definitions/ChunkFormat\"},\"chunkLoadTimeout\":{\"$ref\":\"#/definitions/ChunkLoadTimeout\"},\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"chunkLoadingGlobal\":{\"$ref\":\"#/definitions/ChunkLoadingGlobal\"},\"clean\":{\"$ref\":\"#/definitions/Clean\"},\"compareBeforeEmit\":{\"$ref\":\"#/definitions/CompareBeforeEmit\"},\"crossOriginLoading\":{\"$ref\":\"#/definitions/CrossOriginLoading\"},\"devtoolFallbackModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolFallbackModuleFilenameTemplate\"},\"devtoolModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolModuleFilenameTemplate\"},\"devtoolNamespace\":{\"$ref\":\"#/definitions/DevtoolNamespace\"},\"enabledChunkLoadingTypes\":{\"$ref\":\"#/definitions/EnabledChunkLoadingTypes\"},\"enabledLibraryTypes\":{\"$ref\":\"#/definitions/EnabledLibraryTypes\"},\"enabledWasmLoadingTypes\":{\"$ref\":\"#/definitions/EnabledWasmLoadingTypes\"},\"environment\":{\"$ref\":\"#/definitions/Environment\"},\"filename\":{\"$ref\":\"#/definitions/Filename\"},\"globalObject\":{\"$ref\":\"#/definitions/GlobalObject\"},\"hashDigest\":{\"$ref\":\"#/definitions/HashDigest\"},\"hashDigestLength\":{\"$ref\":\"#/definitions/HashDigestLength\"},\"hashFunction\":{\"$ref\":\"#/definitions/HashFunction\"},\"hashSalt\":{\"$ref\":\"#/definitions/HashSalt\"},\"hotUpdateChunkFilename\":{\"$ref\":\"#/definitions/HotUpdateChunkFilename\"},\"hotUpdateGlobal\":{\"$ref\":\"#/definitions/HotUpdateGlobal\"},\"hotUpdateMainFilename\":{\"$ref\":\"#/definitions/HotUpdateMainFilename\"},\"iife\":{\"$ref\":\"#/definitions/Iife\"},\"importFunctionName\":{\"$ref\":\"#/definitions/ImportFunctionName\"},\"importMetaName\":{\"$ref\":\"#/definitions/ImportMetaName\"},\"library\":{\"$ref\":\"#/definitions/Library\"},\"libraryExport\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/LibraryExport\"}]},\"libraryTarget\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/LibraryType\"}]},\"module\":{\"$ref\":\"#/definitions/OutputModule\"},\"path\":{\"$ref\":\"#/definitions/Path\"},\"pathinfo\":{\"$ref\":\"#/definitions/Pathinfo\"},\"publicPath\":{\"$ref\":\"#/definitions/PublicPath\"},\"scriptType\":{\"$ref\":\"#/definitions/ScriptType\"},\"sourceMapFilename\":{\"$ref\":\"#/definitions/SourceMapFilename\"},\"sourcePrefix\":{\"$ref\":\"#/definitions/SourcePrefix\"},\"strictModuleExceptionHandling\":{\"$ref\":\"#/definitions/StrictModuleExceptionHandling\"},\"umdNamedDefine\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/UmdNamedDefine\"}]},\"uniqueName\":{\"$ref\":\"#/definitions/UniqueName\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"},\"webassemblyModuleFilename\":{\"$ref\":\"#/definitions/WebassemblyModuleFilename\"},\"workerChunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"workerWasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}}},\"OutputModule\":{\"description\":\"Output javascript files as module source type.\",\"type\":\"boolean\"},\"OutputNormalized\":{\"description\":\"Normalized options affecting the output of the compilation. `output` options tell webpack how to write the compiled files to disk.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"assetModuleFilename\":{\"$ref\":\"#/definitions/AssetModuleFilename\"},\"charset\":{\"$ref\":\"#/definitions/Charset\"},\"chunkFilename\":{\"$ref\":\"#/definitions/ChunkFilename\"},\"chunkFormat\":{\"$ref\":\"#/definitions/ChunkFormat\"},\"chunkLoadTimeout\":{\"$ref\":\"#/definitions/ChunkLoadTimeout\"},\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"chunkLoadingGlobal\":{\"$ref\":\"#/definitions/ChunkLoadingGlobal\"},\"clean\":{\"$ref\":\"#/definitions/Clean\"},\"compareBeforeEmit\":{\"$ref\":\"#/definitions/CompareBeforeEmit\"},\"crossOriginLoading\":{\"$ref\":\"#/definitions/CrossOriginLoading\"},\"devtoolFallbackModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolFallbackModuleFilenameTemplate\"},\"devtoolModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolModuleFilenameTemplate\"},\"devtoolNamespace\":{\"$ref\":\"#/definitions/DevtoolNamespace\"},\"enabledChunkLoadingTypes\":{\"$ref\":\"#/definitions/EnabledChunkLoadingTypes\"},\"enabledLibraryTypes\":{\"$ref\":\"#/definitions/EnabledLibraryTypes\"},\"enabledWasmLoadingTypes\":{\"$ref\":\"#/definitions/EnabledWasmLoadingTypes\"},\"environment\":{\"$ref\":\"#/definitions/Environment\"},\"filename\":{\"$ref\":\"#/definitions/Filename\"},\"globalObject\":{\"$ref\":\"#/definitions/GlobalObject\"},\"hashDigest\":{\"$ref\":\"#/definitions/HashDigest\"},\"hashDigestLength\":{\"$ref\":\"#/definitions/HashDigestLength\"},\"hashFunction\":{\"$ref\":\"#/definitions/HashFunction\"},\"hashSalt\":{\"$ref\":\"#/definitions/HashSalt\"},\"hotUpdateChunkFilename\":{\"$ref\":\"#/definitions/HotUpdateChunkFilename\"},\"hotUpdateGlobal\":{\"$ref\":\"#/definitions/HotUpdateGlobal\"},\"hotUpdateMainFilename\":{\"$ref\":\"#/definitions/HotUpdateMainFilename\"},\"iife\":{\"$ref\":\"#/definitions/Iife\"},\"importFunctionName\":{\"$ref\":\"#/definitions/ImportFunctionName\"},\"importMetaName\":{\"$ref\":\"#/definitions/ImportMetaName\"},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"module\":{\"$ref\":\"#/definitions/OutputModule\"},\"path\":{\"$ref\":\"#/definitions/Path\"},\"pathinfo\":{\"$ref\":\"#/definitions/Pathinfo\"},\"publicPath\":{\"$ref\":\"#/definitions/PublicPath\"},\"scriptType\":{\"$ref\":\"#/definitions/ScriptType\"},\"sourceMapFilename\":{\"$ref\":\"#/definitions/SourceMapFilename\"},\"sourcePrefix\":{\"$ref\":\"#/definitions/SourcePrefix\"},\"strictModuleExceptionHandling\":{\"$ref\":\"#/definitions/StrictModuleExceptionHandling\"},\"uniqueName\":{\"$ref\":\"#/definitions/UniqueName\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"},\"webassemblyModuleFilename\":{\"$ref\":\"#/definitions/WebassemblyModuleFilename\"},\"workerChunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"workerWasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}}},\"Parallelism\":{\"description\":\"The number of parallel processed modules in the compilation.\",\"type\":\"number\",\"minimum\":1},\"ParserOptionsByModuleType\":{\"description\":\"Specify options for each parser.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Options for parsing.\",\"type\":\"object\",\"additionalProperties\":true},\"properties\":{\"asset\":{\"$ref\":\"#/definitions/AssetParserOptions\"},\"asset/inline\":{\"$ref\":\"#/definitions/EmptyParserOptions\"},\"asset/resource\":{\"$ref\":\"#/definitions/EmptyParserOptions\"},\"asset/source\":{\"$ref\":\"#/definitions/EmptyParserOptions\"},\"javascript\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"},\"javascript/auto\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"},\"javascript/dynamic\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"},\"javascript/esm\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"}}},\"Path\":{\"description\":\"The output directory as **absolute path** (required).\",\"type\":\"string\",\"absolutePath\":true},\"Pathinfo\":{\"description\":\"Include comments with information about the modules.\",\"anyOf\":[{\"enum\":[\"verbose\"]},{\"type\":\"boolean\"}]},\"Performance\":{\"description\":\"Configuration for web performance recommendations.\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/PerformanceOptions\"}]},\"PerformanceOptions\":{\"description\":\"Configuration object for web performance recommendations.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"assetFilter\":{\"description\":\"Filter function to select assets that are checked.\",\"instanceof\":\"Function\",\"tsType\":\"Function\"},\"hints\":{\"description\":\"Sets the format of the hints: warnings, errors or nothing at all.\",\"enum\":[false,\"warning\",\"error\"]},\"maxAssetSize\":{\"description\":\"File size limit (in bytes) when exceeded, that webpack will provide performance hints.\",\"type\":\"number\"},\"maxEntrypointSize\":{\"description\":\"Total size of an entry point (in bytes).\",\"type\":\"number\"}}},\"Plugins\":{\"description\":\"Add additional plugins to the compiler.\",\"type\":\"array\",\"items\":{\"description\":\"Plugin of type object or instanceof Function.\",\"anyOf\":[{\"$ref\":\"#/definitions/WebpackPluginInstance\"},{\"$ref\":\"#/definitions/WebpackPluginFunction\"}]}},\"Profile\":{\"description\":\"Capture timing information for each module.\",\"type\":\"boolean\"},\"PublicPath\":{\"description\":\"The `publicPath` specifies the public URL address of the output files when referenced in a browser.\",\"anyOf\":[{\"enum\":[\"auto\"]},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"RecordsInputPath\":{\"description\":\"Store compiler state to a json file.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\",\"absolutePath\":true}]},\"RecordsOutputPath\":{\"description\":\"Load compiler state from a json file.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\",\"absolutePath\":true}]},\"RecordsPath\":{\"description\":\"Store/Load compiler state from/to a json file. This will result in persistent ids of modules and chunks. An absolute path is expected. `recordsPath` is used for `recordsInputPath` and `recordsOutputPath` if they left undefined.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\",\"absolutePath\":true}]},\"Resolve\":{\"description\":\"Options for the resolver.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]},\"ResolveAlias\":{\"description\":\"Redirect module requests.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Alias configuration.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"alias\":{\"description\":\"New request.\",\"anyOf\":[{\"description\":\"Multiple alternative requests.\",\"type\":\"array\",\"items\":{\"description\":\"One choice of request.\",\"type\":\"string\",\"minLength\":1}},{\"description\":\"Ignore request (replace with empty module).\",\"enum\":[false]},{\"description\":\"New request.\",\"type\":\"string\",\"minLength\":1}]},\"name\":{\"description\":\"Request to be redirected.\",\"type\":\"string\"},\"onlyModule\":{\"description\":\"Redirect only exact matching request.\",\"type\":\"boolean\"}},\"required\":[\"alias\",\"name\"]}},{\"type\":\"object\",\"additionalProperties\":{\"description\":\"New request.\",\"anyOf\":[{\"description\":\"Multiple alternative requests.\",\"type\":\"array\",\"items\":{\"description\":\"One choice of request.\",\"type\":\"string\",\"minLength\":1}},{\"description\":\"Ignore request (replace with empty module).\",\"enum\":[false]},{\"description\":\"New request.\",\"type\":\"string\",\"minLength\":1}]}}]},\"ResolveLoader\":{\"description\":\"Options for the resolver when resolving loaders.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]},\"ResolveOptions\":{\"description\":\"Options object for resolving requests.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"alias\":{\"$ref\":\"#/definitions/ResolveAlias\"},\"aliasFields\":{\"description\":\"Fields in the description file (usually package.json) which are used to redirect requests inside the module.\",\"type\":\"array\",\"items\":{\"description\":\"Field in the description file (usually package.json) which are used to redirect requests inside the module.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the field path in the description file (usually package.json) which are used to redirect requests inside the module.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}},\"byDependency\":{\"description\":\"Extra resolve options per dependency category. Typical categories are \\\"commonjs\\\", \\\"amd\\\", \\\"esm\\\".\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Options object for resolving requests.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]}},\"cache\":{\"description\":\"Enable caching of successfully resolved requests (cache entries are revalidated).\",\"type\":\"boolean\"},\"cachePredicate\":{\"description\":\"Predicate function to decide which requests should be cached.\",\"instanceof\":\"Function\",\"tsType\":\"((request: import('enhanced-resolve').ResolveRequest) => boolean)\"},\"cacheWithContext\":{\"description\":\"Include the context information in the cache identifier when caching.\",\"type\":\"boolean\"},\"conditionNames\":{\"description\":\"Condition names for exports field entry point.\",\"type\":\"array\",\"items\":{\"description\":\"Condition names for exports field entry point.\",\"type\":\"string\"}},\"descriptionFiles\":{\"description\":\"Filenames used to find a description file (like a package.json).\",\"type\":\"array\",\"items\":{\"description\":\"Filename used to find a description file (like a package.json).\",\"type\":\"string\",\"minLength\":1}},\"enforceExtension\":{\"description\":\"Enforce the resolver to use one of the extensions from the extensions option (User must specify requests without extension).\",\"type\":\"boolean\"},\"exportsFields\":{\"description\":\"Field names from the description file (usually package.json) which are used to provide entry points of a package.\",\"type\":\"array\",\"items\":{\"description\":\"Field name from the description file (usually package.json) which is used to provide entry points of a package.\",\"type\":\"string\"}},\"extensions\":{\"description\":\"Extensions added to the request when trying to find the file.\",\"type\":\"array\",\"items\":{\"description\":\"Extension added to the request when trying to find the file.\",\"type\":\"string\",\"minLength\":1}},\"fallback\":{\"description\":\"Redirect module requests when normal resolving fails.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveAlias\"}]},\"fileSystem\":{\"description\":\"Filesystem for the resolver.\",\"tsType\":\"(import('../lib/util/fs').InputFileSystem)\"},\"fullySpecified\":{\"description\":\"Treats the request specified by the user as fully specified, meaning no extensions are added and the mainFiles in directories are not resolved (This doesn't affect requests from mainFields, aliasFields or aliases).\",\"type\":\"boolean\"},\"importsFields\":{\"description\":\"Field names from the description file (usually package.json) which are used to provide internal request of a package (requests starting with # are considered as internal).\",\"type\":\"array\",\"items\":{\"description\":\"Field name from the description file (usually package.json) which is used to provide internal request of a package (requests starting with # are considered as internal).\",\"type\":\"string\"}},\"mainFields\":{\"description\":\"Field names from the description file (package.json) which are used to find the default entry point.\",\"type\":\"array\",\"items\":{\"description\":\"Field name from the description file (package.json) which are used to find the default entry point.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the field path from the description file (package.json) which are used to find the default entry point.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}},\"mainFiles\":{\"description\":\"Filenames used to find the default entry point if there is no description file or main field.\",\"type\":\"array\",\"items\":{\"description\":\"Filename used to find the default entry point if there is no description file or main field.\",\"type\":\"string\",\"minLength\":1}},\"modules\":{\"description\":\"Folder names or directory paths where to find modules.\",\"type\":\"array\",\"items\":{\"description\":\"Folder name or directory path where to find modules.\",\"type\":\"string\",\"minLength\":1}},\"plugins\":{\"description\":\"Plugins for the resolver.\",\"type\":\"array\",\"cli\":{\"exclude\":true},\"items\":{\"description\":\"Plugin of type object or instanceof Function.\",\"anyOf\":[{\"enum\":[\"...\"]},{\"$ref\":\"#/definitions/ResolvePluginInstance\"}]}},\"preferAbsolute\":{\"description\":\"Prefer to resolve server-relative URLs (starting with '/') as absolute paths before falling back to resolve in 'resolve.roots'.\",\"type\":\"boolean\"},\"preferRelative\":{\"description\":\"Prefer to resolve module requests as relative request and fallback to resolving as module.\",\"type\":\"boolean\"},\"resolver\":{\"description\":\"Custom resolver.\",\"tsType\":\"(import('enhanced-resolve').Resolver)\"},\"restrictions\":{\"description\":\"A list of resolve restrictions. Resolve results must fulfill all of these restrictions to resolve successfully. Other resolve paths are taken when restrictions are not met.\",\"type\":\"array\",\"items\":{\"description\":\"Resolve restriction. Resolve result must fulfill this restriction.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}]}},\"roots\":{\"description\":\"A list of directories in which requests that are server-relative URLs (starting with '/') are resolved.\",\"type\":\"array\",\"items\":{\"description\":\"Directory in which requests that are server-relative URLs (starting with '/') are resolved.\",\"type\":\"string\"}},\"symlinks\":{\"description\":\"Enable resolving symlinks to the original location.\",\"type\":\"boolean\"},\"unsafeCache\":{\"description\":\"Enable caching of successfully resolved requests (cache entries are not revalidated).\",\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":true}]},\"useSyncFileSystemCalls\":{\"description\":\"Use synchronous filesystem calls for the resolver.\",\"type\":\"boolean\"}}},\"ResolvePluginInstance\":{\"description\":\"Plugin instance.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"apply\":{\"description\":\"The run point of the plugin, required method.\",\"instanceof\":\"Function\",\"tsType\":\"(resolver: import('enhanced-resolve').Resolver) => void\"}},\"required\":[\"apply\"]},\"RuleSetCondition\":{\"description\":\"A condition matcher.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"and\":{\"description\":\"Logical AND.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"not\":{\"description\":\"Logical NOT.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"or\":{\"description\":\"Logical OR.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditions\"}]}}},{\"instanceof\":\"Function\",\"tsType\":\"((value: string) => boolean)\"},{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"RuleSetConditionAbsolute\":{\"description\":\"A condition matcher matching an absolute path.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":true},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"and\":{\"description\":\"Logical AND.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"not\":{\"description\":\"Logical NOT.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"or\":{\"description\":\"Logical OR.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]}}},{\"instanceof\":\"Function\",\"tsType\":\"((value: string) => boolean)\"},{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"RuleSetConditionOrConditions\":{\"description\":\"One or multiple rule conditions.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"$ref\":\"#/definitions/RuleSetCondition\"},{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"RuleSetConditionOrConditionsAbsolute\":{\"description\":\"One or multiple rule conditions matching an absolute path.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"$ref\":\"#/definitions/RuleSetConditionAbsolute\"},{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"RuleSetConditions\":{\"description\":\"A list of rule conditions.\",\"type\":\"array\",\"items\":{\"description\":\"A rule condition.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetCondition\"}]}},\"RuleSetConditionsAbsolute\":{\"description\":\"A list of rule conditions matching an absolute path.\",\"type\":\"array\",\"items\":{\"description\":\"A rule condition matching an absolute path.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionAbsolute\"}]}},\"RuleSetLoader\":{\"description\":\"A loader request.\",\"type\":\"string\",\"minLength\":1},\"RuleSetLoaderOptions\":{\"description\":\"Options passed to a loader.\",\"anyOf\":[{\"type\":\"string\"},{\"type\":\"object\"}]},\"RuleSetRule\":{\"description\":\"A rule description with conditions and effects for modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"compiler\":{\"description\":\"Match the child compiler name.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"dependency\":{\"description\":\"Match dependency type.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"descriptionData\":{\"description\":\"Match values of properties in the description file (usually package.json).\",\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}},\"enforce\":{\"description\":\"Enforce this rule as pre or post step.\",\"enum\":[\"pre\",\"post\"]},\"exclude\":{\"description\":\"Shortcut for resource.exclude.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"generator\":{\"description\":\"The options for the module generator.\",\"type\":\"object\"},\"include\":{\"description\":\"Shortcut for resource.include.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"issuer\":{\"description\":\"Match the issuer of the module (The module pointing to this module).\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"issuerLayer\":{\"description\":\"Match layer of the issuer of this module (The module pointing to this module).\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"layer\":{\"description\":\"Specifies the layer in which the module should be placed in.\",\"type\":\"string\"},\"loader\":{\"description\":\"Shortcut for use.loader.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoader\"}]},\"mimetype\":{\"description\":\"Match module mimetype when load from Data URI.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"oneOf\":{\"description\":\"Only execute the first matching rule in this array.\",\"type\":\"array\",\"items\":{\"description\":\"A rule.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRule\"}]}},\"options\":{\"description\":\"Shortcut for use.options.\",\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoaderOptions\"}]},\"parser\":{\"description\":\"Options for parsing.\",\"type\":\"object\",\"additionalProperties\":true},\"realResource\":{\"description\":\"Match the real resource path of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"resolve\":{\"description\":\"Options for the resolver.\",\"type\":\"object\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]},\"resource\":{\"description\":\"Match the resource path of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"resourceFragment\":{\"description\":\"Match the resource fragment of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"resourceQuery\":{\"description\":\"Match the resource query of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"rules\":{\"description\":\"Match and execute these rules when this rule is matched.\",\"type\":\"array\",\"items\":{\"description\":\"A rule.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRule\"}]}},\"sideEffects\":{\"description\":\"Flags a module as with or without side effects.\",\"type\":\"boolean\"},\"test\":{\"description\":\"Shortcut for resource.test.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"type\":{\"description\":\"Module type to use for the module.\",\"type\":\"string\"},\"use\":{\"description\":\"Modifiers applied to the module when rule is matched.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetUse\"}]}}},\"RuleSetRules\":{\"description\":\"A list of rules.\",\"type\":\"array\",\"items\":{\"description\":\"A rule.\",\"anyOf\":[{\"cli\":{\"exclude\":true},\"enum\":[\"...\"]},{\"$ref\":\"#/definitions/RuleSetRule\"}]}},\"RuleSetUse\":{\"description\":\"A list of descriptions of loaders applied.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"An use item.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetUseItem\"}]}},{\"instanceof\":\"Function\",\"tsType\":\"((data: { resource: string, realResource: string, resourceQuery: string, issuer: string, compiler: string }) => RuleSetUseItem[])\"},{\"$ref\":\"#/definitions/RuleSetUseItem\"}]},\"RuleSetUseItem\":{\"description\":\"A description of an applied loader.\",\"anyOf\":[{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"ident\":{\"description\":\"Unique loader options identifier.\",\"type\":\"string\"},\"loader\":{\"description\":\"Loader name.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoader\"}]},\"options\":{\"description\":\"Loader options.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoaderOptions\"}]}}},{\"instanceof\":\"Function\",\"tsType\":\"((data: object) => RuleSetUseItem|RuleSetUseItem[])\"},{\"$ref\":\"#/definitions/RuleSetLoader\"}]},\"ScriptType\":{\"description\":\"This option enables loading async chunks via a custom script type, such as script type=\\\"module\\\".\",\"enum\":[false,\"text/javascript\",\"module\"]},\"SnapshotOptions\":{\"description\":\"Options affecting how file system snapshots are created and validated.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"buildDependencies\":{\"description\":\"Options for snapshotting build dependencies to determine if the whole cache need to be invalidated.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}},\"immutablePaths\":{\"description\":\"List of paths that are managed by a package manager and contain a version or hash in its path so all files are immutable.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a immutable directory (usually a package manager cache directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"managedPaths\":{\"description\":\"List of paths that are managed by a package manager and can be trusted to not be modified otherwise.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a managed directory (usually a node_modules directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"module\":{\"description\":\"Options for snapshotting dependencies of modules to determine if they need to be built again.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}},\"resolve\":{\"description\":\"Options for snapshotting dependencies of request resolving to determine if requests need to be re-resolved.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}},\"resolveBuildDependencies\":{\"description\":\"Options for snapshotting the resolving of build dependencies to determine if the build dependencies need to be re-resolved.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}}}},\"SourceMapFilename\":{\"description\":\"The filename of the SourceMaps for the JavaScript files. They are inside the 'output.path' directory.\",\"type\":\"string\",\"absolutePath\":false},\"SourcePrefix\":{\"description\":\"Prefixes every line of the source in the bundle with this string.\",\"type\":\"string\"},\"StatsOptions\":{\"description\":\"Stats options object.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"all\":{\"description\":\"Fallback value for stats options when an option is not defined (has precedence over local webpack defaults).\",\"type\":\"boolean\"},\"assets\":{\"description\":\"Add assets information.\",\"type\":\"boolean\"},\"assetsSort\":{\"description\":\"Sort the assets by that field.\",\"type\":\"string\"},\"assetsSpace\":{\"description\":\"Space to display assets (groups will be collapsed to fit this space).\",\"type\":\"number\"},\"builtAt\":{\"description\":\"Add built at time information.\",\"type\":\"boolean\"},\"cached\":{\"description\":\"Add information about cached (not built) modules (deprecated: use 'cachedModules' instead).\",\"type\":\"boolean\"},\"cachedAssets\":{\"description\":\"Show cached assets (setting this to `false` only shows emitted files).\",\"type\":\"boolean\"},\"cachedModules\":{\"description\":\"Add information about cached (not built) modules.\",\"type\":\"boolean\"},\"children\":{\"description\":\"Add children information.\",\"type\":\"boolean\"},\"chunkGroupAuxiliary\":{\"description\":\"Display auxiliary assets in chunk groups.\",\"type\":\"boolean\"},\"chunkGroupChildren\":{\"description\":\"Display children of chunk groups.\",\"type\":\"boolean\"},\"chunkGroupMaxAssets\":{\"description\":\"Limit of assets displayed in chunk groups.\",\"type\":\"number\"},\"chunkGroups\":{\"description\":\"Display all chunk groups with the corresponding bundles.\",\"type\":\"boolean\"},\"chunkModules\":{\"description\":\"Add built modules information to chunk information.\",\"type\":\"boolean\"},\"chunkModulesSpace\":{\"description\":\"Space to display chunk modules (groups will be collapsed to fit this space, value is in number of modules/group).\",\"type\":\"number\"},\"chunkOrigins\":{\"description\":\"Add the origins of chunks and chunk merging info.\",\"type\":\"boolean\"},\"chunkRelations\":{\"description\":\"Add information about parent, children and sibling chunks to chunk information.\",\"type\":\"boolean\"},\"chunks\":{\"description\":\"Add chunk information.\",\"type\":\"boolean\"},\"chunksSort\":{\"description\":\"Sort the chunks by that field.\",\"type\":\"string\"},\"colors\":{\"description\":\"Enables/Disables colorful output.\",\"anyOf\":[{\"description\":\"Enables/Disables colorful output.\",\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"bold\":{\"description\":\"Custom color for bold text.\",\"type\":\"string\"},\"cyan\":{\"description\":\"Custom color for cyan text.\",\"type\":\"string\"},\"green\":{\"description\":\"Custom color for green text.\",\"type\":\"string\"},\"magenta\":{\"description\":\"Custom color for magenta text.\",\"type\":\"string\"},\"red\":{\"description\":\"Custom color for red text.\",\"type\":\"string\"},\"yellow\":{\"description\":\"Custom color for yellow text.\",\"type\":\"string\"}}}]},\"context\":{\"description\":\"Context directory for request shortening.\",\"type\":\"string\",\"absolutePath\":true},\"dependentModules\":{\"description\":\"Show chunk modules that are dependencies of other modules of the chunk.\",\"type\":\"boolean\"},\"depth\":{\"description\":\"Add module depth in module graph.\",\"type\":\"boolean\"},\"entrypoints\":{\"description\":\"Display the entry points with the corresponding bundles.\",\"anyOf\":[{\"enum\":[\"auto\"]},{\"type\":\"boolean\"}]},\"env\":{\"description\":\"Add --env information.\",\"type\":\"boolean\"},\"errorDetails\":{\"description\":\"Add details to errors (like resolving log).\",\"anyOf\":[{\"enum\":[\"auto\"]},{\"type\":\"boolean\"}]},\"errorStack\":{\"description\":\"Add internal stack trace to errors.\",\"type\":\"boolean\"},\"errors\":{\"description\":\"Add errors.\",\"type\":\"boolean\"},\"errorsCount\":{\"description\":\"Add errors count.\",\"type\":\"boolean\"},\"exclude\":{\"description\":\"Please use excludeModules instead.\",\"cli\":{\"exclude\":true},\"anyOf\":[{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/ModuleFilterTypes\"}]},\"excludeAssets\":{\"description\":\"Suppress assets that match the specified filters. Filters can be Strings, RegExps or Functions.\",\"oneOf\":[{\"$ref\":\"#/definitions/AssetFilterTypes\"}]},\"excludeModules\":{\"description\":\"Suppress modules that match the specified filters. Filters can be Strings, RegExps, Booleans or Functions.\",\"anyOf\":[{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/ModuleFilterTypes\"}]},\"groupAssetsByChunk\":{\"description\":\"Group assets by how their are related to chunks.\",\"type\":\"boolean\"},\"groupAssetsByEmitStatus\":{\"description\":\"Group assets by their status (emitted, compared for emit or cached).\",\"type\":\"boolean\"},\"groupAssetsByExtension\":{\"description\":\"Group assets by their extension.\",\"type\":\"boolean\"},\"groupAssetsByInfo\":{\"description\":\"Group assets by their asset info (immutable, development, hotModuleReplacement, etc).\",\"type\":\"boolean\"},\"groupAssetsByPath\":{\"description\":\"Group assets by their path.\",\"type\":\"boolean\"},\"groupModulesByAttributes\":{\"description\":\"Group modules by their attributes (errors, warnings, assets, optional, orphan, or dependent).\",\"type\":\"boolean\"},\"groupModulesByCacheStatus\":{\"description\":\"Group modules by their status (cached or built and cacheable).\",\"type\":\"boolean\"},\"groupModulesByExtension\":{\"description\":\"Group modules by their extension.\",\"type\":\"boolean\"},\"groupModulesByLayer\":{\"description\":\"Group modules by their layer.\",\"type\":\"boolean\"},\"groupModulesByPath\":{\"description\":\"Group modules by their path.\",\"type\":\"boolean\"},\"hash\":{\"description\":\"Add the hash of the compilation.\",\"type\":\"boolean\"},\"ids\":{\"description\":\"Add ids.\",\"type\":\"boolean\"},\"logging\":{\"description\":\"Add logging output.\",\"anyOf\":[{\"description\":\"Specify log level of logging output.\",\"enum\":[\"none\",\"error\",\"warn\",\"info\",\"log\",\"verbose\"]},{\"description\":\"Enable/disable logging output (`true`: shows normal logging output, loglevel: log).\",\"type\":\"boolean\"}]},\"loggingDebug\":{\"description\":\"Include debug logging of specified loggers (i. e. for plugins or loaders). Filters can be Strings, RegExps or Functions.\",\"anyOf\":[{\"description\":\"Enable/Disable debug logging for all loggers.\",\"type\":\"boolean\"},{\"$ref\":\"#/definitions/FilterTypes\"}]},\"loggingTrace\":{\"description\":\"Add stack traces to logging output.\",\"type\":\"boolean\"},\"moduleAssets\":{\"description\":\"Add information about assets inside modules.\",\"type\":\"boolean\"},\"moduleTrace\":{\"description\":\"Add dependencies and origin of warnings/errors.\",\"type\":\"boolean\"},\"modules\":{\"description\":\"Add built modules information.\",\"type\":\"boolean\"},\"modulesSort\":{\"description\":\"Sort the modules by that field.\",\"type\":\"string\"},\"modulesSpace\":{\"description\":\"Space to display modules (groups will be collapsed to fit this space, value is in number of modules/groups).\",\"type\":\"number\"},\"nestedModules\":{\"description\":\"Add information about modules nested in other modules (like with module concatenation).\",\"type\":\"boolean\"},\"nestedModulesSpace\":{\"description\":\"Space to display modules nested within other modules (groups will be collapsed to fit this space, value is in number of modules/group).\",\"type\":\"number\"},\"optimizationBailout\":{\"description\":\"Show reasons why optimization bailed out for modules.\",\"type\":\"boolean\"},\"orphanModules\":{\"description\":\"Add information about orphan modules.\",\"type\":\"boolean\"},\"outputPath\":{\"description\":\"Add output path information.\",\"type\":\"boolean\"},\"performance\":{\"description\":\"Add performance hint flags.\",\"type\":\"boolean\"},\"preset\":{\"description\":\"Preset for the default values.\",\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"string\"}]},\"providedExports\":{\"description\":\"Show exports provided by modules.\",\"type\":\"boolean\"},\"publicPath\":{\"description\":\"Add public path information.\",\"type\":\"boolean\"},\"reasons\":{\"description\":\"Add information about the reasons why modules are included.\",\"type\":\"boolean\"},\"relatedAssets\":{\"description\":\"Add information about assets that are related to other assets (like SourceMaps for assets).\",\"type\":\"boolean\"},\"runtime\":{\"description\":\"Add information about runtime modules (deprecated: use 'runtimeModules' instead).\",\"type\":\"boolean\"},\"runtimeModules\":{\"description\":\"Add information about runtime modules.\",\"type\":\"boolean\"},\"source\":{\"description\":\"Add the source code of modules.\",\"type\":\"boolean\"},\"timings\":{\"description\":\"Add timing information.\",\"type\":\"boolean\"},\"usedExports\":{\"description\":\"Show exports used by modules.\",\"type\":\"boolean\"},\"version\":{\"description\":\"Add webpack version information.\",\"type\":\"boolean\"},\"warnings\":{\"description\":\"Add warnings.\",\"type\":\"boolean\"},\"warningsCount\":{\"description\":\"Add warnings count.\",\"type\":\"boolean\"},\"warningsFilter\":{\"description\":\"Suppress listing warnings that match the specified filters (they will still be counted). Filters can be Strings, RegExps or Functions.\",\"oneOf\":[{\"$ref\":\"#/definitions/WarningFilterTypes\"}]}}},\"StatsValue\":{\"description\":\"Stats options object or preset name.\",\"anyOf\":[{\"enum\":[\"none\",\"summary\",\"errors-only\",\"errors-warnings\",\"minimal\",\"normal\",\"detailed\",\"verbose\"]},{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/StatsOptions\"}]},\"StrictModuleExceptionHandling\":{\"description\":\"Handles exceptions in module loading correctly at a performance cost.\",\"type\":\"boolean\"},\"Target\":{\"description\":\"Environment to build for. An array of environments to build for all of them when possible.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Environment to build for.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1},{\"enum\":[false]},{\"type\":\"string\",\"minLength\":1}]},\"UmdNamedDefine\":{\"description\":\"If `output.libraryTarget` is set to umd and `output.library` is set, setting this to true will name the AMD module.\",\"type\":\"boolean\"},\"UniqueName\":{\"description\":\"A unique name of the webpack build to avoid multiple webpack runtimes to conflict when using globals.\",\"type\":\"string\",\"minLength\":1},\"WarningFilterItemTypes\":{\"description\":\"Filtering value, regexp or function.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((warning: import('../lib/stats/DefaultStatsFactoryPlugin').StatsError, value: string) => boolean)\"}]},\"WarningFilterTypes\":{\"description\":\"Filtering warnings.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Rule to filter.\",\"cli\":{\"helper\":true},\"oneOf\":[{\"$ref\":\"#/definitions/WarningFilterItemTypes\"}]}},{\"$ref\":\"#/definitions/WarningFilterItemTypes\"}]},\"WasmLoading\":{\"description\":\"The method of loading WebAssembly Modules (methods included by default are 'fetch' (web/WebWorker), 'async-node' (node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/WasmLoadingType\"}]},\"WasmLoadingType\":{\"description\":\"The method of loading WebAssembly Modules (methods included by default are 'fetch' (web/WebWorker), 'async-node' (node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"fetch-streaming\",\"fetch\",\"async-node\"]},{\"type\":\"string\"}]},\"Watch\":{\"description\":\"Enter watch mode, which rebuilds on file change.\",\"type\":\"boolean\"},\"WatchOptions\":{\"description\":\"Options for the watcher.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"aggregateTimeout\":{\"description\":\"Delay the rebuilt after the first change. Value is a time in ms.\",\"type\":\"number\"},\"followSymlinks\":{\"description\":\"Resolve symlinks and watch symlink and real file. This is usually not needed as webpack already resolves symlinks ('resolve.symlinks').\",\"type\":\"boolean\"},\"ignored\":{\"description\":\"Ignore some files from watching (glob pattern or regexp).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A glob pattern for files that should be ignored from watching.\",\"type\":\"string\",\"minLength\":1}},{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"A single glob pattern for files that should be ignored from watching.\",\"type\":\"string\",\"minLength\":1}]},\"poll\":{\"description\":\"Enable polling mode for watching.\",\"anyOf\":[{\"description\":\"`number`: use polling with specified interval.\",\"type\":\"number\"},{\"description\":\"`true`: use polling.\",\"type\":\"boolean\"}]},\"stdin\":{\"description\":\"Stop watching when stdin stream has ended.\",\"type\":\"boolean\"}}},\"WebassemblyModuleFilename\":{\"description\":\"The filename of WebAssembly modules as relative path inside the 'output.path' directory.\",\"type\":\"string\",\"absolutePath\":false},\"WebpackOptionsNormalized\":{\"description\":\"Normalized webpack options object.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"$ref\":\"#/definitions/Amd\"},\"bail\":{\"$ref\":\"#/definitions/Bail\"},\"cache\":{\"$ref\":\"#/definitions/CacheOptionsNormalized\"},\"context\":{\"$ref\":\"#/definitions/Context\"},\"dependencies\":{\"$ref\":\"#/definitions/Dependencies\"},\"devServer\":{\"$ref\":\"#/definitions/DevServer\"},\"devtool\":{\"$ref\":\"#/definitions/DevTool\"},\"entry\":{\"$ref\":\"#/definitions/EntryNormalized\"},\"experiments\":{\"$ref\":\"#/definitions/Experiments\"},\"externals\":{\"$ref\":\"#/definitions/Externals\"},\"externalsPresets\":{\"$ref\":\"#/definitions/ExternalsPresets\"},\"externalsType\":{\"$ref\":\"#/definitions/ExternalsType\"},\"ignoreWarnings\":{\"$ref\":\"#/definitions/IgnoreWarningsNormalized\"},\"infrastructureLogging\":{\"$ref\":\"#/definitions/InfrastructureLogging\"},\"loader\":{\"$ref\":\"#/definitions/Loader\"},\"mode\":{\"$ref\":\"#/definitions/Mode\"},\"module\":{\"$ref\":\"#/definitions/ModuleOptionsNormalized\"},\"name\":{\"$ref\":\"#/definitions/Name\"},\"node\":{\"$ref\":\"#/definitions/Node\"},\"optimization\":{\"$ref\":\"#/definitions/Optimization\"},\"output\":{\"$ref\":\"#/definitions/OutputNormalized\"},\"parallelism\":{\"$ref\":\"#/definitions/Parallelism\"},\"performance\":{\"$ref\":\"#/definitions/Performance\"},\"plugins\":{\"$ref\":\"#/definitions/Plugins\"},\"profile\":{\"$ref\":\"#/definitions/Profile\"},\"recordsInputPath\":{\"$ref\":\"#/definitions/RecordsInputPath\"},\"recordsOutputPath\":{\"$ref\":\"#/definitions/RecordsOutputPath\"},\"resolve\":{\"$ref\":\"#/definitions/Resolve\"},\"resolveLoader\":{\"$ref\":\"#/definitions/ResolveLoader\"},\"snapshot\":{\"$ref\":\"#/definitions/SnapshotOptions\"},\"stats\":{\"$ref\":\"#/definitions/StatsValue\"},\"target\":{\"$ref\":\"#/definitions/Target\"},\"watch\":{\"$ref\":\"#/definitions/Watch\"},\"watchOptions\":{\"$ref\":\"#/definitions/WatchOptions\"}},\"required\":[\"cache\",\"snapshot\",\"entry\",\"experiments\",\"externals\",\"externalsPresets\",\"infrastructureLogging\",\"module\",\"node\",\"optimization\",\"output\",\"plugins\",\"resolve\",\"resolveLoader\",\"stats\",\"watchOptions\"]},\"WebpackPluginFunction\":{\"description\":\"Function acting as plugin.\",\"instanceof\":\"Function\",\"tsType\":\"(this: import('../lib/Compiler'), compiler: import('../lib/Compiler')) => void\"},\"WebpackPluginInstance\":{\"description\":\"Plugin instance.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"apply\":{\"description\":\"The run point of the plugin, required method.\",\"instanceof\":\"Function\",\"tsType\":\"(compiler: import('../lib/Compiler')) => void\"}},\"required\":[\"apply\"]}},\"description\":\"Options object as provided by the user.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"$ref\":\"#/definitions/Amd\"},\"bail\":{\"$ref\":\"#/definitions/Bail\"},\"cache\":{\"$ref\":\"#/definitions/CacheOptions\"},\"context\":{\"$ref\":\"#/definitions/Context\"},\"dependencies\":{\"$ref\":\"#/definitions/Dependencies\"},\"devServer\":{\"$ref\":\"#/definitions/DevServer\"},\"devtool\":{\"$ref\":\"#/definitions/DevTool\"},\"entry\":{\"$ref\":\"#/definitions/Entry\"},\"experiments\":{\"$ref\":\"#/definitions/Experiments\"},\"externals\":{\"$ref\":\"#/definitions/Externals\"},\"externalsPresets\":{\"$ref\":\"#/definitions/ExternalsPresets\"},\"externalsType\":{\"$ref\":\"#/definitions/ExternalsType\"},\"ignoreWarnings\":{\"$ref\":\"#/definitions/IgnoreWarnings\"},\"infrastructureLogging\":{\"$ref\":\"#/definitions/InfrastructureLogging\"},\"loader\":{\"$ref\":\"#/definitions/Loader\"},\"mode\":{\"$ref\":\"#/definitions/Mode\"},\"module\":{\"$ref\":\"#/definitions/ModuleOptions\"},\"name\":{\"$ref\":\"#/definitions/Name\"},\"node\":{\"$ref\":\"#/definitions/Node\"},\"optimization\":{\"$ref\":\"#/definitions/Optimization\"},\"output\":{\"$ref\":\"#/definitions/Output\"},\"parallelism\":{\"$ref\":\"#/definitions/Parallelism\"},\"performance\":{\"$ref\":\"#/definitions/Performance\"},\"plugins\":{\"$ref\":\"#/definitions/Plugins\"},\"profile\":{\"$ref\":\"#/definitions/Profile\"},\"recordsInputPath\":{\"$ref\":\"#/definitions/RecordsInputPath\"},\"recordsOutputPath\":{\"$ref\":\"#/definitions/RecordsOutputPath\"},\"recordsPath\":{\"$ref\":\"#/definitions/RecordsPath\"},\"resolve\":{\"$ref\":\"#/definitions/Resolve\"},\"resolveLoader\":{\"$ref\":\"#/definitions/ResolveLoader\"},\"snapshot\":{\"$ref\":\"#/definitions/SnapshotOptions\"},\"stats\":{\"$ref\":\"#/definitions/StatsValue\"},\"target\":{\"$ref\":\"#/definitions/Target\"},\"watch\":{\"$ref\":\"#/definitions/Watch\"},\"watchOptions\":{\"$ref\":\"#/definitions/WatchOptions\"}}}");
+module.exports = JSON.parse("{\"definitions\":{\"Amd\":{\"description\":\"Set the value of `require.amd` and `define.amd`. Or disable AMD support.\",\"anyOf\":[{\"description\":\"You can pass `false` to disable AMD support.\",\"enum\":[false]},{\"description\":\"You can pass an object to set the value of `require.amd` and `define.amd`.\",\"type\":\"object\"}]},\"AssetFilterItemTypes\":{\"description\":\"Filtering value, regexp or function.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((name: string, asset: import('../lib/stats/DefaultStatsFactoryPlugin').StatsAsset) => boolean)\"}]},\"AssetFilterTypes\":{\"description\":\"Filtering modules.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Rule to filter.\",\"cli\":{\"helper\":true},\"oneOf\":[{\"$ref\":\"#/definitions/AssetFilterItemTypes\"}]}},{\"$ref\":\"#/definitions/AssetFilterItemTypes\"}]},\"AssetGeneratorDataUrl\":{\"description\":\"The options for data url generator.\",\"anyOf\":[{\"$ref\":\"#/definitions/AssetGeneratorDataUrlOptions\"},{\"$ref\":\"#/definitions/AssetGeneratorDataUrlFunction\"}]},\"AssetGeneratorDataUrlFunction\":{\"description\":\"Function that executes for module and should return an DataUrl string.\",\"instanceof\":\"Function\",\"tsType\":\"((source: string | Buffer, context: { filename: string, module: import('../lib/Module') }) => string)\"},\"AssetGeneratorDataUrlOptions\":{\"description\":\"Options object for data url generation.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"encoding\":{\"description\":\"Asset encoding (defaults to base64).\",\"enum\":[false,\"base64\"]},\"mimetype\":{\"description\":\"Asset mimetype (getting from file extension by default).\",\"type\":\"string\"}}},\"AssetGeneratorOptions\":{\"description\":\"Generator options for asset modules.\",\"type\":\"object\",\"implements\":[\"#/definitions/AssetInlineGeneratorOptions\",\"#/definitions/AssetResourceGeneratorOptions\"],\"additionalProperties\":false,\"properties\":{\"dataUrl\":{\"$ref\":\"#/definitions/AssetGeneratorDataUrl\"},\"emit\":{\"description\":\"Emit an output asset from this asset module. This can be set to 'false' to omit emitting e. g. for SSR.\",\"type\":\"boolean\"},\"filename\":{\"$ref\":\"#/definitions/FilenameTemplate\"},\"publicPath\":{\"$ref\":\"#/definitions/RawPublicPath\"}}},\"AssetInlineGeneratorOptions\":{\"description\":\"Generator options for asset/inline modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"dataUrl\":{\"$ref\":\"#/definitions/AssetGeneratorDataUrl\"}}},\"AssetModuleFilename\":{\"description\":\"The filename of asset modules as relative path inside the 'output.path' directory.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"AssetParserDataUrlFunction\":{\"description\":\"Function that executes for module and should return whenever asset should be inlined as DataUrl.\",\"instanceof\":\"Function\",\"tsType\":\"((source: string | Buffer, context: { filename: string, module: import('../lib/Module') }) => boolean)\"},\"AssetParserDataUrlOptions\":{\"description\":\"Options object for DataUrl condition.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"maxSize\":{\"description\":\"Maximum size of asset that should be inline as modules. Default: 8kb.\",\"type\":\"number\"}}},\"AssetParserOptions\":{\"description\":\"Parser options for asset modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"dataUrlCondition\":{\"description\":\"The condition for inlining the asset as DataUrl.\",\"anyOf\":[{\"$ref\":\"#/definitions/AssetParserDataUrlOptions\"},{\"$ref\":\"#/definitions/AssetParserDataUrlFunction\"}]}}},\"AssetResourceGeneratorOptions\":{\"description\":\"Generator options for asset/resource modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"emit\":{\"description\":\"Emit an output asset from this asset module. This can be set to 'false' to omit emitting e. g. for SSR.\",\"type\":\"boolean\"},\"filename\":{\"$ref\":\"#/definitions/FilenameTemplate\"},\"publicPath\":{\"$ref\":\"#/definitions/RawPublicPath\"}}},\"AuxiliaryComment\":{\"description\":\"Add a comment in the UMD wrapper.\",\"anyOf\":[{\"description\":\"Append the same comment above each import style.\",\"type\":\"string\"},{\"$ref\":\"#/definitions/LibraryCustomUmdCommentObject\"}]},\"Bail\":{\"description\":\"Report the first error as a hard error instead of tolerating it.\",\"type\":\"boolean\"},\"CacheOptions\":{\"description\":\"Cache generated modules and chunks to improve performance for multiple incremental builds.\",\"anyOf\":[{\"description\":\"Enable in memory caching.\",\"enum\":[true]},{\"$ref\":\"#/definitions/CacheOptionsNormalized\"}]},\"CacheOptionsNormalized\":{\"description\":\"Cache generated modules and chunks to improve performance for multiple incremental builds.\",\"anyOf\":[{\"description\":\"Disable caching.\",\"enum\":[false]},{\"$ref\":\"#/definitions/MemoryCacheOptions\"},{\"$ref\":\"#/definitions/FileCacheOptions\"}]},\"Charset\":{\"description\":\"Add charset attribute for script tag.\",\"type\":\"boolean\"},\"ChunkFilename\":{\"description\":\"Specifies the filename template of output files of non-initial chunks on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilenameTemplate\"}]},\"ChunkFormat\":{\"description\":\"The format of chunks (formats included by default are 'array-push' (web/WebWorker), 'commonjs' (node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"array-push\",\"commonjs\",false]},{\"type\":\"string\"}]},\"ChunkLoadTimeout\":{\"description\":\"Number of milliseconds before chunk request expires.\",\"type\":\"number\"},\"ChunkLoading\":{\"description\":\"The method of loading chunks (methods included by default are 'jsonp' (web), 'importScripts' (WebWorker), 'require' (sync node.js), 'async-node' (async node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/ChunkLoadingType\"}]},\"ChunkLoadingGlobal\":{\"description\":\"The global variable used by webpack for loading of chunks.\",\"type\":\"string\"},\"ChunkLoadingType\":{\"description\":\"The method of loading chunks (methods included by default are 'jsonp' (web), 'importScripts' (WebWorker), 'require' (sync node.js), 'async-node' (async node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"jsonp\",\"import-scripts\",\"require\",\"async-node\"]},{\"type\":\"string\"}]},\"Clean\":{\"description\":\"Clean the output directory before emit.\",\"anyOf\":[{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/CleanOptions\"}]},\"CleanOptions\":{\"description\":\"Advanced options for cleaning assets.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"dry\":{\"description\":\"Log the assets that should be removed instead of deleting them.\",\"type\":\"boolean\"},\"keep\":{\"description\":\"Keep these assets.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((filename: string) => boolean)\"}]}}},\"CompareBeforeEmit\":{\"description\":\"Check if to be emitted file already exists and have the same content before writing to output filesystem.\",\"type\":\"boolean\"},\"Context\":{\"description\":\"The base directory (absolute path!) for resolving the `entry` option. If `output.pathinfo` is set, the included pathinfo is shortened to this directory.\",\"type\":\"string\",\"absolutePath\":true},\"CrossOriginLoading\":{\"description\":\"This option enables cross-origin loading of chunks.\",\"enum\":[false,\"anonymous\",\"use-credentials\"]},\"Dependencies\":{\"description\":\"References to other configurations to depend on.\",\"type\":\"array\",\"items\":{\"description\":\"References to another configuration to depend on.\",\"type\":\"string\"}},\"DevServer\":{\"description\":\"Options for the webpack-dev-server.\",\"type\":\"object\"},\"DevTool\":{\"description\":\"A developer tool to enhance debugging (false | eval | [inline-|hidden-|eval-][nosources-][cheap-[module-]]source-map).\",\"anyOf\":[{\"enum\":[false,\"eval\"]},{\"type\":\"string\",\"pattern\":\"^(inline-|hidden-|eval-)?(nosources-)?(cheap-(module-)?)?source-map$\"}]},\"DevtoolFallbackModuleFilenameTemplate\":{\"description\":\"Similar to `output.devtoolModuleFilenameTemplate`, but used in the case of duplicate module identifiers.\",\"anyOf\":[{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"DevtoolModuleFilenameTemplate\":{\"description\":\"Filename template string of function for the sources array in a generated SourceMap.\",\"anyOf\":[{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"DevtoolNamespace\":{\"description\":\"Module namespace to use when interpolating filename template string for the sources array in a generated SourceMap. Defaults to `output.library` if not set. It's useful for avoiding runtime collisions in sourcemaps from multiple webpack projects built as libraries.\",\"type\":\"string\"},\"EmptyGeneratorOptions\":{\"description\":\"No generator options are supported for this module type.\",\"type\":\"object\",\"additionalProperties\":false},\"EmptyParserOptions\":{\"description\":\"No parser options are supported for this module type.\",\"type\":\"object\",\"additionalProperties\":false},\"EnabledChunkLoadingTypes\":{\"description\":\"List of chunk loading types enabled for use by entry points.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/ChunkLoadingType\"}},\"EnabledLibraryTypes\":{\"description\":\"List of library types enabled for use by entry points.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/LibraryType\"}},\"EnabledWasmLoadingTypes\":{\"description\":\"List of wasm loading types enabled for use by entry points.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/WasmLoadingType\"}},\"Entry\":{\"description\":\"The entry point(s) of the compilation.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryDynamic\"},{\"$ref\":\"#/definitions/EntryStatic\"}]},\"EntryDescription\":{\"description\":\"An object with entry point description.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"dependOn\":{\"description\":\"The entrypoints that the current entrypoint depend on. They must be loaded when this entrypoint is loaded.\",\"anyOf\":[{\"description\":\"The entrypoints that the current entrypoint depend on. They must be loaded when this entrypoint is loaded.\",\"type\":\"array\",\"items\":{\"description\":\"An entrypoint that the current entrypoint depend on. It must be loaded when this entrypoint is loaded.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},{\"description\":\"An entrypoint that the current entrypoint depend on. It must be loaded when this entrypoint is loaded.\",\"type\":\"string\",\"minLength\":1}]},\"filename\":{\"$ref\":\"#/definitions/EntryFilename\"},\"import\":{\"$ref\":\"#/definitions/EntryItem\"},\"layer\":{\"$ref\":\"#/definitions/Layer\"},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"runtime\":{\"$ref\":\"#/definitions/EntryRuntime\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}},\"required\":[\"import\"]},\"EntryDescriptionNormalized\":{\"description\":\"An object with entry point description.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"dependOn\":{\"description\":\"The entrypoints that the current entrypoint depend on. They must be loaded when this entrypoint is loaded.\",\"type\":\"array\",\"items\":{\"description\":\"An entrypoint that the current entrypoint depend on. It must be loaded when this entrypoint is loaded.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},\"filename\":{\"$ref\":\"#/definitions/Filename\"},\"import\":{\"description\":\"Module(s) that are loaded upon startup. The last one is exported.\",\"type\":\"array\",\"items\":{\"description\":\"Module that is loaded upon startup. Only the last one is exported.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},\"layer\":{\"$ref\":\"#/definitions/Layer\"},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"runtime\":{\"$ref\":\"#/definitions/EntryRuntime\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}}},\"EntryDynamic\":{\"description\":\"A Function returning an entry object, an entry string, an entry array or a promise to these things.\",\"instanceof\":\"Function\",\"tsType\":\"(() => EntryStatic | Promise<EntryStatic>)\"},\"EntryDynamicNormalized\":{\"description\":\"A Function returning a Promise resolving to a normalized entry.\",\"instanceof\":\"Function\",\"tsType\":\"(() => Promise<EntryStaticNormalized>)\"},\"EntryFilename\":{\"description\":\"Specifies the filename of the output file on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilenameTemplate\"}]},\"EntryItem\":{\"description\":\"Module(s) that are loaded upon startup.\",\"anyOf\":[{\"description\":\"All modules are loaded upon startup. The last one is exported.\",\"type\":\"array\",\"items\":{\"description\":\"A module that is loaded upon startup. Only the last one is exported.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1,\"uniqueItems\":true},{\"description\":\"The string is resolved to a module which is loaded upon startup.\",\"type\":\"string\",\"minLength\":1}]},\"EntryNormalized\":{\"description\":\"The entry point(s) of the compilation.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryDynamicNormalized\"},{\"$ref\":\"#/definitions/EntryStaticNormalized\"}]},\"EntryObject\":{\"description\":\"Multiple entry bundles are created. The key is the entry name. The value can be a string, an array or an entry description object.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"An entry point with name.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryItem\"},{\"$ref\":\"#/definitions/EntryDescription\"}]}},\"EntryRuntime\":{\"description\":\"The name of the runtime chunk. If set a runtime chunk with this name is created or an existing entrypoint is used as runtime.\",\"type\":\"string\",\"minLength\":1},\"EntryStatic\":{\"description\":\"A static entry description.\",\"anyOf\":[{\"$ref\":\"#/definitions/EntryObject\"},{\"$ref\":\"#/definitions/EntryUnnamed\"}]},\"EntryStaticNormalized\":{\"description\":\"Multiple entry bundles are created. The key is the entry name. The value is an entry description object.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"An object with entry point description.\",\"oneOf\":[{\"$ref\":\"#/definitions/EntryDescriptionNormalized\"}]}},\"EntryUnnamed\":{\"description\":\"An entry point without name.\",\"oneOf\":[{\"$ref\":\"#/definitions/EntryItem\"}]},\"Environment\":{\"description\":\"The abilities of the environment where the webpack generated code should run.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"arrowFunction\":{\"description\":\"The environment supports arrow functions ('() => { ... }').\",\"type\":\"boolean\"},\"bigIntLiteral\":{\"description\":\"The environment supports BigInt as literal (123n).\",\"type\":\"boolean\"},\"const\":{\"description\":\"The environment supports const and let for variable declarations.\",\"type\":\"boolean\"},\"destructuring\":{\"description\":\"The environment supports destructuring ('{ a, b } = obj').\",\"type\":\"boolean\"},\"dynamicImport\":{\"description\":\"The environment supports an async import() function to import EcmaScript modules.\",\"type\":\"boolean\"},\"forOf\":{\"description\":\"The environment supports 'for of' iteration ('for (const x of array) { ... }').\",\"type\":\"boolean\"},\"module\":{\"description\":\"The environment supports EcmaScript Module syntax to import EcmaScript modules (import ... from '...').\",\"type\":\"boolean\"}}},\"Experiments\":{\"description\":\"Enables/Disables experiments (experimental features with relax SemVer compatibility).\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"asset\":{\"description\":\"Allow module type 'asset' to generate assets.\",\"type\":\"boolean\"},\"asyncWebAssembly\":{\"description\":\"Support WebAssembly as asynchronous EcmaScript Module.\",\"type\":\"boolean\"},\"layers\":{\"description\":\"Enable module and chunk layers.\",\"type\":\"boolean\"},\"lazyCompilation\":{\"description\":\"Compile entrypoints and import()s only when they are accessed.\",\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"backend\":{\"description\":\"A custom backend.\",\"instanceof\":\"Function\",\"tsType\":\"(((compiler: import('../lib/Compiler'), client: string, callback: (err?: Error, api?: any) => void) => void) | ((compiler: import('../lib/Compiler'), client: string) => Promise<any>))\"},\"client\":{\"description\":\"A custom client.\",\"type\":\"string\"},\"entries\":{\"description\":\"Enable/disable lazy compilation for entries.\",\"type\":\"boolean\"},\"imports\":{\"description\":\"Enable/disable lazy compilation for import() modules.\",\"type\":\"boolean\"},\"test\":{\"description\":\"Specify which entrypoints or import()ed modules should be lazily compiled. This is matched with the imported module and not the entrypoint name.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"((module: import('../lib/Module')) => boolean)\"}]}}}]},\"outputModule\":{\"description\":\"Allow output javascript files as module source type.\",\"type\":\"boolean\"},\"syncWebAssembly\":{\"description\":\"Support WebAssembly as synchronous EcmaScript Module (outdated).\",\"type\":\"boolean\"},\"topLevelAwait\":{\"description\":\"Allow using top-level-await in EcmaScript Modules.\",\"type\":\"boolean\"}}},\"ExternalItem\":{\"description\":\"Specify dependency that shouldn't be resolved by webpack, but should become dependencies of the resulting bundle. The kind of the dependency depends on `output.libraryTarget`.\",\"anyOf\":[{\"description\":\"Every matched dependency becomes external.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"An exact matched dependency becomes external. The same string is used as external dependency.\",\"type\":\"string\"},{\"description\":\"If an dependency matches exactly a property of the object, the property value is used as dependency.\",\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#/definitions/ExternalItemValue\"},\"properties\":{\"byLayer\":{\"description\":\"Specify externals depending on the layer.\",\"anyOf\":[{\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#/definitions/ExternalItem\"}},{\"instanceof\":\"Function\",\"tsType\":\"((layer: string | null) => ExternalItem)\"}]}}},{\"description\":\"The function is called on each dependency (`function(context, request, callback(err, result))`).\",\"instanceof\":\"Function\",\"tsType\":\"(((data: ExternalItemFunctionData, callback: (err?: Error, result?: ExternalItemValue) => void) => void) | ((data: ExternalItemFunctionData) => Promise<ExternalItemValue>))\"}]},\"ExternalItemFunctionData\":{\"description\":\"Data object passed as argument when a function is set for 'externals'.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"context\":{\"description\":\"The directory in which the request is placed.\",\"type\":\"string\"},\"contextInfo\":{\"description\":\"Contextual information.\",\"type\":\"object\",\"tsType\":\"import('../lib/ModuleFactory').ModuleFactoryCreateDataContextInfo\"},\"getResolve\":{\"description\":\"Get a resolve function with the current resolver options.\",\"instanceof\":\"Function\",\"tsType\":\"((options?: ResolveOptions) => ((context: string, request: string, callback: (err?: Error, result?: string) => void) => void) | ((context: string, request: string) => Promise<string>))\"},\"request\":{\"description\":\"The request as written by the user in the require/import expression/statement.\",\"type\":\"string\"}}},\"ExternalItemValue\":{\"description\":\"The dependency used for the external.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A part of the target of the external.\",\"type\":\"string\",\"minLength\":1}},{\"description\":\"`true`: The dependency name is used as target of the external.\",\"type\":\"boolean\"},{\"description\":\"The target of the external.\",\"type\":\"string\"},{\"type\":\"object\"}]},\"Externals\":{\"description\":\"Specify dependencies that shouldn't be resolved by webpack, but should become dependencies of the resulting bundle. The kind of the dependency depends on `output.libraryTarget`.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/ExternalItem\"}},{\"$ref\":\"#/definitions/ExternalItem\"}]},\"ExternalsPresets\":{\"description\":\"Enable presets of externals for specific targets.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"electron\":{\"description\":\"Treat common electron built-in modules in main and preload context like 'electron', 'ipc' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"electronMain\":{\"description\":\"Treat electron built-in modules in the main context like 'app', 'ipc-main' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"electronPreload\":{\"description\":\"Treat electron built-in modules in the preload context like 'web-frame', 'ipc-renderer' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"electronRenderer\":{\"description\":\"Treat electron built-in modules in the renderer context like 'web-frame', 'ipc-renderer' or 'shell' as external and load them via require() when used.\",\"type\":\"boolean\"},\"node\":{\"description\":\"Treat node.js built-in modules like fs, path or vm as external and load them via require() when used.\",\"type\":\"boolean\"},\"nwjs\":{\"description\":\"Treat NW.js legacy nw.gui module as external and load it via require() when used.\",\"type\":\"boolean\"},\"web\":{\"description\":\"Treat references to 'http(s)://...' and 'std:...' as external and load them via import when used (Note that this changes execution order as externals are executed before any other code in the chunk).\",\"type\":\"boolean\"},\"webAsync\":{\"description\":\"Treat references to 'http(s)://...' and 'std:...' as external and load them via async import() when used (Note that this external type is an async module, which has various effects on the execution).\",\"type\":\"boolean\"}}},\"ExternalsType\":{\"description\":\"Specifies the default type of externals ('amd*', 'umd*', 'system' and 'jsonp' depend on output.libraryTarget set to the same value).\",\"enum\":[\"var\",\"module\",\"assign\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\",\"promise\",\"import\",\"script\"]},\"FileCacheOptions\":{\"description\":\"Options object for persistent file-based caching.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"buildDependencies\":{\"description\":\"Dependencies the build depends on (in multiple categories, default categories: 'defaultWebpack').\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"List of dependencies the build depends on.\",\"type\":\"array\",\"items\":{\"description\":\"Request to a dependency (resolved as directory relative to the context directory).\",\"type\":\"string\",\"minLength\":1}}},\"cacheDirectory\":{\"description\":\"Base directory for the cache (defaults to node_modules/.cache/webpack).\",\"type\":\"string\",\"absolutePath\":true},\"cacheLocation\":{\"description\":\"Locations for the cache (defaults to cacheDirectory / name).\",\"type\":\"string\",\"absolutePath\":true},\"hashAlgorithm\":{\"description\":\"Algorithm used for generation the hash (see node.js crypto package).\",\"type\":\"string\"},\"idleTimeout\":{\"description\":\"Time in ms after which idle period the cache storing should happen (only for store: 'pack' or 'idle').\",\"type\":\"number\",\"minimum\":0},\"idleTimeoutForInitialStore\":{\"description\":\"Time in ms after which idle period the initial cache storing should happen (only for store: 'pack' or 'idle').\",\"type\":\"number\",\"minimum\":0},\"immutablePaths\":{\"description\":\"List of paths that are managed by a package manager and contain a version or hash in its path so all files are immutable.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a immutable directory (usually a package manager cache directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"managedPaths\":{\"description\":\"List of paths that are managed by a package manager and can be trusted to not be modified otherwise.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a managed directory (usually a node_modules directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"name\":{\"description\":\"Name for the cache. Different names will lead to different coexisting caches.\",\"type\":\"string\"},\"store\":{\"description\":\"When to store data to the filesystem. (pack: Store data when compiler is idle in a single file).\",\"enum\":[\"pack\"]},\"type\":{\"description\":\"Filesystem caching.\",\"enum\":[\"filesystem\"]},\"version\":{\"description\":\"Version of the cache data. Different versions won't allow to reuse the cache and override existing content. Update the version when config changed in a way which doesn't allow to reuse cache. This will invalidate the cache.\",\"type\":\"string\"}},\"required\":[\"type\"]},\"Filename\":{\"description\":\"Specifies the filename of output files on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"oneOf\":[{\"$ref\":\"#/definitions/FilenameTemplate\"}]},\"FilenameTemplate\":{\"description\":\"Specifies the filename template of output files on disk. You must **not** specify an absolute path here, but the path may contain folders separated by '/'! The specified path is joined with the value of the 'output.path' option to determine the location on disk.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"FilterItemTypes\":{\"description\":\"Filtering value, regexp or function.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((value: string) => boolean)\"}]},\"FilterTypes\":{\"description\":\"Filtering values.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Rule to filter.\",\"cli\":{\"helper\":true},\"oneOf\":[{\"$ref\":\"#/definitions/FilterItemTypes\"}]}},{\"$ref\":\"#/definitions/FilterItemTypes\"}]},\"GeneratorOptionsByModuleType\":{\"description\":\"Specify options for each generator.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Options for generating.\",\"type\":\"object\",\"additionalProperties\":true},\"properties\":{\"asset\":{\"$ref\":\"#/definitions/AssetGeneratorOptions\"},\"asset/inline\":{\"$ref\":\"#/definitions/AssetInlineGeneratorOptions\"},\"asset/resource\":{\"$ref\":\"#/definitions/AssetResourceGeneratorOptions\"},\"javascript\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"},\"javascript/auto\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"},\"javascript/dynamic\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"},\"javascript/esm\":{\"$ref\":\"#/definitions/EmptyGeneratorOptions\"}}},\"GlobalObject\":{\"description\":\"An expression which is used to address the global object/scope in runtime code.\",\"type\":\"string\",\"minLength\":1},\"HashDigest\":{\"description\":\"Digest type used for the hash.\",\"type\":\"string\"},\"HashDigestLength\":{\"description\":\"Number of chars which are used for the hash.\",\"type\":\"number\",\"minimum\":1},\"HashFunction\":{\"description\":\"Algorithm used for generation the hash (see node.js crypto package).\",\"anyOf\":[{\"type\":\"string\",\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"typeof import('../lib/util/Hash')\"}]},\"HashSalt\":{\"description\":\"Any string which is added to the hash to salt it.\",\"type\":\"string\",\"minLength\":1},\"HotUpdateChunkFilename\":{\"description\":\"The filename of the Hot Update Chunks. They are inside the output.path directory.\",\"type\":\"string\",\"absolutePath\":false},\"HotUpdateGlobal\":{\"description\":\"The global variable used by webpack for loading of hot update chunks.\",\"type\":\"string\"},\"HotUpdateMainFilename\":{\"description\":\"The filename of the Hot Update Main File. It is inside the 'output.path' directory.\",\"type\":\"string\",\"absolutePath\":false},\"IgnoreWarnings\":{\"description\":\"Ignore specific warnings.\",\"type\":\"array\",\"items\":{\"description\":\"Ignore specific warnings.\",\"anyOf\":[{\"description\":\"A RegExp to select the warning message.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"file\":{\"description\":\"A RegExp to select the origin file for the warning.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},\"message\":{\"description\":\"A RegExp to select the warning message.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},\"module\":{\"description\":\"A RegExp to select the origin module for the warning.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}}},{\"description\":\"A custom function to select warnings based on the raw warning instance.\",\"instanceof\":\"Function\",\"tsType\":\"((warning: import('../lib/WebpackError'), compilation: import('../lib/Compilation')) => boolean)\"}]}},\"IgnoreWarningsNormalized\":{\"description\":\"Ignore specific warnings.\",\"type\":\"array\",\"items\":{\"description\":\"A function to select warnings based on the raw warning instance.\",\"instanceof\":\"Function\",\"tsType\":\"((warning: import('../lib/WebpackError'), compilation: import('../lib/Compilation')) => boolean)\"}},\"Iife\":{\"description\":\"Wrap javascript code into IIFE's to avoid leaking into global scope.\",\"type\":\"boolean\"},\"ImportFunctionName\":{\"description\":\"The name of the native import() function (can be exchanged for a polyfill).\",\"type\":\"string\"},\"ImportMetaName\":{\"description\":\"The name of the native import.meta object (can be exchanged for a polyfill).\",\"type\":\"string\"},\"InfrastructureLogging\":{\"description\":\"Options for infrastructure level logging.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"debug\":{\"description\":\"Enable debug logging for specific loggers.\",\"anyOf\":[{\"description\":\"Enable/Disable debug logging for all loggers.\",\"type\":\"boolean\"},{\"$ref\":\"#/definitions/FilterTypes\"}]},\"level\":{\"description\":\"Log level.\",\"enum\":[\"none\",\"error\",\"warn\",\"info\",\"log\",\"verbose\"]}}},\"JavascriptParserOptions\":{\"description\":\"Parser options for javascript modules.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"amd\":{\"$ref\":\"#/definitions/Amd\"},\"browserify\":{\"description\":\"Enable/disable special handling for browserify bundles.\",\"type\":\"boolean\"},\"commonjs\":{\"description\":\"Enable/disable parsing of CommonJs syntax.\",\"type\":\"boolean\"},\"commonjsMagicComments\":{\"description\":\"Enable/disable parsing of magic comments in CommonJs syntax.\",\"type\":\"boolean\"},\"exprContextCritical\":{\"description\":\"Enable warnings for full dynamic dependencies.\",\"type\":\"boolean\"},\"exprContextRecursive\":{\"description\":\"Enable recursive directory lookup for full dynamic dependencies.\",\"type\":\"boolean\"},\"exprContextRegExp\":{\"description\":\"Sets the default regular expression for full dynamic dependencies.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"boolean\"}]},\"exprContextRequest\":{\"description\":\"Set the default request for full dynamic dependencies.\",\"type\":\"string\"},\"harmony\":{\"description\":\"Enable/disable parsing of EcmaScript Modules syntax.\",\"type\":\"boolean\"},\"import\":{\"description\":\"Enable/disable parsing of import() syntax.\",\"type\":\"boolean\"},\"node\":{\"$ref\":\"#/definitions/Node\"},\"requireContext\":{\"description\":\"Enable/disable parsing of require.context syntax.\",\"type\":\"boolean\"},\"requireEnsure\":{\"description\":\"Enable/disable parsing of require.ensure syntax.\",\"type\":\"boolean\"},\"requireInclude\":{\"description\":\"Enable/disable parsing of require.include syntax.\",\"type\":\"boolean\"},\"requireJs\":{\"description\":\"Enable/disable parsing of require.js special syntax like require.config, requirejs.config, require.version and requirejs.onError.\",\"type\":\"boolean\"},\"strictExportPresence\":{\"description\":\"Emit errors instead of warnings when imported names don't exist in imported module.\",\"type\":\"boolean\"},\"strictThisContextOnImports\":{\"description\":\"Handle the this context correctly according to the spec for namespace objects.\",\"type\":\"boolean\"},\"system\":{\"description\":\"Enable/disable parsing of System.js special syntax like System.import, System.get, System.set and System.register.\",\"type\":\"boolean\"},\"unknownContextCritical\":{\"description\":\"Enable warnings when using the require function in a not statically analyse-able way.\",\"type\":\"boolean\"},\"unknownContextRecursive\":{\"description\":\"Enable recursive directory lookup when using the require function in a not statically analyse-able way.\",\"type\":\"boolean\"},\"unknownContextRegExp\":{\"description\":\"Sets the regular expression when using the require function in a not statically analyse-able way.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"boolean\"}]},\"unknownContextRequest\":{\"description\":\"Sets the request when using the require function in a not statically analyse-able way.\",\"type\":\"string\"},\"url\":{\"description\":\"Enable/disable parsing of new URL() syntax.\",\"anyOf\":[{\"enum\":[\"relative\"]},{\"type\":\"boolean\"}]},\"worker\":{\"description\":\"Disable or configure parsing of WebWorker syntax like new Worker() or navigator.serviceWorker.register().\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Specify a syntax that should be parsed as WebWorker reference. 'Abc' handles 'new Abc()', 'Abc from xyz' handles 'import { Abc } from \\\"xyz\\\"; new Abc()', 'abc()' handles 'abc()', and combinations are also possible.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"boolean\"}]},\"wrappedContextCritical\":{\"description\":\"Enable warnings for partial dynamic dependencies.\",\"type\":\"boolean\"},\"wrappedContextRecursive\":{\"description\":\"Enable recursive directory lookup for partial dynamic dependencies.\",\"type\":\"boolean\"},\"wrappedContextRegExp\":{\"description\":\"Set the inner regular expression for partial dynamic dependencies.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}}},\"Layer\":{\"description\":\"Specifies the layer in which modules of this entrypoint are placed.\",\"anyOf\":[{\"enum\":[null]},{\"type\":\"string\",\"minLength\":1}]},\"Library\":{\"description\":\"Make the output files a library, exporting the exports of the entry point.\",\"anyOf\":[{\"$ref\":\"#/definitions/LibraryName\"},{\"$ref\":\"#/definitions/LibraryOptions\"}]},\"LibraryCustomUmdCommentObject\":{\"description\":\"Set explicit comments for `commonjs`, `commonjs2`, `amd`, and `root`.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Set comment for `amd` section in UMD.\",\"type\":\"string\"},\"commonjs\":{\"description\":\"Set comment for `commonjs` (exports) section in UMD.\",\"type\":\"string\"},\"commonjs2\":{\"description\":\"Set comment for `commonjs2` (module.exports) section in UMD.\",\"type\":\"string\"},\"root\":{\"description\":\"Set comment for `root` (global variable) section in UMD.\",\"type\":\"string\"}}},\"LibraryCustomUmdObject\":{\"description\":\"Description object for all UMD variants of the library name.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Name of the exposed AMD library in the UMD.\",\"type\":\"string\",\"minLength\":1},\"commonjs\":{\"description\":\"Name of the exposed commonjs export in the UMD.\",\"type\":\"string\",\"minLength\":1},\"root\":{\"description\":\"Name of the property exposed globally by a UMD library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the name of the property exposed globally by a UMD library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}}},\"LibraryExport\":{\"description\":\"Specify which export should be exposed as library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the export that should be exposed as library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]},\"LibraryName\":{\"description\":\"The name of the library (some types allow unnamed libraries too).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A part of the library name.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1},{\"type\":\"string\",\"minLength\":1},{\"$ref\":\"#/definitions/LibraryCustomUmdObject\"}]},\"LibraryOptions\":{\"description\":\"Options for library.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"auxiliaryComment\":{\"$ref\":\"#/definitions/AuxiliaryComment\"},\"export\":{\"$ref\":\"#/definitions/LibraryExport\"},\"name\":{\"$ref\":\"#/definitions/LibraryName\"},\"type\":{\"$ref\":\"#/definitions/LibraryType\"},\"umdNamedDefine\":{\"$ref\":\"#/definitions/UmdNamedDefine\"}},\"required\":[\"type\"]},\"LibraryType\":{\"description\":\"Type of library (types included by default are 'var', 'module', 'assign', 'assign-properties', 'this', 'window', 'self', 'global', 'commonjs', 'commonjs2', 'commonjs-module', 'amd', 'amd-require', 'umd', 'umd2', 'jsonp', 'system', but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"var\",\"module\",\"assign\",\"assign-properties\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\"]},{\"type\":\"string\"}]},\"Loader\":{\"description\":\"Custom values available in the loader context.\",\"type\":\"object\"},\"MemoryCacheOptions\":{\"description\":\"Options object for in-memory caching.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"type\":{\"description\":\"In memory caching.\",\"enum\":[\"memory\"]}},\"required\":[\"type\"]},\"Mode\":{\"description\":\"Enable production optimizations or development hints.\",\"enum\":[\"development\",\"production\",\"none\"]},\"ModuleFilterItemTypes\":{\"description\":\"Filtering value, regexp or function.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((name: string, module: import('../lib/stats/DefaultStatsFactoryPlugin').StatsModule, type: 'module' | 'chunk' | 'root-of-chunk' | 'nested') => boolean)\"}]},\"ModuleFilterTypes\":{\"description\":\"Filtering modules.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Rule to filter.\",\"cli\":{\"helper\":true},\"oneOf\":[{\"$ref\":\"#/definitions/ModuleFilterItemTypes\"}]}},{\"$ref\":\"#/definitions/ModuleFilterItemTypes\"}]},\"ModuleOptions\":{\"description\":\"Options affecting the normal modules (`NormalModuleFactory`).\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"defaultRules\":{\"description\":\"An array of rules applied by default for modules.\",\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRules\"}]},\"exprContextCritical\":{\"description\":\"Enable warnings for full dynamic dependencies.\",\"type\":\"boolean\"},\"exprContextRecursive\":{\"description\":\"Enable recursive directory lookup for full dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.exprContextRecursive'.\",\"type\":\"boolean\"},\"exprContextRegExp\":{\"description\":\"Sets the default regular expression for full dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.exprContextRegExp'.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"boolean\"}]},\"exprContextRequest\":{\"description\":\"Set the default request for full dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.exprContextRequest'.\",\"type\":\"string\"},\"generator\":{\"$ref\":\"#/definitions/GeneratorOptionsByModuleType\"},\"noParse\":{\"$ref\":\"#/definitions/NoParse\"},\"parser\":{\"$ref\":\"#/definitions/ParserOptionsByModuleType\"},\"rules\":{\"description\":\"An array of rules applied for modules.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRules\"}]},\"strictExportPresence\":{\"description\":\"Emit errors instead of warnings when imported names don't exist in imported module. Deprecated: This option has moved to 'module.parser.javascript.strictExportPresence'.\",\"type\":\"boolean\"},\"strictThisContextOnImports\":{\"description\":\"Handle the this context correctly according to the spec for namespace objects. Deprecated: This option has moved to 'module.parser.javascript.strictThisContextOnImports'.\",\"type\":\"boolean\"},\"unknownContextCritical\":{\"description\":\"Enable warnings when using the require function in a not statically analyse-able way. Deprecated: This option has moved to 'module.parser.javascript.unknownContextCritical'.\",\"type\":\"boolean\"},\"unknownContextRecursive\":{\"description\":\"Enable recursive directory lookup when using the require function in a not statically analyse-able way. Deprecated: This option has moved to 'module.parser.javascript.unknownContextRecursive'.\",\"type\":\"boolean\"},\"unknownContextRegExp\":{\"description\":\"Sets the regular expression when using the require function in a not statically analyse-able way. Deprecated: This option has moved to 'module.parser.javascript.unknownContextRegExp'.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"boolean\"}]},\"unknownContextRequest\":{\"description\":\"Sets the request when using the require function in a not statically analyse-able way. Deprecated: This option has moved to 'module.parser.javascript.unknownContextRequest'.\",\"type\":\"string\"},\"unsafeCache\":{\"description\":\"Cache the resolving of module requests.\",\"anyOf\":[{\"type\":\"boolean\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"wrappedContextCritical\":{\"description\":\"Enable warnings for partial dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.wrappedContextCritical'.\",\"type\":\"boolean\"},\"wrappedContextRecursive\":{\"description\":\"Enable recursive directory lookup for partial dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.wrappedContextRecursive'.\",\"type\":\"boolean\"},\"wrappedContextRegExp\":{\"description\":\"Set the inner regular expression for partial dynamic dependencies. Deprecated: This option has moved to 'module.parser.javascript.wrappedContextRegExp'.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}}},\"ModuleOptionsNormalized\":{\"description\":\"Options affecting the normal modules (`NormalModuleFactory`).\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"defaultRules\":{\"description\":\"An array of rules applied by default for modules.\",\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRules\"}]},\"generator\":{\"$ref\":\"#/definitions/GeneratorOptionsByModuleType\"},\"noParse\":{\"$ref\":\"#/definitions/NoParse\"},\"parser\":{\"$ref\":\"#/definitions/ParserOptionsByModuleType\"},\"rules\":{\"description\":\"An array of rules applied for modules.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRules\"}]},\"unsafeCache\":{\"description\":\"Cache the resolving of module requests.\",\"anyOf\":[{\"type\":\"boolean\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]}},\"required\":[\"defaultRules\",\"generator\",\"parser\",\"rules\"]},\"Name\":{\"description\":\"Name of the configuration. Used when loading multiple configurations.\",\"type\":\"string\"},\"NoParse\":{\"description\":\"Don't parse files matching. It's matched against the full resolved request.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Don't parse files matching. It's matched against the full resolved request.\",\"anyOf\":[{\"description\":\"A regular expression, when matched the module is not parsed.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"An absolute path, when the module starts with this path it is not parsed.\",\"type\":\"string\",\"absolutePath\":true},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"minItems\":1},{\"description\":\"A regular expression, when matched the module is not parsed.\",\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"An absolute path, when the module starts with this path it is not parsed.\",\"type\":\"string\",\"absolutePath\":true},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"Node\":{\"description\":\"Include polyfills or mocks for various node stuff.\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/NodeOptions\"}]},\"NodeOptions\":{\"description\":\"Options object for node compatibility features.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"__dirname\":{\"description\":\"Include a polyfill for the '__dirname' variable.\",\"enum\":[false,true,\"mock\",\"eval-only\"]},\"__filename\":{\"description\":\"Include a polyfill for the '__filename' variable.\",\"enum\":[false,true,\"mock\",\"eval-only\"]},\"global\":{\"description\":\"Include a polyfill for the 'global' variable.\",\"type\":\"boolean\"}}},\"Optimization\":{\"description\":\"Enables/Disables integrated optimizations.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"checkWasmTypes\":{\"description\":\"Check for incompatible wasm types when importing/exporting from/to ESM.\",\"type\":\"boolean\"},\"chunkIds\":{\"description\":\"Define the algorithm to choose chunk ids (named: readable ids for better debugging, deterministic: numeric hash ids for better long term caching, size: numeric ids focused on minimal initial download size, total-size: numeric ids focused on minimal total download size, false: no algorithm used, as custom one can be provided via plugin).\",\"enum\":[\"natural\",\"named\",\"deterministic\",\"size\",\"total-size\",false]},\"concatenateModules\":{\"description\":\"Concatenate modules when possible to generate less modules, more efficient code and enable more optimizations by the minimizer.\",\"type\":\"boolean\"},\"emitOnErrors\":{\"description\":\"Emit assets even when errors occur. Critical errors are emitted into the generated code and will cause errors at runtime.\",\"type\":\"boolean\"},\"flagIncludedChunks\":{\"description\":\"Also flag chunks as loaded which contain a subset of the modules.\",\"type\":\"boolean\"},\"innerGraph\":{\"description\":\"Creates a module-internal dependency graph for top level symbols, exports and imports, to improve unused exports detection.\",\"type\":\"boolean\"},\"mangleExports\":{\"description\":\"Rename exports when possible to generate shorter code (depends on optimization.usedExports and optimization.providedExports, true/\\\"deterministic\\\": generate short deterministic names optimized for caching, \\\"size\\\": generate the shortest possible names).\",\"anyOf\":[{\"enum\":[\"size\",\"deterministic\"]},{\"type\":\"boolean\"}]},\"mangleWasmImports\":{\"description\":\"Reduce size of WASM by changing imports to shorter strings.\",\"type\":\"boolean\"},\"mergeDuplicateChunks\":{\"description\":\"Merge chunks which contain the same modules.\",\"type\":\"boolean\"},\"minimize\":{\"description\":\"Enable minimizing the output. Uses optimization.minimizer.\",\"type\":\"boolean\"},\"minimizer\":{\"description\":\"Minimizer(s) to use for minimizing the output.\",\"type\":\"array\",\"cli\":{\"exclude\":true},\"items\":{\"description\":\"Plugin of type object or instanceof Function.\",\"anyOf\":[{\"enum\":[\"...\"]},{\"$ref\":\"#/definitions/WebpackPluginInstance\"},{\"$ref\":\"#/definitions/WebpackPluginFunction\"}]}},\"moduleIds\":{\"description\":\"Define the algorithm to choose module ids (natural: numeric ids in order of usage, named: readable ids for better debugging, hashed: (deprecated) short hashes as ids for better long term caching, deterministic: numeric hash ids for better long term caching, size: numeric ids focused on minimal initial download size, false: no algorithm used, as custom one can be provided via plugin).\",\"enum\":[\"natural\",\"named\",\"hashed\",\"deterministic\",\"size\",false]},\"noEmitOnErrors\":{\"description\":\"Avoid emitting assets when errors occur (deprecated: use 'emitOnErrors' instead).\",\"type\":\"boolean\",\"cli\":{\"exclude\":true}},\"nodeEnv\":{\"description\":\"Set process.env.NODE_ENV to a specific value.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\"}]},\"portableRecords\":{\"description\":\"Generate records with relative paths to be able to move the context folder.\",\"type\":\"boolean\"},\"providedExports\":{\"description\":\"Figure out which exports are provided by modules to generate more efficient code.\",\"type\":\"boolean\"},\"realContentHash\":{\"description\":\"Use real [contenthash] based on final content of the assets.\",\"type\":\"boolean\"},\"removeAvailableModules\":{\"description\":\"Removes modules from chunks when these modules are already included in all parents.\",\"type\":\"boolean\"},\"removeEmptyChunks\":{\"description\":\"Remove chunks which are empty.\",\"type\":\"boolean\"},\"runtimeChunk\":{\"$ref\":\"#/definitions/OptimizationRuntimeChunk\"},\"sideEffects\":{\"description\":\"Skip over modules which contain no side effects when exports are not used (false: disabled, 'flag': only use manually placed side effects flag, true: also analyse source code for side effects).\",\"anyOf\":[{\"enum\":[\"flag\"]},{\"type\":\"boolean\"}]},\"splitChunks\":{\"description\":\"Optimize duplication and caching by splitting chunks by shared modules and cache group.\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/OptimizationSplitChunksOptions\"}]},\"usedExports\":{\"description\":\"Figure out which exports are used by modules to mangle export names, omit unused exports and generate more efficient code (true: analyse used exports for each runtime, \\\"global\\\": analyse exports globally for all runtimes combined).\",\"anyOf\":[{\"enum\":[\"global\"]},{\"type\":\"boolean\"}]}}},\"OptimizationRuntimeChunk\":{\"description\":\"Create an additional chunk which contains only the webpack runtime and chunk hash maps.\",\"anyOf\":[{\"enum\":[\"single\",\"multiple\"]},{\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"name\":{\"description\":\"The name or name factory for the runtime chunks.\",\"anyOf\":[{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]}}}]},\"OptimizationRuntimeChunkNormalized\":{\"description\":\"Create an additional chunk which contains only the webpack runtime and chunk hash maps.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"name\":{\"description\":\"The name factory for the runtime chunks.\",\"instanceof\":\"Function\",\"tsType\":\"Function\"}}}]},\"OptimizationSplitChunksCacheGroup\":{\"description\":\"Options object for describing behavior of a cache group selecting modules that should be cached together.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"automaticNameDelimiter\":{\"description\":\"Sets the name delimiter for created chunks.\",\"type\":\"string\",\"minLength\":1},\"chunks\":{\"description\":\"Select chunks for determining cache group content (defaults to \\\"initial\\\", \\\"initial\\\" and \\\"all\\\" requires adding these chunks to the HTML).\",\"anyOf\":[{\"enum\":[\"initial\",\"async\",\"all\"]},{\"instanceof\":\"Function\",\"tsType\":\"((chunk: import('../lib/Chunk')) => boolean)\"}]},\"enforce\":{\"description\":\"Ignore minimum size, minimum chunks and maximum requests and always create chunks for this cache group.\",\"type\":\"boolean\"},\"enforceSizeThreshold\":{\"description\":\"Size threshold at which splitting is enforced and other restrictions (minRemainingSize, maxAsyncRequests, maxInitialRequests) are ignored.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"filename\":{\"description\":\"Sets the template for the filename for created chunks.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"idHint\":{\"description\":\"Sets the hint for chunk id.\",\"type\":\"string\"},\"layer\":{\"description\":\"Assign modules to a cache group by module layer.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"maxAsyncRequests\":{\"description\":\"Maximum number of requests which are accepted for on-demand loading.\",\"type\":\"number\",\"minimum\":1},\"maxAsyncSize\":{\"description\":\"Maximal size hint for the on-demand chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxInitialRequests\":{\"description\":\"Maximum number of initial chunks which are accepted for an entry point.\",\"type\":\"number\",\"minimum\":1},\"maxInitialSize\":{\"description\":\"Maximal size hint for the initial chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxSize\":{\"description\":\"Maximal size hint for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minChunks\":{\"description\":\"Minimum number of times a module has to be duplicated until it's considered for splitting.\",\"type\":\"number\",\"minimum\":1},\"minRemainingSize\":{\"description\":\"Minimal size for the chunks the stay after moving the modules to a new chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minSize\":{\"description\":\"Minimal size for the created chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"name\":{\"description\":\"Give chunks for this cache group a name (chunks with equal name are merged).\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"priority\":{\"description\":\"Priority of this cache group.\",\"type\":\"number\"},\"reuseExistingChunk\":{\"description\":\"Try to reuse existing chunk (with name) when it has matching modules.\",\"type\":\"boolean\"},\"test\":{\"description\":\"Assign modules to a cache group by module name.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"type\":{\"description\":\"Assign modules to a cache group by module type.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"usedExports\":{\"description\":\"Compare used exports when checking common modules. Modules will only be put in the same chunk when exports are equal.\",\"type\":\"boolean\"}}},\"OptimizationSplitChunksGetCacheGroups\":{\"description\":\"A function returning cache groups.\",\"instanceof\":\"Function\",\"tsType\":\"((module: import('../lib/Module')) => OptimizationSplitChunksCacheGroup | OptimizationSplitChunksCacheGroup[] | void)\"},\"OptimizationSplitChunksOptions\":{\"description\":\"Options object for splitting chunks into smaller chunks.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"automaticNameDelimiter\":{\"description\":\"Sets the name delimiter for created chunks.\",\"type\":\"string\",\"minLength\":1},\"cacheGroups\":{\"description\":\"Assign modules to a cache group (modules from different cache groups are tried to keep in separate chunks, default categories: 'default', 'defaultVendors').\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Configuration for a cache group.\",\"anyOf\":[{\"enum\":[false]},{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"},{\"$ref\":\"#/definitions/OptimizationSplitChunksCacheGroup\"}]},\"not\":{\"description\":\"Using the cacheGroup shorthand syntax with a cache group named 'test' is a potential config error\\nDid you intent to define a cache group with a test instead?\\ncacheGroups: {\\n  <name>: {\\n    test: ...\\n  }\\n}.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"test\":{\"description\":\"The test property is a cache group name, but using the test option of the cache group could be intended instead.\",\"anyOf\":[{\"instanceof\":\"Function\",\"tsType\":\"Function\"},{\"type\":\"string\"},{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"}]}},\"required\":[\"test\"]}},\"chunks\":{\"description\":\"Select chunks for determining shared modules (defaults to \\\"async\\\", \\\"initial\\\" and \\\"all\\\" requires adding these chunks to the HTML).\",\"anyOf\":[{\"enum\":[\"initial\",\"async\",\"all\"]},{\"instanceof\":\"Function\",\"tsType\":\"((chunk: import('../lib/Chunk')) => boolean)\"}]},\"defaultSizeTypes\":{\"description\":\"Sets the size types which are used when a number is used for sizes.\",\"type\":\"array\",\"items\":{\"description\":\"Size type, like 'javascript', 'webassembly'.\",\"type\":\"string\"},\"minLength\":1},\"enforceSizeThreshold\":{\"description\":\"Size threshold at which splitting is enforced and other restrictions (minRemainingSize, maxAsyncRequests, maxInitialRequests) are ignored.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"fallbackCacheGroup\":{\"description\":\"Options for modules not selected by any other cache group.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"automaticNameDelimiter\":{\"description\":\"Sets the name delimiter for created chunks.\",\"type\":\"string\",\"minLength\":1},\"maxAsyncSize\":{\"description\":\"Maximal size hint for the on-demand chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxInitialSize\":{\"description\":\"Maximal size hint for the initial chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxSize\":{\"description\":\"Maximal size hint for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minSize\":{\"description\":\"Minimal size for the created chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]}}},\"filename\":{\"description\":\"Sets the template for the filename for created chunks.\",\"anyOf\":[{\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"hidePathInfo\":{\"description\":\"Prevents exposing path info when creating names for parts splitted by maxSize.\",\"type\":\"boolean\"},\"maxAsyncRequests\":{\"description\":\"Maximum number of requests which are accepted for on-demand loading.\",\"type\":\"number\",\"minimum\":1},\"maxAsyncSize\":{\"description\":\"Maximal size hint for the on-demand chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxInitialRequests\":{\"description\":\"Maximum number of initial chunks which are accepted for an entry point.\",\"type\":\"number\",\"minimum\":1},\"maxInitialSize\":{\"description\":\"Maximal size hint for the initial chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"maxSize\":{\"description\":\"Maximal size hint for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minChunks\":{\"description\":\"Minimum number of times a module has to be duplicated until it's considered for splitting.\",\"type\":\"number\",\"minimum\":1},\"minRemainingSize\":{\"description\":\"Minimal size for the chunks the stay after moving the modules to a new chunk.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"minSize\":{\"description\":\"Minimal size for the created chunks.\",\"oneOf\":[{\"$ref\":\"#/definitions/OptimizationSplitChunksSizes\"}]},\"name\":{\"description\":\"Give chunks created a name (chunks with equal name are merged).\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"Function\"}]},\"usedExports\":{\"description\":\"Compare used exports when checking common modules. Modules will only be put in the same chunk when exports are equal.\",\"type\":\"boolean\"}}},\"OptimizationSplitChunksSizes\":{\"description\":\"Size description for limits.\",\"anyOf\":[{\"description\":\"Size of the javascript part of the chunk.\",\"type\":\"number\",\"minimum\":0},{\"description\":\"Specify size limits per size type.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Size of the part of the chunk with the type of the key.\",\"type\":\"number\"}}]},\"Output\":{\"description\":\"Options affecting the output of the compilation. `output` options tell webpack how to write the compiled files to disk.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"assetModuleFilename\":{\"$ref\":\"#/definitions/AssetModuleFilename\"},\"auxiliaryComment\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/AuxiliaryComment\"}]},\"charset\":{\"$ref\":\"#/definitions/Charset\"},\"chunkFilename\":{\"$ref\":\"#/definitions/ChunkFilename\"},\"chunkFormat\":{\"$ref\":\"#/definitions/ChunkFormat\"},\"chunkLoadTimeout\":{\"$ref\":\"#/definitions/ChunkLoadTimeout\"},\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"chunkLoadingGlobal\":{\"$ref\":\"#/definitions/ChunkLoadingGlobal\"},\"clean\":{\"$ref\":\"#/definitions/Clean\"},\"compareBeforeEmit\":{\"$ref\":\"#/definitions/CompareBeforeEmit\"},\"crossOriginLoading\":{\"$ref\":\"#/definitions/CrossOriginLoading\"},\"devtoolFallbackModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolFallbackModuleFilenameTemplate\"},\"devtoolModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolModuleFilenameTemplate\"},\"devtoolNamespace\":{\"$ref\":\"#/definitions/DevtoolNamespace\"},\"enabledChunkLoadingTypes\":{\"$ref\":\"#/definitions/EnabledChunkLoadingTypes\"},\"enabledLibraryTypes\":{\"$ref\":\"#/definitions/EnabledLibraryTypes\"},\"enabledWasmLoadingTypes\":{\"$ref\":\"#/definitions/EnabledWasmLoadingTypes\"},\"environment\":{\"$ref\":\"#/definitions/Environment\"},\"filename\":{\"$ref\":\"#/definitions/Filename\"},\"globalObject\":{\"$ref\":\"#/definitions/GlobalObject\"},\"hashDigest\":{\"$ref\":\"#/definitions/HashDigest\"},\"hashDigestLength\":{\"$ref\":\"#/definitions/HashDigestLength\"},\"hashFunction\":{\"$ref\":\"#/definitions/HashFunction\"},\"hashSalt\":{\"$ref\":\"#/definitions/HashSalt\"},\"hotUpdateChunkFilename\":{\"$ref\":\"#/definitions/HotUpdateChunkFilename\"},\"hotUpdateGlobal\":{\"$ref\":\"#/definitions/HotUpdateGlobal\"},\"hotUpdateMainFilename\":{\"$ref\":\"#/definitions/HotUpdateMainFilename\"},\"iife\":{\"$ref\":\"#/definitions/Iife\"},\"importFunctionName\":{\"$ref\":\"#/definitions/ImportFunctionName\"},\"importMetaName\":{\"$ref\":\"#/definitions/ImportMetaName\"},\"library\":{\"$ref\":\"#/definitions/Library\"},\"libraryExport\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/LibraryExport\"}]},\"libraryTarget\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/LibraryType\"}]},\"module\":{\"$ref\":\"#/definitions/OutputModule\"},\"path\":{\"$ref\":\"#/definitions/Path\"},\"pathinfo\":{\"$ref\":\"#/definitions/Pathinfo\"},\"publicPath\":{\"$ref\":\"#/definitions/PublicPath\"},\"scriptType\":{\"$ref\":\"#/definitions/ScriptType\"},\"sourceMapFilename\":{\"$ref\":\"#/definitions/SourceMapFilename\"},\"sourcePrefix\":{\"$ref\":\"#/definitions/SourcePrefix\"},\"strictModuleErrorHandling\":{\"$ref\":\"#/definitions/StrictModuleErrorHandling\"},\"strictModuleExceptionHandling\":{\"$ref\":\"#/definitions/StrictModuleExceptionHandling\"},\"umdNamedDefine\":{\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/UmdNamedDefine\"}]},\"uniqueName\":{\"$ref\":\"#/definitions/UniqueName\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"},\"webassemblyModuleFilename\":{\"$ref\":\"#/definitions/WebassemblyModuleFilename\"},\"workerChunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"workerWasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}}},\"OutputModule\":{\"description\":\"Output javascript files as module source type.\",\"type\":\"boolean\"},\"OutputNormalized\":{\"description\":\"Normalized options affecting the output of the compilation. `output` options tell webpack how to write the compiled files to disk.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"assetModuleFilename\":{\"$ref\":\"#/definitions/AssetModuleFilename\"},\"charset\":{\"$ref\":\"#/definitions/Charset\"},\"chunkFilename\":{\"$ref\":\"#/definitions/ChunkFilename\"},\"chunkFormat\":{\"$ref\":\"#/definitions/ChunkFormat\"},\"chunkLoadTimeout\":{\"$ref\":\"#/definitions/ChunkLoadTimeout\"},\"chunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"chunkLoadingGlobal\":{\"$ref\":\"#/definitions/ChunkLoadingGlobal\"},\"clean\":{\"$ref\":\"#/definitions/Clean\"},\"compareBeforeEmit\":{\"$ref\":\"#/definitions/CompareBeforeEmit\"},\"crossOriginLoading\":{\"$ref\":\"#/definitions/CrossOriginLoading\"},\"devtoolFallbackModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolFallbackModuleFilenameTemplate\"},\"devtoolModuleFilenameTemplate\":{\"$ref\":\"#/definitions/DevtoolModuleFilenameTemplate\"},\"devtoolNamespace\":{\"$ref\":\"#/definitions/DevtoolNamespace\"},\"enabledChunkLoadingTypes\":{\"$ref\":\"#/definitions/EnabledChunkLoadingTypes\"},\"enabledLibraryTypes\":{\"$ref\":\"#/definitions/EnabledLibraryTypes\"},\"enabledWasmLoadingTypes\":{\"$ref\":\"#/definitions/EnabledWasmLoadingTypes\"},\"environment\":{\"$ref\":\"#/definitions/Environment\"},\"filename\":{\"$ref\":\"#/definitions/Filename\"},\"globalObject\":{\"$ref\":\"#/definitions/GlobalObject\"},\"hashDigest\":{\"$ref\":\"#/definitions/HashDigest\"},\"hashDigestLength\":{\"$ref\":\"#/definitions/HashDigestLength\"},\"hashFunction\":{\"$ref\":\"#/definitions/HashFunction\"},\"hashSalt\":{\"$ref\":\"#/definitions/HashSalt\"},\"hotUpdateChunkFilename\":{\"$ref\":\"#/definitions/HotUpdateChunkFilename\"},\"hotUpdateGlobal\":{\"$ref\":\"#/definitions/HotUpdateGlobal\"},\"hotUpdateMainFilename\":{\"$ref\":\"#/definitions/HotUpdateMainFilename\"},\"iife\":{\"$ref\":\"#/definitions/Iife\"},\"importFunctionName\":{\"$ref\":\"#/definitions/ImportFunctionName\"},\"importMetaName\":{\"$ref\":\"#/definitions/ImportMetaName\"},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"module\":{\"$ref\":\"#/definitions/OutputModule\"},\"path\":{\"$ref\":\"#/definitions/Path\"},\"pathinfo\":{\"$ref\":\"#/definitions/Pathinfo\"},\"publicPath\":{\"$ref\":\"#/definitions/PublicPath\"},\"scriptType\":{\"$ref\":\"#/definitions/ScriptType\"},\"sourceMapFilename\":{\"$ref\":\"#/definitions/SourceMapFilename\"},\"sourcePrefix\":{\"$ref\":\"#/definitions/SourcePrefix\"},\"strictModuleErrorHandling\":{\"$ref\":\"#/definitions/StrictModuleErrorHandling\"},\"strictModuleExceptionHandling\":{\"$ref\":\"#/definitions/StrictModuleExceptionHandling\"},\"uniqueName\":{\"$ref\":\"#/definitions/UniqueName\"},\"wasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"},\"webassemblyModuleFilename\":{\"$ref\":\"#/definitions/WebassemblyModuleFilename\"},\"workerChunkLoading\":{\"$ref\":\"#/definitions/ChunkLoading\"},\"workerWasmLoading\":{\"$ref\":\"#/definitions/WasmLoading\"}}},\"Parallelism\":{\"description\":\"The number of parallel processed modules in the compilation.\",\"type\":\"number\",\"minimum\":1},\"ParserOptionsByModuleType\":{\"description\":\"Specify options for each parser.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Options for parsing.\",\"type\":\"object\",\"additionalProperties\":true},\"properties\":{\"asset\":{\"$ref\":\"#/definitions/AssetParserOptions\"},\"asset/inline\":{\"$ref\":\"#/definitions/EmptyParserOptions\"},\"asset/resource\":{\"$ref\":\"#/definitions/EmptyParserOptions\"},\"asset/source\":{\"$ref\":\"#/definitions/EmptyParserOptions\"},\"javascript\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"},\"javascript/auto\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"},\"javascript/dynamic\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"},\"javascript/esm\":{\"$ref\":\"#/definitions/JavascriptParserOptions\"}}},\"Path\":{\"description\":\"The output directory as **absolute path** (required).\",\"type\":\"string\",\"absolutePath\":true},\"Pathinfo\":{\"description\":\"Include comments with information about the modules.\",\"anyOf\":[{\"enum\":[\"verbose\"]},{\"type\":\"boolean\"}]},\"Performance\":{\"description\":\"Configuration for web performance recommendations.\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/PerformanceOptions\"}]},\"PerformanceOptions\":{\"description\":\"Configuration object for web performance recommendations.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"assetFilter\":{\"description\":\"Filter function to select assets that are checked.\",\"instanceof\":\"Function\",\"tsType\":\"Function\"},\"hints\":{\"description\":\"Sets the format of the hints: warnings, errors or nothing at all.\",\"enum\":[false,\"warning\",\"error\"]},\"maxAssetSize\":{\"description\":\"File size limit (in bytes) when exceeded, that webpack will provide performance hints.\",\"type\":\"number\"},\"maxEntrypointSize\":{\"description\":\"Total size of an entry point (in bytes).\",\"type\":\"number\"}}},\"Plugins\":{\"description\":\"Add additional plugins to the compiler.\",\"type\":\"array\",\"items\":{\"description\":\"Plugin of type object or instanceof Function.\",\"anyOf\":[{\"$ref\":\"#/definitions/WebpackPluginInstance\"},{\"$ref\":\"#/definitions/WebpackPluginFunction\"}]}},\"Profile\":{\"description\":\"Capture timing information for each module.\",\"type\":\"boolean\"},\"PublicPath\":{\"description\":\"The 'publicPath' specifies the public URL address of the output files when referenced in a browser.\",\"anyOf\":[{\"enum\":[\"auto\"]},{\"$ref\":\"#/definitions/RawPublicPath\"}]},\"RawPublicPath\":{\"description\":\"The 'publicPath' specifies the public URL address of the output files when referenced in a browser.\",\"anyOf\":[{\"type\":\"string\"},{\"instanceof\":\"Function\",\"tsType\":\"((pathData: import(\\\"../lib/Compilation\\\").PathData, assetInfo?: import(\\\"../lib/Compilation\\\").AssetInfo) => string)\"}]},\"RecordsInputPath\":{\"description\":\"Store compiler state to a json file.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\",\"absolutePath\":true}]},\"RecordsOutputPath\":{\"description\":\"Load compiler state from a json file.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\",\"absolutePath\":true}]},\"RecordsPath\":{\"description\":\"Store/Load compiler state from/to a json file. This will result in persistent ids of modules and chunks. An absolute path is expected. `recordsPath` is used for `recordsInputPath` and `recordsOutputPath` if they left undefined.\",\"anyOf\":[{\"enum\":[false]},{\"type\":\"string\",\"absolutePath\":true}]},\"Resolve\":{\"description\":\"Options for the resolver.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]},\"ResolveAlias\":{\"description\":\"Redirect module requests.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Alias configuration.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"alias\":{\"description\":\"New request.\",\"anyOf\":[{\"description\":\"Multiple alternative requests.\",\"type\":\"array\",\"items\":{\"description\":\"One choice of request.\",\"type\":\"string\",\"minLength\":1}},{\"description\":\"Ignore request (replace with empty module).\",\"enum\":[false]},{\"description\":\"New request.\",\"type\":\"string\",\"minLength\":1}]},\"name\":{\"description\":\"Request to be redirected.\",\"type\":\"string\"},\"onlyModule\":{\"description\":\"Redirect only exact matching request.\",\"type\":\"boolean\"}},\"required\":[\"alias\",\"name\"]}},{\"type\":\"object\",\"additionalProperties\":{\"description\":\"New request.\",\"anyOf\":[{\"description\":\"Multiple alternative requests.\",\"type\":\"array\",\"items\":{\"description\":\"One choice of request.\",\"type\":\"string\",\"minLength\":1}},{\"description\":\"Ignore request (replace with empty module).\",\"enum\":[false]},{\"description\":\"New request.\",\"type\":\"string\",\"minLength\":1}]}}]},\"ResolveLoader\":{\"description\":\"Options for the resolver when resolving loaders.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]},\"ResolveOptions\":{\"description\":\"Options object for resolving requests.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"alias\":{\"$ref\":\"#/definitions/ResolveAlias\"},\"aliasFields\":{\"description\":\"Fields in the description file (usually package.json) which are used to redirect requests inside the module.\",\"type\":\"array\",\"items\":{\"description\":\"Field in the description file (usually package.json) which are used to redirect requests inside the module.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the field path in the description file (usually package.json) which are used to redirect requests inside the module.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}},\"byDependency\":{\"description\":\"Extra resolve options per dependency category. Typical categories are \\\"commonjs\\\", \\\"amd\\\", \\\"esm\\\".\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Options object for resolving requests.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]}},\"cache\":{\"description\":\"Enable caching of successfully resolved requests (cache entries are revalidated).\",\"type\":\"boolean\"},\"cachePredicate\":{\"description\":\"Predicate function to decide which requests should be cached.\",\"instanceof\":\"Function\",\"tsType\":\"((request: import('enhanced-resolve').ResolveRequest) => boolean)\"},\"cacheWithContext\":{\"description\":\"Include the context information in the cache identifier when caching.\",\"type\":\"boolean\"},\"conditionNames\":{\"description\":\"Condition names for exports field entry point.\",\"type\":\"array\",\"items\":{\"description\":\"Condition names for exports field entry point.\",\"type\":\"string\"}},\"descriptionFiles\":{\"description\":\"Filenames used to find a description file (like a package.json).\",\"type\":\"array\",\"items\":{\"description\":\"Filename used to find a description file (like a package.json).\",\"type\":\"string\",\"minLength\":1}},\"enforceExtension\":{\"description\":\"Enforce the resolver to use one of the extensions from the extensions option (User must specify requests without extension).\",\"type\":\"boolean\"},\"exportsFields\":{\"description\":\"Field names from the description file (usually package.json) which are used to provide entry points of a package.\",\"type\":\"array\",\"items\":{\"description\":\"Field name from the description file (usually package.json) which is used to provide entry points of a package.\",\"type\":\"string\"}},\"extensions\":{\"description\":\"Extensions added to the request when trying to find the file.\",\"type\":\"array\",\"items\":{\"description\":\"Extension added to the request when trying to find the file.\",\"type\":\"string\",\"minLength\":1}},\"fallback\":{\"description\":\"Redirect module requests when normal resolving fails.\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveAlias\"}]},\"fileSystem\":{\"description\":\"Filesystem for the resolver.\",\"tsType\":\"(import('../lib/util/fs').InputFileSystem)\"},\"fullySpecified\":{\"description\":\"Treats the request specified by the user as fully specified, meaning no extensions are added and the mainFiles in directories are not resolved (This doesn't affect requests from mainFields, aliasFields or aliases).\",\"type\":\"boolean\"},\"importsFields\":{\"description\":\"Field names from the description file (usually package.json) which are used to provide internal request of a package (requests starting with # are considered as internal).\",\"type\":\"array\",\"items\":{\"description\":\"Field name from the description file (usually package.json) which is used to provide internal request of a package (requests starting with # are considered as internal).\",\"type\":\"string\"}},\"mainFields\":{\"description\":\"Field names from the description file (package.json) which are used to find the default entry point.\",\"type\":\"array\",\"items\":{\"description\":\"Field name from the description file (package.json) which are used to find the default entry point.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the field path from the description file (package.json) which are used to find the default entry point.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}},\"mainFiles\":{\"description\":\"Filenames used to find the default entry point if there is no description file or main field.\",\"type\":\"array\",\"items\":{\"description\":\"Filename used to find the default entry point if there is no description file or main field.\",\"type\":\"string\",\"minLength\":1}},\"modules\":{\"description\":\"Folder names or directory paths where to find modules.\",\"type\":\"array\",\"items\":{\"description\":\"Folder name or directory path where to find modules.\",\"type\":\"string\",\"minLength\":1}},\"plugins\":{\"description\":\"Plugins for the resolver.\",\"type\":\"array\",\"cli\":{\"exclude\":true},\"items\":{\"description\":\"Plugin of type object or instanceof Function.\",\"anyOf\":[{\"enum\":[\"...\"]},{\"$ref\":\"#/definitions/ResolvePluginInstance\"}]}},\"preferAbsolute\":{\"description\":\"Prefer to resolve server-relative URLs (starting with '/') as absolute paths before falling back to resolve in 'resolve.roots'.\",\"type\":\"boolean\"},\"preferRelative\":{\"description\":\"Prefer to resolve module requests as relative request and fallback to resolving as module.\",\"type\":\"boolean\"},\"resolver\":{\"description\":\"Custom resolver.\",\"tsType\":\"(import('enhanced-resolve').Resolver)\"},\"restrictions\":{\"description\":\"A list of resolve restrictions. Resolve results must fulfill all of these restrictions to resolve successfully. Other resolve paths are taken when restrictions are not met.\",\"type\":\"array\",\"items\":{\"description\":\"Resolve restriction. Resolve result must fulfill this restriction.\",\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}]}},\"roots\":{\"description\":\"A list of directories in which requests that are server-relative URLs (starting with '/') are resolved.\",\"type\":\"array\",\"items\":{\"description\":\"Directory in which requests that are server-relative URLs (starting with '/') are resolved.\",\"type\":\"string\"}},\"symlinks\":{\"description\":\"Enable resolving symlinks to the original location.\",\"type\":\"boolean\"},\"unsafeCache\":{\"description\":\"Enable caching of successfully resolved requests (cache entries are not revalidated).\",\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":true}]},\"useSyncFileSystemCalls\":{\"description\":\"Use synchronous filesystem calls for the resolver.\",\"type\":\"boolean\"}}},\"ResolvePluginInstance\":{\"description\":\"Plugin instance.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"apply\":{\"description\":\"The run point of the plugin, required method.\",\"instanceof\":\"Function\",\"tsType\":\"(resolver: import('enhanced-resolve').Resolver) => void\"}},\"required\":[\"apply\"]},\"RuleSetCondition\":{\"description\":\"A condition matcher.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"and\":{\"description\":\"Logical AND.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"not\":{\"description\":\"Logical NOT.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"or\":{\"description\":\"Logical OR.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditions\"}]}}},{\"instanceof\":\"Function\",\"tsType\":\"((value: string) => boolean)\"},{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"RuleSetConditionAbsolute\":{\"description\":\"A condition matcher matching an absolute path.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":true},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"and\":{\"description\":\"Logical AND.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"not\":{\"description\":\"Logical NOT.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"or\":{\"description\":\"Logical OR.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]}}},{\"instanceof\":\"Function\",\"tsType\":\"((value: string) => boolean)\"},{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"RuleSetConditionOrConditions\":{\"description\":\"One or multiple rule conditions.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"$ref\":\"#/definitions/RuleSetCondition\"},{\"$ref\":\"#/definitions/RuleSetConditions\"}]},\"RuleSetConditionOrConditionsAbsolute\":{\"description\":\"One or multiple rule conditions matching an absolute path.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"$ref\":\"#/definitions/RuleSetConditionAbsolute\"},{\"$ref\":\"#/definitions/RuleSetConditionsAbsolute\"}]},\"RuleSetConditions\":{\"description\":\"A list of rule conditions.\",\"type\":\"array\",\"items\":{\"description\":\"A rule condition.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetCondition\"}]}},\"RuleSetConditionsAbsolute\":{\"description\":\"A list of rule conditions matching an absolute path.\",\"type\":\"array\",\"items\":{\"description\":\"A rule condition matching an absolute path.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionAbsolute\"}]}},\"RuleSetLoader\":{\"description\":\"A loader request.\",\"type\":\"string\",\"minLength\":1},\"RuleSetLoaderOptions\":{\"description\":\"Options passed to a loader.\",\"anyOf\":[{\"type\":\"string\"},{\"type\":\"object\"}]},\"RuleSetRule\":{\"description\":\"A rule description with conditions and effects for modules.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"compiler\":{\"description\":\"Match the child compiler name.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"dependency\":{\"description\":\"Match dependency type.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"descriptionData\":{\"description\":\"Match values of properties in the description file (usually package.json).\",\"type\":\"object\",\"additionalProperties\":{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}},\"enforce\":{\"description\":\"Enforce this rule as pre or post step.\",\"enum\":[\"pre\",\"post\"]},\"exclude\":{\"description\":\"Shortcut for resource.exclude.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"generator\":{\"description\":\"The options for the module generator.\",\"type\":\"object\"},\"include\":{\"description\":\"Shortcut for resource.include.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"issuer\":{\"description\":\"Match the issuer of the module (The module pointing to this module).\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"issuerLayer\":{\"description\":\"Match layer of the issuer of this module (The module pointing to this module).\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"layer\":{\"description\":\"Specifies the layer in which the module should be placed in.\",\"type\":\"string\"},\"loader\":{\"description\":\"Shortcut for use.loader.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoader\"}]},\"mimetype\":{\"description\":\"Match module mimetype when load from Data URI.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"oneOf\":{\"description\":\"Only execute the first matching rule in this array.\",\"type\":\"array\",\"items\":{\"description\":\"A rule.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRule\"}]}},\"options\":{\"description\":\"Shortcut for use.options.\",\"cli\":{\"exclude\":true},\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoaderOptions\"}]},\"parser\":{\"description\":\"Options for parsing.\",\"type\":\"object\",\"additionalProperties\":true},\"realResource\":{\"description\":\"Match the real resource path of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"resolve\":{\"description\":\"Options for the resolver.\",\"type\":\"object\",\"oneOf\":[{\"$ref\":\"#/definitions/ResolveOptions\"}]},\"resource\":{\"description\":\"Match the resource path of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"resourceFragment\":{\"description\":\"Match the resource fragment of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"resourceQuery\":{\"description\":\"Match the resource query of the module.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditions\"}]},\"rules\":{\"description\":\"Match and execute these rules when this rule is matched.\",\"type\":\"array\",\"items\":{\"description\":\"A rule.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetRule\"}]}},\"sideEffects\":{\"description\":\"Flags a module as with or without side effects.\",\"type\":\"boolean\"},\"test\":{\"description\":\"Shortcut for resource.test.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetConditionOrConditionsAbsolute\"}]},\"type\":{\"description\":\"Module type to use for the module.\",\"type\":\"string\"},\"use\":{\"description\":\"Modifiers applied to the module when rule is matched.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetUse\"}]}}},\"RuleSetRules\":{\"description\":\"A list of rules.\",\"type\":\"array\",\"items\":{\"description\":\"A rule.\",\"anyOf\":[{\"cli\":{\"exclude\":true},\"enum\":[\"...\"]},{\"$ref\":\"#/definitions/RuleSetRule\"}]}},\"RuleSetUse\":{\"description\":\"A list of descriptions of loaders applied.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"An use item.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetUseItem\"}]}},{\"instanceof\":\"Function\",\"tsType\":\"((data: { resource: string, realResource: string, resourceQuery: string, issuer: string, compiler: string }) => RuleSetUseItem[])\"},{\"$ref\":\"#/definitions/RuleSetUseItem\"}]},\"RuleSetUseItem\":{\"description\":\"A description of an applied loader.\",\"anyOf\":[{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"ident\":{\"description\":\"Unique loader options identifier.\",\"type\":\"string\"},\"loader\":{\"description\":\"Loader name.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoader\"}]},\"options\":{\"description\":\"Loader options.\",\"oneOf\":[{\"$ref\":\"#/definitions/RuleSetLoaderOptions\"}]}}},{\"instanceof\":\"Function\",\"tsType\":\"((data: object) => RuleSetUseItem|RuleSetUseItem[])\"},{\"$ref\":\"#/definitions/RuleSetLoader\"}]},\"ScriptType\":{\"description\":\"This option enables loading async chunks via a custom script type, such as script type=\\\"module\\\".\",\"enum\":[false,\"text/javascript\",\"module\"]},\"SnapshotOptions\":{\"description\":\"Options affecting how file system snapshots are created and validated.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"buildDependencies\":{\"description\":\"Options for snapshotting build dependencies to determine if the whole cache need to be invalidated.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}},\"immutablePaths\":{\"description\":\"List of paths that are managed by a package manager and contain a version or hash in its path so all files are immutable.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a immutable directory (usually a package manager cache directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"managedPaths\":{\"description\":\"List of paths that are managed by a package manager and can be trusted to not be modified otherwise.\",\"type\":\"array\",\"items\":{\"description\":\"A path to a managed directory (usually a node_modules directory).\",\"type\":\"string\",\"absolutePath\":true,\"minLength\":1}},\"module\":{\"description\":\"Options for snapshotting dependencies of modules to determine if they need to be built again.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}},\"resolve\":{\"description\":\"Options for snapshotting dependencies of request resolving to determine if requests need to be re-resolved.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}},\"resolveBuildDependencies\":{\"description\":\"Options for snapshotting the resolving of build dependencies to determine if the build dependencies need to be re-resolved.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"hash\":{\"description\":\"Use hashes of the content of the files/directories to determine invalidation.\",\"type\":\"boolean\"},\"timestamp\":{\"description\":\"Use timestamps of the files/directories to determine invalidation.\",\"type\":\"boolean\"}}}}},\"SourceMapFilename\":{\"description\":\"The filename of the SourceMaps for the JavaScript files. They are inside the 'output.path' directory.\",\"type\":\"string\",\"absolutePath\":false},\"SourcePrefix\":{\"description\":\"Prefixes every line of the source in the bundle with this string.\",\"type\":\"string\"},\"StatsOptions\":{\"description\":\"Stats options object.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"all\":{\"description\":\"Fallback value for stats options when an option is not defined (has precedence over local webpack defaults).\",\"type\":\"boolean\"},\"assets\":{\"description\":\"Add assets information.\",\"type\":\"boolean\"},\"assetsSort\":{\"description\":\"Sort the assets by that field.\",\"type\":\"string\"},\"assetsSpace\":{\"description\":\"Space to display assets (groups will be collapsed to fit this space).\",\"type\":\"number\"},\"builtAt\":{\"description\":\"Add built at time information.\",\"type\":\"boolean\"},\"cached\":{\"description\":\"Add information about cached (not built) modules (deprecated: use 'cachedModules' instead).\",\"type\":\"boolean\"},\"cachedAssets\":{\"description\":\"Show cached assets (setting this to `false` only shows emitted files).\",\"type\":\"boolean\"},\"cachedModules\":{\"description\":\"Add information about cached (not built) modules.\",\"type\":\"boolean\"},\"children\":{\"description\":\"Add children information.\",\"type\":\"boolean\"},\"chunkGroupAuxiliary\":{\"description\":\"Display auxiliary assets in chunk groups.\",\"type\":\"boolean\"},\"chunkGroupChildren\":{\"description\":\"Display children of chunk groups.\",\"type\":\"boolean\"},\"chunkGroupMaxAssets\":{\"description\":\"Limit of assets displayed in chunk groups.\",\"type\":\"number\"},\"chunkGroups\":{\"description\":\"Display all chunk groups with the corresponding bundles.\",\"type\":\"boolean\"},\"chunkModules\":{\"description\":\"Add built modules information to chunk information.\",\"type\":\"boolean\"},\"chunkModulesSpace\":{\"description\":\"Space to display chunk modules (groups will be collapsed to fit this space, value is in number of modules/group).\",\"type\":\"number\"},\"chunkOrigins\":{\"description\":\"Add the origins of chunks and chunk merging info.\",\"type\":\"boolean\"},\"chunkRelations\":{\"description\":\"Add information about parent, children and sibling chunks to chunk information.\",\"type\":\"boolean\"},\"chunks\":{\"description\":\"Add chunk information.\",\"type\":\"boolean\"},\"chunksSort\":{\"description\":\"Sort the chunks by that field.\",\"type\":\"string\"},\"colors\":{\"description\":\"Enables/Disables colorful output.\",\"anyOf\":[{\"description\":\"Enables/Disables colorful output.\",\"type\":\"boolean\"},{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"bold\":{\"description\":\"Custom color for bold text.\",\"type\":\"string\"},\"cyan\":{\"description\":\"Custom color for cyan text.\",\"type\":\"string\"},\"green\":{\"description\":\"Custom color for green text.\",\"type\":\"string\"},\"magenta\":{\"description\":\"Custom color for magenta text.\",\"type\":\"string\"},\"red\":{\"description\":\"Custom color for red text.\",\"type\":\"string\"},\"yellow\":{\"description\":\"Custom color for yellow text.\",\"type\":\"string\"}}}]},\"context\":{\"description\":\"Context directory for request shortening.\",\"type\":\"string\",\"absolutePath\":true},\"dependentModules\":{\"description\":\"Show chunk modules that are dependencies of other modules of the chunk.\",\"type\":\"boolean\"},\"depth\":{\"description\":\"Add module depth in module graph.\",\"type\":\"boolean\"},\"entrypoints\":{\"description\":\"Display the entry points with the corresponding bundles.\",\"anyOf\":[{\"enum\":[\"auto\"]},{\"type\":\"boolean\"}]},\"env\":{\"description\":\"Add --env information.\",\"type\":\"boolean\"},\"errorDetails\":{\"description\":\"Add details to errors (like resolving log).\",\"anyOf\":[{\"enum\":[\"auto\"]},{\"type\":\"boolean\"}]},\"errorStack\":{\"description\":\"Add internal stack trace to errors.\",\"type\":\"boolean\"},\"errors\":{\"description\":\"Add errors.\",\"type\":\"boolean\"},\"errorsCount\":{\"description\":\"Add errors count.\",\"type\":\"boolean\"},\"exclude\":{\"description\":\"Please use excludeModules instead.\",\"cli\":{\"exclude\":true},\"anyOf\":[{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/ModuleFilterTypes\"}]},\"excludeAssets\":{\"description\":\"Suppress assets that match the specified filters. Filters can be Strings, RegExps or Functions.\",\"oneOf\":[{\"$ref\":\"#/definitions/AssetFilterTypes\"}]},\"excludeModules\":{\"description\":\"Suppress modules that match the specified filters. Filters can be Strings, RegExps, Booleans or Functions.\",\"anyOf\":[{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/ModuleFilterTypes\"}]},\"groupAssetsByChunk\":{\"description\":\"Group assets by how their are related to chunks.\",\"type\":\"boolean\"},\"groupAssetsByEmitStatus\":{\"description\":\"Group assets by their status (emitted, compared for emit or cached).\",\"type\":\"boolean\"},\"groupAssetsByExtension\":{\"description\":\"Group assets by their extension.\",\"type\":\"boolean\"},\"groupAssetsByInfo\":{\"description\":\"Group assets by their asset info (immutable, development, hotModuleReplacement, etc).\",\"type\":\"boolean\"},\"groupAssetsByPath\":{\"description\":\"Group assets by their path.\",\"type\":\"boolean\"},\"groupModulesByAttributes\":{\"description\":\"Group modules by their attributes (errors, warnings, assets, optional, orphan, or dependent).\",\"type\":\"boolean\"},\"groupModulesByCacheStatus\":{\"description\":\"Group modules by their status (cached or built and cacheable).\",\"type\":\"boolean\"},\"groupModulesByExtension\":{\"description\":\"Group modules by their extension.\",\"type\":\"boolean\"},\"groupModulesByLayer\":{\"description\":\"Group modules by their layer.\",\"type\":\"boolean\"},\"groupModulesByPath\":{\"description\":\"Group modules by their path.\",\"type\":\"boolean\"},\"hash\":{\"description\":\"Add the hash of the compilation.\",\"type\":\"boolean\"},\"ids\":{\"description\":\"Add ids.\",\"type\":\"boolean\"},\"logging\":{\"description\":\"Add logging output.\",\"anyOf\":[{\"description\":\"Specify log level of logging output.\",\"enum\":[\"none\",\"error\",\"warn\",\"info\",\"log\",\"verbose\"]},{\"description\":\"Enable/disable logging output (`true`: shows normal logging output, loglevel: log).\",\"type\":\"boolean\"}]},\"loggingDebug\":{\"description\":\"Include debug logging of specified loggers (i. e. for plugins or loaders). Filters can be Strings, RegExps or Functions.\",\"anyOf\":[{\"description\":\"Enable/Disable debug logging for all loggers.\",\"type\":\"boolean\"},{\"$ref\":\"#/definitions/FilterTypes\"}]},\"loggingTrace\":{\"description\":\"Add stack traces to logging output.\",\"type\":\"boolean\"},\"moduleAssets\":{\"description\":\"Add information about assets inside modules.\",\"type\":\"boolean\"},\"moduleTrace\":{\"description\":\"Add dependencies and origin of warnings/errors.\",\"type\":\"boolean\"},\"modules\":{\"description\":\"Add built modules information.\",\"type\":\"boolean\"},\"modulesSort\":{\"description\":\"Sort the modules by that field.\",\"type\":\"string\"},\"modulesSpace\":{\"description\":\"Space to display modules (groups will be collapsed to fit this space, value is in number of modules/groups).\",\"type\":\"number\"},\"nestedModules\":{\"description\":\"Add information about modules nested in other modules (like with module concatenation).\",\"type\":\"boolean\"},\"nestedModulesSpace\":{\"description\":\"Space to display modules nested within other modules (groups will be collapsed to fit this space, value is in number of modules/group).\",\"type\":\"number\"},\"optimizationBailout\":{\"description\":\"Show reasons why optimization bailed out for modules.\",\"type\":\"boolean\"},\"orphanModules\":{\"description\":\"Add information about orphan modules.\",\"type\":\"boolean\"},\"outputPath\":{\"description\":\"Add output path information.\",\"type\":\"boolean\"},\"performance\":{\"description\":\"Add performance hint flags.\",\"type\":\"boolean\"},\"preset\":{\"description\":\"Preset for the default values.\",\"anyOf\":[{\"type\":\"boolean\"},{\"type\":\"string\"}]},\"providedExports\":{\"description\":\"Show exports provided by modules.\",\"type\":\"boolean\"},\"publicPath\":{\"description\":\"Add public path information.\",\"type\":\"boolean\"},\"reasons\":{\"description\":\"Add information about the reasons why modules are included.\",\"type\":\"boolean\"},\"relatedAssets\":{\"description\":\"Add information about assets that are related to other assets (like SourceMaps for assets).\",\"type\":\"boolean\"},\"runtime\":{\"description\":\"Add information about runtime modules (deprecated: use 'runtimeModules' instead).\",\"type\":\"boolean\"},\"runtimeModules\":{\"description\":\"Add information about runtime modules.\",\"type\":\"boolean\"},\"source\":{\"description\":\"Add the source code of modules.\",\"type\":\"boolean\"},\"timings\":{\"description\":\"Add timing information.\",\"type\":\"boolean\"},\"usedExports\":{\"description\":\"Show exports used by modules.\",\"type\":\"boolean\"},\"version\":{\"description\":\"Add webpack version information.\",\"type\":\"boolean\"},\"warnings\":{\"description\":\"Add warnings.\",\"type\":\"boolean\"},\"warningsCount\":{\"description\":\"Add warnings count.\",\"type\":\"boolean\"},\"warningsFilter\":{\"description\":\"Suppress listing warnings that match the specified filters (they will still be counted). Filters can be Strings, RegExps or Functions.\",\"oneOf\":[{\"$ref\":\"#/definitions/WarningFilterTypes\"}]}}},\"StatsValue\":{\"description\":\"Stats options object or preset name.\",\"anyOf\":[{\"enum\":[\"none\",\"summary\",\"errors-only\",\"errors-warnings\",\"minimal\",\"normal\",\"detailed\",\"verbose\"]},{\"type\":\"boolean\"},{\"$ref\":\"#/definitions/StatsOptions\"}]},\"StrictModuleErrorHandling\":{\"description\":\"Handles error in module loading correctly at a performance cost. This will handle module error compatible with the EcmaScript Modules spec.\",\"type\":\"boolean\"},\"StrictModuleExceptionHandling\":{\"description\":\"Handles exceptions in module loading correctly at a performance cost (Deprecated). This will handle module error compatible with the Node.js CommonJS way.\",\"type\":\"boolean\"},\"Target\":{\"description\":\"Environment to build for. An array of environments to build for all of them when possible.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Environment to build for.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1},{\"enum\":[false]},{\"type\":\"string\",\"minLength\":1}]},\"UmdNamedDefine\":{\"description\":\"If `output.libraryTarget` is set to umd and `output.library` is set, setting this to true will name the AMD module.\",\"type\":\"boolean\"},\"UniqueName\":{\"description\":\"A unique name of the webpack build to avoid multiple webpack runtimes to conflict when using globals.\",\"type\":\"string\",\"minLength\":1},\"WarningFilterItemTypes\":{\"description\":\"Filtering value, regexp or function.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"type\":\"string\",\"absolutePath\":false},{\"instanceof\":\"Function\",\"tsType\":\"((warning: import('../lib/stats/DefaultStatsFactoryPlugin').StatsError, value: string) => boolean)\"}]},\"WarningFilterTypes\":{\"description\":\"Filtering warnings.\",\"cli\":{\"helper\":true},\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Rule to filter.\",\"cli\":{\"helper\":true},\"oneOf\":[{\"$ref\":\"#/definitions/WarningFilterItemTypes\"}]}},{\"$ref\":\"#/definitions/WarningFilterItemTypes\"}]},\"WasmLoading\":{\"description\":\"The method of loading WebAssembly Modules (methods included by default are 'fetch' (web/WebWorker), 'async-node' (node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[false]},{\"$ref\":\"#/definitions/WasmLoadingType\"}]},\"WasmLoadingType\":{\"description\":\"The method of loading WebAssembly Modules (methods included by default are 'fetch' (web/WebWorker), 'async-node' (node.js), but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"fetch-streaming\",\"fetch\",\"async-node\"]},{\"type\":\"string\"}]},\"Watch\":{\"description\":\"Enter watch mode, which rebuilds on file change.\",\"type\":\"boolean\"},\"WatchOptions\":{\"description\":\"Options for the watcher.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"aggregateTimeout\":{\"description\":\"Delay the rebuilt after the first change. Value is a time in ms.\",\"type\":\"number\"},\"followSymlinks\":{\"description\":\"Resolve symlinks and watch symlink and real file. This is usually not needed as webpack already resolves symlinks ('resolve.symlinks').\",\"type\":\"boolean\"},\"ignored\":{\"description\":\"Ignore some files from watching (glob pattern or regexp).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A glob pattern for files that should be ignored from watching.\",\"type\":\"string\",\"minLength\":1}},{\"instanceof\":\"RegExp\",\"tsType\":\"RegExp\"},{\"description\":\"A single glob pattern for files that should be ignored from watching.\",\"type\":\"string\",\"minLength\":1}]},\"poll\":{\"description\":\"Enable polling mode for watching.\",\"anyOf\":[{\"description\":\"`number`: use polling with specified interval.\",\"type\":\"number\"},{\"description\":\"`true`: use polling.\",\"type\":\"boolean\"}]},\"stdin\":{\"description\":\"Stop watching when stdin stream has ended.\",\"type\":\"boolean\"}}},\"WebassemblyModuleFilename\":{\"description\":\"The filename of WebAssembly modules as relative path inside the 'output.path' directory.\",\"type\":\"string\",\"absolutePath\":false},\"WebpackOptionsNormalized\":{\"description\":\"Normalized webpack options object.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"$ref\":\"#/definitions/Amd\"},\"bail\":{\"$ref\":\"#/definitions/Bail\"},\"cache\":{\"$ref\":\"#/definitions/CacheOptionsNormalized\"},\"context\":{\"$ref\":\"#/definitions/Context\"},\"dependencies\":{\"$ref\":\"#/definitions/Dependencies\"},\"devServer\":{\"$ref\":\"#/definitions/DevServer\"},\"devtool\":{\"$ref\":\"#/definitions/DevTool\"},\"entry\":{\"$ref\":\"#/definitions/EntryNormalized\"},\"experiments\":{\"$ref\":\"#/definitions/Experiments\"},\"externals\":{\"$ref\":\"#/definitions/Externals\"},\"externalsPresets\":{\"$ref\":\"#/definitions/ExternalsPresets\"},\"externalsType\":{\"$ref\":\"#/definitions/ExternalsType\"},\"ignoreWarnings\":{\"$ref\":\"#/definitions/IgnoreWarningsNormalized\"},\"infrastructureLogging\":{\"$ref\":\"#/definitions/InfrastructureLogging\"},\"loader\":{\"$ref\":\"#/definitions/Loader\"},\"mode\":{\"$ref\":\"#/definitions/Mode\"},\"module\":{\"$ref\":\"#/definitions/ModuleOptionsNormalized\"},\"name\":{\"$ref\":\"#/definitions/Name\"},\"node\":{\"$ref\":\"#/definitions/Node\"},\"optimization\":{\"$ref\":\"#/definitions/Optimization\"},\"output\":{\"$ref\":\"#/definitions/OutputNormalized\"},\"parallelism\":{\"$ref\":\"#/definitions/Parallelism\"},\"performance\":{\"$ref\":\"#/definitions/Performance\"},\"plugins\":{\"$ref\":\"#/definitions/Plugins\"},\"profile\":{\"$ref\":\"#/definitions/Profile\"},\"recordsInputPath\":{\"$ref\":\"#/definitions/RecordsInputPath\"},\"recordsOutputPath\":{\"$ref\":\"#/definitions/RecordsOutputPath\"},\"resolve\":{\"$ref\":\"#/definitions/Resolve\"},\"resolveLoader\":{\"$ref\":\"#/definitions/ResolveLoader\"},\"snapshot\":{\"$ref\":\"#/definitions/SnapshotOptions\"},\"stats\":{\"$ref\":\"#/definitions/StatsValue\"},\"target\":{\"$ref\":\"#/definitions/Target\"},\"watch\":{\"$ref\":\"#/definitions/Watch\"},\"watchOptions\":{\"$ref\":\"#/definitions/WatchOptions\"}},\"required\":[\"cache\",\"snapshot\",\"entry\",\"experiments\",\"externals\",\"externalsPresets\",\"infrastructureLogging\",\"module\",\"node\",\"optimization\",\"output\",\"plugins\",\"resolve\",\"resolveLoader\",\"stats\",\"watchOptions\"]},\"WebpackPluginFunction\":{\"description\":\"Function acting as plugin.\",\"instanceof\":\"Function\",\"tsType\":\"(this: import('../lib/Compiler'), compiler: import('../lib/Compiler')) => void\"},\"WebpackPluginInstance\":{\"description\":\"Plugin instance.\",\"type\":\"object\",\"additionalProperties\":true,\"properties\":{\"apply\":{\"description\":\"The run point of the plugin, required method.\",\"instanceof\":\"Function\",\"tsType\":\"(compiler: import('../lib/Compiler')) => void\"}},\"required\":[\"apply\"]}},\"description\":\"Options object as provided by the user.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"$ref\":\"#/definitions/Amd\"},\"bail\":{\"$ref\":\"#/definitions/Bail\"},\"cache\":{\"$ref\":\"#/definitions/CacheOptions\"},\"context\":{\"$ref\":\"#/definitions/Context\"},\"dependencies\":{\"$ref\":\"#/definitions/Dependencies\"},\"devServer\":{\"$ref\":\"#/definitions/DevServer\"},\"devtool\":{\"$ref\":\"#/definitions/DevTool\"},\"entry\":{\"$ref\":\"#/definitions/Entry\"},\"experiments\":{\"$ref\":\"#/definitions/Experiments\"},\"externals\":{\"$ref\":\"#/definitions/Externals\"},\"externalsPresets\":{\"$ref\":\"#/definitions/ExternalsPresets\"},\"externalsType\":{\"$ref\":\"#/definitions/ExternalsType\"},\"ignoreWarnings\":{\"$ref\":\"#/definitions/IgnoreWarnings\"},\"infrastructureLogging\":{\"$ref\":\"#/definitions/InfrastructureLogging\"},\"loader\":{\"$ref\":\"#/definitions/Loader\"},\"mode\":{\"$ref\":\"#/definitions/Mode\"},\"module\":{\"$ref\":\"#/definitions/ModuleOptions\"},\"name\":{\"$ref\":\"#/definitions/Name\"},\"node\":{\"$ref\":\"#/definitions/Node\"},\"optimization\":{\"$ref\":\"#/definitions/Optimization\"},\"output\":{\"$ref\":\"#/definitions/Output\"},\"parallelism\":{\"$ref\":\"#/definitions/Parallelism\"},\"performance\":{\"$ref\":\"#/definitions/Performance\"},\"plugins\":{\"$ref\":\"#/definitions/Plugins\"},\"profile\":{\"$ref\":\"#/definitions/Profile\"},\"recordsInputPath\":{\"$ref\":\"#/definitions/RecordsInputPath\"},\"recordsOutputPath\":{\"$ref\":\"#/definitions/RecordsOutputPath\"},\"recordsPath\":{\"$ref\":\"#/definitions/RecordsPath\"},\"resolve\":{\"$ref\":\"#/definitions/Resolve\"},\"resolveLoader\":{\"$ref\":\"#/definitions/ResolveLoader\"},\"snapshot\":{\"$ref\":\"#/definitions/SnapshotOptions\"},\"stats\":{\"$ref\":\"#/definitions/StatsValue\"},\"target\":{\"$ref\":\"#/definitions/Target\"},\"watch\":{\"$ref\":\"#/definitions/Watch\"},\"watchOptions\":{\"$ref\":\"#/definitions/WatchOptions\"}}}");
 
 /***/ }),
 
@@ -150,7 +150,7 @@ module.exports = JSON.parse("{\"title\":\"WatchIgnorePluginOptions\",\"type\":\"
 /***/ (function(module) {
 
 "use strict";
-module.exports = JSON.parse("{\"definitions\":{\"AuxiliaryComment\":{\"description\":\"Add a comment in the UMD wrapper.\",\"anyOf\":[{\"description\":\"Append the same comment above each import style.\",\"type\":\"string\"},{\"$ref\":\"#/definitions/LibraryCustomUmdCommentObject\"}]},\"Exposes\":{\"description\":\"Modules that should be exposed by this container. When provided, property name is used as public name, otherwise public name is automatically inferred from request.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Modules that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesObject\"}]}},{\"$ref\":\"#/definitions/ExposesObject\"}]},\"ExposesConfig\":{\"description\":\"Advanced configuration for modules that should be exposed by this container.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"import\":{\"description\":\"Request to a module that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesItems\"}]},\"name\":{\"description\":\"Custom chunk name for the exposed module.\",\"type\":\"string\"}},\"required\":[\"import\"]},\"ExposesItem\":{\"description\":\"Module that should be exposed by this container.\",\"type\":\"string\",\"minLength\":1},\"ExposesItems\":{\"description\":\"Modules that should be exposed by this container.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/ExposesItem\"}},\"ExposesObject\":{\"description\":\"Modules that should be exposed by this container. Property names are used as public paths.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Modules that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesConfig\"},{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesItems\"}]}},\"LibraryCustomUmdCommentObject\":{\"description\":\"Set explicit comments for `commonjs`, `commonjs2`, `amd`, and `root`.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Set comment for `amd` section in UMD.\",\"type\":\"string\"},\"commonjs\":{\"description\":\"Set comment for `commonjs` (exports) section in UMD.\",\"type\":\"string\"},\"commonjs2\":{\"description\":\"Set comment for `commonjs2` (module.exports) section in UMD.\",\"type\":\"string\"},\"root\":{\"description\":\"Set comment for `root` (global variable) section in UMD.\",\"type\":\"string\"}}},\"LibraryCustomUmdObject\":{\"description\":\"Description object for all UMD variants of the library name.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Name of the exposed AMD library in the UMD.\",\"type\":\"string\",\"minLength\":1},\"commonjs\":{\"description\":\"Name of the exposed commonjs export in the UMD.\",\"type\":\"string\",\"minLength\":1},\"root\":{\"description\":\"Name of the property exposed globally by a UMD library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the name of the property exposed globally by a UMD library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}}},\"LibraryExport\":{\"description\":\"Specify which export should be exposed as library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the export that should be exposed as library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]},\"LibraryName\":{\"description\":\"The name of the library (some types allow unnamed libraries too).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A part of the library name.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1},{\"$ref\":\"#/definitions/LibraryCustomUmdObject\"}]},\"LibraryOptions\":{\"description\":\"Options for library.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"auxiliaryComment\":{\"$ref\":\"#/definitions/AuxiliaryComment\"},\"export\":{\"$ref\":\"#/definitions/LibraryExport\"},\"name\":{\"$ref\":\"#/definitions/LibraryName\"},\"type\":{\"$ref\":\"#/definitions/LibraryType\"},\"umdNamedDefine\":{\"$ref\":\"#/definitions/UmdNamedDefine\"}},\"required\":[\"type\"]},\"LibraryType\":{\"description\":\"Type of library (types included by default are 'var', 'module', 'assign', 'assign-properties', 'this', 'window', 'self', 'global', 'commonjs', 'commonjs2', 'commonjs-module', 'amd', 'amd-require', 'umd', 'umd2', 'jsonp', 'system', but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"var\",\"module\",\"assign\",\"assign-properties\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\"]},{\"type\":\"string\"}]},\"UmdNamedDefine\":{\"description\":\"If `output.libraryTarget` is set to umd and `output.library` is set, setting this to true will name the AMD module.\",\"type\":\"boolean\"}},\"title\":\"ContainerPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"exposes\":{\"$ref\":\"#/definitions/Exposes\"},\"filename\":{\"description\":\"The filename for this container relative path inside the `output.path` directory.\",\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"name\":{\"description\":\"The name for this container.\",\"type\":\"string\",\"minLength\":1},\"shareScope\":{\"description\":\"The name of the share scope which is shared with the host (defaults to 'default').\",\"type\":\"string\",\"minLength\":1}},\"required\":[\"name\",\"exposes\"]}");
+module.exports = JSON.parse("{\"definitions\":{\"AuxiliaryComment\":{\"description\":\"Add a comment in the UMD wrapper.\",\"anyOf\":[{\"description\":\"Append the same comment above each import style.\",\"type\":\"string\"},{\"$ref\":\"#/definitions/LibraryCustomUmdCommentObject\"}]},\"Exposes\":{\"description\":\"Modules that should be exposed by this container. When provided, property name is used as public name, otherwise public name is automatically inferred from request.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Modules that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesObject\"}]}},{\"$ref\":\"#/definitions/ExposesObject\"}]},\"ExposesConfig\":{\"description\":\"Advanced configuration for modules that should be exposed by this container.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"import\":{\"description\":\"Request to a module that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesItems\"}]},\"name\":{\"description\":\"Custom chunk name for the exposed module.\",\"type\":\"string\"}},\"required\":[\"import\"]},\"ExposesItem\":{\"description\":\"Module that should be exposed by this container.\",\"type\":\"string\",\"minLength\":1},\"ExposesItems\":{\"description\":\"Modules that should be exposed by this container.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/ExposesItem\"}},\"ExposesObject\":{\"description\":\"Modules that should be exposed by this container. Property names are used as public paths.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Modules that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesConfig\"},{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesItems\"}]}},\"LibraryCustomUmdCommentObject\":{\"description\":\"Set explicit comments for `commonjs`, `commonjs2`, `amd`, and `root`.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Set comment for `amd` section in UMD.\",\"type\":\"string\"},\"commonjs\":{\"description\":\"Set comment for `commonjs` (exports) section in UMD.\",\"type\":\"string\"},\"commonjs2\":{\"description\":\"Set comment for `commonjs2` (module.exports) section in UMD.\",\"type\":\"string\"},\"root\":{\"description\":\"Set comment for `root` (global variable) section in UMD.\",\"type\":\"string\"}}},\"LibraryCustomUmdObject\":{\"description\":\"Description object for all UMD variants of the library name.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Name of the exposed AMD library in the UMD.\",\"type\":\"string\",\"minLength\":1},\"commonjs\":{\"description\":\"Name of the exposed commonjs export in the UMD.\",\"type\":\"string\",\"minLength\":1},\"root\":{\"description\":\"Name of the property exposed globally by a UMD library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the name of the property exposed globally by a UMD library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}}},\"LibraryExport\":{\"description\":\"Specify which export should be exposed as library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the export that should be exposed as library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]},\"LibraryName\":{\"description\":\"The name of the library (some types allow unnamed libraries too).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A part of the library name.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1},{\"type\":\"string\",\"minLength\":1},{\"$ref\":\"#/definitions/LibraryCustomUmdObject\"}]},\"LibraryOptions\":{\"description\":\"Options for library.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"auxiliaryComment\":{\"$ref\":\"#/definitions/AuxiliaryComment\"},\"export\":{\"$ref\":\"#/definitions/LibraryExport\"},\"name\":{\"$ref\":\"#/definitions/LibraryName\"},\"type\":{\"$ref\":\"#/definitions/LibraryType\"},\"umdNamedDefine\":{\"$ref\":\"#/definitions/UmdNamedDefine\"}},\"required\":[\"type\"]},\"LibraryType\":{\"description\":\"Type of library (types included by default are 'var', 'module', 'assign', 'assign-properties', 'this', 'window', 'self', 'global', 'commonjs', 'commonjs2', 'commonjs-module', 'amd', 'amd-require', 'umd', 'umd2', 'jsonp', 'system', but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"var\",\"module\",\"assign\",\"assign-properties\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\"]},{\"type\":\"string\"}]},\"UmdNamedDefine\":{\"description\":\"If `output.libraryTarget` is set to umd and `output.library` is set, setting this to true will name the AMD module.\",\"type\":\"boolean\"}},\"title\":\"ContainerPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"exposes\":{\"$ref\":\"#/definitions/Exposes\"},\"filename\":{\"description\":\"The filename for this container relative path inside the `output.path` directory.\",\"type\":\"string\",\"absolutePath\":false,\"minLength\":1},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"name\":{\"description\":\"The name for this container.\",\"type\":\"string\",\"minLength\":1},\"shareScope\":{\"description\":\"The name of the share scope which is shared with the host (defaults to 'default').\",\"type\":\"string\",\"minLength\":1}},\"required\":[\"name\",\"exposes\"]}");
 
 /***/ }),
 
@@ -166,7 +166,7 @@ module.exports = JSON.parse("{\"definitions\":{\"ExternalsType\":{\"description\
 /***/ (function(module) {
 
 "use strict";
-module.exports = JSON.parse("{\"definitions\":{\"AuxiliaryComment\":{\"description\":\"Add a comment in the UMD wrapper.\",\"anyOf\":[{\"description\":\"Append the same comment above each import style.\",\"type\":\"string\"},{\"$ref\":\"#/definitions/LibraryCustomUmdCommentObject\"}]},\"Exposes\":{\"description\":\"Modules that should be exposed by this container. When provided, property name is used as public name, otherwise public name is automatically inferred from request.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Modules that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesObject\"}]}},{\"$ref\":\"#/definitions/ExposesObject\"}]},\"ExposesConfig\":{\"description\":\"Advanced configuration for modules that should be exposed by this container.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"import\":{\"description\":\"Request to a module that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesItems\"}]},\"name\":{\"description\":\"Custom chunk name for the exposed module.\",\"type\":\"string\"}},\"required\":[\"import\"]},\"ExposesItem\":{\"description\":\"Module that should be exposed by this container.\",\"type\":\"string\",\"minLength\":1},\"ExposesItems\":{\"description\":\"Modules that should be exposed by this container.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/ExposesItem\"}},\"ExposesObject\":{\"description\":\"Modules that should be exposed by this container. Property names are used as public paths.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Modules that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesConfig\"},{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesItems\"}]}},\"ExternalsType\":{\"description\":\"Specifies the default type of externals ('amd*', 'umd*', 'system' and 'jsonp' depend on output.libraryTarget set to the same value).\",\"enum\":[\"var\",\"module\",\"assign\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\",\"promise\",\"import\",\"script\"]},\"LibraryCustomUmdCommentObject\":{\"description\":\"Set explicit comments for `commonjs`, `commonjs2`, `amd`, and `root`.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Set comment for `amd` section in UMD.\",\"type\":\"string\"},\"commonjs\":{\"description\":\"Set comment for `commonjs` (exports) section in UMD.\",\"type\":\"string\"},\"commonjs2\":{\"description\":\"Set comment for `commonjs2` (module.exports) section in UMD.\",\"type\":\"string\"},\"root\":{\"description\":\"Set comment for `root` (global variable) section in UMD.\",\"type\":\"string\"}}},\"LibraryCustomUmdObject\":{\"description\":\"Description object for all UMD variants of the library name.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Name of the exposed AMD library in the UMD.\",\"type\":\"string\",\"minLength\":1},\"commonjs\":{\"description\":\"Name of the exposed commonjs export in the UMD.\",\"type\":\"string\",\"minLength\":1},\"root\":{\"description\":\"Name of the property exposed globally by a UMD library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the name of the property exposed globally by a UMD library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}}},\"LibraryExport\":{\"description\":\"Specify which export should be exposed as library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the export that should be exposed as library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]},\"LibraryName\":{\"description\":\"The name of the library (some types allow unnamed libraries too).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A part of the library name.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1},{\"$ref\":\"#/definitions/LibraryCustomUmdObject\"}]},\"LibraryOptions\":{\"description\":\"Options for library.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"auxiliaryComment\":{\"$ref\":\"#/definitions/AuxiliaryComment\"},\"export\":{\"$ref\":\"#/definitions/LibraryExport\"},\"name\":{\"$ref\":\"#/definitions/LibraryName\"},\"type\":{\"$ref\":\"#/definitions/LibraryType\"},\"umdNamedDefine\":{\"$ref\":\"#/definitions/UmdNamedDefine\"}},\"required\":[\"type\"]},\"LibraryType\":{\"description\":\"Type of library (types included by default are 'var', 'module', 'assign', 'assign-properties', 'this', 'window', 'self', 'global', 'commonjs', 'commonjs2', 'commonjs-module', 'amd', 'amd-require', 'umd', 'umd2', 'jsonp', 'system', but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"var\",\"module\",\"assign\",\"assign-properties\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\"]},{\"type\":\"string\"}]},\"Remotes\":{\"description\":\"Container locations and request scopes from which modules should be resolved and loaded at runtime. When provided, property name is used as request scope, otherwise request scope is automatically inferred from container location.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Container locations and request scopes from which modules should be resolved and loaded at runtime.\",\"anyOf\":[{\"$ref\":\"#/definitions/RemotesItem\"},{\"$ref\":\"#/definitions/RemotesObject\"}]}},{\"$ref\":\"#/definitions/RemotesObject\"}]},\"RemotesConfig\":{\"description\":\"Advanced configuration for container locations from which modules should be resolved and loaded at runtime.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"external\":{\"description\":\"Container locations from which modules should be resolved and loaded at runtime.\",\"anyOf\":[{\"$ref\":\"#/definitions/RemotesItem\"},{\"$ref\":\"#/definitions/RemotesItems\"}]},\"shareScope\":{\"description\":\"The name of the share scope shared with this remote.\",\"type\":\"string\",\"minLength\":1}},\"required\":[\"external\"]},\"RemotesItem\":{\"description\":\"Container location from which modules should be resolved and loaded at runtime.\",\"type\":\"string\",\"minLength\":1},\"RemotesItems\":{\"description\":\"Container locations from which modules should be resolved and loaded at runtime.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/RemotesItem\"}},\"RemotesObject\":{\"description\":\"Container locations from which modules should be resolved and loaded at runtime. Property names are used as request scopes.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Container locations from which modules should be resolved and loaded at runtime.\",\"anyOf\":[{\"$ref\":\"#/definitions/RemotesConfig\"},{\"$ref\":\"#/definitions/RemotesItem\"},{\"$ref\":\"#/definitions/RemotesItems\"}]}},\"Shared\":{\"description\":\"Modules that should be shared in the share scope. When provided, property names are used to match requested modules in this compilation.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Modules that should be shared in the share scope.\",\"anyOf\":[{\"$ref\":\"#/definitions/SharedItem\"},{\"$ref\":\"#/definitions/SharedObject\"}]}},{\"$ref\":\"#/definitions/SharedObject\"}]},\"SharedConfig\":{\"description\":\"Advanced configuration for modules that should be shared in the share scope.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"eager\":{\"description\":\"Include the provided and fallback module directly instead behind an async request. This allows to use this shared module in initial load too. All possible shared modules need to be eager too.\",\"type\":\"boolean\"},\"import\":{\"description\":\"Provided module that should be provided to share scope. Also acts as fallback module if no shared module is found in share scope or version isn't valid. Defaults to the property name.\",\"anyOf\":[{\"description\":\"No provided or fallback module.\",\"enum\":[false]},{\"$ref\":\"#/definitions/SharedItem\"}]},\"packageName\":{\"description\":\"Package name to determine required version from description file. This is only needed when package name can't be automatically determined from request.\",\"type\":\"string\",\"minLength\":1},\"requiredVersion\":{\"description\":\"Version requirement from module in share scope.\",\"anyOf\":[{\"description\":\"No version requirement check.\",\"enum\":[false]},{\"description\":\"Version as string. Can be prefixed with '^' or '~' for minimum matches. Each part of the version should be separated by a dot '.'.\",\"type\":\"string\"}]},\"shareKey\":{\"description\":\"Module is looked up under this key from the share scope.\",\"type\":\"string\",\"minLength\":1},\"shareScope\":{\"description\":\"Share scope name.\",\"type\":\"string\",\"minLength\":1},\"singleton\":{\"description\":\"Allow only a single version of the shared module in share scope (disabled by default).\",\"type\":\"boolean\"},\"strictVersion\":{\"description\":\"Do not accept shared module if version is not valid (defaults to yes, if local fallback module is available and shared module is not a singleton, otherwise no, has no effect if there is no required version specified).\",\"type\":\"boolean\"},\"version\":{\"description\":\"Version of the provided module. Will replace lower matching versions, but not higher.\",\"anyOf\":[{\"description\":\"Don't provide a version.\",\"enum\":[false]},{\"description\":\"Version as string. Each part of the version should be separated by a dot '.'.\",\"type\":\"string\"}]}}},\"SharedItem\":{\"description\":\"A module that should be shared in the share scope.\",\"type\":\"string\",\"minLength\":1},\"SharedObject\":{\"description\":\"Modules that should be shared in the share scope. Property names are used to match requested modules in this compilation. Relative requests are resolved, module requests are matched unresolved, absolute paths will match resolved requests. A trailing slash will match all requests with this prefix. In this case shareKey must also have a trailing slash.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Modules that should be shared in the share scope.\",\"anyOf\":[{\"$ref\":\"#/definitions/SharedConfig\"},{\"$ref\":\"#/definitions/SharedItem\"}]}},\"UmdNamedDefine\":{\"description\":\"If `output.libraryTarget` is set to umd and `output.library` is set, setting this to true will name the AMD module.\",\"type\":\"boolean\"}},\"title\":\"ModuleFederationPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"exposes\":{\"$ref\":\"#/definitions/Exposes\"},\"filename\":{\"description\":\"The filename of the container as relative path inside the `output.path` directory.\",\"type\":\"string\",\"absolutePath\":false},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"name\":{\"description\":\"The name of the container.\",\"type\":\"string\"},\"remoteType\":{\"description\":\"The external type of the remote containers.\",\"oneOf\":[{\"$ref\":\"#/definitions/ExternalsType\"}]},\"remotes\":{\"$ref\":\"#/definitions/Remotes\"},\"shareScope\":{\"description\":\"Share scope name used for all shared modules (defaults to 'default').\",\"type\":\"string\",\"minLength\":1},\"shared\":{\"$ref\":\"#/definitions/Shared\"}}}");
+module.exports = JSON.parse("{\"definitions\":{\"AuxiliaryComment\":{\"description\":\"Add a comment in the UMD wrapper.\",\"anyOf\":[{\"description\":\"Append the same comment above each import style.\",\"type\":\"string\"},{\"$ref\":\"#/definitions/LibraryCustomUmdCommentObject\"}]},\"Exposes\":{\"description\":\"Modules that should be exposed by this container. When provided, property name is used as public name, otherwise public name is automatically inferred from request.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Modules that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesObject\"}]}},{\"$ref\":\"#/definitions/ExposesObject\"}]},\"ExposesConfig\":{\"description\":\"Advanced configuration for modules that should be exposed by this container.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"import\":{\"description\":\"Request to a module that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesItems\"}]},\"name\":{\"description\":\"Custom chunk name for the exposed module.\",\"type\":\"string\"}},\"required\":[\"import\"]},\"ExposesItem\":{\"description\":\"Module that should be exposed by this container.\",\"type\":\"string\",\"minLength\":1},\"ExposesItems\":{\"description\":\"Modules that should be exposed by this container.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/ExposesItem\"}},\"ExposesObject\":{\"description\":\"Modules that should be exposed by this container. Property names are used as public paths.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Modules that should be exposed by this container.\",\"anyOf\":[{\"$ref\":\"#/definitions/ExposesConfig\"},{\"$ref\":\"#/definitions/ExposesItem\"},{\"$ref\":\"#/definitions/ExposesItems\"}]}},\"ExternalsType\":{\"description\":\"Specifies the default type of externals ('amd*', 'umd*', 'system' and 'jsonp' depend on output.libraryTarget set to the same value).\",\"enum\":[\"var\",\"module\",\"assign\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\",\"promise\",\"import\",\"script\"]},\"LibraryCustomUmdCommentObject\":{\"description\":\"Set explicit comments for `commonjs`, `commonjs2`, `amd`, and `root`.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Set comment for `amd` section in UMD.\",\"type\":\"string\"},\"commonjs\":{\"description\":\"Set comment for `commonjs` (exports) section in UMD.\",\"type\":\"string\"},\"commonjs2\":{\"description\":\"Set comment for `commonjs2` (module.exports) section in UMD.\",\"type\":\"string\"},\"root\":{\"description\":\"Set comment for `root` (global variable) section in UMD.\",\"type\":\"string\"}}},\"LibraryCustomUmdObject\":{\"description\":\"Description object for all UMD variants of the library name.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"amd\":{\"description\":\"Name of the exposed AMD library in the UMD.\",\"type\":\"string\",\"minLength\":1},\"commonjs\":{\"description\":\"Name of the exposed commonjs export in the UMD.\",\"type\":\"string\",\"minLength\":1},\"root\":{\"description\":\"Name of the property exposed globally by a UMD library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the name of the property exposed globally by a UMD library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]}}},\"LibraryExport\":{\"description\":\"Specify which export should be exposed as library.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Part of the export that should be exposed as library.\",\"type\":\"string\",\"minLength\":1}},{\"type\":\"string\",\"minLength\":1}]},\"LibraryName\":{\"description\":\"The name of the library (some types allow unnamed libraries too).\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"A part of the library name.\",\"type\":\"string\",\"minLength\":1},\"minItems\":1},{\"type\":\"string\",\"minLength\":1},{\"$ref\":\"#/definitions/LibraryCustomUmdObject\"}]},\"LibraryOptions\":{\"description\":\"Options for library.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"auxiliaryComment\":{\"$ref\":\"#/definitions/AuxiliaryComment\"},\"export\":{\"$ref\":\"#/definitions/LibraryExport\"},\"name\":{\"$ref\":\"#/definitions/LibraryName\"},\"type\":{\"$ref\":\"#/definitions/LibraryType\"},\"umdNamedDefine\":{\"$ref\":\"#/definitions/UmdNamedDefine\"}},\"required\":[\"type\"]},\"LibraryType\":{\"description\":\"Type of library (types included by default are 'var', 'module', 'assign', 'assign-properties', 'this', 'window', 'self', 'global', 'commonjs', 'commonjs2', 'commonjs-module', 'amd', 'amd-require', 'umd', 'umd2', 'jsonp', 'system', but others might be added by plugins).\",\"anyOf\":[{\"enum\":[\"var\",\"module\",\"assign\",\"assign-properties\",\"this\",\"window\",\"self\",\"global\",\"commonjs\",\"commonjs2\",\"commonjs-module\",\"amd\",\"amd-require\",\"umd\",\"umd2\",\"jsonp\",\"system\"]},{\"type\":\"string\"}]},\"Remotes\":{\"description\":\"Container locations and request scopes from which modules should be resolved and loaded at runtime. When provided, property name is used as request scope, otherwise request scope is automatically inferred from container location.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Container locations and request scopes from which modules should be resolved and loaded at runtime.\",\"anyOf\":[{\"$ref\":\"#/definitions/RemotesItem\"},{\"$ref\":\"#/definitions/RemotesObject\"}]}},{\"$ref\":\"#/definitions/RemotesObject\"}]},\"RemotesConfig\":{\"description\":\"Advanced configuration for container locations from which modules should be resolved and loaded at runtime.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"external\":{\"description\":\"Container locations from which modules should be resolved and loaded at runtime.\",\"anyOf\":[{\"$ref\":\"#/definitions/RemotesItem\"},{\"$ref\":\"#/definitions/RemotesItems\"}]},\"shareScope\":{\"description\":\"The name of the share scope shared with this remote.\",\"type\":\"string\",\"minLength\":1}},\"required\":[\"external\"]},\"RemotesItem\":{\"description\":\"Container location from which modules should be resolved and loaded at runtime.\",\"type\":\"string\",\"minLength\":1},\"RemotesItems\":{\"description\":\"Container locations from which modules should be resolved and loaded at runtime.\",\"type\":\"array\",\"items\":{\"$ref\":\"#/definitions/RemotesItem\"}},\"RemotesObject\":{\"description\":\"Container locations from which modules should be resolved and loaded at runtime. Property names are used as request scopes.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Container locations from which modules should be resolved and loaded at runtime.\",\"anyOf\":[{\"$ref\":\"#/definitions/RemotesConfig\"},{\"$ref\":\"#/definitions/RemotesItem\"},{\"$ref\":\"#/definitions/RemotesItems\"}]}},\"Shared\":{\"description\":\"Modules that should be shared in the share scope. When provided, property names are used to match requested modules in this compilation.\",\"anyOf\":[{\"type\":\"array\",\"items\":{\"description\":\"Modules that should be shared in the share scope.\",\"anyOf\":[{\"$ref\":\"#/definitions/SharedItem\"},{\"$ref\":\"#/definitions/SharedObject\"}]}},{\"$ref\":\"#/definitions/SharedObject\"}]},\"SharedConfig\":{\"description\":\"Advanced configuration for modules that should be shared in the share scope.\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"eager\":{\"description\":\"Include the provided and fallback module directly instead behind an async request. This allows to use this shared module in initial load too. All possible shared modules need to be eager too.\",\"type\":\"boolean\"},\"import\":{\"description\":\"Provided module that should be provided to share scope. Also acts as fallback module if no shared module is found in share scope or version isn't valid. Defaults to the property name.\",\"anyOf\":[{\"description\":\"No provided or fallback module.\",\"enum\":[false]},{\"$ref\":\"#/definitions/SharedItem\"}]},\"packageName\":{\"description\":\"Package name to determine required version from description file. This is only needed when package name can't be automatically determined from request.\",\"type\":\"string\",\"minLength\":1},\"requiredVersion\":{\"description\":\"Version requirement from module in share scope.\",\"anyOf\":[{\"description\":\"No version requirement check.\",\"enum\":[false]},{\"description\":\"Version as string. Can be prefixed with '^' or '~' for minimum matches. Each part of the version should be separated by a dot '.'.\",\"type\":\"string\"}]},\"shareKey\":{\"description\":\"Module is looked up under this key from the share scope.\",\"type\":\"string\",\"minLength\":1},\"shareScope\":{\"description\":\"Share scope name.\",\"type\":\"string\",\"minLength\":1},\"singleton\":{\"description\":\"Allow only a single version of the shared module in share scope (disabled by default).\",\"type\":\"boolean\"},\"strictVersion\":{\"description\":\"Do not accept shared module if version is not valid (defaults to yes, if local fallback module is available and shared module is not a singleton, otherwise no, has no effect if there is no required version specified).\",\"type\":\"boolean\"},\"version\":{\"description\":\"Version of the provided module. Will replace lower matching versions, but not higher.\",\"anyOf\":[{\"description\":\"Don't provide a version.\",\"enum\":[false]},{\"description\":\"Version as string. Each part of the version should be separated by a dot '.'.\",\"type\":\"string\"}]}}},\"SharedItem\":{\"description\":\"A module that should be shared in the share scope.\",\"type\":\"string\",\"minLength\":1},\"SharedObject\":{\"description\":\"Modules that should be shared in the share scope. Property names are used to match requested modules in this compilation. Relative requests are resolved, module requests are matched unresolved, absolute paths will match resolved requests. A trailing slash will match all requests with this prefix. In this case shareKey must also have a trailing slash.\",\"type\":\"object\",\"additionalProperties\":{\"description\":\"Modules that should be shared in the share scope.\",\"anyOf\":[{\"$ref\":\"#/definitions/SharedConfig\"},{\"$ref\":\"#/definitions/SharedItem\"}]}},\"UmdNamedDefine\":{\"description\":\"If `output.libraryTarget` is set to umd and `output.library` is set, setting this to true will name the AMD module.\",\"type\":\"boolean\"}},\"title\":\"ModuleFederationPluginOptions\",\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"exposes\":{\"$ref\":\"#/definitions/Exposes\"},\"filename\":{\"description\":\"The filename of the container as relative path inside the `output.path` directory.\",\"type\":\"string\",\"absolutePath\":false},\"library\":{\"$ref\":\"#/definitions/LibraryOptions\"},\"name\":{\"description\":\"The name of the container.\",\"type\":\"string\"},\"remoteType\":{\"description\":\"The external type of the remote containers.\",\"oneOf\":[{\"$ref\":\"#/definitions/ExternalsType\"}]},\"remotes\":{\"$ref\":\"#/definitions/Remotes\"},\"shareScope\":{\"description\":\"Share scope name used for all shared modules (defaults to 'default').\",\"type\":\"string\",\"minLength\":1},\"shared\":{\"$ref\":\"#/definitions/Shared\"}}}");
 
 /***/ }),
 
@@ -9955,7 +9955,8 @@ Long.fromBytesBE = function fromBytesBE(bytes, unsigned) {
     // error.
     allowReturnOutsideFunction: false,
     // When enabled, import/export statements are not constrained to
-    // appearing at the top of the program.
+    // appearing at the top of the program, and an import.meta expression
+    // in a script isn't considered an error.
     allowImportExportEverywhere: false,
     // When enabled, await identifiers are allowed to appear at the top-level scope,
     // but they are still not allowed in non-async functions.
@@ -11829,6 +11830,7 @@ Long.fromBytesBE = function fromBytesBE(bytes, unsigned) {
     if (refDestructuringErrors && result.type === "MemberExpression") {
       if (refDestructuringErrors.parenthesizedAssign >= result.start) { refDestructuringErrors.parenthesizedAssign = -1; }
       if (refDestructuringErrors.parenthesizedBind >= result.start) { refDestructuringErrors.parenthesizedBind = -1; }
+      if (refDestructuringErrors.trailingComma >= result.start) { refDestructuringErrors.trailingComma = -1; }
     }
     return result
   };
@@ -12071,7 +12073,7 @@ Long.fromBytesBE = function fromBytesBE(bytes, unsigned) {
       { this.raiseRecoverable(node.property.start, "The only valid meta property for import is 'import.meta'"); }
     if (containsEsc)
       { this.raiseRecoverable(node.start, "'import.meta' must not contain escaped characters"); }
-    if (this.options.sourceType !== "module")
+    if (this.options.sourceType !== "module" && !this.options.allowImportExportEverywhere)
       { this.raiseRecoverable(node.start, "Cannot use 'import.meta' outside a module"); }
 
     return this.finishNode(node, "MetaProperty")
@@ -14822,7 +14824,7 @@ Long.fromBytesBE = function fromBytesBE(bytes, unsigned) {
 
   // Acorn is a tiny, fast JavaScript parser written in JavaScript.
 
-  var version = "8.0.5";
+  var version = "8.1.0";
 
   Parser.acorn = {
     Parser: Parser,
@@ -31028,6 +31030,11 @@ const REPLACEMENTS = {
 		type: "function",
 		assign: true
 	},
+	__webpack_runtime_id__: {
+		expr: RuntimeGlobals.runtimeId,
+		req: [RuntimeGlobals.runtimeId],
+		assign: false
+	},
 	"require.onError": {
 		expr: RuntimeGlobals.uncaughtErrorHandler,
 		req: [RuntimeGlobals.uncaughtErrorHandler],
@@ -32129,12 +32136,12 @@ const createModulesListMessage = (modules, moduleGraph) => {
 		.map(m => {
 			let message = `* ${m.identifier()}`;
 			const validReasons = Array.from(
-				moduleGraph.getIncomingConnections(m)
-			).filter(reason => reason.originModule);
+				moduleGraph.getIncomingConnectionsByOriginModule(m).keys()
+			).filter(x => x);
 
 			if (validReasons.length > 0) {
 				message += `\n    Used by ${validReasons.length} module(s), i. e.`;
-				message += `\n    ${validReasons[0].originModule.identifier()}`;
+				message += `\n    ${validReasons[0].identifier()}`;
 			}
 			return message;
 		})
@@ -32765,7 +32772,11 @@ class Chunk {
 	 * @returns {Set<Chunk>} a set of all the initial chunks (including itself)
 	 */
 	getAllInitialChunks() {
-		return intersect(Array.from(this.groupsIterable, g => new Set(g.chunks)));
+		const chunks = new Set();
+		for (const group of this.groupsIterable) {
+			for (const c of group.chunks) chunks.add(c);
+		}
+		return chunks;
 	}
 
 	/**
@@ -32882,6 +32893,49 @@ class Chunk {
 			}
 			if (chunkIdSet.size > 0) {
 				result[name] = Array.from(chunkIdSet);
+			}
+		}
+		return result;
+	}
+
+	/**
+	 * @param {ChunkGraph} chunkGraph the chunk graph
+	 * @param {string} type option name
+	 * @returns {{ onChunks: Chunk[], chunks: Set<Chunk> }[]} referenced chunks for a specific type
+	 */
+	getChildrenOfTypeInOrder(chunkGraph, type) {
+		const list = [];
+		for (const group of this.groupsIterable) {
+			for (const childGroup of group.childrenIterable) {
+				const order = childGroup.options[type];
+				if (order === undefined) continue;
+				list.push({
+					order,
+					group,
+					childGroup
+				});
+			}
+		}
+		if (list.length === 0) return undefined;
+		list.sort((a, b) => {
+			const cmp = b.order - a.order;
+			if (cmp !== 0) return cmp;
+			return a.group.compareTo(chunkGraph, b.group);
+		});
+		const result = [];
+		let lastEntry;
+		for (const { group, childGroup } of list) {
+			if (lastEntry && lastEntry.onChunks === group.chunks) {
+				for (const chunk of childGroup.chunks) {
+					lastEntry.chunks.add(chunk);
+				}
+			} else {
+				result.push(
+					(lastEntry = {
+						onChunks: group.chunks,
+						chunks: new Set(childGroup.chunks)
+					})
+				);
 			}
 		}
 		return result;
@@ -33011,6 +33065,18 @@ class ModuleHashInfo {
  */
 const getArray = set => {
 	return Array.from(set);
+};
+
+/**
+ * @param {SortableSet<Chunk>} chunks the chunks
+ * @returns {RuntimeSpecSet} runtimes
+ */
+const getModuleRuntimes = chunks => {
+	const runtimes = new RuntimeSpecSet();
+	for (const chunk of chunks) {
+		runtimes.add(chunk.runtime);
+	}
+	return runtimes;
 };
 
 /**
@@ -33280,6 +33346,7 @@ class ChunkGraph {
 		}
 		cgc.modules.clear();
 		chunk.disconnectFromGroups();
+		ChunkGraph.clearChunkGraphForChunk(chunk);
 	}
 
 	/**
@@ -33454,11 +33521,7 @@ class ChunkGraph {
 	 */
 	getModuleRuntimes(module) {
 		const cgm = this._getChunkGraphModule(module);
-		const runtimes = new RuntimeSpecSet();
-		for (const chunk of cgm.chunks) {
-			runtimes.add(chunk.runtime);
-		}
-		return runtimes;
+		return cgm.chunks.getFromUnorderedCache(getModuleRuntimes);
 	}
 
 	/**
@@ -33619,11 +33682,8 @@ class ChunkGraph {
 	 */
 	getChunkConditionMap(chunk, filterFn) {
 		const map = Object.create(null);
-		for (const asyncChunk of chunk.getAllAsyncChunks()) {
-			map[asyncChunk.id] = filterFn(asyncChunk, this);
-		}
-		for (const depChunk of this.getChunkEntryDependentChunksIterable(chunk)) {
-			map[depChunk.id] = filterFn(depChunk, this);
+		for (const c of chunk.getAllReferencedChunks()) {
+			map[c.id] = filterFn(c, this);
 		}
 		return map;
 	}
@@ -33834,6 +33894,7 @@ class ChunkGraph {
 			chunkA.addGroup(chunkGroup);
 			chunkB.removeGroup(chunkGroup);
 		}
+		ChunkGraph.clearChunkGraphForChunk(chunkB);
 	}
 
 	/**
@@ -33984,7 +34045,7 @@ class ChunkGraph {
 		const set = new Set();
 		for (const chunkGroup of cgc.entryModules.values()) {
 			for (const c of chunkGroup.chunks) {
-				if (c !== chunk) {
+				if (c !== chunk && !c.hasRuntime()) {
 					set.add(c);
 				}
 			}
@@ -34441,6 +34502,15 @@ Caller might not support runtime-dependent code generation (opt-out via optimiza
 
 	// TODO remove in webpack 6
 	/**
+	 * @param {Module} module the module
+	 * @returns {void}
+	 */
+	static clearChunkGraphForModule(module) {
+		chunkGraphForModuleMap.delete(module);
+	}
+
+	// TODO remove in webpack 6
+	/**
 	 * @param {Chunk} chunk the chunk
 	 * @param {string} deprecateMessage message for the deprecation message
 	 * @param {string} deprecationCode code for the deprecation
@@ -34478,6 +34548,15 @@ Caller might not support runtime-dependent code generation (opt-out via optimiza
 	 */
 	static setChunkGraphForChunk(chunk, chunkGraph) {
 		chunkGraphForChunkMap.set(chunk, chunkGraph);
+	}
+
+	// TODO remove in webpack 6
+	/**
+	 * @param {Chunk} chunk the chunk
+	 * @returns {void}
+	 */
+	static clearChunkGraphForChunk(chunk) {
+		chunkGraphForChunkMap.delete(chunk);
 	}
 }
 
@@ -36526,7 +36605,7 @@ BREAKING CHANGE: Asset processing hooks in Compilation has been merged into a si
 						);
 					}
 				},
-				`${name} is deprecated (use Compilation.hook.processAssets instead and use one of Compilation.PROCESS_ASSETS_STAGE_* as stage option)`,
+				`${name} is deprecated (use Compilation.hooks.processAssets instead and use one of Compilation.PROCESS_ASSETS_STAGE_* as stage option)`,
 				code
 			);
 		};
@@ -36807,6 +36886,8 @@ BREAKING CHANGE: Asset processing hooks in Compilation has been merged into a si
 		if (compiler.contextTimestamps) {
 			this.fileSystemInfo.addContextTimestamps(compiler.contextTimestamps);
 		}
+		/** @type {Map<string, string>} */
+		this.valueCacheVersions = new Map();
 		this.requestShortener = compiler.requestShortener;
 		this.compilerPath = compiler.compilerPath;
 
@@ -36823,6 +36904,7 @@ BREAKING CHANGE: Asset processing hooks in Compilation has been merged into a si
 		this.mainTemplate = new MainTemplate(this.outputOptions, this);
 		this.chunkTemplate = new ChunkTemplate(this.outputOptions, this);
 		this.runtimeTemplate = new RuntimeTemplate(
+			this,
 			this.outputOptions,
 			this.requestShortener
 		);
@@ -37259,7 +37341,8 @@ BREAKING CHANGE: Asset processing hooks in Compilation has been merged into a si
 
 		module.needBuild(
 			{
-				fileSystemInfo: this.fileSystemInfo
+				fileSystemInfo: this.fileSystemInfo,
+				valueCacheVersions: this.valueCacheVersions
 			},
 			(err, needBuild) => {
 				if (err) return callback(err);
@@ -37523,7 +37606,11 @@ BREAKING CHANGE: Asset processing hooks in Compilation has been merged into a si
 
 					for (let i = 0; i < dependencies.length; i++) {
 						const dependency = dependencies[i];
-						moduleGraph.setResolvedModule(originModule, dependency, module);
+						moduleGraph.setResolvedModule(
+							recursive ? originModule : null,
+							dependency,
+							module
+						);
 					}
 
 					moduleGraph.setIssuerIfUnset(
@@ -38180,6 +38267,7 @@ BREAKING CHANGE: Asset processing hooks in Compilation has been merged into a si
 
 		this.logger.time("create chunks");
 		this.hooks.beforeChunks.call();
+		/** @type {Map<Entrypoint, Module[]>} */
 		const chunkGraphInit = new Map();
 		for (const [name, { dependencies, includeDependencies, options }] of this
 			.entries) {
@@ -40098,9 +40186,11 @@ const { SizeOnlySource } = __webpack_require__(55600);
 const webpack = __webpack_require__(16520);
 const Cache = __webpack_require__(18338);
 const CacheFacade = __webpack_require__(12628);
+const ChunkGraph = __webpack_require__(67518);
 const Compilation = __webpack_require__(75388);
 const ConcurrentCompilationError = __webpack_require__(93393);
 const ContextModuleFactory = __webpack_require__(33497);
+const ModuleGraph = __webpack_require__(73444);
 const NormalModuleFactory = __webpack_require__(95702);
 const RequestShortener = __webpack_require__(81460);
 const ResolverFactory = __webpack_require__(27022);
@@ -40335,6 +40425,9 @@ class Compiler {
 		/** @type {boolean} */
 		this.watchMode = false;
 
+		/** @type {Compilation} */
+		this._lastCompilation = undefined;
+
 		/** @private @type {WeakMap<Source, { sizeOnlySource: SizeOnlySource, writtenTo: Map<string, number> }>} */
 		this._assetEmittingSourceCache = new WeakMap();
 		/** @private @type {Map<string, number>} */
@@ -40429,6 +40522,22 @@ class Compiler {
 				}
 			}
 		);
+	}
+
+	// TODO webpack 6: solve this in a better way
+	// e.g. move compilation specific info from Modules into ModuleGraph
+	_cleanupLastCompilation() {
+		if (this._lastCompilation !== undefined) {
+			for (const module of this._lastCompilation.modules) {
+				ChunkGraph.clearChunkGraphForModule(module);
+				ModuleGraph.clearModuleGraphForModule(module);
+				module.cleanupForCache();
+			}
+			for (const chunk of this._lastCompilation.chunks) {
+				ChunkGraph.clearChunkGraphForChunk(chunk);
+			}
+			this._lastCompilation = undefined;
+		}
 	}
 
 	/**
@@ -41059,7 +41168,8 @@ ${other}`);
 	}
 
 	createCompilation() {
-		return new Compilation(this);
+		this._cleanupLastCompilation();
+		return (this._lastCompilation = new Compilation(this));
 	}
 
 	/**
@@ -42170,7 +42280,14 @@ class ContextModule extends Module {
 		const m = /** @type {ContextModule} */ (module);
 		this.resolveDependencies = m.resolveDependencies;
 		this.options = m.options;
-		this.resolveOptions = m.resolveOptions;
+	}
+
+	/**
+	 * Assuming this module is in the cache. Remove internal references to allow freeing some memory.
+	 */
+	cleanupForCache() {
+		super.cleanupForCache();
+		this.resolveDependencies = undefined;
 	}
 
 	prettyRegExp(regexString) {
@@ -43679,55 +43796,126 @@ module.exports = ContextReplacementPlugin;
 
 
 const RuntimeGlobals = __webpack_require__(48801);
+const WebpackError = __webpack_require__(24274);
 const ConstDependency = __webpack_require__(9364);
 const BasicEvaluatedExpression = __webpack_require__(98288);
 const {
-	approve,
 	evaluateToString,
 	toConstantDependency
 } = __webpack_require__(98550);
 
 /** @typedef {import("estree").Expression} Expression */
 /** @typedef {import("./Compiler")} Compiler */
+/** @typedef {import("./NormalModule")} NormalModule */
 /** @typedef {import("./RuntimeTemplate")} RuntimeTemplate */
 /** @typedef {import("./javascript/JavascriptParser")} JavascriptParser */
 
 /** @typedef {null|undefined|RegExp|Function|string|number|boolean|bigint|undefined} CodeValuePrimitive */
 /** @typedef {RecursiveArrayOrRecord<CodeValuePrimitive|RuntimeValue>} CodeValue */
 
+/**
+ * @typedef {Object} RuntimeValueOptions
+ * @property {string[]=} fileDependencies
+ * @property {string[]=} contextDependencies
+ * @property {string[]=} missingDependencies
+ * @property {string[]=} buildDependencies
+ * @property {string|function(): string=} version
+ */
+
 class RuntimeValue {
-	constructor(fn, fileDependencies) {
+	/**
+	 * @param {function({ module: NormalModule, key: string, readonly version: string | undefined }): CodeValuePrimitive} fn generator function
+	 * @param {true | string[] | RuntimeValueOptions=} options options
+	 */
+	constructor(fn, options) {
 		this.fn = fn;
-		this.fileDependencies = fileDependencies || [];
+		if (Array.isArray(options)) {
+			options = {
+				fileDependencies: options
+			};
+		}
+		this.options = options || {};
 	}
 
-	exec(parser) {
+	get fileDependencies() {
+		return this.options === true ? true : this.options.fileDependencies;
+	}
+
+	/**
+	 * @param {JavascriptParser} parser the parser
+	 * @param {Map<string, string>} valueCacheVersions valueCacheVersions
+	 * @param {string} key the defined key
+	 * @returns {CodeValuePrimitive} code
+	 */
+	exec(parser, valueCacheVersions, key) {
 		const buildInfo = parser.state.module.buildInfo;
-		if (this.fileDependencies === true) {
+		if (this.options === true) {
 			buildInfo.cacheable = false;
 		} else {
-			for (const fileDependency of this.fileDependencies) {
-				buildInfo.fileDependencies.add(fileDependency);
+			if (this.options.fileDependencies) {
+				for (const dep of this.options.fileDependencies) {
+					buildInfo.fileDependencies.add(dep);
+				}
+			}
+			if (this.options.contextDependencies) {
+				for (const dep of this.options.contextDependencies) {
+					buildInfo.contextDependencies.add(dep);
+				}
+			}
+			if (this.options.missingDependencies) {
+				for (const dep of this.options.missingDependencies) {
+					buildInfo.missingDependencies.add(dep);
+				}
+			}
+			if (this.options.buildDependencies) {
+				for (const dep of this.options.buildDependencies) {
+					buildInfo.buildDependencies.add(dep);
+				}
 			}
 		}
 
-		return this.fn({ module: parser.state.module });
+		return this.fn({
+			module: parser.state.module,
+			key,
+			get version() {
+				return valueCacheVersions.get(VALUE_DEP_PREFIX + key);
+			}
+		});
+	}
+
+	getCacheVersion() {
+		return this.options === true
+			? undefined
+			: (typeof this.options.version === "function"
+					? this.options.version()
+					: this.options.version) || "unset";
 	}
 }
 
 /**
  * @param {any[]|{[k: string]: any}} obj obj
  * @param {JavascriptParser} parser Parser
+ * @param {Map<string, string>} valueCacheVersions valueCacheVersions
+ * @param {string} key the defined key
  * @param {RuntimeTemplate} runtimeTemplate the runtime template
  * @param {boolean|undefined|null=} asiSafe asi safe (undefined: unknown, null: unneeded)
  * @returns {string} code converted to string that evaluates
  */
-const stringifyObj = (obj, parser, runtimeTemplate, asiSafe) => {
+const stringifyObj = (
+	obj,
+	parser,
+	valueCacheVersions,
+	key,
+	runtimeTemplate,
+	asiSafe
+) => {
 	let code;
 	let arr = Array.isArray(obj);
 	if (arr) {
 		code = `[${obj
-			.map(code => toCode(code, parser, runtimeTemplate, null))
+			.map(code =>
+				toCode(code, parser, valueCacheVersions, key, runtimeTemplate, null)
+			)
 			.join(",")}]`;
 	} else {
 		code = `{${Object.keys(obj)
@@ -43736,7 +43924,7 @@ const stringifyObj = (obj, parser, runtimeTemplate, asiSafe) => {
 				return (
 					JSON.stringify(key) +
 					":" +
-					toCode(code, parser, runtimeTemplate, null)
+					toCode(code, parser, valueCacheVersions, key, runtimeTemplate, null)
 				);
 			})
 			.join(",")}}`;
@@ -43758,11 +43946,20 @@ const stringifyObj = (obj, parser, runtimeTemplate, asiSafe) => {
  * Convert code to a string that evaluates
  * @param {CodeValue} code Code to evaluate
  * @param {JavascriptParser} parser Parser
+ * @param {Map<string, string>} valueCacheVersions valueCacheVersions
+ * @param {string} key the defined key
  * @param {RuntimeTemplate} runtimeTemplate the runtime template
  * @param {boolean|undefined|null=} asiSafe asi safe (undefined: unknown, null: unneeded)
  * @returns {string} code converted to string that evaluates
  */
-const toCode = (code, parser, runtimeTemplate, asiSafe) => {
+const toCode = (
+	code,
+	parser,
+	valueCacheVersions,
+	key,
+	runtimeTemplate,
+	asiSafe
+) => {
 	if (code === null) {
 		return "null";
 	}
@@ -43773,7 +43970,14 @@ const toCode = (code, parser, runtimeTemplate, asiSafe) => {
 		return "-0";
 	}
 	if (code instanceof RuntimeValue) {
-		return toCode(code.exec(parser), parser, runtimeTemplate, asiSafe);
+		return toCode(
+			code.exec(parser, valueCacheVersions, key),
+			parser,
+			valueCacheVersions,
+			key,
+			runtimeTemplate,
+			asiSafe
+		);
 	}
 	if (code instanceof RegExp && code.toString) {
 		return code.toString();
@@ -43782,7 +43986,14 @@ const toCode = (code, parser, runtimeTemplate, asiSafe) => {
 		return "(" + code.toString() + ")";
 	}
 	if (typeof code === "object") {
-		return stringifyObj(code, parser, runtimeTemplate, asiSafe);
+		return stringifyObj(
+			code,
+			parser,
+			valueCacheVersions,
+			key,
+			runtimeTemplate,
+			asiSafe
+		);
 	}
 	if (typeof code === "bigint") {
 		return runtimeTemplate.supportsBigIntLiteral()
@@ -43791,6 +44002,41 @@ const toCode = (code, parser, runtimeTemplate, asiSafe) => {
 	}
 	return code + "";
 };
+
+const toCacheVersion = code => {
+	if (code === null) {
+		return "null";
+	}
+	if (code === undefined) {
+		return "undefined";
+	}
+	if (Object.is(code, -0)) {
+		return "-0";
+	}
+	if (code instanceof RuntimeValue) {
+		return code.getCacheVersion();
+	}
+	if (code instanceof RegExp && code.toString) {
+		return code.toString();
+	}
+	if (typeof code === "function" && code.toString) {
+		return "(" + code.toString() + ")";
+	}
+	if (typeof code === "object") {
+		const items = Object.keys(code).map(key => ({
+			key,
+			value: toCacheVersion(code[key])
+		}));
+		if (items.some(({ value }) => value === undefined)) return undefined;
+		return `{${items.map(({ key, value }) => `${key}: ${value}`).join(", ")}}`;
+	}
+	if (typeof code === "bigint") {
+		return `${code}n`;
+	}
+	return code + "";
+};
+
+const VALUE_DEP_PREFIX = "webpack/DefinePlugin ";
 
 class DefinePlugin {
 	/**
@@ -43801,8 +44047,13 @@ class DefinePlugin {
 		this.definitions = definitions;
 	}
 
-	static runtimeValue(fn, fileDependencies) {
-		return new RuntimeValue(fn, fileDependencies);
+	/**
+	 * @param {function({ module: NormalModule, key: string, readonly version: string | undefined }): CodeValuePrimitive} fn generator function
+	 * @param {true | string[] | RuntimeValueOptions=} options options
+	 * @returns {RuntimeValue} runtime value
+	 */
+	static runtimeValue(fn, options) {
+		return new RuntimeValue(fn, options);
 	}
 
 	/**
@@ -43827,6 +44078,21 @@ class DefinePlugin {
 				 * @returns {void}
 				 */
 				const handler = parser => {
+					const addValueDependency = key => {
+						const { buildInfo } = parser.state.module;
+						if (!buildInfo.valueDependencies)
+							buildInfo.valueDependencies = new Map();
+						buildInfo.valueDependencies.set(
+							VALUE_DEP_PREFIX + key,
+							compilation.valueCacheVersions.get(VALUE_DEP_PREFIX + key)
+						);
+					};
+
+					const withValueDependency = (key, fn) => (...args) => {
+						addValueDependency(key);
+						return fn(...args);
+					};
+
 					/**
 					 * Walk definitions
 					 * @param {Object} definitions Definitions map
@@ -43861,7 +44127,10 @@ class DefinePlugin {
 						const splittedKey = key.split(".");
 						splittedKey.slice(1).forEach((_, i) => {
 							const fullKey = prefix + splittedKey.slice(0, i + 1).join(".");
-							parser.hooks.canRename.for(fullKey).tap("DefinePlugin", approve);
+							parser.hooks.canRename.for(fullKey).tap("DefinePlugin", () => {
+								addValueDependency(key);
+								return true;
+							});
 						});
 					};
 
@@ -43872,12 +44141,16 @@ class DefinePlugin {
 					 * @returns {void}
 					 */
 					const applyDefine = (key, code) => {
+						const originalKey = key;
 						const isTypeof = /^typeof\s+/.test(key);
 						if (isTypeof) key = key.replace(/^typeof\s+/, "");
 						let recurse = false;
 						let recurseTypeof = false;
 						if (!isTypeof) {
-							parser.hooks.canRename.for(key).tap("DefinePlugin", approve);
+							parser.hooks.canRename.for(key).tap("DefinePlugin", () => {
+								addValueDependency(originalKey);
+								return true;
+							});
 							parser.hooks.evaluateIdentifier
 								.for(key)
 								.tap("DefinePlugin", expr => {
@@ -43890,18 +44163,29 @@ class DefinePlugin {
 									 * });
 									 */
 									if (recurse) return;
+									addValueDependency(originalKey);
 									recurse = true;
 									const res = parser.evaluate(
-										toCode(code, parser, runtimeTemplate, null)
+										toCode(
+											code,
+											parser,
+											compilation.valueCacheVersions,
+											key,
+											runtimeTemplate,
+											null
+										)
 									);
 									recurse = false;
 									res.setRange(expr.range);
 									return res;
 								});
 							parser.hooks.expression.for(key).tap("DefinePlugin", expr => {
+								addValueDependency(originalKey);
 								const strCode = toCode(
 									code,
 									parser,
+									compilation.valueCacheVersions,
+									originalKey,
 									runtimeTemplate,
 									!parser.isAsiPosition(expr.range[0])
 								);
@@ -43929,22 +44213,36 @@ class DefinePlugin {
 							 */
 							if (recurseTypeof) return;
 							recurseTypeof = true;
+							addValueDependency(originalKey);
+							const codeCode = toCode(
+								code,
+								parser,
+								compilation.valueCacheVersions,
+								originalKey,
+								runtimeTemplate,
+								null
+							);
 							const typeofCode = isTypeof
-								? toCode(code, parser, runtimeTemplate, null)
-								: "typeof (" +
-								  toCode(code, parser, runtimeTemplate, null) +
-								  ")";
+								? codeCode
+								: "typeof (" + codeCode + ")";
 							const res = parser.evaluate(typeofCode);
 							recurseTypeof = false;
 							res.setRange(expr.range);
 							return res;
 						});
 						parser.hooks.typeof.for(key).tap("DefinePlugin", expr => {
+							addValueDependency(originalKey);
+							const codeCode = toCode(
+								code,
+								parser,
+								compilation.valueCacheVersions,
+								originalKey,
+								runtimeTemplate,
+								null
+							);
 							const typeofCode = isTypeof
-								? toCode(code, parser, runtimeTemplate, null)
-								: "typeof (" +
-								  toCode(code, parser, runtimeTemplate, null) +
-								  ")";
+								? codeCode
+								: "typeof (" + codeCode + ")";
 							const res = parser.evaluate(typeofCode);
 							if (!res.isString()) return;
 							return toConstantDependency(
@@ -43961,22 +44259,32 @@ class DefinePlugin {
 					 * @returns {void}
 					 */
 					const applyObjectDefine = (key, obj) => {
-						parser.hooks.canRename.for(key).tap("DefinePlugin", approve);
+						parser.hooks.canRename.for(key).tap("DefinePlugin", () => {
+							addValueDependency(key);
+							return true;
+						});
 						parser.hooks.evaluateIdentifier
 							.for(key)
-							.tap("DefinePlugin", expr =>
-								new BasicEvaluatedExpression()
+							.tap("DefinePlugin", expr => {
+								addValueDependency(key);
+								return new BasicEvaluatedExpression()
 									.setTruthy()
 									.setSideEffects(false)
-									.setRange(expr.range)
-							);
+									.setRange(expr.range);
+							});
 						parser.hooks.evaluateTypeof
 							.for(key)
-							.tap("DefinePlugin", evaluateToString("object"));
+							.tap(
+								"DefinePlugin",
+								withValueDependency(key, evaluateToString("object"))
+							);
 						parser.hooks.expression.for(key).tap("DefinePlugin", expr => {
+							addValueDependency(key);
 							const strCode = stringifyObj(
 								obj,
 								parser,
+								compilation.valueCacheVersions,
+								key,
 								runtimeTemplate,
 								!parser.isAsiPosition(expr.range[0])
 							);
@@ -43997,7 +44305,10 @@ class DefinePlugin {
 							.for(key)
 							.tap(
 								"DefinePlugin",
-								toConstantDependency(parser, JSON.stringify("object"))
+								withValueDependency(
+									key,
+									toConstantDependency(parser, JSON.stringify("object"))
+								)
 							);
 					};
 
@@ -44013,6 +44324,41 @@ class DefinePlugin {
 				normalModuleFactory.hooks.parser
 					.for("javascript/esm")
 					.tap("DefinePlugin", handler);
+
+				/**
+				 * Walk definitions
+				 * @param {Object} definitions Definitions map
+				 * @param {string} prefix Prefix string
+				 * @returns {void}
+				 */
+				const walkDefinitionsForValues = (definitions, prefix) => {
+					Object.keys(definitions).forEach(key => {
+						const code = definitions[key];
+						const version = toCacheVersion(code);
+						const name = VALUE_DEP_PREFIX + prefix + key;
+						const oldVersion = compilation.valueCacheVersions.get(name);
+						if (oldVersion === undefined) {
+							compilation.valueCacheVersions.set(name, version);
+						} else if (oldVersion !== version) {
+							const warning = new WebpackError(
+								`DefinePlugin\nConflicting values for '${prefix + key}'`
+							);
+							warning.details = `'${oldVersion}' !== '${version}'`;
+							warning.hideStack = true;
+							compilation.warnings.push(warning);
+						}
+						if (
+							code &&
+							typeof code === "object" &&
+							!(code instanceof RuntimeValue) &&
+							!(code instanceof RegExp)
+						) {
+							walkDefinitionsForValues(code, prefix + key + ".");
+						}
+					});
+				};
+
+				walkDefinitionsForValues(definitions, "");
 			}
 		);
 	}
@@ -44251,6 +44597,14 @@ class DelegatedModule extends Module {
 		this.userRequest = m.userRequest;
 		this.originalRequest = m.originalRequest;
 		this.delegateData = m.delegateData;
+	}
+
+	/**
+	 * Assuming this module is in the cache. Remove internal references to allow freeing some memory.
+	 */
+	cleanupForCache() {
+		super.cleanupForCache();
+		this.delegateData = undefined;
 	}
 }
 
@@ -44518,7 +44872,7 @@ module.exports = DependenciesBlock;
 /***/ }),
 
 /***/ 27563:
-/***/ (function(module) {
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
 "use strict";
 /*
@@ -44527,6 +44881,8 @@ module.exports = DependenciesBlock;
 */
 
 
+
+const memoize = __webpack_require__(18003);
 
 /** @typedef {import("webpack-sources").Source} Source */
 /** @typedef {import("./ChunkGraph")} ChunkGraph */
@@ -44595,6 +44951,11 @@ module.exports = DependenciesBlock;
  * @property {string[]} name name of the referenced export
  * @property {boolean=} canMangle when false, referenced export can not be mangled, defaults to true
  */
+
+const getIgnoredModule = memoize(() => {
+	const RawModule = __webpack_require__(3754);
+	return new RawModule("/* (ignored) */", `ignored`, `(ignored)`);
+});
 
 class Dependency {
 	constructor() {
@@ -44708,6 +45069,14 @@ class Dependency {
 	 */
 	getModuleEvaluationSideEffectsState(moduleGraph) {
 		return true;
+	}
+
+	/**
+	 * @param {string} context context directory
+	 * @returns {Module} a module
+	 */
+	createIgnoredModule(context) {
+		return getIgnoredModule();
 	}
 
 	serialize({ write }) {
@@ -45097,6 +45466,14 @@ class DllModule extends Module {
 	updateCacheModule(module) {
 		super.updateCacheModule(module);
 		this.dependencies = module.dependencies;
+	}
+
+	/**
+	 * Assuming this module is in the cache. Remove internal references to allow freeing some memory.
+	 */
+	cleanupForCache() {
+		super.cleanupForCache();
+		this.dependencies = undefined;
 	}
 }
 
@@ -52646,6 +53023,8 @@ class HotModuleReplacementPlugin {
 	 * @returns {void}
 	 */
 	apply(compiler) {
+		if (compiler.options.output.strictModuleErrorHandling === undefined)
+			compiler.options.output.strictModuleErrorHandling = true;
 		const runtimeRequirements = [RuntimeGlobals.module];
 
 		const createAcceptHandler = (parser, ParamDependency) => {
@@ -52685,7 +53064,9 @@ class HotModuleReplacementPlugin {
 						});
 						if (expr.arguments.length > 1) {
 							hotAcceptCallback.call(expr.arguments[1], requests);
-							parser.walkExpression(expr.arguments[1]); // other args are ignored
+							for (let i = 1; i < expr.arguments.length; i++) {
+								parser.walkExpression(expr.arguments[i]);
+							}
 							return true;
 						} else {
 							hotAcceptWithoutCallback.call(expr, requests);
@@ -54459,6 +54840,7 @@ const makeSerializable = __webpack_require__(55575);
 /** @typedef {import("./ExportsInfo").UsageStateType} UsageStateType */
 /** @typedef {import("./FileSystemInfo")} FileSystemInfo */
 /** @typedef {import("./ModuleGraphConnection").ConnectionState} ConnectionState */
+/** @typedef {import("./NormalModuleFactory")} NormalModuleFactory */
 /** @typedef {import("./RequestShortener")} RequestShortener */
 /** @typedef {import("./ResolverFactory").ResolverWithOptions} ResolverWithOptions */
 /** @typedef {import("./RuntimeTemplate")} RuntimeTemplate */
@@ -54525,6 +54907,7 @@ const makeSerializable = __webpack_require__(55575);
 /**
  * @typedef {Object} NeedBuildContext
  * @property {FileSystemInfo} fileSystemInfo
+ * @property {Map<string, string>} valueCacheVersions
  */
 
 /** @typedef {KnownBuildMeta & Record<string, any>} BuildMeta */
@@ -55063,9 +55446,11 @@ class Module extends DependenciesBlock {
 	 */
 	hasReasonForChunk(chunk, moduleGraph, chunkGraph) {
 		// check for each reason if we need the chunk
-		for (const connection of moduleGraph.getIncomingConnections(this)) {
-			if (!connection.isTargetActive(chunk.runtime)) continue;
-			const fromModule = connection.originModule;
+		for (const [
+			fromModule,
+			connections
+		] of moduleGraph.getIncomingConnectionsByOriginModule(this)) {
+			if (!connections.some(c => c.isTargetActive(chunk.runtime))) continue;
 			for (const originChunk of chunkGraph.getModuleChunksIterable(
 				fromModule
 			)) {
@@ -55325,6 +55710,36 @@ class Module extends DependenciesBlock {
 		this.context = module.context;
 		this.factoryMeta = module.factoryMeta;
 		this.resolveOptions = module.resolveOptions;
+	}
+
+	/**
+	 * Module should be unsafe cached. Get data that's needed for that.
+	 * This data will be passed to restoreFromUnsafeCache later.
+	 * @returns {object} cached data
+	 */
+	getUnsafeCacheData() {
+		return {
+			factoryMeta: this.factoryMeta,
+			resolveOptions: this.resolveOptions
+		};
+	}
+
+	/**
+	 * restore unsafe cache data
+	 * @param {object} unsafeCacheData data from getUnsafeCacheData
+	 * @param {NormalModuleFactory} normalModuleFactory the normal module factory handling the unsafe caching
+	 */
+	_restoreFromUnsafeCache(unsafeCacheData, normalModuleFactory) {
+		this.factoryMeta = unsafeCacheData.factoryMeta;
+		this.resolveOptions = unsafeCacheData.resolveOptions;
+	}
+
+	/**
+	 * Assuming this module is in the cache. Remove internal references to allow freeing some memory.
+	 */
+	cleanupForCache() {
+		this.factoryMeta = undefined;
+		this.resolveOptions = undefined;
 	}
 
 	/**
@@ -56064,6 +56479,7 @@ ModuleFilenameHelpers.matchObject = (obj, str) => {
 const util = __webpack_require__(31669);
 const ExportsInfo = __webpack_require__(54227);
 const ModuleGraphConnection = __webpack_require__(39519);
+const SortableSet = __webpack_require__(51326);
 
 /** @typedef {import("./DependenciesBlock")} DependenciesBlock */
 /** @typedef {import("./Dependency")} Dependency */
@@ -56071,7 +56487,6 @@ const ModuleGraphConnection = __webpack_require__(39519);
 /** @typedef {import("./Module")} Module */
 /** @typedef {import("./ModuleProfile")} ModuleProfile */
 /** @typedef {import("./RequestShortener")} RequestShortener */
-/** @template T @typedef {import("./util/SortableSet")<T>} SortableSet<t> */
 /** @typedef {import("./util/runtime").RuntimeSpec} RuntimeSpec */
 
 /**
@@ -56082,10 +56497,40 @@ const ModuleGraphConnection = __webpack_require__(39519);
 
 const EMPTY_ARRAY = [];
 
+/**
+ * @param {SortableSet<ModuleGraphConnection>} set input
+ * @returns {readonly Map<Module, readonly ModuleGraphConnection[]>} mapped by origin module
+ */
+const getConnectionsByOriginModule = set => {
+	const map = new Map();
+	/** @type {Module | 0} */
+	let lastModule = 0;
+	/** @type {ModuleGraphConnection[]} */
+	let lastList = undefined;
+	for (const connection of set) {
+		const { originModule } = connection;
+		if (lastModule === originModule) {
+			lastList.push(connection);
+		} else {
+			lastModule = originModule;
+			const list = map.get(originModule);
+			if (list !== undefined) {
+				lastList = list;
+				list.push(connection);
+			} else {
+				const list = [connection];
+				lastList = list;
+				map.set(originModule, list);
+			}
+		}
+	}
+	return map;
+};
+
 class ModuleGraphModule {
 	constructor() {
-		/** @type {Set<ModuleGraphConnection>} */
-		this.incomingConnections = new Set();
+		/** @type {SortableSet<ModuleGraphConnection>} */
+		this.incomingConnections = new SortableSet();
 		/** @type {Set<ModuleGraphConnection> | undefined} */
 		this.outgoingConnections = undefined;
 		/** @type {Module | null} */
@@ -56375,9 +56820,6 @@ class ModuleGraph {
 					newConnections.add(newConnection);
 					if (newConnection.module !== undefined) {
 						const otherMgm = this._getModuleGraphModule(newConnection.module);
-						if (otherMgm.incomingConnections === undefined) {
-							otherMgm.incomingConnections = new Set();
-						}
 						otherMgm.incomingConnections.add(newConnection);
 					}
 				}
@@ -56456,6 +56898,15 @@ class ModuleGraph {
 	getOutgoingConnections(module) {
 		const connections = this._getModuleGraphModule(module).outgoingConnections;
 		return connections === undefined ? EMPTY_ARRAY : connections;
+	}
+
+	/**
+	 * @param {Module} module the module
+	 * @returns {readonly Map<Module, readonly ModuleGraphConnection[]>} reasons why a module is included, in a map by source module
+	 */
+	getIncomingConnectionsByOriginModule(module) {
+		const connections = this._getModuleGraphModule(module).incomingConnections;
+		return connections.getFromUnorderedCache(getConnectionsByOriginModule);
 	}
 
 	/**
@@ -56759,6 +57210,15 @@ class ModuleGraph {
 	static setModuleGraphForModule(module, moduleGraph) {
 		moduleGraphForModuleMap.set(module, moduleGraph);
 	}
+
+	// TODO remove in webpack 6
+	/**
+	 * @param {Module} module the module
+	 * @returns {void}
+	 */
+	static clearModuleGraphForModule(module) {
+		moduleGraphForModuleMap.delete(module);
+	}
 }
 
 // TODO remove in webpack 6
@@ -56832,8 +57292,8 @@ const intersectConnectionStates = (a, b) => {
 
 class ModuleGraphConnection {
 	/**
-	 * @param {Module|undefined} originModule the referencing module
-	 * @param {Dependency|undefined} dependency the referencing dependency
+	 * @param {Module|null} originModule the referencing module
+	 * @param {Dependency|null} dependency the referencing dependency
 	 * @param {Module} module the referenced module
 	 * @param {string=} explanation some extra detail
 	 * @param {boolean=} weak the reference is weak
@@ -58222,7 +58682,18 @@ module.exports = class MultiCompiler {
 	 * @returns {SetupResult[]} result of setup
 	 */
 	_runGraph(setup, run, callback) {
-		/** @typedef {{ compiler: Compiler, result: Stats, state: "blocked" | "queued" | "running" | "done", children: Node[], parents: Node[] }} Node */
+		/** @typedef {{ compiler: Compiler, result: Stats, state: "pending" | "blocked" | "queued" | "running" | "running-outdated" | "done", children: Node[], parents: Node[] }} Node */
+
+		// State transitions for nodes:
+		// -> blocked (initial)
+		// blocked -> queued [add to queue] (when all parents done)
+		// queued -> running [running++] (when processing the queue)
+		// running -> done [running--] (when compilation is done)
+		// done -> pending (when invalidated from file change)
+		// pending -> blocked (when invalidated from aggregated changes)
+		// done -> blocked (when invalidated, from parent invalidation)
+		// running -> running-outdated (when invalidated, either from change or parent invalidation)
+		// running-outdated -> blocked [running--] (when compilation is done)
 
 		/** @type {Node[]} */
 		const nodes = this.compilers.map(compiler => ({
@@ -58254,6 +58725,12 @@ module.exports = class MultiCompiler {
 		let errored = false;
 		let running = 0;
 		const parallelism = this._options.parallelism;
+		/**
+		 * @param {Node} node node
+		 * @param {Error=} err error
+		 * @param {Stats=} stats result
+		 * @returns {void}
+		 */
 		const nodeDone = (node, err, stats) => {
 			if (errored) return;
 			if (err) {
@@ -58271,38 +58748,72 @@ module.exports = class MultiCompiler {
 				);
 			}
 			node.result = stats;
+			running--;
 			if (node.state === "running") {
-				running--;
 				node.state = "done";
 				for (const child of node.children) {
-					if (child.state !== "blocked") continue;
-					if (child.parents.every(p => p.state === "done")) {
-						child.state = "queued";
-						queue.enqueue(child);
-					}
+					checkUnblocked(child);
 				}
-				process.nextTick(processQueue);
+			} else if (node.state === "running-outdated") {
+				node.state = "blocked";
+				checkUnblocked(node);
 			}
+			process.nextTick(processQueue);
 		};
-		const nodeInvalid = node => {
+		/**
+		 * @param {Node} node node
+		 * @returns {void}
+		 */
+		const nodeInvalidFromParent = node => {
 			if (node.state === "done") {
 				node.state = "blocked";
-				for (const child of node.children) {
-					nodeInvalid(child);
-				}
+			} else if (node.state === "running") {
+				node.state = "running-outdated";
+			}
+			for (const child of node.children) {
+				nodeInvalidFromParent(child);
 			}
 		};
+		/**
+		 * @param {Node} node node
+		 * @returns {void}
+		 */
+		const nodeInvalid = node => {
+			if (node.state === "done") {
+				node.state = "pending";
+			} else if (node.state === "running") {
+				node.state = "running-outdated";
+			}
+			for (const child of node.children) {
+				nodeInvalidFromParent(child);
+			}
+		};
+		/**
+		 * @param {Node} node node
+		 * @returns {void}
+		 */
 		const nodeChange = node => {
 			nodeInvalid(node);
+			if (node.state === "pending") {
+				node.state = "blocked";
+			}
+			checkUnblocked(node);
+			processQueue();
+		};
+		/**
+		 * @param {Node} node node
+		 * @returns {void}
+		 */
+		const checkUnblocked = node => {
 			if (
 				node.state === "blocked" &&
 				node.parents.every(p => p.state === "done")
 			) {
 				node.state = "queued";
 				queue.enqueue(node);
-				processQueue();
 			}
 		};
+
 		const setupResults = [];
 		nodes.forEach((node, i) => {
 			setupResults.push(
@@ -58310,7 +58821,7 @@ module.exports = class MultiCompiler {
 					node.compiler,
 					i,
 					nodeDone.bind(null, node),
-					() => node.state === "blocked" || node.state === "queued",
+					() => node.state !== "done" && node.state !== "running",
 					() => nodeChange(node),
 					() => nodeInvalid(node)
 				)
@@ -58319,11 +58830,16 @@ module.exports = class MultiCompiler {
 		const processQueue = () => {
 			while (running < parallelism && queue.length > 0 && !errored) {
 				const node = queue.dequeue();
+				if (node.state !== "queued") continue;
 				running++;
 				node.state = "running";
 				run(node.compiler, nodeDone.bind(null, node));
 			}
-			if (!errored && running === 0) {
+			if (
+				!errored &&
+				running === 0 &&
+				nodes.every(node => node.state === "done")
+			) {
 				const stats = [];
 				for (const node of nodes) {
 					const result = node.result;
@@ -58350,6 +58866,7 @@ module.exports = class MultiCompiler {
 		if (this.running) {
 			return handler(new ConcurrentCompilationError());
 		}
+		this.running = true;
 
 		if (this.validateDependencies(handler)) {
 			const watchings = this._runGraph(
@@ -58384,6 +58901,7 @@ module.exports = class MultiCompiler {
 		if (this.running) {
 			return callback(new ConcurrentCompilationError());
 		}
+		this.running = true;
 
 		if (this.validateDependencies(callback)) {
 			this._runGraph(
@@ -58937,7 +59455,7 @@ const {
 } = __webpack_require__(21699);
 const createHash = __webpack_require__(34627);
 const { join } = __webpack_require__(71593);
-const { contextify } = __webpack_require__(47779);
+const { contextify, absolutify } = __webpack_require__(47779);
 const makeSerializable = __webpack_require__(55575);
 const memoize = __webpack_require__(18003);
 
@@ -58955,6 +59473,7 @@ const memoize = __webpack_require__(18003);
 /** @typedef {import("./Module").NeedBuildContext} NeedBuildContext */
 /** @typedef {import("./ModuleGraph")} ModuleGraph */
 /** @typedef {import("./ModuleGraphConnection").ConnectionState} ConnectionState */
+/** @typedef {import("./NormalModuleFactory")} NormalModuleFactory */
 /** @typedef {import("./Parser")} Parser */
 /** @typedef {import("./RequestShortener")} RequestShortener */
 /** @typedef {import("./ResolverFactory").ResolverWithOptions} ResolverWithOptions */
@@ -59105,7 +59624,9 @@ class NormalModule extends Module {
 	 * @param {string} options.resource path + query of the real resource
 	 * @param {string | undefined} options.matchResource path + query of the matched resource (virtual)
 	 * @param {Parser} options.parser the parser used
+	 * @param {object} options.parserOptions the options of the parser used
 	 * @param {Generator} options.generator the generator used
+	 * @param {object} options.generatorOptions the options of the generator used
 	 * @param {Object} options.resolveOptions options used for resolving requests from this module
 	 */
 	constructor({
@@ -59118,7 +59639,9 @@ class NormalModule extends Module {
 		resource,
 		matchResource,
 		parser,
+		parserOptions,
 		generator,
+		generatorOptions,
 		resolveOptions
 	}) {
 		super(type, getContext(resource), layer);
@@ -59134,8 +59657,10 @@ class NormalModule extends Module {
 		this.binary = /^(asset|webassembly)\b/.test(type);
 		/** @type {Parser} */
 		this.parser = parser;
+		this.parserOptions = parserOptions;
 		/** @type {Generator} */
 		this.generator = generator;
+		this.generatorOptions = generatorOptions;
 		/** @type {string} */
 		this.resource = resource;
 		/** @type {string | undefined} */
@@ -59219,10 +59744,55 @@ class NormalModule extends Module {
 		this.userRequest = m.userRequest;
 		this.rawRequest = m.rawRequest;
 		this.parser = m.parser;
+		this.parserOptions = m.parserOptions;
 		this.generator = m.generator;
+		this.generatorOptions = m.generatorOptions;
 		this.resource = m.resource;
 		this.matchResource = m.matchResource;
 		this.loaders = m.loaders;
+	}
+
+	/**
+	 * Assuming this module is in the cache. Remove internal references to allow freeing some memory.
+	 */
+	cleanupForCache() {
+		super.cleanupForCache();
+		this.parser = undefined;
+		this.parserOptions = undefined;
+		this.generator = undefined;
+		this.generatorOptions = undefined;
+	}
+
+	/**
+	 * Module should be unsafe cached. Get data that's needed for that.
+	 * This data will be passed to restoreFromUnsafeCache later.
+	 * @returns {object} cached data
+	 */
+	getUnsafeCacheData() {
+		const data = super.getUnsafeCacheData();
+		data.parserOptions = this.parserOptions;
+		data.generatorOptions = this.generatorOptions;
+		return data;
+	}
+
+	restoreFromUnsafeCache(unsafeCacheData, normalModuleFactory) {
+		this._restoreFromUnsafeCache(unsafeCacheData, normalModuleFactory);
+	}
+
+	/**
+	 * restore unsafe cache data
+	 * @param {object} unsafeCacheData data from getUnsafeCacheData
+	 * @param {NormalModuleFactory} normalModuleFactory the normal module factory handling the unsafe caching
+	 */
+	_restoreFromUnsafeCache(unsafeCacheData, normalModuleFactory) {
+		super._restoreFromUnsafeCache(unsafeCacheData, normalModuleFactory);
+		this.parserOptions = unsafeCacheData.parserOptions;
+		this.parser = normalModuleFactory.getParser(this.type, this.parserOptions);
+		this.generatorOptions = unsafeCacheData.generatorOptions;
+		this.generator = normalModuleFactory.getGenerator(
+			this.type,
+			this.generatorOptions
+		);
 	}
 
 	/**
@@ -59289,6 +59859,30 @@ class NormalModule extends Module {
 					add: d => loaderContext.addMissingDependency(d)
 				}
 			};
+		};
+		const getAbsolutify = memoize(() =>
+			absolutify.bindCache(compilation.compiler.root)
+		);
+		const getAbsolutifyInContext = memoize(() =>
+			absolutify.bindContextCache(this.context, compilation.compiler.root)
+		);
+		const getContextify = memoize(() =>
+			contextify.bindCache(compilation.compiler.root)
+		);
+		const getContextifyInContext = memoize(() =>
+			contextify.bindContextCache(this.context, compilation.compiler.root)
+		);
+		const utils = {
+			absolutify: (context, request) => {
+				return context === this.context
+					? getAbsolutifyInContext()(request)
+					: getAbsolutify()(context, request);
+			},
+			contextify: (context, request) => {
+				return context === this.context
+					? getContextifyInContext()(request)
+					: getContextify()(context, request);
+			}
 		};
 		const loaderContext = {
 			version: 2,
@@ -59402,6 +59996,7 @@ class NormalModule extends Module {
 				}
 				this.buildInfo.buildDependencies.add(dep);
 			},
+			utils,
 			rootContext: options.context,
 			webpack: true,
 			sourceMap: !!this.useSourceMap,
@@ -59542,7 +60137,12 @@ class NormalModule extends Module {
 
 		const hooks = NormalModule.getCompilationHooks(compilation);
 
-		hooks.beforeLoaders.call(this.loaders, this, loaderContext);
+		try {
+			hooks.beforeLoaders.call(this.loaders, this, loaderContext);
+		} catch (err) {
+			processResult(err);
+			return;
+		}
 		runLoaders(
 			{
 				resource: this.resource,
@@ -59568,7 +60168,7 @@ class NormalModule extends Module {
 			},
 			(err, result) => {
 				if (!result) {
-					processResult(
+					return processResult(
 						err || new Error("No result from loader-runner processing"),
 						null
 					);
@@ -59681,6 +60281,7 @@ class NormalModule extends Module {
 			contextDependencies: undefined,
 			missingDependencies: undefined,
 			buildDependencies: undefined,
+			valueDependencies: undefined,
 			hash: undefined,
 			assets: undefined,
 			assetsInfo: undefined
@@ -59951,7 +60552,7 @@ class NormalModule extends Module {
 	 * @param {function(WebpackError=, boolean=): void} callback callback function, returns true, if the module needs a rebuild
 	 * @returns {void}
 	 */
-	needBuild({ fileSystemInfo }, callback) {
+	needBuild({ fileSystemInfo, valueCacheVersions }, callback) {
 		// build if enforced
 		if (this._forceBuild) return callback(null, true);
 
@@ -59963,6 +60564,16 @@ class NormalModule extends Module {
 
 		// build when there is no snapshot to check
 		if (!this.buildInfo.snapshot) return callback(null, true);
+
+		// build when valueDependencies have changed
+		if (this.buildInfo.valueDependencies) {
+			if (!valueCacheVersions) return callback(null, true);
+			for (const [key, value] of this.buildInfo.valueDependencies) {
+				if (value === undefined) return callback(null, true);
+				const current = valueCacheVersions.get(key);
+				if (value !== current) return callback(null, true);
+			}
+		}
 
 		// check snapshot for validity
 		fileSystemInfo.checkSnapshotValid(this.buildInfo.snapshot, (err, valid) => {
@@ -60058,7 +60669,9 @@ class NormalModule extends Module {
 			loaders: null,
 			matchResource: null,
 			parser: null,
+			parserOptions: null,
 			generator: null,
+			generatorOptions: null,
 			resolveOptions: null
 		});
 		obj.deserialize(context);
@@ -60105,7 +60718,6 @@ const {
 const Module = __webpack_require__(54031);
 const ModuleFactory = __webpack_require__(6259);
 const NormalModule = __webpack_require__(88376);
-const RawModule = __webpack_require__(3754);
 const BasicEffectRulePlugin = __webpack_require__(52156);
 const BasicMatcherRulePlugin = __webpack_require__(87229);
 const DescriptionDataMatcherRulePlugin = __webpack_require__(29883);
@@ -60250,7 +60862,11 @@ const deprecationChangedHookMessage = (name, hook) => {
 	);
 };
 
-const dependencyCache = new WeakMap();
+/** @type {WeakMap<ModuleDependency, ModuleFactoryResult & { module: { restoreFromUnsafeCache: Function }}>} */
+const unsafeCacheDependencies = new WeakMap();
+
+/** @type {WeakMap<Module, object>} */
+const unsafeCacheData = new WeakMap();
 
 const ruleSetCompiler = new RuleSetCompiler([
 	new BasicMatcherRulePlugin("test", "resource"),
@@ -60338,14 +60954,12 @@ class NormalModuleFactory extends ModuleFactory {
 		this.fs = fs;
 		this._globalParserOptions = options.parser;
 		this._globalGeneratorOptions = options.generator;
-		/**
-		 * @type {Map<string, WeakMap<Object, TODO>>}
-		 */
+		/** @type {Map<string, WeakMap<Object, TODO>>} */
 		this.parserCache = new Map();
-		/**
-		 * @type {Map<string, WeakMap<Object, Generator>>}
-		 */
+		/** @type {Map<string, WeakMap<Object, Generator>>} */
 		this.generatorCache = new Map();
+		/** @type {WeakSet<Module>} */
+		this._restoredUnsafeCacheEntries = new WeakSet();
 
 		const cacheParseResource = parseResource.bindCache(
 			associatedObjectForCache
@@ -60516,14 +61130,7 @@ class NormalModuleFactory extends ModuleFactory {
 
 					if (!resourceData) {
 						// ignored
-						return callback(
-							null,
-							new RawModule(
-								"/* (ignored) */",
-								`ignored|${request}`,
-								`${request} (ignored)`
-							)
-						);
+						return callback(null, dependencies[0].createIgnoredModule(context));
 					}
 
 					const userRequest =
@@ -60619,7 +61226,9 @@ class NormalModuleFactory extends ModuleFactory {
 							settings,
 							type,
 							parser: this.getParser(type, settings.parser),
+							parserOptions: settings.parser,
 							generator: this.getGenerator(type, settings.generator),
+							generatorOptions: settings.generator,
 							resolveOptions
 						});
 						callback();
@@ -60690,7 +61299,7 @@ class NormalModuleFactory extends ModuleFactory {
 				}
 
 				// resource without scheme and without path
-				else if (/^($|\?|#)/.test(unresolvedResource)) {
+				else if (/^($|\?)/.test(unresolvedResource)) {
 					resourceData = {
 						resource: unresolvedResource,
 						data: {},
@@ -60742,8 +61351,16 @@ class NormalModuleFactory extends ModuleFactory {
 	create(data, callback) {
 		const dependencies = /** @type {ModuleDependency[]} */ (data.dependencies);
 		if (this.unsafeCache) {
-			const cacheEntry = dependencyCache.get(dependencies[0]);
-			if (cacheEntry) return callback(null, cacheEntry);
+			const cacheEntry = unsafeCacheDependencies.get(dependencies[0]);
+			if (cacheEntry) {
+				const { module } = cacheEntry;
+				if (!this._restoredUnsafeCacheEntries.has(module)) {
+					const data = unsafeCacheData.get(module);
+					module.restoreFromUnsafeCache(data, this);
+					this._restoredUnsafeCacheEntries.add(module);
+				}
+				return callback(null, cacheEntry);
+			}
 		}
 		const context = data.context || this.context;
 		const resolveOptions = data.resolveOptions || EMPTY_RESOLVE_OPTIONS;
@@ -60812,10 +61429,14 @@ class NormalModuleFactory extends ModuleFactory {
 					this.unsafeCache &&
 					resolveData.cacheable &&
 					module &&
+					module.restoreFromUnsafeCache &&
 					this.cachePredicate(module)
 				) {
 					for (const d of dependencies) {
-						dependencyCache.set(d, factoryResult);
+						unsafeCacheDependencies.set(d, factoryResult);
+					}
+					if (!unsafeCacheData.has(module)) {
+						unsafeCacheData.set(module, module.getUnsafeCacheData());
 					}
 				}
 
@@ -62084,14 +62705,18 @@ const makeSerializable = __webpack_require__(55575);
 const TYPES = new Set(["javascript"]);
 
 class RawModule extends Module {
-	constructor(source, identifier, readableIdentifier) {
+	/**
+	 * @param {string} source source code
+	 * @param {string} identifier unique identifier
+	 * @param {string=} readableIdentifier readable identifier
+	 * @param {ReadonlySet<string>=} runtimeRequirements runtime requirements needed for the source code
+	 */
+	constructor(source, identifier, readableIdentifier, runtimeRequirements) {
 		super("javascript/dynamic", null);
-		/** @type {string} */
 		this.sourceStr = source;
-		/** @type {string} */
 		this.identifierStr = identifier || this.sourceStr;
-		/** @type {string} */
 		this.readableIdentifierStr = readableIdentifier || this.identifierStr;
+		this.runtimeRequirements = runtimeRequirements || null;
 	}
 
 	/**
@@ -62163,7 +62788,7 @@ class RawModule extends Module {
 		} else {
 			sources.set("javascript", new RawSource(this.sourceStr));
 		}
-		return { sources, runtimeRequirements: null };
+		return { sources, runtimeRequirements: this.runtimeRequirements };
 	}
 
 	/**
@@ -62182,6 +62807,7 @@ class RawModule extends Module {
 		write(this.sourceStr);
 		write(this.identifierStr);
 		write(this.readableIdentifierStr);
+		write(this.runtimeRequirements);
 
 		super.serialize(context);
 	}
@@ -62192,6 +62818,7 @@ class RawModule extends Module {
 		this.sourceStr = read();
 		this.identifierStr = read();
 		this.readableIdentifierStr = read();
+		this.runtimeRequirements = read();
 
 		super.deserialize(context);
 	}
@@ -62423,6 +63050,7 @@ class RecordIdsPlugin {
 					}
 					if (records.chunks.bySource) {
 						for (const chunk of chunks) {
+							if (chunk.id !== null) continue;
 							const sources = getChunkSources(chunk);
 							for (const source of sources) {
 								const id = records.chunks.bySource[source];
@@ -62927,10 +63555,12 @@ exports.getChunkUpdateScriptFilename = "__webpack_require__.hu";
 
 /**
  * startup signal from runtime
+ * This will be called when the runtime chunk has been loaded.
  */
 exports.startup = "__webpack_require__.x";
 
 /**
+ * @deprecated
  * creating a default startup function with the entry modules
  */
 exports.startupNoDefault = "__webpack_require__.x (no default handler)";
@@ -62946,6 +63576,11 @@ exports.startupOnlyAfter = "__webpack_require__.x (only after)";
 exports.startupOnlyBefore = "__webpack_require__.x (only before)";
 
 /**
+ * global callback functions for installing chunks
+ */
+exports.chunkCallback = "webpackChunk";
+
+/**
  * method to startup an entrypoint with needed chunks.
  * Signature: (moduleId: Id, chunkIds: Id[]) => any.
  * Returns the exports of the module or a Promise
@@ -62953,8 +63588,18 @@ exports.startupOnlyBefore = "__webpack_require__.x (only before)";
 exports.startupEntrypoint = "__webpack_require__.X";
 
 /**
+ * register deferred code, which will run when certain
+ * chunks are loaded.
+ * Signature: (chunkIds: Id[], fn: () => any, priority: int >= 0 = 0) => any
+ * Returned value will be returned directly when all chunks are already loaded
+ * When (priority & 1) it will wait for all other handlers with lower priority to
+ * be executed before itself is executed
+ */
+exports.onChunksLoaded = "__webpack_require__.O";
+
+/**
  * method to install a chunk that was loaded somehow
- * Signature depends on the chunk loading method
+ * Signature: ({ id, ids, modules, runtime }) => void
  */
 exports.externalInstallChunk = "__webpack_require__.C";
 
@@ -63306,6 +63951,7 @@ const GlobalRuntimeModule = __webpack_require__(61710);
 const HasOwnPropertyRuntimeModule = __webpack_require__(61725);
 const LoadScriptRuntimeModule = __webpack_require__(23033);
 const MakeNamespaceObjectRuntimeModule = __webpack_require__(2559);
+const OnChunksLoadedRuntimeModule = __webpack_require__(72082);
 const PublicPathRuntimeModule = __webpack_require__(25142);
 const RelativeUrlRuntimeModule = __webpack_require__(71203);
 const RuntimeIdRuntimeModule = __webpack_require__(24578);
@@ -63343,7 +63989,8 @@ const GLOBALS_ON_REQUIRE = [
 	RuntimeGlobals.shareScopeMap,
 	RuntimeGlobals.initializeSharing,
 	RuntimeGlobals.loadScript,
-	RuntimeGlobals.systemContext
+	RuntimeGlobals.systemContext,
+	RuntimeGlobals.onChunksLoaded
 ];
 
 const MODULE_DEPENDENCIES = {
@@ -63606,6 +64253,15 @@ class RuntimePlugin {
 					compilation.addRuntimeModule(chunk, new RelativeUrlRuntimeModule());
 					return true;
 				});
+			compilation.hooks.runtimeRequirementInTree
+				.for(RuntimeGlobals.onChunksLoaded)
+				.tap("RuntimePlugin", (chunk, set) => {
+					compilation.addRuntimeModule(
+						chunk,
+						new OnChunksLoadedRuntimeModule()
+					);
+					return true;
+				});
 			// TODO webpack 6: remove CompatRuntimeModule
 			compilation.hooks.additionalTreeRuntimeRequirements.tap(
 				"RuntimePlugin",
@@ -63661,6 +64317,7 @@ const { forEachRuntime, subtractRuntime } = __webpack_require__(43478);
 /** @typedef {import("../declarations/WebpackOptions").OutputNormalized} OutputOptions */
 /** @typedef {import("./AsyncDependenciesBlock")} AsyncDependenciesBlock */
 /** @typedef {import("./ChunkGraph")} ChunkGraph */
+/** @typedef {import("./Compilation")} Compilation */
 /** @typedef {import("./Dependency")} Dependency */
 /** @typedef {import("./Module")} Module */
 /** @typedef {import("./ModuleGraph")} ModuleGraph */
@@ -63696,12 +64353,13 @@ Module has these incoming connections: ${Array.from(
 
 class RuntimeTemplate {
 	/**
+	 * @param {Compilation} compilation the compilation
 	 * @param {OutputOptions} outputOptions the compilation output options
 	 * @param {RequestShortener} requestShortener the request shortener
 	 */
-	constructor(outputOptions, requestShortener) {
+	constructor(compilation, outputOptions, requestShortener) {
+		this.compilation = compilation;
 		this.outputOptions = outputOptions || {};
-		/** @type {RequestShortener} */
 		this.requestShortener = requestShortener;
 	}
 
@@ -63756,6 +64414,12 @@ class RuntimeTemplate {
 		return this.supportsArrowFunction()
 			? `(${args}) => {\n${Template.indent(body)}\n}`
 			: `function(${args}) {\n${Template.indent(body)}\n}`;
+	}
+
+	expressionFunction(expression, args = "") {
+		return this.supportsArrowFunction()
+			? `(${args}) => (${expression})`
+			: `function(${args}) { ${expression}; }`;
 	}
 
 	emptyFunction() {
@@ -64906,7 +65570,10 @@ class SourceMapDevToolPlugin {
 							}
 							const cacheItem = cache.getItemCache(
 								file,
-								cache.getLazyHashedEtag(asset.source)
+								cache.mergeEtags(
+									cache.getLazyHashedEtag(asset.source),
+									namespace
+								)
 							);
 
 							cacheItem.get((err, cacheEntry) => {
@@ -65695,7 +66362,7 @@ class Template {
 
 	/**
 	 * @param {RuntimeModule[]} runtimeModules array of runtime modules in order
-	 * @param {RenderContext & { codeGenerationResults?: CodeGenerationResults }} renderContext render context
+	 * @param {RenderContext & { codeGenerationResults?: CodeGenerationResults, useStrict?: boolean }} renderContext render context
 	 * @returns {Source} rendered runtime modules in a Source object
 	 */
 	static renderRuntimeModules(runtimeModules, renderContext) {
@@ -65726,10 +66393,12 @@ class Template {
 					source.add(runtimeSource);
 				} else if (renderContext.runtimeTemplate.supportsArrowFunction()) {
 					source.add("(() => {\n");
+					if (renderContext.useStrict) source.add('\t"use strict";\n');
 					source.add(new PrefixSource("\t", runtimeSource));
 					source.add("\n})();\n\n");
 				} else {
 					source.add("!function() {\n");
+					if (renderContext.useStrict) source.add('\t"use strict";\n');
 					source.add(new PrefixSource("\t", runtimeSource));
 					source.add("\n}();\n\n");
 				}
@@ -65748,11 +66417,8 @@ class Template {
 			"/******/ ",
 			new ConcatSource(
 				"function(__webpack_require__) { // webpackRuntimeModules\n",
-				'\t"use strict";\n\n',
-				new PrefixSource(
-					"\t",
-					this.renderRuntimeModules(runtimeModules, renderContext)
-				),
+				'"use strict";\n\n',
+				this.renderRuntimeModules(runtimeModules, renderContext),
 				"}\n"
 			)
 		);
@@ -66579,7 +67245,6 @@ class Watching {
 		this.running = false;
 		this._initial = true;
 		this._needRecords = true;
-		this._needWatcherInfo = false;
 		this.watcher = undefined;
 		this.pausedWatcher = undefined;
 		this._done = this._done.bind(this);
@@ -66609,21 +67274,6 @@ class Watching {
 				});
 			}
 			this.invalid = false;
-			if (this._needWatcherInfo) {
-				this._needWatcherInfo = false;
-				const watcher = this.pausedWatcher;
-				if (watcher) {
-					this.compiler.modifiedFiles = watcher.aggregatedChanges;
-					this.compiler.removedFiles = watcher.aggregatedRemovals;
-					this.compiler.fileTimestamps = watcher.getFileTimeInfoEntries();
-					this.compiler.contextTimestamps = watcher.getContextTimeInfoEntries();
-				} else {
-					this.compiler.modifiedFiles = undefined;
-					this.compiler.removedFiles = undefined;
-					this.compiler.fileTimestamps = undefined;
-					this.compiler.contextTimestamps = undefined;
-				}
-			}
 			this.compiler.hooks.watchRun.callAsync(this.compiler, err => {
 				if (err) return this._done(err);
 				const onCompiled = (err, compilation) => {
@@ -66802,6 +67452,11 @@ class Watching {
 				this.compiler.contextTimestamps = contextTimeInfoEntries;
 				this.compiler.removedFiles = removedFiles;
 				this.compiler.modifiedFiles = changedFiles;
+				if (this.watcher) {
+					this.pausedWatcher = this.watcher;
+					this.watcher.pause();
+					this.watcher = null;
+				}
 				this._invalidate();
 				this._onChange();
 			},
@@ -66822,7 +67477,6 @@ class Watching {
 		}
 		if (!this._initial) {
 			this.compiler.hooks.invalid.call(null, Date.now());
-			this._needWatcherInfo = true;
 		}
 		this._invalidate();
 	}
@@ -66834,6 +67488,14 @@ class Watching {
 			return;
 		}
 		if (this.watcher) {
+			this.compiler.modifiedFiles =
+				this.watcher.getAggregatedChanges &&
+				this.watcher.getAggregatedChanges();
+			this.compiler.removedFiles =
+				this.watcher.getAggregatedRemovals &&
+				this.watcher.getAggregatedRemovals();
+			this.compiler.fileTimestamps = this.watcher.getFileTimeInfoEntries();
+			this.compiler.contextTimestamps = this.watcher.getContextTimeInfoEntries();
 			this.pausedWatcher = this.watcher;
 			this.watcher.pause();
 			this.watcher = null;
@@ -66853,7 +67515,6 @@ class Watching {
 	resume() {
 		if (this.suspended) {
 			this.suspended = false;
-			this._needWatcherInfo = true;
 			this._invalidate();
 		}
 	}
@@ -67179,6 +67840,14 @@ class WebpackOptionsApply extends OptionsApply {
 		compiler.recordsOutputPath = options.recordsOutputPath || null;
 		compiler.name = options.name;
 
+		if (options.externals) {
+			//@ts-expect-error https://github.com/microsoft/TypeScript/issues/41697
+			const ExternalsPlugin = __webpack_require__(19056);
+			new ExternalsPlugin(options.externalsType, options.externals).apply(
+				compiler
+			);
+		}
+
 		if (options.externalsPresets.node) {
 			const NodeTargetPlugin = __webpack_require__(62791);
 			new NodeTargetPlugin().apply(compiler);
@@ -67267,14 +67936,6 @@ class WebpackOptionsApply extends OptionsApply {
 				const EnableLibraryPlugin = __webpack_require__(60405);
 				new EnableLibraryPlugin(type).apply(compiler);
 			}
-		}
-
-		if (options.externals) {
-			//@ts-expect-error https://github.com/microsoft/TypeScript/issues/41697
-			const ExternalsPlugin = __webpack_require__(19056);
-			new ExternalsPlugin(options.externalsType, options.externals).apply(
-				compiler
-			);
 		}
 
 		if (options.output.pathinfo) {
@@ -67759,6 +68420,7 @@ const { makePathsRelative } = __webpack_require__(47779);
 
 /** @typedef {import("webpack-sources").Source} Source */
 /** @typedef {import("../../declarations/WebpackOptions").AssetGeneratorOptions} AssetGeneratorOptions */
+/** @typedef {import("../../declarations/WebpackOptions").RawPublicPath} RawPublicPath */
 /** @typedef {import("../Compilation")} Compilation */
 /** @typedef {import("../Compiler")} Compiler */
 /** @typedef {import("../Generator").GenerateContext} GenerateContext */
@@ -67768,20 +68430,71 @@ const { makePathsRelative } = __webpack_require__(47779);
 /** @typedef {import("../RuntimeTemplate")} RuntimeTemplate */
 /** @typedef {import("../util/Hash")} Hash */
 
+const mergeMaybeArrays = (a, b) => {
+	const set = new Set();
+	if (Array.isArray(a)) for (const item of a) set.add(item);
+	else set.add(a);
+	if (Array.isArray(b)) for (const item of b) set.add(item);
+	else set.add(b);
+	return Array.from(set);
+};
+
+const mergeAssetInfo = (a, b) => {
+	const result = { ...a, ...b };
+	for (const key of Object.keys(a)) {
+		if (key in b) {
+			if (a[key] === b[key]) continue;
+			switch (key) {
+				case "fullhash":
+				case "chunkhash":
+				case "modulehash":
+				case "contenthash":
+					result[key] = mergeMaybeArrays(a[key], b[key]);
+					break;
+				case "immutable":
+				case "development":
+				case "hotModuleReplacement":
+				case "javascriptModule	":
+					result[key] = a[key] || b[key];
+					break;
+				case "related":
+					result[key] = mergeRelatedInfo(a[key], b[key]);
+					break;
+				default:
+					throw new Error(`Can't handle conflicting asset info for ${key}`);
+			}
+		}
+	}
+	return result;
+};
+
+const mergeRelatedInfo = (a, b) => {
+	const result = { ...a, ...b };
+	for (const key of Object.keys(a)) {
+		if (key in b) {
+			if (a[key] === b[key]) continue;
+			result[key] = mergeMaybeArrays(a[key], b[key]);
+		}
+	}
+	return result;
+};
+
 const JS_TYPES = new Set(["javascript"]);
 const JS_AND_ASSET_TYPES = new Set(["javascript", "asset"]);
 
 class AssetGenerator extends Generator {
 	/**
-	 * @param {Compilation} compilation the compilation
 	 * @param {AssetGeneratorOptions["dataUrl"]=} dataUrlOptions the options for the data url
 	 * @param {string=} filename override for output.assetModuleFilename
+	 * @param {RawPublicPath=} publicPath override for output.assetModulePublicPath
+	 * @param {boolean=} emit generate output asset
 	 */
-	constructor(compilation, dataUrlOptions, filename) {
+	constructor(dataUrlOptions, filename, publicPath, emit) {
 		super();
-		this.compilation = compilation;
 		this.dataUrlOptions = dataUrlOptions;
 		this.filename = filename;
+		this.publicPath = publicPath;
+		this.emit = emit;
 	}
 
 	/**
@@ -67871,25 +68584,50 @@ class AssetGenerator extends Generator {
 					);
 					module.buildInfo.fullContentHash = fullHash;
 					const sourceFilename = makePathsRelative(
-						this.compilation.compiler.context,
+						runtimeTemplate.compilation.compiler.context,
 						module.matchResource || module.resource,
-						this.compilation.compiler.root
+						runtimeTemplate.compilation.compiler.root
 					).replace(/^\.\//, "");
-					const {
+					let {
 						path: filename,
-						info
-					} = this.compilation.getAssetPathWithInfo(assetModuleFilename, {
-						module,
-						runtime,
-						filename: sourceFilename,
-						chunkGraph,
-						contentHash
-					});
-					module.buildInfo.filename = filename;
-					module.buildInfo.assetInfo = {
+						info: assetInfo
+					} = runtimeTemplate.compilation.getAssetPathWithInfo(
+						assetModuleFilename,
+						{
+							module,
+							runtime,
+							filename: sourceFilename,
+							chunkGraph,
+							contentHash
+						}
+					);
+					let publicPath;
+					if (this.publicPath) {
+						const {
+							path,
+							info
+						} = runtimeTemplate.compilation.getAssetPathWithInfo(
+							this.publicPath,
+							{
+								module,
+								runtime,
+								filename: sourceFilename,
+								chunkGraph,
+								contentHash
+							}
+						);
+						publicPath = JSON.stringify(path);
+						assetInfo = mergeAssetInfo(assetInfo, info);
+					} else {
+						publicPath = RuntimeGlobals.publicPath;
+						runtimeRequirements.add(RuntimeGlobals.publicPath); // add __webpack_require__.p
+					}
+					assetInfo = {
 						sourceFilename,
-						...info
+						...assetInfo
 					};
+					module.buildInfo.filename = filename;
+					module.buildInfo.assetInfo = assetInfo;
 					if (getData) {
 						// Due to code generation caching module.buildInfo.XXX can't used to store such information
 						// It need to be stored in the code generation results instead, where it's cached too
@@ -67897,15 +68635,13 @@ class AssetGenerator extends Generator {
 						const data = getData();
 						data.set("fullContentHash", fullHash);
 						data.set("filename", filename);
-						data.set("assetInfo", info);
+						data.set("assetInfo", assetInfo);
 					}
 
-					runtimeRequirements.add(RuntimeGlobals.publicPath); // add __webpack_require__.p
-
 					return new RawSource(
-						`${RuntimeGlobals.module}.exports = ${
-							RuntimeGlobals.publicPath
-						} + ${JSON.stringify(filename)};`
+						`${
+							RuntimeGlobals.module
+						}.exports = ${publicPath} + ${JSON.stringify(filename)};`
 					);
 				}
 			}
@@ -67917,7 +68653,7 @@ class AssetGenerator extends Generator {
 	 * @returns {Set<string>} available types (do not mutate)
 	 */
 	getTypes(module) {
-		if (module.buildInfo.dataUrl) {
+		if (module.buildInfo.dataUrl || this.emit === false) {
 			return JS_TYPES;
 		} else {
 			return JS_AND_ASSET_TYPES;
@@ -68012,6 +68748,7 @@ const getGeneratorSchemaMap = {
 const getParserSchema = memoize(() => getSchema("AssetParserOptions"));
 const getAssetGenerator = memoize(() => __webpack_require__(97834));
 const getAssetParser = memoize(() => __webpack_require__(9668));
+const getAssetSourceParser = memoize(() => __webpack_require__(89502));
 const getAssetSourceGenerator = memoize(() =>
 	__webpack_require__(3297)
 );
@@ -68070,9 +68807,9 @@ class AssetModulesPlugin {
 				normalModuleFactory.hooks.createParser
 					.for("asset/source")
 					.tap(plugin, parserOptions => {
-						const AssetParser = getAssetParser();
+						const AssetSourceParser = getAssetSourceParser();
 
-						return new AssetParser(false);
+						return new AssetSourceParser();
 					});
 
 				for (const type of ["asset", "asset/inline", "asset/resource"]) {
@@ -68098,13 +68835,20 @@ class AssetModulesPlugin {
 							}
 
 							let filename = undefined;
+							let publicPath = undefined;
 							if (type !== "asset/inline") {
 								filename = generatorOptions.filename;
+								publicPath = generatorOptions.publicPath;
 							}
 
 							const AssetGenerator = getAssetGenerator();
 
-							return new AssetGenerator(compilation, dataUrl, filename);
+							return new AssetGenerator(
+								dataUrl,
+								filename,
+								publicPath,
+								generatorOptions.emit !== false
+							);
 						});
 				}
 				normalModuleFactory.hooks.createGenerator
@@ -68302,6 +69046,45 @@ module.exports = AssetSourceGenerator;
 
 /***/ }),
 
+/***/ 89502:
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+/*
+	MIT License http://www.opensource.org/licenses/mit-license.php
+	Author Yuta Hiroto @hiroppy
+*/
+
+
+
+const Parser = __webpack_require__(85569);
+
+/** @typedef {import("../Parser").ParserState} ParserState */
+/** @typedef {import("../Parser").PreparsedAst} PreparsedAst */
+
+class AssetSourceParser extends Parser {
+	/**
+	 * @param {string | Buffer | PreparsedAst} source the source to parse
+	 * @param {ParserState} state the parser state
+	 * @returns {ParserState} the parser state
+	 */
+	parse(source, state) {
+		if (typeof source === "object" && !Buffer.isBuffer(source)) {
+			throw new Error("AssetSourceParser doesn't accept preparsed AST");
+		}
+		const { module } = state;
+		module.buildInfo.strict = true;
+		module.buildMeta.exportsType = "default";
+
+		return state;
+	}
+}
+
+module.exports = AssetSourceParser;
+
+
+/***/ }),
+
 /***/ 9428:
 /***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
@@ -68413,14 +69196,18 @@ class InferAsyncModulesPlugin {
 					}
 					for (const module of queue) {
 						moduleGraph.setAsync(module);
-						const connections = moduleGraph.getIncomingConnections(module);
-						for (const connection of connections) {
-							const dep = connection.dependency;
+						for (const [
+							originModule,
+							connections
+						] of moduleGraph.getIncomingConnectionsByOriginModule(module)) {
 							if (
-								dep instanceof HarmonyImportDependency &&
-								connection.isTargetActive(undefined)
+								connections.some(
+									c =>
+										c.dependency instanceof HarmonyImportDependency &&
+										c.isTargetActive(undefined)
+								)
 							) {
-								queue.add(connection.originModule);
+								queue.add(originModule);
 							}
 						}
 					}
@@ -71246,7 +72033,7 @@ makeSerializable(CacheEntry, "webpack/lib/cache/ResolverCachePlugin");
  * @returns {void}
  */
 const addAllToSet = (set, otherSet) => {
-	if ("addAll" in set) {
+	if (set instanceof LazySet) {
 		set.addAll(otherSet);
 	} else {
 		for (const item of otherSet) {
@@ -72674,7 +73461,7 @@ const A = (obj, prop, factory) => {
 			const item = value[i];
 			if (item === "...") {
 				if (newArray === undefined) {
-					newArray = i > 0 ? value.slice(0, i - 1) : [];
+					newArray = value.slice(0, i);
 					obj[prop] = /** @type {T[P]} */ (/** @type {unknown} */ (newArray));
 				}
 				const items = /** @type {any[]} */ (/** @type {unknown} */ (factory()));
@@ -73140,10 +73927,15 @@ const applyOutputDefaults = (
 	F(output, "uniqueName", () => {
 		const libraryName = getLibraryName(output.library);
 		if (libraryName) return libraryName;
+		const pkgPath = path.resolve(context, "package.json");
 		try {
-			const packageInfo = require(`${context}/package.json`);
+			const packageInfo = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
 			return packageInfo.name || "";
 		} catch (e) {
+			if (e.code !== "ENOENT") {
+				e.message += `\nwhile determining default 'output.uniqueName' from 'name' in ${pkgPath}`;
+				throw e;
+			}
 			return "";
 		}
 	});
@@ -81544,7 +82336,9 @@ HarmonyCompatibilityDependency.Template = class HarmonyExportDependencyTemplate 
 			runtimeRequirements.add(RuntimeGlobals.asyncModule);
 			initFragments.push(
 				new InitFragment(
-					`${RuntimeGlobals.asyncModule}(${module.moduleArgument}, async (__webpack_handle_async_dependencies__) => {\n`,
+					runtimeTemplate.supportsArrowFunction()
+						? `${RuntimeGlobals.asyncModule}(${module.moduleArgument}, async (__webpack_handle_async_dependencies__) => {\n`
+						: `${RuntimeGlobals.asyncModule}(${module.moduleArgument}, async function (__webpack_handle_async_dependencies__) {\n`,
 					InitFragment.STAGE_ASYNC_BOUNDARY,
 					0,
 					undefined,
@@ -86213,6 +87007,11 @@ module.exports = ModuleDecoratorDependency;
 
 const Dependency = __webpack_require__(27563);
 const DependencyTemplate = __webpack_require__(90909);
+const memoize = __webpack_require__(18003);
+
+/** @typedef {import("../Module")} Module */
+
+const getRawModule = memoize(() => __webpack_require__(3754));
 
 class ModuleDependency extends Dependency {
 	/**
@@ -86230,6 +87029,19 @@ class ModuleDependency extends Dependency {
 	 */
 	getResourceIdentifier() {
 		return `module${this.request}`;
+	}
+
+	/**
+	 * @param {string} context context directory
+	 * @returns {Module} a module
+	 */
+	createIgnoredModule(context) {
+		const RawModule = getRawModule();
+		return new RawModule(
+			"/* (ignored) */",
+			`ignored|${context}|${this.request}`,
+			`${this.request} (ignored)`
+		);
 	}
 
 	serialize(context) {
@@ -88272,6 +89084,7 @@ const {
 	getDependencyUsedByExportsCondition
 } = __webpack_require__(76094);
 const makeSerializable = __webpack_require__(55575);
+const memoize = __webpack_require__(18003);
 const ModuleDependency = __webpack_require__(5462);
 
 /** @typedef {import("webpack-sources").ReplaceSource} ReplaceSource */
@@ -88279,11 +89092,14 @@ const ModuleDependency = __webpack_require__(5462);
 /** @typedef {import("../Dependency")} Dependency */
 /** @typedef {import("../Dependency").UpdateHashContext} UpdateHashContext */
 /** @typedef {import("../DependencyTemplate").DependencyTemplateContext} DependencyTemplateContext */
+/** @typedef {import("../Module")} Module */
 /** @typedef {import("../ModuleGraph")} ModuleGraph */
 /** @typedef {import("../ModuleGraphConnection")} ModuleGraphConnection */
 /** @typedef {import("../ModuleGraphConnection").ConnectionState} ConnectionState */
 /** @typedef {import("../util/Hash")} Hash */
 /** @typedef {import("../util/runtime").RuntimeSpec} RuntimeSpec */
+
+const getRawModule = memoize(() => __webpack_require__(3754));
 
 class URLDependency extends ModuleDependency {
 	/**
@@ -88318,6 +89134,20 @@ class URLDependency extends ModuleDependency {
 			this,
 			this.usedByExports,
 			moduleGraph
+		);
+	}
+
+	/**
+	 * @param {string} context context directory
+	 * @returns {Module} a module
+	 */
+	createIgnoredModule(context) {
+		const RawModule = getRawModule();
+		return new RawModule(
+			'module.exports = "data:,";',
+			`ignored-asset`,
+			`(ignored asset)`,
+			new Set([RuntimeGlobals.module])
 		);
 	}
 
@@ -88999,12 +89829,17 @@ const EnableChunkLoadingPlugin = __webpack_require__(41952);
 const { equals } = __webpack_require__(92459);
 const { contextify } = __webpack_require__(47779);
 const EnableWasmLoadingPlugin = __webpack_require__(19599);
+const ConstDependency = __webpack_require__(9364);
 const {
 	harmonySpecifierTag
 } = __webpack_require__(76426);
 const WorkerDependency = __webpack_require__(31479);
 
 /** @typedef {import("estree").Expression} Expression */
+/** @typedef {import("estree").ObjectExpression} ObjectExpression */
+/** @typedef {import("estree").Pattern} Pattern */
+/** @typedef {import("estree").Property} Property */
+/** @typedef {import("estree").SpreadElement} SpreadElement */
 /** @typedef {import("../Compiler")} Compiler */
 /** @typedef {import("../Entrypoint").EntryOptions} EntryOptions */
 /** @typedef {import("../javascript/BasicEvaluatedExpression")} BasicEvaluatedExpression */
@@ -89086,30 +89921,49 @@ class WorkerPlugin {
 
 				/**
 				 * @param {JavascriptParser} parser the parser
-				 * @param {Expression} expr expression
-				 * @returns {object | undefined} parsed object
+				 * @param {ObjectExpression} expr expression
+				 * @returns {{ expressions: Record<string, Expression | Pattern>, otherElements: (Property | SpreadElement)[], values: Record<string, any>, spread: boolean, insertType: "comma" | "single", insertLocation: number }} parsed object
 				 */
-				const parseObjectLiteral = (parser, expr) => {
-					if (expr.type !== "ObjectExpression") return;
-					const obj = {};
+				const parseObjectExpression = (parser, expr) => {
+					/** @type {Record<string, any>} */
+					const values = {};
+					/** @type {Record<string, Expression | Pattern>} */
+					const expressions = {};
+					/** @type {(Property | SpreadElement)[]} */
+					const otherElements = [];
+					let spread = false;
 					for (const prop of expr.properties) {
-						if (prop.type === "Property") {
-							if (
-								!prop.method &&
-								!prop.computed &&
-								!prop.shorthand &&
-								prop.key.type === "Identifier" &&
-								!prop.value.type.endsWith("Pattern")
-							) {
+						if (prop.type === "SpreadElement") {
+							spread = true;
+						} else if (
+							prop.type === "Property" &&
+							!prop.method &&
+							!prop.computed &&
+							prop.key.type === "Identifier"
+						) {
+							expressions[prop.key.name] = prop.value;
+							if (!prop.shorthand && !prop.value.type.endsWith("Pattern")) {
 								const value = parser.evaluateExpression(
 									/** @type {Expression} */ (prop.value)
 								);
 								if (value.isCompileTimeValue())
-									obj[prop.key.name] = value.asCompileTimeValue();
+									values[prop.key.name] = value.asCompileTimeValue();
 							}
+						} else {
+							otherElements.push(prop);
 						}
 					}
-					return obj;
+					const insertType = expr.properties.length > 0 ? "comma" : "single";
+					const insertLocation =
+						expr.properties[expr.properties.length - 1].range[1];
+					return {
+						expressions,
+						otherElements,
+						values,
+						spread,
+						insertType,
+						insertLocation
+					};
 				};
 
 				/**
@@ -89130,106 +89984,162 @@ class WorkerPlugin {
 						const parsedUrl = parseModuleUrl(parser, arg1);
 						if (!parsedUrl) return;
 						const [url, range] = parsedUrl;
-						if (url.isString()) {
-							const options = arg2 && parseObjectLiteral(parser, arg2);
-							const {
-								options: importOptions,
-								errors: commentErrors
-							} = parser.parseCommentOptions(expr.range);
+						if (!url.isString()) return;
+						const {
+							expressions,
+							otherElements,
+							values: options,
+							spread: hasSpreadInOptions,
+							insertType,
+							insertLocation
+						} =
+							arg2 && arg2.type === "ObjectExpression"
+								? parseObjectExpression(parser, arg2)
+								: {
+										expressions: {},
+										otherElements: [],
+										values: {},
+										spread: false,
+										insertType: arg2 ? "spread" : "argument",
+										insertLocation: arg2 ? arg2.range : arg1.range[1]
+								  };
+						const {
+							options: importOptions,
+							errors: commentErrors
+						} = parser.parseCommentOptions(expr.range);
 
-							if (commentErrors) {
-								for (const e of commentErrors) {
-									const { comment } = e;
+						if (commentErrors) {
+							for (const e of commentErrors) {
+								const { comment } = e;
+								parser.state.module.addWarning(
+									new CommentCompilationWarning(
+										`Compilation error while processing magic comment(-s): /*${comment.value}*/: ${e.message}`,
+										comment.loc
+									)
+								);
+							}
+						}
+
+						/** @type {EntryOptions} */
+						let entryOptions = {};
+
+						if (importOptions) {
+							if (importOptions.webpackIgnore !== undefined) {
+								if (typeof importOptions.webpackIgnore !== "boolean") {
 									parser.state.module.addWarning(
-										new CommentCompilationWarning(
-											`Compilation error while processing magic comment(-s): /*${comment.value}*/: ${e.message}`,
-											comment.loc
+										new UnsupportedFeatureWarning(
+											`\`webpackIgnore\` expected a boolean, but received: ${importOptions.webpackIgnore}.`,
+											expr.loc
 										)
+									);
+								} else {
+									if (importOptions.webpackIgnore) {
+										return false;
+									}
+								}
+							}
+							if (importOptions.webpackEntryOptions !== undefined) {
+								if (
+									typeof importOptions.webpackEntryOptions !== "object" ||
+									importOptions.webpackEntryOptions === null
+								) {
+									parser.state.module.addWarning(
+										new UnsupportedFeatureWarning(
+											`\`webpackEntryOptions\` expected a object, but received: ${importOptions.webpackEntryOptions}.`,
+											expr.loc
+										)
+									);
+								} else {
+									Object.assign(
+										entryOptions,
+										importOptions.webpackEntryOptions
 									);
 								}
 							}
-
-							/** @type {EntryOptions} */
-							let entryOptions = {};
-
-							if (importOptions) {
-								if (importOptions.webpackIgnore !== undefined) {
-									if (typeof importOptions.webpackIgnore !== "boolean") {
-										parser.state.module.addWarning(
-											new UnsupportedFeatureWarning(
-												`\`webpackIgnore\` expected a boolean, but received: ${importOptions.webpackIgnore}.`,
-												expr.loc
-											)
-										);
-									} else {
-										if (importOptions.webpackIgnore) {
-											return false;
-										}
-									}
-								}
-								if (importOptions.webpackEntryOptions !== undefined) {
-									if (
-										typeof importOptions.webpackEntryOptions !== "object" ||
-										importOptions.webpackEntryOptions === null
-									) {
-										parser.state.module.addWarning(
-											new UnsupportedFeatureWarning(
-												`\`webpackEntryOptions\` expected a object, but received: ${importOptions.webpackEntryOptions}.`,
-												expr.loc
-											)
-										);
-									} else {
-										Object.assign(
-											entryOptions,
-											importOptions.webpackEntryOptions
-										);
-									}
-								}
-								if (importOptions.webpackChunkName !== undefined) {
-									if (typeof importOptions.webpackChunkName !== "string") {
-										parser.state.module.addWarning(
-											new UnsupportedFeatureWarning(
-												`\`webpackChunkName\` expected a string, but received: ${importOptions.webpackChunkName}.`,
-												expr.loc
-											)
-										);
-									} else {
-										entryOptions.name = importOptions.webpackChunkName;
-									}
+							if (importOptions.webpackChunkName !== undefined) {
+								if (typeof importOptions.webpackChunkName !== "string") {
+									parser.state.module.addWarning(
+										new UnsupportedFeatureWarning(
+											`\`webpackChunkName\` expected a string, but received: ${importOptions.webpackChunkName}.`,
+											expr.loc
+										)
+									);
+								} else {
+									entryOptions.name = importOptions.webpackChunkName;
 								}
 							}
-
-							if (
-								!Object.prototype.hasOwnProperty.call(entryOptions, "name") &&
-								options &&
-								options.name
-							) {
-								entryOptions.name = options.name;
-							}
-
-							if (!entryOptions.runtime) {
-								entryOptions.runtime = `${cachedContextify(
-									parser.state.module.identifier()
-								)}|${formatLocation(expr.loc)}`;
-							}
-
-							const block = new AsyncDependenciesBlock({
-								name: entryOptions.name,
-								entryOptions: {
-									chunkLoading: this._chunkLoading,
-									wasmLoading: this._wasmLoading,
-									...entryOptions
-								}
-							});
-							block.loc = expr.loc;
-							const dep = new WorkerDependency(url.string, range);
-							dep.loc = expr.loc;
-							block.addDependency(dep);
-							parser.state.module.addBlock(block);
-							parser.walkExpression(expr.callee);
-							if (arg2) parser.walkExpression(arg2);
-							return true;
 						}
+
+						if (
+							!Object.prototype.hasOwnProperty.call(entryOptions, "name") &&
+							options &&
+							typeof options.name === "string"
+						) {
+							entryOptions.name = options.name;
+						}
+
+						if (!entryOptions.runtime) {
+							entryOptions.runtime = `${cachedContextify(
+								parser.state.module.identifier()
+							)}|${formatLocation(expr.loc)}`;
+						}
+
+						const block = new AsyncDependenciesBlock({
+							name: entryOptions.name,
+							entryOptions: {
+								chunkLoading: this._chunkLoading,
+								wasmLoading: this._wasmLoading,
+								...entryOptions
+							}
+						});
+						block.loc = expr.loc;
+						const dep = new WorkerDependency(url.string, range);
+						dep.loc = expr.loc;
+						block.addDependency(dep);
+						parser.state.module.addBlock(block);
+						parser.walkExpression(expr.callee);
+
+						if (expressions.type) {
+							const expr = expressions.type;
+							if (options.type !== false) {
+								const dep = new ConstDependency("undefined", expr.range);
+								dep.loc = expr.loc;
+								parser.state.module.addPresentationalDependency(dep);
+								expressions.type = undefined;
+							}
+						} else if (hasSpreadInOptions && insertType === "comma") {
+							const dep = new ConstDependency(
+								", type: undefined",
+								insertLocation
+							);
+							dep.loc = expr.loc;
+							parser.state.module.addPresentationalDependency(dep);
+						} else if (insertType === "spread") {
+							const dep1 = new ConstDependency(
+								"Object.assign({}, ",
+								insertLocation[0]
+							);
+							const dep2 = new ConstDependency(
+								", { type: undefined })",
+								insertLocation[1]
+							);
+							dep1.loc = expr.loc;
+							dep2.loc = expr.loc;
+							parser.state.module.addPresentationalDependency(dep1);
+							parser.state.module.addPresentationalDependency(dep2);
+						}
+
+						for (const key of Object.keys(expressions)) {
+							if (expressions[key]) parser.walkExpression(expressions[key]);
+						}
+						for (const prop of otherElements) {
+							parser.walkProperty(prop);
+						}
+						if (insertType === "spread") {
+							parser.walkExpression(arg2);
+						}
+
+						return true;
 					};
 					const processItem = item => {
 						if (item.endsWith("()")) {
@@ -89693,6 +90603,13 @@ const { registerNotSerializable } = __webpack_require__(29158);
 /** @typedef {import("../util/Hash")} Hash */
 /** @typedef {import("../util/fs").InputFileSystem} InputFileSystem */
 
+const IGNORED_DEPENDENCY_TYPES = new Set([
+	"import.meta.webpackHot.accept",
+	"import.meta.webpackHot.decline",
+	"module.hot.accept",
+	"module.hot.decline"
+]);
+
 /**
  * @param {undefined|string|RegExp|Function} test test option
  * @param {Module} module the module
@@ -89717,9 +90634,9 @@ const checkTest = (test, module) => {
 const TYPES = new Set(["javascript"]);
 
 class LazyCompilationDependency extends Dependency {
-	constructor(originalModule) {
+	constructor(proxyModule) {
 		super();
-		this.originalModule = originalModule;
+		this.proxyModule = proxyModule;
 	}
 
 	get category() {
@@ -89734,7 +90651,7 @@ class LazyCompilationDependency extends Dependency {
 	 * @returns {string | null} an identifier to merge equal requests
 	 */
 	getResourceIdentifier() {
-		return this.originalModule.identifier();
+		return this.proxyModule.originalModule.identifier();
 	}
 }
 
@@ -89777,6 +90694,10 @@ class LazyCompilationProxyModule extends Module {
 	updateCacheModule(module) {
 		super.updateCacheModule(module);
 		const m = /** @type {LazyCompilationProxyModule} */ (module);
+		this.originalModule = m.originalModule;
+		this.request = m.request;
+		this.client = m.client;
+		this.data = m.data;
 		this.active = m.active;
 	}
 
@@ -89815,7 +90736,7 @@ class LazyCompilationProxyModule extends Module {
 		const dep = new CommonJsRequireDependency(this.client);
 		this.addDependency(dep);
 		if (this.active) {
-			const dep = new LazyCompilationDependency(this.originalModule);
+			const dep = new LazyCompilationDependency(this);
 			const block = new AsyncDependenciesBlock({});
 			block.addDependency(dep);
 			this.addBlock(block);
@@ -89943,7 +90864,7 @@ class LazyCompilationDependencyFactory extends ModuleFactory {
 		const dependency = /** @type {LazyCompilationDependency} */ (data
 			.dependencies[0]);
 		callback(null, {
-			module: dependency.originalModule
+			module: dependency.proxyModule.originalModule
 		});
 	}
 }
@@ -89997,6 +90918,7 @@ class LazyCompilationPlugin {
 						if (
 							resolveData.dependencies.every(
 								dep =>
+									IGNORED_DEPENDENCY_TYPES.has(dep.type) ||
 									(this.imports && dep.type === "import()") ||
 									(this.entries && dep.type === "entry")
 							) &&
@@ -91318,32 +92240,43 @@ class OccurrenceModuleIdsPlugin {
 				}
 
 				/**
-				 * @param {Iterable<ModuleGraphConnection>} connections connections
+				 * @param {Module} module module
 				 * @returns {number} count of occurs
 				 */
-				const countOccursInEntry = connections => {
+				const countOccursInEntry = module => {
 					let sum = 0;
-					for (const c of connections) {
-						if (!c.isTargetActive(undefined)) continue;
-						if (!c.originModule) continue;
-						sum += initialChunkChunkMap.get(c.originModule);
+					for (const [
+						originModule,
+						connections
+					] of moduleGraph.getIncomingConnectionsByOriginModule(module)) {
+						if (!originModule) continue;
+						if (!connections.some(c => c.isTargetActive(undefined))) continue;
+						sum += initialChunkChunkMap.get(originModule);
 					}
 					return sum;
 				};
 
 				/**
-				 * @param {Iterable<ModuleGraphConnection>} connections connections
+				 * @param {Module} module module
 				 * @returns {number} count of occurs
 				 */
-				const countOccurs = connections => {
+				const countOccurs = module => {
 					let sum = 0;
-					for (const c of connections) {
-						if (!c.isTargetActive(undefined)) continue;
-						if (!c.originModule) continue;
-						if (!c.dependency) continue;
-						const factor = c.dependency.getNumberOfIdOccurrences();
-						if (factor === 0) continue;
-						sum += factor * chunkGraph.getNumberOfModuleChunks(c.originModule);
+					for (const [
+						originModule,
+						connections
+					] of moduleGraph.getIncomingConnectionsByOriginModule(module)) {
+						if (!originModule) continue;
+						const chunkModules = chunkGraph.getNumberOfModuleChunks(
+							originModule
+						);
+						for (const c of connections) {
+							if (!c.isTargetActive(undefined)) continue;
+							if (!c.dependency) continue;
+							const factor = c.dependency.getNumberOfIdOccurrences();
+							if (factor === 0) continue;
+							sum += factor * chunkModules;
+						}
 					}
 					return sum;
 				};
@@ -91351,7 +92284,7 @@ class OccurrenceModuleIdsPlugin {
 				if (prioritiseInitial) {
 					for (const m of modulesInOccurrenceOrder) {
 						const result =
-							countOccursInEntry(moduleGraph.getIncomingConnections(m)) +
+							countOccursInEntry(m) +
 							initialChunkChunkMap.get(m) +
 							entryCountMap.get(m);
 						occursInInitialChunksMap.set(m, result);
@@ -91360,7 +92293,7 @@ class OccurrenceModuleIdsPlugin {
 
 				for (const m of modules) {
 					const result =
-						countOccurs(moduleGraph.getIncomingConnections(m)) +
+						countOccurs(m) +
 						chunkGraph.getNumberOfModuleChunks(m) +
 						entryCountMap.get(m);
 					occursInAllChunksMap.set(m, result);
@@ -91941,14 +92874,15 @@ module.exports = mergeExports(fn, {
 
 
 
-const { ConcatSource } = __webpack_require__(55600);
+const { ConcatSource, PrefixSource, RawSource } = __webpack_require__(55600);
+const { RuntimeGlobals } = __webpack_require__(16520);
 const HotUpdateChunk = __webpack_require__(90972);
 const Template = __webpack_require__(90751);
-const { getEntryInfo } = __webpack_require__(39546);
+const { getCompilationHooks } = __webpack_require__(80867);
 const {
-	chunkHasJs,
-	getCompilationHooks
-} = __webpack_require__(80867);
+	generateEntryStartup,
+	updateHashForEntryStartup
+} = __webpack_require__(9005);
 
 /** @typedef {import("../Compiler")} Compiler */
 
@@ -91962,6 +92896,17 @@ class ArrayPushCallbackChunkFormatPlugin {
 		compiler.hooks.thisCompilation.tap(
 			"ArrayPushCallbackChunkFormatPlugin",
 			compilation => {
+				compilation.hooks.additionalChunkRuntimeRequirements.tap(
+					"ArrayPushCallbackChunkFormatPlugin",
+					(chunk, set) => {
+						if (chunk.hasRuntime()) return;
+						if (compilation.chunkGraph.getNumberOfEntryModules(chunk) > 0) {
+							set.add(RuntimeGlobals.onChunksLoaded);
+							set.add(RuntimeGlobals.require);
+						}
+						set.add(RuntimeGlobals.chunkCallback);
+					}
+				);
 				const hooks = getCompilationHooks(compilation);
 				hooks.renderChunk.tap(
 					"ArrayPushCallbackChunkFormatPlugin",
@@ -91974,9 +92919,6 @@ class ArrayPushCallbackChunkFormatPlugin {
 						const runtimeModules = chunkGraph.getChunkRuntimeModulesInOrder(
 							chunk
 						);
-						const runtimePart =
-							runtimeModules.length > 0 &&
-							Template.renderChunkRuntimeModules(runtimeModules, renderContext);
 						if (hotUpdateChunk) {
 							const hotUpdateGlobal =
 								runtimeTemplate.outputOptions.hotUpdateGlobal;
@@ -91985,8 +92927,12 @@ class ArrayPushCallbackChunkFormatPlugin {
 							);
 							source.add(`${JSON.stringify(chunk.id)},`);
 							source.add(modules);
-							if (runtimePart) {
+							if (runtimeModules.length > 0) {
 								source.add(",\n");
+								const runtimePart = Template.renderChunkRuntimeModules(
+									runtimeModules,
+									renderContext
+								);
 								source.add(runtimePart);
 							}
 							source.add(")");
@@ -92002,17 +92948,55 @@ class ArrayPushCallbackChunkFormatPlugin {
 							);
 							source.add(`${JSON.stringify(chunk.ids)},`);
 							source.add(modules);
-							const entries = getEntryInfo(chunkGraph, chunk, c =>
-								chunkHasJs(c, chunkGraph)
+							const entries = Array.from(
+								chunkGraph.getChunkEntryModulesWithChunkGroupIterable(chunk)
 							);
-							const entriesPart =
-								entries.length > 0 && `,${JSON.stringify(entries)}`;
-							if (runtimePart || entriesPart) {
+							if (runtimeModules.length > 0 || entries.length > 0) {
+								const strictBailout = hooks.strictRuntimeBailout.call(
+									renderContext
+								);
+								const runtime = new ConcatSource(
+									(runtimeTemplate.supportsArrowFunction()
+										? "__webpack_require__ =>"
+										: "function(__webpack_require__)") +
+										" { // webpackRuntimeModules\n",
+									strictBailout
+										? `// runtime can't be in strict mode because ${strictBailout}.\n\n`
+										: '"use strict";\n\n'
+								);
+								if (runtimeModules.length > 0) {
+									runtime.add(
+										Template.renderRuntimeModules(runtimeModules, {
+											...renderContext,
+											codeGenerationResults: compilation.codeGenerationResults,
+											useStrict: !!strictBailout
+										})
+									);
+								}
+								if (entries.length > 0) {
+									const startupSource = new RawSource(
+										generateEntryStartup(
+											chunkGraph,
+											runtimeTemplate,
+											entries,
+											chunk,
+											true
+										)
+									);
+									runtime.add(
+										hooks.renderStartup.call(
+											startupSource,
+											entries[entries.length - 1][0],
+											{
+												...renderContext,
+												inlined: false
+											}
+										)
+									);
+								}
+								runtime.add("}\n");
 								source.add(",\n");
-								source.add(runtimePart || "0");
-							}
-							if (entriesPart) {
-								source.add(entriesPart);
+								source.add(new PrefixSource("/******/ ", runtime));
 							}
 							source.add("])");
 						}
@@ -92025,14 +93009,13 @@ class ArrayPushCallbackChunkFormatPlugin {
 						if (chunk.hasRuntime()) return;
 						hash.update("ArrayPushCallbackChunkFormatPlugin");
 						hash.update("1");
-						hash.update(
-							JSON.stringify(
-								getEntryInfo(chunkGraph, chunk, c => chunkHasJs(c, chunkGraph))
-							)
-						);
 						hash.update(`${runtimeTemplate.outputOptions.chunkLoadingGlobal}`);
 						hash.update(`${runtimeTemplate.outputOptions.hotUpdateGlobal}`);
 						hash.update(`${runtimeTemplate.outputOptions.globalObject}`);
+						const entries = Array.from(
+							chunkGraph.getChunkEntryModulesWithChunkGroupIterable(chunk)
+						);
+						updateHashForEntryStartup(hash, chunkGraph, entries, chunk);
 					}
 				);
 			}
@@ -92541,15 +93524,17 @@ module.exports = BasicEvaluatedExpression;
 
 
 
-const { ConcatSource } = __webpack_require__(55600);
+const { ConcatSource, RawSource } = __webpack_require__(55600);
 const RuntimeGlobals = __webpack_require__(48801);
 const Template = __webpack_require__(90751);
-const { getEntryInfo } = __webpack_require__(39546);
 const {
 	getChunkFilenameTemplate,
-	chunkHasJs,
 	getCompilationHooks
 } = __webpack_require__(80867);
+const {
+	generateEntryStartup,
+	updateHashForEntryStartup
+} = __webpack_require__(9005);
 
 /** @typedef {import("../Compiler")} Compiler */
 
@@ -92563,6 +93548,17 @@ class CommonJsChunkFormatPlugin {
 		compiler.hooks.thisCompilation.tap(
 			"CommonJsChunkFormatPlugin",
 			compilation => {
+				compilation.hooks.additionalChunkRuntimeRequirements.tap(
+					"CommonJsChunkLoadingPlugin",
+					(chunk, set) => {
+						if (chunk.hasRuntime()) return;
+						if (compilation.chunkGraph.getNumberOfEntryModules(chunk) > 0) {
+							set.add(RuntimeGlobals.require);
+							set.add(RuntimeGlobals.startupEntrypoint);
+							set.add(RuntimeGlobals.externalInstallChunk);
+						}
+					}
+				);
 				const hooks = getCompilationHooks(compilation);
 				hooks.renderChunk.tap(
 					"CommonJsChunkFormatPlugin",
@@ -92651,19 +93647,15 @@ class CommonJsChunkFormatPlugin {
 							entrySource.add(
 								`${RuntimeGlobals.externalInstallChunk}(exports);\n`
 							);
-							const startupSource = new ConcatSource();
-							for (let i = 0; i < entries.length; i++) {
-								const [module, entrypoint] = entries[i];
-								startupSource.add(
-									`${
-										i === entries.length - 1 ? "var __webpack_exports__ = " : ""
-									}${RuntimeGlobals.startupEntrypoint}(${JSON.stringify(
-										entrypoint.chunks
-											.filter(c => c !== chunk && c !== runtimeChunk)
-											.map(c => c.id)
-									)}, ${JSON.stringify(chunkGraph.getModuleId(module))});\n`
-								);
-							}
+							const startupSource = new RawSource(
+								generateEntryStartup(
+									chunkGraph,
+									runtimeTemplate,
+									entries,
+									chunk,
+									false
+								)
+							);
 							entrySource.add(
 								hooks.renderStartup.call(
 									startupSource,
@@ -92674,7 +93666,7 @@ class CommonJsChunkFormatPlugin {
 									}
 								)
 							);
-							entrySource.add("})()");
+							entrySource.add("\n})()");
 							return entrySource;
 						}
 						return source;
@@ -92686,11 +93678,10 @@ class CommonJsChunkFormatPlugin {
 						if (chunk.hasRuntime()) return;
 						hash.update("CommonJsChunkFormatPlugin");
 						hash.update("1");
-						hash.update(
-							JSON.stringify(
-								getEntryInfo(chunkGraph, chunk, c => chunkHasJs(c, chunkGraph))
-							)
+						const entries = Array.from(
+							chunkGraph.getChunkEntryModulesWithChunkGroupIterable(chunk)
 						);
+						updateHashForEntryStartup(hash, chunkGraph, entries, chunk);
 					}
 				);
 			}
@@ -93158,6 +94149,7 @@ const chunkHasJs = (chunk, chunkGraph) => {
  * @property {SyncWaterfallHook<[string, RenderBootstrapContext]>} renderRequire
  * @property {SyncBailHook<[Module, RenderBootstrapContext], string>} inlineInRuntimeBailout
  * @property {SyncBailHook<[Module, RenderContext], string>} embedInRuntimeBailout
+ * @property {SyncBailHook<[RenderContext], string>} strictRuntimeBailout
  * @property {SyncHook<[Chunk, Hash, ChunkHashContext]>} chunkHash
  * @property {SyncBailHook<[Chunk, RenderContext], boolean>} useSourceMap
  */
@@ -93205,6 +94197,7 @@ class JavascriptModulesPlugin {
 				renderRequire: new SyncWaterfallHook(["code", "renderContext"]),
 				inlineInRuntimeBailout: new SyncBailHook(["module", "renderContext"]),
 				embedInRuntimeBailout: new SyncBailHook(["module", "renderContext"]),
+				strictRuntimeBailout: new SyncBailHook(["renderContext"]),
 				chunkHash: new SyncHook(["chunk", "hash", "context"]),
 				useSourceMap: new SyncBailHook(["chunk", "renderContext"])
 			};
@@ -93428,6 +94421,18 @@ class JavascriptModulesPlugin {
 					const digest = /** @type {string} */ (hash.digest(hashDigest));
 					chunk.contentHash.javascript = digest.substr(0, hashDigestLength);
 				});
+				compilation.hooks.additionalTreeRuntimeRequirements.tap(
+					"JavascriptModulesPlugin",
+					(chunk, set) => {
+						if (
+							!set.has(RuntimeGlobals.startupNoDefault) &&
+							compilation.chunkGraph.hasChunkEntryDependentChunks(chunk)
+						) {
+							set.add(RuntimeGlobals.onChunksLoaded);
+							set.add(RuntimeGlobals.require);
+						}
+					}
+				);
 			}
 		);
 	}
@@ -93608,7 +94613,6 @@ class JavascriptModulesPlugin {
 				compareModulesByIdentifier
 			) || []
 		);
-		const allStrict = allModules.every(m => m.buildInfo.strict);
 
 		let inlinedModules;
 		if (bootstrap.allowInlineStartup) {
@@ -93627,8 +94631,18 @@ class JavascriptModulesPlugin {
 		} else {
 			prefix = "/******/ ";
 		}
-		if (allStrict) {
-			source.add(prefix + '"use strict";\n');
+		let allStrict = false;
+		if (allModules.every(m => m.buildInfo.strict)) {
+			const strictBailout = hooks.strictRuntimeBailout.call(renderContext);
+			if (strictBailout) {
+				source.add(
+					prefix +
+						`// runtime can't be in strict mode because ${strictBailout}.\n`
+				);
+			} else {
+				allStrict = true;
+				source.add(prefix + '"use strict";\n');
+			}
 		}
 
 		const chunkModules = Template.renderChunkModules(
@@ -93762,6 +94776,9 @@ class JavascriptModulesPlugin {
 					startupSource.add(renderedModule);
 					startupSource.add(footer);
 				}
+			}
+			if (runtimeRequirements.has(RuntimeGlobals.onChunksLoaded)) {
+				startupSource.add(`${RuntimeGlobals.onChunksLoaded}();\n`);
 			}
 			source.add(
 				hooks.renderStartup.call(startupSource, lastInlinedModule, {
@@ -93958,18 +94975,26 @@ class JavascriptModulesPlugin {
 				);
 				buf2.push("// Load entry module and return exports");
 				let i = chunkGraph.getNumberOfEntryModules(chunk);
-				for (const entryModule of chunkGraph.getChunkEntryModulesIterable(
-					chunk
-				)) {
+				for (const [
+					entryModule,
+					entrypoint
+				] of chunkGraph.getChunkEntryModulesWithChunkGroupIterable(chunk)) {
+					const chunks = entrypoint.chunks.filter(c => c !== chunk);
+					if (result.allowInlineStartup && chunks.length > 0) {
+						buf2.push(
+							"// This entry module depends on other loaded chunks and execution need to be delayed"
+						);
+						result.allowInlineStartup = false;
+					}
 					if (
 						result.allowInlineStartup &&
 						someInIterable(
-							moduleGraph.getIncomingConnections(entryModule),
-							c =>
-								c.originModule &&
-								c.isTargetActive(chunk.runtime) &&
+							moduleGraph.getIncomingConnectionsByOriginModule(entryModule),
+							([originModule, connections]) =>
+								originModule &&
+								connections.some(c => c.isTargetActive(chunk.runtime)) &&
 								someInIterable(
-									chunkGraph.getModuleRuntimes(c.originModule),
+									chunkGraph.getModuleRuntimes(originModule),
 									runtime =>
 										intersectRuntime(runtime, chunk.runtime) !== undefined
 								)
@@ -94012,20 +95037,31 @@ class JavascriptModulesPlugin {
 					if (runtimeRequirements.has(RuntimeGlobals.entryModuleId)) {
 						moduleIdExpr = `${RuntimeGlobals.entryModuleId} = ${moduleIdExpr}`;
 					}
-					if (useRequire) {
+					if (
+						result.allowInlineStartup &&
+						entryRuntimeRequirements.has(RuntimeGlobals.module)
+					) {
+						result.allowInlineStartup = false;
+						buf2.push(
+							"// This entry module used 'module' so it can't be inlined"
+						);
+					}
+					if (chunks.length > 0) {
+						buf2.push(
+							`${i === 0 ? "var __webpack_exports__ = " : ""}${
+								RuntimeGlobals.onChunksLoaded
+							}(undefined, ${JSON.stringify(
+								chunks.map(c => c.id)
+							)}, ${runtimeTemplate.returningFunction(
+								`__webpack_require__(${moduleIdExpr})`
+							)})`
+						);
+					} else if (useRequire) {
 						buf2.push(
 							`${
 								i === 0 ? "var __webpack_exports__ = " : ""
 							}__webpack_require__(${moduleIdExpr});`
 						);
-						if (result.allowInlineStartup) {
-							if (entryRuntimeRequirements.has(RuntimeGlobals.module)) {
-								result.allowInlineStartup = false;
-								buf2.push(
-									"// This entry module used 'module' so it can't be inlined"
-								);
-							}
-						}
 					} else {
 						if (i === 0) buf2.push("var __webpack_exports__ = {};");
 						if (requireScopeUsed) {
@@ -94044,6 +95080,11 @@ class JavascriptModulesPlugin {
 							buf2.push(`__webpack_modules__[${moduleIdExpr}]();`);
 						}
 					}
+				}
+				if (runtimeRequirements.has(RuntimeGlobals.onChunksLoaded)) {
+					buf2.push(
+						`__webpack_exports__ = ${RuntimeGlobals.onChunksLoaded}(__webpack_exports__);`
+					);
 				}
 				if (
 					runtimeRequirements.has(RuntimeGlobals.startup) ||
@@ -94148,8 +95189,14 @@ class JavascriptModulesPlugin {
 		);
 		const content = Template.asString([
 			"// Check if module is in cache",
-			"if(__webpack_module_cache__[moduleId]) {",
-			Template.indent("return __webpack_module_cache__[moduleId].exports;"),
+			"var cachedModule = __webpack_module_cache__[moduleId];",
+			"if (cachedModule !== undefined) {",
+			outputOptions.strictModuleErrorHandling
+				? Template.indent([
+						"if (cachedModule.error !== undefined) throw cachedModule.error;",
+						"return cachedModule.exports;"
+				  ])
+				: Template.indent("return cachedModule.exports;"),
 			"}",
 			"// Create a new module (and put it into the cache)",
 			"var module = __webpack_module_cache__[moduleId] = {",
@@ -94170,6 +95217,15 @@ class JavascriptModulesPlugin {
 						Template.indent([
 							"if(threw) delete __webpack_module_cache__[moduleId];"
 						]),
+						"}"
+				  ])
+				: outputOptions.strictModuleErrorHandling
+				? Template.asString([
+						"// Execute the module function",
+						"try {",
+						Template.indent(moduleExecution),
+						"} catch(e) {",
+						Template.indent(["module.error = e;", "throw e;"]),
 						"}"
 				  ])
 				: Template.asString([
@@ -96492,20 +97548,24 @@ class JavascriptParser extends Parser {
 			propIndex++
 		) {
 			const prop = expression.properties[propIndex];
-			if (prop.type === "SpreadElement") {
-				this.walkExpression(prop.argument);
-				continue;
-			}
-			if (prop.computed) {
-				this.walkExpression(prop.key);
-			}
-			if (prop.shorthand && prop.value && prop.value.type === "Identifier") {
-				this.scope.inShorthand = prop.value.name;
-				this.walkIdentifier(prop.value);
-				this.scope.inShorthand = false;
-			} else {
-				this.walkExpression(prop.value);
-			}
+			this.walkProperty(prop);
+		}
+	}
+
+	walkProperty(prop) {
+		if (prop.type === "SpreadElement") {
+			this.walkExpression(prop.argument);
+			return;
+		}
+		if (prop.computed) {
+			this.walkExpression(prop.key);
+		}
+		if (prop.shorthand && prop.value && prop.value.type === "Identifier") {
+			this.scope.inShorthand = prop.value.name;
+			this.walkIdentifier(prop.value);
+			this.scope.inShorthand = false;
+		} else {
+			this.walkExpression(prop.value);
 		}
 	}
 
@@ -98042,6 +99102,169 @@ exports.approve = () => true;
 
 /***/ }),
 
+/***/ 9005:
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+"use strict";
+/*
+	MIT License http://www.opensource.org/licenses/mit-license.php
+	Author Tobias Koppers @sokra
+*/
+
+
+
+const Entrypoint = __webpack_require__(33660);
+const RuntimeGlobals = __webpack_require__(48801);
+const Template = __webpack_require__(90751);
+const { isSubset } = __webpack_require__(86088);
+const { chunkHasJs } = __webpack_require__(80867);
+
+/** @typedef {import("../util/Hash")} Hash */
+/** @typedef {import("../Chunk")} Chunk */
+/** @typedef {import("../Compilation")} Compilation */
+/** @typedef {import("../ChunkGraph")} ChunkGraph */
+/** @typedef {import("../ChunkGroup")} ChunkGroup */
+/** @typedef {import("../RuntimeTemplate")} RuntimeTemplate */
+/** @typedef {(string|number)[]} EntryItem */
+
+// TODO move to this file to ../javascript/ChunkHelpers.js
+
+/**
+ * @param {Entrypoint} entrypoint a chunk group
+ * @param {Chunk} excludedChunk1 current chunk which is excluded
+ * @param {Chunk} excludedChunk2 runtime chunk which is excluded
+ * @returns {Set<Chunk>} chunks
+ */
+const getAllChunks = (entrypoint, excludedChunk1, excludedChunk2) => {
+	const queue = new Set([entrypoint]);
+	const chunks = new Set();
+	for (const entrypoint of queue) {
+		for (const chunk of entrypoint.chunks) {
+			if (chunk === excludedChunk1) continue;
+			if (chunk === excludedChunk2) continue;
+			chunks.add(chunk);
+		}
+		for (const parent of entrypoint.parentsIterable) {
+			if (parent instanceof Entrypoint) queue.add(parent);
+		}
+	}
+	return chunks;
+};
+
+const EXPORT_PREFIX = "var __webpack_exports__ = ";
+
+/**
+ * @param {ChunkGraph} chunkGraph chunkGraph
+ * @param {RuntimeTemplate} runtimeTemplate runtimeTemplate
+ * @param {import("../ChunkGraph").EntryModuleWithChunkGroup[]} entries entries
+ * @param {Chunk} chunk chunk
+ * @param {boolean} passive true: passive startup with on chunks loaded
+ * @returns {string} runtime code
+ */
+exports.generateEntryStartup = (
+	chunkGraph,
+	runtimeTemplate,
+	entries,
+	chunk,
+	passive
+) => {
+	/** @type {string[]} */
+	const runtime = [
+		`var __webpack_exec__ = ${runtimeTemplate.returningFunction(
+			`__webpack_require__(${RuntimeGlobals.entryModuleId} = moduleId)`,
+			"moduleId"
+		)}`
+	];
+
+	const runModule = id => {
+		return `__webpack_exec__(${JSON.stringify(id)})`;
+	};
+	const outputCombination = (chunks, moduleIds, final) => {
+		if (chunks.size === 0) {
+			runtime.push(
+				`${final ? EXPORT_PREFIX : ""}(${moduleIds.map(runModule).join(", ")});`
+			);
+		} else {
+			const fn = runtimeTemplate.returningFunction(
+				moduleIds.map(runModule).join(", ")
+			);
+			runtime.push(
+				`${final && !passive ? EXPORT_PREFIX : ""}${
+					passive
+						? RuntimeGlobals.onChunksLoaded
+						: RuntimeGlobals.startupEntrypoint
+				}(0, ${JSON.stringify(Array.from(chunks, c => c.id))}, ${fn});`
+			);
+			if (final && passive) {
+				runtime.push(`${EXPORT_PREFIX}${RuntimeGlobals.onChunksLoaded}();`);
+			}
+		}
+	};
+
+	let currentChunks = undefined;
+	let currentModuleIds = undefined;
+
+	for (const [module, entrypoint] of entries) {
+		const runtimeChunk = entrypoint.getRuntimeChunk();
+		const moduleId = chunkGraph.getModuleId(module);
+		const chunks = getAllChunks(entrypoint, chunk, runtimeChunk);
+		if (
+			currentChunks &&
+			currentChunks.size === chunks.size &&
+			isSubset(currentChunks, chunks)
+		) {
+			currentModuleIds.push(moduleId);
+		} else {
+			if (currentChunks) {
+				outputCombination(currentChunks, currentModuleIds);
+			}
+			currentChunks = chunks;
+			currentModuleIds = [moduleId];
+		}
+	}
+
+	// output current modules with export prefix
+	if (currentChunks) {
+		outputCombination(currentChunks, currentModuleIds, true);
+	}
+	runtime.push("");
+	return Template.asString(runtime);
+};
+
+/**
+ * @param {Hash} hash the hash to update
+ * @param {ChunkGraph} chunkGraph chunkGraph
+ * @param {import("../ChunkGraph").EntryModuleWithChunkGroup[]} entries entries
+ * @param {Chunk} chunk chunk
+ * @returns {void}
+ */
+exports.updateHashForEntryStartup = (hash, chunkGraph, entries, chunk) => {
+	for (const [module, entrypoint] of entries) {
+		const runtimeChunk = entrypoint.getRuntimeChunk();
+		const moduleId = chunkGraph.getModuleId(module);
+		hash.update(`${moduleId}`);
+		for (const c of getAllChunks(entrypoint, chunk, runtimeChunk))
+			hash.update(`${c.id}`);
+	}
+};
+
+/**
+ * @param {Chunk} chunk the chunk
+ * @param {ChunkGraph} chunkGraph the chunk graph
+ * @returns {Set<number | string>} initially fulfilled chunk ids
+ */
+exports.getInitialChunkIds = (chunk, chunkGraph) => {
+	const initialChunkIds = new Set(chunk.ids);
+	for (const c of chunk.getAllInitialChunks()) {
+		if (c === chunk || chunkHasJs(c, chunkGraph)) continue;
+		for (const id of c.ids) initialChunkIds.add(id);
+	}
+	return initialChunkIds;
+};
+
+
+/***/ }),
+
 /***/ 70885:
 /***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
@@ -98500,6 +99723,20 @@ class AbstractLibraryPlugin {
 			}
 
 			if (
+				this.strictRuntimeBailout !==
+				AbstractLibraryPlugin.prototype.strictRuntimeBailout
+			) {
+				hooks.strictRuntimeBailout.tap(_pluginName, renderContext => {
+					const options = getOptionsForChunk(renderContext.chunk);
+					if (options === false) return;
+					return this.strictRuntimeBailout(renderContext, {
+						options,
+						compilation
+					});
+				});
+			}
+
+			if (
 				this.renderStartup !== AbstractLibraryPlugin.prototype.renderStartup
 			) {
 				hooks.renderStartup.tap(
@@ -98563,6 +99800,15 @@ class AbstractLibraryPlugin {
 	 * @returns {string | undefined} bailout reason
 	 */
 	embedInRuntimeBailout(module, renderContext, libraryContext) {
+		return undefined;
+	}
+
+	/**
+	 * @param {RenderContext} renderContext render context
+	 * @param {LibraryContext<T>} libraryContext context
+	 * @returns {string | undefined} bailout reason
+	 */
+	strictRuntimeBailout(renderContext, libraryContext) {
 		return undefined;
 	}
 
@@ -99028,6 +100274,23 @@ class AssignLibraryPlugin extends AbstractLibraryPlugin {
 		const base = fullNameResolved[0];
 		if (topLevelDeclarations.has(base))
 			return `it declares '${base}' on top-level, which conflicts with the current library output.`;
+	}
+
+	/**
+	 * @param {RenderContext} renderContext render context
+	 * @param {LibraryContext<T>} libraryContext context
+	 * @returns {string | undefined} bailout reason
+	 */
+	strictRuntimeBailout({ chunk }, { options, compilation }) {
+		if (
+			this.declare ||
+			this.prefix === "global" ||
+			this.prefix.length > 0 ||
+			!options.name
+		) {
+			return;
+		}
+		return "a global variable is assign and maybe created";
 	}
 
 	/**
@@ -99651,7 +100914,7 @@ class ModuleLibraryPlugin extends AbstractLibraryPlugin {
 		const { name } = library;
 		if (name) {
 			throw new Error(
-				`Library name must unset. ${AbstractLibraryPlugin.COMMON_LIBRARY_NAME_MESSAGE}`
+				`Library name must be unset. ${AbstractLibraryPlugin.COMMON_LIBRARY_NAME_MESSAGE}`
 			);
 		}
 		return {
@@ -100811,22 +102074,6 @@ class CommonJsChunkLoadingPlugin {
 					);
 				};
 
-				compilation.hooks.additionalTreeRuntimeRequirements.tap(
-					"CommonJsChunkLoadingPlugin",
-					(chunk, set) => {
-						if (!isEnabledForChunk(chunk)) return;
-						if (
-							Array.from(chunk.getAllReferencedChunks()).some(
-								c =>
-									c !== chunk &&
-									compilation.chunkGraph.getNumberOfEntryModules(c) > 0
-							)
-						) {
-							set.add(RuntimeGlobals.startupEntrypoint);
-							set.add(RuntimeGlobals.externalInstallChunk);
-						}
-					}
-				);
 				compilation.hooks.runtimeRequirementInTree
 					.for(RuntimeGlobals.ensureChunkHandlers)
 					.tap("CommonJsChunkLoadingPlugin", handler);
@@ -100838,6 +102085,12 @@ class CommonJsChunkLoadingPlugin {
 					.tap("CommonJsChunkLoadingPlugin", handler);
 				compilation.hooks.runtimeRequirementInTree
 					.for(RuntimeGlobals.baseURI)
+					.tap("CommonJsChunkLoadingPlugin", handler);
+				compilation.hooks.runtimeRequirementInTree
+					.for(RuntimeGlobals.externalInstallChunk)
+					.tap("CommonJsChunkLoadingPlugin", handler);
+				compilation.hooks.runtimeRequirementInTree
+					.for(RuntimeGlobals.onChunksLoaded)
 					.tap("CommonJsChunkLoadingPlugin", handler);
 
 				compilation.hooks.runtimeRequirementInTree
@@ -101182,6 +102435,12 @@ class NodeWatchFileSystem {
 					this.watcher.pause();
 				}
 			},
+			getAggregatedRemovals: () => {
+				return this.watcher && this.watcher.aggregatedRemovals;
+			},
+			getAggregatedChanges: () => {
+				return this.watcher && this.watcher.aggregatedChanges;
+			},
 			getFileTimeInfoEntries: () => {
 				if (this.watcher) {
 					return this.watcher.getTimeInfoEntries();
@@ -101222,6 +102481,7 @@ const {
 	chunkHasJs,
 	getChunkFilenameTemplate
 } = __webpack_require__(80867);
+const { getInitialChunkIds } = __webpack_require__(9005);
 const compileBooleanMatcher = __webpack_require__(29522);
 const { getUndoPath } = __webpack_require__(47779);
 
@@ -101242,6 +102502,9 @@ class ReadFileChunkLoadingRuntimeModule extends RuntimeModule {
 		const withExternalInstallChunk = this.runtimeRequirements.has(
 			RuntimeGlobals.externalInstallChunk
 		);
+		const withOnChunkLoad = this.runtimeRequirements.has(
+			RuntimeGlobals.onChunksLoaded
+		);
 		const withLoading = this.runtimeRequirements.has(
 			RuntimeGlobals.ensureChunkHandlers
 		);
@@ -101251,9 +102514,9 @@ class ReadFileChunkLoadingRuntimeModule extends RuntimeModule {
 		const withHmrManifest = this.runtimeRequirements.has(
 			RuntimeGlobals.hmrDownloadManifest
 		);
-		const hasJsMatcher = compileBooleanMatcher(
-			chunkGraph.getChunkConditionMap(chunk, chunkHasJs)
-		);
+		const conditionMap = chunkGraph.getChunkConditionMap(chunk, chunkHasJs);
+		const hasJsMatcher = compileBooleanMatcher(conditionMap);
+		const initialChunkIds = getInitialChunkIds(chunk, chunkGraph);
 
 		const outputName = this.compilation.getPath(
 			getChunkFilenameTemplate(chunk, this.compilation.outputOptions),
@@ -101262,7 +102525,11 @@ class ReadFileChunkLoadingRuntimeModule extends RuntimeModule {
 				contentHashType: "javascript"
 			}
 		);
-		const rootOutputDir = getUndoPath(outputName, false);
+		const rootOutputDir = getUndoPath(
+			outputName,
+			this.compilation.outputOptions.path,
+			false
+		);
 
 		return Template.asString([
 			withBaseURI
@@ -101279,9 +102546,20 @@ class ReadFileChunkLoadingRuntimeModule extends RuntimeModule {
 			'// "0" means "already loaded", Promise means loading',
 			"var installedChunks = {",
 			Template.indent(
-				chunk.ids.map(id => `${JSON.stringify(id)}: 0`).join(",\n")
+				Array.from(initialChunkIds, id => `${JSON.stringify(id)}: 0`).join(
+					",\n"
+				)
 			),
 			"};",
+			"",
+			withOnChunkLoad
+				? `${
+						RuntimeGlobals.onChunksLoaded
+				  }.readFileVm = ${runtimeTemplate.returningFunction(
+						"installedChunks[chunkId] === 0",
+						"chunkId"
+				  )};`
+				: "// no on chunks loaded",
 			"",
 			withLoading || withExternalInstallChunk
 				? `var installChunk = ${runtimeTemplate.basicFunction("chunk", [
@@ -101296,18 +102574,15 @@ class ReadFileChunkLoadingRuntimeModule extends RuntimeModule {
 						]),
 						"}",
 						`if(runtime) runtime(__webpack_require__);`,
-						"var callbacks = [];",
 						"for(var i = 0; i < chunkIds.length; i++) {",
 						Template.indent([
-							"if(installedChunks[chunkIds[i]])",
-							Template.indent([
-								"callbacks = callbacks.concat(installedChunks[chunkIds[i]][0]);"
-							]),
+							"if(installedChunks[chunkIds[i]]) {",
+							Template.indent(["installedChunks[chunkIds[i]][0]();"]),
+							"}",
 							"installedChunks[chunkIds[i]] = 0;"
 						]),
 						"}",
-						"for(i = 0; i < callbacks.length; i++)",
-						Template.indent("callbacks[i]();")
+						withOnChunkLoad ? `${RuntimeGlobals.onChunksLoaded}();` : ""
 				  ])};`
 				: "// no chunk install function needed",
 			"",
@@ -101673,6 +102948,7 @@ const {
 	chunkHasJs,
 	getChunkFilenameTemplate
 } = __webpack_require__(80867);
+const { getInitialChunkIds } = __webpack_require__(9005);
 const compileBooleanMatcher = __webpack_require__(29522);
 const { getUndoPath } = __webpack_require__(47779);
 
@@ -101693,6 +102969,9 @@ class RequireChunkLoadingRuntimeModule extends RuntimeModule {
 		const withExternalInstallChunk = this.runtimeRequirements.has(
 			RuntimeGlobals.externalInstallChunk
 		);
+		const withOnChunkLoad = this.runtimeRequirements.has(
+			RuntimeGlobals.onChunksLoaded
+		);
 		const withLoading = this.runtimeRequirements.has(
 			RuntimeGlobals.ensureChunkHandlers
 		);
@@ -101702,9 +102981,9 @@ class RequireChunkLoadingRuntimeModule extends RuntimeModule {
 		const withHmrManifest = this.runtimeRequirements.has(
 			RuntimeGlobals.hmrDownloadManifest
 		);
-		const hasJsMatcher = compileBooleanMatcher(
-			chunkGraph.getChunkConditionMap(chunk, chunkHasJs)
-		);
+		const conditionMap = chunkGraph.getChunkConditionMap(chunk, chunkHasJs);
+		const hasJsMatcher = compileBooleanMatcher(conditionMap);
+		const initialChunkIds = getInitialChunkIds(chunk, chunkGraph);
 
 		const outputName = this.compilation.getPath(
 			getChunkFilenameTemplate(chunk, this.compilation.outputOptions),
@@ -101713,7 +102992,11 @@ class RequireChunkLoadingRuntimeModule extends RuntimeModule {
 				contentHashType: "javascript"
 			}
 		);
-		const rootOutputDir = getUndoPath(outputName, true);
+		const rootOutputDir = getUndoPath(
+			outputName,
+			this.compilation.outputOptions.path,
+			true
+		);
 
 		return Template.asString([
 			withBaseURI
@@ -101730,9 +103013,20 @@ class RequireChunkLoadingRuntimeModule extends RuntimeModule {
 			'// "1" means "loaded", otherwise not loaded yet',
 			"var installedChunks = {",
 			Template.indent(
-				chunk.ids.map(id => `${JSON.stringify(id)}: 1`).join(",\n")
+				Array.from(initialChunkIds, id => `${JSON.stringify(id)}: 1`).join(
+					",\n"
+				)
 			),
 			"};",
+			"",
+			withOnChunkLoad
+				? `${
+						RuntimeGlobals.onChunksLoaded
+				  }.require = ${runtimeTemplate.returningFunction(
+						"installedChunks[chunkId]",
+						"chunkId"
+				  )};`
+				: "// no on chunks loaded",
 			"",
 			withLoading || withExternalInstallChunk
 				? `var installChunk = ${runtimeTemplate.basicFunction("chunk", [
@@ -101748,35 +103042,38 @@ class RequireChunkLoadingRuntimeModule extends RuntimeModule {
 						"}",
 						`if(runtime) runtime(__webpack_require__);`,
 						"for(var i = 0; i < chunkIds.length; i++)",
-						Template.indent("installedChunks[chunkIds[i]] = 1;")
+						Template.indent("installedChunks[chunkIds[i]] = 1;"),
+						withOnChunkLoad ? `${RuntimeGlobals.onChunksLoaded}();` : ""
 				  ])};`
 				: "// no chunk install function needed",
 			"",
 			withLoading
 				? Template.asString([
 						"// require() chunk loading for javascript",
-						`${fn}.require = function(chunkId, promises) {`,
-						hasJsMatcher !== false
-							? Template.indent([
-									"",
-									'// "1" is the signal for "already loaded"',
-									"if(!installedChunks[chunkId]) {",
-									Template.indent([
-										hasJsMatcher === true
-											? "if(true) { // all chunks have JS"
-											: `if(${hasJsMatcher("chunkId")}) {`,
+						`${fn}.require = ${runtimeTemplate.basicFunction(
+							"chunkId, promises",
+							hasJsMatcher !== false
+								? [
+										'// "1" is the signal for "already loaded"',
+										"if(!installedChunks[chunkId]) {",
 										Template.indent([
-											`installChunk(require(${JSON.stringify(
-												rootOutputDir
-											)} + ${RuntimeGlobals.getChunkScriptFilename}(chunkId)));`
+											hasJsMatcher === true
+												? "if(true) { // all chunks have JS"
+												: `if(${hasJsMatcher("chunkId")}) {`,
+											Template.indent([
+												`installChunk(require(${JSON.stringify(
+													rootOutputDir
+												)} + ${
+													RuntimeGlobals.getChunkScriptFilename
+												}(chunkId)));`
+											]),
+											"} else installedChunks[chunkId] = 1;",
+											""
 										]),
-										"} else installedChunks[chunkId] = 1;",
-										""
-									]),
-									"}"
-							  ])
-							: "installedChunks[chunkId] = 1;",
-						"};"
+										"}"
+								  ]
+								: "installedChunks[chunkId] = 1;"
+						)};`
 				  ])
 				: "// no chunk loading",
 			"",
@@ -103110,9 +104407,6 @@ class ConcatenatedModule extends Module {
 		this._modules = modules;
 		this._runtime = runtime;
 		this.factoryMeta = rootModule && rootModule.factoryMeta;
-
-		// Caching
-		// TODO
 	}
 
 	/**
@@ -103123,13 +104417,9 @@ class ConcatenatedModule extends Module {
 	 * @returns {void}
 	 */
 	updateCacheModule(module) {
-		super.updateCacheModule(module);
-		const m = /** @type {ConcatenatedModule} */ (module);
-		this._identifier = m._identifier;
-		this.rootModule = m.rootModule;
-		this._modules = m._modules;
-		this._runtime = m._runtime;
+		throw new Error("Must not be called");
 	}
+
 	/**
 	 * @returns {Set<string>} types available (do not mutate)
 	 */
@@ -103678,7 +104968,10 @@ class ConcatenatedModule extends Module {
 								const path = getPathInAst(info.ast, identifier);
 								if (path && path.length > 1) {
 									const maybeProperty =
-										path[1].type === "AssignmentPattern" ? path[2] : path[1];
+										path[1].type === "AssignmentPattern" &&
+										path[1].left === path[0]
+											? path[2]
+											: path[1];
 									if (
 										maybeProperty.type === "Property" &&
 										maybeProperty.shorthand
@@ -105880,8 +107173,6 @@ module.exports = MinMaxSizeWarning;
 const asyncLib = __webpack_require__(36386);
 const ChunkGraph = __webpack_require__(67518);
 const ModuleGraph = __webpack_require__(73444);
-const ModuleRestoreError = __webpack_require__(61938);
-const ModuleStoreError = __webpack_require__(20027);
 const { STAGE_DEFAULT } = __webpack_require__(90412);
 const HarmonyImportDependency = __webpack_require__(289);
 const { compareModulesByIdentifier } = __webpack_require__(21699);
@@ -105900,6 +107191,20 @@ const ConcatenatedModule = __webpack_require__(74233);
 /** @typedef {import("../RequestShortener")} RequestShortener */
 /** @typedef {import("../util/runtime").RuntimeSpec} RuntimeSpec */
 
+/**
+ * @typedef {Object} Statistics
+ * @property {number} cached
+ * @property {number} alreadyInConfig
+ * @property {number} invalidModule
+ * @property {number} incorrectChunks
+ * @property {number} incorrectDependency
+ * @property {number} incorrectModuleDependency
+ * @property {number} incorrectChunksOfImporter
+ * @property {number} incorrectRuntimeCondition
+ * @property {number} importerFailed
+ * @property {number} added
+ */
+
 const formatBailoutReason = msg => {
 	return "ModuleConcatenation bailout: " + msg;
 };
@@ -105916,411 +107221,407 @@ class ModuleConcatenationPlugin {
 	 * @returns {void}
 	 */
 	apply(compiler) {
-		compiler.hooks.compilation.tap(
-			"ModuleConcatenationPlugin",
-			(compilation, { normalModuleFactory }) => {
-				const moduleGraph = compilation.moduleGraph;
-				const bailoutReasonMap = new Map();
-				const cache = compilation.getCache("ModuleConcatenationPlugin");
+		compiler.hooks.compilation.tap("ModuleConcatenationPlugin", compilation => {
+			const moduleGraph = compilation.moduleGraph;
+			const bailoutReasonMap = new Map();
 
-				const setBailoutReason = (module, reason) => {
-					setInnerBailoutReason(module, reason);
-					moduleGraph
-						.getOptimizationBailout(module)
-						.push(
-							typeof reason === "function"
-								? rs => formatBailoutReason(reason(rs))
-								: formatBailoutReason(reason)
-						);
-				};
+			const setBailoutReason = (module, reason) => {
+				setInnerBailoutReason(module, reason);
+				moduleGraph
+					.getOptimizationBailout(module)
+					.push(
+						typeof reason === "function"
+							? rs => formatBailoutReason(reason(rs))
+							: formatBailoutReason(reason)
+					);
+			};
 
-				const setInnerBailoutReason = (module, reason) => {
-					bailoutReasonMap.set(module, reason);
-				};
+			const setInnerBailoutReason = (module, reason) => {
+				bailoutReasonMap.set(module, reason);
+			};
 
-				const getInnerBailoutReason = (module, requestShortener) => {
-					const reason = bailoutReasonMap.get(module);
-					if (typeof reason === "function") return reason(requestShortener);
-					return reason;
-				};
+			const getInnerBailoutReason = (module, requestShortener) => {
+				const reason = bailoutReasonMap.get(module);
+				if (typeof reason === "function") return reason(requestShortener);
+				return reason;
+			};
 
-				const formatBailoutWarning = (module, problem) => requestShortener => {
-					if (typeof problem === "function") {
-						return formatBailoutReason(
-							`Cannot concat with ${module.readableIdentifier(
-								requestShortener
-							)}: ${problem(requestShortener)}`
-						);
-					}
-					const reason = getInnerBailoutReason(module, requestShortener);
-					const reasonWithPrefix = reason ? `: ${reason}` : "";
-					if (module === problem) {
-						return formatBailoutReason(
-							`Cannot concat with ${module.readableIdentifier(
-								requestShortener
-							)}${reasonWithPrefix}`
-						);
-					} else {
-						return formatBailoutReason(
-							`Cannot concat with ${module.readableIdentifier(
-								requestShortener
-							)} because of ${problem.readableIdentifier(
-								requestShortener
-							)}${reasonWithPrefix}`
-						);
-					}
-				};
+			const formatBailoutWarning = (module, problem) => requestShortener => {
+				if (typeof problem === "function") {
+					return formatBailoutReason(
+						`Cannot concat with ${module.readableIdentifier(
+							requestShortener
+						)}: ${problem(requestShortener)}`
+					);
+				}
+				const reason = getInnerBailoutReason(module, requestShortener);
+				const reasonWithPrefix = reason ? `: ${reason}` : "";
+				if (module === problem) {
+					return formatBailoutReason(
+						`Cannot concat with ${module.readableIdentifier(
+							requestShortener
+						)}${reasonWithPrefix}`
+					);
+				} else {
+					return formatBailoutReason(
+						`Cannot concat with ${module.readableIdentifier(
+							requestShortener
+						)} because of ${problem.readableIdentifier(
+							requestShortener
+						)}${reasonWithPrefix}`
+					);
+				}
+			};
 
-				compilation.hooks.optimizeChunkModules.tapAsync(
-					{
-						name: "ModuleConcatenationPlugin",
-						stage: STAGE_DEFAULT
-					},
-					(allChunks, modules, callback) => {
-						const logger = compilation.getLogger(
-							"webpack.ModuleConcatenationPlugin"
-						);
-						const { chunkGraph, moduleGraph } = compilation;
-						const relevantModules = [];
-						const possibleInners = new Set();
-						const context = {
-							chunkGraph,
-							moduleGraph
-						};
-						logger.time("select relevant modules");
-						for (const module of modules) {
-							let canBeRoot = true;
-							let canBeInner = true;
+			compilation.hooks.optimizeChunkModules.tapAsync(
+				{
+					name: "ModuleConcatenationPlugin",
+					stage: STAGE_DEFAULT
+				},
+				(allChunks, modules, callback) => {
+					const logger = compilation.getLogger(
+						"webpack.ModuleConcatenationPlugin"
+					);
+					const { chunkGraph, moduleGraph } = compilation;
+					const relevantModules = [];
+					const possibleInners = new Set();
+					const context = {
+						chunkGraph,
+						moduleGraph
+					};
+					logger.time("select relevant modules");
+					for (const module of modules) {
+						let canBeRoot = true;
+						let canBeInner = true;
 
-							const bailoutReason = module.getConcatenationBailoutReason(
-								context
-							);
-							if (bailoutReason) {
-								setBailoutReason(module, bailoutReason);
-								continue;
-							}
-
-							// Must not be an async module
-							if (moduleGraph.isAsync(module)) {
-								setBailoutReason(module, `Module is async`);
-								continue;
-							}
-
-							// Must be in strict mode
-							if (!module.buildInfo.strict) {
-								setBailoutReason(module, `Module is not in strict mode`);
-								continue;
-							}
-
-							// Module must be in any chunk (we don't want to do useless work)
-							if (chunkGraph.getNumberOfModuleChunks(module) === 0) {
-								setBailoutReason(module, "Module is not in any chunk");
-								continue;
-							}
-
-							// Exports must be known (and not dynamic)
-							const exportsInfo = moduleGraph.getExportsInfo(module);
-							const relevantExports = exportsInfo.getRelevantExports(undefined);
-							const unknownReexports = relevantExports.filter(exportInfo => {
-								return (
-									exportInfo.isReexport() && !exportInfo.getTarget(moduleGraph)
-								);
-							});
-							if (unknownReexports.length > 0) {
-								setBailoutReason(
-									module,
-									`Reexports in this module do not have a static target (${Array.from(
-										unknownReexports,
-										exportInfo =>
-											`${
-												exportInfo.name || "other exports"
-											}: ${exportInfo.getUsedInfo()}`
-									).join(", ")})`
-								);
-								continue;
-							}
-
-							// Root modules must have a static list of exports
-							const unknownProvidedExports = relevantExports.filter(
-								exportInfo => {
-									return exportInfo.provided !== true;
-								}
-							);
-							if (unknownProvidedExports.length > 0) {
-								setBailoutReason(
-									module,
-									`List of module exports is dynamic (${Array.from(
-										unknownProvidedExports,
-										exportInfo =>
-											`${
-												exportInfo.name || "other exports"
-											}: ${exportInfo.getProvidedInfo()} and ${exportInfo.getUsedInfo()}`
-									).join(", ")})`
-								);
-								canBeRoot = false;
-							}
-
-							// Module must not be an entry point
-							if (chunkGraph.isEntryModule(module)) {
-								setInnerBailoutReason(module, "Module is an entry point");
-								canBeInner = false;
-							}
-
-							if (canBeRoot) relevantModules.push(module);
-							if (canBeInner) possibleInners.add(module);
+						const bailoutReason = module.getConcatenationBailoutReason(context);
+						if (bailoutReason) {
+							setBailoutReason(module, bailoutReason);
+							continue;
 						}
-						logger.timeEnd("select relevant modules");
-						logger.debug(
-							`${relevantModules.length} potential root modules, ${possibleInners.size} potential inner modules`
-						);
-						// sort by depth
-						// modules with lower depth are more likely suited as roots
-						// this improves performance, because modules already selected as inner are skipped
-						logger.time("sort relevant modules");
-						relevantModules.sort((a, b) => {
-							return moduleGraph.getDepth(a) - moduleGraph.getDepth(b);
+
+						// Must not be an async module
+						if (moduleGraph.isAsync(module)) {
+							setBailoutReason(module, `Module is async`);
+							continue;
+						}
+
+						// Must be in strict mode
+						if (!module.buildInfo.strict) {
+							setBailoutReason(module, `Module is not in strict mode`);
+							continue;
+						}
+
+						// Module must be in any chunk (we don't want to do useless work)
+						if (chunkGraph.getNumberOfModuleChunks(module) === 0) {
+							setBailoutReason(module, "Module is not in any chunk");
+							continue;
+						}
+
+						// Exports must be known (and not dynamic)
+						const exportsInfo = moduleGraph.getExportsInfo(module);
+						const relevantExports = exportsInfo.getRelevantExports(undefined);
+						const unknownReexports = relevantExports.filter(exportInfo => {
+							return (
+								exportInfo.isReexport() && !exportInfo.getTarget(moduleGraph)
+							);
 						});
-						logger.timeEnd("sort relevant modules");
+						if (unknownReexports.length > 0) {
+							setBailoutReason(
+								module,
+								`Reexports in this module do not have a static target (${Array.from(
+									unknownReexports,
+									exportInfo =>
+										`${
+											exportInfo.name || "other exports"
+										}: ${exportInfo.getUsedInfo()}`
+								).join(", ")})`
+							);
+							continue;
+						}
 
-						logger.time("find modules to concatenate");
-						const concatConfigurations = [];
-						const usedAsInner = new Set();
-						for (const currentRoot of relevantModules) {
-							// when used by another configuration as inner:
-							// the other configuration is better and we can skip this one
-							if (usedAsInner.has(currentRoot)) continue;
-
-							let chunkRuntime = undefined;
-							for (const r of chunkGraph.getModuleRuntimes(currentRoot)) {
-								chunkRuntime = mergeRuntimeOwned(chunkRuntime, r);
+						// Root modules must have a static list of exports
+						const unknownProvidedExports = relevantExports.filter(
+							exportInfo => {
+								return exportInfo.provided !== true;
 							}
-							const exportsInfo = moduleGraph.getExportsInfo(currentRoot);
-							const filteredRuntime = filterRuntime(chunkRuntime, r =>
-								exportsInfo.isModuleUsed(r)
+						);
+						if (unknownProvidedExports.length > 0) {
+							setBailoutReason(
+								module,
+								`List of module exports is dynamic (${Array.from(
+									unknownProvidedExports,
+									exportInfo =>
+										`${
+											exportInfo.name || "other exports"
+										}: ${exportInfo.getProvidedInfo()} and ${exportInfo.getUsedInfo()}`
+								).join(", ")})`
 							);
-							const activeRuntime =
-								filteredRuntime === true
-									? chunkRuntime
-									: filteredRuntime === false
-									? undefined
-									: filteredRuntime;
+							canBeRoot = false;
+						}
 
-							// create a configuration with the root
-							const currentConfiguration = new ConcatConfiguration(
-								currentRoot,
-								activeRuntime
-							);
+						// Module must not be an entry point
+						if (chunkGraph.isEntryModule(module)) {
+							setInnerBailoutReason(module, "Module is an entry point");
+							canBeInner = false;
+						}
 
-							// cache failures to add modules
-							const failureCache = new Map();
+						if (canBeRoot) relevantModules.push(module);
+						if (canBeInner) possibleInners.add(module);
+					}
+					logger.timeEnd("select relevant modules");
+					logger.debug(
+						`${relevantModules.length} potential root modules, ${possibleInners.size} potential inner modules`
+					);
+					// sort by depth
+					// modules with lower depth are more likely suited as roots
+					// this improves performance, because modules already selected as inner are skipped
+					logger.time("sort relevant modules");
+					relevantModules.sort((a, b) => {
+						return moduleGraph.getDepth(a) - moduleGraph.getDepth(b);
+					});
+					logger.timeEnd("sort relevant modules");
 
-							// potential optional import candidates
-							/** @type {Set<Module>} */
-							const candidates = new Set();
+					/** @type {Statistics} */
+					const stats = {
+						cached: 0,
+						alreadyInConfig: 0,
+						invalidModule: 0,
+						incorrectChunks: 0,
+						incorrectDependency: 0,
+						incorrectModuleDependency: 0,
+						incorrectChunksOfImporter: 0,
+						incorrectRuntimeCondition: 0,
+						importerFailed: 0,
+						added: 0
+					};
+					let statsCandidates = 0;
+					let statsSizeSum = 0;
+					let statsEmptyConfigurations = 0;
 
-							// try to add all imports
-							for (const imp of this._getImports(
+					logger.time("find modules to concatenate");
+					const concatConfigurations = [];
+					const usedAsInner = new Set();
+					for (const currentRoot of relevantModules) {
+						// when used by another configuration as inner:
+						// the other configuration is better and we can skip this one
+						// TODO reconsider that when it's only used in a different runtime
+						if (usedAsInner.has(currentRoot)) continue;
+
+						let chunkRuntime = undefined;
+						for (const r of chunkGraph.getModuleRuntimes(currentRoot)) {
+							chunkRuntime = mergeRuntimeOwned(chunkRuntime, r);
+						}
+						const exportsInfo = moduleGraph.getExportsInfo(currentRoot);
+						const filteredRuntime = filterRuntime(chunkRuntime, r =>
+							exportsInfo.isModuleUsed(r)
+						);
+						const activeRuntime =
+							filteredRuntime === true
+								? chunkRuntime
+								: filteredRuntime === false
+								? undefined
+								: filteredRuntime;
+
+						// create a configuration with the root
+						const currentConfiguration = new ConcatConfiguration(
+							currentRoot,
+							activeRuntime
+						);
+
+						// cache failures to add modules
+						const failureCache = new Map();
+
+						// potential optional import candidates
+						/** @type {Set<Module>} */
+						const candidates = new Set();
+
+						// try to add all imports
+						for (const imp of this._getImports(
+							compilation,
+							currentRoot,
+							activeRuntime
+						)) {
+							candidates.add(imp);
+						}
+
+						for (const imp of candidates) {
+							const impCandidates = new Set();
+							const problem = this._tryToAdd(
 								compilation,
-								currentRoot,
-								activeRuntime
-							)) {
-								candidates.add(imp);
-							}
-
-							for (const imp of candidates) {
-								const impCandidates = new Set();
-								const problem = this._tryToAdd(
-									compilation,
-									currentConfiguration,
-									imp,
-									chunkRuntime,
-									activeRuntime,
-									possibleInners,
-									impCandidates,
-									failureCache,
-									chunkGraph,
-									true
-								);
-								if (problem) {
-									failureCache.set(imp, problem);
-									currentConfiguration.addWarning(imp, problem);
-								} else {
-									for (const c of impCandidates) {
-										candidates.add(c);
-									}
-								}
-							}
-							if (!currentConfiguration.isEmpty()) {
-								concatConfigurations.push(currentConfiguration);
-								for (const module of currentConfiguration.getModules()) {
-									if (module !== currentConfiguration.rootModule) {
-										usedAsInner.add(module);
-									}
-								}
+								currentConfiguration,
+								imp,
+								chunkRuntime,
+								activeRuntime,
+								possibleInners,
+								impCandidates,
+								failureCache,
+								chunkGraph,
+								true,
+								stats
+							);
+							if (problem) {
+								failureCache.set(imp, problem);
+								currentConfiguration.addWarning(imp, problem);
 							} else {
-								const optimizationBailouts = moduleGraph.getOptimizationBailout(
-									currentRoot
-								);
-								for (const warning of currentConfiguration.getWarningsSorted()) {
-									optimizationBailouts.push(
-										formatBailoutWarning(warning[0], warning[1])
-									);
+								for (const c of impCandidates) {
+									candidates.add(c);
 								}
 							}
 						}
-						logger.timeEnd("find modules to concatenate");
-						logger.debug(
-							`${concatConfigurations.length} concat configurations`
-						);
-						// HACK: Sort configurations by length and start with the longest one
-						// to get the biggest groups possible. Used modules are marked with usedModules
-						// TODO: Allow to reuse existing configuration while trying to add dependencies.
-						// This would improve performance. O(n^2) -> O(n)
-						logger.time(`sort concat configurations`);
-						concatConfigurations.sort((a, b) => {
-							return b.modules.size - a.modules.size;
-						});
-						logger.timeEnd(`sort concat configurations`);
-						const usedModules = new Set();
-
-						logger.time("create concatenated modules");
-						asyncLib.each(
-							concatConfigurations,
-							(concatConfiguration, callback) => {
-								const rootModule = concatConfiguration.rootModule;
-
-								// Avoid overlapping configurations
-								// TODO: remove this when todo above is fixed
-								if (usedModules.has(rootModule)) return callback();
-								const modules = concatConfiguration.getModules();
-								for (const m of modules) {
-									usedModules.add(m);
+						statsCandidates += candidates.size;
+						if (!currentConfiguration.isEmpty()) {
+							const modules = currentConfiguration.getModules();
+							statsSizeSum += modules.size;
+							concatConfigurations.push(currentConfiguration);
+							for (const module of modules) {
+								if (module !== currentConfiguration.rootModule) {
+									usedAsInner.add(module);
 								}
-
-								// Create a new ConcatenatedModule
-								let newModule = ConcatenatedModule.create(
-									rootModule,
-									modules,
-									concatConfiguration.runtime,
-									compiler.root
-								);
-
-								const cacheItem = cache.getItemCache(
-									newModule.identifier(),
-									null
-								);
-
-								const restore = () => {
-									cacheItem.get((err, cacheModule) => {
-										if (err) {
-											return callback(new ModuleRestoreError(newModule, err));
-										}
-
-										if (cacheModule) {
-											cacheModule.updateCacheModule(newModule);
-											newModule = cacheModule;
-										}
-
-										build();
-									});
-								};
-
-								const build = () => {
-									newModule.build(
-										compiler.options,
-										compilation,
-										null,
-										null,
-										err => {
-											if (err) {
-												if (!err.module) {
-													err.module = newModule;
-												}
-												return callback(err);
-											}
-											integrateAndStore();
-										}
-									);
-								};
-
-								const integrateAndStore = () => {
-									ChunkGraph.setChunkGraphForModule(newModule, chunkGraph);
-									ModuleGraph.setModuleGraphForModule(newModule, moduleGraph);
-
-									for (const warning of concatConfiguration.getWarningsSorted()) {
-										moduleGraph
-											.getOptimizationBailout(newModule)
-											.push(formatBailoutWarning(warning[0], warning[1]));
-									}
-									moduleGraph.cloneModuleAttributes(rootModule, newModule);
-									for (const m of modules) {
-										// add to builtModules when one of the included modules was built
-										if (compilation.builtModules.has(m)) {
-											compilation.builtModules.add(newModule);
-										}
-										if (m !== rootModule) {
-											// attach external references to the concatenated module too
-											moduleGraph.copyOutgoingModuleConnections(
-												m,
-												newModule,
-												c => {
-													return (
-														c.originModule === m &&
-														!(
-															c.dependency instanceof HarmonyImportDependency &&
-															modules.has(c.module)
-														)
-													);
-												}
-											);
-											// remove module from chunk
-											for (const chunk of chunkGraph.getModuleChunksIterable(
-												rootModule
-											)) {
-												chunkGraph.disconnectChunkAndModule(chunk, m);
-											}
-										}
-									}
-									compilation.modules.delete(rootModule);
-									// remove module from chunk
-									chunkGraph.replaceModule(rootModule, newModule);
-									// replace module references with the concatenated module
-									moduleGraph.moveModuleConnections(
-										rootModule,
-										newModule,
-										c => {
-											const otherModule =
-												c.module === rootModule ? c.originModule : c.module;
-											const innerConnection =
-												c.dependency instanceof HarmonyImportDependency &&
-												modules.has(otherModule);
-											return !innerConnection;
-										}
-									);
-									// add concatenated module to the compilation
-									compilation.modules.add(newModule);
-
-									// TODO check if module needs build to avoid caching it without change
-									cacheItem.store(newModule, err => {
-										if (err) {
-											return callback(new ModuleStoreError(newModule, err));
-										}
-
-										callback();
-									});
-								};
-
-								restore();
-							},
-							err => {
-								logger.timeEnd("create concatenated modules");
-								process.nextTick(() => callback(err));
 							}
-						);
+						} else {
+							statsEmptyConfigurations++;
+							const optimizationBailouts = moduleGraph.getOptimizationBailout(
+								currentRoot
+							);
+							for (const warning of currentConfiguration.getWarningsSorted()) {
+								optimizationBailouts.push(
+									formatBailoutWarning(warning[0], warning[1])
+								);
+							}
+						}
 					}
-				);
-			}
-		);
+					logger.timeEnd("find modules to concatenate");
+					logger.debug(
+						`${
+							concatConfigurations.length
+						} successful concat configurations (avg size: ${
+							statsSizeSum / concatConfigurations.length
+						}), ${statsEmptyConfigurations} bailed out completely`
+					);
+					logger.debug(
+						`${statsCandidates} candidates were considered for adding (${stats.cached} cached failure, ${stats.alreadyInConfig} already in config, ${stats.invalidModule} invalid module, ${stats.incorrectChunks} incorrect chunks, ${stats.incorrectDependency} incorrect dependency, ${stats.incorrectChunksOfImporter} incorrect chunks of importer, ${stats.incorrectModuleDependency} incorrect module dependency, ${stats.incorrectRuntimeCondition} incorrect runtime condition, ${stats.importerFailed} importer failed, ${stats.added} added)`
+					);
+					// HACK: Sort configurations by length and start with the longest one
+					// to get the biggest groups possible. Used modules are marked with usedModules
+					// TODO: Allow to reuse existing configuration while trying to add dependencies.
+					// This would improve performance. O(n^2) -> O(n)
+					logger.time(`sort concat configurations`);
+					concatConfigurations.sort((a, b) => {
+						return b.modules.size - a.modules.size;
+					});
+					logger.timeEnd(`sort concat configurations`);
+					const usedModules = new Set();
+
+					logger.time("create concatenated modules");
+					asyncLib.each(
+						concatConfigurations,
+						(concatConfiguration, callback) => {
+							const rootModule = concatConfiguration.rootModule;
+
+							// Avoid overlapping configurations
+							// TODO: remove this when todo above is fixed
+							if (usedModules.has(rootModule)) return callback();
+							const modules = concatConfiguration.getModules();
+							for (const m of modules) {
+								usedModules.add(m);
+							}
+
+							// Create a new ConcatenatedModule
+							let newModule = ConcatenatedModule.create(
+								rootModule,
+								modules,
+								concatConfiguration.runtime,
+								compiler.root
+							);
+
+							const build = () => {
+								newModule.build(
+									compiler.options,
+									compilation,
+									null,
+									null,
+									err => {
+										if (err) {
+											if (!err.module) {
+												err.module = newModule;
+											}
+											return callback(err);
+										}
+										integrate();
+									}
+								);
+							};
+
+							const integrate = () => {
+								ChunkGraph.setChunkGraphForModule(newModule, chunkGraph);
+								ModuleGraph.setModuleGraphForModule(newModule, moduleGraph);
+
+								for (const warning of concatConfiguration.getWarningsSorted()) {
+									moduleGraph
+										.getOptimizationBailout(newModule)
+										.push(formatBailoutWarning(warning[0], warning[1]));
+								}
+								moduleGraph.cloneModuleAttributes(rootModule, newModule);
+								for (const m of modules) {
+									// add to builtModules when one of the included modules was built
+									if (compilation.builtModules.has(m)) {
+										compilation.builtModules.add(newModule);
+									}
+									if (m !== rootModule) {
+										// attach external references to the concatenated module too
+										moduleGraph.copyOutgoingModuleConnections(
+											m,
+											newModule,
+											c => {
+												return (
+													c.originModule === m &&
+													!(
+														c.dependency instanceof HarmonyImportDependency &&
+														modules.has(c.module)
+													)
+												);
+											}
+										);
+										// remove module from chunk
+										for (const chunk of chunkGraph.getModuleChunksIterable(
+											rootModule
+										)) {
+											chunkGraph.disconnectChunkAndModule(chunk, m);
+										}
+									}
+								}
+								compilation.modules.delete(rootModule);
+								ChunkGraph.clearChunkGraphForModule(rootModule);
+								ModuleGraph.clearModuleGraphForModule(rootModule);
+
+								// remove module from chunk
+								chunkGraph.replaceModule(rootModule, newModule);
+								// replace module references with the concatenated module
+								moduleGraph.moveModuleConnections(rootModule, newModule, c => {
+									const otherModule =
+										c.module === rootModule ? c.originModule : c.module;
+									const innerConnection =
+										c.dependency instanceof HarmonyImportDependency &&
+										modules.has(otherModule);
+									return !innerConnection;
+								});
+								// add concatenated module to the compilation
+								compilation.modules.add(newModule);
+
+								callback();
+							};
+
+							build();
+						},
+						err => {
+							logger.timeEnd("create concatenated modules");
+							process.nextTick(() => callback(err));
+						}
+					);
+				}
+			);
+		});
 	}
 
 	/**
@@ -106374,6 +107675,7 @@ class ModuleConcatenationPlugin {
 	 * @param {Map<Module, Module | function(RequestShortener): string>} failureCache cache for problematic modules to be more performant
 	 * @param {ChunkGraph} chunkGraph the chunk graph
 	 * @param {boolean} avoidMutateOnFailure avoid mutating the config when adding fails
+	 * @param {Statistics} statistics gathering metrics
 	 * @returns {Module | function(RequestShortener): string} the problematic module
 	 */
 	_tryToAdd(
@@ -106386,20 +107688,24 @@ class ModuleConcatenationPlugin {
 		candidates,
 		failureCache,
 		chunkGraph,
-		avoidMutateOnFailure
+		avoidMutateOnFailure,
+		statistics
 	) {
 		const cacheEntry = failureCache.get(module);
 		if (cacheEntry) {
+			statistics.cached++;
 			return cacheEntry;
 		}
 
 		// Already added?
 		if (config.has(module)) {
+			statistics.alreadyInConfig++;
 			return null;
 		}
 
 		// Not possible to add?
 		if (!possibleModules.has(module)) {
+			statistics.invalidModule++;
 			failureCache.set(module, module); // cache failures for performance
 			return module;
 		}
@@ -106407,134 +107713,106 @@ class ModuleConcatenationPlugin {
 		// Module must be in the correct chunks
 		const missingChunks = Array.from(
 			chunkGraph.getModuleChunksIterable(config.rootModule)
-		)
-			.filter(chunk => !chunkGraph.isModuleInChunk(module, chunk))
-			.map(chunk => chunk.name || "unnamed chunk(s)");
+		).filter(chunk => !chunkGraph.isModuleInChunk(module, chunk));
 		if (missingChunks.length > 0) {
-			const missingChunksList = Array.from(new Set(missingChunks)).sort();
-			const chunks = Array.from(
-				new Set(
-					Array.from(chunkGraph.getModuleChunksIterable(module)).map(
-						chunk => chunk.name || "unnamed chunk(s)"
+			const problem = requestShortener => {
+				const missingChunksList = Array.from(
+					new Set(missingChunks.map(chunk => chunk.name || "unnamed chunk(s)"))
+				).sort();
+				const chunks = Array.from(
+					new Set(
+						Array.from(chunkGraph.getModuleChunksIterable(module)).map(
+							chunk => chunk.name || "unnamed chunk(s)"
+						)
 					)
-				)
-			).sort();
-			const problem = requestShortener =>
-				`Module ${module.readableIdentifier(
+				).sort();
+				return `Module ${module.readableIdentifier(
 					requestShortener
 				)} is not in the same chunk(s) (expected in chunk(s) ${missingChunksList.join(
 					", "
 				)}, module is in chunk(s) ${chunks.join(", ")})`;
+			};
+			statistics.incorrectChunks++;
 			failureCache.set(module, problem); // cache failures for performance
 			return problem;
 		}
 
 		const moduleGraph = compilation.moduleGraph;
 
-		const incomingConnections = Array.from(
-			moduleGraph.getIncomingConnections(module)
-		).filter(connection => {
-			// We are not interested in inactive connections
-			if (!connection.isActive(runtime)) return false;
-
-			// Include, but do not analyse further, connections from non-modules
-			if (!connection.originModule) return true;
-
-			// Ignore connection from orphan modules
-			if (chunkGraph.getNumberOfModuleChunks(connection.originModule) === 0)
-				return false;
-
-			// We don't care for connections from other runtimes
-			let originRuntime = undefined;
-			for (const r of chunkGraph.getModuleRuntimes(connection.originModule)) {
-				originRuntime = mergeRuntimeOwned(originRuntime, r);
-			}
-
-			return intersectRuntime(runtime, originRuntime);
-		});
-
-		const nonHarmonyConnections = incomingConnections.filter(
-			connection =>
-				!connection.originModule ||
-				!connection.dependency ||
-				!(connection.dependency instanceof HarmonyImportDependency)
+		const incomingConnections = moduleGraph.getIncomingConnectionsByOriginModule(
+			module
 		);
-		if (nonHarmonyConnections.length > 0) {
-			const problem = requestShortener => {
-				const importingModules = new Set(
-					nonHarmonyConnections.map(c => c.originModule).filter(Boolean)
-				);
-				const importingExplanations = new Set(
-					nonHarmonyConnections.map(c => c.explanation).filter(Boolean)
-				);
-				const importingModuleTypes = new Map(
-					Array.from(importingModules).map(
-						m =>
-							/** @type {[Module, Set<string>]} */ ([
-								m,
-								new Set(
-									nonHarmonyConnections
-										.filter(c => c.originModule === m)
-										.map(c => c.dependency.type)
-										.sort()
-								)
-							])
-					)
-				);
-				const names = Array.from(importingModules)
-					.map(
-						m =>
-							`${m.readableIdentifier(
-								requestShortener
-							)} (referenced with ${Array.from(
-								importingModuleTypes.get(m)
-							).join(", ")})`
-					)
-					.sort();
-				const explanations = Array.from(importingExplanations).sort();
-				if (names.length > 0 && explanations.length === 0) {
-					return `Module ${module.readableIdentifier(
-						requestShortener
-					)} is referenced from these modules with unsupported syntax: ${names.join(
-						", "
-					)}`;
-				} else if (names.length === 0 && explanations.length > 0) {
-					return `Module ${module.readableIdentifier(
-						requestShortener
-					)} is referenced by: ${explanations.join(", ")}`;
-				} else if (names.length > 0 && explanations.length > 0) {
-					return `Module ${module.readableIdentifier(
-						requestShortener
-					)} is referenced from these modules with unsupported syntax: ${names.join(
-						", "
-					)} and by: ${explanations.join(", ")}`;
-				} else {
-					return `Module ${module.readableIdentifier(
-						requestShortener
-					)} is referenced in a unsupported way`;
+
+		const incomingConnectionsFromNonModules =
+			incomingConnections.get(null) || incomingConnections.get(undefined);
+		if (incomingConnectionsFromNonModules) {
+			const activeNonModulesConnections = incomingConnectionsFromNonModules.filter(
+				connection => {
+					// We are not interested in inactive connections
+					// or connections without dependency
+					return connection.isActive(runtime) || connection.dependency;
 				}
-			};
-			failureCache.set(module, problem); // cache failures for performance
-			return problem;
+			);
+			if (activeNonModulesConnections.length > 0) {
+				const problem = requestShortener => {
+					const importingExplanations = new Set(
+						activeNonModulesConnections.map(c => c.explanation).filter(Boolean)
+					);
+					const explanations = Array.from(importingExplanations).sort();
+					return `Module ${module.readableIdentifier(
+						requestShortener
+					)} is referenced ${
+						explanations.length > 0
+							? `by: ${explanations.join(", ")}`
+							: "in an unsupported way"
+					}`;
+				};
+				statistics.incorrectDependency++;
+				failureCache.set(module, problem); // cache failures for performance
+				return problem;
+			}
 		}
 
+		/** @type {Map<Module, readonly ModuleGraph.ModuleGraphConnection[]>} */
+		const incomingConnectionsFromModules = new Map();
+		for (const [originModule, connections] of incomingConnections) {
+			if (originModule) {
+				// Ignore connection from orphan modules
+				if (chunkGraph.getNumberOfModuleChunks(originModule) === 0) continue;
+
+				// We don't care for connections from other runtimes
+				let originRuntime = undefined;
+				for (const r of chunkGraph.getModuleRuntimes(originModule)) {
+					originRuntime = mergeRuntimeOwned(originRuntime, r);
+				}
+
+				if (!intersectRuntime(runtime, originRuntime)) continue;
+
+				// We are not interested in inactive connections
+				const activeConnections = connections.filter(connection =>
+					connection.isActive(runtime)
+				);
+				if (activeConnections.length > 0)
+					incomingConnectionsFromModules.set(originModule, activeConnections);
+			}
+		}
+
+		const incomingModules = Array.from(incomingConnectionsFromModules.keys());
+
 		// Module must be in the same chunks like the referencing module
-		const otherChunkConnections = incomingConnections.filter(connection => {
+		const otherChunkModules = incomingModules.filter(originModule => {
 			for (const chunk of chunkGraph.getModuleChunksIterable(
 				config.rootModule
 			)) {
-				if (!chunkGraph.isModuleInChunk(connection.originModule, chunk)) {
+				if (!chunkGraph.isModuleInChunk(originModule, chunk)) {
 					return true;
 				}
 			}
 			return false;
 		});
-		if (otherChunkConnections.length > 0) {
+		if (otherChunkModules.length > 0) {
 			const problem = requestShortener => {
-				const importingModules = new Set(
-					otherChunkConnections.map(c => c.originModule)
-				);
-				const names = Array.from(importingModules)
+				const names = otherChunkModules
 					.map(m => m.readableIdentifier(requestShortener))
 					.sort();
 				return `Module ${module.readableIdentifier(
@@ -106543,41 +107821,90 @@ class ModuleConcatenationPlugin {
 					", "
 				)}`;
 			};
+			statistics.incorrectChunksOfImporter++;
+			failureCache.set(module, problem); // cache failures for performance
+			return problem;
+		}
+
+		/** @type {Map<Module, readonly ModuleGraph.ModuleGraphConnection[]>} */
+		const nonHarmonyConnections = new Map();
+		for (const [originModule, connections] of incomingConnectionsFromModules) {
+			const selected = connections.filter(
+				connection =>
+					!connection.dependency ||
+					!(connection.dependency instanceof HarmonyImportDependency)
+			);
+			if (selected.length > 0)
+				nonHarmonyConnections.set(originModule, connections);
+		}
+		if (nonHarmonyConnections.size > 0) {
+			const problem = requestShortener => {
+				const names = Array.from(nonHarmonyConnections)
+					.map(([originModule, connections]) => {
+						return `${originModule.readableIdentifier(
+							requestShortener
+						)} (referenced with ${Array.from(
+							new Set(
+								connections
+									.map(c => c.dependency && c.dependency.type)
+									.filter(Boolean)
+							)
+						)
+							.sort()
+							.join(", ")})`;
+					})
+					.sort();
+				return `Module ${module.readableIdentifier(
+					requestShortener
+				)} is referenced from these modules with unsupported syntax: ${names.join(
+					", "
+				)}`;
+			};
+			statistics.incorrectModuleDependency++;
 			failureCache.set(module, problem); // cache failures for performance
 			return problem;
 		}
 
 		if (runtime !== undefined && typeof runtime !== "string") {
 			// Module must be consistently referenced in the same runtimes
-			/** @type {Map<Module, boolean | RuntimeSpec>} */
-			const runtimeConditionMap = new Map();
-			for (const connection of incomingConnections) {
-				const runtimeCondition = filterRuntime(runtime, runtime => {
-					return connection.isTargetActive(runtime);
-				});
-				if (runtimeCondition === false) continue;
-				const old = runtimeConditionMap.get(connection.originModule) || false;
-				if (old === true) continue;
-				if (old !== false && runtimeCondition !== true) {
-					runtimeConditionMap.set(
-						connection.originModule,
-						mergeRuntime(old, runtimeCondition)
-					);
-				} else {
-					runtimeConditionMap.set(connection.originModule, runtimeCondition);
+			/** @type {{ originModule: Module, runtimeCondition: RuntimeSpec }[]} */
+			const otherRuntimeConnections = [];
+			outer: for (const [
+				originModule,
+				connections
+			] of incomingConnectionsFromModules) {
+				/** @type {false | RuntimeSpec} */
+				let currentRuntimeCondition = false;
+				for (const connection of connections) {
+					const runtimeCondition = filterRuntime(runtime, runtime => {
+						return connection.isTargetActive(runtime);
+					});
+					if (runtimeCondition === false) continue;
+					if (runtimeCondition === true) continue outer;
+					if (currentRuntimeCondition !== false) {
+						currentRuntimeCondition = mergeRuntime(
+							currentRuntimeCondition,
+							runtimeCondition
+						);
+					} else {
+						currentRuntimeCondition = runtimeCondition;
+					}
+				}
+				if (currentRuntimeCondition !== false) {
+					otherRuntimeConnections.push({
+						originModule,
+						runtimeCondition: currentRuntimeCondition
+					});
 				}
 			}
-			const otherRuntimeConnections = Array.from(runtimeConditionMap).filter(
-				([, runtimeCondition]) => typeof runtimeCondition !== "boolean"
-			);
 			if (otherRuntimeConnections.length > 0) {
 				const problem = requestShortener => {
 					return `Module ${module.readableIdentifier(
 						requestShortener
 					)} is runtime-dependent referenced by these modules: ${Array.from(
 						otherRuntimeConnections,
-						([module, runtimeCondition]) =>
-							`${module.readableIdentifier(
+						({ originModule, runtimeCondition }) =>
+							`${originModule.readableIdentifier(
 								requestShortener
 							)} (expected runtime ${runtimeToString(
 								runtime
@@ -106586,6 +107913,7 @@ class ModuleConcatenationPlugin {
 							)})`
 					).join(", ")}`;
 				};
+				statistics.incorrectRuntimeCondition++;
 				failureCache.set(module, problem); // cache failures for performance
 				return problem;
 			}
@@ -106599,9 +107927,7 @@ class ModuleConcatenationPlugin {
 		// Add the module
 		config.add(module);
 
-		const incomingModules = Array.from(
-			new Set(incomingConnections.map(c => c.originModule))
-		).sort(compareModulesByIdentifier);
+		incomingModules.sort(compareModulesByIdentifier);
 
 		// Every module which depends on the added module must be in the configuration too.
 		for (const originModule of incomingModules) {
@@ -106615,10 +107941,12 @@ class ModuleConcatenationPlugin {
 				candidates,
 				failureCache,
 				chunkGraph,
-				false
+				false,
+				statistics
 			);
 			if (problem) {
 				if (backup !== undefined) config.rollback(backup);
+				statistics.importerFailed++;
 				failureCache.set(module, problem); // cache failures for performance
 				return problem;
 			}
@@ -106628,6 +107956,7 @@ class ModuleConcatenationPlugin {
 		for (const imp of this._getImports(compilation, module, runtime)) {
 			candidates.add(imp);
 		}
+		statistics.added++;
 		return null;
 	}
 }
@@ -106735,6 +108064,27 @@ const addToList = (itemOrItems, list) => {
 	} else if (itemOrItems) {
 		list.add(itemOrItems);
 	}
+};
+
+/**
+ * @template T
+ * @param {T[]} input list
+ * @param {function(T): Buffer} fn map function
+ * @returns {Buffer[]} buffers without duplicates
+ */
+const mapAndDeduplicateBuffers = (input, fn) => {
+	// Buffer.equals compares size first so this should be efficient enough
+	// If it becomes a performance problem we can use a map and group by size
+	// instead of looping over all assets.
+	const result = [];
+	outer: for (const value of input) {
+		const buf = fn(value);
+		for (const other of result) {
+			if (buf.equals(other)) continue outer;
+		}
+		result.push(buf);
+	}
+	return result;
 };
 
 /**
@@ -107040,7 +108390,7 @@ ${referencingAssets
 									: computeNewContent(asset)
 							)
 						);
-						const assetsContent = assets.map(asset => {
+						const assetsContent = mapAndDeduplicateBuffers(assets, asset => {
 							if (asset.ownHashes.has(oldHash)) {
 								return asset.newSourceWithoutOwn
 									? asset.newSourceWithoutOwn.buffer()
@@ -109720,6 +111070,7 @@ const RuntimeGlobals = __webpack_require__(48801);
 const ChunkPrefetchFunctionRuntimeModule = __webpack_require__(66981);
 const ChunkPrefetchStartupRuntimeModule = __webpack_require__(61326);
 const ChunkPrefetchTriggerRuntimeModule = __webpack_require__(13156);
+const ChunkPreloadTriggerRuntimeModule = __webpack_require__(47085);
 
 /** @typedef {import("../Compiler")} Compiler */
 
@@ -109737,17 +111088,16 @@ class ChunkPrefetchPreloadPlugin {
 					(chunk, set) => {
 						const { chunkGraph } = compilation;
 						if (chunkGraph.getNumberOfEntryModules(chunk) === 0) return;
-						const startupChildChunks = chunk.getChildIdsByOrders(chunkGraph);
-						if (startupChildChunks.prefetch) {
+						const startupChildChunks = chunk.getChildrenOfTypeInOrder(
+							chunkGraph,
+							"prefetchOrder"
+						);
+						if (startupChildChunks) {
 							set.add(RuntimeGlobals.prefetchChunk);
-							set.add(RuntimeGlobals.startupOnlyAfter);
+							set.add(RuntimeGlobals.onChunksLoaded);
 							compilation.addRuntimeModule(
 								chunk,
-								new ChunkPrefetchStartupRuntimeModule(
-									"prefetch",
-									RuntimeGlobals.prefetchChunk,
-									startupChildChunks.prefetch
-								)
+								new ChunkPrefetchStartupRuntimeModule(startupChildChunks)
 							);
 						}
 					}
@@ -109762,24 +111112,14 @@ class ChunkPrefetchPreloadPlugin {
 							set.add(RuntimeGlobals.prefetchChunk);
 							compilation.addRuntimeModule(
 								chunk,
-								new ChunkPrefetchTriggerRuntimeModule(
-									"prefetch",
-									RuntimeGlobals.prefetchChunk,
-									chunkMap.prefetch,
-									true
-								)
+								new ChunkPrefetchTriggerRuntimeModule(chunkMap.prefetch)
 							);
 						}
 						if (chunkMap.preload) {
 							set.add(RuntimeGlobals.preloadChunk);
 							compilation.addRuntimeModule(
 								chunk,
-								new ChunkPrefetchTriggerRuntimeModule(
-									"preload",
-									RuntimeGlobals.preloadChunk,
-									chunkMap.preload,
-									false
-								)
+								new ChunkPreloadTriggerRuntimeModule(chunkMap.preload)
 							);
 						}
 					}
@@ -109834,18 +111174,15 @@ const RuntimeGlobals = __webpack_require__(48801);
 const RuntimeModule = __webpack_require__(54746);
 const Template = __webpack_require__(90751);
 
+/** @typedef {import("../Chunk")} Chunk */
 /** @typedef {import("../RuntimeTemplate")} RuntimeTemplate */
 
 class ChunkPrefetchStartupRuntimeModule extends RuntimeModule {
 	/**
-	 * @param {string} childType TODO
-	 * @param {string} runtimeFunction TODO
-	 * @param {(string|number)[]} startupChunks chunk ids to trigger after startup
+	 * @param {{ onChunks: Chunk[], chunks: Set<Chunk> }[]} startupChunks chunk ids to trigger when chunks are loaded
 	 */
-	constructor(childType, runtimeFunction, startupChunks) {
-		super(`startup ${childType}`, RuntimeModule.STAGE_TRIGGER);
-		this.childType = childType;
-		this.runtimeFunction = runtimeFunction;
+	constructor(startupChunks) {
+		super("startup prefetch", RuntimeModule.STAGE_TRIGGER);
 		this.startupChunks = startupChunks;
 	}
 
@@ -109853,22 +111190,27 @@ class ChunkPrefetchStartupRuntimeModule extends RuntimeModule {
 	 * @returns {string} runtime code
 	 */
 	generate() {
-		const { runtimeFunction, startupChunks } = this;
+		const { startupChunks, chunk } = this;
 		const { runtimeTemplate } = this.compilation;
-		return Template.asString([
-			`var startup = ${RuntimeGlobals.startup};`,
-			`${RuntimeGlobals.startup} = ${runtimeTemplate.basicFunction("", [
-				"var result = startup();",
-				Template.asString(
-					startupChunks.length < 3
-						? startupChunks.map(
-								c => `${runtimeFunction}(${JSON.stringify(c)});`
-						  )
-						: `${JSON.stringify(startupChunks)}.map(${runtimeFunction});`
-				),
-				"return result;"
-			])};`
-		]);
+		return Template.asString(
+			startupChunks.map(
+				({ onChunks, chunks }) =>
+					`${RuntimeGlobals.onChunksLoaded}(0, ${JSON.stringify(
+						// This need to include itself to delay execution after this chunk has been fully loaded
+						onChunks.filter(c => c === chunk).map(c => c.id)
+					)}, ${runtimeTemplate.expressionFunction(
+						chunks.size < 3
+							? Array.from(
+									chunks,
+									c =>
+										`${RuntimeGlobals.prefetchChunk}(${JSON.stringify(c.id)})`
+							  ).join(", ")
+							: `${JSON.stringify(Array.from(chunks, c => c.id))}.map(${
+									RuntimeGlobals.prefetchChunk
+							  })`
+					)}, 5);`
+			)
+		);
 	}
 }
 
@@ -109895,52 +111237,92 @@ const Template = __webpack_require__(90751);
 
 class ChunkPrefetchTriggerRuntimeModule extends RuntimeModule {
 	/**
-	 * @param {string} childType TODO
-	 * @param {string} runtimeFunction TODO
-	 * @param {Object} chunkMap map from chunk to
-	 * @param {boolean} afterChunkLoad true: start after chunk has been loaded, false: start after chunk loading has started
+	 * @param {Record<string|number, (string|number)[]>} chunkMap map from chunk to
 	 */
-	constructor(childType, runtimeFunction, chunkMap, afterChunkLoad) {
-		super(`chunk ${childType} trigger`, RuntimeModule.STAGE_TRIGGER);
-		this.childType = childType;
-		this.runtimeFunction = runtimeFunction;
+	constructor(chunkMap) {
+		super(`chunk prefetch trigger`, RuntimeModule.STAGE_TRIGGER);
 		this.chunkMap = chunkMap;
-		this.afterChunkLoad = afterChunkLoad;
 	}
 
 	/**
 	 * @returns {string} runtime code
 	 */
 	generate() {
-		const { childType, runtimeFunction, chunkMap, afterChunkLoad } = this;
+		const { chunkMap } = this;
 		const { runtimeTemplate } = this.compilation;
 		const body = [
 			"var chunks = chunkToChildrenMap[chunkId];",
-			"for (var i = 0; Array.isArray(chunks) && i < chunks.length; i++) {",
-			Template.indent(`${runtimeFunction}(chunks[i]);`),
-			"}"
+			`Array.isArray(chunks) && chunks.map(${RuntimeGlobals.prefetchChunk});`
 		];
 		return Template.asString([
-			chunkMap
-				? Template.asString([
-						`var chunkToChildrenMap = ${JSON.stringify(chunkMap, null, "\t")};`,
-						`${RuntimeGlobals.ensureChunkHandlers}.${childType} = ${
-							afterChunkLoad
-								? runtimeTemplate.basicFunction("chunkId, promises", [
-										`Promise.all(promises).then(${runtimeTemplate.basicFunction(
-											"",
-											body
-										)});`
-								  ])
-								: runtimeTemplate.basicFunction("chunkId", body)
-						};`
-				  ])
-				: `// no chunks to automatically ${childType} specified in graph`
+			Template.asString([
+				`var chunkToChildrenMap = ${JSON.stringify(chunkMap, null, "\t")};`,
+				`${
+					RuntimeGlobals.ensureChunkHandlers
+				}.prefetch = ${runtimeTemplate.expressionFunction(
+					`Promise.all(promises).then(${runtimeTemplate.basicFunction(
+						"",
+						body
+					)})`,
+					"chunkId, promises"
+				)};`
+			])
 		]);
 	}
 }
 
 module.exports = ChunkPrefetchTriggerRuntimeModule;
+
+
+/***/ }),
+
+/***/ 47085:
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+/*
+	MIT License http://www.opensource.org/licenses/mit-license.php
+*/
+
+
+
+const RuntimeGlobals = __webpack_require__(48801);
+const RuntimeModule = __webpack_require__(54746);
+const Template = __webpack_require__(90751);
+
+/** @typedef {import("../RuntimeTemplate")} RuntimeTemplate */
+
+class ChunkPreloadTriggerRuntimeModule extends RuntimeModule {
+	/**
+	 * @param {Record<string|number, (string|number)[]>} chunkMap map from chunk to chunks
+	 */
+	constructor(chunkMap) {
+		super(`chunk preload trigger`, RuntimeModule.STAGE_TRIGGER);
+		this.chunkMap = chunkMap;
+	}
+
+	/**
+	 * @returns {string} runtime code
+	 */
+	generate() {
+		const { chunkMap } = this;
+		const { runtimeTemplate } = this.compilation;
+		const body = [
+			"var chunks = chunkToChildrenMap[chunkId];",
+			`Array.isArray(chunks) && chunks.map(${RuntimeGlobals.preloadChunk});`
+		];
+		return Template.asString([
+			Template.asString([
+				`var chunkToChildrenMap = ${JSON.stringify(chunkMap, null, "\t")};`,
+				`${
+					RuntimeGlobals.ensureChunkHandlers
+				}.preload = ${runtimeTemplate.basicFunction("chunkId", body)};`
+			])
+		]);
+	}
+}
+
+module.exports = ChunkPreloadTriggerRuntimeModule;
 
 
 /***/ }),
@@ -110717,29 +112099,26 @@ class AsyncModuleRuntimeModule extends HelperRuntimeModule {
 			'var webpackExports = typeof Symbol === "function" ? Symbol("webpack exports") : "__webpack_exports__";',
 			`var completeQueue = ${runtimeTemplate.basicFunction("queue", [
 				"if(queue) {",
-				Template.indent(
-					runtimeTemplate.supportsArrowFunction()
-						? [
-								"queue.forEach(fn => fn.r--);",
-								"queue.forEach(fn => fn.r-- ? fn.r++ : fn());"
-						  ]
-						: [
-								"queue.forEach(function(fn) { fn.r--; });",
-								"queue.forEach(function(fn) { fn.r-- ? fn.r++ : fn(); });"
-						  ]
-				),
+				Template.indent([
+					`queue.forEach(${runtimeTemplate.expressionFunction(
+						"fn.r--",
+						"fn"
+					)});`,
+					`queue.forEach(${runtimeTemplate.expressionFunction(
+						"fn.r-- ? fn.r++ : fn()",
+						"fn"
+					)});`
+				]),
 				"}"
 			])}`,
-			`var completeFunction = ${
-				runtimeTemplate.supportsArrowFunction()
-					? "fn => !--fn.r && fn()"
-					: "function(fn) { !--fn.r && fn(); }"
-			};`,
-			`var queueFunction = ${
-				runtimeTemplate.supportsArrowFunction()
-					? "(queue, fn) => queue ? queue.push(fn) : completeFunction(fn)"
-					: "function(queue, fn) { queue ? queue.push(fn) : completeFunction(fn); }"
-			};`,
+			`var completeFunction = ${runtimeTemplate.expressionFunction(
+				"!--fn.r && fn()",
+				"fn"
+			)};`,
+			`var queueFunction = ${runtimeTemplate.expressionFunction(
+				"queue ? queue.push(fn) : completeFunction(fn)",
+				"queue, fn"
+			)};`,
 			`var wrapDeps = ${runtimeTemplate.returningFunction(
 				`deps.map(${runtimeTemplate.basicFunction("dep", [
 					'if(dep !== null && typeof dep === "object") {',
@@ -110747,19 +112126,25 @@ class AsyncModuleRuntimeModule extends HelperRuntimeModule {
 						"if(dep[webpackThen]) return dep;",
 						"if(dep.then) {",
 						Template.indent([
-							"var queue = [], result;",
+							"var queue = [];",
 							`dep.then(${runtimeTemplate.basicFunction("r", [
 								"obj[webpackExports] = r;",
 								"completeQueue(queue);",
 								"queue = 0;"
 							])});`,
-							"var obj = { [webpackThen]: (fn, reject) => { queueFunction(queue, fn); dep.catch(reject); } };",
+							`var obj = { [webpackThen]: ${runtimeTemplate.expressionFunction(
+								"queueFunction(queue, fn), dep.catch(reject)",
+								"fn, reject"
+							)} };`,
 							"return obj;"
 						]),
 						"}"
 					]),
 					"}",
-					"return { [webpackThen]: (fn) => { completeFunction(fn); }, [webpackExports]: dep };"
+					`return { [webpackThen]: ${runtimeTemplate.expressionFunction(
+						"completeFunction(fn)",
+						"fn"
+					)}, [webpackExports]: dep };`
 				])})`,
 				"deps"
 			)};`,
@@ -110777,9 +112162,10 @@ class AsyncModuleRuntimeModule extends HelperRuntimeModule {
 						"if (nested) return;",
 						"nested = true;",
 						"onResolve.r += deps.length;",
-						`deps.map(${runtimeTemplate.basicFunction("dep, i", [
-							"dep[webpackThen](onResolve, onReject);"
-						])});`,
+						`deps.map(${runtimeTemplate.expressionFunction(
+							"dep[webpackThen](onResolve, onReject)",
+							"dep, i"
+						)});`,
 						"nested = false;"
 					]
 				)};`,
@@ -110787,11 +112173,9 @@ class AsyncModuleRuntimeModule extends HelperRuntimeModule {
 					"resolve, rej",
 					[
 						"reject = rej;",
-						`outerResolve = ${runtimeTemplate.basicFunction("", [
-							"resolve(exports);",
-							"completeQueue(queue);",
-							"queue = 0;"
-						])};`
+						`outerResolve = ${runtimeTemplate.expressionFunction(
+							"resolve(exports), completeQueue(queue), queue = 0"
+						)};`
 					]
 				)});`,
 				"promise[webpackExports] = exports;",
@@ -110812,9 +112196,12 @@ class AsyncModuleRuntimeModule extends HelperRuntimeModule {
 					`var promise = new Promise(${runtimeTemplate.basicFunction(
 						"resolve, reject",
 						[
-							`fn = ${runtimeTemplate.returningFunction(
-								"resolve(result = currentDeps.map(d => d[webpackExports]))"
-							)}`,
+							`fn = ${runtimeTemplate.expressionFunction(
+								`resolve(result = currentDeps.map(${runtimeTemplate.returningFunction(
+									"d[webpackExports]",
+									"d"
+								)}))`
+							)};`,
 							"fn.r = 0;",
 							"whenAll(currentDeps, fn, reject);"
 						]
@@ -110858,7 +112245,7 @@ class AutoPublicPathRuntimeModule extends RuntimeModule {
 	 */
 	generate() {
 		const { compilation } = this;
-		const { scriptType, importMetaName } = compilation.outputOptions;
+		const { scriptType, importMetaName, path } = compilation.outputOptions;
 		const chunkName = compilation.getPath(
 			JavascriptModulesPlugin.getChunkFilenameTemplate(
 				this.chunk,
@@ -110869,7 +112256,8 @@ class AutoPublicPathRuntimeModule extends RuntimeModule {
 				contentHashType: "javascript"
 			}
 		);
-		const undoPath = getUndoPath(chunkName, false);
+		const undoPath = getUndoPath(chunkName, path, false);
+
 		return Template.asString([
 			"var scriptUrl;",
 			scriptType === "module"
@@ -111099,9 +112487,6 @@ class CreateFakeNamespaceObjectRuntimeModule extends HelperRuntimeModule {
 	 */
 	generate() {
 		const { runtimeTemplate } = this.compilation;
-		const modern =
-			runtimeTemplate.supportsArrowFunction() &&
-			runtimeTemplate.supportsConst();
 		const fn = RuntimeGlobals.createFakeNamespaceObject;
 		return Template.asString([
 			`var getProto = Object.getPrototypeOf ? ${runtimeTemplate.returningFunction(
@@ -111132,14 +112517,13 @@ class CreateFakeNamespaceObjectRuntimeModule extends HelperRuntimeModule {
 				"leafPrototypes = leafPrototypes || [null, getProto({}), getProto([]), getProto(getProto)];",
 				"for(var current = mode & 2 && value; typeof current == 'object' && !~leafPrototypes.indexOf(current); current = getProto(current)) {",
 				Template.indent([
-					modern
-						? `Object.getOwnPropertyNames(current).forEach(key => def[key] = () => value[key]);`
-						: `Object.getOwnPropertyNames(current).forEach(function(key) { def[key] = function() { return value[key]; }; });`
+					`Object.getOwnPropertyNames(current).forEach(${runtimeTemplate.expressionFunction(
+						`def[key] = ${runtimeTemplate.returningFunction("value[key]", "")}`,
+						"key"
+					)});`
 				]),
 				"}",
-				modern
-					? "def['default'] = () => value;"
-					: "def['default'] = function() { return value; };",
+				`def['default'] = ${runtimeTemplate.returningFunction("value", "")};`,
 				`${RuntimeGlobals.definePropertyGetters}(ns, def);`,
 				"return ns;"
 			]),
@@ -111962,6 +113346,85 @@ module.exports = MakeNamespaceObjectRuntimeModule;
 
 /***/ }),
 
+/***/ 72082:
+/***/ (function(module, __unused_webpack_exports, __webpack_require__) {
+
+"use strict";
+/*
+	MIT License http://www.opensource.org/licenses/mit-license.php
+*/
+
+
+
+const RuntimeGlobals = __webpack_require__(48801);
+const RuntimeModule = __webpack_require__(54746);
+const Template = __webpack_require__(90751);
+
+class OnChunksLoadedRuntimeModule extends RuntimeModule {
+	constructor() {
+		super("chunk loaded");
+	}
+
+	/**
+	 * @returns {string} runtime code
+	 */
+	generate() {
+		const { compilation } = this;
+		const { runtimeTemplate } = compilation;
+		return Template.asString([
+			"var deferred = [];",
+			`${
+				RuntimeGlobals.onChunksLoaded
+			} = ${runtimeTemplate.basicFunction("result, chunkIds, fn, priority", [
+				"if(chunkIds) {",
+				Template.indent([
+					"priority = priority || 0;",
+					"for(var i = deferred.length; i > 0 && deferred[i - 1][2] > priority; i--) deferred[i] = deferred[i - 1];",
+					"deferred[i] = [chunkIds, fn, priority];",
+					"return;"
+				]),
+				"}",
+				"var notFulfilled = Infinity;",
+				"for (var i = 0; i < deferred.length; i++) {",
+				Template.indent([
+					runtimeTemplate.destructureArray(
+						["chunkIds", "fn", "priority"],
+						"deferred[i]"
+					),
+					"var fulfilled = true;",
+					"for (var j = 0; j < chunkIds.length; j++) {",
+					Template.indent([
+						`if ((priority & 1 === 0 || notFulfilled >= priority) && Object.keys(${
+							RuntimeGlobals.onChunksLoaded
+						}).every(${runtimeTemplate.returningFunction(
+							`${RuntimeGlobals.onChunksLoaded}[key](chunkIds[j])`,
+							"key"
+						)})) {`,
+						Template.indent(["chunkIds.splice(j--, 1);"]),
+						"} else {",
+						Template.indent([
+							"fulfilled = false;",
+							"if(priority < notFulfilled) notFulfilled = priority;"
+						]),
+						"}"
+					]),
+					"}",
+					"if(fulfilled) {",
+					Template.indent(["deferred.splice(i--, 1)", "result = fn();"]),
+					"}"
+				]),
+				"}",
+				"return result;"
+			])};`
+		]);
+	}
+}
+
+module.exports = OnChunksLoadedRuntimeModule;
+
+
+/***/ }),
+
 /***/ 25142:
 /***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
@@ -112183,7 +113646,7 @@ const Template = __webpack_require__(90751);
 
 class StartupChunkDependenciesRuntimeModule extends RuntimeModule {
 	constructor(asyncChunkLoading) {
-		super("startup chunk dependencies");
+		super("startup chunk dependencies", RuntimeModule.STAGE_TRIGGER);
 		this.asyncChunkLoading = asyncChunkLoading;
 	}
 
@@ -112270,19 +113733,27 @@ class StartupEntrypointRuntimeModule extends RuntimeModule {
 		const { runtimeTemplate } = compilation;
 		return `${
 			RuntimeGlobals.startupEntrypoint
-		} = ${runtimeTemplate.basicFunction(
-			"chunkIds, moduleId",
-			this.asyncChunkLoading
-				? `return Promise.all(chunkIds.map(${
-						RuntimeGlobals.ensureChunk
-				  }, __webpack_require__)).then(${runtimeTemplate.returningFunction(
-						"__webpack_require__(moduleId)"
-				  )})`
+		} = ${runtimeTemplate.basicFunction("result, chunkIds, fn", [
+			"// arguments: chunkIds, moduleId are deprecated",
+			"var moduleId = chunkIds;",
+			`if(!fn) chunkIds = result, fn = ${runtimeTemplate.returningFunction(
+				`__webpack_require__(${RuntimeGlobals.entryModuleId} = moduleId)`
+			)};`,
+			...(this.asyncChunkLoading
+				? [
+						`return Promise.all(chunkIds.map(${
+							RuntimeGlobals.ensureChunk
+						}, __webpack_require__)).then(${runtimeTemplate.basicFunction("", [
+							"var r = fn();",
+							"return r === undefined ? result : r;"
+						])})`
+				  ]
 				: [
 						`chunkIds.map(${RuntimeGlobals.ensureChunk}, __webpack_require__)`,
-						"return __webpack_require__(moduleId)"
-				  ]
-		)}`;
+						"var r = fn();",
+						"return r === undefined ? result : r;"
+				  ])
+		])}`;
 	}
 }
 
@@ -114561,16 +116032,13 @@ class ObjectMiddleware extends SerializerMiddleware {
 		};
 		this.extendContext(ctx);
 		const process = item => {
-			// check if we can emit a reference
-			const ref = referenceable.get(item);
-
-			if (ref !== undefined) {
-				result.push(ESCAPE, ref - currentPos);
-
-				return;
-			}
-
 			if (Buffer.isBuffer(item)) {
+				// check if we can emit a reference
+				const ref = referenceable.get(item);
+				if (ref !== undefined) {
+					result.push(ESCAPE, ref - currentPos);
+					return;
+				}
 				const alreadyUsedBuffer = dedupeBuffer(item);
 				if (alreadyUsedBuffer !== item) {
 					const ref = referenceable.get(alreadyUsedBuffer);
@@ -114584,7 +116052,19 @@ class ObjectMiddleware extends SerializerMiddleware {
 				addReferenceable(item);
 
 				result.push(item);
-			} else if (typeof item === "object" && item !== null) {
+			} else if (item === ESCAPE) {
+				result.push(ESCAPE, ESCAPE_ESCAPE_VALUE);
+			} else if (
+				typeof item === "object"
+				// We don't have to check for null as ESCAPE is null and this has been checked before
+			) {
+				// check if we can emit a reference
+				const ref = referenceable.get(item);
+				if (ref !== undefined) {
+					result.push(ESCAPE, ref - currentPos);
+					return;
+				}
+
 				if (cycleStack.has(item)) {
 					throw new Error(`Circular references can't be serialized`);
 				}
@@ -114617,6 +116097,12 @@ class ObjectMiddleware extends SerializerMiddleware {
 			} else if (typeof item === "string") {
 				if (item.length > 1) {
 					// short strings are shorter when not emitting a reference (this saves 1 byte per empty string)
+					// check if we can emit a reference
+					const ref = referenceable.get(item);
+					if (ref !== undefined) {
+						result.push(ESCAPE, ref - currentPos);
+						return;
+					}
 					addReferenceable(item);
 				}
 
@@ -114629,8 +116115,6 @@ class ObjectMiddleware extends SerializerMiddleware {
 				}
 
 				result.push(item);
-			} else if (item === ESCAPE) {
-				result.push(ESCAPE, ESCAPE_ESCAPE_VALUE);
 			} else if (typeof item === "function") {
 				if (!SerializerMiddleware.isLazy(item))
 					throw new Error("Unexpected function " + item);
@@ -115807,6 +117291,7 @@ class ConsumeSharedPlugin {
 					PLUGIN_NAME,
 					(chunk, set) => {
 						set.add(RuntimeGlobals.module);
+						set.add(RuntimeGlobals.moduleCache);
 						set.add(RuntimeGlobals.moduleFactoriesAddOnly);
 						set.add(RuntimeGlobals.shareScopeMap);
 						set.add(RuntimeGlobals.initializeSharing);
@@ -116101,17 +117586,16 @@ class ConsumeSharedRuntimeModule extends RuntimeModule {
 				? Template.asString([
 						`var initialConsumes = ${JSON.stringify(initialConsumes)};`,
 						`initialConsumes.forEach(${runtimeTemplate.basicFunction("id", [
-							`__webpack_modules__[id] = ${runtimeTemplate.basicFunction(
-								"module",
-								[
-									"// Handle case when module is used sync",
-									"installedModules[id] = 0;",
-									"delete __webpack_module_cache__[id];",
-									"var factory = moduleToHandlerMapping[id]();",
-									'if(typeof factory !== "function") throw new Error("Shared module is not available for eager consumption: " + id);',
-									`module.exports = factory();`
-								]
-							)}`
+							`${
+								RuntimeGlobals.moduleFactories
+							}[id] = ${runtimeTemplate.basicFunction("module", [
+								"// Handle case when module is used sync",
+								"installedModules[id] = 0;",
+								`delete ${RuntimeGlobals.moduleCache}[id];`,
+								"var factory = moduleToHandlerMapping[id]();",
+								'if(typeof factory !== "function") throw new Error("Shared module is not available for eager consumption: " + id);',
+								`module.exports = factory();`
+							])}`
 						])});`
 				  ])
 				: "// no consumes in initial chunks",
@@ -116135,21 +117619,22 @@ class ConsumeSharedRuntimeModule extends RuntimeModule {
 											"factory",
 											[
 												"installedModules[id] = 0;",
-												`__webpack_modules__[id] = ${runtimeTemplate.basicFunction(
-													"module",
-													[
-														"delete __webpack_module_cache__[id];",
-														"module.exports = factory();"
-													]
-												)}`
+												`${
+													RuntimeGlobals.moduleFactories
+												}[id] = ${runtimeTemplate.basicFunction("module", [
+													`delete ${RuntimeGlobals.moduleCache}[id];`,
+													"module.exports = factory();"
+												])}`
 											]
 										)};`,
 										`var onError = ${runtimeTemplate.basicFunction("error", [
 											"delete installedModules[id];",
-											`__webpack_modules__[id] = ${runtimeTemplate.basicFunction(
-												"module",
-												["delete __webpack_module_cache__[id];", "throw error;"]
-											)}`
+											`${
+												RuntimeGlobals.moduleFactories
+											}[id] = ${runtimeTemplate.basicFunction("module", [
+												`delete ${RuntimeGlobals.moduleCache}[id];`,
+												"throw error;"
+											])}`
 										])};`,
 										"try {",
 										Template.indent([
@@ -116957,7 +118442,7 @@ class ShareRuntimeModule extends RuntimeModule {
 						]
 					)};`,
 					`var initExternal = ${runtimeTemplate.basicFunction("id", [
-						`var handleError = ${runtimeTemplate.returningFunction(
+						`var handleError = ${runtimeTemplate.expressionFunction(
 							'warn("Initialization of sharing external failed: " + err)',
 							"err"
 						)};`,
@@ -125581,6 +127066,17 @@ const addSizeTo = (total, size) => {
 };
 
 /**
+ * @param {Record<string, number>} total total size
+ * @param {Record<string, number>} size single size
+ * @returns {void}
+ */
+const subtractSizeFrom = (total, size) => {
+	for (const key of Object.keys(size)) {
+		total[key] -= size[key];
+	}
+};
+
+/**
  * @param {Iterable<Node>} nodes some nodes
  * @returns {Record<string, number>} total size
  */
@@ -125594,9 +127090,11 @@ const sumSize = nodes => {
 
 const isTooBig = (size, maxSize) => {
 	for (const key of Object.keys(size)) {
+		const s = size[key];
+		if (s === 0) continue;
 		const maxSizeValue = maxSize[key];
 		if (typeof maxSizeValue === "number") {
-			if (size[key] > maxSizeValue) return true;
+			if (s > maxSizeValue) return true;
 		}
 	}
 	return false;
@@ -125604,20 +127102,24 @@ const isTooBig = (size, maxSize) => {
 
 const isTooSmall = (size, minSize) => {
 	for (const key of Object.keys(size)) {
+		const s = size[key];
+		if (s === 0) continue;
 		const minSizeValue = minSize[key];
 		if (typeof minSizeValue === "number") {
-			if (size[key] < minSizeValue) return true;
+			if (s < minSizeValue) return true;
 		}
 	}
 	return false;
 };
 
-const getToSmallTypes = (size, minSize) => {
+const getTooSmallTypes = (size, minSize) => {
 	const types = new Set();
 	for (const key of Object.keys(size)) {
+		const s = size[key];
+		if (s === 0) continue;
 		const minSizeValue = minSize[key];
 		if (typeof minSizeValue === "number") {
-			if (size[key] < minSizeValue) types.add(key);
+			if (s < minSizeValue) types.add(key);
 		}
 	}
 	return types;
@@ -125626,7 +127128,7 @@ const getToSmallTypes = (size, minSize) => {
 const getNumberOfMatchingSizeTypes = (size, types) => {
 	let i = 0;
 	for (const key of Object.keys(size)) {
-		if (types.has(key)) i++;
+		if (size[key] !== 0 && types.has(key)) i++;
 	}
 	return i;
 };
@@ -125634,7 +127136,7 @@ const getNumberOfMatchingSizeTypes = (size, types) => {
 const selectiveSizeSum = (size, types) => {
 	let sum = 0;
 	for (const key of Object.keys(size)) {
-		if (types.has(key)) sum += size[key];
+		if (size[key] !== 0 && types.has(key)) sum += size[key];
 	}
 	return sum;
 };
@@ -125777,45 +127279,51 @@ module.exports = ({ maxSize, minSize, items, getSize, getKey }) => {
 	if (initialNodes.length > 0) {
 		const initialGroup = new Group(initialNodes, getSimilarities(initialNodes));
 
-		const problemTypes = getToSmallTypes(initialGroup.size, minSize);
-		if (problemTypes.size > 0) {
-			// We hit an edge case where the working set is already smaller than minSize
-			// We merge problematic nodes with the smallest result node to keep minSize intact
-			const problemNodes = initialGroup.popNodes(
-				n => getNumberOfMatchingSizeTypes(n.size, problemTypes) > 0
-			);
-			// Only merge it with result nodes that have the problematic size type
-			const possibleResultGroups = result.filter(
-				n => getNumberOfMatchingSizeTypes(n.size, problemTypes) > 0
-			);
-			if (possibleResultGroups.length > 0) {
-				const bestGroup = possibleResultGroups.reduce((min, group) => {
-					const minMatches = getNumberOfMatchingSizeTypes(min, problemTypes);
-					const groupMatches = getNumberOfMatchingSizeTypes(
-						group,
-						problemTypes
-					);
-					if (minMatches !== groupMatches)
-						return minMatches < groupMatches ? group : min;
-					if (
-						selectiveSizeSum(min.size, problemTypes) >
-						selectiveSizeSum(group.size, problemTypes)
-					)
-						return group;
-					return min;
-				});
-				for (const node of problemNodes) bestGroup.nodes.push(node);
-				bestGroup.nodes.sort((a, b) => {
-					if (a.key < b.key) return -1;
-					if (a.key > b.key) return 1;
-					return 0;
-				});
+		const removeProblematicNodes = group => {
+			const problemTypes = getTooSmallTypes(group.size, minSize);
+			if (problemTypes.size > 0) {
+				// We hit an edge case where the working set is already smaller than minSize
+				// We merge problematic nodes with the smallest result node to keep minSize intact
+				const problemNodes = group.popNodes(
+					n => getNumberOfMatchingSizeTypes(n.size, problemTypes) > 0
+				);
+				// Only merge it with result nodes that have the problematic size type
+				const possibleResultGroups = result.filter(
+					n => getNumberOfMatchingSizeTypes(n.size, problemTypes) > 0
+				);
+				if (possibleResultGroups.length > 0) {
+					const bestGroup = possibleResultGroups.reduce((min, group) => {
+						const minMatches = getNumberOfMatchingSizeTypes(min, problemTypes);
+						const groupMatches = getNumberOfMatchingSizeTypes(
+							group,
+							problemTypes
+						);
+						if (minMatches !== groupMatches)
+							return minMatches < groupMatches ? group : min;
+						if (
+							selectiveSizeSum(min.size, problemTypes) >
+							selectiveSizeSum(group.size, problemTypes)
+						)
+							return group;
+						return min;
+					});
+					for (const node of problemNodes) bestGroup.nodes.push(node);
+					bestGroup.nodes.sort((a, b) => {
+						if (a.key < b.key) return -1;
+						if (a.key > b.key) return 1;
+						return 0;
+					});
+				} else {
+					// There are no other nodes with the same size types
+					// We create a new group and have to accept that it's smaller than minSize
+					result.push(new Group(problemNodes, null));
+				}
+				return true;
 			} else {
-				// There are no other nodes with the same size types
-				// We create a new group and have to accept that it's smaller than minSize
-				result.push(new Group(problemNodes, null));
+				return false;
 			}
-		}
+		};
+
 		if (initialGroup.nodes.length > 0) {
 			const queue = [initialGroup];
 
@@ -125826,6 +127334,13 @@ module.exports = ({ maxSize, minSize, items, getSize, getKey }) => {
 					result.push(group);
 					continue;
 				}
+				// If the group is already too small
+				// we try to work only with the unproblematic nodes
+				if (removeProblematicNodes(group)) {
+					// This changed something, so we try this group again
+					queue.push(group);
+					continue;
+				}
 
 				// find unsplittable area from left and right
 				// going minSize from left and right
@@ -125833,14 +127348,14 @@ module.exports = ({ maxSize, minSize, items, getSize, getKey }) => {
 				let left = 1;
 				let leftSize = Object.create(null);
 				addSizeTo(leftSize, group.nodes[0].size);
-				while (isTooSmall(leftSize, minSize)) {
+				while (left < group.nodes.length && isTooSmall(leftSize, minSize)) {
 					addSizeTo(leftSize, group.nodes[left].size);
 					left++;
 				}
 				let right = group.nodes.length - 2;
 				let rightSize = Object.create(null);
 				addSizeTo(rightSize, group.nodes[group.nodes.length - 1].size);
-				while (isTooSmall(rightSize, minSize)) {
+				while (right >= 0 && isTooSmall(rightSize, minSize)) {
 					addSizeTo(rightSize, group.nodes[right].size);
 					right--;
 				}
@@ -125858,17 +127373,32 @@ module.exports = ({ maxSize, minSize, items, getSize, getKey }) => {
 					// we look for best split point
 					// we split at the minimum similarity
 					// here key space is separated the most
-					let best = left - 1;
-					let bestSimilarity = group.similarities[best];
-					for (let i = left; i <= right; i++) {
-						const similarity = group.similarities[i];
-						if (similarity < bestSimilarity) {
-							best = i;
+					// But we also need to make sure to not create too small groups
+					let best = -1;
+					let bestSimilarity = Infinity;
+					let pos = left;
+					let rightSize = sumSize(group.nodes.slice(pos));
+					while (pos <= right) {
+						const similarity = group.similarities[pos - 1];
+						if (
+							similarity < bestSimilarity &&
+							!isTooSmall(leftSize, minSize) &&
+							!isTooSmall(rightSize, minSize)
+						) {
+							best = pos;
 							bestSimilarity = similarity;
 						}
+						addSizeTo(leftSize, group.nodes[pos].size);
+						subtractSizeFrom(rightSize, group.nodes[pos].size);
+						pos++;
 					}
-					left = best + 1;
-					right = best;
+					if (best < 0) {
+						// can't split group while holding minSize
+						result.push(group);
+						continue;
+					}
+					left = best;
+					right = best - 1;
 				}
 
 				// create two new groups for left and right area
@@ -126259,6 +127789,8 @@ const path = __webpack_require__(85622);
  * @typedef {Object} Watcher
  * @property {function(): void} close closes the watcher and all underlying file watchers
  * @property {function(): void} pause closes the watcher, but keeps underlying file watchers alive until the next watch call
+ * @property {function(): Set<string>=} getAggregatedChanges get current aggregated changes that have not yet send to callback
+ * @property {function(): Set<string>=} getAggregatedRemovals get current aggregated removals that have not yet send to callback
  * @property {function(): Map<string, FileSystemInfoEntry | "ignore">} getFileTimeInfoEntries get info about files
  * @property {function(): Map<string, FileSystemInfoEntry | "ignore">} getContextTimeInfoEntries get info about directories
  */
@@ -126330,9 +127862,9 @@ const path = __webpack_require__(85622);
 const relative = (fs, rootPath, targetPath) => {
 	if (fs && fs.relative) {
 		return fs.relative(rootPath, targetPath);
-	} else if (rootPath.startsWith("/")) {
+	} else if (path.posix.isAbsolute(rootPath)) {
 		return path.posix.relative(rootPath, targetPath);
-	} else if (rootPath.length > 1 && rootPath[1] === ":") {
+	} else if (path.win32.isAbsolute(rootPath)) {
 		return path.win32.relative(rootPath, targetPath);
 	} else {
 		throw new Error(
@@ -126351,9 +127883,9 @@ exports.relative = relative;
 const join = (fs, rootPath, filename) => {
 	if (fs && fs.join) {
 		return fs.join(rootPath, filename);
-	} else if (rootPath.startsWith("/")) {
+	} else if (path.posix.isAbsolute(rootPath)) {
 		return path.posix.join(rootPath, filename);
-	} else if (rootPath.length > 1 && rootPath[1] === ":") {
+	} else if (path.win32.isAbsolute(rootPath)) {
 		return path.win32.join(rootPath, filename);
 	} else {
 		throw new Error(
@@ -126371,9 +127903,9 @@ exports.join = join;
 const dirname = (fs, absPath) => {
 	if (fs && fs.dirname) {
 		return fs.dirname(absPath);
-	} else if (absPath.startsWith("/")) {
+	} else if (path.posix.isAbsolute(absPath)) {
 		return path.posix.dirname(absPath);
-	} else if (absPath.length > 1 && absPath[1] === ":") {
+	} else if (path.win32.isAbsolute(absPath)) {
 		return path.win32.dirname(absPath);
 	} else {
 		throw new Error(
@@ -126790,17 +128322,35 @@ exports.parseResource = (realFn => {
 
 /**
  * @param {string} filename the filename which should be undone
+ * @param {string} outputPath the output path that is restored (only relevant when filename contains "..")
  * @param {boolean} enforceRelative true returns ./ for empty paths
- * @returns {string} repeated ../ to leave the directory of the provided filename to be back on root dir
+ * @returns {string} repeated ../ to leave the directory of the provided filename to be back on output dir
  */
-exports.getUndoPath = (filename, enforceRelative) => {
+exports.getUndoPath = (filename, outputPath, enforceRelative) => {
 	let depth = -1;
+	let append = "";
+	outputPath = outputPath.replace(/[\\/]$/, "");
 	for (const part of filename.split(/[/\\]+/)) {
-		if (part !== ".") {
-			depth += part === ".." ? -1 : 1;
+		if (part === "..") {
+			if (depth > -1) {
+				depth--;
+			} else {
+				const i = outputPath.lastIndexOf("/");
+				const j = outputPath.lastIndexOf("\\");
+				const pos = i < 0 ? j : j < 0 ? i : Math.max(i, j);
+				if (pos < 0) return outputPath + "/";
+				append = outputPath.slice(pos + 1) + "/" + append;
+				outputPath = outputPath.slice(0, pos);
+			}
+		} else if (part !== ".") {
+			depth++;
 		}
 	}
-	return depth > 0 ? "../".repeat(depth) : enforceRelative ? "./" : "";
+	return depth > 0
+		? `${"../".repeat(depth)}${append}`
+		: enforceRelative
+		? `./${append}`
+		: append;
 };
 
 
@@ -128438,11 +129988,11 @@ exports.parseRange = str => {
 
 /* eslint-disable eqeqeq */
 const rangeToString = range => {
+	var fixCount = range[0];
+	var str = "";
 	if (range.length === 1) {
 		return "*";
-	} else if (0 in range) {
-		var str = "";
-		var fixCount = range[0];
+	} else if (fixCount + 0.5) {
 		str +=
 			fixCount == 0
 				? ">="
@@ -128687,7 +130237,7 @@ exports.versionLtRuntimeCode = runtimeTemplate =>
 exports.rangeToStringRuntimeCode = runtimeTemplate =>
 	`var rangeToString = ${runtimeTemplate.basicFunction("range", [
 		"// see webpack/lib/util/semver.js for original code",
-		'if(1===range.length)return"*";if(0 in range){var r="",n=range[0];r+=0==n?">=":-1==n?"<":1==n?"^":2==n?"~":n>0?"=":"!=";for(var e=1,a=1;a<range.length;a++){e--,r+="u"==(typeof(t=range[a]))[0]?"-":(e>0?".":"")+(e=2,t)}return r}var g=[];for(a=1;a<range.length;a++){var t=range[a];g.push(0===t?"not("+o()+")":1===t?"("+o()+" || "+o()+")":2===t?g.pop()+" "+g.pop():rangeToString(t))}return o();function o(){return g.pop().replace(/^\\((.+)\\)$/,"$1")}'
+		'var r=range[0],n="";if(1===range.length)return"*";if(r+.5){n+=0==r?">=":-1==r?"<":1==r?"^":2==r?"~":r>0?"=":"!=";for(var e=1,a=1;a<range.length;a++){e--,n+="u"==(typeof(t=range[a]))[0]?"-":(e>0?".":"")+(e=2,t)}return n}var g=[];for(a=1;a<range.length;a++){var t=range[a];g.push(0===t?"not("+o()+")":1===t?"("+o()+" || "+o()+")":2===t?g.pop()+" "+g.pop():rangeToString(t))}return o();function o(){return g.pop().replace(/^\\((.+)\\)$/,"$1")}'
 	])}`;
 //#endregion
 
@@ -131862,7 +133412,6 @@ module.exports = FetchCompileWasmPlugin;
 
 const RuntimeGlobals = __webpack_require__(48801);
 const JsonpChunkLoadingRuntimeModule = __webpack_require__(84539);
-const { needEntryDeferringCode } = __webpack_require__(39546);
 
 /** @typedef {import("../Compiler")} Compiler */
 
@@ -131895,8 +133444,6 @@ class JsonpChunkLoadingPlugin {
 						new JsonpChunkLoadingRuntimeModule(set)
 					);
 				};
-				RuntimeGlobals.ensureChunkHandlers;
-				RuntimeGlobals.hmrDownloadUpdateHandlers;
 				compilation.hooks.runtimeRequirementInTree
 					.for(RuntimeGlobals.ensureChunkHandlers)
 					.tap("JsonpChunkLoadingPlugin", handler);
@@ -131908,6 +133455,9 @@ class JsonpChunkLoadingPlugin {
 					.tap("JsonpChunkLoadingPlugin", handler);
 				compilation.hooks.runtimeRequirementInTree
 					.for(RuntimeGlobals.baseURI)
+					.tap("JsonpChunkLoadingPlugin", handler);
+				compilation.hooks.runtimeRequirementInTree
+					.for(RuntimeGlobals.onChunksLoaded)
 					.tap("JsonpChunkLoadingPlugin", handler);
 
 				compilation.hooks.runtimeRequirementInTree
@@ -131936,20 +133486,6 @@ class JsonpChunkLoadingPlugin {
 						set.add(RuntimeGlobals.publicPath);
 						set.add(RuntimeGlobals.getUpdateManifestFilename);
 					});
-
-				compilation.hooks.additionalTreeRuntimeRequirements.tap(
-					"JsonpChunkLoadingPlugin",
-					(chunk, set) => {
-						if (!isEnabledForChunk(chunk)) return;
-						const withDefer = needEntryDeferringCode(compilation, chunk);
-						if (withDefer) {
-							set.add(RuntimeGlobals.startup);
-							set.add(RuntimeGlobals.startupNoDefault);
-							set.add(RuntimeGlobals.require);
-							handler(chunk, set);
-						}
-					}
-				);
 			}
 		);
 	}
@@ -131976,8 +133512,8 @@ const RuntimeGlobals = __webpack_require__(48801);
 const RuntimeModule = __webpack_require__(54746);
 const Template = __webpack_require__(90751);
 const chunkHasJs = __webpack_require__(80867).chunkHasJs;
+const { getInitialChunkIds } = __webpack_require__(9005);
 const compileBooleanMatcher = __webpack_require__(29522);
-const { getEntryInfo, needEntryDeferringCode } = __webpack_require__(39546);
 
 /** @typedef {import("../Chunk")} Chunk */
 
@@ -132042,7 +133578,12 @@ class JsonpChunkLoadingRuntimeModule extends RuntimeModule {
 		const withLoading = this._runtimeRequirements.has(
 			RuntimeGlobals.ensureChunkHandlers
 		);
-		const withDefer = needEntryDeferringCode(compilation, chunk);
+		const withCallback = this._runtimeRequirements.has(
+			RuntimeGlobals.chunkCallback
+		);
+		const withOnChunkLoad = this._runtimeRequirements.has(
+			RuntimeGlobals.onChunksLoaded
+		);
 		const withHmr = this._runtimeRequirements.has(
 			RuntimeGlobals.hmrDownloadUpdateHandlers
 		);
@@ -132055,15 +133596,13 @@ class JsonpChunkLoadingRuntimeModule extends RuntimeModule {
 		const withPreload = this._runtimeRequirements.has(
 			RuntimeGlobals.preloadChunkHandlers
 		);
-		const entries = getEntryInfo(chunkGraph, chunk, c =>
-			chunkHasJs(c, chunkGraph)
-		);
 		const chunkLoadingGlobalExpr = `${globalObject}[${JSON.stringify(
 			chunkLoadingGlobal
 		)}]`;
-		const hasJsMatcher = compileBooleanMatcher(
-			chunkGraph.getChunkConditionMap(chunk, chunkHasJs)
-		);
+		const conditionMap = chunkGraph.getChunkConditionMap(chunk, chunkHasJs);
+		const hasJsMatcher = compileBooleanMatcher(conditionMap);
+		const initialChunkIds = getInitialChunkIds(chunk, chunkGraph);
+
 		return Template.asString([
 			withBaseURI
 				? Template.asString([
@@ -132073,20 +133612,15 @@ class JsonpChunkLoadingRuntimeModule extends RuntimeModule {
 			"",
 			"// object to store loaded and loading chunks",
 			"// undefined = chunk not loaded, null = chunk preloaded/prefetched",
-			"// Promise = chunk loading, 0 = chunk loaded",
+			"// [resolve, reject, Promise] = chunk loading, 0 = chunk loaded",
 			"var installedChunks = {",
 			Template.indent(
-				chunk.ids.map(id => `${JSON.stringify(id)}: 0`).join(",\n")
+				Array.from(initialChunkIds, id => `${JSON.stringify(id)}: 0`).join(
+					",\n"
+				)
 			),
 			"};",
 			"",
-			withDefer
-				? Template.asString([
-						"var deferredModules = [",
-						Template.indent(entries.map(e => JSON.stringify(e)).join(",\n")),
-						"];"
-				  ])
-				: "",
 			withLoading
 				? Template.asString([
 						`${fn}.j = ${runtimeTemplate.basicFunction(
@@ -132110,11 +133644,9 @@ class JsonpChunkLoadingRuntimeModule extends RuntimeModule {
 													: `if(${hasJsMatcher("chunkId")}) {`,
 												Template.indent([
 													"// setup Promise in chunk cache",
-													`var promise = new Promise(${runtimeTemplate.basicFunction(
-														"resolve, reject",
-														[
-															`installedChunkData = installedChunks[chunkId] = [resolve, reject];`
-														]
+													`var promise = new Promise(${runtimeTemplate.expressionFunction(
+														`installedChunkData = installedChunks[chunkId] = [resolve, reject]`,
+														"resolve, reject"
 													)});`,
 													"promises.push(installedChunkData[2] = promise);",
 													"",
@@ -132340,41 +133872,28 @@ class JsonpChunkLoadingRuntimeModule extends RuntimeModule {
 				  ])
 				: "// no HMR manifest",
 			"",
-			withDefer
-				? Template.asString([
-						`var checkDeferredModules = ${runtimeTemplate.emptyFunction()};`
-				  ])
-				: "// no deferred startup",
+			withOnChunkLoad
+				? `${
+						RuntimeGlobals.onChunksLoaded
+				  }.j = ${runtimeTemplate.returningFunction(
+						"installedChunks[chunkId] === 0",
+						"chunkId"
+				  )};`
+				: "// no on chunks loaded",
 			"",
-			withDefer || withLoading
+			withCallback || withLoading
 				? Template.asString([
 						"// install a JSONP callback for chunk loading",
 						`var webpackJsonpCallback = ${runtimeTemplate.basicFunction(
 							"parentChunkLoadingFunction, data",
 							[
 								runtimeTemplate.destructureArray(
-									[
-										"chunkIds",
-										"moreModules",
-										"runtime",
-										...(withDefer ? ["executeModules"] : [])
-									],
+									["chunkIds", "moreModules", "runtime"],
 									"data"
 								),
 								'// add "moreModules" to the modules object,',
 								'// then flag all "chunkIds" as loaded and fire callback',
-								"var moduleId, chunkId, i = 0, resolves = [];",
-								"for(;i < chunkIds.length; i++) {",
-								Template.indent([
-									"chunkId = chunkIds[i];",
-									`if(${RuntimeGlobals.hasOwnProperty}(installedChunks, chunkId) && installedChunks[chunkId]) {`,
-									Template.indent(
-										"resolves.push(installedChunks[chunkId][0]);"
-									),
-									"}",
-									"installedChunks[chunkId] = 0;"
-								]),
-								"}",
+								"var moduleId, chunkId, i = 0;",
 								"for(moduleId in moreModules) {",
 								Template.indent([
 									`if(${RuntimeGlobals.hasOwnProperty}(moreModules, moduleId)) {`,
@@ -132386,19 +133905,16 @@ class JsonpChunkLoadingRuntimeModule extends RuntimeModule {
 								"}",
 								"if(runtime) runtime(__webpack_require__);",
 								"if(parentChunkLoadingFunction) parentChunkLoadingFunction(data);",
-								"while(resolves.length) {",
-								Template.indent("resolves.shift()();"),
+								"for(;i < chunkIds.length; i++) {",
+								Template.indent([
+									"chunkId = chunkIds[i];",
+									`if(${RuntimeGlobals.hasOwnProperty}(installedChunks, chunkId) && installedChunks[chunkId]) {`,
+									Template.indent("installedChunks[chunkId][0]();"),
+									"}",
+									"installedChunks[chunkIds[i]] = 0;"
+								]),
 								"}",
-								withDefer
-									? Template.asString([
-											"",
-											"// add entry modules from loaded chunk to deferred list",
-											"if(executeModules) deferredModules.push.apply(deferredModules, executeModules);",
-											"",
-											"// run deferred modules when all chunks ready",
-											"return checkDeferredModules();"
-									  ])
-									: ""
+								withOnChunkLoad ? `${RuntimeGlobals.onChunksLoaded}();` : ""
 							]
 						)}`,
 						"",
@@ -132406,142 +133922,12 @@ class JsonpChunkLoadingRuntimeModule extends RuntimeModule {
 						"chunkLoadingGlobal.forEach(webpackJsonpCallback.bind(null, 0));",
 						"chunkLoadingGlobal.push = webpackJsonpCallback.bind(null, chunkLoadingGlobal.push.bind(chunkLoadingGlobal));"
 				  ])
-				: "// no jsonp function",
-			"",
-			withDefer
-				? Template.asString([
-						"function checkDeferredModulesImpl() {",
-						Template.indent([
-							"var result;",
-							"for(var i = 0; i < deferredModules.length; i++) {",
-							Template.indent([
-								"var deferredModule = deferredModules[i];",
-								"var fulfilled = true;",
-								"for(var j = 1; j < deferredModule.length; j++) {",
-								Template.indent([
-									"var depId = deferredModule[j];",
-									"if(installedChunks[depId] !== 0) fulfilled = false;"
-								]),
-								"}",
-								"if(fulfilled) {",
-								Template.indent([
-									"deferredModules.splice(i--, 1);",
-									"result = " +
-										"__webpack_require__(" +
-										`${RuntimeGlobals.entryModuleId} = deferredModule[0]);`
-								]),
-								"}"
-							]),
-							"}",
-							"if(deferredModules.length === 0) {",
-							Template.indent([
-								`${RuntimeGlobals.startup}();`,
-								`${
-									RuntimeGlobals.startup
-								} = ${runtimeTemplate.emptyFunction()};`
-							]),
-							"}",
-							"return result;"
-						]),
-						"}",
-						`var startup = ${RuntimeGlobals.startup};`,
-						`${RuntimeGlobals.startup} = ${runtimeTemplate.basicFunction("", [
-							"// reset startup function so it can be called again when more startup code is added",
-							`${
-								RuntimeGlobals.startup
-							} = startup || (${runtimeTemplate.emptyFunction()});`,
-							"return (checkDeferredModules = checkDeferredModulesImpl)();"
-						])};`
-				  ])
-				: "// no deferred startup"
+				: "// no jsonp function"
 		]);
 	}
 }
 
 module.exports = JsonpChunkLoadingRuntimeModule;
-
-
-/***/ }),
-
-/***/ 39546:
-/***/ (function(__unused_webpack_module, exports) {
-
-"use strict";
-/*
-	MIT License http://www.opensource.org/licenses/mit-license.php
-	Author Tobias Koppers @sokra
-*/
-
-
-
-/** @typedef {import("../Chunk")} Chunk */
-/** @typedef {import("../Compilation")} Compilation */
-/** @typedef {import("../ChunkGraph")} ChunkGraph */
-/** @typedef {import("../ChunkGroup")} ChunkGroup */
-/** @typedef {(string|number)[]} EntryItem */
-
-// TODO move to this file to ../javascript/ChunkHelpers.js
-
-/**
- * @param {ChunkGroup} chunkGroup a chunk group
- * @returns {Set<Chunk>} chunks
- */
-const getAllChunks = chunkGroup => {
-	const queue = new Set([chunkGroup]);
-	const chunks = new Set();
-	for (const chunkGroup of queue) {
-		for (const chunk of chunkGroup.chunks) {
-			chunks.add(chunk);
-		}
-		for (const parent of chunkGroup.parentsIterable) {
-			queue.add(parent);
-		}
-	}
-	return chunks;
-};
-
-/**
- * @param {ChunkGraph} chunkGraph the chunk graph
- * @param {Chunk} chunk the chunk
- * @param {function(Chunk): boolean} chunkFilter the chunk filter function
- * @returns {EntryItem[]} serialized entry info:
- * inner arrays have this format [module id, ...chunk ids]
- */
-exports.getEntryInfo = (chunkGraph, chunk, chunkFilter) => {
-	return Array.from(
-		chunkGraph.getChunkEntryModulesWithChunkGroupIterable(chunk)
-	).map(([module, chunkGroup]) => {
-		const arr = [chunkGraph.getModuleId(module)];
-		for (const c of getAllChunks(chunkGroup)) {
-			if (!chunkFilter(c) && !c.hasRuntime()) continue;
-			const id = c.id;
-			if (id === chunk.id) continue;
-			arr.push(id);
-		}
-		return arr;
-	});
-};
-
-/**
- * @param {Compilation} compilation the compilation
- * @param {Chunk} chunk the chunk
- * @returns {boolean} true, when other chunks have this chunk as runtime chunk
- */
-exports.needEntryDeferringCode = (compilation, chunk) => {
-	for (const entrypoint of compilation.entrypoints.values()) {
-		if (entrypoint.getRuntimeChunk() === chunk) {
-			if (entrypoint.chunks.length > 1 || entrypoint.chunks[0] !== chunk)
-				return true;
-		}
-	}
-	for (const entrypoint of compilation.asyncEntrypoints) {
-		if (entrypoint.getRuntimeChunk() === chunk) {
-			if (entrypoint.chunks.length > 1 || entrypoint.chunks[0] !== chunk)
-				return true;
-		}
-	}
-	return false;
-};
 
 
 /***/ }),
@@ -132865,8 +134251,11 @@ const RuntimeGlobals = __webpack_require__(48801);
 const RuntimeModule = __webpack_require__(54746);
 const Template = __webpack_require__(90751);
 const {
-	getChunkFilenameTemplate
+	getChunkFilenameTemplate,
+	chunkHasJs
 } = __webpack_require__(80867);
+const { getInitialChunkIds } = __webpack_require__(9005);
+const compileBooleanMatcher = __webpack_require__(29522);
 const { getUndoPath } = __webpack_require__(47779);
 
 class ImportScriptsChunkLoadingRuntimeModule extends RuntimeModule {
@@ -132882,6 +134271,7 @@ class ImportScriptsChunkLoadingRuntimeModule extends RuntimeModule {
 		const {
 			chunk,
 			compilation: {
+				chunkGraph,
 				runtimeTemplate,
 				outputOptions: { globalObject, chunkLoadingGlobal, hotUpdateGlobal }
 			}
@@ -132900,6 +134290,11 @@ class ImportScriptsChunkLoadingRuntimeModule extends RuntimeModule {
 		const chunkLoadingGlobalExpr = `${globalObject}[${JSON.stringify(
 			chunkLoadingGlobal
 		)}]`;
+		const hasJsMatcher = compileBooleanMatcher(
+			chunkGraph.getChunkConditionMap(chunk, chunkHasJs)
+		);
+		const initialChunkIds = getInitialChunkIds(chunk, chunkGraph);
+
 		const outputName = this.compilation.getPath(
 			getChunkFilenameTemplate(chunk, this.compilation.outputOptions),
 			{
@@ -132907,7 +134302,12 @@ class ImportScriptsChunkLoadingRuntimeModule extends RuntimeModule {
 				contentHashType: "javascript"
 			}
 		);
-		const rootOutputDir = getUndoPath(outputName, false);
+		const rootOutputDir = getUndoPath(
+			outputName,
+			this.compilation.outputOptions.path,
+			false
+		);
+
 		return Template.asString([
 			withBaseURI
 				? Template.asString([
@@ -132921,49 +134321,61 @@ class ImportScriptsChunkLoadingRuntimeModule extends RuntimeModule {
 			'// "1" means "already loaded"',
 			"var installedChunks = {",
 			Template.indent(
-				chunk.ids.map(id => `${JSON.stringify(id)}: 1`).join(",\n")
+				Array.from(initialChunkIds, id => `${JSON.stringify(id)}: 1`).join(
+					",\n"
+				)
 			),
 			"};",
 			"",
 			withLoading
 				? Template.asString([
 						"// importScripts chunk loading",
-						`var chunkLoadingCallback = ${runtimeTemplate.basicFunction(
-							"data",
-							[
-								runtimeTemplate.destructureArray(
-									["chunkIds", "moreModules", "runtime"],
-									"data"
-								),
-								"for(var moduleId in moreModules) {",
-								Template.indent([
-									`if(${RuntimeGlobals.hasOwnProperty}(moreModules, moduleId)) {`,
-									Template.indent(
-										`${RuntimeGlobals.moduleFactories}[moduleId] = moreModules[moduleId];`
-									),
-									"}"
-								]),
-								"}",
-								"if(runtime) runtime(__webpack_require__);",
-								"while(chunkIds.length)",
-								Template.indent("installedChunks[chunkIds.pop()] = 1;"),
-								"parentChunkLoadingFunction(data);"
-							]
-						)};`,
-						`${fn}.i = ${runtimeTemplate.basicFunction("chunkId, promises", [
-							'// "1" is the signal for "already loaded"',
-							"if(!installedChunks[chunkId]) {",
+						`var installChunk = ${runtimeTemplate.basicFunction("data", [
+							runtimeTemplate.destructureArray(
+								["chunkIds", "moreModules", "runtime"],
+								"data"
+							),
+							"for(var moduleId in moreModules) {",
 							Template.indent([
-								`importScripts(${JSON.stringify(rootOutputDir)} + ${
-									RuntimeGlobals.getChunkScriptFilename
-								}(chunkId));`
+								`if(${RuntimeGlobals.hasOwnProperty}(moreModules, moduleId)) {`,
+								Template.indent(
+									`${RuntimeGlobals.moduleFactories}[moduleId] = moreModules[moduleId];`
+								),
+								"}"
 							]),
-							"}"
-						])};`,
+							"}",
+							"if(runtime) runtime(__webpack_require__);",
+							"while(chunkIds.length)",
+							Template.indent("installedChunks[chunkIds.pop()] = 1;"),
+							"parentChunkLoadingFunction(data);"
+						])};`
+				  ])
+				: "// no chunk install function needed",
+			withLoading
+				? Template.asString([
+						`${fn}.i = ${runtimeTemplate.basicFunction(
+							"chunkId, promises",
+							hasJsMatcher !== false
+								? [
+										'// "1" is the signal for "already loaded"',
+										"if(!installedChunks[chunkId]) {",
+										Template.indent([
+											hasJsMatcher === true
+												? "if(true) { // all chunks have JS"
+												: `if(${hasJsMatcher("chunkId")}) {`,
+											Template.indent(
+												`importScripts(${RuntimeGlobals.publicPath} + ${RuntimeGlobals.getChunkScriptFilename}(chunkId));`
+											),
+											"}"
+										]),
+										"}"
+								  ]
+								: "installedChunks[chunkId] = 1;"
+						)};`,
 						"",
 						`var chunkLoadingGlobal = ${chunkLoadingGlobalExpr} = ${chunkLoadingGlobalExpr} || [];`,
 						"var parentChunkLoadingFunction = chunkLoadingGlobal.push.bind(chunkLoadingGlobal);",
-						"chunkLoadingGlobal.push = chunkLoadingCallback;"
+						"chunkLoadingGlobal.push = installChunk;"
 				  ])
 				: "// no chunk loading",
 			"",
@@ -132989,9 +134401,7 @@ class ImportScriptsChunkLoadingRuntimeModule extends RuntimeModule {
 								"success = true;"
 							])};`,
 							"// start update chunk loading",
-							`importScripts(${JSON.stringify(rootOutputDir)} + ${
-								RuntimeGlobals.getChunkUpdateScriptFilename
-							}(chunkId));`,
+							`importScripts(${RuntimeGlobals.publicPath} + ${RuntimeGlobals.getChunkUpdateScriptFilename}(chunkId));`,
 							'if(!success) throw new Error("Loading update chunk failed for unknown reason");'
 						]),
 						"}",
@@ -133185,7 +134595,7 @@ module.exports = eval("require")("pnpapi");
 /***/ (function(__unused_webpack_module, exports) {
 
 "use strict";
-exports.parse=parse;exports.init=void 0;const A=1===new Uint8Array(new Uint16Array([1]).buffer)[0];function parse(E,g="@"){if(!B)return init.then(()=>parse(E));const I=E.length+1,D=(B.__heap_base.value||B.__heap_base)+4*I-B.memory.buffer.byteLength;D>0&&B.memory.grow(Math.ceil(D/65536));const w=B.sa(I-1);if((A?C:Q)(E,new Uint16Array(B.memory.buffer,w,I)),!B.parse())throw Object.assign(new Error(`Parse error ${g}:${E.slice(0,B.e()).split("\n").length}:${B.e()-E.lastIndexOf("\n",B.e()-1)}`),{idx:B.e()});const L=[],k=[];for(;B.ri();){const A=B.is(),Q=B.ie();let C;B.ip()&&(C=N(E.slice(A-1,Q+1))),L.push({n:C,s:A,e:Q,ss:B.ss(),se:B.se(),d:B.id()})}for(;B.re();)k.push(E.slice(B.es(),B.ee()));function N(A){try{return(0,eval)(A)}catch{}}return[L,k,!!B.f()]}function Q(A,Q){const C=A.length;let B=0;for(;B<C;){const C=A.charCodeAt(B);Q[B++]=(255&C)<<8|C>>>8}}function C(A,Q){const C=A.length;let B=0;for(;B<C;)Q[B]=A.charCodeAt(B++)}let B;const init=WebAssembly.compile((E="AGFzbQEAAAABWAxgAX8Bf2AEf39/fwBgAn9/AGAAAX9gAABgBn9/f39/fwF/YAR/f39/AX9gA39/fwF/YAd/f39/f39/AX9gBX9/f39/AX9gAn9/AX9gCH9/f39/f39/AX8DMC8AAQIDAwMDAwMDAwMDAwMABAQABQQEAAAAAAQEBAQEAAUGBwgJCgsDAgAACgMICwQFAXABAQEFAwEAAQYPAn8BQfDwAAt/AEHw8AALB18QBm1lbW9yeQIAAnNhAAABZQADAmlzAAQCaWUABQJzcwAGAnNlAAcCaWQACAJpcAAJAmVzAAoCZWUACwJyaQAMAnJlAA0BZgAOBXBhcnNlAA8LX19oZWFwX2Jhc2UDAQrLNC9oAQF/QQAgADYCtAhBACgCkAgiASAAQQF0aiIAQQA7AQBBACAAQQJqIgA2ArgIQQAgADYCvAhBAEEANgKUCEEAQQA2AqQIQQBBADYCnAhBAEEANgKYCEEAQQA2AqwIQQBBADYCoAggAQurAQECf0EAKAKkCCIEQRhqQZQIIAQbQQAoArwIIgU2AgBBACAFNgKkCEEAIAQ2AqgIQQAgBUEcajYCvAggBSAANgIIAkACQEEAKAKICCADRw0AIAUgAjYCDAwBCwJAQQAoAoQIIANHDQAgBSACQQJqNgIMDAELIAVBACgCkAg2AgwLIAUgATYCACAFIAM2AhAgBSACNgIEIAVBADYCGCAFQQAoAoQIIANGOgAUC0gBAX9BACgCrAgiAkEIakGYCCACG0EAKAK8CCICNgIAQQAgAjYCrAhBACACQQxqNgK8CCACQQA2AgggAiABNgIEIAIgADYCAAsIAEEAKALACAsVAEEAKAKcCCgCAEEAKAKQCGtBAXULFQBBACgCnAgoAgRBACgCkAhrQQF1CxUAQQAoApwIKAIIQQAoApAIa0EBdQsVAEEAKAKcCCgCDEEAKAKQCGtBAXULOwEBfwJAQQAoApwIKAIQIgBBACgChAhHDQBBfw8LAkAgAEEAKAKICEcNAEF+DwsgAEEAKAKQCGtBAXULCwBBACgCnAgtABQLFQBBACgCoAgoAgBBACgCkAhrQQF1CxUAQQAoAqAIKAIEQQAoApAIa0EBdQslAQF/QQBBACgCnAgiAEEYakGUCCAAGygCACIANgKcCCAAQQBHCyUBAX9BAEEAKAKgCCIAQQhqQZgIIAAbKAIAIgA2AqAIIABBAEcLCABBAC0AxAgLhQwBBX8jAEGA8ABrIgEkAEEAQQE6AMQIQQBB//8DOwHKCEEAQQAoAowINgLMCEEAQQAoApAIQX5qIgI2AuAIQQAgAkEAKAK0CEEBdGoiAzYC5AhBAEEAOwHGCEEAQQA7AcgIQQBBADoA0AhBAEEANgLACEEAQQA6ALAIQQAgAUGA0ABqNgLUCEEAIAFBgBBqNgLYCEEAQQA6ANwIAkACQAJAA0BBACACQQJqIgQ2AuAIAkACQAJAAkAgAiADTw0AIAQvAQAiA0F3akEFSQ0DIANBm39qIgVBBE0NASADQSBGDQMCQCADQS9GDQAgA0E7Rg0DDAYLAkAgAi8BBCIEQSpGDQAgBEEvRw0GEBAMBAsQEQwDC0EAIQMgBCECQQAtALAIDQYMBQsCQAJAIAUOBQEFBQUAAQsgBBASRQ0BIAJBBGpB7QBB8ABB7wBB8gBB9AAQE0UNARAUDAELQQAvAcgIDQAgBBASRQ0AIAJBBGpB+ABB8ABB7wBB8gBB9AAQE0UNABAVQQAtAMQIDQBBAEEAKALgCCICNgLMCAwEC0EAQQAoAuAINgLMCAtBACgC5AghA0EAKALgCCECDAALC0EAIAI2AuAIQQBBADoAxAgLA0BBACACQQJqIgM2AuAIAkACQAJAAkACQAJAAkACQAJAAkACQAJAAkACQAJAIAJBACgC5AhPDQAgAy8BACIEQXdqQQVJDQ4gBEFgaiIFQQlNDQEgBEGgf2oiBUEJTQ0CAkACQAJAIARBhX9qIgNBAk0NACAEQS9HDRAgAi8BBCICQSpGDQEgAkEvRw0CEBAMEQsCQAJAIAMOAwARAQALAkBBACgCzAgiBC8BAEEpRw0AQQAoAqQIIgJFDQAgAigCBCAERw0AQQBBACgCqAgiAjYCpAgCQCACRQ0AIAJBADYCGAwBC0EAQQA2ApQICyABQQAvAcgIIgJqQQAtANwIOgAAQQAgAkEBajsByAhBACgC2AggAkECdGogBDYCAEEAQQA6ANwIDBALQQAvAcgIIgJFDQlBACACQX9qIgM7AcgIAkAgAkEALwHKCCIERw0AQQBBAC8BxghBf2oiAjsBxghBAEEAKALUCCACQf//A3FBAXRqLwEAOwHKCAwICyAEQf//A0YNDyADQf//A3EgBEkNCQwPCxARDA8LAkACQAJAAkBBACgCzAgiBC8BACICEBZFDQAgAkFVaiIDQQNLDQICQAJAAkAgAw4EAQUCAAELIARBfmovAQBBUGpB//8DcUEKSQ0DDAQLIARBfmovAQBBK0YNAgwDCyAEQX5qLwEAQS1GDQEMAgsCQCACQf0ARg0AIAJBKUcNAUEAKALYCEEALwHICEECdGooAgAQF0UNAQwCC0EAKALYCEEALwHICCIDQQJ0aigCABAYDQEgASADai0AAA0BCyAEEBkNACACRQ0AQQEhBCACQS9GQQAtANAIQQBHcUUNAQsQGkEAIQQLQQAgBDoA0AgMDQtBAC8ByghB//8DRkEALwHICEVxQQAtALAIRXEhAwwPCyAFDgoMCwELCwsLAgcEDAsgBQ4KAgoKBwoJCgoKCAILEBsMCQsQHAwICxAdDAcLQQAvAcgIIgINAQsQHkEAIQMMCAtBACACQX9qIgQ7AcgIQQAoAqQIIgJFDQQgAigCEEEAKALYCCAEQf//A3FBAnRqKAIARw0EIAIgAzYCBAwEC0EAQQAvAcgIIgJBAWo7AcgIQQAoAtgIIAJBAnRqQQAoAswINgIADAMLIAMQEkUNAiACLwEKQfMARw0CIAIvAQhB8wBHDQIgAi8BBkHhAEcNAiACLwEEQewARw0CAkACQCACLwEMIgRBd2oiAkEXSw0AQQEgAnRBn4CABHENAQsgBEGgAUcNAwtBAEEBOgDcCAwCCyADEBJFDQEgAkEEakHtAEHwAEHvAEHyAEH0ABATRQ0BEBQMAQtBAC8ByAgNACADEBJFDQAgAkEEakH4AEHwAEHvAEHyAEH0ABATRQ0AEBULQQBBACgC4Ag2AswIC0EAKALgCCECDAALCyABQYDwAGokACADC1ABBH9BACgC4AhBAmohAEEAKALkCCEBAkADQCAAIgJBfmogAU8NASACQQJqIQAgAi8BAEF2aiIDQQNLDQAgAw4EAQAAAQELC0EAIAI2AuAIC3cBAn9BAEEAKALgCCIAQQJqNgLgCCAAQQZqIQBBACgC5AghAQNAAkACQAJAIABBfGogAU8NACAAQX5qLwEAQSpHDQIgAC8BAEEvRw0CQQAgAEF+ajYC4AgMAQsgAEF+aiEAC0EAIAA2AuAIDwsgAEECaiEADAALCx0AAkBBACgCkAggAEcNAEEBDwsgAEF+ai8BABAfCz8BAX9BACEGAkAgAC8BCCAFRw0AIAAvAQYgBEcNACAALwEEIANHDQAgAC8BAiACRw0AIAAvAQAgAUYhBgsgBgv3AwEEf0EAQQAoAuAIIgBBDGoiATYC4AgCQAJAAkACQAJAECciAkFZaiIDQQdNDQAgAkEiRg0CIAJB+wBGDQIMAQsCQAJAIAMOCAMBAgMCAgIAAwtBAEEAKALgCEECajYC4AgQJ0HtAEcNA0EAKALgCCIDLwEGQeEARw0DIAMvAQRB9ABHDQMgAy8BAkHlAEcNA0EAKALMCC8BAEEuRg0DIAAgACADQQhqQQAoAogIEAEPC0EAKALYCEEALwHICCIDQQJ0aiAANgIAQQAgA0EBajsByAhBACgCzAgvAQBBLkYNAiAAQQAoAuAIQQJqQQAgABABQQBBACgC4AhBAmo2AuAIAkACQBAnIgNBIkYNAAJAIANBJ0cNABAcDAILQQBBACgC4AhBfmo2AuAIDwsQGwtBAEEAKALgCEECajYC4AgCQBAnQSlHDQBBACgCpAgiA0EBOgAUIANBACgC4Ag2AgRBAEEALwHICEF/ajsByAgPC0EAQQAoAuAIQX5qNgLgCA8LQQAoAuAIIAFGDQELQQAvAcgIDQFBACgC4AghA0EAKALkCCEBAkADQCADIAFPDQECQAJAIAMvAQAiAkEnRg0AIAJBIkcNAQsgACACECgPC0EAIANBAmoiAzYC4AgMAAsLEB4LDwtBAEEAKALgCEF+ajYC4AgLiAYBBH9BAEEAKALgCCIAQQxqIgE2AuAIECchAgJAAkACQAJAAkACQEEAKALgCCIDIAFHDQAgAhApRQ0BCwJAAkACQAJAIAJBn39qIgFBC00NAAJAAkAgAkEqRg0AIAJB9gBGDQUgAkH7AEcNA0EAIANBAmo2AuAIECchA0EAKALgCCEBA0AgA0H//wNxECoaQQAoAuAIIQIQJxoCQCABIAIQKyIDQSxHDQBBAEEAKALgCEECajYC4AgQJyEDC0EAKALgCCECAkAgA0H9AEYNACACIAFGDQwgAiEBIAJBACgC5AhNDQEMDAsLQQAgAkECajYC4AgMAQtBACADQQJqNgLgCBAnGkEAKALgCCICIAIQKxoLECchAgwBCyABDgwEAAEGAAUAAAAAAAIEC0EAKALgCCEDAkAgAkHmAEcNACADLwEGQe0ARw0AIAMvAQRB7wBHDQAgAy8BAkHyAEcNAEEAIANBCGo2AuAIIAAQJxAoDwtBACADQX5qNgLgCAwCCwJAIAMvAQhB8wBHDQAgAy8BBkHzAEcNACADLwEEQeEARw0AIAMvAQJB7ABHDQAgAy8BChAfRQ0AQQAgA0EKajYC4AgQJyECQQAoAuAIIQMgAhAqGiADQQAoAuAIEAJBAEEAKALgCEF+ajYC4AgPC0EAIANBBGoiAzYC4AgLQQAgA0EEaiICNgLgCEEAQQA6AMQIA0BBACACQQJqNgLgCBAnIQJBACgC4AghAwJAAkAgAhAqIgJBPUYNACACQfsARg0AIAJB2wBHDQELQQBBACgC4AhBfmo2AuAIDwtBACgC4AgiAiADRg0BIAMgAhACECchA0EAKALgCCECIANBLEYNAAtBACACQX5qNgLgCA8LDwtBACADQQpqNgLgCBAnGkEAKALgCCEDC0EAIANBEGo2AuAIAkAQJyICQSpHDQBBAEEAKALgCEECajYC4AgQJyECC0EAKALgCCEDIAIQKhogA0EAKALgCBACQQBBACgC4AhBfmo2AuAIDwsgAyADQQ5qEAIPCxAeC3UBAX8CQAJAIABBX2oiAUEFSw0AQQEgAXRBMXENAQsgAEFGakH//wNxQQZJDQAgAEFYakH//wNxQQdJIABBKUdxDQACQCAAQaV/aiIBQQNLDQAgAQ4EAQAAAQELIABB/QBHIABBhX9qQf//A3FBBElxDwtBAQs9AQF/QQEhAQJAIABB9wBB6ABB6QBB7ABB5QAQIA0AIABB5gBB7wBB8gAQIQ0AIABB6QBB5gAQIiEBCyABC60BAQN/QQEhAQJAAkACQAJAAkACQAJAIAAvAQAiAkFFaiIDQQNNDQAgAkGbf2oiA0EDTQ0BIAJBKUYNAyACQfkARw0CIABBfmpB5gBB6QBB7gBB4QBB7ABB7AAQIw8LIAMOBAIBAQUCCyADDgQCAAADAgtBACEBCyABDwsgAEF+akHlAEHsAEHzABAhDwsgAEF+akHjAEHhAEH0AEHjABAkDwsgAEF+ai8BAEE9RgvtAwECf0EAIQECQCAALwEAQZx/aiICQRNLDQACQAJAAkACQAJAAkACQAJAIAIOFAABAggICAgICAgDBAgIBQgGCAgHAAsgAEF+ai8BAEGXf2oiAkEDSw0HAkACQCACDgQACQkBAAsgAEF8akH2AEHvABAiDwsgAEF8akH5AEHpAEHlABAhDwsgAEF+ai8BAEGNf2oiAkEBSw0GAkACQCACDgIAAQALAkAgAEF8ai8BACICQeEARg0AIAJB7ABHDQggAEF6akHlABAlDwsgAEF6akHjABAlDwsgAEF8akHkAEHlAEHsAEHlABAkDwsgAEF+ai8BAEHvAEcNBSAAQXxqLwEAQeUARw0FAkAgAEF6ai8BACICQfAARg0AIAJB4wBHDQYgAEF4akHpAEHuAEHzAEH0AEHhAEHuABAjDwsgAEF4akH0AEH5ABAiDwtBASEBIABBfmoiAEHpABAlDQQgAEHyAEHlAEH0AEH1AEHyABAgDwsgAEF+akHkABAlDwsgAEF+akHkAEHlAEHiAEH1AEHnAEHnAEHlABAmDwsgAEF+akHhAEH3AEHhAEHpABAkDwsCQCAAQX5qLwEAIgJB7wBGDQAgAkHlAEcNASAAQXxqQe4AECUPCyAAQXxqQfQAQegAQfIAECEhAQsgAQuDAQEDfwNAQQBBACgC4AgiAEECaiIBNgLgCAJAAkACQCAAQQAoAuQITw0AIAEvAQAiAUGlf2oiAkEBTQ0CAkAgAUF2aiIAQQNNDQAgAUEvRw0EDAILIAAOBAADAwAACxAeCw8LAkACQCACDgIBAAELQQAgAEEEajYC4AgMAQsQLBoMAAsLkQEBBH9BACgC4AghAEEAKALkCCEBAkADQCAAIgJBAmohACACIAFPDQECQCAALwEAIgNB3ABGDQACQCADQXZqIgJBA00NACADQSJHDQJBACAANgLgCA8LIAIOBAIBAQICCyACQQRqIQAgAi8BBEENRw0AIAJBBmogACACLwEGQQpGGyEADAALC0EAIAA2AuAIEB4LkQEBBH9BACgC4AghAEEAKALkCCEBAkADQCAAIgJBAmohACACIAFPDQECQCAALwEAIgNB3ABGDQACQCADQXZqIgJBA00NACADQSdHDQJBACAANgLgCA8LIAIOBAIBAQICCyACQQRqIQAgAi8BBEENRw0AIAJBBmogACACLwEGQQpGGyEADAALC0EAIAA2AuAIEB4LyQEBBX9BACgC4AghAEEAKALkCCEBA0AgACICQQJqIQACQAJAIAIgAU8NACAALwEAIgNBpH9qIgRBBE0NASADQSRHDQIgAi8BBEH7AEcNAkEAQQAvAcYIIgBBAWo7AcYIQQAoAtQIIABBAXRqQQAvAcoIOwEAQQAgAkEEajYC4AhBAEEALwHICEEBaiIAOwHKCEEAIAA7AcgIDwtBACAANgLgCBAeDwsCQAJAIAQOBQECAgIAAQtBACAANgLgCA8LIAJBBGohAAwACws1AQF/QQBBAToAsAhBACgC4AghAEEAQQAoAuQIQQJqNgLgCEEAIABBACgCkAhrQQF1NgLACAs0AQF/QQEhAQJAIABBd2pB//8DcUEFSQ0AIABBgAFyQaABRg0AIABBLkcgABApcSEBCyABC0kBA39BACEGAkAgAEF4aiIHQQAoApAIIghJDQAgByABIAIgAyAEIAUQE0UNAAJAIAcgCEcNAEEBDwsgAEF2ai8BABAfIQYLIAYLWQEDf0EAIQQCQCAAQXxqIgVBACgCkAgiBkkNACAALwEAIANHDQAgAEF+ai8BACACRw0AIAUvAQAgAUcNAAJAIAUgBkcNAEEBDwsgAEF6ai8BABAfIQQLIAQLTAEDf0EAIQMCQCAAQX5qIgRBACgCkAgiBUkNACAALwEAIAJHDQAgBC8BACABRw0AAkAgBCAFRw0AQQEPCyAAQXxqLwEAEB8hAwsgAwtLAQN/QQAhBwJAIABBdmoiCEEAKAKQCCIJSQ0AIAggASACIAMgBCAFIAYQLUUNAAJAIAggCUcNAEEBDwsgAEF0ai8BABAfIQcLIAcLZgEDf0EAIQUCQCAAQXpqIgZBACgCkAgiB0kNACAALwEAIARHDQAgAEF+ai8BACADRw0AIABBfGovAQAgAkcNACAGLwEAIAFHDQACQCAGIAdHDQBBAQ8LIABBeGovAQAQHyEFCyAFCz0BAn9BACECAkBBACgCkAgiAyAASw0AIAAvAQAgAUcNAAJAIAMgAEcNAEEBDwsgAEF+ai8BABAfIQILIAILTQEDf0EAIQgCQCAAQXRqIglBACgCkAgiCkkNACAJIAEgAiADIAQgBSAGIAcQLkUNAAJAIAkgCkcNAEEBDwsgAEFyai8BABAfIQgLIAgLdgEDf0EAKALgCCEAAkADQAJAIAAvAQAiAUF3akEFSQ0AIAFBIEYNACABQaABRg0AIAFBL0cNAgJAIAAvAQIiAEEqRg0AIABBL0cNAxAQDAELEBELQQBBACgC4AgiAkECaiIANgLgCCACQQAoAuQISQ0ACwsgAQtYAAJAAkAgAUEiRg0AIAFBJ0cNAUEAKALgCCEBEBwgACABQQJqQQAoAuAIQQAoAoQIEAEPC0EAKALgCCEBEBsgACABQQJqQQAoAuAIQQAoAoQIEAEPCxAeC2gBAn9BASEBAkACQCAAQV9qIgJBBUsNAEEBIAJ0QTFxDQELIABB+P8DcUEoRg0AIABBRmpB//8DcUEGSQ0AAkAgAEGlf2oiAkEDSw0AIAJBAUcNAQsgAEGFf2pB//8DcUEESSEBCyABC20BAn8CQAJAA0ACQCAAQf//A3EiAUF3aiICQRdLDQBBASACdEGfgIAEcQ0CCyABQaABRg0BIAAhAiABECkNAkEAIQJBAEEAKALgCCIAQQJqNgLgCCAALwECIgANAAwCCwsgACECCyACQf//A3ELXAECfwJAQQAoAuAIIgIvAQAiA0HhAEcNAEEAIAJBBGo2AuAIECchAkEAKALgCCEAIAIQKhpBACgC4AghARAnIQNBACgC4AghAgsCQCACIABGDQAgACABEAILIAMLiQEBBX9BACgC4AghAEEAKALkCCEBA38gAEECaiECAkACQCAAIAFPDQAgAi8BACIDQaR/aiIEQQFNDQEgAiEAIANBdmoiA0EDSw0CIAIhACADDgQAAgIAAAtBACACNgLgCBAeQQAPCwJAAkAgBA4CAQABC0EAIAI2AuAIQd0ADwsgAEEEaiEADAALC0kBAX9BACEHAkAgAC8BCiAGRw0AIAAvAQggBUcNACAALwEGIARHDQAgAC8BBCADRw0AIAAvAQIgAkcNACAALwEAIAFGIQcLIAcLUwEBf0EAIQgCQCAALwEMIAdHDQAgAC8BCiAGRw0AIAAvAQggBUcNACAALwEGIARHDQAgAC8BBCADRw0AIAAvAQIgAkcNACAALwEAIAFGIQgLIAgLCx8CAEGACAsCAAAAQYQICxABAAAAAgAAAAAEAABwOAAA","undefined"!=typeof window&&"function"==typeof atob?Uint8Array.from(atob(E),A=>A.charCodeAt(0)):Buffer.from(E,"base64"))).then(WebAssembly.instantiate).then(({exports:A})=>{B=A});exports.init=init;var E;
+exports.parse=parse;exports.init=void 0;const A=1===new Uint8Array(new Uint16Array([1]).buffer)[0];function parse(g,E="@"){if(!C)return init.then(()=>parse(g));const I=g.length+1,w=(C.__heap_base.value||C.__heap_base)+4*I-C.memory.buffer.byteLength;w>0&&C.memory.grow(Math.ceil(w/65536));const D=C.sa(I-1);if((A?B:Q)(g,new Uint16Array(C.memory.buffer,D,I)),!C.parse())throw Object.assign(new Error(`Parse error ${E}:${g.slice(0,C.e()).split("\n").length}:${C.e()-g.lastIndexOf("\n",C.e()-1)}`),{idx:C.e()});const L=[],k=[];for(;C.ri();){const A=C.is(),Q=C.ie();let B;C.ip()&&(B=o(g.slice(A-1,Q+1))),L.push({n:B,s:A,e:Q,ss:C.ss(),se:C.se(),d:C.id()})}for(;C.re();)k.push(g.slice(C.es(),C.ee()));function o(A){try{return(0,eval)(A)}catch{}}return[L,k,!!C.f()]}function Q(A,Q){const B=A.length;let C=0;for(;C<B;){const B=A.charCodeAt(C);Q[C++]=(255&B)<<8|B>>>8}}function B(A,Q){const B=A.length;let C=0;for(;C<B;)Q[C]=A.charCodeAt(C++)}let C;const init=WebAssembly.compile((g="AGFzbQEAAAABWAxgAX8Bf2AEf39/fwBgAn9/AGAAAX9gAABgBn9/f39/fwF/YAR/f39/AX9gA39/fwF/YAd/f39/f39/AX9gBX9/f39/AX9gAn9/AX9gCH9/f39/f39/AX8DMC8AAQIDAwMDAwMDAwMDAwMABAQABQQEAAAAAAQEBAQEAAUGBwgJCgsDAgAACgMICwQFAXABAQEFAwEAAQYPAn8BQfDwAAt/AEHw8AALB18QBm1lbW9yeQIAAnNhAAABZQADAmlzAAQCaWUABQJzcwAGAnNlAAcCaWQACAJpcAAJAmVzAAoCZWUACwJyaQAMAnJlAA0BZgAOBXBhcnNlAA8LX19oZWFwX2Jhc2UDAQrbNC9oAQF/QQAgADYCtAhBACgCkAgiASAAQQF0aiIAQQA7AQBBACAAQQJqIgA2ArgIQQAgADYCvAhBAEEANgKUCEEAQQA2AqQIQQBBADYCnAhBAEEANgKYCEEAQQA2AqwIQQBBADYCoAggAQurAQECf0EAKAKkCCIEQRhqQZQIIAQbQQAoArwIIgU2AgBBACAFNgKkCEEAIAQ2AqgIQQAgBUEcajYCvAggBSAANgIIAkACQEEAKAKICCADRw0AIAUgAjYCDAwBCwJAQQAoAoQIIANHDQAgBSACQQJqNgIMDAELIAVBACgCkAg2AgwLIAUgATYCACAFIAM2AhAgBSACNgIEIAVBADYCGCAFQQAoAoQIIANGOgAUC0gBAX9BACgCrAgiAkEIakGYCCACG0EAKAK8CCICNgIAQQAgAjYCrAhBACACQQxqNgK8CCACQQA2AgggAiABNgIEIAIgADYCAAsIAEEAKALACAsVAEEAKAKcCCgCAEEAKAKQCGtBAXULFQBBACgCnAgoAgRBACgCkAhrQQF1CxUAQQAoApwIKAIIQQAoApAIa0EBdQsVAEEAKAKcCCgCDEEAKAKQCGtBAXULOwEBfwJAQQAoApwIKAIQIgBBACgChAhHDQBBfw8LAkAgAEEAKAKICEcNAEF+DwsgAEEAKAKQCGtBAXULCwBBACgCnAgtABQLFQBBACgCoAgoAgBBACgCkAhrQQF1CxUAQQAoAqAIKAIEQQAoApAIa0EBdQslAQF/QQBBACgCnAgiAEEYakGUCCAAGygCACIANgKcCCAAQQBHCyUBAX9BAEEAKAKgCCIAQQhqQZgIIAAbKAIAIgA2AqAIIABBAEcLCABBAC0AxAgLhQwBBX8jAEGA8ABrIgEkAEEAQQE6AMQIQQBB//8DOwHKCEEAQQAoAowINgLMCEEAQQAoApAIQX5qIgI2AuAIQQAgAkEAKAK0CEEBdGoiAzYC5AhBAEEAOwHGCEEAQQA7AcgIQQBBADoA0AhBAEEANgLACEEAQQA6ALAIQQAgAUGA0ABqNgLUCEEAIAFBgBBqNgLYCEEAQQA6ANwIAkACQAJAA0BBACACQQJqIgQ2AuAIAkACQAJAAkAgAiADTw0AIAQvAQAiA0F3akEFSQ0DIANBm39qIgVBBE0NASADQSBGDQMCQCADQS9GDQAgA0E7Rg0DDAYLAkAgAi8BBCIEQSpGDQAgBEEvRw0GEBAMBAsQEQwDC0EAIQMgBCECQQAtALAIDQYMBQsCQAJAIAUOBQEFBQUAAQsgBBASRQ0BIAJBBGpB7QBB8ABB7wBB8gBB9AAQE0UNARAUDAELQQAvAcgIDQAgBBASRQ0AIAJBBGpB+ABB8ABB7wBB8gBB9AAQE0UNABAVQQAtAMQIDQBBAEEAKALgCCICNgLMCAwEC0EAQQAoAuAINgLMCAtBACgC5AghA0EAKALgCCECDAALC0EAIAI2AuAIQQBBADoAxAgLA0BBACACQQJqIgM2AuAIAkACQAJAAkACQAJAAkACQAJAAkACQAJAAkACQAJAIAJBACgC5AhPDQAgAy8BACIEQXdqQQVJDQ4gBEFgaiIFQQlNDQEgBEGgf2oiBUEJTQ0CAkACQAJAIARBhX9qIgNBAk0NACAEQS9HDRAgAi8BBCICQSpGDQEgAkEvRw0CEBAMEQsCQAJAIAMOAwARAQALAkBBACgCzAgiBC8BAEEpRw0AQQAoAqQIIgJFDQAgAigCBCAERw0AQQBBACgCqAgiAjYCpAgCQCACRQ0AIAJBADYCGAwBC0EAQQA2ApQICyABQQAvAcgIIgJqQQAtANwIOgAAQQAgAkEBajsByAhBACgC2AggAkECdGogBDYCAEEAQQA6ANwIDBALQQAvAcgIIgJFDQlBACACQX9qIgM7AcgIAkAgAkEALwHKCCIERw0AQQBBAC8BxghBf2oiAjsBxghBAEEAKALUCCACQf//A3FBAXRqLwEAOwHKCAwICyAEQf//A0YNDyADQf//A3EgBEkNCQwPCxARDA8LAkACQAJAAkBBACgCzAgiBC8BACICEBZFDQAgAkFVaiIDQQNLDQICQAJAAkAgAw4EAQUCAAELIARBfmovAQBBUGpB//8DcUEKSQ0DDAQLIARBfmovAQBBK0YNAgwDCyAEQX5qLwEAQS1GDQEMAgsCQCACQf0ARg0AIAJBKUcNAUEAKALYCEEALwHICEECdGooAgAQF0UNAQwCC0EAKALYCEEALwHICCIDQQJ0aigCABAYDQEgASADai0AAA0BCyAEEBkNACACRQ0AQQEhBCACQS9GQQAtANAIQQBHcUUNAQsQGkEAIQQLQQAgBDoA0AgMDQtBAC8ByghB//8DRkEALwHICEVxQQAtALAIRXEhAwwPCyAFDgoMCwELCwsLAgcEDAsgBQ4KAgoKBwoJCgoKCAILEBsMCQsQHAwICxAdDAcLQQAvAcgIIgINAQsQHkEAIQMMCAtBACACQX9qIgQ7AcgIQQAoAqQIIgJFDQQgAigCEEEAKALYCCAEQf//A3FBAnRqKAIARw0EIAIgAzYCBAwEC0EAQQAvAcgIIgJBAWo7AcgIQQAoAtgIIAJBAnRqQQAoAswINgIADAMLIAMQEkUNAiACLwEKQfMARw0CIAIvAQhB8wBHDQIgAi8BBkHhAEcNAiACLwEEQewARw0CAkACQCACLwEMIgRBd2oiAkEXSw0AQQEgAnRBn4CABHENAQsgBEGgAUcNAwtBAEEBOgDcCAwCCyADEBJFDQEgAkEEakHtAEHwAEHvAEHyAEH0ABATRQ0BEBQMAQtBAC8ByAgNACADEBJFDQAgAkEEakH4AEHwAEHvAEHyAEH0ABATRQ0AEBULQQBBACgC4Ag2AswIC0EAKALgCCECDAALCyABQYDwAGokACADC1ABBH9BACgC4AhBAmohAEEAKALkCCEBAkADQCAAIgJBfmogAU8NASACQQJqIQAgAi8BAEF2aiIDQQNLDQAgAw4EAQAAAQELC0EAIAI2AuAIC3cBAn9BAEEAKALgCCIAQQJqNgLgCCAAQQZqIQBBACgC5AghAQNAAkACQAJAIABBfGogAU8NACAAQX5qLwEAQSpHDQIgAC8BAEEvRw0CQQAgAEF+ajYC4AgMAQsgAEF+aiEAC0EAIAA2AuAIDwsgAEECaiEADAALCx0AAkBBACgCkAggAEcNAEEBDwsgAEF+ai8BABAfCz8BAX9BACEGAkAgAC8BCCAFRw0AIAAvAQYgBEcNACAALwEEIANHDQAgAC8BAiACRw0AIAAvAQAgAUYhBgsgBgv3AwEEf0EAQQAoAuAIIgBBDGoiATYC4AgCQAJAAkACQAJAECciAkFZaiIDQQdNDQAgAkEiRg0CIAJB+wBGDQIMAQsCQAJAIAMOCAMBAgMCAgIAAwtBAEEAKALgCEECajYC4AgQJ0HtAEcNA0EAKALgCCIDLwEGQeEARw0DIAMvAQRB9ABHDQMgAy8BAkHlAEcNA0EAKALMCC8BAEEuRg0DIAAgACADQQhqQQAoAogIEAEPC0EAKALYCEEALwHICCIDQQJ0aiAANgIAQQAgA0EBajsByAhBACgCzAgvAQBBLkYNAiAAQQAoAuAIQQJqQQAgABABQQBBACgC4AhBAmo2AuAIAkACQBAnIgNBIkYNAAJAIANBJ0cNABAcDAILQQBBACgC4AhBfmo2AuAIDwsQGwtBAEEAKALgCEECajYC4AgCQBAnQSlHDQBBACgCpAgiA0EBOgAUIANBACgC4Ag2AgRBAEEALwHICEF/ajsByAgPC0EAQQAoAuAIQX5qNgLgCA8LQQAoAuAIIAFGDQELQQAvAcgIDQFBACgC4AghA0EAKALkCCEBAkADQCADIAFPDQECQAJAIAMvAQAiAkEnRg0AIAJBIkcNAQsgACACECgPC0EAIANBAmoiAzYC4AgMAAsLEB4LDwtBAEEAKALgCEF+ajYC4AgLmAYBBH9BAEEAKALgCCIAQQxqIgE2AuAIECchAgJAAkACQAJAAkACQEEAKALgCCIDIAFHDQAgAhApRQ0BCwJAAkACQAJAIAJBn39qIgFBC00NAAJAAkAgAkEqRg0AIAJB9gBGDQUgAkH7AEcNA0EAIANBAmo2AuAIECchA0EAKALgCCEBA0AgA0H//wNxECoaQQAoAuAIIQIQJxoCQCABIAIQKyIDQSxHDQBBAEEAKALgCEECajYC4AgQJyEDC0EAKALgCCECAkAgA0H9AEYNACACIAFGDQwgAiEBIAJBACgC5AhNDQEMDAsLQQAgAkECajYC4AgMAQtBACADQQJqNgLgCBAnGkEAKALgCCICIAIQKxoLECchAgwBCyABDgwEAAEGAAUAAAAAAAIEC0EAKALgCCEDAkAgAkHmAEcNACADLwEGQe0ARw0AIAMvAQRB7wBHDQAgAy8BAkHyAEcNAEEAIANBCGo2AuAIIAAQJxAoDwtBACADQX5qNgLgCAwCCwJAIAMvAQhB8wBHDQAgAy8BBkHzAEcNACADLwEEQeEARw0AIAMvAQJB7ABHDQAgAy8BChAfRQ0AQQAgA0EKajYC4AgQJyECQQAoAuAIIQMgAhAqGiADQQAoAuAIEAJBAEEAKALgCEF+ajYC4AgPC0EAIANBBGoiAzYC4AgLQQAgA0EEaiICNgLgCEEAQQA6AMQIA0BBACACQQJqNgLgCBAnIQNBACgC4AghAgJAIAMQKkEgckH7AEcNAEEAQQAoAuAIQX5qNgLgCA8LQQAoAuAIIgMgAkYNASACIAMQAgJAECciAkEsRg0AAkAgAkE9Rw0AQQBBACgC4AhBfmo2AuAIDwtBAEEAKALgCEF+ajYC4AgPC0EAKALgCCECDAALCw8LQQAgA0EKajYC4AgQJxpBACgC4AghAwtBACADQRBqNgLgCAJAECciAkEqRw0AQQBBACgC4AhBAmo2AuAIECchAgtBACgC4AghAyACECoaIANBACgC4AgQAkEAQQAoAuAIQX5qNgLgCA8LIAMgA0EOahACDwsQHgt1AQF/AkACQCAAQV9qIgFBBUsNAEEBIAF0QTFxDQELIABBRmpB//8DcUEGSQ0AIABBWGpB//8DcUEHSSAAQSlHcQ0AAkAgAEGlf2oiAUEDSw0AIAEOBAEAAAEBCyAAQf0ARyAAQYV/akH//wNxQQRJcQ8LQQELPQEBf0EBIQECQCAAQfcAQegAQekAQewAQeUAECANACAAQeYAQe8AQfIAECENACAAQekAQeYAECIhAQsgAQutAQEDf0EBIQECQAJAAkACQAJAAkACQCAALwEAIgJBRWoiA0EDTQ0AIAJBm39qIgNBA00NASACQSlGDQMgAkH5AEcNAiAAQX5qQeYAQekAQe4AQeEAQewAQewAECMPCyADDgQCAQEFAgsgAw4EAgAAAwILQQAhAQsgAQ8LIABBfmpB5QBB7ABB8wAQIQ8LIABBfmpB4wBB4QBB9ABB4wAQJA8LIABBfmovAQBBPUYL7QMBAn9BACEBAkAgAC8BAEGcf2oiAkETSw0AAkACQAJAAkACQAJAAkACQCACDhQAAQIICAgICAgIAwQICAUIBggIBwALIABBfmovAQBBl39qIgJBA0sNBwJAAkAgAg4EAAkJAQALIABBfGpB9gBB7wAQIg8LIABBfGpB+QBB6QBB5QAQIQ8LIABBfmovAQBBjX9qIgJBAUsNBgJAAkAgAg4CAAEACwJAIABBfGovAQAiAkHhAEYNACACQewARw0IIABBempB5QAQJQ8LIABBempB4wAQJQ8LIABBfGpB5ABB5QBB7ABB5QAQJA8LIABBfmovAQBB7wBHDQUgAEF8ai8BAEHlAEcNBQJAIABBemovAQAiAkHwAEYNACACQeMARw0GIABBeGpB6QBB7gBB8wBB9ABB4QBB7gAQIw8LIABBeGpB9ABB+QAQIg8LQQEhASAAQX5qIgBB6QAQJQ0EIABB8gBB5QBB9ABB9QBB8gAQIA8LIABBfmpB5AAQJQ8LIABBfmpB5ABB5QBB4gBB9QBB5wBB5wBB5QAQJg8LIABBfmpB4QBB9wBB4QBB6QAQJA8LAkAgAEF+ai8BACICQe8ARg0AIAJB5QBHDQEgAEF8akHuABAlDwsgAEF8akH0AEHoAEHyABAhIQELIAELgwEBA38DQEEAQQAoAuAIIgBBAmoiATYC4AgCQAJAAkAgAEEAKALkCE8NACABLwEAIgFBpX9qIgJBAU0NAgJAIAFBdmoiAEEDTQ0AIAFBL0cNBAwCCyAADgQAAwMAAAsQHgsPCwJAAkAgAg4CAQABC0EAIABBBGo2AuAIDAELECwaDAALC5EBAQR/QQAoAuAIIQBBACgC5AghAQJAA0AgACICQQJqIQAgAiABTw0BAkAgAC8BACIDQdwARg0AAkAgA0F2aiICQQNNDQAgA0EiRw0CQQAgADYC4AgPCyACDgQCAQECAgsgAkEEaiEAIAIvAQRBDUcNACACQQZqIAAgAi8BBkEKRhshAAwACwtBACAANgLgCBAeC5EBAQR/QQAoAuAIIQBBACgC5AghAQJAA0AgACICQQJqIQAgAiABTw0BAkAgAC8BACIDQdwARg0AAkAgA0F2aiICQQNNDQAgA0EnRw0CQQAgADYC4AgPCyACDgQCAQECAgsgAkEEaiEAIAIvAQRBDUcNACACQQZqIAAgAi8BBkEKRhshAAwACwtBACAANgLgCBAeC8kBAQV/QQAoAuAIIQBBACgC5AghAQNAIAAiAkECaiEAAkACQCACIAFPDQAgAC8BACIDQaR/aiIEQQRNDQEgA0EkRw0CIAIvAQRB+wBHDQJBAEEALwHGCCIAQQFqOwHGCEEAKALUCCAAQQF0akEALwHKCDsBAEEAIAJBBGo2AuAIQQBBAC8ByAhBAWoiADsByghBACAAOwHICA8LQQAgADYC4AgQHg8LAkACQCAEDgUBAgICAAELQQAgADYC4AgPCyACQQRqIQAMAAsLNQEBf0EAQQE6ALAIQQAoAuAIIQBBAEEAKALkCEECajYC4AhBACAAQQAoApAIa0EBdTYCwAgLNAEBf0EBIQECQCAAQXdqQf//A3FBBUkNACAAQYABckGgAUYNACAAQS5HIAAQKXEhAQsgAQtJAQN/QQAhBgJAIABBeGoiB0EAKAKQCCIISQ0AIAcgASACIAMgBCAFEBNFDQACQCAHIAhHDQBBAQ8LIABBdmovAQAQHyEGCyAGC1kBA39BACEEAkAgAEF8aiIFQQAoApAIIgZJDQAgAC8BACADRw0AIABBfmovAQAgAkcNACAFLwEAIAFHDQACQCAFIAZHDQBBAQ8LIABBemovAQAQHyEECyAEC0wBA39BACEDAkAgAEF+aiIEQQAoApAIIgVJDQAgAC8BACACRw0AIAQvAQAgAUcNAAJAIAQgBUcNAEEBDwsgAEF8ai8BABAfIQMLIAMLSwEDf0EAIQcCQCAAQXZqIghBACgCkAgiCUkNACAIIAEgAiADIAQgBSAGEC1FDQACQCAIIAlHDQBBAQ8LIABBdGovAQAQHyEHCyAHC2YBA39BACEFAkAgAEF6aiIGQQAoApAIIgdJDQAgAC8BACAERw0AIABBfmovAQAgA0cNACAAQXxqLwEAIAJHDQAgBi8BACABRw0AAkAgBiAHRw0AQQEPCyAAQXhqLwEAEB8hBQsgBQs9AQJ/QQAhAgJAQQAoApAIIgMgAEsNACAALwEAIAFHDQACQCADIABHDQBBAQ8LIABBfmovAQAQHyECCyACC00BA39BACEIAkAgAEF0aiIJQQAoApAIIgpJDQAgCSABIAIgAyAEIAUgBiAHEC5FDQACQCAJIApHDQBBAQ8LIABBcmovAQAQHyEICyAIC3YBA39BACgC4AghAAJAA0ACQCAALwEAIgFBd2pBBUkNACABQSBGDQAgAUGgAUYNACABQS9HDQICQCAALwECIgBBKkYNACAAQS9HDQMQEAwBCxARC0EAQQAoAuAIIgJBAmoiADYC4AggAkEAKALkCEkNAAsLIAELWAACQAJAIAFBIkYNACABQSdHDQFBACgC4AghARAcIAAgAUECakEAKALgCEEAKAKECBABDwtBACgC4AghARAbIAAgAUECakEAKALgCEEAKAKECBABDwsQHgtoAQJ/QQEhAQJAAkAgAEFfaiICQQVLDQBBASACdEExcQ0BCyAAQfj/A3FBKEYNACAAQUZqQf//A3FBBkkNAAJAIABBpX9qIgJBA0sNACACQQFHDQELIABBhX9qQf//A3FBBEkhAQsgAQttAQJ/AkACQANAAkAgAEH//wNxIgFBd2oiAkEXSw0AQQEgAnRBn4CABHENAgsgAUGgAUYNASAAIQIgARApDQJBACECQQBBACgC4AgiAEECajYC4AggAC8BAiIADQAMAgsLIAAhAgsgAkH//wNxC1wBAn8CQEEAKALgCCICLwEAIgNB4QBHDQBBACACQQRqNgLgCBAnIQJBACgC4AghACACECoaQQAoAuAIIQEQJyEDQQAoAuAIIQILAkAgAiAARg0AIAAgARACCyADC4kBAQV/QQAoAuAIIQBBACgC5AghAQN/IABBAmohAgJAAkAgACABTw0AIAIvAQAiA0Gkf2oiBEEBTQ0BIAIhACADQXZqIgNBA0sNAiACIQAgAw4EAAICAAALQQAgAjYC4AgQHkEADwsCQAJAIAQOAgEAAQtBACACNgLgCEHdAA8LIABBBGohAAwACwtJAQF/QQAhBwJAIAAvAQogBkcNACAALwEIIAVHDQAgAC8BBiAERw0AIAAvAQQgA0cNACAALwECIAJHDQAgAC8BACABRiEHCyAHC1MBAX9BACEIAkAgAC8BDCAHRw0AIAAvAQogBkcNACAALwEIIAVHDQAgAC8BBiAERw0AIAAvAQQgA0cNACAALwECIAJHDQAgAC8BACABRiEICyAICwsfAgBBgAgLAgAAAEGECAsQAQAAAAIAAAAABAAAcDgAAA==","undefined"!=typeof window&&"function"==typeof atob?Uint8Array.from(atob(g),A=>A.charCodeAt(0)):Buffer.from(g,"base64"))).then(WebAssembly.instantiate).then(({exports:A})=>{C=A});exports.init=init;var g;
 
 /***/ }),
 

@@ -140,7 +140,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       }
       const origQuery = Object.assign({}, parsedUrl.query)
 
-      parsedUrl = handleRewrites(parsedUrl)
+      parsedUrl = handleRewrites(req, parsedUrl)
       handleBasePath(req, parsedUrl)
 
       // remove ?amp=1 from request URL if rendering for export

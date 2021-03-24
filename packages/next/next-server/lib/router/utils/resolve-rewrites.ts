@@ -1,6 +1,6 @@
 import { ParsedUrlQuery } from 'querystring'
 import pathMatch from './path-match'
-import prepareDestination from './prepare-destination'
+import prepareDestination, { matchHas } from './prepare-destination'
 import { Rewrite } from '../../../../lib/load-custom-routes'
 import { removePathTrailingSlash } from '../../../../client/normalize-trailing-slash'
 import { normalizeLocalePath } from '../../i18n/normalize-locale-path'
@@ -32,7 +32,31 @@ export default function resolveRewrites(
   if (!pages.includes(fsPathname)) {
     for (const rewrite of rewrites) {
       const matcher = customRouteMatcher(rewrite.source)
-      const params = matcher(parsedAs.pathname)
+      let params = matcher(parsedAs.pathname)
+
+      if (rewrite.has && params) {
+        const hasParams = matchHas(
+          {
+            headers: {
+              host: document.location.hostname,
+            },
+            cookies: Object.fromEntries(
+              document.cookie.split('; ').map((item) => {
+                const [key, ...value] = item.split('=')
+                return [key, value.join('=')]
+              })
+            ),
+          } as any,
+          rewrite.has,
+          parsedAs.query
+        )
+
+        if (hasParams) {
+          Object.assign(params, hasParams)
+        } else {
+          params = false
+        }
+      }
 
       if (params) {
         if (!rewrite.destination) {
