@@ -30,6 +30,7 @@ jobs:
     env:
       NEXT_TELEMETRY_DISABLED: 1
       HEADLESS: true
+      NEXT_PRIVATE_SKIP_SIZE_TESTS: true
     strategy:
       fail-fast: false
       matrix:
