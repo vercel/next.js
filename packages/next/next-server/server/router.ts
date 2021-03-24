@@ -4,6 +4,8 @@ import { UrlWithParsedQuery } from 'url'
 import pathMatch from '../lib/router/utils/path-match'
 import { removePathTrailingSlash } from '../../client/normalize-trailing-slash'
 import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
+import { RouteHas } from '../../lib/load-custom-routes'
+import { matchHas } from '../lib/router/utils/prepare-destination'
 
 export const route = pathMatch()
 
@@ -19,6 +21,7 @@ type RouteResult = {
 
 export type Route = {
   match: RouteMatch
+  has?: RouteHas[]
   type: string
   check?: boolean
   statusCode?: number
@@ -224,7 +227,17 @@ export default class Router {
         }`
       }
 
-      const newParams = testRoute.match(currentPathname)
+      let newParams = testRoute.match(currentPathname)
+
+      if (testRoute.has && newParams) {
+        const hasParams = matchHas(req, testRoute.has, parsedUrlUpdated.query)
+
+        if (hasParams) {
+          Object.assign(newParams, hasParams)
+        } else {
+          newParams = false
+        }
+      }
 
       // Check if the match function matched
       if (newParams) {

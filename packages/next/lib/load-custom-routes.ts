@@ -6,12 +6,27 @@ import {
   PERMANENT_REDIRECT_STATUS,
   TEMPORARY_REDIRECT_STATUS,
 } from '../next-server/lib/constants'
+import { execOnce } from '../next-server/lib/utils'
+import * as Log from '../build/output/log'
+
+export type RouteHas =
+  | {
+      type: 'header' | 'query' | 'cookie'
+      key: string
+      value?: string
+    }
+  | {
+      type: 'host'
+      key?: undefined
+      value: string
+    }
 
 export type Rewrite = {
   source: string
   destination: string
   basePath?: false
   locale?: false
+  has?: RouteHas[]
 }
 
 export type Header = {
@@ -19,6 +34,7 @@ export type Header = {
   basePath?: false
   locale?: false
   headers: Array<{ key: string; value: string }>
+  has?: RouteHas[]
 }
 
 // internal type used for validation (not user facing)
@@ -28,6 +44,7 @@ export type Redirect = Rewrite & {
 }
 
 export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
+const allowedHasTypes = new Set(['header', 'cookie', 'query', 'host'])
 
 export function getRedirectStatus(route: {
   statusCode?: number
@@ -137,6 +154,12 @@ function tryParsePath(route: string, handleUrl?: boolean): ParseAttemptResult {
 
 export type RouteType = 'rewrite' | 'redirect' | 'header'
 
+const experimentalHasWarn = execOnce(() => {
+  Log.warn(
+    `'has' route field support is still experimental and not covered by semver, use at your own risk.`
+  )
+})
+
 function checkCustomRoutes(
   routes: Redirect[] | Header[] | Rewrite[],
   type: RouteType
@@ -150,6 +173,7 @@ function checkCustomRoutes(
 
   let numInvalidRoutes = 0
   let hadInvalidStatus = false
+  let hadInvalidHas = false
 
   const isRedirect = type === 'redirect'
   let allowedKeys: Set<string>
@@ -161,9 +185,10 @@ function checkCustomRoutes(
       'basePath',
       'locale',
       ...(isRedirect ? ['statusCode', 'permanent'] : []),
+      'has',
     ])
   } else {
-    allowedKeys = new Set(['source', 'headers', 'basePath', 'locale'])
+    allowedKeys = new Set(['source', 'headers', 'basePath', 'locale', 'has'])
   }
 
   for (const route of routes) {
@@ -206,6 +231,51 @@ function checkCustomRoutes(
 
     if (typeof route.locale !== 'undefined' && route.locale !== false) {
       invalidParts.push('`locale` must be undefined or false')
+    }
+
+    if (typeof route.has !== 'undefined' && !Array.isArray(route.has)) {
+      invalidParts.push('`has` must be undefined or valid has object')
+      hadInvalidHas = true
+    } else if (route.has) {
+      experimentalHasWarn()
+      const invalidHasItems = []
+
+      for (const hasItem of route.has) {
+        let invalidHasParts = []
+
+        if (!allowedHasTypes.has(hasItem.type)) {
+          invalidHasParts.push(`invalid type "${hasItem.type}"`)
+        }
+        if (typeof hasItem.key !== 'string' && hasItem.type !== 'host') {
+          invalidHasParts.push(`invalid key "${hasItem.key}"`)
+        }
+        if (
+          typeof hasItem.value !== 'undefined' &&
+          typeof hasItem.value !== 'string'
+        ) {
+          invalidHasParts.push(`invalid value "${hasItem.value}"`)
+        }
+        if (typeof hasItem.value === 'undefined' && hasItem.type === 'host') {
+          invalidHasParts.push(`value is required for "host" type`)
+        }
+
+        if (invalidHasParts.length > 0) {
+          invalidHasItems.push(
+            `${invalidHasParts.join(', ')} for ${JSON.stringify(hasItem)}`
+          )
+        }
+      }
+
+      if (invalidHasItems.length > 0) {
+        hadInvalidHas = true
+        const itemStr = `item${invalidHasItems.length === 1 ? '' : 's'}`
+
+        console.error(
+          `Invalid \`has\` ${itemStr}:\n` + invalidHasItems.join('\n')
+        )
+        console.error()
+        invalidParts.push(`invalid \`has\` ${itemStr} found`)
+      }
     }
 
     if (!route.source) {
@@ -327,6 +397,7 @@ function checkCustomRoutes(
             : ''
         } for route ${JSON.stringify(route)}`
       )
+      console.error()
       numInvalidRoutes++
     }
   }
@@ -336,6 +407,19 @@ function checkCustomRoutes(
       console.error(
         `\nValid redirect statusCode values are ${[...allowedStatusCodes].join(
           ', '
+        )}`
+      )
+    }
+    if (hadInvalidHas) {
+      console.error(
+        `\nValid \`has\` object shape is ${JSON.stringify(
+          {
+            type: [...allowedHasTypes].join(', '),
+            key: 'the key to check for',
+            value: 'undefined or a value string to match against',
+          },
+          null,
+          2
         )}`
       )
     }
