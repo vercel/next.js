@@ -511,9 +511,8 @@ export default async function build(
     const webpackBuildStart = process.hrtime()
 
     let result: CompilerResult = { warnings: [], errors: [] }
-    // we run client and server compilation separately and for
+    // we run client and server compilation separately for memory and for
     // serverless to be able to load manifests produced in previous build
-
     await nextBuildSpan
       .traceChild('run-webpack-compiler')
       .traceAsyncFn(async () => {
