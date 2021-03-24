@@ -1377,6 +1377,9 @@ export default async function build(
         rewritesCount: rewrites.length,
         headersCount: headers.length,
         redirectsCount: redirects.length - 1, // reduce one for trailing slash
+        headersWithHasCount: headers.filter((r: any) => !!r.has).length,
+        rewritesWithHasCount: rewrites.filter((r: any) => !!r.has).length,
+        redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
       })
     )
 
