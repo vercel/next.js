@@ -146,7 +146,7 @@ export default async function build(
         // Intentionally not piping to stderr in case people fail in CI when
         // stderr is detected.
         console.log(
-          `${Log.prefixes.warn} No build cache found. Please configure build caching for faster rebuilds. Read more: https://err.sh/next.js/no-cache`
+          `${Log.prefixes.warn} No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache`
         )
       }
     }
@@ -297,7 +297,7 @@ export default async function build(
           throw new Error(
             `Conflicting public and page file${
               numConflicting === 1 ? ' was' : 's were'
-            } found. https://err.sh/vercel/next.js/conflicting-public-file-page\n${conflictingPublicFiles.join(
+            } found. https://nextjs.org/docs/messages/conflicting-public-file-page\n${conflictingPublicFiles.join(
               '\n'
             )}`
           )
@@ -314,7 +314,7 @@ export default async function build(
       Log.warn(
         `The following reserved Next.js pages were detected not directly under the pages directory:\n` +
           nestedReservedPages.join('\n') +
-          `\nSee more info here: https://err.sh/next.js/nested-reserved-page\n`
+          `\nSee more info here: https://nextjs.org/docs/messages/nested-reserved-page\n`
       )
     }
 
@@ -417,7 +417,7 @@ export default async function build(
 
     if (!distDirCreated || !(await isWriteable(distDir))) {
       throw new Error(
-        '> Build directory is not writeable. https://err.sh/vercel/next.js/build-dir-not-writeable'
+        '> Build directory is not writeable. https://nextjs.org/docs/messages/build-dir-not-writeable'
       )
     }
 
@@ -504,7 +504,7 @@ export default async function build(
           clientConfig.optimization.minimizer.length === 0))
     ) {
       Log.warn(
-        `Production code optimization has been disabled in your project. Read more: https://err.sh/vercel/next.js/minification-disabled`
+        `Production code optimization has been disabled in your project. Read more: https://nextjs.org/docs/messages/minification-disabled`
       )
     }
 
@@ -560,7 +560,7 @@ export default async function build(
         const parsed = page_name_regex.exec(error)
         const page_name = parsed && parsed.groups && parsed.groups.page_name
         throw new Error(
-          `webpack build failed: found page without a React Component as default export in pages/${page_name}\n\nSee https://err.sh/vercel/next.js/page-without-valid-component for more info.`
+          `webpack build failed: found page without a React Component as default export in pages/${page_name}\n\nSee https://nextjs.org/docs/messages/page-without-valid-component for more info.`
         )
       }
 
@@ -572,7 +572,7 @@ export default async function build(
         error.indexOf('__next_polyfill__') > -1
       ) {
         throw new Error(
-          '> webpack config.resolve.alias was incorrectly overridden. https://err.sh/vercel/next.js/invalid-resolve-alias'
+          '> webpack config.resolve.alias was incorrectly overridden. https://nextjs.org/docs/messages/invalid-resolve-alias'
         )
       }
       throw new Error('> Build failed because of webpack errors')
@@ -680,7 +680,7 @@ export default async function build(
               )
           )
           console.warn(
-            'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
+            'Read more: https://nextjs.org/docs/messages/opt-out-auto-static-optimization\n'
           )
         }
 
@@ -907,7 +907,7 @@ export default async function build(
           .map((pg) => `pages${pg}`)
           .join(
             '\n'
-          )}\n\nSee https://err.sh/vercel/next.js/page-without-valid-component for more info.\n`
+          )}\n\nSee https://nextjs.org/docs/messages/page-without-valid-component for more info.\n`
       )
     }
 

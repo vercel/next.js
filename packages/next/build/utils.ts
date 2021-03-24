@@ -535,7 +535,7 @@ export async function buildStaticPaths(
 
   const expectedReturnVal =
     `Expected: { paths: [], fallback: boolean }\n` +
-    `See here for more info: https://err.sh/vercel/next.js/invalid-getstaticpaths-value`
+    `See here for more info: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
 
   if (
     !staticPathsResult ||
@@ -801,7 +801,7 @@ export async function isPageStatic(
       if (hasStaticProps && pageIsDynamic && !hasStaticPaths) {
         throw new Error(
           `getStaticPaths is required for dynamic SSG pages and is missing for '${page}'.` +
-            `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
+            `\nRead more: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
         )
       }
 
@@ -944,7 +944,7 @@ export function detectConflictingPaths(
 
     Log.error(
       'Conflicting paths returned from getStaticPaths, paths must unique per page.\n' +
-        'See more info here: https://err.sh/next.js/conflicting-ssg-paths\n\n' +
+        'See more info here: https://nextjs.org/docs/messages/conflicting-ssg-paths\n\n' +
         conflictingPathsOutput
     )
     process.exit(1)

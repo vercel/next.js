@@ -1000,7 +1000,7 @@ export default class Router implements BaseRouter {
       if (process.env.NODE_ENV !== 'production') {
         throw new Error(
           `Invalid href: "${url}" and as: "${as}", received relative href and external as` +
-            `\nSee more info: https://err.sh/next.js/invalid-relative-url-external-as`
+            `\nSee more info: https://nextjs.org/docs/messages/invalid-relative-url-external-as`
         )
       }
 
@@ -1046,7 +1046,7 @@ export default class Router implements BaseRouter {
                   ', '
                 )}) to be interpolated properly. `
               : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) +
-              `Read more: https://err.sh/vercel/next.js/${
+              `Read more: https://nextjs.org/docs/messages/${
                 shouldInterpolate
                   ? 'href-interpolation-failed'
                   : 'incompatible-href-as'
