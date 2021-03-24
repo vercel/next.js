@@ -7,7 +7,6 @@ import { Stream } from 'stream'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
-import { Params } from './router'
 import { sendEtagResponse } from './send-payload'
 import generateETag from 'etag'
 
@@ -517,7 +516,6 @@ export function sendError(
 
 interface LazyProps {
   req: NextApiRequest
-  params?: Params | boolean
 }
 
 /**
@@ -527,7 +525,7 @@ interface LazyProps {
  * @param getter function to get data
  */
 export function setLazyProp<T>(
-  { req, params }: LazyProps,
+  { req }: LazyProps,
   prop: string,
   getter: () => T
 ): void {
@@ -537,10 +535,7 @@ export function setLazyProp<T>(
   Object.defineProperty(req, prop, {
     ...opts,
     get: () => {
-      let value = getter()
-      if (params && typeof params !== 'boolean') {
-        value = { ...value, ...params }
-      }
+      const value = getter()
       // we set the property on the object to avoid recalculating it
       Object.defineProperty(req, prop, { ...optsReset, value })
       return value

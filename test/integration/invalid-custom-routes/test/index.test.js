@@ -66,6 +66,33 @@ const runTests = () => {
         // invalid objects
         null,
         'string',
+
+        // invalid has items
+        {
+          source: '/hello',
+          destination: '/another',
+          has: [
+            {
+              type: 'cookiee',
+              key: 'loggedIn',
+            },
+          ],
+          permanent: false,
+        },
+        {
+          source: '/hello',
+          destination: '/another',
+          permanent: false,
+          has: [
+            {
+              type: 'headerr',
+            },
+            {
+              type: 'queryr',
+              key: 'hello',
+            },
+          ],
+        },
       ],
       'redirects'
     )
@@ -114,6 +141,26 @@ const runTests = () => {
     expect(stderr).toContain(
       `The route "string" is not a valid object with \`source\` and \`destination\``
     )
+
+    expect(stderr).toContain('Invalid `has` item:')
+    expect(stderr).toContain(
+      `invalid type "cookiee" for {"type":"cookiee","key":"loggedIn"}`
+    )
+    expect(stderr).toContain(
+      `invalid \`has\` item found for route {"source":"/hello","destination":"/another","has":[{"type":"cookiee","key":"loggedIn"}],"permanent":false}`
+    )
+
+    expect(stderr).toContain('Invalid `has` items:')
+    expect(stderr).toContain(
+      `invalid type "headerr", invalid key "undefined" for {"type":"headerr"}`
+    )
+    expect(stderr).toContain(
+      `invalid type "queryr" for {"type":"queryr","key":"hello"}`
+    )
+    expect(stderr).toContain(
+      `invalid \`has\` items found for route {"source":"/hello","destination":"/another","permanent":false,"has":[{"type":"headerr"},{"type":"queryr","key":"hello"}]}`
+    )
+    expect(stderr).toContain(`Valid \`has\` object shape is {`)
 
     expect(stderr).toContain('Invalid redirects found')
   })
@@ -164,6 +211,31 @@ const runTests = () => {
         // invalid objects
         null,
         'string',
+
+        // invalid has items
+        {
+          source: '/hello',
+          destination: '/another',
+          has: [
+            {
+              type: 'cookiee',
+              key: 'loggedIn',
+            },
+          ],
+        },
+        {
+          source: '/hello',
+          destination: '/another',
+          has: [
+            {
+              type: 'headerr',
+            },
+            {
+              type: 'queryr',
+              key: 'hello',
+            },
+          ],
+        },
       ],
       'rewrites'
     )
@@ -215,6 +287,26 @@ const runTests = () => {
     expect(stderr).toContain(
       `The route /hello rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://err.sh/vercel/next.js/invalid-external-rewrite`
     )
+
+    expect(stderr).toContain('Invalid `has` item:')
+    expect(stderr).toContain(
+      `invalid type "cookiee" for {"type":"cookiee","key":"loggedIn"}`
+    )
+    expect(stderr).toContain(
+      `invalid \`has\` item found for route {"source":"/hello","destination":"/another","has":[{"type":"cookiee","key":"loggedIn"}]}`
+    )
+
+    expect(stderr).toContain('Invalid `has` items:')
+    expect(stderr).toContain(
+      `invalid type "headerr", invalid key "undefined" for {"type":"headerr"}`
+    )
+    expect(stderr).toContain(
+      `invalid type "queryr" for {"type":"queryr","key":"hello"}`
+    )
+    expect(stderr).toContain(
+      `invalid \`has\` items found for route {"source":"/hello","destination":"/another","has":[{"type":"headerr"},{"type":"queryr","key":"hello"}]}`
+    )
+    expect(stderr).toContain(`Valid \`has\` object shape is {`)
 
     expect(stderr).toContain('Invalid rewrites found')
   })
@@ -283,6 +375,41 @@ const runTests = () => {
         // invalid objects
         null,
         'string',
+
+        // invalid has items
+        {
+          source: '/hello',
+          has: [
+            {
+              type: 'cookiee',
+              key: 'loggedIn',
+            },
+          ],
+          headers: [
+            {
+              key: 'x-hello',
+              value: 'world',
+            },
+          ],
+        },
+        {
+          source: '/hello',
+          has: [
+            {
+              type: 'headerr',
+            },
+            {
+              type: 'queryr',
+              key: 'hello',
+            },
+          ],
+          headers: [
+            {
+              key: 'x-hello',
+              value: 'world',
+            },
+          ],
+        },
       ],
       'headers'
     )
@@ -315,6 +442,26 @@ const runTests = () => {
     expect(stderr).toContain(
       `The route "string" is not a valid object with \`source\` and \`headers\``
     )
+
+    expect(stderr).toContain('Invalid `has` item:')
+    expect(stderr).toContain(
+      `invalid type "cookiee" for {"type":"cookiee","key":"loggedIn"}`
+    )
+    expect(stderr).toContain(
+      `invalid \`has\` item found for route {"source":"/hello","has":[{"type":"cookiee","key":"loggedIn"}],"headers":[{"key":"x-hello","value":"world"}]}`
+    )
+
+    expect(stderr).toContain('Invalid `has` items:')
+    expect(stderr).toContain(
+      `invalid type "headerr", invalid key "undefined" for {"type":"headerr"}`
+    )
+    expect(stderr).toContain(
+      `invalid type "queryr" for {"type":"queryr","key":"hello"}`
+    )
+    expect(stderr).toContain(
+      `invalid \`has\` items found for route {"source":"/hello","has":[{"type":"headerr"},{"type":"queryr","key":"hello"}],"headers":[{"key":"x-hello","value":"world"}]}`
+    )
+    expect(stderr).toContain(`Valid \`has\` object shape is {`)
 
     expect(stderr).not.toContain('/valid-header')
   })
