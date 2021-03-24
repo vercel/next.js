@@ -65,22 +65,24 @@ describe('Production response size', () => {
     await stopApp(server)
   })
 
-  it('should not increase the overall response size of default build', async () => {
-    const responseSizes = [
-      baseResponseSize,
-      ...(await getResponseSizes(scriptsUrls)),
-    ]
-    const responseSizesBytes = getResponseSizesBytes(responseSizes)
-    console.log(
-      `Response Sizes for default:\n${responseSizes
-        .map((obj) => ` ${obj.url}: ${obj.bytes} (bytes)`)
-        .join('\n')} \nOverall: ${responseSizesBytes} KB`
-    )
+  if (!process.env.NEXT_PRIVATE_SKIP_SIZE_TESTS) {
+    it('should not increase the overall response size of default build', async () => {
+      const responseSizes = [
+        baseResponseSize,
+        ...(await getResponseSizes(scriptsUrls)),
+      ]
+      const responseSizesBytes = getResponseSizesBytes(responseSizes)
+      console.log(
+        `Response Sizes for default:\n${responseSizes
+          .map((obj) => ` ${obj.url}: ${obj.bytes} (bytes)`)
+          .join('\n')} \nOverall: ${responseSizesBytes} KB`
+      )
 
-    // These numbers are without gzip compression!
-    const delta = responseSizesBytes / 1024
+      // These numbers are without gzip compression!
+      const delta = responseSizesBytes / 1024
 
-    // Expected difference: < 0.5
-    expect(delta).toBeCloseTo(286.7, 0)
-  })
+      // Expected difference: < 0.5
+      expect(delta).toBeCloseTo(286.7, 0)
+    })
+  }
 })
