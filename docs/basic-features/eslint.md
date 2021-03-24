@@ -34,7 +34,7 @@ Here's an example of an `.eslintrc.json` file:
 ```
 
 - Extending the original base of rules (`plugin:@next/next/recommended`) is highly recommended to
-  catch and fix significant Next.js issues in your application
+  catch and fix significant Next.js issues in your application.
 - Including `@babel/eslint-parser` with the `next/babel` preset ensures that all language features
   supported by Next.js will also be supported by ESLint. Although `@babel/eslint-parser` can parse
   TypeScript, consider using
