@@ -78,14 +78,23 @@ export default class extends Component {
         </Link>
         <Link href="/nav/on-click?count=1">
           <a id="on-click-link" style={linkStyle}>
-            A element with onClick
+            An element with onClick
           </a>
         </Link>
         <Link href="/nav/about">
           <a id="target-link" target="_blank">
-            A element with target
+            An element with target
           </a>
         </Link>
+
+        <svg>
+          <Link href="/nav/about">
+            <a id="in-svg-link">
+              <text>An element in SVG</text>
+            </a>
+          </Link>
+        </svg>
+
         <button
           onClick={() => this.visitQueryStringPage()}
           style={linkStyle}

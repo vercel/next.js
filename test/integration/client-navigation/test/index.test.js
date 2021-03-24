@@ -13,6 +13,7 @@ import {
   check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import { Key } from 'selenium-webdriver'
 import { join } from 'path'
 import renderingSuite from './rendering'
 
@@ -210,13 +211,34 @@ describe('Client Navigation', () => {
     it('should not navigate if the <a/> tag has a target', async () => {
       const browser = await webdriver(context.appPort, '/nav')
 
-      const counterText = await browser
+      await browser
         .elementByCss('#increase')
         .click()
         .elementByCss('#target-link')
         .click()
-        .elementByCss('#counter')
-        .text()
+
+      await waitFor(1000)
+
+      const counterText = await browser.elementByCss('#counter').text()
+
+      expect(counterText).toBe('Counter: 1')
+      await browser.close()
+    })
+
+    it('should not navigate if the click-event is modified', async () => {
+      const browser = await webdriver(context.appPort, '/nav')
+
+      await browser
+        .elementByCss('#increase')
+        .click()
+        .elementByCss('#about-link')
+        .click({ modifierKey: Key.COMMAND })
+        .elementByCss('#in-svg-link')
+        .click({ modifierKey: Key.COMMAND })
+
+      await waitFor(1000)
+
+      const counterText = await browser.elementByCss('#counter').text()
 
       expect(counterText).toBe('Counter: 1')
       await browser.close()
@@ -443,7 +465,6 @@ describe('Client Navigation', () => {
       }
     })
   })
-
   describe('resets scroll at the correct time', () => {
     it('should reset scroll before the new page runs its lifecycles (<Link />)', async () => {
       let browser

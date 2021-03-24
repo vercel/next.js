@@ -1,3 +1,5 @@
+import { Key } from 'selenium-webdriver'
+
 interface Chain {
   elementByCss: (selector: string) => Chain
   elementById: () => Chain
@@ -8,7 +10,7 @@ interface Chain {
   getComputedCss: () => Chain
   getAttribute: () => Chain
   hasElementByCssSelector: () => Chain
-  click: () => Chain
+  click: (opts?: { modifierKey?: keyof typeof Key }) => Chain
   elementsByCss: () => Chain
   waitForElementByCss: () => Chain
   eval: () => Chain

@@ -75,9 +75,18 @@ export default class Chain {
     return this.eval(`document.querySelector('${sel}')`)
   }
 
-  click() {
+  click({ modifierKey } = {}) {
     return this.updateChain((el) => {
-      return el.click().then(() => el)
+      if (modifierKey !== undefined) {
+        return this.browser
+          .actions()
+          .keyDown(modifierKey)
+          .click(el)
+          .perform()
+          .then(() => el)
+      } else {
+        return el.click().then(() => el)
+      }
     })
   }
 
