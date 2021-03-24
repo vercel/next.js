@@ -12,7 +12,7 @@
     "next": "latest",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
-    "rebass": "1.0.0-1",
+    "rebass": "^4.0.7",
     "styled-components": "^2.1.1"
   },
   "license": "MIT"
