@@ -24,7 +24,7 @@ describe('Promise in next config', () => {
     )
 
     expect(stderr).toMatch(
-      /Error: > Promise returned in next config\. https:\/\/err\.sh\/vercel\/next\.js\/promise-in-next-config/
+      /Error: > Promise returned in next config\. https:\/\//
     )
   })
 
@@ -45,8 +45,6 @@ describe('Promise in next config', () => {
       { stderr: true }
     )
 
-    expect(stderr).toMatch(
-      /> Promise returned in next config\. https:\/\/err\.sh\/vercel\/next\.js\/promise-in-next-config/
-    )
+    expect(stderr).toMatch(/> Promise returned in next config\. https:\/\//)
   })
 })
