@@ -1,0 +1,16 @@
+{
+  "extends": ["plugin:@next/next/recommended"],
+  "rules": {
+    "@next/next/no-sync-scripts": "off",
+    "@next/next/no-css-tags": "warn",
+    "@next/next/no-html-link-for-pages": ["error", "./"]
+  },
+  "parserOptions": {
+    "ecmaVersion": 2018,
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true,
+      "modules": true
+    }
+  }
+}

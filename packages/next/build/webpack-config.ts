@@ -396,11 +396,29 @@ export default async function getBaseWebpackConfig(
           // Full list of old polyfills is accessible here:
           // https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/ModuleNotFoundError.js#L13-L42
           fallback: {
-            buffer: require.resolve('buffer'),
+            assert: require.resolve('assert/'),
+            buffer: require.resolve('buffer/'),
+            constants: require.resolve('constants-browserify'),
             crypto: require.resolve('crypto-browserify'),
+            domain: require.resolve('domain-browser'),
+            http: require.resolve('stream-http'),
+            https: require.resolve('https-browserify'),
+            os: require.resolve('os-browserify/browser'),
             path: require.resolve('path-browserify'),
+            punycode: require.resolve('punycode'),
+            process: require.resolve('process/browser'),
+            // Handled in separate alias
+            querystring: require.resolve('querystring-es3'),
             stream: require.resolve('stream-browserify'),
+            string_decoder: require.resolve('string_decoder'),
+            sys: require.resolve('util/'),
+            timers: require.resolve('timers-browserify'),
+            tty: require.resolve('tty-browserify'),
+            // Handled in separate alias
+            // url: require.resolve('url/'),
+            util: require.resolve('util/'),
             vm: require.resolve('vm-browserify'),
+            zlib: require.resolve('browserify-zlib'),
           },
         }
       : undefined),
@@ -927,7 +945,10 @@ export default async function getBaseWebpackConfig(
           : []),
         {
           test: /\.(tsx|ts|js|mjs|jsx)$/,
-          include: [dir, ...babelIncludeRegexes],
+          ...(config.experimental.externalDir
+            ? // Allowing importing TS/TSX files from outside of the root dir.
+              {}
+            : { include: [dir, ...babelIncludeRegexes] }),
           exclude: (excludePath: string) => {
             if (babelIncludeRegexes.some((r) => r.test(excludePath))) {
               return false
