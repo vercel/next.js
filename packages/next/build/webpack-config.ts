@@ -349,10 +349,10 @@ export default async function getBaseWebpackConfig(
   }
 
   const clientResolveRewrites = require.resolve(
-    'next/dist/next-server/lib/router/utils/resolve-rewrites'
+    '../next-server/lib/router/utils/resolve-rewrites'
   )
   const clientResolveRewritesNoop = require.resolve(
-    'next/dist/next-server/lib/router/utils/resolve-rewrites-noop'
+    '../next-server/lib/router/utils/resolve-rewrites-noop'
   )
 
   const resolveConfig = {
@@ -386,6 +386,9 @@ export default async function getBaseWebpackConfig(
       ...getReactProfilingInProduction(),
       [clientResolveRewrites]: hasRewrites
         ? clientResolveRewrites
+        : // With webpack 5 an alias can be pointed to false to noop
+        isWebpack5
+        ? false
         : clientResolveRewritesNoop,
     },
     ...(isWebpack5 && !isServer
