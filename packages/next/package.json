@@ -82,6 +82,7 @@
     "crypto-browserify": "3.12.0",
     "cssnano-simple": "1.2.2",
     "domain-browser": "4.19.0",
+    "encoding": "0.1.13",
     "eslint": "7.9.0",
     "etag": "1.8.1",
     "find-cache-dir": "3.3.1",
