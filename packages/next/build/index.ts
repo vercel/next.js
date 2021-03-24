@@ -514,7 +514,7 @@ export default async function build(
     // We run client and server compilation separately when configured for
     // memory constraint and for serverless to be able to load manifests
     // produced in the client build
-    if (isLikeServerless || config.expeirmental.serialWebpackBuild) {
+    if (isLikeServerless || config.experimental.serialWebpackBuild) {
       await nextBuildSpan
         .traceChild('run-webpack-compiler')
         .traceAsyncFn(async () => {
