@@ -511,22 +511,28 @@ export default async function build(
     const webpackBuildStart = process.hrtime()
 
     let result: CompilerResult = { warnings: [], errors: [] }
-    // TODO: why do we need this?? https://github.com/vercel/next.js/issues/8253
-    if (isLikeServerless) {
-      const clientResult = await runCompiler(clientConfig)
-      // Fail build if clientResult contains errors
-      if (clientResult.errors.length > 0) {
-        result = {
-          warnings: [...clientResult.warnings],
-          errors: [...clientResult.errors],
-        }
-      } else {
-        const serverResult = await runCompiler(configs[1])
-        result = {
-          warnings: [...clientResult.warnings, ...serverResult.warnings],
-          errors: [...clientResult.errors, ...serverResult.errors],
-        }
-      }
+    // We run client and server compilation separately when configured for
+    // memory constraint and for serverless to be able to load manifests
+    // produced in the client build
+    if (isLikeServerless || config.experimental.serialWebpackBuild) {
+      await nextBuildSpan
+        .traceChild('run-webpack-compiler')
+        .traceAsyncFn(async () => {
+          const clientResult = await runCompiler(clientConfig)
+          // Fail build if clientResult contains errors
+          if (clientResult.errors.length > 0) {
+            result = {
+              warnings: [...clientResult.warnings],
+              errors: [...clientResult.errors],
+            }
+          } else {
+            const serverResult = await runCompiler(configs[1])
+            result = {
+              warnings: [...clientResult.warnings, ...serverResult.warnings],
+              errors: [...clientResult.errors, ...serverResult.errors],
+            }
+          }
+        })
     } else {
       result = await nextBuildSpan
         .traceChild('run-webpack-compiler')
