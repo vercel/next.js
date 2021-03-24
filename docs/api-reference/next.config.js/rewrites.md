@@ -148,7 +148,7 @@ To only match a rewrite when header, cookie, or query values also match the `has
 
 - `type`: `String` - must be either `header`, `cookie`, or `query`.
 - `key`: `String` - the key from the selected type to match against.
-- `value`: `String` or `undefined` - the value to check for, if undefined any value will match. A regex like string can be used to capture or a specific part of the value e.g. with `first-(?<paramName>.*)` and the value `first-second` `second` will be usable in the destination with `:paramName`.
+- `value`: `String` or `undefined` - the value to check for, if undefined any value will match. A regex like string can be used to capture a specific part of the value, e.g. if the value `first-(?<paramName>.*)` is used for `first-second` then `second` will be usable in the destination with `:paramName`.
 
 ```js
 module.exports = {
