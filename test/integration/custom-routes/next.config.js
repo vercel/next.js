@@ -106,6 +106,48 @@ module.exports = {
         source: '/catchall-query/:path*',
         destination: '/with-params?another=:path*',
       },
+      {
+        source: '/has-rewrite-1',
+        has: [
+          {
+            type: 'header',
+            key: 'x-my-header',
+            value: '(?<myHeader>.*)',
+          },
+        ],
+        destination: '/with-params?myHeader=:myHeader',
+      },
+      {
+        source: '/has-rewrite-2',
+        has: [
+          {
+            type: 'query',
+            key: 'my-query',
+          },
+        ],
+        destination: '/with-params?value=:myquery',
+      },
+      {
+        source: '/has-rewrite-3',
+        has: [
+          {
+            type: 'cookie',
+            key: 'loggedIn',
+            value: 'true',
+          },
+        ],
+        destination: '/with-params?authorized=1',
+      },
+      {
+        source: '/has-rewrite-4',
+        has: [
+          {
+            type: 'host',
+            value: 'example.com',
+          },
+        ],
+        destination: '/with-params?host=1',
+      },
     ]
   },
   async redirects() {
@@ -215,6 +257,52 @@ module.exports = {
         source: '/to-external-with-query-2',
         destination:
           'https://authserver.example.com/set-password?returnUrl=https://www.example.com/login',
+        permanent: false,
+      },
+      {
+        source: '/has-redirect-1',
+        has: [
+          {
+            type: 'header',
+            key: 'x-my-header',
+            value: '(?<myHeader>.*)',
+          },
+        ],
+        destination: '/another?myHeader=:myHeader',
+        permanent: false,
+      },
+      {
+        source: '/has-redirect-2',
+        has: [
+          {
+            type: 'query',
+            key: 'my-query',
+          },
+        ],
+        destination: '/another?value=:myquery',
+        permanent: false,
+      },
+      {
+        source: '/has-redirect-3',
+        has: [
+          {
+            type: 'cookie',
+            key: 'loggedIn',
+            value: 'true',
+          },
+        ],
+        destination: '/another?authorized=1',
+        permanent: false,
+      },
+      {
+        source: '/has-redirect-4',
+        has: [
+          {
+            type: 'host',
+            value: 'example.com',
+          },
+        ],
+        destination: '/another?host=1',
         permanent: false,
       },
     ]
@@ -357,6 +445,68 @@ module.exports = {
           {
             key: 'x-value',
             value: ':path*',
+          },
+        ],
+      },
+      {
+        source: '/has-header-1',
+        has: [
+          {
+            type: 'header',
+            key: 'x-my-header',
+            value: '(?<myHeader>.*)',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-another',
+            value: 'header',
+          },
+        ],
+      },
+      {
+        source: '/has-header-2',
+        has: [
+          {
+            type: 'query',
+            key: 'my-query',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-added',
+            value: 'value',
+          },
+        ],
+      },
+      {
+        source: '/has-header-3',
+        has: [
+          {
+            type: 'cookie',
+            key: 'loggedIn',
+            value: 'true',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-is-user',
+            value: 'yuuuup',
+          },
+        ],
+      },
+      {
+        source: '/has-header-4',
+        has: [
+          {
+            type: 'host',
+            value: 'example.com',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-is-host',
+            value: 'yuuuup',
           },
         ],
       },

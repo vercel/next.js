@@ -1,9 +1,47 @@
 import { codecs as supportedFormats, preprocessors } from './codecs'
 import ImageData from './image_data'
 
-export async function decodeBuffer(
-  _buffer: Buffer | Uint8Array
-): Promise<ImageData> {
+type RotateOperation = {
+  type: 'rotate'
+  numRotations: number
+}
+type ResizeOperation = {
+  type: 'resize'
+  width: number
+}
+export type Operation = RotateOperation | ResizeOperation
+export type Encoding = 'jpeg' | 'png' | 'webp'
+
+export async function processBuffer(
+  buffer: Buffer | Uint8Array,
+  operations: Operation[],
+  encoding: Encoding,
+  quality: number
+): Promise<Buffer | Uint8Array> {
+  let imageData = await decodeBuffer(buffer)
+  for (const operation of operations) {
+    if (operation.type === 'rotate') {
+      imageData = await rotate(imageData, operation.numRotations)
+    } else if (operation.type === 'resize') {
+      if (imageData.width && imageData.width > operation.width) {
+        imageData = await resize(imageData, operation.width)
+      }
+    }
+  }
+
+  switch (encoding) {
+    case 'jpeg':
+      return encodeJpeg(imageData, { quality })
+    case 'webp':
+      return encodeWebp(imageData, { quality })
+    case 'png':
+      return encodePng(imageData)
+    default:
+      throw Error(`Unsupported encoding format`)
+  }
+}
+
+async function decodeBuffer(_buffer: Buffer | Uint8Array): Promise<ImageData> {
   const buffer = Buffer.from(_buffer)
   const firstChunk = buffer.slice(0, 16)
   const firstChunkString = Array.from(firstChunk)
@@ -20,7 +58,7 @@ export async function decodeBuffer(
   return rgba
 }
 
-export async function rotate(
+async function rotate(
   image: ImageData,
   numRotations: number
 ): Promise<ImageData> {
@@ -30,7 +68,7 @@ export async function rotate(
   return await m(image.data, image.width, image.height, { numRotations })
 }
 
-export async function resize(image: ImageData, { width }: { width: number }) {
+async function resize(image: ImageData, width: number) {
   image = ImageData.from(image)
 
   const p = preprocessors['resize']
@@ -41,7 +79,7 @@ export async function resize(image: ImageData, { width }: { width: number }) {
   })
 }
 
-export async function encodeJpeg(
+async function encodeJpeg(
   image: ImageData,
   { quality }: { quality: number }
 ): Promise<Buffer | Uint8Array> {
@@ -56,7 +94,7 @@ export async function encodeJpeg(
   return Buffer.from(r)
 }
 
-export async function encodeWebp(
+async function encodeWebp(
   image: ImageData,
   { quality }: { quality: number }
 ): Promise<Buffer | Uint8Array> {
@@ -71,9 +109,7 @@ export async function encodeWebp(
   return Buffer.from(r)
 }
 
-export async function encodePng(
-  image: ImageData
-): Promise<Buffer | Uint8Array> {
+async function encodePng(image: ImageData): Promise<Buffer | Uint8Array> {
   image = ImageData.from(image)
 
   const e = supportedFormats['oxipng']

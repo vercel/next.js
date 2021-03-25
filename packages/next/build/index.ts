@@ -151,8 +151,8 @@ export default async function build(
       }
     }
 
-    const buildSpinner = createSpinner({
-      prefixText: `${Log.prefixes.info} Creating an optimized production build`,
+    const typeCheckingSpinner = createSpinner({
+      prefixText: `${Log.prefixes.info} Checking validity of types`,
     })
 
     const telemetry = new Telemetry({ distDir })
@@ -175,12 +175,55 @@ export default async function build(
       telemetry.record(events)
     )
 
+    if (config.eslint?.build) {
+      await nextBuildSpan
+        .traceChild('verify-and-lint')
+        .traceAsyncFn(async () => {
+          const lintWorkers = new Worker(
+            require.resolve('../lib/verifyAndLint'),
+            {
+              numWorkers: config.experimental.cpus,
+              enableWorkerThreads: config.experimental.workerThreads,
+            }
+          ) as Worker & {
+            verifyAndLint: typeof import('../lib/verifyAndLint').verifyAndLint
+          }
+
+          lintWorkers.getStdout().pipe(process.stdout)
+          lintWorkers.getStderr().pipe(process.stderr)
+
+          const lintResults = await lintWorkers.verifyAndLint(
+            dir,
+            pagesDir,
+            null
+          )
+
+          if (lintResults.hasErrors) {
+            console.error(chalk.red('Failed to compile.'))
+            console.error(lintResults.results)
+            process.exit(1)
+          } else if (lintResults.hasMessages) {
+            console.log(lintResults.results)
+          }
+
+          lintWorkers.end()
+        })
+    }
+
     const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
     await nextBuildSpan
       .traceChild('verify-typescript-setup')
       .traceAsyncFn(() =>
         verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors)
       )
+
+    if (typeCheckingSpinner) {
+      typeCheckingSpinner.stopAndPersist()
+    }
+
+    const buildSpinner = createSpinner({
+      prefixText: `${Log.prefixes.info} Creating an optimized production build`,
+    })
 
     const isLikeServerless = isTargetLikeServerless(target)
 
@@ -468,22 +511,28 @@ export default async function build(
     const webpackBuildStart = process.hrtime()
 
     let result: CompilerResult = { warnings: [], errors: [] }
-    // TODO: why do we need this?? https://github.com/vercel/next.js/issues/8253
-    if (isLikeServerless) {
-      const clientResult = await runCompiler(clientConfig)
-      // Fail build if clientResult contains errors
-      if (clientResult.errors.length > 0) {
-        result = {
-          warnings: [...clientResult.warnings],
-          errors: [...clientResult.errors],
-        }
-      } else {
-        const serverResult = await runCompiler(configs[1])
-        result = {
-          warnings: [...clientResult.warnings, ...serverResult.warnings],
-          errors: [...clientResult.errors, ...serverResult.errors],
-        }
-      }
+    // We run client and server compilation separately when configured for
+    // memory constraint and for serverless to be able to load manifests
+    // produced in the client build
+    if (isLikeServerless || config.experimental.serialWebpackBuild) {
+      await nextBuildSpan
+        .traceChild('run-webpack-compiler')
+        .traceAsyncFn(async () => {
+          const clientResult = await runCompiler(clientConfig)
+          // Fail build if clientResult contains errors
+          if (clientResult.errors.length > 0) {
+            result = {
+              warnings: [...clientResult.warnings],
+              errors: [...clientResult.errors],
+            }
+          } else {
+            const serverResult = await runCompiler(configs[1])
+            result = {
+              warnings: [...clientResult.warnings, ...serverResult.warnings],
+              errors: [...clientResult.errors, ...serverResult.errors],
+            }
+          }
+        })
     } else {
       result = await nextBuildSpan
         .traceChild('run-webpack-compiler')
@@ -1334,6 +1383,9 @@ export default async function build(
         rewritesCount: rewrites.length,
         headersCount: headers.length,
         redirectsCount: redirects.length - 1, // reduce one for trailing slash
+        headersWithHasCount: headers.filter((r: any) => !!r.has).length,
+        rewritesWithHasCount: rewrites.filter((r: any) => !!r.has).length,
+        redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
       })
     )
 

@@ -2,6 +2,8 @@
 
 This example shows how to use [Tailwind CSS](https://tailwindcss.com/) (v2) with Next.js. It follows the steps outlined in the official [Tailwind docs](https://tailwindcss.com/docs/guides/nextjs).
 
+It uses the new [`@tailwindcss/jit`](https://github.com/tailwindlabs/tailwindcss-jit) engine for Tailwind CSS.
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
