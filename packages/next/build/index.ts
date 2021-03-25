@@ -21,6 +21,7 @@ import loadCustomRoutes, {
   getRedirectStatus,
   normalizeRouteRegex,
   Redirect,
+  Rewrite,
   RouteType,
 } from '../lib/load-custom-routes'
 import { nonNullable } from '../lib/non-nullable'
@@ -475,6 +476,8 @@ export default async function build(
         ignore: [] as string[],
       }))
 
+    const combinedRewrites: Rewrite[] = [...overrideRewrites, ...rewrites]
+
     const configs = await nextBuildSpan
       .traceChild('generate-webpack-config')
       .traceAsyncFn(() =>
@@ -487,7 +490,7 @@ export default async function build(
             target,
             pagesDir,
             entrypoints: entrypoints.client,
-            rewrites,
+            rewrites: combinedRewrites,
           }),
           getBaseWebpackConfig(dir, {
             buildId,
@@ -497,7 +500,7 @@ export default async function build(
             target,
             pagesDir,
             entrypoints: entrypoints.server,
-            rewrites,
+            rewrites: combinedRewrites,
           }),
         ])
       )

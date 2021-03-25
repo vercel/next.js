@@ -286,7 +286,10 @@ export default class DevServer extends Server {
       config: this.nextConfig,
       previewProps: this.getPreviewProps(),
       buildId: this.buildId,
-      rewrites: this.customRoutes.rewrites,
+      rewrites: [
+        ...this.customRoutes.overrideRewrites,
+        ...this.customRoutes.rewrites,
+      ],
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
