@@ -1,12 +1,12 @@
-const createImageRule = require('../../utils/imageComponentRule.js')
-const NodeAttributes = require('../../utils/nodeAttributes.js')
+const createImageRule = require('../utils/imageComponentRule.js')
+const NodeAttributes = require('../utils/nodeAttributes.js')
 
 module.exports = {
   meta: {
     messages: {
       missingAltText:
         'All images should have an alt property for descriptive text. ' +
-        'Purely decorative images can use an empty alt attribute.' +
+        'Purely decorative images can use an empty alt attribute. ' +
         'See: https://web.dev/image-alt/',
     },
   },

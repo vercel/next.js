@@ -21,7 +21,7 @@ module.exports = {
 
         context.report({
           node,
-          message: `Use Image from 'next/image' instead of the <img> element for better performance.`,
+          message: `For better performance, use Image from 'next/image' instead of the <img> element.`,
         })
       },
     }
