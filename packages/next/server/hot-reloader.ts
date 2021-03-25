@@ -1,3 +1,4 @@
+import fs from 'fs'
 import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
@@ -23,7 +24,6 @@ import {
   normalizePathSep,
 } from '../next-server/server/normalize-page-path'
 import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypoint'
-import { isWriteable } from '../build/is-writeable'
 import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { stringify } from 'querystring'
 import { Rewrite } from '../lib/load-custom-routes'
@@ -298,6 +298,15 @@ export default class HotReloader {
     ])
   }
 
+  private async isReadable(path: string): Promise<boolean> {
+    try {
+      await fs.promises.access(path, (fs.constants || fs).R_OK)
+      return true
+    } catch (err) {
+      return false
+    }
+  }
+
   public async start(): Promise<void> {
     await this.clean()
 
@@ -321,7 +330,13 @@ export default class HotReloader {
               clientBundlePath,
               absolutePagePath,
             } = entries[page]
-            const pageExists = await isWriteable(absolutePagePath)
+
+            // Check for read access to the page rather than using the common
+            // "isWritable" utility used elsewhere.
+            // When operating in a Yarn Plug'n'Play environment, internal pages
+            // will be contained within readonly zip files.
+            const pageExists = await this.isReadable(absolutePagePath)
+
             if (!pageExists) {
               // page was removed
               delete entries[page]
