@@ -1,4 +1,4 @@
-const rule = require('@next/eslint-plugin-next/lib/rules/image-component/missing-alt-text.js')
+const rule = require('@next/eslint-plugin-next/lib/rules/image-alt-text.js')
 const RuleTester = require('eslint').RuleTester
 
 RuleTester.setDefaultConfig({
@@ -13,7 +13,7 @@ RuleTester.setDefaultConfig({
 })
 
 var ruleTester = new RuleTester()
-ruleTester.run('missing-alt-text', rule, {
+ruleTester.run('image-alt-text', rule, {
   valid: [
     `
       import Image from 'next/image'

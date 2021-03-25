@@ -53,7 +53,7 @@ ruleTester.run('no-img-element', rule, {
       errors: [
         {
           message:
-            "Use Image from 'next/image' instead of the <img> element for better performance.",
+            "For better performance, use Image from 'next/image' instead of the <img> element.",
           type: 'JSXOpeningElement',
         },
       ],
