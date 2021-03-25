@@ -93,6 +93,83 @@ module.exports = {
 }
 ```
 
+## Header, Cookie, and Query Matching
+
+To only match a redirect when header, cookie, or query values also match the `has` field can be used. Both the `source` and all `has` items must match for the redirect to be applied.
+
+`has` items have the following fields:
+
+- `type`: `String` - must be either `header`, `cookie`, `host`, or `query`.
+- `key`: `String` - the key from the selected type to match against.
+- `value`: `String` or `undefined` - the value to check for, if undefined any value will match. A regex like string can be used to capture a specific part of the value, e.g. if the value `first-(?<paramName>.*)` is used for `first-second` then `second` will be usable in the destination with `:paramName`.
+
+```js
+module.exports = {
+  async redirects() {
+    return [
+      // if the header `x-redirect-me` is present,
+      // this redirect will be applied
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'header',
+            key: 'x-redirect-me',
+          },
+        ],
+        permanent: false,
+        destination: '/another-page',
+      },
+      // if the source, query, and cookie are matched,
+      // this redirect will be applied
+      {
+        source: '/specific/:path*',
+        has: [
+          {
+            type: 'query',
+            key: 'page',
+            value: 'home',
+          },
+          {
+            type: 'cookie',
+            key: 'authorized',
+            value: 'true',
+          },
+        ],
+        permanent: false,
+        destination: '/:path*/:page',
+      },
+      // if the header `x-authorized` is present and
+      // contains a matching value, this redirect will be applied
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'header',
+            key: 'x-authorized',
+            value: '(?<authorized>yes|true)',
+          },
+        ],
+        permanent: false,
+        destination: '/home?authorized=:authorized',
+      },
+      // if the host is `example.com`,
+      // this redirect will be applied
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'example.com',
+          },
+        ],
+        destination: '/another-page',
+      },
+    ]
+  },
+}
+```
+
 ### Redirects with basePath support
 
 When leveraging [`basePath` support](/docs/api-reference/next.config.js/basepath.md) with redirects each `source` and `destination` is automatically prefixed with the `basePath` unless you add `basePath: false` to the redirect:

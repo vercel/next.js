@@ -616,6 +616,243 @@ const runTests = (isDev = false) => {
     )
   })
 
+  it('should match has header rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/has-rewrite-1', undefined, {
+      headers: {
+        'x-my-header': 'hello world!!',
+      },
+    })
+
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+
+    expect(JSON.parse($('#query').text())).toEqual({
+      myHeader: 'hello world!!',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/has-rewrite-1')
+    expect(res2.status).toBe(404)
+  })
+
+  it('should match has query rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/has-rewrite-2', {
+      'my-query': 'hellooo',
+    })
+
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+
+    expect(JSON.parse($('#query').text())).toEqual({
+      'my-query': 'hellooo',
+      myquery: 'hellooo',
+      value: 'hellooo',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/has-rewrite-2')
+    expect(res2.status).toBe(404)
+  })
+
+  it('should match has cookie rewrite correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/has-rewrite-3', undefined, {
+      headers: {
+        cookie: 'loggedIn=true',
+      },
+    })
+
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+
+    expect(JSON.parse($('#query').text())).toEqual({
+      loggedIn: 'true',
+      authorized: '1',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/has-rewrite-3')
+    expect(res2.status).toBe(404)
+  })
+
+  it('should match has host rewrite correctly', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/has-rewrite-4')
+    expect(res1.status).toBe(404)
+
+    const res = await fetchViaHTTP(appPort, '/has-rewrite-4', undefined, {
+      headers: {
+        host: 'example.com',
+      },
+    })
+
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+
+    expect(JSON.parse($('#query').text())).toEqual({
+      host: '1',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/has-rewrite-3')
+    expect(res2.status).toBe(404)
+  })
+
+  it('should match has header redirect correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/has-redirect-1', undefined, {
+      headers: {
+        'x-my-header': 'hello world!!',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(307)
+    const parsed = url.parse(res.headers.get('location'), true)
+
+    expect(parsed.pathname).toBe('/another')
+    expect(parsed.query).toEqual({
+      myHeader: 'hello world!!',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/has-redirect-1', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.status).toBe(404)
+  })
+
+  it('should match has query redirect correctly', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/has-redirect-2',
+      {
+        'my-query': 'hellooo',
+      },
+      {
+        redirect: 'manual',
+      }
+    )
+
+    expect(res.status).toBe(307)
+    const parsed = url.parse(res.headers.get('location'), true)
+
+    expect(parsed.pathname).toBe('/another')
+    expect(parsed.query).toEqual({
+      value: 'hellooo',
+      'my-query': 'hellooo',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/has-redirect-2', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.status).toBe(404)
+  })
+
+  it('should match has cookie redirect correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/has-redirect-3', undefined, {
+      headers: {
+        cookie: 'loggedIn=true',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(307)
+    const parsed = url.parse(res.headers.get('location'), true)
+
+    expect(parsed.pathname).toBe('/another')
+    expect(parsed.query).toEqual({
+      authorized: '1',
+    })
+
+    const res2 = await fetchViaHTTP(appPort, '/has-redirect-3', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.status).toBe(404)
+  })
+
+  it('should match has host redirect correctly', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/has-redirect-4', undefined, {
+      redirect: 'manual',
+    })
+    expect(res1.status).toBe(404)
+
+    const res = await fetchViaHTTP(appPort, '/has-redirect-4', undefined, {
+      headers: {
+        host: 'example.com',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(307)
+    const parsed = url.parse(res.headers.get('location'), true)
+
+    expect(parsed.pathname).toBe('/another')
+    expect(parsed.query).toEqual({
+      host: '1',
+    })
+  })
+
+  it('should match has header for header correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/has-header-1', undefined, {
+      headers: {
+        'x-my-header': 'hello world!!',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.headers.get('x-another')).toBe('header')
+
+    const res2 = await fetchViaHTTP(appPort, '/has-header-1', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.headers.get('x-another')).toBe(null)
+  })
+
+  it('should match has query for header correctly', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/has-header-2',
+      {
+        'my-query': 'hellooo',
+      },
+      {
+        redirect: 'manual',
+      }
+    )
+
+    expect(res.headers.get('x-added')).toBe('value')
+
+    const res2 = await fetchViaHTTP(appPort, '/has-header-2', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.headers.get('x-another')).toBe(null)
+  })
+
+  it('should match has cookie for header correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/has-header-3', undefined, {
+      headers: {
+        cookie: 'loggedIn=true',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.headers.get('x-is-user')).toBe('yuuuup')
+
+    const res2 = await fetchViaHTTP(appPort, '/has-header-3', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.headers.get('x-is-user')).toBe(null)
+  })
+
+  it('should match has host for header correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/has-header-4', undefined, {
+      headers: {
+        host: 'example.com',
+      },
+      redirect: 'manual',
+    })
+
+    expect(res.headers.get('x-is-host')).toBe('yuuuup')
+
+    const res2 = await fetchViaHTTP(appPort, '/has-header-4', undefined, {
+      redirect: 'manual',
+    })
+    expect(res2.headers.get('x-is-host')).toBe(null)
+  })
+
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(
@@ -784,6 +1021,56 @@ const runTests = (isDev = false) => {
             source: '/to-external-with-query-2',
             statusCode: 307,
           },
+          {
+            destination: '/another?myHeader=:myHeader',
+            has: [
+              {
+                key: 'x-my-header',
+                type: 'header',
+                value: '(?<myHeader>.*)',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-redirect-1$'),
+            source: '/has-redirect-1',
+            statusCode: 307,
+          },
+          {
+            destination: '/another?value=:myquery',
+            has: [
+              {
+                key: 'my-query',
+                type: 'query',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-redirect-2$'),
+            source: '/has-redirect-2',
+            statusCode: 307,
+          },
+          {
+            destination: '/another?authorized=1',
+            has: [
+              {
+                key: 'loggedIn',
+                type: 'cookie',
+                value: 'true',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-redirect-3$'),
+            source: '/has-redirect-3',
+            statusCode: 307,
+          },
+          {
+            destination: '/another?host=1',
+            has: [
+              {
+                type: 'host',
+                value: 'example.com',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-redirect-4$'),
+            source: '/has-redirect-4',
+            statusCode: 307,
+          },
         ],
         headers: [
           {
@@ -941,6 +1228,72 @@ const runTests = (isDev = false) => {
             ),
             source: '/catchall-header/:path*',
           },
+          {
+            has: [
+              {
+                key: 'x-my-header',
+                type: 'header',
+                value: '(?<myHeader>.*)',
+              },
+            ],
+            headers: [
+              {
+                key: 'x-another',
+                value: 'header',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-header-1$'),
+            source: '/has-header-1',
+          },
+          {
+            has: [
+              {
+                key: 'my-query',
+                type: 'query',
+              },
+            ],
+            headers: [
+              {
+                key: 'x-added',
+                value: 'value',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-header-2$'),
+            source: '/has-header-2',
+          },
+          {
+            has: [
+              {
+                key: 'loggedIn',
+                type: 'cookie',
+                value: 'true',
+              },
+            ],
+            headers: [
+              {
+                key: 'x-is-user',
+                value: 'yuuuup',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-header-3$'),
+            source: '/has-header-3',
+          },
+          {
+            has: [
+              {
+                type: 'host',
+                value: 'example.com',
+              },
+            ],
+            headers: [
+              {
+                key: 'x-is-host',
+                value: 'yuuuup',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-header-4$'),
+            source: '/has-header-4',
+          },
         ],
         rewrites: [
           {
@@ -1076,6 +1429,52 @@ const runTests = (isDev = false) => {
               '^\\/catchall-query(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
             ),
             source: '/catchall-query/:path*',
+          },
+          {
+            destination: '/with-params?myHeader=:myHeader',
+            has: [
+              {
+                key: 'x-my-header',
+                type: 'header',
+                value: '(?<myHeader>.*)',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-rewrite-1$'),
+            source: '/has-rewrite-1',
+          },
+          {
+            destination: '/with-params?value=:myquery',
+            has: [
+              {
+                key: 'my-query',
+                type: 'query',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-rewrite-2$'),
+            source: '/has-rewrite-2',
+          },
+          {
+            destination: '/with-params?authorized=1',
+            has: [
+              {
+                key: 'loggedIn',
+                type: 'cookie',
+                value: 'true',
+              },
+            ],
+            regex: normalizeRegEx('^\\/has-rewrite-3$'),
+            source: '/has-rewrite-3',
+          },
+          {
+            destination: '/with-params?host=1',
+            has: [
+              {
+                type: 'host',
+                value: 'example.com',
+              },
+            ],
+            regex: '^\\/has-rewrite-4$',
+            source: '/has-rewrite-4',
           },
         ],
         dynamicRoutes: [
@@ -1220,6 +1619,12 @@ describe('Custom routes', () => {
     it('should not show warning for custom routes when not next export', async () => {
       expect(stderr).not.toContain(
         `rewrites, redirects, and headers are not applied when exporting your application detected`
+      )
+    })
+
+    it('should show warning for experimental has usage', async () => {
+      expect(stderr).toContain(
+        "'has' route field support is still experimental and not covered by semver, use at your own risk."
       )
     })
   })

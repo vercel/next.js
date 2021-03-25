@@ -80,6 +80,7 @@ export const defaultConfig: NextConfig = {
     scriptLoader: false,
     stats: false,
     externalDir: false,
+    serialWebpackBuild: false,
   },
   future: {
     strictPostcssConfiguration: false,
