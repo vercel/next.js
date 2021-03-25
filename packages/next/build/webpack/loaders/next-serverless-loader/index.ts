@@ -109,6 +109,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         const apiHandler = getApiHandler({
           pageModule: require("${absolutePagePath}"),
           rewrites: routesManifest.rewrites,
+          overrideRewrites: routesManifest.overrideRewrites,
           i18n: ${i18n || 'undefined'},
           page: "${page}",
           basePath: "${basePath}",
@@ -184,6 +185,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         reactLoadableManifest,
 
         rewrites: routesManifest.rewrites,
+        overrideRewrites: routesManifest.overrideRewrites,
         i18n: ${i18n || 'undefined'},
         page: "${page}",
         buildId: "${buildId}",

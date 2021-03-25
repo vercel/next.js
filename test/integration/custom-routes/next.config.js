@@ -148,6 +148,17 @@ module.exports = {
         ],
         destination: '/with-params?host=1',
       },
+      {
+        source: '/hello',
+        has: [
+          {
+            type: 'query',
+            key: 'overrideMe',
+          },
+        ],
+        destination: '/with-params?overridden=1',
+        override: true,
+      },
     ]
   },
   async redirects() {

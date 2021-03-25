@@ -55,6 +55,7 @@ export default class Router {
   redirects: Route[]
   catchAllRoute: Route
   pageChecker: PageChecker
+  overrideRewrites: Route[]
   dynamicRoutes: DynamicRoutes
   useFileSystemPublicRoutes: boolean
   locales: string[]
@@ -68,6 +69,7 @@ export default class Router {
     catchAllRoute,
     dynamicRoutes = [],
     pageChecker,
+    overrideRewrites = [],
     useFileSystemPublicRoutes,
     locales = [],
   }: {
@@ -77,6 +79,7 @@ export default class Router {
     rewrites: Route[]
     redirects: Route[]
     catchAllRoute: Route
+    overrideRewrites: Route[]
     dynamicRoutes: DynamicRoutes | undefined
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
@@ -90,6 +93,7 @@ export default class Router {
     this.pageChecker = pageChecker
     this.catchAllRoute = catchAllRoute
     this.dynamicRoutes = dynamicRoutes
+    this.overrideRewrites = overrideRewrites
     this.useFileSystemPublicRoutes = useFileSystemPublicRoutes
     this.locales = locales
   }
@@ -133,6 +137,7 @@ export default class Router {
     const allRoutes = [
       ...this.headers,
       ...this.redirects,
+      ...this.overrideRewrites,
       ...this.fsRoutes,
       // We only check the catch-all route if public page routes hasn't been
       // disabled

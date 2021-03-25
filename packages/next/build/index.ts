@@ -17,6 +17,7 @@ import {
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
+  CustomRoutes,
   getRedirectStatus,
   normalizeRouteRegex,
   Redirect,
@@ -51,6 +52,7 @@ import {
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import loadConfig, {
   isTargetLikeServerless,
+  NextConfig,
 } from '../next-server/server/config'
 import { BuildManifest } from '../next-server/server/get-page-files'
 import '../next-server/server/node-polyfill-fetch'
@@ -125,18 +127,20 @@ export default async function build(
       .traceChild('load-dotenv')
       .traceFn(() => loadEnvConfig(dir, false, Log))
 
-    const config = await nextBuildSpan
+    const config: NextConfig = await nextBuildSpan
       .traceChild('load-next-config')
       .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir, conf))
     const { target } = config
-    const buildId = await nextBuildSpan
+    const buildId: string = await nextBuildSpan
       .traceChild('generate-buildid')
       .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
     const distDir = path.join(dir, config.distDir)
 
-    const { headers, rewrites, redirects } = await nextBuildSpan
+    const customRoutes: CustomRoutes = await nextBuildSpan
       .traceChild('load-custom-routes')
       .traceAsyncFn(() => loadCustomRoutes(config))
+
+    const { headers, rewrites, redirects, overrideRewrites } = customRoutes
 
     if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
       const cacheDir = path.join(distDir, 'cache')
@@ -386,6 +390,9 @@ export default async function build(
       redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
       rewrites: rewrites.map((r: any) => buildCustomRoute(r, 'rewrite')),
       headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
+      overrideRewrites: overrideRewrites.map((r: any) =>
+        buildCustomRoute(r, 'rewrite')
+      ),
       dynamicRoutes: getSortedRoutes(pageKeys)
         .filter(isDynamicRoute)
         .map((page) => {
@@ -1496,7 +1503,9 @@ export default async function build(
     if (debugOutput) {
       nextBuildSpan
         .traceChild('print-custom-routes')
-        .traceFn(() => printCustomRoutes({ redirects, rewrites, headers }))
+        .traceFn(() =>
+          printCustomRoutes({ redirects, rewrites, headers, overrideRewrites })
+        )
     }
 
     if (config.analyticsId) {

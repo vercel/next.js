@@ -692,6 +692,23 @@ const runTests = (isDev = false) => {
     expect(res2.status).toBe(404)
   })
 
+  it('should match has override rewrite correctly', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/hello')
+    expect(res1.status).toBe(200)
+    const $1 = cheerio.load(await res1.text())
+    expect($1('#hello').text()).toBe('Hello')
+
+    const res = await fetchViaHTTP(appPort, '/hello', { overrideMe: '1' })
+
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+
+    expect(JSON.parse($('#query').text())).toEqual({
+      overrideMe: '1',
+      overridden: '1',
+    })
+  })
+
   it('should match has header redirect correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/has-redirect-1', undefined, {
       headers: {
@@ -862,6 +879,7 @@ const runTests = (isDev = false) => {
       for (const route of [
         ...manifest.dynamicRoutes,
         ...manifest.rewrites,
+        ...manifest.overrideRewrites,
         ...manifest.redirects,
         ...manifest.headers,
       ]) {
@@ -1475,6 +1493,20 @@ const runTests = (isDev = false) => {
             ],
             regex: '^\\/has-rewrite-4$',
             source: '/has-rewrite-4',
+          },
+        ],
+        overrideRewrites: [
+          {
+            destination: '/with-params?overridden=1',
+            has: [
+              {
+                key: 'overrideMe',
+                type: 'query',
+              },
+            ],
+            override: true,
+            regex: normalizeRegEx('^\\/hello$'),
+            source: '/hello',
           },
         ],
         dynamicRoutes: [

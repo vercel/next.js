@@ -295,10 +295,11 @@ export function printCustomRoutes({
   redirects,
   rewrites,
   headers,
+  overrideRewrites,
 }: CustomRoutes) {
   const printRoutes = (
     routes: Redirect[] | Rewrite[] | Header[],
-    type: 'Redirects' | 'Rewrites' | 'Headers'
+    type: 'Redirects' | 'Rewrites' | 'Headers' | 'Override Rewrites'
   ) => {
     const isRedirects = type === 'Redirects'
     const isHeaders = type === 'Headers'
@@ -351,11 +352,14 @@ export function printCustomRoutes({
   if (redirects.length) {
     printRoutes(redirects, 'Redirects')
   }
-  if (rewrites.length) {
-    printRoutes(rewrites, 'Rewrites')
-  }
   if (headers.length) {
     printRoutes(headers, 'Headers')
+  }
+  if (overrideRewrites.length) {
+    printRoutes(overrideRewrites, 'Override Rewrites')
+  }
+  if (rewrites.length) {
+    printRoutes(rewrites, 'Rewrites')
   }
 }
 

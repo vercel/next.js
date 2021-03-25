@@ -205,12 +205,12 @@ export default class Server {
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
       images: JSON.stringify(this.nextConfig.images),
-      optimizeFonts: this.nextConfig.experimental.optimizeFonts && !dev,
+      optimizeFonts: !!this.nextConfig.experimental.optimizeFonts && !dev,
       fontManifest:
         this.nextConfig.experimental.optimizeFonts && !dev
           ? requireFontManifest(this.distDir, this._isLikeServerless)
           : null,
-      optimizeImages: this.nextConfig.experimental.optimizeImages,
+      optimizeImages: !!this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
@@ -367,6 +367,7 @@ export default class Server {
         i18n: this.nextConfig.i18n,
         basePath: this.nextConfig.basePath,
         rewrites: this.customRoutes.rewrites,
+        overrideRewrites: this.customRoutes.overrideRewrites,
       })
 
       utils.handleRewrites(req, parsedUrl)
@@ -618,6 +619,7 @@ export default class Server {
     redirects: Route[]
     catchAllRoute: Route
     pageChecker: PageChecker
+    overrideRewrites: Route[]
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
     locales: string[]
@@ -875,7 +877,7 @@ export default class Server {
           } as Route
         })
 
-    const rewrites = this.customRoutes.rewrites.map((rewrite) => {
+    const buildRewrite = (rewrite: Rewrite) => {
       const rewriteRoute = getCustomRoute(rewrite, 'rewrite')
       return {
         ...rewriteRoute,
@@ -923,7 +925,12 @@ export default class Server {
           }
         },
       } as Route
-    })
+    }
+
+    const rewrites = this.customRoutes.rewrites.map(buildRewrite)
+    const overrideRewrites = this.customRoutes.overrideRewrites.map(
+      buildRewrite
+    )
 
     const catchAllRoute: Route = {
       match: route('/:path*'),
@@ -981,6 +988,7 @@ export default class Server {
       rewrites,
       redirects,
       catchAllRoute,
+      overrideRewrites,
       useFileSystemPublicRoutes,
       dynamicRoutes: this.dynamicRoutes,
       basePath: this.nextConfig.basePath,
