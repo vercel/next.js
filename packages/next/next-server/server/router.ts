@@ -134,8 +134,14 @@ export default class Router {
 
     let parsedUrlUpdated = parsedUrl
 
-    const applyCheckTrue = async (checkParsedUrl: UrlWithParsedQuery) => {
-      const originalFsPathname = checkParsedUrl.pathname
+    const applyCheckTrue = async (
+      checkParsedUrl: UrlWithParsedQuery,
+      hasInternalLocale = false,
+      newPath = [],
+    ) => {
+      const originalFsPathname = hasInternalLocale
+        ? `/${newPath.join('/')}`
+        : checkParsedUrl.pathname
       const fsPathname = replaceBasePath(this.basePath, originalFsPathname!)
 
       for (const fsRoute of this.fsRoutes) {
@@ -365,7 +371,13 @@ export default class Router {
 
         // check filesystem
         if (testRoute.check === true) {
-          if (await applyCheckTrue(parsedUrlUpdated)) {
+          if (
+            await applyCheckTrue(
+              parsedUrlUpdated,
+              Boolean(newParams.nextInternalLocale),
+              newParams.path,
+            )
+          ) {
             return true
           }
         }
