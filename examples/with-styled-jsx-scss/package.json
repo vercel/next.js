@@ -12,5 +12,8 @@
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },
+  "devDependencies": {
+    "sass": "^1.32.8"
+  },
   "license": "MIT"
 }
