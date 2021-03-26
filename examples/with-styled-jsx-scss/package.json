@@ -8,7 +8,6 @@
   },
   "dependencies": {
     "next": "latest",
-    "sass": "1.32.4",
     "react": "^16.7.0",
     "react-dom": "^16.7.0"
   },
