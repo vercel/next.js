@@ -338,12 +338,11 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   }
 }
 
-function resolveDynamicRoute(parsedHref: UrlObject, pages: string[]) {
-  const { pathname } = parsedHref
+function resolveDynamicRoute(pathname: string, pages: string[]) {
   const cleanPathname = removePathTrailingSlash(denormalizePagePath(pathname!))
 
   if (cleanPathname === '/404' || cleanPathname === '/_error') {
-    return parsedHref
+    return pathname
   }
 
   // handle resolving href for dynamic routes
@@ -351,13 +350,12 @@ function resolveDynamicRoute(parsedHref: UrlObject, pages: string[]) {
     // eslint-disable-next-line array-callback-return
     pages.some((page) => {
       if (isDynamicRoute(page) && getRouteRegex(page).re.test(cleanPathname!)) {
-        parsedHref.pathname = page
+        pathname = page
         return true
       }
     })
   }
-  parsedHref.pathname = removePathTrailingSlash(parsedHref.pathname!)
-  return parsedHref
+  return removePathTrailingSlash(pathname)
 }
 
 export type BaseRouter = {
@@ -966,7 +964,7 @@ export default class Router implements BaseRouter {
         pages,
         rewrites,
         query,
-        (p: string) => resolveDynamicRoute({ pathname: p }, pages).pathname!,
+        (p: string) => resolveDynamicRoute(p, pages),
         this.locales
       )
       resolvedAs = rewritesResult.asPath
@@ -979,7 +977,7 @@ export default class Router implements BaseRouter {
         url = formatWithValidation(parsed)
       }
     } else {
-      parsed = resolveDynamicRoute(parsed, pages) as typeof parsed
+      parsed.pathname = resolveDynamicRoute(pathname, pages)
 
       if (parsed.pathname !== pathname) {
         pathname = parsed.pathname
@@ -1082,7 +1080,10 @@ export default class Router implements BaseRouter {
           // it's not
           if (destination.startsWith('/')) {
             const parsedHref = parseRelativeUrl(destination)
-            resolveDynamicRoute(parsedHref, pages)
+            parsedHref.pathname = resolveDynamicRoute(
+              parsedHref.pathname,
+              pages
+            )
 
             if (pages.includes(parsedHref.pathname)) {
               const { url: newUrl, as: newAs } = prepareUrlAs(
@@ -1487,7 +1488,7 @@ export default class Router implements BaseRouter {
         pages,
         rewrites,
         parsed.query,
-        (p: string) => resolveDynamicRoute({ pathname: p }, pages).pathname!,
+        (p: string) => resolveDynamicRoute(p, pages),
         this.locales
       )
       resolvedAs = delLocale(delBasePath(rewritesResult.asPath), this.locale)
@@ -1500,7 +1501,7 @@ export default class Router implements BaseRouter {
         url = formatWithValidation(parsed)
       }
     } else {
-      parsed = resolveDynamicRoute(parsed, pages) as typeof parsed
+      parsed.pathname = resolveDynamicRoute(parsed.pathname, pages)
 
       if (parsed.pathname !== pathname) {
         pathname = parsed.pathname
