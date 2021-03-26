@@ -946,13 +946,6 @@ export default class Router implements BaseRouter {
       return false
     }
 
-    // url and as should always be prefixed with basePath by this
-    // point by either next/link or router.push/replace so strip the
-    // basePath from the pathname to match the pages dir 1-to-1
-    pathname = pathname
-      ? removePathTrailingSlash(delBasePath(pathname))
-      : pathname
-
     // If asked to change the current URL we should reload the current page
     // (not location.reload() but reload getInitialProps and other Next.js stuffs)
     // We also need to set the method = replaceState always
@@ -961,8 +954,6 @@ export default class Router implements BaseRouter {
     if (!this.urlIsNew(cleanedAs) && !localeChange) {
       method = 'replaceState'
     }
-
-    let route = removePathTrailingSlash(pathname)
 
     // we need to resolve the as value using rewrites for dynamic SSG
     // pages to allow building the data URL correctly
@@ -982,7 +973,6 @@ export default class Router implements BaseRouter {
       if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
         // if this directly matches a page we need to update the href to
         // allow the correct page chunk to be loaded
-        route = rewritesResult.resolvedHref
         pathname = rewritesResult.resolvedHref
         parsed.pathname = pathname
         url = formatWithValidation(parsed)
@@ -995,6 +985,15 @@ export default class Router implements BaseRouter {
         url = formatWithValidation(parsed)
       }
     }
+
+    // url and as should always be prefixed with basePath by this
+    // point by either next/link or router.push/replace so strip the
+    // basePath from the pathname to match the pages dir 1-to-1
+    pathname = pathname
+      ? removePathTrailingSlash(delBasePath(pathname))
+      : pathname
+
+    const route = removePathTrailingSlash(pathname)
 
     if (!isLocalURL(as)) {
       if (process.env.NODE_ENV !== 'production') {
@@ -1514,6 +1513,7 @@ export default class Router implements BaseRouter {
 
       if (parsed.pathname !== pathname) {
         pathname = parsed.pathname
+        route = removePathTrailingSlash(pathname)
         url = formatWithValidation(parsed)
       }
     }
@@ -1524,7 +1524,7 @@ export default class Router implements BaseRouter {
     }
 
     await Promise.all([
-      this.pageLoader._isSsg(url).then((isSsg: boolean) => {
+      this.pageLoader._isSsg(route).then((isSsg: boolean) => {
         return isSsg
           ? this._getStaticData(
               this.pageLoader.getDataHref(
