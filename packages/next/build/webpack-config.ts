@@ -16,7 +16,6 @@ import {
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { getPackageVersion } from '../lib/get-package-version'
-import { Rewrite } from '../lib/load-custom-routes'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -61,6 +60,7 @@ import WebpackConformancePlugin, {
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { NextConfig } from '../next-server/server/config'
 import { relative as relativePath, join as pathJoin } from 'path'
+import { CustomRoutes } from '../lib/load-custom-routes.js'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -201,13 +201,16 @@ export default async function getBaseWebpackConfig(
     target?: string
     reactProductionProfiling?: boolean
     entrypoints: WebpackEntrypoints
-    rewrites: Rewrite[]
+    rewrites: CustomRoutes['rewrites']
   }
 ): Promise<webpack.Configuration> {
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
-  const hasRewrites = rewrites.length > 0
+  const hasRewrites =
+    rewrites.beforeFiles.length > 0 ||
+    rewrites.afterFiles.length > 0 ||
+    rewrites.fallback.length > 0
 
   if (config.experimental.plugins) {
     plugins = await collectPlugins(dir, config.env, config.plugins)

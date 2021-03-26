@@ -18,15 +18,47 @@ export type NextConfig = { [key: string]: any } & {
   } | null
 
   headers?: () => Promise<Header[]>
-  rewrites?: () => Promise<Rewrite[]>
+  rewrites?: () => Promise<
+    | Rewrite[]
+    | {
+        beforeFiles: Rewrite[]
+        afterFiles: Rewrite[]
+        fallback: Rewrite[]
+      }
+  >
   redirects?: () => Promise<Redirect[]>
 
   trailingSlash?: boolean
 
   future: {
-    strictPostcssConfiguration: boolean
-    excludeDefaultMomentLocales: boolean
-    webpack5: boolean
+    strictPostcssConfiguration?: boolean
+    excludeDefaultMomentLocales?: boolean
+    webpack5?: boolean
+  }
+
+  experimental: {
+    cpus?: number
+    plugins?: boolean
+    profiling?: boolean
+    sprFlushToDisk?: boolean
+    reactMode?: 'legacy' | 'concurrent' | 'blocking'
+    workerThreads?: boolean
+    pageEnv?: boolean
+    optimizeFonts?: boolean
+    optimizeImages?: boolean
+    optimizeCss?: boolean
+    scrollRestoration?: boolean
+    scriptLoader?: boolean
+    stats?: boolean
+    externalDir?: boolean
+    serialWebpackBuild?: boolean
+    babelMultiThread?: boolean
+    conformance?: boolean
+    amp?: {
+      optimizer?: any
+      validator?: string
+      skipValidation?: boolean
+    }
   }
 }
 

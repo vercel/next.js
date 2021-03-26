@@ -692,6 +692,23 @@ const runTests = (isDev = false) => {
     expect(res2.status).toBe(404)
   })
 
+  it('should match has rewrite correctly before files', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/hello')
+    expect(res1.status).toBe(200)
+    const $1 = cheerio.load(await res1.text())
+    expect($1('#hello').text()).toBe('Hello')
+
+    const res = await fetchViaHTTP(appPort, '/hello', { overrideMe: '1' })
+
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+
+    expect(JSON.parse($('#query').text())).toEqual({
+      overrideMe: '1',
+      overridden: '1',
+    })
+  })
+
   it('should match has header redirect correctly', async () => {
     const res = await fetchViaHTTP(appPort, '/has-redirect-1', undefined, {
       headers: {
@@ -861,7 +878,9 @@ const runTests = (isDev = false) => {
 
       for (const route of [
         ...manifest.dynamicRoutes,
-        ...manifest.rewrites,
+        ...manifest.rewrites.beforeFiles,
+        ...manifest.rewrites.afterFiles,
+        ...manifest.rewrites.fallback,
         ...manifest.redirects,
         ...manifest.headers,
       ]) {
@@ -1295,188 +1314,204 @@ const runTests = (isDev = false) => {
             source: '/has-header-4',
           },
         ],
-        rewrites: [
-          {
-            destination: '/auto-export/hello',
-            regex: normalizeRegEx('^\\/rewriting-to-auto-export$'),
-            source: '/rewriting-to-auto-export',
-          },
-          {
-            destination: '/another/one',
-            regex: normalizeRegEx('^\\/to-another$'),
-            source: '/to-another',
-          },
-          {
-            destination: '/404',
-            regex: '^\\/nav$',
-            source: '/nav',
-          },
-          {
-            source: '/hello-world',
-            destination: '/static/hello.txt',
-            regex: normalizeRegEx('^\\/hello-world$'),
-          },
-          {
-            source: '/',
-            destination: '/another',
-            regex: normalizeRegEx('^\\/$'),
-          },
-          {
-            source: '/another',
-            destination: '/multi-rewrites',
-            regex: normalizeRegEx('^\\/another$'),
-          },
-          {
-            source: '/first',
-            destination: '/hello',
-            regex: normalizeRegEx('^\\/first$'),
-          },
-          {
-            source: '/second',
-            destination: '/hello-again',
-            regex: normalizeRegEx('^\\/second$'),
-          },
-          {
-            destination: '/hello',
-            regex: normalizeRegEx('^\\/to-hello$'),
-            source: '/to-hello',
-          },
-          {
-            destination: '/blog/post-2',
-            regex: normalizeRegEx('^\\/blog\\/post-1$'),
-            source: '/blog/post-1',
-          },
-          {
-            source: '/test/:path',
-            destination: '/:path',
-            regex: normalizeRegEx('^\\/test(?:\\/([^\\/]+?))$'),
-          },
-          {
-            source: '/test-overwrite/:something/:another',
-            destination: '/params/this-should-be-the-value',
-            regex: normalizeRegEx(
-              '^\\/test-overwrite(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$'
-            ),
-          },
-          {
-            source: '/params/:something',
-            destination: '/with-params',
-            regex: normalizeRegEx('^\\/params(?:\\/([^\\/]+?))$'),
-          },
-          {
-            destination: '/with-params?first=:section&second=:name',
-            regex: normalizeRegEx(
-              '^\\/query-rewrite(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$'
-            ),
-            source: '/query-rewrite/:section/:name',
-          },
-          {
-            destination: '/_next/:path*',
-            regex: normalizeRegEx(
-              '^\\/hidden\\/_next(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
-            ),
-            source: '/hidden/_next/:path*',
-          },
-          {
-            destination: `http://localhost:${externalServerPort}/:path*`,
-            regex: normalizeRegEx(
-              '^\\/proxy-me(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
-            ),
-            source: '/proxy-me/:path*',
-          },
-          {
-            destination: '/api/hello',
-            regex: normalizeRegEx('^\\/api-hello$'),
-            source: '/api-hello',
-          },
-          {
-            destination: '/api/hello?name=:first*',
-            regex: normalizeRegEx('^\\/api-hello-regex(?:\\/(.*))$'),
-            source: '/api-hello-regex/:first(.*)',
-          },
-          {
-            destination: '/api/hello?hello=:name',
-            regex: normalizeRegEx('^\\/api-hello-param(?:\\/([^\\/]+?))$'),
-            source: '/api-hello-param/:name',
-          },
-          {
-            destination: '/api/dynamic/:name?hello=:name',
-            regex: normalizeRegEx('^\\/api-dynamic-param(?:\\/([^\\/]+?))$'),
-            source: '/api-dynamic-param/:name',
-          },
-          {
-            destination: '/with-params',
-            regex: normalizeRegEx('^(?:\\/([^\\/]+?))\\/post-321$'),
-            source: '/:path/post-321',
-          },
-          {
-            destination: '/with-params',
-            regex: normalizeRegEx(
-              '^\\/unnamed-params\\/nested(?:\\/(.*))(?:\\/([^\\/]+?))(?:\\/(.*))$'
-            ),
-            source: '/unnamed-params/nested/(.*)/:test/(.*)',
-          },
-          {
-            destination: '/with-params',
-            regex: normalizeRegEx(
-              '^\\/catchall-rewrite(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
-            ),
-            source: '/catchall-rewrite/:path*',
-          },
-          {
-            destination: '/with-params?another=:path*',
-            regex: normalizeRegEx(
-              '^\\/catchall-query(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
-            ),
-            source: '/catchall-query/:path*',
-          },
-          {
-            destination: '/with-params?myHeader=:myHeader',
-            has: [
-              {
-                key: 'x-my-header',
-                type: 'header',
-                value: '(?<myHeader>.*)',
-              },
-            ],
-            regex: normalizeRegEx('^\\/has-rewrite-1$'),
-            source: '/has-rewrite-1',
-          },
-          {
-            destination: '/with-params?value=:myquery',
-            has: [
-              {
-                key: 'my-query',
-                type: 'query',
-              },
-            ],
-            regex: normalizeRegEx('^\\/has-rewrite-2$'),
-            source: '/has-rewrite-2',
-          },
-          {
-            destination: '/with-params?authorized=1',
-            has: [
-              {
-                key: 'loggedIn',
-                type: 'cookie',
-                value: 'true',
-              },
-            ],
-            regex: normalizeRegEx('^\\/has-rewrite-3$'),
-            source: '/has-rewrite-3',
-          },
-          {
-            destination: '/with-params?host=1',
-            has: [
-              {
-                type: 'host',
-                value: 'example.com',
-              },
-            ],
-            regex: '^\\/has-rewrite-4$',
-            source: '/has-rewrite-4',
-          },
-        ],
+        rewrites: {
+          beforeFiles: [
+            {
+              destination: '/with-params?overridden=1',
+              has: [
+                {
+                  key: 'overrideMe',
+                  type: 'query',
+                },
+              ],
+              regex: normalizeRegEx('^\\/hello$'),
+              source: '/hello',
+            },
+          ],
+          afterFiles: [
+            {
+              destination: '/auto-export/hello',
+              regex: normalizeRegEx('^\\/rewriting-to-auto-export$'),
+              source: '/rewriting-to-auto-export',
+            },
+            {
+              destination: '/another/one',
+              regex: normalizeRegEx('^\\/to-another$'),
+              source: '/to-another',
+            },
+            {
+              destination: '/404',
+              regex: '^\\/nav$',
+              source: '/nav',
+            },
+            {
+              source: '/hello-world',
+              destination: '/static/hello.txt',
+              regex: normalizeRegEx('^\\/hello-world$'),
+            },
+            {
+              source: '/',
+              destination: '/another',
+              regex: normalizeRegEx('^\\/$'),
+            },
+            {
+              source: '/another',
+              destination: '/multi-rewrites',
+              regex: normalizeRegEx('^\\/another$'),
+            },
+            {
+              source: '/first',
+              destination: '/hello',
+              regex: normalizeRegEx('^\\/first$'),
+            },
+            {
+              source: '/second',
+              destination: '/hello-again',
+              regex: normalizeRegEx('^\\/second$'),
+            },
+            {
+              destination: '/hello',
+              regex: normalizeRegEx('^\\/to-hello$'),
+              source: '/to-hello',
+            },
+            {
+              destination: '/blog/post-2',
+              regex: normalizeRegEx('^\\/blog\\/post-1$'),
+              source: '/blog/post-1',
+            },
+            {
+              source: '/test/:path',
+              destination: '/:path',
+              regex: normalizeRegEx('^\\/test(?:\\/([^\\/]+?))$'),
+            },
+            {
+              source: '/test-overwrite/:something/:another',
+              destination: '/params/this-should-be-the-value',
+              regex: normalizeRegEx(
+                '^\\/test-overwrite(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$'
+              ),
+            },
+            {
+              source: '/params/:something',
+              destination: '/with-params',
+              regex: normalizeRegEx('^\\/params(?:\\/([^\\/]+?))$'),
+            },
+            {
+              destination: '/with-params?first=:section&second=:name',
+              regex: normalizeRegEx(
+                '^\\/query-rewrite(?:\\/([^\\/]+?))(?:\\/([^\\/]+?))$'
+              ),
+              source: '/query-rewrite/:section/:name',
+            },
+            {
+              destination: '/_next/:path*',
+              regex: normalizeRegEx(
+                '^\\/hidden\\/_next(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+              ),
+              source: '/hidden/_next/:path*',
+            },
+            {
+              destination: `http://localhost:${externalServerPort}/:path*`,
+              regex: normalizeRegEx(
+                '^\\/proxy-me(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+              ),
+              source: '/proxy-me/:path*',
+            },
+            {
+              destination: '/api/hello',
+              regex: normalizeRegEx('^\\/api-hello$'),
+              source: '/api-hello',
+            },
+            {
+              destination: '/api/hello?name=:first*',
+              regex: normalizeRegEx('^\\/api-hello-regex(?:\\/(.*))$'),
+              source: '/api-hello-regex/:first(.*)',
+            },
+            {
+              destination: '/api/hello?hello=:name',
+              regex: normalizeRegEx('^\\/api-hello-param(?:\\/([^\\/]+?))$'),
+              source: '/api-hello-param/:name',
+            },
+            {
+              destination: '/api/dynamic/:name?hello=:name',
+              regex: normalizeRegEx('^\\/api-dynamic-param(?:\\/([^\\/]+?))$'),
+              source: '/api-dynamic-param/:name',
+            },
+            {
+              destination: '/with-params',
+              regex: normalizeRegEx('^(?:\\/([^\\/]+?))\\/post-321$'),
+              source: '/:path/post-321',
+            },
+            {
+              destination: '/with-params',
+              regex: normalizeRegEx(
+                '^\\/unnamed-params\\/nested(?:\\/(.*))(?:\\/([^\\/]+?))(?:\\/(.*))$'
+              ),
+              source: '/unnamed-params/nested/(.*)/:test/(.*)',
+            },
+            {
+              destination: '/with-params',
+              regex: normalizeRegEx(
+                '^\\/catchall-rewrite(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+              ),
+              source: '/catchall-rewrite/:path*',
+            },
+            {
+              destination: '/with-params?another=:path*',
+              regex: normalizeRegEx(
+                '^\\/catchall-query(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+              ),
+              source: '/catchall-query/:path*',
+            },
+            {
+              destination: '/with-params?myHeader=:myHeader',
+              has: [
+                {
+                  key: 'x-my-header',
+                  type: 'header',
+                  value: '(?<myHeader>.*)',
+                },
+              ],
+              regex: normalizeRegEx('^\\/has-rewrite-1$'),
+              source: '/has-rewrite-1',
+            },
+            {
+              destination: '/with-params?value=:myquery',
+              has: [
+                {
+                  key: 'my-query',
+                  type: 'query',
+                },
+              ],
+              regex: normalizeRegEx('^\\/has-rewrite-2$'),
+              source: '/has-rewrite-2',
+            },
+            {
+              destination: '/with-params?authorized=1',
+              has: [
+                {
+                  key: 'loggedIn',
+                  type: 'cookie',
+                  value: 'true',
+                },
+              ],
+              regex: normalizeRegEx('^\\/has-rewrite-3$'),
+              source: '/has-rewrite-3',
+            },
+            {
+              destination: '/with-params?host=1',
+              has: [
+                {
+                  type: 'host',
+                  value: 'example.com',
+                },
+              ],
+              regex: '^\\/has-rewrite-4$',
+              source: '/has-rewrite-4',
+            },
+          ],
+          fallback: [],
+        },
         dynamicRoutes: [
           {
             namedRegex: '^/another/(?<id>[^/]+?)(?:/)?$',
@@ -1525,7 +1560,12 @@ const runTests = (isDev = false) => {
       expect(cleanStdout).toMatch(/source.*?/i)
       expect(cleanStdout).toMatch(/destination.*?/i)
 
-      for (const route of [...manifest.redirects, ...manifest.rewrites]) {
+      for (const route of [
+        ...manifest.redirects,
+        ...manifest.rewrites.beforeFiles,
+        ...manifest.rewrites.afterFiles,
+        ...manifest.rewrites.fallback,
+      ]) {
         expect(cleanStdout).toContain(route.source)
         expect(cleanStdout).toContain(route.destination)
       }

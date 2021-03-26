@@ -17,9 +17,11 @@ import {
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
+  CustomRoutes,
   getRedirectStatus,
   normalizeRouteRegex,
   Redirect,
+  Rewrite,
   RouteType,
 } from '../lib/load-custom-routes'
 import { nonNullable } from '../lib/non-nullable'
@@ -51,6 +53,7 @@ import {
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import loadConfig, {
   isTargetLikeServerless,
+  NextConfig,
 } from '../next-server/server/config'
 import { BuildManifest } from '../next-server/server/get-page-files'
 import '../next-server/server/node-polyfill-fetch'
@@ -125,18 +128,20 @@ export default async function build(
       .traceChild('load-dotenv')
       .traceFn(() => loadEnvConfig(dir, false, Log))
 
-    const config = await nextBuildSpan
+    const config: NextConfig = await nextBuildSpan
       .traceChild('load-next-config')
       .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir, conf))
     const { target } = config
-    const buildId = await nextBuildSpan
+    const buildId: string = await nextBuildSpan
       .traceChild('generate-buildid')
       .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
     const distDir = path.join(dir, config.distDir)
 
-    const { headers, rewrites, redirects } = await nextBuildSpan
+    const customRoutes: CustomRoutes = await nextBuildSpan
       .traceChild('load-custom-routes')
       .traceAsyncFn(() => loadCustomRoutes(config))
+
+    const { headers, rewrites, redirects } = customRoutes
 
     if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
       const cacheDir = path.join(distDir, 'cache')
@@ -354,7 +359,13 @@ export default async function build(
       pages404: boolean
       basePath: string
       redirects: Array<ReturnType<typeof buildCustomRoute>>
-      rewrites: Array<ReturnType<typeof buildCustomRoute>>
+      rewrites:
+        | Array<ReturnType<typeof buildCustomRoute>>
+        | {
+            beforeFiles: Array<ReturnType<typeof buildCustomRoute>>
+            afterFiles: Array<ReturnType<typeof buildCustomRoute>>
+            fallback: Array<ReturnType<typeof buildCustomRoute>>
+          }
       headers: Array<ReturnType<typeof buildCustomRoute>>
       dynamicRoutes: Array<{
         page: string
@@ -384,7 +395,6 @@ export default async function build(
       pages404: true,
       basePath: config.basePath,
       redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
-      rewrites: rewrites.map((r: any) => buildCustomRoute(r, 'rewrite')),
       headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
       dynamicRoutes: getSortedRoutes(pageKeys)
         .filter(isDynamicRoute)
@@ -400,6 +410,29 @@ export default async function build(
       dataRoutes: [],
       i18n: config.i18n || undefined,
     }))
+
+    if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
+      routesManifest.rewrites = rewrites.afterFiles.map((r: any) =>
+        buildCustomRoute(r, 'rewrite')
+      )
+    } else {
+      routesManifest.rewrites = {
+        beforeFiles: rewrites.beforeFiles.map((r: any) =>
+          buildCustomRoute(r, 'rewrite')
+        ),
+        afterFiles: rewrites.afterFiles.map((r: any) =>
+          buildCustomRoute(r, 'rewrite')
+        ),
+        fallback: rewrites.fallback.map((r: any) =>
+          buildCustomRoute(r, 'rewrite')
+        ),
+      }
+    }
+    const combinedRewrites: Rewrite[] = [
+      ...rewrites.beforeFiles,
+      ...rewrites.afterFiles,
+      ...rewrites.fallback,
+    ]
 
     const distDirCreated = await nextBuildSpan
       .traceChild('create-dist-dir')
@@ -1380,11 +1413,12 @@ export default async function build(
           (staticPages.size + ssgPages.size + serverPropsPages.size),
         hasStatic404: useStatic404,
         hasReportWebVitals: namedExports?.includes('reportWebVitals') ?? false,
-        rewritesCount: rewrites.length,
+        rewritesCount: combinedRewrites.length,
         headersCount: headers.length,
         redirectsCount: redirects.length - 1, // reduce one for trailing slash
         headersWithHasCount: headers.filter((r: any) => !!r.has).length,
-        rewritesWithHasCount: rewrites.filter((r: any) => !!r.has).length,
+        rewritesWithHasCount: combinedRewrites.filter((r: any) => !!r.has)
+          .length,
         redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
       })
     )
