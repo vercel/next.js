@@ -122,7 +122,8 @@ export default function resolveRewrites(
     // check dynamic route before processing fallback rewrites
     if (!finished) {
       resolvedHref = resolveHref(fsPathname)
-      finished = pages.includes(resolvedHref)
+      matchedPage = pages.includes(resolvedHref)
+      finished = matchedPage
     }
 
     if (!finished) {
