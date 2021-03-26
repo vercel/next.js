@@ -540,22 +540,29 @@ async function loadRewrites(config: NextConfig) {
   let afterFiles: Rewrite[] = []
   let fallback: Rewrite[] = []
 
-  if (!Array.isArray(_rewrites) && typeof _rewrites === 'object' && _rewrites) {
+  if (
+    !Array.isArray(_rewrites) &&
+    typeof _rewrites === 'object' &&
+    Object.keys(_rewrites).every(
+      (key) =>
+        key === 'beforeFiles' || key === 'afterFiles' || key === 'fallback'
+    )
+  ) {
     beforeFiles = _rewrites.beforeFiles || []
     afterFiles = _rewrites.afterFiles || []
     fallback = _rewrites.fallback || []
   } else {
-    afterFiles = _rewrites
+    afterFiles = _rewrites as any
   }
 
-  checkCustomRoutes(afterFiles, 'rewrite')
   checkCustomRoutes(beforeFiles, 'rewrite')
+  checkCustomRoutes(afterFiles, 'rewrite')
   checkCustomRoutes(fallback, 'rewrite')
 
   return {
-    fallback,
-    afterFiles,
-    beforeFiles,
+    beforeFiles: processRoutes(beforeFiles, config, 'rewrite'),
+    afterFiles: processRoutes(afterFiles, config, 'rewrite'),
+    fallback: processRoutes(fallback, config, 'rewrite'),
   }
 }
 
