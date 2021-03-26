@@ -14,7 +14,6 @@
     "sass": "^1.32.4",
     "react": "17.0.1",
     "react-dom": "17.0.1",
-    "styled-jsx-plugin-sass": "^1.0.0"
   },
   "license": "MIT",
   "devDependencies": {

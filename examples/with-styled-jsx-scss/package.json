@@ -10,8 +10,7 @@
     "next": "latest",
     "sass": "1.32.4",
     "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "styled-jsx-plugin-sass": "1.0.0"
+    "react-dom": "^16.7.0"
   },
   "license": "MIT"
 }
