@@ -361,13 +361,18 @@ export default class Server {
       }
 
       const pageIsDynamic = isDynamicRoute(matchedPathnameNoExt)
+      const combinedRewrites: Rewrite[] = []
+
+      combinedRewrites.push(...this.customRoutes.rewrites.beforeFiles)
+      combinedRewrites.push(...this.customRoutes.rewrites.afterFiles)
+      combinedRewrites.push(...this.customRoutes.rewrites.fallback)
+
       const utils = getUtils({
         pageIsDynamic,
         page: matchedPathnameNoExt,
         i18n: this.nextConfig.i18n,
         basePath: this.nextConfig.basePath,
-        rewrites: this.customRoutes.rewrites,
-        overrideRewrites: this.customRoutes.overrideRewrites,
+        rewrites: combinedRewrites,
       })
 
       utils.handleRewrites(req, parsedUrl)
@@ -595,7 +600,22 @@ export default class Server {
   }
 
   protected getCustomRoutes(): CustomRoutes {
-    return require(join(this.distDir, ROUTES_MANIFEST))
+    const customRoutes = require(join(this.distDir, ROUTES_MANIFEST))
+    let rewrites: CustomRoutes['rewrites']
+
+    // rewrites can be stored as an array when an array is
+    // returned in next.config.js so massage them into
+    // the expected object format
+    if (Array.isArray(customRoutes.rewrites)) {
+      rewrites = {
+        beforeFiles: [],
+        afterFiles: customRoutes.rewrites,
+        fallback: [],
+      }
+    } else {
+      rewrites = customRoutes.rewrites
+    }
+    return Object.assign(customRoutes, { rewrites })
   }
 
   private _cachedPreviewManifest: PrerenderManifest | undefined
@@ -614,12 +634,15 @@ export default class Server {
   protected generateRoutes(): {
     basePath: string
     headers: Route[]
-    rewrites: Route[]
+    rewrites: {
+      beforeFiles: Route[]
+      afterFiles: Route[]
+      fallback: Route[]
+    }
     fsRoutes: Route[]
     redirects: Route[]
     catchAllRoute: Route
     pageChecker: PageChecker
-    overrideRewrites: Route[]
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
     locales: string[]
@@ -927,10 +950,17 @@ export default class Server {
       } as Route
     }
 
-    const rewrites = this.customRoutes.rewrites.map(buildRewrite)
-    const overrideRewrites = this.customRoutes.overrideRewrites.map(
-      buildRewrite
-    )
+    let beforeFiles: Route[] = []
+    let afterFiles: Route[] = []
+    let fallback: Route[] = []
+
+    if (Array.isArray(this.customRoutes.rewrites)) {
+      afterFiles = this.customRoutes.rewrites.map(buildRewrite)
+    } else {
+      beforeFiles = this.customRoutes.rewrites.beforeFiles.map(buildRewrite)
+      afterFiles = this.customRoutes.rewrites.afterFiles.map(buildRewrite)
+      fallback = this.customRoutes.rewrites.fallback.map(buildRewrite)
+    }
 
     const catchAllRoute: Route = {
       match: route('/:path*'),
@@ -985,10 +1015,13 @@ export default class Server {
     return {
       headers,
       fsRoutes,
-      rewrites,
+      rewrites: {
+        beforeFiles,
+        afterFiles,
+        fallback,
+      },
       redirects,
       catchAllRoute,
-      overrideRewrites,
       useFileSystemPublicRoutes,
       dynamicRoutes: this.dynamicRoutes,
       basePath: this.nextConfig.basePath,

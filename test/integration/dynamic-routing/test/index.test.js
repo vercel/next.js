@@ -954,7 +954,6 @@ function runTests(dev) {
         basePath: '',
         headers: [],
         rewrites: [],
-        overrideRewrites: [],
         redirects: expect.arrayContaining([]),
         dataRoutes: [
           {

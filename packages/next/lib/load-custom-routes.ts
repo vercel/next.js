@@ -27,7 +27,6 @@ export type Rewrite = {
   basePath?: false
   locale?: false
   has?: RouteHas[]
-  override?: true
 }
 
 export type Header = {
@@ -184,7 +183,6 @@ function checkCustomRoutes(
   const allowedKeys = new Set<string>(['source', 'basePath', 'locale', 'has'])
 
   if (type === 'rewrite') {
-    allowedKeys.add('override')
     allowedKeys.add('destination')
   }
   if (type === 'redirect') {
@@ -236,15 +234,6 @@ function checkCustomRoutes(
 
     if (typeof route.locale !== 'undefined' && route.locale !== false) {
       invalidParts.push('`locale` must be undefined or false')
-    }
-
-    if (type === 'rewrite') {
-      const r = route as Rewrite
-      const overrideType = typeof r.override
-
-      if (overrideType !== 'undefined' && r.override !== true) {
-        invalidParts.push('`override` must be undefined or true')
-      }
     }
 
     if (typeof route.has !== 'undefined' && !Array.isArray(route.has)) {
@@ -445,9 +434,12 @@ function checkCustomRoutes(
 
 export interface CustomRoutes {
   headers: Header[]
-  rewrites: Rewrite[]
+  rewrites: {
+    fallback: Rewrite[]
+    afterFiles: Rewrite[]
+    beforeFiles: Rewrite[]
+  }
   redirects: Redirect[]
-  overrideRewrites: Rewrite[]
 }
 
 function processRoutes<T>(
@@ -537,11 +529,34 @@ async function loadRedirects(config: NextConfig) {
 
 async function loadRewrites(config: NextConfig) {
   if (typeof config.rewrites !== 'function') {
-    return []
+    return {
+      beforeFiles: [],
+      afterFiles: [],
+      fallback: [],
+    }
   }
-  let rewrites = await config.rewrites()
-  checkCustomRoutes(rewrites, 'rewrite')
-  return processRoutes(rewrites, config, 'rewrite')
+  const _rewrites = await config.rewrites()
+  let beforeFiles: Rewrite[] = []
+  let afterFiles: Rewrite[] = []
+  let fallback: Rewrite[] = []
+
+  if (!Array.isArray(_rewrites) && typeof _rewrites === 'object' && _rewrites) {
+    beforeFiles = _rewrites.beforeFiles || []
+    afterFiles = _rewrites.afterFiles || []
+    fallback = _rewrites.fallback || []
+  } else {
+    afterFiles = _rewrites
+  }
+
+  checkCustomRoutes(afterFiles, 'rewrite')
+  checkCustomRoutes(beforeFiles, 'rewrite')
+  checkCustomRoutes(fallback, 'rewrite')
+
+  return {
+    fallback,
+    afterFiles,
+    beforeFiles,
+  }
 }
 
 async function loadHeaders(config: NextConfig) {
@@ -556,22 +571,11 @@ async function loadHeaders(config: NextConfig) {
 export default async function loadCustomRoutes(
   config: NextConfig
 ): Promise<CustomRoutes> {
-  const [headers, _rewrites, redirects] = await Promise.all([
+  const [headers, rewrites, redirects] = await Promise.all([
     loadHeaders(config),
     loadRewrites(config),
     loadRedirects(config),
   ])
-
-  const rewrites: Rewrite[] = []
-  const overrideRewrites: Rewrite[] = []
-
-  for (const rewrite of _rewrites) {
-    if (rewrite.override) {
-      overrideRewrites.push(rewrite)
-    } else {
-      rewrites.push(rewrite)
-    }
-  }
 
   if (config.trailingSlash) {
     redirects.unshift(
@@ -624,6 +628,5 @@ export default async function loadCustomRoutes(
     headers,
     rewrites,
     redirects,
-    overrideRewrites,
   }
 }

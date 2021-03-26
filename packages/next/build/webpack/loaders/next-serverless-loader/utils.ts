@@ -48,7 +48,6 @@ export type ServerlessHandlerCtx = {
   reactLoadableManifest?: any
   basePath: string
   rewrites: Rewrite[]
-  overrideRewrites: Rewrite[]
   pageIsDynamic: boolean
   generateEtags: boolean
   distDir: string
@@ -70,14 +69,12 @@ export function getUtils({
   i18n,
   basePath,
   rewrites,
-  overrideRewrites,
   pageIsDynamic,
 }: {
   page: ServerlessHandlerCtx['page']
   i18n?: ServerlessHandlerCtx['i18n']
   basePath: ServerlessHandlerCtx['basePath']
   rewrites: ServerlessHandlerCtx['rewrites']
-  overrideRewrites: ServerlessHandlerCtx['rewrites']
   pageIsDynamic: ServerlessHandlerCtx['pageIsDynamic']
 }) {
   let defaultRouteRegex: ReturnType<typeof getRouteRegex> | undefined
@@ -91,7 +88,7 @@ export function getUtils({
   }
 
   function handleRewrites(req: IncomingMessage, parsedUrl: UrlWithParsedQuery) {
-    for (const rewrite of [...overrideRewrites, ...rewrites]) {
+    for (const rewrite of rewrites) {
       const matcher = getCustomRouteMatcher(rewrite.source)
       let params = matcher(parsedUrl.pathname)
 

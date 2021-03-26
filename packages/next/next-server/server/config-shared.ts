@@ -18,7 +18,14 @@ export type NextConfig = { [key: string]: any } & {
   } | null
 
   headers?: () => Promise<Header[]>
-  rewrites?: () => Promise<Rewrite[]>
+  rewrites?: () => Promise<
+    | Rewrite[]
+    | {
+        beforeFiles: Rewrite[]
+        afterFiles: Rewrite[]
+        fallback: Rewrite[]
+      }
+  >
   redirects?: () => Promise<Redirect[]>
 
   trailingSlash?: boolean

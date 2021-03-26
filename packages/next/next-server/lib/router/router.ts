@@ -929,9 +929,6 @@ export default class Router implements BaseRouter {
       return true
     }
 
-    let parsed = parseRelativeUrl(url)
-    let { pathname, query } = parsed
-
     // The build manifest needs to be loaded before auto-static dynamic pages
     // get their query parameters to allow ensuring they can be parsed properly
     // when rewritten to
@@ -946,13 +943,18 @@ export default class Router implements BaseRouter {
       return false
     }
 
-    parsed = resolveDynamicRoute(parsed, pages) as typeof parsed
+    const urlToPageResult = await this._urlToPage(
+      url,
+      as,
+      rewrites,
+      pages,
+      options.locale
+    )
+    const parsed = urlToPageResult.parsedUrl
+    const route = urlToPageResult.route
+    let resolvedAs = urlToPageResult.resolvedAs
 
-    if (parsed.pathname !== pathname) {
-      pathname = parsed.pathname
-      url = formatWithValidation(parsed)
-    }
-
+    let { pathname, query } = parsed
     // url and as should always be prefixed with basePath by this
     // point by either next/link or router.push/replace so strip the
     // basePath from the pathname to match the pages dir 1-to-1
@@ -967,33 +969,6 @@ export default class Router implements BaseRouter {
     // We should compare the new asPath to the current asPath, not the url
     if (!this.urlIsNew(cleanedAs) && !localeChange) {
       method = 'replaceState'
-    }
-
-    let route = removePathTrailingSlash(pathname)
-
-    // we need to resolve the as value using rewrites for dynamic SSG
-    // pages to allow building the data URL correctly
-    let resolvedAs = as
-
-    if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
-      const rewritesResult = resolveRewrites(
-        addBasePath(addLocale(delBasePath(as), this.locale)),
-        pages,
-        rewrites,
-        query,
-        (p: string) => resolveDynamicRoute({ pathname: p }, pages).pathname!,
-        this.locales
-      )
-      resolvedAs = rewritesResult.asPath
-
-      if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
-        // if this directly matches a page we need to update the href to
-        // allow the correct page chunk to be loaded
-        route = rewritesResult.resolvedHref
-        pathname = rewritesResult.resolvedHref
-        parsed.pathname = pathname
-        url = formatWithValidation(parsed)
-      }
     }
 
     if (!isLocalURL(as)) {
@@ -1450,6 +1425,86 @@ export default class Router implements BaseRouter {
     return this.asPath !== asPath
   }
 
+  // This applies the Next.js automatic href resolution which matches the server
+  // side resolution by checking rewrites and dynamic routes in the correct
+  // order
+  async _urlToPage(
+    url: string,
+    asPath: string,
+    rewrites: {
+      beforeFiles: any[]
+      afterFiles: any[]
+      fallback: any[]
+    },
+    pages: string[],
+    locale?: string | false
+  ) {
+    let parsedUrl = parseRelativeUrl(url)
+    const parsedAs = parseRelativeUrl(asPath)
+    let { pathname } = parsedUrl
+
+    if (process.env.__NEXT_I18N_SUPPORT) {
+      if (locale === false) {
+        pathname = normalizeLocalePath!(pathname, this.locales).pathname
+        parsedUrl.pathname = pathname
+        url = formatWithValidation(parsedUrl)
+
+        const localePathResult = normalizeLocalePath!(
+          parsedAs.pathname,
+          this.locales
+        )
+        parsedAs.pathname = localePathResult.pathname
+        locale = localePathResult.detectedLocale || this.defaultLocale
+        asPath = formatWithValidation(parsedAs)
+      }
+    }
+    let resolvedAs = asPath
+    let matchedPage = false
+
+    if (
+      process.env.__NEXT_HAS_REWRITES &&
+      asPath.startsWith('/') &&
+      !matchedPage
+    ) {
+      const rewritesResult = resolveRewrites(
+        addBasePath(addLocale(delBasePath(asPath), this.locale)),
+        pages,
+        rewrites,
+        parsedUrl.query,
+        (p: string) => resolveDynamicRoute({ pathname: p }, pages).pathname!,
+        this.locales
+      )
+
+      if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
+        // if this directly matches a page we need to update the href to
+        // allow the correct page chunk to be loaded
+        matchedPage = true
+        parsedUrl.pathname = rewritesResult.resolvedHref
+        resolvedAs = rewritesResult.asPath
+      }
+    }
+
+    if (!matchedPage) {
+      parsedUrl = resolveDynamicRoute(
+        parsedUrl,
+        pages,
+        false
+      ) as typeof parsedUrl
+    }
+
+    url = formatWithValidation(parsedUrl)
+
+    return {
+      url,
+      asPath,
+      parsedUrl,
+      parsedAs,
+      resolvedAs,
+      locale,
+      route: removePathTrailingSlash(parsedUrl.pathname),
+    }
+  }
+
   /**
    * Prefetch page code, you may wait for the data during page rendering.
    * This feature only works in production!
@@ -1461,74 +1516,32 @@ export default class Router implements BaseRouter {
     asPath: string = url,
     options: PrefetchOptions = {}
   ): Promise<void> {
-    let parsed = parseRelativeUrl(url)
-
-    let { pathname } = parsed
-
-    if (process.env.__NEXT_I18N_SUPPORT) {
-      if (options.locale === false) {
-        pathname = normalizeLocalePath!(pathname, this.locales).pathname
-        parsed.pathname = pathname
-        url = formatWithValidation(parsed)
-
-        let parsedAs = parseRelativeUrl(asPath)
-        const localePathResult = normalizeLocalePath!(
-          parsedAs.pathname,
-          this.locales
-        )
-        parsedAs.pathname = localePathResult.pathname
-        options.locale = localePathResult.detectedLocale || this.defaultLocale
-        asPath = formatWithValidation(parsedAs)
-      }
-    }
-
+    let rewrites: any
     const pages = await this.pageLoader.getPageList()
 
-    parsed = resolveDynamicRoute(parsed, pages, false) as typeof parsed
-
-    if (parsed.pathname !== pathname) {
-      pathname = parsed.pathname
-      url = formatWithValidation(parsed)
-    }
-    let route = removePathTrailingSlash(pathname)
-    let resolvedAs = asPath
-
-    if (process.env.__NEXT_HAS_REWRITES && asPath.startsWith('/')) {
-      let rewrites: any[]
+    if (process.env.__NEXT_HAS_REWRITES) {
       ;({ __rewrites: rewrites } = await getClientBuildManifest())
-
-      const rewritesResult = resolveRewrites(
-        addBasePath(addLocale(delBasePath(asPath), this.locale)),
-        pages,
-        rewrites,
-        parsed.query,
-        (p: string) => resolveDynamicRoute({ pathname: p }, pages).pathname!,
-        this.locales
-      )
-
-      if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
-        // if this directly matches a page we need to update the href to
-        // allow the correct page chunk to be loaded
-        route = rewritesResult.resolvedHref
-        pathname = rewritesResult.resolvedHref
-        parsed.pathname = pathname
-        url = formatWithValidation(parsed)
-        resolvedAs = rewritesResult.asPath
-      }
     }
-
+    const urlToPageResult = await this._urlToPage(
+      url,
+      asPath,
+      rewrites,
+      pages,
+      options.locale
+    )
+    options.locale = urlToPageResult.locale
     // Prefetch is not supported in development mode because it would trigger on-demand-entries
     if (process.env.NODE_ENV !== 'production') {
       return
     }
 
     await Promise.all([
-      this.pageLoader._isSsg(url).then((isSsg: boolean) => {
+      this.pageLoader._isSsg(urlToPageResult.route).then((isSsg: boolean) => {
         return isSsg
           ? this._getStaticData(
               this.pageLoader.getDataHref(
-                url,
-                resolvedAs,
+                urlToPageResult.url,
+                urlToPageResult.resolvedAs,
                 true,
                 typeof options.locale !== 'undefined'
                   ? options.locale
@@ -1537,7 +1550,9 @@ export default class Router implements BaseRouter {
             )
           : false
       }),
-      this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](route),
+      this.pageLoader[options.priority ? 'loadPage' : 'prefetch'](
+        urlToPageResult.route
+      ),
     ])
   }
 

@@ -141,7 +141,7 @@ export default async function build(
       .traceChild('load-custom-routes')
       .traceAsyncFn(() => loadCustomRoutes(config))
 
-    const { headers, rewrites, redirects, overrideRewrites } = customRoutes
+    const { headers, rewrites, redirects } = customRoutes
 
     if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
       const cacheDir = path.join(distDir, 'cache')
@@ -359,7 +359,13 @@ export default async function build(
       pages404: boolean
       basePath: string
       redirects: Array<ReturnType<typeof buildCustomRoute>>
-      rewrites: Array<ReturnType<typeof buildCustomRoute>>
+      rewrites:
+        | Array<ReturnType<typeof buildCustomRoute>>
+        | {
+            beforeFiles: Array<ReturnType<typeof buildCustomRoute>>
+            afterFiles: Array<ReturnType<typeof buildCustomRoute>>
+            fallback: Array<ReturnType<typeof buildCustomRoute>>
+          }
       headers: Array<ReturnType<typeof buildCustomRoute>>
       dynamicRoutes: Array<{
         page: string
@@ -389,11 +395,7 @@ export default async function build(
       pages404: true,
       basePath: config.basePath,
       redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
-      rewrites: rewrites.map((r: any) => buildCustomRoute(r, 'rewrite')),
       headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
-      overrideRewrites: overrideRewrites.map((r: any) =>
-        buildCustomRoute(r, 'rewrite')
-      ),
       dynamicRoutes: getSortedRoutes(pageKeys)
         .filter(isDynamicRoute)
         .map((page) => {
@@ -408,6 +410,29 @@ export default async function build(
       dataRoutes: [],
       i18n: config.i18n || undefined,
     }))
+
+    if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
+      routesManifest.rewrites = rewrites.afterFiles.map((r: any) =>
+        buildCustomRoute(r, 'rewrite')
+      )
+    } else {
+      routesManifest.rewrites = {
+        beforeFiles: rewrites.beforeFiles.map((r: any) =>
+          buildCustomRoute(r, 'rewrite')
+        ),
+        afterFiles: rewrites.afterFiles.map((r: any) =>
+          buildCustomRoute(r, 'rewrite')
+        ),
+        fallback: rewrites.fallback.map((r: any) =>
+          buildCustomRoute(r, 'rewrite')
+        ),
+      }
+    }
+    const combinedRewrites: Rewrite[] = [
+      ...rewrites.beforeFiles,
+      ...rewrites.afterFiles,
+      ...rewrites.fallback,
+    ]
 
     const distDirCreated = await nextBuildSpan
       .traceChild('create-dist-dir')
@@ -476,8 +501,6 @@ export default async function build(
         ignore: [] as string[],
       }))
 
-    const combinedRewrites: Rewrite[] = [...overrideRewrites, ...rewrites]
-
     const configs = await nextBuildSpan
       .traceChild('generate-webpack-config')
       .traceAsyncFn(() =>
@@ -490,7 +513,7 @@ export default async function build(
             target,
             pagesDir,
             entrypoints: entrypoints.client,
-            rewrites: combinedRewrites,
+            rewrites,
           }),
           getBaseWebpackConfig(dir, {
             buildId,
@@ -500,7 +523,7 @@ export default async function build(
             target,
             pagesDir,
             entrypoints: entrypoints.server,
-            rewrites: combinedRewrites,
+            rewrites,
           }),
         ])
       )
@@ -1390,11 +1413,12 @@ export default async function build(
           (staticPages.size + ssgPages.size + serverPropsPages.size),
         hasStatic404: useStatic404,
         hasReportWebVitals: namedExports?.includes('reportWebVitals') ?? false,
-        rewritesCount: rewrites.length,
+        rewritesCount: combinedRewrites.length,
         headersCount: headers.length,
         redirectsCount: redirects.length - 1, // reduce one for trailing slash
         headersWithHasCount: headers.filter((r: any) => !!r.has).length,
-        rewritesWithHasCount: rewrites.filter((r: any) => !!r.has).length,
+        rewritesWithHasCount: combinedRewrites.filter((r: any) => !!r.has)
+          .length,
         redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
       })
     )
@@ -1506,9 +1530,7 @@ export default async function build(
     if (debugOutput) {
       nextBuildSpan
         .traceChild('print-custom-routes')
-        .traceFn(() =>
-          printCustomRoutes({ redirects, rewrites, headers, overrideRewrites })
-        )
+        .traceFn(() => printCustomRoutes({ redirects, rewrites, headers }))
     }
 
     if (config.analyticsId) {
