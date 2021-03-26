@@ -1482,8 +1482,6 @@ export default class Router implements BaseRouter {
     }
 
     const pages = await this.pageLoader.getPageList()
-
-    let route = removePathTrailingSlash(pathname)
     let resolvedAs = asPath
 
     if (process.env.__NEXT_HAS_REWRITES && asPath.startsWith('/')) {
@@ -1498,25 +1496,25 @@ export default class Router implements BaseRouter {
         (p: string) => resolveDynamicRoute({ pathname: p }, pages).pathname!,
         this.locales
       )
+      resolvedAs = rewritesResult.asPath
 
       if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
         // if this directly matches a page we need to update the href to
         // allow the correct page chunk to be loaded
-        route = rewritesResult.resolvedHref
         pathname = rewritesResult.resolvedHref
         parsed.pathname = pathname
         url = formatWithValidation(parsed)
-        resolvedAs = rewritesResult.asPath
       }
     } else {
       parsed = resolveDynamicRoute(parsed, pages, false) as typeof parsed
 
       if (parsed.pathname !== pathname) {
         pathname = parsed.pathname
-        route = removePathTrailingSlash(pathname)
         url = formatWithValidation(parsed)
       }
     }
+    const route = removePathTrailingSlash(pathname)
+    resolvedAs = delLocale(delBasePath(resolvedAs), this.locale)
 
     // Prefetch is not supported in development mode because it would trigger on-demand-entries
     if (process.env.NODE_ENV !== 'production') {
