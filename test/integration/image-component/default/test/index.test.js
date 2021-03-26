@@ -17,7 +17,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 30)
+jest.setTimeout(1000 * 60)
 
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
@@ -40,23 +40,6 @@ async function hasImageMatchingUrl(browser, url) {
 
 async function getComputed(browser, id, prop) {
   const val = await browser.eval(`document.getElementById('${id}').${prop}`)
-  if (typeof val === 'number') {
-    return val
-  }
-  if (typeof val === 'string') {
-    const v = parseInt(val, 10)
-    if (isNaN(v)) {
-      return val
-    }
-    return v
-  }
-  return null
-}
-
-async function getComputedStyle(browser, id, prop) {
-  const val = await browser.eval(
-    `window.getComputedStyle(document.getElementById('${id}')).${prop}`
-  )
   if (typeof val === 'number') {
     return val
   }
@@ -161,9 +144,12 @@ function runTests(mode) {
     const $html = cheerio.load(html)
 
     const els = [].slice.apply($html('img'))
-    expect(els.length).toBe(1)
+    expect(els.length).toBe(2)
 
-    const [el] = els
+    const [noscriptEl, el] = els
+    expect(noscriptEl.attribs.src).toBeDefined()
+    expect(noscriptEl.attribs.srcset).toBeDefined()
+
     expect(el.attribs.src).toBeDefined()
     expect(el.attribs.srcset).toBeUndefined()
     expect(el.attribs.srcSet).toBeUndefined()
@@ -504,44 +490,6 @@ function runTests(mode) {
       )
     })
   }
-
-  it('should correctly inherit the visibilty of the parent component', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/hidden-parent')
-
-      const id = 'hidden-image'
-
-      // Wait for image to load:
-      await check(async () => {
-        const result = await browser.eval(
-          `document.getElementById(${JSON.stringify(id)}).naturalWidth`
-        )
-
-        if (result < 1) {
-          throw new Error('Image not ready')
-        }
-
-        return 'result-correct'
-      }, /result-correct/)
-
-      await waitFor(1000)
-
-      const desiredVisibilty = await getComputed(
-        browser,
-        id,
-        'style.visibility'
-      )
-      expect(desiredVisibilty).toBe('inherit')
-
-      const actualVisibility = await getComputedStyle(browser, id, 'visibility')
-      expect(actualVisibility).toBe('hidden')
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
-  })
 
   it('should correctly ignore prose styles', async () => {
     let browser

@@ -7,7 +7,7 @@ import { requestIdleCallback } from './request-idle-callback'
 const ScriptCache = new Map()
 const LoadCache = new Set()
 
-interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
+export interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
   strategy?: 'defer' | 'lazy' | 'dangerouslyBlockRendering' | 'eager'
   id?: string
   onLoad?: () => void
@@ -16,13 +16,22 @@ interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
   preload?: boolean
 }
 
+const ignoreProps = [
+  'onLoad',
+  'dangerouslySetInnerHTML',
+  'children',
+  'onError',
+  'strategy',
+  'preload',
+]
+
 const loadScript = (props: Props): void => {
   const {
-    src = '',
+    src,
+    id,
     onLoad = () => {},
     dangerouslySetInnerHTML,
     children = '',
-    id,
     onError,
   } = props
 
@@ -72,7 +81,7 @@ const loadScript = (props: Props): void => {
   }
 
   for (const [k, value] of Object.entries(props)) {
-    if (value === undefined) {
+    if (value === undefined || ignoreProps.includes(k)) {
       continue
     }
 
@@ -83,7 +92,32 @@ const loadScript = (props: Props): void => {
   document.body.appendChild(el)
 }
 
-export default function Script(props: Props): JSX.Element | null {
+function handleClientScriptLoad(props: Props) {
+  const { strategy = 'defer' } = props
+  if (strategy === 'defer') {
+    loadScript(props)
+  } else if (strategy === 'lazy') {
+    window.addEventListener('load', () => {
+      requestIdleCallback(() => loadScript(props))
+    })
+  }
+}
+
+function loadLazyScript(props: Props) {
+  if (document.readyState === 'complete') {
+    requestIdleCallback(() => loadScript(props))
+  } else {
+    window.addEventListener('load', () => {
+      requestIdleCallback(() => loadScript(props))
+    })
+  }
+}
+
+export function initScriptLoader(scriptLoaderItems: Props[]) {
+  scriptLoaderItems.forEach(handleClientScriptLoad)
+}
+
+function Script(props: Props): JSX.Element | null {
   const {
     src = '',
     onLoad = () => {},
@@ -102,11 +136,13 @@ export default function Script(props: Props): JSX.Element | null {
     if (strategy === 'defer') {
       loadScript(props)
     } else if (strategy === 'lazy') {
-      window.addEventListener('load', () => {
-        requestIdleCallback(() => loadScript(props))
-      })
+      loadLazyScript(props)
     }
-  }, [strategy, props])
+  }, [props, strategy])
+
+  if (!process.env.__NEXT_SCRIPT_LOADER) {
+    return null
+  }
 
   if (strategy === 'dangerouslyBlockRendering') {
     const syncProps: Props = { ...restProps }
@@ -157,3 +193,5 @@ export default function Script(props: Props): JSX.Element | null {
 
   return null
 }
+
+export default Script

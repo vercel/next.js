@@ -149,10 +149,29 @@ function appendScript(
   })
 }
 
-function idleTimeout<T>(ms: number, err: Error): Promise<T> {
-  return new Promise((_resolve, reject) =>
-    requestIdleCallback(() => setTimeout(() => reject(err), ms))
-  )
+// Resolve a promise that times out after given amount of milliseconds.
+function resolvePromiseWithTimeout<T>(
+  p: Promise<T>,
+  ms: number,
+  err: Error
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    let cancelled = false
+
+    p.then((r) => {
+      // Resolved, cancel the timeout
+      cancelled = true
+      resolve(r)
+    }).catch(reject)
+
+    requestIdleCallback(() =>
+      setTimeout(() => {
+        if (!cancelled) {
+          reject(err)
+        }
+      }, ms)
+    )
+  })
 }
 
 // TODO: stop exporting or cache the failure
@@ -172,17 +191,16 @@ export function getClientBuildManifest(): Promise<ClientBuildManifest> {
     // Mandatory because this is not concurrent safe:
     const cb = self.__BUILD_MANIFEST_CB
     self.__BUILD_MANIFEST_CB = () => {
-      resolve(self.__BUILD_MANIFEST)
+      resolve(self.__BUILD_MANIFEST!)
       cb && cb()
     }
   })
-  return Promise.race([
+
+  return resolvePromiseWithTimeout<ClientBuildManifest>(
     onBuildManifest,
-    idleTimeout<ClientBuildManifest>(
-      MS_MAX_IDLE_DELAY,
-      markAssetError(new Error('Failed to load client build manifest'))
-    ),
-  ])
+    MS_MAX_IDLE_DELAY,
+    markAssetError(new Error('Failed to load client build manifest'))
+  )
 }
 
 interface RouteFiles {
@@ -298,15 +316,14 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
             Promise.all(css.map(fetchStyleSheet)),
           ] as const)
 
-          const entrypoint: RouteEntrypoint = await Promise.race([
+          const entrypoint: RouteEntrypoint = await resolvePromiseWithTimeout(
             this.whenEntrypoint(route),
-            idleTimeout<RouteLoaderEntry>(
-              MS_MAX_IDLE_DELAY,
-              markAssetError(
-                new Error(`Route did not complete loading: ${route}`)
-              )
-            ),
-          ])
+            MS_MAX_IDLE_DELAY,
+            markAssetError(
+              new Error(`Route did not complete loading: ${route}`)
+            )
+          )
+
           const res: RouteLoaderEntry = Object.assign<
             { styles: RouteStyleSheet[] },
             RouteEntrypoint

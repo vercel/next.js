@@ -1,6 +1,4 @@
 module.exports = {
-  // this will become default in jest 27:
-  testRunner: 'jest-circus/runner',
   testMatch: ['**/*.test.js'],
   verbose: true,
   rootDir: 'test',
