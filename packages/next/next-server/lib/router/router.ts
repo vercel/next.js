@@ -958,30 +958,32 @@ export default class Router implements BaseRouter {
       ? removePathTrailingSlash(delBasePath(pathname))
       : pathname
 
-    if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
-      const rewritesResult = resolveRewrites(
-        addBasePath(addLocale(delBasePath(as), this.locale)),
-        pages,
-        rewrites,
-        query,
-        (p: string) => resolveDynamicRoute(p, pages),
-        this.locales
-      )
-      resolvedAs = rewritesResult.asPath
+    if (pathname !== '/_error') {
+      if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
+        const rewritesResult = resolveRewrites(
+          addBasePath(addLocale(delBasePath(as), this.locale)),
+          pages,
+          rewrites,
+          query,
+          (p: string) => resolveDynamicRoute(p, pages),
+          this.locales
+        )
+        resolvedAs = rewritesResult.asPath
 
-      if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
-        // if this directly matches a page we need to update the href to
-        // allow the correct page chunk to be loaded
-        pathname = rewritesResult.resolvedHref
-        parsed.pathname = pathname
-        url = formatWithValidation(parsed)
-      }
-    } else {
-      parsed.pathname = resolveDynamicRoute(pathname, pages)
+        if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
+          // if this directly matches a page we need to update the href to
+          // allow the correct page chunk to be loaded
+          pathname = rewritesResult.resolvedHref
+          parsed.pathname = pathname
+          url = formatWithValidation(parsed)
+        }
+      } else {
+        parsed.pathname = resolveDynamicRoute(pathname, pages)
 
-      if (parsed.pathname !== pathname) {
-        pathname = parsed.pathname
-        url = formatWithValidation(parsed)
+        if (parsed.pathname !== pathname) {
+          pathname = parsed.pathname
+          url = formatWithValidation(parsed)
+        }
       }
     }
 
