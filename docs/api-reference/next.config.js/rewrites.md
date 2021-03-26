@@ -40,14 +40,16 @@ module.exports = {
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
 - `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
 
-Rewrites are applied after checking the filesystem (pages and `/public` files) and dynamic routes by default. This behavior can be changed by instead returning an object instead of an array from the `rewrites` function:
+Rewrites are applied after checking the filesystem (pages and `/public` files) and before dynamic routes by default. This behavior can be changed by instead returning an object instead of an array from the `rewrites` function:
 
 ```js
 module.exports = {
   async rewrites() {
     return {
       beforeFiles: [
-        // allows override pages/public files
+        // These rewrites are checked after headers/redirects
+        // and before pages/public files which allows overriding
+        // page files
         {
           source: '/some-page',
           destination: '/somewhere-else',
@@ -55,15 +57,16 @@ module.exports = {
         },
       ],
       afterFiles: [
-        // before dynamic routes which allows rewriting to a dynamic route
+        // These rewrites are checked after pages/public files
+        // are checked but before dynamic routes
         {
           source: '/non-existent',
           destination: '/somewhere-else',
         },
       ],
       fallback: [
-        // allows incremental adoption without a no-op rewrite to
-        // trigger checking dynamic routes
+        // These rewrites are checked after both pages/public files
+        // and dynamic routes are checked
         {
           source: '/:path*',
           destination: 'https://my-old-site.com',
