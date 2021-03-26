@@ -11,4 +11,7 @@ module.exports = {
       throw new Error('Webpack require hook not applying')
     return config
   },
+  eslint: {
+    build: false,
+  },
 }

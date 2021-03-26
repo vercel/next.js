@@ -80,6 +80,7 @@ export const defaultConfig: NextConfig = {
     scriptLoader: false,
     stats: false,
     externalDir: false,
+    serialWebpackBuild: false,
   },
   future: {
     strictPostcssConfiguration: false,
@@ -89,6 +90,10 @@ export const defaultConfig: NextConfig = {
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
   reactStrictMode: false,
+  eslint: {
+    dev: false,
+    build: true,
+  },
 }
 
 export function normalizeConfig(phase: string, config: any) {

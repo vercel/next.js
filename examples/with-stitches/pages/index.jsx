@@ -40,7 +40,7 @@ export default function Home() {
       <Head>
         <title>Use Stitches with Next.js</title>
       </Head>
-      <Container size={{ initial: '1', bp1: '2' }}>
+      <Container size={{ '@initial': '1', '@bp1': '2' }}>
         <StitchesLogo />
         <Text as="h1">Hello, from Stitches.</Text>
         <Text>
