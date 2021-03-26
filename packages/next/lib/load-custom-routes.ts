@@ -38,7 +38,12 @@ export type Header = {
 }
 
 // internal type used for validation (not user facing)
-export type Redirect = Rewrite & {
+export type Redirect = {
+  source: string
+  destination: string
+  basePath?: false
+  locale?: false
+  has?: RouteHas[]
   statusCode?: number
   permanent?: boolean
 }
@@ -175,20 +180,18 @@ function checkCustomRoutes(
   let hadInvalidStatus = false
   let hadInvalidHas = false
 
-  const isRedirect = type === 'redirect'
-  let allowedKeys: Set<string>
+  const allowedKeys = new Set<string>(['source', 'basePath', 'locale', 'has'])
 
-  if (type === 'rewrite' || isRedirect) {
-    allowedKeys = new Set([
-      'source',
-      'destination',
-      'basePath',
-      'locale',
-      ...(isRedirect ? ['statusCode', 'permanent'] : []),
-      'has',
-    ])
-  } else {
-    allowedKeys = new Set(['source', 'headers', 'basePath', 'locale', 'has'])
+  if (type === 'rewrite') {
+    allowedKeys.add('destination')
+  }
+  if (type === 'redirect') {
+    allowedKeys.add('statusCode')
+    allowedKeys.add('permanent')
+    allowedKeys.add('destination')
+  }
+  if (type === 'header') {
+    allowedKeys.add('headers')
   }
 
   for (const route of routes) {
@@ -431,7 +434,11 @@ function checkCustomRoutes(
 
 export interface CustomRoutes {
   headers: Header[]
-  rewrites: Rewrite[]
+  rewrites: {
+    fallback: Rewrite[]
+    afterFiles: Rewrite[]
+    beforeFiles: Rewrite[]
+  }
   redirects: Redirect[]
 }
 
@@ -522,11 +529,41 @@ async function loadRedirects(config: NextConfig) {
 
 async function loadRewrites(config: NextConfig) {
   if (typeof config.rewrites !== 'function') {
-    return []
+    return {
+      beforeFiles: [],
+      afterFiles: [],
+      fallback: [],
+    }
   }
-  let rewrites = await config.rewrites()
-  checkCustomRoutes(rewrites, 'rewrite')
-  return processRoutes(rewrites, config, 'rewrite')
+  const _rewrites = await config.rewrites()
+  let beforeFiles: Rewrite[] = []
+  let afterFiles: Rewrite[] = []
+  let fallback: Rewrite[] = []
+
+  if (
+    !Array.isArray(_rewrites) &&
+    typeof _rewrites === 'object' &&
+    Object.keys(_rewrites).every(
+      (key) =>
+        key === 'beforeFiles' || key === 'afterFiles' || key === 'fallback'
+    )
+  ) {
+    beforeFiles = _rewrites.beforeFiles || []
+    afterFiles = _rewrites.afterFiles || []
+    fallback = _rewrites.fallback || []
+  } else {
+    afterFiles = _rewrites as any
+  }
+
+  checkCustomRoutes(beforeFiles, 'rewrite')
+  checkCustomRoutes(afterFiles, 'rewrite')
+  checkCustomRoutes(fallback, 'rewrite')
+
+  return {
+    beforeFiles: processRoutes(beforeFiles, config, 'rewrite'),
+    afterFiles: processRoutes(afterFiles, config, 'rewrite'),
+    fallback: processRoutes(fallback, config, 'rewrite'),
+  }
 }
 
 async function loadHeaders(config: NextConfig) {
