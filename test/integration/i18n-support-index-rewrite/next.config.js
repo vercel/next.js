@@ -10,6 +10,10 @@ module.exports = {
         source: '/',
         destination: '/company/about-us',
       },
+      {
+        source: '/base/:path*',
+        destination: '/:path*',
+      },
     ]
   },
 }

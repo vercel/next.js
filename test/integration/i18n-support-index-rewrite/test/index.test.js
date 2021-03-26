@@ -10,6 +10,7 @@ import {
   findPort,
   nextBuild,
   nextStart,
+  fetchViaHTTP,
   renderViaHTTP,
   check,
 } from 'next-test-utils'
@@ -38,6 +39,25 @@ const runTests = () => {
         hello: 'world',
       })
     }
+  })
+
+  it('should return 200 on rewrited image path', async () => {
+    const resImagePath = await fetchViaHTTP(appPort, '/test.jpg', null, {
+      method: 'GET',
+    })
+
+    expect(resImagePath.status).toEqual(200)
+
+    const resRewriteImagePath = await fetchViaHTTP(
+      appPort,
+      '/base/test.jpg',
+      null,
+      {
+        method: 'GET',
+      }
+    )
+
+    expect(resRewriteImagePath.status).toEqual(200)
   })
 
   it('should handle index rewrite on client correctly', async () => {
