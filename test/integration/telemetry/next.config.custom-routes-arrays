@@ -1,0 +1,32 @@
+module.exports = phase => {
+  return {
+    rewrites: [
+      {
+        source: '/hello-1',
+        destination: '/world'
+      },
+      {
+        source: '/hello-2',
+        destination: '/world'
+      },
+    ],
+    redirects: [
+      {
+        source: '/hello-3',
+        destination: '/world',
+        permanent: false
+      }
+    ],
+    headers: [
+      {
+        source: '/hello-4',
+        headers: [
+          {
+            key: 'x-path',
+            value: 'hello-4'
+          }
+        ]
+      }
+    ]
+  }
+}

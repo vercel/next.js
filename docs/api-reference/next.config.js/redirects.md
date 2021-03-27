@@ -33,7 +33,7 @@ module.exports = {
 }
 ```
 
-`redirects` is an async function that expects an array to be returned holding objects with `source`, `destination`, and `permanent` properties:
+`redirects` is either an array or an async function that returns an array containing objects with `source`, `destination`, and `permanent` properties:
 
 - `source` is the incoming request path pattern.
 - `destination` is the path you want to route to.

@@ -32,13 +32,13 @@ module.exports = {
 }
 ```
 
-`rewrites` is an async function that expects an array to be returned holding objects with `source` and `destination` properties:
+`rewrites` is either an array or an async function that returns an array containing objects with `source` and `destination` properties:
 
 - `source`: `String` - is the incoming request path pattern.
 - `destination`: `String` is the path you want to route to.
 - `basePath`: `false` or `undefined` - if false the basePath won't be included when matching, can be used for external rewrites only.
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
-- `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
+- `has`: an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
 
 Rewrites are applied after checking the filesystem (pages and `/public` files) and before dynamic routes by default. This behavior can be changed by instead returning an object instead of an array from the `rewrites` function:
 

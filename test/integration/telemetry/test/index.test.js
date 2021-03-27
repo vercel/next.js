@@ -433,24 +433,48 @@ describe('Telemetry CLI', () => {
 
   it('detects rewrites, headers, and redirects for next build', async () => {
     await fs.rename(
-      path.join(appDir, 'next.config.custom-routes'),
+      path.join(appDir, 'next.config.custom-routes-functions'),
       path.join(appDir, 'next.config.js')
     )
 
-    const { stderr } = await nextBuild(appDir, [], {
+    const { stderr: output1 } = await nextBuild(appDir, [], {
       stderr: true,
       env: { NEXT_TELEMETRY_DEBUG: 1 },
     })
 
-    await fs.rename(
-      path.join(appDir, 'next.config.js'),
-      path.join(appDir, 'next.config.custom-routes')
-    )
-
-    const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/.exec(stderr).pop()
+    const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
+      .exec(output1)
+      .pop()
     expect(event1).toMatch(/"headersCount": 1/)
     expect(event1).toMatch(/"rewritesCount": 2/)
     expect(event1).toMatch(/"redirectsCount": 1/)
+
+    await fs.rename(
+      path.join(appDir, 'next.config.js'),
+      path.join(appDir, 'next.config.custom-routes-functions')
+    )
+
+    await fs.rename(
+      path.join(appDir, 'next.config.custom-routes-arrays'),
+      path.join(appDir, 'next.config.js')
+    )
+
+    let { stderr: output2 } = await nextBuild(appDir, [], {
+      stderr: true,
+      env: { NEXT_TELEMETRY_DEBUG: 1 },
+    })
+
+    const event2 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
+      .exec(output2)
+      .pop()
+    expect(event2).toMatch(/"headersCount": 1/)
+    expect(event2).toMatch(/"rewritesCount": 2/)
+    expect(event2).toMatch(/"redirectsCount": 1/)
+
+    await fs.rename(
+      path.join(appDir, 'next.config.js'),
+      path.join(appDir, 'next.config.custom-routes-arrays')
+    )
   })
 
   it('detects i18n and image configs for session start', async () => {

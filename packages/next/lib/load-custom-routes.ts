@@ -519,23 +519,32 @@ function processRoutes<T>(
 }
 
 async function loadRedirects(config: NextConfig) {
-  if (typeof config.redirects !== 'function') {
+  if (
+    typeof config.redirects !== 'function' &&
+    !Array.isArray(config.redirects)
+  )
     return []
-  }
-  let redirects = await config.redirects()
+  let redirects: Redirect[] = Array.isArray(config.redirects)
+    ? config.redirects
+    : await config.redirects()
   checkCustomRoutes(redirects, 'redirect')
   return processRoutes(redirects, config, 'redirect')
 }
 
 async function loadRewrites(config: NextConfig) {
-  if (typeof config.rewrites !== 'function') {
+  if (
+    typeof config.rewrites !== 'function' &&
+    !Array.isArray(config.rewrites)
+  ) {
     return {
       beforeFiles: [],
       afterFiles: [],
       fallback: [],
     }
   }
-  const _rewrites = await config.rewrites()
+  const _rewrites = Array.isArray(config.rewrites)
+    ? config.rewrites
+    : await config.rewrites()
   let beforeFiles: Rewrite[] = []
   let afterFiles: Rewrite[] = []
   let fallback: Rewrite[] = []
@@ -567,10 +576,11 @@ async function loadRewrites(config: NextConfig) {
 }
 
 async function loadHeaders(config: NextConfig) {
-  if (typeof config.headers !== 'function') {
+  if (typeof config.headers !== 'function' && !Array.isArray(config.headers))
     return []
-  }
-  let headers = await config.headers()
+  let headers: Header[] = Array.isArray(config.headers)
+    ? config.headers
+    : await config.headers()
   checkCustomRoutes(headers, 'header')
   return processRoutes(headers, config, 'header')
 }
