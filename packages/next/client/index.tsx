@@ -291,6 +291,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
           entryType === 'mark' || entryType === 'measure'
             ? 'custom'
             : 'web-vital',
+        page: window.__NEXT_DATA__.page,
       })
     }
   }
