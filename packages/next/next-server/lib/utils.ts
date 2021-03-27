@@ -57,6 +57,7 @@ export type NextWebVitalsMetric = {
   name: string
   startTime: number
   value: number
+  page: string
 }
 
 export type Enhancer<C> = (Component: C) => C
