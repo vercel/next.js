@@ -38,6 +38,7 @@ The `metric` object returned to the function consists of a number of properties:
 - `startTime`: First recorded timestamp of the performance entry in [milliseconds](https://developer.mozilla.org/en-US/docs/Web/API/DOMHighResTimeStamp) (if applicable)
 - `value`: Value, or duration in [milliseconds](https://developer.mozilla.org/en-US/docs/Web/API/DOMHighResTimeStamp), of the performance entry
 - `label`: Type of metric (`web-vital` or `custom`)
+- `page`: Page where the metric was recorded
 
 There are two types of metrics that are tracked:
 
@@ -60,7 +61,7 @@ You can handle all the results of these metrics using the `web-vital` label:
 ```js
 export function reportWebVitals(metric) {
   if (metric.label === 'web-vital') {
-    console.log(metric) // The metric object ({ id, name, startTime, value, label }) is logged to the console
+    console.log(metric) // The metric object ({ id, name, startTime, value, label, page }) is logged to the console
   }
 }
 ```
@@ -111,7 +112,7 @@ You can handle all the results of these metrics using the `custom` label:
 ```js
 export function reportWebVitals(metric) {
   if (metric.label === 'custom') {
-    console.log(metric) // The metric object ({ id, name, startTime, value, label }) is logged to the console
+    console.log(metric) // The metric object ({ id, name, startTime, value, label, page }) is logged to the console
   }
 }
 ```
