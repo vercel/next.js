@@ -351,11 +351,17 @@ export function printCustomRoutes({
   if (redirects.length) {
     printRoutes(redirects, 'Redirects')
   }
-  if (rewrites.length) {
-    printRoutes(rewrites, 'Rewrites')
-  }
   if (headers.length) {
     printRoutes(headers, 'Headers')
+  }
+
+  const combinedRewrites = [
+    ...rewrites.beforeFiles,
+    ...rewrites.afterFiles,
+    ...rewrites.fallback,
+  ]
+  if (combinedRewrites.length) {
+    printRoutes(combinedRewrites, 'Rewrites')
   }
 }
 
