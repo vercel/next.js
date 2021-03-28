@@ -272,7 +272,14 @@ export default class DevServer extends Server {
 
     // reload router
     const { redirects, rewrites, headers } = this.customRoutes
-    if (redirects.length || rewrites.length || headers.length) {
+
+    if (
+      rewrites.beforeFiles.length ||
+      rewrites.afterFiles.length ||
+      rewrites.fallback.length ||
+      redirects.length ||
+      headers.length
+    ) {
       this.router = new Router(this.generateRoutes())
     }
 
@@ -281,7 +288,7 @@ export default class DevServer extends Server {
       config: this.nextConfig,
       previewProps: this.getPreviewProps(),
       buildId: this.buildId,
-      rewrites: this.customRoutes.rewrites,
+      rewrites,
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
@@ -415,7 +422,11 @@ export default class DevServer extends Server {
   // override production loading of routes-manifest
   protected getCustomRoutes(): CustomRoutes {
     // actual routes will be loaded asynchronously during .prepare()
-    return { redirects: [], rewrites: [], headers: [] }
+    return {
+      redirects: [],
+      rewrites: { beforeFiles: [], afterFiles: [], fallback: [] },
+      headers: [],
+    }
   }
 
   private _devCachedPreviewProps: __ApiPreviewProps | undefined

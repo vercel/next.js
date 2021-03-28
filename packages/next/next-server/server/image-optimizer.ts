@@ -230,6 +230,13 @@ export async function imageOptimizer(
       sendResponse(req, res, upstreamType, upstreamBuffer)
       return { finished: true }
     }
+
+    // If upstream type is not a valid image type, return 400 error.
+    if (!upstreamType.startsWith('image/')) {
+      res.statusCode = 400
+      res.end("The requested resource isn't a valid image.")
+      return { finished: true }
+    }
   }
 
   let contentType: string

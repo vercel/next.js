@@ -383,6 +383,11 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/hasReportWebVitals.*?false/)
 
     // Case 2: When _app.js exist with reportWebVitals function.
+    await fs.utimes(
+      path.join(appDir, 'pages', '_app_withreportwebvitals.empty'),
+      new Date(),
+      new Date()
+    )
     await fs.rename(
       path.join(appDir, 'pages', '_app_withreportwebvitals.empty'),
       path.join(appDir, 'pages', '_app.js')
@@ -402,6 +407,11 @@ describe('Telemetry CLI', () => {
     expect(event1).toMatch(/hasReportWebVitals.*?true/)
 
     // Case 3: When _app.js exist without reportWebVitals function.
+    await fs.utimes(
+      path.join(appDir, 'pages', '_app_withoutreportwebvitals.empty'),
+      new Date(),
+      new Date()
+    )
     await fs.rename(
       path.join(appDir, 'pages', '_app_withoutreportwebvitals.empty'),
       path.join(appDir, 'pages', '_app.js')

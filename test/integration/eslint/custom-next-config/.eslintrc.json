@@ -1,0 +1,14 @@
+{
+  "extends": ["plugin:@next/next/recommended"],
+  "rules": {
+    "@next/next/no-html-link-for-pages": ["error", "./"]
+  },
+  "parserOptions": {
+    "ecmaVersion": 2018,
+    "sourceType": "module",
+    "ecmaFeatures": {
+      "jsx": true,
+      "modules": true
+    }
+  }
+}
