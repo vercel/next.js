@@ -262,7 +262,7 @@ const runTests = () => {
     )
 
     expect(stderr).toContain(
-      `Error parsing \`/feedback/(?!general)\` https://err.sh/vercel/next.js/invalid-route-source`
+      `Error parsing \`/feedback/(?!general)\` https://nextjs.org/docs/messages/invalid-route-source`
     )
 
     expect(stderr).toContain(
@@ -285,7 +285,7 @@ const runTests = () => {
     )
 
     expect(stderr).toContain(
-      `The route /hello rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://err.sh/vercel/next.js/invalid-external-rewrite`
+      `The route /hello rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://nextjs.org/docs/messages/invalid-external-rewrite`
     )
 
     expect(stderr).toContain('Invalid `has` item:')
@@ -486,13 +486,13 @@ const runTests = () => {
     const stderr = await getStderr()
 
     expect(stderr).toContain(
-      `Error parsing \`/feedback/(?!general)\` https://err.sh/vercel/next.js/invalid-route-source`
+      `Error parsing \`/feedback/(?!general)\` https://nextjs.org/docs/messages/invalid-route-source`
     )
     expect(stderr).toContain(`Reason: Pattern cannot start with "?" at 11`)
     expect(stderr).toContain(`/feedback/(?!general)`)
 
     expect(stderr).toContain(
-      `Error parsing \`/learning/?\` https://err.sh/vercel/next.js/invalid-route-source`
+      `Error parsing \`/learning/?\` https://nextjs.org/docs/messages/invalid-route-source`
     )
     expect(stderr).toContain(`Reason: Unexpected MODIFIER at 10, expected END`)
     expect(stderr).toContain(`/learning/?`)

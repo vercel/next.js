@@ -148,7 +148,7 @@ function createServer(options: NextServerConstructor): NextServer {
 
   if (options == null) {
     throw new Error(
-      'The server has not been instantiated properly. https://err.sh/next.js/invalid-server-options'
+      'The server has not been instantiated properly. https://nextjs.org/docs/messages/invalid-server-options'
     )
   }
 
@@ -163,7 +163,7 @@ function createServer(options: NextServerConstructor): NextServer {
   if (options.dev) {
     if (typeof options.dev !== 'boolean') {
       console.warn(
-        "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://err.sh/next.js/invalid-server-options"
+        "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://nextjs.org/docs/messages/invalid-server-options"
       )
     }
   }

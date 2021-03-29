@@ -43,7 +43,7 @@ import { NextConfig } from '../next-server/server/config'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
-    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://err.sh/vercel/next.js/invalid-react-version`
+    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://nextjs.org/docs/messages/invalid-react-version`
   )
 }
 
@@ -94,7 +94,7 @@ export default class DevServer extends Server {
     }
     if (fs.existsSync(pathJoin(this.dir, 'static'))) {
       console.warn(
-        `The static directory has been deprecated in favor of the public directory. https://err.sh/vercel/next.js/static-dir-deprecated`
+        `The static directory has been deprecated in favor of the public directory. https://nextjs.org/docs/messages/static-dir-deprecated`
       )
     }
     this.isCustomServer = !options.isNextDevCommand
@@ -362,7 +362,7 @@ export default class DevServer extends Server {
     if (await this.hasPublicFile(decodedPath)) {
       if (await this.hasPage(pathname!)) {
         const err = new Error(
-          `A conflicting public file and page file was found for path ${pathname} https://err.sh/vercel/next.js/conflicting-public-file-page`
+          `A conflicting public file and page file was found for path ${pathname} https://nextjs.org/docs/messages/conflicting-public-file-page`
         )
         res.statusCode = 500
         await this.renderError(err, req, res, pathname!, {})
@@ -662,7 +662,7 @@ export default class DevServer extends Server {
     if (!err && res.statusCode === 500) {
       err = new Error(
         'An undefined error was thrown sometime during render... ' +
-          'See https://err.sh/vercel/next.js/threw-undefined'
+          'See https://nextjs.org/docs/messages/threw-undefined'
       )
     }
 

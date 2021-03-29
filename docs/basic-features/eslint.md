@@ -1,6 +1,5 @@
 ---
-description: Next.js uses ESLint to find and resolve issues affecting the user or developer
-experience.
+description: Next.js uses ESLint to find and resolve issues affecting the user or developer experience.
 ---
 
 # ESLint
