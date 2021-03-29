@@ -2,7 +2,7 @@
 
 #### Why This Message Occurred
 
-Next.js will soon adopt webpack 5 as the default for compilation. We've spent a lot of effort into ensuring the transition from webpack 4 to 5 will be as smooth as possible. For example Next.js can now comes with both webpack 4 and 5 allowing you to adopt webpack 5 by adding a flag to your `next.config.js`:
+Next.js will soon adopt webpack 5 as the default for compilation. We've spent a lot of effort into ensuring the transition from webpack 4 to 5 will be as smooth as possible. For example Next.js now comes with both webpack 4 and 5 allowing you to adopt webpack 5 by adding a flag to your `next.config.js`:
 
 ```js
 module.exports = {
