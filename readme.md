@@ -1,1 +1,1 @@
-packages/next/license.md
+packages/next/config.js
