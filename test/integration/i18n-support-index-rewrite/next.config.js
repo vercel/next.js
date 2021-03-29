@@ -13,6 +13,7 @@ module.exports = {
       {
         source: '/base/:path*',
         destination: '/:path*',
+        locale: false,
       },
     ]
   },

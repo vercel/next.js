@@ -28,6 +28,7 @@ export type Route = {
   name: string
   requireBasePath?: false
   internal?: true
+  locale?: boolean
   fn: (
     req: IncomingMessage,
     res: ServerResponse,
@@ -134,14 +135,8 @@ export default class Router {
 
     let parsedUrlUpdated = parsedUrl
 
-    const applyCheckTrue = async (
-      checkParsedUrl: UrlWithParsedQuery,
-      hasInternalLocale = false,
-      newPath = [],
-    ) => {
-      const originalFsPathname = hasInternalLocale
-        ? `/${newPath.join('/')}`
-        : checkParsedUrl.pathname
+    const applyCheckTrue = async (checkParsedUrl: UrlWithParsedQuery) => {
+      const originalFsPathname = checkParsedUrl.pathname
       const fsPathname = replaceBasePath(this.basePath, originalFsPathname!)
 
       for (const fsRoute of this.fsRoutes) {
@@ -271,7 +266,7 @@ export default class Router {
       const isCustomRoute = customRouteTypes.has(testRoute.type)
       const isPublicFolderCatchall = testRoute.name === 'public folder catchall'
       const keepBasePath = isCustomRoute || isPublicFolderCatchall
-      const keepLocale = isCustomRoute
+      const keepLocale = isCustomRoute && testRoute.locale !== false
 
       const currentPathnameNoBasePath = replaceBasePath(
         this.basePath,
@@ -371,13 +366,7 @@ export default class Router {
 
         // check filesystem
         if (testRoute.check === true) {
-          if (
-            await applyCheckTrue(
-              parsedUrlUpdated,
-              Boolean(newParams.nextInternalLocale),
-              newParams.path,
-            )
-          ) {
+          if (await applyCheckTrue(parsedUrlUpdated)) {
             return true
           }
         }
