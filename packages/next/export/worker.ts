@@ -159,7 +159,7 @@ export default async function exportPage({
           }
         } else {
           throw new Error(
-            `The provided export path '${updatedPath}' doesn't match the '${page}' page.\nRead more: https://err.sh/vercel/next.js/export-path-mismatch`
+            `The provided export path '${updatedPath}' doesn't match the '${page}' page.\nRead more: https://nextjs.org/docs/messages/export-path-mismatch`
           )
         }
       }
@@ -451,7 +451,7 @@ export default async function exportPage({
       return results
     } catch (error) {
       console.error(
-        `\nError occurred prerendering page "${path}". Read more: https://err.sh/next.js/prerender-error\n` +
+        `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
           error.stack
       )
       return { ...results, error: true }

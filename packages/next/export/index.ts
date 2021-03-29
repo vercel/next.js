@@ -181,7 +181,7 @@ export default async function exportApp(
 
     if (!existsSync(buildIdFile)) {
       throw new Error(
-        `Could not find a production build in the '${distDir}' directory. Try building your app with 'next build' before starting the static export. https://err.sh/vercel/next.js/next-export-no-build-id`
+        `Could not find a production build in the '${distDir}' directory. Try building your app with 'next build' before starting the static export. https://nextjs.org/docs/messages/next-export-no-build-id`
       )
     }
 
@@ -197,7 +197,7 @@ export default async function exportApp(
       Log.warn(
         `rewrites, redirects, and headers are not applied when exporting your application, detected (${customRoutesDetected.join(
           ', '
-        )}). See more info here: https://err.sh/next.js/export-no-custom-routes`
+        )}). See more info here: https://nextjs.org/docs/messages/export-no-custom-routes`
       )
     }
 
@@ -251,13 +251,13 @@ export default async function exportApp(
 
     if (outDir === join(dir, 'public')) {
       throw new Error(
-        `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/vercel/next.js/can-not-output-to-public`
+        `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://nextjs.org/docs/messages/can-not-output-to-public`
       )
     }
 
     if (outDir === join(dir, 'static')) {
       throw new Error(
-        `The 'static' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/vercel/next.js/can-not-output-to-static`
+        `The 'static' directory is reserved in Next.js and can not be used as the export out directory. https://nextjs.org/docs/messages/can-not-output-to-static`
       )
     }
 
@@ -345,7 +345,7 @@ export default async function exportApp(
     - Use any provider which supports Image Optimization (like Vercel).
     - Configure a third-party loader in \`next.config.js\`.
     - Use the \`loader\` prop for \`next/image\`.
-  Read more: https://err.sh/next.js/export-image-api`
+  Read more: https://nextjs.org/docs/messages/export-image-api`
         )
       }
     }
@@ -467,7 +467,7 @@ export default async function exportApp(
             ) +
             `\n` +
             chalk.yellow(
-              `Learn more: https://err.sh/vercel/next.js/api-routes-static-export`
+              `Learn more: https://nextjs.org/docs/messages/api-routes-static-export`
             )
         )
       }
@@ -619,7 +619,7 @@ export default async function exportApp(
     }
     if (hadValidationError) {
       throw new Error(
-        `AMP Validation caused the export to fail. https://err.sh/vercel/next.js/amp-export-validation`
+        `AMP Validation caused the export to fail. https://nextjs.org/docs/messages/amp-export-validation`
       )
     }
 
