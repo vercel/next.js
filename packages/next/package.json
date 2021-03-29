@@ -60,12 +60,9 @@
     ]
   },
   "dependencies": {
-    "@babel/core": "7.12.10",
-    "@babel/eslint-parser": "7.13.4",
     "@babel/runtime": "7.12.5",
     "@hapi/accept": "5.0.1",
     "@next/env": "10.1.1",
-    "@next/eslint-plugin-next": "10.1.1",
     "@next/polyfill-module": "10.1.1",
     "@next/react-dev-overlay": "10.1.1",
     "@next/react-refresh-utils": "10.1.1",
@@ -83,7 +80,6 @@
     "cssnano-simple": "1.2.2",
     "domain-browser": "4.19.0",
     "encoding": "0.1.13",
-    "eslint": "7.9.0",
     "etag": "1.8.1",
     "find-cache-dir": "3.3.1",
     "get-orientation": "1.1.2",
@@ -136,6 +132,7 @@
   "devDependencies": {
     "@ampproject/toolbox-optimizer": "2.7.1-alpha.0",
     "@babel/code-frame": "7.12.11",
+    "@babel/core": "7.12.10",
     "@babel/plugin-proposal-class-properties": "7.12.1",
     "@babel/plugin-proposal-export-namespace-from": "7.12.1",
     "@babel/plugin-proposal-numeric-separator": "7.12.7",
@@ -166,7 +163,6 @@
     "@types/cookie": "0.3.3",
     "@types/cross-spawn": "6.0.0",
     "@types/debug": "4.1.5",
-    "@types/eslint": "7.2.5",
     "@types/etag": "1.8.0",
     "@types/fresh": "0.5.0",
     "@types/json5": "0.0.30",
