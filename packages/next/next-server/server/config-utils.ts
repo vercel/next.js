@@ -128,7 +128,7 @@ export async function loadWebpackHook(phase: string, dir: string) {
     Log.info(
       `Using webpack ${result.enabled ? '5' : '4'}. Reason: ${reasonMessage(
         result.reason
-      )}`
+      )} https://nextjs.org/docs/messages/webpack5`
     )
     useWebpack5 = Boolean(result.enabled)
   } catch {
