@@ -266,7 +266,7 @@ export default class Router {
       const isCustomRoute = customRouteTypes.has(testRoute.type)
       const isPublicFolderCatchall = testRoute.name === 'public folder catchall'
       const keepBasePath = isCustomRoute || isPublicFolderCatchall
-      const keepLocale = isCustomRoute && testRoute.locale !== false
+      const keepLocale = isCustomRoute
 
       const currentPathnameNoBasePath = replaceBasePath(
         this.basePath,
@@ -287,6 +287,7 @@ export default class Router {
         if (
           !testRoute.internal &&
           parsedUrl.query.__nextLocale &&
+          testRoute.locale !== false &&
           !localePathResult.detectedLocale
         ) {
           currentPathname = `${activeBasePath}/${parsedUrl.query.__nextLocale}${
