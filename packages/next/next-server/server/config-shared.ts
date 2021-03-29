@@ -124,7 +124,7 @@ export const defaultConfig: NextConfig = {
   reactStrictMode: false,
   eslint: {
     dev: false,
-    build: false,
+    build: true,
   },
 }
 
