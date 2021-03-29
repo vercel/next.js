@@ -93,6 +93,7 @@
     "node-fetch": "2.6.1",
     "node-html-parser": "1.4.9",
     "node-libs-browser": "^2.2.1",
+    "os-browserify": "0.3.0",
     "p-limit": "3.1.0",
     "path-browserify": "1.0.1",
     "pnp-webpack-plugin": "1.6.4",
