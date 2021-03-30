@@ -28,7 +28,7 @@ npm install body-parser
 
 Use the package within server.js:
 
-```bash
+```js
 const bodyParser = require('body-parser');
 
 app.prepare().then(() => {
