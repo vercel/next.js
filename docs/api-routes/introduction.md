@@ -82,3 +82,10 @@ For more information on what to do next, we recommend the following sections:
     <small>Add TypeScript to your API Routes.</small>
   </a>
 </div>
+
+<div class="card">
+  <a href="/docs/api-reference/next.config.js/custom-page-extensions.md">
+    <b>Custom Page Extensions:</b>
+    <small>This setting affects file names under the `pages/api`.</small>
+  </a>
+</div>
