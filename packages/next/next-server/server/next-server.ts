@@ -784,7 +784,14 @@ export default class Server {
         type: 'route',
         name: '_next/image catchall',
         fn: (req, res, _params, parsedUrl) =>
-          imageOptimizer(server, req, res, parsedUrl),
+          imageOptimizer(
+            server,
+            req,
+            res,
+            parsedUrl,
+            server.nextConfig,
+            server.distDir
+          ),
       },
       {
         match: route('/_next/:path*'),
