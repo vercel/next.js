@@ -167,7 +167,6 @@ function generateImgAttrs({
   const last = widths.length - 1
 
   return {
-    src: loader({ src, quality, width: widths[last] }),
     sizes: !sizes && kind === 'w' ? '100vw' : sizes,
     srcSet: widths
       .map(
@@ -177,6 +176,14 @@ function generateImgAttrs({
           }${kind}`
       )
       .join(', '),
+
+    // It's intended to keep `src` the last attribute because React updates
+    // attributes in order. If we keep `src` the first one, Safari will
+    // immediately start to fetch `src`, before `sizes` and `srcSet` are even
+    // updated by React. That causes multiple unnecessary requests if `srcSet`
+    // and `sizes` are defined.
+    // This bug cannot be reproduced in Chrome or Firefox.
+    src: loader({ src, quality, width: widths[last] }),
   }
 }
 
@@ -288,8 +295,6 @@ export default function Image({
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerSvg: string | undefined
   let imgStyle: ImgElementStyle | undefined = {
-    visibility: isVisible ? 'inherit' : 'hidden',
-
     position: 'absolute',
     top: 0,
     left: 0,
@@ -431,6 +436,27 @@ export default function Image({
           ) : null}
         </div>
       ) : null}
+      {!isVisible && (
+        <noscript>
+          <img
+            {...rest}
+            {...generateImgAttrs({
+              src,
+              unoptimized,
+              layout,
+              width: widthInt,
+              quality: qualityInt,
+              sizes,
+              loader,
+            })}
+            src={src}
+            decoding="async"
+            sizes={sizes}
+            style={imgStyle}
+            className={className}
+          />
+        </noscript>
+      )}
       <img
         {...rest}
         {...imgAttributes}
@@ -551,7 +577,7 @@ function defaultLoader({
       if (!configDomains.includes(parsedSrc.hostname)) {
         throw new Error(
           `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
-            `See more info: https://err.sh/next.js/next-image-unconfigured-host`
+            `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
         )
       }
     }
