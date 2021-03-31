@@ -165,7 +165,6 @@ export type RenderOptsPartial = {
   runtimeConfig?: { [key: string]: any }
   assetPrefix?: string
   err?: Error | null
-  autoExport?: boolean
   nextExport?: boolean
   dev?: boolean
   ampMode?: any
@@ -261,6 +260,7 @@ function renderDocument(
     devOnlyCacheBusterQueryString: string
     scriptLoader: any
     isPreview?: boolean
+    autoExport: boolean
   }
 ): string {
   return (
@@ -533,7 +533,6 @@ export async function renderToHTML(
         req.url!.endsWith('/') && pathname !== '/' && !pageIsDynamic ? '/' : ''
       }`
       req.url = pathname
-      renderOpts.nextExport = true
     }
 
     if (pathname === '/404' && (hasPageGetInitialProps || getServerSideProps)) {
@@ -550,8 +549,6 @@ export async function renderToHTML(
       )
     }
   }
-  if (isAutoExport) renderOpts.autoExport = true
-  if (isSSG) renderOpts.nextExport = false
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
@@ -1078,6 +1075,10 @@ export async function renderToHTML(
     devOnlyCacheBusterQueryString,
     scriptLoader,
     isPreview: isPreview === true ? true : undefined,
+    autoExport: isAutoExport,
+    nextExport:
+      !isSSG &&
+      (renderOpts.nextExport || (dev && (isAutoExport || isFallback))),
   })
 
   if (process.env.NODE_ENV !== 'production') {
