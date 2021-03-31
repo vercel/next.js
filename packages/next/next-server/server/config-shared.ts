@@ -122,6 +122,10 @@ export const defaultConfig: NextConfig = {
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
   reactStrictMode: false,
+  eslint: {
+    dev: false,
+    build: false,
+  },
 }
 
 export function normalizeConfig(phase: string, config: any) {
