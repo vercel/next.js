@@ -90,6 +90,7 @@ import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
+import { UnwrapPromise } from '../lib/coalesced-function'
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -646,7 +647,7 @@ export default async function build(
         const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
           'check-static-error-page'
         )
-        const nonStaticErrorPage = await nonStaticErrorPageSpan.traceAsyncFn(
+        const errorPageHasCustomGetInitialProps = await nonStaticErrorPageSpan.traceAsyncFn(
           async () =>
             hasCustomErrorPage &&
             (await hasCustomGetInitialProps(
@@ -657,6 +658,24 @@ export default async function build(
               false
             ))
         )
+        const errorPageStaticResult: UnwrapPromise<ReturnType<
+          typeof isPageStatic
+        >> = await nonStaticErrorPageSpan.traceAsyncFn(
+          async () =>
+            hasCustomErrorPage &&
+            isPageStatic(
+              '/_error',
+              distDir,
+              isLikeServerless,
+              runtimeEnvConfig,
+              config.i18n?.locales,
+              config.i18n?.defaultLocale
+            )
+        )
+        const nonStaticErrorPage =
+          errorPageHasCustomGetInitialProps ||
+          errorPageStaticResult.hasServerProps
+
         // we don't output _app in serverless mode so use _app export
         // from _error instead
         const appPageToCheck = isLikeServerless ? '/_error' : '/_app'
