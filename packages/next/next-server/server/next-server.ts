@@ -124,18 +124,18 @@ export type ServerConstructor = {
 }
 
 export default class Server {
-  dir: string
-  quiet: boolean
-  nextConfig: NextConfig
-  distDir: string
-  pagesDir?: string
-  publicDir: string
-  hasStaticDir: boolean
-  serverBuildDir: string
-  pagesManifest?: PagesManifest
-  buildId: string
-  minimalMode: boolean
-  renderOpts: {
+  protected dir: string
+  protected quiet: boolean
+  protected nextConfig: NextConfig
+  protected distDir: string
+  protected pagesDir?: string
+  protected publicDir: string
+  protected hasStaticDir: boolean
+  protected serverBuildDir: string
+  protected pagesManifest?: PagesManifest
+  protected buildId: string
+  protected minimalMode: boolean
+  protected renderOpts: {
     poweredByHeader: boolean
     buildId: string
     generateEtags: boolean
@@ -161,7 +161,7 @@ export default class Server {
   private compression?: Middleware
   private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
   private incrementalCache: IncrementalCache
-  router: Router
+  protected router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes
 
@@ -784,7 +784,14 @@ export default class Server {
         type: 'route',
         name: '_next/image catchall',
         fn: (req, res, _params, parsedUrl) =>
-          imageOptimizer(server, req, res, parsedUrl),
+          imageOptimizer(
+            server,
+            req,
+            res,
+            parsedUrl,
+            server.nextConfig,
+            server.distDir
+          ),
       },
       {
         match: route('/_next/:path*'),
