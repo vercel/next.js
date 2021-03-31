@@ -28,6 +28,6 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 
 ## Notes
 
-Chakra has supported Gradients and RTL in version 1.1, To Utilize RTL you may follow the chakra way to add RTL direction and swap [Chakra docs](https://chakra-ui.com/docs/features/rtl-support).
+Chakra has supported Gradients and RTL in `v1.1`. To utilize RTL, [add RTL direction and swap](https://chakra-ui.com/docs/features/rtl-support).
 
-if you do not have multi direction web app you should make `<Html lang="ar" dir="rtl">` inside /\_document file.
+If you don't have multi-direction app,  you should make `<Html lang="ar" dir="rtl">` inside `_document.ts`.
