@@ -1,4 +1,4 @@
-import React, { useContext } from 'react'
+import React, { useContext, FC } from 'react'
 import Effect from './side-effect'
 import { AmpStateContext } from './amp-context'
 import { HeadManagerContext } from './head-manager-context'
@@ -161,11 +161,15 @@ function reduceComponents(
     })
 }
 
+type IHead = FC & {
+  rewind: () => void
+}
+
 /**
  * This component injects elements to `<head>` of your page.
  * To avoid duplicated `tags` in `<head>` you can use the `key` property, which will make sure every tag is only rendered once.
  */
-function Head({ children }: { children: React.ReactNode }) {
+const Head: IHead = (children) => {
   const ampState = useContext(AmpStateContext)
   const headManager = useContext(HeadManagerContext)
   return (
