@@ -180,7 +180,7 @@ export default async function build(
       telemetry.record(events)
     )
 
-    if (config.eslint?.build) {
+    if (config.experimental.eslint?.build) {
       await nextBuildSpan
         .traceChild('verify-and-lint')
         .traceAsyncFn(async () => {

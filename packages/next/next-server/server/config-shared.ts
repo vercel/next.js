@@ -59,6 +59,10 @@ export type NextConfig = { [key: string]: any } & {
       validator?: string
       skipValidation?: boolean
     }
+    eslint?: {
+      dev?: boolean
+      build?: boolean
+    }
   }
 }
 
@@ -113,6 +117,10 @@ export const defaultConfig: NextConfig = {
     stats: false,
     externalDir: false,
     serialWebpackBuild: false,
+    eslint: {
+      dev: false,
+      build: false,
+    },
   },
   future: {
     strictPostcssConfiguration: false,
@@ -122,10 +130,6 @@ export const defaultConfig: NextConfig = {
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
   reactStrictMode: false,
-  eslint: {
-    dev: false,
-    build: false,
-  },
 }
 
 export function normalizeConfig(phase: string, config: any) {
