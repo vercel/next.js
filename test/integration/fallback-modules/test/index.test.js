@@ -18,37 +18,39 @@ describe('Build Output', () => {
       await remove(join(appDir, '.next'))
     })
 
-    if (!process.env.NEXT_PRIVATE_SKIP_SIZE_TESTS) {
-      it('should not include crypto', async () => {
-        ;({ stdout } = await nextBuild(appDir, [], {
-          stdout: true,
-        }))
+    it('should not include crypto', async () => {
+      if (process.env.NEXT_PRIVATE_SKIP_SIZE_TESTS) {
+        return
+      }
 
-        console.log(stdout)
+      ;({ stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      }))
 
-        const parsePageSize = (page) =>
-          stdout.match(
-            new RegExp(` ${page} .*?((?:\\d|\\.){1,} (?:\\w{1,})) `)
-          )[1]
+      console.log(stdout)
 
-        const parsePageFirstLoad = (page) =>
-          stdout.match(
-            new RegExp(
-              ` ${page} .*?(?:(?:\\d|\\.){1,}) .*? ((?:\\d|\\.){1,} (?:\\w{1,}))`
-            )
-          )[1]
+      const parsePageSize = (page) =>
+        stdout.match(
+          new RegExp(` ${page} .*?((?:\\d|\\.){1,} (?:\\w{1,})) `)
+        )[1]
 
-        const indexSize = parsePageSize('/')
-        const indexFirstLoad = parsePageFirstLoad('/')
+      const parsePageFirstLoad = (page) =>
+        stdout.match(
+          new RegExp(
+            ` ${page} .*?(?:(?:\\d|\\.){1,}) .*? ((?:\\d|\\.){1,} (?:\\w{1,}))`
+          )
+        )[1]
 
-        expect(parseFloat(indexSize)).toBeLessThanOrEqual(3.1)
-        expect(parseFloat(indexSize)).toBeGreaterThanOrEqual(2)
-        expect(indexSize.endsWith('kB')).toBe(true)
+      const indexSize = parsePageSize('/')
+      const indexFirstLoad = parsePageFirstLoad('/')
 
-        expect(parseFloat(indexFirstLoad)).toBeLessThanOrEqual(67.9)
-        expect(parseFloat(indexFirstLoad)).toBeGreaterThanOrEqual(60)
-        expect(indexFirstLoad.endsWith('kB')).toBe(true)
-      })
-    }
+      expect(parseFloat(indexSize)).toBeLessThanOrEqual(3.1)
+      expect(parseFloat(indexSize)).toBeGreaterThanOrEqual(2)
+      expect(indexSize.endsWith('kB')).toBe(true)
+
+      expect(parseFloat(indexFirstLoad)).toBeLessThanOrEqual(67.9)
+      expect(parseFloat(indexFirstLoad)).toBeGreaterThanOrEqual(60)
+      expect(indexFirstLoad.endsWith('kB')).toBe(true)
+    })
   })
 })

@@ -205,12 +205,12 @@ export default class Server {
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
       images: JSON.stringify(this.nextConfig.images),
-      optimizeFonts: this.nextConfig.experimental.optimizeFonts && !dev,
+      optimizeFonts: !!this.nextConfig.experimental.optimizeFonts && !dev,
       fontManifest:
         this.nextConfig.experimental.optimizeFonts && !dev
           ? requireFontManifest(this.distDir, this._isLikeServerless)
           : null,
-      optimizeImages: this.nextConfig.experimental.optimizeImages,
+      optimizeImages: !!this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
@@ -361,15 +361,21 @@ export default class Server {
       }
 
       const pageIsDynamic = isDynamicRoute(matchedPathnameNoExt)
+      const combinedRewrites: Rewrite[] = []
+
+      combinedRewrites.push(...this.customRoutes.rewrites.beforeFiles)
+      combinedRewrites.push(...this.customRoutes.rewrites.afterFiles)
+      combinedRewrites.push(...this.customRoutes.rewrites.fallback)
+
       const utils = getUtils({
         pageIsDynamic,
         page: matchedPathnameNoExt,
         i18n: this.nextConfig.i18n,
         basePath: this.nextConfig.basePath,
-        rewrites: this.customRoutes.rewrites,
+        rewrites: combinedRewrites,
       })
 
-      utils.handleRewrites(parsedUrl)
+      utils.handleRewrites(req, parsedUrl)
 
       // interpolate dynamic params and normalize URL if needed
       if (pageIsDynamic) {
@@ -434,7 +440,7 @@ export default class Server {
           : detectedLocale
 
       const { host } = req?.headers || {}
-      // remove port from host and remove port if present
+      // remove port from host if present
       const hostname = host?.split(':')[0].toLowerCase()
 
       const detectedDomain = detectDomainLocale(i18n.domains, hostname)
@@ -594,7 +600,22 @@ export default class Server {
   }
 
   protected getCustomRoutes(): CustomRoutes {
-    return require(join(this.distDir, ROUTES_MANIFEST))
+    const customRoutes = require(join(this.distDir, ROUTES_MANIFEST))
+    let rewrites: CustomRoutes['rewrites']
+
+    // rewrites can be stored as an array when an array is
+    // returned in next.config.js so massage them into
+    // the expected object format
+    if (Array.isArray(customRoutes.rewrites)) {
+      rewrites = {
+        beforeFiles: [],
+        afterFiles: customRoutes.rewrites,
+        fallback: [],
+      }
+    } else {
+      rewrites = customRoutes.rewrites
+    }
+    return Object.assign(customRoutes, { rewrites })
   }
 
   private _cachedPreviewManifest: PrerenderManifest | undefined
@@ -613,7 +634,11 @@ export default class Server {
   protected generateRoutes(): {
     basePath: string
     headers: Route[]
-    rewrites: Route[]
+    rewrites: {
+      beforeFiles: Route[]
+      afterFiles: Route[]
+      fallback: Route[]
+    }
     fsRoutes: Route[]
     redirects: Route[]
     catchAllRoute: Route
@@ -797,6 +822,7 @@ export default class Server {
       const headerRoute = getCustomRoute(r, 'header')
       return {
         match: headerRoute.match,
+        has: headerRoute.has,
         type: headerRoute.type,
         name: `${headerRoute.type} ${headerRoute.source} header route`,
         fn: async (_req, res, params, _parsedUrl) => {
@@ -839,6 +865,7 @@ export default class Server {
             internal: redirectRoute.internal,
             type: redirectRoute.type,
             match: redirectRoute.match,
+            has: redirectRoute.has,
             statusCode: redirectRoute.statusCode,
             name: `Redirect route ${redirectRoute.source}`,
             fn: async (req, res, params, parsedUrl) => {
@@ -873,7 +900,7 @@ export default class Server {
           } as Route
         })
 
-    const rewrites = this.customRoutes.rewrites.map((rewrite) => {
+    const buildRewrite = (rewrite: Rewrite) => {
       const rewriteRoute = getCustomRoute(rewrite, 'rewrite')
       return {
         ...rewriteRoute,
@@ -921,7 +948,19 @@ export default class Server {
           }
         },
       } as Route
-    })
+    }
+
+    let beforeFiles: Route[] = []
+    let afterFiles: Route[] = []
+    let fallback: Route[] = []
+
+    if (Array.isArray(this.customRoutes.rewrites)) {
+      afterFiles = this.customRoutes.rewrites.map(buildRewrite)
+    } else {
+      beforeFiles = this.customRoutes.rewrites.beforeFiles.map(buildRewrite)
+      afterFiles = this.customRoutes.rewrites.afterFiles.map(buildRewrite)
+      fallback = this.customRoutes.rewrites.fallback.map(buildRewrite)
+    }
 
     const catchAllRoute: Route = {
       match: route('/:path*'),
@@ -976,7 +1015,11 @@ export default class Server {
     return {
       headers,
       fsRoutes,
-      rewrites,
+      rewrites: {
+        beforeFiles,
+        afterFiles,
+        fallback,
+      },
       redirects,
       catchAllRoute,
       useFileSystemPublicRoutes,
@@ -1210,7 +1253,7 @@ export default class Server {
   ): Promise<void> {
     if (!pathname.startsWith('/')) {
       console.warn(
-        `Cannot render page with path "${pathname}", did you mean "/${pathname}"?. See more info here: https://err.sh/next.js/render-no-starting-slash`
+        `Cannot render page with path "${pathname}", did you mean "/${pathname}"?. See more info here: https://nextjs.org/docs/messages/render-no-starting-slash`
       )
     }
 
@@ -1890,7 +1933,7 @@ export default class Server {
     console.warn(
       chalk.bold.yellow(`Warning: `) +
         chalk.yellow(
-          `You have added a custom /_error page without a custom /404 page. This prevents the 404 page from being auto statically optimized.\nSee here for info: https://err.sh/next.js/custom-error-no-custom-404`
+          `You have added a custom /_error page without a custom /404 page. This prevents the 404 page from being auto statically optimized.\nSee here for info: https://nextjs.org/docs/messages/custom-error-no-custom-404`
         )
     )
   })
@@ -2090,7 +2133,7 @@ export default class Server {
     } catch (err) {
       if (!fs.existsSync(buildIdFile)) {
         throw new Error(
-          `Could not find a production build in the '${this.distDir}' directory. Try building your app with 'next build' before starting the production server. https://err.sh/vercel/next.js/production-start-no-build-id`
+          `Could not find a production build in the '${this.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
         )
       }
 

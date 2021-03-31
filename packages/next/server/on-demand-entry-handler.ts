@@ -4,7 +4,6 @@ import { join, posix } from 'path'
 import { parse } from 'url'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import * as Log from '../build/output/log'
-import { verifyAndLint } from '../lib/verifyAndLint'
 import {
   normalizePagePath,
   normalizePathSep,
@@ -33,13 +32,11 @@ export default function onDemandEntryHandler(
   {
     pagesDir,
     pageExtensions,
-    eslint,
     maxInactiveAge,
     pagesBufferLength,
   }: {
     pagesDir: string
     pageExtensions: string[]
-    eslint: boolean
     maxInactiveAge: number
     pagesBufferLength: number
   }
@@ -193,15 +190,6 @@ export default function onDemandEntryHandler(
             doneCallbacks!.once(normalizedPage, handleCallback)
             return
           }
-        }
-
-        // TODO: Move out of hot-reloader into a separate process
-        if (eslint) {
-          verifyAndLint(process.cwd(), pagesDir, pagePath).then(
-            ({ results, hasMessages }) => {
-              if (hasMessages) console.log(results)
-            }
-          )
         }
 
         Log.event(`build page: ${normalizedPage}`)

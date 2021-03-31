@@ -406,14 +406,14 @@ export class Head extends Component<
         if (!isReactHelmet) {
           if (child?.type === 'title') {
             console.warn(
-              "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title"
+              "Warning: <title> should not be used in _document.js's <Head>. https://nextjs.org/docs/messages/no-document-title"
             )
           } else if (
             child?.type === 'meta' &&
             child?.props?.name === 'viewport'
           ) {
             console.warn(
-              "Warning: viewport meta tags should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-viewport-meta"
+              "Warning: viewport meta tags should not be used in _document.js's <Head>. https://nextjs.org/docs/messages/no-document-viewport-meta"
             )
           }
         }
@@ -421,7 +421,7 @@ export class Head extends Component<
       })
       if (this.props.crossOrigin)
         console.warn(
-          'Warning: `Head` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated'
+          'Warning: `Head` attribute `crossOrigin` is deprecated. https://nextjs.org/docs/messages/doc-crossorigin-deprecated'
         )
     }
 
@@ -471,7 +471,7 @@ export class Head extends Component<
 
         if (badProp) {
           console.warn(
-            `Found conflicting amp tag "${child.type}" with conflicting prop ${badProp} in ${__NEXT_DATA__.page}. https://err.sh/next.js/conflicting-amp-tag`
+            `Found conflicting amp tag "${child.type}" with conflicting prop ${badProp} in ${__NEXT_DATA__.page}. https://nextjs.org/docs/messages/conflicting-amp-tag`
           )
           return null
         }
@@ -763,7 +763,7 @@ export class NextScript extends Component<OriginProps> {
     } catch (err) {
       if (err.message.indexOf('circular structure')) {
         throw new Error(
-          `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://err.sh/vercel/next.js/circular-structure`
+          `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://nextjs.org/docs/messages/circular-structure`
         )
       }
       throw err
@@ -828,7 +828,7 @@ export class NextScript extends Component<OriginProps> {
     if (process.env.NODE_ENV !== 'production') {
       if (this.props.crossOrigin)
         console.warn(
-          'Warning: `NextScript` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated'
+          'Warning: `NextScript` attribute `crossOrigin` is deprecated. https://nextjs.org/docs/messages/doc-crossorigin-deprecated'
         )
     }
 

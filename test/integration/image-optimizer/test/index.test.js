@@ -481,6 +481,14 @@ function runTests({ w, isDev, domains }) {
     expect(res.headers.get('etag')).toBeTruthy()
     await expectWidth(res, 400)
   })
+
+  it("should error if the resource isn't a valid image", async () => {
+    const query = { url: '/test.txt', w, q: 80 }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe("The requested resource isn't a valid image.")
+  })
 }
 
 describe('Image Optimizer', () => {
