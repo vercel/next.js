@@ -29,9 +29,7 @@ describe('Page Config', () => {
 
     try {
       const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      expect(stderr).toMatch(
-        /https:\/\/err\.sh\/vercel\/next\.js\/invalid-page-config/
-      )
+      expect(stderr).toMatch(/\/invalid-page-config/)
     } finally {
       await reset()
     }
@@ -42,9 +40,7 @@ describe('Page Config', () => {
 
     try {
       const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      expect(stderr).toMatch(
-        /https:\/\/err\.sh\/vercel\/next\.js\/invalid-page-config/
-      )
+      expect(stderr).toMatch(/\/invalid-page-config/)
     } finally {
       await reset()
     }
@@ -55,9 +51,7 @@ describe('Page Config', () => {
 
     try {
       const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      expect(stderr).toMatch(
-        /https:\/\/err\.sh\/vercel\/next\.js\/invalid-page-config/
-      )
+      expect(stderr).toMatch(/\/invalid-page-config/)
     } finally {
       await reset()
     }
@@ -68,9 +62,7 @@ describe('Page Config', () => {
 
     try {
       const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      expect(stderr).toMatch(
-        /https:\/\/err\.sh\/vercel\/next\.js\/invalid-page-config/
-      )
+      expect(stderr).toMatch(/\/invalid-page-config/)
     } finally {
       await reset()
     }
@@ -81,9 +73,7 @@ describe('Page Config', () => {
 
     try {
       const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      expect(stderr).toMatch(
-        /https:\/\/err\.sh\/vercel\/next\.js\/invalid-page-config/
-      )
+      expect(stderr).toMatch(/\/invalid-page-config/)
     } finally {
       await reset()
     }
@@ -94,9 +84,7 @@ describe('Page Config', () => {
 
     try {
       const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      expect(stderr).toMatch(
-        /https:\/\/err\.sh\/vercel\/next\.js\/invalid-page-config/
-      )
+      expect(stderr).toMatch(/\/invalid-page-config/)
     } finally {
       await reset()
     }
@@ -107,9 +95,7 @@ describe('Page Config', () => {
 
     try {
       const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      expect(stderr).toMatch(
-        /https:\/\/err\.sh\/vercel\/next\.js\/invalid-page-config/
-      )
+      expect(stderr).toMatch(/\/invalid-page-config/)
     } finally {
       await reset()
     }

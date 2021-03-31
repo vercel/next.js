@@ -1,7 +1,6 @@
 import { promises as fsp } from 'fs'
 import * as path from 'path'
 import { instantiateEmscriptenWasm, pathify } from './emscripten-utils.js'
-import { execOnce } from '../../../lib/utils.js'
 
 // MozJPEG
 // @ts-ignore
@@ -23,25 +22,20 @@ const webpDecWasm = path.resolve(__dirname, './webp/webp_node_dec.wasm')
 // @ts-ignore
 import * as pngEncDec from './png/squoosh_png.js'
 const pngEncDecWasm = path.resolve(__dirname, './png/squoosh_png_bg.wasm')
-const pngEncDecInit = execOnce(() =>
+const pngEncDecInit = () =>
   pngEncDec.default(fsp.readFile(pathify(pngEncDecWasm)))
-)
 
 // OxiPNG
 // @ts-ignore
 import * as oxipng from './png/squoosh_oxipng.js'
 const oxipngWasm = path.resolve(__dirname, './png/squoosh_oxipng_bg.wasm')
-const oxipngInit = execOnce(() =>
-  oxipng.default(fsp.readFile(pathify(oxipngWasm)))
-)
+const oxipngInit = () => oxipng.default(fsp.readFile(pathify(oxipngWasm)))
 
 // Resize
 // @ts-ignore
 import * as resize from './resize/squoosh_resize.js'
 const resizeWasm = path.resolve(__dirname, './resize/squoosh_resize_bg.wasm')
-const resizeInit = execOnce(() =>
-  resize.default(fsp.readFile(pathify(resizeWasm)))
-)
+const resizeInit = () => resize.default(fsp.readFile(pathify(resizeWasm)))
 
 // rotate
 const rotateWasm = path.resolve(__dirname, './rotate/rotate.wasm')
@@ -128,7 +122,7 @@ export const preprocessors = {
           target_width: width,
           target_height: height,
         }))
-        return new ImageData(
+        const imageData = new ImageData(
           resize.resize(
             buffer,
             input_width,
@@ -142,6 +136,8 @@ export const preprocessors = {
           width,
           height
         )
+        resize.cleanup()
+        return imageData
       }
     },
     defaultOptions: {
@@ -270,7 +266,13 @@ export const codecs = {
     detectors: [/^\x89PNG\x0D\x0A\x1A\x0A/],
     dec: async () => {
       await pngEncDecInit()
-      return { decode: pngEncDec.decode }
+      return {
+        decode: (buffer: Buffer | Uint8Array): Buffer => {
+          const imageData = pngEncDec.decode(buffer)
+          pngEncDec.cleanup()
+          return imageData
+        },
+      } as any
     },
     enc: async () => {
       await pngEncDecInit()
@@ -287,7 +289,9 @@ export const codecs = {
             width,
             height
           )
-          return oxipng.optimise(simplePng, opts.level)
+          const imageData = oxipng.optimise(simplePng, opts.level)
+          oxipng.cleanup()
+          return imageData
         },
       }
     },
