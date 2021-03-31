@@ -25,3 +25,9 @@ yarn create next-app --example with-chakra-ui-typescript with-chakra-ui-typescri
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+
+## Notes
+
+Chakra has supported Gradients and RTL in version 1.1, To Utilize RTL you may follow the chakra way to add RTL direction and swap [Chakra docs](https://chakra-ui.com/docs/features/rtl-support).
+
+if you do not have multi direction web app you should make `<Html lang="ar" dir="rtl">` inside /\_document file.

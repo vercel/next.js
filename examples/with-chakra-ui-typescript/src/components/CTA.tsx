@@ -9,7 +9,7 @@ export const CTA = () => (
     bottom="0"
     width="100%"
     maxWidth="48rem"
-    py={2}
+    py={3}
   >
     <ChakraLink isExternal href="https://chakra-ui.com" flexGrow={1} mx={2}>
       <Button width="100%" variant="outline" colorScheme="green">
