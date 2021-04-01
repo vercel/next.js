@@ -29,7 +29,7 @@ function getFontForUA(url: string, UA: string): Promise<String> {
           })
         }
       )
-      .on('error', (e) => {
+      .on('error', (e: Error) => {
         reject(e)
       })
   })
