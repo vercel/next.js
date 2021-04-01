@@ -234,7 +234,6 @@ export default async function getBaseWebpackConfig(
     // fixed in rc.1.
     semver.gte(reactVersion!, '17.0.0-rc.1')
 
-  // TODO - add config-based switch here to use different loader
   const distDir = path.join(dir, config.distDir)
 
   const babelLoader = config.experimental.turboMode

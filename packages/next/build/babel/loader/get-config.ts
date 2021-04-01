@@ -4,8 +4,9 @@ import loadConfig from '@babel/core/lib/config'
 
 import { consumeIterator } from './util'
 
-function getPlugins(loaderOptions, source) {
-  const { hasReactRefresh, isServer, development, isPageFile } = loaderOptions
+function getPlugins(loaderOptions, source, filename) {
+  const { hasReactRefresh, isServer, development, pagesDir } = loaderOptions
+  const isPageFile = filename.startsWith(pagesDir)
 
   const applyCommonJsItem =
     source.indexOf('module.exports') === -1
@@ -123,7 +124,7 @@ export default function getConfig({
     // modules.
     sourceFileName: filename,
 
-    plugins: getPlugins(loaderOptions, source),
+    plugins: getPlugins(loaderOptions, source, filename),
 
     presets: [...presets, nextPresetItem],
 
