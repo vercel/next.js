@@ -73,7 +73,7 @@ export default function transform(
   filename,
   target
 ) {
-  const babelConfig = getConfig({
+  const babelConfig = getConfig.call(this, {
     source,
     loaderOptions,
     inputSourceMap,

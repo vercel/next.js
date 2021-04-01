@@ -78,7 +78,10 @@ module.exports = (
   const isProduction = !(isTest || isDevelopment)
 
   const isBabelLoader = api.caller(
-    (caller: any) => !!caller && caller.name === 'babel-loader'
+    (caller: any) =>
+      !!caller &&
+      (caller.name === 'babel-loader' ||
+        caller.name === 'next-babel-turbo-loader')
   )
 
   const useJsxRuntime =

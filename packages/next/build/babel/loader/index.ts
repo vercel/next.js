@@ -18,7 +18,14 @@ async function nextBabelLoader(parentTrace, inputSource, inputSourceMap) {
   } = parentTrace
     .traceChild('next-babel-turbo-transform')
     .traceFn(() =>
-      transform(inputSource, inputSourceMap, loaderOptions, filename, target)
+      transform.call(
+        this,
+        inputSource,
+        inputSourceMap,
+        loaderOptions,
+        filename,
+        target
+      )
     )
 
   return [transformedSource, outputSourceMap]

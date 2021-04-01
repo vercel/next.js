@@ -17,15 +17,16 @@ function getPlugins(loaderOptions, source) {
         { type: 'plugin' }
       )
     : null
-  const noAnonymousDefaultExportItem = isServer
-    ? null
-    : createConfigItem(
-        [require('../plugins/no-anonymous-default-export'), {}],
-        { type: 'plugin' }
-      )
+  const noAnonymousDefaultExportItem =
+    hasReactRefresh && !isServer
+      ? createConfigItem(
+          [require('../plugins/no-anonymous-default-export'), {}],
+          { type: 'plugin' }
+        )
+      : null
   const pageConfigItem =
     !isServer && isPageFile
-      ? createConfigItem([require('../../babel/plugins/next-page-config')], {
+      ? createConfigItem([require('../plugins/next-page-config')], {
           type: 'plugin',
         })
       : null
@@ -58,7 +59,7 @@ function getPlugins(loaderOptions, source) {
   return [
     noAnonymousDefaultExportItem,
     reactRefreshItem,
-    // TODO: should next/babel plugins be inserted here?
+    // TODO: should next/babel preset's plugins be inserted here?
     pageConfigItem,
     disallowExportAllItem,
     applyCommonJsItem,
@@ -93,12 +94,20 @@ export default function getConfig({
   target,
   filename,
 }) {
-  const { presets = [] } = loaderOptions
+  const {
+    presets = [],
+    isServer,
+    pagesDir,
+    development,
+    hasReactRefresh,
+    hasJsxRuntime,
+  } = loaderOptions
 
   const nextPresetItem = createConfigItem(nextBabelPreset, { type: 'preset' })
 
   let options = {
     babelrc: false,
+    cloneInputAst: false,
     filename,
     inputSourceMap: inputSourceMap || undefined,
 
@@ -121,7 +130,7 @@ export default function getConfig({
     overrides: getOverrides(loaderOptions.overrides),
 
     caller: {
-      name: 'next-babel-loader',
+      name: 'next-babel-turbo-loader',
       supportsStaticESM: true,
       supportsDynamicImport: true,
 
@@ -133,9 +142,28 @@ export default function getConfig({
       // for Babel, and then webpack will throw an error if the experimental
       // flag isn't enabled.
       supportsTopLevelAwait: true,
+
+      isServer,
+      pagesDir,
+      development,
+      hasReactRefresh,
+      hasJsxRuntime,
+
       ...loaderOptions.caller,
     },
   }
+
+  // TODO: Document what `onWarning` is for.
+  Object.defineProperty(options.caller, 'onWarning', {
+    enumerable: false,
+    writable: false,
+    value: (reason) => {
+      if (!(reason instanceof Error)) {
+        reason = new Error(reason)
+      }
+      this.emitWarning(reason)
+    },
+  })
 
   options = loadOptions(options)
   const config = consumeIterator(loadConfig(options))
