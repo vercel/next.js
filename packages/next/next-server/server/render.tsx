@@ -167,7 +167,6 @@ export type RenderOptsPartial = {
   err?: Error | null
   nextExport?: boolean
   dev?: boolean
-  ampMode?: any
   ampPath?: string
   inAmpMode?: boolean
   hybridAmp?: boolean
