@@ -482,6 +482,26 @@ function runTests({ w, isDev, domains }) {
     await expectWidth(res, 400)
   })
 
+  it('should not change the color type of a png', async () => {
+    // https://github.com/vercel/next.js/issues/22929
+    // A grayscaled PNG with transparent pixels.
+    const query = { url: '/grayscale.png', w: largeSize, q: 80 }
+    const opts = { headers: { accept: 'image/png' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toBe('image/png')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+
+    const png = await res.buffer()
+
+    // Read the color type byte (offset 9 + magic number 16).
+    // http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html
+    const colorType = png.readUIntBE(25, 1)
+    expect(colorType).toBe(4)
+  })
+
   it("should error if the resource isn't a valid image", async () => {
     const query = { url: '/test.txt', w, q: 80 }
     const opts = { headers: { accept: 'image/webp' } }
