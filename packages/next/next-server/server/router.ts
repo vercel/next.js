@@ -51,8 +51,12 @@ export default class Router {
   basePath: string
   headers: Route[]
   fsRoutes: Route[]
-  rewrites: Route[]
   redirects: Route[]
+  rewrites: {
+    beforeFiles: Route[]
+    afterFiles: Route[]
+    fallback: Route[]
+  }
   catchAllRoute: Route
   pageChecker: PageChecker
   dynamicRoutes: DynamicRoutes
@@ -63,7 +67,11 @@ export default class Router {
     basePath = '',
     headers = [],
     fsRoutes = [],
-    rewrites = [],
+    rewrites = {
+      beforeFiles: [],
+      afterFiles: [],
+      fallback: [],
+    },
     redirects = [],
     catchAllRoute,
     dynamicRoutes = [],
@@ -74,7 +82,11 @@ export default class Router {
     basePath: string
     headers: Route[]
     fsRoutes: Route[]
-    rewrites: Route[]
+    rewrites: {
+      beforeFiles: Route[]
+      afterFiles: Route[]
+      fallback: Route[]
+    }
     redirects: Route[]
     catchAllRoute: Route
     dynamicRoutes: DynamicRoutes | undefined
@@ -122,6 +134,53 @@ export default class Router {
 
     let parsedUrlUpdated = parsedUrl
 
+    const applyCheckTrue = async (checkParsedUrl: UrlWithParsedQuery) => {
+      const originalFsPathname = checkParsedUrl.pathname
+      const fsPathname = replaceBasePath(this.basePath, originalFsPathname!)
+
+      for (const fsRoute of this.fsRoutes) {
+        const fsParams = fsRoute.match(fsPathname)
+
+        if (fsParams) {
+          checkParsedUrl.pathname = fsPathname
+
+          const fsResult = await fsRoute.fn(req, res, fsParams, checkParsedUrl)
+
+          if (fsResult.finished) {
+            return true
+          }
+
+          checkParsedUrl.pathname = originalFsPathname
+        }
+      }
+
+      let matchedPage = await memoizedPageChecker(fsPathname)
+
+      // If we didn't match a page check dynamic routes
+      if (!matchedPage) {
+        for (const dynamicRoute of this.dynamicRoutes) {
+          if (dynamicRoute.match(fsPathname)) {
+            matchedPage = true
+          }
+        }
+      }
+
+      // Matched a page or dynamic route so render it using catchAllRoute
+      if (matchedPage) {
+        checkParsedUrl.pathname = fsPathname
+
+        const pageParams = this.catchAllRoute.match(checkParsedUrl.pathname)
+
+        await this.catchAllRoute.fn(
+          req,
+          res,
+          pageParams as Params,
+          checkParsedUrl
+        )
+        return true
+      }
+    }
+
     /*
       Desired routes order
       - headers
@@ -133,6 +192,7 @@ export default class Router {
     const allRoutes = [
       ...this.headers,
       ...this.redirects,
+      ...this.rewrites.beforeFiles,
       ...this.fsRoutes,
       // We only check the catch-all route if public page routes hasn't been
       // disabled
@@ -164,7 +224,29 @@ export default class Router {
             } as Route,
           ]
         : []),
-      ...this.rewrites,
+      ...this.rewrites.afterFiles,
+      ...(this.rewrites.fallback.length
+        ? [
+            {
+              type: 'route',
+              name: 'dynamic route/page check',
+              requireBasePath: false,
+              match: route('/:path*'),
+              fn: async (
+                _checkerReq,
+                _checkerRes,
+                _params,
+                parsedCheckerUrl
+              ) => {
+                return {
+                  finished: await applyCheckTrue(parsedCheckerUrl),
+                }
+              },
+            } as Route,
+            ...this.rewrites.fallback,
+          ]
+        : []),
+
       // We only check the catch-all route if public page routes hasn't been
       // disabled
       ...(this.useFileSystemPublicRoutes ? [this.catchAllRoute] : []),
@@ -283,55 +365,7 @@ export default class Router {
 
         // check filesystem
         if (testRoute.check === true) {
-          const originalFsPathname = parsedUrlUpdated.pathname
-          const fsPathname = replaceBasePath(this.basePath, originalFsPathname!)
-
-          for (const fsRoute of this.fsRoutes) {
-            const fsParams = fsRoute.match(fsPathname)
-
-            if (fsParams) {
-              parsedUrlUpdated.pathname = fsPathname
-
-              const fsResult = await fsRoute.fn(
-                req,
-                res,
-                fsParams,
-                parsedUrlUpdated
-              )
-
-              if (fsResult.finished) {
-                return true
-              }
-
-              parsedUrlUpdated.pathname = originalFsPathname
-            }
-          }
-
-          let matchedPage = await memoizedPageChecker(fsPathname)
-
-          // If we didn't match a page check dynamic routes
-          if (!matchedPage) {
-            for (const dynamicRoute of this.dynamicRoutes) {
-              if (dynamicRoute.match(fsPathname)) {
-                matchedPage = true
-              }
-            }
-          }
-
-          // Matched a page or dynamic route so render it using catchAllRoute
-          if (matchedPage) {
-            parsedUrlUpdated.pathname = fsPathname
-
-            const pageParams = this.catchAllRoute.match(
-              parsedUrlUpdated.pathname
-            )
-
-            await this.catchAllRoute.fn(
-              req,
-              res,
-              pageParams as Params,
-              parsedUrlUpdated
-            )
+          if (await applyCheckTrue(parsedUrlUpdated)) {
             return true
           }
         }

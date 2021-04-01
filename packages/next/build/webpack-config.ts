@@ -16,7 +16,6 @@ import {
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { getPackageVersion } from '../lib/get-package-version'
-import { Rewrite } from '../lib/load-custom-routes'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import {
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
@@ -61,6 +60,7 @@ import WebpackConformancePlugin, {
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
 import { NextConfig } from '../next-server/server/config'
 import { relative as relativePath, join as pathJoin } from 'path'
+import { CustomRoutes } from '../lib/load-custom-routes.js'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -70,7 +70,7 @@ const devtoolRevertWarning = execOnce(
       chalk.yellow.bold('Warning: ') +
         chalk.bold(`Reverting webpack devtool to '${devtool}'.\n`) +
         'Changing the webpack devtool in development mode will cause severe performance regressions.\n' +
-        'Read more: https://err.sh/next.js/improper-devtool'
+        'Read more: https://nextjs.org/docs/messages/improper-devtool'
     )
   }
 )
@@ -201,13 +201,16 @@ export default async function getBaseWebpackConfig(
     target?: string
     reactProductionProfiling?: boolean
     entrypoints: WebpackEntrypoints
-    rewrites: Rewrite[]
+    rewrites: CustomRoutes['rewrites']
   }
 ): Promise<webpack.Configuration> {
   let plugins: PluginMetaData[] = []
   let babelPresetPlugins: { dir: string; config: any }[] = []
 
-  const hasRewrites = rewrites.length > 0
+  const hasRewrites =
+    rewrites.beforeFiles.length > 0 ||
+    rewrites.afterFiles.length > 0 ||
+    rewrites.fallback.length > 0
 
   if (config.experimental.plugins) {
     plugins = await collectPlugins(dir, config.env, config.plugins)
@@ -1012,7 +1015,7 @@ export default async function getBaseWebpackConfig(
         ...Object.keys(config.env).reduce((acc, key) => {
           if (/^(?:NODE_.+)|^(?:__.+)$/i.test(key)) {
             throw new Error(
-              `The key "${key}" under "env" in next.config.js is not allowed. https://err.sh/vercel/next.js/env-key-not-allowed`
+              `The key "${key}" under "env" in next.config.js is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
             )
           }
 
@@ -1099,7 +1102,7 @@ export default async function getBaseWebpackConfig(
             new Proxy(${isServer ? 'process.env' : '{}'}, {
               get(target, prop) {
                 if (typeof target[prop] === 'undefined') {
-                  console.warn(\`An environment variable (\${prop}) that was not provided in the environment was accessed.\nSee more info here: https://err.sh/next.js/missing-env-value\`)
+                  console.warn(\`An environment variable (\${prop}) that was not provided in the environment was accessed.\nSee more info here: https://nextjs.org/docs/messages/missing-env-value\`)
                 }
                 return target[prop]
               }
@@ -1360,7 +1363,7 @@ export default async function getBaseWebpackConfig(
     if (!webpackConfig) {
       throw new Error(
         'Webpack config is undefined. You may have forgot to return properly from within the "webpack" method of your next.config.js.\n' +
-          'See more info here https://err.sh/next.js/undefined-webpack-config'
+          'See more info here https://nextjs.org/docs/messages/undefined-webpack-config'
       )
     }
 
@@ -1371,7 +1374,7 @@ export default async function getBaseWebpackConfig(
 
     if (typeof (webpackConfig as any).then === 'function') {
       console.warn(
-        '> Promise returned in next config. https://err.sh/vercel/next.js/promise-in-next-config'
+        '> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config'
       )
     }
   }
@@ -1438,7 +1441,7 @@ export default async function getBaseWebpackConfig(
           chalk.bold(
             'Built-in CSS support is being disabled due to custom CSS configuration being detected.\n'
           ) +
-          'See here for more info: https://err.sh/next.js/built-in-css-disabled\n'
+          'See here for more info: https://nextjs.org/docs/messages/built-in-css-disabled\n'
       )
     }
 

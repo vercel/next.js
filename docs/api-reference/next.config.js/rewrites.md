@@ -17,8 +17,6 @@ Rewrites allow you to map an incoming request path to a different destination pa
 
 Rewrites are only available on the Node.js environment and do not affect client-side routing.
 
-Rewrites are not able to override public files or routes in the pages directory as these have higher priority than rewrites. For example, if you have `pages/index.js` you are not able to rewrite `/` to another location unless you rename the `pages/index.js` file.
-
 To use rewrites you can use the `rewrites` key in `next.config.js`:
 
 ```js
@@ -36,8 +34,48 @@ module.exports = {
 
 `rewrites` is an async function that expects an array to be returned holding objects with `source` and `destination` properties:
 
-- `source` is the incoming request path pattern.
-- `destination` is the path you want to route to.
+- `source`: `String` - is the incoming request path pattern.
+- `destination`: `String` is the path you want to route to.
+- `basePath`: `false` or `undefined` - if false the basePath won't be included when matching, can be used for external rewrites only.
+- `locale`: `false` or `undefined` - whether the locale should not be included when matching.
+- `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
+
+Rewrites are applied after checking the filesystem (pages and `/public` files) and before dynamic routes by default. This behavior can be changed by instead returning an object instead of an array from the `rewrites` function:
+
+```js
+module.exports = {
+  async rewrites() {
+    return {
+      beforeFiles: [
+        // These rewrites are checked after headers/redirects
+        // and before pages/public files which allows overriding
+        // page files
+        {
+          source: '/some-page',
+          destination: '/somewhere-else',
+          has: [{ type: 'query', key: 'overrideMe' }],
+        },
+      ],
+      afterFiles: [
+        // These rewrites are checked after pages/public files
+        // are checked but before dynamic routes
+        {
+          source: '/non-existent',
+          destination: '/somewhere-else',
+        },
+      ],
+      fallback: [
+        // These rewrites are checked after both pages/public files
+        // and dynamic routes are checked
+        {
+          source: '/:path*',
+          destination: 'https://my-old-site.com',
+        },
+      ],
+    }
+  },
+}
+```
 
 ## Rewrite parameters
 

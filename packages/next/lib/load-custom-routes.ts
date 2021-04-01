@@ -38,7 +38,12 @@ export type Header = {
 }
 
 // internal type used for validation (not user facing)
-export type Redirect = Rewrite & {
+export type Redirect = {
+  source: string
+  destination: string
+  basePath?: false
+  locale?: false
+  has?: RouteHas[]
   statusCode?: number
   permanent?: boolean
 }
@@ -128,21 +133,21 @@ function tryParsePath(route: string, handleUrl?: boolean): ParseAttemptResult {
     result.tokens = pathToRegexp.parse(routePath)
     pathToRegexp.tokensToRegexp(result.tokens)
   } catch (err) {
-    // If there is an error show our err.sh but still show original error or a formatted one if we can
+    // If there is an error show our error link but still show original error or a formatted one if we can
     const errMatches = err.message.match(/at (\d{0,})/)
 
     if (errMatches) {
       const position = parseInt(errMatches[1], 10)
       console.error(
         `\nError parsing \`${route}\` ` +
-          `https://err.sh/vercel/next.js/invalid-route-source\n` +
+          `https://nextjs.org/docs/messages/invalid-route-source\n` +
           `Reason: ${err.message}\n\n` +
           `  ${routePath}\n` +
           `  ${new Array(position).fill(' ').join('')}^\n`
       )
     } else {
       console.error(
-        `\nError parsing ${route} https://err.sh/vercel/next.js/invalid-route-source`,
+        `\nError parsing ${route} https://nextjs.org/docs/messages/invalid-route-source`,
         err
       )
     }
@@ -167,7 +172,7 @@ function checkCustomRoutes(
   if (!Array.isArray(routes)) {
     throw new Error(
       `${type}s must return an array, received ${typeof routes}.\n` +
-        `See here for more info: https://err.sh/next.js/routes-must-be-array`
+        `See here for more info: https://nextjs.org/docs/messages/routes-must-be-array`
     )
   }
 
@@ -175,20 +180,18 @@ function checkCustomRoutes(
   let hadInvalidStatus = false
   let hadInvalidHas = false
 
-  const isRedirect = type === 'redirect'
-  let allowedKeys: Set<string>
+  const allowedKeys = new Set<string>(['source', 'basePath', 'locale', 'has'])
 
-  if (type === 'rewrite' || isRedirect) {
-    allowedKeys = new Set([
-      'source',
-      'destination',
-      'basePath',
-      'locale',
-      ...(isRedirect ? ['statusCode', 'permanent'] : []),
-      'has',
-    ])
-  } else {
-    allowedKeys = new Set(['source', 'headers', 'basePath', 'locale', 'has'])
+  if (type === 'rewrite') {
+    allowedKeys.add('destination')
+  }
+  if (type === 'redirect') {
+    allowedKeys.add('statusCode')
+    allowedKeys.add('permanent')
+    allowedKeys.add('destination')
+  }
+  if (type === 'header') {
+    allowedKeys.add('headers')
   }
 
   for (const route of routes) {
@@ -215,7 +218,7 @@ function checkCustomRoutes(
       console.error(
         `The route ${
           (route as Rewrite).source
-        } rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://err.sh/vercel/next.js/invalid-external-rewrite`
+        } rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://nextjs.org/docs/messages/invalid-external-rewrite`
       )
       numInvalidRoutes++
       continue
@@ -431,7 +434,11 @@ function checkCustomRoutes(
 
 export interface CustomRoutes {
   headers: Header[]
-  rewrites: Rewrite[]
+  rewrites: {
+    fallback: Rewrite[]
+    afterFiles: Rewrite[]
+    beforeFiles: Rewrite[]
+  }
   redirects: Redirect[]
 }
 
@@ -522,11 +529,41 @@ async function loadRedirects(config: NextConfig) {
 
 async function loadRewrites(config: NextConfig) {
   if (typeof config.rewrites !== 'function') {
-    return []
+    return {
+      beforeFiles: [],
+      afterFiles: [],
+      fallback: [],
+    }
   }
-  let rewrites = await config.rewrites()
-  checkCustomRoutes(rewrites, 'rewrite')
-  return processRoutes(rewrites, config, 'rewrite')
+  const _rewrites = await config.rewrites()
+  let beforeFiles: Rewrite[] = []
+  let afterFiles: Rewrite[] = []
+  let fallback: Rewrite[] = []
+
+  if (
+    !Array.isArray(_rewrites) &&
+    typeof _rewrites === 'object' &&
+    Object.keys(_rewrites).every(
+      (key) =>
+        key === 'beforeFiles' || key === 'afterFiles' || key === 'fallback'
+    )
+  ) {
+    beforeFiles = _rewrites.beforeFiles || []
+    afterFiles = _rewrites.afterFiles || []
+    fallback = _rewrites.fallback || []
+  } else {
+    afterFiles = _rewrites as any
+  }
+
+  checkCustomRoutes(beforeFiles, 'rewrite')
+  checkCustomRoutes(afterFiles, 'rewrite')
+  checkCustomRoutes(fallback, 'rewrite')
+
+  return {
+    beforeFiles: processRoutes(beforeFiles, config, 'rewrite'),
+    afterFiles: processRoutes(afterFiles, config, 'rewrite'),
+    fallback: processRoutes(fallback, config, 'rewrite'),
+  }
 }
 
 async function loadHeaders(config: NextConfig) {
