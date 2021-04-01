@@ -6,27 +6,30 @@ import transform from './transform'
 async function nextBabelLoader(parentTrace, inputSource, inputSourceMap) {
   const filename = this.resourcePath
   const target = this.target
-  const loaderOptions = this.getOptions()
+  const loaderOptions = parentTrace
+    .traceChild('get-options')
+    .traceFn(() => this.getOptions())
 
   // TODO: farm out to worker threads
   // TODO: affinitize file paths to threads, if determining options can be done once
   //       but necessarily in the worker thread.
   // TODO: if it is a rebuild, don't farm work out to a worker.
+  const loaderSpanInner = parentTrace.traceChild('next-babel-turbo-transform')
   const {
     code: transformedSource,
     map: outputSourceMap,
-  } = parentTrace
-    .traceChild('next-babel-turbo-transform')
-    .traceFn(() =>
-      transform.call(
-        this,
-        inputSource,
-        inputSourceMap,
-        loaderOptions,
-        filename,
-        target
-      )
+  } = loaderSpanInner.traceFn(() =>
+    transform.call(
+      this,
+      inputSource,
+      inputSourceMap,
+      loaderOptions,
+      filename,
+      target,
+      // TODO: pass by ID when passing to worker thread
+      loaderSpanInner
     )
+  )
 
   return [transformedSource, outputSourceMap]
 }

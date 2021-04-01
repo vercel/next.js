@@ -88,6 +88,7 @@ function getOverrides(overrides = []) {
   ]
 }
 
+const configs = new Map()
 export default function getConfig({
   source,
   loaderOptions,
@@ -103,6 +104,11 @@ export default function getConfig({
     hasReactRefresh,
     hasJsxRuntime,
   } = loaderOptions
+  const configKey = `${isServer ? 'server' : 'client'}:${filename}`
+
+  if (configs.has(configKey)) {
+    return configs.get(configKey)
+  }
 
   const nextPresetItem = createConfigItem(nextBabelPreset, { type: 'preset' })
 
@@ -168,6 +174,8 @@ export default function getConfig({
 
   options = loadOptions(options)
   const config = consumeIterator(loadConfig(options))
+
+  configs.set(configKey, config)
 
   return config
 }

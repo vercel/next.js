@@ -49,20 +49,26 @@ function invokePluginPost(file, passPairs) {
   }
 }
 
-function transformAst(file, babelConfig) {
+function transformAstPass(file, pluginPairs, parentSpan) {
+  const { passPairs, passes, visitors } = getTraversalParams(file, pluginPairs)
+
+  invokePluginPre(file, passPairs)
+  const visitor = traverse.visitors.merge(
+    visitors,
+    passes,
+    file.opts.wrapPluginVisitorMethod
+  )
+
+  parentSpan
+    .traceChild('babel-turbo-traverse')
+    .traceFn(() => traverse(file.ast, visitor, file.scope))
+
+  invokePluginPost(file, passPairs)
+}
+
+function transformAst(file, babelConfig, parentSpan) {
   for (const pluginPairs of babelConfig.passes) {
-    const { passPairs, passes, visitors } = getTraversalParams(
-      file,
-      pluginPairs
-    )
-    invokePluginPre(file, passPairs)
-    const visitor = traverse.visitors.merge(
-      visitors,
-      passes,
-      file.opts.wrapPluginVisitorMethod
-    )
-    traverse(file.ast, visitor, file.scope)
-    invokePluginPost(file, passPairs)
+    transformAstPass(file, pluginPairs, parentSpan)
   }
 }
 
@@ -71,8 +77,11 @@ export default function transform(
   inputSourceMap,
   loaderOptions,
   filename,
-  target
+  target,
+  // TODO expect span ID when running in worker thread
+  parentSpan
 ) {
+  const getConfigSpan = parentSpan.traceChild('babel-turbo-get-config')
   const babelConfig = getConfig.call(this, {
     source,
     loaderOptions,
@@ -80,10 +89,21 @@ export default function transform(
     target,
     filename,
   })
+  getConfigSpan.stop()
+
+  const normalizeSpan = parentSpan.traceChild('babel-turbo-normalize-file')
   const file = consumeIterator(
     normalizeFile(babelConfig.passes, normalizeOpts(babelConfig), source)
   )
-  transformAst(file, babelConfig)
+  normalizeSpan.stop()
+
+  const transformSpan = parentSpan.traceChild('babel-turbo-transform')
+  transformAst(file, babelConfig, transformSpan)
+  transformSpan.stop()
+
+  const generateSpan = parentSpan.traceChild('babel-turbo-generate')
   const { code, map } = generate(file.ast, file.opts.generatorOpts, file.code)
+  generateSpan.stop()
+
   return { code, map }
 }
