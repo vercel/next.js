@@ -168,8 +168,6 @@ export type RenderOptsPartial = {
   nextExport?: boolean
   dev?: boolean
   ampPath?: string
-  inAmpMode?: boolean
-  hybridAmp?: boolean
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
@@ -259,7 +257,7 @@ function renderDocument(
     devOnlyCacheBusterQueryString: string
     scriptLoader: any
     isPreview?: boolean
-    autoExport: boolean
+    autoExport?: boolean
   }
 ): string {
   return (
@@ -1034,10 +1032,6 @@ export async function renderToHTML(
   const dynamicImportsIds = [...dynamicImportIdsSet]
   const hybridAmp = ampState.hybrid
 
-  // update renderOpts so export knows current state
-  renderOpts.inAmpMode = inAmpMode
-  renderOpts.hybridAmp = hybridAmp
-
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
 
   let html = renderDocument(Document, {
@@ -1074,7 +1068,7 @@ export async function renderToHTML(
     devOnlyCacheBusterQueryString,
     scriptLoader,
     isPreview: isPreview === true ? true : undefined,
-    autoExport: isAutoExport,
+    autoExport: isAutoExport === true ? true : undefined,
     nextExport:
       !isSSG &&
       (renderOpts.nextExport || (dev && (isAutoExport || isFallback))),
