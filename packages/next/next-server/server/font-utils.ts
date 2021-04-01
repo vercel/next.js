@@ -48,7 +48,7 @@ export async function getFontDefinitionFromNetwork(
     result += await getFontForUA(url, CHROME_UA)
   } catch (e) {
     console.warn(
-      `Failed to download the stylesheet for ${url} during the font optimization step`
+      `Unable to optimize font for ${url}. Failed to download the stylesheet.`
     )
     return ''
   }
