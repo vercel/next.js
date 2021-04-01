@@ -376,6 +376,7 @@ safe-buffer@^5.1.0:
   integrity sha512-rp3So07KcdmmKbGvgaNxQSJr7bGVSVk5S9Eq1F+ppbRo70+YeaDxkw5Dd8NPN+GD6bjnYm2VuPuCXmpuYvmCXQ==
 
 "schema-utils3@npm:schema-utils@3.0.0", schema-utils@^3.0.0:
+  name schema-utils3
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/schema-utils/-/schema-utils-3.0.0.tgz#67502f6aa2b66a2d4032b4279a2944978a0913ef"
   integrity sha512-6D82/xSzO094ajanoOSbe4YvXWMfn2A//8Y1+MUqFAJul5Bs+yn36xbK9OtNDcRVSBJ9jjeoXftM6CfztsjOAA==
@@ -468,6 +469,7 @@ watchpack@^2.0.0:
     graceful-fs "^4.1.2"
 
 "webpack-sources2@npm:webpack-sources@2.2.0", webpack-sources@^2.1.1:
+  name webpack-sources2
   version "2.2.0"
   resolved "https://registry.yarnpkg.com/webpack-sources/-/webpack-sources-2.2.0.tgz#058926f39e3d443193b6c31547229806ffd02bac"
   integrity sha512-bQsA24JLwcnWGArOKUxYKhX3Mz/nK1Xf6hxullKERyktjNMC4x8koOeaDNTA2fEJ09BdWLbM/iTW0ithREUP0w==
@@ -475,10 +477,9 @@ watchpack@^2.0.0:
     source-list-map "^2.0.1"
     source-map "^0.6.1"
 
-"webpack5@npm:webpack@5":
-  version "5.28.0"
-  resolved "https://registry.yarnpkg.com/webpack/-/webpack-5.28.0.tgz#0de8bcd706186b26da09d4d1e8cbd3e4025a7c2f"
-  integrity sha512-1xllYVmA4dIvRjHzwELgW4KjIU1fW4PEuEnjsylz7k7H5HgPOctIq7W1jrt3sKH9yG5d72//XWzsHhfoWvsQVg==
+webpack5@webpack/webpack#master:
+  version "5.29.0"
+  resolved "https://codeload.github.com/webpack/webpack/tar.gz/3b8d26df1e314bab4b0b481675995dd7a2c765c8"
   dependencies:
     "@types/eslint-scope" "^3.7.0"
     "@types/estree" "^0.0.46"
