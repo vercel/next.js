@@ -542,7 +542,7 @@ const runTests = () => {
     const stderr = await getStderr()
 
     expect(stderr).toContain(
-      `\`destination\` has segments not in \`source\` (id) for route {"source":"/feedback/:type","destination":"/feedback/:id"}`
+      `\`destination\` has segments not in \`source\` or \`has\` (id) for route {"source":"/feedback/:type","destination":"/feedback/:id"}`
     )
   })
 }

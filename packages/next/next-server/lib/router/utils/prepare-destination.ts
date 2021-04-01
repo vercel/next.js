@@ -9,7 +9,7 @@ type Params = { [param: string]: any }
 
 // ensure only a-zA-Z are used for param names for proper interpolating
 // with path-to-regexp
-const getSafeParamName = (paramName: string) => {
+export const getSafeParamName = (paramName: string) => {
   let newParamName = ''
 
   for (let i = 0; i < paramName.length; i++) {

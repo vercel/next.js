@@ -149,6 +149,16 @@ module.exports = {
           ],
           destination: '/with-params?host=1',
         },
+        {
+          source: '/has-rewrite-5',
+          has: [
+            {
+              type: 'query',
+              key: 'hasParam',
+            },
+          ],
+          destination: '/:hasParam',
+        },
       ],
       beforeFiles: [
         {
