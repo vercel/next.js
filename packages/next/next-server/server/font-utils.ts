@@ -1,3 +1,4 @@
+import * as Log from '../../build/output/log'
 const https = require('https')
 
 const CHROME_UA =
@@ -47,8 +48,8 @@ export async function getFontDefinitionFromNetwork(
     result += await getFontForUA(url, IE_UA)
     result += await getFontForUA(url, CHROME_UA)
   } catch (e) {
-    console.warn(
-      `Unable to optimize font for ${url}. Failed to download the stylesheet.`
+    Log.warn(
+      `Failed to download the stylesheet for ${url}. Skipped optimizing this font.`
     )
     return ''
   }
