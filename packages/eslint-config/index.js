@@ -7,7 +7,7 @@ module.exports = {
   plugins: ['import', 'react'],
   rules: {
     'import/no-anonymous-default-export': 'warn',
-    'react/react-in-jsx-scope': 'off', // can be removed when Next.js only supports React versions with the new JSX transform
+    'react/react-in-jsx-scope': 'off', // can be removed when Next.js only supports React versions with the new JSX transform,
   },
   parser: '@babel/eslint-parser',
   parserOptions: {

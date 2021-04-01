@@ -1,5 +1,3 @@
-import { ESLint, Linter } from 'eslint'
-
 import chalk from 'chalk'
 import path from 'path'
 
@@ -8,9 +6,26 @@ export enum MessageSeverity {
   Error = 2,
 }
 
+interface LintMessage {
+  ruleId: string | null
+  severity: 1 | 2
+  message: string
+  line: number
+  column: number
+}
+
+interface LintResult {
+  filePath: string
+  messages: LintMessage[]
+  errorCount: number
+  warningCount: number
+  output?: string
+  source?: string
+}
+
 function formatMessage(
   dir: string,
-  messages: Linter.LintMessage[],
+  messages: LintMessage[],
   filePath: string
 ): string | void {
   let fileName = path.posix.normalize(
@@ -53,10 +68,7 @@ function formatMessage(
   return output
 }
 
-export function formatResults(
-  baseDir: string,
-  results: ESLint.LintResult[]
-): string {
+export function formatResults(baseDir: string, results: LintResult[]): string {
   return (
     results
       .filter(({ messages }) => messages?.length)
