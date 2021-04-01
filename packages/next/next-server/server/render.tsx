@@ -1033,6 +1033,8 @@ export async function renderToHTML(
   const hybridAmp = ampState.hybrid
 
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
+  const nextExport =
+    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
 
   let html = renderDocument(Document, {
     ...renderOpts,
@@ -1069,9 +1071,7 @@ export async function renderToHTML(
     scriptLoader,
     isPreview: isPreview === true ? true : undefined,
     autoExport: isAutoExport === true ? true : undefined,
-    nextExport:
-      !isSSG &&
-      (renderOpts.nextExport || (dev && (isAutoExport || isFallback))),
+    nextExport: nextExport === true ? true : undefined,
   })
 
   if (process.env.NODE_ENV !== 'production') {
