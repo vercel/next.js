@@ -10,24 +10,28 @@ export type FontManifest = Array<{
 }>
 
 function getFontForUA(url: string, UA: string): Promise<String> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     let rawData: any = ''
-    https.get(
-      url,
-      {
-        headers: {
-          'user-agent': UA,
+    https
+      .get(
+        url,
+        {
+          headers: {
+            'user-agent': UA,
+          },
         },
-      },
-      (res: any) => {
-        res.on('data', (chunk: any) => {
-          rawData += chunk
-        })
-        res.on('end', () => {
-          resolve(rawData.toString('utf8'))
-        })
-      }
-    )
+        (res: any) => {
+          res.on('data', (chunk: any) => {
+            rawData += chunk
+          })
+          res.on('end', () => {
+            resolve(rawData.toString('utf8'))
+          })
+        }
+      )
+      .on('error', (e) => {
+        reject(e)
+      })
   })
 }
 
@@ -39,8 +43,16 @@ export async function getFontDefinitionFromNetwork(
    * The order of IE -> Chrome is important, other wise chrome starts loading woff1.
    * CSS cascading 🤷‍♂️.
    */
-  result += await getFontForUA(url, IE_UA)
-  result += await getFontForUA(url, CHROME_UA)
+  try {
+    result += await getFontForUA(url, IE_UA)
+    result += await getFontForUA(url, CHROME_UA)
+  } catch (e) {
+    console.warn(
+      `Failed to download the stylesheet for ${url} during the font optimization step`
+    )
+    return ''
+  }
+
   return result
 }
 

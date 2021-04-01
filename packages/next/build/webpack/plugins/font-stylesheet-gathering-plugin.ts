@@ -173,11 +173,14 @@ export class FontStylesheetGatheringPlugin {
           this.manifestContent = []
           for (let promiseIndex in fontDefinitionPromises) {
             const css = await fontDefinitionPromises[promiseIndex]
-            const content = await minifyCss(css)
-            this.manifestContent.push({
-              url: this.gatheredStylesheets[promiseIndex],
-              content,
-            })
+
+            if (css) {
+              const content = await minifyCss(css)
+              this.manifestContent.push({
+                url: this.gatheredStylesheets[promiseIndex],
+                content,
+              })
+            }
           }
           if (!isWebpack5) {
             compilation.assets[FONT_MANIFEST] = new sources.RawSource(
