@@ -666,7 +666,7 @@ The `context` parameter is an object containing the following keys:
   }
   ```
 
-- `redirect` - An **optional** redirect value to allow redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean }`. In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. Below is an example of how it works:
+- `redirect` - An **optional** redirect value to allow redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean, basePath?: boolean }`. In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. Do `basePath: false` for scenaries when you have a basePath and need to redirect externally. Below is an example of how it works:
 
   ```js
   export async function getServerSideProps(context) {
