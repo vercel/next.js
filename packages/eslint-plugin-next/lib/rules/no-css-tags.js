@@ -26,7 +26,7 @@ module.exports = function (context) {
         context.report({
           node,
           message:
-            'In order to use external stylesheets use @import in the root stylesheet compiled with NextJS. This ensures proper priority to CSS when loading a webpage.',
+            'In order to use external stylesheets use @import in the root stylesheet compiled with NextJS. This ensures proper priority to CSS when loading a webpage. See: https://nextjs.org/docs/basic-features/built-in-css-support.',
         })
       }
     },

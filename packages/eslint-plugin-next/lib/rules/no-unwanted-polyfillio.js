@@ -95,7 +95,7 @@ module.exports = {
           if (unwantedFeatures.length > 0) {
             context.report({
               node,
-              message: `You're requesting polyfills from polyfill.io which are already shipped with NextJS. Please remove ${unwantedFeatures.join(
+              message: `You're requesting polyfills from polyfill.io which are already shipped with NextJS (see: https://nextjs.org/docs/basic-features/supported-browsers-features). Please remove ${unwantedFeatures.join(
                 ', '
               )} from the features list.`,
             })

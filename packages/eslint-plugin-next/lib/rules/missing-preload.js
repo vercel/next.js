@@ -19,7 +19,7 @@ module.exports = {
             context.report({
               node: linkNode,
               message:
-                'Stylesheet does not have an associated preload tag. This could potentially impact First paint.',
+                'Stylesheet does not have an associated preload tag. This could potentially impact First paint. See: https://web.dev/preload-critical-assets/.',
               fix: function (fixer) {
                 return fixer.insertTextBefore(
                   linkNode,
