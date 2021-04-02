@@ -5,7 +5,8 @@ export async function verifyAndLint(
   dir: string,
   pagesDir: string,
   numWorkers: number | undefined,
-  enableWorkerThreads: boolean | undefined
+  enableWorkerThreads: boolean | undefined,
+  typeCheckPreflight: boolean
 ): Promise<void> {
   try {
     const lintWorkers = new Worker(require.resolve('./eslint/runLintCheck'), {
@@ -18,7 +19,15 @@ export async function verifyAndLint(
     lintWorkers.getStdout().pipe(process.stdout)
     lintWorkers.getStderr().pipe(process.stderr)
 
-    console.log('\n' + (await lintWorkers.runLintCheck(dir, pagesDir, null)))
+    console.log(
+      '\n' +
+        (await lintWorkers.runLintCheck(
+          dir,
+          pagesDir,
+          null,
+          typeCheckPreflight
+        ))
+    )
     lintWorkers.end()
   } catch (err) {
     if (err.type === 'ESLintCompileError') {

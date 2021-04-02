@@ -181,19 +181,6 @@ export default async function build(
       telemetry.record(events)
     )
 
-    if (config.experimental.eslint?.build) {
-      await nextBuildSpan
-        .traceChild('verify-and-lint')
-        .traceAsyncFn(async () => {
-          verifyAndLint(
-            dir,
-            pagesDir,
-            config.experimental.cpus,
-            config.experimental.workerThreads
-          )
-        })
-    }
-
     const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
     await nextBuildSpan
       .traceChild('verify-typescript-setup')
@@ -203,6 +190,20 @@ export default async function build(
 
     if (typeCheckingSpinner) {
       typeCheckingSpinner.stopAndPersist()
+    }
+
+    if (config.experimental.eslint?.build) {
+      await nextBuildSpan
+        .traceChild('verify-and-lint')
+        .traceAsyncFn(async () => {
+          verifyAndLint(
+            dir,
+            pagesDir,
+            config.experimental.cpus,
+            config.experimental.workerThreads,
+            !ignoreTypeScriptErrors
+          )
+        })
     }
 
     const buildSpinner = createSpinner({

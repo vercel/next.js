@@ -14,7 +14,7 @@ export async function getLintIntent(
       () => null
     )
 
-    // User is setting up ESLint for the first time setup if eslintrc file exists but is empty
+    // User is setting up ESLint for the first time setup if eslint config exists but is empty
     return {
       firstTimeSetup:
         content === '' ||

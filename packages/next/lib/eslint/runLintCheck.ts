@@ -1,7 +1,6 @@
 import { join } from 'path'
 
 import { formatResults } from './customFormatter'
-
 import { getLintIntent } from './getLintIntent'
 import {
   hasNecessaryDependencies,
@@ -11,6 +10,7 @@ import { writeDefaultConfig } from './writeDefaultConfig'
 import { ESLintCompileError } from './ESLintCompileError'
 
 import { fileExists } from '../file-exists'
+import { getTypeScriptIntent } from '../typescript/getTypeScriptIntent'
 
 import findUp from 'next/dist/compiled/find-up'
 
@@ -89,7 +89,8 @@ async function lint(
 export async function runLintCheck(
   baseDir: string,
   pagesDir: string,
-  pagePath: string | null
+  pagePath: string | null,
+  typeCheckPreflight: boolean
 ): Promise<string | null> {
   try {
     // Per-file linting is enabled but file does not exist
@@ -120,18 +121,22 @@ export async function runLintCheck(
       : {}
 
     // Check if the project uses ESLint
-    const intent = await getLintIntent(eslintrcFile, pkgJsonEslintConfig)
+    const eslintIntent = await getLintIntent(eslintrcFile, pkgJsonEslintConfig)
 
-    if (!intent) {
+    if (!eslintIntent) {
       return null
     }
 
-    const firstTimeSetup = intent.firstTimeSetup
+    const firstTimeSetup = eslintIntent.firstTimeSetup
+
+    // Check if the project uses Typescript to ensure correct ESLint TS parser is installed
+    const tsIntent = await getTypeScriptIntent(baseDir, pagesDir)
 
     // Ensure ESLint and necessary plugins and configs are installed:
     const deps: NecessaryDependencies = await hasNecessaryDependencies(
       baseDir,
-      eslintrcFile
+      eslintrcFile,
+      tsIntent && typeCheckPreflight
     )
 
     // Create the user's eslintrc config for them

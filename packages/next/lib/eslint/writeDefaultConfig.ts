@@ -31,11 +31,13 @@ export async function writeDefaultConfig(
     await fs.writeFile(eslintrcFile, fileContent + os.EOL)
 
     console.log(
-      chalk.green(
-        `We detected ESLint in your project and updated the ${chalk.bold(
-          path.basename(eslintrcFile)
-        )} file for you.`
-      ) + '\n'
+      '\n' +
+        chalk.green(
+          `We detected ESLint in your project and updated the ${chalk.bold(
+            path.basename(eslintrcFile)
+          )} file for you.`
+        ) +
+        '\n'
     )
   } else if (pkgJsonPath) {
     const pkgJsonContent = await fs.readFile(pkgJsonPath, {
@@ -51,11 +53,13 @@ export async function writeDefaultConfig(
     )
 
     console.log(
-      chalk.green(
-        `We detected ESLint in your project and updated the ${chalk.bold(
-          'eslintConfig'
-        )} field for you in package.json...`
-      ) + '\n'
+      '\n' +
+        chalk.green(
+          `We detected ESLint in your project and updated the ${chalk.bold(
+            'eslintConfig'
+          )} field for you in package.json...`
+        ) +
+        '\n'
     )
   }
 }

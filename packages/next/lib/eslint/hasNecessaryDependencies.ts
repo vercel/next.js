@@ -6,7 +6,7 @@ import { ESLintFatalError } from './ESLintFatalError'
 import { fileExists } from '../file-exists'
 import { getOxfordCommaList } from '../oxford-comma-list'
 
-const requiredPackages = [
+const requiredESLintPackages = [
   'eslint',
   '@babel/core',
   '@babel/eslint-parser',
@@ -17,7 +17,7 @@ const requiredPackages = [
   'eslint-plugin-import',
 ]
 
-// const requiredTSPackages = ['@typescript-eslint/parser']
+const requiredTSPackages = ['@typescript-eslint/parser']
 
 export type NecessaryDependencies = {
   resolvedESLint: string
@@ -25,9 +25,15 @@ export type NecessaryDependencies = {
 
 export async function hasNecessaryDependencies(
   baseDir: string,
-  eslintrcFile: string | null
+  eslintrcFile: string | null,
+  isUsingTS: boolean
 ): Promise<NecessaryDependencies> {
   let resolutions = new Map<string, string>()
+
+  // If TypeScript is being used, ensure that @typescript-eslint/parser is also installed
+  const requiredPackages = isUsingTS
+    ? requiredESLintPackages.concat(requiredTSPackages)
+    : requiredESLintPackages
 
   const missingPackages = requiredPackages.filter((pkg) => {
     try {
@@ -50,7 +56,9 @@ export async function hasNecessaryDependencies(
 
   throw new ESLintFatalError(
     chalk.bold.red(
-      `It looks like you're trying to use ESLint but do not have the required package(s) installed.`
+      `It looks like you're trying to use ESLint${
+        isUsingTS ? ' with TypeScript ' : ' '
+      }but do not have the required package(s) installed.`
     ) +
       '\n\n' +
       chalk.bold(
