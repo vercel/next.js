@@ -315,6 +315,31 @@ describe('Image Component Tests', () => {
       })
     })
   })
+  test("it should render blob url's", async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/blob-src')
+      const id = 'blob-image'
+
+      // Wait for blob URL to be created and set
+      await check(
+        async () =>
+          browser.eval(`document.getElementById(${JSON.stringify(id)}).src`),
+        /^blob:/
+      )
+
+      // image will be unoptimized so there will be no srcSet
+      expect(
+        await browser.eval(
+          `document.getElementById(${JSON.stringify(id)}).srcSet`
+        )
+      ).toBeNull()
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
   describe('SSR Lazy Loading Tests', () => {
     beforeAll(async () => {
       browser = await webdriver(appPort, '/lazy')
