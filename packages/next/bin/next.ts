@@ -2,7 +2,6 @@
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
-import opentelemetryApi from '@opentelemetry/api'
 ;['react', 'react-dom'].forEach((dependency) => {
   try {
     // When 'npm link' is used it checks the clone location. Not the project.
@@ -17,13 +16,11 @@ import opentelemetryApi from '@opentelemetry/api'
 const defaultCommand = 'dev'
 export type cliCommand = (argv?: string[]) => void
 const commands: { [command: string]: () => Promise<cliCommand> } = {
-  build: async () => await import('../cli/next-build').then((i) => i.nextBuild),
-  start: async () => await import('../cli/next-start').then((i) => i.nextStart),
-  export: async () =>
-    await import('../cli/next-export').then((i) => i.nextExport),
-  dev: async () => await import('../cli/next-dev').then((i) => i.nextDev),
-  telemetry: async () =>
-    await import('../cli/next-telemetry').then((i) => i.nextTelemetry),
+  build: () => import('../cli/next-build').then((i) => i.nextBuild),
+  start: () => import('../cli/next-start').then((i) => i.nextStart),
+  export: () => import('../cli/next-export').then((i) => i.nextExport),
+  dev: () => import('../cli/next-dev').then((i) => i.nextDev),
+  telemetry: () => import('../cli/next-telemetry').then((i) => i.nextTelemetry),
 }
 
 const args = arg(
@@ -101,7 +98,7 @@ const React = require('react')
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
-    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://err.sh/vercel/next.js/invalid-react-version`
+    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://nextjs.org/docs/messages/invalid-react-version`
   )
 }
 
@@ -111,13 +108,10 @@ process.on('SIGINT', () => process.exit(0))
 
 commands[command]()
   .then((exec) => exec(forwardedArgs))
-  .then(async () => {
+  .then(() => {
     if (command === 'build') {
-      // @ts-ignore getDelegate exists
-      const tp = opentelemetryApi.trace.getTracerProvider().getDelegate()
-      if (tp.shutdown) {
-        await tp.shutdown()
-      }
+      // ensure process exits after build completes so open handles/connections
+      // don't cause process to hang
       process.exit(0)
     }
   })

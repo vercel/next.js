@@ -20,7 +20,7 @@ const Index = () => (
       <p>
         This component is designed to{' '}
         <a href="https://nextjs.org/docs/basic-features/image-optimization">
-          automatically optimizate
+          automatically optimize
         </a>{' '}
         images on-demand as the browser requests them.
       </p>

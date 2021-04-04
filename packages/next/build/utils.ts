@@ -29,9 +29,8 @@ import { removePathTrailingSlash } from '../client/normalize-trailing-slash'
 import { UnwrapPromise } from '../lib/coalesced-function'
 import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 import * as Log from './output/log'
-import opentelemetryApi from '@opentelemetry/api'
-import { tracer, traceAsyncFn } from './tracer'
 import { loadComponents } from '../next-server/server/load-components'
+import { trace } from '../telemetry/trace'
 
 const fileGzipStats: { [k: string]: Promise<number> } = {}
 const fsStatGzip = (file: string) => {
@@ -352,11 +351,17 @@ export function printCustomRoutes({
   if (redirects.length) {
     printRoutes(redirects, 'Redirects')
   }
-  if (rewrites.length) {
-    printRoutes(rewrites, 'Rewrites')
-  }
   if (headers.length) {
     printRoutes(headers, 'Headers')
+  }
+
+  const combinedRewrites = [
+    ...rewrites.beforeFiles,
+    ...rewrites.afterFiles,
+    ...rewrites.fallback,
+  ]
+  if (combinedRewrites.length) {
+    printRoutes(combinedRewrites, 'Rewrites')
   }
 }
 
@@ -536,7 +541,7 @@ export async function buildStaticPaths(
 
   const expectedReturnVal =
     `Expected: { paths: [], fallback: boolean }\n` +
-    `See here for more info: https://err.sh/vercel/next.js/invalid-getstaticpaths-value`
+    `See here for more info: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
 
   if (
     !staticPathsResult ||
@@ -719,7 +724,7 @@ export async function isPageStatic(
   runtimeEnvConfig: any,
   locales?: string[],
   defaultLocale?: string,
-  spanContext?: any
+  parentId?: any
 ): Promise<{
   isStatic?: boolean
   isAmpOnly?: boolean
@@ -731,141 +736,128 @@ export async function isPageStatic(
   prerenderFallback?: boolean | 'blocking'
   isNextImageImported?: boolean
 }> {
-  return opentelemetryApi.context.with(
-    opentelemetryApi.propagation.extract(
-      opentelemetryApi.context.active(),
-      spanContext
-    ),
-    () => {
-      return traceAsyncFn(
-        tracer.startSpan('is-page-static-utils'),
-        async () => {
-          try {
-            require('../next-server/lib/runtime-config').setConfig(
-              runtimeEnvConfig
-            )
-            const components = await loadComponents(distDir, page, serverless)
-            const mod = components.ComponentMod
-            const Comp = mod.default || mod
+  const isPageStaticSpan = trace('is-page-static-utils', parentId)
+  return isPageStaticSpan.traceAsyncFn(async () => {
+    try {
+      require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
+      const components = await loadComponents(distDir, page, serverless)
+      const mod = components.ComponentMod
+      const Comp = mod.default || mod
 
-            if (
-              !Comp ||
-              !isValidElementType(Comp) ||
-              typeof Comp === 'string'
-            ) {
-              throw new Error('INVALID_DEFAULT_EXPORT')
-            }
+      if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
+        throw new Error('INVALID_DEFAULT_EXPORT')
+      }
 
-            const hasGetInitialProps = !!(Comp as any).getInitialProps
-            const hasStaticProps = !!(await mod.getStaticProps)
-            const hasStaticPaths = !!(await mod.getStaticPaths)
-            const hasServerProps = !!(await mod.getServerSideProps)
-            const hasLegacyServerProps = !!(await mod.unstable_getServerProps)
-            const hasLegacyStaticProps = !!(await mod.unstable_getStaticProps)
-            const hasLegacyStaticPaths = !!(await mod.unstable_getStaticPaths)
-            const hasLegacyStaticParams = !!(await mod.unstable_getStaticParams)
+      const hasGetInitialProps = !!(Comp as any).getInitialProps
+      const hasStaticProps = !!(await mod.getStaticProps)
+      const hasStaticPaths = !!(await mod.getStaticPaths)
+      const hasServerProps = !!(await mod.getServerSideProps)
+      const hasLegacyServerProps = !!(await mod.unstable_getServerProps)
+      const hasLegacyStaticProps = !!(await mod.unstable_getStaticProps)
+      const hasLegacyStaticPaths = !!(await mod.unstable_getStaticPaths)
+      const hasLegacyStaticParams = !!(await mod.unstable_getStaticParams)
 
-            if (hasLegacyStaticParams) {
-              throw new Error(
-                `unstable_getStaticParams was replaced with getStaticPaths. Please update your code.`
-              )
-            }
+      if (hasLegacyStaticParams) {
+        throw new Error(
+          `unstable_getStaticParams was replaced with getStaticPaths. Please update your code.`
+        )
+      }
 
-            if (hasLegacyStaticPaths) {
-              throw new Error(
-                `unstable_getStaticPaths was replaced with getStaticPaths. Please update your code.`
-              )
-            }
+      if (hasLegacyStaticPaths) {
+        throw new Error(
+          `unstable_getStaticPaths was replaced with getStaticPaths. Please update your code.`
+        )
+      }
 
-            if (hasLegacyStaticProps) {
-              throw new Error(
-                `unstable_getStaticProps was replaced with getStaticProps. Please update your code.`
-              )
-            }
+      if (hasLegacyStaticProps) {
+        throw new Error(
+          `unstable_getStaticProps was replaced with getStaticProps. Please update your code.`
+        )
+      }
 
-            if (hasLegacyServerProps) {
-              throw new Error(
-                `unstable_getServerProps was replaced with getServerSideProps. Please update your code.`
-              )
-            }
+      if (hasLegacyServerProps) {
+        throw new Error(
+          `unstable_getServerProps was replaced with getServerSideProps. Please update your code.`
+        )
+      }
 
-            // A page cannot be prerendered _and_ define a data requirement. That's
-            // contradictory!
-            if (hasGetInitialProps && hasStaticProps) {
-              throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT)
-            }
+      // A page cannot be prerendered _and_ define a data requirement. That's
+      // contradictory!
+      if (hasGetInitialProps && hasStaticProps) {
+        throw new Error(SSG_GET_INITIAL_PROPS_CONFLICT)
+      }
 
-            if (hasGetInitialProps && hasServerProps) {
-              throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT)
-            }
+      if (hasGetInitialProps && hasServerProps) {
+        throw new Error(SERVER_PROPS_GET_INIT_PROPS_CONFLICT)
+      }
 
-            if (hasStaticProps && hasServerProps) {
-              throw new Error(SERVER_PROPS_SSG_CONFLICT)
-            }
+      if (hasStaticProps && hasServerProps) {
+        throw new Error(SERVER_PROPS_SSG_CONFLICT)
+      }
 
-            const pageIsDynamic = isDynamicRoute(page)
-            // A page cannot have static parameters if it is not a dynamic page.
-            if (hasStaticProps && hasStaticPaths && !pageIsDynamic) {
-              throw new Error(
-                `getStaticPaths can only be used with dynamic pages, not '${page}'.` +
-                  `\nLearn more: https://nextjs.org/docs/routing/dynamic-routes`
-              )
-            }
+      const pageIsDynamic = isDynamicRoute(page)
+      // A page cannot have static parameters if it is not a dynamic page.
+      if (hasStaticProps && hasStaticPaths && !pageIsDynamic) {
+        throw new Error(
+          `getStaticPaths can only be used with dynamic pages, not '${page}'.` +
+            `\nLearn more: https://nextjs.org/docs/routing/dynamic-routes`
+        )
+      }
 
-            if (hasStaticProps && pageIsDynamic && !hasStaticPaths) {
-              throw new Error(
-                `getStaticPaths is required for dynamic SSG pages and is missing for '${page}'.` +
-                  `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
-              )
-            }
+      if (hasStaticProps && pageIsDynamic && !hasStaticPaths) {
+        throw new Error(
+          `getStaticPaths is required for dynamic SSG pages and is missing for '${page}'.` +
+            `\nRead more: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
+        )
+      }
 
-            let prerenderRoutes: Array<string> | undefined
-            let encodedPrerenderRoutes: Array<string> | undefined
-            let prerenderFallback: boolean | 'blocking' | undefined
-            if (hasStaticProps && hasStaticPaths) {
-              ;({
-                paths: prerenderRoutes,
-                fallback: prerenderFallback,
-                encodedPaths: encodedPrerenderRoutes,
-              } = await buildStaticPaths(
-                page,
-                mod.getStaticPaths,
-                locales,
-                defaultLocale
-              ))
-            }
+      let prerenderRoutes: Array<string> | undefined
+      let encodedPrerenderRoutes: Array<string> | undefined
+      let prerenderFallback: boolean | 'blocking' | undefined
+      if (hasStaticProps && hasStaticPaths) {
+        ;({
+          paths: prerenderRoutes,
+          fallback: prerenderFallback,
+          encodedPaths: encodedPrerenderRoutes,
+        } = await buildStaticPaths(
+          page,
+          mod.getStaticPaths,
+          locales,
+          defaultLocale
+        ))
+      }
 
-            const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
-            const config = mod.config || {}
-            return {
-              isStatic:
-                !hasStaticProps && !hasGetInitialProps && !hasServerProps,
-              isHybridAmp: config.amp === 'hybrid',
-              isAmpOnly: config.amp === true,
-              prerenderRoutes,
-              prerenderFallback,
-              encodedPrerenderRoutes,
-              hasStaticProps,
-              hasServerProps,
-              isNextImageImported,
-            }
-          } catch (err) {
-            if (err.code === 'MODULE_NOT_FOUND') return {}
-            throw err
-          }
-        }
-      )
+      const isNextImageImported = (global as any).__NEXT_IMAGE_IMPORTED
+      const config = mod.config || {}
+      return {
+        isStatic: !hasStaticProps && !hasGetInitialProps && !hasServerProps,
+        isHybridAmp: config.amp === 'hybrid',
+        isAmpOnly: config.amp === true,
+        prerenderRoutes,
+        prerenderFallback,
+        encodedPrerenderRoutes,
+        hasStaticProps,
+        hasServerProps,
+        isNextImageImported,
+      }
+    } catch (err) {
+      if (err.code === 'MODULE_NOT_FOUND') return {}
+      throw err
     }
-  )
+  })
 }
 
 export async function hasCustomGetInitialProps(
-  bundle: string,
+  page: string,
+  distDir: string,
+  isLikeServerless: boolean,
   runtimeEnvConfig: any,
   checkingApp: boolean
 ): Promise<boolean> {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
-  let mod = require(bundle)
+
+  const components = await loadComponents(distDir, page, isLikeServerless)
+  let mod = components.ComponentMod
 
   if (checkingApp) {
     mod = (await mod._app) || mod.default || mod
@@ -876,12 +868,17 @@ export async function hasCustomGetInitialProps(
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 
-export function getNamedExports(
-  bundle: string,
+export async function getNamedExports(
+  page: string,
+  distDir: string,
+  isLikeServerless: boolean,
   runtimeEnvConfig: any
-): Array<string> {
+): Promise<Array<string>> {
   require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
-  return Object.keys(require(bundle))
+  const components = await loadComponents(distDir, page, isLikeServerless)
+  let mod = components.ComponentMod
+
+  return Object.keys(mod)
 }
 
 export function detectConflictingPaths(
@@ -953,7 +950,7 @@ export function detectConflictingPaths(
 
     Log.error(
       'Conflicting paths returned from getStaticPaths, paths must unique per page.\n' +
-        'See more info here: https://err.sh/next.js/conflicting-ssg-paths\n\n' +
+        'See more info here: https://nextjs.org/docs/messages/conflicting-ssg-paths\n\n' +
         conflictingPathsOutput
     )
     process.exit(1)

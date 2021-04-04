@@ -37,7 +37,7 @@ function isIgnoredPlugin(pluginPath: string): boolean {
       plugin
     )} plugin from your PostCSS configuration. ` +
       `This plugin is automatically configured by Next.js.\n` +
-      'Read more: https://err.sh/next.js/postcss-ignored-plugin'
+      'Read more: https://nextjs.org/docs/messages/postcss-ignored-plugin'
   )
   return true
 }
@@ -119,7 +119,7 @@ export async function getPostCssPlugins(
   if (typeof config === 'function') {
     throw new Error(
       `Your custom PostCSS configuration may not export a function. Please export a plain object instead.\n` +
-        'Read more: https://err.sh/next.js/postcss-function'
+        'Read more: https://nextjs.org/docs/messages/postcss-function'
     )
   }
 
@@ -184,14 +184,14 @@ export async function getPostCssPlugins(
             )}: A PostCSS Plugin must be provided as a ${chalk.bold(
               'string'
             )}. Instead, we got: '${pluginName}'.\n` +
-              'Read more: https://err.sh/next.js/postcss-shape'
+              'Read more: https://nextjs.org/docs/messages/postcss-shape'
           )
         } else {
           console.error(
             `${chalk.red.bold(
               'Error'
             )}: A PostCSS Plugin was passed as an array but did not provide its configuration ('${pluginName}').\n` +
-              'Read more: https://err.sh/next.js/postcss-shape'
+              'Read more: https://nextjs.org/docs/messages/postcss-shape'
           )
         }
         throw new Error(genericErrorText)
@@ -202,7 +202,7 @@ export async function getPostCssPlugins(
           'Error'
         )}: A PostCSS Plugin was passed as a function using require(), but it must be provided as a ${chalk.bold(
           'string'
-        )}.\nRead more: https://err.sh/next.js/postcss-shape`
+        )}.\nRead more: https://nextjs.org/docs/messages/postcss-shape`
       )
       throw new Error(genericErrorText)
     } else {
@@ -210,7 +210,7 @@ export async function getPostCssPlugins(
         `${chalk.red.bold(
           'Error'
         )}: An unknown PostCSS plugin was provided (${plugin}).\n` +
-          'Read more: https://err.sh/next.js/postcss-shape'
+          'Read more: https://nextjs.org/docs/messages/postcss-shape'
       )
       throw new Error(genericErrorText)
     }
