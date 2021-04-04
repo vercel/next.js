@@ -192,7 +192,7 @@ export default async function build(
       typeCheckingSpinner.stopAndPersist()
     }
 
-    if (config.experimental.eslint?.build) {
+    if (config.experimental.eslint) {
       await nextBuildSpan
         .traceChild('verify-and-lint')
         .traceAsyncFn(async () => {

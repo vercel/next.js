@@ -59,10 +59,7 @@ export type NextConfig = { [key: string]: any } & {
       validator?: string
       skipValidation?: boolean
     }
-    eslint?: {
-      dev?: boolean
-      build?: boolean
-    }
+    eslint?: boolean
   }
 }
 
@@ -117,10 +114,7 @@ export const defaultConfig: NextConfig = {
     stats: false,
     externalDir: false,
     serialWebpackBuild: false,
-    eslint: {
-      dev: false,
-      build: false,
-    },
+    eslint: false,
   },
   future: {
     strictPostcssConfiguration: false,
