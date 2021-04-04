@@ -29,10 +29,10 @@ npm install body-parser
 Use the package within server.js:
 
 ```js
-const bodyParser = require('body-parser');
+const bodyParser = require('body-parser')
 
 app.prepare().then(() => {
-  const server = express();
+  const server = express()
   server.use(bodyParser.urlencoded({ extended: true }))
   server.use(bodyParser.json())
 })
