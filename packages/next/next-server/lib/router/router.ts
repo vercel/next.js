@@ -963,7 +963,7 @@ export default class Router implements BaseRouter {
     if (pathname !== '/_error') {
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
         const rewritesResult = resolveRewrites(
-          as,
+          addBasePath(addLocale(cleanedAs, this.locale)),
           pages,
           rewrites,
           query,
