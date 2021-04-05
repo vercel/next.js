@@ -453,7 +453,7 @@ export default async function build(
           BUILD_MANIFEST,
           PRERENDER_MANIFEST,
           REACT_LOADABLE_MANIFEST,
-          config.experimental.optimizeFonts
+          config.optimizeFonts
             ? path.join(
                 isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
                 FONT_MANIFEST

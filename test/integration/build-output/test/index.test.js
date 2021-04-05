@@ -99,7 +99,7 @@ describe('Build Output', () => {
       expect(parseFloat(indexFirstLoad)).toBeCloseTo(65.3, 1)
       expect(indexFirstLoad.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(err404Size) - 3.7).toBeLessThanOrEqual(0)
+      expect(parseFloat(err404Size)).toBeCloseTo(3.7, 1)
       expect(err404Size.endsWith('kB')).toBe(true)
 
       expect(parseFloat(err404FirstLoad)).toBeCloseTo(68.5, 0)
