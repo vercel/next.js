@@ -4,10 +4,9 @@ module.exports = {
     'plugin:react-hooks/recommended',
     'plugin:@next/next/recommended',
   ],
-  plugins: ['import', 'react'],
+  plugins: ['import'],
   rules: {
     'import/no-anonymous-default-export': 'warn',
-    'react/react-in-jsx-scope': 'off', // can be removed when Next.js only supports React versions with the new JSX transform,
   },
   parser: '@babel/eslint-parser',
   parserOptions: {
