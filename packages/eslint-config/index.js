@@ -4,9 +4,10 @@ module.exports = {
     'plugin:react-hooks/recommended',
     'plugin:@next/next/recommended',
   ],
-  plugins: ['import'],
+  plugins: ['import', 'react'],
   rules: {
     'import/no-anonymous-default-export': 'warn',
+    'react/react-in-jsx-scope': 'off',
   },
   parser: '@babel/eslint-parser',
   parserOptions: {

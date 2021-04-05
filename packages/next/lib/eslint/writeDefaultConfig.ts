@@ -2,7 +2,6 @@ import { promises as fs } from 'fs'
 import chalk from 'chalk'
 import os from 'os'
 import path from 'path'
-import yaml from 'js-yaml'
 
 import * as CommentJson from 'next/dist/compiled/comment-json'
 
@@ -19,7 +18,7 @@ export async function writeDefaultConfig(
 
     let fileContent
     if (ext === '.yaml' || ext === '.yml') {
-      fileContent = yaml.dump(defaultConfig)
+      fileContent = "extends: '@next'"
     } else {
       fileContent = CommentJson.stringify(defaultConfig, null, 2)
 
