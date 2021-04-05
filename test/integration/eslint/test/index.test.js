@@ -14,9 +14,11 @@ describe('ESLint', () => {
     })
 
     expect(stderr).toContain(
-      `It looks like you're trying to use ESLint but do not have the required package(s) installed.`
+      `It looks like you're trying to use ESLint but do not have the following required package(s) installed:`
     )
-    expect(stderr).toContain('Please install all missing dependencies by running:')
+    expect(stderr).toContain(
+      'Please install all required dependencies by running:'
+    )
     expect(stderr).toContain('npx install-peerdeps --dev @next/eslint-config')
     expect(stderr).toContain(
       'If you are not trying to use ESLint, please remove the .eslintrc file from your application.'
