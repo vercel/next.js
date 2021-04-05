@@ -692,6 +692,22 @@ const runTests = (isDev = false) => {
     expect(res2.status).toBe(404)
   })
 
+  it('should pass has segment for rewrite correctly', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/has-rewrite-5')
+    expect(res1.status).toBe(404)
+
+    const res = await fetchViaHTTP(appPort, '/has-rewrite-5', {
+      hasParam: 'with-params',
+    })
+
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+
+    expect(JSON.parse($('#query').text())).toEqual({
+      hasParam: 'with-params',
+    })
+  })
+
   it('should match has rewrite correctly before files', async () => {
     const res1 = await fetchViaHTTP(appPort, '/hello')
     expect(res1.status).toBe(200)
@@ -1508,6 +1524,17 @@ const runTests = (isDev = false) => {
               ],
               regex: '^\\/has-rewrite-4$',
               source: '/has-rewrite-4',
+            },
+            {
+              destination: '/:hasParam',
+              has: [
+                {
+                  key: 'hasParam',
+                  type: 'query',
+                },
+              ],
+              regex: normalizeRegEx('^\\/has-rewrite-5$'),
+              source: '/has-rewrite-5',
             },
           ],
           fallback: [],
