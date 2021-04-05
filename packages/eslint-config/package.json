@@ -1,11 +1,26 @@
 {
   "name": "@next/eslint-config",
-  "version": "10.1.3-canary.0",
-  "description": "ESLint shareable config for NextJS.",
+  "version": "10.1.3",
+  "description": "ESLint configuration used by NextJS.",
   "main": "index.js",
   "license": "MIT",
   "repository": {
     "url": "vercel/next.js",
-    "directory": "packages/eslint-config-next"
+    "directory": "packages/eslint-config"
+  },
+  "peerDependencies": {
+    "@babel/core": "^7.13.14",
+    "@babel/eslint-parser": "^7.13.14",
+    "@next/eslint-plugin-next": "^10.1.3",
+    "@typescript-eslint/parser": "^4.20.0",
+    "eslint": "^7.23.0",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-react": "^7.23.1",
+    "eslint-plugin-react-hooks": "^4.2.0"
+  },
+  "peerDependenciesMeta": {
+    "@typescript-eslint/parser": {
+      "optional": true
+    }
   }
 }
