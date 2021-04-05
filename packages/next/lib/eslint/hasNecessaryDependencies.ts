@@ -3,9 +3,6 @@ import path from 'path'
 
 import { ESLintFatalError } from './ESLintFatalError'
 
-import { fileExists } from '../file-exists'
-import { getOxfordCommaList } from '../oxford-comma-list'
-
 const requiredESLintPackages = [
   'eslint',
   '@babel/core',
@@ -48,11 +45,9 @@ export async function hasNecessaryDependencies(
     return { resolvedESLint: resolutions.get('eslint')! }
   }
 
-  const yarnLockFile = path.join(baseDir, 'yarn.lock')
-  const isYarn = await fileExists(yarnLockFile).catch(() => false)
   const removalLocation = eslintrcFile
-    ? chalk.cyan(path.basename(eslintrcFile)) + ' file from your application.'
-    : chalk.cyan('eslintConfig') + ' field from your package.json file.'
+    ? chalk.cyan(path.basename(eslintrcFile)) + ' file from your application'
+    : chalk.cyan('eslintConfig') + ' field from your package.json file'
 
   throw new ESLintFatalError(
     chalk.bold.red(
@@ -61,22 +56,12 @@ export async function hasNecessaryDependencies(
       }but do not have the required package(s) installed.`
     ) +
       '\n\n' +
-      chalk.bold(
-        `Please install ${chalk.bold(
-          getOxfordCommaList(missingPackages)
-        )} by running:`
-      ) +
+      chalk.bold(`Please install all missing dependencies by running:`) +
       '\n\n' +
-      `\t${chalk.bold.cyan(
-        (isYarn ? 'yarn add --dev' : 'npm install --save-dev') +
-          ' ' +
-          missingPackages.join(' ')
-      )}` +
+      `\t${chalk.bold.cyan('npx install-peerdeps --dev @next/eslint-config')}` +
       '\n\n' +
       chalk.bold(
-        'If you are not trying to use ESLint, please remove the ' +
-          removalLocation
-      ) +
-      '\n'
+        `If you are not trying to use ESLint, please remove the ${removalLocation}.\n\nLearn more: https://nextjs.org/docs/basic-features/eslint\n`
+      )
   )
 }
