@@ -59,7 +59,7 @@ ruleTester.run('unwanted-polyfillsio', rule, {
       errors: [
         {
           message:
-            "You're requesting polyfills from polyfill.io which are already shipped with NextJS. Please remove WeakSet, Promise, Promise.prototype.finally, es2015, es5, es6 from the features list.",
+            "You're requesting polyfills from polyfill.io which are already shipped with NextJS (see: https://nextjs.org/docs/basic-features/supported-browsers-features). Please remove WeakSet, Promise, Promise.prototype.finally, es2015, es5, es6 from the features list.",
           type: 'JSXOpeningElement',
         },
       ],
@@ -79,7 +79,7 @@ ruleTester.run('unwanted-polyfillsio', rule, {
       errors: [
         {
           message:
-            "You're requesting polyfills from polyfill.io which are already shipped with NextJS. Please remove Array.prototype.copyWithin from the features list.",
+            "You're requesting polyfills from polyfill.io which are already shipped with NextJS (see: https://nextjs.org/docs/basic-features/supported-browsers-features). Please remove Array.prototype.copyWithin from the features list.",
           type: 'JSXOpeningElement',
         },
       ],
