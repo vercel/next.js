@@ -1,0 +1,6 @@
+{
+  "devDependencies": {
+    "@babel/eslint-parser": "*",
+    "eslint": "*"
+  }
+}
