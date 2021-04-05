@@ -2,6 +2,7 @@ import chalk from 'chalk'
 import path from 'path'
 
 import { ESLintFatalError } from './ESLintFatalError'
+import { getOxfordCommaList } from '../oxford-comma-list'
 
 const requiredESLintPackages = [
   'eslint',
@@ -51,12 +52,12 @@ export async function hasNecessaryDependencies(
 
   throw new ESLintFatalError(
     chalk.bold.red(
-      `It looks like you're trying to use ESLint${
-        isUsingTS ? ' with TypeScript ' : ' '
-      }but do not have the required package(s) installed.`
+      `It looks like you're trying to use ESLint but do not have the following required package(s) installed:`
     ) +
+      `\n\n\t` +
+      getOxfordCommaList(missingPackages) +
       '\n\n' +
-      chalk.bold(`Please install all missing dependencies by running:`) +
+      chalk.bold(`Please install all required dependencies by running:`) +
       '\n\n' +
       `\t${chalk.bold.cyan('npx install-peerdeps --dev @next/eslint-config')}` +
       '\n\n' +
