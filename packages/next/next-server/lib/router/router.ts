@@ -507,7 +507,7 @@ export default class Router implements BaseRouter {
   _bps: BeforePopStateCallback | undefined
   events: MittEmitter<
     RouterEvent,
-    (url: string, routeProps: { shadow: boolean }) => void
+    (url: string, routeProps: { shallow: boolean }) => void
   > = mitt()
   _wrapApp: (App: AppComponent) => any
   isSsr: boolean
@@ -526,7 +526,7 @@ export default class Router implements BaseRouter {
 
   static events: MittEmitter<
     RouterEvent,
-    (url: string, routeProps: { shadow: boolean }) => void
+    (url: string, routeProps: { shallow: boolean }) => void
   > = mitt()
 
   constructor(
