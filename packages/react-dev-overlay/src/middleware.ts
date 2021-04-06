@@ -114,12 +114,14 @@ export async function createOriginalStackFrame({
   line,
   column,
   source,
+  modulePath,
   rootDirectory,
   frame,
 }: {
   line: number
   column: number | null
   source: any
+  modulePath?: string
   rootDirectory: string
   frame: any
 }): Promise<OriginalStackFrameResponse | null> {
@@ -140,7 +142,7 @@ export async function createOriginalStackFrame({
 
   const filePath = path.resolve(
     rootDirectory,
-    getSourcePath(sourcePosition.source)
+    modulePath || getSourcePath(sourcePosition.source)
   )
 
   const originalFrame: StackFrame = {
@@ -285,6 +287,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           column: frameColumn,
           source,
           frame,
+          modulePath: moduleId,
           rootDirectory: options.rootDirectory,
         })
 

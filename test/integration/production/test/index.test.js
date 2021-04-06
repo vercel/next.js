@@ -58,8 +58,8 @@ describe('Production Usage', () => {
   afterAll(() => stopApp(server))
 
   it('should contain generated page count in output', async () => {
-    expect(output).toContain('Generating static pages (0/36)')
-    expect(output).toContain('Generating static pages (36/36)')
+    expect(output).toContain('Generating static pages (0/37)')
+    expect(output).toContain('Generating static pages (37/37)')
     // we should only have 4 segments and the initial message logged out
     expect(output.match(/Generating static pages/g).length).toBe(5)
   })
@@ -780,6 +780,10 @@ describe('Production Usage', () => {
 
   it('should not emit profiling events', async () => {
     expect(existsSync(join(appDir, '.next', 'profile-events.json'))).toBe(false)
+  })
+
+  it('should not emit stats', async () => {
+    expect(existsSync(join(appDir, '.next', 'next-stats.json'))).toBe(false)
   })
 
   it('should contain the Next.js version in window export', async () => {
