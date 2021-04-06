@@ -17,6 +17,14 @@ export { Router, NextRouter }
 
 export type SingletonRouter = SingletonRouterBase & NextRouter
 
+export type RouterEvent =
+  | 'routeChangeStart'
+  | 'beforeHistoryChange'
+  | 'routeChangeComplete'
+  | 'routeChangeError'
+  | 'hashChangeStart'
+  | 'hashChangeComplete'
+
 const singletonRouter: SingletonRouterBase = {
   router: null, // holds the actual router instance
   readyCallbacks: [],
@@ -44,7 +52,7 @@ const urlPropertyFields = [
   'isPreview',
   'isLocaleDomain',
 ]
-const routerEvents = [
+const routerEvents: RouterEvent[] = [
   'routeChangeStart',
   'beforeHistoryChange',
   'routeChangeComplete',
@@ -89,7 +97,7 @@ coreMethodFields.forEach((field: string) => {
   }
 })
 
-routerEvents.forEach((event: string) => {
+routerEvents.forEach((event: RouterEvent) => {
   singletonRouter.ready(() => {
     Router.events.on(event, (...args) => {
       const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(
