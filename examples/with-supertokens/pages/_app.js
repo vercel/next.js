@@ -45,6 +45,7 @@ if (typeof window !== 'undefined') {
       apiBasePath,
     },
     recipeList: [EmailPasswordNode.init(), SessionNode.init()],
+    isInServerlessEnv: true
   })
 }
 
