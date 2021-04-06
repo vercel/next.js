@@ -205,9 +205,9 @@ export default class Server {
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
       images: JSON.stringify(this.nextConfig.images),
-      optimizeFonts: !!this.nextConfig.experimental.optimizeFonts && !dev,
+      optimizeFonts: !!this.nextConfig.optimizeFonts && !dev,
       fontManifest:
-        this.nextConfig.experimental.optimizeFonts && !dev
+        this.nextConfig.optimizeFonts && !dev
           ? requireFontManifest(this.distDir, this._isLikeServerless)
           : null,
       optimizeImages: !!this.nextConfig.experimental.optimizeImages,
@@ -272,9 +272,9 @@ export default class Server {
 
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
-     * Using this from process.env allows targetting both serverless and SSR by calling
+     * Using this from process.env allows targeting both serverless and SSR by calling
      * `process.env.__NEXT_OPTIMIZE_IMAGES`.
-     * TODO(atcastle@): Remove this when experimental.optimizeImages are being clened up.
+     * TODO(atcastle@): Remove this when experimental.optimizeImages are being cleaned up.
      */
     if (this.renderOpts.optimizeFonts) {
       process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
