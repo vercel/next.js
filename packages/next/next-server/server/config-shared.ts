@@ -93,6 +93,7 @@ export const defaultConfig: NextConfig = {
   trailingSlash: false,
   i18n: null,
   productionBrowserSourceMaps: false,
+  optimizeFonts: true,
   experimental: {
     cpus: Math.max(
       1,
@@ -105,7 +106,6 @@ export const defaultConfig: NextConfig = {
     reactMode: 'legacy',
     workerThreads: false,
     pageEnv: false,
-    optimizeFonts: false,
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
@@ -122,10 +122,6 @@ export const defaultConfig: NextConfig = {
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
   reactStrictMode: false,
-  eslint: {
-    dev: false,
-    build: true,
-  },
 }
 
 export function normalizeConfig(phase: string, config: any) {
@@ -134,7 +130,7 @@ export function normalizeConfig(phase: string, config: any) {
 
     if (typeof config.then === 'function') {
       throw new Error(
-        '> Promise returned in next config. https://err.sh/vercel/next.js/promise-in-next-config'
+        '> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config'
       )
     }
   }

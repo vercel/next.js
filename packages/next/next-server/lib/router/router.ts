@@ -125,9 +125,11 @@ export function addLocale(
 
 export function delLocale(path: string, locale?: string) {
   if (process.env.__NEXT_I18N_SUPPORT) {
+    const pathname = pathNoQueryHash(path)
     return locale &&
-      (path.startsWith('/' + locale + '/') || path === '/' + locale)
-      ? path.substr(locale.length + 1) || '/'
+      (pathname.startsWith('/' + locale + '/') || pathname === '/' + locale)
+      ? (pathname.length === locale.length + 1 ? '/' : '') +
+          path.substr(locale.length + 1)
       : path
   }
   return path
@@ -961,7 +963,7 @@ export default class Router implements BaseRouter {
     if (pathname !== '/_error') {
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
         const rewritesResult = resolveRewrites(
-          addBasePath(addLocale(delBasePath(as), this.locale)),
+          addBasePath(addLocale(cleanedAs, this.locale)),
           pages,
           rewrites,
           query,
@@ -993,7 +995,7 @@ export default class Router implements BaseRouter {
       if (process.env.NODE_ENV !== 'production') {
         throw new Error(
           `Invalid href: "${url}" and as: "${as}", received relative href and external as` +
-            `\nSee more info: https://err.sh/next.js/invalid-relative-url-external-as`
+            `\nSee more info: https://nextjs.org/docs/messages/invalid-relative-url-external-as`
         )
       }
 
@@ -1039,7 +1041,7 @@ export default class Router implements BaseRouter {
                   ', '
                 )}) to be interpolated properly. `
               : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) +
-              `Read more: https://err.sh/vercel/next.js/${
+              `Read more: https://nextjs.org/docs/messages/${
                 shouldInterpolate
                   ? 'href-interpolation-failed'
                   : 'incompatible-href-as'

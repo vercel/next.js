@@ -1,4 +1,28 @@
+import { TextDecoder } from '../text-decoder'
+
 let wasm
+
+let cachedTextDecoder = new TextDecoder('utf-8', {
+  ignoreBOM: true,
+  fatal: true,
+})
+
+cachedTextDecoder.decode()
+
+let cachegetUint8Memory0 = null
+function getUint8Memory0() {
+  if (
+    cachegetUint8Memory0 === null ||
+    cachegetUint8Memory0.buffer !== wasm.memory.buffer
+  ) {
+    cachegetUint8Memory0 = new Uint8Array(wasm.memory.buffer)
+  }
+  return cachegetUint8Memory0
+}
+
+function getStringFromWasm0(ptr, len) {
+  return cachedTextDecoder.decode(getUint8Memory0().subarray(ptr, ptr + len))
+}
 
 let cachegetUint8ClampedMemory0 = null
 function getUint8ClampedMemory0() {
@@ -28,17 +52,6 @@ function addHeapObject(obj) {
 
   heap[idx] = obj
   return idx
-}
-
-let cachegetUint8Memory0 = null
-function getUint8Memory0() {
-  if (
-    cachegetUint8Memory0 === null ||
-    cachegetUint8Memory0.buffer !== wasm.memory.buffer
-  ) {
-    cachegetUint8Memory0 = new Uint8Array(wasm.memory.buffer)
-  }
-  return cachegetUint8Memory0
 }
 
 let WASM_VECTOR_LEN = 0
@@ -161,7 +174,9 @@ async function init(input) {
     var ret = new ImageData(v0, arg2 >>> 0, arg3 >>> 0)
     return addHeapObject(ret)
   }
-
+  imports.wbg.__wbindgen_throw = function (arg0, arg1) {
+    throw new Error(getStringFromWasm0(arg0, arg1))
+  }
   if (
     typeof input === 'string' ||
     (typeof Request === 'function' && input instanceof Request) ||
@@ -179,3 +194,11 @@ async function init(input) {
 }
 
 export default init
+
+// Manually remove the wasm and memory references to trigger GC
+export function cleanup() {
+  wasm = null
+  cachegetUint8ClampedMemory0 = null
+  cachegetUint8Memory0 = null
+  cachegetInt32Memory0 = null
+}
