@@ -503,7 +503,7 @@ export default class Router implements BaseRouter {
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
   events: MittEmitter
-  _wrapApp: (App: AppComponent) => any
+  _wrapApp: (App: AppComponent, ctx: NextPageContext) => any
   isSsr: boolean
   isFallback: boolean
   _inFlightRoute?: string
@@ -544,7 +544,7 @@ export default class Router implements BaseRouter {
       pageLoader: any
       Component: ComponentType
       App: AppComponent
-      wrapApp: (App: AppComponent) => any
+      wrapApp: (App: AppComponent, ctx: NextPageContext) => any
       err?: Error
       isFallback: boolean
       locale?: string
@@ -1616,7 +1616,7 @@ export default class Router implements BaseRouter {
     ctx: NextPageContext
   ): Promise<any> {
     const { Component: App } = this.components['/_app']
-    const AppTree = this._wrapApp(App as AppComponent)
+    const AppTree = this._wrapApp(App as AppComponent, ctx)
     ctx.AppTree = AppTree
     return loadGetInitialProps<AppContextType<Router>>(App, {
       AppTree,
