@@ -121,7 +121,7 @@ describe('Invalid hrefs', () => {
         expect(
           errors.find((err) =>
             err.includes(
-              'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://err.sh/vercel/next.js/incompatible-href-as'
+              'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://nextjs.org/docs/messages/incompatible-href-as'
             )
           )
         ).toBeTruthy()
