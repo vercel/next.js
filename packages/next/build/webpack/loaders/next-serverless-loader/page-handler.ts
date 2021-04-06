@@ -363,7 +363,11 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
             }
             const statusCode = getRedirectStatus(redirect)
 
-            if (basePath && redirect.basePath !== false) {
+            if (
+              basePath &&
+              redirect.basePath !== false &&
+              redirect.destination.startsWith('/')
+            ) {
               redirect.destination = `${basePath}${redirect.destination}`
             }
 

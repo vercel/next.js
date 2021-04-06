@@ -188,6 +188,54 @@ const runTests = (isDev) => {
     expect(pathname).toBe('/missing')
   })
 
+  it('should apply redirect when fallback GSP page is visited directly (external domain)', async () => {
+    const browser = await webdriver(
+      appPort,
+      '/gsp-blog/redirect-dest-external',
+      true,
+      true
+    )
+
+    await check(
+      () => browser.eval(() => document.location.hostname),
+      'example.com'
+    )
+
+    const initialHref = await browser.eval(() => window.initialHref)
+    expect(initialHref).toBe(null)
+  })
+
+  it('should apply redirect when fallback GSSP page is visited directly (external domain)', async () => {
+    const browser = await webdriver(
+      appPort,
+      '/gssp-blog/redirect-dest-external',
+      true,
+      true
+    )
+
+    await check(
+      () => browser.eval(() => document.location.hostname),
+      'example.com'
+    )
+
+    const initialHref = await browser.eval(() => window.initialHref)
+    expect(initialHref).toBe(null)
+
+    const res = await fetchViaHTTP(
+      appPort,
+      '/gssp-blog/redirect-dest-external',
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+    expect(res.status).toBe(307)
+
+    const parsed = url.parse(res.headers.get('location'))
+    expect(parsed.hostname).toBe('example.com')
+    expect(parsed.pathname).toBe('/')
+  })
+
   it('should apply redirect when GSSP page is navigated to client-side (internal dynamic)', async () => {
     const browser = await webdriver(
       appPort,
