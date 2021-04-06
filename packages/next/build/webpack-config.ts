@@ -966,7 +966,7 @@ export default async function getBaseWebpackConfig(
                   loader: 'next/dist/compiled/cache-loader',
                   options: {
                     cacheContext: dir,
-                    cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
+                    cacheDirectory: path.join(distDir, 'cache', 'webpack'),
                     cacheIdentifier: `webpack${isServer ? '-server' : ''}`,
                   },
                 },
@@ -1271,7 +1271,7 @@ export default async function getBaseWebpackConfig(
       //  - Next.js version
       //  - next.config.js keys that affect compilation
       version: `${process.env.__NEXT_VERSION}|${configVars}`,
-      cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
+      cacheDirectory: path.join(distDir, 'cache', 'webpack'),
     }
 
     // Adds `next.config.js` as a buildDependency when custom webpack config is provided
