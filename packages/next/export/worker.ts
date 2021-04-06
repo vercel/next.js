@@ -146,7 +146,10 @@ export default async function exportPage({
       }
 
       // Check if the page is a specified dynamic route
-      if (isDynamic && page !== path) {
+      const nonLocalizedPath = normalizeLocalePath(path, renderOpts.locales)
+        .pathname
+
+      if (isDynamic && page !== nonLocalizedPath) {
         params = getRouteMatcher(getRouteRegex(page))(updatedPath) || undefined
         if (params) {
           // we have to pass these separately for serverless

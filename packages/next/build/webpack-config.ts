@@ -966,7 +966,7 @@ export default async function getBaseWebpackConfig(
                   loader: 'next/dist/compiled/cache-loader',
                   options: {
                     cacheContext: dir,
-                    cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
+                    cacheDirectory: path.join(distDir, 'cache', 'webpack'),
                     cacheIdentifier: `webpack${isServer ? '-server' : ''}`,
                   },
                 },
@@ -1055,7 +1055,7 @@ export default async function getBaseWebpackConfig(
           config.experimental.reactMode
         ),
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
-          config.experimental.optimizeFonts && !dev
+          config.optimizeFonts && !dev
         ),
         'process.env.__NEXT_OPTIMIZE_IMAGES': JSON.stringify(
           config.experimental.optimizeImages
@@ -1168,7 +1168,7 @@ export default async function getBaseWebpackConfig(
           distDir,
         }),
       new ProfilingPlugin(),
-      config.experimental.optimizeFonts &&
+      config.optimizeFonts &&
         !dev &&
         isServer &&
         (function () {
@@ -1252,7 +1252,7 @@ export default async function getBaseWebpackConfig(
       plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
       reactMode: config.experimental.reactMode,
-      optimizeFonts: config.experimental.optimizeFonts,
+      optimizeFonts: config.optimizeFonts,
       optimizeImages: config.experimental.optimizeImages,
       optimizeCss: config.experimental.optimizeCss,
       scrollRestoration: config.experimental.scrollRestoration,
@@ -1271,7 +1271,7 @@ export default async function getBaseWebpackConfig(
       //  - Next.js version
       //  - next.config.js keys that affect compilation
       version: `${process.env.__NEXT_VERSION}|${configVars}`,
-      cacheDirectory: path.join(dir, '.next', 'cache', 'webpack'),
+      cacheDirectory: path.join(distDir, 'cache', 'webpack'),
     }
 
     // Adds `next.config.js` as a buildDependency when custom webpack config is provided
