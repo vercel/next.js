@@ -70,7 +70,7 @@ if (typeof window !== 'undefined') {
       }),
       SessionNode.init(),
     ],
-    isInServerlessEnv: true
+    isInServerlessEnv: true,
   })
 }
 
