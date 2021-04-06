@@ -36,7 +36,7 @@ class MyApp<P = {}> extends App<P & { html: string }> {
       <>
         <div dangerouslySetInnerHTML={{ __html: html }} />
         <Link href={href}>
-          <a id={href === '/' ? 'home' : 'another'}>to {href}</a>
+          <a id={href === '/' ? 'index' : 'another'}>to {href}</a>
         </Link>
       </>
     ) : (

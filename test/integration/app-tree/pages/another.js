@@ -4,7 +4,7 @@ const Page = () => {
   const { pathname } = useRouter()
   return (
     <>
-      <h3>{`page:${pathname};`}</h3>
+      <h3>{`page: another (${pathname})`}</h3>
     </>
   )
 }
