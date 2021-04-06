@@ -1482,7 +1482,11 @@ export default class Server {
       const statusCode = getRedirectStatus(redirect)
       const { basePath } = this.nextConfig
 
-      if (basePath && redirect.basePath !== false) {
+      if (
+        basePath &&
+        redirect.basePath !== false &&
+        redirect.destination.startsWith('/')
+      ) {
         redirect.destination = `${basePath}${redirect.destination}`
       }
 
