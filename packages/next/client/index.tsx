@@ -247,7 +247,7 @@ class Container extends React.Component<{
 }
 
 export const emitter: MittEmitter = mitt()
-let CachedComponent: React.ComponentType
+let InitialComponent: React.ComponentType
 
 export default async (opts: { webpackHMR?: any } = {}) => {
   // This makes sure this specific lines are removed in production
@@ -308,11 +308,11 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     if ('error' in pageEntrypoint) {
       throw pageEntrypoint.error
     }
-    CachedComponent = pageEntrypoint.component
+    InitialComponent = pageEntrypoint.component
 
     if (process.env.NODE_ENV !== 'production') {
       const { isValidElementType } = require('react-is')
-      if (!isValidElementType(CachedComponent)) {
+      if (!isValidElementType(InitialComponent)) {
         throw new Error(
           `The default export is not a React Component in page: "${page}"`
         )
@@ -365,7 +365,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     initialProps: hydrateProps,
     pageLoader,
     App: CachedApp,
-    Component: CachedComponent,
+    Component: InitialComponent,
     wrapApp,
     err: initialErr,
     isFallback: Boolean(isFallback),
@@ -403,7 +403,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
   const renderCtx: RenderRouteInfo = {
     App: CachedApp,
     initial: true,
-    Component: CachedComponent,
+    Component: InitialComponent,
     props: hydrateProps,
     err: initialErr,
   }
@@ -486,7 +486,7 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
       // If we've gotten here upon initial render, we can use the props from the server.
       // Otherwise, we need to call `getInitialProps` on `App` before mounting.
       const ctx = { err, pathname: page, query, asPath } as NextPageContext
-      const AppTree = wrapApp(App, ctx)
+      const AppTree = wrapApp(App, ErrorComponent, ctx)
       ctx.AppTree = AppTree
       const appCtx = { Component: ErrorComponent, AppTree, router, ctx }
       return Promise.resolve(
@@ -610,7 +610,11 @@ function AppContainer({
   )
 }
 
-function wrapApp(App: AppComponent, ctx: NextPageContext) {
+function wrapApp(
+  App: AppComponent,
+  Component: React.ComponentType,
+  ctx: NextPageContext
+) {
   const mockRouter = {
     pathname: ctx.pathname,
     query: ctx.query,
@@ -619,7 +623,7 @@ function wrapApp(App: AppComponent, ctx: NextPageContext) {
   function AppTree(wrappedAppProps: Record<string, any>) {
     const appProps: AppProps = {
       ...wrappedAppProps,
-      Component: CachedComponent,
+      Component,
       err: hydrateErr,
       router: mockRouter,
     }
