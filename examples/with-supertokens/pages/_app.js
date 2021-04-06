@@ -44,8 +44,31 @@ if (typeof window !== 'undefined') {
       apiDomain: websiteDomain,
       apiBasePath,
     },
+<<<<<<< HEAD
     recipeList: [EmailPasswordNode.init(), SessionNode.init()],
     isInServerlessEnv: true
+=======
+    recipeList: [
+      ThirdPartyEmailPasswordNode.init({
+        providers: [
+          ThirdPartyEmailPasswordNode.Google({
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            clientId: process.env.GOOGLE_CLIENT_ID,
+          }),
+          ThirdPartyEmailPasswordNode.Github({
+            clientSecret: process.env.GITHUB_CLIENT_SECRET,
+            clientId: process.env.GITHUB_CLIENT_ID,
+          }),
+          ThirdPartyEmailPasswordNode.Facebook({
+            clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+            clientId: process.env.FACEBOOK_CLIENT_ID,
+          }),
+        ],
+      }),
+      SessionNode.init(),
+    ],
+    isInServerlessEnv: true,
+>>>>>>> feab6fbfd9 (runs prettier-fix)
   })
 }
 
