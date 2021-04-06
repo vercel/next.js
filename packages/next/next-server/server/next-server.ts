@@ -1037,19 +1037,26 @@ export default class Server {
     }
   }
 
-  private async getPagePath(pathname: string): Promise<string> {
+  private async getPagePath(
+    pathname: string,
+    locales?: string[]
+  ): Promise<string> {
     return getPagePath(
       pathname,
       this.distDir,
       this._isLikeServerless,
-      this.renderOpts.dev
+      this.renderOpts.dev,
+      locales
     )
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
     let found = false
     try {
-      found = !!(await this.getPagePath(pathname))
+      found = !!(await this.getPagePath(
+        pathname,
+        this.nextConfig.i18n?.locales
+      ))
     } catch (_) {}
 
     return found
