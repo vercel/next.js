@@ -425,6 +425,19 @@ type ComponentLoadCancel = (() => void) | null
 
 type HistoryMethod = 'replaceState' | 'pushState'
 
+type RouterEventEmitter = MittEmitter<
+  Exclude<RouterEvent, 'routeChangeError'>,
+  (url: string, routeProps: { shallow: boolean }) => void
+> &
+  MittEmitter<
+    'routeChangeError',
+    (
+      err: Error & { cancelled: boolean },
+      url: string,
+      routeProps: { shallow: boolean }
+    ) => void
+  >
+
 const manualScrollRestoration =
   process.env.__NEXT_SCROLL_RESTORATION &&
   typeof window !== 'undefined' &&
@@ -505,10 +518,7 @@ export default class Router implements BaseRouter {
   clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
-  events: MittEmitter<
-    RouterEvent,
-    (url: string, routeProps: { shallow: boolean }) => void
-  > = mitt()
+  events: RouterEventEmitter = mitt()
   _wrapApp: (App: AppComponent) => any
   isSsr: boolean
   isFallback: boolean
@@ -524,10 +534,7 @@ export default class Router implements BaseRouter {
 
   private _idx: number = 0
 
-  static events: MittEmitter<
-    RouterEvent,
-    (url: string, routeProps: { shallow: boolean }) => void
-  > = mitt()
+  static events: RouterEventEmitter = mitt()
 
   constructor(
     pathname: string,
