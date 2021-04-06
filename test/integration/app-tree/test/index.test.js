@@ -23,26 +23,26 @@ let app
 const runTests = () => {
   it('should provide router context in AppTree on SSR', async () => {
     let html = await renderViaHTTP(appPort, '/')
-    expect(html).toMatch(/page:.*?\//)
+    expect(html).toMatch(/page:\/;/)
 
     html = await renderViaHTTP(appPort, '/another')
-    expect(html).toMatch(/page:.*?\/another/)
+    expect(html).toMatch(/page:\/another;/)
   })
 
   it('should provide router context in AppTree on CSR', async () => {
     const browser = await webdriver(appPort, '/')
     let html = await browser.eval(`document.documentElement.innerHTML`)
-    expect(html).toMatch(/page:.*?\//)
+    expect(html).toMatch(/page:\/;/)
 
     browser.elementByCss('#another').click()
     await waitFor(500)
     html = await browser.eval(`document.documentElement.innerHTML`)
-    expect(html).toMatch(/page:.*?\//)
+    expect(html).toMatch(/page:\/another;/)
 
     browser.elementByCss('#home').click()
     await waitFor(500)
     html = await browser.eval(`document.documentElement.innerHTML`)
-    expect(html).toMatch(/page:.*?\/another/)
+    expect(html).toMatch(/page:\/;/)
   })
 
   it('should pass AppTree to NextPageContext', async () => {
