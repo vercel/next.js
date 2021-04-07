@@ -425,6 +425,10 @@ export default async function exportApp(
       hasApiRoutes = true
     }
 
+    if (filteredPaths.length === 0) {
+      return
+    }
+
     if (prerenderManifest && !options.buildExport) {
       const fallbackEnabledPages = new Set()
 
