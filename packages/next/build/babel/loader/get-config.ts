@@ -2,9 +2,18 @@ import { default as nextBabelPreset } from 'next/babel'
 import { createConfigItem, loadOptions } from '@babel/core'
 import loadConfig from '@babel/core/lib/config'
 
+import type {
+  NextBabelLoaderOptions,
+  NextJsLoaderContext,
+} from './types'
 import { consumeIterator } from './util'
 
-function getPlugins(loaderOptions, source, filename) {
+
+function getPlugins(
+  loaderOptions: NextBabelLoaderOptions,
+  source: string,
+  filename: string,
+) {
   const { hasReactRefresh, isServer, development, pagesDir } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
 
@@ -89,13 +98,22 @@ function getOverrides(overrides = []) {
 }
 
 const configs = new Map()
-export default function getConfig({
-  source,
-  loaderOptions,
-  inputSourceMap,
-  target,
-  filename,
-}) {
+export default function getConfig(
+  this: NextJsLoaderContext,
+  {
+    source,
+    loaderOptions,
+    inputSourceMap,
+    target,
+    filename,
+  }: {
+    source: string,
+    loaderOptions: NextBabelLoaderOptions,
+    inputSourceMap?: object | null,
+    target: string,
+    filename: string,
+  }
+) {
   const {
     presets = [],
     isServer,
@@ -158,13 +176,12 @@ export default function getConfig({
 
       ...loaderOptions.caller,
     },
-  }
+  } as any
 
-  // TODO: Document what `onWarning` is for.
   Object.defineProperty(options.caller, 'onWarning', {
     enumerable: false,
     writable: false,
-    value: (reason) => {
+    value: (reason: any) => {
       if (!(reason instanceof Error)) {
         reason = new Error(reason)
       }
@@ -172,8 +189,8 @@ export default function getConfig({
     },
   })
 
-  options = loadOptions(options)
-  const config = consumeIterator(loadConfig(options))
+  const loadedOptions = loadOptions(options)
+  const config = consumeIterator(loadConfig(loadedOptions))
 
   configs.set(configKey, config)
 

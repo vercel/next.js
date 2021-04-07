@@ -1,0 +1,18 @@
+import type { loader } from 'webpack'
+import type { Span } from '../../../telemetry/trace'
+
+export interface NextJsLoaderContext extends loader.LoaderContext {
+  currentTraceSpan?: Span
+}
+
+export interface NextBabelLoaderOptions {
+  hasJsxRuntime: boolean
+  hasReactRefresh: boolean
+  isServer: boolean
+  development: boolean
+  pagesDir: string
+  presets: any[]
+  sourceMaps? : any[]
+  overrides: any
+  caller: any
+}

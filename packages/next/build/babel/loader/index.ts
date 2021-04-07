@@ -1,19 +1,23 @@
 import { inspect } from 'util'
+import { getOptions } from 'loader-utils'
 import { trace } from '../../../telemetry/trace'
-
+import type { Span } from '../../../telemetry/trace'
 import transform from './transform'
+import type { NextJsLoaderContext } from './types'
 
-async function nextBabelLoader(parentTrace, inputSource, inputSourceMap) {
+
+async function nextBabelLoader(
+  this: NextJsLoaderContext,
+  parentTrace: Span,
+  inputSource: string,
+  inputSourceMap: string,
+) {
   const filename = this.resourcePath
   const target = this.target
   const loaderOptions = parentTrace
     .traceChild('get-options')
-    .traceFn(() => this.getOptions())
+    .traceFn(() => getOptions(this))
 
-  // TODO: farm out to worker threads
-  // TODO: affinitize file paths to threads, if determining options can be done once
-  //       but necessarily in the worker thread.
-  // TODO: if it is a rebuild, don't farm work out to a worker.
   const loaderSpanInner = parentTrace.traceChild('next-babel-turbo-transform')
   const {
     code: transformedSource,
@@ -26,7 +30,6 @@ async function nextBabelLoader(parentTrace, inputSource, inputSourceMap) {
       loaderOptions,
       filename,
       target,
-      // TODO: pass by ID when passing to worker thread
       loaderSpanInner
     )
   )
@@ -35,9 +38,9 @@ async function nextBabelLoader(parentTrace, inputSource, inputSourceMap) {
 }
 
 const nextBabelLoaderOuter = function nextBabelLoaderOuter(
-  inputSource,
-  inputSourceMap,
-  meta
+  this: NextJsLoaderContext,
+  inputSource: string,
+  inputSourceMap: string,
 ) {
   const callback = this.async()
 
@@ -48,22 +51,18 @@ const nextBabelLoaderOuter = function nextBabelLoaderOuter(
     )
     .then(
       ([transformedSource, outputSourceMap]) =>
-        callback(
+        callback?.(
           null,
           transformedSource,
           outputSourceMap || inputSourceMap,
-          meta
         ),
       (err) => {
         console.error(
           `Problem encountered in next-babel-turbo-loader. \n${inspect(err)}`
         )
-        callback(err)
+        callback?.(err)
       }
     )
 }
-
-// Ask Webpack for a buffer instead of a UTF-8 string.
-// nextBabelLoader.raw = true
 
 export default nextBabelLoaderOuter

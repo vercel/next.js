@@ -17,8 +17,11 @@ import PluginPass from '@babel/core/lib/transformation/plugin-pass'
 
 import getConfig from './get-config'
 import { consumeIterator } from './util'
+import type { Span } from '../../../telemetry/trace'
+import type { NextJsLoaderContext } from './types'
 
-function getTraversalParams(file, pluginPairs) {
+
+function getTraversalParams(file: any, pluginPairs: any[]) {
   const passPairs = []
   const passes = []
   const visitors = []
@@ -33,7 +36,7 @@ function getTraversalParams(file, pluginPairs) {
   return { passPairs, passes, visitors }
 }
 
-function invokePluginPre(file, passPairs) {
+function invokePluginPre(file: any, passPairs: any[]) {
   for (const [{ pre }, pass] of passPairs) {
     if (pre) {
       pre.call(pass, file)
@@ -41,7 +44,7 @@ function invokePluginPre(file, passPairs) {
   }
 }
 
-function invokePluginPost(file, passPairs) {
+function invokePluginPost(file: any, passPairs: any[]) {
   for (const [{ post }, pass] of passPairs) {
     if (post) {
       post.call(pass, file)
@@ -49,13 +52,18 @@ function invokePluginPost(file, passPairs) {
   }
 }
 
-function transformAstPass(file, pluginPairs, parentSpan) {
+function transformAstPass(
+  file: any,
+  pluginPairs: any[],
+  parentSpan: Span,
+) {
   const { passPairs, passes, visitors } = getTraversalParams(file, pluginPairs)
 
   invokePluginPre(file, passPairs)
   const visitor = traverse.visitors.merge(
     visitors,
     passes,
+    // @ts-ignore - the exported types are incorrect here
     file.opts.wrapPluginVisitorMethod
   )
 
@@ -66,20 +74,24 @@ function transformAstPass(file, pluginPairs, parentSpan) {
   invokePluginPost(file, passPairs)
 }
 
-function transformAst(file, babelConfig, parentSpan) {
+function transformAst(
+  file: any,
+  babelConfig: any,
+  parentSpan: Span,
+) {
   for (const pluginPairs of babelConfig.passes) {
     transformAstPass(file, pluginPairs, parentSpan)
   }
 }
 
 export default function transform(
-  source,
-  inputSourceMap,
-  loaderOptions,
-  filename,
-  target,
-  // TODO expect span ID when running in worker thread
-  parentSpan
+  this: NextJsLoaderContext,
+  source: string,
+  inputSourceMap: object | null | undefined,
+  loaderOptions: any,
+  filename: string,
+  target: string,
+  parentSpan: Span,
 ) {
   const getConfigSpan = parentSpan.traceChild('babel-turbo-get-config')
   const babelConfig = getConfig.call(this, {

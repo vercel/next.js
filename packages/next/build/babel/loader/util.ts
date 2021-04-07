@@ -1,4 +1,4 @@
-export function consumeIterator(iter) {
+export function consumeIterator(iter: Iterator<any>) {
   while (true) {
     const { value, done } = iter.next()
     if (done) {
