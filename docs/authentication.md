@@ -130,6 +130,8 @@ Both of these libraries support either authentication pattern. If you're interes
 - [with-passport](https://github.com/vercel/next.js/tree/canary/examples/with-passport)
 - [with-passport-and-next-connect](https://github.com/vercel/next.js/tree/canary/examples/with-passport-and-next-connect)
 
+- If you want a self hosted version of some of the services listed below, please checkout [SuperTokens](/docs/authentication#supertokens).
+
 ### Firebase
 
 <details open>
