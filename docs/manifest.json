@@ -34,10 +34,6 @@
               "path": "/docs/basic-features/fast-refresh.md"
             },
             {
-              "title": "ESLint",
-              "path": "/docs/basic-features/eslint.md"
-            },
-            {
               "title": "TypeScript",
               "path": "/docs/basic-features/typescript.md"
             },
@@ -339,10 +335,6 @@
             {
               "title": "Configuring onDemandEntries",
               "path": "/docs/api-reference/next.config.js/configuring-onDemandEntries.md"
-            },
-            {
-              "title": "ESLint Warnings and Errors",
-              "path": "/docs/api-reference/next.config.js/eslint-warnings-errors.md"
             },
             {
               "title": "Ignoring TypeScript Errors",
