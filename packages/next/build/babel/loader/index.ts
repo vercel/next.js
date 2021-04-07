@@ -1,16 +1,15 @@
 import { inspect } from 'util'
 import { getOptions } from 'loader-utils'
 import { trace } from '../../../telemetry/trace'
-import type { Span } from '../../../telemetry/trace'
+import { Span } from '../../../telemetry/trace'
 import transform from './transform'
-import type { NextJsLoaderContext } from './types'
-
+import { NextJsLoaderContext } from './types'
 
 async function nextBabelLoader(
   this: NextJsLoaderContext,
   parentTrace: Span,
   inputSource: string,
-  inputSourceMap: string,
+  inputSourceMap: string
 ) {
   const filename = this.resourcePath
   const target = this.target
@@ -40,7 +39,7 @@ async function nextBabelLoader(
 const nextBabelLoaderOuter = function nextBabelLoaderOuter(
   this: NextJsLoaderContext,
   inputSource: string,
-  inputSourceMap: string,
+  inputSourceMap: string
 ) {
   const callback = this.async()
 
@@ -51,11 +50,7 @@ const nextBabelLoaderOuter = function nextBabelLoaderOuter(
     )
     .then(
       ([transformedSource, outputSourceMap]) =>
-        callback?.(
-          null,
-          transformedSource,
-          outputSourceMap || inputSourceMap,
-        ),
+        callback?.(null, transformedSource, outputSourceMap || inputSourceMap),
       (err) => {
         console.error(
           `Problem encountered in next-babel-turbo-loader. \n${inspect(err)}`

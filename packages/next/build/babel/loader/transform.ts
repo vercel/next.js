@@ -17,9 +17,8 @@ import PluginPass from '@babel/core/lib/transformation/plugin-pass'
 
 import getConfig from './get-config'
 import { consumeIterator } from './util'
-import type { Span } from '../../../telemetry/trace'
-import type { NextJsLoaderContext } from './types'
-
+import { Span } from '../../../telemetry/trace'
+import { NextJsLoaderContext } from './types'
 
 function getTraversalParams(file: any, pluginPairs: any[]) {
   const passPairs = []
@@ -52,11 +51,7 @@ function invokePluginPost(file: any, passPairs: any[]) {
   }
 }
 
-function transformAstPass(
-  file: any,
-  pluginPairs: any[],
-  parentSpan: Span,
-) {
+function transformAstPass(file: any, pluginPairs: any[], parentSpan: Span) {
   const { passPairs, passes, visitors } = getTraversalParams(file, pluginPairs)
 
   invokePluginPre(file, passPairs)
@@ -74,11 +69,7 @@ function transformAstPass(
   invokePluginPost(file, passPairs)
 }
 
-function transformAst(
-  file: any,
-  babelConfig: any,
-  parentSpan: Span,
-) {
+function transformAst(file: any, babelConfig: any, parentSpan: Span) {
   for (const pluginPairs of babelConfig.passes) {
     transformAstPass(file, pluginPairs, parentSpan)
   }
@@ -91,7 +82,7 @@ export default function transform(
   loaderOptions: any,
   filename: string,
   target: string,
-  parentSpan: Span,
+  parentSpan: Span
 ) {
   const getConfigSpan = parentSpan.traceChild('babel-turbo-get-config')
   const babelConfig = getConfig.call(this, {

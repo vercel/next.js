@@ -2,17 +2,13 @@ import { default as nextBabelPreset } from 'next/babel'
 import { createConfigItem, loadOptions } from '@babel/core'
 import loadConfig from '@babel/core/lib/config'
 
-import type {
-  NextBabelLoaderOptions,
-  NextJsLoaderContext,
-} from './types'
+import { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
 import { consumeIterator } from './util'
-
 
 function getPlugins(
   loaderOptions: NextBabelLoaderOptions,
   source: string,
-  filename: string,
+  filename: string
 ) {
   const { hasReactRefresh, isServer, development, pagesDir } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
@@ -107,11 +103,11 @@ export default function getConfig(
     target,
     filename,
   }: {
-    source: string,
-    loaderOptions: NextBabelLoaderOptions,
-    inputSourceMap?: object | null,
-    target: string,
-    filename: string,
+    source: string
+    loaderOptions: NextBabelLoaderOptions
+    inputSourceMap?: object | null
+    target: string
+    filename: string
   }
 ) {
   const {
