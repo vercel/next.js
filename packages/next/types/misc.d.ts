@@ -49,9 +49,13 @@ declare module 'next/dist/compiled/babel/code-frame' {
   export * from '@babel/code-frame'
 }
 declare module 'next/dist/compiled/babel/traverse' {
+  import traverse from '@babel/traverse'
+  export default traverse
   export * from '@babel/traverse'
 }
 declare module 'next/dist/compiled/babel/generator' {
+  import generate from '@babel/generator'
+  export default generate
   export * from '@babel/generator'
 }
 declare module 'next/dist/compiled/babel/preset-env' {
