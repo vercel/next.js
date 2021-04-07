@@ -129,6 +129,8 @@ export async function ncc_babel_bundle(task, opts) {
 
 const babelBundlePackages = {
   'code-frame': 'next/dist/compiled/babel/code-frame',
+  '@babel/generator': 'next/dist/compiled/babel/generator',
+  '@babel/traverse': 'next/dist/compiled/babel/traverse',
   '@babel/core': 'next/dist/compiled/babel/core',
   '@babel/core/lib/config': 'next/dist/compiled/babel/core-lib-config',
   '@babel/core/lib/transformation/normalize-file':
