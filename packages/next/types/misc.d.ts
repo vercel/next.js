@@ -49,11 +49,19 @@ declare module 'next/dist/compiled/babel/code-frame' {
   export * from '@babel/code-frame'
 }
 declare module 'next/dist/compiled/babel/preset-env' {
-  export default any
+  const anyType: any
+  export default anyType
 }
 declare module 'next/dist/compiled/babel/core' {
   export * from '@babel/core'
 }
+
+declare module 'next/dist/compiled/babel/core-lib-config'
+declare module 'next/dist/compiled/babel/core-lib-normalize-file'
+declare module 'next/dist/compiled/babel/core-lib-normalize-opts'
+declare module 'next/dist/compiled/babel/core-lib-block-hoist-plugin'
+declare module 'next/dist/compiled/babel/core-lib-plugin-pass'
+
 declare module 'next/dist/compiled/ci-info' {
   import m from 'ci-info'
   export = m

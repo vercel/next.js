@@ -1,4 +1,4 @@
-import { transform as _transform } from '@babel/core'
+import { transform as _transform } from 'next/dist/compiled/babel/core'
 // import { transform as _transform } from 'next/dist/compiled/babel/core'
 import { promisify } from 'util'
 import LoaderError from './Error'

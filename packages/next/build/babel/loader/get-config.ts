@@ -1,6 +1,6 @@
 import { default as nextBabelPreset } from 'next/babel'
-import { createConfigItem, loadOptions } from '@babel/core'
-import loadConfig from '@babel/core/lib/config'
+import { createConfigItem, loadOptions } from 'next/dist/compiled/babel/core'
+import loadConfig from 'next/dist/compiled/babel/core-lib-config'
 
 import { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
 import { consumeIterator } from './util'
