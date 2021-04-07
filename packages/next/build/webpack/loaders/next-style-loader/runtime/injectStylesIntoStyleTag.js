@@ -67,7 +67,7 @@ function modulesToDom(list, options) {
     const item = list[i]
     const id = options.base ? item[0] + options.base : item[0]
     const count = idCountMap[id] || 0
-    const identifier = `${id} ${count}`
+    const identifier = id + ' ' + count.toString()
 
     idCountMap[id] = count + 1
 
@@ -154,8 +154,8 @@ function applyToSingletonTag(style, index, remove, obj) {
   const css = remove
     ? ''
     : obj.media
-    ? `@media ${obj.media} {${obj.css}}`
-    : obj.css
+      ? '@media ' + obj.media + ' {' + obj.css + '}'
+      : obj.css
 
   // For old IE
   /* istanbul ignore if  */
@@ -189,9 +189,8 @@ function applyToTag(style, options, obj) {
   }
 
   if (sourceMap && typeof btoa !== 'undefined') {
-    css += `\n/*# sourceMappingURL=data:application/json;base64,${btoa(
-      unescape(encodeURIComponent(JSON.stringify(sourceMap)))
-    )} */`
+    css += '\n/*# sourceMappingURL=data:application/jsonbase64,' +
+      btoa(unescape(encodeURIComponent(JSON.stringify(sourceMap)))) + ' */'
   }
 
   // For old IE
