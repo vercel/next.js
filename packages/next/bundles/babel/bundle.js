@@ -28,6 +28,14 @@ function coreLibPluginPass() {
   return require('@babel/core/lib/transformation/plugin-pass')
 }
 
+function traverse() {
+  return require('@babel/traverse')
+}
+
+function generator() {
+  return require('@babel/generator')
+}
+
 function pluginProposalClassProperties() {
   return require('@babel/plugin-proposal-class-properties')
 }
@@ -92,6 +100,7 @@ module.exports = {
   coreLibNormalizeOpts,
   coreLibBlockHoistPlugin,
   coreLibPluginPass,
+  generator,
   pluginProposalClassProperties,
   pluginProposalExportNamespaceFrom,
   pluginProposalNumericSeparator,
@@ -106,4 +115,5 @@ module.exports = {
   presetEnv,
   presetReact,
   presetTypescript,
+  traverse,
 }

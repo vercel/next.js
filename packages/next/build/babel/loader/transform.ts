@@ -4,12 +4,8 @@
  * Original contributors:
  */
 
-// TODO: ncc this
-// eslint-disable-next-line
-import traverse from '@babel/traverse'
-// TODO: ncc this
-// eslint-disable-next-line
-import generate from '@babel/generator'
+import traverse from 'next/dist/compiled/babel/traverse'
+import generate from 'next/dist/compiled/babel/generator'
 import normalizeFile from 'next/dist/compiled/babel/core-lib-normalize-file'
 import normalizeOpts from 'next/dist/compiled/babel/core-lib-normalize-opts'
 import loadBlockHoistPlugin from 'next/dist/compiled/babel/core-lib-block-hoist-plugin'
