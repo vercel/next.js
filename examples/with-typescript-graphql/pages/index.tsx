@@ -20,8 +20,7 @@ const Index = () => {
       },
       //Follow apollo suggestion to update cache
       //https://www.apollographql.com/docs/angular/features/cache-updates/#update
-      update: (
-        cache, mutationResult) => {
+      update: (cache, mutationResult) => {
         const {data} = mutationResult
         if (!data) return // Cancel updating name in cache if no data is returned from mutation.
         // Read the data from our cache for this query.
