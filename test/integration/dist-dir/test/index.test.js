@@ -39,18 +39,13 @@ describe('distDir', () => {
       ).toBeTruthy()
     })
     it('should not build the app within the default `.next` directory', async () => {
-      expect(
-        await fs.exists(join(__dirname, `/../.next/${BUILD_ID_FILE}`))
-      ).toBeFalsy()
+      expect(await fs.exists(join(__dirname, '/../.next'))).toBeFalsy()
     })
   })
 
   it('should throw error with invalid distDir', async () => {
     const origNextConfig = await fs.readFile(nextConfig, 'utf8')
-    await fs.writeFile(
-      nextConfig,
-      `module.exports = { distDir: '', eslint: { build: false } }`
-    )
+    await fs.writeFile(nextConfig, `module.exports = { distDir: '' }`)
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
     await fs.writeFile(nextConfig, origNextConfig)
 
@@ -61,12 +56,10 @@ describe('distDir', () => {
 
   it('should handle null/undefined distDir', async () => {
     const origNextConfig = await fs.readFile(nextConfig, 'utf8')
-    await fs.writeFile(
-      nextConfig,
-      `module.exports = { distDir: null, eslint: { build: false } }`
-    )
+    await fs.writeFile(nextConfig, `module.exports = { distDir: null }`)
     const { stderr } = await nextBuild(appDir, [], { stderr: true })
     await fs.writeFile(nextConfig, origNextConfig)
+
     expect(stderr.length).toBe(0)
   })
 })

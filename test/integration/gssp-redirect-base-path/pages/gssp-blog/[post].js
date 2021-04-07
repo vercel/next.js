@@ -22,7 +22,9 @@ export const getServerSideProps = ({ params }) => {
   if (params.post.startsWith('redir')) {
     let destination = '/404'
 
-    if (params.post.includes('dest-')) {
+    if (params.post.includes('dest-external')) {
+      destination = 'https://example.com'
+    } else if (params.post.includes('dest-')) {
       destination = params.post.split('dest-').pop().replace(/_/g, '/')
     }
 

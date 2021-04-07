@@ -16,20 +16,16 @@ import {
   OPTIMIZED_FONT_PROVIDERS,
 } from '../../../next-server/lib/constants'
 
-async function minifyCss(css: string): Promise<string> {
-  return new Promise((resolve) =>
-    postcss([
-      minifier({
-        excludeAll: true,
-        discardComments: true,
-        normalizeWhitespace: { exclude: false },
-      }),
-    ])
-      .process(css, { from: undefined })
-      .then((res) => {
-        resolve(res.css)
-      })
-  )
+function minifyCss(css: string): Promise<string> {
+  return postcss([
+    minifier({
+      excludeAll: true,
+      discardComments: true,
+      normalizeWhitespace: { exclude: false },
+    }),
+  ])
+    .process(css, { from: undefined })
+    .then((res) => res.css)
 }
 
 export class FontStylesheetGatheringPlugin {
@@ -173,11 +169,14 @@ export class FontStylesheetGatheringPlugin {
           this.manifestContent = []
           for (let promiseIndex in fontDefinitionPromises) {
             const css = await fontDefinitionPromises[promiseIndex]
-            const content = await minifyCss(css)
-            this.manifestContent.push({
-              url: this.gatheredStylesheets[promiseIndex],
-              content,
-            })
+
+            if (css) {
+              const content = await minifyCss(css)
+              this.manifestContent.push({
+                url: this.gatheredStylesheets[promiseIndex],
+                content,
+              })
+            }
           }
           if (!isWebpack5) {
             compilation.assets[FONT_MANIFEST] = new sources.RawSource(

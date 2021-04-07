@@ -8,6 +8,7 @@ import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
 import Stream from 'stream'
 import nodeUrl, { UrlWithParsedQuery } from 'url'
+import { NextConfig } from '../../next-server/server/config-shared'
 import { fileExists } from '../../lib/file-exists'
 import { ImageConfig, imageConfigDefault } from './image-config'
 import { processBuffer, Operation } from './lib/squoosh/main'
@@ -30,9 +31,10 @@ export async function imageOptimizer(
   server: Server,
   req: IncomingMessage,
   res: ServerResponse,
-  parsedUrl: UrlWithParsedQuery
+  parsedUrl: UrlWithParsedQuery,
+  nextConfig: NextConfig,
+  distDir: string
 ) {
-  const { nextConfig, distDir } = server
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
   const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
 
@@ -228,6 +230,13 @@ export async function imageOptimizer(
     if (vector || animate) {
       await writeToCacheDir(hashDir, upstreamType, expireAt, upstreamBuffer)
       sendResponse(req, res, upstreamType, upstreamBuffer)
+      return { finished: true }
+    }
+
+    // If upstream type is not a valid image type, return 400 error.
+    if (!upstreamType.startsWith('image/')) {
+      res.statusCode = 400
+      res.end("The requested resource isn't a valid image.")
       return { finished: true }
     }
   }

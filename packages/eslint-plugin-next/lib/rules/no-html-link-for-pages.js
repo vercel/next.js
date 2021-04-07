@@ -1,18 +1,10 @@
 const path = require('path')
 const fs = require('fs')
-const {
-  getUrlFromPagesDirectory,
-  normalizeURL,
-  execOnce,
-} = require('../utils/url')
+const { getUrlFromPagesDirectory, normalizeURL } = require('../utils/url')
 
-const pagesDirWarning = execOnce((pagesDirs) => {
-  console.warn(
-    `Pages directory cannot be found at ${pagesDirs.join(' or ')}. ` +
-      `If using a custom path, please configure with the no-html-link-for-pages rule in your eslint config file`
-  )
-})
-
+//------------------------------------------------------------------------------
+// Rule Definition
+//------------------------------------------------------------------------------
 module.exports = {
   meta: {
     docs: {
@@ -34,8 +26,10 @@ module.exports = {
         ]
     const pagesDir = pagesDirs.find((dir) => fs.existsSync(dir))
     if (!pagesDir) {
-      pagesDirWarning(pagesDirs)
-      return {}
+      throw new Error(
+        `Pages directory cannot be found at ${pagesDirs.join(' or ')}. ` +
+          `If using a custom path, please configure with the no-html-link-for-pages rule`
+      )
     }
 
     const urls = getUrlFromPagesDirectory('/', pagesDir)
