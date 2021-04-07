@@ -1,7 +1,5 @@
 /*
  * Partially adapted from @babel/core (MIT license).
- *
- * Original contributors:
  */
 
 import traverse from 'next/dist/compiled/babel/traverse'
