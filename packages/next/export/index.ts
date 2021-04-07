@@ -425,6 +425,10 @@ export default async function exportApp(
       hasApiRoutes = true
     }
 
+    if (filteredPaths.length === 0) {
+      return
+    }
+
     if (prerenderManifest && !options.buildExport) {
       const fallbackEnabledPages = new Set()
 
@@ -534,7 +538,7 @@ export default async function exportApp(
             subFolders,
             buildExport: options.buildExport,
             serverless: isTargetLikeServerless(nextConfig.target),
-            optimizeFonts: nextConfig.experimental.optimizeFonts,
+            optimizeFonts: nextConfig.optimizeFonts,
             optimizeImages: nextConfig.experimental.optimizeImages,
             optimizeCss: nextConfig.experimental.optimizeCss,
             parentSpanId: pageExportSpan.id,

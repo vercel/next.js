@@ -93,6 +93,7 @@ export const defaultConfig: NextConfig = {
   trailingSlash: false,
   i18n: null,
   productionBrowserSourceMaps: false,
+  optimizeFonts: true,
   experimental: {
     cpus: Math.max(
       1,
@@ -105,7 +106,6 @@ export const defaultConfig: NextConfig = {
     reactMode: 'legacy',
     workerThreads: false,
     pageEnv: false,
-    optimizeFonts: false,
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,

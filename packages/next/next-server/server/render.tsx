@@ -496,6 +496,8 @@ export async function renderToHTML(
     )
   }
 
+  let asPath: string = renderOpts.resolvedAsPath || (req.url as string)
+
   if (dev) {
     const { isValidElementType } = require('react-is')
     if (!isValidElementType(Component)) {
@@ -525,7 +527,7 @@ export async function renderToHTML(
             }
           : {}),
       }
-      renderOpts.resolvedAsPath = `${pathname}${
+      asPath = `${pathname}${
         // ensure trailing slash is present for non-dynamic auto-export pages
         req.url!.endsWith('/') && pathname !== '/' && !pageIsDynamic ? '/' : ''
       }`
@@ -561,7 +563,6 @@ export async function renderToHTML(
   }
 
   // url will always be set
-  const asPath: string = renderOpts.resolvedAsPath || (req.url as string)
   const routerIsReady = !!(getServerSideProps || hasPageGetInitialProps)
   const router = new ServerRouter(
     pathname,
