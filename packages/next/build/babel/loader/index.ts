@@ -1,5 +1,5 @@
 import { inspect } from 'util'
-import { getOptions } from 'loader-utils'
+import { getOptions } from 'next/dist/compiled/loader-utils'
 import { trace } from '../../../telemetry/trace'
 import { Span } from '../../../telemetry/trace'
 import transform from './transform'
@@ -9,7 +9,7 @@ async function nextBabelLoader(
   this: NextJsLoaderContext,
   parentTrace: Span,
   inputSource: string,
-  inputSourceMap: string
+  inputSourceMap: object | null | undefined
 ) {
   const filename = this.resourcePath
   const target = this.target
@@ -39,7 +39,7 @@ async function nextBabelLoader(
 const nextBabelLoaderOuter = function nextBabelLoaderOuter(
   this: NextJsLoaderContext,
   inputSource: string,
-  inputSourceMap: string
+  inputSourceMap: object | null | undefined
 ) {
   const callback = this.async()
 

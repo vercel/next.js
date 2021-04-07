@@ -59,6 +59,7 @@ export type NextConfig = { [key: string]: any } & {
       validator?: string
       skipValidation?: boolean
     }
+    turboMode: boolean
   }
 }
 
@@ -113,6 +114,7 @@ export const defaultConfig: NextConfig = {
     stats: false,
     externalDir: false,
     serialWebpackBuild: false,
+    turboMode: false,
   },
   future: {
     strictPostcssConfiguration: false,
