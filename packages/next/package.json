@@ -132,6 +132,7 @@
   "devDependencies": {
     "@ampproject/toolbox-optimizer": "2.7.1-alpha.0",
     "@babel/code-frame": "7.12.11",
+    "@babel/generator": "^7.12.10",
     "@babel/core": "7.12.10",
     "@babel/plugin-proposal-class-properties": "7.12.1",
     "@babel/plugin-proposal-export-namespace-from": "7.12.1",
@@ -145,6 +146,7 @@
     "@babel/preset-env": "7.12.11",
     "@babel/preset-react": "7.12.10",
     "@babel/preset-typescript": "7.12.7",
+    "@babel/traverse": "^7.12.10",
     "@babel/types": "7.12.12",
     "@next/polyfill-nomodule": "10.1.4-canary.2",
     "@taskr/clear": "1.1.0",
@@ -178,6 +180,7 @@
     "@types/send": "0.14.4",
     "@types/styled-jsx": "2.2.8",
     "@types/text-table": "0.2.1",
+    "@types/webpack": "5.28.0",
     "@types/webpack-sources": "0.1.5",
     "@vercel/ncc": "0.27.0",
     "amphtml-validator": "1.0.33",
