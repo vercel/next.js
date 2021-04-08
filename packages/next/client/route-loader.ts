@@ -293,10 +293,25 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
       Promise.resolve(execute)
         .then((fn) => fn())
         .then(
-          (exports: any) => ({
-            component: (exports && exports.default) || exports,
-            exports: exports,
-          }),
+          (exports: any) => {
+            const entrypoint = {
+              component: (exports && exports.default) || exports,
+              exports: exports,
+            }
+            if (process.env.NODE_ENV !== 'production') {
+              const { isValidElementType } = require('react-is')
+              if (!isValidElementType(entrypoint.component)) {
+                return {
+                  error: markAssetError(
+                    new Error(
+                      `The default export is not a React Component in page: "${route}"`
+                    )
+                  ),
+                }
+              }
+            }
+            return entrypoint
+          },
           (err) => ({ error: err })
         )
         .then((input: RouteEntrypoint) => {
