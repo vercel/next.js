@@ -58,7 +58,7 @@ function supportsStaticESM(caller: any): boolean {
   return !!caller?.supportsStaticESM
 }
 
-const preset = (
+module.exports = (
   api: any,
   options: NextBabelPresetOptions = {}
 ): BabelPreset => {
@@ -214,11 +214,3 @@ const preset = (
     ].filter(Boolean),
   }
 }
-
-// Since our top-level tsconfig specifies ESM as the target, the standard
-// method of `export = ...` doesn't work here.  The following assures that
-// the `preset` function is available when imported as default from ESM and
-// when `require`d from CommonJS.
-export default preset
-preset.default = preset
-module.exports = preset
