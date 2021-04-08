@@ -169,7 +169,6 @@
     "@types/fresh": "0.5.0",
     "@types/json5": "0.0.30",
     "@types/jsonwebtoken": "8.3.7",
-    "@types/loader-utils": "2.0.2",
     "@types/lodash.curry": "4.1.6",
     "@types/lru-cache": "5.1.0",
     "@types/node-fetch": "2.3.4",

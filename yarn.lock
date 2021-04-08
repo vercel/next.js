@@ -2797,11 +2797,6 @@
   dependencies:
     "@types/node" "*"
 
-"@types/anymatch@*":
-  version "1.3.1"
-  resolved "https://registry.yarnpkg.com/@types/anymatch/-/anymatch-1.3.1.tgz#336badc1beecb9dacc38bea2cf32adf627a8421a"
-  integrity sha512-/+CRPXpBDpo2RK9C68N3b2cOvO0Cf5B9aPijHsoDQTHivnGSObdOF2BRQOYjojWTDy6nQvMjmqRXIxH55VjxxA==
-
 "@types/aria-query@^4.2.0":
   version "4.2.1"
   resolved "https://registry.yarnpkg.com/@types/aria-query/-/aria-query-4.2.1.tgz#78b5433344e2f92e8b306c06a5622c50c245bf6b"
@@ -3086,14 +3081,6 @@
   dependencies:
     "@types/node" "*"
 
-"@types/loader-utils@2.0.2":
-  version "2.0.2"
-  resolved "https://registry.yarnpkg.com/@types/loader-utils/-/loader-utils-2.0.2.tgz#2999dc2a3330b3ac0b2eaa9e01328b3484ef1112"
-  integrity sha512-y3UaQ1rIkp2Nzv67Wa/MS7GJM958CDyWkMmnFneTRcWKlaSPreESrwruQ2WhEapQHCV6HJ2Pj62k0BB7mtQNHw==
-  dependencies:
-    "@types/node" "*"
-    "@types/webpack" "^4"
-
 "@types/lodash.curry@4.1.6":
   version "4.1.6"
   resolved "https://registry.yarnpkg.com/@types/lodash.curry/-/lodash.curry-4.1.6.tgz#f26c490c80c92d7cbaa2300d542e89781d44b1ff"
@@ -3269,11 +3256,6 @@
   dependencies:
     "@types/react" "*"
 
-"@types/tapable@^1":
-  version "1.0.7"
-  resolved "https://registry.yarnpkg.com/@types/tapable/-/tapable-1.0.7.tgz#545158342f949e8fd3bfd813224971ecddc3fac4"
-  integrity sha512-0VBprVqfgFD7Ehb2vd8Lh9TG3jP98gvr8rgehQqzztZNI7o8zS8Ad4jyZneKELphpuE212D8J70LnSNQSyO6bQ==
-
 "@types/tar@4.0.3":
   version "4.0.3"
   resolved "https://registry.yarnpkg.com/@types/tar/-/tar-4.0.3.tgz#e2cce0b8ff4f285293243f5971bd7199176ac489"
@@ -3284,13 +3266,6 @@
 "@types/text-table@0.2.1":
   version "0.2.1"
   resolved "https://registry.yarnpkg.com/@types/text-table/-/text-table-0.2.1.tgz#39c4d4a058a82f677392dfd09976e83d9b4c9264"
-
-"@types/uglify-js@*":
-  version "3.13.0"
-  resolved "https://registry.yarnpkg.com/@types/uglify-js/-/uglify-js-3.13.0.tgz#1cad8df1fb0b143c5aba08de5712ea9d1ff71124"
-  integrity sha512-EGkrJD5Uy+Pg0NUR8uA4bJ5WMfljyad0G+784vLCNUkD+QwOJXUbBYExXfVGf7YtyzdQp3L/XMYcliB987kL5Q==
-  dependencies:
-    source-map "^0.6.1"
 
 "@types/unist@*", "@types/unist@^2.0.0":
   version "2.0.3"
@@ -3315,15 +3290,6 @@
     "@types/unist" "*"
     "@types/vfile-message" "*"
 
-"@types/webpack-sources@*":
-  version "2.1.0"
-  resolved "https://registry.yarnpkg.com/@types/webpack-sources/-/webpack-sources-2.1.0.tgz#8882b0bd62d1e0ce62f183d0d01b72e6e82e8c10"
-  integrity sha512-LXn/oYIpBeucgP1EIJbKQ2/4ZmpvRl+dlrFdX7+94SKRUV3Evy3FsfMZY318vGhkWUS5MPhtOM3w1/hCOAOXcg==
-  dependencies:
-    "@types/node" "*"
-    "@types/source-list-map" "*"
-    source-map "^0.7.3"
-
 "@types/webpack-sources@0.1.5":
   version "0.1.5"
   resolved "https://registry.yarnpkg.com/@types/webpack-sources/-/webpack-sources-0.1.5.tgz#be47c10f783d3d6efe1471ff7f042611bd464a92"
@@ -3340,18 +3306,6 @@
     "@types/node" "*"
     tapable "^2.2.0"
     webpack "^5"
-
-"@types/webpack@^4":
-  version "4.41.27"
-  resolved "https://registry.yarnpkg.com/@types/webpack/-/webpack-4.41.27.tgz#f47da488c8037e7f1b2dbf2714fbbacb61ec0ffc"
-  integrity sha512-wK/oi5gcHi72VMTbOaQ70VcDxSQ1uX8S2tukBK9ARuGXrYM/+u4ou73roc7trXDNmCxCoerE8zruQqX/wuHszA==
-  dependencies:
-    "@types/anymatch" "*"
-    "@types/node" "*"
-    "@types/tapable" "^1"
-    "@types/uglify-js" "*"
-    "@types/webpack-sources" "*"
-    source-map "^0.6.0"
 
 "@types/yargs-parser@*":
   version "13.1.0"
