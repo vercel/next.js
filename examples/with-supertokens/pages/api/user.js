@@ -6,10 +6,6 @@ import * as SuperTokensConfig from '../supertokensConfig'
 supertokens.init(SuperTokensConfig.backendConfig())
 
 export default async function user(req, res) {
-  if (req.method !== 'GET') {
-    return res.end()
-  }
-
   await superTokensNextWrapper(
     async (next) => {
       return await verifySession()(req, res, next)
