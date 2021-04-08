@@ -91,7 +91,7 @@ describe('Next.js plugins', () => {
       try {
         await check(
           () => output,
-          /Next.js plugin versions must match the Next.js version being used/
+          /Next\.js plugin versions must match the Next\.js version being used/
         )
       } finally {
         if (app) {
