@@ -3,7 +3,7 @@ import { createConfigItem, loadOptions } from 'next/dist/compiled/babel/core'
 import loadConfig from 'next/dist/compiled/babel/core-lib-config'
 
 import { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
-import { consumeIterator } from './util'
+import { consumeIterator, LruCache } from './util'
 
 function getPlugins(
   loaderOptions: NextBabelLoaderOptions,
@@ -92,7 +92,7 @@ function getOverrides(overrides = []) {
   ]
 }
 
-const configs = new Map()
+const configs = new LruCache()
 export default function getConfig(
   this: NextJsLoaderContext,
   {
