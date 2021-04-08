@@ -65,7 +65,6 @@ function getPlugins(
   return [
     noAnonymousDefaultExportItem,
     reactRefreshItem,
-    // TODO: should next/babel preset's plugins be inserted here?
     pageConfigItem,
     disallowExportAllItem,
     applyCommonJsItem,
