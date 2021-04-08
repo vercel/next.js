@@ -5,13 +5,8 @@ import dynamic from 'next/dynamic'
 import SuperTokens from 'supertokens-auth-react'
 
 const SuperTokensComponentNoSSR = dynamic(
-  () =>
-    Promise.resolve().then(() => {
-      return () => SuperTokens.getRoutingComponent() || null
-    }),
-  {
-    ssr: false,
-  }
+  new Promise((res) => res(SuperTokens.getRoutingComponent)),
+  { ssr: false }
 )
 
 export default function Auth() {

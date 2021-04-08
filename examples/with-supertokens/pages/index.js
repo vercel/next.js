@@ -5,13 +5,10 @@ import ThirdPartyEmailPassword from 'supertokens-auth-react/recipe/thirdpartyema
 import dynamic from 'next/dynamic'
 
 const ThirdPartyEmailPasswordAuthNoSSR = dynamic(
-  () =>
-    Promise.resolve().then(
-      () => ThirdPartyEmailPassword.ThirdPartyEmailPasswordAuth
-    ),
-  {
-    ssr: false,
-  }
+  new Promise((res) =>
+    res(ThirdPartyEmailPassword.ThirdPartyEmailPasswordAuth)
+  ),
+  { ssr: false }
 )
 
 export default function Home() {
