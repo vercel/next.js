@@ -190,7 +190,7 @@ function applyToTag(style, options, obj) {
 
   if (sourceMap && typeof btoa !== 'undefined') {
     css +=
-      '\n/*# sourceMappingURL=data:application/jsonbase64,' +
+      '\n/*# sourceMappingURL=data:application/json;base64,' +
       btoa(unescape(encodeURIComponent(JSON.stringify(sourceMap)))) +
       ' */'
   }
