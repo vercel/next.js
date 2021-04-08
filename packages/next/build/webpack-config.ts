@@ -234,6 +234,13 @@ export default async function getBaseWebpackConfig(
     // fixed in rc.1.
     semver.gte(reactVersion!, '17.0.0-rc.1')
 
+  const hasBabelRc = await ['.babelrc', '.babelrc.json'].reduce(
+    async (memo: boolean | Promise<boolean>, filename) => {
+      return (await memo) || (await fileExists(path.join(dir, filename)))
+    },
+    false
+  )
+
   const distDir = path.join(dir, config.distDir)
 
   const babelLoader = config.experimental.turboMode
@@ -243,6 +250,7 @@ export default async function getBaseWebpackConfig(
     babel: {
       loader: babelLoader,
       options: {
+        hasBabelRc,
         isServer,
         distDir,
         pagesDir,

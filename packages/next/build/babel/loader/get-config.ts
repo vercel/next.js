@@ -116,6 +116,7 @@ export default function getConfig(
     development,
     hasReactRefresh,
     hasJsxRuntime,
+    hasBabelRc,
   } = loaderOptions
   const configKey = `${isServer ? 'server' : 'client'}:${filename}`
 
@@ -126,7 +127,7 @@ export default function getConfig(
   const nextPresetItem = createConfigItem(nextBabelPreset, { type: 'preset' })
 
   let options = {
-    babelrc: false,
+    babelrc: hasBabelRc,
     cloneInputAst: false,
     filename,
     inputSourceMap: inputSourceMap || undefined,
