@@ -18,6 +18,7 @@ import * as envConfig from '../next-server/lib/runtime-config'
 import {
   getURL,
   loadGetInitialProps,
+  NextWebVitalsMetric,
   NEXT_DATA,
   ST,
 } from '../next-server/lib/utils'
@@ -42,6 +43,7 @@ declare global {
     __NEXT_PRELOADREADY?: (ids?: string[]) => void
     __NEXT_DATA__: NEXT_DATA
     __NEXT_P: any[]
+    __NEXT_REPORT_WEB_VITALS: NextWebVitalsMetric[]
   }
 }
 
@@ -55,6 +57,7 @@ const data: typeof window['__NEXT_DATA__'] = JSON.parse(
   document.getElementById('__NEXT_DATA__')!.textContent!
 )
 window.__NEXT_DATA__ = data
+window.__NEXT_REPORT_WEB_VITALS = []
 
 export const version = process.env.__NEXT_VERSION
 
@@ -168,7 +171,7 @@ const appElement: HTMLElement | null = document.getElementById('__next')
 let lastRenderReject: (() => void) | null
 let webpackHMR: any
 export let router: Router
-let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
+let CachedApp: AppComponent
 
 class Container extends React.Component<{
   fn: (err: Error, info?: any) => void
@@ -248,6 +251,31 @@ class Container extends React.Component<{
 export const emitter: MittEmitter = mitt()
 let CachedComponent: React.ComponentType
 
+function onPerfEntry({
+  id,
+  name,
+  startTime,
+  value,
+  duration,
+  entryType,
+  entries,
+}: any): void {
+  let perfStartEntry: string | undefined
+  if (entries && entries.length) {
+    perfStartEntry = entries[0].startTime
+  }
+
+  window.__NEXT_REPORT_WEB_VITALS.push({
+    // Combines timestamp with random number for unique ID
+    id: id || `${Date.now()}-${Math.floor(Math.random() * (9e12 - 1)) + 1e12}`,
+    name,
+    startTime: startTime || perfStartEntry,
+    value: value == null ? duration : value,
+    label:
+      entryType === 'mark' || entryType === 'measure' ? 'custom' : 'web-vital',
+  })
+}
+
 export default async (opts: { webpackHMR?: any } = {}) => {
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
@@ -259,41 +287,8 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     throw appEntrypoint.error
   }
 
-  const { component: app, exports: mod } = appEntrypoint
+  const { component: app } = appEntrypoint
   CachedApp = app as AppComponent
-
-  if (mod && mod.reportWebVitals) {
-    onPerfEntry = ({
-      id,
-      name,
-      startTime,
-      value,
-      duration,
-      entryType,
-      entries,
-    }): void => {
-      // Combines timestamp with random number for unique ID
-      const uniqueID: string = `${Date.now()}-${
-        Math.floor(Math.random() * (9e12 - 1)) + 1e12
-      }`
-      let perfStartEntry: string | undefined
-
-      if (entries && entries.length) {
-        perfStartEntry = entries[0].startTime
-      }
-
-      mod.reportWebVitals({
-        id: id || uniqueID,
-        name,
-        startTime: startTime || perfStartEntry,
-        value: value == null ? duration : value,
-        label:
-          entryType === 'mark' || entryType === 'measure'
-            ? 'custom'
-            : 'web-vital',
-      })
-    }
-  }
 
   let initialErr = hydrateErr
 
@@ -546,10 +541,7 @@ function markHydrateComplete(): void {
     'beforeRender'
   )
   performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
-
-  if (onPerfEntry) {
-    performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
-  }
+  performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
   clearMarks()
 }
 
@@ -570,12 +562,10 @@ function markRenderComplete(): void {
     'beforeRender'
   )
   performance.measure('Next.js-render', 'beforeRender', 'afterRender')
-  if (onPerfEntry) {
-    performance.getEntriesByName('Next.js-render').forEach(onPerfEntry)
-    performance
-      .getEntriesByName('Next.js-route-change-to-render')
-      .forEach(onPerfEntry)
-  }
+  performance.getEntriesByName('Next.js-render').forEach(onPerfEntry)
+  performance
+    .getEntriesByName('Next.js-route-change-to-render')
+    .forEach(onPerfEntry)
   clearMarks()
   ;['Next.js-route-change-to-render', 'Next.js-render'].forEach((measure) =>
     performance.clearMeasures(measure)

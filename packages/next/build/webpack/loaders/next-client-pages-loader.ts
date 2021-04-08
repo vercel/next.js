@@ -25,7 +25,19 @@ function nextClientPagesLoader(this: any) {
     (window.__NEXT_P = window.__NEXT_P || []).push([
       ${stringifiedPage},
       function () {
-        return require(${stringifiedAbsolutePagePath});
+        const mod = require(${stringifiedAbsolutePagePath});
+        ${
+          page === '/_app'
+            ? `
+          const bufferedMetrics = window.__NEXT_REPORT_WEB_VITALS;
+          window.__NEXT_REPORT_WEB_VITALS = { push: mod.reportWebVitals || function() {} };
+          if (Array.isArray(bufferedMetrics)) {
+            bufferedMetrics.forEach(window.__NEXT_REPORT_WEB_VITALS.push)
+          }
+        `
+            : ``
+        }
+        return mod;
       }
     ]);
   `
