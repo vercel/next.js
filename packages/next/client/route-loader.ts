@@ -292,28 +292,24 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
     onEntrypoint(route: string, execute: () => unknown) {
       Promise.resolve(execute)
         .then((fn) => fn())
-        .then(
-          (exports: any) => {
-            const entrypoint = {
-              component: (exports && exports.default) || exports,
-              exports: exports,
+        .then((exports: any) => {
+          const entrypoint = {
+            component: (exports && exports.default) || exports,
+            exports: exports,
+          }
+          if (process.env.NODE_ENV !== 'production') {
+            const { isValidElementType } = require('react-is')
+            if (!isValidElementType(entrypoint.component)) {
+              throw markAssetError(
+                new Error(
+                  `The default export is not a React Component in page: "${route}"`
+                )
+              )
             }
-            if (process.env.NODE_ENV !== 'production') {
-              const { isValidElementType } = require('react-is')
-              if (!isValidElementType(entrypoint.component)) {
-                return {
-                  error: markAssetError(
-                    new Error(
-                      `The default export is not a React Component in page: "${route}"`
-                    )
-                  ),
-                }
-              }
-            }
-            return entrypoint
-          },
-          (err) => ({ error: err })
-        )
+          }
+          return entrypoint
+        })
+        .catch((error) => ({ error }))
         .then((input: RouteEntrypoint) => {
           const old = entrypoints.get(route)
           entrypoints.set(route, input)
