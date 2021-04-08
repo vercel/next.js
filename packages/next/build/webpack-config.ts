@@ -237,7 +237,7 @@ export default async function getBaseWebpackConfig(
   const distDir = path.join(dir, config.distDir)
 
   const babelLoader = config.experimental.turboMode
-    ? 'next/dist/build/babel/loader'
+    ? require.resolve('./babel/loader/index')
     : 'next-babel-loader'
   const defaultLoaders = {
     babel: {
