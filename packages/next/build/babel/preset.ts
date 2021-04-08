@@ -58,7 +58,7 @@ function supportsStaticESM(caller: any): boolean {
   return !!caller?.supportsStaticESM
 }
 
-module.exports = (
+export default (
   api: any,
   options: NextBabelPresetOptions = {}
 ): BabelPreset => {
