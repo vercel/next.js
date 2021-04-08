@@ -37,8 +37,7 @@ describe('Build Output', () => {
       expect(stdout).toContain('○ /')
     })
 
-    // TODO: Bring back with webpack 5 auto-enable
-    it.skip('should not deviate from snapshot', async () => {
+    it('should not deviate from snapshot', async () => {
       console.log(stdout)
 
       const parsePageSize = (page) =>
