@@ -28,16 +28,16 @@ export let backendConfig = () => {
       ThirdPartyEmailPasswordNode.init({
         providers: [
           ThirdPartyEmailPasswordNode.Google({
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'PLACEHOLDER',
+            clientId: process.env.GOOGLE_CLIENT_ID || 'PLACEHOLDER',
           }),
           ThirdPartyEmailPasswordNode.Github({
-            clientSecret: process.env.GITHUB_CLIENT_SECRET,
-            clientId: process.env.GITHUB_CLIENT_ID,
+            clientSecret: process.env.GITHUB_CLIENT_SECRET || 'PLACEHOLDER',
+            clientId: process.env.GITHUB_CLIENT_ID || 'PLACEHOLDER',
           }),
           ThirdPartyEmailPasswordNode.Facebook({
-            clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
-            clientId: process.env.FACEBOOK_CLIENT_ID,
+            clientSecret: process.env.FACEBOOK_CLIENT_SECRET || 'PLACEHOLDER',
+            clientId: process.env.FACEBOOK_CLIENT_ID || 'PLACEHOLDER',
           }),
         ],
       }),
