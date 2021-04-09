@@ -136,7 +136,7 @@ export default class Router {
 
     const applyCheckTrue = async (checkParsedUrl: UrlWithParsedQuery) => {
       const originalFsPathname = checkParsedUrl.pathname
-      const fsPathname = replaceBasePath(this.basePath, originalFsPathname!)
+      let fsPathname = replaceBasePath(this.basePath, originalFsPathname!)
 
       for (const fsRoute of this.fsRoutes) {
         const fsParams = fsRoute.match(fsPathname)
@@ -153,6 +153,7 @@ export default class Router {
           checkParsedUrl.pathname = originalFsPathname
         }
       }
+      fsPathname = normalizeLocalePath(fsPathname, this.locales).pathname
 
       let matchedPage = await memoizedPageChecker(fsPathname)
 
