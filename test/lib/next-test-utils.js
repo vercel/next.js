@@ -121,6 +121,10 @@ export function runNextCommand(argv, options = {}) {
     if (options.stderr) {
       instance.stderr.on('data', function (chunk) {
         stderrOutput += chunk
+
+        if (options.stderr === 'log') {
+          console.log(chunk.toString())
+        }
       })
     }
 
@@ -128,6 +132,10 @@ export function runNextCommand(argv, options = {}) {
     if (options.stdout) {
       instance.stdout.on('data', function (chunk) {
         stdoutOutput += chunk
+
+        if (options.stdout === 'log') {
+          console.log(chunk.toString())
+        }
       })
     }
 

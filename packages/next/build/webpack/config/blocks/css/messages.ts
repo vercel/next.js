@@ -7,7 +7,7 @@ export function getGlobalImportError(file: string | null) {
     'Custom <App>'
   )}. Please move all global CSS imports to ${chalk.cyan(
     file ? file : 'pages/_app.js'
-  )}. Or convert the import to Component-Level CSS (CSS Modules).\nRead more: https://err.sh/next.js/css-global`
+  )}. Or convert the import to Component-Level CSS (CSS Modules).\nRead more: https://nextjs.org/docs/messages/css-global`
 }
 
 export function getGlobalModuleImportError() {
@@ -15,7 +15,7 @@ export function getGlobalModuleImportError() {
     'cannot'
   )} be imported from within ${chalk.bold(
     'node_modules'
-  )}.\nRead more: https://err.sh/next.js/css-npm`
+  )}.\nRead more: https://nextjs.org/docs/messages/css-npm`
 }
 
 export function getLocalModuleImportError() {
@@ -23,7 +23,7 @@ export function getLocalModuleImportError() {
     'cannot'
   )} be imported from within ${chalk.bold(
     'node_modules'
-  )}.\nRead more: https://err.sh/next.js/css-modules-npm`
+  )}.\nRead more: https://nextjs.org/docs/messages/css-modules-npm`
 }
 
 export function getCustomDocumentError() {
