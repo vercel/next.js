@@ -474,9 +474,9 @@ watchpack@^2.0.0:
     source-map "^0.6.1"
 
 "webpack5@npm:webpack@5":
-  version "5.31.1"
-  resolved "https://registry.yarnpkg.com/webpack/-/webpack-5.31.1.tgz#95fd1c713514200b582fd60b5fa1ff5d62e647b8"
-  integrity sha512-5qwWBZ50ntjXtPbNpCNvvufX3+zuYBcXMmLYnFiLJMJdSP/YMh7Yamx0um7GZqQoDVs6pMOiQKU/zbKglqdoag==
+  version "5.31.2"
+  resolved "https://registry.yarnpkg.com/webpack/-/webpack-5.31.2.tgz#40d9b9d15b7d76af73d3f1cae895b82613a544d6"
+  integrity sha512-0bCQe4ybo7T5Z0SC5axnIAH+1WuIdV4FwLYkaAlLtvfBhIx8bPS48WHTfiRZS1VM+pSiYt7e/rgLs3gLrH82lQ==
   dependencies:
     "@types/eslint-scope" "^3.7.0"
     "@types/estree" "^0.0.46"

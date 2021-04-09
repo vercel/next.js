@@ -54,7 +54,7 @@ module.exports = JSON.parse("{\"name\":\"terser\",\"description\":\"JavaScript p
 /***/ (function(module) {
 
 "use strict";
-module.exports = {"i8":"5.31.1"};
+module.exports = {"i8":"5.31.2"};
 
 /***/ }),
 
@@ -35538,7 +35538,6 @@ class CodeGenerationResults {
 	 * @returns {CodeGenerationResult} the CodeGenerationResult
 	 */
 	get(module, runtime) {
-		this._verifyAlive();
 		const entry = this.map.get(module);
 		if (entry === undefined) {
 			throw new Error(
@@ -35584,7 +35583,6 @@ Caller might not support runtime-dependent code generation (opt-out via optimiza
 	 * @returns {boolean} true, when we have data for this
 	 */
 	has(module, runtime) {
-		this._verifyAlive();
 		const entry = this.map.get(module);
 		if (entry === undefined) {
 			return false;
@@ -35655,22 +35653,8 @@ Caller might not support runtime-dependent code generation (opt-out via optimiza
 	 * @returns {void}
 	 */
 	add(module, runtime, result) {
-		this._verifyAlive();
 		const map = provide(this.map, module, () => new RuntimeSpecMap());
 		map.set(runtime, result);
-	}
-
-	_verifyAlive() {
-		if (this.map === undefined) {
-			throw new Error(
-				"CodeGenerationResults has been accessed after its lifetime. They are no longer available after sealing the compilation."
-			);
-		}
-	}
-
-	dispose() {
-		this.map.clear();
-		this.map = undefined;
 	}
 }
 
@@ -38003,7 +37987,6 @@ BREAKING CHANGE: Asset processing hooks in Compilation has been merged into a si
 		this.assets = {};
 		this.assetsInfo.clear();
 		this.moduleGraph.removeAllModuleAttributes();
-		this.codeGenerationResults = undefined;
 	}
 
 	/**
@@ -38290,7 +38273,6 @@ Or do you want to use the entrypoints '${name}' and '${runtime}' independently o
 										this.unseal();
 										return this.seal(callback);
 									}
-									this.codeGenerationResults.dispose();
 									return this.hooks.afterSeal.callAsync(err => {
 										if (err) {
 											return callback(
@@ -40291,13 +40273,12 @@ class Compiler {
 	// e.g. move compilation specific info from Modules into ModuleGraph
 	_cleanupLastCompilation() {
 		if (this._lastCompilation !== undefined) {
-			const c = this._lastCompilation;
-			for (const module of c.modules) {
+			for (const module of this._lastCompilation.modules) {
 				ChunkGraph.clearChunkGraphForModule(module);
 				ModuleGraph.clearModuleGraphForModule(module);
 				module.cleanupForCache();
 			}
-			for (const chunk of c.chunks) {
+			for (const chunk of this._lastCompilation.chunks) {
 				ChunkGraph.clearChunkGraphForChunk(chunk);
 			}
 			this._lastCompilation = undefined;
