@@ -5,7 +5,7 @@
     "dev": "cross-env NODE_ICU_DATA=node_modules/full-icu ts-node --project tsconfig.server.json server.ts",
     "dev-no-custom-server": "next dev",
     "build": "npm run extract:i18n && npm run compile:i18n && next build && tsc -p tsconfig.server.json",
-    "extract:i18n": "formatjs extract '{pages,components}/*.{js,ts,tsx}' --format simple --id-interpolation-pattern '[sha512:contenthash:base64:6]' --out-file lang/en.json",
+    "extract:i18n": "formatjs extract '{pages,components}/**/*.{js,ts,tsx}' --format simple --id-interpolation-pattern '[sha512:contenthash:base64:6]' --out-file lang/en.json",
     "compile:i18n": "formatjs compile-folder --ast --format simple lang compiled-lang",
     "start": "cross-env NODE_ENV=production NODE_ICU_DATA=node_modules/full-icu node dist/server",
     "start-no-custom-server": "next start"
