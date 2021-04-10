@@ -136,7 +136,7 @@ export default class Router {
 
     const applyCheckTrue = async (checkParsedUrl: UrlWithParsedQuery) => {
       const originalFsPathname = checkParsedUrl.pathname
-      let fsPathname = replaceBasePath(this.basePath, originalFsPathname!)
+      const fsPathname = replaceBasePath(this.basePath, originalFsPathname!)
 
       for (const fsRoute of this.fsRoutes) {
         const fsParams = fsRoute.match(fsPathname)
@@ -153,14 +153,17 @@ export default class Router {
           checkParsedUrl.pathname = originalFsPathname
         }
       }
-      fsPathname = normalizeLocalePath(fsPathname, this.locales).pathname
-
       let matchedPage = await memoizedPageChecker(fsPathname)
 
       // If we didn't match a page check dynamic routes
       if (!matchedPage) {
+        const normalizedFsPathname = normalizeLocalePath(
+          fsPathname,
+          this.locales
+        ).pathname
+
         for (const dynamicRoute of this.dynamicRoutes) {
-          if (dynamicRoute.match(fsPathname)) {
+          if (dynamicRoute.match(normalizedFsPathname)) {
             matchedPage = true
           }
         }
