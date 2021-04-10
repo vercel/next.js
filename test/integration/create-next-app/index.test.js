@@ -275,4 +275,22 @@ describe('create next app', () => {
       )
     })
   })
+
+  it('should use npm as the package manager on supplying --use-npm', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'use-npm'
+      const res = await run([projectName, '--use-npm'], { cwd })
+      expect(res.exitCode).toBe(0)
+
+      const files = [
+        'package.json',
+        'pages/index.js',
+        '.gitignore',
+        'package-lock.json',
+      ]
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+      )
+    })
+  })
 })
