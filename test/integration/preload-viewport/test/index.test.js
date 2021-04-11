@@ -53,6 +53,31 @@ describe('Prefetching Links in viewport', () => {
     }
   })
 
+  it('should prefetch rewritten href with link in viewport onload', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/rewrite-prefetch')
+      const links = await browser.elementsByCss('link[rel=prefetch]')
+      let found = false
+
+      for (const link of links) {
+        const href = await link.getAttribute('href')
+        if (href.includes('%5Bslug%5D')) {
+          found = true
+          break
+        }
+      }
+      expect(found).toBe(true)
+
+      const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
+      expect(hrefs.map((href) => new URL(href).pathname)).toEqual([
+        '/_next/data/test-build/ssg/dynamic/one.json',
+      ])
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
   it('should prefetch with link in viewport when href changes', async () => {
     let browser
     try {
@@ -337,6 +362,7 @@ describe('Prefetching Links in viewport', () => {
     eval(content)
     expect([...self.__SSG_MANIFEST].sort()).toMatchInlineSnapshot(`
       Array [
+        "/[...rest]",
         "/ssg/basic",
         "/ssg/catch-all/[...slug]",
         "/ssg/dynamic-nested/[slug1]/[slug2]",
