@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import { Transform, TransformCallback } from 'stream'
 // @ts-ignore no types package
 import bfj from 'next/dist/compiled/bfj'
 import { spans } from './profiling-plugin'
@@ -63,6 +64,46 @@ function reduceSize(stats: any) {
   return stats
 }
 
+const THRESHOLD = 16 * 1024
+class BufferingStream extends Transform {
+  private items: Buffer[] = []
+  private itemsSize = 0
+
+  _transform(
+    chunk: Buffer | string,
+    encoding: BufferEncoding,
+    callback: TransformCallback
+  ): void {
+    const buffer = Buffer.isBuffer(chunk)
+      ? chunk
+      : Buffer.from(chunk as string, encoding)
+    const size = buffer.length
+    if (this.itemsSize > 0 && this.itemsSize + size > THRESHOLD) {
+      this.push(Buffer.concat(this.items))
+      this.itemsSize = 0
+      this.items.length = 0
+    }
+    if (size > THRESHOLD) {
+      this.push(buffer)
+    } else {
+      this.items.push(buffer)
+      this.itemsSize += size
+    }
+
+    callback()
+  }
+
+  _flush(callback: TransformCallback): void {
+    if (this.itemsSize > 0) {
+      this.push(Buffer.concat(this.items))
+      this.itemsSize = 0
+      this.items.length = 0
+    }
+
+    callback()
+  }
+}
+
 // This plugin creates a stats.json for a build when enabled
 export default class BuildStatsPlugin {
   private distDir: string
@@ -97,13 +138,14 @@ export default class BuildStatsPlugin {
                 })
               )
               const fileStream = fs.createWriteStream(
-                path.join(this.distDir, 'next-stats.json')
+                path.join(this.distDir, 'next-stats.json'),
+                { highWaterMark: THRESHOLD }
               )
               const jsonStream = bfj.streamify({
                 version: STATS_VERSION,
                 stats: statsJson,
               })
-              jsonStream.pipe(fileStream)
+              jsonStream.pipe(new BufferingStream()).pipe(fileStream)
               jsonStream.on('error', reject)
               fileStream.on('error', reject)
               jsonStream.on('dataError', reject)

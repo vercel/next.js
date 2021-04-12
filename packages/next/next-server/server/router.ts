@@ -153,13 +153,17 @@ export default class Router {
           checkParsedUrl.pathname = originalFsPathname
         }
       }
-
       let matchedPage = await memoizedPageChecker(fsPathname)
 
       // If we didn't match a page check dynamic routes
       if (!matchedPage) {
+        const normalizedFsPathname = normalizeLocalePath(
+          fsPathname,
+          this.locales
+        ).pathname
+
         for (const dynamicRoute of this.dynamicRoutes) {
-          if (dynamicRoute.match(fsPathname)) {
+          if (dynamicRoute.match(normalizedFsPathname)) {
             matchedPage = true
           }
         }
