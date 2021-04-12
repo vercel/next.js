@@ -1,6 +1,6 @@
 # WebWorker example
 
-This example shows how to run code in WebWorkers by utilizing [worker-plugin](https://github.com/GoogleChromeLabs/worker-plugin).
+This example shows how to run code in WebWorkers by utilizing [webpack 5](https://nextjs.org/docs/messages/webpack5).
 
 ## Deploy your own
 
