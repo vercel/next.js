@@ -18,6 +18,9 @@
   },
   "license": "MIT",
   "devDependencies": {
+    "@testing-library/jest-dom": "^5.0.0",
+    "@testing-library/react": "^11.0.0",
+    "@testing-library/user-event": "^13.0.0",
     "@types/jest": "^26.0.0",
     "@types/node": "14.14.35",
     "@types/react": "17.0.3",
