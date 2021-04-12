@@ -1,9 +1,11 @@
-import nextBabelPreset from '../preset'
 import { createConfigItem, loadOptions } from 'next/dist/compiled/babel/core'
 import loadConfig from 'next/dist/compiled/babel/core-lib-config'
 
+import nextBabelPreset from '../preset'
 import { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
 import { consumeIterator, LruCache } from './util'
+
+const nextDistPath = /(next[\\/]dist[\\/]next-server[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
 function getPlugins(
   loaderOptions: NextBabelLoaderOptions,
@@ -61,6 +63,12 @@ function getPlugins(
           type: 'plugin',
         })
       : null
+  const commonJsItem = nextDistPath.test(filename)
+    ? createConfigItem(
+        require('next/dist/compiled/babel/plugin-transform-modules-commonjs'),
+        { type: 'plugin' }
+      )
+    : null
 
   return [
     noAnonymousDefaultExportItem,
@@ -70,26 +78,8 @@ function getPlugins(
     applyCommonJsItem,
     transformDefineItem,
     nextSsgItem,
+    commonJsItem,
   ].filter(Boolean)
-}
-
-function getOverrides(overrides = []) {
-  const commonJsItem = createConfigItem(
-    require('next/dist/compiled/babel/plugin-transform-modules-commonjs'),
-    { type: 'plugin' }
-  )
-
-  return [
-    ...overrides,
-    {
-      test: [
-        /next[\\/]dist[\\/]next-server[\\/]lib/,
-        /next[\\/]dist[\\/]client/,
-        /next[\\/]dist[\\/]pages/,
-      ],
-      plugins: [commonJsItem],
-    },
-  ]
 }
 
 const configs = new LruCache()
@@ -148,7 +138,7 @@ export default function getConfig(
 
     presets: [...presets, nextPresetItem],
 
-    overrides: getOverrides(loaderOptions.overrides),
+    overrides: loaderOptions.overrides,
 
     caller: {
       name: 'next-babel-turbo-loader',
