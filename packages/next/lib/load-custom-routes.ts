@@ -9,7 +9,9 @@ import {
 import { execOnce } from '../next-server/lib/utils'
 import * as Log from '../build/output/log'
 // @ts-ignore
-import Lexer from './regexr/expression-lexer'
+import Lexer from 'next/dist/compiled/regexr-lexer/lexer'
+// @ts-ignore
+import lexerProfiles from 'next/dist/compiled/regexr-lexer/profiles'
 
 export type RouteHas =
   | {
@@ -338,6 +340,7 @@ function checkCustomRoutes(
         if (hasItem.value) {
           const matcher = new RegExp(`^${hasItem.value}$`)
           const lexer = new Lexer()
+          lexer.profile = lexerProfiles.js
           lexer.parse(`/${matcher.source}/`)
 
           Object.keys(lexer.namedGroups).forEach((groupKey) => {
