@@ -83,7 +83,7 @@ function modulesToDom(list, options) {
       stylesInDom[index].updater(obj)
     } else {
       stylesInDom.push({
-        identifier,
+        identifier: identifier,
         updater: addStyle(obj, options),
         references: 1,
       })
@@ -109,7 +109,7 @@ function insertStyleElement(options) {
     }
   }
 
-  Object.keys(attributes).forEach((key) => {
+  Object.keys(attributes).forEach(function (key) {
     style.setAttribute(key, attributes[key])
   })
 
@@ -227,7 +227,7 @@ function addStyle(obj, options) {
     style = insertStyleElement(options)
 
     update = applyToTag.bind(null, style, options)
-    remove = () => {
+    remove = function () {
       removeStyleElement(style)
     }
   }
