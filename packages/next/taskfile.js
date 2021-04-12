@@ -695,7 +695,7 @@ export async function copy_regexr_lexer(task, opts) {
         'lexer-dist/**/*'
       )
     )
-    .target('compiled/regexr-lexer')
+    .target('dist/compiled/regexr-lexer')
 }
 
 export async function precompile(task, opts) {
