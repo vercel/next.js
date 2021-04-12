@@ -1,4 +1,11 @@
 import { useRouter } from 'next/router'
+import getConfig from '../lib/config'
+
+const localConfig = getConfig()
+
+if (localConfig.hello !== 'world') {
+  throw new Error('oof import order is wrong, _app comes first')
+}
 
 export const getServerSideProps = ({ req }) => {
   return {

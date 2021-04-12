@@ -43,6 +43,11 @@ module.exports = {
 
 - `source` is the incoming request path pattern.
 - `headers` is an array of header objects with the `key` and `value` properties.
+- `basePath`: `false` or `undefined` - if false the basePath won't be included when matching, can be used for external rewrites only.
+- `locale`: `false` or `undefined` - whether the locale should not be included when matching.
+- `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
+
+Headers are checked before the filesystem which includes pages and `/public` files.
 
 ## Header Overriding Behavior
 
@@ -149,6 +154,102 @@ module.exports = {
 }
 ```
 
+## Header, Cookie, and Query Matching
+
+Note: this feature is still experimental and not covered by semver and is to be used at your own risk until it is made stable.
+
+To only apply a header when either header, cookie, or query values also match the `has` field can be used. Both the `source` and all `has` items must match for the header to be applied.
+
+`has` items have the following fields:
+
+- `type`: `String` - must be either `header`, `cookie`, `host`, or `query`.
+- `key`: `String` - the key from the selected type to match against.
+- `value`: `String` or `undefined` - the value to check for, if undefined any value will match. A regex like string can be used to capture a specific part of the value, e.g. if the value `first-(?<paramName>.*)` is used for `first-second` then `second` will be usable in the destination with `:paramName`.
+
+```js
+module.exports = {
+  async headers() {
+    return [
+      // if the header `x-add-header` is present,
+      // the `x-another-header` header will be applied
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'header',
+            key: 'x-add-header',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-another-header',
+            value: 'hello',
+          },
+        ],
+      },
+      // if the source, query, and cookie are matched,
+      // the `x-authorized` header will be applied
+      {
+        source: '/specific/:path*',
+        has: [
+          {
+            type: 'query',
+            key: 'page',
+            value: 'home',
+          },
+          {
+            type: 'cookie',
+            key: 'authorized',
+            value: 'true',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-authorized',
+            value: ':authorized',
+          },
+        ],
+      },
+      // if the header `x-authorized` is present and
+      // contains a matching value, the `x-another-header` will be applied
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'header',
+            key: 'x-authorized',
+            value: '(?<authorized>yes|true)',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-another-header',
+            value: ':authorized',
+          },
+        ],
+      },
+      // if the host is `example.com`,
+      // this header will be applied
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'example.com',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-another-header',
+            value: ':authorized',
+          },
+        ],
+      },
+    ]
+  },
+}
+```
+
 ### Headers with basePath support
 
 When leveraging [`basePath` support](/docs/api-reference/next.config.js/basepath.md) with headers each `source` is automatically prefixed with the `basePath` unless you add `basePath: false` to the header:
@@ -224,6 +325,17 @@ module.exports = {
           {
             key: 'x-hello',
             value: 'world',
+          },
+        ],
+      },
+      {
+        // this gets converted to /(en|fr|de)/(.*) so will not match the top-level
+        // `/` or `/fr` routes like /:path* would
+        source: '/(.*)',
+        headers: [
+          {
+            key: 'x-hello',
+            value: 'worlld',
           },
         ],
       },
