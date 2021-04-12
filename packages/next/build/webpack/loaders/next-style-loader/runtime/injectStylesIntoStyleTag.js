@@ -251,7 +251,7 @@ function addStyle(obj, options) {
   }
 }
 
-module.exports = (list, options) => {
+module.exports = function (list, options) {
   options = options || {}
 
   // Force single-tag solution on IE6-9, which has a hard limit on the # of <style>
