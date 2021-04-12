@@ -398,7 +398,7 @@ export class Head extends Component<
       })
       head = cssPreloads.concat(otherHeadElements)
     }
-    let children = this.props.children
+    let children = React.Children.toArray(this.props.children).filter(Boolean)
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {

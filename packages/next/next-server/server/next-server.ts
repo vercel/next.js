@@ -205,9 +205,9 @@ export default class Server {
       ampOptimizerConfig: this.nextConfig.experimental.amp?.optimizer,
       basePath: this.nextConfig.basePath,
       images: JSON.stringify(this.nextConfig.images),
-      optimizeFonts: !!this.nextConfig.experimental.optimizeFonts && !dev,
+      optimizeFonts: !!this.nextConfig.optimizeFonts && !dev,
       fontManifest:
-        this.nextConfig.experimental.optimizeFonts && !dev
+        this.nextConfig.optimizeFonts && !dev
           ? requireFontManifest(this.distDir, this._isLikeServerless)
           : null,
       optimizeImages: !!this.nextConfig.experimental.optimizeImages,
@@ -272,9 +272,9 @@ export default class Server {
 
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
-     * Using this from process.env allows targetting both serverless and SSR by calling
+     * Using this from process.env allows targeting both serverless and SSR by calling
      * `process.env.__NEXT_OPTIMIZE_IMAGES`.
-     * TODO(atcastle@): Remove this when experimental.optimizeImages are being clened up.
+     * TODO(atcastle@): Remove this when experimental.optimizeImages are being cleaned up.
      */
     if (this.renderOpts.optimizeFonts) {
       process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(true)
@@ -1037,19 +1037,26 @@ export default class Server {
     }
   }
 
-  private async getPagePath(pathname: string): Promise<string> {
+  private async getPagePath(
+    pathname: string,
+    locales?: string[]
+  ): Promise<string> {
     return getPagePath(
       pathname,
       this.distDir,
       this._isLikeServerless,
-      this.renderOpts.dev
+      this.renderOpts.dev,
+      locales
     )
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
     let found = false
     try {
-      found = !!(await this.getPagePath(pathname))
+      found = !!(await this.getPagePath(
+        pathname,
+        this.nextConfig.i18n?.locales
+      ))
     } catch (_) {}
 
     return found
@@ -1281,6 +1288,7 @@ export default class Server {
     // we don't modify the URL for _next/data request but still
     // call render so we special case this to prevent an infinite loop
     if (
+      !this.minimalMode &&
       !query._nextDataReq &&
       (url.match(/^\/_next\//) ||
         (this.hasStaticDir && url.match(/^\/static\//)))
@@ -1482,7 +1490,11 @@ export default class Server {
       const statusCode = getRedirectStatus(redirect)
       const { basePath } = this.nextConfig
 
-      if (basePath && redirect.basePath !== false) {
+      if (
+        basePath &&
+        redirect.basePath !== false &&
+        redirect.destination.startsWith('/')
+      ) {
         redirect.destination = `${basePath}${redirect.destination}`
       }
 

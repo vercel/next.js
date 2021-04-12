@@ -8,6 +8,7 @@ import {
 } from '../lib/constants'
 import { normalizePagePath, denormalizePagePath } from './normalize-page-path'
 import { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
+import { normalizeLocalePath } from '../lib/i18n/normalize-locale-path'
 
 export function pageNotFoundError(page: string): Error {
   const err: any = new Error(`Cannot find module for page: ${page}`)
@@ -19,7 +20,8 @@ export function getPagePath(
   page: string,
   distDir: string,
   serverless: boolean,
-  dev?: boolean
+  dev?: boolean,
+  locales?: string[]
 ): string {
   const serverBuildPath = join(
     distDir,
@@ -36,11 +38,22 @@ export function getPagePath(
     console.error(err)
     throw pageNotFoundError(page)
   }
+  let pagePath = pagesManifest[page]
 
-  if (!pagesManifest[page]) {
+  if (!pagesManifest[page] && locales) {
+    const manifestNoLocales: typeof pagesManifest = {}
+
+    for (const key of Object.keys(pagesManifest)) {
+      manifestNoLocales[normalizeLocalePath(key, locales).pathname] =
+        pagesManifest[key]
+    }
+    pagePath = manifestNoLocales[page]
+  }
+
+  if (!pagePath) {
     throw pageNotFoundError(page)
   }
-  return join(serverBuildPath, pagesManifest[page])
+  return join(serverBuildPath, pagePath)
 }
 
 export function requirePage(
