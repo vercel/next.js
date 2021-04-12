@@ -12,6 +12,7 @@
       "runtimeExecutable": "yarn",
       "runtimeArgs": ["run", "debug", "dev", "test/integration/basic"],
       "skipFiles": ["<node_internals>/**"],
+      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"],
       "port": 9229
     },
     {
