@@ -1,5 +1,6 @@
 {
   "devDependencies": {
+    "eslint-config-next": "*",
     "@babel/eslint-parser": "*",
     "eslint": "*"
   }

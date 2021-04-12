@@ -8,7 +8,7 @@ const requiredESLintPackages = [
   'eslint',
   '@babel/core',
   '@babel/eslint-parser',
-  '@next/eslint-config',
+  'eslint-config-next',
   '@next/eslint-plugin-next',
   'eslint-plugin-react',
   'eslint-plugin-react-hooks',
@@ -59,7 +59,7 @@ export async function hasNecessaryDependencies(
       '\n\n' +
       chalk.bold(`Please install all required dependencies by running:`) +
       '\n\n' +
-      `\t${chalk.bold.cyan('npx install-peerdeps --dev @next/eslint-config')}` +
+      `\t${chalk.bold.cyan('npx install-peerdeps --dev eslint-config-next')}` +
       '\n\n' +
       chalk.bold(
         `If you are not trying to use ESLint, please remove the ${removalLocation}.\n\nLearn more: https://nextjs.org/docs/basic-features/eslint\n`

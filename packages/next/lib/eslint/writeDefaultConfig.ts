@@ -10,7 +10,7 @@ export async function writeDefaultConfig(
   pkgJsonPath: string | null
 ) {
   const defaultConfig = {
-    extends: '@next',
+    extends: 'next',
   }
 
   if (eslintrcFile) {
@@ -18,7 +18,7 @@ export async function writeDefaultConfig(
 
     let fileContent
     if (ext === '.yaml' || ext === '.yml') {
-      fileContent = "extends: '@next'"
+      fileContent = "extends: 'next'"
     } else {
       fileContent = CommentJson.stringify(defaultConfig, null, 2)
 

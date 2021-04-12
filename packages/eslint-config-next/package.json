@@ -1,12 +1,12 @@
 {
-  "name": "@next/eslint-config",
+  "name": "eslint-config-next",
   "version": "10.1.3",
   "description": "ESLint configuration used by NextJS.",
   "main": "index.js",
   "license": "MIT",
   "repository": {
     "url": "vercel/next.js",
-    "directory": "packages/eslint-config"
+    "directory": "packages/eslint-config-next"
   },
   "peerDependencies": {
     "@babel/core": "^7.13.14",

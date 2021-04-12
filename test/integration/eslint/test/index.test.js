@@ -19,7 +19,7 @@ describe('ESLint', () => {
     expect(stderr).toContain(
       'Please install all required dependencies by running:'
     )
-    expect(stderr).toContain('npx install-peerdeps --dev @next/eslint-config')
+    expect(stderr).toContain('npx install-peerdeps --dev eslint-config-next')
     expect(stderr).toContain(
       'If you are not trying to use ESLint, please remove the .eslintrc file from your application.'
     )
@@ -40,7 +40,7 @@ describe('ESLint', () => {
       'We detected ESLint in your project and updated the .eslintrc file for you.'
     )
     expect(eslintrcContent.trim().replace(/\s/g, '')).toMatch(
-      '{"extends":"@next"}'
+      '{"extends":"next"}'
     )
   })
 })
