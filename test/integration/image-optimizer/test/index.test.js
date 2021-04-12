@@ -509,6 +509,21 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(400)
     expect(await res.text()).toBe("The requested resource isn't a valid image.")
   })
+
+  it('should handle concurrent requests', async () => {
+    const query = { url: '/test.png', w, q: 80 }
+    const opts = { headers: { accept: 'image/webp,*/*' } }
+    const [res1, res2] = await Promise.all([
+      fetchViaHTTP(appPort, '/_next/image', query, opts),
+      fetchViaHTTP(appPort, '/_next/image', query, opts),
+    ])
+    expect(res1.status).toBe(200)
+    expect(res2.status).toBe(200)
+    expect(res1.headers.get('Content-Type')).toBe('image/webp')
+    expect(res2.headers.get('Content-Type')).toBe('image/webp')
+    await expectWidth(res1, w)
+    await expectWidth(res2, w)
+  })
 }
 
 describe('Image Optimizer', () => {

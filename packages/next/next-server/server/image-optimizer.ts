@@ -27,6 +27,8 @@ const MODERN_TYPES = [/* AVIF, */ WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
 const VECTOR_TYPES = [SVG]
 
+const inflightRequests = new Map<string, Promise<undefined>>()
+
 export async function imageOptimizer(
   server: Server,
   req: IncomingMessage,
@@ -137,6 +139,12 @@ export async function imageOptimizer(
   const imagesDir = join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
   const now = Date.now()
+
+  // If there're concurrent requests hitting the same resource and it's still
+  // being optimized, wait before accessing the cache.
+  if (inflightRequests.has(hash)) {
+    await inflightRequests.get(hash)
+  }
 
   if (await fileExists(hashDir, 'directory')) {
     const files = await promises.readdir(hashDir)
@@ -251,6 +259,12 @@ export async function imageOptimizer(
     contentType = JPEG
   }
 
+  let dedupeResolver: (val?: PromiseLike<undefined>) => void
+  inflightRequests.set(
+    hash,
+    new Promise((resolve) => (dedupeResolver = resolve))
+  )
+
   try {
     const orientation = await getOrientation(upstreamBuffer)
 
@@ -305,6 +319,9 @@ export async function imageOptimizer(
   } catch (error) {
     sendResponse(req, res, upstreamType, upstreamBuffer)
   }
+
+  dedupeResolver!()
+  inflightRequests.delete(hash)
 
   return { finished: true }
 }
