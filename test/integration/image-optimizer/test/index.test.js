@@ -13,6 +13,7 @@ import {
 } from 'next-test-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
+import { createHash } from 'crypto'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -523,6 +524,20 @@ function runTests({ w, isDev, domains }) {
     expect(res2.headers.get('Content-Type')).toBe('image/webp')
     await expectWidth(res1, w)
     await expectWidth(res2, w)
+
+    // There should be only one image created in the cache directory.
+    const hashItems = [2, '/test.png', w, 80, 'image/webp']
+    const hash = createHash('sha256')
+    for (let item of hashItems) {
+      if (typeof item === 'number') hash.update(String(item))
+      else {
+        hash.update(item)
+      }
+    }
+    const hashDir = hash.digest('base64').replace(/\//g, '-')
+    const dir = join(imagesDir, hashDir)
+    const files = await fs.readdir(dir)
+    expect(files.length).toBe(1)
   })
 }
 
