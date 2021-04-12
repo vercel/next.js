@@ -37,6 +37,18 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  it('should have correct initial query values for fallback', async () => {
+    const res = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath || '/gsp/fallback/random-' + Date.now()}`
+    )
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect(JSON.parse($('#router-query').text())).toEqual({})
+  })
+
   it('should navigate to page with same name as development buildId', async () => {
     const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
 

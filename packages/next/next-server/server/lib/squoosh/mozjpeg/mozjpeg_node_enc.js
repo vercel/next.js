@@ -39,12 +39,6 @@ var Module = (function () {
       a.buffer || u('Assertion failed: undefined')
       return a
     }
-    1 < process.argv.length && (da = process.argv[1].replace(/\\/g, '/'))
-    process.argv.slice(2)
-    process.on('uncaughtException', function (a) {
-      if (!(a instanceof la)) throw a
-    })
-    process.on('unhandledRejection', u)
     ea = function (a) {
       process.exit(a)
     }

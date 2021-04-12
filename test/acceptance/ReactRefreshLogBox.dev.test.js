@@ -630,6 +630,31 @@ test('boundaries', async () => {
   await cleanup()
 })
 
+// https://github.com/vercel/next.js/pull/23203
+test('internal package errors', async () => {
+  const [session, cleanup] = await sandbox()
+
+  // Make a react build-time error.
+  await session.patch(
+    'index.js',
+    `
+      import * as React from 'react';
+      export default function FunctionNamed() {
+        return <div>{{}}</div>
+      }`
+  )
+
+  expect(await session.hasRedbox(true)).toBe(true)
+  // We internally only check the script path, not including the line number
+  // and error message because the error comes from an external library.
+  // This test ensures that the errored script path is correctly resolved.
+  expect(await session.getRedboxSource()).toContain(
+    `../../../../packages/next/dist/pages/_document.js`
+  )
+
+  await cleanup()
+})
+
 test('unterminated JSX', async () => {
   const [session, cleanup] = await sandbox()
 
