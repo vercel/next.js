@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
-const { relative, basename, resolve } = require('path')
+const { relative, basename, resolve, join, dirname } = require('path')
 const { Module } = require('module')
 
 // Note:
@@ -687,9 +687,20 @@ export async function path_to_regexp(task, opts) {
     .target('dist/compiled/path-to-regexp')
 }
 
+export async function copy_regexr_lexer(task, opts) {
+  await task
+    .source(
+      join(
+        relative(__dirname, dirname(require.resolve('regexr/package.json'))),
+        'lexer-dist/**/*'
+      )
+    )
+    .target('dist/compiled/regexr-lexer')
+}
+
 export async function precompile(task, opts) {
   await task.parallel(
-    ['browser_polyfills', 'path_to_regexp', 'copy_ncced'],
+    ['browser_polyfills', 'path_to_regexp', 'copy_ncced', 'copy_regexr_lexer'],
     opts
   )
 }
