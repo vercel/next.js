@@ -1055,8 +1055,8 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_STRICT_MODE': JSON.stringify(
           config.reactStrictMode
         ),
-        'process.env.__NEXT_REACT_MODE': JSON.stringify(
-          config.experimental.reactMode
+        'process.env.__NEXT_MODERN_REACT': JSON.stringify(
+          config.experimental.modernReact
         ),
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
           config.optimizeFonts && !dev
@@ -1255,7 +1255,7 @@ export default async function getBaseWebpackConfig(
       buildActivity: config.devIndicators.buildActivity,
       plugins: config.experimental.plugins,
       reactStrictMode: config.reactStrictMode,
-      reactMode: config.experimental.reactMode,
+      modernReact: config.experimental.modernReact,
       optimizeFonts: config.optimizeFonts,
       optimizeImages: config.experimental.optimizeImages,
       optimizeCss: config.experimental.optimizeCss,

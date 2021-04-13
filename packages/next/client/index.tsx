@@ -510,13 +510,11 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 let reactRoot: any = null
 let shouldUseHydrate: boolean = typeof ReactDOM.hydrate === 'function'
 function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement): void {
-  if (process.env.__NEXT_REACT_MODE !== 'legacy') {
+  if (process.env.__NEXT_MODERN_REACT) {
     if (!reactRoot) {
-      const opts = { hydrate: true }
-      reactRoot =
-        process.env.__NEXT_REACT_MODE === 'concurrent'
-          ? (ReactDOM as any).unstable_createRoot(domEl, opts)
-          : (ReactDOM as any).unstable_createBlockingRoot(domEl, opts)
+      reactRoot = (ReactDOM as any).unstable_createRoot(domEl, {
+        hydrate: true,
+      })
     }
     reactRoot.render(reactEl)
   } else {

@@ -41,7 +41,6 @@ export type NextConfig = { [key: string]: any } & {
     plugins?: boolean
     profiling?: boolean
     sprFlushToDisk?: boolean
-    reactMode?: 'legacy' | 'concurrent' | 'blocking'
     workerThreads?: boolean
     pageEnv?: boolean
     optimizeFonts?: boolean
@@ -60,6 +59,7 @@ export type NextConfig = { [key: string]: any } & {
       skipValidation?: boolean
     }
     turboMode: boolean
+    modernReact: boolean
   }
 }
 
@@ -104,7 +104,6 @@ export const defaultConfig: NextConfig = {
     plugins: false,
     profiling: false,
     sprFlushToDisk: true,
-    reactMode: 'legacy',
     workerThreads: false,
     pageEnv: false,
     optimizeImages: false,
@@ -115,6 +114,7 @@ export const defaultConfig: NextConfig = {
     externalDir: false,
     serialWebpackBuild: false,
     turboMode: false,
+    modernReact: false,
   },
   future: {
     strictPostcssConfiguration: false,
