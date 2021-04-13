@@ -1,6 +1,12 @@
 import { nSQL } from '@nano-sql/core'
+import { NextApiHandler } from 'next'
 
-const connectMiddleware = (handler) => async (req, res) => {
+import type { ErrorResponse } from '../../types/ErrorResponse'
+
+const connectMiddleware = (handler: NextApiHandler): NextApiHandler => async (
+  req,
+  res
+) => {
   const dbName = 'with-redux-toolkit'
 
   if (!nSQL().listDatabases().includes(dbName)) {
@@ -25,9 +31,10 @@ const connectMiddleware = (handler) => async (req, res) => {
 
   return handler(req, res)
 }
-const saveNote = async (req, res) => {
+
+const saveNote: NextApiHandler = async (req, res) => {
   const { title, content } = req.body
-  const errors = {}
+  const errors: Partial<ErrorResponse> = {}
 
   if (!title) errors['title'] = 'Title is required'
 
@@ -44,12 +51,14 @@ const saveNote = async (req, res) => {
 
   res.status(201).json(note)
 }
-const listNotes = async (_, res) => {
+
+const listNotes: NextApiHandler = async (_, res) => {
   const notes = await nSQL('notes').query('select').exec()
 
   res.json(notes)
 }
-const updateNote = async (req, res) => {
+
+const updateNote: NextApiHandler = async (req, res) => {
   const { noteId } = req.query
   const [note] = await nSQL()
     .query('select')
@@ -72,7 +81,8 @@ const updateNote = async (req, res) => {
 
   res.json(noteUpdated)
 }
-const removeNote = async (req, res) => {
+
+const removeNote: NextApiHandler = async (req, res) => {
   const { noteId } = req.query
   const [note] = await nSQL()
     .query('select')
@@ -91,7 +101,7 @@ const removeNote = async (req, res) => {
   res.status(204).send(null)
 }
 
-const handler = (req, res) => {
+const handler: NextApiHandler = (req, res) => {
   switch (req.method) {
     case 'POST':
       return saveNote(req, res)

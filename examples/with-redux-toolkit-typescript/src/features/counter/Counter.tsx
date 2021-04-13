@@ -1,7 +1,6 @@
-import { ChangeEvent, FC } from 'react'
-import { useState } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
+import { ChangeEvent, useState } from 'react'
 
+import { useAppDispatch, useAppSelector } from '../../app/hooks'
 import {
   decrement,
   increment,
@@ -9,11 +8,11 @@ import {
   incrementByAmount,
   reset,
   selectCount,
-} from '../lib/slices/counterSlice'
+} from './counterSlice'
 
-const Counter: FC = () => {
-  const dispatch = useDispatch()
-  const count = useSelector(selectCount)
+function Counter() {
+  const dispatch = useAppDispatch()
+  const count = useAppSelector(selectCount)
   const [incrementAmount, setIncrementAmount] = useState('2')
 
   function dispatchIncrement() {

@@ -1,23 +1,26 @@
+import { NextPage } from 'next'
 import Dynamic from 'next/dynamic'
 import Head from 'next/head'
 import { useEffect, useState } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
 
-import AddNoteForm from '../components/add-note'
-import { deleteNote, loadNotes, selectNotes } from '../lib/slices/notesSlice'
+import { useAppDispatch, useAppSelector } from '../app/hooks'
+import AddNoteForm from '../features/note/AddNote'
+import { deleteNote, loadNotes, selectNotes } from '../features/note/notesSlice'
 import { PersistedNote } from '../types/Note'
 
-const EditNoteForm = Dynamic(import('../components/edit-note'), { ssr: false })
-const Notes = () => {
+const EditNoteForm = Dynamic(import('../features/note/EditNote'), {
+  ssr: false,
+})
+
+const Notes: NextPage = () => {
   const [selectedNote, setSelectedNote] = useState<PersistedNote>()
-  const dispatch = useDispatch()
-  const { notes } = useSelector(selectNotes)
+  const dispatch = useAppDispatch()
+  const { notes } = useAppSelector(selectNotes)
 
   useEffect(() => {
-    async function dispatchLoadNotes() {
-      await dispatch(loadNotes())
-    }
-    dispatchLoadNotes()
+    const promise = dispatch(loadNotes())
+
+    return promise.abort()
   }, [dispatch])
 
   const renderNote = (note: PersistedNote) => (

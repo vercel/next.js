@@ -1,14 +1,11 @@
-import { FC } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
+import { useAppDispatch, useAppSelector, useForm } from '../../app/hooks'
+import { isErrorResponse } from '../../types/ErrorResponse'
+import { Note } from '../../types/Note'
+import { addNote, selectNotes } from './notesSlice'
 
-import { addNote, selectNotes } from '../lib/slices/notesSlice'
-import useForm from '../lib/useForm'
-import { Note } from '../types/Note'
-import { isErrorResponse } from '../types/ErrorResponse'
-
-const AddNoteForm: FC = () => {
-  const dispatch = useDispatch()
-  const { error } = useSelector(selectNotes)
+function AddNoteForm() {
+  const dispatch = useAppDispatch()
+  const { error } = useAppSelector(selectNotes)
   const handleSubmit = useForm<Note>({
     title: '',
     content: '',

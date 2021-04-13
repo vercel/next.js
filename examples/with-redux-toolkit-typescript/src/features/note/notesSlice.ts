@@ -1,7 +1,8 @@
 import { createAsyncThunk, createSelector, createSlice } from '@reduxjs/toolkit'
-import { Note, PersistedNote } from '../../types/Note'
-import { CoreState } from '../../src/store'
-import { ErrorResponse } from '../../types/ErrorResponse'
+
+import type { AppState } from '../../app/store'
+import type { ErrorResponse } from '../../types/ErrorResponse'
+import type { Note, PersistedNote } from '../../types/Note'
 
 type ErrorResult = {
   error: ErrorResponse | string
@@ -183,7 +184,7 @@ const notesSlice = createSlice({
 })
 
 export const selectNotes = createSelector(
-  (state: CoreState) => ({
+  (state: AppState) => ({
     notes: state.notes.notes,
     error: state.notes.error,
   }),

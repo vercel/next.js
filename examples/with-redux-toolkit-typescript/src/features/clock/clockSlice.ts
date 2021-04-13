@@ -1,5 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
-import { CoreState } from '../../src/store'
+
+import type { AppState } from '../../app/store'
 
 type ClockState = {
   lastUpdate: number
@@ -22,7 +23,7 @@ const clockSlice = createSlice({
   },
 })
 
-export const selectClock = (state: CoreState) => state.clock
+export const selectClock = (state: AppState) => state.clock
 
 export const { tick } = clockSlice.actions
 

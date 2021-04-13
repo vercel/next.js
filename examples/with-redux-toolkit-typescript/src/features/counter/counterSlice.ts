@@ -1,5 +1,6 @@
 import { createSlice, Dispatch } from '@reduxjs/toolkit'
-import { CoreState } from '../../src/store'
+
+import type { AppState } from '../../app/store'
 
 type CounterState = {
   value: number
@@ -38,7 +39,7 @@ const counterSlice = createSlice({
  * @param   {Object} state The root state
  * @returns {number} The current count
  */
-export const selectCount = (state: CoreState) => state.counter.value
+export const selectCount = (state: AppState) => state.counter.value
 
 export const {
   increment,

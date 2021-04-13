@@ -1,18 +1,16 @@
-import { FC } from 'react'
 import { useLayoutEffect, useRef } from 'react'
-import { useDispatch } from 'react-redux'
 
-import { editNote } from '../lib/slices/notesSlice'
-import useForm from '../lib/useForm'
-import { PersistedNote } from '../types/Note'
+import { useAppDispatch, useForm } from '../../app/hooks'
+import { PersistedNote } from '../../types/Note'
+import { editNote } from './notesSlice'
 
-type Props = {
+type EditNoteFormProps = {
   note: PersistedNote
 }
 
-const EditNoteForm: FC<Props> = ({ note }) => {
+function EditNoteForm({ note }: EditNoteFormProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const dispatch = useDispatch()
+  const dispatch = useAppDispatch()
   const handleSubmit = useForm<PersistedNote>(note)
 
   useLayoutEffect(() => {
