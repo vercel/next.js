@@ -72,6 +72,7 @@ For importing CSS required by a third party component, you can do so in your com
 // components/ExampleDialog.js
 import { useState } from 'react'
 import { Dialog } from '@reach/dialog'
+import VisuallyHidden from '@reach/visually-hidden'
 import '@reach/dialog/styles.css'
 
 function ExampleDialog(props) {
