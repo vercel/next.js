@@ -114,7 +114,6 @@ jobs:
       NEXT_TEST_JOB: 1
       HEADLESS: true
       TEST_ELECTRON: 1
-      GIT_TERMINAL_PROMPT: 1
     steps:
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
@@ -127,7 +126,13 @@ jobs:
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: yarn add -W --dev spectron@7.0.0 electron@5.0.0
+      - run: cat package.json | jq '.devDependencies.spectron = "7.0.0"'  > package.json.tmp && mv package.json.tmp package.json
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: cat package.json | jq '.devDependencies.electron = "5.0.0"'  > package.json.tmp && mv package.json.tmp package.json
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
+
+      - run: yarn install
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: xvfb-run node run-tests.js test/integration/with-electron/test/index.test.js
