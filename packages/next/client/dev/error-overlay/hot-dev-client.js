@@ -28,7 +28,7 @@
 
 import * as DevOverlay from '@next/react-dev-overlay/lib/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { addMessageListener } from './eventsource'
+import { getEventSourceWrapper } from './eventsource'
 import formatWebpackMessages from './format-webpack-messages'
 
 // This alternative WebpackDevServer combines the functionality of:
@@ -42,10 +42,10 @@ import formatWebpackMessages from './format-webpack-messages'
 
 let hadRuntimeError = false
 let customHmrEventHandler
-export default function connect() {
+export default function connect(options) {
   DevOverlay.register()
 
-  addMessageListener((event) => {
+  getEventSourceWrapper(options).addMessageListener((event) => {
     // This is the heartbeat event
     if (event.data === '\uD83D\uDC93') {
       return
