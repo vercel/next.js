@@ -1,11 +1,11 @@
 import chalk from 'chalk'
 import path from 'path'
-import { FatalTypeScriptError } from './typescript/FatalTypeScriptError'
-import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
 import {
   hasNecessaryDependencies,
   NecessaryDependencies,
-} from './typescript/hasNecessaryDependencies'
+} from './has-necessary-dependencies'
+import { FatalTypeScriptError } from './typescript/FatalTypeScriptError'
+import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
 import { runTypeCheck, TypeCheckResult } from './typescript/runTypeCheck'
 import { TypeScriptCompileError } from './typescript/TypeScriptCompileError'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
@@ -27,12 +27,13 @@ export async function verifyTypeScriptSetup(
     const firstTimeSetup = intent.firstTimeSetup
 
     // Ensure TypeScript and necessary `@types/*` are installed:
-    const deps: NecessaryDependencies = await hasNecessaryDependencies(dir)
+    const deps: NecessaryDependencies = await hasNecessaryDependencies(
+      dir,
+      intent && typeCheckPreflight
+    )
 
     // Load TypeScript after we're sure it exists:
-    const ts = (await import(
-      deps.resolvedTypeScript
-    )) as typeof import('typescript')
+    const ts = (await import(deps.resolved)) as typeof import('typescript')
 
     // Reconfigure (or create) the user's `tsconfig.json` for them:
     await writeConfigurationDefaults(ts, tsConfigPath, firstTimeSetup)

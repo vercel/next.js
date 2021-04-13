@@ -2,13 +2,13 @@ import { join } from 'path'
 
 import { formatResults } from './customFormatter'
 import { getLintIntent } from './getLintIntent'
-import {
-  hasNecessaryDependencies,
-  NecessaryDependencies,
-} from './hasNecessaryDependencies'
 import { writeDefaultConfig } from './writeDefaultConfig'
 import { ESLintCompileError } from './ESLintCompileError'
 
+import {
+  hasNecessaryDependencies,
+  NecessaryDependencies,
+} from '../has-necessary-dependencies'
 import { fileExists } from '../file-exists'
 import { getTypeScriptIntent } from '../typescript/getTypeScriptIntent'
 
@@ -28,7 +28,7 @@ async function lint(
   pkgJsonPath: string | null
 ): Promise<string | null> {
   // Load ESLint after we're sure it exists:
-  const { ESLint } = await import(deps.resolvedESLint)
+  const { ESLint } = await import(deps.resolved)
 
   let options: any = {
     useEslintrc: true,
@@ -135,8 +135,8 @@ export async function runLintCheck(
     // Ensure ESLint and necessary plugins and configs are installed:
     const deps: NecessaryDependencies = await hasNecessaryDependencies(
       baseDir,
-      eslintrcFile,
-      tsIntent && typeCheckPreflight
+      tsIntent && typeCheckPreflight,
+      eslintrcFile
     )
 
     // Create the user's eslintrc config for them
