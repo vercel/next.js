@@ -227,7 +227,7 @@
     "postcss-preset-env": "6.7.0",
     "postcss-scss": "3.0.4",
     "recast": "0.18.5",
-    "regexr": "https://github.com/ijjk/regexr-lexer.git#3bcf3d1c4bc6dd9239c47acb1fb7b419823f8337",
+    "regexr": "git+ssh://git@github.com/ijjk/regexr-lexer.git#3bcf3d1c4bc6dd9239c47acb1fb7b419823f8337",
     "resolve-url-loader": "3.1.2",
     "sass-loader": "10.0.5",
     "schema-utils": "2.7.1",
