@@ -3,7 +3,7 @@ on:
     # * is a special character in YAML so you have to quote this string
     - cron: '0 0,12 * * *'
 
-name: Test react@next
+name: Test react@experimental
 
 jobs:
   # build:
@@ -29,6 +29,7 @@ jobs:
     # needs: build
     env:
       NEXT_TELEMETRY_DISABLED: 1
+      NEXT_PRIVATE_REACT_MODE: concurrent
       HEADLESS: true
       NEXT_PRIVATE_SKIP_SIZE_TESTS: true
     strategy:
@@ -46,7 +47,7 @@ jobs:
 
       - run: yarn install --frozen-lockfile --check-files
 
-      - run: yarn upgrade react@next react-dom@next -W --dev
+      - run: yarn upgrade react@experimental react-dom@experimental -W --dev
 
       # TODO: remove after we fix watchpack watching too much
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p

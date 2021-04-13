@@ -40,6 +40,10 @@ describe('Build Output', () => {
     it('should not deviate from snapshot', async () => {
       console.log(stdout)
 
+      if (process.env.NEXT_PRIVATE_SKIP_SIZE_TESTS) {
+        return
+      }
+
       const parsePageSize = (page) =>
         stdout.match(
           new RegExp(` ${page} .*?((?:\\d|\\.){1,} (?:\\w{1,})) `)
