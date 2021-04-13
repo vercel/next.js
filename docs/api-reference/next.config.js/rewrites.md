@@ -214,6 +214,9 @@ module.exports = {
           {
             type: 'query',
             key: 'page',
+            // the page value will not be available in the
+            // destination since value is provided and doesn't
+            // use a named capture group e.g. (?<page>home)
             value: 'home',
           },
           {
@@ -222,7 +225,7 @@ module.exports = {
             value: 'true',
           },
         ],
-        destination: '/:path*/:page',
+        destination: '/:path*/home',
       },
       // if the header `x-authorized` is present and
       // contains a matching value, this rewrite will be applied
