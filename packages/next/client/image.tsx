@@ -448,10 +448,8 @@ export default function Image({
               quality: qualityInt,
               sizes,
               loader,
-            })}
-            src={src}
-            decoding="async"
-            sizes={sizes}
+            })}            
+            decoding="async"            
             style={imgStyle}
             className={className}
           />
