@@ -25,6 +25,7 @@ type CheckReasons =
   | 'test-mode'
   | 'no-config'
   | 'future-flag'
+  | 'no-future-flag'
   | 'no-webpack-config'
   | 'webpack-config'
 
@@ -52,6 +53,7 @@ export async function shouldLoadWithWebpack5(
 
   // No `next.config.js`:
   if (!path?.length) {
+    // Uncomment to add auto-enable when there is no next.config.js
     // Use webpack 5 by default in new apps:
     return {
       enabled: true,
@@ -76,6 +78,7 @@ export async function shouldLoadWithWebpack5(
     }
   }
 
+  // Uncomment to add auto-enable when there is no custom webpack config
   // The user isn't configuring webpack
   if (!userConfig.webpack) {
     return {
@@ -94,8 +97,12 @@ function reasonMessage(reason: CheckReasons) {
   switch (reason) {
     case 'future-flag':
       return 'future.webpack5 option enabled'
+    case 'no-future-flag':
+      return 'future.webpack5 option not enabled'
     case 'no-config':
       return 'no next.config.js'
+    case 'webpack-config':
+      return 'custom webpack configuration in next.config.js'
     case 'no-webpack-config':
       return 'no custom webpack configuration in next.config.js'
     case 'test-mode':
@@ -110,14 +117,11 @@ export async function loadWebpackHook(phase: string, dir: string) {
   const worker: any = new Worker(__filename, { enableWorkerThreads: false })
   try {
     const result: CheckResult = await worker.shouldLoadWithWebpack5(phase, dir)
-    if (result.enabled) {
-      Log.info(`Using webpack 5. Reason: ${reasonMessage(result.reason)}`)
-    } else {
-      Log.info(
-        'Using webpack 4. Reason: the next.config.js has custom webpack configuration',
-        reasonMessage(result.reason)
-      )
-    }
+    Log.info(
+      `Using webpack ${result.enabled ? '5' : '4'}. Reason: ${reasonMessage(
+        result.reason
+      )} https://nextjs.org/docs/messages/webpack5`
+    )
     useWebpack5 = Boolean(result.enabled)
   } catch {
     // If this errors, it likely will do so again upon boot, so we just swallow

@@ -206,7 +206,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     if (props.prefetch && !hasWarned.current) {
       hasWarned.current = true
       console.warn(
-        'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://err.sh/vercel/next.js/prefetch-true-deprecated'
+        'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://nextjs.org/docs/messages/prefetch-true-deprecated'
       )
     }
   }

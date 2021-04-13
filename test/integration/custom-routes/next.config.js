@@ -1,154 +1,200 @@
 module.exports = {
   // target: 'serverless',
   async rewrites() {
-    return [
-      ...(process.env.ADD_NOOP_REWRITE === 'true'
-        ? [
+    return {
+      afterFiles: [
+        ...(process.env.ADD_NOOP_REWRITE === 'true'
+          ? [
+              {
+                source: '/:path*',
+                destination: '/:path*',
+              },
+            ]
+          : []),
+        {
+          source: '/rewriting-to-auto-export',
+          destination: '/auto-export/hello',
+        },
+        {
+          source: '/to-another',
+          destination: '/another/one',
+        },
+        {
+          source: '/nav',
+          destination: '/404',
+        },
+        {
+          source: '/hello-world',
+          destination: '/static/hello.txt',
+        },
+        {
+          source: '/',
+          destination: '/another',
+        },
+        {
+          source: '/another',
+          destination: '/multi-rewrites',
+        },
+        {
+          source: '/first',
+          destination: '/hello',
+        },
+        {
+          source: '/second',
+          destination: '/hello-again',
+        },
+        {
+          source: '/to-hello',
+          destination: '/hello',
+        },
+        {
+          source: '/blog/post-1',
+          destination: '/blog/post-2',
+        },
+        {
+          source: '/test/:path',
+          destination: '/:path',
+        },
+        {
+          source: '/test-overwrite/:something/:another',
+          destination: '/params/this-should-be-the-value',
+        },
+        {
+          source: '/params/:something',
+          destination: '/with-params',
+        },
+        {
+          source: '/query-rewrite/:section/:name',
+          destination: '/with-params?first=:section&second=:name',
+        },
+        {
+          source: '/hidden/_next/:path*',
+          destination: '/_next/:path*',
+        },
+        {
+          source: '/proxy-me/:path*',
+          destination: 'http://localhost:__EXTERNAL_PORT__/:path*',
+        },
+        {
+          source: '/api-hello',
+          destination: '/api/hello',
+        },
+        {
+          source: '/api-hello-regex/:first(.*)',
+          destination: '/api/hello?name=:first*',
+        },
+        {
+          source: '/api-hello-param/:name',
+          destination: '/api/hello?hello=:name',
+        },
+        {
+          source: '/api-dynamic-param/:name',
+          destination: '/api/dynamic/:name?hello=:name',
+        },
+        {
+          source: '/:path/post-321',
+          destination: '/with-params',
+        },
+        {
+          source: '/unnamed-params/nested/(.*)/:test/(.*)',
+          destination: '/with-params',
+        },
+        {
+          source: '/catchall-rewrite/:path*',
+          destination: '/with-params',
+        },
+        {
+          source: '/catchall-query/:path*',
+          destination: '/with-params?another=:path*',
+        },
+        {
+          source: '/has-rewrite-1',
+          has: [
             {
-              source: '/:path*',
-              destination: '/:path*',
+              type: 'header',
+              key: 'x-my-header',
+              value: '(?<myHeader>.*)',
             },
-          ]
-        : []),
-      {
-        source: '/rewriting-to-auto-export',
-        destination: '/auto-export/hello',
-      },
-      {
-        source: '/to-another',
-        destination: '/another/one',
-      },
-      {
-        source: '/nav',
-        destination: '/404',
-      },
-      {
-        source: '/hello-world',
-        destination: '/static/hello.txt',
-      },
-      {
-        source: '/',
-        destination: '/another',
-      },
-      {
-        source: '/another',
-        destination: '/multi-rewrites',
-      },
-      {
-        source: '/first',
-        destination: '/hello',
-      },
-      {
-        source: '/second',
-        destination: '/hello-again',
-      },
-      {
-        source: '/to-hello',
-        destination: '/hello',
-      },
-      {
-        source: '/blog/post-1',
-        destination: '/blog/post-2',
-      },
-      {
-        source: '/test/:path',
-        destination: '/:path',
-      },
-      {
-        source: '/test-overwrite/:something/:another',
-        destination: '/params/this-should-be-the-value',
-      },
-      {
-        source: '/params/:something',
-        destination: '/with-params',
-      },
-      {
-        source: '/query-rewrite/:section/:name',
-        destination: '/with-params?first=:section&second=:name',
-      },
-      {
-        source: '/hidden/_next/:path*',
-        destination: '/_next/:path*',
-      },
-      {
-        source: '/proxy-me/:path*',
-        destination: 'http://localhost:__EXTERNAL_PORT__/:path*',
-      },
-      {
-        source: '/api-hello',
-        destination: '/api/hello',
-      },
-      {
-        source: '/api-hello-regex/:first(.*)',
-        destination: '/api/hello?name=:first*',
-      },
-      {
-        source: '/api-hello-param/:name',
-        destination: '/api/hello?hello=:name',
-      },
-      {
-        source: '/api-dynamic-param/:name',
-        destination: '/api/dynamic/:name?hello=:name',
-      },
-      {
-        source: '/:path/post-321',
-        destination: '/with-params',
-      },
-      {
-        source: '/unnamed-params/nested/(.*)/:test/(.*)',
-        destination: '/with-params',
-      },
-      {
-        source: '/catchall-rewrite/:path*',
-        destination: '/with-params',
-      },
-      {
-        source: '/catchall-query/:path*',
-        destination: '/with-params?another=:path*',
-      },
-      {
-        source: '/has-rewrite-1',
-        has: [
-          {
-            type: 'header',
-            key: 'x-my-header',
-            value: '(?<myHeader>.*)',
-          },
-        ],
-        destination: '/with-params?myHeader=:myHeader',
-      },
-      {
-        source: '/has-rewrite-2',
-        has: [
-          {
-            type: 'query',
-            key: 'my-query',
-          },
-        ],
-        destination: '/with-params?value=:myquery',
-      },
-      {
-        source: '/has-rewrite-3',
-        has: [
-          {
-            type: 'cookie',
-            key: 'loggedIn',
-            value: 'true',
-          },
-        ],
-        destination: '/with-params?authorized=1',
-      },
-      {
-        source: '/has-rewrite-4',
-        has: [
-          {
-            type: 'host',
-            value: 'example.com',
-          },
-        ],
-        destination: '/with-params?host=1',
-      },
-    ]
+          ],
+          destination: '/with-params?myHeader=:myHeader',
+        },
+        {
+          source: '/has-rewrite-2',
+          has: [
+            {
+              type: 'query',
+              key: 'my-query',
+            },
+          ],
+          destination: '/with-params?value=:myquery',
+        },
+        {
+          source: '/has-rewrite-3',
+          has: [
+            {
+              type: 'cookie',
+              key: 'loggedIn',
+              value: '(?<loggedIn>true)',
+            },
+          ],
+          destination: '/with-params?authorized=1',
+        },
+        {
+          source: '/has-rewrite-4',
+          has: [
+            {
+              type: 'host',
+              value: 'example.com',
+            },
+          ],
+          destination: '/with-params?host=1',
+        },
+        {
+          source: '/has-rewrite-5',
+          has: [
+            {
+              type: 'query',
+              key: 'hasParam',
+            },
+          ],
+          destination: '/:hasParam',
+        },
+        {
+          source: '/has-rewrite-6',
+          has: [
+            {
+              type: 'header',
+              key: 'hasParam',
+              value: 'with-params',
+            },
+          ],
+          destination: '/with-params',
+        },
+        {
+          source: '/has-rewrite-7',
+          has: [
+            {
+              type: 'query',
+              key: 'hasParam',
+              value: '(?<idk>with-params|hello)',
+            },
+          ],
+          destination: '/with-params?idk=:idk',
+        },
+      ],
+      beforeFiles: [
+        {
+          source: '/hello',
+          has: [
+            {
+              type: 'query',
+              key: 'overrideMe',
+            },
+          ],
+          destination: '/with-params?overridden=1',
+        },
+      ],
+    }
   },
   async redirects() {
     return [

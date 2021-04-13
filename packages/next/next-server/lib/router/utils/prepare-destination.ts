@@ -9,7 +9,7 @@ type Params = { [param: string]: any }
 
 // ensure only a-zA-Z are used for param names for proper interpolating
 // with path-to-regexp
-const getSafeParamName = (paramName: string) => {
+export const getSafeParamName = (paramName: string) => {
   let newParamName = ''
 
   for (let i = 0; i < paramName.length; i++) {
@@ -71,14 +71,10 @@ export function matchHas(
       if (matches) {
         if (matches.groups) {
           Object.keys(matches.groups).forEach((groupKey) => {
-            const safeKey = getSafeParamName(groupKey)
-
-            if (safeKey && matches.groups![groupKey]) {
-              params[safeKey] = matches.groups![groupKey]
-            }
+            params[groupKey] = matches.groups![groupKey]
           })
-        } else {
-          params[getSafeParamName(key || 'host')] = matches[0]
+        } else if (hasItem.type === 'host' && matches[0]) {
+          params.host = matches[0]
         }
         return true
       }
@@ -236,7 +232,7 @@ export default function prepareDestination(
   } catch (err) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(
-        `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://err.sh/vercel/next.js/invalid-multi-match`
+        `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://nextjs.org/docs/messages/invalid-multi-match`
       )
     }
     throw err

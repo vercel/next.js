@@ -64,7 +64,7 @@ import { DomainLocales } from './config'
 
 function noRouter() {
   const message =
-    'No router instance found. you should only use "next/router" inside the client side of your app. https://err.sh/vercel/next.js/no-router-instance'
+    'No router instance found. you should only use "next/router" inside the client side of your app. https://nextjs.org/docs/messages/no-router-instance'
   throw new Error(message)
 }
 
@@ -165,13 +165,9 @@ export type RenderOptsPartial = {
   runtimeConfig?: { [key: string]: any }
   assetPrefix?: string
   err?: Error | null
-  autoExport?: boolean
   nextExport?: boolean
   dev?: boolean
-  ampMode?: any
   ampPath?: string
-  inAmpMode?: boolean
-  hybridAmp?: boolean
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
@@ -261,6 +257,7 @@ function renderDocument(
     devOnlyCacheBusterQueryString: string
     scriptLoader: any
     isPreview?: boolean
+    autoExport?: boolean
   }
 ): string {
   return (
@@ -320,7 +317,7 @@ const invalidKeysMsg = (methodName: string, invalidKeys: string[]) => {
     `Additional keys were returned from \`${methodName}\`. Properties intended for your component must be nested under the \`props\` key, e.g.:` +
     `\n\n\treturn { props: { title: 'My Title', content: '...' } }` +
     `\n\nKeys that need to be moved: ${invalidKeys.join(', ')}.` +
-    `\nRead more: https://err.sh/next.js/invalid-getstaticprops-value`
+    `\nRead more: https://nextjs.org/docs/messages/invalid-getstaticprops-value`
   )
 }
 
@@ -367,7 +364,7 @@ function checkRedirectValues(
       `Invalid redirect object returned from ${method} for ${req.url}\n` +
         errors.join(' and ') +
         '\n' +
-        `See more info here: https://err.sh/vercel/next.js/invalid-redirect-gssp`
+        `See more info here: https://nextjs.org/docs/messages/invalid-redirect-gssp`
     )
   }
 }
@@ -495,9 +492,11 @@ export async function renderToHTML(
   if (isSSG && pageIsDynamic && !getStaticPaths) {
     throw new Error(
       `getStaticPaths is required for dynamic SSG pages and is missing for '${pathname}'.` +
-        `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
+        `\nRead more: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
     )
   }
+
+  let asPath: string = renderOpts.resolvedAsPath || (req.url as string)
 
   if (dev) {
     const { isValidElementType } = require('react-is')
@@ -528,12 +527,11 @@ export async function renderToHTML(
             }
           : {}),
       }
-      renderOpts.resolvedAsPath = `${pathname}${
+      asPath = `${pathname}${
         // ensure trailing slash is present for non-dynamic auto-export pages
         req.url!.endsWith('/') && pathname !== '/' && !pageIsDynamic ? '/' : ''
       }`
       req.url = pathname
-      renderOpts.nextExport = true
     }
 
     if (pathname === '/404' && (hasPageGetInitialProps || getServerSideProps)) {
@@ -550,8 +548,6 @@ export async function renderToHTML(
       )
     }
   }
-  if (isAutoExport) renderOpts.autoExport = true
-  if (isSSG) renderOpts.nextExport = false
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
@@ -567,7 +563,6 @@ export async function renderToHTML(
   }
 
   // url will always be set
-  const asPath: string = renderOpts.resolvedAsPath || (req.url as string)
   const routerIsReady = !!(getServerSideProps || hasPageGetInitialProps)
   const router = new ServerRouter(
     pathname,
@@ -707,7 +702,7 @@ export async function renderToHTML(
           throw new Error(
             `\`redirect\` and \`notFound\` can not both be returned from ${
               isSSG ? 'getStaticProps' : 'getServerSideProps'
-            } at the same time. Page: ${pathname}\nSee more info here: https://err.sh/next.js/gssp-mixed-not-found-redirect`
+            } at the same time. Page: ${pathname}\nSee more info here: https://nextjs.org/docs/messages/gssp-mixed-not-found-redirect`
           )
         }
       }
@@ -732,7 +727,7 @@ export async function renderToHTML(
         if (isBuildTimeSSG) {
           throw new Error(
             `\`redirect\` can not be returned from getStaticProps during prerendering (${req.url})\n` +
-              `See more info here: https://err.sh/next.js/gsp-redirect-during-prerender`
+              `See more info here: https://nextjs.org/docs/messages/gsp-redirect-during-prerender`
           )
         }
 
@@ -934,7 +929,7 @@ export async function renderToHTML(
   ) {
     console.warn(
       `The prop \`url\` is a reserved prop in Next.js for legacy reasons and will be overridden on page ${pathname}\n` +
-        `See more info here: https://err.sh/vercel/next.js/reserved-page-prop`
+        `See more info here: https://nextjs.org/docs/messages/reserved-page-prop`
     )
   }
 
@@ -989,7 +984,7 @@ export async function renderToHTML(
 
     if (dev && (props.router || props.Component)) {
       throw new Error(
-        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://err.sh/vercel/next.js/cant-override-next-props`
+        `'router' and 'Component' can not be returned in getInitialProps from _app.js https://nextjs.org/docs/messages/cant-override-next-props`
       )
     }
 
@@ -1038,11 +1033,9 @@ export async function renderToHTML(
   const dynamicImportsIds = [...dynamicImportIdsSet]
   const hybridAmp = ampState.hybrid
 
-  // update renderOpts so export knows current state
-  renderOpts.inAmpMode = inAmpMode
-  renderOpts.hybridAmp = hybridAmp
-
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
+  const nextExport =
+    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
 
   let html = renderDocument(Document, {
     ...renderOpts,
@@ -1078,6 +1071,8 @@ export async function renderToHTML(
     devOnlyCacheBusterQueryString,
     scriptLoader,
     isPreview: isPreview === true ? true : undefined,
+    autoExport: isAutoExport === true ? true : undefined,
+    nextExport: nextExport === true ? true : undefined,
   })
 
   if (process.env.NODE_ENV !== 'production') {
@@ -1098,7 +1093,7 @@ export async function renderToHTML(
       warn(
         `Your custom Document (pages/_document) did not render all the required subcomponent${plural}.\n` +
           `Missing component${plural}: ${missingComponentList}\n` +
-          'Read how to fix here: https://err.sh/next.js/missing-document-component'
+          'Read how to fix here: https://nextjs.org/docs/messages/missing-document-component'
       )
     }
   }

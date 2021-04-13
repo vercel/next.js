@@ -1,6 +1,6 @@
 {
   "name": "@next/polyfill-nomodule",
-  "version": "10.0.10-canary.10",
+  "version": "10.1.4-canary.6",
   "description": "A polyfill for non-dead, nomodule browsers.",
   "main": "dist/polyfill-nomodule.js",
   "license": "MIT",
