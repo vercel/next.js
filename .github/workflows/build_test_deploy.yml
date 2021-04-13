@@ -126,10 +126,7 @@ jobs:
       - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: cat packages/next/package.json | jq 'del(.devDependencies.regexr)'  > packages/next/package.json.tmp && mv packages/next/package.json.tmp packages/next/package.json
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
-      - run: yarn add -W --dev spectron@7.0.0 electron@5.0.0
+      - run: cd test/integration/with-electron/app && yarn
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: xvfb-run node run-tests.js test/integration/with-electron/test/index.test.js
