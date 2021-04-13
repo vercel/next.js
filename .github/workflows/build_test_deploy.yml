@@ -114,6 +114,7 @@ jobs:
       NEXT_TEST_JOB: 1
       HEADLESS: true
       TEST_ELECTRON: 1
+      GIT_TERMINAL_PROMPT: 1
     steps:
       - uses: actions/cache@v2
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
