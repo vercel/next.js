@@ -13,6 +13,7 @@ module.exports = {
 ```
 
 Migration notes
+
 - While not necessary, updating to a version of Node.js more recent than v12 (e.g. to v15) and upgrading to latest npm modules may prevent [unnecessary warnings in `npm run dev`](https://stackoverflow.com/questions/67082806/when-updating-next-js-to-webpack5-getting-warnings-cant-resolve-fsevents-in) in some situations.
 
 Adopting webpack 5 in your application has many benefits, notably:
