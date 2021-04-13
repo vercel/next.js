@@ -13725,9 +13725,9 @@ regexpu-core@^4.7.1:
     unicode-match-property-ecmascript "^1.0.4"
     unicode-match-property-value-ecmascript "^1.2.0"
 
-"regexr@git+ssh://git@github.com/ijjk/regexr-lexer.git#3bcf3d1c4bc6dd9239c47acb1fb7b419823f8337":
+"regexr@git+ssh://git@github.com/ijjk/regexr-lexer#3bcf3d1c4bc6dd9239c47acb1fb7b419823f8337":
   version "3.8.0"
-  resolved "git+ssh://git@github.com/ijjk/regexr-lexer.git#3bcf3d1c4bc6dd9239c47acb1fb7b419823f8337"
+  resolved "git+ssh://git@github.com/ijjk/regexr-lexer#3bcf3d1c4bc6dd9239c47acb1fb7b419823f8337"
 
 registry-auth-token@3.3.2:
   version "3.3.2"
