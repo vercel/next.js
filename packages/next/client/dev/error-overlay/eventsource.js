@@ -62,12 +62,5 @@ export function addMessageListener(cb) {
 }
 
 export function getEventSourceWrapper(options) {
-  if (!options.ondemand) {
-    return {
-      addMessageListener: (cb) => {
-        eventCallbacks.push(cb)
-      },
-    }
-  }
   return EventSourceWrapper(options)
 }
