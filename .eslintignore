@@ -17,3 +17,4 @@ packages/next-codemod/**/*.d.ts
 packages/next-env/**/*.d.ts
 test/integration/async-modules/**
 test-timings.json
+packages/next/lib/regexr/**/*
