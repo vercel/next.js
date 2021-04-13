@@ -6,6 +6,7 @@ import {
   imageConfigDefault,
   LoaderValue,
   VALID_LOADERS,
+  PlaceholderValue,
 } from '../next-server/server/image-config'
 import { useIntersection } from './use-intersection'
 
@@ -72,6 +73,13 @@ export type ImageProps = Omit<
         height: number | string
         layout?: Exclude<LayoutValue, 'fill'>
       }
+  ) &
+  (
+    | {
+        placeholder?: Exclude<PlaceholderValue, PlaceholderValue.BLURRY>
+        blurDataURL: never
+      }
+    | { placeholder: PlaceholderValue; blurDataURL: string }
   )
 
 const {
@@ -80,6 +88,7 @@ const {
   loader: configLoader,
   path: configPath,
   domains: configDomains,
+  placeholder: configPlaceholder,
 } =
   ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
 // sort smallest to largest
@@ -209,6 +218,24 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
   )
 }
 
+function removePlaceholder(
+  element: HTMLImageElement | null,
+  placeholder: PlaceholderValue
+) {
+  const hasBlurryPlaceholder =
+    configPlaceholder === PlaceholderValue.BLURRY &&
+    placeholder === PlaceholderValue.BLURRY
+  if (hasBlurryPlaceholder && element) {
+    if (element.complete) {
+      element.style.backgroundImage = 'none'
+    } else {
+      element.onload = () => {
+        element.style.backgroundImage = 'none'
+      }
+    }
+  }
+}
+
 export default function Image({
   src,
   sizes,
@@ -222,6 +249,8 @@ export default function Image({
   objectFit,
   objectPosition,
   loader = defaultImageLoader,
+  placeholder = configPlaceholder,
+  blurDataURL,
   ...all
 }: ImageProps) {
   let rest: Partial<ImageProps> = all
@@ -291,6 +320,17 @@ export default function Image({
   const heightInt = getInt(height)
   const qualityInt = getInt(quality)
 
+  const MIN_IMG_SIZE_FOR_PLACEHOLDER = 100
+  const tooSmallForBlurryPlaceholder =
+    widthInt && heightInt
+      ? widthInt * heightInt < MIN_IMG_SIZE_FOR_PLACEHOLDER
+      : false
+  const shouldShowBlurryPlaceholder =
+    configPlaceholder === PlaceholderValue.BLURRY &&
+    placeholder === PlaceholderValue.BLURRY &&
+    priority &&
+    (layout === 'fill' || !tooSmallForBlurryPlaceholder)
+
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerSvg: string | undefined
@@ -316,6 +356,13 @@ export default function Image({
 
     objectFit,
     objectPosition,
+
+    ...(shouldShowBlurryPlaceholder
+      ? {
+          backgroundSize: 'cover',
+          backgroundImage: `url("${blurDataURL}")`,
+        }
+      : undefined),
   }
   if (
     typeof widthInt !== 'undefined' &&
@@ -462,7 +509,10 @@ export default function Image({
         {...imgAttributes}
         decoding="async"
         className={className}
-        ref={setRef}
+        ref={(element) => {
+          setRef(element)
+          removePlaceholder(element, placeholder)
+        }}
         style={imgStyle}
       />
       {priority ? (

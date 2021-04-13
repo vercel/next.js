@@ -1,6 +1,6 @@
 import os from 'os'
 import { Header, Redirect, Rewrite } from '../../lib/load-custom-routes'
-import { imageConfigDefault } from './image-config'
+import { imageConfigDefault, PlaceholderValue } from './image-config'
 
 export type DomainLocales = Array<{
   http?: true
@@ -60,6 +60,7 @@ export type NextConfig = { [key: string]: any } & {
       skipValidation?: boolean
     }
     turboMode: boolean
+    imagePlaceholder: PlaceholderValue
   }
 }
 
@@ -115,6 +116,7 @@ export const defaultConfig: NextConfig = {
     externalDir: false,
     serialWebpackBuild: false,
     turboMode: false,
+    imagePlaceholder: PlaceholderValue.EMPTY,
   },
   future: {
     strictPostcssConfiguration: false,

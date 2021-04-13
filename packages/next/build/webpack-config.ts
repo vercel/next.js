@@ -1084,6 +1084,7 @@ export default async function getBaseWebpackConfig(
                 domains: config.images.domains,
               }
             : {}),
+          placeholder: config.experimental.imagePlaceholder,
         }),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
