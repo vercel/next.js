@@ -132,7 +132,7 @@ jobs:
       - run: cat package.json | jq '.devDependencies.electron = "5.0.0"'  > package.json.tmp && mv package.json.tmp package.json
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-      - run: yarn install
+      - run: yarn install --pure-lockfile
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
       - run: xvfb-run node run-tests.js test/integration/with-electron/test/index.test.js
