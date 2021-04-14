@@ -405,7 +405,7 @@ function Page({ router }) {
 export default withRouter(Page)
 ```
 
-### Typescript
+### TypeScript
 
 To use class components with `withRouter`, the component needs to accept a router prop:
 

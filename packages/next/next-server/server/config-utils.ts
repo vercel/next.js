@@ -55,13 +55,9 @@ export async function shouldLoadWithWebpack5(
   if (!path?.length) {
     // Uncomment to add auto-enable when there is no next.config.js
     // Use webpack 5 by default in new apps:
-    // return {
-    //   enabled: true,
-    //   reason: 'no-config',
-    // }
     return {
-      enabled: false,
-      reason: 'no-future-flag',
+      enabled: true,
+      reason: 'no-config',
     }
   }
 
@@ -84,20 +80,16 @@ export async function shouldLoadWithWebpack5(
 
   // Uncomment to add auto-enable when there is no custom webpack config
   // The user isn't configuring webpack
-  // if (!userConfig.webpack) {
-  //   return {
-  //     enabled: true,
-  //     reason: 'no-webpack-config',
-  //   }
-  // }
+  if (!userConfig.webpack) {
+    return {
+      enabled: true,
+      reason: 'no-webpack-config',
+    }
+  }
 
-  // return {
-  //   enabled: false,
-  //   reason: 'webpack-config',
-  // }
   return {
     enabled: false,
-    reason: 'no-future-flag',
+    reason: 'webpack-config',
   }
 }
 
