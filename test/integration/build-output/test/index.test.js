@@ -40,6 +40,10 @@ describe('Build Output', () => {
     it('should not deviate from snapshot', async () => {
       console.log(stdout)
 
+      if (process.env.NEXT_PRIVATE_SKIP_SIZE_TESTS) {
+        return
+      }
+
       const parsePageSize = (page) =>
         stdout.match(
           new RegExp(` ${page} .*?((?:\\d|\\.){1,} (?:\\w{1,})) `)
@@ -90,21 +94,21 @@ describe('Build Output', () => {
         expect(parseFloat(size)).toBeGreaterThan(0)
       }
 
-      // should be no bigger than 265 bytes
-      expect(parseFloat(indexSize) - 266).toBeLessThanOrEqual(0)
+      // should be no bigger than 291 bytes
+      expect(parseFloat(indexSize) - 291).toBeLessThanOrEqual(0)
       expect(indexSize.endsWith('B')).toBe(true)
 
-      // should be no bigger than 63.9 kb
-      expect(parseFloat(indexFirstLoad)).toBeCloseTo(64.1, 1)
+      // should be no bigger than 64.8 kb
+      expect(parseFloat(indexFirstLoad)).toBeCloseTo(65.3, 1)
       expect(indexFirstLoad.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(err404Size) - 3.7).toBeLessThanOrEqual(0)
+      expect(parseFloat(err404Size)).toBeCloseTo(3.7, 1)
       expect(err404Size.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(err404FirstLoad)).toBeCloseTo(67.1, 0)
+      expect(parseFloat(err404FirstLoad)).toBeCloseTo(68.5, 0)
       expect(err404FirstLoad.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(sharedByAll)).toBeCloseTo(63.8, 1)
+      expect(parseFloat(sharedByAll)).toBeCloseTo(65, 1)
       expect(sharedByAll.endsWith('kB')).toBe(true)
 
       if (_appSize.endsWith('kB')) {
@@ -115,7 +119,7 @@ describe('Build Output', () => {
         expect(_appSize.endsWith(' B')).toBe(true)
       }
 
-      expect(parseFloat(webpackSize) - 753).toBeLessThanOrEqual(0)
+      expect(parseFloat(webpackSize) - 950).toBeLessThanOrEqual(0)
       expect(webpackSize.endsWith(' B')).toBe(true)
 
       expect(parseFloat(mainSize) - 7.3).toBeLessThanOrEqual(0)

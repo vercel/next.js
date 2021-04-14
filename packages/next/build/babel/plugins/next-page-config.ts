@@ -30,7 +30,7 @@ function replaceBundle(path: any, t: typeof BabelTypes): void {
 function errorMessage(state: any, details: string): string {
   const pageName =
     (state.filename || '').split(state.cwd || '').pop() || 'unknown'
-  return `Invalid page config export found. ${details} in file ${pageName}. See: https://err.sh/vercel/next.js/invalid-page-config`
+  return `Invalid page config export found. ${details} in file ${pageName}. See: https://nextjs.org/docs/messages/invalid-page-config`
 }
 
 interface ConfigState extends PluginPass {

@@ -72,7 +72,7 @@ const nextBuild: cliCommand = (argv) => {
     ) {
       Log.warn(
         'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.' +
-          ' Read more: https://err.sh/next.js/react-version'
+          ' Read more: https://nextjs.org/docs/messages/react-version'
       )
     } else {
       const reactDomVersion: string | null = await getPackageVersion({
@@ -86,7 +86,7 @@ const nextBuild: cliCommand = (argv) => {
       ) {
         Log.warn(
           'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.' +
-            ' Read more: https://err.sh/next.js/react-version'
+            ' Read more: https://nextjs.org/docs/messages/react-version'
         )
       }
     }

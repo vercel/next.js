@@ -199,12 +199,12 @@ export default function SEO({ description, title, siteTitle }) {
 
 ## Single-Page App (SPA)
 
-If you want to move your existing Create React App to Next.js and keep a Single-Page App, you can move your old application entry point to an [Optional Catch-All Route](/docs/routing/dynamic-routes.md#optional-catch-all-routes) named `pages/[[…app]].js`.
+If you want to move your existing Create React App to Next.js and keep a Single-Page App, you can move your old application's entry point to an [Optional Catch-All Route](/docs/routing/dynamic-routes.md#optional-catch-all-routes) named `pages/[[…app]].js`.
 
 ```jsx
 // pages/[[...app]].js
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import CreateReactAppEntryPoint from '../components/app'
 
 function App() {
