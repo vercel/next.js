@@ -1,5 +1,6 @@
 /* eslint-env jest */
 import { sandbox } from './helpers'
+import { nanoid } from 'nanoid'
 
 jest.setTimeout(1000 * 60 * 5)
 
@@ -1257,6 +1258,30 @@ test('<Link> component props errors', async () => {
     "Error: Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`boolean\` instead.
     Open your browser's console to view the Component stack trace."
   `)
+
+  await cleanup()
+})
+
+test('_app top level error shows logbox', async () => {
+  const [session, cleanup] = await sandbox(
+    nanoid(),
+    new Map([
+      [
+        'pages/_app.js',
+        `
+          throw new Error("test");
+
+          function MyApp({ Component, pageProps }) {
+            return <Component {...pageProps} />;
+          }
+
+          export default MyApp
+        `,
+      ],
+    ])
+  )
+
+  expect(await session.hasRedbox(true)).toBe(true)
 
   await cleanup()
 })
