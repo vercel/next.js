@@ -3,10 +3,14 @@ import loadConfig from 'next/dist/compiled/babel/core-lib-config'
 
 import nextBabelPreset from '../preset'
 import { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
-import { consumeIterator, LruCache } from './util'
+import { consumeIterator } from './util'
 
 const nextDistPath = /(next[\\/]dist[\\/]next-server[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
+/**
+ * Return an array of Babel plugins, conditioned upon loader options and
+ * source file characteristics.
+ */
 function getPlugins(
   loaderOptions: NextBabelLoaderOptions,
   source: string,
@@ -14,11 +18,11 @@ function getPlugins(
 ) {
   const { hasReactRefresh, isServer, development, pagesDir } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
+  const hasModuleExports = source.indexOf('module.exports') !== -1
 
-  const applyCommonJsItem =
-    source.indexOf('module.exports') === -1
-      ? null
-      : createConfigItem(require('../plugins/commonjs'), { type: 'plugin' })
+  const applyCommonJsItem = hasModuleExports
+    ? createConfigItem(require('../plugins/commonjs'), { type: 'plugin' })
+    : null
   const reactRefreshItem = hasReactRefresh
     ? createConfigItem(
         [require('react-refresh/babel'), { skipEnvCheck: true }],
@@ -82,22 +86,17 @@ function getPlugins(
   ].filter(Boolean)
 }
 
-const configs = new LruCache()
-export default function getConfig(
+/**
+ * Generate a new, flat Babel config, ready to be handed to Babel traverse.
+ * This config should have resolved all overrides, presets, etc.
+ */
+function getFreshConfig(
   this: NextJsLoaderContext,
-  {
-    source,
-    loaderOptions,
-    inputSourceMap,
-    target,
-    filename,
-  }: {
-    source: string
-    loaderOptions: NextBabelLoaderOptions
-    inputSourceMap?: object | null
-    target: string
-    filename: string
-  }
+  source: string,
+  loaderOptions: NextBabelLoaderOptions,
+  target: string,
+  filename: string,
+  inputSourceMap?: object | null
 ) {
   const {
     presets = [],
@@ -108,12 +107,6 @@ export default function getConfig(
     hasJsxRuntime,
     hasBabelRc,
   } = loaderOptions
-  const configKey = `${isServer ? 'server' : 'client'}:${filename}`
-
-  if (configs.has(configKey)) {
-    return configs.get(configKey)
-  }
-
   const nextPresetItem = createConfigItem(nextBabelPreset, { type: 'preset' })
 
   let options = {
@@ -178,7 +171,81 @@ export default function getConfig(
   const loadedOptions = loadOptions(options)
   const config = consumeIterator(loadConfig(loadedOptions))
 
-  configs.set(configKey, config)
-
   return config
+}
+
+/**
+ * Each key returned here corresponds with a Babel config that can be shared.
+ * The conditions of permissible sharing between files is dependent on specific
+ * file attributes and Next.js compiler states.
+ *
+ * If it is possible for `getFreshConfig` to return a config that is unique to
+ * some aspects of that file, `getCacheKey` _must_ return a unique key. However,
+ * the key must be unique only to a specific V8 isolate - the cache key need
+ * not be unique to separate processes or worker threads.
+ *
+ * NOTE: This function does not support multiple `.babelrc` files in a
+ * single project.  A per-cache-key config will be generated once and,
+ * if `.babelrc` is present, that config will be used for any subsequent
+ * transformations.
+ */
+function getCacheKey(
+  loaderOptions: NextBabelLoaderOptions,
+  source: string,
+  filename: string
+) {
+  const { isServer, pagesDir } = loaderOptions
+  const isPageFile = filename.startsWith(pagesDir)
+  const isNextDist = nextDistPath.test(filename)
+  const hasModuleExports = source.indexOf('module.exports') !== -1
+
+  return (
+    0 |
+    (isServer ? 0b0001 : 0) |
+    (isPageFile ? 0b0010 : 0) |
+    (isNextDist ? 0b0100 : 0) |
+    (hasModuleExports ? 0b1000 : 0)
+  )
+}
+
+type BabelConfig = any
+const configCache: Map<number, BabelConfig> = new Map()
+
+export default function getConfig(
+  this: NextJsLoaderContext,
+  {
+    source,
+    loaderOptions,
+    target,
+    filename,
+    inputSourceMap,
+  }: {
+    source: string
+    loaderOptions: NextBabelLoaderOptions
+    target: string
+    filename: string
+    inputSourceMap?: object | null
+  }
+): BabelConfig {
+  const cacheKey = getCacheKey(loaderOptions, source, filename)
+  if (configCache.has(cacheKey)) {
+    return {
+      ...configCache.get(cacheKey),
+      filename,
+      sourceFileName: filename,
+    }
+  }
+
+  const freshConfig = getFreshConfig.call(
+    this,
+    source,
+    loaderOptions,
+    target,
+    filename,
+    inputSourceMap
+  )
+
+  configCache.set(cacheKey, freshConfig)
+
+  return freshConfig
 }
