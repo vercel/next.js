@@ -8,17 +8,65 @@ import { consumeIterator } from './util'
 const nextDistPath = /(next[\\/]dist[\\/]next-server[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
 /**
+ * The properties defined here are the conditions with which subsets of inputs
+ * can be identified that are able to share a common Babel config.  For example,
+ * in dev mode, different transforms must be applied to a source file depending
+ * on whether you're compiling for the client or for the server - thus `isServer`
+ * is germane.
+ *
+ * However, these characteristics need not protect against circumstances that
+ * will not be encountered in Next.js.  For example, a source file may be
+ * transformed differently depending on whether we're doing a production compile
+ * or for HMR in dev mode.  However, those two circumstances will never be
+ * encountered within the context of a single V8 context (and, thus, shared
+ * cache).  Therefore, hasReactRefresh is _not_ germane to caching.
+ *
+ * NOTE: This approach does not support multiple `.babelrc` files in a
+ * single project.  A per-cache-key config will be generated once and,
+ * if `.babelrc` is present, that config will be used for any subsequent
+ * transformations.
+ */
+interface CharacteristicsGermaneToCaching {
+  isServer: boolean
+  isPageFile: boolean
+  isNextDist: boolean
+  hasModuleExports: boolean
+}
+
+function getCacheCharacteristics(
+  loaderOptions: NextBabelLoaderOptions,
+  source: string,
+  filename: string
+): CharacteristicsGermaneToCaching {
+  const { isServer, pagesDir } = loaderOptions
+  const isPageFile = filename.startsWith(pagesDir)
+  const isNextDist = nextDistPath.test(filename)
+  const hasModuleExports = source.indexOf('module.exports') !== -1
+
+  return {
+    isServer,
+    isPageFile,
+    isNextDist,
+    hasModuleExports,
+  }
+}
+
+/**
  * Return an array of Babel plugins, conditioned upon loader options and
  * source file characteristics.
  */
 function getPlugins(
   loaderOptions: NextBabelLoaderOptions,
-  source: string,
-  filename: string
+  cacheCharacteristics: CharacteristicsGermaneToCaching
 ) {
-  const { hasReactRefresh, isServer, development, pagesDir } = loaderOptions
-  const isPageFile = filename.startsWith(pagesDir)
-  const hasModuleExports = source.indexOf('module.exports') !== -1
+  const {
+    isServer,
+    isPageFile,
+    isNextDist,
+    hasModuleExports,
+  } = cacheCharacteristics
+
+  const { hasReactRefresh, development } = loaderOptions
 
   const applyCommonJsItem = hasModuleExports
     ? createConfigItem(require('../plugins/commonjs'), { type: 'plugin' })
@@ -67,7 +115,7 @@ function getPlugins(
           type: 'plugin',
         })
       : null
-  const commonJsItem = nextDistPath.test(filename)
+  const commonJsItem = isNextDist
     ? createConfigItem(
         require('next/dist/compiled/babel/plugin-transform-modules-commonjs'),
         { type: 'plugin' }
@@ -87,12 +135,12 @@ function getPlugins(
 }
 
 /**
- * Generate a new, flat Babel config, ready to be handed to Babel traverse.
- * This config should have resolved all overrides, presets, etc.
+ * Generate a new, flat Babel config, ready to be handed to Babel-traverse.
+ * This config should have no unresolved overrides, presets, etc.
  */
 function getFreshConfig(
   this: NextJsLoaderContext,
-  source: string,
+  cacheCharacteristics: CharacteristicsGermaneToCaching,
   loaderOptions: NextBabelLoaderOptions,
   target: string,
   filename: string,
@@ -127,7 +175,7 @@ function getFreshConfig(
     // modules.
     sourceFileName: filename,
 
-    plugins: getPlugins(loaderOptions, source, filename),
+    plugins: getPlugins(loaderOptions, cacheCharacteristics),
 
     presets: [...presets, nextPresetItem],
 
@@ -177,27 +225,15 @@ function getFreshConfig(
 /**
  * Each key returned here corresponds with a Babel config that can be shared.
  * The conditions of permissible sharing between files is dependent on specific
- * file attributes and Next.js compiler states.
- *
- * If it is possible for `getFreshConfig` to return a config that is unique to
- * some aspects of that file, `getCacheKey` _must_ return a unique key. However,
- * the key must be unique only to a specific V8 isolate - the cache key need
- * not be unique to separate processes or worker threads.
- *
- * NOTE: This function does not support multiple `.babelrc` files in a
- * single project.  A per-cache-key config will be generated once and,
- * if `.babelrc` is present, that config will be used for any subsequent
- * transformations.
+ * file attributes and Next.js compiler states: `CharacteristicsGermaneToCaching`.
  */
-function getCacheKey(
-  loaderOptions: NextBabelLoaderOptions,
-  source: string,
-  filename: string
-) {
-  const { isServer, pagesDir } = loaderOptions
-  const isPageFile = filename.startsWith(pagesDir)
-  const isNextDist = nextDistPath.test(filename)
-  const hasModuleExports = source.indexOf('module.exports') !== -1
+function getCacheKey(cacheCharacteristics: CharacteristicsGermaneToCaching) {
+  const {
+    isServer,
+    isPageFile,
+    isNextDist,
+    hasModuleExports,
+  } = cacheCharacteristics
 
   return (
     0 |
@@ -227,7 +263,13 @@ export default function getConfig(
     inputSourceMap?: object | null
   }
 ): BabelConfig {
-  const cacheKey = getCacheKey(loaderOptions, source, filename)
+  const cacheCharacteristics = getCacheCharacteristics(
+    loaderOptions,
+    source,
+    filename
+  )
+
+  const cacheKey = getCacheKey(cacheCharacteristics)
   if (configCache.has(cacheKey)) {
     return {
       ...configCache.get(cacheKey),
@@ -238,7 +280,7 @@ export default function getConfig(
 
   const freshConfig = getFreshConfig.call(
     this,
-    source,
+    cacheCharacteristics,
     loaderOptions,
     target,
     filename,
