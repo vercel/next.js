@@ -54,7 +54,7 @@ module.exports = JSON.parse("{\"name\":\"terser\",\"description\":\"JavaScript p
 /***/ (function(module) {
 
 "use strict";
-module.exports = {"i8":"5.31.0"};
+module.exports = {"i8":"5.31.2"};
 
 /***/ }),
 
@@ -14917,24 +14917,22 @@ Long.fromBytesBE = function fromBytesBE(bytes, unsigned) {
  *      https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU
  */
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-var tslib_1 = __webpack_require__(7960);
-var stream_1 = __webpack_require__(92413);
+exports.Tracer = void 0;
+const stream_1 = __webpack_require__(92413);
 function evCommon() {
     var hrtime = process.hrtime(); // [seconds, nanoseconds]
     var ts = hrtime[0] * 1000000 + Math.round(hrtime[1] / 1000); // microseconds
     return {
-        ts: ts,
+        ts,
         pid: process.pid,
         tid: process.pid // no meaningful tid for node.js
     };
 }
-var Tracer = /** @class */ (function (_super) {
-    tslib_1.__extends(Tracer, _super);
-    function Tracer(opts) {
-        if (opts === void 0) { opts = {}; }
-        var _this = _super.call(this) || this;
-        _this.noStream = false;
-        _this.events = [];
+class Tracer extends stream_1.Readable {
+    constructor(opts = {}) {
+        super();
+        this.noStream = false;
+        this.events = [];
         if (typeof opts !== "object") {
             throw new Error("Invalid options passed (must be an object)");
         }
@@ -14948,63 +14946,61 @@ var Tracer = /** @class */ (function (_super) {
             (opts.objectMode !== true && opts.objectMode !== false)) {
             throw new Error("Invalid option (objectsMode) passed (must be a boolean)");
         }
-        _this.noStream = opts.noStream || false;
-        _this.parent = opts.parent;
-        if (_this.parent) {
-            _this.fields = Object.assign({}, opts.parent && opts.parent.fields);
+        this.noStream = opts.noStream || false;
+        this.parent = opts.parent;
+        if (this.parent) {
+            this.fields = Object.assign({}, opts.parent && opts.parent.fields);
         }
         else {
-            _this.fields = {};
+            this.fields = {};
         }
         if (opts.fields) {
-            Object.assign(_this.fields, opts.fields);
+            Object.assign(this.fields, opts.fields);
         }
-        if (!_this.fields.cat) {
+        if (!this.fields.cat) {
             // trace-viewer *requires* `cat`, so let's have a fallback.
-            _this.fields.cat = "default";
+            this.fields.cat = "default";
         }
-        else if (Array.isArray(_this.fields.cat)) {
-            _this.fields.cat = _this.fields.cat.join(",");
+        else if (Array.isArray(this.fields.cat)) {
+            this.fields.cat = this.fields.cat.join(",");
         }
-        if (!_this.fields.args) {
+        if (!this.fields.args) {
             // trace-viewer *requires* `args`, so let's have a fallback.
-            _this.fields.args = {};
+            this.fields.args = {};
         }
-        if (_this.parent) {
+        if (this.parent) {
             // TODO: Not calling Readable ctor here. Does that cause probs?
             //      Probably if trying to pipe from the child.
             //      Might want a serpate TracerChild class for these guys.
-            _this._push = _this.parent._push.bind(_this.parent);
+            this._push = this.parent._push.bind(this.parent);
         }
         else {
-            _this._objectMode = Boolean(opts.objectMode);
-            var streamOpts = { objectMode: _this._objectMode };
-            if (_this._objectMode) {
-                _this._push = _this.push;
+            this._objectMode = Boolean(opts.objectMode);
+            var streamOpts = { objectMode: this._objectMode };
+            if (this._objectMode) {
+                this._push = this.push;
             }
             else {
-                _this._push = _this._pushString;
+                this._push = this._pushString;
                 streamOpts.encoding = "utf8";
             }
-            stream_1.Readable.call(_this, streamOpts);
+            stream_1.Readable.call(this, streamOpts);
         }
-        return _this;
     }
     /**
      * If in no streamMode in order to flush out the trace
      * you need to call flush.
      */
-    Tracer.prototype.flush = function () {
+    flush() {
         if (this.noStream === true) {
-            for (var _i = 0, _a = this.events; _i < _a.length; _i++) {
-                var evt = _a[_i];
+            for (const evt of this.events) {
                 this._push(evt);
             }
             this._flush();
         }
-    };
-    Tracer.prototype._read = function (_) { };
-    Tracer.prototype._pushString = function (ev) {
+    }
+    _read(_) { }
+    _pushString(ev) {
         var separator = "";
         if (!this.firstPush) {
             this.push("[");
@@ -15014,33 +15010,32 @@ var Tracer = /** @class */ (function (_super) {
             separator = ",\n";
         }
         this.push(separator + JSON.stringify(ev), "utf8");
-    };
-    Tracer.prototype._flush = function () {
+    }
+    _flush() {
         if (!this._objectMode) {
             this.push("]");
         }
-    };
-    Tracer.prototype.child = function (fields) {
+    }
+    child(fields) {
         return new Tracer({
             parent: this,
             fields: fields
         });
-    };
-    Tracer.prototype.begin = function (fields) {
+    }
+    begin(fields) {
         return this.mkEventFunc("b")(fields);
-    };
-    Tracer.prototype.end = function (fields) {
+    }
+    end(fields) {
         return this.mkEventFunc("e")(fields);
-    };
-    Tracer.prototype.completeEvent = function (fields) {
+    }
+    completeEvent(fields) {
         return this.mkEventFunc("X")(fields);
-    };
-    Tracer.prototype.instantEvent = function (fields) {
+    }
+    instantEvent(fields) {
         return this.mkEventFunc("I")(fields);
-    };
-    Tracer.prototype.mkEventFunc = function (ph) {
-        var _this = this;
-        return function (fields) {
+    }
+    mkEventFunc(ph) {
+        return (fields) => {
             var ev = evCommon();
             // Assign the event phase.
             ev.ph = ph;
@@ -15049,8 +15044,7 @@ var Tracer = /** @class */ (function (_super) {
                     ev.name = fields;
                 }
                 else {
-                    for (var _i = 0, _a = Object.keys(fields); _i < _a.length; _i++) {
-                        var k = _a[_i];
+                    for (const k of Object.keys(fields)) {
                         if (k === "cat") {
                             ev.cat = fields.cat.join(",");
                         }
@@ -15060,16 +15054,15 @@ var Tracer = /** @class */ (function (_super) {
                     }
                 }
             }
-            if (!_this.noStream) {
-                _this._push(ev);
+            if (!this.noStream) {
+                this._push(ev);
             }
             else {
-                _this.events.push(ev);
+                this.events.push(ev);
             }
         };
-    };
-    return Tracer;
-}(stream_1.Readable));
+    }
+}
 exports.Tracer = Tracer;
 /*
  * These correspond to the "Async events" in the Trace Events doc.
@@ -15086,7 +15079,7 @@ exports.Tracer = Tracer;
  * Dev Note: We don't explicitly assert that correct fields are
  * used for speed (premature optimization alert!).
  */
-//# sourceMappingURL=trace-event.js.map
+
 
 /***/ }),
 
@@ -28880,258 +28873,6 @@ module.exports.transform = transform;
 
 /***/ }),
 
-/***/ 7960:
-/***/ (function(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-__webpack_require__.r(__webpack_exports__);
-/* harmony export */ __webpack_require__.d(__webpack_exports__, {
-/* harmony export */   "__extends": function() { return /* binding */ __extends; },
-/* harmony export */   "__assign": function() { return /* binding */ __assign; },
-/* harmony export */   "__rest": function() { return /* binding */ __rest; },
-/* harmony export */   "__decorate": function() { return /* binding */ __decorate; },
-/* harmony export */   "__param": function() { return /* binding */ __param; },
-/* harmony export */   "__metadata": function() { return /* binding */ __metadata; },
-/* harmony export */   "__awaiter": function() { return /* binding */ __awaiter; },
-/* harmony export */   "__generator": function() { return /* binding */ __generator; },
-/* harmony export */   "__createBinding": function() { return /* binding */ __createBinding; },
-/* harmony export */   "__exportStar": function() { return /* binding */ __exportStar; },
-/* harmony export */   "__values": function() { return /* binding */ __values; },
-/* harmony export */   "__read": function() { return /* binding */ __read; },
-/* harmony export */   "__spread": function() { return /* binding */ __spread; },
-/* harmony export */   "__spreadArrays": function() { return /* binding */ __spreadArrays; },
-/* harmony export */   "__await": function() { return /* binding */ __await; },
-/* harmony export */   "__asyncGenerator": function() { return /* binding */ __asyncGenerator; },
-/* harmony export */   "__asyncDelegator": function() { return /* binding */ __asyncDelegator; },
-/* harmony export */   "__asyncValues": function() { return /* binding */ __asyncValues; },
-/* harmony export */   "__makeTemplateObject": function() { return /* binding */ __makeTemplateObject; },
-/* harmony export */   "__importStar": function() { return /* binding */ __importStar; },
-/* harmony export */   "__importDefault": function() { return /* binding */ __importDefault; },
-/* harmony export */   "__classPrivateFieldGet": function() { return /* binding */ __classPrivateFieldGet; },
-/* harmony export */   "__classPrivateFieldSet": function() { return /* binding */ __classPrivateFieldSet; }
-/* harmony export */ });
-/*! *****************************************************************************
-Copyright (c) Microsoft Corporation.
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-PERFORMANCE OF THIS SOFTWARE.
-***************************************************************************** */
-/* global Reflect, Promise */
-
-var extendStatics = function(d, b) {
-    extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-    return extendStatics(d, b);
-};
-
-function __extends(d, b) {
-    extendStatics(d, b);
-    function __() { this.constructor = d; }
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-}
-
-var __assign = function() {
-    __assign = Object.assign || function __assign(t) {
-        for (var s, i = 1, n = arguments.length; i < n; i++) {
-            s = arguments[i];
-            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
-        }
-        return t;
-    }
-    return __assign.apply(this, arguments);
-}
-
-function __rest(s, e) {
-    var t = {};
-    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-        t[p] = s[p];
-    if (s != null && typeof Object.getOwnPropertySymbols === "function")
-        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                t[p[i]] = s[p[i]];
-        }
-    return t;
-}
-
-function __decorate(decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-}
-
-function __param(paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-}
-
-function __metadata(metadataKey, metadataValue) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(metadataKey, metadataValue);
-}
-
-function __awaiter(thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-}
-
-function __generator(thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
-    function verb(n) { return function (v) { return step([n, v]); }; }
-    function step(op) {
-        if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
-            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [op[0] & 2, t.value];
-            switch (op[0]) {
-                case 0: case 1: t = op; break;
-                case 4: _.label++; return { value: op[1], done: false };
-                case 5: _.label++; y = op[1]; op = [0]; continue;
-                case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                default:
-                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                    if (t[2]) _.ops.pop();
-                    _.trys.pop(); continue;
-            }
-            op = body.call(thisArg, _);
-        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
-    }
-}
-
-function __createBinding(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}
-
-function __exportStar(m, exports) {
-    for (var p in m) if (p !== "default" && !exports.hasOwnProperty(p)) exports[p] = m[p];
-}
-
-function __values(o) {
-    var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-    if (m) return m.call(o);
-    if (o && typeof o.length === "number") return {
-        next: function () {
-            if (o && i >= o.length) o = void 0;
-            return { value: o && o[i++], done: !o };
-        }
-    };
-    throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
-}
-
-function __read(o, n) {
-    var m = typeof Symbol === "function" && o[Symbol.iterator];
-    if (!m) return o;
-    var i = m.call(o), r, ar = [], e;
-    try {
-        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
-    }
-    catch (error) { e = { error: error }; }
-    finally {
-        try {
-            if (r && !r.done && (m = i["return"])) m.call(i);
-        }
-        finally { if (e) throw e.error; }
-    }
-    return ar;
-}
-
-function __spread() {
-    for (var ar = [], i = 0; i < arguments.length; i++)
-        ar = ar.concat(__read(arguments[i]));
-    return ar;
-}
-
-function __spreadArrays() {
-    for (var s = 0, i = 0, il = arguments.length; i < il; i++) s += arguments[i].length;
-    for (var r = Array(s), k = 0, i = 0; i < il; i++)
-        for (var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)
-            r[k] = a[j];
-    return r;
-};
-
-function __await(v) {
-    return this instanceof __await ? (this.v = v, this) : new __await(v);
-}
-
-function __asyncGenerator(thisArg, _arguments, generator) {
-    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-    var g = generator.apply(thisArg, _arguments || []), i, q = [];
-    return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i;
-    function verb(n) { if (g[n]) i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; }
-    function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }
-    function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r); }
-    function fulfill(value) { resume("next", value); }
-    function reject(value) { resume("throw", value); }
-    function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
-}
-
-function __asyncDelegator(o) {
-    var i, p;
-    return i = {}, verb("next"), verb("throw", function (e) { throw e; }), verb("return"), i[Symbol.iterator] = function () { return this; }, i;
-    function verb(n, f) { i[n] = o[n] ? function (v) { return (p = !p) ? { value: __await(o[n](v)), done: n === "return" } : f ? f(v) : v; } : f; }
-}
-
-function __asyncValues(o) {
-    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-    var m = o[Symbol.asyncIterator], i;
-    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
-    function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
-    function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
-}
-
-function __makeTemplateObject(cooked, raw) {
-    if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
-    return cooked;
-};
-
-function __importStar(mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result.default = mod;
-    return result;
-}
-
-function __importDefault(mod) {
-    return (mod && mod.__esModule) ? mod : { default: mod };
-}
-
-function __classPrivateFieldGet(receiver, privateMap) {
-    if (!privateMap.has(receiver)) {
-        throw new TypeError("attempted to get private field on non-instance");
-    }
-    return privateMap.get(receiver);
-}
-
-function __classPrivateFieldSet(receiver, privateMap, value) {
-    if (!privateMap.has(receiver)) {
-        throw new TypeError("attempted to set private field on non-instance");
-    }
-    privateMap.set(receiver, value);
-    return value;
-}
-
-
-/***/ }),
-
 /***/ 87865:
 /***/ (function(module, __unused_webpack_exports, __webpack_require__) {
 
@@ -36472,12 +36213,13 @@ class Compilation {
 				const { fn, additionalAssets, ...remainingTap } = tap;
 				const additionalAssetsFn =
 					additionalAssets === true ? fn : additionalAssets;
-				let processedAssets = undefined;
+				const processedAssets = additionalAssetsFn ? new WeakSet() : undefined;
 				switch (type) {
 					case "sync":
 						if (additionalAssetsFn) {
 							this.hooks.processAdditionalAssets.tap(name, assets => {
-								if (processedAssets === this.assets) additionalAssetsFn(assets);
+								if (processedAssets.has(this.assets))
+									additionalAssetsFn(assets);
 							});
 						}
 						return {
@@ -36489,7 +36231,8 @@ class Compilation {
 								} catch (e) {
 									return callback(e);
 								}
-								processedAssets = this.assets;
+								if (processedAssets !== undefined)
+									processedAssets.add(this.assets);
 								const newAssets = popNewAssets(assets);
 								if (newAssets !== undefined) {
 									this.hooks.processAdditionalAssets.callAsync(
@@ -36506,7 +36249,7 @@ class Compilation {
 							this.hooks.processAdditionalAssets.tapAsync(
 								name,
 								(assets, callback) => {
-									if (processedAssets === this.assets)
+									if (processedAssets.has(this.assets))
 										return additionalAssetsFn(assets, callback);
 									callback();
 								}
@@ -36517,7 +36260,8 @@ class Compilation {
 							fn: (assets, callback) => {
 								fn(assets, err => {
 									if (err) return callback(err);
-									processedAssets = this.assets;
+									if (processedAssets !== undefined)
+										processedAssets.add(this.assets);
 									const newAssets = popNewAssets(assets);
 									if (newAssets !== undefined) {
 										this.hooks.processAdditionalAssets.callAsync(
@@ -36533,7 +36277,7 @@ class Compilation {
 					case "promise":
 						if (additionalAssetsFn) {
 							this.hooks.processAdditionalAssets.tapPromise(name, assets => {
-								if (processedAssets === this.assets)
+								if (processedAssets.has(this.assets))
 									return additionalAssetsFn(assets);
 								return Promise.resolve();
 							});
@@ -36544,7 +36288,8 @@ class Compilation {
 								const p = fn(assets);
 								if (!p || !p.then) return p;
 								return p.then(() => {
-									processedAssets = this.assets;
+									if (processedAssets !== undefined)
+										processedAssets.add(this.assets);
 									const newAssets = popNewAssets(assets);
 									if (newAssets !== undefined) {
 										return this.hooks.processAdditionalAssets.promise(
@@ -40989,6 +40734,8 @@ ${other}`);
 					}
 				},
 				err => {
+					// Clear map to free up memory
+					caseInsensitiveMap.clear();
 					if (err) return callback(err);
 
 					this.hooks.afterEmit.callAsync(compilation, err => {
@@ -67461,6 +67208,7 @@ class Watching {
 		this.compiler = compiler;
 		this.running = false;
 		this._initial = true;
+		this._invalidReported = true;
 		this._needRecords = true;
 		this.watcher = undefined;
 		this.pausedWatcher = undefined;
@@ -67491,6 +67239,7 @@ class Watching {
 				});
 			}
 			this.invalid = false;
+			this._invalidReported = false;
 			this.compiler.hooks.watchRun.callAsync(this.compiler, err => {
 				if (err) return this._done(err);
 				const onCompiled = (err, compilation) => {
@@ -67678,7 +67427,10 @@ class Watching {
 				this._onChange();
 			},
 			(fileName, changeTime) => {
-				this.compiler.hooks.invalid.call(fileName, changeTime);
+				if (!this._invalidReported) {
+					this._invalidReported = true;
+					this.compiler.hooks.invalid.call(fileName, changeTime);
+				}
 				this._onInvalid();
 			}
 		);
@@ -67692,7 +67444,8 @@ class Watching {
 		if (callback) {
 			this.callbacks.push(callback);
 		}
-		if (!this._initial) {
+		if (!this._invalidReported) {
+			this._invalidReported = true;
 			this.compiler.hooks.invalid.call(null, Date.now());
 		}
 		this._invalidate();
@@ -114737,31 +114490,6 @@ const identifyNumber = n => {
  * @extends {SerializerMiddleware<DeserializedType, SerializedType>}
  */
 class BinaryMiddleware extends SerializerMiddleware {
-	static optimizeSerializedData(data) {
-		const result = [];
-		const temp = [];
-		const flush = () => {
-			if (temp.length > 0) {
-				if (temp.length === 1) {
-					result.push(temp[0]);
-				} else {
-					result.push(Buffer.concat(temp));
-				}
-				temp.length = 0;
-			}
-		};
-		for (const item of data) {
-			if (Buffer.isBuffer(item)) {
-				temp.push(item);
-			} else {
-				flush();
-				result.push(item);
-			}
-		}
-		flush();
-		return result;
-	}
-
 	/**
 	 * @param {DeserializedType} data data
 	 * @param {Object} context context object
@@ -114785,7 +114513,7 @@ class BinaryMiddleware extends SerializerMiddleware {
 		/** @type {BufferSerializableType[]} */
 		const buffers = [];
 		let buffersTotalLength = 0;
-		const allocate = (bytesNeeded, exact = false) => {
+		const allocate = bytesNeeded => {
 			if (currentBuffer !== null) {
 				if (currentBuffer.length - currentPosition >= bytesNeeded) return;
 				flush();
@@ -114794,8 +114522,8 @@ class BinaryMiddleware extends SerializerMiddleware {
 				currentBuffer = leftOverBuffer;
 				leftOverBuffer = null;
 			} else {
-				currentBuffer = Buffer.allocUnsafe(
-					exact ? bytesNeeded : Math.max(bytesNeeded, buffersTotalLength, 1024)
+				currentBuffer = Buffer.allocUnsafeSlow(
+					Math.max(bytesNeeded, buffersTotalLength, 16384)
 				);
 			}
 		};
@@ -114887,8 +114615,8 @@ class BinaryMiddleware extends SerializerMiddleware {
 							for (const l of lengths) {
 								writeU32(l);
 							}
+							flush();
 							for (const item of serializedData) {
-								flush();
 								buffers.push(item);
 							}
 						}
@@ -115086,11 +114814,19 @@ class BinaryMiddleware extends SerializerMiddleware {
 								writeU32(n - 260);
 							}
 						} else if (Buffer.isBuffer(thing)) {
-							allocate(HEADER_SIZE + I32_SIZE, true);
-							writeU8(BUFFER_HEADER);
-							writeU32(thing.length);
-							flush();
-							buffers.push(thing);
+							if (thing.length < 8192) {
+								allocate(HEADER_SIZE + I32_SIZE + thing.length);
+								writeU8(BUFFER_HEADER);
+								writeU32(thing.length);
+								thing.copy(currentBuffer, currentPosition);
+								currentPosition += thing.length;
+							} else {
+								allocate(HEADER_SIZE + I32_SIZE);
+								writeU8(BUFFER_HEADER);
+								writeU32(thing.length);
+								flush();
+								buffers.push(thing);
+							}
 						}
 						break;
 					}
@@ -135425,34 +135161,6 @@ module.exports = require("vm");;
 /******/ 	}
 /******/ 	
 /************************************************************************/
-/******/ 	/* webpack/runtime/define property getters */
-/******/ 	!function() {
-/******/ 		// define getter functions for harmony exports
-/******/ 		__webpack_require__.d = function(exports, definition) {
-/******/ 			for(var key in definition) {
-/******/ 				if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
-/******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
-/******/ 				}
-/******/ 			}
-/******/ 		};
-/******/ 	}();
-/******/ 	
-/******/ 	/* webpack/runtime/hasOwnProperty shorthand */
-/******/ 	!function() {
-/******/ 		__webpack_require__.o = function(obj, prop) { return Object.prototype.hasOwnProperty.call(obj, prop); }
-/******/ 	}();
-/******/ 	
-/******/ 	/* webpack/runtime/make namespace object */
-/******/ 	!function() {
-/******/ 		// define __esModule on exports
-/******/ 		__webpack_require__.r = function(exports) {
-/******/ 			if(typeof Symbol !== 'undefined' && Symbol.toStringTag) {
-/******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
-/******/ 			}
-/******/ 			Object.defineProperty(exports, '__esModule', { value: true });
-/******/ 		};
-/******/ 	}();
-/******/ 	
 /******/ 	/* webpack/runtime/node module decorator */
 /******/ 	!function() {
 /******/ 		__webpack_require__.nmd = function(module) {

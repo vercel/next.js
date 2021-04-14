@@ -1288,6 +1288,7 @@ export default class Server {
     // we don't modify the URL for _next/data request but still
     // call render so we special case this to prevent an infinite loop
     if (
+      !this.minimalMode &&
       !query._nextDataReq &&
       (url.match(/^\/_next\//) ||
         (this.hasStaticDir && url.match(/^\/static\//)))
