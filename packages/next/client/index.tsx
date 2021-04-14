@@ -248,6 +248,8 @@ class Container extends React.Component<{
 export const emitter: MittEmitter = mitt()
 let CachedComponent: React.ComponentType
 
+const PerfCallbackContext = React.createContext<() => void>(() => {})
+
 export default async (opts: { webpackHMR?: any } = {}) => {
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
@@ -510,27 +512,36 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 let reactRoot: any = null
 let shouldUseHydrate: boolean = typeof ReactDOM.hydrate === 'function'
 function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement): void {
+  // mark start of hydrate/render
+  if (ST) {
+    performance.mark('beforeRender')
+  }
+
+  const wrappedEl = (
+    <PerfCallbackContext.Provider
+      value={shouldUseHydrate ? markHydrateComplete : markRenderComplete}
+    >
+      {reactEl}
+    </PerfCallbackContext.Provider>
+  )
+
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
     if (!reactRoot) {
-      const opts = { hydrate: true }
+      const opts = { hydrate: shouldUseHydrate }
       reactRoot =
         process.env.__NEXT_REACT_MODE === 'concurrent'
           ? (ReactDOM as any).unstable_createRoot(domEl, opts)
           : (ReactDOM as any).unstable_createBlockingRoot(domEl, opts)
     }
-    reactRoot.render(reactEl)
+    reactRoot.render(wrappedEl)
+    shouldUseHydrate = false
   } else {
-    // mark start of hydrate/render
-    if (ST) {
-      performance.mark('beforeRender')
-    }
-
     // The check for `.hydrate` is there to support React alternatives like preact
     if (shouldUseHydrate) {
-      ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
+      ReactDOM.hydrate(wrappedEl, domEl)
       shouldUseHydrate = false
     } else {
-      ReactDOM.render(reactEl, domEl, markRenderComplete)
+      ReactDOM.render(wrappedEl, domEl)
     }
   }
 }
@@ -827,6 +838,10 @@ function Root({
       }
     }, [])
   }
+  const perfCallback = React.useContext(PerfCallbackContext)
+  React.useLayoutEffect(() => {
+    perfCallback()
+  }, [perfCallback])
   // We should ask to measure the Web Vitals after rendering completes so we
   // don't cause any hydration delay:
   React.useEffect(() => {
