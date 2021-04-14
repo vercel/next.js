@@ -248,7 +248,7 @@ class Container extends React.Component<{
 export const emitter: MittEmitter = mitt()
 let CachedComponent: React.ComponentType
 
-const PerfCallbackContext = React.createContext<() => void>(() => {})
+const RootCommitCallbacksContext = React.createContext<Array<() => void>>([])
 
 export default async (opts: { webpackHMR?: any } = {}) => {
   // This makes sure this specific lines are removed in production
@@ -511,18 +511,25 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 
 let reactRoot: any = null
 let shouldUseHydrate: boolean = typeof ReactDOM.hydrate === 'function'
-function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement): void {
+function renderReactElement(
+  reactEl: JSX.Element,
+  domEl: HTMLElement,
+  callback: () => void
+): void {
   // mark start of hydrate/render
   if (ST) {
     performance.mark('beforeRender')
   }
 
   const wrappedEl = (
-    <PerfCallbackContext.Provider
-      value={shouldUseHydrate ? markHydrateComplete : markRenderComplete}
+    <RootCommitCallbacksContext.Provider
+      value={[
+        shouldUseHydrate ? markHydrateComplete : markRenderComplete,
+        callback,
+      ]}
     >
       {reactEl}
-    </PerfCallbackContext.Provider>
+    </RootCommitCallbacksContext.Provider>
   )
 
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
@@ -793,7 +800,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
   }
 
   const elem: JSX.Element = (
-    <Root callback={onRootCommit}>
+    <Root>
       <Head callback={onHeadCommit} />
       <AppContainer>
         <App {...appProps} />
@@ -813,21 +820,21 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     ) : (
       elem
     ),
-    appElement!
+    appElement!,
+    onRootCommit
   )
 
   return renderPromise
 }
 
-function Root({
-  callback,
-  children,
-}: React.PropsWithChildren<{
-  callback: () => void
-}>): React.ReactElement {
-  // We use `useLayoutEffect` to guarantee the callback is executed
-  // as soon as React flushes the update.
-  React.useLayoutEffect(() => callback(), [callback])
+function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
+  // We use `useLayoutEffect` to guarantee the callbacks are executed
+  // as soon as React flushes the update
+  const callbacks = React.useContext(RootCommitCallbacksContext)
+  React.useLayoutEffect(
+    () => callbacks.forEach((callback) => callback()),
+    [callbacks]
+  )
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -838,10 +845,6 @@ function Root({
       }
     }, [])
   }
-  const perfCallback = React.useContext(PerfCallbackContext)
-  React.useLayoutEffect(() => {
-    perfCallback()
-  }, [perfCallback])
   // We should ask to measure the Web Vitals after rendering completes so we
   // don't cause any hydration delay:
   React.useEffect(() => {
