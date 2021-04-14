@@ -153,12 +153,12 @@ function getFreshConfig(
     development,
     hasReactRefresh,
     hasJsxRuntime,
-    hasBabelRc,
+    babelrc,
   } = loaderOptions
   const nextPresetItem = createConfigItem(nextBabelPreset, { type: 'preset' })
 
   let options = {
-    babelrc: hasBabelRc,
+    babelrc,
     cloneInputAst: false,
     filename,
     inputSourceMap: inputSourceMap || undefined,
