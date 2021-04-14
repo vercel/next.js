@@ -1,16 +1,12 @@
-import { join } from 'path'
-
 import { formatResults } from './customFormatter'
 import { getLintIntent } from './getLintIntent'
 import { writeDefaultConfig } from './writeDefaultConfig'
-import { ESLintCompileError } from './ESLintCompileError'
 
+import { CompileError } from '../compile-error'
 import {
   hasNecessaryDependencies,
   NecessaryDependencies,
 } from '../has-necessary-dependencies'
-import { fileExists } from '../file-exists'
-import { getTypeScriptIntent } from '../typescript/getTypeScriptIntent'
 
 import findUp from 'next/dist/compiled/find-up'
 
@@ -23,7 +19,6 @@ async function lint(
   deps: NecessaryDependencies,
   baseDir: string,
   pagesDir: string,
-  pagePath: string | null,
   eslintrcFile: string | null,
   pkgJsonPath: string | null
 ): Promise<string | null> {
@@ -75,30 +70,19 @@ async function lint(
     }
   }
 
-  const results = await eslint.lintFiles([
-    pagePath ? join(pagesDir, pagePath) : `${pagesDir}/**/*.{js,tsx}`,
-  ])
+  const results = await eslint.lintFiles([`${pagesDir}/**/*.{js,tsx}`])
 
-  if (ESLint.getErrorResults(results)?.length > 0 && !pagePath) {
-    throw new ESLintCompileError(await formatResults(baseDir, results))
+  if (ESLint.getErrorResults(results)?.length > 0) {
+    throw new CompileError(await formatResults(baseDir, results))
   }
-
   return results?.length > 0 ? formatResults(baseDir, results) : null
 }
 
 export async function runLintCheck(
   baseDir: string,
-  pagesDir: string,
-  pagePath: string | null,
-  typeCheckPreflight: boolean
+  pagesDir: string
 ): Promise<string | null> {
   try {
-    // Per-file linting is enabled but file does not exist
-    let pathNotExists = Boolean(
-      pagePath && !(await fileExists(join(pagesDir, pagePath)))
-    )
-    if (pathNotExists) return null
-
     // Find user's .eslintrc file
     const eslintrcFile =
       (await findUp(
@@ -129,13 +113,11 @@ export async function runLintCheck(
 
     const firstTimeSetup = eslintIntent.firstTimeSetup
 
-    // Check if the project uses Typescript to ensure correct ESLint TS parser is installed
-    const tsIntent = await getTypeScriptIntent(baseDir, pagesDir)
-
     // Ensure ESLint and necessary plugins and configs are installed:
     const deps: NecessaryDependencies = await hasNecessaryDependencies(
       baseDir,
-      tsIntent && typeCheckPreflight,
+      false,
+      !!eslintIntent,
       eslintrcFile
     )
 
@@ -143,14 +125,7 @@ export async function runLintCheck(
     if (firstTimeSetup) await writeDefaultConfig(eslintrcFile, pkgJsonPath)
 
     // Run ESLint
-    return await lint(
-      deps,
-      baseDir,
-      pagesDir,
-      pagePath,
-      eslintrcFile,
-      pkgJsonPath
-    )
+    return await lint(deps, baseDir, pagesDir, eslintrcFile, pkgJsonPath)
   } catch (err) {
     throw err
   }

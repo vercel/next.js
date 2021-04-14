@@ -1,7 +1,8 @@
 import chalk from 'chalk'
 import os from 'os'
 import path from 'path'
-import { FatalTypeScriptError } from './FatalTypeScriptError'
+
+import { FatalError } from '../fatal-error'
 
 export async function getTypeScriptConfiguration(
   ts: typeof import('typescript'),
@@ -16,9 +17,7 @@ export async function getTypeScriptConfiguration(
 
     const { config, error } = ts.readConfigFile(tsConfigPath, ts.sys.readFile)
     if (error) {
-      throw new FatalTypeScriptError(
-        ts.formatDiagnostic(error, formatDiagnosticsHost)
-      )
+      throw new FatalError(ts.formatDiagnostic(error, formatDiagnosticsHost))
     }
 
     const result = ts.parseJsonConfigFileContent(
@@ -36,7 +35,7 @@ export async function getTypeScriptConfiguration(
     }
 
     if (result.errors?.length) {
-      throw new FatalTypeScriptError(
+      throw new FatalError(
         ts.formatDiagnostic(result.errors[0], formatDiagnosticsHost)
       )
     }
@@ -45,7 +44,7 @@ export async function getTypeScriptConfiguration(
   } catch (err) {
     if (err?.name === 'SyntaxError') {
       const reason = '\n' + (err?.message ?? '')
-      throw new FatalTypeScriptError(
+      throw new FatalError(
         chalk.red.bold(
           'Could not parse',
           chalk.cyan('tsconfig.json') +

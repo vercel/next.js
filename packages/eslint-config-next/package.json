@@ -8,7 +8,8 @@
     "url": "vercel/next.js",
     "directory": "packages/eslint-config-next"
   },
-  "peerDependencies": {
+  "dependencies": {
+    "@rushstack/eslint-patch": "^1.0.6",
     "@babel/core": "^7.13.14",
     "@babel/eslint-parser": "^7.13.14",
     "@next/eslint-plugin-next": "^10.1.3",
@@ -18,9 +19,7 @@
     "eslint-plugin-react": "^7.23.1",
     "eslint-plugin-react-hooks": "^4.2.0"
   },
-  "peerDependenciesMeta": {
-    "@typescript-eslint/parser": {
-      "optional": true
-    }
+  "peerDependencies": {
+    "eslint": "^7.23.0"
   }
 }
