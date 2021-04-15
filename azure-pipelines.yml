@@ -69,7 +69,7 @@ stages:
   - stage: Test
     dependsOn: Build
     jobs:
-      - job: test_ie11_production
+      - job: test_ie11
         pool:
           vmImage: 'windows-2019'
         steps:
