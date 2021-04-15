@@ -1260,3 +1260,34 @@ test('<Link> component props errors', async () => {
 
   await cleanup()
 })
+
+test('_app top level error shows logbox', async () => {
+  const [session, cleanup] = await sandbox(
+    undefined,
+    new Map([
+      [
+        'pages/_app.js',
+        `
+          throw new Error("test");
+          function MyApp({ Component, pageProps }) {
+            return <Component {...pageProps} />;
+          }
+          export default MyApp
+        `,
+      ],
+    ])
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+
+  await session.patch(
+    'pages/_app.js',
+    `
+      function MyApp({ Component, pageProps }) {
+        return <Component {...pageProps} />;
+      }
+      export default MyApp
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+  await cleanup()
+})
