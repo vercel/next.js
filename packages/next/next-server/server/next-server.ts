@@ -997,8 +997,11 @@ export default class Server {
             parsedUrl.query.__nextLocale = localePathResult.detectedLocale
           }
         }
+        const bubbleNoFallback = !!query._nextBubbleNoFallback
 
         if (pathname === '/api' || pathname.startsWith('/api/')) {
+          delete query._nextBubbleNoFallback
+
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,
@@ -1009,7 +1012,6 @@ export default class Server {
             return { finished: true }
           }
         }
-        const bubbleNoFallback = !!query._nextBubbleNoFallback
 
         try {
           await this.render(req, res, pathname, query, parsedUrl)
