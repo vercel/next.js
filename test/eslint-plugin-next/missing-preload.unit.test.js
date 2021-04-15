@@ -71,7 +71,7 @@ ruleTester.run('missing-preload', rule, {
       errors: [
         {
           message:
-            'Stylesheet does not have an associated preload tag. This could potentially impact First paint. See: https://web.dev/preload-critical-assets/.',
+            'Stylesheet does not have an associated preload tag. See: https://nextjs.org/docs/messages/missing-preload.',
           type: 'JSXOpeningElement',
         },
       ],
@@ -96,7 +96,7 @@ ruleTester.run('missing-preload', rule, {
       errors: [
         {
           message:
-            'Stylesheet does not have an associated preload tag. This could potentially impact First paint. See: https://web.dev/preload-critical-assets/.',
+            'Stylesheet does not have an associated preload tag. See: https://nextjs.org/docs/messages/missing-preload.',
           type: 'JSXOpeningElement',
         },
       ],

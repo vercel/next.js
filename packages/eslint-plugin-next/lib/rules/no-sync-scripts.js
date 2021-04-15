@@ -18,7 +18,7 @@ module.exports = function (context) {
         context.report({
           node,
           message:
-            "A synchronous script tag can impact your webpage's performance. See: https://web.dev/efficiently-load-third-party-javascript/.",
+            'Synchronous scripts are forbidden. See: https://nextjs.org/docs/messages/no-sync-scripts.',
         })
       }
     },
