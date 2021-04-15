@@ -248,8 +248,6 @@ class Container extends React.Component<{
 export const emitter: MittEmitter = mitt()
 let CachedComponent: React.ComponentType
 
-const RootCommitCallbacksContext = React.createContext<Array<() => void>>([])
-
 export default async (opts: { webpackHMR?: any } = {}) => {
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
@@ -789,8 +787,10 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     resolvePromise()
   }
 
+  onStart()
+
   const elem: JSX.Element = (
-    <Root>
+    <>
       <Head callback={onHeadCommit} />
       <AppContainer>
         <App {...appProps} />
@@ -798,29 +798,31 @@ function doRender(input: RenderRouteInfo): Promise<any> {
           <RouteAnnouncer />
         </Portal>
       </AppContainer>
-    </Root>
+    </>
   )
-
-  onStart()
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
   renderReactElement(appElement!, (callback) => (
-    <RootCommitCallbacksContext.Provider value={[callback, onRootCommit]}>
+    <Root callbacks={[callback, onRootCommit]}>
       {process.env.__NEXT_STRICT_MODE ? (
         <React.StrictMode>{elem}</React.StrictMode>
       ) : (
         elem
       )}
-    </RootCommitCallbacksContext.Provider>
+    </Root>
   ))
 
   return renderPromise
 }
 
-function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
+function Root({
+  callbacks,
+  children,
+}: React.PropsWithChildren<{
+  callbacks: Array<() => void>
+}>): React.ReactElement {
   // We use `useLayoutEffect` to guarantee the callbacks are executed
   // as soon as React flushes the update
-  const callbacks = React.useContext(RootCommitCallbacksContext)
   React.useLayoutEffect(() => callbacks.forEach((callback) => callback()), [
     callbacks,
   ])
