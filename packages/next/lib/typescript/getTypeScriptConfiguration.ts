@@ -5,7 +5,8 @@ import { FatalTypeScriptError } from './FatalTypeScriptError'
 
 export async function getTypeScriptConfiguration(
   ts: typeof import('typescript'),
-  tsConfigPath: string
+  tsConfigPath: string,
+  metaOnly?: boolean
 ): Promise<import('typescript').ParsedCommandLine> {
   try {
     const formatDiagnosticsHost: import('typescript').FormatDiagnosticsHost = {
@@ -21,8 +22,18 @@ export async function getTypeScriptConfiguration(
       )
     }
 
+    let configToParse: any = config
+    if (metaOnly) {
+      configToParse = {
+        ...configToParse,
+        include: [],
+        exclude: [],
+        files: undefined,
+      }
+    }
+
     const result = ts.parseJsonConfigFileContent(
-      config,
+      configToParse,
       ts.sys,
       path.dirname(tsConfigPath)
     )
@@ -39,6 +50,10 @@ export async function getTypeScriptConfiguration(
       throw new FatalTypeScriptError(
         ts.formatDiagnostic(result.errors[0], formatDiagnosticsHost)
       )
+    }
+
+    if (metaOnly) {
+      result.raw = config
     }
 
     return result
