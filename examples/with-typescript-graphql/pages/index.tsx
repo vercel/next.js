@@ -21,10 +21,12 @@ const Index = () => {
       //Follow apollo suggestion to update cache
       //https://www.apollographql.com/docs/angular/features/cache-updates/#update
       update: (cache, mutationResult) => {
-        const {data} = mutationResult
+        const { data } = mutationResult
         if (!data) return // Cancel updating name in cache if no data is returned from mutation.
         // Read the data from our cache for this query.
-        const { viewer } = cache.readQuery({ query: ViewerDocument }) as ViewerQuery
+        const { viewer } = cache.readQuery({
+          query: ViewerDocument,
+        }) as ViewerQuery
         const newViewer = { ...viewer }
         // Add our comment from the mutation to the end.
         newViewer.name = data.updateName.name
