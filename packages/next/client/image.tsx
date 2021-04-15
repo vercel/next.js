@@ -448,8 +448,8 @@ export default function Image({
               quality: qualityInt,
               sizes,
               loader,
-            })}            
-            decoding="async"            
+            })}
+            decoding="async"
             style={imgStyle}
             className={className}
           />
