@@ -49,7 +49,7 @@ Then, open `.env.local` and add the missing environment variables:
 - `AUTH0_CLIENT_SECRET` - Can be found in the Auth0 dashboard under `settings`.
 - `NEXT_PUBLIC_REDIRECT_URI` - The url where Auth0 redirects back to, make sure a consistent url is used here.
 - `NEXT_PUBLIC_POST_LOGOUT_REDIRECT_URI` - Where to redirect after logging out
-- `SESSION_COOKIE_SECRET` - A unique secret used to encrypt the cookies, has to be at least 32 characters. You can use [this generator](https://generate-secret.now.sh/32) to generate a value.
+- `SESSION_COOKIE_SECRET` - A unique secret used to encrypt the cookies, has to be at least 32 characters. You can use [this generator](https://generate-secret.vercel.app/32) to generate a value.
 - `SESSION_COOKIE_LIFETIME` - How long a session lasts in seconds. The default is 2 hours.
 
 ## Deploy on Vercel
