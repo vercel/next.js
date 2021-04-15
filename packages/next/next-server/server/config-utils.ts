@@ -78,6 +78,14 @@ export async function shouldLoadWithWebpack5(
     }
   }
 
+  // Opted-out manually
+  if (userConfig.future?.webpack5 === false) {
+    return {
+      enabled: false,
+      reason: 'no-future-flag',
+    }
+  }
+
   // Uncomment to add auto-enable when there is no custom webpack config
   // The user isn't configuring webpack
   if (!userConfig.webpack) {
@@ -98,7 +106,7 @@ function reasonMessage(reason: CheckReasons) {
     case 'future-flag':
       return 'future.webpack5 option enabled'
     case 'no-future-flag':
-      return 'future.webpack5 option not enabled'
+      return 'future.webpack5 option disabled'
     case 'no-config':
       return 'no next.config.js'
     case 'webpack-config':
