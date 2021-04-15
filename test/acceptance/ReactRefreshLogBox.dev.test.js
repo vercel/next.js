@@ -1278,6 +1278,16 @@ test('_app top level error shows logbox', async () => {
     ])
   )
   expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "pages/_app.js (2:16) @ eval
+
+        1 | 
+      > 2 |           throw new Error(\\"test\\");
+          |                ^
+        3 |           function MyApp({ Component, pageProps }) {
+        4 |             return <Component {...pageProps} />;
+        5 |           }"
+    `)
 
   await session.patch(
     'pages/_app.js',
