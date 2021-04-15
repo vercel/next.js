@@ -52,7 +52,11 @@ import {
 import { DomainLocales, isTargetLikeServerless, NextConfig } from './config'
 import pathMatch from '../lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
-import { loadComponents, LoadComponentsReturnType } from './load-components'
+import {
+  loadComponents,
+  LoadComponentsReturnType,
+  loadDefaultErrorComponents,
+} from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import { RenderOpts, RenderOptsPartial, renderToHTML } from './render'
 import { getPagePath, requireFontManifest } from './require'
@@ -1964,38 +1968,38 @@ export default class Server {
     _pathname: string,
     query: ParsedUrlQuery = {}
   ) {
-    let result: null | FindComponentsResult = null
-
-    const is404 = res.statusCode === 404
-    let using404Page = false
-
-    // use static 404 page if available and is 404 response
-    if (is404) {
-      result = await this.findPageComponents('/404', query)
-      using404Page = result !== null
-    }
-    let statusPage = `/${res.statusCode}`
-
-    if (!result && STATIC_STATUS_PAGES.includes(statusPage)) {
-      result = await this.findPageComponents(statusPage, query)
-    }
-
-    if (!result) {
-      result = await this.findPageComponents('/_error', query)
-      statusPage = '/_error'
-    }
-
-    if (
-      process.env.NODE_ENV !== 'production' &&
-      !using404Page &&
-      (await this.hasPage('/_error')) &&
-      !(await this.hasPage('/404'))
-    ) {
-      this.customErrorNo404Warn()
-    }
-
     let html: string | null
     try {
+      let result: null | FindComponentsResult = null
+
+      const is404 = res.statusCode === 404
+      let using404Page = false
+
+      // use static 404 page if available and is 404 response
+      if (is404) {
+        result = await this.findPageComponents('/404', query)
+        using404Page = result !== null
+      }
+      let statusPage = `/${res.statusCode}`
+
+      if (!result && STATIC_STATUS_PAGES.includes(statusPage)) {
+        result = await this.findPageComponents(statusPage, query)
+      }
+
+      if (!result) {
+        result = await this.findPageComponents('/_error', query)
+        statusPage = '/_error'
+      }
+
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        !using404Page &&
+        (await this.hasPage('/_error')) &&
+        !(await this.hasPage('/404'))
+      ) {
+        this.customErrorNo404Warn()
+      }
+
       try {
         html = await this.renderToHTMLWithComponents(
           req,
@@ -2016,6 +2020,23 @@ export default class Server {
     } catch (renderToHtmlError) {
       console.error(renderToHtmlError)
       res.statusCode = 500
+
+      if (this.renderOpts.dev) {
+        const fallbackResult = await loadDefaultErrorComponents(this.distDir)
+        return this.renderToHTMLWithComponents(
+          req,
+          res,
+          '/_error',
+          {
+            query,
+            components: fallbackResult,
+          },
+          {
+            ...this.renderOpts,
+            err,
+          }
+        )
+      }
       html = 'Internal Server Error'
     }
     return html

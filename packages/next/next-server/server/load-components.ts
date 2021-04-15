@@ -35,6 +35,22 @@ export type LoadComponentsReturnType = {
   ComponentMod: any
 }
 
+export async function loadDefaultErrorComponents(distDir: string) {
+  const Document = interopDefault(require('next/dist/pages/_document'))
+  const App = interopDefault(require('next/dist/pages/_app'))
+  const ComponentMod = require('next/dist/pages/_error')
+  const Component = interopDefault(ComponentMod)
+
+  return {
+    App,
+    Document,
+    Component,
+    buildManifest: require(join(distDir, BUILD_MANIFEST)),
+    reactLoadableManifest: require(join(distDir, REACT_LOADABLE_MANIFEST)),
+    ComponentMod,
+  }
+}
+
 export async function loadComponents(
   distDir: string,
   pathname: string,
