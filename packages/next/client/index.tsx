@@ -511,26 +511,17 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 let reactRoot: any = null
 let shouldUseHydrate: boolean = typeof ReactDOM.hydrate === 'function'
 function renderReactElement(
-  reactEl: JSX.Element,
   domEl: HTMLElement,
-  callback: () => void
+  fn: (cb: () => void) => JSX.Element
 ): void {
   // mark start of hydrate/render
   if (ST) {
     performance.mark('beforeRender')
   }
 
-  const wrappedEl = (
-    <RootCommitCallbacksContext.Provider
-      value={[
-        shouldUseHydrate ? markHydrateComplete : markRenderComplete,
-        callback,
-      ]}
-    >
-      {reactEl}
-    </RootCommitCallbacksContext.Provider>
+  const reactEl = fn(
+    shouldUseHydrate ? markHydrateComplete : markRenderComplete
   )
-
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
     if (!reactRoot) {
       const opts = { hydrate: shouldUseHydrate }
@@ -539,15 +530,15 @@ function renderReactElement(
           ? (ReactDOM as any).unstable_createRoot(domEl, opts)
           : (ReactDOM as any).unstable_createBlockingRoot(domEl, opts)
     }
-    reactRoot.render(wrappedEl)
+    reactRoot.render(reactEl)
     shouldUseHydrate = false
   } else {
     // The check for `.hydrate` is there to support React alternatives like preact
     if (shouldUseHydrate) {
-      ReactDOM.hydrate(wrappedEl, domEl)
+      ReactDOM.hydrate(reactEl, domEl)
       shouldUseHydrate = false
     } else {
-      ReactDOM.render(wrappedEl, domEl)
+      ReactDOM.render(reactEl, domEl)
     }
   }
 }
@@ -813,15 +804,15 @@ function doRender(input: RenderRouteInfo): Promise<any> {
   onStart()
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
-  renderReactElement(
-    process.env.__NEXT_STRICT_MODE ? (
-      <React.StrictMode>{elem}</React.StrictMode>
-    ) : (
-      elem
-    ),
-    appElement!,
-    onRootCommit
-  )
+  renderReactElement(appElement!, (callback) => (
+    <RootCommitCallbacksContext.Provider value={[callback, onRootCommit]}>
+      {process.env.__NEXT_STRICT_MODE ? (
+        <React.StrictMode>{elem}</React.StrictMode>
+      ) : (
+        elem
+      )}
+    </RootCommitCallbacksContext.Provider>
+  ))
 
   return renderPromise
 }
@@ -830,10 +821,9 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   // We use `useLayoutEffect` to guarantee the callbacks are executed
   // as soon as React flushes the update
   const callbacks = React.useContext(RootCommitCallbacksContext)
-  React.useLayoutEffect(
-    () => callbacks.forEach((callback) => callback()),
-    [callbacks]
-  )
+  React.useLayoutEffect(() => callbacks.forEach((callback) => callback()), [
+    callbacks,
+  ])
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
