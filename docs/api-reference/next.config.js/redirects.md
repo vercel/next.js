@@ -100,6 +100,8 @@ module.exports = {
 
 ## Header, Cookie, and Query Matching
 
+Note: this feature is still experimental and not covered by semver and is to be used at your own risk until it is made stable.
+
 To only match a redirect when header, cookie, or query values also match the `has` field can be used. Both the `source` and all `has` items must match for the redirect to be applied.
 
 `has` items have the following fields:
@@ -133,6 +135,9 @@ module.exports = {
           {
             type: 'query',
             key: 'page',
+            // the page value will not be available in the
+            // destination since value is provided and doesn't
+            // use a named capture group e.g. (?<page>home)
             value: 'home',
           },
           {

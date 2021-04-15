@@ -235,9 +235,13 @@ export default async function getBaseWebpackConfig(
     semver.gte(reactVersion!, '17.0.0-rc.1')
 
   const distDir = path.join(dir, config.distDir)
+
+  const babelLoader = config.experimental.turboMode
+    ? require.resolve('./babel/loader/index')
+    : 'next-babel-loader'
   const defaultLoaders = {
     babel: {
-      loader: 'next-babel-loader',
+      loader: babelLoader,
       options: {
         isServer,
         distDir,
