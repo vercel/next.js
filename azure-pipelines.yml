@@ -86,7 +86,7 @@ stages:
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
           - script: |
-              yarn testie --forceExit test/integration/production/
+              yarn testie --forceExit test/integration/production/ test/integration/css-client-nav/
             displayName: 'Run tests'
 
       - job: test_unit
