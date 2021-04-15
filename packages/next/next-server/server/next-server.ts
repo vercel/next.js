@@ -2018,6 +2018,9 @@ export default class Server {
         throw maybeFallbackError
       }
     } catch (renderToHtmlError) {
+      console.error(renderToHtmlError)
+      res.statusCode = 500
+
       if (this.renderOpts.dev) {
         const fallbackResult = await loadDefaultErrorComponents(this.distDir)
         return this.renderToHTMLWithComponents(
@@ -2034,8 +2037,6 @@ export default class Server {
           }
         )
       }
-      console.error(renderToHtmlError)
-      res.statusCode = 500
       html = 'Internal Server Error'
     }
     return html
