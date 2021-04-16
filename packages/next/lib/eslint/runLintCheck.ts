@@ -1,3 +1,6 @@
+import { promises } from 'fs'
+import { extname } from 'path'
+
 import { formatResults } from './customFormatter'
 import { getLintIntent } from './getLintIntent'
 import { writeDefaultConfig } from './writeDefaultConfig'
@@ -14,6 +17,8 @@ type Config = {
   plugins: string[]
   rules: { [key: string]: Array<number | string> }
 }
+
+const linteableFileTypes = ['jsx', 'js', 'ts', 'tsx']
 
 async function lint(
   deps: NecessaryDependencies,
@@ -70,7 +75,9 @@ async function lint(
     }
   }
 
-  const results = await eslint.lintFiles([`${pagesDir}/**/*.{js,tsx}`])
+  const results = await eslint.lintFiles([
+    `${pagesDir}/**/*.{${linteableFileTypes.join(',')}}`,
+  ])
 
   if (ESLint.getErrorResults(results)?.length > 0) {
     throw new CompileError(await formatResults(baseDir, results))
@@ -83,6 +90,16 @@ export async function runLintCheck(
   pagesDir: string
 ): Promise<string | null> {
   try {
+    // Check if any pages exist that can be linted
+    const pages = await promises.readdir(pagesDir)
+    if (
+      !pages.some((page) =>
+        linteableFileTypes.includes(extname(page).replace('.', ''))
+      )
+    ) {
+      return null
+    }
+
     // Find user's .eslintrc file
     const eslintrcFile =
       (await findUp(
