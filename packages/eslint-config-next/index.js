@@ -1,3 +1,10 @@
+/*
+ * This shareable configuration uses @rushstack/eslint-patch to include its plugins
+ * within as dev dependencies instead of imposing them as peer dependencies
+ *
+ * https://www.npmjs.com/package/@rushstack/eslint-patch
+ */
+
 require('@rushstack/eslint-patch/modern-module-resolution')
 
 module.exports = {
