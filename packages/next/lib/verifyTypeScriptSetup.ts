@@ -30,7 +30,7 @@ export async function verifyTypeScriptSetup(
     // Ensure TypeScript and necessary `@types/*` are installed:
     const deps: NecessaryDependencies = await hasNecessaryDependencies(
       dir,
-      intent && typeCheckPreflight,
+      !!intent,
       false
     )
 
