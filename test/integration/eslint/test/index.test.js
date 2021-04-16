@@ -4,7 +4,6 @@ import { writeFile, readFile } from 'fs-extra'
 
 jest.setTimeout(1000 * 60 * 2)
 
-const dirMissingDeps = join(__dirname, '../missing-deps')
 const dirEslintrcConfig = join(__dirname, '../eslintrc-config')
 
 describe('ESLint', () => {
