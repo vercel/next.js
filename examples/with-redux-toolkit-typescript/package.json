@@ -9,7 +9,6 @@
     "test": "jest"
   },
   "dependencies": {
-    "@nano-sql/core": "^2.3.7",
     "@reduxjs/toolkit": "^1.3.6",
     "next": "latest",
     "react": "17.0.1",
@@ -28,7 +27,6 @@
     "@types/react-redux": "7.1.16",
     "jest": "^26.0.0",
     "jest-css-modules-transform": "^4.2.0",
-    "prettier": "2.2.1",
     "ts-jest": "^26.0.0",
     "ts-node": "^9.0.0",
     "typescript": "4.2.3"
