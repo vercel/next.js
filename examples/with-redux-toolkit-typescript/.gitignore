@@ -17,7 +17,14 @@
 
 # misc
 .DS_Store
+.AppleDouble
+.LSOverride
 *.pem
+*~
+.directory
+[Tt]humbs.db
+[Dd]esktop.ini
+
 
 # debug
 npm-debug.log*
