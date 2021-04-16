@@ -997,8 +997,11 @@ export default class Server {
             parsedUrl.query.__nextLocale = localePathResult.detectedLocale
           }
         }
+        const bubbleNoFallback = !!query._nextBubbleNoFallback
 
         if (pathname === '/api' || pathname.startsWith('/api/')) {
+          delete query._nextBubbleNoFallback
+
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,
@@ -1010,9 +1013,19 @@ export default class Server {
           }
         }
 
-        await this.render(req, res, pathname, query, parsedUrl)
-        return {
-          finished: true,
+        try {
+          await this.render(req, res, pathname, query, parsedUrl)
+
+          return {
+            finished: true,
+          }
+        } catch (err) {
+          if (err instanceof NoFallbackError && bubbleNoFallback) {
+            return {
+              finished: false,
+            }
+          }
+          throw err
         }
       },
     }
@@ -1861,6 +1874,9 @@ export default class Server {
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
+    const bubbleNoFallback = !!query._nextBubbleNoFallback
+    delete query._nextBubbleNoFallback
+
     try {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
@@ -1873,7 +1889,9 @@ export default class Server {
             { ...this.renderOpts }
           )
         } catch (err) {
-          if (!(err instanceof NoFallbackError)) {
+          const isNoFallbackError = err instanceof NoFallbackError
+
+          if (!isNoFallbackError || (isNoFallbackError && bubbleNoFallback)) {
             throw err
           }
         }
@@ -1901,7 +1919,12 @@ export default class Server {
                 { ...this.renderOpts, params }
               )
             } catch (err) {
-              if (!(err instanceof NoFallbackError)) {
+              const isNoFallbackError = err instanceof NoFallbackError
+
+              if (
+                !isNoFallbackError ||
+                (isNoFallbackError && bubbleNoFallback)
+              ) {
                 throw err
               }
             }
@@ -1909,6 +1932,11 @@ export default class Server {
         }
       }
     } catch (err) {
+      const isNoFallbackError = err instanceof NoFallbackError
+
+      if (isNoFallbackError && bubbleNoFallback) {
+        throw err
+      }
       if (err && err.code === 'DECODE_FAILED') {
         this.logError(err)
         res.statusCode = 400
