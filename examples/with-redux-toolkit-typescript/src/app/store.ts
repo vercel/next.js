@@ -1,13 +1,11 @@
 import { configureStore, ThunkAction, Action } from '@reduxjs/toolkit'
 
-import clockReducer from '../features/clock/clockSlice'
 import counterReducer from '../features/counter/counterSlice'
 import notesReducer from '../features/note/notesSlice'
 
 export function makeStore() {
   return configureStore({
     reducer: {
-      clock: clockReducer,
       counter: counterReducer,
       notes: notesReducer,
     },
