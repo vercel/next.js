@@ -30,7 +30,7 @@ export async function loadWebpackHook(phase: string, dir: string) {
   const worker: any = new Worker(
     path.resolve(__dirname, './config-utils-worker.js'),
     {
-      enableWorkerThreads: true,
+      enableWorkerThreads: false,
       numWorkers: 1,
     }
   )
