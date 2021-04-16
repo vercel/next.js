@@ -1,7 +1,7 @@
 import { superTokensNextWrapper } from 'supertokens-node/nextjs'
 import { verifySession } from 'supertokens-node/recipe/session'
 import supertokens from 'supertokens-node'
-import * as SuperTokensConfig from '../supertokensConfig'
+import * as SuperTokensConfig from '../../config/supertokensConfig'
 
 supertokens.init(SuperTokensConfig.backendConfig())
 
