@@ -1,7 +1,9 @@
-const { ipcRenderer } = require('electron')
+const { ipcRenderer, contextBridge } = require('electron')
 
-// Since we disabled nodeIntegration we can reintroduce
-// needed node functionality here
-process.once('loaded', () => {
-  global.ipcRenderer = ipcRenderer
+contextBridge.exposeInMainWorld('electron', {
+  message: {
+    send: (payload) => ipcRenderer.send('message', payload),
+    on: (handler) => ipcRenderer.on('message', handler),
+    off: (handler) => ipcRenderer.off('message', handler),
+  },
 })

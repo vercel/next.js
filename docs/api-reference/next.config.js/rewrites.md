@@ -40,7 +40,7 @@ module.exports = {
 - `locale`: `false` or `undefined` - whether the locale should not be included when matching.
 - `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
 
-Rewrites are applied after checking the filesystem (pages and `/public` files) and before dynamic routes by default. This behavior can be changed by instead returning an object instead of an array from the `rewrites` function:
+Rewrites are applied after checking the filesystem (pages and `/public` files) and before dynamic routes by default. This behavior can be changed by instead returning an object instead of an array from the `rewrites` function since `v10.1` of Next.js:
 
 ```js
 module.exports = {
@@ -180,6 +180,8 @@ module.exports = {
 
 ## Header, Cookie, and Query Matching
 
+Note: this feature is still experimental and not covered by semver and is to be used at your own risk until it is made stable.
+
 To only match a rewrite when header, cookie, or query values also match the `has` field can be used. Both the `source` and all `has` items must match for the rewrite to be applied.
 
 `has` items have the following fields:
@@ -212,6 +214,9 @@ module.exports = {
           {
             type: 'query',
             key: 'page',
+            // the page value will not be available in the
+            // destination since value is provided and doesn't
+            // use a named capture group e.g. (?<page>home)
             value: 'home',
           },
           {
@@ -220,7 +225,7 @@ module.exports = {
             value: 'true',
           },
         ],
-        destination: '/:path*/:page',
+        destination: '/:path*/home',
       },
       // if the header `x-authorized` is present and
       // contains a matching value, this rewrite will be applied
