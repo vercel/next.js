@@ -2,13 +2,13 @@
 
 ### Why This Error Occurred
 
-An HTML link element, `<link>`, was used to link an external stylesheet. This can negatively affect CSS resource loading on your web page.
+An HTML link element was used to link to an external stylesheet. This can negatively affect CSS resource loading on your web page.
 
 ### Possible Ways to Fix It
 
 Instead of using a `<link>` element:
 
-```tsx
+```jsx
 import { Head } from 'next/document'
 
 export class Home extends Head {
@@ -40,7 +40,7 @@ body {
 
 Another option is to use CSS Modules to import the CSS file scoped specifically to the component.
 
-```tsx
+```jsx
 import styles from './extra.module.css'
 
 export class Home {

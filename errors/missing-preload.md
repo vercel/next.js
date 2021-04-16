@@ -2,13 +2,13 @@
 
 ### Why This Error Occurred
 
-A Stylesheet that was used to link a CSS file does not have an associated preload tag. This could potentially impact First Paint.
+A stylesheet that was used to link a CSS file does not have an associated preload tag. This could potentially impact First Paint.
 
 ### Possible Ways to Fix It
 
-Include `rel="preload"` to the `<link>` tag to ensure the Stylesheet is fetched as soon as possible.
+Include `rel="preload"` to ensure the stylesheet is fetched as soon as possible.
 
-```tsx
+```jsx
 function Home() {
   return (
     <div>
