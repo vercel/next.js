@@ -589,7 +589,7 @@ describe('Image Component Tests', () => {
         module.exports = {
           target: 'serverless',
           experimental: {
-            imagePlaceholder: 'blurry',
+            enableBlurryPlaceholder: true,
           },
         }
       `

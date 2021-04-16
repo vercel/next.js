@@ -6,7 +6,6 @@ import {
   imageConfigDefault,
   LoaderValue,
   VALID_LOADERS,
-  PlaceholderValue,
 } from '../next-server/server/image-config'
 import { useIntersection } from './use-intersection'
 
@@ -46,6 +45,11 @@ const VALID_LAYOUT_VALUES = [
 ] as const
 type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
 
+enum PlaceholderValue {
+  BLURRY = 'blurry',
+  EMPTY = 'empty',
+}
+
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
 export type ImageProps = Omit<
@@ -79,7 +83,7 @@ export type ImageProps = Omit<
         placeholder?: Exclude<PlaceholderValue, PlaceholderValue.BLURRY>
         blurDataURL: never
       }
-    | { placeholder: PlaceholderValue; blurDataURL: string }
+    | { placeholder: PlaceholderValue.BLURRY; blurDataURL: string }
   )
 
 const {
@@ -88,7 +92,7 @@ const {
   loader: configLoader,
   path: configPath,
   domains: configDomains,
-  placeholder: configPlaceholder,
+  enableBlurryPlaceholder: configEnableBlurryPlaceholder,
 } =
   ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
 // sort smallest to largest
@@ -223,10 +227,10 @@ function removePlaceholder(
   placeholder: PlaceholderValue
 ) {
   const hasBlurryPlaceholder =
-    configPlaceholder === PlaceholderValue.BLURRY &&
-    placeholder === PlaceholderValue.BLURRY
+    configEnableBlurryPlaceholder && placeholder === PlaceholderValue.BLURRY
   if (hasBlurryPlaceholder && element) {
     if (element.complete) {
+      // If the real image fails to load, this will still remove the placeholder. This is the desired behavior for now, and will be revisited when error handling is worked on for the image component itself.
       element.style.backgroundImage = 'none'
     } else {
       element.onload = () => {
@@ -235,6 +239,10 @@ function removePlaceholder(
     }
   }
 }
+
+const defaultPlaceholder = configEnableBlurryPlaceholder
+  ? PlaceholderValue.BLURRY
+  : PlaceholderValue.EMPTY
 
 export default function Image({
   src,
@@ -249,7 +257,7 @@ export default function Image({
   objectFit,
   objectPosition,
   loader = defaultImageLoader,
-  placeholder = configPlaceholder,
+  placeholder = defaultPlaceholder,
   blurDataURL,
   ...all
 }: ImageProps) {
@@ -320,16 +328,16 @@ export default function Image({
   const heightInt = getInt(height)
   const qualityInt = getInt(quality)
 
-  const MIN_IMG_SIZE_FOR_PLACEHOLDER = 100
+  const MIN_IMG_SIZE_FOR_PLACEHOLDER = 5000
   const tooSmallForBlurryPlaceholder =
     widthInt && heightInt
       ? widthInt * heightInt < MIN_IMG_SIZE_FOR_PLACEHOLDER
       : false
   const shouldShowBlurryPlaceholder =
-    configPlaceholder === PlaceholderValue.BLURRY &&
+    configEnableBlurryPlaceholder &&
     placeholder === PlaceholderValue.BLURRY &&
     priority &&
-    (layout === 'fill' || !tooSmallForBlurryPlaceholder)
+    !tooSmallForBlurryPlaceholder
 
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined

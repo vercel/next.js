@@ -7,18 +7,13 @@ export const VALID_LOADERS = [
 
 export type LoaderValue = typeof VALID_LOADERS[number]
 
-export enum PlaceholderValue {
-  EMPTY = 'empty',
-  BLURRY = 'blurry',
-}
-
 export type ImageConfig = {
   deviceSizes: number[]
   imageSizes: number[]
   loader: LoaderValue
   path: string
   domains?: string[]
-  placeholder: PlaceholderValue
+  enableBlurryPlaceholder: boolean
 }
 
 export const imageConfigDefault: ImageConfig = {
@@ -27,5 +22,5 @@ export const imageConfigDefault: ImageConfig = {
   path: '/_next/image',
   loader: 'default',
   domains: [],
-  placeholder: PlaceholderValue.EMPTY,
+  enableBlurryPlaceholder: false,
 }
