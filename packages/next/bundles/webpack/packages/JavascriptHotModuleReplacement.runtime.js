@@ -207,7 +207,7 @@ module.exports = function () {
 			var module = $moduleCache$[outdatedModuleId];
 			if (
 				module &&
-				module.hot._selfAccepted &&
+				(module.hot._selfAccepted || module.hot._main) &&
 				// removed self-accepted modules should not be required
 				appliedUpdate[outdatedModuleId] !== warnUnexpectedRequire &&
 				// when called invalidate self-accepting is not possible

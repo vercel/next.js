@@ -692,6 +692,53 @@ const runTests = (isDev = false) => {
     expect(res2.status).toBe(404)
   })
 
+  it('should pass has segment for rewrite correctly', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/has-rewrite-5')
+    expect(res1.status).toBe(404)
+
+    const res = await fetchViaHTTP(appPort, '/has-rewrite-5', {
+      hasParam: 'with-params',
+    })
+
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+
+    expect(JSON.parse($('#query').text())).toEqual({
+      hasParam: 'with-params',
+    })
+  })
+
+  it('should not pass non captured has value for rewrite correctly', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/has-rewrite-6')
+    expect(res1.status).toBe(404)
+
+    const res = await fetchViaHTTP(appPort, '/has-rewrite-6', undefined, {
+      headers: {
+        hasParam: 'with-params',
+      },
+    })
+    expect(res.status).toBe(200)
+
+    const $ = cheerio.load(await res.text())
+    expect(JSON.parse($('#query').text())).toEqual({})
+  })
+
+  it('should pass captured has value for rewrite correctly', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/has-rewrite-7')
+    expect(res1.status).toBe(404)
+
+    const res = await fetchViaHTTP(appPort, '/has-rewrite-7', {
+      hasParam: 'with-params',
+    })
+    expect(res.status).toBe(200)
+
+    const $ = cheerio.load(await res.text())
+    expect(JSON.parse($('#query').text())).toEqual({
+      hasParam: 'with-params',
+      idk: 'with-params',
+    })
+  })
+
   it('should match has rewrite correctly before files', async () => {
     const res1 = await fetchViaHTTP(appPort, '/hello')
     expect(res1.status).toBe(200)
@@ -1492,7 +1539,7 @@ const runTests = (isDev = false) => {
                 {
                   key: 'loggedIn',
                   type: 'cookie',
-                  value: 'true',
+                  value: '(?<loggedIn>true)',
                 },
               ],
               regex: normalizeRegEx('^\\/has-rewrite-3$'),
@@ -1508,6 +1555,41 @@ const runTests = (isDev = false) => {
               ],
               regex: '^\\/has-rewrite-4$',
               source: '/has-rewrite-4',
+            },
+            {
+              destination: '/:hasParam',
+              has: [
+                {
+                  key: 'hasParam',
+                  type: 'query',
+                },
+              ],
+              regex: normalizeRegEx('^\\/has-rewrite-5$'),
+              source: '/has-rewrite-5',
+            },
+            {
+              destination: '/with-params',
+              has: [
+                {
+                  key: 'hasParam',
+                  type: 'header',
+                  value: 'with-params',
+                },
+              ],
+              regex: normalizeRegEx('^\\/has-rewrite-6$'),
+              source: '/has-rewrite-6',
+            },
+            {
+              destination: '/with-params?idk=:idk',
+              has: [
+                {
+                  key: 'hasParam',
+                  type: 'query',
+                  value: '(?<idk>with-params|hello)',
+                },
+              ],
+              regex: normalizeRegEx('^\\/has-rewrite-7$'),
+              source: '/has-rewrite-7',
             },
           ],
           fallback: [],

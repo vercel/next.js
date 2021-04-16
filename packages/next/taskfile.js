@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
-const { relative, basename, resolve } = require('path')
+const { relative, basename, resolve, join, dirname } = require('path')
 const { Module } = require('module')
 
 // Note:
@@ -114,8 +114,9 @@ export async function ncc_async_sema(task, opts) {
 // eslint-disable-next-line camelcase
 export async function ncc_babel_bundle(task, opts) {
   const bundleExternals = { ...externals }
-  for (const pkg of Object.keys(babelBundlePackages))
+  for (const pkg of Object.keys(babelBundlePackages)) {
     delete bundleExternals[pkg]
+  }
   await task
     .source(opts.src || 'bundles/babel/bundle.js')
     .ncc({
@@ -128,7 +129,18 @@ export async function ncc_babel_bundle(task, opts) {
 
 const babelBundlePackages = {
   'code-frame': 'next/dist/compiled/babel/code-frame',
+  '@babel/generator': 'next/dist/compiled/babel/generator',
+  '@babel/traverse': 'next/dist/compiled/babel/traverse',
   '@babel/core': 'next/dist/compiled/babel/core',
+  '@babel/core/lib/config': 'next/dist/compiled/babel/core-lib-config',
+  '@babel/core/lib/transformation/normalize-file':
+    'next/dist/compiled/babel/core-lib-normalize-config',
+  '@babel/core/lib/transformation/normalize-opts':
+    'next/dist/compiled/babel/core-lib-normalize-opts',
+  '@babel/core/lib/transformation/block-hoist-plugin':
+    'next/dist/compiled/babel/core-lib-block-hoisting-plugin',
+  '@babel/core/lib/transformation/plugin-pass':
+    'next/dist/compiled/babel/core-lib-plugin-pass',
   '@babel/plugin-proposal-class-properties':
     'next/dist/compiled/babel/plugin-proposal-class-properties',
   '@babel/plugin-proposal-export-namespace-from':
@@ -675,9 +687,20 @@ export async function path_to_regexp(task, opts) {
     .target('dist/compiled/path-to-regexp')
 }
 
+export async function copy_regexr_lexer(task, opts) {
+  await task
+    .source(
+      join(
+        relative(__dirname, dirname(require.resolve('regexr/package.json'))),
+        'lexer-dist/**/*'
+      )
+    )
+    .target('dist/compiled/regexr-lexer')
+}
+
 export async function precompile(task, opts) {
   await task.parallel(
-    ['browser_polyfills', 'path_to_regexp', 'copy_ncced'],
+    ['browser_polyfills', 'path_to_regexp', 'copy_ncced', 'copy_regexr_lexer'],
     opts
   )
 }

@@ -59,6 +59,7 @@ export type NextConfig = { [key: string]: any } & {
       validator?: string
       skipValidation?: boolean
     }
+    turboMode: boolean
     eslint?: boolean
   }
 }
@@ -94,6 +95,7 @@ export const defaultConfig: NextConfig = {
   trailingSlash: false,
   i18n: null,
   productionBrowserSourceMaps: false,
+  optimizeFonts: true,
   experimental: {
     cpus: Math.max(
       1,
@@ -103,10 +105,9 @@ export const defaultConfig: NextConfig = {
     plugins: false,
     profiling: false,
     sprFlushToDisk: true,
-    reactMode: 'legacy',
+    reactMode: (process.env.NEXT_PRIVATE_REACT_MODE as any) || 'legacy',
     workerThreads: false,
     pageEnv: false,
-    optimizeFonts: false,
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
@@ -114,6 +115,7 @@ export const defaultConfig: NextConfig = {
     stats: false,
     externalDir: false,
     serialWebpackBuild: false,
+    turboMode: false,
     eslint: false,
   },
   future: {

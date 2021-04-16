@@ -134,7 +134,7 @@ module.exports = {
             {
               type: 'cookie',
               key: 'loggedIn',
-              value: 'true',
+              value: '(?<loggedIn>true)',
             },
           ],
           destination: '/with-params?authorized=1',
@@ -148,6 +148,38 @@ module.exports = {
             },
           ],
           destination: '/with-params?host=1',
+        },
+        {
+          source: '/has-rewrite-5',
+          has: [
+            {
+              type: 'query',
+              key: 'hasParam',
+            },
+          ],
+          destination: '/:hasParam',
+        },
+        {
+          source: '/has-rewrite-6',
+          has: [
+            {
+              type: 'header',
+              key: 'hasParam',
+              value: 'with-params',
+            },
+          ],
+          destination: '/with-params',
+        },
+        {
+          source: '/has-rewrite-7',
+          has: [
+            {
+              type: 'query',
+              key: 'hasParam',
+              value: '(?<idk>with-params|hello)',
+            },
+          ],
+          destination: '/with-params?idk=:idk',
         },
       ],
       beforeFiles: [
