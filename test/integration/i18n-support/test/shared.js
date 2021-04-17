@@ -37,6 +37,22 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  it('should not error with similar named cookie to locale cookie', async () => {
+    const res = await fetchViaHTTP(
+      ctx.appPort,
+      ctx.basePath || '/',
+      undefined,
+      {
+        headers: {
+          cookie: 'NEXT_LOCALE2=hello',
+        },
+      }
+    )
+
+    expect(res.status).toBe(200)
+    expect(await res.text()).toContain('index page')
+  })
+
   it('should have correct initial query values for fallback', async () => {
     const res = await fetchViaHTTP(
       ctx.appPort,
