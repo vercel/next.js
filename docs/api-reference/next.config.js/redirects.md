@@ -82,7 +82,7 @@ module.exports = {
 
 ### Regex Path Matching
 
-To match a regex path you can wrap the regex in parenthesis after a parameter, for example `/post/:slug(\\d{1,})` will match `/post/123` but not `/post/abc`:
+To match a regex path you can wrap the regex in parentheses after a parameter, for example `/post/:slug(\\d{1,})` will match `/post/123` but not `/post/abc`:
 
 ```js
 module.exports = {
@@ -91,6 +91,23 @@ module.exports = {
       {
         source: '/post/:slug(\\d{1,})',
         destination: '/news/:slug', // Matched parameters can be used in the destination
+        permanent: false,
+      },
+    ]
+  },
+}
+```
+
+The following characters `(`, `)`, `{`, `}`, `:`, `*`, `+`, `?` are used for regex path matching, so when used in the `source` as non-special values they must be escaped by adding `\\` before them:
+
+```js
+module.exports = {
+  async redirects() {
+    return [
+      {
+        // this will match `/english(default)/something` being requested
+        source: '/english\\(default\\)/:slug',
+        destination: '/en-us/:slug',
         permanent: false,
       },
     ]
