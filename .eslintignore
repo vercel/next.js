@@ -3,6 +3,7 @@ node_modules
 **/_next/**
 **/dist/**
 e2e-tests/**
+examples/with-eslint/**
 examples/with-typescript-eslint-jest/**
 examples/with-kea/**
 packages/next/bundles/webpack/packages/*.runtime.js
