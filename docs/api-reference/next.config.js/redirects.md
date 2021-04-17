@@ -98,13 +98,14 @@ module.exports = {
 }
 ```
 
-Because parentheses are used for regex path matching, parentheses used in the `source` must be escaped:
+The following characters `(`, `)`, `{`, `}`, `:`, `*`, `+`, `?`  are used for regex path matching, so when used in the `source` as non-special values they must be escaped by adding `\\` before them:
 
 ```js
 module.exports = {
   async redirects() {
     return [
       {
+        // this will match `/english(default)/something` being requested
         source: '/english\\(default\\)/:slug',
         destination: '/en-us/:slug',
         permanent: false,
