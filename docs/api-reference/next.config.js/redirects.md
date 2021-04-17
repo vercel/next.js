@@ -98,7 +98,7 @@ module.exports = {
 }
 ```
 
-The following characters `(`, `)`, `{`, `}`, `:`, `*`, `+`, `?`  are used for regex path matching, so when used in the `source` as non-special values they must be escaped by adding `\\` before them:
+The following characters `(`, `)`, `{`, `}`, `:`, `*`, `+`, `?` are used for regex path matching, so when used in the `source` as non-special values they must be escaped by adding `\\` before them:
 
 ```js
 module.exports = {
