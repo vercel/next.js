@@ -23,18 +23,19 @@ export async function getTypeScriptConfiguration(
     }
 
     let configToParse: any = config
-    if (metaOnly) {
-      configToParse = {
-        ...configToParse,
-        include: [],
-        exclude: [],
-        files: undefined,
-      }
-    }
 
     const result = ts.parseJsonConfigFileContent(
       configToParse,
-      ts.sys,
+      // When only interested in meta info,
+      // avoid enumerating all files (for performance reasons)
+      metaOnly
+        ? {
+            ...ts.sys,
+            readDirectory(_path, extensions, _excludes, _includes, _depth) {
+              return [extensions ? `file${extensions[0]}` : `file.ts`]
+            },
+          }
+        : ts.sys,
       path.dirname(tsConfigPath)
     )
 
@@ -50,10 +51,6 @@ export async function getTypeScriptConfiguration(
       throw new FatalTypeScriptError(
         ts.formatDiagnostic(result.errors[0], formatDiagnosticsHost)
       )
-    }
-
-    if (metaOnly) {
-      result.raw = config
     }
 
     return result
