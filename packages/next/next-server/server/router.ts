@@ -153,13 +153,17 @@ export default class Router {
           checkParsedUrl.pathname = originalFsPathname
         }
       }
-
       let matchedPage = await memoizedPageChecker(fsPathname)
 
       // If we didn't match a page check dynamic routes
       if (!matchedPage) {
+        const normalizedFsPathname = normalizeLocalePath(
+          fsPathname,
+          this.locales
+        ).pathname
+
         for (const dynamicRoute of this.dynamicRoutes) {
-          if (dynamicRoute.match(fsPathname)) {
+          if (dynamicRoute.match(normalizedFsPathname)) {
             matchedPage = true
           }
         }
@@ -167,17 +171,17 @@ export default class Router {
 
       // Matched a page or dynamic route so render it using catchAllRoute
       if (matchedPage) {
-        checkParsedUrl.pathname = fsPathname
-
         const pageParams = this.catchAllRoute.match(checkParsedUrl.pathname)
+        checkParsedUrl.pathname = fsPathname
+        checkParsedUrl.query._nextBubbleNoFallback = '1'
 
-        await this.catchAllRoute.fn(
+        const result = await this.catchAllRoute.fn(
           req,
           res,
           pageParams as Params,
           checkParsedUrl
         )
-        return true
+        return result.finished
       }
     }
 
