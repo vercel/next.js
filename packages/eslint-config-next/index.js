@@ -49,7 +49,7 @@ module.exports = {
     },
     'import/resolver': {
       [require.resolve('eslint-import-resolver-node')]: {
-        extensions: ["<extensions here>"],
+        extensions: ['.js', '.jsx', '.ts', '.tsx'],
       },
     },
   },
