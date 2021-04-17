@@ -5,8 +5,8 @@ import createStore from 'next/dist/compiled/unistore'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { OutputState, store as consoleStore } from './store'
 
-export function startedDevelopmentServer(appUrl: string) {
-  consoleStore.setState({ appUrl })
+export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
+  consoleStore.setState({ appUrl, bindAddr })
 }
 
 let previousClient: import('webpack').Compiler | null = null

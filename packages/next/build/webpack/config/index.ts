@@ -1,4 +1,4 @@
-import webpack from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { NextConfig } from '../../../next-server/server/config'
 import { base } from './blocks/base'
 import { css } from './blocks/css'

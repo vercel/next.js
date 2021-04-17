@@ -44,7 +44,7 @@ The page above is an AMP-only page, which means:
 
 - The page has no Next.js or React client-side runtime
 - The page is automatically optimized with [AMP Optimizer](https://github.com/ampproject/amp-toolbox/tree/master/packages/optimizer), an optimizer that applies the same transformations as AMP caches (improves performance by up to 42%)
-- The page has an user-accessible (optimized) version of the page and a search-engine indexable (unoptimized) version of the page
+- The page has a user-accessible (optimized) version of the page and a search-engine indexable (unoptimized) version of the page
 
 ## Hybrid AMP Page
 

@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
-import { writeFile } from 'fs'
-import { createFile, exists, readFile, remove } from 'fs-extra'
+import { createFile, exists, readFile, writeFile, remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import path from 'path'
 
@@ -10,13 +9,16 @@ jest.setTimeout(1000 * 60 * 5)
 describe('tsconfig.json verifier', () => {
   const appDir = path.join(__dirname, '../')
   const tsConfig = path.join(appDir, 'tsconfig.json')
+  const tsConfigBase = path.join(appDir, 'tsconfig.base.json')
 
   beforeEach(async () => {
     await remove(tsConfig)
+    await remove(tsConfigBase)
   })
 
   afterEach(async () => {
     await remove(tsConfig)
+    await remove(tsConfigBase)
   })
 
   it('Creates a default tsconfig.json when one is missing', async () => {
@@ -257,5 +259,56 @@ describe('tsconfig.json verifier', () => {
       }
       "
     `)
+  })
+
+  it('allows you to extend another configuration file', async () => {
+    expect(await exists(tsConfig)).toBe(false)
+    expect(await exists(tsConfigBase)).toBe(false)
+
+    await writeFile(
+      tsConfigBase,
+      `
+      {
+        "compilerOptions": {
+          "target": "es5",
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext"
+          ],
+          "allowJs": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "forceConsistentCasingInFileNames": true,
+          "noEmit": true,
+          "esModuleInterop": true,
+          "module": "esnext",
+          "moduleResolution": "node",
+          "resolveJsonModule": true,
+          "isolatedModules": true,
+          "jsx": "preserve"
+        },
+        "include": [
+          "next-env.d.ts",
+          "**/*.ts",
+          "**/*.tsx"
+        ],
+        "exclude": [
+          "node_modules"
+        ]
+      }
+      `
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    await writeFile(tsConfig, `{ "extends": "./tsconfig.base.json" }`)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    const { code } = await nextBuild(appDir)
+    expect(code).toBe(0)
+
+    expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(
+      `"{ \\"extends\\": \\"./tsconfig.base.json\\" }"`
+    )
   })
 })

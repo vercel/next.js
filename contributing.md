@@ -3,7 +3,7 @@
 Our Commitment to Open Source can be found [here](https://vercel.com/oss).
 
 1. [Fork](https://help.github.com/articles/fork-a-repo/) this repository to your own GitHub account and then [clone](https://help.github.com/articles/cloning-a-repository/) it to your local device.
-2. Create a new branch `git checkout -b MY_BRANCH_NAME`
+2. Create a new branch: `git checkout -b MY_BRANCH_NAME`
 3. Install yarn: `npm install -g yarn`
 4. Install the dependencies: `yarn`
 5. Run `yarn dev` to build and watch for code changes
@@ -18,7 +18,7 @@ To contribute to [our examples](examples), take a look at the [“Adding example
 
 Make sure you have `chromedriver` installed for your Chrome version. You can install it with
 
-- `brew cask install chromedriver` on Mac OS X
+- `brew install --cask chromedriver` on Mac OS X
 - `chocolatey install chromedriver` on Windows
 - Or manually download the version that matches your installed chrome version (if there's no match, download a version under it, but not above) from the [chromedriver repo](https://chromedriver.storage.googleapis.com/index.html) and add the binary to `<next-repo>/node_modules/.bin`
 
@@ -132,7 +132,7 @@ Description
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com/now):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/DIRECTORY_NAME&project-name=DIRECTORY_NAME&repository-name=DIRECTORY_NAME)
 

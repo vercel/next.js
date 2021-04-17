@@ -58,7 +58,7 @@ function supportsStaticESM(caller: any): boolean {
   return !!caller?.supportsStaticESM
 }
 
-module.exports = (
+export default (
   api: any,
   options: NextBabelPresetOptions = {}
 ): BabelPreset => {
@@ -78,7 +78,10 @@ module.exports = (
   const isProduction = !(isTest || isDevelopment)
 
   const isBabelLoader = api.caller(
-    (caller: any) => !!caller && caller.name === 'babel-loader'
+    (caller: any) =>
+      !!caller &&
+      (caller.name === 'babel-loader' ||
+        caller.name === 'next-babel-turbo-loader')
   )
 
   const useJsxRuntime =
@@ -198,7 +201,7 @@ module.exports = (
       ],
       require('./plugins/amp-attributes'),
       isProduction && [
-        require('babel-plugin-transform-react-remove-prop-types'),
+        require('next/dist/compiled/babel/plugin-transform-react-remove-prop-types'),
         {
           removeImport: true,
         },

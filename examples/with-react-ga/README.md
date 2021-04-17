@@ -5,7 +5,7 @@ component with NextJs. Modify `Tracking ID` in `utils/analytics.js` file for tes
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-react-ga&project-name=with-react-ga&repository-name=with-react-ga)
 

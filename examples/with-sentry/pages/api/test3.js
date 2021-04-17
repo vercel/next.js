@@ -9,6 +9,5 @@ function work() {
 export default async function handler(req, res) {
   work()
 
-  res.statusCode = 200
-  res.json({ name: 'John Doe' })
+  res.status(200).json({ name: 'John Doe' })
 }

@@ -16,8 +16,6 @@
     "@zeit/next-css": "1.0.1",
     "bs-fetch": "0.5.2",
     "bs-platform": "7.2.2",
-    "dotenv": "^8.2.0",
-    "dotenv-webpack": "^1.7.0",
     "graphql": "15.0.0",
     "isomorphic-unfetch": "^3.0.0",
     "next": "latest",

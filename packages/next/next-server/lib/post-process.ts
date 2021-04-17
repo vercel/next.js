@@ -1,8 +1,7 @@
 import { parse, HTMLElement } from 'node-html-parser'
 import { OPTIMIZED_FONT_PROVIDERS } from './constants'
 
-const MIDDLEWARE_TIME_BUDGET =
-  parseInt(process.env.__POST_PROCESS_MIDDLEWARE_TIME_BUDGET || '', 10) || 10
+// const MIDDLEWARE_TIME_BUDGET = parseInt(process.env.__POST_PROCESS_MIDDLEWARE_TIME_BUDGET || '', 10) || 10
 const MAXIMUM_IMAGE_PRELOADS = 2
 const IMAGE_PRELOAD_SIZE_THRESHOLD = 2500
 
@@ -67,32 +66,22 @@ async function processHTML(
   const root: HTMLElement = parse(html)
   let document = html
   // Calls the middleware, with some instrumentation and logging
-  async function callMiddleWare(
-    middleware: PostProcessMiddleware,
-    name: string
-  ) {
-    let timer = Date.now()
+  async function callMiddleWare(middleware: PostProcessMiddleware) {
+    // let timer = Date.now()
     middleware.inspect(root, postProcessData, data)
-    const inspectTime = Date.now() - timer
     document = await middleware.mutate(document, postProcessData, data)
-    timer = Date.now() - timer
-    if (timer > MIDDLEWARE_TIME_BUDGET) {
-      console.warn(
-        `The postprocess middleware "${name}" took ${timer}ms(${inspectTime}, ${
-          timer - inspectTime
-        }) to complete. This is longer than the ${MIDDLEWARE_TIME_BUDGET} limit.`
-      )
-    }
+    // timer = Date.now() - timer
+    // if (timer > MIDDLEWARE_TIME_BUDGET) {
+    // TODO: Identify a correct upper limit for the postprocess step
+    // and add a warning to disable the optimization
+    // }
     return
   }
 
   for (let i = 0; i < middlewareRegistry.length; i++) {
     let middleware = middlewareRegistry[i]
     if (!middleware.condition || middleware.condition(options)) {
-      await callMiddleWare(
-        middlewareRegistry[i].middleware,
-        middlewareRegistry[i].name
-      )
+      await callMiddleWare(middlewareRegistry[i].middleware)
     }
   }
 
@@ -100,7 +89,7 @@ async function processHTML(
 }
 
 class FontOptimizerMiddleware implements PostProcessMiddleware {
-  fontDefinitions: Array<string> = []
+  fontDefinitions: (string | undefined)[][] = []
   inspect(
     originalDom: HTMLElement,
     _data: postProcessData,
@@ -123,8 +112,10 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       )
       .forEach((element: HTMLElement) => {
         const url = element.getAttribute('data-href')
+        const nonce = element.getAttribute('nonce')
+
         if (url) {
-          this.fontDefinitions.push(url)
+          this.fontDefinitions.push([url, nonce])
         }
       })
   }
@@ -138,7 +129,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
       return markup
     }
     for (const key in this.fontDefinitions) {
-      const url = this.fontDefinitions[key]
+      const [url, nonce] = this.fontDefinitions[key]
       const fallBackLinkTag = `<link rel="stylesheet" href="${url}"/>`
       if (
         result.indexOf(`<style data-href="${url}">`) > -1 ||
@@ -147,16 +138,17 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         // The font is already optimized and probably the response is cached
         continue
       }
-      const fontContent = options.getFontDefinition(url)
+      const fontContent = options.getFontDefinition(url as string)
       if (!fontContent) {
         /**
          * In case of unreachable font definitions, fallback to default link tag.
          */
         result = result.replace('</head>', `${fallBackLinkTag}</head>`)
       } else {
+        const nonceStr = nonce ? ` nonce="${nonce}"` : ''
         result = result.replace(
           '</head>',
-          `<style data-href="${url}">${fontContent}</style></head>`
+          `<style data-href="${url}"${nonceStr}>${fontContent}</style></head>`
         )
       }
     }

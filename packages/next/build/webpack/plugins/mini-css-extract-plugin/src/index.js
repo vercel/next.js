@@ -1,19 +1,25 @@
 /* eslint-disable class-methods-use-this */
 
-import webpack from 'webpack'
-import sources from 'webpack-sources'
+import {
+  webpack,
+  isWebpack5,
+  onWebpackInit,
+  sources,
+} from 'next/dist/compiled/webpack/webpack'
 
 import CssDependency from './CssDependency'
 import CssModule from './CssModule'
 
-const { ConcatSource, SourceMapSource, OriginalSource } =
-  webpack.sources || sources
-const {
-  Template,
-  util: { createHash },
-} = webpack
+// Destructurings of live bindings must register for updates
+let ConcatSource, SourceMapSource, OriginalSource, Template, createHash
+onWebpackInit(function () {
+  ;({ ConcatSource, SourceMapSource, OriginalSource } = sources)
+  ;({
+    Template,
+    util: { createHash },
+  } = webpack)
+})
 
-const isWebpack5 = parseInt(webpack.version) === 5
 const MODULE_TYPE = 'css/mini-extract'
 
 const pluginName = 'mini-css-extract-plugin'
@@ -162,7 +168,7 @@ class MiniCssExtractPlugin {
 
         if (modules) {
           if (isWebpack5) {
-            const xor = new (require('webpack/lib/util/StringXor'))()
+            const xor = new (require('next/dist/compiled/webpack/webpack').StringXor)()
             for (const m of modules) {
               if (m.type === MODULE_TYPE) {
                 xor.add(compilation.chunkGraph.getModuleHash(m, chunk.runtime))
@@ -213,13 +219,30 @@ class MiniCssExtractPlugin {
 
           if (Object.keys(chunkMap).length > 0) {
             const chunkMaps = chunk.getChunkMaps()
-            const { crossOriginLoading } = mainTemplate.outputOptions
-            const linkHrefPath = mainTemplate.getAssetPath(
+            const { crossOriginLoading } = isWebpack5
+              ? compilation.outputOptions
+              : mainTemplate.outputOptions
+
+            const getHash = !isWebpack5
+              ? (...args) => mainTemplate.renderCurrentHashCode(...args)
+              : (curHash, length) => {
+                  if (length) {
+                    return `${webpack.RuntimeGlobals.getFullHash} ? ${
+                      webpack.RuntimeGlobals.getFullHash
+                    }().slice(0, ${length}) : ${curHash.slice(0, length)}`
+                  }
+                  return `${webpack.RuntimeGlobals.getFullHash} ? ${webpack.RuntimeGlobals.getFullHash}() : ${curHash}`
+                }
+
+            const getAssetPath = isWebpack5
+              ? (...args) => compilation.getAssetPath(...args)
+              : (...args) => mainTemplate.getAssetPath(...args)
+
+            const linkHrefPath = getAssetPath(
               JSON.stringify(this.options.chunkFilename),
               {
-                hash: `" + ${mainTemplate.renderCurrentHashCode(hash)} + "`,
-                hashWithLength: (length) =>
-                  `" + ${mainTemplate.renderCurrentHashCode(hash, length)} + "`,
+                hash: `" + ${getHash(hash)} + "`,
+                hashWithLength: (length) => `" + ${getHash(hash, length)} + "`,
                 chunk: {
                   id: '" + chunkId + "',
                   hash: `" + ${JSON.stringify(chunkMaps.hash)}[chunkId] + "`,
@@ -280,7 +303,9 @@ class MiniCssExtractPlugin {
                 'promises.push(installedCssChunks[chunkId] = new Promise(function(resolve, reject) {',
                 Template.indent([
                   `var href = ${linkHrefPath};`,
-                  `var fullhref = ${mainTemplate.requireFn}.p + href;`,
+                  `var fullhref = ${
+                    isWebpack5 ? '__webpack_require__' : mainTemplate.requireFn
+                  }.p + href;`,
                   'var existingLinkTags = document.getElementsByTagName("link");',
                   'for(var i = 0; i < existingLinkTags.length; i++) {',
                   Template.indent([

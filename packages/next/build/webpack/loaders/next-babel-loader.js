@@ -155,7 +155,7 @@ const customBabelLoader = babelLoader((babel) => {
       }
 
       options.plugins.push([
-        require.resolve('babel-plugin-transform-define'),
+        require.resolve('next/dist/compiled/babel/plugin-transform-define'),
         {
           'process.env.NODE_ENV': development ? 'development' : 'production',
           'typeof window': isServer ? 'undefined' : 'object',

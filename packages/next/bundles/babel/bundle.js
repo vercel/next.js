@@ -8,6 +8,34 @@ function core() {
   return require('@babel/core')
 }
 
+function coreLibConfig() {
+  return require('@babel/core/lib/config')
+}
+
+function coreLibNormalizeFile() {
+  return require('@babel/core/lib/transformation/normalize-file')
+}
+
+function coreLibNormalizeOpts() {
+  return require('@babel/core/lib/transformation/normalize-opts')
+}
+
+function coreLibBlockHoistPlugin() {
+  return require('@babel/core/lib/transformation/block-hoist-plugin')
+}
+
+function coreLibPluginPass() {
+  return require('@babel/core/lib/transformation/plugin-pass')
+}
+
+function traverse() {
+  return require('@babel/traverse')
+}
+
+function generator() {
+  return require('@babel/generator')
+}
+
 function pluginProposalClassProperties() {
   return require('@babel/plugin-proposal-class-properties')
 }
@@ -36,8 +64,16 @@ function pluginSyntaxJsx() {
   return require('@babel/plugin-syntax-jsx')
 }
 
+function pluginTransformDefine() {
+  return require('babel-plugin-transform-define')
+}
+
 function pluginTransformModulesCommonjs() {
   return require('@babel/plugin-transform-modules-commonjs')
+}
+
+function pluginTransformReactRemovePropTypes() {
+  return require('babel-plugin-transform-react-remove-prop-types')
 }
 
 function pluginTransformRuntime() {
@@ -59,6 +95,12 @@ function presetTypescript() {
 module.exports = {
   codeFrame,
   core,
+  coreLibConfig,
+  coreLibNormalizeFile,
+  coreLibNormalizeOpts,
+  coreLibBlockHoistPlugin,
+  coreLibPluginPass,
+  generator,
   pluginProposalClassProperties,
   pluginProposalExportNamespaceFrom,
   pluginProposalNumericSeparator,
@@ -66,9 +108,12 @@ module.exports = {
   pluginSyntaxBigint,
   pluginSyntaxDynamicImport,
   pluginSyntaxJsx,
+  pluginTransformDefine,
   pluginTransformModulesCommonjs,
+  pluginTransformReactRemovePropTypes,
   pluginTransformRuntime,
   presetEnv,
   presetReact,
   presetTypescript,
+  traverse,
 }

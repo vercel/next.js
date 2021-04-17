@@ -14,7 +14,7 @@ export async function generateBuildId(
 
   if (typeof buildId !== 'string') {
     throw new Error(
-      'generateBuildId did not return a string. https://err.sh/vercel/next.js/generatebuildid-not-a-string'
+      'generateBuildId did not return a string. https://nextjs.org/docs/messages/generatebuildid-not-a-string'
     )
   }
 

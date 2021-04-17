@@ -19,6 +19,7 @@ export default class MyDocument extends Document {
             rel="stylesheet"
             href="https://fonts.googleapis.com/css?family=Voces"
           />
+          {false && <script data-href="test"></script>}
         </Head>
         <body>
           <Main />
