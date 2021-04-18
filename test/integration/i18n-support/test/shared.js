@@ -53,6 +53,40 @@ export function runTests(ctx) {
     expect(await res.text()).toContain('index page')
   })
 
+  it('should handle navigating back to different casing of locale', async () => {
+    const browser = await webdriver(
+      ctx.appPort,
+      `${ctx.basePath || ''}/FR/links`
+    )
+
+    expect(await browser.eval(() => document.location.pathname)).toBe(
+      `${ctx.basePath || ''}/FR/links`
+    )
+    expect(await browser.elementByCss('#router-pathname').text()).toBe('/links')
+    expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
+
+    await browser
+      .elementByCss('#to-another')
+      .click()
+      .waitForElementByCss('#another')
+
+    expect(await browser.eval(() => document.location.pathname)).toBe(
+      `${ctx.basePath || ''}/fr/another`
+    )
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/another'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
+
+    await browser.back().waitForElementByCss('#links')
+
+    expect(await browser.eval(() => document.location.pathname)).toBe(
+      `${ctx.basePath || ''}/FR/links`
+    )
+    expect(await browser.elementByCss('#router-pathname').text()).toBe('/links')
+    expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
+  })
+
   it('should have correct initial query values for fallback', async () => {
     const res = await fetchViaHTTP(
       ctx.appPort,

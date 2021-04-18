@@ -803,7 +803,8 @@ describe('Production Usage', () => {
   it('should clear all core performance marks', async () => {
     let browser
     try {
-      browser = await webdriver(appPort, '/about')
+      browser = await webdriver(appPort, '/fully-dynamic')
+
       const currentPerfMarks = await browser.eval(
         `window.performance.getEntriesByType('mark')`
       )

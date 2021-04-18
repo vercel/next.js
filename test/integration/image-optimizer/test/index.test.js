@@ -796,4 +796,37 @@ describe('Image Optimizer', () => {
       expect(res.status).toBe(404)
     })
   })
+
+  describe('External rewrite support with for serving static content in images', () => {
+    beforeAll(async () => {
+      const newConfig = `{
+        async rewrites() {
+          return [
+            {
+              source: '/:base(next-js)/:rest*',
+              destination: 'https://assets.vercel.com/image/upload/v1538361091/repositories/:base/:rest*',
+            },
+          ]
+        },
+      }`
+      nextConfig.replace('{ /* replaceme */ }', newConfig)
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+      await fs.remove(imagesDir)
+    })
+
+    it('should return response when image is served from an external rewrite', async () => {
+      const query = { url: '/next-js/next-js-bg.png', w: 64, q: 75 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/webp')
+      await expectWidth(res, 64)
+    })
+  })
 })
