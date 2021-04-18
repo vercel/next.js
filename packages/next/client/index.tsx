@@ -549,7 +549,6 @@ function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement): void {
 }
 
 function markHydrateComplete(): void {
-  console.log('clearing marks', ST)
   if (!ST) return
 
   performance.mark('afterHydrate') // mark end of hydration
