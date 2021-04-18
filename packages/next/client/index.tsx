@@ -186,6 +186,10 @@ class Container extends React.Component<{
     // - if it is a client-side skeleton (fallback render)
     if (
       router.isSsr &&
+      // We don't update for 404 requests as this can modify
+      // the asPath unexpectedly
+      page !== '/404' &&
+      page !== '/_error' &&
       (isFallback ||
         (data.nextExport &&
           (isDynamicRoute(router.pathname) ||
