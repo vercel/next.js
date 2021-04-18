@@ -187,9 +187,15 @@ class Container extends React.Component<{
     if (
       router.isSsr &&
       // We don't update for 404 requests as this can modify
-      // the asPath unexpectedly
+      // the asPath unexpectedly e.g. adding basePath when
+      // it wasn't originally present
       page !== '/404' &&
-      page !== '/_error' &&
+      !(
+        page === '/_error' &&
+        hydrateProps &&
+        hydrateProps.pageProps &&
+        hydrateProps.pageProps.statusCode === 404
+      ) &&
       (isFallback ||
         (data.nextExport &&
           (isDynamicRoute(router.pathname) ||
