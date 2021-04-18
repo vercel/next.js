@@ -252,7 +252,6 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     [childRef, setIntersectionRef]
   )
   useEffect(() => {
-    console.log('as', as)
     const shouldPrefetch = isVisible && p && isLocalURL(href)
     const curLocale =
       typeof locale !== 'undefined' ? locale : router && router.locale
@@ -314,7 +313,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       addBasePath(addLocale(as, curLocale, router && router.defaultLocale))
   }
 
-  return React.cloneElement(child, { ...childProps })
+  return React.cloneElement(child, childProps)
 }
 
 export default Link
