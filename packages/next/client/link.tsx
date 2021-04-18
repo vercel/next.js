@@ -279,7 +279,6 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         linkClicked(e, router, href, as, replace, shallow, scroll, locale)
       }
     },
-    href: as,
   }
 
   childProps.onMouseEnter = (e: React.MouseEvent) => {
