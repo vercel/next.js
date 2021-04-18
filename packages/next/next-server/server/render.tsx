@@ -483,6 +483,13 @@ export async function renderToHTML(
     throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
   }
 
+  if (getStaticPaths && !pageIsDynamic) {
+    throw new Error(
+      `getStaticPaths is only allowed for dynamic SSG pages and was found on '${pathname}'.` +
+        `\nRead more: https://nextjs.org/docs/messages/non-dynamic-getstaticpaths-usage`
+    )
+  }
+
   if (!!getStaticPaths && !isSSG) {
     throw new Error(
       `getStaticPaths was added without a getStaticProps in ${pathname}. Without getStaticProps, getStaticPaths does nothing`

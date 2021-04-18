@@ -113,10 +113,13 @@ export function addLocale(
   defaultLocale?: string
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
+    const pathLower = path.toLowerCase()
+    const localeLower = locale && locale.toLowerCase()
+
     return locale &&
       locale !== defaultLocale &&
-      !path.startsWith('/' + locale + '/') &&
-      path !== '/' + locale
+      !pathLower.startsWith('/' + localeLower + '/') &&
+      pathLower !== '/' + localeLower
       ? addPathPrefix(path, '/' + locale)
       : path
   }
@@ -126,8 +129,12 @@ export function addLocale(
 export function delLocale(path: string, locale?: string) {
   if (process.env.__NEXT_I18N_SUPPORT) {
     const pathname = pathNoQueryHash(path)
+    const pathLower = pathname.toLowerCase()
+    const localeLower = locale && locale.toLowerCase()
+
     return locale &&
-      (pathname.startsWith('/' + locale + '/') || pathname === '/' + locale)
+      (pathLower.startsWith('/' + localeLower + '/') ||
+        pathLower === '/' + localeLower)
       ? (pathname.length === locale.length + 1 ? '/' : '') +
           path.substr(locale.length + 1)
       : path
