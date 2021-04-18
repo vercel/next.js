@@ -1,4 +1,3 @@
-import { ReactDevOverlay } from '@next/react-dev-overlay/lib/client'
 import crypto from 'crypto'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
@@ -45,6 +44,16 @@ if (typeof React.Suspense === 'undefined') {
   throw new Error(
     `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://nextjs.org/docs/messages/invalid-react-version`
   )
+}
+
+// Load ReactDevOverlay only when needed
+let ReactDevOverlayImpl: React.FunctionComponent
+const ReactDevOverlay = (props: any) => {
+  if (ReactDevOverlayImpl === undefined) {
+    ReactDevOverlayImpl = require('@next/react-dev-overlay/lib/client')
+      .ReactDevOverlay
+  }
+  return ReactDevOverlayImpl(props)
 }
 
 export default class DevServer extends Server {
