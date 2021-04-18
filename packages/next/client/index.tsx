@@ -188,8 +188,9 @@ class Container extends React.Component<{
       router.isSsr &&
       (isFallback ||
         (data.nextExport &&
-          (isDynamicRoute(router.pathname) || location.search)) ||
-        process.env.__NEXT_HAS_REWRITES ||
+          (isDynamicRoute(router.pathname) ||
+            location.search ||
+            process.env.__NEXT_HAS_REWRITES)) ||
         (hydrateProps &&
           hydrateProps.__N_SSG &&
           (location.search || process.env.__NEXT_HAS_REWRITES)))
@@ -538,6 +539,7 @@ function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement): void {
 }
 
 function markHydrateComplete(): void {
+  console.log('clearing marks', ST)
   if (!ST) return
 
   performance.mark('afterHydrate') // mark end of hydration
