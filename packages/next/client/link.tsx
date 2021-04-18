@@ -213,7 +213,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   const p = props.prefetch !== false
 
   const router = useRouter()
-  const pathname = (router && router.pathname) || '/'
+  const pathname = (router && router.asPath) || '/'
 
   const { href, as } = React.useMemo(() => {
     const [resolvedHref, resolvedAs] = resolveHref(pathname, props.href, true)
@@ -252,6 +252,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     [childRef, setIntersectionRef]
   )
   useEffect(() => {
+    console.log('as', as)
     const shouldPrefetch = isVisible && p && isLocalURL(href)
     const curLocale =
       typeof locale !== 'undefined' ? locale : router && router.locale
@@ -279,6 +280,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
         linkClicked(e, router, href, as, replace, shallow, scroll, locale)
       }
     },
+    href: as,
   }
 
   childProps.onMouseEnter = (e: React.MouseEvent) => {
@@ -312,7 +314,7 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
       addBasePath(addLocale(as, curLocale, router && router.defaultLocale))
   }
 
-  return React.cloneElement(child, childProps)
+  return React.cloneElement(child, { ...childProps })
 }
 
 export default Link
