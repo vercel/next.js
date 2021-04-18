@@ -42,6 +42,25 @@ const runTests = (isDev = false) => {
     const browser = await webdriver(appPort, '/rewriting-to-auto-export')
     const text = await browser.eval(() => document.documentElement.innerHTML)
     expect(text).toContain('auto-export hello')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      rewrite: '1',
+      slug: 'hello',
+    })
+  })
+
+  it('should provide params correctly for rewrite to auto-export non-dynamic page', async () => {
+    const browser = await webdriver(
+      appPort,
+      '/rewriting-to-another-auto-export/first'
+    )
+
+    expect(await browser.elementByCss('#auto-export-another').text()).toBe(
+      'auto-export another'
+    )
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      rewrite: '1',
+      path: ['first'],
+    })
   })
 
   it('should handle one-to-one rewrite successfully', async () => {
@@ -1377,9 +1396,16 @@ const runTests = (isDev = false) => {
           ],
           afterFiles: [
             {
-              destination: '/auto-export/hello',
+              destination: '/auto-export/hello?rewrite=1',
               regex: normalizeRegEx('^\\/rewriting-to-auto-export$'),
               source: '/rewriting-to-auto-export',
+            },
+            {
+              destination: '/auto-export/another?rewrite=1',
+              regex: normalizeRegEx(
+                '^\\/rewriting-to-another-auto-export(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+              ),
+              source: '/rewriting-to-another-auto-export/:path*',
             },
             {
               destination: '/another/one',

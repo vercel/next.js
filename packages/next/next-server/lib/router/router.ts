@@ -615,7 +615,9 @@ export default class Router implements BaseRouter {
     this.isReady = !!(
       self.__NEXT_DATA__.gssp ||
       self.__NEXT_DATA__.gip ||
-      (!autoExportDynamic && !self.location.search)
+      (!autoExportDynamic &&
+        !self.location.search &&
+        !process.env.__NEXT_HAS_REWRITES)
     )
     this.isPreview = !!isPreview
     this.isLocaleDomain = false
