@@ -37,6 +37,52 @@ async function addDefaultLocaleCookie(browser) {
 }
 
 export function runTests(ctx) {
+  it('should handle navigating back to different casing of locale', async () => {
+    const browser = await webdriver(
+      ctx.appPort,
+      `${ctx.basePath || ''}/FR/links`
+    )
+
+    expect(await browser.eval(() => document.location.pathname)).toBe(
+      `${ctx.basePath || ''}/FR/links`
+    )
+    expect(await browser.elementByCss('#router-pathname').text()).toBe('/links')
+    expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
+
+    await browser
+      .elementByCss('#to-another')
+      .click()
+      .waitForElementByCss('#another')
+
+    expect(await browser.eval(() => document.location.pathname)).toBe(
+      `${ctx.basePath || ''}/fr/another`
+    )
+    expect(await browser.elementByCss('#router-pathname').text()).toBe(
+      '/another'
+    )
+    expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
+
+    await browser.back().waitForElementByCss('#links')
+
+    expect(await browser.eval(() => document.location.pathname)).toBe(
+      `${ctx.basePath || ''}/FR/links`
+    )
+    expect(await browser.elementByCss('#router-pathname').text()).toBe('/links')
+    expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
+  })
+
+  it('should have correct initial query values for fallback', async () => {
+    const res = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath || '/gsp/fallback/random-' + Date.now()}`
+    )
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect(JSON.parse($('#router-query').text())).toEqual({})
+  })
+
   it('should navigate to page with same name as development buildId', async () => {
     const browser = await webdriver(ctx.appPort, `${ctx.basePath || '/'}`)
 
@@ -339,7 +385,7 @@ export function runTests(ctx) {
               .replace(ctx.basePath, '')
               .replace(/^\/_next\/data\/[^/]+/, '')
           ),
-          ['/en-US/gsp.json', '/fr/gsp.json', '/nl-NL/gsp.json']
+          ['/en-US/gsp.json', '/fr.json', '/fr/gsp.json', '/nl-NL/gsp.json']
         )
         return 'yes'
       }, 'yes')

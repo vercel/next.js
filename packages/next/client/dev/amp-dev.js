@@ -1,6 +1,6 @@
 /* globals __webpack_hash__ */
 import EventSourcePolyfill from './event-source-polyfill'
-import { getEventSourceWrapper } from './error-overlay/eventsource'
+import { addMessageListener } from './error-overlay/eventsource'
 import { setupPing } from './on-demand-entries-utils'
 import { displayContent } from './fouc'
 
@@ -68,9 +68,7 @@ async function tryApplyUpdates() {
   }
 }
 
-getEventSourceWrapper({
-  path: `${assetPrefix}/_next/webpack-hmr`,
-}).addMessageListener((event) => {
+addMessageListener((event) => {
   if (event.data === '\uD83D\uDC93') {
     return
   }
