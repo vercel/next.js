@@ -161,7 +161,7 @@ export default async function exportApp(
     if (telemetry) {
       telemetry.record(
         eventCliSession(PHASE_EXPORT, distDir, {
-          webpack5: null,
+          webpackVersion: null,
           cliCommand: 'export',
           isSrcDir: null,
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
