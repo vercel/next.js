@@ -26,10 +26,6 @@
   align-items: center;
 }
 
-.footer img {
-  margin-left: 0.5rem;
-}
-
 .footer a {
   display: flex;
   justify-content: center;
@@ -101,7 +97,7 @@
   border-color: #0070f3;
 }
 
-.card h3 {
+.card h2 {
   margin: 0 0 1rem 0;
   font-size: 1.5rem;
 }
@@ -114,6 +110,7 @@
 
 .logo {
   height: 1em;
+  margin-left: 0.5rem;
 }
 
 @media (max-width: 600px) {
