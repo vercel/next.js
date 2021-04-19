@@ -1,7 +1,7 @@
 import dynamic from 'next/dynamic'
 import { Suspense } from 'react'
 import { Canvas } from 'react-three-fiber'
-import { OrbitControls } from 'drei'
+import { OrbitControls } from '@react-three/drei'
 
 const Bird = dynamic(() => import('../components/Bird'), { ssr: false })
 

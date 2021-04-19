@@ -1,0 +1,16 @@
+{
+  "name": "styled-jsx-with-csp",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "nanoid": "3.1.21",
+    "next": "10.0.8",
+    "react": "17.0.1",
+    "react-dom": "17.0.1"
+  }
+}

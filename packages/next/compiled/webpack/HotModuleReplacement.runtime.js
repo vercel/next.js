@@ -101,30 +101,37 @@ module.exports = function () {
 	}
 
 	function createModuleHotObject(moduleId, me) {
+		var _main = currentChildModule !== moduleId;
 		var hot = {
 			// private stuff
 			_acceptedDependencies: {},
+			_acceptedErrorHandlers: {},
 			_declinedDependencies: {},
 			_selfAccepted: false,
 			_selfDeclined: false,
 			_selfInvalidated: false,
 			_disposeHandlers: [],
-			_main: currentChildModule !== moduleId,
+			_main: _main,
 			_requireSelf: function () {
 				currentParents = me.parents.slice();
-				currentChildModule = moduleId;
+				currentChildModule = _main ? undefined : moduleId;
 				__webpack_require__(moduleId);
 			},
 
 			// Module API
 			active: true,
-			accept: function (dep, callback) {
+			accept: function (dep, callback, errorHandler) {
 				if (dep === undefined) hot._selfAccepted = true;
 				else if (typeof dep === "function") hot._selfAccepted = dep;
-				else if (typeof dep === "object" && dep !== null)
-					for (var i = 0; i < dep.length; i++)
+				else if (typeof dep === "object" && dep !== null) {
+					for (var i = 0; i < dep.length; i++) {
 						hot._acceptedDependencies[dep[i]] = callback || function () {};
-				else hot._acceptedDependencies[dep] = callback || function () {};
+						hot._acceptedErrorHandlers[dep[i]] = errorHandler;
+					}
+				} else {
+					hot._acceptedDependencies[dep] = callback || function () {};
+					hot._acceptedErrorHandlers[dep] = errorHandler;
+				}
 			},
 			decline: function (dep) {
 				if (dep === undefined) hot._selfDeclined = true;
