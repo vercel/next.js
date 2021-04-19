@@ -234,12 +234,14 @@ export default async function getBaseWebpackConfig(
     // fixed in rc.1.
     semver.gte(reactVersion!, '17.0.0-rc.1')
 
-  const babelrc = await ['.babelrc', '.babelrc.json'].reduce(
-    async (memo: boolean | Promise<boolean>, filename) => {
-      return (await memo) || (await fileExists(path.join(dir, filename)))
-    },
-    false
-  )
+  const babelrc = await [
+    '.babelrc',
+    '.babelrc.json',
+    '.babelrc.js',
+    'babel.config.js',
+  ].reduce(async (memo: boolean | Promise<boolean>, filename) => {
+    return (await memo) || (await fileExists(path.join(dir, filename)))
+  }, false)
 
   const distDir = path.join(dir, config.distDir)
 
