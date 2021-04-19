@@ -1,6 +1,6 @@
 import curry from 'next/dist/compiled/lodash.curry'
 import path from 'path'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import MiniCssExtractPlugin from '../../../plugins/mini-css-extract-plugin'
 import { loader, plugin } from '../../helpers'
 import { ConfigurationContext, ConfigurationFn, pipe } from '../../utils'
@@ -14,7 +14,7 @@ import {
 import { getPostCssPlugins } from './plugins'
 
 // RegExps for all Style Sheet variants
-const regexLikeCss = /\.(css|scss|sass)$/
+const regexLikeCss = /\.(css|scss|sass)(\.webpack\[javascript\/auto\])?$/
 
 // RegExps for Style Sheets
 const regexCssGlobal = /(?<!\.module)\.css$/
@@ -292,7 +292,12 @@ export const css = curry(async function css(
             // This should only be applied to CSS files
             issuer: regexLikeCss,
             // Exclude extensions that webpack handles by default
-            exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
+            exclude: [
+              /\.(js|mjs|jsx|ts|tsx)$/,
+              /\.html$/,
+              /\.json$/,
+              /\.webpack\[[^\]]+\]$/,
+            ],
             use: {
               // `file-loader` always emits a URL reference, where `url-loader`
               // might inline the asset as a data URI
@@ -314,6 +319,7 @@ export const css = curry(async function css(
       plugin(
         // @ts-ignore webpack 5 compat
         new MiniCssExtractPlugin({
+          experimentalUseImportModule: isWebpack5,
           filename: 'static/css/[contenthash].css',
           chunkFilename: 'static/css/[contenthash].css',
           // Next.js guarantees that CSS order "doesn't matter", due to imposed
