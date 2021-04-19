@@ -186,10 +186,24 @@ class Container extends React.Component<{
     // - if it is a client-side skeleton (fallback render)
     if (
       router.isSsr &&
+      // We don't update for 404 requests as this can modify
+      // the asPath unexpectedly e.g. adding basePath when
+      // it wasn't originally present
+      page !== '/404' &&
+      !(
+        page === '/_error' &&
+        hydrateProps &&
+        hydrateProps.pageProps &&
+        hydrateProps.pageProps.statusCode === 404
+      ) &&
       (isFallback ||
         (data.nextExport &&
-          (isDynamicRoute(router.pathname) || location.search)) ||
-        (hydrateProps && hydrateProps.__N_SSG && location.search))
+          (isDynamicRoute(router.pathname) ||
+            location.search ||
+            process.env.__NEXT_HAS_REWRITES)) ||
+        (hydrateProps &&
+          hydrateProps.__N_SSG &&
+          (location.search || process.env.__NEXT_HAS_REWRITES)))
     ) {
       // update query on mount for exported pages
       router.replace(

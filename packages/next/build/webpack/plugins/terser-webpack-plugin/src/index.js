@@ -102,7 +102,7 @@ class Webpack4Cache {
   }
 }
 
-class TerserPlugin {
+export class TerserPlugin {
   constructor(options = {}) {
     const { cacheDir, terserOptions = {}, parallel } = options
 
@@ -400,5 +400,3 @@ class TerserPlugin {
     })
   }
 }
-
-export default TerserPlugin
