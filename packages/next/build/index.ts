@@ -170,7 +170,7 @@ export default async function build(
 
     telemetry.record(
       eventCliSession(PHASE_PRODUCTION_BUILD, dir, {
-        webpack5: isWebpack5,
+        webpackVersion: isWebpack5 ? 5 : 4,
         cliCommand: 'build',
         isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),
