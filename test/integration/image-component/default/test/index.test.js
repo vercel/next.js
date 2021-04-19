@@ -17,7 +17,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 30)
+jest.setTimeout(1000 * 60)
 
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
@@ -144,9 +144,12 @@ function runTests(mode) {
     const $html = cheerio.load(html)
 
     const els = [].slice.apply($html('img'))
-    expect(els.length).toBe(1)
+    expect(els.length).toBe(2)
 
-    const [el] = els
+    const [noscriptEl, el] = els
+    expect(noscriptEl.attribs.src).toBeDefined()
+    expect(noscriptEl.attribs.srcset).toBeDefined()
+
     expect(el.attribs.src).toBeDefined()
     expect(el.attribs.srcset).toBeUndefined()
     expect(el.attribs.srcSet).toBeUndefined()

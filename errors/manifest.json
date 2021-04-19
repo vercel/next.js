@@ -331,7 +331,8 @@
           "title": "undefined-webpack-config",
           "path": "/errors/undefined-webpack-config.md"
         },
-        { "title": "url-deprecated", "path": "/errors/url-deprecated.md" }
+        { "title": "url-deprecated", "path": "/errors/url-deprecated.md" },
+        { "title": "webpack5", "path": "/errors/webpack5.md" }
       ]
     }
   ]

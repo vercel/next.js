@@ -456,7 +456,7 @@ function runTests(dev = false) {
         { stderr: true }
       )
       expect(stderr).toContain(
-        'https://err.sh/vercel/next.js/api-routes-static-export'
+        'https://nextjs.org/docs/messages/api-routes-static-export'
       )
     })
 

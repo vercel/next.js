@@ -13,7 +13,7 @@
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "swr": "0.1.16"
+    "swr": "0.5.5"
   },
   "license": "MIT"
 }

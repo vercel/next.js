@@ -1,6 +1,6 @@
 # Reason Relay Example
 
-[Reason Relay](https://reason-relay-documentation.zth.now.sh/)
+[Reason Relay](https://reason-relay-documentation.zth.vercel.app/)
 
 This example relies on [Prisma + Nexus](https://github.com/prisma-labs/nextjs-graphql-api-examples) for its GraphQL backend.
 

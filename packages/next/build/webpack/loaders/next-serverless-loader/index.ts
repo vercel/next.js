@@ -106,9 +106,19 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
 
         import { getApiHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/api-handler'
 
+        const combinedRewrites = Array.isArray(routesManifest.rewrites)
+          ? routesManifest.rewrites
+          : []
+
+        if (!Array.isArray(routesManifest.rewrites)) {
+          combinedRewrites.push(...routesManifest.rewrites.beforeFiles)
+          combinedRewrites.push(...routesManifest.rewrites.afterFiles)
+          combinedRewrites.push(...routesManifest.rewrites.fallback)
+        }
+
         const apiHandler = getApiHandler({
           pageModule: require("${absolutePagePath}"),
-          rewrites: routesManifest.rewrites,
+          rewrites: combinedRewrites,
           i18n: ${i18n || 'undefined'},
           page: "${page}",
           basePath: "${basePath}",
@@ -160,6 +170,16 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
       export let config = compMod['confi' + 'g'] || (compMod.then && compMod.then(mod => mod['confi' + 'g'])) || {}
       export const _app = App
 
+      const combinedRewrites = Array.isArray(routesManifest.rewrites)
+        ? routesManifest.rewrites
+        : []
+
+      if (!Array.isArray(routesManifest.rewrites)) {
+        combinedRewrites.push(...routesManifest.rewrites.beforeFiles)
+        combinedRewrites.push(...routesManifest.rewrites.afterFiles)
+        combinedRewrites.push(...routesManifest.rewrites.fallback)
+      }
+
       const { renderReqToHTML, render } = getPageHandler({
         pageModule: compMod,
         pageComponent: Component,
@@ -183,7 +203,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         buildManifest,
         reactLoadableManifest,
 
-        rewrites: routesManifest.rewrites,
+        rewrites: combinedRewrites,
         i18n: ${i18n || 'undefined'},
         page: "${page}",
         buildId: "${buildId}",

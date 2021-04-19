@@ -191,7 +191,7 @@ export function getClientBuildManifest(): Promise<ClientBuildManifest> {
     // Mandatory because this is not concurrent safe:
     const cb = self.__BUILD_MANIFEST_CB
     self.__BUILD_MANIFEST_CB = () => {
-      resolve(self.__BUILD_MANIFEST)
+      resolve(self.__BUILD_MANIFEST!)
       cb && cb()
     }
   })
