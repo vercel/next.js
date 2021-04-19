@@ -117,11 +117,9 @@ export default class PageLoader {
   }
 
   /**
-   * @param {string} href the route href (file-system path)
+   * @param {string} route - the route (file-system path)
    */
-  _isSsg(href: string): Promise<boolean> {
-    const { pathname: hrefPathname } = parseRelativeUrl(href)
-    const route = normalizeRoute(hrefPathname)
+  _isSsg(route: string): Promise<boolean> {
     return this.promisedSsgManifest!.then((s: ClientSsgManifest) =>
       s.has(route)
     )

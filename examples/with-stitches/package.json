@@ -7,7 +7,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@stitches/react": "0.1.0",
+    "@stitches/react": "latest",
     "next": "latest",
     "react": "^17.0.1",
     "react-dom": "^17.0.1"

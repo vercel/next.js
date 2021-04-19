@@ -17,7 +17,7 @@ function ActiveLink({ children, href }) {
   const router = useRouter()
   const style = {
     marginRight: 10,
-    color: router.pathname === href ? 'red' : 'black',
+    color: router.asPath === href ? 'red' : 'black',
   }
 
   const handleClick = (e) => {
@@ -99,7 +99,7 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <span onClick={() => router.push('/post/abc')}>Click me</span>
+  return <button onClick={() => router.push('/post/abc')}>Click me</button>
 }
 ```
 
@@ -137,7 +137,7 @@ export default function ReadMore({ post }) {
   const router = useRouter()
 
   return (
-    <span
+    <button
       onClick={() => {
         router.push({
           pathname: '/post/[pid]',
@@ -146,7 +146,7 @@ export default function ReadMore({ post }) {
       }}
     >
       Click here to read more
-    </span>
+    </button>
   )
 }
 ```
@@ -171,7 +171,7 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <span onClick={() => router.replace('/home')}>Click me</span>
+  return <button onClick={() => router.replace('/home')}>Click me</button>
 }
 ```
 
@@ -282,7 +282,7 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <span onClick={() => router.back()}>Click here to go back</span>
+  return <button onClick={() => router.back()}>Click here to go back</button>
 }
 ```
 
@@ -298,7 +298,7 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <span onClick={() => router.reload()}>Click here to reload</span>
+  return <button onClick={() => router.reload()}>Click here to reload</button>
 }
 ```
 
@@ -405,7 +405,7 @@ function Page({ router }) {
 export default withRouter(Page)
 ```
 
-### Typescript
+### TypeScript
 
 To use class components with `withRouter`, the component needs to accept a router prop:
 
