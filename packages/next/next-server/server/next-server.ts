@@ -52,7 +52,11 @@ import {
 import { DomainLocales, isTargetLikeServerless, NextConfig } from './config'
 import pathMatch from '../lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
-import { loadComponents, LoadComponentsReturnType } from './load-components'
+import {
+  loadComponents,
+  LoadComponentsReturnType,
+  loadDefaultErrorComponents,
+} from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import { RenderOpts, RenderOptsPartial, renderToHTML } from './render'
 import { getPagePath, requireFontManifest } from './require'
@@ -993,8 +997,11 @@ export default class Server {
             parsedUrl.query.__nextLocale = localePathResult.detectedLocale
           }
         }
+        const bubbleNoFallback = !!query._nextBubbleNoFallback
 
         if (pathname === '/api' || pathname.startsWith('/api/')) {
+          delete query._nextBubbleNoFallback
+
           const handled = await this.handleApiRequest(
             req as NextApiRequest,
             res as NextApiResponse,
@@ -1006,9 +1013,19 @@ export default class Server {
           }
         }
 
-        await this.render(req, res, pathname, query, parsedUrl)
-        return {
-          finished: true,
+        try {
+          await this.render(req, res, pathname, query, parsedUrl)
+
+          return {
+            finished: true,
+          }
+        } catch (err) {
+          if (err instanceof NoFallbackError && bubbleNoFallback) {
+            return {
+              finished: false,
+            }
+          }
+          throw err
         }
       },
     }
@@ -1859,6 +1876,9 @@ export default class Server {
     pathname: string,
     query: ParsedUrlQuery = {}
   ): Promise<string | null> {
+    const bubbleNoFallback = !!query._nextBubbleNoFallback
+    delete query._nextBubbleNoFallback
+
     try {
       const result = await this.findPageComponents(pathname, query)
       if (result) {
@@ -1871,7 +1891,9 @@ export default class Server {
             { ...this.renderOpts }
           )
         } catch (err) {
-          if (!(err instanceof NoFallbackError)) {
+          const isNoFallbackError = err instanceof NoFallbackError
+
+          if (!isNoFallbackError || (isNoFallbackError && bubbleNoFallback)) {
             throw err
           }
         }
@@ -1899,7 +1921,12 @@ export default class Server {
                 { ...this.renderOpts, params }
               )
             } catch (err) {
-              if (!(err instanceof NoFallbackError)) {
+              const isNoFallbackError = err instanceof NoFallbackError
+
+              if (
+                !isNoFallbackError ||
+                (isNoFallbackError && bubbleNoFallback)
+              ) {
                 throw err
               }
             }
@@ -1907,6 +1934,11 @@ export default class Server {
         }
       }
     } catch (err) {
+      const isNoFallbackError = err instanceof NoFallbackError
+
+      if (isNoFallbackError && bubbleNoFallback) {
+        throw err
+      }
       if (err && err.code === 'DECODE_FAILED') {
         this.logError(err)
         res.statusCode = 400
@@ -1966,38 +1998,38 @@ export default class Server {
     _pathname: string,
     query: ParsedUrlQuery = {}
   ) {
-    let result: null | FindComponentsResult = null
-
-    const is404 = res.statusCode === 404
-    let using404Page = false
-
-    // use static 404 page if available and is 404 response
-    if (is404) {
-      result = await this.findPageComponents('/404', query)
-      using404Page = result !== null
-    }
-    let statusPage = `/${res.statusCode}`
-
-    if (!result && STATIC_STATUS_PAGES.includes(statusPage)) {
-      result = await this.findPageComponents(statusPage, query)
-    }
-
-    if (!result) {
-      result = await this.findPageComponents('/_error', query)
-      statusPage = '/_error'
-    }
-
-    if (
-      process.env.NODE_ENV !== 'production' &&
-      !using404Page &&
-      (await this.hasPage('/_error')) &&
-      !(await this.hasPage('/404'))
-    ) {
-      this.customErrorNo404Warn()
-    }
-
     let html: string | null
     try {
+      let result: null | FindComponentsResult = null
+
+      const is404 = res.statusCode === 404
+      let using404Page = false
+
+      // use static 404 page if available and is 404 response
+      if (is404) {
+        result = await this.findPageComponents('/404', query)
+        using404Page = result !== null
+      }
+      let statusPage = `/${res.statusCode}`
+
+      if (!result && STATIC_STATUS_PAGES.includes(statusPage)) {
+        result = await this.findPageComponents(statusPage, query)
+      }
+
+      if (!result) {
+        result = await this.findPageComponents('/_error', query)
+        statusPage = '/_error'
+      }
+
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        !using404Page &&
+        (await this.hasPage('/_error')) &&
+        !(await this.hasPage('/404'))
+      ) {
+        this.customErrorNo404Warn()
+      }
+
       try {
         html = await this.renderToHTMLWithComponents(
           req,
@@ -2018,6 +2050,23 @@ export default class Server {
     } catch (renderToHtmlError) {
       console.error(renderToHtmlError)
       res.statusCode = 500
+
+      if (this.renderOpts.dev) {
+        const fallbackResult = await loadDefaultErrorComponents(this.distDir)
+        return this.renderToHTMLWithComponents(
+          req,
+          res,
+          '/_error',
+          {
+            query,
+            components: fallbackResult,
+          },
+          {
+            ...this.renderOpts,
+            err,
+          }
+        )
+      }
       html = 'Internal Server Error'
     }
     return html

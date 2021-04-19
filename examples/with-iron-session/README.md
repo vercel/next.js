@@ -8,7 +8,7 @@ It uses current best practices for authentication in the Next.js ecosystem.
 
 - [Static Generation](https://nextjs.org/docs/basic-features/pages#static-generation-recommended) (SG), recommended example
 - [Server-side Rendering](https://nextjs.org/docs/basic-features/pages#server-side-rendering) (SSR) example in case you need it
-- Logged in status synchronized between browser windows/tabs using **`useUser`** hook and [`swr`](https://swr.now.sh/) module
+- Logged in status synchronized between browser windows/tabs using **`useUser`** hook and [`swr`](https://swr.vercel.app/) module
 - Layout based on the user's logged-in/out status
 - Session data is signed and encrypted in a cookie
 
@@ -19,7 +19,7 @@ It uses current best practices for authentication in the Next.js ecosystem.
 
 ---
 
-<p align="center"><b>Online demo at <a href="https://next-iron-session.now.sh/">https://next-iron-session.now.sh/</a> 👀</b></p>
+<p align="center"><b>Online demo at <a href="https://next-iron-session.vercel.app/">https://next-iron-session.vercel.app/</a> 👀</b></p>
 
 ---
 

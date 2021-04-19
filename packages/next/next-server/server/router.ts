@@ -171,17 +171,17 @@ export default class Router {
 
       // Matched a page or dynamic route so render it using catchAllRoute
       if (matchedPage) {
-        checkParsedUrl.pathname = fsPathname
-
         const pageParams = this.catchAllRoute.match(checkParsedUrl.pathname)
+        checkParsedUrl.pathname = fsPathname
+        checkParsedUrl.query._nextBubbleNoFallback = '1'
 
-        await this.catchAllRoute.fn(
+        const result = await this.catchAllRoute.fn(
           req,
           res,
           pageParams as Params,
           checkParsedUrl
         )
-        return true
+        return result.finished
       }
     }
 
