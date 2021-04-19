@@ -308,6 +308,7 @@ export default class DevServer extends Server {
     const telemetry = new Telemetry({ distDir: this.distDir })
     telemetry.record(
       eventCliSession(PHASE_DEVELOPMENT_SERVER, this.distDir, {
+        webpack5: null,
         cliCommand: 'dev',
         isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
