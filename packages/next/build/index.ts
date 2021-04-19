@@ -2,7 +2,7 @@ import { loadEnvConfig } from '@next/env'
 import chalk from 'chalk'
 import crypto from 'crypto'
 import { promises, writeFileSync } from 'fs'
-import Worker from 'jest-worker'
+import { Worker } from 'jest-worker'
 import devalue from 'next/dist/compiled/devalue'
 import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
 import findUp from 'next/dist/compiled/find-up'
@@ -17,9 +17,11 @@ import {
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
 import loadCustomRoutes, {
+  CustomRoutes,
   getRedirectStatus,
   normalizeRouteRegex,
   Redirect,
+  Rewrite,
   RouteType,
 } from '../lib/load-custom-routes'
 import { nonNullable } from '../lib/non-nullable'
@@ -51,6 +53,7 @@ import {
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import loadConfig, {
   isTargetLikeServerless,
+  NextConfig,
 } from '../next-server/server/config'
 import { BuildManifest } from '../next-server/server/get-page-files'
 import '../next-server/server/node-polyfill-fetch'
@@ -125,18 +128,20 @@ export default async function build(
       .traceChild('load-dotenv')
       .traceFn(() => loadEnvConfig(dir, false, Log))
 
-    const config = await nextBuildSpan
+    const config: NextConfig = await nextBuildSpan
       .traceChild('load-next-config')
       .traceAsyncFn(() => loadConfig(PHASE_PRODUCTION_BUILD, dir, conf))
     const { target } = config
-    const buildId = await nextBuildSpan
+    const buildId: string = await nextBuildSpan
       .traceChild('generate-buildid')
       .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
     const distDir = path.join(dir, config.distDir)
 
-    const { headers, rewrites, redirects } = await nextBuildSpan
+    const customRoutes: CustomRoutes = await nextBuildSpan
       .traceChild('load-custom-routes')
       .traceAsyncFn(() => loadCustomRoutes(config))
+
+    const { headers, rewrites, redirects } = customRoutes
 
     if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
       const cacheDir = path.join(distDir, 'cache')
@@ -146,13 +151,13 @@ export default async function build(
         // Intentionally not piping to stderr in case people fail in CI when
         // stderr is detected.
         console.log(
-          `${Log.prefixes.warn} No build cache found. Please configure build caching for faster rebuilds. Read more: https://err.sh/next.js/no-cache`
+          `${Log.prefixes.warn} No build cache found. Please configure build caching for faster rebuilds. Read more: https://nextjs.org/docs/messages/no-cache`
         )
       }
     }
 
-    const buildSpinner = createSpinner({
-      prefixText: `${Log.prefixes.info} Creating an optimized production build`,
+    const typeCheckingSpinner = createSpinner({
+      prefixText: `${Log.prefixes.info} Checking validity of types`,
     })
 
     const telemetry = new Telemetry({ distDir })
@@ -181,6 +186,14 @@ export default async function build(
       .traceAsyncFn(() =>
         verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors)
       )
+
+    if (typeCheckingSpinner) {
+      typeCheckingSpinner.stopAndPersist()
+    }
+
+    const buildSpinner = createSpinner({
+      prefixText: `${Log.prefixes.info} Creating an optimized production build`,
+    })
 
     const isLikeServerless = isTargetLikeServerless(target)
 
@@ -254,7 +267,7 @@ export default async function build(
           throw new Error(
             `Conflicting public and page file${
               numConflicting === 1 ? ' was' : 's were'
-            } found. https://err.sh/vercel/next.js/conflicting-public-file-page\n${conflictingPublicFiles.join(
+            } found. https://nextjs.org/docs/messages/conflicting-public-file-page\n${conflictingPublicFiles.join(
               '\n'
             )}`
           )
@@ -271,7 +284,7 @@ export default async function build(
       Log.warn(
         `The following reserved Next.js pages were detected not directly under the pages directory:\n` +
           nestedReservedPages.join('\n') +
-          `\nSee more info here: https://err.sh/next.js/nested-reserved-page\n`
+          `\nSee more info here: https://nextjs.org/docs/messages/nested-reserved-page\n`
       )
     }
 
@@ -311,7 +324,13 @@ export default async function build(
       pages404: boolean
       basePath: string
       redirects: Array<ReturnType<typeof buildCustomRoute>>
-      rewrites: Array<ReturnType<typeof buildCustomRoute>>
+      rewrites:
+        | Array<ReturnType<typeof buildCustomRoute>>
+        | {
+            beforeFiles: Array<ReturnType<typeof buildCustomRoute>>
+            afterFiles: Array<ReturnType<typeof buildCustomRoute>>
+            fallback: Array<ReturnType<typeof buildCustomRoute>>
+          }
       headers: Array<ReturnType<typeof buildCustomRoute>>
       dynamicRoutes: Array<{
         page: string
@@ -341,7 +360,6 @@ export default async function build(
       pages404: true,
       basePath: config.basePath,
       redirects: redirects.map((r: any) => buildCustomRoute(r, 'redirect')),
-      rewrites: rewrites.map((r: any) => buildCustomRoute(r, 'rewrite')),
       headers: headers.map((r: any) => buildCustomRoute(r, 'header')),
       dynamicRoutes: getSortedRoutes(pageKeys)
         .filter(isDynamicRoute)
@@ -357,6 +375,29 @@ export default async function build(
       dataRoutes: [],
       i18n: config.i18n || undefined,
     }))
+
+    if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
+      routesManifest.rewrites = rewrites.afterFiles.map((r: any) =>
+        buildCustomRoute(r, 'rewrite')
+      )
+    } else {
+      routesManifest.rewrites = {
+        beforeFiles: rewrites.beforeFiles.map((r: any) =>
+          buildCustomRoute(r, 'rewrite')
+        ),
+        afterFiles: rewrites.afterFiles.map((r: any) =>
+          buildCustomRoute(r, 'rewrite')
+        ),
+        fallback: rewrites.fallback.map((r: any) =>
+          buildCustomRoute(r, 'rewrite')
+        ),
+      }
+    }
+    const combinedRewrites: Rewrite[] = [
+      ...rewrites.beforeFiles,
+      ...rewrites.afterFiles,
+      ...rewrites.fallback,
+    ]
 
     const distDirCreated = await nextBuildSpan
       .traceChild('create-dist-dir')
@@ -374,7 +415,7 @@ export default async function build(
 
     if (!distDirCreated || !(await isWriteable(distDir))) {
       throw new Error(
-        '> Build directory is not writeable. https://err.sh/vercel/next.js/build-dir-not-writeable'
+        '> Build directory is not writeable. https://nextjs.org/docs/messages/build-dir-not-writeable'
       )
     }
 
@@ -412,7 +453,7 @@ export default async function build(
           BUILD_MANIFEST,
           PRERENDER_MANIFEST,
           REACT_LOADABLE_MANIFEST,
-          config.experimental.optimizeFonts
+          config.optimizeFonts
             ? path.join(
                 isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
                 FONT_MANIFEST
@@ -461,29 +502,35 @@ export default async function build(
           clientConfig.optimization.minimizer.length === 0))
     ) {
       Log.warn(
-        `Production code optimization has been disabled in your project. Read more: https://err.sh/vercel/next.js/minification-disabled`
+        `Production code optimization has been disabled in your project. Read more: https://nextjs.org/docs/messages/minification-disabled`
       )
     }
 
     const webpackBuildStart = process.hrtime()
 
     let result: CompilerResult = { warnings: [], errors: [] }
-    // TODO: why do we need this?? https://github.com/vercel/next.js/issues/8253
-    if (isLikeServerless) {
-      const clientResult = await runCompiler(clientConfig)
-      // Fail build if clientResult contains errors
-      if (clientResult.errors.length > 0) {
-        result = {
-          warnings: [...clientResult.warnings],
-          errors: [...clientResult.errors],
-        }
-      } else {
-        const serverResult = await runCompiler(configs[1])
-        result = {
-          warnings: [...clientResult.warnings, ...serverResult.warnings],
-          errors: [...clientResult.errors, ...serverResult.errors],
-        }
-      }
+    // We run client and server compilation separately when configured for
+    // memory constraint and for serverless to be able to load manifests
+    // produced in the client build
+    if (isLikeServerless || config.experimental.serialWebpackBuild) {
+      await nextBuildSpan
+        .traceChild('run-webpack-compiler')
+        .traceAsyncFn(async () => {
+          const clientResult = await runCompiler(clientConfig)
+          // Fail build if clientResult contains errors
+          if (clientResult.errors.length > 0) {
+            result = {
+              warnings: [...clientResult.warnings],
+              errors: [...clientResult.errors],
+            }
+          } else {
+            const serverResult = await runCompiler(configs[1])
+            result = {
+              warnings: [...clientResult.warnings, ...serverResult.warnings],
+              errors: [...clientResult.errors, ...serverResult.errors],
+            }
+          }
+        })
     } else {
       result = await nextBuildSpan
         .traceChild('run-webpack-compiler')
@@ -517,7 +564,7 @@ export default async function build(
         const parsed = page_name_regex.exec(error)
         const page_name = parsed && parsed.groups && parsed.groups.page_name
         throw new Error(
-          `webpack build failed: found page without a React Component as default export in pages/${page_name}\n\nSee https://err.sh/vercel/next.js/page-without-valid-component for more info.`
+          `webpack build failed: found page without a React Component as default export in pages/${page_name}\n\nSee https://nextjs.org/docs/messages/page-without-valid-component for more info.`
         )
       }
 
@@ -529,7 +576,7 @@ export default async function build(
         error.indexOf('__next_polyfill__') > -1
       ) {
         throw new Error(
-          '> webpack config.resolve.alias was incorrectly overridden. https://err.sh/vercel/next.js/invalid-resolve-alias'
+          '> webpack config.resolve.alias was incorrectly overridden. https://nextjs.org/docs/messages/invalid-resolve-alias'
         )
       }
       throw new Error('> Build failed because of webpack errors')
@@ -637,7 +684,7 @@ export default async function build(
               )
           )
           console.warn(
-            'Read more: https://err.sh/next.js/opt-out-auto-static-optimization\n'
+            'Read more: https://nextjs.org/docs/messages/opt-out-auto-static-optimization\n'
           )
         }
 
@@ -864,7 +911,7 @@ export default async function build(
           .map((pg) => `pages${pg}`)
           .join(
             '\n'
-          )}\n\nSee https://err.sh/vercel/next.js/page-without-valid-component for more info.\n`
+          )}\n\nSee https://nextjs.org/docs/messages/page-without-valid-component for more info.\n`
       )
     }
 
@@ -1022,7 +1069,6 @@ export default async function build(
             }
             return defaultMap
           },
-          trailingSlash: false,
         }
 
         await exportApp(dir, exportOptions, exportConfig)
@@ -1332,9 +1378,13 @@ export default async function build(
           (staticPages.size + ssgPages.size + serverPropsPages.size),
         hasStatic404: useStatic404,
         hasReportWebVitals: namedExports?.includes('reportWebVitals') ?? false,
-        rewritesCount: rewrites.length,
+        rewritesCount: combinedRewrites.length,
         headersCount: headers.length,
         redirectsCount: redirects.length - 1, // reduce one for trailing slash
+        headersWithHasCount: headers.filter((r: any) => !!r.has).length,
+        rewritesWithHasCount: combinedRewrites.filter((r: any) => !!r.has)
+          .length,
+        redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
       })
     )
 

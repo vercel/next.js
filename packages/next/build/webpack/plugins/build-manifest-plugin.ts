@@ -18,6 +18,7 @@ import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { Rewrite } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../next-server/lib/router/utils'
 import { spans } from './profiling-plugin'
+import { CustomRoutes } from '../../../lib/load-custom-routes'
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
@@ -28,7 +29,7 @@ export type ClientBuildManifest = Record<string, string[]>
 function generateClientManifest(
   compiler: any,
   assetMap: BuildManifest,
-  rewrites: Rewrite[]
+  rewrites: CustomRoutes['rewrites']
 ): string {
   const compilerSpan = spans.get(compiler)
   const genClientManifestSpan = compilerSpan?.traceChild(
@@ -66,41 +67,49 @@ function generateClientManifest(
   })
 }
 
-function isJsFile(file: string): boolean {
-  // We don't want to include `.hot-update.js` files into the initial page
-  return !file.endsWith('.hot-update.js') && file.endsWith('.js')
+function getEntrypointFiles(entrypoint: any): string[] {
+  return (
+    entrypoint
+      ?.getFiles()
+      .filter((file: string) => {
+        // We don't want to include `.hot-update.js` files into the initial page
+        return /(?<!\.hot-update)\.(js|css)($|\?)/.test(file)
+      })
+      .map((file: string) => file.replace(/\\/g, '/')) ?? []
+  )
 }
 
-function getFilesArray(files: any) {
-  if (!files) {
-    return []
-  }
-  if (isWebpack5) {
-    return Array.from(files)
-  }
+const processRoute = (r: Rewrite) => {
+  const rewrite = { ...r }
 
-  return files
+  // omit external rewrite destinations since these aren't
+  // handled client-side
+  if (!rewrite.destination.startsWith('/')) {
+    delete (rewrite as any).destination
+  }
+  return rewrite
 }
 
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
   private buildId: string
-  private rewrites: Rewrite[]
+  private rewrites: CustomRoutes['rewrites']
 
-  constructor(options: { buildId: string; rewrites: Rewrite[] }) {
+  constructor(options: {
+    buildId: string
+    rewrites: CustomRoutes['rewrites']
+  }) {
     this.buildId = options.buildId
 
-    this.rewrites = options.rewrites.map((r) => {
-      const rewrite = { ...r }
-
-      // omit external rewrite destinations since these aren't
-      // handled client-side
-      if (!rewrite.destination.startsWith('/')) {
-        delete (rewrite as any).destination
-      }
-      return rewrite
-    })
+    this.rewrites = {
+      beforeFiles: [],
+      afterFiles: [],
+      fallback: [],
+    }
+    this.rewrites.beforeFiles = options.rewrites.beforeFiles.map(processRoute)
+    this.rewrites.afterFiles = options.rewrites.afterFiles.map(processRoute)
+    this.rewrites.fallback = options.rewrites.fallback.map(processRoute)
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
@@ -109,8 +118,7 @@ export default class BuildManifestPlugin {
       'NextJsBuildManifest-createassets'
     )
     return createAssetsSpan?.traceFn(() => {
-      const namedChunks: Map<string, webpack.compilation.Chunk> =
-        compilation.namedChunks
+      const entrypoints: Map<string, any> = compilation.entrypoints
       const assetMap: DeepMutable<BuildManifest> = {
         polyfillFiles: [],
         devFiles: [],
@@ -132,59 +140,41 @@ export default class BuildManifestPlugin {
         }
       }
 
-      const mainJsChunk = namedChunks.get(CLIENT_STATIC_FILES_RUNTIME_MAIN)
-
-      const mainJsFiles: string[] = getFilesArray(mainJsChunk?.files).filter(
-        isJsFile
+      const mainFiles = new Set(
+        getEntrypointFiles(entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN))
       )
 
-      const polyfillChunk = namedChunks.get(
-        CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
+      assetMap.polyfillFiles = getEntrypointFiles(
+        entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)
+      ).filter((file) => !mainFiles.has(file))
+
+      assetMap.devFiles = getEntrypointFiles(
+        entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH)
+      ).filter((file) => !mainFiles.has(file))
+
+      assetMap.ampDevFiles = getEntrypointFiles(
+        entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_AMP)
       )
 
-      // Create a separate entry  for polyfills
-      assetMap.polyfillFiles = getFilesArray(polyfillChunk?.files).filter(
-        isJsFile
-      )
-
-      const reactRefreshChunk = namedChunks.get(
-        CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
-      )
-      assetMap.devFiles = getFilesArray(reactRefreshChunk?.files).filter(
-        isJsFile
-      )
+      const systemEntrypoints = new Set([
+        CLIENT_STATIC_FILES_RUNTIME_MAIN,
+        CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
+        CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+        CLIENT_STATIC_FILES_RUNTIME_AMP,
+      ])
 
       for (const entrypoint of compilation.entrypoints.values()) {
-        const isAmpRuntime = entrypoint.name === CLIENT_STATIC_FILES_RUNTIME_AMP
+        if (systemEntrypoints.has(entrypoint.name)) continue
 
-        if (isAmpRuntime) {
-          for (const file of entrypoint.getFiles()) {
-            if (!(isJsFile(file) || file.endsWith('.css'))) {
-              continue
-            }
-
-            assetMap.ampDevFiles.push(file.replace(/\\/g, '/'))
-          }
-          continue
-        }
         const pagePath = getRouteFromEntrypoint(entrypoint.name)
 
         if (!pagePath) {
           continue
         }
 
-        const filesForEntry: string[] = []
+        const filesForPage = getEntrypointFiles(entrypoint)
 
-        // getFiles() - helper function to read the files for an entrypoint from stats object
-        for (const file of entrypoint.getFiles()) {
-          if (!(isJsFile(file) || file.endsWith('.css'))) {
-            continue
-          }
-
-          filesForEntry.push(file.replace(/\\/g, '/'))
-        }
-
-        assetMap.pages[pagePath] = [...mainJsFiles, ...filesForEntry]
+        assetMap.pages[pagePath] = [...new Set([...mainFiles, ...filesForPage])]
       }
 
       // Add the runtime build manifest file (generated later in this file)

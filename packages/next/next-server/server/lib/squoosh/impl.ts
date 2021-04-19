@@ -16,8 +16,7 @@ export async function decodeBuffer(
     throw Error(`Buffer has an unsupported format`)
   }
   const d = await supportedFormats[key].dec()
-  const rgba = d.decode(new Uint8Array(buffer))
-  return rgba
+  return d.decode(new Uint8Array(buffer))
 }
 
 export async function rotate(
@@ -30,7 +29,7 @@ export async function rotate(
   return await m(image.data, image.width, image.height, { numRotations })
 }
 
-export async function resize(image: ImageData, { width }: { width: number }) {
+export async function resize(image: ImageData, width: number) {
   image = ImageData.from(image)
 
   const p = preprocessors['resize']

@@ -44,7 +44,7 @@ describe('TypeScript Image Component', () => {
     it('should render the valid Image usage and not print error', async () => {
       const html = await renderViaHTTP(appPort, '/valid', {})
       expect(html).toMatch(/This is valid usage of the Image component/)
-      expect(output).not.toMatch(/Error/)
+      expect(output).not.toMatch(/Error: Image/)
     })
 
     it('should print error when invalid Image usage', async () => {

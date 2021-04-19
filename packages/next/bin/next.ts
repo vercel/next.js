@@ -98,7 +98,7 @@ const React = require('react')
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
-    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://err.sh/vercel/next.js/invalid-react-version`
+    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://nextjs.org/docs/messages/invalid-react-version`
   )
 }
 
@@ -106,7 +106,15 @@ if (typeof React.Suspense === 'undefined') {
 process.on('SIGTERM', () => process.exit(0))
 process.on('SIGINT', () => process.exit(0))
 
-commands[command]().then((exec) => exec(forwardedArgs))
+commands[command]()
+  .then((exec) => exec(forwardedArgs))
+  .then(() => {
+    if (command === 'build') {
+      // ensure process exits after build completes so open handles/connections
+      // don't cause process to hang
+      process.exit(0)
+    }
+  })
 
 if (command === 'dev') {
   const { CONFIG_FILE } = require('../next-server/lib/constants')
