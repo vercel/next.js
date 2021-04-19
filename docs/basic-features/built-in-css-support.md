@@ -72,6 +72,7 @@ For importing CSS required by a third party component, you can do so in your com
 // components/ExampleDialog.js
 import { useState } from 'react'
 import { Dialog } from '@reach/dialog'
+import VisuallyHidden from '@reach/visually-hidden'
 import '@reach/dialog/styles.css'
 
 function ExampleDialog(props) {
@@ -201,6 +202,7 @@ Error: Cannot find module 'less'
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-styled-jsx">Styled JSX</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-styled-components">Styled Components</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-emotion">Emotion</a></li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-linaria">Linaria</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-tailwindcss-emotion">Tailwind CSS + Emotion</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-styletron">Styletron</a></li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-glamor">Glamor</a></li>

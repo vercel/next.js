@@ -1,9 +1,92 @@
+import { IncomingMessage } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import { searchParamsToUrlQuery } from './querystring'
 import { parseRelativeUrl } from './parse-relative-url'
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
+import { RouteHas } from '../../../../lib/load-custom-routes'
 
 type Params = { [param: string]: any }
+
+// ensure only a-zA-Z are used for param names for proper interpolating
+// with path-to-regexp
+export const getSafeParamName = (paramName: string) => {
+  let newParamName = ''
+
+  for (let i = 0; i < paramName.length; i++) {
+    const charCode = paramName.charCodeAt(i)
+
+    if (
+      (charCode > 64 && charCode < 91) || // A-Z
+      (charCode > 96 && charCode < 123) // a-z
+    ) {
+      newParamName += paramName[i]
+    }
+  }
+  return newParamName
+}
+
+export function matchHas(
+  req: IncomingMessage,
+  has: RouteHas[],
+  query: Params
+): false | Params {
+  const params: Params = {}
+  const allMatch = has.every((hasItem) => {
+    let value: undefined | string
+    let key = hasItem.key
+
+    switch (hasItem.type) {
+      case 'header': {
+        key = key!.toLowerCase()
+        value = req.headers[key] as string
+        break
+      }
+      case 'cookie': {
+        value = (req as any).cookies[hasItem.key]
+        break
+      }
+      case 'query': {
+        value = query[key!]
+        break
+      }
+      case 'host': {
+        const { host } = req?.headers || {}
+        // remove port from host if present
+        const hostname = host?.split(':')[0].toLowerCase()
+        value = hostname
+        break
+      }
+      default: {
+        break
+      }
+    }
+
+    if (!hasItem.value && value) {
+      params[getSafeParamName(key!)] = value
+      return true
+    } else if (value) {
+      const matcher = new RegExp(`^${hasItem.value}$`)
+      const matches = value.match(matcher)
+
+      if (matches) {
+        if (matches.groups) {
+          Object.keys(matches.groups).forEach((groupKey) => {
+            params[groupKey] = matches.groups![groupKey]
+          })
+        } else if (hasItem.type === 'host' && matches[0]) {
+          params.host = matches[0]
+        }
+        return true
+      }
+    }
+    return false
+  })
+
+  if (allMatch) {
+    return params
+  }
+  return false
+}
 
 export function compileNonPath(value: string, params: Params): string {
   if (!value.includes(':')) {
@@ -149,7 +232,7 @@ export default function prepareDestination(
   } catch (err) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(
-        `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://err.sh/vercel/next.js/invalid-multi-match`
+        `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://nextjs.org/docs/messages/invalid-multi-match`
       )
     }
     throw err

@@ -120,7 +120,7 @@ class UrlNode {
           // pages/[id]/index.js
           // Because currently multiple dynamic params on the same segment level are not supported
           if (previousSlug !== nextSlug) {
-            // TODO: This error seems to be confusing for users, needs an err.sh link, the description can be based on above comment.
+            // TODO: This error seems to be confusing for users, needs an error link, the description can be based on above comment.
             throw new Error(
               `You cannot use different slug names for the same dynamic path ('${previousSlug}' !== '${nextSlug}').`
             )

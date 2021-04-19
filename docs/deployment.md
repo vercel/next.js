@@ -80,6 +80,13 @@ Make sure your `package.json` has the `"build"` and `"start"` scripts:
 
 ### Docker Image
 
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-docker">with-docker</a></li>
+  </ul>
+</details>
+
 Next.js can be deployed to any hosting provider that supports [Docker](https://www.docker.com/) containers. You can use this approach when deploying to container orchestrators such as [Kubernetes](https://kubernetes.io/) or [HashiCorp Nomad](https://www.nomadproject.io/), or when running inside a single node in any cloud provider.
 
 Here is a multi-stage `Dockerfile` using `node:alpine` that you can use:
@@ -111,6 +118,7 @@ ENV NODE_ENV production
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
 
 RUN addgroup -g 1001 -S nodejs
 RUN adduser -S nextjs -u 1001
@@ -124,7 +132,7 @@ EXPOSE 3000
 # Uncomment the following line in case you want to disable telemetry.
 # RUN npx next telemetry disable
 
-CMD ["node_modules/.bin/next", "start"]
+CMD ["yarn", "start"]
 ```
 
 Make sure to place this Dockerfile in the root folder of your project.
