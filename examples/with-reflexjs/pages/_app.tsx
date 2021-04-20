@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { AppProps } from 'next/app'
 import { ThemeProvider } from 'reflexjs'
 import theme from '../src/theme'
