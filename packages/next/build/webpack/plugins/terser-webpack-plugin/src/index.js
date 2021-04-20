@@ -7,10 +7,9 @@ import {
   sources,
 } from 'next/dist/compiled/webpack/webpack'
 import pLimit from 'p-limit'
-import jestWorker from 'jest-worker'
+import { Worker } from 'jest-worker'
 import crypto from 'crypto'
 import cacache from 'next/dist/compiled/cacache'
-import { tracer, traceAsyncFn } from '../../../../tracer'
 import { spans } from '../../profiling-plugin'
 
 function getEcmaVersion(environment) {
@@ -103,7 +102,7 @@ class Webpack4Cache {
   }
 }
 
-class TerserPlugin {
+export class TerserPlugin {
   constructor(options = {}) {
     const { cacheDir, terserOptions = {}, parallel } = options
 
@@ -123,193 +122,184 @@ class TerserPlugin {
     { SourceMapSource, RawSource }
   ) {
     const compilerSpan = spans.get(compiler)
+    const terserSpan = compilerSpan.traceChild('terser-webpack-plugin-optimize')
+    terserSpan.setAttribute('webpackVersion', isWebpack5 ? 5 : 4)
+    terserSpan.setAttribute('compilationName', compilation.name)
 
-    return tracer.withSpan(compilerSpan, () => {
-      const span = tracer.startSpan('terser-webpack-plugin-optimize', {
-        attributes: {
-          webpackVersion: isWebpack5 ? 5 : 4,
-          compilationName: compilation.name,
-        },
-      })
+    return terserSpan.traceAsyncFn(async () => {
+      let numberOfAssetsForMinify = 0
+      const assetsList = isWebpack5
+        ? Object.keys(assets)
+        : [
+            ...Array.from(compilation.additionalChunkAssets || []),
+            ...Array.from(assets).reduce((acc, chunk) => {
+              return acc.concat(Array.from(chunk.files || []))
+            }, []),
+          ]
 
-      return traceAsyncFn(span, async () => {
-        let numberOfAssetsForMinify = 0
-        const assetsList = isWebpack5
-          ? Object.keys(assets)
-          : [
-              ...Array.from(compilation.additionalChunkAssets || []),
-              ...Array.from(assets).reduce((acc, chunk) => {
-                return acc.concat(Array.from(chunk.files || []))
-              }, []),
-            ]
-
-        const assetsForMinify = await Promise.all(
-          assetsList
-            .filter((name) => {
-              if (
-                !ModuleFilenameHelpers.matchObject.bind(
-                  // eslint-disable-next-line no-undefined
-                  undefined,
-                  { test: /\.[cm]?js(\?.*)?$/i }
-                )(name)
-              ) {
-                return false
-              }
-
-              const res = compilation.getAsset(name)
-              if (!res) {
-                console.log(name)
-                return false
-              }
-
-              const { info } = res
-
-              // Skip double minimize assets from child compilation
-              if (info.minimized) {
-                return false
-              }
-
-              return true
-            })
-            .map(async (name) => {
-              const { info, source } = compilation.getAsset(name)
-
-              const eTag = cache.getLazyHashedEtag(source)
-              const output = await cache.getPromise(name, eTag)
-
-              if (!output) {
-                numberOfAssetsForMinify += 1
-              }
-
-              return { name, info, inputSource: source, output, eTag }
-            })
-        )
-
-        const numberOfWorkers = Math.min(
-          numberOfAssetsForMinify,
-          optimizeOptions.availableNumberOfCores
-        )
-
-        let initializedWorker
-
-        // eslint-disable-next-line consistent-return
-        const getWorker = () => {
-          if (initializedWorker) {
-            return initializedWorker
-          }
-
-          initializedWorker = new jestWorker(
-            path.join(__dirname, './minify.js'),
-            {
-              numWorkers: numberOfWorkers,
-              enableWorkerThreads: true,
+      const assetsForMinify = await Promise.all(
+        assetsList
+          .filter((name) => {
+            if (
+              !ModuleFilenameHelpers.matchObject.bind(
+                // eslint-disable-next-line no-undefined
+                undefined,
+                { test: /\.[cm]?js(\?.*)?$/i }
+              )(name)
+            ) {
+              return false
             }
-          )
 
-          initializedWorker.getStdout().pipe(process.stdout)
-          initializedWorker.getStderr().pipe(process.stderr)
+            const res = compilation.getAsset(name)
+            if (!res) {
+              console.log(name)
+              return false
+            }
 
+            const { info } = res
+
+            // Skip double minimize assets from child compilation
+            if (info.minimized) {
+              return false
+            }
+
+            return true
+          })
+          .map(async (name) => {
+            const { info, source } = compilation.getAsset(name)
+
+            const eTag = cache.getLazyHashedEtag(source)
+            const output = await cache.getPromise(name, eTag)
+
+            if (!output) {
+              numberOfAssetsForMinify += 1
+            }
+
+            return { name, info, inputSource: source, output, eTag }
+          })
+      )
+
+      const numberOfWorkers = Math.min(
+        numberOfAssetsForMinify,
+        optimizeOptions.availableNumberOfCores
+      )
+
+      let initializedWorker
+
+      // eslint-disable-next-line consistent-return
+      const getWorker = () => {
+        if (initializedWorker) {
           return initializedWorker
         }
 
-        const limit = pLimit(
-          numberOfAssetsForMinify > 0 ? numberOfWorkers : Infinity
-        )
-        const scheduledTasks = []
+        initializedWorker = new Worker(path.join(__dirname, './minify.js'), {
+          numWorkers: numberOfWorkers,
+          enableWorkerThreads: true,
+        })
 
-        for (const asset of assetsForMinify) {
-          scheduledTasks.push(
-            limit(async () => {
-              const { name, inputSource, info, eTag } = asset
-              let { output } = asset
+        initializedWorker.getStdout().pipe(process.stdout)
+        initializedWorker.getStderr().pipe(process.stderr)
 
-              const assetSpan = tracer.startSpan('minify-js', {
-                attributes: {
+        return initializedWorker
+      }
+
+      const limit = pLimit(
+        numberOfAssetsForMinify > 0 ? numberOfWorkers : Infinity
+      )
+      const scheduledTasks = []
+
+      for (const asset of assetsForMinify) {
+        scheduledTasks.push(
+          limit(async () => {
+            const { name, inputSource, info, eTag } = asset
+            let { output } = asset
+
+            const minifySpan = terserSpan.traceChild('minify-fs')
+            minifySpan.setAttribute('name', name)
+            minifySpan.setAttribute(
+              'cache',
+              typeof output === 'undefined' ? 'MISS' : 'HIT'
+            )
+
+            return minifySpan.traceAsyncFn(async () => {
+              if (!output) {
+                const {
+                  source: sourceFromInputSource,
+                  map: inputSourceMap,
+                } = inputSource.sourceAndMap()
+
+                const input = Buffer.isBuffer(sourceFromInputSource)
+                  ? sourceFromInputSource.toString()
+                  : sourceFromInputSource
+
+                const options = {
                   name,
-                  cache: typeof output === 'undefined' ? 'MISS' : 'HIT',
-                },
-              })
+                  input,
+                  inputSourceMap,
+                  terserOptions: { ...this.options.terserOptions },
+                }
 
-              return traceAsyncFn(assetSpan, async () => {
-                if (!output) {
-                  const {
-                    source: sourceFromInputSource,
-                    map: inputSourceMap,
-                  } = inputSource.sourceAndMap()
-
-                  const input = Buffer.isBuffer(sourceFromInputSource)
-                    ? sourceFromInputSource.toString()
-                    : sourceFromInputSource
-
-                  const options = {
-                    name,
-                    input,
-                    inputSourceMap,
-                    terserOptions: { ...this.options.terserOptions },
-                  }
-
-                  if (typeof options.terserOptions.module === 'undefined') {
-                    if (typeof info.javascriptModule !== 'undefined') {
-                      options.terserOptions.module = info.javascriptModule
-                    } else if (/\.mjs(\?.*)?$/i.test(name)) {
-                      options.terserOptions.module = true
-                    } else if (/\.cjs(\?.*)?$/i.test(name)) {
-                      options.terserOptions.module = false
-                    }
-                  }
-
-                  try {
-                    output = await getWorker().minify(options)
-                  } catch (error) {
-                    compilation.errors.push(buildError(error, name))
-
-                    return
-                  }
-
-                  if (output.map) {
-                    output.source = new SourceMapSource(
-                      output.code,
-                      name,
-                      output.map,
-                      input,
-                      /** @type {SourceMapRawSourceMap} */ (inputSourceMap),
-                      true
-                    )
-                  } else {
-                    output.source = new RawSource(output.code)
-                  }
-
-                  if (isWebpack5) {
-                    await cache.storePromise(name, eTag, {
-                      source: output.source,
-                    })
-                  } else {
-                    await cache.storePromise(name, eTag, {
-                      code: output.code,
-                      map: output.map,
-                      name,
-                      input,
-                      inputSourceMap,
-                    })
+                if (typeof options.terserOptions.module === 'undefined') {
+                  if (typeof info.javascriptModule !== 'undefined') {
+                    options.terserOptions.module = info.javascriptModule
+                  } else if (/\.mjs(\?.*)?$/i.test(name)) {
+                    options.terserOptions.module = true
+                  } else if (/\.cjs(\?.*)?$/i.test(name)) {
+                    options.terserOptions.module = false
                   }
                 }
 
-                /** @type {AssetInfo} */
-                const newInfo = { minimized: true }
-                const { source } = output
+                try {
+                  output = await getWorker().minify(options)
+                } catch (error) {
+                  compilation.errors.push(buildError(error, name))
 
-                compilation.updateAsset(name, source, newInfo)
-              })
+                  return
+                }
+
+                if (output.map) {
+                  output.source = new SourceMapSource(
+                    output.code,
+                    name,
+                    output.map,
+                    input,
+                    /** @type {SourceMapRawSourceMap} */ (inputSourceMap),
+                    true
+                  )
+                } else {
+                  output.source = new RawSource(output.code)
+                }
+
+                if (isWebpack5) {
+                  await cache.storePromise(name, eTag, {
+                    source: output.source,
+                  })
+                } else {
+                  await cache.storePromise(name, eTag, {
+                    code: output.code,
+                    map: output.map,
+                    name,
+                    input,
+                    inputSourceMap,
+                  })
+                }
+              }
+
+              /** @type {AssetInfo} */
+              const newInfo = { minimized: true }
+              const { source } = output
+
+              compilation.updateAsset(name, source, newInfo)
             })
-          )
-        }
+          })
+        )
+      }
 
-        await Promise.all(scheduledTasks)
+      await Promise.all(scheduledTasks)
 
-        if (initializedWorker) {
-          await initializedWorker.end()
-        }
-      })
+      if (initializedWorker) {
+        await initializedWorker.end()
+      }
     })
   }
 
@@ -410,5 +400,3 @@ class TerserPlugin {
     })
   }
 }
-
-export default TerserPlugin

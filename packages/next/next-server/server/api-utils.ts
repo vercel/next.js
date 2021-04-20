@@ -7,7 +7,6 @@ import { Stream } from 'stream'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
-import { Params } from './router'
 import { sendEtagResponse } from './send-payload'
 import generateETag from 'etag'
 
@@ -28,7 +27,7 @@ export async function apiResolver(
   apiContext: __ApiPreviewProps,
   propagateError: boolean,
   onError?: ({ err }: { err: any }) => Promise<void>
-) {
+): Promise<void> {
   const apiReq = req as NextApiRequest
   const apiRes = res as NextApiResponse
 
@@ -166,7 +165,9 @@ function parseJson(str: string): object {
  * Parse cookies from `req` header
  * @param req request object
  */
-export function getCookieParser(req: IncomingMessage) {
+export function getCookieParser(
+  req: IncomingMessage
+): () => NextApiRequestCookies {
   return function parseCookie(): NextApiRequestCookies {
     const header: undefined | string | string[] = req.headers.cookie
 
@@ -229,7 +230,7 @@ export function sendData(
   res: NextApiResponse,
   body: any
 ): void {
-  if (body === null) {
+  if (body === null || body === undefined) {
     res.end()
     return
   }
@@ -362,6 +363,10 @@ export function tryGetPreviewData(
   }
 }
 
+function isNotValidData(str: string): boolean {
+  return typeof str !== 'string' || str.length < 16
+}
+
 function setPreviewData<T>(
   res: NextApiResponse<T>,
   data: object | string, // TODO: strict runtime type checking
@@ -369,22 +374,13 @@ function setPreviewData<T>(
     maxAge?: number
   } & __ApiPreviewProps
 ): NextApiResponse<T> {
-  if (
-    typeof options.previewModeId !== 'string' ||
-    options.previewModeId.length < 16
-  ) {
+  if (isNotValidData(options.previewModeId)) {
     throw new Error('invariant: invalid previewModeId')
   }
-  if (
-    typeof options.previewModeEncryptionKey !== 'string' ||
-    options.previewModeEncryptionKey.length < 16
-  ) {
+  if (isNotValidData(options.previewModeEncryptionKey)) {
     throw new Error('invariant: invalid previewModeEncryptionKey')
   }
-  if (
-    typeof options.previewModeSigningKey !== 'string' ||
-    options.previewModeSigningKey.length < 16
-  ) {
+  if (isNotValidData(options.previewModeSigningKey)) {
     throw new Error('invariant: invalid previewModeSigningKey')
   }
 
@@ -520,7 +516,6 @@ export function sendError(
 
 interface LazyProps {
   req: NextApiRequest
-  params?: Params | boolean
 }
 
 /**
@@ -530,7 +525,7 @@ interface LazyProps {
  * @param getter function to get data
  */
 export function setLazyProp<T>(
-  { req, params }: LazyProps,
+  { req }: LazyProps,
   prop: string,
   getter: () => T
 ): void {
@@ -540,10 +535,7 @@ export function setLazyProp<T>(
   Object.defineProperty(req, prop, {
     ...opts,
     get: () => {
-      let value = getter()
-      if (params && typeof params !== 'boolean') {
-        value = { ...value, ...params }
-      }
+      const value = getter()
       // we set the property on the object to avoid recalculating it
       Object.defineProperty(req, prop, { ...optsReset, value })
       return value

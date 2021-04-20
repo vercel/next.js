@@ -113,10 +113,13 @@ export function addLocale(
   defaultLocale?: string
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
+    const pathLower = path.toLowerCase()
+    const localeLower = locale && locale.toLowerCase()
+
     return locale &&
       locale !== defaultLocale &&
-      !path.startsWith('/' + locale + '/') &&
-      path !== '/' + locale
+      !pathLower.startsWith('/' + localeLower + '/') &&
+      pathLower !== '/' + localeLower
       ? addPathPrefix(path, '/' + locale)
       : path
   }
@@ -125,9 +128,15 @@ export function addLocale(
 
 export function delLocale(path: string, locale?: string) {
   if (process.env.__NEXT_I18N_SUPPORT) {
+    const pathname = pathNoQueryHash(path)
+    const pathLower = pathname.toLowerCase()
+    const localeLower = locale && locale.toLowerCase()
+
     return locale &&
-      (path.startsWith('/' + locale + '/') || path === '/' + locale)
-      ? path.substr(locale.length + 1) || '/'
+      (pathLower.startsWith('/' + localeLower + '/') ||
+        pathLower === '/' + localeLower)
+      ? (pathname.length === locale.length + 1 ? '/' : '') +
+          path.substr(locale.length + 1)
       : path
   }
   return path
@@ -338,6 +347,26 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   }
 }
 
+function resolveDynamicRoute(pathname: string, pages: string[]) {
+  const cleanPathname = removePathTrailingSlash(denormalizePagePath(pathname!))
+
+  if (cleanPathname === '/404' || cleanPathname === '/_error') {
+    return pathname
+  }
+
+  // handle resolving href for dynamic routes
+  if (!pages.includes(cleanPathname!)) {
+    // eslint-disable-next-line array-callback-return
+    pages.some((page) => {
+      if (isDynamicRoute(page) && getRouteRegex(page).re.test(cleanPathname!)) {
+        pathname = page
+        return true
+      }
+    })
+  }
+  return removePathTrailingSlash(pathname)
+}
+
 export type BaseRouter = {
   route: string
   pathname: string
@@ -348,6 +377,7 @@ export type BaseRouter = {
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocales
+  isLocaleDomain: boolean
 }
 
 export type NextRouter = BaseRouter &
@@ -362,6 +392,7 @@ export type NextRouter = BaseRouter &
     | 'events'
     | 'isFallback'
     | 'isReady'
+    | 'isPreview'
   >
 
 export type PrefetchOptions = {
@@ -473,6 +504,9 @@ export default class Router implements BaseRouter {
   components: { [pathname: string]: PrivateRouteInfo }
   // Static Data Cache
   sdc: { [asPath: string]: object } = {}
+  // In-flight Server Data Requests, for deduping
+  sdr: { [asPath: string]: Promise<object> } = {}
+
   sub: Subscription
   clc: ComponentLoadCancel
   pageLoader: any
@@ -488,6 +522,8 @@ export default class Router implements BaseRouter {
   defaultLocale?: string
   domainLocales?: DomainLocales
   isReady: boolean
+  isPreview: boolean
+  isLocaleDomain: boolean
 
   private _idx: number = 0
 
@@ -510,6 +546,7 @@ export default class Router implements BaseRouter {
       locales,
       defaultLocale,
       domainLocales,
+      isPreview,
     }: {
       subscription: Subscription
       initialProps: any
@@ -523,6 +560,7 @@ export default class Router implements BaseRouter {
       locales?: string[]
       defaultLocale?: string
       domainLocales?: DomainLocales
+      isPreview?: boolean
     }
   ) {
     // represents the current component key
@@ -577,14 +615,22 @@ export default class Router implements BaseRouter {
     this.isReady = !!(
       self.__NEXT_DATA__.gssp ||
       self.__NEXT_DATA__.gip ||
-      (!autoExportDynamic && !self.location.search)
+      (!autoExportDynamic &&
+        !self.location.search &&
+        !process.env.__NEXT_HAS_REWRITES)
     )
+    this.isPreview = !!isPreview
+    this.isLocaleDomain = false
 
     if (process.env.__NEXT_I18N_SUPPORT) {
       this.locale = locale
       this.locales = locales
       this.defaultLocale = defaultLocale
       this.domainLocales = domainLocales
+      this.isLocaleDomain = !!detectDomainLocale(
+        domainLocales,
+        self.location.hostname
+      )
     }
 
     if (typeof window !== 'undefined') {
@@ -817,6 +863,7 @@ export default class Router implements BaseRouter {
         if (
           !didNavigate &&
           detectedDomain &&
+          this.isLocaleDomain &&
           self.location.hostname !== detectedDomain.domain
         ) {
           const asNoBasePath = delBasePath(as)
@@ -902,20 +949,6 @@ export default class Router implements BaseRouter {
       return false
     }
 
-    parsed = this._resolveHref(parsed, pages) as typeof parsed
-
-    if (parsed.pathname !== pathname) {
-      pathname = parsed.pathname
-      url = formatWithValidation(parsed)
-    }
-
-    // url and as should always be prefixed with basePath by this
-    // point by either next/link or router.push/replace so strip the
-    // basePath from the pathname to match the pages dir 1-to-1
-    pathname = pathname
-      ? removePathTrailingSlash(delBasePath(pathname))
-      : pathname
-
     // If asked to change the current URL we should reload the current page
     // (not location.reload() but reload getInitialProps and other Next.js stuffs)
     // We also need to set the method = replaceState always
@@ -925,54 +958,53 @@ export default class Router implements BaseRouter {
       method = 'replaceState'
     }
 
-    let route = removePathTrailingSlash(pathname)
-
     // we need to resolve the as value using rewrites for dynamic SSG
     // pages to allow building the data URL correctly
     let resolvedAs = as
 
-    if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
-      resolvedAs = resolveRewrites(
-        addBasePath(
-          addLocale(delBasePath(parseRelativeUrl(as).pathname), this.locale)
-        ),
-        pages,
-        rewrites,
-        query,
-        (p: string) => this._resolveHref({ pathname: p }, pages).pathname!,
-        this.locales
-      )
+    // url and as should always be prefixed with basePath by this
+    // point by either next/link or router.push/replace so strip the
+    // basePath from the pathname to match the pages dir 1-to-1
+    pathname = pathname
+      ? removePathTrailingSlash(delBasePath(pathname))
+      : pathname
 
-      if (resolvedAs !== as) {
-        const potentialHref = removePathTrailingSlash(
-          this._resolveHref(
-            Object.assign({}, parsed, {
-              pathname: normalizeLocalePath(
-                hasBasePath(resolvedAs) ? delBasePath(resolvedAs) : resolvedAs,
-                this.locales
-              ).pathname,
-            }),
-            pages,
-            false
-          ).pathname!
+    if (pathname !== '/_error') {
+      if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
+        const rewritesResult = resolveRewrites(
+          addBasePath(addLocale(cleanedAs, this.locale)),
+          pages,
+          rewrites,
+          query,
+          (p: string) => resolveDynamicRoute(p, pages),
+          this.locales
         )
+        resolvedAs = rewritesResult.asPath
 
-        // if this directly matches a page we need to update the href to
-        // allow the correct page chunk to be loaded
-        if (pages.includes(potentialHref)) {
-          route = potentialHref
-          pathname = potentialHref
+        if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
+          // if this directly matches a page we need to update the href to
+          // allow the correct page chunk to be loaded
+          pathname = rewritesResult.resolvedHref
           parsed.pathname = pathname
+          url = formatWithValidation(parsed)
+        }
+      } else {
+        parsed.pathname = resolveDynamicRoute(pathname, pages)
+
+        if (parsed.pathname !== pathname) {
+          pathname = parsed.pathname
           url = formatWithValidation(parsed)
         }
       }
     }
 
+    const route = removePathTrailingSlash(pathname)
+
     if (!isLocalURL(as)) {
       if (process.env.NODE_ENV !== 'production') {
         throw new Error(
           `Invalid href: "${url}" and as: "${as}", received relative href and external as` +
-            `\nSee more info: https://err.sh/next.js/invalid-relative-url-external-as`
+            `\nSee more info: https://nextjs.org/docs/messages/invalid-relative-url-external-as`
         )
       }
 
@@ -1018,7 +1050,7 @@ export default class Router implements BaseRouter {
                   ', '
                 )}) to be interpolated properly. `
               : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) +
-              `Read more: https://err.sh/vercel/next.js/${
+              `Read more: https://nextjs.org/docs/messages/${
                 shouldInterpolate
                   ? 'href-interpolation-failed'
                   : 'incompatible-href-as'
@@ -1045,7 +1077,8 @@ export default class Router implements BaseRouter {
         route,
         pathname,
         query,
-        addBasePath(addLocale(resolvedAs, this.locale)),
+        as,
+        resolvedAs,
         routeProps
       )
       let { error, props, __N_SSG, __N_SSP } = routeInfo
@@ -1060,7 +1093,10 @@ export default class Router implements BaseRouter {
           // it's not
           if (destination.startsWith('/')) {
             const parsedHref = parseRelativeUrl(destination)
-            this._resolveHref(parsedHref, pages, false)
+            parsedHref.pathname = resolveDynamicRoute(
+              parsedHref.pathname,
+              pages
+            )
 
             if (pages.includes(parsedHref.pathname)) {
               const { url: newUrl, as: newAs } = prepareUrlAs(
@@ -1075,6 +1111,8 @@ export default class Router implements BaseRouter {
           window.location.href = destination
           return new Promise(() => {})
         }
+
+        this.isPreview = !!props.__N_PREVIEW
 
         // handle SSG data 404
         if (props.notFound === SSG_DATA_NOT_FOUND) {
@@ -1092,6 +1130,7 @@ export default class Router implements BaseRouter {
             notFoundRoute,
             query,
             as,
+            resolvedAs,
             { shallow: false }
           )
         }
@@ -1107,13 +1146,28 @@ export default class Router implements BaseRouter {
           !(routeInfo.Component as any).getInitialProps
       }
 
+      // shallow routing is only allowed for same page URL changes.
+      const isValidShallowRoute = options.shallow && this.route === route
+
+      if (
+        (options as any)._h &&
+        pathname === '/_error' &&
+        self.__NEXT_DATA__.props?.pageProps?.statusCode === 500 &&
+        props?.pageProps
+      ) {
+        // ensure statusCode is still correct for static 500 page
+        // when updating query information
+        props.pageProps.statusCode = 500
+      }
+
       await this.set(
         route,
         pathname!,
         query,
         cleanedAs,
         routeInfo,
-        forcedScroll || (options.scroll ? { x: 0, y: 0 } : null)
+        forcedScroll ||
+          (isValidShallowRoute || !options.scroll ? null : { x: 0, y: 0 })
       ).catch((e) => {
         if (e.cancelled) error = error || e
         else throw e
@@ -1259,6 +1313,7 @@ export default class Router implements BaseRouter {
     pathname: string,
     query: any,
     as: string,
+    resolvedAs: string,
     routeProps: RouteProperties
   ): Promise<PrivateRouteInfo> {
     try {
@@ -1298,7 +1353,7 @@ export default class Router implements BaseRouter {
       if (__N_SSG || __N_SSP) {
         dataHref = this.pageLoader.getDataHref(
           formatWithValidation({ pathname, query }),
-          delBasePath(as),
+          resolvedAs,
           __N_SSG,
           this.locale
         )
@@ -1377,8 +1432,9 @@ export default class Router implements BaseRouter {
 
   scrollToHash(as: string): void {
     const [, hash] = as.split('#')
-    // Scroll to top if the hash is just `#` with no value
-    if (hash === '') {
+    // Scroll to top if the hash is just `#` with no value or `#top`
+    // To mirror browsers
+    if (hash === '' || hash === 'top') {
       window.scrollTo(0, 0)
       return
     }
@@ -1399,33 +1455,6 @@ export default class Router implements BaseRouter {
 
   urlIsNew(asPath: string): boolean {
     return this.asPath !== asPath
-  }
-
-  _resolveHref(parsedHref: UrlObject, pages: string[], applyBasePath = true) {
-    const { pathname } = parsedHref
-    const cleanPathname = removePathTrailingSlash(
-      denormalizePagePath(applyBasePath ? delBasePath(pathname!) : pathname!)
-    )
-
-    if (cleanPathname === '/404' || cleanPathname === '/_error') {
-      return parsedHref
-    }
-
-    // handle resolving href for dynamic routes
-    if (!pages.includes(cleanPathname!)) {
-      // eslint-disable-next-line array-callback-return
-      pages.some((page) => {
-        if (
-          isDynamicRoute(page) &&
-          getRouteRegex(page).re.test(cleanPathname!)
-        ) {
-          parsedHref.pathname = applyBasePath ? addBasePath(page) : page
-          return true
-        }
-      })
-    }
-    parsedHref.pathname = removePathTrailingSlash(parsedHref.pathname!)
-    return parsedHref
   }
 
   /**
@@ -1461,27 +1490,51 @@ export default class Router implements BaseRouter {
     }
 
     const pages = await this.pageLoader.getPageList()
+    let resolvedAs = asPath
 
-    parsed = this._resolveHref(parsed, pages, false) as typeof parsed
+    if (process.env.__NEXT_HAS_REWRITES && asPath.startsWith('/')) {
+      let rewrites: any
+      ;({ __rewrites: rewrites } = await getClientBuildManifest())
 
-    if (parsed.pathname !== pathname) {
-      pathname = parsed.pathname
-      url = formatWithValidation(parsed)
+      const rewritesResult = resolveRewrites(
+        addBasePath(addLocale(asPath, this.locale)),
+        pages,
+        rewrites,
+        parsed.query,
+        (p: string) => resolveDynamicRoute(p, pages),
+        this.locales
+      )
+      resolvedAs = delLocale(delBasePath(rewritesResult.asPath), this.locale)
+
+      if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
+        // if this directly matches a page we need to update the href to
+        // allow the correct page chunk to be loaded
+        pathname = rewritesResult.resolvedHref
+        parsed.pathname = pathname
+        url = formatWithValidation(parsed)
+      }
+    } else {
+      parsed.pathname = resolveDynamicRoute(parsed.pathname, pages)
+
+      if (parsed.pathname !== pathname) {
+        pathname = parsed.pathname
+        url = formatWithValidation(parsed)
+      }
     }
+    const route = removePathTrailingSlash(pathname)
 
     // Prefetch is not supported in development mode because it would trigger on-demand-entries
     if (process.env.NODE_ENV !== 'production') {
       return
     }
 
-    const route = removePathTrailingSlash(pathname)
     await Promise.all([
-      this.pageLoader._isSsg(url).then((isSsg: boolean) => {
+      this.pageLoader._isSsg(route).then((isSsg: boolean) => {
         return isSsg
           ? this._getStaticData(
               this.pageLoader.getDataHref(
                 url,
-                asPath,
+                resolvedAs,
                 true,
                 typeof options.locale !== 'undefined'
                   ? options.locale
@@ -1540,7 +1593,11 @@ export default class Router implements BaseRouter {
 
   _getStaticData(dataHref: string): Promise<object> {
     const { href: cacheKey } = new URL(dataHref, window.location.href)
-    if (process.env.NODE_ENV === 'production' && this.sdc[cacheKey]) {
+    if (
+      process.env.NODE_ENV === 'production' &&
+      !this.isPreview &&
+      this.sdc[cacheKey]
+    ) {
       return Promise.resolve(this.sdc[cacheKey])
     }
     return fetchNextData(dataHref, this.isSsr).then((data) => {
@@ -1550,7 +1607,19 @@ export default class Router implements BaseRouter {
   }
 
   _getServerData(dataHref: string): Promise<object> {
-    return fetchNextData(dataHref, this.isSsr)
+    const { href: resourceKey } = new URL(dataHref, window.location.href)
+    if (this.sdr[resourceKey]) {
+      return this.sdr[resourceKey]
+    }
+    return (this.sdr[resourceKey] = fetchNextData(dataHref, this.isSsr)
+      .then((data) => {
+        delete this.sdr[resourceKey]
+        return data
+      })
+      .catch((err) => {
+        delete this.sdr[resourceKey]
+        throw err
+      }))
   }
 
   getInitialProps(

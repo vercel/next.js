@@ -6,7 +6,7 @@
   ],
   "scripts": {
     "lerna": "lerna",
-    "dev": "lerna run build --stream --parallel",
+    "dev": "lerna run dev --stream --parallel",
     "dev2": "while true; do yarn --check-files && yarn dev; done",
     "testonly": "jest --runInBand",
     "testheadless": "cross-env HEADLESS=true yarn testonly",
@@ -34,7 +34,6 @@
     "publish-stable": "lerna version --force-publish",
     "lint-staged": "lint-staged",
     "next": "node --trace-deprecation packages/next/dist/bin/next",
-    "trace": "node --trace-deprecation -r ./bench/instrument.js packages/next/dist/bin/next",
     "debug": "node --inspect packages/next/dist/bin/next"
   },
   "pre-commit": "lint-staged",
@@ -44,11 +43,7 @@
     "@babel/preset-react": "7.12.10",
     "@fullhuman/postcss-purgecss": "1.3.0",
     "@mdx-js/loader": "0.18.0",
-    "@opentelemetry/exporter-zipkin": "0.14.0",
-    "@opentelemetry/node": "0.14.0",
-    "@opentelemetry/plugin-http": "0.14.0",
-    "@opentelemetry/plugin-https": "0.14.0",
-    "@opentelemetry/tracing": "0.14.0",
+    "@testing-library/react": "11.2.5",
     "@types/cheerio": "0.22.16",
     "@types/fs-extra": "8.1.0",
     "@types/http-proxy": "1.17.3",
@@ -64,7 +59,7 @@
     "async-sema": "3.0.1",
     "babel-core": "7.0.0-bridge.0",
     "babel-eslint": "10.0.3",
-    "babel-jest": "24.9.0",
+    "babel-jest": "27.0.0-next.5",
     "browserslist": "^4.14.7",
     "browserstack-local": "1.4.0",
     "cheerio": "0.22.0",
@@ -89,13 +84,13 @@
     "get-port": "5.1.1",
     "glob": "7.1.6",
     "gzip-size": "5.1.1",
+    "image-size": "0.9.3",
     "is-animated": "2.0.0",
     "isomorphic-unfetch": "3.0.0",
-    "jest-circus": "26.0.1",
-    "jest-cli": "24.9.0",
+    "jest-cli": "27.0.0-next.5",
     "ky": "0.19.1",
     "ky-universal": "0.6.0",
-    "lerna": "3.14.1",
+    "lerna": "4.0.0",
     "lint-staged": "10.1.7",
     "lost": "8.3.1",
     "minimatch": "3.0.4",
@@ -137,8 +132,8 @@
     "worker-loader": "3.0.7"
   },
   "resolutions": {
-    "browserslist": "^4.14.7",
-    "caniuse-lite": "^1.0.30001157"
+    "browserslist": "4.16.1",
+    "caniuse-lite": "1.0.30001179"
   },
   "engines": {
     "node": ">= 10.13.0"

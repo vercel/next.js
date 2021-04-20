@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
-const { relative, basename, resolve } = require('path')
+const { relative, basename, resolve, join, dirname } = require('path')
 const { Module } = require('module')
 
 // Note:
@@ -28,14 +28,18 @@ export async function next__polyfill_nomodule(task, opts) {
     .target('dist/build/polyfills')
 }
 
-export async function browser_polyfills(task) {
-  await task.parallel(['next__polyfill_nomodule'])
+export async function browser_polyfills(task, opts) {
+  await task.parallel(['next__polyfill_nomodule'], opts)
 }
 
 const externals = {
   // Browserslist (post-css plugins)
   browserslist: 'browserslist',
   'caniuse-lite': 'caniuse-lite', // FIXME: `autoprefixer` will still bundle this because it uses direct imports
+  'caniuse-lite/data/features/border-radius':
+    'caniuse-lite/data/features/border-radius',
+  'caniuse-lite/data/features/css-featurequeries.js':
+    'caniuse-lite/data/features/css-featurequeries',
 
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
@@ -62,6 +66,22 @@ export async function ncc_amphtml_validator(task, opts) {
     )
     .ncc({ packageName: 'amphtml-validator', externals })
     .target('compiled/amphtml-validator')
+}
+// eslint-disable-next-line camelcase
+externals['@ampproject/toolbox-optimizer'] =
+  'next/dist/compiled/@ampproject/toolbox-optimizer'
+export async function ncc_amp_optimizer(task, opts) {
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('@ampproject/toolbox-optimizer'))
+    )
+    .ncc({
+      externals,
+      precompiled: false,
+      packageName: '@ampproject/toolbox-optimizer',
+    })
+    .target('dist/compiled/@ampproject/toolbox-optimizer')
 }
 // eslint-disable-next-line camelcase
 externals['arg'] = 'distcompiled/arg'
@@ -94,8 +114,9 @@ export async function ncc_async_sema(task, opts) {
 // eslint-disable-next-line camelcase
 export async function ncc_babel_bundle(task, opts) {
   const bundleExternals = { ...externals }
-  for (const pkg of Object.keys(babelBundlePackages))
+  for (const pkg of Object.keys(babelBundlePackages)) {
     delete bundleExternals[pkg]
+  }
   await task
     .source(opts.src || 'bundles/babel/bundle.js')
     .ncc({
@@ -108,7 +129,18 @@ export async function ncc_babel_bundle(task, opts) {
 
 const babelBundlePackages = {
   'code-frame': 'next/dist/compiled/babel/code-frame',
+  '@babel/generator': 'next/dist/compiled/babel/generator',
+  '@babel/traverse': 'next/dist/compiled/babel/traverse',
   '@babel/core': 'next/dist/compiled/babel/core',
+  '@babel/core/lib/config': 'next/dist/compiled/babel/core-lib-config',
+  '@babel/core/lib/transformation/normalize-file':
+    'next/dist/compiled/babel/core-lib-normalize-config',
+  '@babel/core/lib/transformation/normalize-opts':
+    'next/dist/compiled/babel/core-lib-normalize-opts',
+  '@babel/core/lib/transformation/block-hoist-plugin':
+    'next/dist/compiled/babel/core-lib-block-hoisting-plugin',
+  '@babel/core/lib/transformation/plugin-pass':
+    'next/dist/compiled/babel/core-lib-plugin-pass',
   '@babel/plugin-proposal-class-properties':
     'next/dist/compiled/babel/plugin-proposal-class-properties',
   '@babel/plugin-proposal-export-namespace-from':
@@ -139,6 +171,14 @@ export async function ncc_babel_bundle_packages(task, opts) {
     .target('compiled/babel/')
 }
 
+// eslint-disable-next-line camelcase
+externals['bfj'] = 'next/dist/compiled/bfj'
+export async function ncc_bfj(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('bfj')))
+    .ncc({ packageName: 'bfj' })
+    .target('compiled/bfj')
+}
 // eslint-disable-next-line camelcase
 externals['cacache'] = 'next/dist/compiled/cacache'
 export async function ncc_cacache(task, opts) {
@@ -201,6 +241,21 @@ export async function ncc_cookie(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('cookie')))
     .ncc({ packageName: 'cookie', externals })
     .target('compiled/cookie')
+}
+// eslint-disable-next-line camelcase
+externals['css-loader'] = 'next/dist/compiled/css-loader'
+export async function ncc_css_loader(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('css-loader')))
+    .ncc({
+      packageName: 'css-loader',
+      externals: {
+        ...externals,
+        'schema-utils': 'next/dist/compiled/schema-utils',
+      },
+      target: 'es5',
+    })
+    .target('compiled/css-loader')
 }
 // eslint-disable-next-line camelcase
 externals['debug'] = 'next/dist/compiled/debug'
@@ -349,14 +404,6 @@ export async function ncc_lru_cache(task, opts) {
     .target('compiled/lru-cache')
 }
 // eslint-disable-next-line camelcase
-externals['mkdirp'] = 'next/dist/compiled/mkdirp'
-export async function ncc_mkdirp(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('mkdirp')))
-    .ncc({ packageName: 'mkdirp', externals })
-    .target('compiled/mkdirp')
-}
-// eslint-disable-next-line camelcase
 externals['nanoid'] = 'next/dist/compiled/nanoid'
 export async function ncc_nanoid(task, opts) {
   await task
@@ -431,6 +478,16 @@ export async function ncc_recast(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('recast')))
     .ncc({ packageName: 'recast', externals })
     .target('compiled/recast')
+}
+// eslint-disable-next-line camelcase
+externals['resolve-url-loader'] = 'next/dist/compiled/resolve-url-loader'
+export async function ncc_resolve_url_loader(task, opts) {
+  await task
+    .source(
+      opts.src || relative(__dirname, require.resolve('resolve-url-loader'))
+    )
+    .ncc({ packageName: 'resolve-url-loader', externals })
+    .target('compiled/resolve-url-loader')
 }
 // eslint-disable-next-line camelcase
 externals['sass-loader'] = 'next/dist/compiled/sass-loader'
@@ -630,8 +687,22 @@ export async function path_to_regexp(task, opts) {
     .target('dist/compiled/path-to-regexp')
 }
 
-export async function precompile(task) {
-  await task.parallel(['browser_polyfills', 'path_to_regexp', 'copy_ncced'])
+export async function copy_regexr_lexer(task, opts) {
+  await task
+    .source(
+      join(
+        relative(__dirname, dirname(require.resolve('regexr/package.json'))),
+        'lexer-dist/**/*'
+      )
+    )
+    .target('dist/compiled/regexr-lexer')
+}
+
+export async function precompile(task, opts) {
+  await task.parallel(
+    ['browser_polyfills', 'path_to_regexp', 'copy_ncced', 'copy_regexr_lexer'],
+    opts
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -641,91 +712,103 @@ export async function copy_ncced(task) {
   await task.source('compiled/**/*').target('dist/compiled')
 }
 
-export async function ncc(task) {
+export async function ncc(task, opts) {
   await task
     .clear('compiled')
-    .parallel([
-      'ncc_amphtml_validator',
-      'ncc_arg',
-      'ncc_async_retry',
-      'ncc_async_sema',
-      'ncc_babel_bundle',
-      'ncc_babel_bundle_packages',
-      'ncc_cacache',
-      'ncc_cache_loader',
-      'ncc_ci_info',
-      'ncc_comment_json',
-      'ncc_compression',
-      'ncc_conf',
-      'ncc_content_type',
-      'ncc_cookie',
-      'ncc_debug',
-      'ncc_devalue',
-      'ncc_escape_string_regexp',
-      'ncc_file_loader',
-      'ncc_find_cache_dir',
-      'ncc_find_up',
-      'ncc_fresh',
-      'ncc_gzip_size',
-      'ncc_http_proxy',
-      'ncc_ignore_loader',
-      'ncc_is_animated',
-      'ncc_is_docker',
-      'ncc_is_wsl',
-      'ncc_json5',
-      'ncc_jsonwebtoken',
-      'ncc_loader_utils',
-      'ncc_lodash_curry',
-      'ncc_lru_cache',
-      'ncc_mkdirp',
-      'ncc_nanoid',
-      'ncc_neo_async',
-      'ncc_ora',
-      'ncc_postcss_flexbugs_fixes',
-      'ncc_postcss_loader',
-      'ncc_postcss_preset_env',
-      'ncc_postcss_scss',
-      'ncc_recast',
-      'ncc_sass_loader',
-      'ncc_schema_utils',
-      'ncc_schema_utils3',
-      'ncc_semver',
-      'ncc_send',
-      'ncc_source_map',
-      'ncc_string_hash',
-      'ncc_strip_ansi',
-      'ncc_terser',
-      'ncc_text_table',
-      'ncc_thread_loader',
-      'ncc_unistore',
-      'ncc_web_vitals',
-      'ncc_webpack_bundle4',
-      'ncc_webpack_bundle5',
-      'ncc_webpack_bundle_packages',
-      'ncc_webpack_sources',
-      'ncc_webpack_sources2',
-    ])
+    .parallel(
+      [
+        'ncc_amphtml_validator',
+        'ncc_arg',
+        'ncc_async_retry',
+        'ncc_async_sema',
+        'ncc_babel_bundle',
+        'ncc_babel_bundle_packages',
+        'ncc_bfj',
+        'ncc_cacache',
+        'ncc_cache_loader',
+        'ncc_ci_info',
+        'ncc_comment_json',
+        'ncc_compression',
+        'ncc_conf',
+        'ncc_content_type',
+        'ncc_cookie',
+        'ncc_css_loader',
+        'ncc_debug',
+        'ncc_devalue',
+        'ncc_escape_string_regexp',
+        'ncc_file_loader',
+        'ncc_find_cache_dir',
+        'ncc_find_up',
+        'ncc_fresh',
+        'ncc_gzip_size',
+        'ncc_http_proxy',
+        'ncc_ignore_loader',
+        'ncc_is_animated',
+        'ncc_is_docker',
+        'ncc_is_wsl',
+        'ncc_json5',
+        'ncc_jsonwebtoken',
+        'ncc_loader_utils',
+        'ncc_lodash_curry',
+        'ncc_lru_cache',
+        'ncc_nanoid',
+        'ncc_neo_async',
+        'ncc_ora',
+        'ncc_postcss_flexbugs_fixes',
+        'ncc_postcss_loader',
+        'ncc_postcss_preset_env',
+        'ncc_postcss_scss',
+        'ncc_recast',
+        'ncc_resolve_url_loader',
+        'ncc_sass_loader',
+        'ncc_schema_utils',
+        'ncc_schema_utils3',
+        'ncc_semver',
+        'ncc_send',
+        'ncc_source_map',
+        'ncc_string_hash',
+        'ncc_strip_ansi',
+        'ncc_terser',
+        'ncc_text_table',
+        'ncc_thread_loader',
+        'ncc_unistore',
+        'ncc_web_vitals',
+        'ncc_webpack_bundle4',
+        'ncc_webpack_bundle5',
+        'ncc_webpack_bundle_packages',
+        'ncc_webpack_sources',
+        'ncc_webpack_sources2',
+      ],
+      opts
+    )
 }
 
-export async function compile(task) {
-  await task.parallel([
-    'cli',
-    'bin',
-    'server',
-    'nextbuild',
-    'nextbuildstatic',
-    'pages',
-    'lib',
-    'client',
-    'telemetry',
-    'nextserver',
-  ])
+export async function compile(task, opts) {
+  await task.parallel(
+    [
+      'cli',
+      'bin',
+      'server',
+      'nextbuild',
+      'nextbuildstatic',
+      'pages',
+      'lib',
+      'client',
+      'telemetry',
+      'nextserver',
+      'nextserver_wasm',
+      // we compile this each time so that fresh runtime data is pulled
+      // before each publish
+      'ncc_amp_optimizer',
+    ],
+    opts
+  )
 }
 
 export async function bin(task, opts) {
   await task
     .source(opts.src || 'bin/*')
-    .babel('server', { stripExtension: true })
+    .babel('server', { stripExtension: true, dev: opts.dev })
     .target('dist/bin', { mode: '0755' })
   notify('Compiled binaries')
 }
@@ -733,7 +816,7 @@ export async function bin(task, opts) {
 export async function cli(task, opts) {
   await task
     .source(opts.src || 'cli/**/*.+(js|ts|tsx)')
-    .babel('server')
+    .babel('server', { dev: opts.dev })
     .target('dist/cli')
   notify('Compiled cli files')
 }
@@ -741,7 +824,7 @@ export async function cli(task, opts) {
 export async function lib(task, opts) {
   await task
     .source(opts.src || 'lib/**/*.+(js|ts|tsx)')
-    .babel('server')
+    .babel('server', { dev: opts.dev })
     .target('dist/lib')
   notify('Compiled lib files')
 }
@@ -749,7 +832,7 @@ export async function lib(task, opts) {
 export async function server(task, opts) {
   await task
     .source(opts.src || 'server/**/*.+(js|ts|tsx)')
-    .babel('server')
+    .babel('server', { dev: opts.dev })
     .target('dist/server')
   notify('Compiled server files')
 }
@@ -757,7 +840,7 @@ export async function server(task, opts) {
 export async function nextbuild(task, opts) {
   await task
     .source(opts.src || 'build/**/*.+(js|ts|tsx)')
-    .babel('server')
+    .babel('server', { dev: opts.dev })
     .target('dist/build')
   notify('Compiled build files')
 }
@@ -765,7 +848,7 @@ export async function nextbuild(task, opts) {
 export async function client(task, opts) {
   await task
     .source(opts.src || 'client/**/*.+(js|ts|tsx)')
-    .babel('client')
+    .babel('client', { dev: opts.dev })
     .target('dist/client')
   notify('Compiled client files')
 }
@@ -774,60 +857,78 @@ export async function client(task, opts) {
 export async function nextbuildstatic(task, opts) {
   await task
     .source(opts.src || 'export/**/*.+(js|ts|tsx)')
-    .babel('server')
+    .babel('server', { dev: opts.dev })
     .target('dist/export')
   notify('Compiled export files')
 }
 
-export async function pages_app(task) {
-  await task.source('pages/_app.tsx').babel('client').target('dist/pages')
+export async function pages_app(task, opts) {
+  await task
+    .source('pages/_app.tsx')
+    .babel('client', { dev: opts.dev })
+    .target('dist/pages')
 }
 
-export async function pages_error(task) {
-  await task.source('pages/_error.tsx').babel('client').target('dist/pages')
+export async function pages_error(task, opts) {
+  await task
+    .source('pages/_error.tsx')
+    .babel('client', { dev: opts.dev })
+    .target('dist/pages')
 }
 
-export async function pages_document(task) {
-  await task.source('pages/_document.tsx').babel('server').target('dist/pages')
+export async function pages_document(task, opts) {
+  await task
+    .source('pages/_document.tsx')
+    .babel('server', { dev: opts.dev })
+    .target('dist/pages')
 }
 
-export async function pages(task, _opts) {
-  await task.parallel(['pages_app', 'pages_error', 'pages_document'])
+export async function pages(task, opts) {
+  await task.parallel(['pages_app', 'pages_error', 'pages_document'], opts)
 }
 
 export async function telemetry(task, opts) {
   await task
     .source(opts.src || 'telemetry/**/*.+(js|ts|tsx)')
-    .babel('server')
+    .babel('server', { dev: opts.dev })
     .target('dist/telemetry')
   notify('Compiled telemetry files')
 }
 
-export async function build(task) {
-  await task.serial(['precompile', 'compile'])
+export async function build(task, opts) {
+  await task.serial(['precompile', 'compile'], opts)
 }
 
 export default async function (task) {
+  const opts = { dev: true }
   await task.clear('dist')
-  await task.start('build')
-  await task.watch('bin/*', 'bin')
-  await task.watch('pages/**/*.+(js|ts|tsx)', 'pages')
-  await task.watch('server/**/*.+(js|ts|tsx)', 'server')
-  await task.watch('build/**/*.+(js|ts|tsx)', 'nextbuild')
-  await task.watch('export/**/*.+(js|ts|tsx)', 'nextbuildstatic')
-  await task.watch('client/**/*.+(js|ts|tsx)', 'client')
-  await task.watch('lib/**/*.+(js|ts|tsx)', 'lib')
-  await task.watch('cli/**/*.+(js|ts|tsx)', 'cli')
-  await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry')
-  await task.watch('next-server/**/*.+(js|ts|tsx)', 'nextserver')
+  await task.start('build', opts)
+  await task.watch('bin/*', 'bin', opts)
+  await task.watch('pages/**/*.+(js|ts|tsx)', 'pages', opts)
+  await task.watch('server/**/*.+(js|ts|tsx)', 'server', opts)
+  await task.watch('build/**/*.+(js|ts|tsx)', 'nextbuild', opts)
+  await task.watch('export/**/*.+(js|ts|tsx)', 'nextbuildstatic', opts)
+  await task.watch('client/**/*.+(js|ts|tsx)', 'client', opts)
+  await task.watch('lib/**/*.+(js|ts|tsx)', 'lib', opts)
+  await task.watch('cli/**/*.+(js|ts|tsx)', 'cli', opts)
+  await task.watch('telemetry/**/*.+(js|ts|tsx)', 'telemetry', opts)
+  await task.watch('next-server/**/*.+(js|ts|tsx)', 'nextserver', opts)
+  await task.watch('next-server/**/*.+(wasm)', 'nextserver_wasm', opts)
 }
 
 export async function nextserver(task, opts) {
   await task
     .source(opts.src || 'next-server/**/*.+(js|ts|tsx)')
-    .babel('server')
+    .babel('server', { dev: opts.dev })
     .target('dist/next-server')
   notify('Compiled server files')
+}
+
+export async function nextserver_wasm(task, opts) {
+  await task
+    .source(opts.src || 'next-server/**/*.+(wasm)')
+    .target('dist/next-server')
+  notify('Moved server wasm files')
 }
 
 export async function release(task) {

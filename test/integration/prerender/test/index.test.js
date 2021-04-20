@@ -1434,7 +1434,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
         }
       })
 
-      expect(manifest.version).toBe(2)
+      expect(manifest.version).toBe(3)
       expect(manifest.routes).toEqual(expectedManifestRoutes())
       expect(manifest.dynamicRoutes).toEqual({
         '/api-docs/[...slug]': {

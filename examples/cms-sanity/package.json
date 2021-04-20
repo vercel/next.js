@@ -8,10 +8,9 @@
   },
   "dependencies": {
     "@sanity/block-content-to-react": "2.0.7",
-    "@sanity/client": "1.149.2",
-    "@sanity/image-url": "0.140.17",
     "classnames": "2.2.6",
     "date-fns": "2.10.0",
+    "next-sanity": "0.1.5",
     "next": "latest",
     "react": "^16.13.0",
     "react-dom": "^16.13.0"

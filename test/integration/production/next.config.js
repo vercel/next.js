@@ -1,3 +1,6 @@
+// intervals/open connections shouldn't block build from exiting
+setInterval(() => {}, 250)
+
 module.exports = {
   onDemandEntries: {
     // Make sure entries are not getting disposed.

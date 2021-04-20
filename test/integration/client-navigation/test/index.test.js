@@ -550,6 +550,21 @@ describe('Client Navigation', () => {
   })
 
   describe('with hash changes', () => {
+    describe('check hydration mis-match', () => {
+      it('should not have hydration mis-match for hash link', async () => {
+        const browser = await webdriver(context.appPort, '/nav/hash-changes')
+        const browserLogs = await browser.log('browser')
+        let found = false
+        browserLogs.forEach((log) => {
+          console.log('log.message', log.message)
+          if (log.message.includes('Warning: Prop')) {
+            found = true
+          }
+        })
+        expect(found).toEqual(false)
+      })
+    })
+
     describe('when hash change via Link', () => {
       it('should not run getInitialProps', async () => {
         const browser = await webdriver(context.appPort, '/nav/hash-changes')
@@ -571,12 +586,12 @@ describe('Client Navigation', () => {
           browser = await webdriver(context.appPort, '/nav/hash-changes')
 
           // Scrolls to item 400 on the page
-          const scrollPosition = await browser
+          const scrollPositionBeforeEmptyHash = await browser
             .elementByCss('#scroll-to-item-400')
             .click()
             .eval('window.pageYOffset')
 
-          expect(scrollPosition).toBe(7258)
+          expect(scrollPositionBeforeEmptyHash).toBe(7258)
 
           // Scrolls back to top when scrolling to `#` with no value.
           const scrollPositionAfterEmptyHash = await browser
@@ -585,6 +600,22 @@ describe('Client Navigation', () => {
             .eval('window.pageYOffset')
 
           expect(scrollPositionAfterEmptyHash).toBe(0)
+
+          // Scrolls to item 400 on the page
+          const scrollPositionBeforeTopHash = await browser
+            .elementByCss('#scroll-to-item-400')
+            .click()
+            .eval('window.pageYOffset')
+
+          expect(scrollPositionBeforeTopHash).toBe(7258)
+
+          // Scrolls back to top when clicking link with href `#top`.
+          const scrollPositionAfterTopHash = await browser
+            .elementByCss('#via-top-hash')
+            .click()
+            .eval('window.pageYOffset')
+
+          expect(scrollPositionAfterTopHash).toBe(0)
         } finally {
           if (browser) {
             await browser.close()
@@ -838,6 +869,41 @@ describe('Client Navigation', () => {
       expect(getInitialPropsRunCount).toBe('getInitialProps run count: 2')
 
       await browser.close()
+    })
+
+    it('should keep the scroll position on shallow routing', async () => {
+      const browser = await webdriver(context.appPort, '/nav/shallow-routing')
+      await browser.eval(() =>
+        document.querySelector('#increase').scrollIntoView()
+      )
+      const scrollPosition = await browser.eval('window.pageYOffset')
+
+      expect(scrollPosition).toBeGreaterThan(3000)
+
+      await browser.elementByCss('#increase').click()
+      await waitFor(500)
+      const newScrollPosition = await browser.eval('window.pageYOffset')
+
+      expect(newScrollPosition).toBe(scrollPosition)
+
+      await browser.elementByCss('#increase2').click()
+      await waitFor(500)
+      const newScrollPosition2 = await browser.eval('window.pageYOffset')
+
+      expect(newScrollPosition2).toBe(0)
+
+      await browser.eval(() =>
+        document.querySelector('#invalidShallow').scrollIntoView()
+      )
+      const scrollPositionDown = await browser.eval('window.pageYOffset')
+
+      expect(scrollPositionDown).toBeGreaterThan(3000)
+
+      await browser.elementByCss('#invalidShallow').click()
+      await waitFor(500)
+      const newScrollPosition3 = await browser.eval('window.pageYOffset')
+
+      expect(newScrollPosition3).toBe(0)
     })
   })
 

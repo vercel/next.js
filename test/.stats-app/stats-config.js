@@ -12,7 +12,7 @@ const clientGlobs = [
   },
   {
     name: 'Client Pages',
-    globs: ['.next/static/*/pages/**/*'],
+    globs: ['.next/static/*/pages/**/*', '.next/static/css/**/*'],
   },
   {
     name: 'Client Build Manifests',
@@ -30,26 +30,17 @@ const renames = [
     dest: '.next/static/BUILD_ID/pages',
   },
   {
-    srcGlob: '.next/static/runtime/main-*',
-    dest: '.next/static/runtime/main-HASH.js',
+    srcGlob: '.next/static/*/pages/**/*',
+    removeHash: true,
   },
   {
-    srcGlob: '.next/static/runtime/webpack-*',
-    dest: '.next/static/runtime/webpack-HASH.js',
+    srcGlob: '.next/static/runtime/*',
+    removeHash: true,
   },
   {
-    srcGlob: '.next/static/runtime/polyfills-*',
-    dest: '.next/static/runtime/polyfills-HASH.js',
+    srcGlob: '.next/static/chunks/*',
+    removeHash: true,
   },
-  {
-    srcGlob: '.next/static/chunks/commons*',
-    dest: '.next/static/chunks/commons.HASH.js',
-  },
-  {
-    srcGlob: '.next/static/chunks/framework*',
-    dest: '.next/static/chunks/framework.HASH.js',
-  },
-  // misc
   {
     srcGlob: '.next/static/*/_buildManifest.js',
     dest: '.next/static/BUILD_ID/_buildManifest.js',
@@ -74,6 +65,9 @@ module.exports = {
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
+              future: {
+                webpack5: true
+              },
               webpack(config) {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
@@ -134,6 +128,58 @@ module.exports = {
           globs: ['.next/serverless/pages/**/*'],
         },
       ],
+    },
+    {
+      title: 'Webpack 4 Mode',
+      diff: 'onOutputChange',
+      diffConfigFiles: [
+        {
+          path: 'next.config.js',
+          content: `
+            module.exports = {
+              generateBuildId: () => 'BUILD_ID',
+              future: {
+                webpack5: false
+              },
+              webpack(config) {
+                config.optimization.minimize = false
+                config.optimization.minimizer = undefined
+                return config
+              }
+            }
+          `,
+        },
+      ],
+      renames,
+      configFiles: [
+        {
+          path: 'next.config.js',
+          content: `
+            module.exports = {
+              generateBuildId: () => 'BUILD_ID',
+              future: {
+                webpack5: false
+              }
+            }
+          `,
+        },
+      ],
+      filesToTrack: clientGlobs,
+      // will be output to fetched-pages/${pathname}.html
+      pagesToFetch: [
+        'http://localhost:$PORT/',
+        'http://localhost:$PORT/link',
+        'http://localhost:$PORT/withRouter',
+      ],
+      pagesToBench: [
+        'http://localhost:$PORT/',
+        'http://localhost:$PORT/error-in-render',
+      ],
+      benchOptions: {
+        reqTimeout: 60,
+        concurrency: 50,
+        numRequests: 2500,
+      },
     },
   ],
 }

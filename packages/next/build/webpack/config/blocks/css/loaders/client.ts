@@ -10,7 +10,7 @@ export function getClientStyleLoader({
 }): webpack.RuleSetUseItem {
   return isDevelopment
     ? {
-        loader: require.resolve('style-loader'),
+        loader: 'next-style-loader',
         options: {
           // By default, style-loader injects CSS into the bottom
           // of <head>. This causes ordering problems between dev
