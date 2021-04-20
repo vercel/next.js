@@ -239,6 +239,8 @@ export default async function getBaseWebpackConfig(
     '.babelrc.json',
     '.babelrc.js',
     'babel.config.js',
+    'babel.config.mjs',
+    'babel.config.cjs',
   ].reduce(async (memo: boolean | Promise<boolean>, filename) => {
     return (await memo) || (await fileExists(path.join(dir, filename)))
   }, false)
