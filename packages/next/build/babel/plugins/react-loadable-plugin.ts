@@ -29,6 +29,8 @@ import {
   types as BabelTypes,
 } from 'next/dist/compiled/babel/core'
 
+import { relative as relativePath } from 'path'
+
 export default function ({
   types: t,
 }: {
@@ -148,7 +150,12 @@ export default function ({
               dynamicKeys.push(
                 t.binaryExpression(
                   '+',
-                  t.stringLiteral(state.file.opts.filename + ' -> '),
+                  t.stringLiteral(
+                    relativePath(
+                      state.file.opts.caller.pagesDir,
+                      state.file.opts.filename
+                    ) + ' -> '
+                  ),
                   node
                 )
               )

@@ -1141,6 +1141,7 @@ export default async function getBaseWebpackConfig(
       !isServer &&
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
+          pagesDir,
         }),
       !isServer && new DropClientPage(),
       // Moment.js is an extremely popular library that bundles large locale files

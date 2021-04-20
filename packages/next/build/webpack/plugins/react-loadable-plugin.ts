@@ -27,6 +27,8 @@ import {
   sources,
 } from 'next/dist/compiled/webpack/webpack'
 
+import path from 'path'
+
 function getModuleId(compilation: any, module: any): string | number {
   if (isWebpack5) {
     return compilation.chunkGraph.getModuleId(module)
@@ -70,7 +72,8 @@ function getChunkGroupFromBlock(
 
 function buildManifest(
   _compiler: webpack.Compiler,
-  compilation: webpack.compilation.Compilation
+  compilation: webpack.compilation.Compilation,
+  pagesDir: string
 ) {
   let manifest: { [k: string]: { id: string | number; files: string[] } } = {}
 
@@ -102,7 +105,9 @@ function buildManifest(
         // We construct a "unique" key from origin module and request
         // It's not perfect unique, but that will be fine for us.
         // We also need to construct the same in the babel plugin.
-        const key = `${originRequest} -> ${dependency.request}`
+        const key = `${path.relative(pagesDir, originRequest)} -> ${
+          dependency.request
+        }`
 
         // Capture all files that need to be loaded.
         const files = new Set<string>()
@@ -159,13 +164,15 @@ function buildManifest(
 
 export class ReactLoadablePlugin {
   private filename: string
+  private pagesDir: string
 
-  constructor(opts: { filename: string }) {
+  constructor(opts: { filename: string; pagesDir: string }) {
     this.filename = opts.filename
+    this.pagesDir = opts.pagesDir
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
-    const manifest = buildManifest(compiler, compilation)
+    const manifest = buildManifest(compiler, compilation, this.pagesDir)
     // @ts-ignore: TODO: remove when webpack 5 is stable
     assets[this.filename] = new sources.RawSource(
       JSON.stringify(manifest, null, 2)
