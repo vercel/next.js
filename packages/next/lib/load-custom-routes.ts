@@ -174,10 +174,11 @@ function checkCustomRoutes(
   type: RouteType
 ): void {
   if (!Array.isArray(routes)) {
-    throw new Error(
-      `${type}s must return an array, received ${typeof routes}.\n` +
+    console.error(
+      `Error: ${type}s must return an array, received ${typeof routes}.\n` +
         `See here for more info: https://nextjs.org/docs/messages/routes-must-be-array`
     )
+    process.exit(1)
   }
 
   let numInvalidRoutes = 0
@@ -456,8 +457,10 @@ function checkCustomRoutes(
       )
     }
     console.error()
-
-    throw new Error(`Invalid ${type}${numInvalidRoutes === 1 ? '' : 's'} found`)
+    console.error(
+      `Error: Invalid ${type}${numInvalidRoutes === 1 ? '' : 's'} found`
+    )
+    process.exit(1)
   }
 }
 
