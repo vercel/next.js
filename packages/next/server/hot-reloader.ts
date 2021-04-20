@@ -26,9 +26,9 @@ import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypo
 import { isWriteable } from '../build/is-writeable'
 import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { stringify } from 'querystring'
-import { Rewrite } from '../lib/load-custom-routes'
 import { difference } from '../build/utils'
 import { NextConfig } from '../next-server/server/config'
+import { CustomRoutes } from '../lib/load-custom-routes'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -143,7 +143,8 @@ export default class HotReloader {
   private onDemandEntries: any
   private previewProps: __ApiPreviewProps
   private watcher: any
-  private rewrites: Rewrite[]
+  private rewrites: CustomRoutes['rewrites']
+  public isWebpack5: any
 
   constructor(
     dir: string,
@@ -158,7 +159,7 @@ export default class HotReloader {
       pagesDir: string
       buildId: string
       previewProps: __ApiPreviewProps
-      rewrites: Rewrite[]
+      rewrites: CustomRoutes['rewrites']
     }
   ) {
     this.buildId = buildId
@@ -173,6 +174,7 @@ export default class HotReloader {
     this.config = config
     this.previewProps = previewProps
     this.rewrites = rewrites
+    this.isWebpack5 = isWebpack5
   }
 
   public async run(

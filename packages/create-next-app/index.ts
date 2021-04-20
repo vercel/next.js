@@ -19,7 +19,7 @@ const program = new Commander.Command(packageJson.name)
   .action((name) => {
     projectPath = name
   })
-  .option('--use-npm')
+  .option('--use-npm', 'Explicitly tell the CLI to bootstrap the app using npm')
   .option(
     '-e, --example [name]|[github-url]',
     `

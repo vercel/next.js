@@ -6,6 +6,9 @@ import path from 'path'
 
 const cli = require.resolve('create-next-app/dist/index.js')
 
+const exampleRepo = 'https://github.com/vercel/next-learn-starter/tree/master'
+const examplePath = 'navigate-between-pages-starter'
+
 jest.setTimeout(1000 * 60 * 5)
 
 const run = (args, options) => execa('node', [cli].concat(args), options)
@@ -92,11 +95,7 @@ describe('create next app', () => {
     await usingTempDir(async (cwd) => {
       const projectName = 'github-app'
       const res = await run(
-        [
-          projectName,
-          '--example',
-          'https://github.com/zeit/next-learn-demo/tree/master/1-navigate-between-pages',
-        ],
+        [projectName, '--example', `${exampleRepo}/${examplePath}`],
         {
           cwd,
         }
@@ -108,9 +107,6 @@ describe('create next app', () => {
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/about.js'))
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
@@ -122,13 +118,7 @@ describe('create next app', () => {
     await usingTempDir(async (cwd) => {
       const projectName = 'github-example-path'
       const res = await run(
-        [
-          projectName,
-          '--example',
-          'https://github.com/zeit/next-learn-demo/tree/master',
-          '--example-path',
-          '1-navigate-between-pages',
-        ],
+        [projectName, '--example', exampleRepo, '--example-path', examplePath],
         {
           cwd,
         }
@@ -140,9 +130,6 @@ describe('create next app', () => {
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/about.js'))
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
@@ -157,9 +144,9 @@ describe('create next app', () => {
         [
           projectName,
           '--example',
-          'https://github.com/zeit/next-learn-demo/tree/master/1-navigate-between-pages',
+          `${exampleRepo}/${examplePath}`,
           '--example-path',
-          '1-navigate-between-pages',
+          examplePath,
         ],
         {
           cwd,
@@ -172,9 +159,6 @@ describe('create next app', () => {
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, 'pages/index.js'))
-      ).toBeTruthy()
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'pages/about.js'))
       ).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
@@ -270,6 +254,24 @@ describe('create next app', () => {
       expect(res.exitCode).toBe(0)
 
       const files = ['package.json', 'pages/index.js', '.gitignore']
+      files.forEach((file) =>
+        expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
+      )
+    })
+  })
+
+  it('should use npm as the package manager on supplying --use-npm', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'use-npm'
+      const res = await run([projectName, '--use-npm'], { cwd })
+      expect(res.exitCode).toBe(0)
+
+      const files = [
+        'package.json',
+        'pages/index.js',
+        '.gitignore',
+        'package-lock.json',
+      ]
       files.forEach((file) =>
         expect(fs.existsSync(path.join(cwd, projectName, file))).toBeTruthy()
       )

@@ -17,7 +17,7 @@ function ActiveLink({ children, href }) {
   const router = useRouter()
   const style = {
     marginRight: 10,
-    color: router.pathname === href ? 'red' : 'black',
+    color: router.asPath === href ? 'red' : 'black',
   }
 
   const handleClick = (e) => {
@@ -72,9 +72,8 @@ router.push(url, as, options)
 - `url` - The URL to navigate to
 - `as` - Optional decorator for the URL that will be shown in the browser. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked
 - `options` - Optional object with the following configuration options:
-  - `scroll`: Scroll to the top of the page after a navigation. Defaults to `true`
-  - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
   - `scroll` - Optional boolean, controls scrolling to the top of the page after navigation. Defaults to `true`
+  - [`shallow`](/docs/routing/shallow-routing.md): Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
 
 > You don't need to use `router.push` for external URLs. [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location) is better suited for those cases.
 
@@ -88,7 +87,11 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <span onClick={() => router.push('/about')}>Click me</span>
+  return (
+    <button type="button" onClick={() => router.push('/about')}>
+      Click me
+    </button>
+  )
 }
 ```
 
@@ -100,7 +103,11 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <span onClick={() => router.push('/post/abc')}>Click me</span>
+  return (
+    <button type="button" onClick={() => router.push('/post/abc')}>
+      Click me
+    </button>
+  )
 }
 ```
 
@@ -138,7 +145,8 @@ export default function ReadMore({ post }) {
   const router = useRouter()
 
   return (
-    <span
+    <button
+      type="button"
       onClick={() => {
         router.push({
           pathname: '/post/[pid]',
@@ -147,7 +155,7 @@ export default function ReadMore({ post }) {
       }}
     >
       Click here to read more
-    </span>
+    </button>
   )
 }
 ```
@@ -172,7 +180,11 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <span onClick={() => router.replace('/home')}>Click me</span>
+  return (
+    <button type="button" onClick={() => router.replace('/home')}>
+      Click me
+    </button>
+  )
 }
 ```
 
@@ -283,7 +295,11 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <span onClick={() => router.back()}>Click here to go back</span>
+  return (
+    <button type="button" onClick={() => router.back()}>
+      Click here to go back
+    </button>
+  )
 }
 ```
 
@@ -299,7 +315,11 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <span onClick={() => router.reload()}>Click here to reload</span>
+  return (
+    <button type="button" onClick={() => router.reload()}>
+      Click here to reload
+    </button>
+  )
 }
 ```
 
@@ -406,7 +426,7 @@ function Page({ router }) {
 export default withRouter(Page)
 ```
 
-### Typescript
+### TypeScript
 
 To use class components with `withRouter`, the component needs to accept a router prop:
 

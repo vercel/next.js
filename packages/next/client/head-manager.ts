@@ -48,7 +48,7 @@ function updateElements(type: string, components: JSX.Element[]): void {
   if (process.env.NODE_ENV !== 'production') {
     if (!headCountEl) {
       console.error(
-        'Warning: next-head-count is missing. https://err.sh/next.js/next-head-count-missing'
+        'Warning: next-head-count is missing. https://nextjs.org/docs/messages/next-head-count-missing'
       )
       return
     }

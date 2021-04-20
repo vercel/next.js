@@ -630,6 +630,31 @@ test('boundaries', async () => {
   await cleanup()
 })
 
+// https://github.com/vercel/next.js/pull/23203
+test('internal package errors', async () => {
+  const [session, cleanup] = await sandbox()
+
+  // Make a react build-time error.
+  await session.patch(
+    'index.js',
+    `
+      import * as React from 'react';
+      export default function FunctionNamed() {
+        return <div>{{}}</div>
+      }`
+  )
+
+  expect(await session.hasRedbox(true)).toBe(true)
+  // We internally only check the script path, not including the line number
+  // and error message because the error comes from an external library.
+  // This test ensures that the errored script path is correctly resolved.
+  expect(await session.getRedboxSource()).toContain(
+    `../../../../packages/next/dist/pages/_document.js`
+  )
+
+  await cleanup()
+})
+
 test('unterminated JSX', async () => {
   const [session, cleanup] = await sandbox()
 
@@ -1233,5 +1258,46 @@ test('<Link> component props errors', async () => {
     Open your browser's console to view the Component stack trace."
   `)
 
+  await cleanup()
+})
+
+test('_app top level error shows logbox', async () => {
+  const [session, cleanup] = await sandbox(
+    undefined,
+    new Map([
+      [
+        'pages/_app.js',
+        `
+          throw new Error("test");
+          function MyApp({ Component, pageProps }) {
+            return <Component {...pageProps} />;
+          }
+          export default MyApp
+        `,
+      ],
+    ])
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "pages/_app.js (2:16) @ eval
+
+        1 | 
+      > 2 |           throw new Error(\\"test\\");
+          |                ^
+        3 |           function MyApp({ Component, pageProps }) {
+        4 |             return <Component {...pageProps} />;
+        5 |           }"
+    `)
+
+  await session.patch(
+    'pages/_app.js',
+    `
+      function MyApp({ Component, pageProps }) {
+        return <Component {...pageProps} />;
+      }
+      export default MyApp
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
   await cleanup()
 })
