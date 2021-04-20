@@ -394,7 +394,7 @@ function assignDefaults(userConfig: { [key: string]: any }) {
   ) {
     console.warn(
       chalk.yellow.bold('Warning: ') +
-        'The "reactRoot" option defaulted to "true" based on your version of React. Please update your next.config.js if needed.'
+        'The "reactRoot" option defaulted to "true" based on your version of React. Please update your next.config.js.'
     )
     result.experimental.reactRoot = true
   }
