@@ -68,7 +68,6 @@ Let's transform the profile example to use [server-side rendering](/docs/basic-f
 // pages/profile.js
 
 import withSession from '../lib/session'
-import useUser from '../lib/useUser'
 import Layout from '../components/Layout'
 
 export const getServerSideProps = withSession(async function ({ req, res }) {
@@ -114,16 +113,14 @@ Now that we've discussed authentication patterns, let's look at specific provide
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-iron-session">with-iron-session</a></li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-next-auth">with-next-auth</a></li>
+    <li><a href="https://github.com/nextauthjs/next-auth-example">next-auth-example</a></li>
   </ul>
 </details>
 
 If you have an existing database with user data, you'll likely want to utilize an open-source solution that's provider agnostic.
 
-- If you need email/password log-in, use [`next-iron-session`](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session).
-- If you need to persist session data on the server, use [`next-auth`](https://github.com/vercel/next.js/tree/canary/examples/with-next-auth).
-- If you need to support social login (Google, Facebook, etc.), use [`next-auth`](https://github.com/vercel/next.js/tree/canary/examples/with-next-auth).
-- If you want to use [JWTs](https://jwt.io/), use [`next-auth`](https://github.com/vercel/next.js/tree/canary/examples/with-next-auth).
+- If you want a low-level, encrypted, and stateless session utility use [`next-iron-session`](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session).
+- If you want a full-featured authentication system with built-in providers (Google, Facebook, GitHub…), JWT, JWE, email/password, magic links and more… use [`next-auth`](https://github.com/nextauthjs/next-auth-example).
 
 Both of these libraries support either authentication pattern. If you're interested in [Passport](http://www.passportjs.org/), we also have examples for it using secure and encrypted cookies:
 
@@ -188,6 +185,18 @@ You can either use [FirebaseUI](https://github.com/firebase/firebaseui-web-react
 </details>
 
 [Userbase](https://userbase.com/) supports the static generation pattern for authentication. It's open source and allows for a high level of security with end-to-end encryption. You can learn more about it in their [official site](https://userbase.com/).
+
+### SuperTokens
+
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-supertokens">with-supertokens</a></li>
+  </ul>
+</details>
+
+[SuperTokens](https://supertokens.io) is a highly customizable, open-source solution split into modules (so you only use what you need).
+SuperTokens currently supports credentials login, email verification, password reset flows, and third-party logins.
 
 ## Related
 

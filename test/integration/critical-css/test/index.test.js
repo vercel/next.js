@@ -19,7 +19,7 @@ let app
 
 function runTests() {
   it('should inline critical CSS', async () => {
-    const html = await renderViaHTTP(appPort, '/index')
+    const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(
       /<link rel="stylesheet" href="\/_next\/static\/css\/.*\.css" .*>/
     )
@@ -27,7 +27,7 @@ function runTests() {
   })
 
   it('should not inline non-critical css', async () => {
-    const html = await renderViaHTTP(appPort, '/index')
+    const html = await renderViaHTTP(appPort, '/')
     expect(html).not.toMatch(/.extra-style/)
   })
 }

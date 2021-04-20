@@ -1,0 +1,27 @@
+{
+  "name": "portfolio",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next",
+    "build": "node ./scripts/gen-rss.js && next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.2",
+    "next": "latest",
+    "nextra": "^0.4.4",
+    "nextra-theme-blog": "^0.1.5",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "rss": "^1.2.2"
+  },
+  "prettier": {
+    "arrowParens": "always",
+    "singleQuote": true,
+    "tabWidth": 2,
+    "trailingComma": "none",
+    "semi": false
+  }
+}
