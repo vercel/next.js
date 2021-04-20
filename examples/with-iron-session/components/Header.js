@@ -42,12 +42,12 @@ const Header = () => {
                 <a
                   href="/api/logout"
                   onClick={async (e) => {
-                    e.preventDefault();
+                    e.preventDefault()
                     mutateUser(
-                      await fetchJson("/api/logout", { method: "POST" }),
-                      false,
-                    );
-                    router.push("/login");
+                      await fetchJson('/api/logout', { method: 'POST' }),
+                      false
+                    )
+                    router.push('/login')
                   }}
                 >
                   Logout
