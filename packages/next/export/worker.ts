@@ -17,6 +17,7 @@ import { requireFontManifest } from '../next-server/server/require'
 import { FontManifest } from '../next-server/server/font-utils'
 import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 import { trace } from '../telemetry/trace'
+import { isInAmpMode } from '../next-server/lib/amp'
 
 const envConfig = require('../next-server/lib/runtime-config')
 
@@ -67,8 +68,6 @@ interface RenderOpts {
   ampPath?: string
   ampValidatorPath?: string
   ampSkipValidation?: boolean
-  hybridAmp?: boolean
-  inAmpMode?: boolean
   optimizeFonts?: boolean
   optimizeImages?: boolean
   optimizeCss?: any
@@ -147,7 +146,10 @@ export default async function exportPage({
       }
 
       // Check if the page is a specified dynamic route
-      if (isDynamic && page !== path) {
+      const nonLocalizedPath = normalizeLocalePath(path, renderOpts.locales)
+        .pathname
+
+      if (isDynamic && page !== nonLocalizedPath) {
         params = getRouteMatcher(getRouteRegex(page))(updatedPath) || undefined
         if (params) {
           // we have to pass these separately for serverless
@@ -215,6 +217,8 @@ export default async function exportPage({
       let html
       let curRenderOpts: RenderOpts = {}
       let renderMethod = renderToHTML
+      let inAmpMode = false,
+        hybridAmp = false
 
       const renderedDuringBuild = (getStaticProps: any) => {
         return !buildExport && getStaticProps && !isDynamicRoute(path)
@@ -229,11 +233,18 @@ export default async function exportPage({
             ...query,
           },
         })
-        const { Component: mod, getServerSideProps } = await loadComponents(
-          distDir,
-          page,
-          serverless
-        )
+        const {
+          Component: mod,
+          getServerSideProps,
+          pageConfig,
+        } = await loadComponents(distDir, page, serverless)
+        const ampState = {
+          ampFirst: pageConfig?.amp === true,
+          hasQuery: Boolean(query.amp),
+          hybrid: pageConfig?.amp === 'hybrid',
+        }
+        inAmpMode = isInAmpMode(ampState)
+        hybridAmp = ampState.hybrid
 
         if (getServerSideProps) {
           throw new Error(
@@ -292,6 +303,13 @@ export default async function exportPage({
         }
       } else {
         const components = await loadComponents(distDir, page, serverless)
+        const ampState = {
+          ampFirst: components.pageConfig?.amp === true,
+          hasQuery: Boolean(query.amp),
+          hybrid: components.pageConfig?.amp === 'hybrid',
+        }
+        inAmpMode = isInAmpMode(ampState)
+        hybridAmp = ampState.hybrid
 
         if (components.getServerSideProps) {
           throw new Error(
@@ -371,11 +389,11 @@ export default async function exportPage({
         }
       }
 
-      if (curRenderOpts.inAmpMode && !curRenderOpts.ampSkipValidation) {
+      if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
         }
-      } else if (curRenderOpts.hybridAmp) {
+      } else if (hybridAmp) {
         // we need to render the AMP version
         let ampHtmlFilename = `${ampPath}${sep}index.html`
         if (!subFolders) {
@@ -433,7 +451,7 @@ export default async function exportPage({
           'utf8'
         )
 
-        if (curRenderOpts.hybridAmp) {
+        if (hybridAmp) {
           await promises.writeFile(
             dataFile.replace(/\.json$/, '.amp.json'),
             JSON.stringify((curRenderOpts as any).pageData),

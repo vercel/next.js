@@ -144,6 +144,7 @@ export default class HotReloader {
   private previewProps: __ApiPreviewProps
   private watcher: any
   private rewrites: CustomRoutes['rewrites']
+  public isWebpack5: any
 
   constructor(
     dir: string,
@@ -173,6 +174,7 @@ export default class HotReloader {
     this.config = config
     this.previewProps = previewProps
     this.rewrites = rewrites
+    this.isWebpack5 = isWebpack5
   }
 
   public async run(

@@ -8,6 +8,10 @@ import {
 } from '../next-server/lib/constants'
 import { execOnce } from '../next-server/lib/utils'
 import * as Log from '../build/output/log'
+// @ts-ignore
+import Lexer from 'next/dist/compiled/regexr-lexer/lexer'
+// @ts-ignore
+import lexerProfiles from 'next/dist/compiled/regexr-lexer/profiles'
 
 export type RouteHas =
   | {
@@ -170,10 +174,11 @@ function checkCustomRoutes(
   type: RouteType
 ): void {
   if (!Array.isArray(routes)) {
-    throw new Error(
-      `${type}s must return an array, received ${typeof routes}.\n` +
+    console.error(
+      `Error: ${type}s must return an array, received ${typeof routes}.\n` +
         `See here for more info: https://nextjs.org/docs/messages/routes-must-be-array`
     )
+    process.exit(1)
   }
 
   let numInvalidRoutes = 0
@@ -325,6 +330,30 @@ function checkCustomRoutes(
       }
       sourceTokens = tokens
     }
+    const hasSegments = new Set<string>()
+
+    if (route.has) {
+      for (const hasItem of route.has) {
+        if (!hasItem.value && hasItem.key) {
+          hasSegments.add(hasItem.key)
+        }
+
+        if (hasItem.value) {
+          const matcher = new RegExp(`^${hasItem.value}$`)
+          const lexer = new Lexer()
+          lexer.profile = lexerProfiles.js
+          lexer.parse(`/${matcher.source}/`)
+
+          Object.keys(lexer.namedGroups).forEach((groupKey) => {
+            hasSegments.add(groupKey)
+          })
+
+          if (hasItem.type === 'host') {
+            hasSegments.add('host')
+          }
+        }
+      }
+    }
 
     // make sure no unnamed patterns are attempted to be used in the
     // destination as this can cause confusion and is not allowed
@@ -369,7 +398,8 @@ function checkCustomRoutes(
             for (const token of destTokens!) {
               if (
                 typeof token === 'object' &&
-                !sourceSegments.has(token.name)
+                !sourceSegments.has(token.name) &&
+                !hasSegments.has(token.name as string)
               ) {
                 invalidDestSegments.add(token.name)
               }
@@ -377,7 +407,7 @@ function checkCustomRoutes(
 
             if (invalidDestSegments.size) {
               invalidParts.push(
-                `\`destination\` has segments not in \`source\` (${[
+                `\`destination\` has segments not in \`source\` or \`has\` (${[
                   ...invalidDestSegments,
                 ].join(', ')})`
               )
@@ -427,8 +457,10 @@ function checkCustomRoutes(
       )
     }
     console.error()
-
-    throw new Error(`Invalid ${type}${numInvalidRoutes === 1 ? '' : 's'} found`)
+    console.error(
+      `Error: Invalid ${type}${numInvalidRoutes === 1 ? '' : 's'} found`
+    )
+    process.exit(1)
   }
 }
 

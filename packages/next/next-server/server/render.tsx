@@ -165,13 +165,9 @@ export type RenderOptsPartial = {
   runtimeConfig?: { [key: string]: any }
   assetPrefix?: string
   err?: Error | null
-  autoExport?: boolean
   nextExport?: boolean
   dev?: boolean
-  ampMode?: any
   ampPath?: string
-  inAmpMode?: boolean
-  hybridAmp?: boolean
   ErrorDebug?: React.ComponentType<{ error: Error }>
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
@@ -261,6 +257,7 @@ function renderDocument(
     devOnlyCacheBusterQueryString: string
     scriptLoader: any
     isPreview?: boolean
+    autoExport?: boolean
   }
 ): string {
   return (
@@ -486,6 +483,13 @@ export async function renderToHTML(
     throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
   }
 
+  if (getStaticPaths && !pageIsDynamic) {
+    throw new Error(
+      `getStaticPaths is only allowed for dynamic SSG pages and was found on '${pathname}'.` +
+        `\nRead more: https://nextjs.org/docs/messages/non-dynamic-getstaticpaths-usage`
+    )
+  }
+
   if (!!getStaticPaths && !isSSG) {
     throw new Error(
       `getStaticPaths was added without a getStaticProps in ${pathname}. Without getStaticProps, getStaticPaths does nothing`
@@ -498,6 +502,8 @@ export async function renderToHTML(
         `\nRead more: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
     )
   }
+
+  let asPath: string = renderOpts.resolvedAsPath || (req.url as string)
 
   if (dev) {
     const { isValidElementType } = require('react-is')
@@ -528,12 +534,11 @@ export async function renderToHTML(
             }
           : {}),
       }
-      renderOpts.resolvedAsPath = `${pathname}${
+      asPath = `${pathname}${
         // ensure trailing slash is present for non-dynamic auto-export pages
         req.url!.endsWith('/') && pathname !== '/' && !pageIsDynamic ? '/' : ''
       }`
       req.url = pathname
-      renderOpts.nextExport = true
     }
 
     if (pathname === '/404' && (hasPageGetInitialProps || getServerSideProps)) {
@@ -550,8 +555,6 @@ export async function renderToHTML(
       )
     }
   }
-  if (isAutoExport) renderOpts.autoExport = true
-  if (isSSG) renderOpts.nextExport = false
 
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
@@ -567,7 +570,6 @@ export async function renderToHTML(
   }
 
   // url will always be set
-  const asPath: string = renderOpts.resolvedAsPath || (req.url as string)
   const routerIsReady = !!(getServerSideProps || hasPageGetInitialProps)
   const router = new ServerRouter(
     pathname,
@@ -1038,11 +1040,9 @@ export async function renderToHTML(
   const dynamicImportsIds = [...dynamicImportIdsSet]
   const hybridAmp = ampState.hybrid
 
-  // update renderOpts so export knows current state
-  renderOpts.inAmpMode = inAmpMode
-  renderOpts.hybridAmp = hybridAmp
-
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
+  const nextExport =
+    !isSSG && (renderOpts.nextExport || (dev && (isAutoExport || isFallback)))
 
   let html = renderDocument(Document, {
     ...renderOpts,
@@ -1078,6 +1078,8 @@ export async function renderToHTML(
     devOnlyCacheBusterQueryString,
     scriptLoader,
     isPreview: isPreview === true ? true : undefined,
+    autoExport: isAutoExport === true ? true : undefined,
+    nextExport: nextExport === true ? true : undefined,
   })
 
   if (process.env.NODE_ENV !== 'production') {
