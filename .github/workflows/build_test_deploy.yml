@@ -175,7 +175,7 @@ jobs:
           key: ${{ github.sha }}
 
       - run: xvfb-run node run-tests.js test/integration/{fallback-modules,link-ref,production,basic,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
+        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testLegacyReact:
     name: React 16 + Webpack 4 (Basic, Production, Acceptance)
