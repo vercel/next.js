@@ -300,28 +300,26 @@ module.exports = {
 
 ### Incremental adoption of Next.js
 
-You can also make Next.js check the application routes before falling back to proxying to the previous website.
+You can also have Next.js fall back to proxying to an existing website after checking all Next.js routes.
 
 This way you don't have to change the rewrites configuration when migrating more pages to Next.js
 
 ```js
 module.exports = {
   async rewrites() {
-    return [
-      // we need to define a no-op rewrite to trigger checking
-      // all pages/static files before we attempt proxying
-      {
-        source: '/:path*',
-        destination: '/:path*',
-      },
-      {
-        source: '/:path*',
-        destination: `https://custom-routes-proxying-endpoint.vercel.app/:path*`,
-      },
-    ]
+    return {
+      fallback: [
+        {
+          source: '/:path*',
+          destination: `https://custom-routes-proxying-endpoint.vercel.app/:path*`,
+        },
+      ],
+    }
   },
 }
 ```
+
+See additional information on incremental adoption [in the docs here](https://nextjs.org/docs/migrating/incremental-adoption).
 
 ### Rewrites with basePath support
 
