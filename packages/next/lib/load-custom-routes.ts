@@ -8,7 +8,10 @@ import {
 } from '../next-server/lib/constants'
 import { execOnce } from '../next-server/lib/utils'
 import * as Log from '../build/output/log'
-import { getSafeParamName } from '../next-server/lib/router/utils/prepare-destination'
+// @ts-ignore
+import Lexer from 'next/dist/compiled/regexr-lexer/lexer'
+// @ts-ignore
+import lexerProfiles from 'next/dist/compiled/regexr-lexer/profiles'
 
 export type RouteHas =
   | {
@@ -171,10 +174,11 @@ function checkCustomRoutes(
   type: RouteType
 ): void {
   if (!Array.isArray(routes)) {
-    throw new Error(
-      `${type}s must return an array, received ${typeof routes}.\n` +
+    console.error(
+      `Error: ${type}s must return an array, received ${typeof routes}.\n` +
         `See here for more info: https://nextjs.org/docs/messages/routes-must-be-array`
     )
+    process.exit(1)
   }
 
   let numInvalidRoutes = 0
@@ -336,20 +340,16 @@ function checkCustomRoutes(
 
         if (hasItem.value) {
           const matcher = new RegExp(`^${hasItem.value}$`)
-          const matches = matcher.exec('')
+          const lexer = new Lexer()
+          lexer.profile = lexerProfiles.js
+          lexer.parse(`/${matcher.source}/`)
 
-          if (matches) {
-            if (matches.groups) {
-              Object.keys(matches.groups).forEach((groupKey) => {
-                const safeKey = getSafeParamName(groupKey)
+          Object.keys(lexer.namedGroups).forEach((groupKey) => {
+            hasSegments.add(groupKey)
+          })
 
-                if (safeKey && matches.groups![groupKey]) {
-                  hasSegments.add(safeKey)
-                }
-              })
-            } else {
-              hasSegments.add(hasItem.key || 'host')
-            }
+          if (hasItem.type === 'host') {
+            hasSegments.add('host')
           }
         }
       }
@@ -457,8 +457,10 @@ function checkCustomRoutes(
       )
     }
     console.error()
-
-    throw new Error(`Invalid ${type}${numInvalidRoutes === 1 ? '' : 's'} found`)
+    console.error(
+      `Error: Invalid ${type}${numInvalidRoutes === 1 ? '' : 's'} found`
+    )
+    process.exit(1)
   }
 }
 

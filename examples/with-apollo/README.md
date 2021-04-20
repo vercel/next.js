@@ -8,7 +8,7 @@ This example relies on [Prisma + Nexus](https://github.com/prisma-labs/nextjs-gr
 
 ## Demo
 
-[https://next-with-apollo.now.sh](https://next-with-apollo.now.sh)
+[https://next-with-apollo.vercel.app](https://next-with-apollo.vercel.app)
 
 ## Deploy your own
 

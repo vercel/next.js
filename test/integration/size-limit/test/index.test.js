@@ -66,6 +66,10 @@ describe('Production response size', () => {
   })
 
   it('should not increase the overall response size of default build', async () => {
+    if (process.env.NEXT_PRIVATE_SKIP_SIZE_TESTS) {
+      return
+    }
+
     const responseSizes = [
       baseResponseSize,
       ...(await getResponseSizes(scriptsUrls)),

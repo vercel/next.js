@@ -8,10 +8,12 @@
   },
   "dependencies": {
     "next": "latest",
-    "sass": "1.32.4",
     "react": "^16.7.0",
-    "react-dom": "^16.7.0",
-    "styled-jsx-plugin-sass": "1.0.0"
+    "react-dom": "^16.7.0"
+  },
+  "devDependencies": {
+    "sass": "^1.32.8",
+    "@styled-jsx/plugin-sass": "^3.0.0"
   },
   "license": "MIT"
 }
