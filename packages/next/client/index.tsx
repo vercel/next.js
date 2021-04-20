@@ -521,7 +521,14 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 }
 
 let reactRoot: any = null
-let shouldUseHydrate: boolean = typeof ReactDOM.hydrate === 'function'
+let shouldHydrate: boolean = typeof ReactDOM.hydrate === 'function'
+const createRootName =
+  typeof (ReactDOM as any).createRoot === 'function'
+    ? 'createRoot'
+    : typeof (ReactDOM as any).unstable_createRoot === 'function'
+    ? 'unstable_createRoot'
+    : undefined
+
 function renderReactElement(
   domEl: HTMLElement,
   fn: (cb: () => void) => JSX.Element
@@ -531,24 +538,18 @@ function renderReactElement(
     performance.mark('beforeRender')
   }
 
-  const reactEl = fn(
-    shouldUseHydrate ? markHydrateComplete : markRenderComplete
-  )
-  if (process.env.__NEXT_REACT_MODE !== 'legacy') {
-    if (!reactRoot) {
-      const opts = { hydrate: shouldUseHydrate }
-      reactRoot =
-        process.env.__NEXT_REACT_MODE === 'concurrent'
-          ? (ReactDOM as any).unstable_createRoot(domEl, opts)
-          : (ReactDOM as any).unstable_createBlockingRoot(domEl, opts)
-    }
+  const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
+  if (createRootName) {
+    reactRoot =
+      reactRoot ??
+      (ReactDOM as any)[createRootName](domEl, { hydrate: shouldHydrate })
+    shouldHydrate = false
     reactRoot.render(reactEl)
-    shouldUseHydrate = false
   } else {
     // The check for `.hydrate` is there to support React alternatives like preact
-    if (shouldUseHydrate) {
+    if (shouldHydrate) {
       ReactDOM.hydrate(reactEl, domEl)
-      shouldUseHydrate = false
+      shouldHydrate = false
     } else {
       ReactDOM.render(reactEl, domEl)
     }

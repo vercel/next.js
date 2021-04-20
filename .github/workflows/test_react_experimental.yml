@@ -29,7 +29,6 @@ jobs:
     # needs: build
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      NEXT_PRIVATE_REACT_MODE: concurrent
       HEADLESS: true
       NEXT_PRIVATE_SKIP_SIZE_TESTS: true
     strategy:
