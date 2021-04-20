@@ -245,8 +245,8 @@ function renderDocument(
     ampPath: string
     inAmpMode: boolean
     hybridAmp: boolean
-    dynamicImportsIds: string[]
-    dynamicImports: ManifestItem[]
+    dynamicImportsIds: (string | number)[]
+    dynamicImports: string[]
     headTags: any
     isFallback?: boolean
     gsp?: boolean
@@ -1023,21 +1023,20 @@ export async function renderToHTML(
     throw new Error(message)
   }
 
-  const dynamicImportIdsSet = new Set<string>()
-  const dynamicImports: ManifestItem[] = []
+  const dynamicImportsIds = new Set<string | number>()
+  const dynamicImports = new Set<string>()
 
   for (const mod of reactLoadableModules) {
-    const manifestItem: ManifestItem[] = reactLoadableManifest[mod]
+    const manifestItem: ManifestItem = reactLoadableManifest[mod]
 
     if (manifestItem) {
-      manifestItem.forEach((item) => {
-        dynamicImports.push(item)
-        dynamicImportIdsSet.add(item.id as string)
+      dynamicImportsIds.add(manifestItem.id)
+      manifestItem.files.forEach((item) => {
+        dynamicImports.add(item)
       })
     }
   }
 
-  const dynamicImportsIds = [...dynamicImportIdsSet]
   const hybridAmp = ampState.hybrid
 
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
@@ -1069,8 +1068,8 @@ export async function renderToHTML(
     query,
     inAmpMode,
     hybridAmp,
-    dynamicImportsIds,
-    dynamicImports,
+    dynamicImportsIds: Array.from(dynamicImportsIds),
+    dynamicImports: Array.from(dynamicImports),
     gsp: !!getStaticProps ? true : undefined,
     gssp: !!getServerSideProps ? true : undefined,
     gip: hasPageGetInitialProps ? true : undefined,

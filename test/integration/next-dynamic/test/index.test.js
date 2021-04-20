@@ -31,7 +31,7 @@ function runTests() {
     const text = await browser.elementByCss('#first-render').text()
 
     // Failure case is 'Index<!-- -->3<!-- --><!-- -->'
-    expect(text).toBe('Index<!-- -->1<!-- -->2<!-- -->3')
+    expect(text).toBe('Index<!-- -->1<!-- -->2<!-- -->3<!-- -->4<!-- -->4')
   })
 }
 
