@@ -1,20 +1,35 @@
 import chalk from 'chalk'
-import { runLintCheck } from './eslint/runLintCheck'
-import { CompileError } from './compile-error'
-import { FatalError } from './fatal-error'
+import { Worker } from 'jest-worker'
 
 export async function verifyAndLint(
   dir: string,
-  pagesDir: string
+  pagesDir: string,
+  numWorkers: number | undefined,
+  enableWorkerThreads: boolean | undefined
 ): Promise<void> {
   try {
-    console.log('\n' + (await runLintCheck(dir, pagesDir)))
+    const lintWorkers = new Worker(require.resolve('./eslint/runLintCheck'), {
+      numWorkers,
+      enableWorkerThreads,
+    }) as Worker & {
+      runLintCheck: typeof import('./eslint/runLintCheck').runLintCheck
+    }
+
+    lintWorkers.getStdout().pipe(process.stdout)
+    lintWorkers.getStderr().pipe(process.stderr)
+
+    const lintResults = await lintWorkers.runLintCheck(dir, pagesDir)
+    if (lintResults) {
+      console.log(`\n${lintResults}`)
+    }
+
+    lintWorkers.end()
   } catch (err) {
-    if (err instanceof CompileError) {
+    if (err.type === 'CompileError') {
       console.error(chalk.red('Failed to compile.'))
       console.error(err.message)
       process.exit(1)
-    } else if (err instanceof FatalError) {
+    } else if (err.type === 'FatalError') {
       console.error(err.message)
       process.exit(1)
     }
