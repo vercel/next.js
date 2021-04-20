@@ -91,6 +91,7 @@ import { detectDomainLocale } from '../lib/i18n/detect-domain-locale'
 import cookie from 'next/dist/compiled/cookie'
 import escapePathDelimiters from '../lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../../build/webpack/loaders/next-serverless-loader/utils'
+import { PreviewData } from 'next/types'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -1460,7 +1461,7 @@ export default class Server {
     const { i18n } = this.nextConfig
     const locales = i18n?.locales
 
-    let previewData: string | false | object | undefined
+    let previewData: PreviewData
     let isPreviewMode = false
 
     if (hasServerProps || isSSG) {
