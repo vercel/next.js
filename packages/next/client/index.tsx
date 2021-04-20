@@ -522,12 +522,6 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 
 let reactRoot: any = null
 let shouldHydrate: boolean = typeof ReactDOM.hydrate === 'function'
-const createRootName =
-  typeof (ReactDOM as any).createRoot === 'function'
-    ? 'createRoot'
-    : typeof (ReactDOM as any).unstable_createRoot === 'function'
-    ? 'unstable_createRoot'
-    : undefined
 
 function renderReactElement(
   domEl: HTMLElement,
@@ -539,7 +533,11 @@ function renderReactElement(
   }
 
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
-  if (createRootName) {
+  if (process.env.__NEXT_REACT_ROOT) {
+    const createRootName =
+      typeof (ReactDOM as any).unstable_createRoot === 'function'
+        ? 'unstable_createRoot'
+        : 'createRoot'
     reactRoot =
       reactRoot ??
       (ReactDOM as any)[createRootName](domEl, { hydrate: shouldHydrate })

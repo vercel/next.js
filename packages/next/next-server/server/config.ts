@@ -9,6 +9,7 @@ import { defaultConfig, normalizeConfig } from './config-shared'
 import { loadWebpackHook } from './config-utils'
 import { ImageConfig, imageConfigDefault, VALID_LOADERS } from './image-config'
 import { loadEnvConfig } from '@next/env'
+import ReactDOM from 'react'
 
 export { DomainLocales, NextConfig, normalizeConfig } from './config-shared'
 
@@ -384,6 +385,18 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         `Specified i18n.localeDetection should be undefined or a boolean received ${localeDetectionType}.\nSee more info here: https://nextjs.org/docs/messages/invalid-i18n-config`
       )
     }
+  }
+
+  if (
+    typeof userConfig.experimental?.reactRoot === 'undefined' &&
+    (typeof (ReactDOM as any).createRoot === 'function' ||
+      typeof (ReactDOM as any).unstable_createRoot === 'function')
+  ) {
+    console.warn(
+      chalk.yellow.bold('Warning: ') +
+        'The "reactRoot" option defaults to true based on your version of React. Please update your next.config.js if needed.'
+    )
+    result.experimental.reactRoot = true
   }
 
   return result
