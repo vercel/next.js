@@ -257,7 +257,7 @@ export default function (render, fetch, ctx) {
       )
 
       const expectedErrorMessage =
-        '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://err.sh/vercel/next.js/get-initial-props-as-an-instance-method for more information.'
+        '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.'
 
       expect(await hasRedbox(browser)).toBe(true)
       const text = await getRedboxHeader(browser)

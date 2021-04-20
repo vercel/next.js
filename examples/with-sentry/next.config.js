@@ -6,15 +6,8 @@ const {
   SENTRY_PROJECT,
   SENTRY_AUTH_TOKEN,
   NODE_ENV,
-  VERCEL_GITHUB_COMMIT_SHA,
-  VERCEL_GITLAB_COMMIT_SHA,
-  VERCEL_BITBUCKET_COMMIT_SHA,
+  VERCEL_GIT_COMMIT_SHA,
 } = process.env
-
-const COMMIT_SHA =
-  VERCEL_GITHUB_COMMIT_SHA ||
-  VERCEL_GITLAB_COMMIT_SHA ||
-  VERCEL_BITBUCKET_COMMIT_SHA
 
 process.env.SENTRY_DSN = SENTRY_DSN
 const basePath = ''
@@ -25,7 +18,7 @@ module.exports = {
     // Make the COMMIT_SHA available to the client so that Sentry events can be
     // marked for the release they belong to. It may be undefined if running
     // outside of Vercel
-    NEXT_PUBLIC_COMMIT_SHA: COMMIT_SHA,
+    NEXT_PUBLIC_COMMIT_SHA: VERCEL_GIT_COMMIT_SHA,
   },
   webpack: (config, options) => {
     // In `pages/_app.js`, Sentry is imported from @sentry/browser. While
@@ -66,7 +59,7 @@ module.exports = {
       SENTRY_ORG &&
       SENTRY_PROJECT &&
       SENTRY_AUTH_TOKEN &&
-      COMMIT_SHA &&
+      VERCEL_GIT_COMMIT_SHA &&
       NODE_ENV === 'production'
     ) {
       config.plugins.push(
@@ -75,7 +68,7 @@ module.exports = {
           ignore: ['node_modules'],
           stripPrefix: ['webpack://_N_E/'],
           urlPrefix: `~${basePath}/_next`,
-          release: COMMIT_SHA,
+          release: VERCEL_GIT_COMMIT_SHA,
         })
       )
     }
