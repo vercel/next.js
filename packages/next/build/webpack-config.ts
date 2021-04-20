@@ -238,6 +238,8 @@ export default async function getBaseWebpackConfig(
     '.babelrc',
     '.babelrc.json',
     '.babelrc.js',
+    '.babelrc.mjs',
+    '.babelrc.cjs',
     'babel.config.js',
     'babel.config.json',
     'babel.config.mjs',
