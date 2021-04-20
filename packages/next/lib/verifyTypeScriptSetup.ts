@@ -6,7 +6,7 @@ import {
   hasNecessaryDependencies,
   NecessaryDependencies,
 } from './typescript/hasNecessaryDependencies'
-import { runTypeCheck, TypeCheckResult } from './typescript/runTypeCheck'
+import type { TypeCheckResult } from './typescript/runTypeCheck'
 import { TypeScriptCompileError } from './typescript/TypeScriptCompileError'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
@@ -41,6 +41,8 @@ export async function verifyTypeScriptSetup(
     await writeAppTypeDeclarations(dir)
 
     if (typeCheckPreflight) {
+      const { runTypeCheck } = require('./typescript/runTypeCheck')
+
       // Verify the project passes type-checking before we go to webpack phase:
       return await runTypeCheck(ts, dir, tsConfigPath)
     }

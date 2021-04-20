@@ -8,13 +8,13 @@
   },
   "dependencies": {
     "@chakra-ui/icons": "^1.0.0",
-    "@chakra-ui/react": "^1.0.0",
+    "@chakra-ui/react": "^1.4.2",
     "@emotion/react": "^11.0.0",
     "@emotion/styled": "^11.0.0",
-    "framer-motion": "^2.9.4",
+    "framer-motion": "^4.0.3",
     "next": "latest",
-    "react": "^17.0.1",
-    "react-dom": "^17.0.1"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   },
   "license": "MIT"
 }

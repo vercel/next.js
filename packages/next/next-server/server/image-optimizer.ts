@@ -194,13 +194,14 @@ export async function imageOptimizer(
       maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
     } else {
       try {
-        const _req: any = {
-          headers: req.headers,
-          method: req.method,
-          url: href,
-        }
         const resBuffers: Buffer[] = []
         const mockRes: any = new Stream.Writable()
+
+        const isStreamFinished = new Promise(function (resolve, reject) {
+          mockRes.on('finish', () => resolve(true))
+          mockRes.on('end', () => resolve(true))
+          mockRes.on('error', () => reject())
+        })
 
         mockRes.write = (chunk: Buffer | string) => {
           resBuffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
@@ -222,11 +223,24 @@ export async function imageOptimizer(
         mockRes.finished = false
         mockRes.statusCode = 200
 
+        const mockReq: any = new Stream.Readable()
+
+        mockReq._read = () => {
+          mockReq.emit('end')
+          mockReq.emit('close')
+          return Buffer.from('')
+        }
+
+        mockReq.headers = req.headers
+        mockReq.method = req.method
+        mockReq.url = href
+
         await server.getRequestHandler()(
-          _req,
+          mockReq,
           mockRes,
           nodeUrl.parse(href, true)
         )
+        await isStreamFinished
         res.statusCode = mockRes.statusCode
 
         upstreamBuffer = Buffer.concat(resBuffers)
