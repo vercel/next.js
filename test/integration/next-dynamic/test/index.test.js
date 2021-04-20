@@ -32,6 +32,7 @@ function runTests() {
 
     // Failure case is 'Index<!-- -->3<!-- --><!-- -->'
     expect(text).toBe('Index<!-- -->1<!-- -->2<!-- -->3<!-- -->4<!-- -->4')
+    expect(await browser.eval('window.caughtErrors')).toBe('')
   })
 }
 
