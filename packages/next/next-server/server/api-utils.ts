@@ -2,7 +2,7 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import getRawBody from 'raw-body'
-import { PageConfig } from 'next/types'
+import { PageConfig, PreviewData } from 'next/types'
 import { Stream } from 'stream'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
@@ -292,7 +292,7 @@ export function tryGetPreviewData(
   req: IncomingMessage,
   res: ServerResponse,
   options: __ApiPreviewProps
-): object | string | false {
+): PreviewData {
   // Read cached preview data if present
   if (SYMBOL_PREVIEW_DATA in req) {
     return (req as any)[SYMBOL_PREVIEW_DATA] as any

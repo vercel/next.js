@@ -15,7 +15,7 @@ import {
   UNSTABLE_REVALIDATE_RENAME_ERROR,
 } from '../../lib/constants'
 import { isSerializableProps } from '../../lib/is-serializable-props'
-import { GetServerSideProps, GetStaticProps } from '../../types'
+import { GetServerSideProps, GetStaticProps, PreviewData } from '../../types'
 import { isInAmpMode } from '../lib/amp'
 import { AmpStateContext } from '../lib/amp-context'
 import {
@@ -559,7 +559,7 @@ export async function renderToHTML(
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   let isPreview
-  let previewData: string | false | object | undefined
+  let previewData: PreviewData
 
   if ((isSSG || getServerSideProps) && !isFallback) {
     // Reads of this are cached on the `req` object, so this should resolve

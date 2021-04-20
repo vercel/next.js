@@ -7,6 +7,7 @@ import { NextRouter } from './router/router'
 import { Env } from '@next/env'
 import { BuildManifest } from '../server/get-page-files'
 import { DomainLocales } from '../server/config'
+import { PreviewData } from 'next/types'
 
 /**
  * Types used by both next and next-server
@@ -219,7 +220,7 @@ export interface NextApiRequest extends IncomingMessage {
   /**
    * Preview data set on the request, if any
    * */
-  previewData?: any
+  previewData?: PreviewData
 }
 
 /**
