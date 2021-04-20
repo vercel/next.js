@@ -4,7 +4,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-### [https://next-blog-wordpress.now.sh](https://next-blog-wordpress.now.sh)
+### [https://next-blog-wordpress.vercel.app](https://next-blog-wordpress.vercel.app)
 
 ## Deploy your own
 
@@ -26,6 +26,7 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 - [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
+- [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use

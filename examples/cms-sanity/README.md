@@ -4,7 +4,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-### [https://next-blog-sanity.now.sh/](https://next-blog-sanity.now.sh/)
+### [https://next-blog-sanity.vercel.app/](https://next-blog-sanity.vercel.app/)
 
 ## Deploy your own
 
@@ -26,6 +26,7 @@ Once you have access to [the environment variables you'll need](#step-4-set-up-e
 - [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
+- [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use
@@ -69,6 +70,7 @@ cp .env.local.example .env.local
 Then set each variable on `.env.local`:
 
 - `NEXT_PUBLIC_SANITY_PROJECT_ID` should be the `projectId` value from the `sanity.json` file created in step 2.
+- `NEXT_PUBLIC_SANITY_DATASET` should be the `dataset` value from the `sanity.json` file created in step 2 - defaults to `production` if not set.
 - `SANITY_API_TOKEN` should be the API token generated in the previous step.
 - `SANITY_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 
@@ -76,6 +78,7 @@ Your `.env.local` file should look like this:
 
 ```bash
 NEXT_PUBLIC_SANITY_PROJECT_ID=...
+NEXT_PUBLIC_SANITY_DATASET=...
 SANITY_API_TOKEN=...
 SANITY_PREVIEW_SECRET=...
 ```

@@ -21,9 +21,11 @@ import {
   NEXT_DATA,
   ST,
 } from '../next-server/lib/utils'
+import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader, { StyleSheetTuple } from './page-loader'
 import measureWebVitals from './performance-relayer'
+import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 
 /// <reference types="react-dom/experimental" />
@@ -71,6 +73,7 @@ const {
   locale,
   locales,
   domainLocales,
+  isPreview,
 } = data
 
 let { defaultLocale } = data
@@ -138,6 +141,11 @@ if (process.env.__NEXT_I18N_SUPPORT) {
   }
 }
 
+if (process.env.__NEXT_SCRIPT_LOADER && data.scriptLoader) {
+  const { initScriptLoader } = require('./experimental-script')
+  initScriptLoader(data.scriptLoader)
+}
+
 type RegisterFn = (input: [string, () => void]) => void
 
 const pageLoader: PageLoader = new PageLoader(buildId, prefix)
@@ -178,10 +186,24 @@ class Container extends React.Component<{
     // - if it is a client-side skeleton (fallback render)
     if (
       router.isSsr &&
+      // We don't update for 404 requests as this can modify
+      // the asPath unexpectedly e.g. adding basePath when
+      // it wasn't originally present
+      page !== '/404' &&
+      !(
+        page === '/_error' &&
+        hydrateProps &&
+        hydrateProps.pageProps &&
+        hydrateProps.pageProps.statusCode === 404
+      ) &&
       (isFallback ||
         (data.nextExport &&
-          (isDynamicRoute(router.pathname) || location.search)) ||
-        (hydrateProps && hydrateProps.__N_SSG && location.search))
+          (isDynamicRoute(router.pathname) ||
+            location.search ||
+            process.env.__NEXT_HAS_REWRITES)) ||
+        (hydrateProps &&
+          hydrateProps.__N_SSG &&
+          (location.search || process.env.__NEXT_HAS_REWRITES)))
     ) {
       // update query on mount for exported pages
       router.replace(
@@ -246,50 +268,49 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     webpackHMR = opts.webpackHMR
   }
 
-  const appEntrypoint = await pageLoader.routeLoader.whenEntrypoint('/_app')
-  if ('error' in appEntrypoint) {
-    throw appEntrypoint.error
-  }
-
-  const { component: app, exports: mod } = appEntrypoint
-  CachedApp = app as AppComponent
-
-  if (mod && mod.reportWebVitals) {
-    onPerfEntry = ({
-      id,
-      name,
-      startTime,
-      value,
-      duration,
-      entryType,
-      entries,
-    }): void => {
-      // Combines timestamp with random number for unique ID
-      const uniqueID: string = `${Date.now()}-${
-        Math.floor(Math.random() * (9e12 - 1)) + 1e12
-      }`
-      let perfStartEntry: string | undefined
-
-      if (entries && entries.length) {
-        perfStartEntry = entries[0].startTime
-      }
-
-      mod.reportWebVitals({
-        id: id || uniqueID,
-        name,
-        startTime: startTime || perfStartEntry,
-        value: value == null ? duration : value,
-        label:
-          entryType === 'mark' || entryType === 'measure'
-            ? 'custom'
-            : 'web-vital',
-      })
-    }
-  }
-
   let initialErr = hydrateErr
 
   try {
+    const appEntrypoint = await pageLoader.routeLoader.whenEntrypoint('/_app')
+    if ('error' in appEntrypoint) {
+      throw appEntrypoint.error
+    }
+
+    const { component: app, exports: mod } = appEntrypoint
+    CachedApp = app as AppComponent
+    if (mod && mod.reportWebVitals) {
+      onPerfEntry = ({
+        id,
+        name,
+        startTime,
+        value,
+        duration,
+        entryType,
+        entries,
+      }): void => {
+        // Combines timestamp with random number for unique ID
+        const uniqueID: string = `${Date.now()}-${
+          Math.floor(Math.random() * (9e12 - 1)) + 1e12
+        }`
+        let perfStartEntry: string | undefined
+
+        if (entries && entries.length) {
+          perfStartEntry = entries[0].startTime
+        }
+
+        mod.reportWebVitals({
+          id: id || uniqueID,
+          name,
+          startTime: startTime || perfStartEntry,
+          value: value == null ? duration : value,
+          label:
+            entryType === 'mark' || entryType === 'measure'
+              ? 'custom'
+              : 'web-vital',
+        })
+      }
+    }
+
     const pageEntrypoint =
       // The dev server fails to serve script assets when there's a hydration
       // error, so we need to skip waiting for the entrypoint.
@@ -375,6 +396,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     locales,
     defaultLocale,
     domainLocales,
+    isPreview,
   })
 
   // call init-client middleware
@@ -500,28 +522,35 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 
 let reactRoot: any = null
 let shouldUseHydrate: boolean = typeof ReactDOM.hydrate === 'function'
-function renderReactElement(reactEl: JSX.Element, domEl: HTMLElement): void {
+function renderReactElement(
+  domEl: HTMLElement,
+  fn: (cb: () => void) => JSX.Element
+): void {
+  // mark start of hydrate/render
+  if (ST) {
+    performance.mark('beforeRender')
+  }
+
+  const reactEl = fn(
+    shouldUseHydrate ? markHydrateComplete : markRenderComplete
+  )
   if (process.env.__NEXT_REACT_MODE !== 'legacy') {
     if (!reactRoot) {
-      const opts = { hydrate: true }
+      const opts = { hydrate: shouldUseHydrate }
       reactRoot =
         process.env.__NEXT_REACT_MODE === 'concurrent'
           ? (ReactDOM as any).unstable_createRoot(domEl, opts)
           : (ReactDOM as any).unstable_createBlockingRoot(domEl, opts)
     }
     reactRoot.render(reactEl)
+    shouldUseHydrate = false
   } else {
-    // mark start of hydrate/render
-    if (ST) {
-      performance.mark('beforeRender')
-    }
-
     // The check for `.hydrate` is there to support React alternatives like preact
     if (shouldUseHydrate) {
-      ReactDOM.hydrate(reactEl, domEl, markHydrateComplete)
+      ReactDOM.hydrate(reactEl, domEl)
       shouldUseHydrate = false
     } else {
-      ReactDOM.render(reactEl, domEl, markRenderComplete)
+      ReactDOM.render(reactEl, domEl)
     }
   }
 }
@@ -772,39 +801,45 @@ function doRender(input: RenderRouteInfo): Promise<any> {
     resolvePromise()
   }
 
+  onStart()
+
   const elem: JSX.Element = (
-    <Root callback={onRootCommit}>
+    <>
       <Head callback={onHeadCommit} />
       <AppContainer>
         <App {...appProps} />
+        <Portal type="next-route-announcer">
+          <RouteAnnouncer />
+        </Portal>
       </AppContainer>
-    </Root>
+    </>
   )
-
-  onStart()
 
   // We catch runtime errors using componentDidCatch which will trigger renderError
-  renderReactElement(
-    process.env.__NEXT_STRICT_MODE ? (
-      <React.StrictMode>{elem}</React.StrictMode>
-    ) : (
-      elem
-    ),
-    appElement!
-  )
+  renderReactElement(appElement!, (callback) => (
+    <Root callbacks={[callback, onRootCommit]}>
+      {process.env.__NEXT_STRICT_MODE ? (
+        <React.StrictMode>{elem}</React.StrictMode>
+      ) : (
+        elem
+      )}
+    </Root>
+  ))
 
   return renderPromise
 }
 
 function Root({
-  callback,
+  callbacks,
   children,
 }: React.PropsWithChildren<{
-  callback: () => void
+  callbacks: Array<() => void>
 }>): React.ReactElement {
-  // We use `useLayoutEffect` to guarantee the callback is executed
-  // as soon as React flushes the update.
-  React.useLayoutEffect(() => callback(), [callback])
+  // We use `useLayoutEffect` to guarantee the callbacks are executed
+  // as soon as React flushes the update
+  React.useLayoutEffect(() => callbacks.forEach((callback) => callback()), [
+    callbacks,
+  ])
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {

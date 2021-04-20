@@ -38,3 +38,4 @@ export const PERMANENT_REDIRECT_STATUS = 308
 export const STATIC_PROPS_ID = '__N_SSG'
 export const SERVER_PROPS_ID = '__N_SSP'
 export const OPTIMIZED_FONT_PROVIDERS = ['https://fonts.googleapis.com/css']
+export const STATIC_STATUS_PAGES = ['/500']

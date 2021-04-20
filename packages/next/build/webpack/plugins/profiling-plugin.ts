@@ -1,14 +1,8 @@
-import { tracer, stackPush, stackPop } from '../../tracer'
 import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
-import {
-  Span,
-  trace,
-  ProxyTracerProvider,
-  NoopTracerProvider,
-} from '@opentelemetry/api'
+import { trace, stackPush, stackPop, Span } from '../../../telemetry/trace'
 
 const pluginName = 'ProfilingPlugin'
-export const spans = new WeakMap()
+export const spans = new WeakMap<any, Span>()
 
 function getNormalModuleLoaderHook(compilation: any) {
   if (isWebpack5) {
@@ -19,23 +13,10 @@ function getNormalModuleLoaderHook(compilation: any) {
   return compilation.hooks.normalModuleLoader
 }
 
-function tracingIsEnabled() {
-  const tracerProvider: any = trace.getTracerProvider()
-  if (tracerProvider instanceof ProxyTracerProvider) {
-    const proxyDelegate: any = tracerProvider.getDelegate()
-    return !(proxyDelegate instanceof NoopTracerProvider)
-  }
-  return false
-}
-
 export class ProfilingPlugin {
   compiler: any
 
   apply(compiler: any) {
-    // Only enable plugin when instrumentation is loaded
-    if (!tracingIsEnabled()) {
-      return
-    }
     this.traceTopLevelHooks(compiler)
     this.traceCompilationHooks(compiler)
     this.compiler = compiler
@@ -46,7 +27,7 @@ export class ProfilingPlugin {
     startHook: any,
     stopHook: any,
     attrs?: any,
-    onSetSpan?: (span: Span | undefined) => void
+    onSetSpan?: (span: Span) => void
   ) {
     let span: Span | undefined
     startHook.tap(pluginName, () => {
@@ -54,6 +35,12 @@ export class ProfilingPlugin {
       onSetSpan?.(span)
     })
     stopHook.tap(pluginName, () => {
+      // `stopHook` may be triggered when `startHook` has not in cases
+      // where `stopHook` is used as the terminating event for more
+      // than one pair of hooks.
+      if (!span) {
+        return
+      }
       stackPop(this.compiler, span)
     })
   }
@@ -76,7 +63,7 @@ export class ProfilingPlugin {
       compiler.hooks.compile,
       compiler.hooks.done,
       () => {
-        return { attributes: { name: compiler.name } }
+        return { name: compiler.name }
       },
       (span) => spans.set(compiler, span)
     )
@@ -85,25 +72,34 @@ export class ProfilingPlugin {
       compiler.hooks.environment,
       compiler.hooks.afterEnvironment
     )
-    this.traceHookPair(
-      'webpack-invalidated',
-      compiler.hooks.invalid,
-      compiler.hooks.done
-    )
+    if (compiler.options.mode === 'development') {
+      this.traceHookPair(
+        'webpack-invalidated',
+        compiler.hooks.invalid,
+        compiler.hooks.done
+      )
+    }
   }
 
   traceCompilationHooks(compiler: any) {
+    if (isWebpack5) {
+      this.traceHookPair(
+        'webpack-compilation',
+        compiler.hooks.beforeCompile,
+        compiler.hooks.afterCompile
+      )
+    }
+
     compiler.hooks.compilation.tap(pluginName, (compilation: any) => {
       compilation.hooks.buildModule.tap(pluginName, (module: any) => {
         const compilerSpan = spans.get(compiler)
         if (!compilerSpan) {
           return
         }
-        tracer.withSpan(compilerSpan, () => {
-          const span = tracer.startSpan('build-module')
-          span.setAttribute('name', module.userRequest)
-          spans.set(module, span)
-        })
+
+        const span = trace('build-module', compilerSpan.id)
+        span.setAttribute('name', module.userRequest)
+        spans.set(module, span)
       })
 
       getNormalModuleLoaderHook(compilation).tap(
@@ -115,16 +111,8 @@ export class ProfilingPlugin {
       )
 
       compilation.hooks.succeedModule.tap(pluginName, (module: any) => {
-        spans.get(module).end()
+        spans.get(module)?.stop()
       })
-
-      if (isWebpack5) {
-        this.traceHookPair(
-          'webpack-compilation',
-          compilation.hooks.beforeCompile,
-          compilation.hooks.afterCompile
-        )
-      }
 
       this.traceHookPair(
         'webpack-compilation-chunk-graph',
