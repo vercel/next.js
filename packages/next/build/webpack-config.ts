@@ -231,6 +231,20 @@ export default async function getBaseWebpackConfig(
     // fixed in rc.1.
     semver.gte(reactVersion!, '17.0.0-rc.1')
 
+  const babelrc = await [
+    '.babelrc',
+    '.babelrc.json',
+    '.babelrc.js',
+    '.babelrc.mjs',
+    '.babelrc.cjs',
+    'babel.config.js',
+    'babel.config.json',
+    'babel.config.mjs',
+    'babel.config.cjs',
+  ].reduce(async (memo: boolean | Promise<boolean>, filename) => {
+    return (await memo) || (await fileExists(path.join(dir, filename)))
+  }, false)
+
   const distDir = path.join(dir, config.distDir)
 
   const babelLoader = config.experimental.turboMode
@@ -240,6 +254,7 @@ export default async function getBaseWebpackConfig(
     babel: {
       loader: babelLoader,
       options: {
+        babelrc,
         isServer,
         distDir,
         pagesDir,
@@ -1126,6 +1141,7 @@ export default async function getBaseWebpackConfig(
       !isServer &&
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
+          pagesDir,
         }),
       !isServer && new DropClientPage(),
       // Moment.js is an extremely popular library that bundles large locale files

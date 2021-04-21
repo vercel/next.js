@@ -16,11 +16,10 @@ export function interopDefault(mod: any) {
 
 export type ManifestItem = {
   id: number | string
-  name: string
-  file: string
+  files: string[]
 }
 
-type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
+type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
 export type LoadComponentsReturnType = {
   Component: React.ComponentType
