@@ -28,6 +28,8 @@
     "dynamic.d.ts",
     "error.js",
     "error.d.ts",
+    "experimental-script.js",
+    "experimental-script.d.ts",
     "head.js",
     "head.d.ts",
     "image.js",
