@@ -143,6 +143,7 @@ export default class HotReloader {
   private onDemandEntries: any
   private previewProps: __ApiPreviewProps
   private watcher: any
+  private fallbackWatcher: any
   private rewrites: CustomRoutes['rewrites']
   public isWebpack5: any
 
@@ -537,7 +538,7 @@ export default class HotReloader {
       )
     })
 
-    await new Promise((resolve) => {
+    this.fallbackWatcher = await new Promise((resolve) => {
       fallbackCompiler.watch(
         // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
         fallbackConfig.watchOptions,
@@ -574,8 +575,13 @@ export default class HotReloader {
   }
 
   public async stop(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.watcher.close((err: any) => (err ? reject(err) : resolve()))
+    await new Promise((resolve, reject) => {
+      this.watcher.close((err: any) => (err ? reject(err) : resolve(true)))
+    })
+    await new Promise((resolve, reject) => {
+      this.fallbackWatcher.close((err: any) =>
+        err ? reject(err) : resolve(true)
+      )
     })
   }
 
