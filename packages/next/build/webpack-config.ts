@@ -1072,7 +1072,6 @@ export default async function getBaseWebpackConfig(
               'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir),
             }
           : {}),
-        'process.env.__NEXT_DEV_FALLBACK': JSON.stringify(isDevFallback),
         'process.env.__NEXT_TRAILING_SLASH': JSON.stringify(
           config.trailingSlash
         ),

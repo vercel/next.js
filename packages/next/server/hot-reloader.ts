@@ -347,34 +347,33 @@ export default class HotReloader {
         return entrypoints
       }
     }
-
-    const multiCompiler = webpack([
-      ...configs,
-      await getBaseWebpackConfig(this.dir, {
-        dev: true,
-        isServer: false,
-        config: this.config,
-        buildId: this.buildId,
-        pagesDir: this.pagesDir,
-        rewrites: {
-          beforeFiles: [],
-          afterFiles: [],
-          fallback: [],
+    const fallbackConfig = await getBaseWebpackConfig(this.dir, {
+      dev: true,
+      isServer: false,
+      config: this.config,
+      buildId: this.buildId,
+      pagesDir: this.pagesDir,
+      rewrites: {
+        beforeFiles: [],
+        afterFiles: [],
+        fallback: [],
+      },
+      isDevFallback: true,
+      entrypoints: createEntrypoints(
+        {
+          '/_app': 'next/dist/pages/_app',
+          '/_error': 'next/dist/pages/_error',
         },
-        isDevFallback: true,
-        entrypoints: createEntrypoints(
-          {
-            '/_app': 'next/dist/pages/_app',
-            '/_error': 'next/dist/pages/_error',
-          },
-          'server',
-          this.buildId,
-          this.previewProps,
-          this.config,
-          []
-        ).client,
-      }),
-    ])
+        'server',
+        this.buildId,
+        this.previewProps,
+        this.config,
+        []
+      ).client,
+    })
+
+    const fallbackCompiler = webpack(fallbackConfig)
+    const multiCompiler = webpack(configs)
 
     watchCompilers(multiCompiler.compilers[0], multiCompiler.compilers[1])
 
@@ -521,7 +520,8 @@ export default class HotReloader {
       multiCompiler.compilers
     )
 
-    let booted = false
+    let bootedMultiCompiler = false
+    let bootedFallbackCompiler = false
 
     this.watcher = await new Promise((resolve) => {
       const watcher = multiCompiler.watch(
@@ -529,9 +529,23 @@ export default class HotReloader {
         configs.map((config) => config.watchOptions!),
         // Errors are handled separately
         (_err: any) => {
-          if (!booted) {
-            booted = true
+          if (!bootedMultiCompiler) {
+            bootedMultiCompiler = true
             resolve(watcher)
+          }
+        }
+      )
+    })
+
+    await new Promise((resolve) => {
+      fallbackCompiler.watch(
+        // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
+        fallbackConfig.watchOptions,
+        // Errors are handled separately
+        (_err: any) => {
+          if (!bootedFallbackCompiler) {
+            bootedFallbackCompiler = true
+            resolve(true)
           }
         }
       )
