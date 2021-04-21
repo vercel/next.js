@@ -1,32 +1,34 @@
-import { loader } from 'webpack'
-import loaderUtils from 'loader-utils'
-import { tracer, traceFn } from '../../tracer'
+import loaderUtils from 'next/dist/compiled/loader-utils'
 
 export type ClientPagesLoaderOptions = {
   absolutePagePath: string
   page: string
 }
 
-const nextClientPagesLoader: loader.Loader = function () {
-  const span = tracer.startSpan('next-client-pages-loader')
-  return traceFn(span, () => {
+// this parameter: https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters
+function nextClientPagesLoader(this: any) {
+  const pagesLoaderSpan = this.currentTraceSpan.traceChild(
+    'next-client-pages-loader'
+  )
+
+  return pagesLoaderSpan.traceFn(() => {
     const { absolutePagePath, page } = loaderUtils.getOptions(
       this
     ) as ClientPagesLoaderOptions
 
-    span.setAttribute('absolutePagePath', absolutePagePath)
+    pagesLoaderSpan.setAttribute('absolutePagePath', absolutePagePath)
 
     const stringifiedAbsolutePagePath = JSON.stringify(absolutePagePath)
     const stringifiedPage = JSON.stringify(page)
 
     return `
-      (window.__NEXT_P = window.__NEXT_P || []).push([
-        ${stringifiedPage},
-        function () {
-          return require(${stringifiedAbsolutePagePath});
-        }
-      ]);
-    `
+    (window.__NEXT_P = window.__NEXT_P || []).push([
+      ${stringifiedPage},
+      function () {
+        return require(${stringifiedAbsolutePagePath});
+      }
+    ]);
+  `
   })
 }
 

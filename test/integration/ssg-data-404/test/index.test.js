@@ -48,6 +48,11 @@ const runTests = () => {
 }
 
 describe('SSG data 404', () => {
+  if (process.platform === 'win32') {
+    it('should skip this suite on Windows', () => {})
+    return
+  }
+
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()

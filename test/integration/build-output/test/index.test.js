@@ -90,21 +90,21 @@ describe('Build Output', () => {
         expect(parseFloat(size)).toBeGreaterThan(0)
       }
 
-      // should be no bigger than 265 bytes
-      expect(parseFloat(indexSize) - 266).toBeLessThanOrEqual(0)
+      // should be no bigger than 291 bytes
+      expect(parseFloat(indexSize) - 291).toBeLessThanOrEqual(0)
       expect(indexSize.endsWith('B')).toBe(true)
 
-      // should be no bigger than 62.2 kb
-      expect(parseFloat(indexFirstLoad)).toBeCloseTo(62.4, 1)
+      // should be no bigger than 64.8 kb
+      expect(parseFloat(indexFirstLoad)).toBeCloseTo(65.3, 1)
       expect(indexFirstLoad.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(err404Size) - 3.7).toBeLessThanOrEqual(0)
+      expect(parseFloat(err404Size)).toBeCloseTo(3.7, 1)
       expect(err404Size.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(err404FirstLoad)).toBeCloseTo(65.6, 1)
+      expect(parseFloat(err404FirstLoad)).toBeCloseTo(68.5, 0)
       expect(err404FirstLoad.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(sharedByAll)).toBeCloseTo(62.1, 1)
+      expect(parseFloat(sharedByAll)).toBeCloseTo(65, 1)
       expect(sharedByAll.endsWith('kB')).toBe(true)
 
       if (_appSize.endsWith('kB')) {
@@ -115,13 +115,13 @@ describe('Build Output', () => {
         expect(_appSize.endsWith(' B')).toBe(true)
       }
 
-      expect(parseFloat(webpackSize) - 753).toBeLessThanOrEqual(0)
+      expect(parseFloat(webpackSize) - 950).toBeLessThanOrEqual(0)
       expect(webpackSize.endsWith(' B')).toBe(true)
 
       expect(parseFloat(mainSize) - 7.3).toBeLessThanOrEqual(0)
       expect(mainSize.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(frameworkSize) - 42).toBeLessThanOrEqual(0)
+      expect(parseFloat(frameworkSize) - 42.1).toBeLessThanOrEqual(0)
       expect(frameworkSize.endsWith('kB')).toBe(true)
     })
 
@@ -131,46 +131,6 @@ describe('Build Output', () => {
         /\.txt|\.LICENSE\./
       )
       expect(files).toEqual([])
-    })
-  })
-
-  describe('Crypto Application', () => {
-    let stdout
-    const appDir = join(fixturesDir, 'with-crypto')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    it('should not include crypto', async () => {
-      ;({ stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      }))
-
-      console.log(stdout)
-
-      const parsePageSize = (page) =>
-        stdout.match(
-          new RegExp(` ${page} .*?((?:\\d|\\.){1,} (?:\\w{1,})) `)
-        )[1]
-
-      const parsePageFirstLoad = (page) =>
-        stdout.match(
-          new RegExp(
-            ` ${page} .*?(?:(?:\\d|\\.){1,}) .*? ((?:\\d|\\.){1,} (?:\\w{1,}))`
-          )
-        )[1]
-
-      const indexSize = parsePageSize('/')
-      const indexFirstLoad = parsePageFirstLoad('/')
-
-      expect(parseFloat(indexSize)).toBeLessThanOrEqual(3)
-      expect(parseFloat(indexSize)).toBeGreaterThanOrEqual(2)
-      expect(indexSize.endsWith('kB')).toBe(true)
-
-      expect(parseFloat(indexFirstLoad)).toBeLessThanOrEqual(65)
-      expect(parseFloat(indexFirstLoad)).toBeGreaterThanOrEqual(60)
-      expect(indexFirstLoad.endsWith('kB')).toBe(true)
     })
   })
 

@@ -3,6 +3,7 @@ const fs = require('fs-extra')
 const exec = require('../util/exec')
 const { remove } = require('fs-extra')
 const logger = require('../util/logger')
+const semver = require('semver')
 
 module.exports = (actionInfo) => {
   return {
@@ -22,8 +23,9 @@ module.exports = (actionInfo) => {
         const curTag = tags[i]
         // stable doesn't include `-canary` or `-beta`
         if (!curTag.includes('-') && !ref.includes(curTag)) {
-          lastStableTag = curTag
-          break
+          if (!lastStableTag || semver.gt(curTag, lastStableTag)) {
+            lastStableTag = curTag
+          }
         }
       }
       return lastStableTag
@@ -69,13 +71,17 @@ module.exports = (actionInfo) => {
       for (const pkg of pkgs) {
         const pkgPath = path.join(repoDir, 'packages', pkg)
         const packedPkgPath = path.join(pkgPath, `${pkg}-packed.tgz`)
-        // pack the package with yarn
-        await exec(`cd ${pkgPath} && yarn pack -f ${pkg}-packed.tgz`)
 
         const pkgDataPath = path.join(pkgPath, 'package.json')
         const pkgData = require(pkgDataPath)
         const { name } = pkgData
-        pkgDatas.set(name, { pkgDataPath, pkgData, packedPkgPath })
+        pkgDatas.set(name, {
+          pkgDataPath,
+          pkg,
+          pkgPath,
+          pkgData,
+          packedPkgPath,
+        })
         pkgPaths.set(name, packedPkgPath)
       }
 
@@ -92,6 +98,13 @@ module.exports = (actionInfo) => {
           JSON.stringify(pkgData, null, 2),
           'utf8'
         )
+      }
+
+      // wait to pack packages until after dependency paths have been updated
+      // to the correct versions
+      for (const pkgName of pkgDatas.keys()) {
+        const { pkg, pkgPath } = pkgDatas.get(pkgName)
+        await exec(`cd ${pkgPath} && yarn pack -f ${pkg}-packed.tgz`)
       }
       return pkgPaths
     },

@@ -89,7 +89,7 @@ describe('CLI Usage', () => {
 
     test('should exit when SIGINT is signalled', async () => {
       const killSigint = (instance) =>
-        setTimeout(() => instance.kill('SIGINT'), 500)
+        setTimeout(() => instance.kill('SIGINT'), 1000)
       const { code, signal } = await runNextCommand(['build', dir], {
         ignoreFail: true,
         instance: killSigint,
@@ -103,7 +103,7 @@ describe('CLI Usage', () => {
     })
     test('should exit when SIGTERM is signalled', async () => {
       const killSigterm = (instance) =>
-        setTimeout(() => instance.kill('SIGTERM'), 500)
+        setTimeout(() => instance.kill('SIGTERM'), 1000)
       const { code, signal } = await runNextCommand(['build', dir], {
         ignoreFail: true,
         instance: killSigterm,
@@ -114,6 +114,69 @@ describe('CLI Usage', () => {
       const expectedExitSignal = process.platform === `win32` ? 'SIGTERM' : null
       expect(code).toBe(expectedExitCode)
       expect(signal).toBe(expectedExitSignal)
+    })
+
+    test('too old of react version', async () => {
+      const { stderr } = await runNextCommand(['build', dirOldReact], {
+        stderr: true,
+      })
+
+      expect(stderr).toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
+    })
+
+    test('too old of react-dom version', async () => {
+      const { stderr } = await runNextCommand(['build', dirOldReactDom], {
+        stderr: true,
+      })
+
+      expect(stderr).toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
+    })
+
+    test('experimental react version', async () => {
+      const { stderr } = await runNextCommand(['build', dirExperimentalReact], {
+        stderr: true,
+      })
+
+      expect(stderr).not.toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
+    })
+
+    test('experimental react-dom version', async () => {
+      const { stderr } = await runNextCommand(
+        ['build', dirExperimentalReactDom],
+        {
+          stderr: true,
+        }
+      )
+
+      expect(stderr).not.toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
+    })
+
+    test('recommended react version', async () => {
+      const { stderr } = await runNextCommand(['build'], {
+        stderr: true,
+      })
+
+      expect(stderr).not.toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
+    })
+
+    test('recommended react-dom version', async () => {
+      const { stderr } = await runNextCommand(['build'], {
+        stderr: true,
+      })
+
+      expect(stderr).not.toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
     })
   })
 
@@ -141,6 +204,7 @@ describe('CLI Usage', () => {
     test('--port', async () => {
       const port = await findPort()
       const output = await runNextCommandDev([dir, '--port', port], true)
+      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
@@ -151,12 +215,14 @@ describe('CLI Usage', () => {
       const output = await runNextCommandDev([dir, '--port', port], true, {
         env: { NODE_OPTIONS: '--inspect' },
       })
+      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
     test('-p', async () => {
       const port = await findPort()
       const output = await runNextCommandDev([dir, '-p', port], true)
+      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
       expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
@@ -199,7 +265,8 @@ describe('CLI Usage', () => {
         [dir, '--hostname', '0.0.0.0', '--port', port],
         true
       )
-      expect(output).toMatch(new RegExp(`http://0.0.0.0:${port}`))
+      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
+      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
     test('-H', async () => {
@@ -208,7 +275,8 @@ describe('CLI Usage', () => {
         [dir, '-H', '0.0.0.0', '--port', port],
         true
       )
-      expect(output).toMatch(new RegExp(`http://0.0.0.0:${port}`))
+      expect(output).toMatch(new RegExp(`on 0.0.0.0:${port}`))
+      expect(output).toMatch(new RegExp(`http://localhost:${port}`))
     })
 
     test('should warn when unknown argument provided', async () => {
@@ -226,7 +294,7 @@ describe('CLI Usage', () => {
 
     test('should exit when SIGINT is signalled', async () => {
       const killSigint = (instance) =>
-        setTimeout(() => instance.kill('SIGINT'), 500)
+        setTimeout(() => instance.kill('SIGINT'), 1000)
       const port = await findPort()
       const { code, signal } = await runNextCommand(['dev', dir, '-p', port], {
         ignoreFail: true,
@@ -241,7 +309,7 @@ describe('CLI Usage', () => {
     })
     test('should exit when SIGTERM is signalled', async () => {
       const killSigterm = (instance) =>
-        setTimeout(() => instance.kill('SIGTERM'), 500)
+        setTimeout(() => instance.kill('SIGTERM'), 1000)
       const port = await findPort()
       const { code, signal } = await runNextCommand(['dev', dir, '-p', port], {
         ignoreFail: true,
@@ -296,9 +364,8 @@ describe('CLI Usage', () => {
       })
 
       expect(stderr).toMatch(
-        'Fast Refresh is disabled in your application due to an outdated `react` version'
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
       )
-      expect(stderr).not.toMatch(`react-dom`)
 
       await killApp(instance)
     })
@@ -315,9 +382,8 @@ describe('CLI Usage', () => {
       })
 
       expect(stderr).toMatch(
-        'Fast Refresh is disabled in your application due to an outdated `react-dom` version'
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
       )
-      expect(stderr).not.toMatch('`react`')
 
       await killApp(instance)
     })
@@ -333,9 +399,9 @@ describe('CLI Usage', () => {
         },
       })
 
-      expect(stderr).not.toMatch('disabled')
-      expect(stderr).not.toMatch('outdated')
-      expect(stderr).not.toMatch(`react-dom`)
+      expect(stderr).not.toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
 
       await killApp(instance)
     })
@@ -351,9 +417,45 @@ describe('CLI Usage', () => {
         },
       })
 
-      expect(stderr).not.toMatch('disabled')
-      expect(stderr).not.toMatch('outdated')
-      expect(stderr).not.toMatch('`react`')
+      expect(stderr).not.toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
+
+      await killApp(instance)
+    })
+
+    test('recommended react version', async () => {
+      const port = await findPort()
+
+      let stderr = ''
+      let instance = await launchApp(dir, port, {
+        stderr: true,
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+
+      expect(stderr).not.toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
+
+      await killApp(instance)
+    })
+
+    test('recommended react-dom version', async () => {
+      const port = await findPort()
+
+      let stderr = ''
+      let instance = await launchApp(dir, port, {
+        stderr: true,
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+
+      expect(stderr).not.toMatch(
+        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
+      )
 
       await killApp(instance)
     })
@@ -376,7 +478,7 @@ describe('CLI Usage', () => {
 
     test('should exit when SIGINT is signalled', async () => {
       const killSigint = (instance) =>
-        setTimeout(() => instance.kill('SIGINT'), 500)
+        setTimeout(() => instance.kill('SIGINT'), 1000)
       await nextBuild(dir)
       const port = await findPort()
       const { code, signal } = await runNextCommand(
@@ -395,7 +497,7 @@ describe('CLI Usage', () => {
     })
     test('should exit when SIGTERM is signalled', async () => {
       const killSigterm = (instance) =>
-        setTimeout(() => instance.kill('SIGTERM'), 500)
+        setTimeout(() => instance.kill('SIGTERM'), 1000)
       await nextBuild(dir)
       const port = await findPort()
       const { code, signal } = await runNextCommand(

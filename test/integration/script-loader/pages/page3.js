@@ -7,12 +7,12 @@ const Page = () => {
         {`(window.onload = function () {
             const newDiv = document.createElement('div')
             newDiv.id = 'onload-div'
-            document.querySelector('.container').appendChild(newDiv)
+            document.querySelector('body').appendChild(newDiv)
           })`}
       </Script>
       <Script
-        id="script"
-        src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=lazy"
+        id="scriptLazy"
+        src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptLazy"
         strategy="lazy"
       ></Script>
       <div>page3</div>

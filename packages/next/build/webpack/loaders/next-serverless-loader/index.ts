@@ -2,7 +2,7 @@ import devalue from 'next/dist/compiled/devalue'
 import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
 import { join } from 'path'
 import { parse } from 'querystring'
-import { loader } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { API_ROUTE } from '../../../../lib/constants'
 import { isDynamicRoute } from '../../../../next-server/lib/router/utils'
 import { __ApiPreviewProps } from '../../../../next-server/server/api-utils'
@@ -11,7 +11,7 @@ import {
   ROUTES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
 } from '../../../../next-server/lib/constants'
-import { tracer, traceFn } from '../../../tracer'
+import { trace } from '../../../../telemetry/trace'
 
 export type ServerlessLoaderQuery = {
   page: string
@@ -33,9 +33,9 @@ export type ServerlessLoaderQuery = {
   i18n: string
 }
 
-const nextServerlessLoader: loader.Loader = function () {
-  const span = tracer.startSpan('next-serverless-loader')
-  return traceFn(span, () => {
+const nextServerlessLoader: webpack.loader.Loader = function () {
+  const loaderSpan = trace('next-serverless-loader')
+  return loaderSpan.traceFn(() => {
     const {
       distDir,
       absolutePagePath,
@@ -104,9 +104,19 @@ const nextServerlessLoader: loader.Loader = function () {
 
         import { getApiHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/api-handler'
 
+        const combinedRewrites = Array.isArray(routesManifest.rewrites)
+          ? routesManifest.rewrites
+          : []
+
+        if (!Array.isArray(routesManifest.rewrites)) {
+          combinedRewrites.push(...routesManifest.rewrites.beforeFiles)
+          combinedRewrites.push(...routesManifest.rewrites.afterFiles)
+          combinedRewrites.push(...routesManifest.rewrites.fallback)
+        }
+
         const apiHandler = getApiHandler({
           pageModule: require("${absolutePagePath}"),
-          rewrites: routesManifest.rewrites,
+          rewrites: combinedRewrites,
           i18n: ${i18n || 'undefined'},
           page: "${page}",
           basePath: "${basePath}",
@@ -130,6 +140,8 @@ const nextServerlessLoader: loader.Loader = function () {
       }
       import { getPageHandler } from 'next/dist/build/webpack/loaders/next-serverless-loader/page-handler'
 
+      const documentModule = require("${absoluteDocumentPath}")
+
       const appMod = require('${absoluteAppPath}')
       let App = appMod.default || appMod.then && appMod.then(mod => mod.default);
 
@@ -150,12 +162,22 @@ const nextServerlessLoader: loader.Loader = function () {
       export let config = compMod['confi' + 'g'] || (compMod.then && compMod.then(mod => mod['confi' + 'g'])) || {}
       export const _app = App
 
+      const combinedRewrites = Array.isArray(routesManifest.rewrites)
+        ? routesManifest.rewrites
+        : []
+
+      if (!Array.isArray(routesManifest.rewrites)) {
+        combinedRewrites.push(...routesManifest.rewrites.beforeFiles)
+        combinedRewrites.push(...routesManifest.rewrites.afterFiles)
+        combinedRewrites.push(...routesManifest.rewrites.fallback)
+      }
+
       const { renderReqToHTML, render } = getPageHandler({
         pageModule: compMod,
         pageComponent: Component,
         pageConfig: config,
         appModule: App,
-        documentModule: require("${absoluteDocumentPath}"),
+        documentModule: documentModule,
         errorModule: require("${absoluteErrorPath}"),
         notFoundModule: ${
           absolute404Path ? `require("${absolute404Path}")` : undefined
@@ -173,7 +195,7 @@ const nextServerlessLoader: loader.Loader = function () {
         buildManifest,
         reactLoadableManifest,
 
-        rewrites: routesManifest.rewrites,
+        rewrites: combinedRewrites,
         i18n: ${i18n || 'undefined'},
         page: "${page}",
         buildId: "${buildId}",

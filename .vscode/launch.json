@@ -12,6 +12,7 @@
       "runtimeExecutable": "yarn",
       "runtimeArgs": ["run", "debug", "dev", "test/integration/basic"],
       "skipFiles": ["<node_internals>/**"],
+      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"],
       "port": 9229
     },
     {
@@ -21,6 +22,17 @@
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "yarn",
       "runtimeArgs": ["run", "debug", "build", "test/integration/basic"],
+      "skipFiles": ["<node_internals>/**"],
+      "port": 9229,
+      "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"]
+    },
+    {
+      "name": "Launch app build trace",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["run", "trace-debug", "build", "test/integration/basic"],
       "skipFiles": ["<node_internals>/**"],
       "port": 9229,
       "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"]
@@ -42,6 +54,16 @@
       "port": 9229,
       "skipFiles": ["<node_internals>/**"],
       "outFiles": ["${workspaceFolder}/packages/next/dist/**/*"]
+    },
+    {
+      "name": "Launch this example",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "yarn",
+      "runtimeArgs": ["run", "debug", "dev", "${fileDirname}"],
+      "skipFiles": ["<node_internals>/**"],
+      "port": 9229
     }
   ]
 }

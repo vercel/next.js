@@ -138,7 +138,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       }
       const origQuery = Object.assign({}, parsedUrl.query)
 
-      parsedUrl = handleRewrites(parsedUrl)
+      parsedUrl = handleRewrites(req, parsedUrl)
       handleBasePath(req, parsedUrl)
 
       // remove ?amp=1 from request URL if rendering for export
@@ -361,7 +361,11 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
             }
             const statusCode = getRedirectStatus(redirect)
 
-            if (basePath && redirect.basePath !== false) {
+            if (
+              basePath &&
+              redirect.basePath !== false &&
+              redirect.destination.startsWith('/')
+            ) {
               redirect.destination = `${basePath}${redirect.destination}`
             }
 

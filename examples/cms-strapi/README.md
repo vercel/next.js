@@ -26,6 +26,7 @@ Once you have access to [the environment variables you'll need](#step-7-set-up-e
 - [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
+- [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use
@@ -42,7 +43,7 @@ yarn create next-app --example cms-strapi cms-strapi-app
 
 ### Step 1. Set up Strapi locally
 
-[Follow the instructions on this page](https://strapi.io/documentation/v3.x/installation/cli.html) to create a Strapi project locally.
+[Follow the instructions on this page](https://strapi.io/documentation/developer-docs/latest/getting-started/quick-start.html#_1-install-strapi-and-create-a-new-project) to create a Strapi project locally.
 
 ```bash
 npx create-strapi-app my-project --quickstart

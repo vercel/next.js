@@ -4,8 +4,8 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import * as Log from './log'
 
 export type OutputState =
-  | { bootstrap: true; appUrl: string | null }
-  | ({ bootstrap: false; appUrl: string | null } & (
+  | { bootstrap: true; appUrl: string | null; bindAddr: string | null }
+  | ({ bootstrap: false; appUrl: string | null; bindAddr: string | null } & (
       | { loading: true }
       | {
           loading: false
@@ -15,9 +15,13 @@ export type OutputState =
         }
     ))
 
-export const store = createStore<OutputState>({ appUrl: null, bootstrap: true })
+export const store = createStore<OutputState>({
+  appUrl: null,
+  bindAddr: null,
+  bootstrap: true,
+})
 
-let lastStore: OutputState = { appUrl: null, bootstrap: true }
+let lastStore: OutputState = { appUrl: null, bindAddr: null, bootstrap: true }
 function hasStoreChanged(nextStore: OutputState) {
   if (
     ([
@@ -40,7 +44,7 @@ store.subscribe((state) => {
 
   if (state.bootstrap) {
     if (state.appUrl) {
-      Log.ready(`started server on ${state.appUrl}`)
+      Log.ready(`started server on ${state.bindAddr}, url: ${state.appUrl}`)
     }
     return
   }
@@ -60,7 +64,7 @@ store.subscribe((state) => {
         for (const match of matches) {
           const prop = (match.split(']').shift() || '').substr(1)
           console.log(
-            `AMP bind syntax [${prop}]='' is not supported in JSX, use 'data-amp-bind-${prop}' instead. https://err.sh/vercel/next.js/amp-bind-jsx-alt`
+            `AMP bind syntax [${prop}]='' is not supported in JSX, use 'data-amp-bind-${prop}' instead. https://nextjs.org/docs/messages/amp-bind-jsx-alt`
           )
         }
         return

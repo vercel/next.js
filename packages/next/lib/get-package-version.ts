@@ -2,7 +2,6 @@ import { promises as fs } from 'fs'
 import findUp from 'next/dist/compiled/find-up'
 import JSON5 from 'next/dist/compiled/json5'
 import * as path from 'path'
-import { resolveRequest } from './resolve-request'
 
 type PackageJsonDependencies = {
   dependencies: Record<string, string>
@@ -52,7 +51,9 @@ export async function getPackageVersion({
       : `${cwd}/`
 
   try {
-    const targetPath = resolveRequest(`${name}/package.json`, cwd2)
+    const targetPath = require.resolve(`${name}/package.json`, {
+      paths: [cwd2],
+    })
     const targetContent = await fs.readFile(targetPath, 'utf-8')
     return JSON5.parse(targetContent).version ?? null
   } catch {

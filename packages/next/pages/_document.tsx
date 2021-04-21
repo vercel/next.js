@@ -17,6 +17,9 @@ import {
 } from '../next-server/server/get-page-files'
 import { cleanAmpPath } from '../next-server/server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
+import Script, {
+  Props as ScriptLoaderProps,
+} from '../client/experimental-script'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -306,6 +309,34 @@ export class Head extends Component<
     ]
   }
 
+  handleDocumentScriptLoaderItems(children: React.ReactNode): ReactNode[] {
+    const { scriptLoader } = this.context
+    const scriptLoaderItems: ScriptLoaderProps[] = []
+    const filteredChildren: ReactNode[] = []
+
+    React.Children.forEach(children, (child: any) => {
+      if (child.type === Script) {
+        if (child.props.strategy === 'eager') {
+          scriptLoader.eager = (scriptLoader.eager || []).concat([
+            {
+              ...child.props,
+            },
+          ])
+          return
+        } else if (['lazy', 'defer'].includes(child.props.strategy)) {
+          scriptLoaderItems.push(child.props)
+          return
+        }
+      }
+
+      filteredChildren.push(child)
+    })
+
+    this.context.__NEXT_DATA__.scriptLoader = scriptLoaderItems
+
+    return filteredChildren
+  }
+
   makeStylesheetInert(node: ReactNode): ReactNode[] {
     return React.Children.map(node, (c: any) => {
       if (
@@ -335,8 +366,10 @@ export class Head extends Component<
       dangerousAsPath,
       headTags,
       unstable_runtimeJS,
+      unstable_JsPreload,
     } = this.context
     const disableRuntimeJS = unstable_runtimeJS === false
+    const disableJsPreload = unstable_JsPreload === false
 
     this.context.docComponentsRendered.Head = true
 
@@ -358,7 +391,7 @@ export class Head extends Component<
       })
       head = cssPreloads.concat(otherHeadElements)
     }
-    let children = this.props.children
+    let children = React.Children.toArray(this.props.children).filter(Boolean)
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
@@ -366,14 +399,14 @@ export class Head extends Component<
         if (!isReactHelmet) {
           if (child?.type === 'title') {
             console.warn(
-              "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title"
+              "Warning: <title> should not be used in _document.js's <Head>. https://nextjs.org/docs/messages/no-document-title"
             )
           } else if (
             child?.type === 'meta' &&
             child?.props?.name === 'viewport'
           ) {
             console.warn(
-              "Warning: viewport meta tags should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-viewport-meta"
+              "Warning: viewport meta tags should not be used in _document.js's <Head>. https://nextjs.org/docs/messages/no-document-viewport-meta"
             )
           }
         }
@@ -381,7 +414,7 @@ export class Head extends Component<
       })
       if (this.props.crossOrigin)
         console.warn(
-          'Warning: `Head` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated'
+          'Warning: `Head` attribute `crossOrigin` is deprecated. https://nextjs.org/docs/messages/doc-crossorigin-deprecated'
         )
     }
 
@@ -391,6 +424,10 @@ export class Head extends Component<
       !inAmpMode
     ) {
       children = this.makeStylesheetInert(children)
+    }
+
+    if (process.env.__NEXT_SCRIPT_LOADER) {
+      children = this.handleDocumentScriptLoaderItems(children)
     }
 
     let hasAmphtmlRel = false
@@ -427,7 +464,7 @@ export class Head extends Component<
 
         if (badProp) {
           console.warn(
-            `Found conflicting amp tag "${child.type}" with conflicting prop ${badProp} in ${__NEXT_DATA__.page}. https://err.sh/next.js/conflicting-amp-tag`
+            `Found conflicting amp tag "${child.type}" with conflicting prop ${badProp} in ${__NEXT_DATA__.page}. https://nextjs.org/docs/messages/conflicting-amp-tag`
           )
           return null
         }
@@ -559,8 +596,12 @@ export class Head extends Component<
             {!process.env.__NEXT_OPTIMIZE_CSS && (
               <noscript data-n-css={this.props.nonce ?? ''} />
             )}
-            {!disableRuntimeJS && this.getPreloadDynamicChunks()}
-            {!disableRuntimeJS && this.getPreloadMainLinks(files)}
+            {!disableRuntimeJS &&
+              !disableJsPreload &&
+              this.getPreloadDynamicChunks()}
+            {!disableRuntimeJS &&
+              !disableJsPreload &&
+              this.getPreloadMainLinks(files)}
             {process.env.__NEXT_OPTIMIZE_CSS && this.getCssLinks(files)}
             {process.env.__NEXT_OPTIMIZE_CSS && (
               <noscript data-n-css={this.props.nonce ?? ''} />
@@ -636,10 +677,11 @@ export class NextScript extends Component<OriginProps> {
   getPreNextScripts() {
     const { scriptLoader } = this.context
 
-    return (scriptLoader.eager || []).map((file: string) => {
+    return (scriptLoader.eager || []).map((file: ScriptLoaderProps) => {
+      const { strategy, ...props } = file
       return (
         <script
-          {...file}
+          {...props}
           nonce={this.props.nonce}
           crossOrigin={
             this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
@@ -714,7 +756,7 @@ export class NextScript extends Component<OriginProps> {
     } catch (err) {
       if (err.message.indexOf('circular structure')) {
         throw new Error(
-          `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://err.sh/vercel/next.js/circular-structure`
+          `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://nextjs.org/docs/messages/circular-structure`
         )
       }
       throw err
@@ -779,7 +821,7 @@ export class NextScript extends Component<OriginProps> {
     if (process.env.NODE_ENV !== 'production') {
       if (this.props.crossOrigin)
         console.warn(
-          'Warning: `NextScript` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated'
+          'Warning: `NextScript` attribute `crossOrigin` is deprecated. https://nextjs.org/docs/messages/doc-crossorigin-deprecated'
         )
     }
 

@@ -81,6 +81,6 @@ describe('Production response size', () => {
     const delta = responseSizesBytes / 1024
 
     // Expected difference: < 0.5
-    expect(delta).toBeCloseTo(282.6, 0)
+    expect(delta).toBeCloseTo(286.7, 0)
   })
 })

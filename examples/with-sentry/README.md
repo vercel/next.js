@@ -18,9 +18,9 @@ Once you have access to your [Sentry DSN](#step-1-enable-error-tracking), deploy
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-sentry with-sentry
+npx create-next-app --example with-sentry with-sentry-app
 # or
-yarn create next-app --example with-sentry with-sentry
+yarn create next-app --example with-sentry with-sentry-app
 ```
 
 ## Configuration
@@ -57,13 +57,13 @@ Your app should be up and running on [http://localhost:3000](http://localhost:30
 
 You will need to install and configure the [Sentry Vercel integration](https://docs.sentry.io/workflow/integrations/vercel). After you've completed the project linking step, all the needed environment variables will be set in your Vercel project, with the exception of `NEXT_PUBLIC_SENTRY_SERVER_ROOT_DIR`, which should be set to `/var/task/`.
 
-> **Note:** A Vercel project connected to a [Git integration](https://vercel.com/docs/v2/platform/deployments#git-integration) is required before adding the Sentry integration.
+> **Note:** A Vercel project connected to a [Git integration](https://vercel.com/docs/platform/deployments#git) is required before adding the Sentry integration.
 
 #### Without Using Vercel
 
 1. Set up the `NEXT_PUBLIC_SENTRY_DSN` environment variable as described above.
 2. Save your Sentry organization slug as the `SENTRY_ORG` environment variable and your project slug as the `SENTRY_PROJECT` environment variable in `.env.local`.
-3. Save your git provider's commit SHA as either `VERCEL_GITHUB_COMMIT_SHA`, `VERCEL_GITLAB_COMMIT_SHA`, or `VERCEL_BITBUCKET_COMMIT_SHA` environment variable in `.env.local`.
+3. Save your git provider's commit SHA as `VERCEL_GIT_COMMIT_SHA` environment variable in `.env.local`.
 4. Create an auth token in Sentry. The recommended way to do this is by creating a new internal integration for your organization. To do so, go into **Settings > Developer Settings > New internal integration**. After the integration is created, copy the Token.
 5. Save the token inside the `SENTRY_AUTH_TOKEN` environment variable in `.env.local`.
 6. Set `NEXT_PUBLIC_SENTRY_SERVER_ROOT_DIR` to the absolute path of the folder the Next.js app is running from
@@ -79,8 +79,6 @@ More configurations are available for the [Sentry webpack plugin](https://github
 - By default, neither sourcemaps nor error tracking are enabled in development mode (see Configuration).
 - When enabled in development mode, error handling [works differently than in production](https://nextjs.org/docs/advanced-features/custom-error-page#customizing-the-error-page) as `_error.js` is never actually called.
 - The build output will contain warning about unhandled Promise rejections. This is caused by the test pages, and is expected. When deploying to Vercel, "Client Error 1" will actually be sent to Sentry during the build, while that test page is being statically rendered.
-- The version of `@zeit/next-source-maps` (`0.0.4-canary.1`) is important and must be specified since it is not yet the default. Otherwise [source maps will not be generated for the server](https://github.com/zeit/next-plugins/issues/377).
-- Both `@zeit/next-source-maps` and `@sentry/webpack-plugin` are added to dependencies (rather than `devDependencies`) because if used with SSR, these plugins are used during production for generating the source-maps and sending them to sentry.
 - By default, source maps are uploaded to [sentry.io](https://sentry.io). If you're self-hosting Sentry, add `SENTRY_URL` to `.env` or `.env.locale` and set it to the base domain of your installation, which by default is `https://sentry.io/`.
 
 ## Deploy on Vercel

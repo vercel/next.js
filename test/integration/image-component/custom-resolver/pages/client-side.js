@@ -12,7 +12,7 @@ const MyImage = (props) => {
 const Page = () => {
   return (
     <div>
-      <p>Image Client Side Test</p>
+      <p id="client-side">Image Client Side Test</p>
       <MyImage
         id="basic-image"
         src="foo.jpg"

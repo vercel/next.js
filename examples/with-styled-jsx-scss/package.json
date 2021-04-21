@@ -8,10 +8,10 @@
   },
   "dependencies": {
     "next": "latest",
-    "node-sass": "4.5.3",
+    "sass": "1.32.4",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
-    "styled-jsx-plugin-sass": "0.2.0"
+    "styled-jsx-plugin-sass": "1.0.0"
   },
   "license": "MIT"
 }

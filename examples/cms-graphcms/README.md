@@ -23,6 +23,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [ButterCMS](/examples/cms-buttercms)
 - [Storyblok](/examples/cms-storyblok)
 - [Kontent](/examples/cms-kontent)
+- [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
 
 ## Deploy your own

@@ -1,6 +1,9 @@
 import devalue from 'next/dist/compiled/devalue'
-import webpack, { Compiler, compilation as CompilationType } from 'webpack'
-import sources from 'webpack-sources'
+import {
+  webpack,
+  isWebpack5,
+  sources,
+} from 'next/dist/compiled/webpack/webpack'
 import {
   BUILD_MANIFEST,
   CLIENT_STATIC_FILES_PATH,
@@ -14,12 +17,8 @@ import getRouteFromEntrypoint from '../../../next-server/server/get-route-from-e
 import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { Rewrite } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../next-server/lib/router/utils'
-import { tracer, traceFn } from '../../tracer'
-
-// @ts-ignore: TODO: remove ignore when webpack 5 is stable
-const { RawSource } = webpack.sources || sources
-
-const isWebpack5 = parseInt(webpack.version!) === 5
+import { spans } from './profiling-plugin'
+import { CustomRoutes } from '../../../lib/load-custom-routes'
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
@@ -28,11 +27,16 @@ export type ClientBuildManifest = Record<string, string[]>
 // This function takes the asset map generated in BuildManifestPlugin and creates a
 // reduced version to send to the client.
 function generateClientManifest(
+  compiler: any,
   assetMap: BuildManifest,
-  rewrites: Rewrite[]
+  rewrites: CustomRoutes['rewrites']
 ): string {
-  const span = tracer.startSpan('NextJsBuildManifest-generateClientManifest')
-  return traceFn(span, () => {
+  const compilerSpan = spans.get(compiler)
+  const genClientManifestSpan = compilerSpan?.traceChild(
+    'NextJsBuildManifest-generateClientManifest'
+  )
+
+  return genClientManifestSpan?.traceFn(() => {
     const clientManifest: ClientBuildManifest = {
       // TODO: update manifest type to include rewrites
       __rewrites: rewrites as any,
@@ -63,48 +67,58 @@ function generateClientManifest(
   })
 }
 
-function isJsFile(file: string): boolean {
-  // We don't want to include `.hot-update.js` files into the initial page
-  return !file.endsWith('.hot-update.js') && file.endsWith('.js')
+function getEntrypointFiles(entrypoint: any): string[] {
+  return (
+    entrypoint
+      ?.getFiles()
+      .filter((file: string) => {
+        // We don't want to include `.hot-update.js` files into the initial page
+        return /(?<!\.hot-update)\.(js|css)($|\?)/.test(file)
+      })
+      .map((file: string) => file.replace(/\\/g, '/')) ?? []
+  )
 }
 
-function getFilesArray(files: any) {
-  if (!files) {
-    return []
-  }
-  if (isWebpack5) {
-    return Array.from(files)
-  }
+const processRoute = (r: Rewrite) => {
+  const rewrite = { ...r }
 
-  return files
+  // omit external rewrite destinations since these aren't
+  // handled client-side
+  if (!rewrite.destination.startsWith('/')) {
+    delete (rewrite as any).destination
+  }
+  return rewrite
 }
 
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
   private buildId: string
-  private rewrites: Rewrite[]
+  private rewrites: CustomRoutes['rewrites']
 
-  constructor(options: { buildId: string; rewrites: Rewrite[] }) {
+  constructor(options: {
+    buildId: string
+    rewrites: CustomRoutes['rewrites']
+  }) {
     this.buildId = options.buildId
 
-    this.rewrites = options.rewrites.map((r) => {
-      const rewrite = { ...r }
-
-      // omit external rewrite destinations since these aren't
-      // handled client-side
-      if (!rewrite.destination.startsWith('/')) {
-        delete (rewrite as any).destination
-      }
-      return rewrite
-    })
+    this.rewrites = {
+      beforeFiles: [],
+      afterFiles: [],
+      fallback: [],
+    }
+    this.rewrites.beforeFiles = options.rewrites.beforeFiles.map(processRoute)
+    this.rewrites.afterFiles = options.rewrites.afterFiles.map(processRoute)
+    this.rewrites.fallback = options.rewrites.fallback.map(processRoute)
   }
 
-  createAssets(compilation: any, assets: any) {
-    const span = tracer.startSpan('NextJsBuildManifest-createassets')
-    return traceFn(span, () => {
-      const namedChunks: Map<string, CompilationType.Chunk> =
-        compilation.namedChunks
+  createAssets(compiler: any, compilation: any, assets: any) {
+    const compilerSpan = spans.get(compiler)
+    const createAssetsSpan = compilerSpan?.traceChild(
+      'NextJsBuildManifest-createassets'
+    )
+    return createAssetsSpan?.traceFn(() => {
+      const entrypoints: Map<string, any> = compilation.entrypoints
       const assetMap: DeepMutable<BuildManifest> = {
         polyfillFiles: [],
         devFiles: [],
@@ -126,59 +140,41 @@ export default class BuildManifestPlugin {
         }
       }
 
-      const mainJsChunk = namedChunks.get(CLIENT_STATIC_FILES_RUNTIME_MAIN)
-
-      const mainJsFiles: string[] = getFilesArray(mainJsChunk?.files).filter(
-        isJsFile
+      const mainFiles = new Set(
+        getEntrypointFiles(entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN))
       )
 
-      const polyfillChunk = namedChunks.get(
-        CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
+      assetMap.polyfillFiles = getEntrypointFiles(
+        entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_POLYFILLS)
+      ).filter((file) => !mainFiles.has(file))
+
+      assetMap.devFiles = getEntrypointFiles(
+        entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH)
+      ).filter((file) => !mainFiles.has(file))
+
+      assetMap.ampDevFiles = getEntrypointFiles(
+        entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_AMP)
       )
 
-      // Create a separate entry  for polyfills
-      assetMap.polyfillFiles = getFilesArray(polyfillChunk?.files).filter(
-        isJsFile
-      )
-
-      const reactRefreshChunk = namedChunks.get(
-        CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
-      )
-      assetMap.devFiles = getFilesArray(reactRefreshChunk?.files).filter(
-        isJsFile
-      )
+      const systemEntrypoints = new Set([
+        CLIENT_STATIC_FILES_RUNTIME_MAIN,
+        CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
+        CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
+        CLIENT_STATIC_FILES_RUNTIME_AMP,
+      ])
 
       for (const entrypoint of compilation.entrypoints.values()) {
-        const isAmpRuntime = entrypoint.name === CLIENT_STATIC_FILES_RUNTIME_AMP
+        if (systemEntrypoints.has(entrypoint.name)) continue
 
-        if (isAmpRuntime) {
-          for (const file of entrypoint.getFiles()) {
-            if (!(isJsFile(file) || file.endsWith('.css'))) {
-              continue
-            }
-
-            assetMap.ampDevFiles.push(file.replace(/\\/g, '/'))
-          }
-          continue
-        }
         const pagePath = getRouteFromEntrypoint(entrypoint.name)
 
         if (!pagePath) {
           continue
         }
 
-        const filesForEntry: string[] = []
+        const filesForPage = getEntrypointFiles(entrypoint)
 
-        // getFiles() - helper function to read the files for an entrypoint from stats object
-        for (const file of entrypoint.getFiles()) {
-          if (!(isJsFile(file) || file.endsWith('.css'))) {
-            continue
-          }
-
-          filesForEntry.push(file.replace(/\\/g, '/'))
-        }
-
-        assetMap.pages[pagePath] = [...mainJsFiles, ...filesForEntry]
+        assetMap.pages[pagePath] = [...new Set([...mainFiles, ...filesForPage])]
       }
 
       // Add the runtime build manifest file (generated later in this file)
@@ -195,19 +191,22 @@ export default class BuildManifestPlugin {
 
       const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
       assetMap.lowPriorityFiles.push(ssgManifestPath)
-      assets[ssgManifestPath] = new RawSource(srcEmptySsgManifest)
+      assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
 
       assetMap.pages = Object.keys(assetMap.pages)
         .sort()
         // eslint-disable-next-line
         .reduce((a, c) => ((a[c] = assetMap.pages[c]), a), {} as any)
 
-      assets[BUILD_MANIFEST] = new RawSource(JSON.stringify(assetMap, null, 2))
+      assets[BUILD_MANIFEST] = new sources.RawSource(
+        JSON.stringify(assetMap, null, 2)
+      )
 
       const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
 
-      assets[clientManifestPath] = new RawSource(
+      assets[clientManifestPath] = new sources.RawSource(
         `self.__BUILD_MANIFEST = ${generateClientManifest(
+          compiler,
           assetMap,
           this.rewrites
         )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
@@ -217,7 +216,7 @@ export default class BuildManifestPlugin {
     })
   }
 
-  apply(compiler: Compiler) {
+  apply(compiler: webpack.Compiler) {
     if (isWebpack5) {
       compiler.hooks.make.tap('NextJsBuildManifest', (compilation) => {
         // @ts-ignore TODO: Remove ignore when webpack 5 is stable
@@ -228,7 +227,7 @@ export default class BuildManifestPlugin {
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
           },
           (assets: any) => {
-            this.createAssets(compilation, assets)
+            this.createAssets(compiler, compilation, assets)
           }
         )
       })
@@ -236,7 +235,7 @@ export default class BuildManifestPlugin {
     }
 
     compiler.hooks.emit.tap('NextJsBuildManifest', (compilation: any) => {
-      this.createAssets(compilation, compilation.assets)
+      this.createAssets(compiler, compilation, compilation.assets)
     })
   }
 }

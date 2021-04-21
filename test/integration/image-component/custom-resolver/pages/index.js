@@ -13,7 +13,7 @@ const MyImage = (props) => {
 const Page = () => {
   return (
     <div>
-      <p>Image SSR Test</p>
+      <p id="ssr">Image SSR Test</p>
       <MyImage
         id="basic-image"
         src="foo.jpg"

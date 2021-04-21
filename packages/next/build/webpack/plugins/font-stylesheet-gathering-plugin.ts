@@ -1,6 +1,10 @@
-import webpack, { compilation as CompilationType, Compiler } from 'webpack'
+import {
+  webpack,
+  BasicEvaluatedExpression,
+  isWebpack5,
+  sources,
+} from 'next/dist/compiled/webpack/webpack'
 import { namedTypes } from 'ast-types'
-import sources from 'webpack-sources'
 import {
   getFontDefinitionFromNetwork,
   FontManifest,
@@ -12,41 +16,30 @@ import {
   OPTIMIZED_FONT_PROVIDERS,
 } from '../../../next-server/lib/constants'
 
-// @ts-ignore: TODO: remove ignore when webpack 5 is stable
-const { RawSource } = webpack.sources || sources
-
-const isWebpack5 = parseInt(webpack.version!) === 5
-
-let BasicEvaluatedExpression: any
-if (isWebpack5) {
-  BasicEvaluatedExpression = require('webpack/lib/javascript/BasicEvaluatedExpression')
-} else {
-  BasicEvaluatedExpression = require('webpack/lib/BasicEvaluatedExpression')
-}
-
-async function minifyCss(css: string): Promise<string> {
-  return new Promise((resolve) =>
-    postcss([
-      minifier({
-        excludeAll: true,
-        discardComments: true,
-        normalizeWhitespace: { exclude: false },
-      }),
-    ])
-      .process(css, { from: undefined })
-      .then((res) => {
-        resolve(res.css)
-      })
-  )
+function minifyCss(css: string): Promise<string> {
+  return postcss([
+    minifier({
+      excludeAll: true,
+      discardComments: true,
+      normalizeWhitespace: { exclude: false },
+    }),
+  ])
+    .process(css, { from: undefined })
+    .then((res) => res.css)
 }
 
 export class FontStylesheetGatheringPlugin {
-  compiler?: Compiler
+  compiler?: webpack.Compiler
   gatheredStylesheets: Array<string> = []
   manifestContent: FontManifest = []
+  isLikeServerless: boolean
+
+  constructor({ isLikeServerless }: { isLikeServerless: boolean }) {
+    this.isLikeServerless = isLikeServerless
+  }
 
   private parserHandler = (
-    factory: CompilationType.NormalModuleFactory
+    factory: webpack.compilation.NormalModuleFactory
   ): void => {
     const JS_TYPES = ['auto', 'esm', 'dynamic']
     // Do an extra walk per module and add interested visitors to the walk.
@@ -130,19 +123,22 @@ export class FontStylesheetGatheringPlugin {
           parser.hooks.call
             .for('__jsx')
             .tap(this.constructor.name, jsxNodeHandler)
+          // New React JSX transform:
+          parser.hooks.call
+            .for('imported var')
+            .tap(this.constructor.name, jsxNodeHandler)
         })
     }
   }
 
-  public apply(compiler: Compiler) {
+  public apply(compiler: webpack.Compiler) {
     this.compiler = compiler
     compiler.hooks.normalModuleFactory.tap(
       this.constructor.name,
       this.parserHandler
     )
     compiler.hooks.make.tapAsync(this.constructor.name, (compilation, cb) => {
-      // @ts-ignore
-      if (compilation.options.output.path.endsWith('serverless')) {
+      if (this.isLikeServerless) {
         /**
          * Inline font manifest for serverless case only.
          * For target: server drive the manifest through physical file and less of webpack magic.
@@ -173,14 +169,17 @@ export class FontStylesheetGatheringPlugin {
           this.manifestContent = []
           for (let promiseIndex in fontDefinitionPromises) {
             const css = await fontDefinitionPromises[promiseIndex]
-            const content = await minifyCss(css)
-            this.manifestContent.push({
-              url: this.gatheredStylesheets[promiseIndex],
-              content,
-            })
+
+            if (css) {
+              const content = await minifyCss(css)
+              this.manifestContent.push({
+                url: this.gatheredStylesheets[promiseIndex],
+                content,
+              })
+            }
           }
           if (!isWebpack5) {
-            compilation.assets[FONT_MANIFEST] = new RawSource(
+            compilation.assets[FONT_MANIFEST] = new sources.RawSource(
               JSON.stringify(this.manifestContent, null, '  ')
             )
           }
@@ -200,7 +199,7 @@ export class FontStylesheetGatheringPlugin {
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
           },
           (assets: any) => {
-            assets[FONT_MANIFEST] = new RawSource(
+            assets['../' + FONT_MANIFEST] = new sources.RawSource(
               JSON.stringify(this.manifestContent, null, '  ')
             )
           }

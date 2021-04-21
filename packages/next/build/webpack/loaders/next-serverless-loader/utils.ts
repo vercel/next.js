@@ -6,7 +6,9 @@ import { normalizeLocalePath } from '../../../../next-server/lib/i18n/normalize-
 import pathMatch from '../../../../next-server/lib/router/utils/path-match'
 import { getRouteRegex } from '../../../../next-server/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../../next-server/lib/router/utils/route-matcher'
-import prepareDestination from '../../../../next-server/lib/router/utils/prepare-destination'
+import prepareDestination, {
+  matchHas,
+} from '../../../../next-server/lib/router/utils/prepare-destination'
 import { __ApiPreviewProps } from '../../../../next-server/server/api-utils'
 import { BuildManifest } from '../../../../next-server/server/get-page-files'
 import {
@@ -81,10 +83,20 @@ export function getUtils({
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }
 
-  function handleRewrites(parsedUrl: UrlWithParsedQuery) {
+  function handleRewrites(req: IncomingMessage, parsedUrl: UrlWithParsedQuery) {
     for (const rewrite of rewrites) {
       const matcher = getCustomRouteMatcher(rewrite.source)
-      const params = matcher(parsedUrl.pathname)
+      let params = matcher(parsedUrl.pathname)
+
+      if (rewrite.has && params) {
+        const hasParams = matchHas(req, rewrite.has, parsedUrl.query)
+
+        if (hasParams) {
+          Object.assign(params, hasParams)
+        } else {
+          params = false
+        }
+      }
 
       if (params) {
         const { parsedDestination } = prepareDestination(
@@ -329,6 +341,7 @@ export function getUtils({
     shouldNotRedirect: boolean
   ) {
     if (!i18n) return
+    const pathname = parsedUrl.pathname || '/'
 
     let defaultLocale = i18n.defaultLocale
     let detectedLocale = detectLocaleCookie(req, i18n.locales)
@@ -345,16 +358,14 @@ export function getUtils({
     if (detectedDomain) {
       defaultLocale = detectedDomain.defaultLocale
       detectedLocale = defaultLocale
+      ;(req as any).__nextIsLocaleDomain = true
     }
 
     // if not domain specific locale use accept-language preferred
     detectedLocale = detectedLocale || acceptPreferredLocale
 
     let localeDomainRedirect
-    const localePathResult = normalizeLocalePath(
-      parsedUrl.pathname!,
-      i18n.locales
-    )
+    const localePathResult = normalizeLocalePath(pathname, i18n.locales)
 
     routeNoAssetPath = normalizeLocalePath(routeNoAssetPath, i18n.locales)
       .pathname
@@ -390,7 +401,7 @@ export function getUtils({
       }
     }
 
-    const denormalizedPagePath = denormalizePagePath(parsedUrl.pathname || '/')
+    const denormalizedPagePath = denormalizePagePath(pathname)
     const detectedDefaultLocale =
       !detectedLocale ||
       detectedLocale.toLowerCase() === defaultLocale.toLowerCase()

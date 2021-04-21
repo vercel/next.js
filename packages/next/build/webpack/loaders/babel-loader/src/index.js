@@ -1,6 +1,6 @@
 // import babel from 'next/dist/compiled/babel/core'
-import loaderUtils from 'loader-utils'
-import { tracer, traceAsyncFn, traceFn } from '../../../../tracer'
+import loaderUtils from 'next/dist/compiled/loader-utils'
+import { trace } from '../../../../../telemetry/trace'
 import cache from './cache'
 import transform from './transform'
 
@@ -22,17 +22,19 @@ export default function makeLoader(callback) {
 }
 
 async function loader(source, inputSourceMap, overrides) {
-  const span = tracer.startSpan('babel-loader')
-  return traceAsyncFn(span, async () => {
+  // this.currentTraceSpan is provided by profiling-plugin.ts
+  const loaderSpan = trace('babel-loader', this.currentTraceSpan?.id)
+
+  return loaderSpan.traceAsyncFn(async () => {
     const filename = this.resourcePath
-    span.setAttribute('filename', filename)
+    loaderSpan.setAttribute('filename', filename)
 
     let loaderOptions = loaderUtils.getOptions(this) || {}
 
     let customOptions
     if (overrides && overrides.customOptions) {
-      const result = await traceAsyncFn(
-        tracer.startSpan('loader-overrides-customoptions'),
+      const customoptionsSpan = trace('loader-overrides-customoptions')
+      const result = await customoptionsSpan.traceAsyncFn(
         async () =>
           await overrides.customOptions.call(this, loaderOptions, {
             source,
@@ -93,18 +95,16 @@ async function loader(source, inputSourceMap, overrides) {
     delete programmaticOptions.cacheDirectory
     delete programmaticOptions.cacheIdentifier
 
-    const config = traceFn(
-      tracer.startSpan('babel-load-partial-config-async'),
-      () => {
-        return babel.loadPartialConfig(programmaticOptions)
-      }
-    )
+    const partialConfigSpan = trace('babel-load-partial-config-async')
+    const config = partialConfigSpan.traceFn(() => {
+      return babel.loadPartialConfig(programmaticOptions)
+    })
 
     if (config) {
       let options = config.options
       if (overrides && overrides.config) {
-        options = await traceAsyncFn(
-          tracer.startSpan('loader-overrides-config'),
+        const overridesSpan = trace('loader-overrides-config')
+        options = await overridesSpan.traceAsyncFn(
           async () =>
             await overrides.config.call(this, config, {
               source,
@@ -136,17 +136,12 @@ async function loader(source, inputSourceMap, overrides) {
           cacheCompression: false,
         })
       } else {
-        result = await traceAsyncFn(
-          tracer.startSpan('transform', {
-            attributes: {
-              filename,
-              cache: 'DISABLED',
-            },
-          }),
-          async () => {
-            return transform(source, options)
-          }
-        )
+        const transformSpan = trace('transform')
+        transformSpan.setAttribute('filename', filename)
+        transformSpan.setAttribute('cache', 'DISABLED')
+        result = await transformSpan.traceAsyncFn(async () => {
+          return transform(source, options)
+        })
       }
 
       // TODO: Babel should really provide the full list of config files that
