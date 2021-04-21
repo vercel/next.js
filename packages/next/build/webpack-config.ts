@@ -4,8 +4,8 @@ import crypto from 'crypto'
 import { readFileSync, realpathSync } from 'fs'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import semver from 'next/dist/compiled/semver'
-import path from 'path'
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { isWebpack5, webpack } from 'next/dist/compiled/webpack/webpack'
+import path, { join as pathJoin, relative as relativePath } from 'path'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -14,18 +14,20 @@ import {
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { getPackageVersion } from '../lib/get-package-version'
+import { CustomRoutes } from '../lib/load-custom-routes.js'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import {
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
-  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
 } from '../next-server/lib/constants'
 import { execOnce } from '../next-server/lib/utils'
+import { NextConfig } from '../next-server/server/config'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
 import * as Log from './output/log'
@@ -34,7 +36,6 @@ import { __overrideCssConfiguration } from './webpack/config/blocks/css/override
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import BuildStatsPlugin from './webpack/plugins/build-stats-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
-import { CssMinimizerPlugin } from './webpack/plugins/css-minimizer-plugin'
 import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { DropClientPage } from './webpack/plugins/next-drop-client-page-plugin'
 import NextJsSsrImportPlugin from './webpack/plugins/nextjs-ssr-import'
@@ -43,8 +44,6 @@ import PagesManifestPlugin from './webpack/plugins/pages-manifest-plugin'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
 import { ReactLoadablePlugin } from './webpack/plugins/react-loadable-plugin'
 import { ServerlessPlugin } from './webpack/plugins/serverless-plugin'
-// @ts-ignore No typings yet
-import TerserPlugin from './webpack/plugins/terser-webpack-plugin/src/index.js'
 import WebpackConformancePlugin, {
   DuplicatePolyfillsConformanceCheck,
   GranularChunksConformanceCheck,
@@ -52,9 +51,6 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
-import { NextConfig } from '../next-server/server/config'
-import { relative as relativePath, join as pathJoin } from 'path'
-import { CustomRoutes } from '../lib/load-custom-routes.js'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -211,6 +207,20 @@ export default async function getBaseWebpackConfig(
     // fixed in rc.1.
     semver.gte(reactVersion!, '17.0.0-rc.1')
 
+  const babelrc = await [
+    '.babelrc',
+    '.babelrc.json',
+    '.babelrc.js',
+    '.babelrc.mjs',
+    '.babelrc.cjs',
+    'babel.config.js',
+    'babel.config.json',
+    'babel.config.mjs',
+    'babel.config.cjs',
+  ].reduce(async (memo: boolean | Promise<boolean>, filename) => {
+    return (await memo) || (await fileExists(path.join(dir, filename)))
+  }, false)
+
   const distDir = path.join(dir, config.distDir)
 
   const babelLoader = config.experimental.turboMode
@@ -220,6 +230,7 @@ export default async function getBaseWebpackConfig(
     babel: {
       loader: babelLoader,
       options: {
+        babelrc,
         isServer,
         distDir,
         pagesDir,
@@ -305,7 +316,7 @@ export default async function getBaseWebpackConfig(
   // jsconfig is a subset of tsconfig
   if (useTypeScript) {
     const ts = (await import(typeScriptPath!)) as typeof import('typescript')
-    const tsConfig = await getTypeScriptConfiguration(ts, tsConfigPath)
+    const tsConfig = await getTypeScriptConfiguration(ts, tsConfigPath, true)
     jsConfig = { compilerOptions: tsConfig.options }
   }
 
@@ -795,24 +806,35 @@ export default async function getBaseWebpackConfig(
       minimize: !(dev || isServer),
       minimizer: [
         // Minify JavaScript
-        new TerserPlugin({
-          cacheDir: path.join(distDir, 'cache', 'next-minifier'),
-          parallel: config.experimental.cpus,
-          terserOptions,
-        }),
+        (compiler: webpack.Compiler) => {
+          // @ts-ignore No typings yet
+          const {
+            TerserPlugin,
+          } = require('./webpack/plugins/terser-webpack-plugin/src/index.js')
+          new TerserPlugin({
+            cacheDir: path.join(distDir, 'cache', 'next-minifier'),
+            parallel: config.experimental.cpus,
+            terserOptions,
+          }).apply(compiler)
+        },
         // Minify CSS
-        new CssMinimizerPlugin({
-          postcssOptions: {
-            map: {
-              // `inline: false` generates the source map in a separate file.
-              // Otherwise, the CSS file is needlessly large.
-              inline: false,
-              // `annotation: false` skips appending the `sourceMappingURL`
-              // to the end of the CSS file. Webpack already handles this.
-              annotation: false,
+        (compiler: webpack.Compiler) => {
+          const {
+            CssMinimizerPlugin,
+          } = require('./webpack/plugins/css-minimizer-plugin')
+          new CssMinimizerPlugin({
+            postcssOptions: {
+              map: {
+                // `inline: false` generates the source map in a separate file.
+                // Otherwise, the CSS file is needlessly large.
+                inline: false,
+                // `annotation: false` skips appending the `sourceMappingURL`
+                // to the end of the CSS file. Webpack already handles this.
+                annotation: false,
+              },
             },
-          },
-        }),
+          }).apply(compiler)
+        },
       ],
     },
     context: dir,
@@ -1083,6 +1105,7 @@ export default async function getBaseWebpackConfig(
       !isServer &&
         new ReactLoadablePlugin({
           filename: REACT_LOADABLE_MANIFEST,
+          pagesDir,
         }),
       !isServer && new DropClientPage(),
       // Moment.js is an extremely popular library that bundles large locale files

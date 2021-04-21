@@ -19,6 +19,10 @@ describe('Build Output', () => {
     })
 
     it('should not include crypto', async () => {
+      if (process.env.NEXT_PRIVATE_SKIP_SIZE_TESTS) {
+        return
+      }
+
       ;({ stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))

@@ -99,6 +99,7 @@ const customBabelLoader = babelLoader((babel) => {
       options.caller.isServer = isServer
       options.caller.isDev = development
       options.caller.hasJsxRuntime = hasJsxRuntime
+      options.caller.pagesDir = pagesDir
 
       const emitWarning = this.emitWarning.bind(this)
       Object.defineProperty(options.caller, 'onWarning', {
