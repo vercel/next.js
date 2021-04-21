@@ -58,8 +58,8 @@ describe('Production Usage', () => {
   afterAll(() => stopApp(server))
 
   it('should contain generated page count in output', async () => {
-    expect(output).toContain('Generating static pages (0/36)')
-    expect(output).toContain('Generating static pages (36/36)')
+    expect(output).toContain('Generating static pages (0/37)')
+    expect(output).toContain('Generating static pages (37/37)')
     // we should only have 4 segments and the initial message logged out
     expect(output.match(/Generating static pages/g).length).toBe(5)
   })
@@ -251,10 +251,14 @@ describe('Production Usage', () => {
 
       const resources = new Set()
 
+      const manifestKey = Object.keys(reactLoadableManifest).find((item) => {
+        return item
+          .replace(/\\/g, '/')
+          .endsWith('bundle.js -> ../../components/hello1')
+      })
+
       // test dynamic chunk
-      resources.add(
-        url + reactLoadableManifest['../../components/hello1'][0].file
-      )
+      resources.add(url + reactLoadableManifest[manifestKey].files[0])
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/']) {
@@ -782,6 +786,10 @@ describe('Production Usage', () => {
     expect(existsSync(join(appDir, '.next', 'profile-events.json'))).toBe(false)
   })
 
+  it('should not emit stats', async () => {
+    expect(existsSync(join(appDir, '.next', 'next-stats.json'))).toBe(false)
+  })
+
   it('should contain the Next.js version in window export', async () => {
     let browser
     try {
@@ -799,7 +807,8 @@ describe('Production Usage', () => {
   it('should clear all core performance marks', async () => {
     let browser
     try {
-      browser = await webdriver(appPort, '/about')
+      browser = await webdriver(appPort, '/fully-dynamic')
+
       const currentPerfMarks = await browser.eval(
         `window.performance.getEntriesByType('mark')`
       )

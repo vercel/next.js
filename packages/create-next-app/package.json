@@ -1,6 +1,6 @@
 {
   "name": "create-next-app",
-  "version": "10.0.6",
+  "version": "10.1.4-canary.14",
   "keywords": [
     "react",
     "next",
@@ -21,7 +21,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "ncc build ./index.ts -w -o dist/",
+    "dev": "ncc build ./index.ts -w -o dist/",
     "prerelease": "rimraf ./dist/",
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
     "prepublish": "yarn release"

@@ -98,7 +98,7 @@ export async function writeConfigurationDefaults(
   const {
     options: tsOptions,
     raw: rawConfig,
-  } = await getTypeScriptConfiguration(ts, tsConfigPath)
+  } = await getTypeScriptConfiguration(ts, tsConfigPath, true)
 
   const userTsConfigContent = await fs.readFile(tsConfigPath, {
     encoding: 'utf8',

@@ -23,5 +23,5 @@ exports.init = function (useWebpack5) {
 
 exports.onWebpackInit = function (cb) {
   if (initializedWebpack5 || initializedWebpack4) cb()
-  initFns.push(cb)
+  else initFns.push(cb)
 }

@@ -16,11 +16,10 @@ export function interopDefault(mod: any) {
 
 export type ManifestItem = {
   id: number | string
-  name: string
-  file: string
+  files: string[]
 }
 
-type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
+type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
 export type LoadComponentsReturnType = {
   Component: React.ComponentType
@@ -32,6 +31,23 @@ export type LoadComponentsReturnType = {
   getStaticProps?: GetStaticProps
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
+  ComponentMod: any
+}
+
+export async function loadDefaultErrorComponents(distDir: string) {
+  const Document = interopDefault(require('next/dist/pages/_document'))
+  const App = interopDefault(require('next/dist/pages/_app'))
+  const ComponentMod = require('next/dist/pages/_error')
+  const Component = interopDefault(ComponentMod)
+
+  return {
+    App,
+    Document,
+    Component,
+    buildManifest: require(join(distDir, BUILD_MANIFEST)),
+    reactLoadableManifest: require(join(distDir, REACT_LOADABLE_MANIFEST)),
+    ComponentMod,
+  }
 }
 
 export async function loadComponents(
@@ -54,14 +70,13 @@ export async function loadComponents(
       getStaticProps,
       getStaticPaths,
       getServerSideProps,
+      ComponentMod: Component,
     } as LoadComponentsReturnType
   }
 
-  const [DocumentMod, AppMod, ComponentMod] = await Promise.all([
-    requirePage('/_document', distDir, serverless),
-    requirePage('/_app', distDir, serverless),
-    requirePage(pathname, distDir, serverless),
-  ])
+  const DocumentMod = await requirePage('/_document', distDir, serverless)
+  const AppMod = await requirePage('/_app', distDir, serverless)
+  const ComponentMod = await requirePage(pathname, distDir, serverless)
 
   const [
     buildManifest,
@@ -86,6 +101,7 @@ export async function loadComponents(
     buildManifest,
     reactLoadableManifest,
     pageConfig: ComponentMod.config || {},
+    ComponentMod,
     getServerSideProps,
     getStaticProps,
     getStaticPaths,

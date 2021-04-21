@@ -586,12 +586,12 @@ describe('Client Navigation', () => {
           browser = await webdriver(context.appPort, '/nav/hash-changes')
 
           // Scrolls to item 400 on the page
-          const scrollPosition = await browser
+          const scrollPositionBeforeEmptyHash = await browser
             .elementByCss('#scroll-to-item-400')
             .click()
             .eval('window.pageYOffset')
 
-          expect(scrollPosition).toBe(7258)
+          expect(scrollPositionBeforeEmptyHash).toBe(7258)
 
           // Scrolls back to top when scrolling to `#` with no value.
           const scrollPositionAfterEmptyHash = await browser
@@ -600,6 +600,22 @@ describe('Client Navigation', () => {
             .eval('window.pageYOffset')
 
           expect(scrollPositionAfterEmptyHash).toBe(0)
+
+          // Scrolls to item 400 on the page
+          const scrollPositionBeforeTopHash = await browser
+            .elementByCss('#scroll-to-item-400')
+            .click()
+            .eval('window.pageYOffset')
+
+          expect(scrollPositionBeforeTopHash).toBe(7258)
+
+          // Scrolls back to top when clicking link with href `#top`.
+          const scrollPositionAfterTopHash = await browser
+            .elementByCss('#via-top-hash')
+            .click()
+            .eval('window.pageYOffset')
+
+          expect(scrollPositionAfterTopHash).toBe(0)
         } finally {
           if (browser) {
             await browser.close()

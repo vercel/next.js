@@ -11,7 +11,7 @@ exception Graphql_error(string);
  */
 let fetchQuery: ReasonRelay.Network.fetchFunctionPromise =
   (operation, variables, _cacheConfig) => {
-    let uri: string = [%raw "process.env.RELAY_ENDPOINT"];
+    let uri: string = [%raw "process.env.NEXT_PUBLIC_RELAY_ENDPOINT"];
     fetchWithInit(
       uri,
       RequestInit.make(

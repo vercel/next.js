@@ -66,6 +66,10 @@ describe('Production response size', () => {
   })
 
   it('should not increase the overall response size of default build', async () => {
+    if (process.env.NEXT_PRIVATE_SKIP_SIZE_TESTS) {
+      return
+    }
+
     const responseSizes = [
       baseResponseSize,
       ...(await getResponseSizes(scriptsUrls)),
@@ -81,6 +85,6 @@ describe('Production response size', () => {
     const delta = responseSizesBytes / 1024
 
     // Expected difference: < 0.5
-    expect(delta).toBeCloseTo(284.1, 0)
+    expect(delta).toBeCloseTo(286.7, 0)
   })
 })

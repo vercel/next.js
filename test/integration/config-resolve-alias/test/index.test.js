@@ -12,7 +12,7 @@ describe('Invalid resolve alias', () => {
     })
 
     expect(stderr).toMatch(
-      'webpack config.resolve.alias was incorrectly overridden. https://err.sh'
+      'webpack config.resolve.alias was incorrectly overridden. https://'
     )
   })
 })

@@ -4,7 +4,7 @@ import http from 'http'
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import Server from 'next/dist/next-server/server/next-server'
+import { nextServer } from 'next-test-utils'
 import {
   fetchViaHTTP,
   findPort,
@@ -20,11 +20,16 @@ let nextApp
 let appPort
 let buildId
 let requiredFilesManifest
+let errors = []
 
 describe('Required Server Files', () => {
   beforeAll(async () => {
     await fs.remove(join(appDir, '.next'))
-    await nextBuild(appDir)
+    await nextBuild(appDir, undefined, {
+      env: {
+        NOW_BUILDER: '1',
+      },
+    })
 
     buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
     requiredFilesManifest = await fs.readJSON(
@@ -46,7 +51,7 @@ describe('Required Server Files', () => {
     }
     await fs.rename(join(appDir, 'pages'), join(appDir, 'pages-bak'))
 
-    nextApp = new Server({
+    nextApp = nextServer({
       conf: {},
       dir: appDir,
       quiet: false,
@@ -58,7 +63,8 @@ describe('Required Server Files', () => {
       try {
         await nextApp.getRequestHandler()(req, res)
       } catch (err) {
-        console.error(err)
+        console.error('top-level', err)
+        errors.push(err)
         res.statusCode = 500
         res.end('error')
       }
@@ -81,11 +87,14 @@ describe('Required Server Files', () => {
     expect(requiredFilesManifest.ignore.length).toBeGreaterThan(0)
     expect(typeof requiredFilesManifest.config.configFile).toBe('undefined')
     expect(typeof requiredFilesManifest.config.trailingSlash).toBe('boolean')
+    expect(typeof requiredFilesManifest.appDir).toBe('string')
 
     for (const file of requiredFilesManifest.files) {
       console.log('checking', file)
       expect(await fs.exists(join(appDir, file))).toBe(true)
     }
+
+    expect(await fs.exists(join(appDir, '.next/server'))).toBe(true)
   })
 
   it('should render SSR page correctly', async () => {
@@ -418,5 +427,112 @@ describe('Required Server Files', () => {
     expect(JSON.parse($('#router').text()).query).toEqual({
       path: ['hello', 'world'],
     })
+  })
+
+  it('should bubble error correctly for gip page', async () => {
+    errors = []
+    const res = await fetchViaHTTP(appPort, '/errors/gip', { crash: '1' })
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('error')
+    expect(errors.length).toBe(1)
+    expect(errors[0].message).toContain('gip hit an oops')
+  })
+
+  it('should bubble error correctly for gssp page', async () => {
+    errors = []
+    const res = await fetchViaHTTP(appPort, '/errors/gssp', { crash: '1' })
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('error')
+    expect(errors.length).toBe(1)
+    expect(errors[0].message).toContain('gssp hit an oops')
+  })
+
+  it('should bubble error correctly for gsp page', async () => {
+    errors = []
+    const res = await fetchViaHTTP(appPort, '/errors/gsp/crash')
+    expect(res.status).toBe(500)
+    expect(await res.text()).toBe('error')
+    expect(errors.length).toBe(1)
+    expect(errors[0].message).toContain('gsp hit an oops')
+  })
+
+  it('should normalize optional values correctly for SSP page', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/optional-ssp',
+      { rest: '', another: 'value' },
+      {
+        headers: {
+          'x-matched-path': '/optional-ssp/[[...rest]]',
+        },
+      }
+    )
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    const props = JSON.parse($('#props').text())
+    expect(props.params).toEqual({})
+    expect(props.query).toEqual({ another: 'value' })
+  })
+
+  it('should normalize optional values correctly for SSG page', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/optional-ssg',
+      { rest: '', another: 'value' },
+      {
+        headers: {
+          'x-matched-path': '/optional-ssg/[[...rest]]',
+        },
+      }
+    )
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    const props = JSON.parse($('#props').text())
+    expect(props.params).toEqual({})
+  })
+
+  it('should normalize optional values correctly for API page', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/api/optional',
+      { rest: '', another: 'value' },
+      {
+        headers: {
+          'x-matched-path': '/api/optional/[[...rest]]',
+        },
+      }
+    )
+
+    const json = await res.json()
+    expect(json.query).toEqual({ another: 'value' })
+    expect(json.url).toBe('/api/optional?another=value')
+  })
+
+  it('should match the index page correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/', undefined, {
+      headers: {
+        'x-matched-path': '/index',
+      },
+      redirect: 'manual',
+    })
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#index').text()).toBe('index page')
+  })
+
+  it('should match the root dyanmic page correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/index', undefined, {
+      headers: {
+        'x-matched-path': '/[slug]',
+      },
+      redirect: 'manual',
+    })
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#slug-page').text()).toBe('[slug] page')
   })
 })
