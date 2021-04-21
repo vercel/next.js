@@ -114,7 +114,7 @@ export const defaultConfig: NextConfig = {
     stats: false,
     externalDir: false,
     serialWebpackBuild: false,
-    turboMode: false,
+    turboMode: true,
   },
   future: {
     strictPostcssConfiguration: false,
