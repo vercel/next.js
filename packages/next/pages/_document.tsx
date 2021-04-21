@@ -28,18 +28,6 @@ export type OriginProps = {
   crossOrigin?: string
 }
 
-function dedupe<T extends { file: string }>(bundles: T[]): T[] {
-  const files = new Set<string>()
-  const kept: T[] = []
-
-  for (const bundle of bundles) {
-    if (files.has(bundle.file)) continue
-    files.add(bundle.file)
-    kept.push(bundle)
-  }
-  return kept
-}
-
 type DocumentFiles = {
   sharedFiles: readonly string[]
   pageFiles: readonly string[]
@@ -168,9 +156,9 @@ export class Head extends Component<
     // Unmanaged files are CSS files that will be handled directly by the
     // webpack runtime (`mini-css-extract-plugin`).
     let unmangedFiles: Set<string> = new Set([])
-    let dynamicCssFiles = dedupe(
-      dynamicImports.filter((f) => f.file.endsWith('.css'))
-    ).map((f) => f.file)
+    let dynamicCssFiles = Array.from(
+      new Set(dynamicImports.filter((file) => file.endsWith('.css')))
+    )
     if (dynamicCssFiles.length) {
       const existing = new Set(cssFiles)
       dynamicCssFiles = dynamicCssFiles.filter(
@@ -239,18 +227,18 @@ export class Head extends Component<
     } = this.context
 
     return (
-      dedupe(dynamicImports)
-        .map((bundle) => {
-          if (!bundle.file.endsWith('.js')) {
+      dynamicImports
+        .map((file) => {
+          if (!file.endsWith('.js')) {
             return null
           }
 
           return (
             <link
               rel="preload"
-              key={bundle.file}
+              key={file}
               href={`${assetPrefix}/_next/${encodeURI(
-                bundle.file
+                file
               )}${devOnlyCacheBusterQueryString}`}
               as="script"
               nonce={this.props.nonce}
@@ -399,7 +387,7 @@ export class Head extends Component<
       })
       head = cssPreloads.concat(otherHeadElements)
     }
-    let children = this.props.children
+    let children = React.Children.toArray(this.props.children).filter(Boolean)
     // show a warning if Head contains <title> (only in development)
     if (process.env.NODE_ENV !== 'production') {
       children = React.Children.map(children, (child: any) => {
@@ -407,14 +395,14 @@ export class Head extends Component<
         if (!isReactHelmet) {
           if (child?.type === 'title') {
             console.warn(
-              "Warning: <title> should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-title"
+              "Warning: <title> should not be used in _document.js's <Head>. https://nextjs.org/docs/messages/no-document-title"
             )
           } else if (
             child?.type === 'meta' &&
             child?.props?.name === 'viewport'
           ) {
             console.warn(
-              "Warning: viewport meta tags should not be used in _document.js's <Head>. https://err.sh/next.js/no-document-viewport-meta"
+              "Warning: viewport meta tags should not be used in _document.js's <Head>. https://nextjs.org/docs/messages/no-document-viewport-meta"
             )
           }
         }
@@ -422,7 +410,7 @@ export class Head extends Component<
       })
       if (this.props.crossOrigin)
         console.warn(
-          'Warning: `Head` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated'
+          'Warning: `Head` attribute `crossOrigin` is deprecated. https://nextjs.org/docs/messages/doc-crossorigin-deprecated'
         )
     }
 
@@ -472,7 +460,7 @@ export class Head extends Component<
 
         if (badProp) {
           console.warn(
-            `Found conflicting amp tag "${child.type}" with conflicting prop ${badProp} in ${__NEXT_DATA__.page}. https://err.sh/next.js/conflicting-amp-tag`
+            `Found conflicting amp tag "${child.type}" with conflicting prop ${badProp} in ${__NEXT_DATA__.page}. https://nextjs.org/docs/messages/conflicting-amp-tag`
           )
           return null
         }
@@ -662,16 +650,15 @@ export class NextScript extends Component<OriginProps> {
       devOnlyCacheBusterQueryString,
     } = this.context
 
-    return dedupe(dynamicImports).map((bundle) => {
-      if (!bundle.file.endsWith('.js') || files.allFiles.includes(bundle.file))
-        return null
+    return dynamicImports.map((file) => {
+      if (!file.endsWith('.js') || files.allFiles.includes(file)) return null
 
       return (
         <script
           async={!isDevelopment}
-          key={bundle.file}
+          key={file}
           src={`${assetPrefix}/_next/${encodeURI(
-            bundle.file
+            file
           )}${devOnlyCacheBusterQueryString}`}
           nonce={this.props.nonce}
           crossOrigin={
@@ -764,7 +751,7 @@ export class NextScript extends Component<OriginProps> {
     } catch (err) {
       if (err.message.indexOf('circular structure')) {
         throw new Error(
-          `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://err.sh/vercel/next.js/circular-structure`
+          `Circular structure in "getInitialProps" result of page "${__NEXT_DATA__.page}". https://nextjs.org/docs/messages/circular-structure`
         )
       }
       throw err
@@ -829,7 +816,7 @@ export class NextScript extends Component<OriginProps> {
     if (process.env.NODE_ENV !== 'production') {
       if (this.props.crossOrigin)
         console.warn(
-          'Warning: `NextScript` attribute `crossOrigin` is deprecated. https://err.sh/next.js/doc-crossorigin-deprecated'
+          'Warning: `NextScript` attribute `crossOrigin` is deprecated. https://nextjs.org/docs/messages/doc-crossorigin-deprecated'
         )
     }
 

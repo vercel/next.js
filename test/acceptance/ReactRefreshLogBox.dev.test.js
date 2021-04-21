@@ -1260,3 +1260,123 @@ test('<Link> component props errors', async () => {
 
   await cleanup()
 })
+
+test('_app top level error shows logbox', async () => {
+  const [session, cleanup] = await sandbox(
+    undefined,
+    new Map([
+      [
+        'pages/_app.js',
+        `
+          throw new Error("test");
+          function MyApp({ Component, pageProps }) {
+            return <Component {...pageProps} />;
+          }
+          export default MyApp
+        `,
+      ],
+    ])
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "pages/_app.js (2:16) @ eval
+
+        1 | 
+      > 2 |           throw new Error(\\"test\\");
+          |                ^
+        3 |           function MyApp({ Component, pageProps }) {
+        4 |             return <Component {...pageProps} />;
+        5 |           }"
+    `)
+
+  await session.patch(
+    'pages/_app.js',
+    `
+      function MyApp({ Component, pageProps }) {
+        return <Component {...pageProps} />;
+      }
+      export default MyApp
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+  await cleanup()
+})
+
+test('_document top level error shows logbox', async () => {
+  const [session, cleanup] = await sandbox(
+    undefined,
+    new Map([
+      [
+        'pages/_document.js',
+        `
+          import Document, { Html, Head, Main, NextScript } from 'next/document'
+
+          throw new Error("test");
+
+          class MyDocument extends Document {
+            static async getInitialProps(ctx) {
+              const initialProps = await Document.getInitialProps(ctx)
+              return { ...initialProps }
+            }
+
+            render() {
+              return (
+                <Html>
+                  <Head />
+                  <body>
+                    <Main />
+                    <NextScript />
+                  </body>
+                </Html>
+              )
+            }
+          }
+
+          export default MyDocument
+        `,
+      ],
+    ])
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "pages/_document.js (4:16) @ eval
+
+        2 |           import Document, { Html, Head, Main, NextScript } from 'next/document'
+        3 | 
+      > 4 |           throw new Error(\\"test\\");
+          |                ^
+        5 | 
+        6 |           class MyDocument extends Document {
+        7 |             static async getInitialProps(ctx) {"
+`)
+
+  await session.patch(
+    'pages/_document.js',
+    `
+      import Document, { Html, Head, Main, NextScript } from 'next/document'
+
+      class MyDocument extends Document {
+        static async getInitialProps(ctx) {
+          const initialProps = await Document.getInitialProps(ctx)
+          return { ...initialProps }
+        }
+
+        render() {
+          return (
+            <Html>
+              <Head />
+              <body>
+                <Main />
+                <NextScript />
+              </body>
+            </Html>
+          )
+        }
+      }
+
+      export default MyDocument
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+  await cleanup()
+})

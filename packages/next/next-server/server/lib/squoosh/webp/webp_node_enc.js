@@ -35,12 +35,6 @@ var Module = (function () {
       a.buffer || u('Assertion failed: undefined')
       return a
     }
-    1 < process.argv.length && process.argv[1].replace(/\\/g, '/')
-    process.argv.slice(2)
-    process.on('uncaughtException', function (a) {
-      throw a
-    })
-    process.on('unhandledRejection', u)
     f.inspect = function () {
       return '[Emscripten Module object]'
     }

@@ -18,6 +18,7 @@ import { ampFirstEntryNamesMap } from './next-drop-client-page-plugin'
 import { Rewrite } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../next-server/lib/router/utils'
 import { spans } from './profiling-plugin'
+import { CustomRoutes } from '../../../lib/load-custom-routes'
 
 type DeepMutable<T> = { -readonly [P in keyof T]: DeepMutable<T[P]> }
 
@@ -28,7 +29,7 @@ export type ClientBuildManifest = Record<string, string[]>
 function generateClientManifest(
   compiler: any,
   assetMap: BuildManifest,
-  rewrites: Rewrite[]
+  rewrites: CustomRoutes['rewrites']
 ): string {
   const compilerSpan = spans.get(compiler)
   const genClientManifestSpan = compilerSpan?.traceChild(
@@ -78,25 +79,37 @@ function getEntrypointFiles(entrypoint: any): string[] {
   )
 }
 
+const processRoute = (r: Rewrite) => {
+  const rewrite = { ...r }
+
+  // omit external rewrite destinations since these aren't
+  // handled client-side
+  if (!rewrite.destination.startsWith('/')) {
+    delete (rewrite as any).destination
+  }
+  return rewrite
+}
+
 // This plugin creates a build-manifest.json for all assets that are being output
 // It has a mapping of "entry" filename to real filename. Because the real filename can be hashed in production
 export default class BuildManifestPlugin {
   private buildId: string
-  private rewrites: Rewrite[]
+  private rewrites: CustomRoutes['rewrites']
 
-  constructor(options: { buildId: string; rewrites: Rewrite[] }) {
+  constructor(options: {
+    buildId: string
+    rewrites: CustomRoutes['rewrites']
+  }) {
     this.buildId = options.buildId
 
-    this.rewrites = options.rewrites.map((r) => {
-      const rewrite = { ...r }
-
-      // omit external rewrite destinations since these aren't
-      // handled client-side
-      if (!rewrite.destination.startsWith('/')) {
-        delete (rewrite as any).destination
-      }
-      return rewrite
-    })
+    this.rewrites = {
+      beforeFiles: [],
+      afterFiles: [],
+      fallback: [],
+    }
+    this.rewrites.beforeFiles = options.rewrites.beforeFiles.map(processRoute)
+    this.rewrites.afterFiles = options.rewrites.afterFiles.map(processRoute)
+    this.rewrites.fallback = options.rewrites.fallback.map(processRoute)
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {

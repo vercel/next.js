@@ -63,7 +63,7 @@ async function collectPluginMeta(
     )
   }
 
-  // TODO: add err.sh explaining requirements
+  // TODO: add error link explaining requirements
   let middleware: string[] = []
   try {
     middleware = (

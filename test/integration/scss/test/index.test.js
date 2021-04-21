@@ -45,7 +45,7 @@ describe('SCSS Support', () => {
         'Run `npm i sass` or `yarn add sass` inside your workspace.'
       )
       expect(stderr).toContain(
-        'Learn more: https://err.sh/next.js/install-sass'
+        'Learn more: https://nextjs.org/docs/messages/install-sass'
       )
     })
   })
