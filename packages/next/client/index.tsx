@@ -39,7 +39,7 @@ declare global {
     __NEXT_HYDRATED_CB?: () => void
 
     /* prod */
-    __NEXT_PRELOADREADY?: (ids?: string[]) => void
+    __NEXT_PRELOADREADY?: (ids?: (string | number)[]) => void
     __NEXT_DATA__: NEXT_DATA
     __NEXT_P: any[]
   }
