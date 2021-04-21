@@ -196,7 +196,7 @@ You can either use [FirebaseUI](https://github.com/firebase/firebaseui-web-react
 </details>
 
 [SuperTokens](https://supertokens.io) is a highly customizable, open-source solution split into modules (so you only use what you need).
-SuperTokens currently supports credentials login, email verification, password reset flows, and third-party logins.
+SuperTokens currently supports credentials login, email verification, password reset flows, third-party logins, and cookie based sessions with rotating refresh tokens.
 
 ## Related
 
