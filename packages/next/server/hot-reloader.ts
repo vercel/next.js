@@ -348,7 +348,33 @@ export default class HotReloader {
       }
     }
 
-    const multiCompiler = webpack(configs)
+    const multiCompiler = webpack([
+      ...configs,
+      await getBaseWebpackConfig(this.dir, {
+        dev: true,
+        isServer: false,
+        config: this.config,
+        buildId: this.buildId,
+        pagesDir: this.pagesDir,
+        rewrites: {
+          beforeFiles: [],
+          afterFiles: [],
+          fallback: [],
+        },
+        isDevFallback: true,
+        entrypoints: createEntrypoints(
+          {
+            '/_app': 'next/dist/pages/_app',
+            '/_error': 'next/dist/pages/_error',
+          },
+          'server',
+          this.buildId,
+          this.previewProps,
+          this.config,
+          []
+        ).client,
+      }),
+    ])
 
     watchCompilers(multiCompiler.compilers[0], multiCompiler.compilers[1])
 
@@ -492,7 +518,7 @@ export default class HotReloader {
     )
 
     this.webpackHotMiddleware = new WebpackHotMiddleware(
-      multiCompiler.compilers[0]
+      multiCompiler.compilers
     )
 
     let booted = false

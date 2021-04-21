@@ -189,6 +189,7 @@ export default async function getBaseWebpackConfig(
     reactProductionProfiling = false,
     entrypoints,
     rewrites,
+    isDevFallback = false,
   }: {
     buildId: string
     config: NextConfig
@@ -199,6 +200,7 @@ export default async function getBaseWebpackConfig(
     reactProductionProfiling?: boolean
     entrypoints: WebpackEntrypoints
     rewrites: CustomRoutes['rewrites']
+    isDevFallback?: boolean
   }
 ): Promise<webpack.Configuration> {
   let plugins: PluginMetaData[] = []
@@ -916,7 +918,9 @@ export default async function getBaseWebpackConfig(
         ? isWebpack5 && !dev
           ? '../[name].js'
           : '[name].js'
-        : `static/chunks/[name]${dev ? '' : '-[chunkhash]'}.js`,
+        : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
+            dev ? '' : '-[chunkhash]'
+          }.js`,
       library: isServer ? undefined : '_N_E',
       libraryTarget: isServer ? 'commonjs2' : 'assign',
       hotUpdateChunkFilename: isWebpack5
@@ -928,7 +932,9 @@ export default async function getBaseWebpackConfig(
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
         ? `${dev ? '[name]' : '[name].[contenthash]'}.js`
-        : `static/chunks/${dev ? '[name]' : '[name].[contenthash]'}.js`,
+        : `static/chunks/${isDevFallback ? 'fallback/' : ''}${
+            dev ? '[name]' : '[name].[contenthash]'
+          }.js`,
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
       futureEmitAssets: !dev,
@@ -1066,6 +1072,7 @@ export default async function getBaseWebpackConfig(
               'process.env.__NEXT_DIST_DIR': JSON.stringify(distDir),
             }
           : {}),
+        'process.env.__NEXT_DEV_FALLBACK': JSON.stringify(isDevFallback),
         'process.env.__NEXT_TRAILING_SLASH': JSON.stringify(
           config.trailingSlash
         ),
@@ -1188,6 +1195,7 @@ export default async function getBaseWebpackConfig(
         new BuildManifestPlugin({
           buildId,
           rewrites,
+          isDevFallback,
         }),
       !dev &&
         !isServer &&
