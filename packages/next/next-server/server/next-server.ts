@@ -92,6 +92,7 @@ import cookie from 'next/dist/compiled/cookie'
 import escapePathDelimiters from '../lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../../build/webpack/loaders/next-serverless-loader/utils'
 import { PreviewData } from 'next/types'
+import HotReloader from '../../server/hot-reloader'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -164,7 +165,6 @@ export default class Server {
     distDir: string
   }
   private compression?: Middleware
-  private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
   private incrementalCache: IncrementalCache
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
@@ -251,18 +251,6 @@ export default class Server {
     this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
 
-    // call init-server middleware, this is also handled
-    // individually in serverless bundles when deployed
-    if (!dev && this.nextConfig.experimental.plugins) {
-      const initServer = require(join(this.serverBuildDir, 'init-server.js'))
-        .default
-      this.onErrorMiddleware = require(join(
-        this.serverBuildDir,
-        'on-error-server.js'
-      )).default
-      initServer()
-    }
-
     this.incrementalCache = new IncrementalCache({
       dev,
       distDir: this.distDir,
@@ -293,9 +281,6 @@ export default class Server {
   }
 
   public logError(err: Error): void {
-    if (this.onErrorMiddleware) {
-      this.onErrorMiddleware({ err })
-    }
     if (this.quiet) return
     console.error(err)
   }
@@ -1156,8 +1141,7 @@ export default class Server {
       query,
       pageModule,
       this.renderOpts.previewProps,
-      false,
-      this.onErrorMiddleware
+      false
     )
     return true
   }
@@ -2051,6 +2035,8 @@ export default class Server {
       res.statusCode = 500
 
       if (this.renderOpts.dev) {
+        await ((this as any).hotReloader as HotReloader).buildFallbackError()
+
         const fallbackResult = await loadDefaultErrorComponents(this.distDir)
         return this.renderToHTMLWithComponents(
           req,
