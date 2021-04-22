@@ -113,7 +113,8 @@ export function addLocale(
   defaultLocale?: string
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
-    const pathLower = path.toLowerCase()
+    const pathname = pathNoQueryHash(path)
+    const pathLower = pathname.toLowerCase()
     const localeLower = locale && locale.toLowerCase()
 
     return locale &&
