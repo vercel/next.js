@@ -2,9 +2,9 @@ import { join } from 'path'
 import * as Log from '../../output/log'
 import babelLoader from './babel-loader/src/index'
 
-// increment 'o' to invalidate cache
+// increment 'p' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'o' + '-'
+const cacheKey = 'babel-cache-' + 'p' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const customBabelLoader = babelLoader((babel) => {
@@ -102,6 +102,7 @@ const customBabelLoader = babelLoader((babel) => {
       options.caller.isServer = isServer
       options.caller.isDev = development
       options.caller.hasJsxRuntime = hasJsxRuntime
+      options.caller.pagesDir = pagesDir
 
       const emitWarning = this.emitWarning.bind(this)
       Object.defineProperty(options.caller, 'onWarning', {

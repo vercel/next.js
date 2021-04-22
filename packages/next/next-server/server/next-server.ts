@@ -92,6 +92,7 @@ import cookie from 'next/dist/compiled/cookie'
 import escapePathDelimiters from '../lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../../build/webpack/loaders/next-serverless-loader/utils'
 import { PreviewData } from 'next/types'
+import HotReloader from '../../server/hot-reloader'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -2051,6 +2052,8 @@ export default class Server {
       res.statusCode = 500
 
       if (this.renderOpts.dev) {
+        await ((this as any).hotReloader as HotReloader).buildFallbackError()
+
         const fallbackResult = await loadDefaultErrorComponents(this.distDir)
         return this.renderToHTMLWithComponents(
           req,
