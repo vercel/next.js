@@ -45,10 +45,7 @@ const VALID_LAYOUT_VALUES = [
 ] as const
 type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
 
-enum PlaceholderValue {
-  BLUR = 'blur',
-  EMPTY = 'empty',
-}
+type PlaceholderValue = 'blur' | 'empty'
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
@@ -80,10 +77,10 @@ export type ImageProps = Omit<
   ) &
   (
     | {
-        placeholder?: Exclude<PlaceholderValue, PlaceholderValue.BLUR>
+        placeholder?: Exclude<PlaceholderValue, 'blur'>
         blurDataURL?: never
       }
-    | { placeholder: PlaceholderValue.BLUR; blurDataURL: string }
+    | { placeholder: 'blur'; blurDataURL: string }
   )
 
 const {
@@ -227,7 +224,7 @@ function removePlaceholder(
   placeholder: PlaceholderValue
 ) {
   const hasBlurryPlaceholder =
-    configEnableBlurryPlaceholder && placeholder === PlaceholderValue.BLUR
+    configEnableBlurryPlaceholder && placeholder === 'blur'
   if (hasBlurryPlaceholder && element) {
     if (element.complete) {
       // If the real image fails to load, this will still remove the placeholder. This is the desired behavior for now, and will be revisited when error handling is worked on for the image component itself.
@@ -240,9 +237,7 @@ function removePlaceholder(
   }
 }
 
-const defaultPlaceholder = configEnableBlurryPlaceholder
-  ? PlaceholderValue.BLUR
-  : PlaceholderValue.EMPTY
+const defaultPlaceholder = configEnableBlurryPlaceholder ? 'blur' : 'empty'
 
 export default function Image({
   src,
@@ -335,8 +330,7 @@ export default function Image({
       : false
   const shouldShowBlurryPlaceholder =
     configEnableBlurryPlaceholder &&
-    placeholder === PlaceholderValue.BLUR &&
-    priority &&
+    placeholder === 'blur' &&
     !tooSmallForBlurryPlaceholder
 
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
