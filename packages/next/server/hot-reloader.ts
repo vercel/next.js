@@ -143,8 +143,8 @@ export default class HotReloader {
   private onDemandEntries: any
   private previewProps: __ApiPreviewProps
   private watcher: any
-  private fallbackWatcher: any
   private rewrites: CustomRoutes['rewrites']
+  private fallbackWatcher: any
   public isWebpack5: any
 
   constructor(
@@ -301,6 +301,51 @@ export default class HotReloader {
     ])
   }
 
+  public async buildFallbackError(): Promise<void> {
+    if (this.fallbackWatcher) return
+
+    const fallbackConfig = await getBaseWebpackConfig(this.dir, {
+      dev: true,
+      isServer: false,
+      config: this.config,
+      buildId: this.buildId,
+      pagesDir: this.pagesDir,
+      rewrites: {
+        beforeFiles: [],
+        afterFiles: [],
+        fallback: [],
+      },
+      isDevFallback: true,
+      entrypoints: createEntrypoints(
+        {
+          '/_app': 'next/dist/pages/_app',
+          '/_error': 'next/dist/pages/_error',
+        },
+        'server',
+        this.buildId,
+        this.previewProps,
+        this.config,
+        []
+      ).client,
+    })
+    const fallbackCompiler = webpack(fallbackConfig)
+
+    this.fallbackWatcher = await new Promise((resolve) => {
+      let bootedFallbackCompiler = false
+      fallbackCompiler.watch(
+        // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
+        fallbackConfig.watchOptions,
+        // Errors are handled separately
+        (_err: any) => {
+          if (!bootedFallbackCompiler) {
+            bootedFallbackCompiler = true
+            resolve(true)
+          }
+        }
+      )
+    })
+  }
+
   public async start(): Promise<void> {
     await this.clean()
 
@@ -348,32 +393,7 @@ export default class HotReloader {
         return entrypoints
       }
     }
-    const fallbackConfig = await getBaseWebpackConfig(this.dir, {
-      dev: true,
-      isServer: false,
-      config: this.config,
-      buildId: this.buildId,
-      pagesDir: this.pagesDir,
-      rewrites: {
-        beforeFiles: [],
-        afterFiles: [],
-        fallback: [],
-      },
-      isDevFallback: true,
-      entrypoints: createEntrypoints(
-        {
-          '/_app': 'next/dist/pages/_app',
-          '/_error': 'next/dist/pages/_error',
-        },
-        'server',
-        this.buildId,
-        this.previewProps,
-        this.config,
-        []
-      ).client,
-    })
 
-    const fallbackCompiler = webpack(fallbackConfig)
     const multiCompiler = webpack(configs)
 
     watchCompilers(multiCompiler.compilers[0], multiCompiler.compilers[1])
@@ -521,8 +541,7 @@ export default class HotReloader {
       multiCompiler.compilers
     )
 
-    let bootedMultiCompiler = false
-    let bootedFallbackCompiler = false
+    let booted = false
 
     this.watcher = await new Promise((resolve) => {
       const watcher = multiCompiler.watch(
@@ -530,23 +549,9 @@ export default class HotReloader {
         configs.map((config) => config.watchOptions!),
         // Errors are handled separately
         (_err: any) => {
-          if (!bootedMultiCompiler) {
-            bootedMultiCompiler = true
+          if (!booted) {
+            booted = true
             resolve(watcher)
-          }
-        }
-      )
-    })
-
-    this.fallbackWatcher = await new Promise((resolve) => {
-      fallbackCompiler.watch(
-        // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
-        fallbackConfig.watchOptions,
-        // Errors are handled separately
-        (_err: any) => {
-          if (!bootedFallbackCompiler) {
-            bootedFallbackCompiler = true
-            resolve(true)
           }
         }
       )
@@ -578,11 +583,14 @@ export default class HotReloader {
     await new Promise((resolve, reject) => {
       this.watcher.close((err: any) => (err ? reject(err) : resolve(true)))
     })
-    await new Promise((resolve, reject) => {
-      this.fallbackWatcher.close((err: any) =>
-        err ? reject(err) : resolve(true)
-      )
-    })
+
+    if (this.fallbackWatcher) {
+      await new Promise((resolve, reject) => {
+        this.fallbackWatcher.close((err: any) =>
+          err ? reject(err) : resolve(true)
+        )
+      })
+    }
   }
 
   public async getCompilationErrors(page: string) {

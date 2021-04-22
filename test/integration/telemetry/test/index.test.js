@@ -349,7 +349,7 @@ describe('Telemetry CLI', () => {
         NEXT_TELEMETRY_DEBUG: 1,
       },
     })
-    await waitFor(3000)
+    await waitFor(1000)
     await killApp(app)
     expect(stderr).toMatch(/isSrcDir.*?false/)
 
@@ -363,7 +363,7 @@ describe('Telemetry CLI', () => {
         NEXT_TELEMETRY_DEBUG: 1,
       },
     })
-    await waitFor(3000)
+    await waitFor(1000)
     await killApp(app)
     await fs.move(path.join(appDir, 'src/pages'), path.join(appDir, 'pages'))
 
@@ -497,7 +497,7 @@ describe('Telemetry CLI', () => {
         NEXT_TELEMETRY_DEBUG: 1,
       },
     })
-    await waitFor(3000)
+    await waitFor(1000)
     await killApp(app)
 
     await fs.rename(
