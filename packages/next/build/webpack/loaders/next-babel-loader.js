@@ -27,7 +27,6 @@ const customBabelLoader = babelLoader((babel) => {
       const custom = {
         isServer: opts.isServer,
         pagesDir: opts.pagesDir,
-        babelPresetPlugins: opts.babelPresetPlugins,
         development: opts.development,
         hasReactRefresh: opts.hasReactRefresh,
         hasJsxRuntime: opts.hasJsxRuntime,
@@ -62,7 +61,6 @@ const customBabelLoader = babelLoader((babel) => {
       delete loader.cache
       delete loader.distDir
       delete loader.pagesDir
-      delete loader.babelPresetPlugins
       delete loader.development
       delete loader.hasReactRefresh
       delete loader.hasJsxRuntime
@@ -75,7 +73,6 @@ const customBabelLoader = babelLoader((babel) => {
         customOptions: {
           isServer,
           pagesDir,
-          babelPresetPlugins,
           development,
           hasReactRefresh,
           hasJsxRuntime,
@@ -186,13 +183,6 @@ const customBabelLoader = babelLoader((babel) => {
           plugins: [commonJsItem],
         },
       ]
-
-      for (const plugin of babelPresetPlugins) {
-        require(join(plugin.dir, 'src', 'babel-preset-build.js'))(
-          options,
-          plugin.config || {}
-        )
-      }
 
       return options
     },
