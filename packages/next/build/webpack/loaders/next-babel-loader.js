@@ -2,9 +2,9 @@ import { join } from 'path'
 import * as Log from '../../output/log'
 import babelLoader from './babel-loader/src/index'
 
-// increment 'o' to invalidate cache
+// increment 'p' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'o' + '-'
+const cacheKey = 'babel-cache-' + 'p' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const customBabelLoader = babelLoader((babel) => {
