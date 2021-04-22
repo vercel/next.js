@@ -99,8 +99,6 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
           */
           runtimeConfigSetter
         }
-        import initServer from 'next-plugin-loader?middleware=on-init-server!'
-        import onError from 'next-plugin-loader?middleware=on-error-server!'
         import 'next/dist/next-server/server/node-polyfill-fetch'
         import routesManifest from '${routesManifest}'
 
@@ -123,18 +121,12 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
           page: "${page}",
           basePath: "${basePath}",
           pageIsDynamic: ${pageIsDynamicRoute},
-          encodedPreviewProps: ${encodedPreviewProps},
-          experimental: {
-            onError,
-            initServer,
-          }
+          encodedPreviewProps: ${encodedPreviewProps}
         })
         export default apiHandler
       `
     } else {
       return `
-      import initServer from 'next-plugin-loader?middleware=on-init-server!'
-      import onError from 'next-plugin-loader?middleware=on-error-server!'
       import 'next/dist/next-server/server/node-polyfill-fetch'
       import routesManifest from '${routesManifest}'
       import buildManifest from '${buildManifest}'
@@ -210,11 +202,7 @@ const nextServerlessLoader: webpack.loader.Loader = function () {
         escapedBuildId: "${escapedBuildId}",
         basePath: "${basePath}",
         pageIsDynamic: ${pageIsDynamicRoute},
-        encodedPreviewProps: ${encodedPreviewProps},
-        experimental: {
-          onError,
-          initServer,
-        }
+        encodedPreviewProps: ${encodedPreviewProps}
       })
       export { renderReqToHTML, render }
     `

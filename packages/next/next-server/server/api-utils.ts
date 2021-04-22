@@ -25,8 +25,7 @@ export async function apiResolver(
   query: any,
   resolverModule: any,
   apiContext: __ApiPreviewProps,
-  propagateError: boolean,
-  onError?: ({ err }: { err: any }) => Promise<void>
+  propagateError: boolean
 ): Promise<void> {
   const apiReq = req as NextApiRequest
   const apiRes = res as NextApiResponse
@@ -99,7 +98,6 @@ export async function apiResolver(
       sendError(apiRes, err.statusCode, err.message)
     } else {
       console.error(err)
-      if (onError) await onError({ err })
       if (propagateError) {
         throw err
       }
