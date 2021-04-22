@@ -198,7 +198,7 @@ export default async function build(
       await nextBuildSpan
         .traceChild('verify-and-lint')
         .traceAsyncFn(async () => {
-          verifyAndLint(
+          await verifyAndLint(
             dir,
             pagesDir,
             config.experimental.cpus,

@@ -11,7 +11,10 @@ const requiredTSPackages = [
   { file: '@types/node/index.d.ts', pkg: '@types/node' },
 ]
 
-const requiredLintPackages = [{ pkg: 'eslint' }, { pkg: 'eslint-config-next' }]
+const requiredLintPackages = [
+  { file: 'eslint/lib/api.js', pkg: 'eslint' },
+  { file: 'eslint-config-next', pkg: 'eslint-config-next' },
+]
 
 export type NecessaryDependencies = {
   resolved: string
@@ -28,19 +31,13 @@ export async function hasNecessaryDependencies(
   }
 
   let resolutions = new Map<string, string>()
-  let requiredPackages: {
-    file?: string
-    pkg: string
-  }[]
-
-  requiredPackages = checkESLintDeps ? requiredLintPackages : requiredTSPackages
+  let requiredPackages = checkESLintDeps
+    ? requiredLintPackages
+    : requiredTSPackages
 
   const missingPackages = requiredPackages.filter((p) => {
     try {
-      resolutions.set(
-        p.pkg,
-        require.resolve(p.file ?? p.pkg, { paths: [baseDir] })
-      )
+      resolutions.set(p.pkg, require.resolve(p.file, { paths: [baseDir] }))
       return false
     } catch (_) {
       return true

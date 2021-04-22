@@ -1,6 +1,0 @@
-{
-  "devDependencies": {
-    "eslint-config-next": "*",
-    "eslint": "*"
-  }
-}

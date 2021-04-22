@@ -20,13 +20,13 @@ export async function verifyAndLint(
 
     const lintResults = await lintWorkers.runLintCheck(dir, pagesDir)
     if (lintResults) {
-      console.log(`\n${lintResults}`)
+      console.log(lintResults)
     }
 
     lintWorkers.end()
   } catch (err) {
     if (err.type === 'CompileError') {
-      console.error(chalk.red('Failed to compile.'))
+      console.error(chalk.red('\nFailed to compile.'))
       console.error(err.message)
       process.exit(1)
     } else if (err.type === 'FatalError') {

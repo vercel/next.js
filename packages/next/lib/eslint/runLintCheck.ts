@@ -1,9 +1,13 @@
 import { promises } from 'fs'
 import { extname } from 'path'
 
+import findUp from 'next/dist/compiled/find-up'
+import semver from 'next/dist/compiled/semver'
+
 import { formatResults } from './customFormatter'
 import { getLintIntent } from './getLintIntent'
 import { writeDefaultConfig } from './writeDefaultConfig'
+import { getPackageVersion } from '../get-package-version'
 
 import { CompileError } from '../compile-error'
 import {
@@ -11,7 +15,7 @@ import {
   NecessaryDependencies,
 } from '../has-necessary-dependencies'
 
-import findUp from 'next/dist/compiled/find-up'
+import * as Log from '../../build/output/log'
 
 type Config = {
   plugins: string[]
@@ -29,6 +33,20 @@ async function lint(
 ): Promise<string | null> {
   // Load ESLint after we're sure it exists:
   const { ESLint } = await import(deps.resolved)
+
+  if (!ESLint) {
+    const eslintVersion: string | null = await getPackageVersion({
+      cwd: baseDir,
+      name: 'eslint',
+    })
+
+    if (eslintVersion && semver.lt(eslintVersion, '7.0.0')) {
+      Log.warn(
+        `Your project has an older version of ESLint installed (${eslintVersion}). Please upgrade to v7 or later to run ESLint during the build process.`
+      )
+    }
+    return null
+  }
 
   let options: any = {
     useEslintrc: true,
