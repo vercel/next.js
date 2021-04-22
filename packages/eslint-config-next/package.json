@@ -10,8 +10,6 @@
   },
   "dependencies": {
     "@rushstack/eslint-patch": "^1.0.6",
-    "@babel/core": "^7.13.14",
-    "@babel/eslint-parser": "^7.13.14",
     "@next/eslint-plugin-next": "^10.1.3",
     "@typescript-eslint/parser": "^4.20.0",
     "eslint-import-resolver-node": "^0.3.4",

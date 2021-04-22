@@ -1,10 +1,9 @@
 /*
- * This shareable configuration uses @rushstack/eslint-patch to include its plugins
- * within as dev dependencies instead of imposing them as peer dependencies
+ * @rushstack/eslint-patch is used to include plugins as dev
+ * dependencies instead of imposing them as peer dependencies
  *
  * https://www.npmjs.com/package/@rushstack/eslint-patch
  */
-
 require('@rushstack/eslint-patch/modern-module-resolution')
 
 module.exports = {
@@ -18,7 +17,7 @@ module.exports = {
     'import/no-anonymous-default-export': 'warn',
     'react/react-in-jsx-scope': 'off',
   },
-  parser: '@babel/eslint-parser',
+  parser: './parser.js',
   parserOptions: {
     requireConfigFile: false,
     sourceType: 'module',
