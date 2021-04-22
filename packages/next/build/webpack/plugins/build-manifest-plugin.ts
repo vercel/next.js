@@ -95,13 +95,15 @@ const processRoute = (r: Rewrite) => {
 export default class BuildManifestPlugin {
   private buildId: string
   private rewrites: CustomRoutes['rewrites']
+  private isDevFallback: boolean
 
   constructor(options: {
     buildId: string
     rewrites: CustomRoutes['rewrites']
+    isDevFallback?: boolean
   }) {
     this.buildId = options.buildId
-
+    this.isDevFallback = !!options.isDevFallback
     this.rewrites = {
       beforeFiles: [],
       afterFiles: [],
@@ -165,7 +167,6 @@ export default class BuildManifestPlugin {
 
       for (const entrypoint of compilation.entrypoints.values()) {
         if (systemEntrypoints.has(entrypoint.name)) continue
-
         const pagePath = getRouteFromEntrypoint(entrypoint.name)
 
         if (!pagePath) {
@@ -177,40 +178,49 @@ export default class BuildManifestPlugin {
         assetMap.pages[pagePath] = [...new Set([...mainFiles, ...filesForPage])]
       }
 
-      // Add the runtime build manifest file (generated later in this file)
-      // as a dependency for the app. If the flag is false, the file won't be
-      // downloaded by the client.
-      assetMap.lowPriorityFiles.push(
-        `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
-      )
+      if (!this.isDevFallback) {
+        // Add the runtime build manifest file (generated later in this file)
+        // as a dependency for the app. If the flag is false, the file won't be
+        // downloaded by the client.
+        assetMap.lowPriorityFiles.push(
+          `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
+        )
+        // Add the runtime ssg manifest file as a lazy-loaded file dependency.
+        // We also stub this file out for development mode (when it is not
+        // generated).
+        const srcEmptySsgManifest = `self.__SSG_MANIFEST=new Set;self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
 
-      // Add the runtime ssg manifest file as a lazy-loaded file dependency.
-      // We also stub this file out for development mode (when it is not
-      // generated).
-      const srcEmptySsgManifest = `self.__SSG_MANIFEST=new Set;self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()`
-
-      const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
-      assetMap.lowPriorityFiles.push(ssgManifestPath)
-      assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
+        const ssgManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_ssgManifest.js`
+        assetMap.lowPriorityFiles.push(ssgManifestPath)
+        assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
+      }
 
       assetMap.pages = Object.keys(assetMap.pages)
         .sort()
         // eslint-disable-next-line
         .reduce((a, c) => ((a[c] = assetMap.pages[c]), a), {} as any)
 
-      assets[BUILD_MANIFEST] = new sources.RawSource(
+      let buildManifestName = BUILD_MANIFEST
+
+      if (this.isDevFallback) {
+        buildManifestName = `fallback-${BUILD_MANIFEST}`
+      }
+
+      assets[buildManifestName] = new sources.RawSource(
         JSON.stringify(assetMap, null, 2)
       )
 
-      const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
+      if (!this.isDevFallback) {
+        const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
 
-      assets[clientManifestPath] = new sources.RawSource(
-        `self.__BUILD_MANIFEST = ${generateClientManifest(
-          compiler,
-          assetMap,
-          this.rewrites
-        )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
-      )
+        assets[clientManifestPath] = new sources.RawSource(
+          `self.__BUILD_MANIFEST = ${generateClientManifest(
+            compiler,
+            assetMap,
+            this.rewrites
+          )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+        )
+      }
 
       return assets
     })
