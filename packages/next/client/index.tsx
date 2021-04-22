@@ -534,15 +534,17 @@ function renderReactElement(
 
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (process.env.__NEXT_REACT_ROOT) {
-    const createRootName =
-      typeof (ReactDOM as any).unstable_createRoot === 'function'
-        ? 'unstable_createRoot'
-        : 'createRoot'
-    reactRoot =
-      reactRoot ??
-      (ReactDOM as any)[createRootName](domEl, { hydrate: shouldHydrate })
-    shouldHydrate = false
+    if (!reactRoot) {
+      const createRootName =
+        typeof (ReactDOM as any).unstable_createRoot === 'function'
+          ? 'unstable_createRoot'
+          : 'createRoot'
+      reactRoot = (ReactDOM as any)[createRootName](domEl, {
+        hydrate: shouldHydrate,
+      })
+    }
     reactRoot.render(reactEl)
+    shouldHydrate = false
   } else {
     // The check for `.hydrate` is there to support React alternatives like preact
     if (shouldHydrate) {
