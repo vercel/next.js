@@ -1381,6 +1381,30 @@ test('_document top level error shows logbox', async () => {
   await cleanup()
 })
 
+test('server-side only compilation errors', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.patch(
+    'pages/index.js',
+    `
+      import myLibrary from 'my-non-existent-library'
+      export async function getStaticProps() {
+        return {
+          props: {
+            result: myLibrary()
+          }
+        }
+      }
+      export default function Hello(props) {
+        return <h1>{props.result}</h1>
+      }
+    `
+  )
+
+  expect(await session.hasRedbox(true)).toBe(true)
+  await cleanup()
+})
+
 test('empty _app shows logbox', async () => {
   const [session, cleanup] = await sandbox(
     undefined,

@@ -612,6 +612,20 @@ export default class HotReloader {
 
       // If none were found we still have to show the other errors
       return this.stats.compilation.errors
+    } else if (this.serverStats?.hasErrors()) {
+      const { compilation } = this.serverStats
+      const failedPages = erroredPages(compilation)
+
+      // If there is an error related to the requesting page we display it instead of the first error
+      if (
+        failedPages[normalizedPage] &&
+        failedPages[normalizedPage].length > 0
+      ) {
+        return failedPages[normalizedPage]
+      }
+
+      // If none were found we still have to show the other errors
+      return this.serverStats.compilation.errors
     }
 
     return []
