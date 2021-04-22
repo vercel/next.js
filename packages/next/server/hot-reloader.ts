@@ -144,6 +144,7 @@ export default class HotReloader {
   private previewProps: __ApiPreviewProps
   private watcher: any
   private rewrites: CustomRoutes['rewrites']
+  private fallbackWatcher: any
   public isWebpack5: any
 
   constructor(
@@ -298,6 +299,51 @@ export default class HotReloader {
         entrypoints: entrypoints.server,
       }),
     ])
+  }
+
+  public async buildFallbackError(): Promise<void> {
+    if (this.fallbackWatcher) return
+
+    const fallbackConfig = await getBaseWebpackConfig(this.dir, {
+      dev: true,
+      isServer: false,
+      config: this.config,
+      buildId: this.buildId,
+      pagesDir: this.pagesDir,
+      rewrites: {
+        beforeFiles: [],
+        afterFiles: [],
+        fallback: [],
+      },
+      isDevFallback: true,
+      entrypoints: createEntrypoints(
+        {
+          '/_app': 'next/dist/pages/_app',
+          '/_error': 'next/dist/pages/_error',
+        },
+        'server',
+        this.buildId,
+        this.previewProps,
+        this.config,
+        []
+      ).client,
+    })
+    const fallbackCompiler = webpack(fallbackConfig)
+
+    this.fallbackWatcher = await new Promise((resolve) => {
+      let bootedFallbackCompiler = false
+      fallbackCompiler.watch(
+        // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
+        fallbackConfig.watchOptions,
+        // Errors are handled separately
+        (_err: any) => {
+          if (!bootedFallbackCompiler) {
+            bootedFallbackCompiler = true
+            resolve(true)
+          }
+        }
+      )
+    })
   }
 
   public async start(): Promise<void> {
@@ -492,7 +538,7 @@ export default class HotReloader {
     )
 
     this.webpackHotMiddleware = new WebpackHotMiddleware(
-      multiCompiler.compilers[0]
+      multiCompiler.compilers
     )
 
     let booted = false
@@ -534,9 +580,17 @@ export default class HotReloader {
   }
 
   public async stop(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.watcher.close((err: any) => (err ? reject(err) : resolve()))
+    await new Promise((resolve, reject) => {
+      this.watcher.close((err: any) => (err ? reject(err) : resolve(true)))
     })
+
+    if (this.fallbackWatcher) {
+      await new Promise((resolve, reject) => {
+        this.fallbackWatcher.close((err: any) =>
+          err ? reject(err) : resolve(true)
+        )
+      })
+    }
   }
 
   public async getCompilationErrors(page: string) {
