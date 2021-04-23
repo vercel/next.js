@@ -10,7 +10,8 @@
     "internal/*.d.ts",
     "internal/*.js",
     "*.d.ts",
-    "*.js"
+    "*.js",
+    "*.js.map"
   ],
   "author": "Joe Haddad <timer@zeit.co>",
   "license": "MIT",
