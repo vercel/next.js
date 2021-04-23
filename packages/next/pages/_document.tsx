@@ -56,13 +56,6 @@ function getDocumentFiles(
  * Commonly used for implementing server side rendering for `css-in-js` libraries.
  */
 export default class Document<P = {}> extends Component<DocumentProps & P> {
-  static headTagsMiddleware = process.env.__NEXT_PLUGINS
-    ? import(
-        // @ts-ignore loader syntax
-        'next-plugin-loader?middleware=document-head-tags-server!'
-      )
-    : () => []
-
   /**
    * `getInitialProps` hook returns the context object with the addition of `renderPage`.
    * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers

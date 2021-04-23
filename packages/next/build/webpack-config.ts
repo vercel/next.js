@@ -1,11 +1,11 @@
-import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
+import chalk from 'chalk'
 import crypto from 'crypto'
 import { readFileSync, realpathSync } from 'fs'
-import chalk from 'chalk'
+import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import semver from 'next/dist/compiled/semver'
-import path from 'path'
-import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
+import { isWebpack5, webpack } from 'next/dist/compiled/webpack/webpack'
+import path, { join as pathJoin, relative as relativePath } from 'path'
 import {
   DOT_NEXT_ALIAS,
   NEXT_PROJECT_ROOT,
@@ -14,29 +14,25 @@ import {
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { getPackageVersion } from '../lib/get-package-version'
+import { CustomRoutes } from '../lib/load-custom-routes.js'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import {
+  CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS,
+  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
   CLIENT_STATIC_FILES_RUNTIME_WEBPACK,
   REACT_LOADABLE_MANIFEST,
   SERVERLESS_DIRECTORY,
   SERVER_DIRECTORY,
-  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
 } from '../next-server/lib/constants'
 import { execOnce } from '../next-server/lib/utils'
+import { NextConfig } from '../next-server/server/config'
 import { findPageFile } from '../server/lib/find-page-file'
 import { WebpackEntrypoints } from './entries'
 import * as Log from './output/log'
-import {
-  collectPlugins,
-  PluginMetaData,
-  VALID_MIDDLEWARE,
-} from './plugins/collect-plugins'
 import { build as buildConfiguration } from './webpack/config'
 import { __overrideCssConfiguration } from './webpack/config/blocks/css/overrideCssConfiguration'
-import { pluginLoaderOptions } from './webpack/loaders/next-plugin-loader'
 import BuildManifestPlugin from './webpack/plugins/build-manifest-plugin'
 import BuildStatsPlugin from './webpack/plugins/build-stats-plugin'
 import ChunkNamesPlugin from './webpack/plugins/chunk-names-plugin'
@@ -55,9 +51,6 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
-import { NextConfig } from '../next-server/server/config'
-import { relative as relativePath, join as pathJoin } from 'path'
-import { CustomRoutes } from '../lib/load-custom-routes.js'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -203,27 +196,10 @@ export default async function getBaseWebpackConfig(
     isDevFallback?: boolean
   }
 ): Promise<webpack.Configuration> {
-  let plugins: PluginMetaData[] = []
-  let babelPresetPlugins: { dir: string; config: any }[] = []
-
   const hasRewrites =
     rewrites.beforeFiles.length > 0 ||
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
-
-  if (config.experimental.plugins) {
-    plugins = await collectPlugins(dir, config.env, config.plugins)
-    pluginLoaderOptions.plugins = plugins
-
-    for (const plugin of plugins) {
-      if (plugin.middleware.includes('babel-preset-build')) {
-        babelPresetPlugins.push({
-          dir: plugin.directory,
-          config: plugin.config,
-        })
-      }
-    }
-  }
 
   const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })
   const hasReactRefresh: boolean = dev && !isServer
@@ -263,7 +239,6 @@ export default async function getBaseWebpackConfig(
         cwd: dir,
         // Webpack 5 has a built-in loader cache
         cache: !isWebpack5,
-        babelPresetPlugins,
         development: dev,
         hasReactRefresh,
         hasJsxRuntime,
@@ -280,9 +255,6 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
     /[\\/](strip-ansi|ansi-regex)[\\/]/,
-    ...(config.experimental.plugins
-      ? VALID_MIDDLEWARE.map((name) => new RegExp(`src(\\\\|/)${name}`))
-      : []),
   ]
 
   // Support for NODE_PATH
@@ -876,13 +848,6 @@ export default async function getBaseWebpackConfig(
       return {
         ...(clientEntries ? clientEntries : {}),
         ...entrypoints,
-        ...(isServer
-          ? {
-              'init-server.js': 'next-plugin-loader?middleware=on-init-server!',
-              'on-error-server.js':
-                'next-plugin-loader?middleware=on-error-server!',
-            }
-          : {}),
       }
     },
     watchOptions: {
@@ -951,7 +916,6 @@ export default async function getBaseWebpackConfig(
         'next-client-pages-loader',
         'next-serverless-loader',
         'noop-loader',
-        'next-plugin-loader',
         'next-style-loader',
       ].reduce((alias, loader) => {
         // using multiple aliases to replace `resolveLoader.modules`
