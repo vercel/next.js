@@ -1,16 +1,16 @@
-# A Statically Generated Blog Example Using Next.js and Contentstack
+# Create a Static Blog Site Using Next.js and Contentstack
 
-This example shows how to use the powerful features of Next.js [Static Generation](https://nextjs.org/docs/basic-features/pages) and [Contentstack](https://www.sanity.io/), as the data source.
+This example shows how you can create a static blog site by using the powerful features of Next.js [Static Generation](https://nextjs.org/docs/basic-features/pages) and [Contentstack](https://www.sanity.io/) as the data source.
 
 ## Demo
 
 ### [https://cms-contentstack.vercel.app/](https://cms-contentstack.vercel.app/)
 
-## Deploy on your own
+## Deploy on Your Own
 
-Once you have access to [the required environment variables](#step-4-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Once you have access to [the required environment variables](#step-4-set-up-environment-variables), deploy the sample app by using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-contentstack&env=contentstack_api_key,contentstack_delivery_token,contentstack_environment,contentstack_region,contentstack_management_token,contentstack_preview_secret)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-contentstack&env=contentstack_api_key,contentstack_delivery_token,contentstack_environment,contentstack_management_token,contentstack_preview_secret)
 
 ### Related examples
 
@@ -28,7 +28,7 @@ Once you have access to [the required environment variables](#step-4-set-up-envi
 - [Kontent](/examples/cms-kontent)
 - [Blog Starter](/examples/blog-starter)
 
-## How to use
+## Steps for Executing the Example
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
@@ -43,68 +43,47 @@ yarn create next-app --example cms-contentstack cms-contentstack-app
 
 ## Configuration
 
-### Step 1. Create an account and a stack in Contentstack
+### Step 1. Create an Account and a Stack in Contentstack
 
 First, log in to your Contentstack account, [create an account on Contentstack](https://www.contentstack.com/try-for-free/).
 
-### Step 2. Create a Content Model
+### Step 2. Create a stack in your Contentstack Organization
 
-Content [modeling](https://www.contentstack.com/docs/developers/how-to-guides/content-modeling/) is about defining the structure of your content at a granular level. It involves:
+Open the command prompt and run the following command to install the Contentstack CLI:
 
-- Analyzing the requirements - Determining what kind of content you need
-- Identifying the structure required - Deciding how it should be structured in Contentstack
-- Developing the content type - Defining the required content type and fields
+`npm i @contentstack/cli`
 
-For this example, you need to create two content types named Author and Post. To do that, click on the New Content Type button. In the window that opens, select Content Block and Multiple options. Name the content type as Author and provide an optional description. Once done, click on Create and Add fields.
+Next, log in to your contentstack CLI by using the following command:
 
-- Add a file field with the name Picture.
+`csdx auth:login`
 
-After creating the Author content type, follow the same steps and create another content type named Post, but this time, select the Web Page option instead of Content Block. Also, choose Multiple from the checkbox instead of Single. Then, click on Create and Add fields to create a content type.
+To import the stack, use the following seed command.
 
-Now on the Content Type Builder page, add the following fields to your content type:
+```
+  $ csdx seed -r "contentstack/stack-next.js-blog-example"
+```
+### Step 3. Steps to create delivery token
+Go to your stack, navigate to the “Settings” gear icon, and select Tokens.
+Open the Delivery Tokens tab, and click on the + ADD TOKEN button.
+Provide a suitable Name (mandatory) and Description (optional) for the delivery token.
+In the Scope section, select the publishing environment for which you want to generate a delivery token.
 
-- Title - Text field (type single line text)
-- Content - Rich text field
-- Excerpt - Text field (type Multiline text)
-- Cover Image - Media field (type one file)
-- Date - Date and time field
-- Slug - Text field. (This field contains is same as entry url except / is not used)
-- Author - Reference field (type one reference)
-- More Posts - Reference for other post entries
+### Step 4. Set up the environment variables
 
-### Step 3. Create an Environment and Generate Delivery and Management Tokens
-
-To create an environment, go to the "Settings" gear icon, select Environments, and then click on + New Environment.
-
-Provide a name to your environment, such as development, and a base URL for it if you wish to.
-
-After creating the environment, go to "Settings" and select Tokens. The Delivery Token tab is selected by default, click on + ADD TOKEN.
-
-On the Create New Token page, provide a name to your token and an optional description. Under Scope, select the environment to which this token should be applicable to and then click on Generate Token.
-
-We also need to create a Management token for this example. So click on the Management Token tab on the Token screen and click on + ADD TOKEN.
-
-On the Create New Token screen, provide a name to your token and an optional description. Under Permissions, select the appropriate option and choose whether the token should expire or not. Then, click on Generate Token. Make note of the management token as it becomes visible just once when you create it for security purposes.
-
-### Step 4. Publish Entries
-
-Once we have added the environment, we can now publish the entries on them. Go to the content type and add an entry. After adding the required content, publish it on your desired environment by clicking on the Publish button.
-
-### Step 5. Set up environment variables
-
-Copy the `.env.local.example` file in root directory to `.env.local` (which will be ignored by Git):
+Copy the `.env.local.example` file from your root directory to `.env.local` (which will be ignored by Git):
 
 ```bash
 cp .env.local.example .env.local
 ```
 
-Then, set each variable on `.env.local`:
+Then, set each variable on `.env.local` as follows:
 
 - `contentstack_api_key` is your Stack API key.
-- `contentstack_delivery_token` is the published environment delivery token (avoid spaces).
-- `contentstack_environment` the name of your published environment (avoid spaces).
+- `contentstack_delivery_token` is the publishing environment delivery token (avoid spaces).
+- `contentstack_environment` is the name of your published environment (avoid spaces).
 - `contentstack_region` Should be "eu" if you are in the European region and "us" if your app is hosted in the North America region (avoid spaces).
-- `contentstack_management_token` should be Management token generated in the previous step.
+- `contentstack_custom_host` only to be used when setting the custom host for the stack (optional)
+- `contentstack_management_token` is the Stack Management token generated in the previous step.
 - `contentstack_preview_secret` should be any string compatible with the browser URL.
 
 Your `.env.local` file should look like this:
@@ -114,42 +93,42 @@ contentstack_api_key=......
 contentstack_delivery_token=.....
 contentstack_environment=......
 contentstack_region=...
+contentstack_custom_host=.....
 
 contentstack_management_token=......
 contentstack_preview_secret=.....
 ```
 
-### Step 6. Run Next.js in the Development Mode
+### Step 4. Run Next.js in the development mode
 
 ```bash
 npm install
 npm run dev
-
 # or
-
 yarn install
 yarn dev
 ```
 
-### Step 7. Try The Preview Mode
+### Step 5. Try the preview mode
 
-To explore preview mode, go to your stack and open the Post content type. Select the entry that you want to edit.
+To explore the preview mode, go to your stack and open the Post content type. Select the entry that you want to edit.
 
 - **Update the title**. For example, you can add `Demo` in the title.
 
-- The state of post will switch to **CHANGED** automatically. **Do not** publish it. By doing this, the post will be in a draft state.
+- The status of the post content type will change to **CHANGED** automatically. **Do not** publish it. By doing this, the post will be in the draft state.
 
 Now on the localhost server, which is created in step 6, change the localhost URL as shown below:
 
 http://localhost:3000/api/preview?secret=contentstack_preview_secret&slug={post.slug}
 
-secret = should be same secret value provided in .env file
-slug = would be post entry url without trailing slashes
+secret = should be the same secret value provided in .env file
+slug = would post entry URL without trailing slashes
+
 You will now be able to see the updated title. To exit the preview mode, you can click on **Click here to exit preview mode** at the top of the page.
 
-### Step 8. Deploy on Vercel
+### Step 6. Deploy on Vercel
 
-You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+You can deploy this sample app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 #### Deploy your Locally Installed Project
 
@@ -159,6 +138,6 @@ To deploy your locally installed project on Vercel, first push it to GitHub/GitL
 
 #### Deploy Using our Template
 
-Alternatively, you can deploy using our template by clicking on the Deploy button.
+Alternatively, you can deploy the sample app by using our template. To do this, click on the Deploy button.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-contentstack&env=contentstack_api_key,contentstack_delivery_token,contentstack_environment,contentstack_region,contentstack_custom_host,contentstack_management_token,contentstack_preview_secret)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-contentstack&env=contentstack_api_key,contentstack_delivery_token,contentstack_environment,contentstack_management_token,contentstack_preview_secret)
