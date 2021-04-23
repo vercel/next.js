@@ -99,7 +99,7 @@ contentstack_management_token=......
 contentstack_preview_secret=.....
 ```
 
-### Step 4. Run Next.js in the development mode
+### Step 5. Run Next.js in the development mode
 
 ```bash
 npm install
@@ -109,7 +109,7 @@ yarn install
 yarn dev
 ```
 
-### Step 5. Try the preview mode
+### Step 6. Try the preview mode
 
 To explore the preview mode, go to your stack and open the Post content type. Select the entry that you want to edit.
 
@@ -126,7 +126,7 @@ slug = would post entry URL without trailing slashes
 
 You will now be able to see the updated title. To exit the preview mode, you can click on **Click here to exit preview mode** at the top of the page.
 
-### Step 6. Deploy on Vercel
+### Step 7. Deploy on Vercel
 
 You can deploy this sample app to the cloud with [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
@@ -141,3 +141,4 @@ To deploy your locally installed project on Vercel, first push it to GitHub/GitL
 Alternatively, you can deploy the sample app by using our template. To do this, click on the Deploy button.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-contentstack&env=contentstack_api_key,contentstack_delivery_token,contentstack_environment,contentstack_management_token,contentstack_preview_secret)
+
