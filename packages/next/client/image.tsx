@@ -237,8 +237,6 @@ function removePlaceholder(
   }
 }
 
-const defaultPlaceholder = configEnableBlurryPlaceholder ? 'blur' : 'empty'
-
 export default function Image({
   src,
   sizes,
@@ -252,7 +250,7 @@ export default function Image({
   objectFit,
   objectPosition,
   loader = defaultImageLoader,
-  placeholder = defaultPlaceholder,
+  placeholder = 'empty',
   blurDataURL,
   ...all
 }: ImageProps) {
@@ -269,6 +267,10 @@ export default function Image({
 
     // Remove property so it's not spread into image:
     delete rest['layout']
+  }
+
+  if (!configEnableBlurryPlaceholder) {
+    placeholder = 'empty'
   }
 
   if (process.env.NODE_ENV !== 'production') {
@@ -325,9 +327,7 @@ export default function Image({
 
   const MIN_IMG_SIZE_FOR_PLACEHOLDER = 5000
   const tooSmallForBlurryPlaceholder =
-    widthInt && heightInt
-      ? widthInt * heightInt < MIN_IMG_SIZE_FOR_PLACEHOLDER
-      : false
+    widthInt && heightInt && widthInt * heightInt < MIN_IMG_SIZE_FOR_PLACEHOLDER
   const shouldShowBlurryPlaceholder =
     configEnableBlurryPlaceholder &&
     placeholder === 'blur' &&
