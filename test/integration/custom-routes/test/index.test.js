@@ -2055,13 +2055,11 @@ describe('Custom routes', () => {
 
       expect(res.status).toBe(500)
     } finally {
-      console.error('finally?')
       await fs.remove(join(appDir, 'next.config.js'))
       await fs.rename(
         join(appDir, 'next.config.js.bak'),
         join(appDir, 'next.config.js')
       )
-      console.error('renamed')
     }
   })
 })
