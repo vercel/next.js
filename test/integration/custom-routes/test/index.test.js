@@ -2024,4 +2024,44 @@ describe('Custom routes', () => {
       runSoloTests()
     })
   })
+
+  it('should not hang when proxy rewrite fails', async () => {
+    try {
+      await fs.rename(
+        join(appDir, 'next.config.js'),
+        join(appDir, 'next.config.js.bak')
+      )
+      await fs.writeFile(
+        join(appDir, 'next.config.js'),
+        `
+        module.exports = {
+          rewrites() {
+            return [
+              {
+                source: '/to-nowhere',
+                destination: 'http://localhost:1234'
+              }
+            ]
+          }
+        }
+      `
+      )
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+
+      const res = await fetchViaHTTP(appPort, '/to-nowhere', undefined, {
+        timeout: 5000,
+      })
+
+      expect(res.status).toBe(500)
+    } finally {
+      console.error('finally?')
+      await fs.remove(join(appDir, 'next.config.js'))
+      await fs.rename(
+        join(appDir, 'next.config.js.bak'),
+        join(appDir, 'next.config.js')
+      )
+      console.error('renamed')
+    }
+  })
 })

@@ -925,11 +925,16 @@ export default class Server {
               changeOrigin: true,
               ignorePath: true,
             })
-            proxy.web(req, res)
 
-            proxy.on('error', (err: Error) => {
-              console.error(`Error occurred proxying ${target}`, err)
+            await new Promise((proxyResolve, proxyReject) => {
+              proxy.web(req, res, undefined, (err) => {
+                if (err) {
+                  return proxyResolve(err)
+                }
+                proxyReject(true)
+              })
             })
+
             return {
               finished: true,
             }
