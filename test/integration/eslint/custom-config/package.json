@@ -4,7 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "devDependencies": {
-    "eslint-config-next": "file:../../../../packages/eslint-config-next",
+    "eslint-config-next": "*",
     "eslint": "7.23.0"
   }
 }

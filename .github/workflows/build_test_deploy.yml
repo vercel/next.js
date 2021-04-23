@@ -132,33 +132,6 @@ jobs:
       - run: xvfb-run node run-tests.js test/integration/with-electron/test/index.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-  testEslint:
-    name: Test ESLint
-    runs-on: ubuntu-latest
-    needs: build
-    env:
-      NEXT_TELEMETRY_DISABLED: 1
-      NEXT_TEST_JOB: 1
-      HEADLESS: true
-      TEST_ESLINT: 1
-    steps:
-      - uses: actions/cache@v2
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ github.sha }}
-
-      # TODO: remove after we fix watchpack watching too much
-      - run: echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
-      - run: cd test/integration/eslint/custom-config && yarn
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
-      - run: xvfb-run node run-tests.js test/integration/eslint/test/index.test.js
-        if: ${{needs.build.outputs.docsChange != 'docs only change'}}
-
   testYarnPnP:
     runs-on: ubuntu-latest
     needs: build

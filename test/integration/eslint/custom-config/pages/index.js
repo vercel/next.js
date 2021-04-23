@@ -1,7 +1,8 @@
 const Home = () => (
   <div>
     <p>Home</p>
-    <script src="https://fake-script"></script>
+    /* Badly formatted comment */
+    <link href="/fake.css" rel="stylesheet" />
   </div>
 )
 

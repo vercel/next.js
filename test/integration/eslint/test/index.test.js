@@ -2,10 +2,21 @@ import { join } from 'path'
 import { runNextCommand } from 'next-test-utils'
 import { writeFile, readFile } from 'fs-extra'
 
+import semver from 'next/dist/compiled/semver'
+
 jest.setTimeout(1000 * 60 * 2)
 
 const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
 const dirCustomConfig = join(__dirname, '../custom-config')
+
+async function eslintVersion() {
+  const eslint = require.resolve('eslint')
+  const { ESLint, Linter } = await import(eslint)
+
+  if (!ESLint && !Linter) return null // A very old version (<v4) if both ESLint and Linter properties are not present
+
+  return ESLint ? ESLint.version : Linter.version
+}
 
 describe('ESLint', () => {
   it('should populate eslint config automatically for first time setup', async () => {
@@ -26,18 +37,35 @@ describe('ESLint', () => {
     )
   })
 
-  if (process.env.TEST_ESLINT) {
-    test('shows warnings and errors', async () => {
-      const { stderr } = await runNextCommand(['build', dirCustomConfig], {
-        stderr: true,
-      })
+  test('shows warnings and errors', async () => {
+    let output = ''
 
-      expect(stderr).toContain('Failed to compile')
-      expect(stderr).toContain(
-        `Error: A synchronous script tag can impact your webpage's performance  @next/next/no-sync-scripts`
+    const { stdout, stderr } = await runNextCommand(
+      ['build', dirCustomConfig],
+      {
+        stdout: true,
+        stderr: true,
+      }
+    )
+
+    output = stdout + stderr
+    const version = await eslintVersion()
+
+    if (!version || (version && semver.lt(version, '7.0.0'))) {
+      expect(output).toContain(
+        'Your project has an older version of ESLint installed'
       )
-    })
-  } else {
-    it('should skip testing eslint without process.env.TEST_ESLINT set', () => {})
-  }
+      expect(output).toContain(
+        'Please upgrade to v7 or later to run ESLint during the build process'
+      )
+    } else {
+      expect(output).toContain('Failed to compile')
+      expect(output).toContain(
+        `Warning: In order to use external stylesheets use @import in the root stylesheet compiled with Next`
+      )
+      expect(output).toContain(
+        'Error: Comments inside children section of tag should be placed inside braces'
+      )
+    }
+  })
 })
