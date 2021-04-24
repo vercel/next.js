@@ -29,9 +29,9 @@ jobs:
     # needs: build
     env:
       NEXT_TELEMETRY_DISABLED: 1
-      NEXT_PRIVATE_REACT_MODE: concurrent
       HEADLESS: true
       NEXT_PRIVATE_SKIP_SIZE_TESTS: true
+      NEXT_PRIVATE_REACT_ROOT: 1
     strategy:
       fail-fast: false
       matrix:
