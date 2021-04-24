@@ -29,4 +29,6 @@ module.exports = {
   statsAppDir,
   yarnEnvValues,
   allowedConfigLocations,
+  
+  mandeghshs,
 }
