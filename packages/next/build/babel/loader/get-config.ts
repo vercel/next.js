@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs'
+
 import { createConfigItem, loadOptions } from 'next/dist/compiled/babel/core'
 import loadConfig from 'next/dist/compiled/babel/core-lib-config'
 
@@ -133,6 +135,27 @@ function getPlugins(
   ].filter(Boolean)
 }
 
+const isJsonFile = /\.(json|babelrc)$/
+const isJsFile = /\.js$/
+
+/**
+ * While this function does block execution while reading from disk, it
+ * should not introduce any issues.  The function is only invoked when
+ * generating a fresh config, and only a small handful of configs should
+ * be generated during compilation.
+ */
+function getCustomBabelConfig(configFilePath: string) {
+  if (isJsonFile.exec(configFilePath)) {
+    const babelConfigRaw = readFileSync(configFilePath, 'utf8')
+    return JSON.parse(babelConfigRaw)
+  } else if (isJsFile.exec(configFilePath)) {
+    return require(configFilePath)
+  }
+  throw new Error(
+    'The Next Babel loader does not support MJS or CJS config files.'
+  )
+}
+
 function getCustomPresets(presets: any[], customConfig: any) {
   presets = [...presets, ...customConfig?.presets]
 
@@ -177,7 +200,7 @@ function getFreshConfig(
   let customConfig
   let customPlugins = []
   if (configFile) {
-    customConfig = require(configFile)
+    customConfig = getCustomBabelConfig(configFile)
     presets = getCustomPresets(presets, customConfig)
     if (customConfig.plugins) {
       customPlugins = customConfig.plugins
