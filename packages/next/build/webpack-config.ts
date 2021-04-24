@@ -231,7 +231,7 @@ export default async function getBaseWebpackConfig(
     // fixed in rc.1.
     semver.gte(reactVersion!, '17.0.0-rc.1')
 
-  const babelrc = await [
+  const babelConfigFile = await [
     '.babelrc',
     '.babelrc.json',
     '.babelrc.js',
@@ -241,9 +241,13 @@ export default async function getBaseWebpackConfig(
     'babel.config.json',
     'babel.config.mjs',
     'babel.config.cjs',
-  ].reduce(async (memo: boolean | Promise<boolean>, filename) => {
-    return (await memo) || (await fileExists(path.join(dir, filename)))
-  }, false)
+  ].reduce(async (memo: Promise<string | undefined>, filename) => {
+    const configFilePath = path.join(dir, filename)
+    return (
+      (await memo) ||
+      ((await fileExists(configFilePath)) ? configFilePath : undefined)
+    )
+  }, Promise.resolve(undefined))
 
   const distDir = path.join(dir, config.distDir)
 
@@ -254,7 +258,7 @@ export default async function getBaseWebpackConfig(
     babel: {
       loader: babelLoader,
       options: {
-        babelrc,
+        configFile: babelConfigFile,
         isServer,
         distDir,
         pagesDir,
