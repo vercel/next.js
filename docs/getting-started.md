@@ -25,6 +25,8 @@ We recommend creating a new Next.js app using `create-next-app`, which sets up e
 npx create-next-app
 # or
 yarn create next-app
+# or 
+npm init next-app
 ```
 
 After the installation is complete, follow the instructions to start the development server. Try editing `pages/index.js` and see the result on your browser.
