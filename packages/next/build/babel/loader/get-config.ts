@@ -1,7 +1,6 @@
 import { createConfigItem, loadOptions } from 'next/dist/compiled/babel/core'
 import loadConfig from 'next/dist/compiled/babel/core-lib-config'
 
-import nextBabelPreset from '../preset'
 import { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
 import { consumeIterator } from './util'
 
@@ -134,6 +133,25 @@ function getPlugins(
   ].filter(Boolean)
 }
 
+function getCustomPresets(presets: any[], customConfig: any) {
+  presets = [...presets, ...customConfig?.presets]
+
+  const hasNextBabelPreset = (customConfig?.presets || [])
+    .filter((preset: any) => {
+      return (
+        preset === 'next/babel' ||
+        (Array.isArray(preset) && preset[0] === 'next/babel')
+      )
+    })
+    .reduce((memo: boolean, presetFound: boolean) => memo || presetFound, false)
+
+  if (!hasNextBabelPreset) {
+    presets.push('next/babel')
+  }
+
+  return presets
+}
+
 /**
  * Generate a new, flat Babel config, ready to be handed to Babel-traverse.
  * This config should have no unresolved overrides, presets, etc.
@@ -146,7 +164,7 @@ function getFreshConfig(
   filename: string,
   inputSourceMap?: object | null
 ) {
-  const {
+  let {
     presets = [],
     isServer,
     pagesDir,
@@ -155,7 +173,16 @@ function getFreshConfig(
     hasJsxRuntime,
     configFile,
   } = loaderOptions
-  const nextPresetItem = createConfigItem(nextBabelPreset, { type: 'preset' })
+
+  let customConfig
+  let customPlugins = []
+  if (configFile) {
+    customConfig = require(configFile)
+    presets = getCustomPresets(presets, customConfig)
+    if (customConfig.plugins) {
+      customPlugins = customConfig.plugins
+    }
+  }
 
   let options = {
     babelrc: false,
@@ -176,9 +203,12 @@ function getFreshConfig(
     // modules.
     sourceFileName: filename,
 
-    plugins: getPlugins(loaderOptions, cacheCharacteristics),
+    plugins: [
+      ...getPlugins(loaderOptions, cacheCharacteristics),
+      ...customPlugins,
+    ],
 
-    presets: [...presets, nextPresetItem],
+    presets,
 
     overrides: loaderOptions.overrides,
 
