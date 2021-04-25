@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "sourceMap": true,
     "esModuleInterop": true,
     "target": "es2015",
     "downlevelIteration": true,

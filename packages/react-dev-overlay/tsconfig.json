@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "sourceMap": true,
     "strict": true,
     "esModuleInterop": true,
     "target": "es3",

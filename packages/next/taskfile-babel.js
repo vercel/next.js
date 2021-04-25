@@ -117,7 +117,7 @@ module.exports = function (task) {
       cwd: __dirname,
       filename: path.join(file.dir, file.base),
       sourceFileName: path.relative(distFilePath, fullFilePath),
-      sourceMaps: true,
+      sourceMaps: dev,
     }
 
     const output = transform(file.data, options)
