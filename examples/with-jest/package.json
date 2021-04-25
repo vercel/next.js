@@ -14,6 +14,8 @@
     "react-dom": "16.12.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.13.8",
+    "@babel/runtime": "^7.13.17",
     "@testing-library/jest-dom": "^5.1.0",
     "@testing-library/react": "^9.4.0",
     "babel-jest": "^25.1.0",
