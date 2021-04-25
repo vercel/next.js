@@ -158,8 +158,13 @@ export default async function build(
       }
     }
 
+    const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
     const typeCheckingSpinner = createSpinner({
-      prefixText: `${Log.prefixes.info} Checking validity of types`,
+      prefixText: `${Log.prefixes.info} ${
+        ignoreTypeScriptErrors
+          ? 'Skipping validation of types'
+          : 'Checking validity of types'
+      }`,
     })
 
     const telemetry = new Telemetry({ distDir })
@@ -183,7 +188,6 @@ export default async function build(
       telemetry.record(events)
     )
 
-    const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
     await nextBuildSpan
       .traceChild('verify-typescript-setup')
       .traceAsyncFn(() =>
