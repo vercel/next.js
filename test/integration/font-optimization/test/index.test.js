@@ -10,6 +10,7 @@ import {
   initNextServerScript,
 } from 'next-test-utils'
 import fs from 'fs-extra'
+import cheerio from 'cheerio'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -54,13 +55,21 @@ function runTests() {
 
   it('should pass nonce to the inlined font definition', async () => {
     const html = await renderViaHTTP(appPort, '/nonce')
+    const $ = cheerio.load(html)
     expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
-    expect(html).toContain(
-      '<link rel="stylesheet" nonce="VmVyY2Vs" data-href="https://fonts.googleapis.com/css2?family=Modak"/>'
+
+    const link = $(
+      'link[rel="stylesheet"][data-href="https://fonts.googleapis.com/css2?family=Modak"]'
     )
-    expect(html).toMatch(
-      /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Modak" nonce="VmVyY2Vs">.*<\/style>/
+    const nonce = link.attr('nonce')
+    const style = $(
+      'style[data-href="https://fonts.googleapis.com/css2?family=Modak"]'
     )
+    const styleNonce = style.attr('nonce')
+
+    expect(link).toBeDefined()
+    expect(nonce).toBe('VmVyY2Vs')
+    expect(styleNonce).toBe('VmVyY2Vs')
   })
 
   it('should inline the google fonts for static pages with Next/Head', async () => {
@@ -117,11 +126,7 @@ function runTests() {
 
 describe('Font optimization for SSR apps', () => {
   beforeAll(async () => {
-    await fs.writeFile(
-      nextConfig,
-      `module.exports = { experimental: {optimizeFonts: true} }`,
-      'utf8'
-    )
+    await fs.writeFile(nextConfig, `module.exports = {}`, 'utf8')
 
     if (fs.pathExistsSync(join(appDir, '.next'))) {
       await fs.remove(join(appDir, '.next'))
@@ -140,7 +145,7 @@ describe('Font optimization for serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
-      `module.exports = { target: 'serverless', experimental: {optimizeFonts: true} }`,
+      `module.exports = { target: 'serverless' }`,
       'utf8'
     )
     await nextBuild(appDir)
@@ -157,7 +162,7 @@ describe('Font optimization for emulated serverless apps', () => {
   beforeAll(async () => {
     await fs.writeFile(
       nextConfig,
-      `module.exports = { target: 'experimental-serverless-trace', experimental: {optimizeFonts: true} }`,
+      `module.exports = { target: 'experimental-serverless-trace' }`,
       'utf8'
     )
     await nextBuild(appDir)

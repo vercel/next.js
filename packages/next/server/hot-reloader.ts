@@ -26,9 +26,9 @@ import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypo
 import { isWriteable } from '../build/is-writeable'
 import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { stringify } from 'querystring'
-import { Rewrite } from '../lib/load-custom-routes'
 import { difference } from '../build/utils'
 import { NextConfig } from '../next-server/server/config'
+import { CustomRoutes } from '../lib/load-custom-routes'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -143,7 +143,9 @@ export default class HotReloader {
   private onDemandEntries: any
   private previewProps: __ApiPreviewProps
   private watcher: any
-  private rewrites: Rewrite[]
+  private rewrites: CustomRoutes['rewrites']
+  private fallbackWatcher: any
+  public isWebpack5: any
 
   constructor(
     dir: string,
@@ -158,7 +160,7 @@ export default class HotReloader {
       pagesDir: string
       buildId: string
       previewProps: __ApiPreviewProps
-      rewrites: Rewrite[]
+      rewrites: CustomRoutes['rewrites']
     }
   ) {
     this.buildId = buildId
@@ -173,6 +175,7 @@ export default class HotReloader {
     this.config = config
     this.previewProps = previewProps
     this.rewrites = rewrites
+    this.isWebpack5 = isWebpack5
   }
 
   public async run(
@@ -296,6 +299,51 @@ export default class HotReloader {
         entrypoints: entrypoints.server,
       }),
     ])
+  }
+
+  public async buildFallbackError(): Promise<void> {
+    if (this.fallbackWatcher) return
+
+    const fallbackConfig = await getBaseWebpackConfig(this.dir, {
+      dev: true,
+      isServer: false,
+      config: this.config,
+      buildId: this.buildId,
+      pagesDir: this.pagesDir,
+      rewrites: {
+        beforeFiles: [],
+        afterFiles: [],
+        fallback: [],
+      },
+      isDevFallback: true,
+      entrypoints: createEntrypoints(
+        {
+          '/_app': 'next/dist/pages/_app',
+          '/_error': 'next/dist/pages/_error',
+        },
+        'server',
+        this.buildId,
+        this.previewProps,
+        this.config,
+        []
+      ).client,
+    })
+    const fallbackCompiler = webpack(fallbackConfig)
+
+    this.fallbackWatcher = await new Promise((resolve) => {
+      let bootedFallbackCompiler = false
+      fallbackCompiler.watch(
+        // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
+        fallbackConfig.watchOptions,
+        // Errors are handled separately
+        (_err: any) => {
+          if (!bootedFallbackCompiler) {
+            bootedFallbackCompiler = true
+            resolve(true)
+          }
+        }
+      )
+    })
   }
 
   public async start(): Promise<void> {
@@ -490,7 +538,7 @@ export default class HotReloader {
     )
 
     this.webpackHotMiddleware = new WebpackHotMiddleware(
-      multiCompiler.compilers[0]
+      multiCompiler.compilers
     )
 
     let booted = false
@@ -532,9 +580,17 @@ export default class HotReloader {
   }
 
   public async stop(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.watcher.close((err: any) => (err ? reject(err) : resolve()))
+    await new Promise((resolve, reject) => {
+      this.watcher.close((err: any) => (err ? reject(err) : resolve(true)))
     })
+
+    if (this.fallbackWatcher) {
+      await new Promise((resolve, reject) => {
+        this.fallbackWatcher.close((err: any) =>
+          err ? reject(err) : resolve(true)
+        )
+      })
+    }
   }
 
   public async getCompilationErrors(page: string) {
@@ -556,6 +612,20 @@ export default class HotReloader {
 
       // If none were found we still have to show the other errors
       return this.stats.compilation.errors
+    } else if (this.serverStats?.hasErrors()) {
+      const { compilation } = this.serverStats
+      const failedPages = erroredPages(compilation)
+
+      // If there is an error related to the requesting page we display it instead of the first error
+      if (
+        failedPages[normalizedPage] &&
+        failedPages[normalizedPage].length > 0
+      ) {
+        return failedPages[normalizedPage]
+      }
+
+      // If none were found we still have to show the other errors
+      return this.serverStats.compilation.errors
     }
 
     return []
