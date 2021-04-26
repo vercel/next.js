@@ -42,6 +42,9 @@ export default () => (
       <Link href="/dynamic-imports">
         <a id="dynamic-imports-link">Dynamic imports page</a>
       </Link>
+      <Link href="/gsp-notfound">
+        <a id="gsp-notfound-link">GSP notfound page</a>
+      </Link>
     </div>
     <p>This is the home page</p>
     <style jsx>{`

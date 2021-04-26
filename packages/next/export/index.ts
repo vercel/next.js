@@ -607,8 +607,18 @@ export default async function exportApp(
 
           await promises.mkdir(dirname(htmlDest), { recursive: true })
           await promises.mkdir(dirname(jsonDest), { recursive: true })
-          await promises.copyFile(`${orig}.html`, htmlDest)
-          await promises.copyFile(`${orig}.json`, jsonDest)
+
+          const htmlSrc = `${orig}.html`
+          const jsonSrc = `${orig}.json`
+
+          if (
+            !prerenderManifest!.notFoundRoutes.includes(route) ||
+            // returning notFound: true from getStaticProps will not output html/json
+            (await exists(htmlSrc))
+          ) {
+            await promises.copyFile(htmlSrc, htmlDest)
+            await promises.copyFile(jsonSrc, jsonDest)
+          }
 
           if (await exists(`${orig}.amp.html`)) {
             await promises.mkdir(dirname(ampHtmlDest), { recursive: true })

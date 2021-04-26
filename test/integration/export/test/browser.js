@@ -193,6 +193,26 @@ export default function (context) {
       }
     })
 
+    it('should render 404 when visiting a page that returns notFound from gsp', async () => {
+      let browser
+      try {
+        browser = await webdriver(context.port, '/')
+
+        const text = await browser
+          .elementByCss('#gsp-notfound-link')
+          .click()
+          .waitForElementByCss('pre')
+          .elementByCss('pre')
+          .text()
+
+        expect(text).toBe('Cannot GET /gsp-notfound/')
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
     it('should navigate even if used a button inside <Link />', async () => {
       const browser = await webdriver(context.port, '/button-link')
 
