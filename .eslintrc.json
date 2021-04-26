@@ -27,7 +27,10 @@
       "extends": ["plugin:jest/recommended"],
       "rules": {
         "jest/expect-expect": "off",
-        "jest/no-disabled-tests": "off"
+        "jest/no-disabled-tests": "off",
+        "jest/no-conditional-expect": "off",
+        "jest/valid-title": "off",
+        "jest/no-interpolation-in-snapshots": "off"
       }
     },
     { "files": ["**/__tests__/**"], "env": { "jest": true } },

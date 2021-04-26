@@ -596,7 +596,10 @@ export default async function getBaseWebpackConfig(
   async function handleExternals(
     context: string,
     request: string,
-    getResolve: () => (context: string, request: string) => Promise<string>
+    getResolve: () => (
+      resolveContext: string,
+      resolveRequest: string
+    ) => Promise<string>
   ) {
     if (request === 'next') {
       return `commonjs ${request}`
@@ -763,8 +766,8 @@ export default async function getBaseWebpackConfig(
                 context: string
                 request: string
                 getResolve: () => (
-                  context: string,
-                  request: string
+                  resolveContext: string,
+                  resolveRequest: string
                 ) => Promise<string>
               }) => handleExternals(context, request, getResolve)
             : (
@@ -1048,8 +1051,8 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_STRICT_MODE': JSON.stringify(
           config.reactStrictMode
         ),
-        'process.env.__NEXT_REACT_MODE': JSON.stringify(
-          config.experimental.reactMode
+        'process.env.__NEXT_REACT_ROOT': JSON.stringify(
+          config.experimental.reactRoot
         ),
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
           config.optimizeFonts && !dev
