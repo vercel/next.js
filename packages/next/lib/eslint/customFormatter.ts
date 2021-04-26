@@ -1,6 +1,7 @@
 import chalk from 'chalk'
 import path from 'path'
 
+// eslint-disable-next-line no-shadow
 export enum MessageSeverity {
   Warning = 1,
   Error = 2,
