@@ -924,12 +924,29 @@ export default class Server {
               target,
               changeOrigin: true,
               ignorePath: true,
+              proxyTimeout: 30_000, // limit proxying to 30 seconds
             })
-            proxy.web(req, res)
 
-            proxy.on('error', (err: Error) => {
-              console.error(`Error occurred proxying ${target}`, err)
+            await new Promise((proxyResolve, proxyReject) => {
+              let finished = false
+
+              proxy.on('proxyReq', (proxyReq) => {
+                proxyReq.on('close', () => {
+                  if (!finished) {
+                    finished = true
+                    proxyResolve(true)
+                  }
+                })
+              })
+              proxy.on('error', (err) => {
+                if (!finished) {
+                  finished = true
+                  proxyReject(err)
+                }
+              })
+              proxy.web(req, res)
             })
+
             return {
               finished: true,
             }
