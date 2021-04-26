@@ -6,6 +6,8 @@ export interface IConformanceAnomaly {
   stack_trace?: string
 }
 
+// eslint typescript has a bug with TS enums
+/* eslint-disable no-shadow */
 export enum IConformanceTestStatus {
   SUCCESS,
   FAILED,
