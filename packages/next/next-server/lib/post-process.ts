@@ -14,7 +14,7 @@ type renderOptions = {
   getFontDefinition?: (url: string) => string
 }
 
-type postProcessData = {
+type PostProcessData = {
   preloads: {
     images: Array<string>
   }
@@ -23,12 +23,12 @@ type postProcessData = {
 interface PostProcessMiddleware {
   inspect: (
     originalDom: HTMLElement,
-    data: postProcessData,
+    data: PostProcessData,
     options: renderOptions
   ) => void
   mutate: (
     markup: string,
-    data: postProcessData,
+    data: PostProcessData,
     options: renderOptions
   ) => Promise<string>
 }
@@ -58,7 +58,7 @@ async function processHTML(
   if (!middlewareRegistry[0]) {
     return html
   }
-  const postProcessData: postProcessData = {
+  const postProcessData: PostProcessData = {
     preloads: {
       images: [],
     },
@@ -92,7 +92,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
   fontDefinitions: (string | undefined)[][] = []
   inspect(
     originalDom: HTMLElement,
-    _data: postProcessData,
+    _data: PostProcessData,
     options: renderOptions
   ) {
     if (!options.getFontDefinition) {
@@ -121,7 +121,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
   }
   mutate = async (
     markup: string,
-    _data: postProcessData,
+    _data: PostProcessData,
     options: renderOptions
   ) => {
     let result = markup
@@ -157,7 +157,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
 }
 
 class ImageOptimizerMiddleware implements PostProcessMiddleware {
-  inspect(originalDom: HTMLElement, _data: postProcessData) {
+  inspect(originalDom: HTMLElement, _data: PostProcessData) {
     const imgElements = originalDom.querySelectorAll('img')
     let eligibleImages: Array<HTMLElement> = []
     for (let i = 0; i < imgElements.length; i++) {
@@ -178,7 +178,7 @@ class ImageOptimizerMiddleware implements PostProcessMiddleware {
       }
     }
   }
-  mutate = async (markup: string, _data: postProcessData) => {
+  mutate = async (markup: string, _data: PostProcessData) => {
     let result = markup
     let imagePreloadTags = _data.preloads.images
       .filter((imgHref) => !preloadTagAlreadyExists(markup, imgHref))
