@@ -43,7 +43,6 @@ async function processHTML(
   if (!middlewareRegistry[0]) {
     return html
   }
-
   const root: HTMLElement = parse(html)
   let document = html
   // Calls the middleware, with some instrumentation and logging

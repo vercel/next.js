@@ -28,18 +28,6 @@ export type OriginProps = {
   crossOrigin?: string
 }
 
-function dedupe<T extends { file: string }>(bundles: T[]): T[] {
-  const files = new Set<string>()
-  const kept: T[] = []
-
-  for (const bundle of bundles) {
-    if (files.has(bundle.file)) continue
-    files.add(bundle.file)
-    kept.push(bundle)
-  }
-  return kept
-}
-
 type DocumentFiles = {
   sharedFiles: readonly string[]
   pageFiles: readonly string[]
@@ -68,13 +56,6 @@ function getDocumentFiles(
  * Commonly used for implementing server side rendering for `css-in-js` libraries.
  */
 export default class Document<P = {}> extends Component<DocumentProps & P> {
-  static headTagsMiddleware = process.env.__NEXT_PLUGINS
-    ? import(
-        // @ts-ignore loader syntax
-        'next-plugin-loader?middleware=document-head-tags-server!'
-      )
-    : () => []
-
   /**
    * `getInitialProps` hook returns the context object with the addition of `renderPage`.
    * `renderPage` callback executes `React` rendering logic synchronously to support server-rendering wrappers
@@ -91,9 +72,9 @@ export default class Document<P = {}> extends Component<DocumentProps & P> {
     return { html, head, styles }
   }
 
-  static renderDocument<P>(
-    DocumentComponent: new () => Document<P>,
-    props: DocumentProps & P
+  static renderDocument<Y>(
+    DocumentComponent: new () => Document<Y>,
+    props: DocumentProps & Y
   ): React.ReactElement {
     return (
       <DocumentComponentContext.Provider value={props}>
@@ -167,9 +148,9 @@ export class Head extends Component<
     // Unmanaged files are CSS files that will be handled directly by the
     // webpack runtime (`mini-css-extract-plugin`).
     let unmangedFiles: Set<string> = new Set([])
-    let dynamicCssFiles = dedupe(
-      dynamicImports.filter((f) => f.file.endsWith('.css'))
-    ).map((f) => f.file)
+    let dynamicCssFiles = Array.from(
+      new Set(dynamicImports.filter((file) => file.endsWith('.css')))
+    )
     if (dynamicCssFiles.length) {
       const existing = new Set(cssFiles)
       dynamicCssFiles = dynamicCssFiles.filter(
@@ -238,18 +219,18 @@ export class Head extends Component<
     } = this.context
 
     return (
-      dedupe(dynamicImports)
-        .map((bundle) => {
-          if (!bundle.file.endsWith('.js')) {
+      dynamicImports
+        .map((file) => {
+          if (!file.endsWith('.js')) {
             return null
           }
 
           return (
             <link
               rel="preload"
-              key={bundle.file}
+              key={file}
               href={`${assetPrefix}/_next/${encodeURI(
-                bundle.file
+                file
               )}${devOnlyCacheBusterQueryString}`}
               as="script"
               nonce={this.props.nonce}
@@ -661,16 +642,15 @@ export class NextScript extends Component<OriginProps> {
       devOnlyCacheBusterQueryString,
     } = this.context
 
-    return dedupe(dynamicImports).map((bundle) => {
-      if (!bundle.file.endsWith('.js') || files.allFiles.includes(bundle.file))
-        return null
+    return dynamicImports.map((file) => {
+      if (!file.endsWith('.js') || files.allFiles.includes(file)) return null
 
       return (
         <script
           async={!isDevelopment}
-          key={bundle.file}
+          key={file}
           src={`${assetPrefix}/_next/${encodeURI(
-            bundle.file
+            file
           )}${devOnlyCacheBusterQueryString}`}
           nonce={this.props.nonce}
           crossOrigin={

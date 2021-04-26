@@ -12,8 +12,16 @@ module.exports = {
             ]
           : []),
         {
+          source: '/to-nowhere',
+          destination: 'http://localhost:12233',
+        },
+        {
           source: '/rewriting-to-auto-export',
-          destination: '/auto-export/hello',
+          destination: '/auto-export/hello?rewrite=1',
+        },
+        {
+          source: '/rewriting-to-another-auto-export/:path*',
+          destination: '/auto-export/another?rewrite=1',
         },
         {
           source: '/to-another',
