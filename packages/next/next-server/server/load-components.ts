@@ -16,11 +16,10 @@ export function interopDefault(mod: any) {
 
 export type ManifestItem = {
   id: number | string
-  name: string
-  file: string
+  files: string[]
 }
 
-type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
+type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
 export type LoadComponentsReturnType = {
   Component: React.ComponentType
@@ -33,6 +32,22 @@ export type LoadComponentsReturnType = {
   getStaticPaths?: GetStaticPaths
   getServerSideProps?: GetServerSideProps
   ComponentMod: any
+}
+
+export async function loadDefaultErrorComponents(distDir: string) {
+  const Document = interopDefault(require('next/dist/pages/_document'))
+  const App = interopDefault(require('next/dist/pages/_app'))
+  const ComponentMod = require('next/dist/pages/_error')
+  const Component = interopDefault(ComponentMod)
+
+  return {
+    App,
+    Document,
+    Component,
+    buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
+    reactLoadableManifest: {},
+    ComponentMod,
+  }
 }
 
 export async function loadComponents(
@@ -59,9 +74,20 @@ export async function loadComponents(
     } as LoadComponentsReturnType
   }
 
-  const DocumentMod = await requirePage('/_document', distDir, serverless)
-  const AppMod = await requirePage('/_app', distDir, serverless)
-  const ComponentMod = await requirePage(pathname, distDir, serverless)
+  let DocumentMod
+  let AppMod
+  let ComponentMod
+
+  try {
+    DocumentMod = await requirePage('/_document', distDir, serverless)
+    AppMod = await requirePage('/_app', distDir, serverless)
+    ComponentMod = await requirePage(pathname, distDir, serverless)
+  } catch (err) {
+    if (err.code === 'MODULE_NOT_FOUND') {
+      throw new Error(`Failed to load ${pathname}`)
+    }
+    throw err
+  }
 
   const [
     buildManifest,

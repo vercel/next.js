@@ -59,6 +59,8 @@ export type NextConfig = { [key: string]: any } & {
       validator?: string
       skipValidation?: boolean
     }
+    turboMode: boolean
+    reactRoot: boolean
   }
 }
 
@@ -103,7 +105,6 @@ export const defaultConfig: NextConfig = {
     plugins: false,
     profiling: false,
     sprFlushToDisk: true,
-    reactMode: 'legacy',
     workerThreads: false,
     pageEnv: false,
     optimizeImages: false,
@@ -113,6 +114,8 @@ export const defaultConfig: NextConfig = {
     stats: false,
     externalDir: false,
     serialWebpackBuild: false,
+    turboMode: false,
+    reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
   },
   future: {
     strictPostcssConfiguration: false,

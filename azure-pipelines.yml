@@ -69,7 +69,7 @@ stages:
   - stage: Test
     dependsOn: Build
     jobs:
-      - job: test_ie11_production
+      - job: test_ie11
         pool:
           vmImage: 'windows-2019'
         steps:
@@ -86,7 +86,7 @@ stages:
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
           - script: |
-              yarn testie --forceExit test/integration/production/
+              yarn testie --forceExit test/integration/production/ test/integration/css-client-nav/
             displayName: 'Run tests'
 
       - job: test_unit
