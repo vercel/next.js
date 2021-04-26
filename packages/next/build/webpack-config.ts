@@ -596,7 +596,10 @@ export default async function getBaseWebpackConfig(
   async function handleExternals(
     context: string,
     request: string,
-    getResolve: () => (context: string, request: string) => Promise<string>
+    getResolve: () => (
+      resolveContext: string,
+      resolveRequest: string
+    ) => Promise<string>
   ) {
     if (request === 'next') {
       return `commonjs ${request}`
@@ -763,8 +766,8 @@ export default async function getBaseWebpackConfig(
                 context: string
                 request: string
                 getResolve: () => (
-                  context: string,
-                  request: string
+                  resolveContext: string,
+                  resolveRequest: string
                 ) => Promise<string>
               }) => handleExternals(context, request, getResolve)
             : (
