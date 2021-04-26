@@ -1,0 +1,11 @@
+{
+  "name": "@project/monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A simple example using Yarn workspaces",
+  "main": "index.js",
+  "workspaces": [
+    "packages/*"
+  ],
+  "license": "MIT"
+}
