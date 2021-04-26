@@ -223,11 +223,11 @@ function removePlaceholder(
   element: HTMLImageElement | null,
   placeholder: PlaceholderValue
 ) {
-  const hasBlurryPlaceholder =
-    configEnableBlurryPlaceholder && placeholder === 'blur'
-  if (hasBlurryPlaceholder && element) {
+  if (placeholder === 'blur' && element) {
     if (element.complete) {
-      // If the real image fails to load, this will still remove the placeholder. This is the desired behavior for now, and will be revisited when error handling is worked on for the image component itself.
+      // If the real image fails to load, this will still remove the placeholder.
+      // This is the desired behavior for now, and will be revisited when error
+      // handling is worked on for the image component itself.
       element.style.backgroundImage = 'none'
     } else {
       element.onload = () => {
@@ -329,9 +329,7 @@ export default function Image({
   const tooSmallForBlurryPlaceholder =
     widthInt && heightInt && widthInt * heightInt < MIN_IMG_SIZE_FOR_PLACEHOLDER
   const shouldShowBlurryPlaceholder =
-    configEnableBlurryPlaceholder &&
-    placeholder === 'blur' &&
-    !tooSmallForBlurryPlaceholder
+    placeholder === 'blur' && !tooSmallForBlurryPlaceholder
 
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
