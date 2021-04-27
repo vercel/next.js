@@ -192,7 +192,6 @@ function getFreshConfig(
     isServer,
     pagesDir,
     development,
-    hasReactRefresh,
     hasJsxRuntime,
     configFile,
   } = loaderOptions
@@ -218,7 +217,7 @@ function getFreshConfig(
     // but allow users to override if they want.
     sourceMaps:
       loaderOptions.sourceMaps === undefined
-        ? inputSourceMap
+        ? this.sourceMap
         : loaderOptions.sourceMaps,
 
     // Ensure that Webpack will get a full absolute path in the sourcemap
@@ -251,8 +250,7 @@ function getFreshConfig(
 
       isServer,
       pagesDir,
-      development,
-      hasReactRefresh,
+      isDev: development,
       hasJsxRuntime,
 
       ...loaderOptions.caller,
@@ -325,10 +323,17 @@ export default function getConfig(
 
   const cacheKey = getCacheKey(cacheCharacteristics)
   if (configCache.has(cacheKey)) {
+    const cachedConfig = configCache.get(cacheKey)
+
     return {
-      ...configCache.get(cacheKey),
-      filename,
-      sourceFileName: filename,
+      ...cachedConfig,
+      options: {
+        ...cachedConfig.options,
+        cwd: loaderOptions.cwd,
+        root: loaderOptions.cwd,
+        filename,
+        sourceFileName: filename,
+      },
     }
   }
 

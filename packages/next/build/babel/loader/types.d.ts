@@ -16,4 +16,5 @@ export interface NextBabelLoaderOptions {
   overrides: any
   caller: any
   configFile: string | undefined
+  cwd: string
 }
