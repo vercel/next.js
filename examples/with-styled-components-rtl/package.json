@@ -11,7 +11,8 @@
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-is": "^17.0.2",
-    "styled-components": "^5.2.3"
+    "styled-components": "^5.2.3",
+    "stylis-plugin-rtl": "2.0.2"
   },
   "devDependencies": {
     "babel-plugin-styled-components": "^1.12.0"
