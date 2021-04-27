@@ -22,6 +22,15 @@ const PNG = 'image/png'
 const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
+const FILE_TYPES = [
+  /* avif, */ 'webp',
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'svg',
+  'ico',
+]
 const CACHE_VERSION = 2
 const MODERN_TYPES = [/* AVIF, */ WEBP]
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
@@ -266,7 +275,10 @@ export async function imageOptimizer(
       }
 
       // If upstream type is not a valid image type, return 400 error.
-      if (!upstreamType.startsWith('image/')) {
+      if (
+        !upstreamType.startsWith('image/') &&
+        !endsWithImageExtension(href, FILE_TYPES)
+      ) {
         res.statusCode = 400
         res.end("The requested resource isn't a valid image.")
         return { finished: true }
@@ -377,6 +389,12 @@ function sendResponse(
     res.setHeader('Content-Type', contentType)
   }
   res.end(buffer)
+}
+
+function endsWithImageExtension(href: string, fileTypes: string[]): boolean {
+  return fileTypes.some((fileType) => {
+    return href.toLowerCase().endsWith(fileType)
+  })
 }
 
 function getSupportedMimeType(options: string[], accept = ''): string {
