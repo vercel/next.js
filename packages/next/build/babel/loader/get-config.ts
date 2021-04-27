@@ -197,10 +197,9 @@ function getFreshConfig(
     configFile,
   } = loaderOptions
 
-  let customConfig
   let customPlugins = []
   if (configFile) {
-    customConfig = getCustomBabelConfig(configFile)
+    const customConfig = getCustomBabelConfig(configFile)
     presets = getCustomPresets(presets, customConfig)
     if (customConfig.plugins) {
       customPlugins = customConfig.plugins
