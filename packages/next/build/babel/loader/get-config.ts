@@ -188,7 +188,7 @@ function getFreshConfig(
   inputSourceMap?: object | null
 ) {
   let {
-    presets = ['next/babel'],
+    presets = [],
     isServer,
     pagesDir,
     development,
@@ -204,6 +204,8 @@ function getFreshConfig(
     if (customConfig.plugins) {
       customPlugins = customConfig.plugins
     }
+  } else {
+    presets = [...presets, 'next/babel']
   }
 
   let options = {
