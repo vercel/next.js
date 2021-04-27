@@ -197,8 +197,6 @@ module.exports = {
 
 ## Header, Cookie, and Query Matching
 
-Note: this feature is still experimental and not covered by semver and is to be used at your own risk until it is made stable.
-
 To only match a rewrite when header, cookie, or query values also match the `has` field can be used. Both the `source` and all `has` items must match for the rewrite to be applied.
 
 `has` items have the following fields:
