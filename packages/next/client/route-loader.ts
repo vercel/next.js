@@ -68,7 +68,7 @@ function withFuture<T>(
 export interface RouteLoader {
   whenEntrypoint(route: string): Promise<RouteEntrypoint>
   onEntrypoint(route: string, execute: () => unknown): void
-  loadRoute(route: string): Promise<RouteLoaderEntry>
+  loadRoute(route: string, prefetch?: boolean): Promise<RouteLoaderEntry>
   prefetch(route: string): Promise<void>
 }
 
@@ -305,7 +305,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
           if (old && 'resolve' in old) old.resolve(input)
         })
     },
-    loadRoute(route: string) {
+    loadRoute(route: string, prefetch?: boolean) {
       return withFuture<RouteLoaderEntry>(route, routes, () => {
         return resolvePromiseWithTimeout(
           getFilesForRoute(assetPrefix, route)
@@ -334,6 +334,10 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
             return 'error' in entrypoint ? entrypoint : res
           })
           .catch((err) => {
+            if (prefetch) {
+              // we don't want to cache errors during prefetch
+              throw err
+            }
             return { error: err }
           })
       })
@@ -355,7 +359,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
           )
         )
         .then(() => {
-          requestIdleCallback(() => this.loadRoute(route))
+          requestIdleCallback(() => this.loadRoute(route, true).catch(() => {}))
         })
         .catch(
           // swallow prefetch errors
