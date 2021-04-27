@@ -219,6 +219,8 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
   )
 }
 
+// See https://stackoverflow.com/q/39777833/266535 for why we use this ref
+// handler instead of the img's onLoad attribute.
 function removePlaceholder(
   element: HTMLImageElement | null,
   placeholder: PlaceholderValue
