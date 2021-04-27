@@ -102,6 +102,25 @@ function runTests() {
     )
   })
 
+  it('should only inline included fonts per page', async () => {
+    const html = await renderViaHTTP(appPort, '/with-font')
+    expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+    expect(html).toContain(
+      '<link rel="stylesheet" data-href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&amp;display=swap"/>'
+    )
+    expect(html).toMatch(
+      /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Roboto:wght@400;700;900&display=swap">.*<\/style>/
+    )
+
+    const htmlWithoutFont = await renderViaHTTP(appPort, '/without-font')
+    expect(htmlWithoutFont).not.toContain(
+      '<link rel="stylesheet" data-href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&amp;display=swap"/>'
+    )
+    expect(htmlWithoutFont).not.toMatch(
+      /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Roboto:wght@400;700;900&display=swap">.*<\/style>/
+    )
+  })
+
   it.skip('should minify the css', async () => {
     const snapshotJson = JSON.parse(
       await fs.readFile(join(__dirname, 'manifest-snapshot.json'), {
