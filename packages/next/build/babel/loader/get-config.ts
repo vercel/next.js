@@ -210,7 +210,6 @@ function getFreshConfig(
 
   let options = {
     babelrc: false,
-    configFile,
     cloneInputAst: false,
     filename,
     inputSourceMap: inputSourceMap || undefined,
