@@ -146,8 +146,8 @@ export default async function build(
 
     const { headers, rewrites, redirects } = customRoutes
 
+    const cacheDir = path.join(distDir, 'cache')
     if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
-      const cacheDir = path.join(distDir, 'cache')
       const hasCache = await fileExists(cacheDir)
 
       if (!hasCache) {
@@ -189,7 +189,7 @@ export default async function build(
     const verifyResult = await nextBuildSpan
       .traceChild('verify-typescript-setup')
       .traceAsyncFn(() =>
-        verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors)
+        verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors, cacheDir)
       )
 
     const typeCheckEnd = process.hrtime(typeCheckStart)
