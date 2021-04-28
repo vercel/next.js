@@ -32,8 +32,10 @@ interface CharacteristicsGermaneToCaching {
   isPageFile: boolean
   isNextDist: boolean
   hasModuleExports: boolean
+  fileExt: string
 }
 
+const fileExtensionRegex = /\.([a-z]+)$/
 function getCacheCharacteristics(
   loaderOptions: NextBabelLoaderOptions,
   source: string,
@@ -43,12 +45,14 @@ function getCacheCharacteristics(
   const isPageFile = filename.startsWith(pagesDir)
   const isNextDist = nextDistPath.test(filename)
   const hasModuleExports = source.indexOf('module.exports') !== -1
+  const fileExt = fileExtensionRegex.exec(filename)?.[1] || 'unknown'
 
   return {
     isServer,
     isPageFile,
     isNextDist,
     hasModuleExports,
+    fileExt,
   }
 }
 
@@ -285,19 +289,21 @@ function getCacheKey(cacheCharacteristics: CharacteristicsGermaneToCaching) {
     isPageFile,
     isNextDist,
     hasModuleExports,
+    fileExt,
   } = cacheCharacteristics
 
-  return (
+  const flags =
     0 |
     (isServer ? 0b0001 : 0) |
     (isPageFile ? 0b0010 : 0) |
     (isNextDist ? 0b0100 : 0) |
     (hasModuleExports ? 0b1000 : 0)
-  )
+
+  return fileExt + flags
 }
 
 type BabelConfig = any
-const configCache: Map<number, BabelConfig> = new Map()
+const configCache: Map<any, BabelConfig> = new Map()
 
 export default function getConfig(
   this: NextJsLoaderContext,
