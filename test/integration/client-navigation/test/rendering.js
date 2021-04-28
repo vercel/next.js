@@ -337,10 +337,14 @@ export default function (render, fetch, ctx) {
       ))
       const resources = []
 
+      const manifestKey = Object.keys(reactLoadableManifest).find((item) => {
+        return item
+          .replace(/\\/g, '/')
+          .endsWith('ssr.js -> ../../components/hello1')
+      })
+
       // test dynamic chunk
-      resources.push(
-        '/_next/' + reactLoadableManifest['../../components/hello1'][0].file
-      )
+      resources.push('/_next/' + reactLoadableManifest[manifestKey].files[0])
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/dynamic/ssr']) {

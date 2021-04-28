@@ -2,9 +2,9 @@ import { join } from 'path'
 import * as Log from '../../output/log'
 import babelLoader from './babel-loader/src/index'
 
-// increment 'o' to invalidate cache
+// increment 'p' to invalidate cache
 // eslint-disable-next-line no-useless-concat
-const cacheKey = 'babel-cache-' + 'o' + '-'
+const cacheKey = 'babel-cache-' + 'p' + '-'
 const nextBabelPreset = require('../../babel/preset')
 
 const customBabelLoader = babelLoader((babel) => {
@@ -27,7 +27,6 @@ const customBabelLoader = babelLoader((babel) => {
       const custom = {
         isServer: opts.isServer,
         pagesDir: opts.pagesDir,
-        babelPresetPlugins: opts.babelPresetPlugins,
         development: opts.development,
         hasReactRefresh: opts.hasReactRefresh,
         hasJsxRuntime: opts.hasJsxRuntime,
@@ -62,7 +61,6 @@ const customBabelLoader = babelLoader((babel) => {
       delete loader.cache
       delete loader.distDir
       delete loader.pagesDir
-      delete loader.babelPresetPlugins
       delete loader.development
       delete loader.hasReactRefresh
       delete loader.hasJsxRuntime
@@ -75,7 +73,6 @@ const customBabelLoader = babelLoader((babel) => {
         customOptions: {
           isServer,
           pagesDir,
-          babelPresetPlugins,
           development,
           hasReactRefresh,
           hasJsxRuntime,
@@ -102,6 +99,7 @@ const customBabelLoader = babelLoader((babel) => {
       options.caller.isServer = isServer
       options.caller.isDev = development
       options.caller.hasJsxRuntime = hasJsxRuntime
+      options.caller.pagesDir = pagesDir
 
       const emitWarning = this.emitWarning.bind(this)
       Object.defineProperty(options.caller, 'onWarning', {
@@ -185,13 +183,6 @@ const customBabelLoader = babelLoader((babel) => {
           plugins: [commonJsItem],
         },
       ]
-
-      for (const plugin of babelPresetPlugins) {
-        require(join(plugin.dir, 'src', 'babel-preset-build.js'))(
-          options,
-          plugin.config || {}
-        )
-      }
 
       return options
     },
