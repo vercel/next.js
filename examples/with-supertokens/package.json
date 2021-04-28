@@ -7,18 +7,11 @@
   },
   "dependencies": {
     "next": "latest",
-<<<<<<< HEAD
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "supertokens-auth-react": "latest",
     "supertokens-node": "latest",
     "supertokens-web-js": "latest"
-=======
-    "react": "17.0.1",
-    "react-dom": "17.0.1",
-    "supertokens-auth-react": "^0.9.0",
-    "supertokens-node": "^4.3.0"
->>>>>>> 52e423b3db (updates version of supertokens frontend and backend SDK, and a few other fixes)
   },
   "devDependencies": {
     "@types/node": "18.7.13",
