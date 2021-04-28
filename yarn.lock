@@ -16146,6 +16146,11 @@ typescript@3.8.3:
   version "3.8.3"
   resolved "https://registry.yarnpkg.com/typescript/-/typescript-3.8.3.tgz#409eb8544ea0335711205869ec458ab109ee1061"
 
+typescript@4.3.0-beta:
+  version "4.3.0-beta"
+  resolved "https://registry.yarnpkg.com/typescript/-/typescript-4.3.0-beta.tgz#8098e7be29032f09827e94b8e3a6befc9ff70c77"
+  integrity sha512-bl3wxSVL6gWLQFa466Vm5Vk3z0BNx+QxWhb9wFiYEHm6H8oqFd8Wo3XjgCVxAa5yiSFFKgo/ngBpXdIwqo5o0A==
+
 typescript@^4.1.3:
   version "4.1.3"
   resolved "https://registry.yarnpkg.com/typescript/-/typescript-4.1.3.tgz#519d582bd94cba0cf8934c7d8e8467e473f53bb7"
