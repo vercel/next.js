@@ -114,7 +114,7 @@ export const defaultConfig: NextConfig = {
     stats: false,
     externalDir: false,
     serialWebpackBuild: false,
-    turboMode: true,
+    turboMode: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
   },
   future: {
