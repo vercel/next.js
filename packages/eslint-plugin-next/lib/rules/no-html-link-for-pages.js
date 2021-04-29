@@ -67,7 +67,7 @@ module.exports = {
           if (url.test(normalizeURL(hrefPath))) {
             context.report({
               node,
-              message: `You're using <a> tag to navigate to ${hrefPath}. Use Link from 'next/link' to make sure the app behaves like an SPA. See: https://nextjs.org/docs/messages/no-html-link-for-pages.`,
+              message: `Do not use the HTML <a> tag to navigate to ${hrefPath}. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages.`,
             })
           }
         })
