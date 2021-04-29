@@ -2,7 +2,7 @@
   "name": "custom-server-express",
   "version": "1.0.0",
   "scripts": {
-    "dev": "node server.js",
+    "dev": "nodemon server.js",
     "build": "next build",
     "start": "cross-env NODE_ENV=production node server.js"
   },
@@ -10,6 +10,7 @@
     "cross-env": "^7.0.2",
     "express": "^4.17.1",
     "next": "latest",
+    "nodemon": "^2.0.7",
     "react": "^16.13.1",
     "react-dom": "^16.13.1"
   },

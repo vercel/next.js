@@ -4,7 +4,9 @@ Most of the time the default Next.js server will be enough but there are times y
 
 Because the Next.js server is just a node.js module you can combine it with any other part of the node.js ecosystem. In this case we are using express to build a custom router on top of Next.
 
-This example demonstrates a server that serves the component living in `pages/a.js` when the route `/b` is requested and `pages/b.js` when the route `/a` is accessed. This is obviously a non-standard routing strategy. You can see how this custom routing is being made inside `server.js`.
+This example demonstrates a server that serves the component living in `pages/apple.js` when the route `/a` is requested and `pages/b.js` when the route `/b` is accessed. The first of these two is obviously a non-standard routing strategy. You can see how this custom routing is being made inside `server.js`.
+
+Since we have a `pages/apple.js` file, Next.js would serve this file on the `/apple` route as well which would make the same component available on two different routes. This is why file-system routing is disabled in `next.config.js`.
 
 ## How to use
 
