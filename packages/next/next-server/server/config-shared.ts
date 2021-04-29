@@ -60,6 +60,7 @@ export type NextConfig = { [key: string]: any } & {
     }
     turboMode: boolean
     reactRoot: boolean
+    concurrentFeatures: boolean
   }
 }
 
@@ -115,6 +116,8 @@ export const defaultConfig: NextConfig = {
     serialWebpackBuild: false,
     turboMode: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
+    concurrentFeatures:
+      Number(process.env.NEXT_PRIVATE_CONCURRENT_FEATURES) > 0,
   },
   future: {
     strictPostcssConfiguration: false,
