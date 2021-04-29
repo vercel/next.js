@@ -868,6 +868,22 @@ export async function hasCustomGetInitialProps(
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 
+export async function hasFunctionalComponentExport(
+  page: string,
+  distDir: string,
+  isLikeServerless: boolean,
+  runtimeEnvConfig: any
+): Promise<boolean> {
+  require('../next-server/lib/runtime-config').setConfig(runtimeEnvConfig)
+
+  const components = await loadComponents(distDir, page, isLikeServerless)
+  let mod = components.ComponentMod
+  mod = mod.default || mod
+  mod = await mod
+
+  return typeof mod === 'function' && !mod.prototype
+}
+
 export async function getNamedExports(
   page: string,
   distDir: string,

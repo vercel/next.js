@@ -13,6 +13,7 @@ import {
   SERVER_PROPS_SSG_CONFLICT,
   SSG_GET_INITIAL_PROPS_CONFLICT,
   UNSTABLE_REVALIDATE_RENAME_ERROR,
+  CUSTOM_DOCUMENT_RSC_ERROR,
 } from '../../lib/constants'
 import { isSerializableProps } from '../../lib/is-serializable-props'
 import { GetServerSideProps, GetStaticProps, PreviewData } from '../../types'
@@ -458,6 +459,10 @@ export async function renderToHTML(
     defaultAppGetInitialProps &&
     !isSSG &&
     !getServerSideProps
+
+  if (process.env.NEXT_CONCURRENT_FEATURES && typeof Document !== 'function') {
+    throw new Error(CUSTOM_DOCUMENT_RSC_ERROR + ` ${pathname}`)
+  }
 
   for (const methodName of [
     'getStaticProps',

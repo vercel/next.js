@@ -13,6 +13,7 @@ import formatWebpackMessages from '../client/dev/error-overlay/format-webpack-me
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
+  CUSTOM_DOCUMENT_RSC_ERROR,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -85,6 +86,7 @@ import {
   printCustomRoutes,
   printTreeView,
   getCssFilePaths,
+  hasFunctionalComponentExport,
 } from './utils'
 import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
@@ -688,6 +690,18 @@ export default async function build(
           console.warn(
             'Read more: https://nextjs.org/docs/messages/opt-out-auto-static-optimization\n'
           )
+        }
+
+        if (config.experimental?.concurrentFeatures) {
+          const customDocumentFunctional = await hasFunctionalComponentExport(
+            '/_document',
+            distDir,
+            isLikeServerless,
+            runtimeEnvConfig
+          )
+          if (!customDocumentFunctional) {
+            throw new Error(CUSTOM_DOCUMENT_RSC_ERROR)
+          }
         }
 
         await Promise.all(
