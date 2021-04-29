@@ -212,10 +212,6 @@
           "title": "missing-env-value",
           "path": "/errors/missing-env-value.md"
         },
-        {
-          "title": "missing-preload",
-          "path": "/errors/missing-preload.md"
-        },
         { "title": "multi-tabs", "path": "/errors/multi-tabs.md" },
         {
           "title": "nested-reserved-page",
