@@ -9,6 +9,9 @@ import { getRequiredConfiguration } from './writeConfigurationDefaults'
 export interface TypeCheckResult {
   hasWarnings: boolean
   warnings?: string[]
+  inputFilesCount: number
+  totalFilesCount: number
+  incremental: boolean
 }
 
 export async function runTypeCheck(
@@ -22,7 +25,12 @@ export async function runTypeCheck(
   )
 
   if (effectiveConfiguration.fileNames.length < 1) {
-    return { hasWarnings: false }
+    return {
+      hasWarnings: false,
+      inputFilesCount: 0,
+      totalFilesCount: 0,
+      incremental: false,
+    }
   }
   const requiredConfig = getRequiredConfiguration(ts)
 
@@ -65,5 +73,11 @@ export async function runTypeCheck(
       .filter((d) => d.category === DiagnosticCategory.Warning)
       .map((d) => getFormattedDiagnostic(ts, baseDir, d))
   )
-  return { hasWarnings: true, warnings }
+  return {
+    hasWarnings: true,
+    warnings,
+    inputFilesCount: effectiveConfiguration.fileNames.length,
+    totalFilesCount: program.getSourceFiles().length,
+    incremental: false,
+  }
 }
