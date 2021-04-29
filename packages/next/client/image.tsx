@@ -94,9 +94,11 @@ function getWidths(
 ): { widths: number[]; kind: 'w' | 'x' } {
   if (sizes && (layout === 'fill' || layout === 'responsive')) {
     // Find all the "vw" percent sizes used in the sizes prop
-    const percentSizes = [...sizes.matchAll(/(^|\s)(1?\d?\d)vw/g)].map((m) =>
-      parseInt(m[2])
-    )
+    const viewportWidthRe = /(^|\s)(1?\d?\d)vw/g
+    const percentSizes = []
+    for (let match; (match = viewportWidthRe.exec(sizes)); match) {
+      percentSizes.push(parseInt(match[2]))
+    }
     if (percentSizes.length) {
       const smallestRatio = Math.min(...percentSizes) * 0.01
       return {

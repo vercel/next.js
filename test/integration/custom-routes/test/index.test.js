@@ -38,6 +38,14 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
+  it('should not hang when proxy rewrite fails', async () => {
+    const res = await fetchViaHTTP(appPort, '/to-nowhere', undefined, {
+      timeout: 5000,
+    })
+
+    expect(res.status).toBe(500)
+  })
+
   it('should parse params correctly for rewrite to auto-export dynamic page', async () => {
     const browser = await webdriver(appPort, '/rewriting-to-auto-export')
     const text = await browser.eval(() => document.documentElement.innerHTML)
@@ -1396,6 +1404,11 @@ const runTests = (isDev = false) => {
           ],
           afterFiles: [
             {
+              destination: 'http://localhost:12233',
+              regex: normalizeRegEx('^\\/to-nowhere$'),
+              source: '/to-nowhere',
+            },
+            {
               destination: '/auto-export/hello?rewrite=1',
               regex: normalizeRegEx('^\\/rewriting-to-auto-export$'),
               source: '/rewriting-to-auto-export',
@@ -1770,8 +1783,8 @@ describe('Custom routes', () => {
       )
     })
 
-    it('should show warning for experimental has usage', async () => {
-      expect(stderr).toContain(
+    it('should not show warning for experimental has usage', async () => {
+      expect(stderr).not.toContain(
         "'has' route field support is still experimental and not covered by semver, use at your own risk."
       )
     })

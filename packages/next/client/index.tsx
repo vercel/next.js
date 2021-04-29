@@ -399,19 +399,6 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     isPreview,
   })
 
-  // call init-client middleware
-  if (process.env.__NEXT_PLUGINS) {
-    // @ts-ignore
-    // eslint-disable-next-line
-    import('next-plugin-loader?middleware=on-init-client!')
-      .then((initClientModule) => {
-        return initClientModule.default({ router })
-      })
-      .catch((initClientErr) => {
-        console.error('Error calling client-init for plugins', initClientErr)
-      })
-  }
-
   const renderCtx: RenderRouteInfo = {
     App: CachedApp,
     initial: true,
@@ -474,20 +461,6 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
       styleSheets: [],
     })
   }
-  if (process.env.__NEXT_PLUGINS) {
-    // @ts-ignore
-    // eslint-disable-next-line
-    import('next-plugin-loader?middleware=on-error-client!')
-      .then((onClientErrorModule) => {
-        return onClientErrorModule.default({ err })
-      })
-      .catch((onClientErrorErr) => {
-        console.error(
-          'error calling on-error-client for plugins',
-          onClientErrorErr
-        )
-      })
-  }
 
   // Make sure we log the error to the console, otherwise users can't track down issues.
   console.error(err)
@@ -521,7 +494,8 @@ export function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
 }
 
 let reactRoot: any = null
-let shouldUseHydrate: boolean = typeof ReactDOM.hydrate === 'function'
+let shouldHydrate: boolean = typeof ReactDOM.hydrate === 'function'
+
 function renderReactElement(
   domEl: HTMLElement,
   fn: (cb: () => void) => JSX.Element
@@ -531,24 +505,24 @@ function renderReactElement(
     performance.mark('beforeRender')
   }
 
-  const reactEl = fn(
-    shouldUseHydrate ? markHydrateComplete : markRenderComplete
-  )
-  if (process.env.__NEXT_REACT_MODE !== 'legacy') {
+  const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
+  if (process.env.__NEXT_REACT_ROOT) {
     if (!reactRoot) {
-      const opts = { hydrate: shouldUseHydrate }
-      reactRoot =
-        process.env.__NEXT_REACT_MODE === 'concurrent'
-          ? (ReactDOM as any).unstable_createRoot(domEl, opts)
-          : (ReactDOM as any).unstable_createBlockingRoot(domEl, opts)
+      const createRootName =
+        typeof (ReactDOM as any).unstable_createRoot === 'function'
+          ? 'unstable_createRoot'
+          : 'createRoot'
+      reactRoot = (ReactDOM as any)[createRootName](domEl, {
+        hydrate: shouldHydrate,
+      })
     }
     reactRoot.render(reactEl)
-    shouldUseHydrate = false
+    shouldHydrate = false
   } else {
     // The check for `.hydrate` is there to support React alternatives like preact
-    if (shouldUseHydrate) {
+    if (shouldHydrate) {
       ReactDOM.hydrate(reactEl, domEl)
-      shouldUseHydrate = false
+      shouldHydrate = false
     } else {
       ReactDOM.render(reactEl, domEl)
     }
