@@ -61,9 +61,6 @@ describe('ESLint', () => {
     } else {
       expect(output).toContain('Failed to compile')
       expect(output).toContain(
-        `Warning: In order to use external stylesheets use @import in the root stylesheet compiled with Next`
-      )
-      expect(output).toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
       )
     }
