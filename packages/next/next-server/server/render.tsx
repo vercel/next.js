@@ -460,7 +460,10 @@ export async function renderToHTML(
     !isSSG &&
     !getServerSideProps
 
-  if (process.env.NEXT_CONCURRENT_FEATURES && typeof Document !== 'function') {
+  if (
+    (process.env.NEXT_CONCURRENT_FEATURES && typeof Document !== 'function') ||
+    Document.prototype
+  ) {
     throw new Error(CUSTOM_DOCUMENT_RSC_ERROR + ` ${pathname}`)
   }
 
