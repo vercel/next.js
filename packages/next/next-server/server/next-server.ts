@@ -278,9 +278,9 @@ export default class Server {
     if (this.renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
-    process.env.__NEXT_CONCURRENT_FEATURES = JSON.stringify(
-      this.nextConfig.experimental?.concurrentFeatures ?? false
-    )
+    if (this.nextConfig.experimental?.concurrentFeatures) {
+      process.env.__NEXT_CONCURRENT_FEATURES = JSON.stringify(true)
+    }
   }
 
   public logError(err: Error): void {
