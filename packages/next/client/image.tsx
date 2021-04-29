@@ -80,6 +80,7 @@ const {
   loader: configLoader,
   path: configPath,
   domains: configDomains,
+  quality: configQuality,
 } =
   ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
 // sort smallest to largest
@@ -585,5 +586,5 @@ function defaultLoader({
     }
   }
 
-  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
+  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || configQuality || imageConfigDefault.quality}`
 }

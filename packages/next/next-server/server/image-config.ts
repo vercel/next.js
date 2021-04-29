@@ -13,6 +13,7 @@ export type ImageConfig = {
   loader: LoaderValue
   path: string
   domains?: string[]
+  quality?: number | string
 }
 
 export const imageConfigDefault: ImageConfig = {
@@ -21,4 +22,5 @@ export const imageConfigDefault: ImageConfig = {
   path: '/_next/image',
   loader: 'default',
   domains: [],
+  quality: 75,
 }
