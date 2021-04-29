@@ -1,7 +1,7 @@
 import ReactRefreshWebpackPlugin from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
 import chalk from 'chalk'
 import crypto from 'crypto'
-import { readFileSync, realpathSync } from 'fs'
+import { readFileSync } from 'fs'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import semver from 'next/dist/compiled/semver'
 import { isWebpack5, webpack } from 'next/dist/compiled/webpack/webpack'
@@ -168,6 +168,35 @@ export function attachReactRefresh(
       }`
     )
   }
+}
+
+const WEBPACK_RESOLVE_OPTIONS = {
+  // This always uses commonjs resolving, assuming API is identical
+  // between ESM and CJS in a package
+  // Otherwise combined ESM+CJS packages will never be external
+  // as resolving mismatch would lead to opt-out from being external.
+  dependencyType: 'commonjs',
+}
+
+const NODE_RESOLVE_OPTIONS = {
+  dependencyType: 'commonjs',
+  modules: ['node_modules'],
+  alias: false,
+  fallback: false,
+  exportsFields: ['exports'],
+  importsFields: ['imports'],
+  conditionNames: ['node', 'require', 'module'],
+  descriptionFiles: ['package.json'],
+  extensions: ['.js', '.json', '.node'],
+  enforceExtensions: false,
+  symlinks: true,
+  mainFields: ['main'],
+  mainFiles: ['index'],
+  roots: [],
+  fullySpecified: false,
+  preferRelative: false,
+  preferAbsolute: false,
+  restrictions: [],
 }
 
 export default async function getBaseWebpackConfig(
@@ -600,29 +629,10 @@ export default async function getBaseWebpackConfig(
   async function handleExternals(
     context: string,
     request: string,
-    getResolve: () => (
-      resolveContext: string,
-      resolveRequest: string
-    ) => Promise<string>
+    getResolve: (
+      options: any
+    ) => (resolveContext: string, resolveRequest: string) => Promise<string>
   ) {
-    if (request === 'next') {
-      return `commonjs ${request}`
-    }
-
-    const notExternalModules = [
-      'next/app',
-      'next/document',
-      'next/link',
-      'next/image',
-      'next/error',
-      'string-hash',
-      'next/constants',
-    ]
-
-    if (notExternalModules.indexOf(request) !== -1) {
-      return
-    }
-
     // We need to externalize internal requests for files intended to
     // not be bundled.
 
@@ -634,18 +644,27 @@ export default async function getBaseWebpackConfig(
       // When on Windows, we also want to check for Windows-specific
       // absolute paths.
       (process.platform === 'win32' && path.win32.isAbsolute(request))
-    const isLikelyNextExternal =
-      isLocal && /[/\\]next-server[/\\]/.test(request)
 
     // Relative requires don't need custom resolution, because they
     // are relative to requests we've already resolved here.
     // Absolute requires (require('/foo')) are extremely uncommon, but
     // also have no need for customization as they're already resolved.
-    if (isLocal && !isLikelyNextExternal) {
-      return
+    if (isLocal) {
+      if (!/[/\\]next-server[/\\]/.test(request)) {
+        return
+      }
+    } else {
+      if (/^(?:next$|react(?:$|\/))/.test(request)) {
+        return `commonjs ${request}`
+      }
+
+      const notExternalModules = /^(?:private-next-pages\/|next\/(?:dist\/pages\/|(?:app|document|link|image|constants)$)|string-hash$)/
+      if (notExternalModules.test(request)) {
+        return
+      }
     }
 
-    const resolve = getResolve()
+    const resolve = getResolve(WEBPACK_RESOLVE_OPTIONS)
 
     // Resolve the import with the webpack provided context, this
     // ensures we're resolving the correct version when multiple
@@ -666,54 +685,59 @@ export default async function getBaseWebpackConfig(
       return
     }
 
-    let isNextExternal: boolean = false
     if (isLocal) {
       // we need to process next-server/lib/router/router so that
       // the DefinePlugin can inject process.env values
-      isNextExternal = /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/.test(
+      const isNextExternal = /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/.test(
         res
       )
 
-      if (!isNextExternal) {
+      if (isNextExternal) {
+        // Generate Next.js external import
+        const externalRequest = path.posix.join(
+          'next',
+          'dist',
+          path
+            .relative(
+              // Root of Next.js package:
+              path.join(__dirname, '..'),
+              res
+            )
+            // Windows path normalization
+            .replace(/\\/g, '/')
+        )
+        return `commonjs ${externalRequest}`
+      } else {
         return
       }
     }
 
-    // `isNextExternal` special cases Next.js' internal requires that
-    // should not be bundled. We need to skip the base resolve routine
-    // to prevent it from being bundled (assumes Next.js version cannot
-    // mismatch).
-    if (!isNextExternal) {
-      // Bundled Node.js code is relocated without its node_modules tree.
-      // This means we need to make sure its request resolves to the same
-      // package that'll be available at runtime. If it's not identical,
-      // we need to bundle the code (even if it _should_ be external).
-      let baseRes: string | null
-      try {
-        baseRes = await resolve(dir, request)
-      } catch (err) {
-        baseRes = null
-      }
+    // Bundled Node.js code is relocated without its node_modules tree.
+    // This means we need to make sure its request resolves to the same
+    // package that'll be available at runtime. If it's not identical,
+    // we need to bundle the code (even if it _should_ be external).
+    let baseRes: string | null
+    try {
+      const baseResolve = getResolve(NODE_RESOLVE_OPTIONS)
+      baseRes = await baseResolve(dir, request)
+    } catch (err) {
+      baseRes = null
+    }
 
-      // Same as above: if the package, when required from the root,
-      // would be different from what the real resolution would use, we
-      // cannot externalize it.
-      if (
-        !baseRes ||
-        (baseRes !== res &&
-          // if res and baseRes are symlinks they could point to the the same file
-          realpathSync(baseRes) !== realpathSync(res))
-      ) {
-        return
-      }
+    // Same as above: if the package, when required from the root,
+    // would be different from what the real resolution would use, we
+    // cannot externalize it.
+    // if res or baseRes are symlinks they could point to the the same file,
+    // but the resolver will resolve symlinks so this is already handled
+    if (baseRes !== res) {
+      return
     }
 
     // Default pages have to be transpiled
     if (
-      !res.match(/next[/\\]dist[/\\]next-server[/\\]/) &&
-      (res.match(/[/\\]next[/\\]dist[/\\]/) ||
-        // This is the @babel/plugin-transform-runtime "helpers: true" option
-        res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/))
+      res.match(/[/\\]next[/\\]dist[/\\]/) ||
+      // This is the @babel/plugin-transform-runtime "helpers: true" option
+      res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/)
     ) {
       return
     }
@@ -728,24 +752,8 @@ export default async function getBaseWebpackConfig(
 
     // Anything else that is standard JavaScript within `node_modules`
     // can be externalized.
-    if (isNextExternal || res.match(/node_modules[/\\].*\.js$/)) {
-      const externalRequest = isNextExternal
-        ? // Generate Next.js external import
-          path.posix.join(
-            'next',
-            'dist',
-            path
-              .relative(
-                // Root of Next.js package:
-                path.join(__dirname, '..'),
-                res
-              )
-              // Windows path normalization
-              .replace(/\\/g, '/')
-          )
-        : request
-
-      return `commonjs ${externalRequest}`
+    if (/node_modules[/\\].*\.c?js$/.test(res)) {
+      return `commonjs ${request}`
     }
 
     // Default behavior: bundle the code!
@@ -769,7 +777,9 @@ export default async function getBaseWebpackConfig(
               }: {
                 context: string
                 request: string
-                getResolve: () => (
+                getResolve: (
+                  options: any
+                ) => (
                   resolveContext: string,
                   resolveRequest: string
                 ) => Promise<string>
