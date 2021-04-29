@@ -461,8 +461,8 @@ export async function renderToHTML(
     !getServerSideProps
 
   if (
-    (process.env.NEXT_CONCURRENT_FEATURES && typeof Document !== 'function') ||
-    Document.prototype
+    process.env.NEXT_CONCURRENT_FEATURES &&
+    (typeof Document !== 'function' || Document.prototype)
   ) {
     throw new Error(CUSTOM_DOCUMENT_RSC_ERROR + ` ${pathname}`)
   }
