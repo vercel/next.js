@@ -44,7 +44,6 @@ export type NextConfig = { [key: string]: any } & {
     reactMode?: 'legacy' | 'concurrent' | 'blocking'
     workerThreads?: boolean
     pageEnv?: boolean
-    optimizeFonts?: boolean
     optimizeImages?: boolean
     optimizeCss?: boolean
     scrollRestoration?: boolean
