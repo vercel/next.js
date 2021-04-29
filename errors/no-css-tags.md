@@ -6,28 +6,7 @@ An HTML link element was used to link to an external stylesheet. This can negati
 
 ### Possible Ways to Fix It
 
-Instead of using a `<link>` element:
-
-```jsx
-import { Head } from 'next/document'
-
-export class Home extends Head {
-  render() {
-    return (
-      <div>
-        <Head>
-          <link href="/_next/static/css/extra.css" rel="stylesheet" />
-        </Head>
-        <button type="button" className="active">
-          Open
-        </button>
-      </div>
-    )
-  }
-}
-```
-
-Use `@import` within the root stylesheet that is imported in `pages/_app.js`.
+There are multiple ways to include styles using Next.js' built-in CSS support, including the option to use `@import` within the root stylesheet that is imported in `pages/_app.js`:
 
 ```css
 /* Root stylesheet */
@@ -56,6 +35,4 @@ export class Home {
 }
 ```
 
-### Useful Links
-
-- [Built-In CSS Support](https://nextjs.org/docs/basic-features/built-in-css-support)
+Refer to the [Built-In CSS Support](https://nextjs.org/docs/basic-features/built-in-css-support) documentation to learn about all the ways to include CSS to your application.

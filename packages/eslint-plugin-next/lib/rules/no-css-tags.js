@@ -26,7 +26,7 @@ module.exports = function (context) {
         context.report({
           node,
           message:
-            'In order to use external stylesheets use @import in the root stylesheet compiled with Next.js. See: https://nextjs.org/docs/messages/no-css-tags.',
+            'Do not include stylesheets manually. See: https://nextjs.org/docs/messages/no-css-tags.',
         })
       }
     },
