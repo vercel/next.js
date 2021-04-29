@@ -21,7 +21,7 @@ module.exports = {
 
         context.report({
           node,
-          message: `For better performance, use Image from 'next/image' instead of the <img> element.`,
+          message: `Do not use <img>. Use Image or StaticImage from 'next/image' instead. See https://nextjs.org/docs/messages/no-img-element.`,
         })
       },
     }

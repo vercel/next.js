@@ -1,4 +1,4 @@
-const rule = require('@next/eslint-plugin-next/lib/rules/no-img-element')
+const rule = require('@next/eslint-plugin-next/lib/rules/no-static-image-for-external-image')
 
 const RuleTester = require('eslint').RuleTester
 
@@ -16,17 +16,14 @@ RuleTester.setDefaultConfig({
 var ruleTester = new RuleTester()
 ruleTester.run('no-img-element', rule, {
   valid: [
-    `import { Image } from 'next/image';
+    `import { StaticImage } from 'next/image';
 
       export class MyComponent {
         render() {
           return (
             <div>
-              <Image
+              <StaticImage
                 src="/test.png"
-                alt="Test picture"
-                width={500}
-                height={500}
               />
             </div>
           );
@@ -35,16 +32,14 @@ ruleTester.run('no-img-element', rule, {
   ],
   invalid: [
     {
-      code: `
+      code: `import { StaticImage } from 'next/image';
+
       export class MyComponent {
         render() {
           return (
             <div>
-              <img 
-                src="/test.png"
-                alt="Test picture"
-                width={500}
-                height={500}
+              <StaticImage
+                src="https://test.png"
               />
             </div>
           );
@@ -53,7 +48,7 @@ ruleTester.run('no-img-element', rule, {
       errors: [
         {
           message:
-            "Do not use <img>. Use Image or StaticImage from 'next/image' instead. See https://nextjs.org/docs/messages/no-img-element.",
+            'Do not use StaticImage for external images that are not stored locally. See https://nextjs.org/docs/messages/no-static-image-for-external.',
           type: 'JSXOpeningElement',
         },
       ],

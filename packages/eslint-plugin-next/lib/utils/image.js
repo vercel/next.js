@@ -1,23 +1,30 @@
 // Factory for creating ESLint rules that identify the JSX Elements representing
 // the 'next/image' component, and runs some check on those instances.
 
-module.exports = function (callback) {
+function nextImage(callback) {
   return function (context) {
-    let imageComponent = null
+    let imageImports = null
     return {
       ImportDeclaration(node) {
         if (node.source.value === 'next/image') {
-          imageComponent = node.specifiers[0].local.name
+          imageImports = node.specifiers
         }
       },
       JSXOpeningElement(node) {
-        if (!imageComponent) {
+        const name = node.name.name
+
+        if (!imageImports) {
           return
         }
-        if (node.name.name === imageComponent) {
+
+        if (imageImports.some(({ local }) => local.name === name)) {
           callback(context, node)
         }
       },
     }
   }
+}
+
+module.exports = {
+  nextImage,
 }
