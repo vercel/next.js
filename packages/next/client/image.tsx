@@ -532,7 +532,7 @@ function cloudinaryLoader({
   quality,
 }: DefaultImageLoaderProps): string {
   // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
-  const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
+  const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || configQuality || 'auto')]
   let paramsString = params.join(',') + '/'
   return `${root}${paramsString}${normalizeSrc(src)}`
 }
