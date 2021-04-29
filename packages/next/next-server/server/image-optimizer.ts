@@ -393,7 +393,7 @@ function sendResponse(
 
 function endsWithImageExtension(href: string, fileTypes: string[]): boolean {
   return fileTypes.some((fileType) => {
-    return href.toLowerCase().endsWith(fileType)
+    return href.toLowerCase().endsWith(`.${fileType}`)
   })
 }
 
