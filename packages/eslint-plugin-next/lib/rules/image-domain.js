@@ -42,7 +42,7 @@ module.exports = {
       if (!domainConfigured && !loaderConfigured) {
         context.report({
           node,
-          message: `No domain is specified in next.config.js for ${imgHost}. See https://nextjs.org/docs/messages/image-domain.`,
+          message: `No domain or loader is specified in next.config.js for ${imgHost}. See https://nextjs.org/docs/messages/image-domain.`,
         })
       }
     } catch (err) {
