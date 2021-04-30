@@ -6,5 +6,6 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "skipLibCheck": false
-  }
+  },
+  "exclude": ["templates/"]
 }
