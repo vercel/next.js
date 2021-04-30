@@ -1,0 +1,8 @@
+{
+  "post": {
+    "contentPath": "posts",
+    "basePath": "/posts",
+    "sortBy": "date",
+    "sortOrder": "desc"
+  }
+}
