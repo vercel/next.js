@@ -39,6 +39,13 @@ const program = new Commander.Command(packageJson.name)
   --example-path foo/bar
 `
   )
+  .option(
+    '-t, --typescript',
+    `
+
+  Configure the project to use TypeScript.
+`
+  )
   .allowUnknownOption()
   .parse(process.argv)
 
@@ -113,6 +120,7 @@ async function run(): Promise<void> {
       useNpm: !!program.useNpm,
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
+      typescript: program.typescript,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -131,7 +139,11 @@ async function run(): Promise<void> {
       throw reason
     }
 
-    await createApp({ appPath: resolvedProjectPath, useNpm: !!program.useNpm })
+    await createApp({
+      appPath: resolvedProjectPath,
+      useNpm: !!program.useNpm,
+      typescript: program.typescript,
+    })
   }
 }
 

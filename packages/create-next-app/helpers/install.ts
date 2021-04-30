@@ -2,24 +2,45 @@
 import chalk from 'chalk'
 import spawn from 'cross-spawn'
 
+interface InstallArgs {
+  useYarn: boolean
+  isOnline: boolean
+  devDependencies?: string[]
+}
+
 export function install(
   root: string,
   dependencies: string[] | null,
-  { useYarn, isOnline }: { useYarn: boolean; isOnline: boolean }
+  { useYarn, isOnline, devDependencies }: InstallArgs
 ): Promise<void> {
   return new Promise((resolve, reject) => {
+    const depsExist = dependencies && dependencies.length
+    const devDepsExist = devDependencies && devDependencies.length
+
     let command: string
-    let args: string[]
+    let args: string[] = []
     if (useYarn) {
       command = 'yarnpkg'
-      args = dependencies ? ['add', '--exact'] : ['install']
-      if (!isOnline) {
-        args.push('--offline')
+
+      if (!depsExist && !devDepsExist) {
+        args = ['install']
+      } else {
+        args = ['add', '--exact']
+        if (!isOnline) {
+          args.push('--offline')
+        }
+        if (depsExist) {
+          if (dependencies) {
+            args.push(...dependencies)
+          }
+        } else if (devDepsExist) {
+          args.push('-D')
+          if (devDependencies) {
+            args.push(...devDependencies)
+          }
+        }
+        args.push('--cwd', root)
       }
-      if (dependencies) {
-        args.push(...dependencies)
-      }
-      args.push('--cwd', root)
 
       if (!isOnline) {
         console.log(chalk.yellow('You appear to be offline.'))
@@ -28,13 +49,19 @@ export function install(
       }
     } else {
       command = 'npm'
-      args = ([
-        'install',
-        dependencies && '--save',
-        dependencies && '--save-exact',
-        '--loglevel',
-        'error',
-      ].filter(Boolean) as string[]).concat(dependencies || [])
+      const npmFlags = ['--logLevel', 'error']
+      if (depsExist) {
+        args = (['install', '--save', '--save-exact'].filter(
+          Boolean
+        ) as string[]).concat(dependencies || [])
+      } else if (devDepsExist) {
+        args = (['install', '--save-dev', '--save-exact'].filter(
+          Boolean
+        ) as string[]).concat(dependencies || [])
+      } else {
+        args = ['install']
+      }
+      args.push(...npmFlags)
     }
 
     const child = spawn(command, args, {

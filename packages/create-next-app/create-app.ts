@@ -28,13 +28,16 @@ export async function createApp({
   useNpm,
   example,
   examplePath,
+  typescript,
 }: {
   appPath: string
   useNpm: boolean
   example?: string
   examplePath?: string
+  typescript?: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
+  const template = typescript ? 'typescript' : 'default'
 
   if (example) {
     let repoUrl: URL | undefined
@@ -154,7 +157,7 @@ export async function createApp({
     const ignorePath = path.join(root, '.gitignore')
     if (!fs.existsSync(ignorePath)) {
       fs.copyFileSync(
-        path.join(__dirname, 'templates', 'default', 'gitignore'),
+        path.join(__dirname, 'templates', template, 'gitignore'),
         ignorePath
       )
     }
@@ -176,19 +179,36 @@ export async function createApp({
       JSON.stringify(packageJson, null, 2) + os.EOL
     )
 
-    console.log(
-      `Installing ${chalk.cyan('react')}, ${chalk.cyan(
-        'react-dom'
-      )}, and ${chalk.cyan('next')} using ${displayedCommand}...`
-    )
+    const dependencies = ['react', 'react-dom', 'next']
+    const devDependencies = []
+
+    if (typescript) {
+      devDependencies.push('@types/react', '@types/next')
+    }
+
+    const depMsgs = dependencies.map((dep) => chalk.cyan(dep))
+    const devDepsMsgs = devDependencies.map((dep) => chalk.cyan(dep))
+
+    console.log(`Installing using ${displayedCommand}:`)
     console.log()
 
-    await install(root, ['react', 'react-dom', 'next'], { useYarn, isOnline })
+    console.log('Dependencies:')
+    console.log(depMsgs.join('\n'))
+    console.log()
+
+    if (devDependencies.length) {
+      console.log('Dev Dependencies:')
+      console.log(devDepsMsgs.join('\n'))
+      console.log()
+    }
+
+    await install(root, dependencies, { useYarn, isOnline })
+    await install(root, null, { devDependencies, useYarn, isOnline })
     console.log()
 
     await cpy('**', root, {
       parents: true,
-      cwd: path.join(__dirname, 'templates', 'default'),
+      cwd: path.join(__dirname, 'templates', template),
       rename: (name) => {
         switch (name) {
           case 'gitignore': {
