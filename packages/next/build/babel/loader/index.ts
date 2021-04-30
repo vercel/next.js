@@ -1,4 +1,3 @@
-import { inspect } from 'util'
 import { getOptions } from 'next/dist/compiled/loader-utils'
 import { trace } from '../../../telemetry/trace'
 import { Span } from '../../../telemetry/trace'
@@ -52,9 +51,6 @@ const nextBabelLoaderOuter = function nextBabelLoaderOuter(
       ([transformedSource, outputSourceMap]) =>
         callback?.(null, transformedSource, outputSourceMap || inputSourceMap),
       (err) => {
-        console.error(
-          `Problem encountered in next-babel-turbo-loader. \n${inspect(err)}`
-        )
         callback?.(err)
       }
     )

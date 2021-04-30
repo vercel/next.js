@@ -26,6 +26,7 @@ import loadCustomRoutes, {
 } from '../lib/load-custom-routes'
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { verifyAndLint } from '../lib/verifyAndLint'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_ID_FILE,
@@ -90,6 +91,7 @@ import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
+import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -169,6 +171,7 @@ export default async function build(
 
     telemetry.record(
       eventCliSession(PHASE_PRODUCTION_BUILD, dir, {
+        webpackVersion: isWebpack5 ? 5 : 4,
         cliCommand: 'build',
         isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),
@@ -189,6 +192,19 @@ export default async function build(
 
     if (typeCheckingSpinner) {
       typeCheckingSpinner.stopAndPersist()
+    }
+
+    if (config.experimental.eslint) {
+      await nextBuildSpan
+        .traceChild('verify-and-lint')
+        .traceAsyncFn(async () => {
+          await verifyAndLint(
+            dir,
+            pagesDir,
+            config.experimental.cpus,
+            config.experimental.workerThreads
+          )
+        })
     }
 
     const buildSpinner = createSpinner({

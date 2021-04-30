@@ -1,4 +1,3 @@
-/* global __NEXT_DATA__ */
 // tslint:disable:no-console
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
@@ -113,7 +112,8 @@ export function addLocale(
   defaultLocale?: string
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
-    const pathLower = path.toLowerCase()
+    const pathname = pathNoQueryHash(path)
+    const pathLower = pathname.toLowerCase()
     const localeLower = locale && locale.toLowerCase()
 
     return locale &&
@@ -553,7 +553,7 @@ export default class Router implements BaseRouter {
       pageLoader: any
       Component: ComponentType
       App: AppComponent
-      wrapApp: (App: AppComponent) => any
+      wrapApp: (WrapAppComponent: AppComponent) => any
       err?: Error
       isFallback: boolean
       locale?: string

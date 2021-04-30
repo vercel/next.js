@@ -15,4 +15,6 @@ export interface NextBabelLoaderOptions {
   sourceMaps?: any[]
   overrides: any
   caller: any
+  configFile: string | undefined
+  cwd: string
 }

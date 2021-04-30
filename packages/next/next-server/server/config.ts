@@ -13,7 +13,6 @@ import { loadEnvConfig } from '@next/env'
 export { DomainLocales, NextConfig, normalizeConfig } from './config-shared'
 
 const targets = ['server', 'serverless', 'experimental-serverless-trace']
-const reactModes = ['legacy', 'blocking', 'concurrent']
 
 const experimentalWarning = execOnce(() => {
   Log.warn(chalk.bold('You have enabled experimental feature(s).'))
@@ -34,6 +33,19 @@ function assignDefaults(userConfig: { [key: string]: any }) {
       userConfig.trailingSlash = userConfig.exportTrailingSlash
     }
     delete userConfig.exportTrailingSlash
+  }
+
+  if (typeof userConfig.experimental?.reactMode !== 'undefined') {
+    console.warn(
+      chalk.yellow.bold('Warning: ') +
+        'The experimental "reactMode" option has been replaced with "reactRoot". Please update your next.config.js.'
+    )
+    if (typeof userConfig.experimental?.reactRoot === 'undefined') {
+      userConfig.experimental.reactRoot = ['concurrent', 'blocking'].includes(
+        userConfig.experimental.reactMode
+      )
+    }
+    delete userConfig.experimental.reactMode
   }
 
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
@@ -433,17 +445,6 @@ export default async function loadConfig(
         (canonicalBase.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
-    }
-
-    if (
-      userConfig.experimental?.reactMode &&
-      !reactModes.includes(userConfig.experimental.reactMode)
-    ) {
-      throw new Error(
-        `Specified React Mode is invalid. Provided: ${
-          userConfig.experimental.reactMode
-        } should be one of ${reactModes.join(', ')}`
-      )
     }
 
     if (hasNextSupport) {

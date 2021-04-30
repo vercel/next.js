@@ -12,7 +12,7 @@ const clientGlobs = [
   },
   {
     name: 'Client Pages',
-    globs: ['.next/static/*/pages/**/*'],
+    globs: ['.next/static/*/pages/**/*', '.next/static/css/**/*'],
   },
   {
     name: 'Client Build Manifests',
