@@ -161,6 +161,7 @@ const babelBundlePackages = {
   '@babel/preset-env': 'next/dist/compiled/babel/preset-env',
   '@babel/preset-react': 'next/dist/compiled/babel/preset-react',
   '@babel/preset-typescript': 'next/dist/compiled/babel/preset-typescript',
+  '@babel/eslint-parser': 'next/dist/compiled/babel/eslint-parser',
 }
 
 Object.assign(externals, babelBundlePackages)
