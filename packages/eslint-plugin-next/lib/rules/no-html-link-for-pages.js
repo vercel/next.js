@@ -1,10 +1,18 @@
 const path = require('path')
 const fs = require('fs')
-const { getUrlFromPagesDirectory, normalizeURL } = require('../utils/url')
+const {
+  getUrlFromPagesDirectory,
+  normalizeURL,
+  execOnce,
+} = require('../utils/url')
 
-//------------------------------------------------------------------------------
-// Rule Definition
-//------------------------------------------------------------------------------
+const pagesDirWarning = execOnce((pagesDirs) => {
+  console.warn(
+    `Pages directory cannot be found at ${pagesDirs.join(' or ')}. ` +
+      `If using a custom path, please configure with the no-html-link-for-pages rule in your eslint config file`
+  )
+})
+
 module.exports = {
   meta: {
     docs: {
@@ -26,10 +34,8 @@ module.exports = {
         ]
     const pagesDir = pagesDirs.find((dir) => fs.existsSync(dir))
     if (!pagesDir) {
-      throw new Error(
-        `Pages directory cannot be found at ${pagesDirs.join(' or ')}. ` +
-          `If using a custom path, please configure with the no-html-link-for-pages rule`
-      )
+      pagesDirWarning(pagesDirs)
+      return {}
     }
 
     const urls = getUrlFromPagesDirectory('/', pagesDir)
@@ -61,7 +67,7 @@ module.exports = {
           if (url.test(normalizeURL(hrefPath))) {
             context.report({
               node,
-              message: `You're using <a> tag to navigate to ${hrefPath}. Use Link from 'next/link' to make sure the app behaves like an SPA.`,
+              message: `Do not use the HTML <a> tag to navigate to ${hrefPath}. Use Link from 'next/link' instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages.`,
             })
           }
         })

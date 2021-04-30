@@ -26,6 +26,7 @@ import loadCustomRoutes, {
 } from '../lib/load-custom-routes'
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { verifyAndLint } from '../lib/verifyAndLint'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_ID_FILE,
@@ -191,6 +192,19 @@ export default async function build(
 
     if (typeCheckingSpinner) {
       typeCheckingSpinner.stopAndPersist()
+    }
+
+    if (config.experimental.eslint) {
+      await nextBuildSpan
+        .traceChild('verify-and-lint')
+        .traceAsyncFn(async () => {
+          await verifyAndLint(
+            dir,
+            pagesDir,
+            config.experimental.cpus,
+            config.experimental.workerThreads
+          )
+        })
     }
 
     const buildSpinner = createSpinner({
