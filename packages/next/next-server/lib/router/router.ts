@@ -271,7 +271,14 @@ export function resolveHref(
   resolveAs?: boolean
 ): string {
   // we use a dummy base url for relative urls
-  const base = new URL(currentPath, 'http://n')
+  let base: URL
+
+  try {
+    base = new URL(currentPath, 'http://n')
+  } catch (_) {
+    // fallback to / for invalid asPath values e.g. //
+    base = new URL('/', 'http://n')
+  }
   const urlAsString =
     typeof href === 'string' ? href : formatWithValidation(href)
   // Return because it cannot be routed by the Next.js router
