@@ -114,8 +114,9 @@ export async function ncc_async_sema(task, opts) {
 // eslint-disable-next-line camelcase
 export async function ncc_babel_bundle(task, opts) {
   const bundleExternals = { ...externals }
-  for (const pkg of Object.keys(babelBundlePackages))
+  for (const pkg of Object.keys(babelBundlePackages)) {
     delete bundleExternals[pkg]
+  }
   await task
     .source(opts.src || 'bundles/babel/bundle.js')
     .ncc({
@@ -128,7 +129,18 @@ export async function ncc_babel_bundle(task, opts) {
 
 const babelBundlePackages = {
   'code-frame': 'next/dist/compiled/babel/code-frame',
+  '@babel/generator': 'next/dist/compiled/babel/generator',
+  '@babel/traverse': 'next/dist/compiled/babel/traverse',
   '@babel/core': 'next/dist/compiled/babel/core',
+  '@babel/core/lib/config': 'next/dist/compiled/babel/core-lib-config',
+  '@babel/core/lib/transformation/normalize-file':
+    'next/dist/compiled/babel/core-lib-normalize-config',
+  '@babel/core/lib/transformation/normalize-opts':
+    'next/dist/compiled/babel/core-lib-normalize-opts',
+  '@babel/core/lib/transformation/block-hoist-plugin':
+    'next/dist/compiled/babel/core-lib-block-hoisting-plugin',
+  '@babel/core/lib/transformation/plugin-pass':
+    'next/dist/compiled/babel/core-lib-plugin-pass',
   '@babel/plugin-proposal-class-properties':
     'next/dist/compiled/babel/plugin-proposal-class-properties',
   '@babel/plugin-proposal-export-namespace-from':
@@ -149,6 +161,7 @@ const babelBundlePackages = {
   '@babel/preset-env': 'next/dist/compiled/babel/preset-env',
   '@babel/preset-react': 'next/dist/compiled/babel/preset-react',
   '@babel/preset-typescript': 'next/dist/compiled/babel/preset-typescript',
+  '@babel/eslint-parser': 'next/dist/compiled/babel/eslint-parser',
 }
 
 Object.assign(externals, babelBundlePackages)

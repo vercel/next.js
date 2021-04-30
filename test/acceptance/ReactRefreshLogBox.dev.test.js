@@ -1260,3 +1260,349 @@ test('<Link> component props errors', async () => {
 
   await cleanup()
 })
+
+test('_app top level error shows logbox', async () => {
+  const [session, cleanup] = await sandbox(
+    undefined,
+    new Map([
+      [
+        'pages/_app.js',
+        `
+          throw new Error("test");
+          function MyApp({ Component, pageProps }) {
+            return <Component {...pageProps} />;
+          }
+          export default MyApp
+        `,
+      ],
+    ])
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "pages/_app.js (2:16) @ eval
+
+        1 | 
+      > 2 |           throw new Error(\\"test\\");
+          |                ^
+        3 |           function MyApp({ Component, pageProps }) {
+        4 |             return <Component {...pageProps} />;
+        5 |           }"
+    `)
+
+  await session.patch(
+    'pages/_app.js',
+    `
+      function MyApp({ Component, pageProps }) {
+        return <Component {...pageProps} />;
+      }
+      export default MyApp
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+  await cleanup()
+})
+
+test('_document top level error shows logbox', async () => {
+  const [session, cleanup] = await sandbox(
+    undefined,
+    new Map([
+      [
+        'pages/_document.js',
+        `
+          import Document, { Html, Head, Main, NextScript } from 'next/document'
+
+          throw new Error("test");
+
+          class MyDocument extends Document {
+            static async getInitialProps(ctx) {
+              const initialProps = await Document.getInitialProps(ctx)
+              return { ...initialProps }
+            }
+
+            render() {
+              return (
+                <Html>
+                  <Head />
+                  <body>
+                    <Main />
+                    <NextScript />
+                  </body>
+                </Html>
+              )
+            }
+          }
+
+          export default MyDocument
+        `,
+      ],
+    ])
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "pages/_document.js (4:16) @ eval
+
+        2 |           import Document, { Html, Head, Main, NextScript } from 'next/document'
+        3 | 
+      > 4 |           throw new Error(\\"test\\");
+          |                ^
+        5 | 
+        6 |           class MyDocument extends Document {
+        7 |             static async getInitialProps(ctx) {"
+`)
+
+  await session.patch(
+    'pages/_document.js',
+    `
+      import Document, { Html, Head, Main, NextScript } from 'next/document'
+
+      class MyDocument extends Document {
+        static async getInitialProps(ctx) {
+          const initialProps = await Document.getInitialProps(ctx)
+          return { ...initialProps }
+        }
+
+        render() {
+          return (
+            <Html>
+              <Head />
+              <body>
+                <Main />
+                <NextScript />
+              </body>
+            </Html>
+          )
+        }
+      }
+
+      export default MyDocument
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+  await cleanup()
+})
+
+test('server-side only compilation errors', async () => {
+  const [session, cleanup] = await sandbox()
+
+  await session.patch(
+    'pages/index.js',
+    `
+      import myLibrary from 'my-non-existent-library'
+      export async function getStaticProps() {
+        return {
+          props: {
+            result: myLibrary()
+          }
+        }
+      }
+      export default function Hello(props) {
+        return <h1>{props.result}</h1>
+      }
+    `
+  )
+
+  expect(await session.hasRedbox(true)).toBe(true)
+  await cleanup()
+})
+
+test('empty _app shows logbox', async () => {
+  const [session, cleanup] = await sandbox(
+    undefined,
+    new Map([
+      [
+        'pages/_app.js',
+        `
+          
+        `,
+      ],
+    ])
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+    `"Error: The default export is not a React Component in page: \\"/_app\\""`
+  )
+
+  await session.patch(
+    'pages/_app.js',
+    `
+      function MyApp({ Component, pageProps }) {
+        return <Component {...pageProps} />;
+      }
+      export default MyApp
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+  await cleanup()
+})
+
+test('empty _document shows logbox', async () => {
+  const [session, cleanup] = await sandbox(
+    undefined,
+    new Map([
+      [
+        'pages/_document.js',
+        `
+          
+        `,
+      ],
+    ])
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+    `"Error: The default export is not a React Component in page: \\"/_document\\""`
+  )
+
+  await session.patch(
+    'pages/_document.js',
+    `
+      import Document, { Html, Head, Main, NextScript } from 'next/document'
+
+      class MyDocument extends Document {
+        static async getInitialProps(ctx) {
+          const initialProps = await Document.getInitialProps(ctx)
+          return { ...initialProps }
+        }
+
+        render() {
+          return (
+            <Html>
+              <Head />
+              <body>
+                <Main />
+                <NextScript />
+              </body>
+            </Html>
+          )
+        }
+      }
+
+      export default MyDocument
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+  await cleanup()
+})
+
+test('_app syntax error shows logbox', async () => {
+  const [session, cleanup] = await sandbox(
+    undefined,
+    new Map([
+      [
+        'pages/_app.js',
+        `
+          function MyApp({ Component, pageProps }) {
+            return <<Component {...pageProps} />;
+          }
+          export default MyApp
+        `,
+      ],
+    ]),
+    undefined,
+    /ready - started server on/i
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "./pages/_app.js:3:20
+      Syntax error: Unexpected token
+      
+        1 | 
+        2 |           function MyApp({ Component, pageProps }) {
+      > 3 |             return <<Component {...pageProps} />;
+          |                     ^
+        4 |           }
+        5 |           export default MyApp
+        6 |"
+`)
+
+  await session.patch(
+    'pages/_app.js',
+    `
+      function MyApp({ Component, pageProps }) {
+        return <Component {...pageProps} />;
+      }
+      export default MyApp
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+  await cleanup()
+})
+
+test('_document syntax error shows logbox', async () => {
+  const [session, cleanup] = await sandbox(
+    undefined,
+    new Map([
+      [
+        'pages/_document.js',
+        `
+          import Document, { Html, Head, Main, NextScript } from 'next/document'
+
+          class MyDocument extends Document {{
+            static async getInitialProps(ctx) {
+              const initialProps = await Document.getInitialProps(ctx)
+              return { ...initialProps }
+            }
+
+            render() {
+              return (
+                <Html>
+                  <Head />
+                  <body>
+                    <Main />
+                    <NextScript />
+                  </body>
+                </Html>
+              )
+            }
+          }
+
+          export default MyDocument
+        `,
+      ],
+    ]),
+    undefined,
+    /ready - started server on/i
+  )
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+      "./pages/_document.js:4:45
+      Syntax error: Unexpected token
+
+        2 |           import Document, { Html, Head, Main, NextScript } from 'next/document'
+        3 | 
+      > 4 |           class MyDocument extends Document {{
+          |                                              ^
+        5 |             static async getInitialProps(ctx) {
+        6 |               const initialProps = await Document.getInitialProps(ctx)
+        7 |               return { ...initialProps }"
+`)
+
+  await session.patch(
+    'pages/_document.js',
+    `
+      import Document, { Html, Head, Main, NextScript } from 'next/document'
+
+      class MyDocument extends Document {
+        static async getInitialProps(ctx) {
+          const initialProps = await Document.getInitialProps(ctx)
+          return { ...initialProps }
+        }
+
+        render() {
+          return (
+            <Html>
+              <Head />
+              <body>
+                <Main />
+                <NextScript />
+              </body>
+            </Html>
+          )
+        }
+      }
+
+      export default MyDocument
+    `
+  )
+  expect(await session.hasRedbox()).toBe(false)
+  await cleanup()
+})

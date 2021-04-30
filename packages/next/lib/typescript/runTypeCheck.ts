@@ -3,8 +3,9 @@ import {
   getFormattedDiagnostic,
 } from './diagnosticFormatter'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
-import { TypeScriptCompileError } from './TypeScriptCompileError'
 import { getRequiredConfiguration } from './writeConfigurationDefaults'
+
+import { CompileError } from '../compile-error'
 
 export interface TypeCheckResult {
   hasWarnings: boolean
@@ -55,7 +56,7 @@ export async function runTypeCheck(
     ) ?? allDiagnostics.find((d) => d.category === DiagnosticCategory.Error)
 
   if (firstError) {
-    throw new TypeScriptCompileError(
+    throw new CompileError(
       await getFormattedDiagnostic(ts, baseDir, firstError)
     )
   }

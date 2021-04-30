@@ -45,8 +45,6 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
     assetPrefix,
     canonicalBase,
     escapedBuildId,
-
-    experimental: { initServer, onError },
   } = ctx
   const {
     handleLocale,
@@ -363,7 +361,11 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
             }
             const statusCode = getRedirectStatus(redirect)
 
-            if (basePath && redirect.basePath !== false) {
+            if (
+              basePath &&
+              redirect.basePath !== false &&
+              redirect.destination.startsWith('/')
+            ) {
               redirect.destination = `${basePath}${redirect.destination}`
             }
 
@@ -473,7 +475,6 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
     renderReqToHTML,
     render: async function render(req: IncomingMessage, res: ServerResponse) {
       try {
-        await initServer()
         const html = await renderReqToHTML(req, res)
         if (html) {
           sendPayload(req, res, html, 'html', {
@@ -483,7 +484,6 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
         }
       } catch (err) {
         console.error(err)
-        await onError(err)
         // Throw the error to crash the serverless function
         throw err
       }

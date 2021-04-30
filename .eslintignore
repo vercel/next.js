@@ -2,6 +2,8 @@ node_modules
 **/.next/**
 **/_next/**
 **/dist/**
+e2e-tests/**
+examples/with-eslint/**
 examples/with-typescript-eslint-jest/**
 examples/with-kea/**
 packages/next/bundles/webpack/packages/*.runtime.js
@@ -16,4 +18,5 @@ packages/next-codemod/**/*.js
 packages/next-codemod/**/*.d.ts
 packages/next-env/**/*.d.ts
 test/integration/async-modules/**
+test/integration/eslint/**
 test-timings.json
