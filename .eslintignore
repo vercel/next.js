@@ -20,4 +20,3 @@ packages/next-env/**/*.d.ts
 test/integration/async-modules/**
 test/integration/eslint/**
 test-timings.json
-packages/next/lib/regexr/**/*
