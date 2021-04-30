@@ -23,14 +23,9 @@ module.exports = {
 
         if (
           !attributes.hasAny() ||
+          !attributes.has('href') ||
           !children.some((attr) => attr.type === 'JSXElement')
         ) {
-          return
-        }
-
-        const hasHref = attributes.has('href')
-
-        if (!hasHref) {
           return
         }
 
@@ -53,7 +48,7 @@ module.exports = {
               attributes.value('passHref') !== true
                 ? 'must be set to true'
                 : 'is missing'
-            }. See: https://nextjs.org/docs/messages/link-passhref.`,
+            }. See https://nextjs.org/docs/messages/link-passhref.`,
           })
         }
       },
