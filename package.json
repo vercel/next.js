@@ -131,10 +131,6 @@
     "worker-loader": "3.0.7",
     "jest": "27.0.0-next.8"
   },
-  "resolutions": {
-    "browserslist": "4.16.6",
-    "caniuse-lite": "1.0.30001219"
-  },
   "engines": {
     "node": ">= 10.13.0"
   }
