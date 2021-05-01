@@ -19,6 +19,13 @@ const program = new Commander.Command(packageJson.name)
   .action((name) => {
     projectPath = name
   })
+  .option(
+    '-t, --typescript',
+    `
+
+  Initialize as a TypeScript project.
+`
+  )
   .option('--use-npm', 'Explicitly tell the CLI to bootstrap the app using npm')
   .option(
     '-e, --example [name]|[github-url]',
@@ -37,13 +44,6 @@ const program = new Commander.Command(packageJson.name)
   a slash (e.g. bug/fix-1) and the path to the example (e.g. foo/bar).
   In this case, you must specify the path to the example separately:
   --example-path foo/bar
-`
-  )
-  .option(
-    '-t, --typescript',
-    `
-
-  Configure the project to use TypeScript.
 `
   )
   .allowUnknownOption()
