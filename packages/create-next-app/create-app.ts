@@ -179,11 +179,11 @@ export async function createApp({
       JSON.stringify(packageJson, null, 2) + os.EOL
     )
 
-    const dependencies = ['react', 'react-dom', 'next']
+    const dependencies = ['react', 'react-dom']
     const devDependencies = []
 
     if (typescript) {
-      devDependencies.push('@types/react', '@types/next')
+      devDependencies.push('next', '@types/react', '@types/next')
     }
 
     const depMsgs = dependencies.map((dep) => chalk.cyan(dep))
