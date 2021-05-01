@@ -126,10 +126,10 @@ export async function createApp({
   await makeDir(root)
   process.chdir(root)
 
-  /**
-   * If an example repository is provided, clone it.
-   */
   if (example) {
+    /**
+     * If an example repository is provided, clone it.
+     */
     try {
       if (repoInfo) {
         const repoInfo2 = repoInfo
@@ -171,10 +171,10 @@ export async function createApp({
     await install(root, null, { useYarn, isOnline })
     console.log()
   } else {
-  /**
-   * Otherwise, if an example repository is not provided for cloning, proceed
-   * by installing from a template.
-   */
+    /**
+     * Otherwise, if an example repository is not provided for cloning, proceed
+     * by installing from a template.
+     */
     console.log(chalk.bold(`Using ${displayedCommand}.`))
     /**
      * Create a package.json for the new project.
