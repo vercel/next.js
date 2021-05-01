@@ -126,6 +126,9 @@ export async function createApp({
   await makeDir(root)
   process.chdir(root)
 
+  /**
+   * If an example repository is provided, clone it.
+   */
   if (example) {
     try {
       if (repoInfo) {
@@ -168,55 +171,80 @@ export async function createApp({
     await install(root, null, { useYarn, isOnline })
     console.log()
   } else {
+  /**
+   * Otherwise, if an example repository is not provided for cloning, proceed
+   * by installing from a template.
+   */
+    console.log(chalk.bold(`Using ${displayedCommand}.`))
+    /**
+     * Create a package.json for the new project.
+     */
     const packageJson = {
       name: appName,
       version: '0.1.0',
       private: true,
-      scripts: { dev: 'next dev', build: 'next build', start: 'next start' },
+      scripts: {
+        dev: 'next dev',
+        build: 'next build',
+        start: 'next start',
+      },
     }
+    /**
+     * Write it to disk.
+     */
     fs.writeFileSync(
       path.join(root, 'package.json'),
       JSON.stringify(packageJson, null, 2) + os.EOL
     )
-
-    const dependencies = ['react', 'react-dom']
-    const devDependencies = []
-
-    if (typescript) {
-      devDependencies.push('next', '@types/react', '@types/next')
-    }
-
-    const depMsgs = dependencies.map((dep) => chalk.cyan(dep))
-    const devMsgs = devDependencies.map((dep) => chalk.cyan(dep))
-
-    console.log(`Installing using ${displayedCommand}:`)
-    console.log()
-
-    console.log('Dependencies:')
-    console.log(depMsgs.join('\n'))
-    console.log()
-
-    if (devDependencies.length) {
-      console.log('Dev Dependencies:')
-      console.log(devMsgs.join('\n'))
-      console.log()
-    }
-
+    /**
+     * These flags will be passed to `install()`.
+     */
     const installFlags = { useYarn, isOnline }
+    /**
+     * Default dependencies.
+     */
+    const dependencies = ['react', 'react-dom']
+    /**
+     * Default devDependencies.
+     */
+    const devDependencies = ['next']
+    /**
+     * TypeScript projects will have type definitions and other devDependencies.
+     */
+    if (typescript) {
+      devDependencies.push('@types/react', '@types/next')
+    }
+    /**
+     * Install package.json dependencies if they exist.
+     */
+    if (dependencies.length) {
+      console.log()
+      console.log('Installing dependencies:')
+      for (const dependency of dependencies) {
+        console.log(chalk.cyan(dependency))
+      }
+      console.log()
 
+      await install(root, dependencies, installFlags)
+    }
     /**
-     * Install package.json dependencies.
+     * Install package.json devDependencies if they exist.
      */
-    await install(root, dependencies, installFlags)
-    /**
-     * Then, install package.json devDependencies.
-     */
-    await install(root, devDependencies, {
-      devDependencies: true,
-      ...installFlags,
-    })
+    if (devDependencies.length) {
+      console.log()
+      console.log('Installing devDependencies:')
+      for (const devDependency of devDependencies) {
+        console.log(chalk.cyan(devDependency))
+      }
+      console.log()
+
+      const devInstallFlags = { devDependencies: true, ...installFlags }
+      await install(root, devDependencies, devInstallFlags)
+    }
     console.log()
-
+    /**
+     * Copy the template files to the target directory.
+     */
     await cpy('**', root, {
       parents: true,
       cwd: path.join(__dirname, 'templates', template),
