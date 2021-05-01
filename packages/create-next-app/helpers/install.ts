@@ -74,6 +74,7 @@ export function install(
           console.log(chalk.yellow('You appear to be offline.'))
           console.log(chalk.yellow('Falling back to the local Yarn cache.'))
           console.log()
+          args.push('--offline')
         }
       } else {
         if (!isOnline) {
