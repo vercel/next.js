@@ -21,7 +21,24 @@ import { getOnline } from './helpers/is-online'
 import { shouldUseYarn } from './helpers/should-use-yarn'
 import { isWriteable } from './helpers/is-writeable'
 
+const getTemplateDir = (template: string) => {
+  return path.join(__dirname, 'templates', template)
+}
+
+const getTemplateFile = (template: string, file: string) => {
+  return path.join(getTemplateDir(template), file)
+}
+
 export class DownloadError extends Error {}
+
+interface CreateAppArgs {
+  appPath: string
+  useNpm: boolean
+  example?: string
+  examplePath?: string
+  typescript?: boolean
+  tailwind?: boolean
+}
 
 export async function createApp({
   appPath,
@@ -29,13 +46,8 @@ export async function createApp({
   example,
   examplePath,
   typescript,
-}: {
-  appPath: string
-  useNpm: boolean
-  example?: string
-  examplePath?: string
-  typescript?: boolean
-}): Promise<void> {
+  tailwind,
+}: CreateAppArgs): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const template = typescript ? 'typescript' : 'default'
 
@@ -159,10 +171,7 @@ export async function createApp({
     // Copy our default `.gitignore` if the application did not provide one
     const ignorePath = path.join(root, '.gitignore')
     if (!fs.existsSync(ignorePath)) {
-      fs.copyFileSync(
-        path.join(__dirname, 'templates', template, 'gitignore'),
-        ignorePath
-      )
+      fs.copyFileSync(getTemplateFile(template, 'gitignore'), ignorePath)
     }
 
     console.log('Installing packages. This might take a couple of minutes.')
@@ -215,6 +224,17 @@ export async function createApp({
       devDependencies.push('@types/react', '@types/next')
     }
     /**
+     * Tailwind will require a few devDependencies as well.
+     * @see https://tailwindcss.com/docs/guides/nextjs
+     */
+    if (tailwind) {
+      devDependencies.push(
+        'tailwindcss@latest',
+        'postcss@latest',
+        'autoprefixer@latest'
+      )
+    }
+    /**
      * Install package.json dependencies if they exist.
      */
     if (dependencies.length) {
@@ -247,11 +267,11 @@ export async function createApp({
      */
     await cpy('**', root, {
       parents: true,
-      cwd: path.join(__dirname, 'templates', template),
+      cwd: getTemplateDir(template),
       rename: (name) => {
         switch (name) {
           case 'gitignore': {
-            return '.'.concat(name)
+            return '.gitignore'
           }
           // README.md is ignored by webpack-asset-relocator-loader used by ncc:
           // https://github.com/zeit/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
@@ -264,6 +284,15 @@ export async function createApp({
         }
       },
     })
+    /**
+     * Then, if the Tailwind flag is set, copy those templates over.
+     */
+    if (tailwind) {
+      await cpy('**', root, {
+        parents: true,
+        cwd: getTemplateDir('tailwind'),
+      })
+    }
   }
 
   if (tryGitInit(root)) {

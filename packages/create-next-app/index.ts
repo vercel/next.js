@@ -27,6 +27,13 @@ const program = new Commander.Command(packageJson.name)
 `
   )
   .option(
+    '--tw, --tailwind',
+    `
+
+  Initialize with Tailwind.
+`
+  )
+  .option(
     '--use-npm',
     `
 
@@ -127,6 +134,7 @@ async function run(): Promise<void> {
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
       typescript: program.typescript,
+      tailwind: program.tailwind,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
