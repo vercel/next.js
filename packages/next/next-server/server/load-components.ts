@@ -74,20 +74,9 @@ export async function loadComponents(
     } as LoadComponentsReturnType
   }
 
-  let DocumentMod
-  let AppMod
-  let ComponentMod
-
-  try {
-    DocumentMod = await requirePage('/_document', distDir, serverless)
-    AppMod = await requirePage('/_app', distDir, serverless)
-    ComponentMod = await requirePage(pathname, distDir, serverless)
-  } catch (err) {
-    if (err.code === 'MODULE_NOT_FOUND') {
-      throw new Error(`Failed to load ${pathname}`)
-    }
-    throw err
-  }
+  const DocumentMod = await requirePage('/_document', distDir, serverless)
+  const AppMod = await requirePage('/_app', distDir, serverless)
+  const ComponentMod = await requirePage(pathname, distDir, serverless)
 
   const [
     buildManifest,
