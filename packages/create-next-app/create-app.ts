@@ -187,7 +187,7 @@ export async function createApp({
     }
 
     const depMsgs = dependencies.map((dep) => chalk.cyan(dep))
-    const devDepsMsgs = devDependencies.map((dep) => chalk.cyan(dep))
+    const devMsgs = devDependencies.map((dep) => chalk.cyan(dep))
 
     console.log(`Installing using ${displayedCommand}:`)
     console.log()
@@ -198,12 +198,23 @@ export async function createApp({
 
     if (devDependencies.length) {
       console.log('Dev Dependencies:')
-      console.log(devDepsMsgs.join('\n'))
+      console.log(devMsgs.join('\n'))
       console.log()
     }
 
-    await install(root, dependencies, { useYarn, isOnline })
-    await install(root, null, { devDependencies, useYarn, isOnline })
+    const installFlags = { useYarn, isOnline }
+
+    /**
+     * Install package.json dependencies.
+     */
+    await install(root, dependencies, installFlags)
+    /**
+     * Then, install package.json devDependencies.
+     */
+    await install(root, devDependencies, {
+      devDependencies: true,
+      ...installFlags,
+    })
     console.log()
 
     await cpy('**', root, {

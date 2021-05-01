@@ -3,9 +3,18 @@ import chalk from 'chalk'
 import spawn from 'cross-spawn'
 
 interface InstallArgs {
+  /**
+   * Indicate whether to install packages using Yarn.
+   */
   useYarn: boolean
+  /**
+   * Indicate whether there is an active Internet connection.
+   */
   isOnline: boolean
-  devDependencies?: string[]
+  /**
+   * Indicate whether the given dependencies are devDependencies.
+   */
+  devDependencies?: boolean
 }
 
 export function install(
@@ -14,51 +23,44 @@ export function install(
   { useYarn, isOnline, devDependencies }: InstallArgs
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const depsExist = dependencies && dependencies.length
-    const devDepsExist = devDependencies && devDependencies.length
-
     let command: string
     let args: string[] = []
     if (useYarn) {
+      /**
+       * Installing with Yarn.
+       */
       command = 'yarnpkg'
-
-      if (!depsExist && !devDepsExist) {
-        args = ['install']
-      } else {
+      if (dependencies && dependencies.length) {
         args = ['add', '--exact']
-        if (!isOnline) {
-          args.push('--offline')
-        }
-        if (depsExist) {
-          if (dependencies) {
-            args.push(...dependencies)
-          }
-        } else if (devDepsExist) {
-          args.push('-D')
-          if (devDependencies) {
-            args.push(...devDependencies)
-          }
-        }
+        if (!isOnline) args.push('--offline')
+        if (devDependencies) args.push('-D')
+        args.push(...dependencies)
         args.push('--cwd', root)
+      } else {
+        /**
+         * Run `yarn install` if no deps.
+         */
+        args = ['install']
       }
-
       if (!isOnline) {
         console.log(chalk.yellow('You appear to be offline.'))
         console.log(chalk.yellow('Falling back to the local Yarn cache.'))
         console.log()
       }
     } else {
+      /**
+       * Installing with NPM.
+       */
       command = 'npm'
       const npmFlags = ['--logLevel', 'error']
-      if (depsExist) {
-        args = (['install', '--save', '--save-exact'].filter(
-          Boolean
-        ) as string[]).concat(dependencies || [])
-      } else if (devDepsExist) {
-        args = (['install', '--save-dev', '--save-exact'].filter(
-          Boolean
-        ) as string[]).concat(dependencies || [])
+      if (dependencies && dependencies.length) {
+        args = ['install', '--save-exact']
+        args.push(devDependencies ? '--save-dev' : '--save')
+        args.push(...dependencies)
       } else {
+        /**
+         * Run `npm install` if no deps.
+         */
         args = ['install']
       }
       args.push(...npmFlags)
