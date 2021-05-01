@@ -20,7 +20,7 @@ const program = new Commander.Command(packageJson.name)
     projectPath = name
   })
   .option(
-    '-t, --typescript',
+    '--ts, --typescript',
     `
 
   Initialize as a TypeScript project.
