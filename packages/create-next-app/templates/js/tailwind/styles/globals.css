@@ -5,12 +5,12 @@
 @layer base {
   html,
   body {
-    padding: 0;
-    margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
       Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
   }
-
+  * {
+    box-sizing: border-box;
+  }
   /* 
    * Fill the view. Setting `height: 100%` will collapse the view if it is
    * taller than the viewport, crushing all the content and destroying the
@@ -20,6 +20,8 @@
    * margin/padding all the way down to the root view to perfectly fill the
    * viewport without overflowing. This will break in quirks mode, so ensure
    * that <!DOCTYPE html> is declared.
+   *
+   * @see https://twitter.com/ctjlewis/status/1388767671173492745
    */
   html,
   body,
@@ -31,30 +33,48 @@
     margin: 0;
     box-sizing: border-box;
   }
-
+  /**
+   * Links will not change color by default, but *will* natively fade an
+   * underline in on hover/focus/click for accessibility.
+   */
   a {
+    /**
+     * This controls the color of the text itself and, on hover/focus/click, the
+     * underline through the `text-decoration-color: inherit` setting.
+     */
     color: inherit;
-    text-decoration: none;
+    /**
+     * Request that the browser display the underline as transparent.
+     *
+     * On IE11 and the rare cases where this feature is still unsupported, this
+     * will render as a regular <a> with an underline.
+     */
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    /**
+     * Transition the underline in and out of transparency.
+     */
+    transition: 370ms ease-in-out;
   }
-
+  /**
+   * Toggle the transparency of the underline depending on the
+   * hover/active/focus state.
+   */
+  a:hover,
+  a:focus,
+  a:active {
+    /**
+     * Fancily animate the a:hover underline.
+     */
+    text-decoration-color: inherit;
+  }
+  /**
+   * Use .link class globally to set a link to blue.
+   */
   a.link,
   .link a {
     color: #0070f3;
   }
-
-  a.link:hover,
-  .link a:hover,
-  a.link:focus,
-  .link a:focus,
-  a.link:active,
-  a:active {
-    text-decoration: underline;
-  }
-
-  * {
-    box-sizing: border-box;
-  }
-
   /**
    * Default heading sizes.
    */
@@ -81,7 +101,6 @@
   h6 {
     @apply text-sm;
   }
-
   /**
    * Global styles that will be used throughout the application and need not be
    * modular.
