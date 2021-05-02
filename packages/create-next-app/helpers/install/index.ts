@@ -2,7 +2,9 @@
 import chalk from 'chalk'
 import spawn from 'cross-spawn'
 
-interface InstallArgs {
+export type OutputMode = 'ts' | 'js'
+
+export interface PackageManagerFlags {
   /**
    * Indicate whether to install packages using Yarn.
    */
@@ -17,6 +19,8 @@ interface InstallArgs {
   devDependencies?: boolean
 }
 
+export class DownloadError extends Error {}
+
 /**
  * Spawn a package manager installation with either Yarn or NPM.
  *
@@ -25,7 +29,7 @@ interface InstallArgs {
 export function install(
   root: string,
   dependencies: string[] | null,
-  { useYarn, isOnline, devDependencies }: InstallArgs
+  { useYarn, isOnline, devDependencies }: PackageManagerFlags
 ): Promise<void> {
   /**
    * NPM-specific command-line flags.

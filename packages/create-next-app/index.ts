@@ -5,7 +5,8 @@ import Commander from 'commander'
 import path from 'path'
 import prompts from 'prompts'
 import checkForUpdate from 'update-check'
-import { createApp, DownloadError } from './create-app'
+import { createApp, NextCreateOptions } from './create-app'
+import { DownloadError } from './helpers/install'
 import { shouldUseYarn } from './helpers/should-use-yarn'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
@@ -127,14 +128,26 @@ async function run(): Promise<void> {
   }
 
   const example = typeof program.example === 'string' && program.example.trim()
+
+  /**
+   * These CreateOptions will change how the installation proceeds, i.e. whether
+   * to use TypeScript templates, or whether to add Tailwind templates
+   * afterward.
+   */
+  const options: NextCreateOptions = {
+    typescript: program.typescript,
+    tailwind: program.tailwind,
+  }
+  /**
+   * Create the app with the given configuration.
+   */
   try {
     await createApp({
       appPath: resolvedProjectPath,
       useNpm: !!program.useNpm,
       example: example && example !== 'default' ? example : undefined,
       examplePath: program.examplePath,
-      typescript: program.typescript,
-      tailwind: program.tailwind,
+      options,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -156,7 +169,7 @@ async function run(): Promise<void> {
     await createApp({
       appPath: resolvedProjectPath,
       useNpm: !!program.useNpm,
-      typescript: program.typescript,
+      options,
     })
   }
 }

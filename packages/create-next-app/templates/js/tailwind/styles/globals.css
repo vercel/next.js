@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body {
+    padding: 0;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+      Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  }
+
+  /* 
+   * Fill the view. Setting `height: 100%` will collapse the view if it is
+   * taller than the viewport, crushing all the content and destroying the
+   * layout on mobile.
+   *
+   * Use `min-height` and `min-width` plus `box-sizing: border-box` and zero
+   * margin/padding all the way down to the root view to perfectly fill the
+   * viewport without overflowing. This will break in quirks mode, so ensure
+   * that <!DOCTYPE html> is declared.
+   */
+  html,
+  body,
+  #__next,
+  main {
+    min-height: 100%;
+    min-width: 100%;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  a.link,
+  .link a {
+    color: #0070f3;
+  }
+
+  a.link:hover,
+  .link a:hover,
+  a.link:focus,
+  .link a:focus,
+  a.link:active,
+  a:active {
+    text-decoration: underline;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  /**
+   * Default heading sizes.
+   */
+  h1 {
+    @apply text-6xl;
+  }
+
+  h2 {
+    @apply text-3xl;
+  }
+
+  h3 {
+    @apply text-2xl;
+  }
+
+  h4 {
+    @apply text-xl;
+  }
+
+  h5 {
+    @apply text-base;
+  }
+
+  h6 {
+    @apply text-sm;
+  }
+
+  /**
+   * Global styles that will be used throughout the application and need not be
+   * modular.
+   */
+  .card {
+    margin: 1rem;
+    padding: 0.8rem;
+    text-align: left;
+    color: inherit;
+    text-decoration: none;
+    border: 1px solid #eaeaea;
+    border-radius: 10px;
+    transition: color 0.15s ease, border-color 0.15s ease;
+    width: 45%;
+    min-width: 220px;
+  }
+
+  .card:hover,
+  .card:focus,
+  .card:active {
+    color: #0070f3;
+    border-color: #0070f3;
+  }
+
+  .card h2 {
+    margin: 0 0 1rem 0;
+    font-size: 1.5rem;
+  }
+
+  .card p {
+    margin: 0;
+    font-size: 1.25rem;
+    line-height: 1.5;
+  }
+}
