@@ -5,14 +5,9 @@ import fs from 'fs'
 import os from 'os'
 import path from 'path'
 
-import { install, OutputMode } from '.'
-import { getTemplateDir, NextCreateOptions } from '../../create-app'
-import { InstallExampleContext } from './from-example'
-
-export interface InstallTemplateContext extends InstallExampleContext {
-  appName: string
-  options: NextCreateOptions
-}
+import { install } from '.'
+import { getTemplateDir } from '../../create-app'
+import { InstallTemplateContext, OutputMode } from './types'
 
 const renameTemplateFiles = (name: string) => {
   switch (name) {

@@ -9,9 +9,9 @@ import { getOnline } from './helpers/is-online'
 import { shouldUseYarn } from './helpers/should-use-yarn'
 import { isWriteable } from './helpers/is-writeable'
 import { ExampleInfoContext, getExampleInfo } from './helpers/get-example-info'
-import { OutputMode } from './helpers/install'
 import { installFromExample } from './helpers/install/from-example'
 import { installFromTemplate } from './helpers/install/from-template'
+import { OutputMode } from './helpers/install/types'
 
 export interface NextCreateOptions {
   typescript?: boolean

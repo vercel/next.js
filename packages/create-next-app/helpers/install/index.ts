@@ -1,25 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import chalk from 'chalk'
 import spawn from 'cross-spawn'
-
-export type OutputMode = 'ts' | 'js'
-
-export interface PackageManagerFlags {
-  /**
-   * Indicate whether to install packages using Yarn.
-   */
-  useYarn: boolean
-  /**
-   * Indicate whether there is an active Internet connection.
-   */
-  isOnline: boolean
-  /**
-   * Indicate whether the given dependencies are devDependencies.
-   */
-  devDependencies?: boolean
-}
-
-export class DownloadError extends Error {}
+import { PackageManagerFlags } from './types'
 
 /**
  * Spawn a package manager installation with either Yarn or NPM.

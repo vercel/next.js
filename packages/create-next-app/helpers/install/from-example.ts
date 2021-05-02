@@ -4,23 +4,10 @@ import fs from 'fs'
 import path from 'path'
 import retry from 'async-retry'
 
-import { DownloadError, install, PackageManagerFlags, OutputMode } from '.'
-import {
-  downloadAndExtractExample,
-  downloadAndExtractRepo,
-  RepoInfo,
-} from '../examples'
-import { ExampleInfoContext } from '../get-example-info'
+import { install } from '.'
+import { downloadAndExtractExample, downloadAndExtractRepo } from '../examples'
 import { getTemplateFile } from '../../create-app'
-
-export interface InstallExampleContext extends ExampleInfoContext {
-  example?: string
-  repoInfo?: RepoInfo
-  root: string
-  template: string
-  outputMode: OutputMode
-  installFlags: PackageManagerFlags
-}
+import { DownloadError, InstallExampleContext } from './types'
 
 export const installFromExample = async ({
   example,
