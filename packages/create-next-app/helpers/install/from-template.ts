@@ -121,7 +121,10 @@ export const installFromTemplate = async ({
         break
 
       default:
-        console.log(`Got unrecognized option: ${option}`)
+        /**
+         * Silently pass on any enabled options that do not imply additional
+         * dependencies.
+         */
         break
     }
   }
