@@ -221,7 +221,7 @@ export async function createApp({
       console.log()
       console.log('Installing dependencies:')
       for (const dependency of dependencies) {
-        console.log(chalk.cyan(dependency))
+        console.log(`- ${chalk.cyan(dependency)}`)
       }
       console.log()
 
@@ -234,7 +234,7 @@ export async function createApp({
       console.log()
       console.log('Installing devDependencies:')
       for (const devDependency of devDependencies) {
-        console.log(chalk.cyan(devDependency))
+        console.log(`- ${chalk.cyan(devDependency)}`)
       }
       console.log()
 
