@@ -222,14 +222,16 @@ function removePlaceholder(
   placeholder: PlaceholderValue
 ) {
   if (placeholder === 'blur' && element) {
-    if (element.complete) {
+    if (element.complete && !element.src.startsWith('data:')) {
       // If the real image fails to load, this will still remove the placeholder.
       // This is the desired behavior for now, and will be revisited when error
       // handling is worked on for the image component itself.
       element.style.backgroundImage = 'none'
     } else {
       element.onload = () => {
-        element.style.backgroundImage = 'none'
+        if (!element.src.startsWith('data:')) {
+          element.style.backgroundImage = 'none'
+        }
       }
     }
   }
