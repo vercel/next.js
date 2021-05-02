@@ -20,8 +20,6 @@
    * margin/padding all the way down to the root view to perfectly fill the
    * viewport without overflowing. This will break in quirks mode, so ensure
    * that <!DOCTYPE html> is declared.
-   *
-   * @see https://twitter.com/ctjlewis/status/1388767671173492745
    */
   html,
   body,
@@ -31,19 +29,21 @@
     min-width: 100%;
     padding: 0;
     margin: 0;
+    box-sizing: border-box;
   }
   /**
    * Links will not change color by default, but *will* natively fade an
-   * underline in on hover/focus/click for accessibility.
+   * underline in for accessibility when they are tapped, tap-held, or hovered
+   * over.
    */
   a {
     /**
-     * This controls the color of the text itself and, on hover/focus/click, the
+     * This controls the color of the text itself and, when :active, the
      * underline through the `text-decoration-color: inherit` setting.
      */
     color: inherit;
     /**
-     * Request that the browser display the underline as transparent.
+     * Request that the browser display the underline as transparent normally.
      *
      * On IE11 and the rare cases where this feature is still unsupported, this
      * will render as a regular <a> with an underline.
@@ -53,26 +53,16 @@
     /**
      * Transition the underline in and out of transparency.
      */
-    transition: 370ms ease-in-out;
+    transition: 250ms ease-in-out;
   }
   /**
-   * Toggle the transparency of the underline depending on the
-   * hover/active/focus state.
+   * When the user is holding focus on the anchor by tapping, tap-holding, or
+   * hobvering over it, transition the underline in as a solid color.
    */
-  a:hover,
+  a:active,
   a:focus,
-  a:active {
-    /**
-     * Fancily animate the a:hover underline.
-     */
+  a:hover {
     text-decoration-color: inherit;
-  }
-  /**
-   * Use .link class globally to set a link to blue.
-   */
-  a.link,
-  .link a {
-    color: #0070f3;
   }
   /**
    * Default heading sizes.
@@ -133,5 +123,13 @@
     margin: 0;
     font-size: 1.25rem;
     line-height: 1.5;
+  }
+
+  /**
+   * Use .link class globally to set a link to blue.
+   */
+  a.link,
+  .link a {
+    color: #0070f3;
   }
 }
