@@ -15,7 +15,7 @@ describe('Re-export all exports from page is disallowed', () => {
     expect(stderr).toMatch(/\/export-all-in-page/)
 
     expect(stderr.split('\n\n')[1]).toMatchInlineSnapshot(`
-      "./pages/contact.js:3:1
+      "./pages/contact.js
       Syntax error: Using \`export * from '...'\` in a page is disallowed. Please use \`export { default } from '...'\` instead.
       Read more: https://nextjs.org/docs/messages/export-all-in-page"
     `)
