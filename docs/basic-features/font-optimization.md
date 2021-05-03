@@ -76,6 +76,18 @@ export default MyDocument
 
 Automatic Webfont Optimization currently supports Google Fonts, with support for other font providers coming soon. We're also planning to add control over [loading strategies](https://github.com/vercel/next.js/issues/21555) and `font-display` values.
 
+## Disabling Optimization
+
+If you do not want Next.js to optimize your fonts, you can opt-out.
+
+```js
+// next.config.js
+
+module.exports = {
+  optimizeFonts: false,
+}
+```
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:
