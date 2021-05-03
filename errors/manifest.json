@@ -107,6 +107,10 @@
           "path": "/errors/generatebuildid-not-a-string.md"
         },
         {
+          "title": "google-font-display",
+          "path": "/errors/google-font-display.md"
+        },
+        {
           "title": "get-initial-props-as-an-instance-method",
           "path": "/errors/get-initial-props-as-an-instance-method.md"
         },
