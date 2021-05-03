@@ -217,8 +217,10 @@ describe('next-babel-loader', () => {
           pagesDir: undefined,
         }
       )
-      expect(code).toMatchInlineSnapshot(
-        `"import React from\\"react\\";var __jsx=React.createElement;import dynamic from'next/dynamic';var Comp=dynamic(function(){return import('comp');},{loadableGenerated:{webpack:function webpack(){return[require.resolveWeak('comp')];},modules:[\\"/var/folders/mt/g6tgqvjj0n3_zwst5d43d07w0000gn/T/index.js -> \\"+'comp']}});export default function Page(props){return __jsx(Comp,null);}"`
+      expect(
+        code.replace(/modules:\[".*?"/, 'modules:["/path/to/page"')
+      ).toMatchInlineSnapshot(
+        `"import React from\\"react\\";var __jsx=React.createElement;import dynamic from'next/dynamic';var Comp=dynamic(function(){return import('comp');},{loadableGenerated:{webpack:function webpack(){return[require.resolveWeak('comp')];},modules:[\\"/path/to/page\\"+'comp']}});export default function Page(props){return __jsx(Comp,null);}"`
       )
     })
 
