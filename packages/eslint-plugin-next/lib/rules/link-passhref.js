@@ -12,14 +12,22 @@ module.exports = {
   },
 
   create: function (context) {
-    return {
-      JSXOpeningElement(node) {
-        const attributes = new NodeAttributes(node)
-        const children = node.parent.children
+    let linkImport = null
 
-        if (node.name.name !== 'Link') {
+    return {
+      ImportDeclaration(node) {
+        if (node.source.value === 'next/link') {
+          linkImport = node.specifiers[0].local.name
+        }
+      },
+
+      JSXOpeningElement(node) {
+        if (node.name.name !== 'Link' || node.name.name !== linkImport) {
           return
         }
+
+        const attributes = new NodeAttributes(node)
+        const children = node.parent.children
 
         if (
           !attributes.hasAny() ||

@@ -30,11 +30,21 @@ ruleTester.run('link-passhref', rule, {
         <StyledLink>Test</StyledLink>
       </Link>
     )`,
+
+    `const Link = () => <div>Fake Link</div>
+
+     const Home = () => (
+      <Link href="/test">
+        <MyButton />
+      </Link>
+     )`,
   ],
 
   invalid: [
     {
       code: `
+      import Link from 'next/link'
+
       export const Home = () => (
         <Link href="/test">
           <StyledLink>Test</StyledLink>
@@ -50,6 +60,8 @@ ruleTester.run('link-passhref', rule, {
     },
     {
       code: `
+      import Link from 'next/link'
+
       export const Home = () => (
         <Link href="/test" passHref={false}>
           <StyledLink>Test</StyledLink>
