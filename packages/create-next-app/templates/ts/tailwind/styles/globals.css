@@ -11,27 +11,27 @@
   * {
     box-sizing: border-box;
   }
-  /* 
-   * Fill the view. Setting `height: 100%` will collapse the view if it is
-   * taller than the viewport, crushing all the content and destroying the
-   * layout on mobile.
-   *
-   * Use `min-height` and `min-width` plus `box-sizing: border-box` and zero
-   * margin/padding all the way down to the root view to perfectly fill the
-   * viewport without overflowing. This will break in quirks mode, so ensure
-   * that <!DOCTYPE html> is declared.
-   *
-   * @see https://twitter.com/ctjlewis/status/1388767671173492745
+  /**
+   * Size the root view (html > body > #__next) to 100% of the viewport, so that
+   * immediate flex children size as expected and the page flows as expected
+   * without crushing the layout on mobile as described below.
    */
   html,
   body,
-  #__next,
-  main {
-    min-height: 100%;
-    min-width: 100%;
-    padding: 0;
-    margin: 0;
-    box-sizing: border-box;
+  #__next {
+    /**
+     * Ensure there's no margin or padding.
+     */
+    @apply m-0 p-0;
+    /* 
+    * Fill the viewport or expand beyond it. Setting `height: 100%` will
+    * collapse the view if it is taller than the viewport, crushing all the
+    * content and destroying the layout on mobile in many cases.
+    *
+    * This will break in quirks mode, so ensure that <!DOCTYPE html> is
+    * declared.
+    */
+    @apply h-full w-full min-h-full min-w-full;
   }
   /**
    * Links will not change color by default, but *will* natively fade an
