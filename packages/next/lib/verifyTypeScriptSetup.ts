@@ -1,13 +1,14 @@
 import chalk from 'chalk'
 import path from 'path'
-import { FatalTypeScriptError } from './typescript/FatalTypeScriptError'
-import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
 import {
   hasNecessaryDependencies,
   NecessaryDependencies,
-} from './typescript/hasNecessaryDependencies'
+} from './has-necessary-dependencies'
+import { CompileError } from './compile-error'
+import { FatalError } from './fatal-error'
+
+import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
 import type { TypeCheckResult } from './typescript/runTypeCheck'
-import { TypeScriptCompileError } from './typescript/TypeScriptCompileError'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
 
@@ -27,12 +28,14 @@ export async function verifyTypeScriptSetup(
     const firstTimeSetup = intent.firstTimeSetup
 
     // Ensure TypeScript and necessary `@types/*` are installed:
-    const deps: NecessaryDependencies = await hasNecessaryDependencies(dir)
+    const deps: NecessaryDependencies = await hasNecessaryDependencies(
+      dir,
+      !!intent,
+      false
+    )
 
     // Load TypeScript after we're sure it exists:
-    const ts = (await import(
-      deps.resolvedTypeScript
-    )) as typeof import('typescript')
+    const ts = (await import(deps.resolved)) as typeof import('typescript')
 
     // Reconfigure (or create) the user's `tsconfig.json` for them:
     await writeConfigurationDefaults(ts, tsConfigPath, firstTimeSetup)
@@ -50,11 +53,11 @@ export async function verifyTypeScriptSetup(
     return { result, version: ts.version }
   } catch (err) {
     // These are special errors that should not show a stack trace:
-    if (err instanceof TypeScriptCompileError) {
+    if (err instanceof CompileError) {
       console.error(chalk.red('Failed to compile.\n'))
       console.error(err.message)
       process.exit(1)
-    } else if (err instanceof FatalTypeScriptError) {
+    } else if (err instanceof FatalError) {
       console.error(err.message)
       process.exit(1)
     }
