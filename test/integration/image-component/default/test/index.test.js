@@ -523,6 +523,43 @@ function runTests(mode) {
     }
   })
 
+  it('should trigger onLoad when image have loaded', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/on-load')
+
+      const id = 'lazy-image'
+
+      expect(await getSrc(browser, id)).not.toBe(
+        '/_next/image?url=%2Ftest.jpg&w=828&q=75'
+      )
+      expect(await browser.elementById(id).getAttribute('data-loaded')).toBe(
+        'false'
+      )
+
+      let viewportHeight = await browser.eval(`window.innerHeight`)
+      let topOfMidImage = await browser.eval(
+        `document.getElementById('${id}').parentElement.offsetTop`
+      )
+      let buffer = 150
+      await browser.eval(
+        `window.scrollTo(0, ${topOfMidImage - (viewportHeight + buffer)})`
+      )
+
+      await check(() => {
+        return getSrc(browser, id)
+      }, '/_next/image?url=%2Ftest.jpg&w=828&q=75')
+
+      expect(await browser.elementById(id).getAttribute('data-loaded')).toBe(
+        'true'
+      )
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
   // Tests that use the `unsized` attribute:
   if (mode !== 'dev') {
     it('should correctly rotate image', async () => {

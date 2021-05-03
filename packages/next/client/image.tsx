@@ -256,6 +256,7 @@ export default function Image({
   loader = defaultImageLoader,
   placeholder = 'empty',
   blurDataURL,
+  onLoad,
   ...all
 }: ImageProps) {
   let rest: Partial<ImageProps> = all
@@ -502,6 +503,7 @@ export default function Image({
             })}
             src={src}
             decoding="async"
+            onLoad={onLoad}
             sizes={sizes}
             style={imgStyle}
             className={className}
@@ -513,6 +515,7 @@ export default function Image({
         {...imgAttributes}
         decoding="async"
         className={className}
+        onLoad={isVisible ? onLoad : undefined}
         ref={(element) => {
           setRef(element)
           removePlaceholder(element, placeholder)
