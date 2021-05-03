@@ -29,8 +29,8 @@ module.exports = {
 
         if (isGoogleFont) {
           const params = new URLSearchParams(hrefValue.split('?')[1])
-          console.log(params)
           const displayValue = params.get('display')
+
           if (!params.has('display')) {
             message = 'Display parameter is missing.'
           } else if (
