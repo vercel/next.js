@@ -8,6 +8,8 @@ function CommentList({ comments, onDelete }) {
     <div className="space-y-6 mt-10">
       {comments.map((comment) => {
         const isAuthor = user && user.sub === comment.user.sub
+        const isAdmin =
+          user && user.email === process.env.NEXT_PUBLIC_AUTH0_ADMIN_EMAIL
 
         return (
           <div key={comment.created_at} className="flex space-x-4">
@@ -25,7 +27,7 @@ function CommentList({ comments, onDelete }) {
                 <time className="text-gray-400">
                   {distanceToNow(comment.created_at)}
                 </time>
-                {isAuthor && (
+                {(isAdmin || isAuthor) && (
                   <button
                     className="text-gray-400 hover:text-red-500"
                     onClick={() => onDelete(comment)}

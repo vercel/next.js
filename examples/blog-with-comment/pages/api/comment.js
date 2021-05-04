@@ -30,7 +30,11 @@ export default async (req, res) => {
       // get data
       const rawComments = await redis.lrange(url, 0, -1)
       // string data to object
-      const comments = rawComments.map((comment) => JSON.parse(comment))
+      const comments = rawComments.map((c) => {
+        const comment = JSON.parse(c)
+        delete comment.user.email
+        return comment
+      })
 
       return res.status(200).json(comments)
     } catch (_) {
@@ -53,14 +57,14 @@ export default async (req, res) => {
       const user = await fetchUser(authorization)
       if (!user) return errorResponse(res, Boom.unauthorized())
 
-      const { name, picture, sub } = user
+      const { name, picture, sub, email } = user
 
       const comment = {
         id: nanoid(),
         created_at: Date.now(),
         url,
         text,
-        user: { name, picture, sub }
+        user: { name, picture, sub, email }
       }
 
       // write data
@@ -86,10 +90,12 @@ export default async (req, res) => {
       // verify user token
       const user = await fetchUser(authorization)
       if (!user) return errorResponse(res, Boom.unauthorized())
+      comment.user.email = user.email
 
+      const isAdmin = process.env.NEXT_PUBLIC_AUTH0_ADMIN_EMAIL === user.email
       const isAuthor = user.sub === comment.user.sub
 
-      if (!isAuthor) {
+      if (!isAdmin && !isAuthor) {
         return errorResponse(res, Boom.unauthorized())
       }
 
