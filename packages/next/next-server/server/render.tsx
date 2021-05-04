@@ -15,7 +15,7 @@ import {
   UNSTABLE_REVALIDATE_RENAME_ERROR,
 } from '../../lib/constants'
 import { isSerializableProps } from '../../lib/is-serializable-props'
-import { GetServerSideProps, GetStaticProps } from '../../types'
+import { GetServerSideProps, GetStaticProps, PreviewData } from '../../types'
 import { isInAmpMode } from '../lib/amp'
 import { AmpStateContext } from '../lib/amp-context'
 import {
@@ -245,8 +245,8 @@ function renderDocument(
     ampPath: string
     inAmpMode: boolean
     hybridAmp: boolean
-    dynamicImportsIds: string[]
-    dynamicImports: ManifestItem[]
+    dynamicImportsIds: (string | number)[]
+    dynamicImports: string[]
     headTags: any
     isFallback?: boolean
     gsp?: boolean
@@ -483,6 +483,13 @@ export async function renderToHTML(
     throw new Error(SERVER_PROPS_SSG_CONFLICT + ` ${pathname}`)
   }
 
+  if (getStaticPaths && !pageIsDynamic) {
+    throw new Error(
+      `getStaticPaths is only allowed for dynamic SSG pages and was found on '${pathname}'.` +
+        `\nRead more: https://nextjs.org/docs/messages/non-dynamic-getstaticpaths-usage`
+    )
+  }
+
   if (!!getStaticPaths && !isSSG) {
     throw new Error(
       `getStaticPaths was added without a getStaticProps in ${pathname}. Without getStaticProps, getStaticPaths does nothing`
@@ -552,7 +559,7 @@ export async function renderToHTML(
   await Loadable.preloadAll() // Make sure all dynamic imports are loaded
 
   let isPreview
-  let previewData: string | false | object | undefined
+  let previewData: PreviewData
 
   if ((isSSG || getServerSideProps) && !isFallback) {
     // Reads of this are cached on the `req` object, so this should resolve
@@ -1016,21 +1023,20 @@ export async function renderToHTML(
     throw new Error(message)
   }
 
-  const dynamicImportIdsSet = new Set<string>()
-  const dynamicImports: ManifestItem[] = []
+  const dynamicImportsIds = new Set<string | number>()
+  const dynamicImports = new Set<string>()
 
   for (const mod of reactLoadableModules) {
-    const manifestItem: ManifestItem[] = reactLoadableManifest[mod]
+    const manifestItem: ManifestItem = reactLoadableManifest[mod]
 
     if (manifestItem) {
-      manifestItem.forEach((item) => {
-        dynamicImports.push(item)
-        dynamicImportIdsSet.add(item.id as string)
+      dynamicImportsIds.add(manifestItem.id)
+      manifestItem.files.forEach((item) => {
+        dynamicImports.add(item)
       })
     }
   }
 
-  const dynamicImportsIds = [...dynamicImportIdsSet]
   const hybridAmp = ampState.hybrid
 
   const docComponentsRendered: DocumentProps['docComponentsRendered'] = {}
@@ -1062,8 +1068,8 @@ export async function renderToHTML(
     query,
     inAmpMode,
     hybridAmp,
-    dynamicImportsIds,
-    dynamicImports,
+    dynamicImportsIds: Array.from(dynamicImportsIds),
+    dynamicImports: Array.from(dynamicImports),
     gsp: !!getStaticProps ? true : undefined,
     gssp: !!getServerSideProps ? true : undefined,
     gip: hasPageGetInitialProps ? true : undefined,

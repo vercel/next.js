@@ -41,7 +41,7 @@ export default ActiveLink
 
 The following is the definition of the `router` object returned by both [`useRouter`](#useRouter) and [`withRouter`](#withRouter):
 
-- `pathname`: `String` - Current route. That is the path of the page in `/pages`
+- `pathname`: `String` - Current route. That is the path of the page in `/pages`, the configured `basePath` or `locale` is not included.
 - `query`: `Object` - The query string parsed to an object. It will be an empty object during prerendering if the page doesn't have [data fetching requirements](/docs/basic-features/data-fetching.md). Defaults to `{}`
 - `asPath`: `String` - The path (including the query) shown in the browser without the configured `basePath` or `locale`.
 - `isFallback`: `boolean` - Whether the current page is in [fallback mode](/docs/basic-features/data-fetching.md#fallback-pages).
@@ -87,7 +87,11 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <span onClick={() => router.push('/about')}>Click me</span>
+  return (
+    <button type="button" onClick={() => router.push('/about')}>
+      Click me
+    </button>
+  )
 }
 ```
 
@@ -99,7 +103,11 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <button onClick={() => router.push('/post/abc')}>Click me</button>
+  return (
+    <button type="button" onClick={() => router.push('/post/abc')}>
+      Click me
+    </button>
+  )
 }
 ```
 
@@ -138,6 +146,7 @@ export default function ReadMore({ post }) {
 
   return (
     <button
+      type="button"
       onClick={() => {
         router.push({
           pathname: '/post/[pid]',
@@ -171,7 +180,11 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <button onClick={() => router.replace('/home')}>Click me</button>
+  return (
+    <button type="button" onClick={() => router.replace('/home')}>
+      Click me
+    </button>
+  )
 }
 ```
 
@@ -282,7 +295,11 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <button onClick={() => router.back()}>Click here to go back</button>
+  return (
+    <button type="button" onClick={() => router.back()}>
+      Click here to go back
+    </button>
+  )
 }
 ```
 
@@ -298,7 +315,11 @@ import { useRouter } from 'next/router'
 export default function Page() {
   const router = useRouter()
 
-  return <button onClick={() => router.reload()}>Click here to reload</button>
+  return (
+    <button type="button" onClick={() => router.reload()}>
+      Click here to reload
+    </button>
+  )
 }
 ```
 
@@ -405,7 +426,7 @@ function Page({ router }) {
 export default withRouter(Page)
 ```
 
-### Typescript
+### TypeScript
 
 To use class components with `withRouter`, the component needs to accept a router prop:
 

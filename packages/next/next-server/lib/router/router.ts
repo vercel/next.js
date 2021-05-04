@@ -1,4 +1,3 @@
-/* global __NEXT_DATA__ */
 // tslint:disable:no-console
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
@@ -113,10 +112,14 @@ export function addLocale(
   defaultLocale?: string
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
+    const pathname = pathNoQueryHash(path)
+    const pathLower = pathname.toLowerCase()
+    const localeLower = locale && locale.toLowerCase()
+
     return locale &&
       locale !== defaultLocale &&
-      !path.startsWith('/' + locale + '/') &&
-      path !== '/' + locale
+      !pathLower.startsWith('/' + localeLower + '/') &&
+      pathLower !== '/' + localeLower
       ? addPathPrefix(path, '/' + locale)
       : path
   }
@@ -126,8 +129,12 @@ export function addLocale(
 export function delLocale(path: string, locale?: string) {
   if (process.env.__NEXT_I18N_SUPPORT) {
     const pathname = pathNoQueryHash(path)
+    const pathLower = pathname.toLowerCase()
+    const localeLower = locale && locale.toLowerCase()
+
     return locale &&
-      (pathname.startsWith('/' + locale + '/') || pathname === '/' + locale)
+      (pathLower.startsWith('/' + localeLower + '/') ||
+        pathLower === '/' + localeLower)
       ? (pathname.length === locale.length + 1 ? '/' : '') +
           path.substr(locale.length + 1)
       : path
@@ -264,7 +271,14 @@ export function resolveHref(
   resolveAs?: boolean
 ): string {
   // we use a dummy base url for relative urls
-  const base = new URL(currentPath, 'http://n')
+  let base: URL
+
+  try {
+    base = new URL(currentPath, 'http://n')
+  } catch (_) {
+    // fallback to / for invalid asPath values e.g. //
+    base = new URL('/', 'http://n')
+  }
   const urlAsString =
     typeof href === 'string' ? href : formatWithValidation(href)
   // Return because it cannot be routed by the Next.js router
@@ -321,7 +335,7 @@ function stripOrigin(url: string) {
 function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
-  let [resolvedHref, resolvedAs] = resolveHref(router.pathname, url, true)
+  let [resolvedHref, resolvedAs] = resolveHref(router.asPath, url, true)
   const origin = getLocationOrigin()
   const hrefHadOrigin = resolvedHref.startsWith(origin)
   const asHadOrigin = resolvedAs && resolvedAs.startsWith(origin)
@@ -331,7 +345,7 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
 
   const preparedUrl = hrefHadOrigin ? resolvedHref : addBasePath(resolvedHref)
   const preparedAs = as
-    ? stripOrigin(resolveHref(router.pathname, as))
+    ? stripOrigin(resolveHref(router.asPath, as))
     : resolvedAs || resolvedHref
 
   return {
@@ -546,7 +560,7 @@ export default class Router implements BaseRouter {
       pageLoader: any
       Component: ComponentType
       App: AppComponent
-      wrapApp: (App: AppComponent) => any
+      wrapApp: (WrapAppComponent: AppComponent) => any
       err?: Error
       isFallback: boolean
       locale?: string
@@ -608,7 +622,9 @@ export default class Router implements BaseRouter {
     this.isReady = !!(
       self.__NEXT_DATA__.gssp ||
       self.__NEXT_DATA__.gip ||
-      (!autoExportDynamic && !self.location.search)
+      (!autoExportDynamic &&
+        !self.location.search &&
+        !process.env.__NEXT_HAS_REWRITES)
     )
     this.isPreview = !!isPreview
     this.isLocaleDomain = false

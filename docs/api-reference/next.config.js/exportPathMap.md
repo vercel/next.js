@@ -40,6 +40,8 @@ module.exports = {
 }
 ```
 
+Note: the `query` field in `exportPathMap` can not be used with [automatically statically optimized pages](/docs/advanced-features/automatic-static-optimization) or [`getStaticProps` pages](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) as they are rendered to HTML files at build-time and additional query information can not be provided during `next export`.
+
 The pages will then be exported as HTML files, for example, `/about` will become `/about.html`.
 
 `exportPathMap` is an `async` function that receives 2 arguments: the first one is `defaultPathMap`, which is the default map used by Next.js. The second argument is an object with:

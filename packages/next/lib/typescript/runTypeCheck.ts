@@ -3,12 +3,16 @@ import {
   getFormattedDiagnostic,
 } from './diagnosticFormatter'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
-import { TypeScriptCompileError } from './TypeScriptCompileError'
 import { getRequiredConfiguration } from './writeConfigurationDefaults'
+
+import { CompileError } from '../compile-error'
 
 export interface TypeCheckResult {
   hasWarnings: boolean
   warnings?: string[]
+  inputFilesCount: number
+  totalFilesCount: number
+  incremental: boolean
 }
 
 export async function runTypeCheck(
@@ -22,7 +26,12 @@ export async function runTypeCheck(
   )
 
   if (effectiveConfiguration.fileNames.length < 1) {
-    return { hasWarnings: false }
+    return {
+      hasWarnings: false,
+      inputFilesCount: 0,
+      totalFilesCount: 0,
+      incremental: false,
+    }
   }
   const requiredConfig = getRequiredConfiguration(ts)
 
@@ -55,7 +64,7 @@ export async function runTypeCheck(
     ) ?? allDiagnostics.find((d) => d.category === DiagnosticCategory.Error)
 
   if (firstError) {
-    throw new TypeScriptCompileError(
+    throw new CompileError(
       await getFormattedDiagnostic(ts, baseDir, firstError)
     )
   }
@@ -65,5 +74,11 @@ export async function runTypeCheck(
       .filter((d) => d.category === DiagnosticCategory.Warning)
       .map((d) => getFormattedDiagnostic(ts, baseDir, d))
   )
-  return { hasWarnings: true, warnings }
+  return {
+    hasWarnings: true,
+    warnings,
+    inputFilesCount: effectiveConfiguration.fileNames.length,
+    totalFilesCount: program.getSourceFiles().length,
+    incremental: false,
+  }
 }
