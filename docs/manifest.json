@@ -26,6 +26,10 @@
               "path": "/docs/basic-features/image-optimization.md"
             },
             {
+              "title": "Font Optimization",
+              "path": "/docs/basic-features/font-optimization.md"
+            },
+            {
               "title": "Static File Serving",
               "path": "/docs/basic-features/static-file-serving.md"
             },
