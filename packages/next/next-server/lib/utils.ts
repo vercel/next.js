@@ -53,11 +53,21 @@ export type AppTreeType = ComponentType<
  */
 export type NextWebVitalsMetric = {
   id: string
-  label: string
-  name: string
   startTime: number
   value: number
-}
+} & (
+  | {
+      label: 'web-vital'
+      name: 'FCP' | 'LCP' | 'CLS' | 'FID' | 'TTFB'
+    }
+  | {
+      label: 'custom'
+      name:
+        | 'Next.js-hydration'
+        | 'Next.js-route-change-to-render'
+        | 'Next.js-render'
+    }
+)
 
 export type Enhancer<C> = (Component: C) => C
 
