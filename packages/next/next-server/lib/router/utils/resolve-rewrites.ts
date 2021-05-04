@@ -19,7 +19,8 @@ export default function resolveRewrites(
   },
   query: ParsedUrlQuery,
   resolveHref: (path: string) => string,
-  locales?: string[]
+  locales?: string[],
+  headers?: Record<string, string>
 ): {
   matchedPage: boolean
   parsedAs: ReturnType<typeof parseRelativeUrl>
@@ -41,6 +42,7 @@ export default function resolveRewrites(
       const hasParams = matchHas(
         {
           headers: {
+            ...(headers || {}),
             host: document.location.hostname,
           },
           cookies: Object.fromEntries(

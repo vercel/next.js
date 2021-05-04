@@ -105,6 +105,7 @@ export type NEXT_DATA = {
   domainLocales?: DomainLocales
   scriptLoader?: any[]
   isPreview?: boolean
+  headers?: Record<string, string>
 }
 
 /**

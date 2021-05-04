@@ -62,6 +62,7 @@ export default class Router {
   dynamicRoutes: DynamicRoutes
   useFileSystemPublicRoutes: boolean
   locales: string[]
+  clientHeaders: string[]
 
   constructor({
     basePath = '',
@@ -78,6 +79,7 @@ export default class Router {
     pageChecker,
     useFileSystemPublicRoutes,
     locales = [],
+    clientHeaders = [],
   }: {
     basePath: string
     headers: Route[]
@@ -93,6 +95,7 @@ export default class Router {
     pageChecker: PageChecker
     useFileSystemPublicRoutes: boolean
     locales: string[]
+    clientHeaders: string[]
   }) {
     this.basePath = basePath
     this.headers = headers
@@ -104,6 +107,7 @@ export default class Router {
     this.dynamicRoutes = dynamicRoutes
     this.useFileSystemPublicRoutes = useFileSystemPublicRoutes
     this.locales = locales
+    this.clientHeaders = clientHeaders
   }
 
   setDynamicRoutes(routes: DynamicRoutes = []) {

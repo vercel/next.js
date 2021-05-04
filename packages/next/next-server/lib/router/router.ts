@@ -502,6 +502,7 @@ export default class Router implements BaseRouter {
   route: string
   pathname: string
   query: ParsedUrlQuery
+  headers?: Record<string, string>
   asPath: string
   basePath: string
 
@@ -554,6 +555,7 @@ export default class Router implements BaseRouter {
       defaultLocale,
       domainLocales,
       isPreview,
+      headers,
     }: {
       subscription: Subscription
       initialProps: any
@@ -568,6 +570,7 @@ export default class Router implements BaseRouter {
       defaultLocale?: string
       domainLocales?: DomainLocales
       isPreview?: boolean
+      headers?: Record<string, string>
     }
   ) {
     // represents the current component key
@@ -603,6 +606,7 @@ export default class Router implements BaseRouter {
     this.pageLoader = pageLoader
     this.pathname = pathname
     this.query = query
+    this.headers = headers
     // if auto prerendered and dynamic route wait to update asPath
     // until after mount to prevent hydration mismatch
     const autoExportDynamic =

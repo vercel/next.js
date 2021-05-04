@@ -74,6 +74,7 @@ const {
   locales,
   domainLocales,
   isPreview,
+  headers,
 } = data
 
 let { defaultLocale } = data
@@ -397,6 +398,7 @@ export default async (opts: { webpackHMR?: any } = {}) => {
     defaultLocale,
     domainLocales,
     isPreview,
+    headers,
   })
 
   const renderCtx: RenderRouteInfo = {

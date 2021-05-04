@@ -190,6 +190,7 @@ export type RenderOptsPartial = {
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocales
+  headers?: Record<string, string>
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -234,6 +235,7 @@ function renderDocument(
     defaultLocale,
     domainLocales,
     isPreview,
+    headers,
   }: RenderOpts & {
     props: any
     docComponentsRendered: DocumentProps['docComponentsRendered']
@@ -258,6 +260,7 @@ function renderDocument(
     scriptLoader: any
     isPreview?: boolean
     autoExport?: boolean
+    headers?: Record<string, string>
   }
 ): string {
   return (
@@ -288,6 +291,7 @@ function renderDocument(
             defaultLocale,
             domainLocales,
             isPreview,
+            headers,
           },
           buildManifest,
           docComponentsRendered,
@@ -1079,6 +1083,7 @@ export async function renderToHTML(
     isPreview: isPreview === true ? true : undefined,
     autoExport: isAutoExport === true ? true : undefined,
     nextExport: nextExport === true ? true : undefined,
+    headers: renderOpts.headers,
   })
 
   if (process.env.NODE_ENV !== 'production') {

@@ -636,6 +636,7 @@ export default class Server {
     useFileSystemPublicRoutes: boolean
     dynamicRoutes: DynamicRoutes | undefined
     locales: string[]
+    clientHeaders: string[]
   } {
     const server: Server = this
     const publicRoutes = fs.existsSync(this.publicDir)
@@ -1039,14 +1040,17 @@ export default class Server {
       this.dynamicRoutes = this.getDynamicRoutes()
     }
 
+    const rewrites = {
+      beforeFiles,
+      afterFiles,
+      fallback,
+    }
+    const clientHeaders = this.getClientHeaders(rewrites, redirects)
+
     return {
       headers,
       fsRoutes,
-      rewrites: {
-        beforeFiles,
-        afterFiles,
-        fallback,
-      },
+      rewrites,
       redirects,
       catchAllRoute,
       useFileSystemPublicRoutes,
@@ -1054,7 +1058,51 @@ export default class Server {
       basePath: this.nextConfig.basePath,
       pageChecker: this.hasPage.bind(this),
       locales: this.nextConfig.i18n?.locales || [],
+      clientHeaders,
     }
+  }
+
+  protected getClientHeaders(
+    rewrites: Router['rewrites'],
+    redirects: Route[]
+  ): string[] {
+    const BLOCK_HEADERS = ['authorization', 'host']
+
+    const routes: Route[] = [
+      ...Object.values(rewrites).reduce((acc, rewritesRoutes) => {
+        return [...acc, ...rewritesRoutes]
+      }, []),
+      ...redirects,
+    ]
+
+    const clientHeaders = routes.reduce((acc, routeWithHas) => {
+      if (!routeWithHas.has) {
+        return acc
+      }
+
+      const headerRules = routeWithHas.has.filter((hasRule) => {
+        return hasRule.type === 'header'
+      })
+
+      if (headerRules.length === 0) {
+        return acc
+      }
+
+      const headerKeys: string[] = headerRules.reduce(
+        (perRuleAcc, headerRule) => {
+          if (!headerRule.key || BLOCK_HEADERS.indexOf(headerRule.key) >= 0) {
+            return perRuleAcc
+          }
+
+          return [...perRuleAcc, headerRule.key.toLowerCase()]
+        },
+        [] as string[]
+      )
+
+      return [...acc, ...headerKeys]
+    }, [] as string[])
+
+    return clientHeaders
   }
 
   private async getPagePath(
@@ -1687,6 +1735,15 @@ export default class Server {
             query: origQuery,
           })
 
+          const headers = this.router.clientHeaders.reduce(
+            (acc, clientHeader) => {
+              const headerValue = req.headers[clientHeader]
+
+              return { ...acc, [clientHeader]: headerValue as string }
+            },
+            {} as Record<string, string>
+          )
+
           const renderOpts: RenderOpts = {
             ...components,
             ...opts,
@@ -1707,6 +1764,7 @@ export default class Server {
                     query: origQuery,
                   })
                 : resolvedUrl,
+            headers,
           }
 
           renderResult = await renderToHTML(
