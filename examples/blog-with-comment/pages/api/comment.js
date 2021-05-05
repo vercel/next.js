@@ -1,6 +1,4 @@
 import { nanoid } from 'nanoid'
-import Boom from '@hapi/boom'
-import errorResponse from '../../lib/errorResponse'
 import redis from '../../lib/redis'
 
 async function fetchUser(token) {
@@ -23,7 +21,7 @@ export default async (req, res) => {
     const { url } = req.query
 
     if (!url) {
-      return errorResponse(res, Boom.badRequest())
+      return res.status(400).json({ message: 'Missing parameter.' })
     }
 
     try {
@@ -38,7 +36,7 @@ export default async (req, res) => {
 
       return res.status(200).json(comments)
     } catch (_) {
-      return errorResponse(res, Boom.expectationFailed())
+      return res.status(400).json({ message: 'Unexpected error occurred.' })
     }
   }
 
@@ -49,13 +47,13 @@ export default async (req, res) => {
     const { authorization } = req.headers
 
     if (!url || !text || !authorization) {
-      return errorResponse(res, Boom.badRequest())
+      return res.status(400).json({ message: 'Missing parameter.' })
     }
 
     try {
       // verify user token
       const user = await fetchUser(authorization)
-      if (!user) return errorResponse(res, Boom.unauthorized())
+      if (!user) return res.status(400).json({ message: 'Need authorization.' })
 
       const { name, picture, sub, email } = user
 
@@ -72,7 +70,7 @@ export default async (req, res) => {
 
       return res.status(200).json(comment)
     } catch (_) {
-      return errorResponse(res, Boom.expectationFailed())
+      return res.status(400).json({ message: 'Unexpected error occurred.' })
     }
   }
 
@@ -83,20 +81,20 @@ export default async (req, res) => {
     const { authorization } = req.headers
 
     if (!url || !comment || !authorization) {
-      return errorResponse(res, Boom.badRequest())
+      return res.status(400).json({ message: 'Missing parameter.' })
     }
 
     try {
       // verify user token
       const user = await fetchUser(authorization)
-      if (!user) return errorResponse(res, Boom.unauthorized())
+      if (!user) return res.status(400).json({ message: 'Invalid token.' })
       comment.user.email = user.email
 
       const isAdmin = process.env.NEXT_PUBLIC_AUTH0_ADMIN_EMAIL === user.email
       const isAuthor = user.sub === comment.user.sub
 
       if (!isAdmin && !isAuthor) {
-        return errorResponse(res, Boom.unauthorized())
+        return res.status(400).json({ message: 'Need authorization.' })
       }
 
       await redis.lrem(url, 0, JSON.stringify(comment))
@@ -107,5 +105,5 @@ export default async (req, res) => {
     }
   }
 
-  return errorResponse(res, Boom.methodNotAllowed())
+  return res.status(400).json({ message: 'Invalid method.' })
 }

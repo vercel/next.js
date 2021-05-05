@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@auth0/auth0-react": "^1.4.0",
-    "@hapi/boom": "^9.1.2",
     "@tailwindcss/typography": "^0.4.0",
     "date-fns": "^2.19.0",
     "ioredis": "^4.27.1",
