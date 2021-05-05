@@ -3,27 +3,30 @@ import { useForm } from 'react-hook-form'
 
 const IndexPage = () => {
   const [user, setUser] = useState()
-  const { register, errors, handleSubmit } = useForm()
-  const login = handleSubmit(({ username, password, remember }) => {
+  const {
+    register,
+    formState: { errors },
+    handleSubmit,
+  } = useForm()
+  const onSubmit = ({ username, password, remember }) => {
     // You should handle login logic with username, password and remember form data
     setUser({ name: username })
-  })
+  }
 
   return (
     <div className="container">
       {user ? (
         <span className="hello-user">Hello, {user.name}!</span>
       ) : (
-        <form onSubmit={login}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <div className="row">
             <h3 className="form-header">LOGIN</h3>
           </div>
           <div className="row">
             <input
               type="text"
-              name="username"
               placeholder="user name"
-              ref={register({
+              {...register('username', {
                 required: { value: true, message: 'User name is required' },
                 minLength: {
                   value: 3,
@@ -39,9 +42,8 @@ const IndexPage = () => {
           <div className="row">
             <input
               type="password"
-              name="password"
               placeholder="password"
-              ref={register({
+              {...register('password', {
                 required: {
                   value: true,
                   message: 'Please enter your password',
@@ -54,12 +56,7 @@ const IndexPage = () => {
             )}
           </div>
           <div className="row row-remember">
-            <input
-              type="checkbox"
-              name="remember"
-              id="remember"
-              ref={register}
-            />
+            <input type="checkbox" id="remember" {...register('remember')} />
             <label htmlFor="remember" className="remember-label">
               Remember me
             </label>
