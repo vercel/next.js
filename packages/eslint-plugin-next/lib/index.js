@@ -4,6 +4,8 @@ module.exports = {
     'no-sync-scripts': require('./rules/no-sync-scripts'),
     'no-html-link-for-pages': require('./rules/no-html-link-for-pages'),
     'no-unwanted-polyfillio': require('./rules/no-unwanted-polyfillio'),
+    'no-document-import-in-page': require('./rules/no-document-import-in-page'),
+    'no-head-import-in-document': require('./rules/no-head-import-in-document'),
   },
   configs: {
     recommended: {
@@ -13,6 +15,8 @@ module.exports = {
         '@next/next/no-sync-scripts': 1,
         '@next/next/no-html-link-for-pages': 1,
         '@next/next/no-unwanted-polyfillio': 1,
+        '@next/next/no-document-import-in-page': 2,
+        '@next/next/no-head-import-in-document': 2,
       },
     },
   },
