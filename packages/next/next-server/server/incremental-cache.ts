@@ -85,13 +85,15 @@ export class IncrementalCache {
     return path.join(this.incrementalOptions.pagesDir!, `${pathname}.${ext}`)
   }
 
-  private calculateRevalidate(pathname: string): number | false {
+  private calculateRevalidate(
+    pathname: string,
+    fromTime: number
+  ): number | false {
     pathname = toRoute(pathname)
 
     // in development we don't have a prerender-manifest
     // and default to always revalidating to allow easier debugging
-    const curTime = new Date().getTime()
-    if (this.incrementalOptions.dev) return curTime - 1000
+    if (this.incrementalOptions.dev) return new Date().getTime() - 1000
 
     const { initialRevalidateSeconds } = this.prerenderManifest.routes[
       pathname
@@ -100,7 +102,7 @@ export class IncrementalCache {
     }
     const revalidateAfter =
       typeof initialRevalidateSeconds === 'number'
-        ? initialRevalidateSeconds * 1000 + curTime
+        ? initialRevalidateSeconds * 1000 + fromTime
         : initialRevalidateSeconds
 
     return revalidateAfter
@@ -125,10 +127,9 @@ export class IncrementalCache {
       }
 
       try {
-        const html = await promises.readFile(
-          this.getSeedPath(pathname, 'html'),
-          'utf8'
-        )
+        const htmlPath = this.getSeedPath(pathname, 'html')
+        const html = await promises.readFile(htmlPath, 'utf8')
+        const { mtime } = await promises.stat(htmlPath)
         const pageData = JSON.parse(
           await promises.readFile(this.getSeedPath(pathname, 'json'), 'utf8')
         )
@@ -136,7 +137,7 @@ export class IncrementalCache {
         data = {
           html,
           pageData,
-          revalidateAfter: this.calculateRevalidate(pathname),
+          revalidateAfter: this.calculateRevalidate(pathname, mtime.getTime()),
         }
         this.cache.set(pathname, data)
       } catch (_) {
@@ -189,7 +190,7 @@ export class IncrementalCache {
     pathname = normalizePagePath(pathname)
     this.cache.set(pathname, {
       ...data,
-      revalidateAfter: this.calculateRevalidate(pathname),
+      revalidateAfter: this.calculateRevalidate(pathname, new Date().getTime()),
     })
 
     // TODO: This option needs to cease to exist unless it stops mutating the
