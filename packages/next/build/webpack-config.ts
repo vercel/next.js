@@ -498,7 +498,13 @@ export default async function getBaseWebpackConfig(
       },
     },
     prodGranular: {
-      chunks: 'all',
+      // Keep main and _app chunks unsplitted in webpack 5
+      // as we don't need a separate vendor chunk from that
+      // and all other chunk depend on them so there is no
+      // duplication that need to be pulled out.
+      chunks: isWebpack5
+        ? (chunk) => !/^(main|pages\/_app)$/.test(chunk.name)
+        : 'all',
       cacheGroups: {
         framework: {
           chunks: 'all',
@@ -861,6 +867,7 @@ export default async function getBaseWebpackConfig(
       setImmediate: false,
     },
     // Kept as function to be backwards compatible
+    // @ts-ignore TODO webpack 5 typings needed
     entry: async () => {
       return {
         ...(clientEntries ? clientEntries : {}),
@@ -1094,6 +1101,7 @@ export default async function getBaseWebpackConfig(
                 domains: config.images.domains,
               }
             : {}),
+          enableBlurryPlaceholder: config.experimental.enableBlurryPlaceholder,
         }),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
@@ -1611,15 +1619,22 @@ export default async function getBaseWebpackConfig(
   }
 
   // Backwards compat for `main.js` entry key
+  // and setup of dependencies between entries
+  // we can't do that in the initial entry for
+  // backward-compat reasons
   const originalEntry: any = webpackConfig.entry
   if (typeof originalEntry !== 'undefined') {
-    webpackConfig.entry = async () => {
+    const updatedEntry = async () => {
       const entry: WebpackEntrypoints =
         typeof originalEntry === 'function'
           ? await originalEntry()
           : originalEntry
       // Server compilation doesn't have main.js
-      if (clientEntries && entry['main.js'] && entry['main.js'].length > 0) {
+      if (
+        clientEntries &&
+        Array.isArray(entry['main.js']) &&
+        entry['main.js'].length > 0
+      ) {
         const originalFile = clientEntries[
           CLIENT_STATIC_FILES_RUNTIME_MAIN
         ] as string
@@ -1630,8 +1645,33 @@ export default async function getBaseWebpackConfig(
       }
       delete entry['main.js']
 
+      if (isWebpack5 && !isServer) {
+        for (const name of Object.keys(entry)) {
+          if (name === 'main' || name === 'amp' || name === 'react-refresh')
+            continue
+          const dependOn =
+            name.startsWith('pages/') && name !== 'pages/_app'
+              ? 'pages/_app'
+              : 'main'
+          const old = entry[name]
+          if (typeof old === 'object' && !Array.isArray(old)) {
+            entry[name] = {
+              dependOn,
+              ...old,
+            }
+          } else {
+            entry[name] = {
+              import: old,
+              dependOn,
+            }
+          }
+        }
+      }
+
       return entry
     }
+    // @ts-ignore webpack 5 typings needed
+    webpackConfig.entry = updatedEntry
   }
 
   if (!dev) {

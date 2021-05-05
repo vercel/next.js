@@ -6,10 +6,6 @@ import {
   PERMANENT_REDIRECT_STATUS,
   TEMPORARY_REDIRECT_STATUS,
 } from '../next-server/lib/constants'
-// @ts-ignore
-import Lexer from 'next/dist/compiled/regexr-lexer/lexer'
-// @ts-ignore
-import lexerProfiles from 'next/dist/compiled/regexr-lexer/profiles'
 
 export type RouteHas =
   | {
@@ -52,6 +48,7 @@ export type Redirect = {
 
 export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
 const allowedHasTypes = new Set(['header', 'cookie', 'query', 'host'])
+const namedGroupsRegex = /\(\?<([a-zA-Z][a-zA-Z0-9]*)>/g
 
 export function getRedirectStatus(route: {
   statusCode?: number
@@ -330,14 +327,11 @@ function checkCustomRoutes(
         }
 
         if (hasItem.value) {
-          const matcher = new RegExp(`^${hasItem.value}$`)
-          const lexer = new Lexer()
-          lexer.profile = lexerProfiles.js
-          lexer.parse(`/${matcher.source}/`)
-
-          Object.keys(lexer.namedGroups).forEach((groupKey) => {
-            hasSegments.add(groupKey)
-          })
+          for (const match of hasItem.value.matchAll(namedGroupsRegex)) {
+            if (match[1]) {
+              hasSegments.add(match[1])
+            }
+          }
 
           if (hasItem.type === 'host') {
             hasSegments.add('host')

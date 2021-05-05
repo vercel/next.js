@@ -59,7 +59,9 @@ export type NextConfig = { [key: string]: any } & {
       skipValidation?: boolean
     }
     turboMode: boolean
+    eslint?: boolean
     reactRoot: boolean
+    enableBlurryPlaceholder: boolean
   }
 }
 
@@ -114,7 +116,9 @@ export const defaultConfig: NextConfig = {
     externalDir: false,
     serialWebpackBuild: false,
     turboMode: false,
+    eslint: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
+    enableBlurryPlaceholder: false,
   },
   future: {
     strictPostcssConfiguration: false,
