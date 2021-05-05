@@ -6,12 +6,6 @@ import {
   PERMANENT_REDIRECT_STATUS,
   TEMPORARY_REDIRECT_STATUS,
 } from '../next-server/lib/constants'
-import { execOnce } from '../next-server/lib/utils'
-import * as Log from '../build/output/log'
-// @ts-ignore
-import Lexer from 'next/dist/compiled/regexr-lexer/lexer'
-// @ts-ignore
-import lexerProfiles from 'next/dist/compiled/regexr-lexer/profiles'
 
 export type RouteHas =
   | {
@@ -54,6 +48,7 @@ export type Redirect = {
 
 export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
 const allowedHasTypes = new Set(['header', 'cookie', 'query', 'host'])
+const namedGroupsRegex = /\(\?<([a-zA-Z][a-zA-Z0-9]*)>/g
 
 export function getRedirectStatus(route: {
   statusCode?: number
@@ -163,12 +158,6 @@ function tryParsePath(route: string, handleUrl?: boolean): ParseAttemptResult {
 
 export type RouteType = 'rewrite' | 'redirect' | 'header'
 
-const experimentalHasWarn = execOnce(() => {
-  Log.warn(
-    `'has' route field support is still experimental and not covered by semver, use at your own risk.`
-  )
-})
-
 function checkCustomRoutes(
   routes: Redirect[] | Header[] | Rewrite[],
   type: RouteType
@@ -245,7 +234,6 @@ function checkCustomRoutes(
       invalidParts.push('`has` must be undefined or valid has object')
       hadInvalidHas = true
     } else if (route.has) {
-      experimentalHasWarn()
       const invalidHasItems = []
 
       for (const hasItem of route.has) {
@@ -339,14 +327,11 @@ function checkCustomRoutes(
         }
 
         if (hasItem.value) {
-          const matcher = new RegExp(`^${hasItem.value}$`)
-          const lexer = new Lexer()
-          lexer.profile = lexerProfiles.js
-          lexer.parse(`/${matcher.source}/`)
-
-          Object.keys(lexer.namedGroups).forEach((groupKey) => {
-            hasSegments.add(groupKey)
-          })
+          for (const match of hasItem.value.matchAll(namedGroupsRegex)) {
+            if (match[1]) {
+              hasSegments.add(match[1])
+            }
+          }
 
           if (hasItem.type === 'host') {
             hasSegments.add('host')
