@@ -16,7 +16,9 @@ function CommentList({ comments, onDelete }) {
             <div className="flex-shrink-0">
               <img
                 src={comment.user.picture}
+                alt={comment.user.name}
                 width={40}
+                height={40}
                 className="rounded-full"
               />
             </div>
