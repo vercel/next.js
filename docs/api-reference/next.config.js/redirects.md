@@ -13,6 +13,15 @@ description: Add redirects to your Next.js app.
   </ul>
 </details>
 
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes      |
+| --------- | ------------ |
+| `v10.1.0` | `has` added. |
+
+</details>
+
 Redirects allow you to redirect an incoming request path to a different destination path.
 
 Redirects are only available on the Node.js environment and do not affect client-side routing.
