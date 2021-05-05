@@ -40,6 +40,10 @@ describe('Build Output', () => {
     it('should not deviate from snapshot', async () => {
       console.log(stdout)
 
+      if (process.env.NEXT_PRIVATE_SKIP_SIZE_TESTS) {
+        return
+      }
+
       const parsePageSize = (page) =>
         stdout.match(
           new RegExp(` ${page} .*?((?:\\d|\\.){1,} (?:\\w{1,})) `)
@@ -90,38 +94,38 @@ describe('Build Output', () => {
         expect(parseFloat(size)).toBeGreaterThan(0)
       }
 
-      // should be no bigger than 265 bytes
-      expect(parseFloat(indexSize) - 265).toBeLessThanOrEqual(0)
+      // should be no bigger than 291 bytes
+      expect(parseFloat(indexSize) - 291).toBeLessThanOrEqual(0)
       expect(indexSize.endsWith('B')).toBe(true)
 
-      // should be no bigger than 60.8 kb
-      expect(parseFloat(indexFirstLoad) - 61.2).toBeLessThanOrEqual(0)
+      // should be no bigger than 64.8 kb
+      expect(parseFloat(indexFirstLoad)).toBeCloseTo(63.5, 1)
       expect(indexFirstLoad.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(err404Size) - 3.5).toBeLessThanOrEqual(0)
+      expect(parseFloat(err404Size)).toBeCloseTo(3.04, 1)
       expect(err404Size.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(err404FirstLoad) - 64.4).toBeLessThanOrEqual(0)
+      expect(parseFloat(err404FirstLoad)).toBeCloseTo(66.3, 0)
       expect(err404FirstLoad.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(sharedByAll) - 61).toBeLessThanOrEqual(0)
+      expect(parseFloat(sharedByAll)).toBeCloseTo(63.3, 1)
       expect(sharedByAll.endsWith('kB')).toBe(true)
 
       if (_appSize.endsWith('kB')) {
-        expect(parseFloat(_appSize)).toBe(1)
+        expect(parseFloat(_appSize)).toBeLessThanOrEqual(1.02)
         expect(_appSize.endsWith('kB')).toBe(true)
       } else {
         expect(parseFloat(_appSize) - 1000).toBeLessThanOrEqual(0)
         expect(_appSize.endsWith(' B')).toBe(true)
       }
 
-      expect(parseFloat(webpackSize) - 752).toBeLessThanOrEqual(0)
+      expect(parseFloat(webpackSize) - 952).toBeLessThanOrEqual(0)
       expect(webpackSize.endsWith(' B')).toBe(true)
 
-      expect(parseFloat(mainSize) - 7.44).toBeLessThanOrEqual(0)
+      expect(parseFloat(mainSize) - 19.3).toBeLessThanOrEqual(0)
       expect(mainSize.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(frameworkSize) - 41).toBeLessThanOrEqual(0)
+      expect(parseFloat(frameworkSize) - 42.1).toBeLessThanOrEqual(0)
       expect(frameworkSize.endsWith('kB')).toBe(true)
     })
 
@@ -131,46 +135,6 @@ describe('Build Output', () => {
         /\.txt|\.LICENSE\./
       )
       expect(files).toEqual([])
-    })
-  })
-
-  describe('Crypto Application', () => {
-    let stdout
-    const appDir = join(fixturesDir, 'with-crypto')
-
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-
-    it('should not include crypto', async () => {
-      ;({ stdout } = await nextBuild(appDir, [], {
-        stdout: true,
-      }))
-
-      console.log(stdout)
-
-      const parsePageSize = (page) =>
-        stdout.match(
-          new RegExp(` ${page} .*?((?:\\d|\\.){1,} (?:\\w{1,})) `)
-        )[1]
-
-      const parsePageFirstLoad = (page) =>
-        stdout.match(
-          new RegExp(
-            ` ${page} .*?(?:(?:\\d|\\.){1,}) .*? ((?:\\d|\\.){1,} (?:\\w{1,}))`
-          )
-        )[1]
-
-      const indexSize = parsePageSize('/')
-      const indexFirstLoad = parsePageFirstLoad('/')
-
-      expect(parseFloat(indexSize)).toBeLessThanOrEqual(3)
-      expect(parseFloat(indexSize)).toBeGreaterThanOrEqual(2)
-      expect(indexSize.endsWith('kB')).toBe(true)
-
-      expect(parseFloat(indexFirstLoad)).toBeLessThanOrEqual(65)
-      expect(parseFloat(indexFirstLoad)).toBeGreaterThanOrEqual(60)
-      expect(indexFirstLoad.endsWith('kB')).toBe(true)
     })
   })
 

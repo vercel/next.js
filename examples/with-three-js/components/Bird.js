@@ -25,14 +25,14 @@ const Bird = ({ speed, factor, url, ...props }) => {
       <scene name="Scene" {...props}>
         <mesh
           name="Object_0"
-          morphTargetDictionary={gltf.__$[1].morphTargetDictionary}
-          morphTargetInfluences={gltf.__$[1].morphTargetInfluences}
+          morphTargetDictionary={gltf.nodes.Object_0.morphTargetDictionary}
+          morphTargetInfluences={gltf.nodes.Object_0.morphTargetInfluences}
           rotation={[1.5707964611537577, 0, 0]}
         >
-          <bufferGeometry attach="geometry" {...gltf.__$[1].geometry} />
+          <bufferGeometry attach="geometry" {...gltf.nodes.Object_0.geometry} />
           <meshStandardMaterial
             attach="material"
-            {...gltf.__$[1].material}
+            {...gltf.nodes.Object_0.material}
             name="Material_0_COLOR_0"
           />
         </mesh>

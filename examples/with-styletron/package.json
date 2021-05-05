@@ -8,10 +8,10 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^16.8.0",
-    "react-dom": "^16.8.0",
-    "styletron-engine-atomic": "^1.1.2",
-    "styletron-react": "^5.0.1"
+    "react": "17.0.1",
+    "react-dom": "17.0.1",
+    "styletron-engine-atomic": "1.4.6",
+    "styletron-react": "5.2.7"
   },
   "license": "MIT"
 }

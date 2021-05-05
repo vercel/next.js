@@ -46,6 +46,11 @@ describe('TypeScript Features', () => {
       expect($('body').text()).toMatch(/1000000000000/)
     })
 
+    it('should render the cookies page', async () => {
+      const $ = await get$('/ssr/cookies')
+      expect($('#cookies').text()).toBe('{}')
+    })
+
     it('should resolve files in correct order', async () => {
       const $ = await get$('/hello')
       expect($('#imported-value').text()).toBe('OK')

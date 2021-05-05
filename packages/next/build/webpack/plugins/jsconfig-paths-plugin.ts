@@ -4,7 +4,7 @@
  * https://github.com/microsoft/TypeScript/blob/214df64e287804577afa1fea0184c18c40f7d1ca/LICENSE.txt
  */
 import path from 'path'
-import { ResolvePlugin } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { debug } from 'next/dist/compiled/debug'
 
 const log = debug('next:jsconfig-paths-plugin')
@@ -136,7 +136,7 @@ type Paths = { [match: string]: string[] }
  * Largely based on how the TypeScript compiler handles it:
  * https://github.com/microsoft/TypeScript/blob/1a9c8197fffe3dace5f8dca6633d450a88cba66d/src/compiler/moduleNameResolver.ts#L1362
  */
-export class JsConfigPathsPlugin implements ResolvePlugin {
+export class JsConfigPathsPlugin implements webpack.ResolvePlugin {
   paths: Paths
   resolvedBaseUrl: string
   constructor(paths: Paths, resolvedBaseUrl: string) {

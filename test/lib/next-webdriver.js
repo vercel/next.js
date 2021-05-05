@@ -7,6 +7,7 @@ import { Builder, By } from 'selenium-webdriver'
 import { Options as ChromeOptions } from 'selenium-webdriver/chrome'
 import { Options as SafariOptions } from 'selenium-webdriver/safari'
 import { Options as FireFoxOptions } from 'selenium-webdriver/firefox'
+import { waitFor } from './next-test-utils'
 
 const {
   BROWSER_NAME: browserName = 'chrome',
@@ -210,8 +211,10 @@ export default async (
     } catch (err) {
       if (allowHydrationRetry) {
         // re-try in case the page reloaded during check
+        await waitFor(2000)
         await checkHydrated()
       } else {
+        console.error('failed to check hydration')
         throw err
       }
     }

@@ -1,6 +1,7 @@
 import spawn from 'cross-spawn'
 import express from 'express'
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
+import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import http from 'http'
 // `next` here is the symlink in `test/node_modules/next` which points to the root directory.
@@ -15,6 +16,12 @@ import treeKill from 'tree-kill'
 
 export const nextServer = server
 export const pkg = _pkg
+
+// polyfill Object.fromEntries for the test/integration/relay-analytics tests
+// on node 10, this can be removed after we no longer support node 10
+if (!Object.fromEntries) {
+  Object.fromEntries = require('core-js/features/object/from-entries')
+}
 
 export function initNextServerScript(
   scriptPath,
@@ -114,6 +121,10 @@ export function runNextCommand(argv, options = {}) {
     if (options.stderr) {
       instance.stderr.on('data', function (chunk) {
         stderrOutput += chunk
+
+        if (options.stderr === 'log') {
+          console.log(chunk.toString())
+        }
       })
     }
 
@@ -121,10 +132,14 @@ export function runNextCommand(argv, options = {}) {
     if (options.stdout) {
       instance.stdout.on('data', function (chunk) {
         stdoutOutput += chunk
+
+        if (options.stdout === 'log') {
+          console.log(chunk.toString())
+        }
       })
     }
 
-    instance.on('close', (code) => {
+    instance.on('close', (code, signal) => {
       if (
         !options.stderr &&
         !options.stdout &&
@@ -136,6 +151,7 @@ export function runNextCommand(argv, options = {}) {
 
       resolve({
         code,
+        signal,
         stdout: stdoutOutput,
         stderr: stderrOutput,
       })
@@ -173,6 +189,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
         start: /started server/i,
       }
       if (
+        (opts.bootupMarker && opts.bootupMarker.test(message)) ||
         bootupMarkers[opts.nextStart || stdOut ? 'start' : 'dev'].test(message)
       ) {
         if (!didResolve) {
@@ -437,6 +454,33 @@ export async function evaluate(browser, input) {
   }
 }
 
+export async function retry(fn, duration = 3000, interval = 500, description) {
+  if (duration % interval !== 0) {
+    throw new Error(
+      `invalid duration ${duration} and interval ${interval} mix, duration must be evenly divisible by interval`
+    )
+  }
+
+  for (let i = duration; i >= 0; i -= interval) {
+    try {
+      return await fn()
+    } catch (err) {
+      if (i === 0) {
+        console.error(
+          `Failed to retry${
+            description ? ` ${description}` : ''
+          } within ${duration}ms`
+        )
+        throw err
+      }
+      console.warn(
+        `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
+      )
+      await waitFor(interval)
+    }
+  }
+}
+
 export async function hasRedbox(browser, expected = true) {
   let attempts = 30
   do {
@@ -464,31 +508,43 @@ export async function hasRedbox(browser, expected = true) {
 }
 
 export async function getRedboxHeader(browser) {
-  return evaluate(browser, () => {
-    const portal = [].slice
-      .call(document.querySelectorAll('nextjs-portal'))
-      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header'))
-    const root = portal.shadowRoot
-    return root
-      .querySelector('[data-nextjs-dialog-header]')
-      .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
-  })
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header'))
+        const root = portal.shadowRoot
+        return root
+          .querySelector('[data-nextjs-dialog-header]')
+          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+      }),
+    3000,
+    500,
+    'getRedboxHeader'
+  )
 }
 
 export async function getRedboxSource(browser) {
-  return evaluate(browser, () => {
-    const portal = [].slice
-      .call(document.querySelectorAll('nextjs-portal'))
-      .find((p) =>
-        p.shadowRoot.querySelector(
-          '#nextjs__container_errors_label, #nextjs__container_build_error_label'
-        )
-      )
-    const root = portal.shadowRoot
-    return root
-      .querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
-      .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
-  })
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector(
+              '#nextjs__container_errors_label, #nextjs__container_build_error_label'
+            )
+          )
+        const root = portal.shadowRoot
+        return root
+          .querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
+          .innerText.replace(/__WEBPACK_DEFAULT_EXPORT__/, 'Unknown')
+      }),
+    3000,
+    500,
+    'getRedboxSource'
+  )
 }
 
 export function getBrowserBodyText(browser) {
@@ -538,6 +594,18 @@ export function getPagesManifest(dir) {
     return readJson(serverFile)
   }
   return readJson(path.join(dir, '.next/serverless/pages-manifest.json'))
+}
+
+export function updatePagesManifest(dir, content) {
+  const serverFile = path.join(dir, '.next/server/pages-manifest.json')
+
+  if (existsSync(serverFile)) {
+    return writeFile(serverFile, content)
+  }
+  return writeFile(
+    path.join(dir, '.next/serverless/pages-manifest.json'),
+    content
+  )
 }
 
 export function getPageFileFromPagesManifest(dir, page) {

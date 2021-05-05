@@ -1,16 +1,135 @@
+import { IncomingMessage } from 'http'
 import { ParsedUrlQuery } from 'querystring'
 import { searchParamsToUrlQuery } from './querystring'
 import { parseRelativeUrl } from './parse-relative-url'
 import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
+import { RouteHas } from '../../../../lib/load-custom-routes'
 
 type Params = { [param: string]: any }
+
+// ensure only a-zA-Z are used for param names for proper interpolating
+// with path-to-regexp
+export const getSafeParamName = (paramName: string) => {
+  let newParamName = ''
+
+  for (let i = 0; i < paramName.length; i++) {
+    const charCode = paramName.charCodeAt(i)
+
+    if (
+      (charCode > 64 && charCode < 91) || // A-Z
+      (charCode > 96 && charCode < 123) // a-z
+    ) {
+      newParamName += paramName[i]
+    }
+  }
+  return newParamName
+}
+
+export function matchHas(
+  req: IncomingMessage,
+  has: RouteHas[],
+  query: Params
+): false | Params {
+  const params: Params = {}
+  const allMatch = has.every((hasItem) => {
+    let value: undefined | string
+    let key = hasItem.key
+
+    switch (hasItem.type) {
+      case 'header': {
+        key = key!.toLowerCase()
+        value = req.headers[key] as string
+        break
+      }
+      case 'cookie': {
+        value = (req as any).cookies[hasItem.key]
+        break
+      }
+      case 'query': {
+        value = query[key!]
+        break
+      }
+      case 'host': {
+        const { host } = req?.headers || {}
+        // remove port from host if present
+        const hostname = host?.split(':')[0].toLowerCase()
+        value = hostname
+        break
+      }
+      default: {
+        break
+      }
+    }
+
+    if (!hasItem.value && value) {
+      params[getSafeParamName(key!)] = value
+      return true
+    } else if (value) {
+      const matcher = new RegExp(`^${hasItem.value}$`)
+      const matches = value.match(matcher)
+
+      if (matches) {
+        if (matches.groups) {
+          Object.keys(matches.groups).forEach((groupKey) => {
+            params[groupKey] = matches.groups![groupKey]
+          })
+        } else if (hasItem.type === 'host' && matches[0]) {
+          params.host = matches[0]
+        }
+        return true
+      }
+    }
+    return false
+  })
+
+  if (allMatch) {
+    return params
+  }
+  return false
+}
+
+export function compileNonPath(value: string, params: Params): string {
+  if (!value.includes(':')) {
+    return value
+  }
+
+  for (const key of Object.keys(params)) {
+    if (value.includes(`:${key}`)) {
+      value = value
+        .replace(
+          new RegExp(`:${key}\\*`, 'g'),
+          `:${key}--ESCAPED_PARAM_ASTERISKS`
+        )
+        .replace(
+          new RegExp(`:${key}\\?`, 'g'),
+          `:${key}--ESCAPED_PARAM_QUESTION`
+        )
+        .replace(new RegExp(`:${key}\\+`, 'g'), `:${key}--ESCAPED_PARAM_PLUS`)
+        .replace(
+          new RegExp(`:${key}(?!\\w)`, 'g'),
+          `--ESCAPED_PARAM_COLON${key}`
+        )
+    }
+  }
+  value = value
+    .replace(/(:|\*|\?|\+|\(|\)|\{|\})/g, '\\$1')
+    .replace(/--ESCAPED_PARAM_PLUS/g, '+')
+    .replace(/--ESCAPED_PARAM_COLON/g, ':')
+    .replace(/--ESCAPED_PARAM_QUESTION/g, '?')
+    .replace(/--ESCAPED_PARAM_ASTERISKS/g, '*')
+
+  // the value needs to start with a forward-slash to be compiled
+  // correctly
+  return pathToRegexp
+    .compile(`/${value}`, { validate: false })(params)
+    .substr(1)
+}
 
 export default function prepareDestination(
   destination: string,
   params: Params,
   query: ParsedUrlQuery,
-  appendParamsToQuery: boolean,
-  basePath: string
+  appendParamsToQuery: boolean
 ) {
   let parsedDestination: {
     query?: ParsedUrlQuery
@@ -18,6 +137,12 @@ export default function prepareDestination(
     hostname?: string
     port?: string
   } & ReturnType<typeof parseRelativeUrl> = {} as any
+
+  // clone query so we don't modify the original
+  query = Object.assign({}, query)
+  const hadLocale = query.__nextLocale
+  delete query.__nextLocale
+  delete query.__nextDefaultLocale
 
   if (destination.startsWith('/')) {
     parsedDestination = parseRelativeUrl(destination)
@@ -72,16 +197,19 @@ export default function prepareDestination(
     if (value) {
       // the value needs to start with a forward-slash to be compiled
       // correctly
-      value = `/${value}`
-      const queryCompiler = pathToRegexp.compile(value, { validate: false })
-      value = queryCompiler(params).substr(1)
+      value = compileNonPath(value, params)
     }
     destQuery[key] = value
   }
 
   // add path params to query if it's not a redirect and not
   // already defined in destination query or path
-  const paramKeys = Object.keys(params)
+  let paramKeys = Object.keys(params)
+
+  // remove internal param for i18n
+  if (hadLocale) {
+    paramKeys = paramKeys.filter((name) => name !== 'nextInternalLocale')
+  }
 
   if (
     appendParamsToQuery &&
@@ -94,21 +222,17 @@ export default function prepareDestination(
     }
   }
 
-  const shouldAddBasePath = destination.startsWith('/') && basePath
-
   try {
-    newUrl = `${shouldAddBasePath ? basePath : ''}${destinationCompiler(
-      params
-    )}`
+    newUrl = destinationCompiler(params)
 
     const [pathname, hash] = newUrl.split('#')
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
-    delete parsedDestination.search
+    delete (parsedDestination as any).search
   } catch (err) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(
-        `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://err.sh/vercel/next.js/invalid-multi-match`
+        `To use a multi-match in the destination you must add \`*\` at the end of the param name to signify it should repeat. https://nextjs.org/docs/messages/invalid-multi-match`
       )
     }
     throw err

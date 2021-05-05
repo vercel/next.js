@@ -1,4 +1,5 @@
-import { Basic, Combined, Animated, bounce } from '../shared/styles'
+import { Animated, Basic, bounce, Combined } from '../shared/styles'
+
 const Home = () => (
   <div>
     <Basic>Cool Styles</Basic>

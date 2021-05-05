@@ -25,16 +25,14 @@ During prerendering, the router's `query` object will be empty since we do not h
 `next build` will emit `.html` files for statically optimized pages. For example, the result for the page `pages/about.js` would be:
 
 ```bash
-.next/server/static/${BUILD_ID}/about.html
+.next/server/pages/about.html
 ```
 
 And if you add `getServerSideProps` to the page, it will then be JavaScript, like so:
 
 ```bash
-.next/server/static/${BUILD_ID}/about.js
+.next/server/pages/about.js
 ```
-
-In development you'll know if `pages/about.js` is optimized or not thanks to the included [static optimization indicator](/docs/api-reference/next.config.js/static-optimization-indicator.md).
 
 ## Caveats
 

@@ -14,6 +14,7 @@ type IncrementalCacheValue = {
   pageData?: any
   isStale?: boolean
   isNotFound?: boolean
+  isRedirect?: boolean
   curRevalidate?: number | false
   // milliseconds to revalidate after
   revalidateAfter: number | false
@@ -29,6 +30,7 @@ export class IncrementalCache {
 
   prerenderManifest: PrerenderManifest
   cache: LRUCache<string, IncrementalCacheValue>
+  locales?: string[]
 
   constructor({
     max,
@@ -36,12 +38,14 @@ export class IncrementalCache {
     distDir,
     pagesDir,
     flushToDisk,
+    locales,
   }: {
     dev: boolean
     max?: number
     distDir: string
     pagesDir: string
     flushToDisk?: boolean
+    locales?: string[]
   }) {
     this.incrementalOptions = {
       dev,
@@ -50,6 +54,7 @@ export class IncrementalCache {
       flushToDisk:
         !dev && (typeof flushToDisk !== 'undefined' ? flushToDisk : true),
     }
+    this.locales = locales
 
     if (dev) {
       this.prerenderManifest = {
@@ -69,7 +74,7 @@ export class IncrementalCache {
       // default to 50MB limit
       max: max || 50 * 1024 * 1024,
       length(val) {
-        if (val.isNotFound) return 25
+        if (val.isNotFound || val.isRedirect) return 25
         // rough estimate of size of cache value
         return val.html!.length + JSON.stringify(val.pageData).length
       },
@@ -146,7 +151,9 @@ export class IncrementalCache {
     ) {
       data.isStale = true
     }
-    const manifestEntry = this.prerenderManifest.routes[pathname]
+
+    const manifestPath = toRoute(pathname)
+    const manifestEntry = this.prerenderManifest.routes[manifestPath]
 
     if (data && manifestEntry) {
       data.curRevalidate = manifestEntry.initialRevalidateSeconds
@@ -161,6 +168,7 @@ export class IncrementalCache {
       html?: string
       pageData?: any
       isNotFound?: boolean
+      isRedirect?: boolean
     },
     revalidateSeconds?: number | false
   ) {

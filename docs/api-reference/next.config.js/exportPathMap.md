@@ -13,7 +13,7 @@ description: Customize the pages that will be exported as HTML files when using 
   </ul>
 </details>
 
-`exportPathMap` allows you to specify a mapping of request paths to page destinations, to be used during export.
+`exportPathMap` allows you to specify a mapping of request paths to page destinations, to be used during export. Paths defined in `exportPathMap` will also be available when using [`next dev`](/docs/api-reference/cli.md#development).
 
 Let's start with an example, to create a custom `exportPathMap` for an app with the following pages:
 
@@ -39,6 +39,8 @@ module.exports = {
   },
 }
 ```
+
+Note: the `query` field in `exportPathMap` can not be used with [automatically statically optimized pages](/docs/advanced-features/automatic-static-optimization) or [`getStaticProps` pages](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) as they are rendered to HTML files at build-time and additional query information can not be provided during `next export`.
 
 The pages will then be exported as HTML files, for example, `/about` will become `/about.html`.
 

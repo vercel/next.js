@@ -90,10 +90,28 @@ readline.question(`Please provide the FaunaDB admin key\n`, (adminKey) => {
         )
         .then((res) => {
           console.log('3. Created key to use in client')
-          console.log(
-            'Replace the < GRAPHQL_SECRET > placehold in next.config.js with:'
-          )
-          console.log(res.secret)
+          const envFile =
+            'NEXT_PUBLIC_FAUNADB_SECRET=' +
+            res.secret +
+            '\n' +
+            'NEXT_PUBLIC_FAUNADB_GRAPHQL_ENDPOINT=https://graphql.fauna.com/graphql'
+
+          fs.writeFile('.env.local', envFile, (err) => {
+            if (err) {
+              console.error(
+                'Failed to create .env.local file. Copy the .env.local.example file and provide the secret shown below:'
+              )
+              console.log(res.secret)
+            } else {
+              console.log('4. Created .env.local file with secret\n')
+              fs.readFile('.env.local', (err, data) => {
+                if (!err) {
+                  console.log('.env.local:\n')
+                  console.log(data.toString('utf-8'))
+                }
+              })
+            }
+          })
         })
     })
     .catch((err) => {

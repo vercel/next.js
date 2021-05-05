@@ -1,0 +1,25 @@
+{
+  "name": "cms-ghost",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@tryghost/content-api": "^1.4.13",
+    "classnames": "2.2.6",
+    "date-fns": "2.16.1",
+    "lazysizes": "^5.3.0",
+    "next": "latest",
+    "postcss": "^8.2.4",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1"
+  },
+  "devDependencies": {
+    "postcss-flexbugs-fixes": "^5.0.2",
+    "postcss-preset-env": "^6.7.0",
+    "tailwindcss": "^2.0.2"
+  },
+  "license": "MIT"
+}

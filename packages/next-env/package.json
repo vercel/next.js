@@ -1,6 +1,6 @@
 {
   "name": "@next/env",
-  "version": "9.5.6-canary.11",
+  "version": "10.2.1-canary.2",
   "keywords": [
     "react",
     "next",
@@ -22,7 +22,7 @@
     "types"
   ],
   "scripts": {
-    "build": "ncc build ./index.ts -w -o dist/",
+    "dev": "ncc build ./index.ts -w -o dist/",
     "prerelease": "rimraf ./dist/",
     "types": "tsc index.ts --declaration --emitDeclarationOnly --declarationDir types --esModuleInterop",
     "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
@@ -30,7 +30,7 @@
   },
   "devDependencies": {
     "@types/dotenv": "8.2.0",
-    "@zeit/ncc": "^0.20.4",
+    "@zeit/ncc": "0.20.4",
     "dotenv": "8.2.0",
     "dotenv-expand": "5.1.0"
   }

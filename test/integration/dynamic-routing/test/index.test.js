@@ -30,6 +30,142 @@ const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
 function runTests(dev) {
+  it('should handle only hash on dynamic route', async () => {
+    const browser = await webdriver(appPort, '/post-1')
+    const parsedHref = url.parse(
+      await browser
+        .elementByCss('#dynamic-route-only-hash')
+        .getAttribute('href')
+    )
+    expect(parsedHref.pathname).toBe('/post-1')
+    expect(parsedHref.hash).toBe('#only-hash')
+
+    const parsedHref2 = url.parse(
+      await browser
+        .elementByCss('#dynamic-route-only-hash-obj')
+        .getAttribute('href')
+    )
+    expect(parsedHref2.pathname).toBe('/post-1')
+    expect(parsedHref2.hash).toBe('#only-hash-obj')
+    expect(await browser.eval('window.location.hash')).toBe('')
+
+    await browser.elementByCss('#dynamic-route-only-hash').click()
+    expect(await browser.eval('window.location.hash')).toBe('#only-hash')
+
+    await browser.elementByCss('#dynamic-route-only-hash-obj').click()
+    expect(await browser.eval('window.location.hash')).toBe('#only-hash-obj')
+  })
+
+  it('should navigate with hash to dynamic route with link', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval('window.beforeNav = 1')
+
+    await browser
+      .elementByCss('#view-post-1-hash-1')
+      .click()
+      .waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+
+    await browser
+      .back()
+      .waitForElementByCss('#view-post-1-hash-1-interpolated')
+      .elementByCss('#view-post-1-hash-1-interpolated')
+      .click('#view-post-1-hash-1-interpolated')
+      .waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+
+    await browser
+      .back()
+      .waitForElementByCss('#view-post-1-hash-1-href-only')
+      .elementByCss('#view-post-1-hash-1-href-only')
+      .click('#view-post-1-hash-1-href-only')
+      .waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+  })
+
+  it('should navigate with hash to dynamic route with router', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/[name]', '/post-1#my-hash')
+    })()`)
+
+    await browser.waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+
+    await browser.back().waitForElementByCss('#view-post-1-hash-1-interpolated')
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push({
+        hash: 'my-hash',
+        pathname: '/[name]',
+        query: {
+          name: 'post-1'
+        }
+      })
+    })()`)
+
+    await browser.waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/post-1#my-hash')
+    })()`)
+
+    await browser.waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+  })
+
   it('should not have any query values when not defined', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
@@ -729,14 +865,11 @@ function runTests(dev) {
 
     for (const el of Array.from($('link[rel="preload"]'))) {
       const { href } = el.attribs
-      if (
-        href.includes('_buildManifest.js') ||
-        href.includes('_buildManifest.module.js')
-      ) {
+      if (href.includes('_buildManifest')) {
         found++
       }
     }
-    expect(found).toBe(dev ? 2 : 1)
+    expect(found).toBe(1)
   })
 
   it('should not preload buildManifest for non-auto export dynamic pages', async () => {
@@ -746,10 +879,7 @@ function runTests(dev) {
 
     for (const el of Array.from($('link[rel="preload"]'))) {
       const { href } = el.attribs
-      if (
-        href.includes('_buildManifest.js') ||
-        href.includes('_buildManifest.module.js')
-      ) {
+      if (href.includes('_buildManifest')) {
         found++
       }
     }
@@ -795,7 +925,7 @@ function runTests(dev) {
       await browser
         .elementByCss('#view-post-1-interpolated-incorrectly')
         .click()
-      await hasRedbox(browser)
+      expect(await hasRedbox(browser)).toBe(true)
       const header = await getRedboxHeader(browser)
       expect(header).toContain(
         'The provided `href` (/[name]?another=value) value is missing query values (name) to be interpolated properly.'
@@ -823,17 +953,6 @@ function runTests(dev) {
       }
     })
   } else {
-    // TODO: Make webpack 5 work with nest-esm-plugin
-    it.skip('should output modern bundles with dynamic route correctly', async () => {
-      const buildManifest = require(join('../.next', 'build-manifest.json'))
-
-      const files = buildManifest.pages[
-        '/blog/[name]/comment/[id]'
-      ].filter((filename) => filename.includes('/blog/[name]/comment/[id]'))
-
-      expect(files.length).toBe(2)
-    })
-
     it('should output a routes-manifest correctly', async () => {
       const manifest = await fs.readJson(
         join(appDir, '.next/routes-manifest.json')
@@ -1072,6 +1191,8 @@ const nextConfig = join(appDir, 'next.config.js')
 describe('Dynamic Routing', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
+      await fs.remove(nextConfig)
+
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
       buildId = 'development'
@@ -1083,20 +1204,8 @@ describe('Dynamic Routing', () => {
 
   describe('production mode', () => {
     beforeAll(async () => {
-      const curConfig = await fs.readFile(nextConfig, 'utf8')
+      await fs.remove(nextConfig)
 
-      if (curConfig.includes('target')) {
-        await fs.writeFile(
-          nextConfig,
-          `
-          module.exports = {
-            experimental: {
-              modern: true
-            }
-          }
-        `
-        )
-      }
       await nextBuild(appDir)
       buildId = await fs.readFile(buildIdPath, 'utf8')
 
@@ -1109,20 +1218,10 @@ describe('Dynamic Routing', () => {
   })
 
   describe('serverless mode', () => {
-    let origNextConfig
-
     beforeAll(async () => {
-      origNextConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
-        `
-        module.exports = {
-          target: 'serverless',
-          experimental: {
-            modern: true
-          }
-        }
-      `
+        `module.exports = { target: 'serverless' }`
       )
 
       await nextBuild(appDir)
@@ -1132,8 +1231,8 @@ describe('Dynamic Routing', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.writeFile(nextConfig, origNextConfig)
       await killApp(app)
+      await fs.remove(nextConfig)
     })
     runTests()
   })

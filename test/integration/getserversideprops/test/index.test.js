@@ -119,10 +119,34 @@ const expectedManifestRoutes = () => [
     page: '/non-json',
   },
   {
+    dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+      buildId
+    )}\\/not-found.json$`,
+    page: '/not-found',
+  },
+  {
+    dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
+      buildId
+    )}\\/not\\-found\\/([^\\/]+?)\\.json$`,
+    namedDataRouteRegex: `^/_next/data/${escapeRegex(
+      buildId
+    )}/not\\-found/(?<slug>[^/]+?)\\.json$`,
+    page: '/not-found/[slug]',
+    routeKeys: {
+      slug: 'slug',
+    },
+  },
+  {
     dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/refresh.json$`
     ),
     page: '/refresh',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/slow.json$`
+    ),
+    page: '/slow',
   },
   {
     dataRouteRegex: normalizeRegEx(
@@ -234,6 +258,62 @@ const navigateTest = (dev = false) => {
 
 const runTests = (dev = false) => {
   navigateTest(dev)
+
+  it('should render correctly when notFound is false (non-dynamic)', async () => {
+    const res = await fetchViaHTTP(appPort, '/not-found')
+
+    expect(res.status).toBe(200)
+  })
+
+  it('should render 404 correctly when notFound is returned (non-dynamic)', async () => {
+    const res = await fetchViaHTTP(appPort, '/not-found', { hiding: true })
+
+    expect(res.status).toBe(404)
+    expect(await res.text()).toContain('This page could not be found')
+  })
+
+  it('should render 404 correctly when notFound is returned client-transition (non-dynamic)', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/not-found?hiding=true')
+    })()`)
+
+    await browser.waitForElementByCss('h1')
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
+  it('should render correctly when notFound is false (dynamic)', async () => {
+    const res = await fetchViaHTTP(appPort, '/not-found/first')
+
+    expect(res.status).toBe(200)
+  })
+
+  it('should render 404 correctly when notFound is returned (dynamic)', async () => {
+    const res = await fetchViaHTTP(appPort, '/not-found/first', {
+      hiding: true,
+    })
+
+    expect(res.status).toBe(404)
+    expect(await res.text()).toContain('This page could not be found')
+  })
+
+  it('should render 404 correctly when notFound is returned client-transition (dynamic)', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/not-found/first?hiding=true')
+    })()`)
+
+    await browser.waitForElementByCss('h1')
+    expect(await browser.elementByCss('html').text()).toContain(
+      'This page could not be found'
+    )
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
 
   it('should SSR normal page correctly', async () => {
     const html = await renderViaHTTP(appPort, '/')
@@ -540,6 +620,32 @@ const runTests = (dev = false) => {
 
     const curRandom = await browser.elementByCss('#random').text()
     expect(curRandom).toBe(initialRandom + '')
+  })
+
+  it('should dedupe server data requests', async () => {
+    const browser = await webdriver(appPort, '/')
+    await waitFor(2000)
+
+    // Keep clicking on the link
+    await browser.elementByCss('#slow').click()
+    await browser.elementByCss('#slow').click()
+    await browser.elementByCss('#slow').click()
+    await browser.elementByCss('#slow').click()
+
+    await check(() => getBrowserBodyText(browser), /a slow page/)
+
+    // Requests should be deduped
+    const hitCount = await browser.elementByCss('#hit').text()
+    expect(hitCount).toBe('hit: 1')
+
+    // Should send request again
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#slow')
+    await browser.elementByCss('#slow').click()
+    await check(() => getBrowserBodyText(browser), /a slow page/)
+
+    const newHitCount = await browser.elementByCss('#hit').text()
+    expect(newHitCount).toBe('hit: 2')
   })
 
   if (dev) {

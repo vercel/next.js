@@ -5,7 +5,7 @@ import { useRouter } from 'next/router'
 export async function getStaticPaths() {
   return {
     paths: [{ params: { slug: 'a' } }, { params: { slug: 'b' } }],
-    fallback: 'unstable_blocking',
+    fallback: 'blocking',
   }
 }
 

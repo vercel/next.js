@@ -1,4 +1,4 @@
-import Document, { Html, Main, NextScript } from 'next/document'
+import Document, { Html, Head, Main, NextScript } from 'next/document'
 import { renderToNodeList } from 'react-fela'
 
 import getFelaRenderer from '../getFelaRenderer'
@@ -24,6 +24,7 @@ export default class MyDocument extends Document {
   render() {
     return (
       <Html>
+        <Head />
         <body>
           <Main />
           <NextScript />

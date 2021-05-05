@@ -1,11 +1,14 @@
-import webpack, { Stats, Configuration } from 'webpack'
+import { webpack } from 'next/dist/compiled/webpack/webpack'
 
 export type CompilerResult = {
   errors: string[]
   warnings: string[]
 }
 
-function generateStats(result: CompilerResult, stat: Stats): CompilerResult {
+function generateStats(
+  result: CompilerResult,
+  stat: webpack.Stats
+): CompilerResult {
   const { errors, warnings } = stat.toJson('errors-warnings')
   if (errors.length > 0) {
     result.errors.push(...errors)
@@ -32,12 +35,15 @@ function closeCompiler(compiler: webpack.Compiler | webpack.MultiCompiler) {
 }
 
 export function runCompiler(
-  config: Configuration | Configuration[]
+  config: webpack.Configuration | webpack.Configuration[]
 ): Promise<CompilerResult> {
   return new Promise((resolve, reject) => {
     const compiler = webpack(config)
     compiler.run(
-      (err: Error, statsOrMultiStats: { stats: Stats[] } | Stats) => {
+      (
+        err: Error,
+        statsOrMultiStats: { stats: webpack.Stats[] } | webpack.Stats
+      ) => {
         closeCompiler(compiler).then(() => {
           if (err) {
             const reason = err?.toString()

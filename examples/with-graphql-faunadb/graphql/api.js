@@ -35,18 +35,21 @@ export const useGuestbookEntries = () => {
     }
   }`
   const size = 100
-  const { data, error } = useFetch(process.env.faunaDbGraphQlEndpoint, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.faunaDbSecret}`,
-      'Content-type': 'application/json',
-      Accept: 'application/json',
-    },
-    body: JSON.stringify({
-      query,
-      variables: { size },
-    }),
-  })
+  const { data, error } = useFetch(
+    process.env.NEXT_PUBLIC_FAUNADB_GRAPHQL_ENDPOINT,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.NEXT_PUBLIC_FAUNADB_SECRET}`,
+        'Content-type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables: { size },
+      }),
+    }
+  )
 
   return {
     data: getData(data),
@@ -83,10 +86,10 @@ export const createGuestbookEntry = async (twitterHandle, story) => {
     }
   }`
 
-  const res = await fetch(process.env.faunaDbGraphQlEndpoint, {
+  const res = await fetch(process.env.NEXT_PUBLIC_FAUNADB_GRAPHQL_ENDPOINT, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${process.env.faunaDbSecret}`,
+      Authorization: `Bearer ${process.env.NEXT_PUBLIC_FAUNADB_SECRET}`,
       'Content-type': 'application/json',
       Accept: 'application/json',
     },

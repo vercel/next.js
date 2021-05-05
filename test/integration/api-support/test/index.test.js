@@ -122,6 +122,12 @@ function runTests(dev = false) {
     expect(body).toBe(true)
   })
 
+  it('should support undefined response body', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/undefined', null, {})
+    const body = res.ok ? await res.text() : null
+    expect(body).toBe('')
+  })
+
   it('should return error with invalid JSON', async () => {
     const data = await fetchViaHTTP(appPort, '/api/parse', null, {
       method: 'POST',
@@ -450,7 +456,7 @@ function runTests(dev = false) {
         { stderr: true }
       )
       expect(stderr).toContain(
-        'https://err.sh/vercel/next.js/api-routes-static-export'
+        'https://nextjs.org/docs/messages/api-routes-static-export'
       )
     })
 

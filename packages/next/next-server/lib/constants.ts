@@ -9,6 +9,7 @@ export const EXPORT_DETAIL = 'export-detail.json'
 export const PRERENDER_MANIFEST = 'prerender-manifest.json'
 export const ROUTES_MANIFEST = 'routes-manifest.json'
 export const IMAGES_MANIFEST = 'images-manifest.json'
+export const SERVER_FILES_MANIFEST = 'required-server-files.json'
 export const DEV_CLIENT_PAGES_MANIFEST = '_devPagesManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
 export const FONT_MANIFEST = 'font-manifest.json'
@@ -40,3 +41,4 @@ export const OPTIMIZED_FONT_PROVIDERS = [
   'https://fonts.googleapis.com/css',
   'https://use.typekit.net/',
 ]
+export const STATIC_STATUS_PAGES = ['/500']

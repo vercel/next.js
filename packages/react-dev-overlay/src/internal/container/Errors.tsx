@@ -58,7 +58,7 @@ const HotlinkedText: React.FC<{
 }> = function HotlinkedText(props) {
   const { text } = props
 
-  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s]*/i
+  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s"]*/i
   return (
     <>
       {linkRegex.test(text)

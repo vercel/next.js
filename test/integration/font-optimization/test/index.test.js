@@ -1,6 +1,8 @@
 /* eslint-env jest */
 
+import cheerio from 'cheerio'
 import { join } from 'path'
+import fs from 'fs-extra'
 import {
   killApp,
   findPort,
@@ -9,7 +11,6 @@ import {
   renderViaHTTP,
   initNextServerScript,
 } from 'next-test-utils'
-import fs from 'fs-extra'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -43,11 +44,13 @@ describe('Font Optimization', () => {
         'https://fonts.googleapis.com/css?family=Voces',
         'https://fonts.googleapis.com/css2?family=Modak',
         'https://fonts.googleapis.com/css2?family=Roboto:wght@700',
+        'https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap',
       ],
       [
         /<style data-href="https:\/\/fonts\.googleapis\.com\/css\?family=Voces">.*<\/style>/,
         /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Modak">.*<\/style>/,
         /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Roboto:wght@700">.*<\/style>/,
+        /<style data-href="https:\/\/fonts.googleapis.com\/css2\?family=Roboto:wght@400;700;900&display=swap">.*<\/style>/,
       ],
     ],
     [
@@ -56,10 +59,12 @@ describe('Font Optimization', () => {
         'https://use.typekit.net/plm1izr.css',
         'https://use.typekit.net/erd0sed.css',
         'https://use.typekit.net/ucs7mcf.css',
+        'https://use.typekit.net/ucs7mcf.css',
       ],
       [
         /<style data-href="https:\/\/use.typekit.net\/plm1izr.css">.*<\/style>/,
         /<style data-href="https:\/\/use.typekit.net\/erd0sed.css">.*<\/style>/,
+        /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
         /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
       ],
     ],
@@ -67,8 +72,8 @@ describe('Font Optimization', () => {
     'with-%s',
     (
       property,
-      [staticFont, staticHeadFont, starsFont],
-      [staticPattern, staticHeadPattern, starsPattern]
+      [staticFont, staticHeadFont, starsFont, withFont],
+      [staticPattern, staticHeadPattern, starsPattern, withFontPattern]
     ) => {
       const appDir = join(fixturesDir, `with-${property}`)
       const nextConfig = join(appDir, 'next.config.js')
@@ -78,6 +83,43 @@ describe('Font Optimization', () => {
       let app
 
       function runTests() {
+        it('should pass nonce to the inlined font definition', async () => {
+          const html = await renderViaHTTP(appPort, '/nonce')
+          const $ = cheerio.load(html)
+          expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+
+          const link = $(
+            `link[rel="stylesheet"][data-href="${staticHeadFont}"]`
+          )
+          const nonce = link.attr('nonce')
+          const style = $(`style[data-href="${staticHeadFont}"]`)
+          const styleNonce = style.attr('nonce')
+
+          expect(link).toBeDefined()
+          expect(nonce).toBe('VmVyY2Vs')
+          expect(styleNonce).toBe('VmVyY2Vs')
+        })
+
+        it('should only inline included fonts per page', async () => {
+          const html = await renderViaHTTP(appPort, '/with-font')
+          expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+
+          const $ = cheerio.load(html)
+
+          expect($(`link[data-href="${withFont}"]`).attr().rel).toBe(
+            'stylesheet'
+          )
+
+          expect(html).toMatch(withFontPattern)
+
+          const htmlWithoutFont = await renderViaHTTP(appPort, '/without-font')
+
+          const $2 = cheerio.load(htmlWithoutFont)
+
+          expect($2(`link[data-href="${withFont}"]`).attr()).toBeUndefined()
+          expect(htmlWithoutFont).not.toMatch(withFontPattern)
+        })
+
         it(`should inline the ${property} fonts for static pages`, async () => {
           const html = await renderViaHTTP(appPort, '/index')
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
@@ -191,6 +233,37 @@ describe('Font Optimization', () => {
           await fs.remove(nextConfig)
         })
         runTests()
+      })
+
+      describe('Font optimization for unreachable font definitions.', () => {
+        beforeAll(async () => {
+          await fs.writeFile(nextConfig, `module.exports = { }`, 'utf8')
+          await nextBuild(appDir)
+          await fs.writeFile(
+            join(appDir, '.next', 'server', 'font-manifest.json'),
+            '[]',
+            'utf8'
+          )
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
+          builtServerPagesDir = join(appDir, '.next', 'serverless')
+          builtPage = (file) => join(builtServerPagesDir, file)
+        })
+        afterAll(() => killApp(app))
+        it('should fallback to normal stylesheet if the contents of the fonts are unreachable', async () => {
+          const html = await renderViaHTTP(appPort, '/stars')
+          expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+          expect(html).toContain(`<link rel="stylesheet" href="${starsFont}"/>`)
+        })
+        it('should not inline multiple fallback link tag', async () => {
+          await renderViaHTTP(appPort, '/stars')
+          // second render to make sure that the page is requested more than once.
+          const html = await renderViaHTTP(appPort, '/stars')
+          expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+          expect(html).not.toContain(
+            `<link rel="stylesheet" href="${staticFont}"/><link rel="stylesheet" href="${starsFont}"/><link rel="stylesheet" href="${staticFont}"/><link rel="stylesheet" href="${starsFont}"/>`
+          )
+        })
       })
     }
   )

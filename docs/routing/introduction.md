@@ -36,7 +36,7 @@ To match a dynamic segment you can use the bracket syntax. This allows you to ma
 
 ## Linking between pages
 
-The Next.js router allows you to do client-side route transitions between pages, similarly to a single-page application.
+The Next.js router allows you to do client-side route transitions between pages, similar to a single-page application.
 
 A React component called `Link` is provided to do this client-side route transition.
 
@@ -73,6 +73,8 @@ In the example above we have multiple links, each one maps a path (`href`) to a 
 - `/` → `pages/index.js`
 - `/about` → `pages/about.js`
 - `/blog/hello-world` → `pages/blog/[slug].js`
+
+Any `<Link />` in the viewport (initially or through scroll) will be prefetched by default (including the corresponding data) for pages using [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation). The corresponding data for [server-rendered](https://nextjs.org/docs/basic-features/data-fetching#getserversideprops-server-side-rendering) routes is _not_ prefetched.
 
 ### Linking to dynamic paths
 

@@ -1,44 +1,46 @@
-import { action } from 'mobx'
-import { useObservable, useStaticRendering } from 'mobx-react-lite'
-import { createContext, useCallback } from 'react'
+import { action, observable, computed, runInAction, makeObservable } from 'mobx'
+import { enableStaticRendering } from 'mobx-react-lite'
 
-const isServer = typeof window === 'undefined'
-// eslint-disable-next-line react-hooks/rules-of-hooks
-useStaticRendering(isServer)
+enableStaticRendering(typeof window === 'undefined')
 
-let StoreContext = createContext()
-let start
-let stop
-let store
+export class Store {
+  lastUpdate = 0
+  light = false
 
-function initializeData(initialData = store || {}) {
-  const { lastUpdate = Date.now(), light } = initialData
-  return {
-    lastUpdate,
-    light: Boolean(light),
-  }
-}
-
-function InjectStoreContext({ children, initialData }) {
-  let timerInterval = null
-  store = useObservable(initializeData(initialData))
-
-  start = useCallback(
-    action(() => {
-      timerInterval = setInterval(() => {
-        store.lastUpdate = Date.now()
-        store.light = true
-      }, 1000)
+  constructor() {
+    makeObservable(this, {
+      lastUpdate: observable,
+      light: observable,
+      start: action,
+      hydrate: action,
+      timeString: computed,
     })
-  )
-
-  stop = () => {
-    if (timerInterval) {
-      clearInterval(timerInterval)
-    }
   }
 
-  return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
-}
+  start = () => {
+    this.timer = setInterval(() => {
+      runInAction(() => {
+        this.lastUpdate = Date.now()
+        this.light = true
+      })
+    }, 1000)
+  }
 
-export { InjectStoreContext, StoreContext, initializeData, start, stop, store }
+  get timeString() {
+    const pad = (n) => (n < 10 ? `0${n}` : n)
+    const format = (t) =>
+      `${pad(t.getUTCHours())}:${pad(t.getUTCMinutes())}:${pad(
+        t.getUTCSeconds()
+      )}`
+    return format(new Date(this.lastUpdate))
+  }
+
+  stop = () => clearInterval(this.timer)
+
+  hydrate = (data) => {
+    if (!data) return
+
+    this.lastUpdate = data.lastUpdate !== null ? data.lastUpdate : Date.now()
+    this.light = !!data.light
+  }
+}

@@ -1,39 +1,31 @@
 /* eslint-env jest */
 
-import { join } from 'path'
+import http from 'http'
+import httpProxy from 'http-proxy'
+import cheerio from 'cheerio'
 import { remove } from 'fs-extra'
 import {
-  nextBuild,
-  nextStart,
   findPort,
   killApp,
+  launchApp,
+  nextBuild,
+  nextStart,
   renderViaHTTP,
 } from 'next-test-utils'
-import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
+import { join } from 'path'
 
 jest.setTimeout(1000 * 60 * 1)
 
 const fixturesDir = join(__dirname, '../../css-fixtures')
+const appDir = join(fixturesDir, 'multi-module')
 
-describe('CSS Module client-side navigation in Production', () => {
-  const appDir = join(fixturesDir, 'multi-module')
+let proxyServer
+let stallCss
+let appPort
+let app
 
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-  })
-
-  let appPort
-  let app
-  beforeAll(async () => {
-    await nextBuild(appDir)
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-  })
-  afterAll(async () => {
-    await killApp(app)
-  })
-
+function runTests(dev) {
   it('should be able to client-side navigate from red to blue', async () => {
     let browser
     try {
@@ -69,40 +61,25 @@ describe('CSS Module client-side navigation in Production', () => {
     const content = await renderViaHTTP(appPort, '/blue')
     const $ = cheerio.load(content)
 
-    // Ensure only `/blue` page's CSS is preloaded
-    const serverCssPreloads = $('link[rel="preload"][as="style"]')
-    expect(serverCssPreloads.length).toBe(1)
+    if (!dev) {
+      // Ensure only `/blue` page's CSS is preloaded
+      const serverCssPreloads = $('link[rel="preload"][as="style"]')
+      expect(serverCssPreloads.length).toBe(1)
 
-    const serverCssPrefetches = $('link[rel="prefetch"][as="style"]')
-    expect(serverCssPrefetches.length).toBe(0)
+      const serverCssPrefetches = $('link[rel="prefetch"][as="style"]')
+      expect(serverCssPrefetches.length).toBe(0)
+    }
 
     let browser
     try {
       browser = await webdriver(appPort, '/blue')
+
       await browser.eval(`window.__did_not_ssr = 'make sure this is set'`)
 
       const redColor = await browser.eval(
         `window.getComputedStyle(document.querySelector('#verify-blue')).color`
       )
       expect(redColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
-
-      // Check that Red was preloaded
-      const result = await browser.eval(
-        `[].slice.call(document.querySelectorAll('link[rel="prefetch"][as="fetch"]')).map(e=>({href:e.href})).sort()`
-      )
-      expect(result.length).toBe(1)
-
-      // Check that CSS was not loaded as script
-      const cssPreloads = await browser.eval(
-        `[].slice.call(document.querySelectorAll('link[rel=preload][href*=".css"]')).map(e=>e.as)`
-      )
-      expect(cssPreloads.every((e) => e === 'style' || e === 'fetch')).toBe(
-        true
-      )
-      const cssPreloads2 = await browser.eval(
-        `[].slice.call(document.querySelectorAll('link[rel=prefetch][href*=".css"]')).map(e=>e.as)`
-      )
-      expect(cssPreloads2.every((e) => e === 'fetch')).toBe(true)
 
       await browser.elementByCss('#link-red').click()
 
@@ -172,163 +149,88 @@ describe('CSS Module client-side navigation in Production', () => {
       }
     }
   })
-})
+}
 
-// TODO: Make webpack 5 work with nest-esm-plugin
-describe.skip('CSS Module client-side navigation in Production (Modern)', () => {
-  const appDir = join(fixturesDir, 'multi-module-modern')
+describe('CSS Module client-side navigation', () => {
+  describe('production', () => {
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+      await nextBuild(appDir)
+      const port = await findPort()
+      app = await nextStart(appDir, port)
+      appPort = await findPort()
 
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-  })
+      const proxy = httpProxy.createProxyServer({
+        target: `http://localhost:${port}`,
+      })
 
-  let appPort
-  let app
-  beforeAll(async () => {
-    await nextBuild(appDir)
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-  })
-  afterAll(async () => {
-    await killApp(app)
-  })
+      proxyServer = http.createServer(async (req, res) => {
+        if (stallCss && req.url.endsWith('.css')) {
+          console.log('stalling request for', req.url)
+          await new Promise((resolve) => setTimeout(resolve, 5 * 1000))
+        }
+        proxy.web(req, res)
+      })
 
-  it('should be able to client-side navigate from red to blue', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/red')
+      proxy.on('error', (err) => {
+        console.warn('Failed to proxy', err)
+      })
 
-      await browser.eval(`window.__did_not_ssr = 'make sure this is set'`)
+      await new Promise((resolve) => {
+        proxyServer.listen(appPort, () => resolve())
+      })
+    })
+    afterAll(async () => {
+      proxyServer.close()
+      await killApp(app)
+    })
 
-      const redColor = await browser.eval(
-        `window.getComputedStyle(document.querySelector('#verify-red')).color`
-      )
-      expect(redColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+    it('should time out and hard navigate for stalled CSS request', async () => {
+      let browser
+      stallCss = true
 
-      await browser.elementByCss('#link-blue').click()
+      try {
+        browser = await webdriver(appPort, '/red')
+        browser.eval('window.beforeNav = "hello"')
 
-      await browser.waitForElementByCss('#verify-blue')
+        const redColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-red')).color`
+        )
+        expect(redColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+        expect(await browser.eval('window.beforeNav')).toBe('hello')
 
-      const blueColor = await browser.eval(
-        `window.getComputedStyle(document.querySelector('#verify-blue')).color`
-      )
-      expect(blueColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+        await browser.elementByCss('#link-blue').click()
 
-      expect(await browser.eval(`window.__did_not_ssr`)).toMatchInlineSnapshot(
-        `"make sure this is set"`
-      )
-    } finally {
-      if (browser) {
-        await browser.close()
+        await browser.waitForElementByCss('#verify-blue')
+
+        const blueColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-blue')).color`
+        )
+        expect(blueColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+
+        // the timeout should have been reached and we did a hard
+        // navigation
+        expect(await browser.eval('window.beforeNav')).toBe(null)
+      } finally {
+        stallCss = false
+        if (browser) {
+          await browser.close()
+        }
       }
-    }
+    })
+
+    runTests()
   })
 
-  it('should be able to client-side navigate from blue to red', async () => {
-    const content = await renderViaHTTP(appPort, '/blue')
-    const $ = cheerio.load(content)
-
-    // Ensure only `/blue` page's CSS is preloaded
-    const serverCssPreloads = $('link[rel="preload"][as="style"]')
-    expect(serverCssPreloads.length).toBe(1)
-
-    const serverCssPrefetches = $('link[rel="prefetch"][as="style"]')
-    expect(serverCssPrefetches.length).toBe(0)
-
-    let browser
-    try {
-      browser = await webdriver(appPort, '/blue')
-      await browser.eval(`window.__did_not_ssr = 'make sure this is set'`)
-
-      const redColor = await browser.eval(
-        `window.getComputedStyle(document.querySelector('#verify-blue')).color`
-      )
-      expect(redColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
-
-      // Check that Red was preloaded
-      const result = await browser.eval(
-        `[].slice.call(document.querySelectorAll('link[rel="prefetch"][as="fetch"]')).map(e=>({href:e.href})).sort()`
-      )
-      expect(result.length).toBe(1)
-
-      // Check that CSS was not loaded as script
-      const cssPreloads = await browser.eval(
-        `[].slice.call(document.querySelectorAll('link[rel=preload][href*=".css"]')).map(e=>e.as)`
-      )
-      expect(cssPreloads.every((e) => e === 'style' || e === 'fetch')).toBe(
-        true
-      )
-      const cssPreloads2 = await browser.eval(
-        `[].slice.call(document.querySelectorAll('link[rel=prefetch][href*=".css"]')).map(e=>e.as)`
-      )
-      expect(cssPreloads2.every((e) => e === 'fetch')).toBe(true)
-
-      await browser.elementByCss('#link-red').click()
-
-      await browser.waitForElementByCss('#verify-red')
-
-      const blueColor = await browser.eval(
-        `window.getComputedStyle(document.querySelector('#verify-red')).color`
-      )
-      expect(blueColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
-
-      expect(await browser.eval(`window.__did_not_ssr`)).toMatchInlineSnapshot(
-        `"make sure this is set"`
-      )
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
-  })
-
-  it('should be able to client-side navigate from none to red', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/none')
-
-      await browser.eval(`window.__did_not_ssr = 'make sure this is set'`)
-
-      await browser.elementByCss('#link-red').click()
-      await browser.waitForElementByCss('#verify-red')
-
-      const blueColor = await browser.eval(
-        `window.getComputedStyle(document.querySelector('#verify-red')).color`
-      )
-      expect(blueColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
-
-      expect(await browser.eval(`window.__did_not_ssr`)).toMatchInlineSnapshot(
-        `"make sure this is set"`
-      )
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
-  })
-
-  it('should be able to client-side navigate from none to blue', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/none')
-
-      await browser.eval(`window.__did_not_ssr = 'make sure this is set'`)
-
-      await browser.elementByCss('#link-blue').click()
-      await browser.waitForElementByCss('#verify-blue')
-
-      const blueColor = await browser.eval(
-        `window.getComputedStyle(document.querySelector('#verify-blue')).color`
-      )
-      expect(blueColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
-
-      expect(await browser.eval(`window.__did_not_ssr`)).toMatchInlineSnapshot(
-        `"make sure this is set"`
-      )
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
+  describe('dev', () => {
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
+    runTests(true)
   })
 })

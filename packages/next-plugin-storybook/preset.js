@@ -15,6 +15,7 @@ async function webpackFinal(config) {
     target: 'server',
     config: nextConfig,
     buildId: 'storybook',
+    rewrites: [],
   })
 
   config.plugins = [...config.plugins, ...nextWebpackConfig.plugins]
@@ -25,23 +26,7 @@ async function webpackFinal(config) {
   }
 
   config.module.rules = [
-    ...config.module.rules.filter((rule) => {
-      // the rules we're filtering use RegExp for the test
-      if (!rule.test instanceof RegExp) return true
-      // use Next.js' built-in CSS
-      if (rule.test.test('hello.css')) {
-        return false
-      }
-      // use next-babel-loader instead of storybook's babel-loader
-      if (
-        rule.test.test('hello.js') &&
-        Array.isArray(rule.use) &&
-        rule.use[0].loader === 'babel-loader'
-      ) {
-        return false
-      }
-      return true
-    }),
+    ...filterModuleRules(config),
     ...nextWebpackConfig.module.rules.map((rule) => {
       // we need to resolve next-babel-loader since it's not available
       // relative with storybook's config
@@ -57,6 +42,27 @@ async function webpackFinal(config) {
   return config
 }
 
+function filterModuleRules(config) {
+  return config.module.rules.filter((rule) => {
+    // the rules we're filtering use RegExp for the test
+    if (!(rule.test instanceof RegExp)) return true
+    // use Next.js' built-in CSS
+    if (rule.test.test('hello.css')) {
+      return false
+    }
+    // use next-babel-loader instead of storybook's babel-loader
+    if (
+      rule.test.test('hello.js') &&
+      Array.isArray(rule.use) &&
+      rule.use[0].loader === 'babel-loader'
+    ) {
+      return false
+    }
+    return true
+  })
+}
+
 module.exports = {
   webpackFinal,
+  filterModuleRules,
 }

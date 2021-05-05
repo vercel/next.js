@@ -99,6 +99,11 @@ const TRANSFORMER_INQUIRER_CHOICES = [
   },
   {
     name:
+      'add-missing-react-import: Transforms files that do not import `React` to include the import in order for the new React JSX transform',
+    value: 'add-missing-react-import',
+  },
+  {
+    name:
       'withamp-to-config: Transforms the withAmp HOC into Next.js 9 page configuration',
     value: 'withamp-to-config',
   },

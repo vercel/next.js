@@ -4,9 +4,8 @@ import EventSourcePolyfill from './dev/event-source-polyfill'
 import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
 import initializeBuildWatcher from './dev/dev-build-watcher'
-import initializePrerenderIndicator from './dev/prerender-indicator'
 import { displayContent } from './dev/fouc'
-import { getEventSourceWrapper } from './dev/error-overlay/eventsource'
+import { addMessageListener } from './dev/error-overlay/eventsource'
 import * as querystring from '../next-server/lib/router/utils/querystring'
 
 // Temporary workaround for the issue described here:
@@ -26,7 +25,7 @@ const {
 } = window
 
 const prefix = assetPrefix || ''
-const webpackHMR = initWebpackHMR({ assetPrefix: prefix })
+const webpackHMR = initWebpackHMR()
 
 window.next = next
 initNext({ webpackHMR })
@@ -73,19 +72,12 @@ initNext({ webpackHMR })
       }
     }
     devPagesManifestListener.unfiltered = true
-    getEventSourceWrapper({}).addMessageListener(devPagesManifestListener)
+    addMessageListener(devPagesManifestListener)
 
     if (process.env.__NEXT_BUILD_INDICATOR) {
       initializeBuildWatcher((handler) => {
         buildIndicatorHandler = handler
       })
-    }
-    if (
-      process.env.__NEXT_PRERENDER_INDICATOR &&
-      // disable by default in electron
-      !(typeof process !== 'undefined' && 'electron' in process.versions)
-    ) {
-      initializePrerenderIndicator()
     }
 
     // delay rendering until after styles have been applied in development

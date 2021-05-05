@@ -1,30 +1,59 @@
-import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
 import { parse as parseUrl } from 'url'
+import { NextConfig } from '../next-server/server/config'
+import * as pathToRegexp from 'next/dist/compiled/path-to-regexp'
+import escapeStringRegexp from 'next/dist/compiled/escape-string-regexp'
 import {
   PERMANENT_REDIRECT_STATUS,
   TEMPORARY_REDIRECT_STATUS,
 } from '../next-server/lib/constants'
 
+export type RouteHas =
+  | {
+      type: 'header' | 'query' | 'cookie'
+      key: string
+      value?: string
+    }
+  | {
+      type: 'host'
+      key?: undefined
+      value: string
+    }
+
 export type Rewrite = {
   source: string
   destination: string
   basePath?: false
-}
-
-export type Redirect = Rewrite & {
-  statusCode?: number
-  permanent?: boolean
+  locale?: false
+  has?: RouteHas[]
 }
 
 export type Header = {
   source: string
   basePath?: false
+  locale?: false
   headers: Array<{ key: string; value: string }>
+  has?: RouteHas[]
 }
 
-const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
+// internal type used for validation (not user facing)
+export type Redirect = {
+  source: string
+  destination: string
+  basePath?: false
+  locale?: false
+  has?: RouteHas[]
+  statusCode?: number
+  permanent?: boolean
+}
 
-export function getRedirectStatus(route: Redirect): number {
+export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
+const allowedHasTypes = new Set(['header', 'cookie', 'query', 'host'])
+const namedGroupsRegex = /\(\?<([a-zA-Z][a-zA-Z0-9]*)>/g
+
+export function getRedirectStatus(route: {
+  statusCode?: number
+  permanent?: boolean
+}): number {
   return (
     route.statusCode ||
     (route.permanent ? PERMANENT_REDIRECT_STATUS : TEMPORARY_REDIRECT_STATUS)
@@ -103,21 +132,21 @@ function tryParsePath(route: string, handleUrl?: boolean): ParseAttemptResult {
     result.tokens = pathToRegexp.parse(routePath)
     pathToRegexp.tokensToRegexp(result.tokens)
   } catch (err) {
-    // If there is an error show our err.sh but still show original error or a formatted one if we can
+    // If there is an error show our error link but still show original error or a formatted one if we can
     const errMatches = err.message.match(/at (\d{0,})/)
 
     if (errMatches) {
       const position = parseInt(errMatches[1], 10)
       console.error(
         `\nError parsing \`${route}\` ` +
-          `https://err.sh/vercel/next.js/invalid-route-source\n` +
+          `https://nextjs.org/docs/messages/invalid-route-source\n` +
           `Reason: ${err.message}\n\n` +
           `  ${routePath}\n` +
           `  ${new Array(position).fill(' ').join('')}^\n`
       )
     } else {
       console.error(
-        `\nError parsing ${route} https://err.sh/vercel/next.js/invalid-route-source`,
+        `\nError parsing ${route} https://nextjs.org/docs/messages/invalid-route-source`,
         err
       )
     }
@@ -134,27 +163,29 @@ function checkCustomRoutes(
   type: RouteType
 ): void {
   if (!Array.isArray(routes)) {
-    throw new Error(
-      `${type}s must return an array, received ${typeof routes}.\n` +
-        `See here for more info: https://err.sh/next.js/routes-must-be-array`
+    console.error(
+      `Error: ${type}s must return an array, received ${typeof routes}.\n` +
+        `See here for more info: https://nextjs.org/docs/messages/routes-must-be-array`
     )
+    process.exit(1)
   }
 
   let numInvalidRoutes = 0
   let hadInvalidStatus = false
+  let hadInvalidHas = false
 
-  const isRedirect = type === 'redirect'
-  let allowedKeys: Set<string>
+  const allowedKeys = new Set<string>(['source', 'basePath', 'locale', 'has'])
 
-  if (type === 'rewrite' || isRedirect) {
-    allowedKeys = new Set([
-      'source',
-      'destination',
-      'basePath',
-      ...(isRedirect ? ['statusCode', 'permanent'] : []),
-    ])
-  } else {
-    allowedKeys = new Set(['source', 'headers', 'basePath'])
+  if (type === 'rewrite') {
+    allowedKeys.add('destination')
+  }
+  if (type === 'redirect') {
+    allowedKeys.add('statusCode')
+    allowedKeys.add('permanent')
+    allowedKeys.add('destination')
+  }
+  if (type === 'header') {
+    allowedKeys.add('headers')
   }
 
   for (const route of routes) {
@@ -181,7 +212,7 @@ function checkCustomRoutes(
       console.error(
         `The route ${
           (route as Rewrite).source
-        } rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://err.sh/vercel/next.js/invalid-external-rewrite.md`
+        } rewrites urls outside of the basePath. Please use a destination that starts with \`http://\` or \`https://\` https://nextjs.org/docs/messages/invalid-external-rewrite`
       )
       numInvalidRoutes++
       continue
@@ -193,6 +224,54 @@ function checkCustomRoutes(
 
     if (typeof route.basePath !== 'undefined' && route.basePath !== false) {
       invalidParts.push('`basePath` must be undefined or false')
+    }
+
+    if (typeof route.locale !== 'undefined' && route.locale !== false) {
+      invalidParts.push('`locale` must be undefined or false')
+    }
+
+    if (typeof route.has !== 'undefined' && !Array.isArray(route.has)) {
+      invalidParts.push('`has` must be undefined or valid has object')
+      hadInvalidHas = true
+    } else if (route.has) {
+      const invalidHasItems = []
+
+      for (const hasItem of route.has) {
+        let invalidHasParts = []
+
+        if (!allowedHasTypes.has(hasItem.type)) {
+          invalidHasParts.push(`invalid type "${hasItem.type}"`)
+        }
+        if (typeof hasItem.key !== 'string' && hasItem.type !== 'host') {
+          invalidHasParts.push(`invalid key "${hasItem.key}"`)
+        }
+        if (
+          typeof hasItem.value !== 'undefined' &&
+          typeof hasItem.value !== 'string'
+        ) {
+          invalidHasParts.push(`invalid value "${hasItem.value}"`)
+        }
+        if (typeof hasItem.value === 'undefined' && hasItem.type === 'host') {
+          invalidHasParts.push(`value is required for "host" type`)
+        }
+
+        if (invalidHasParts.length > 0) {
+          invalidHasItems.push(
+            `${invalidHasParts.join(', ')} for ${JSON.stringify(hasItem)}`
+          )
+        }
+      }
+
+      if (invalidHasItems.length > 0) {
+        hadInvalidHas = true
+        const itemStr = `item${invalidHasItems.length === 1 ? '' : 's'}`
+
+        console.error(
+          `Invalid \`has\` ${itemStr}:\n` + invalidHasItems.join('\n')
+        )
+        console.error()
+        invalidParts.push(`invalid \`has\` ${itemStr} found`)
+      }
     }
 
     if (!route.source) {
@@ -239,6 +318,27 @@ function checkCustomRoutes(
       }
       sourceTokens = tokens
     }
+    const hasSegments = new Set<string>()
+
+    if (route.has) {
+      for (const hasItem of route.has) {
+        if (!hasItem.value && hasItem.key) {
+          hasSegments.add(hasItem.key)
+        }
+
+        if (hasItem.value) {
+          for (const match of hasItem.value.matchAll(namedGroupsRegex)) {
+            if (match[1]) {
+              hasSegments.add(match[1])
+            }
+          }
+
+          if (hasItem.type === 'host') {
+            hasSegments.add('host')
+          }
+        }
+      }
+    }
 
     // make sure no unnamed patterns are attempted to be used in the
     // destination as this can cause confusion and is not allowed
@@ -283,7 +383,8 @@ function checkCustomRoutes(
             for (const token of destTokens!) {
               if (
                 typeof token === 'object' &&
-                !sourceSegments.has(token.name)
+                !sourceSegments.has(token.name) &&
+                !hasSegments.has(token.name as string)
               ) {
                 invalidDestSegments.add(token.name)
               }
@@ -291,7 +392,7 @@ function checkCustomRoutes(
 
             if (invalidDestSegments.size) {
               invalidParts.push(
-                `\`destination\` has segments not in \`source\` (${[
+                `\`destination\` has segments not in \`source\` or \`has\` (${[
                   ...invalidDestSegments,
                 ].join(', ')})`
               )
@@ -314,6 +415,7 @@ function checkCustomRoutes(
             : ''
         } for route ${JSON.stringify(route)}`
       )
+      console.error()
       numInvalidRoutes++
     }
   }
@@ -326,47 +428,172 @@ function checkCustomRoutes(
         )}`
       )
     }
+    if (hadInvalidHas) {
+      console.error(
+        `\nValid \`has\` object shape is ${JSON.stringify(
+          {
+            type: [...allowedHasTypes].join(', '),
+            key: 'the key to check for',
+            value: 'undefined or a value string to match against',
+          },
+          null,
+          2
+        )}`
+      )
+    }
     console.error()
-
-    throw new Error(`Invalid ${type}${numInvalidRoutes === 1 ? '' : 's'} found`)
+    console.error(
+      `Error: Invalid ${type}${numInvalidRoutes === 1 ? '' : 's'} found`
+    )
+    process.exit(1)
   }
 }
 
 export interface CustomRoutes {
   headers: Header[]
-  rewrites: Rewrite[]
+  rewrites: {
+    fallback: Rewrite[]
+    afterFiles: Rewrite[]
+    beforeFiles: Rewrite[]
+  }
   redirects: Redirect[]
 }
 
-async function loadRedirects(config: any) {
+function processRoutes<T>(
+  routes: T,
+  config: NextConfig,
+  type: 'redirect' | 'rewrite' | 'header'
+): T {
+  const _routes = (routes as any) as Array<{
+    source: string
+    locale?: false
+    basePath?: false
+    destination?: string
+  }>
+  const newRoutes: typeof _routes = []
+  const defaultLocales: Array<{
+    locale: string
+    base: string
+  }> = []
+
+  if (config.i18n && type === 'redirect') {
+    for (const item of config.i18n?.domains || []) {
+      defaultLocales.push({
+        locale: item.defaultLocale,
+        base: `http${item.http ? '' : 's'}://${item.domain}`,
+      })
+    }
+
+    defaultLocales.push({
+      locale: config.i18n.defaultLocale,
+      base: '',
+    })
+  }
+
+  for (const r of _routes) {
+    const srcBasePath =
+      config.basePath && r.basePath !== false ? config.basePath : ''
+    const isExternal = !r.destination?.startsWith('/')
+    const destBasePath = srcBasePath && !isExternal ? srcBasePath : ''
+
+    if (config.i18n && r.locale !== false) {
+      defaultLocales.forEach((item) => {
+        let destination
+
+        if (r.destination) {
+          destination = item.base
+            ? `${item.base}${destBasePath}${r.destination}`
+            : `${destBasePath}${r.destination}`
+        }
+
+        newRoutes.push({
+          ...r,
+          destination,
+          source: `${srcBasePath}/${item.locale}${r.source}`,
+        })
+      })
+
+      r.source = `/:nextInternalLocale(${config.i18n.locales
+        .map((locale: string) => escapeStringRegexp(locale))
+        .join('|')})${
+        r.source === '/' && !config.trailingSlash ? '' : r.source
+      }`
+
+      if (r.destination && r.destination?.startsWith('/')) {
+        r.destination = `/:nextInternalLocale${
+          r.destination === '/' && !config.trailingSlash ? '' : r.destination
+        }`
+      }
+    }
+    r.source = `${srcBasePath}${r.source}`
+
+    if (r.destination) {
+      r.destination = `${destBasePath}${r.destination}`
+    }
+    newRoutes.push(r)
+  }
+  return (newRoutes as any) as T
+}
+
+async function loadRedirects(config: NextConfig) {
   if (typeof config.redirects !== 'function') {
     return []
   }
-  const _redirects = await config.redirects()
-  checkCustomRoutes(_redirects, 'redirect')
-  return _redirects
+  let redirects = await config.redirects()
+  checkCustomRoutes(redirects, 'redirect')
+  return processRoutes(redirects, config, 'redirect')
 }
 
-async function loadRewrites(config: any) {
+async function loadRewrites(config: NextConfig) {
   if (typeof config.rewrites !== 'function') {
-    return []
+    return {
+      beforeFiles: [],
+      afterFiles: [],
+      fallback: [],
+    }
   }
   const _rewrites = await config.rewrites()
-  checkCustomRoutes(_rewrites, 'rewrite')
-  return _rewrites
+  let beforeFiles: Rewrite[] = []
+  let afterFiles: Rewrite[] = []
+  let fallback: Rewrite[] = []
+
+  if (
+    !Array.isArray(_rewrites) &&
+    typeof _rewrites === 'object' &&
+    Object.keys(_rewrites).every(
+      (key) =>
+        key === 'beforeFiles' || key === 'afterFiles' || key === 'fallback'
+    )
+  ) {
+    beforeFiles = _rewrites.beforeFiles || []
+    afterFiles = _rewrites.afterFiles || []
+    fallback = _rewrites.fallback || []
+  } else {
+    afterFiles = _rewrites as any
+  }
+
+  checkCustomRoutes(beforeFiles, 'rewrite')
+  checkCustomRoutes(afterFiles, 'rewrite')
+  checkCustomRoutes(fallback, 'rewrite')
+
+  return {
+    beforeFiles: processRoutes(beforeFiles, config, 'rewrite'),
+    afterFiles: processRoutes(afterFiles, config, 'rewrite'),
+    fallback: processRoutes(fallback, config, 'rewrite'),
+  }
 }
 
-async function loadHeaders(config: any) {
+async function loadHeaders(config: NextConfig) {
   if (typeof config.headers !== 'function') {
     return []
   }
-  const _headers = await config.headers()
-  checkCustomRoutes(_headers, 'header')
-  return _headers
+  let headers = await config.headers()
+  checkCustomRoutes(headers, 'header')
+  return processRoutes(headers, config, 'header')
 }
 
 export default async function loadCustomRoutes(
-  config: any
+  config: NextConfig
 ): Promise<CustomRoutes> {
   const [headers, rewrites, redirects] = await Promise.all([
     loadHeaders(config),
@@ -377,15 +604,19 @@ export default async function loadCustomRoutes(
   if (config.trailingSlash) {
     redirects.unshift(
       {
-        source: '/:file((?:[^/]+/)*[^/]+\\.\\w+)/',
+        source: '/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/',
         destination: '/:file',
         permanent: true,
-      },
+        locale: config.i18n ? false : undefined,
+        internal: true,
+      } as Redirect,
       {
-        source: '/:notfile((?:[^/]+/)*[^/\\.]+)',
+        source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
         destination: '/:notfile/',
         permanent: true,
-      }
+        locale: config.i18n ? false : undefined,
+        internal: true,
+      } as Redirect
     )
     if (config.basePath) {
       redirects.unshift({
@@ -393,21 +624,27 @@ export default async function loadCustomRoutes(
         destination: config.basePath + '/',
         permanent: true,
         basePath: false,
-      })
+        locale: config.i18n ? false : undefined,
+        internal: true,
+      } as Redirect)
     }
   } else {
     redirects.unshift({
       source: '/:path+/',
       destination: '/:path+',
       permanent: true,
-    })
+      locale: config.i18n ? false : undefined,
+      internal: true,
+    } as Redirect)
     if (config.basePath) {
       redirects.unshift({
         source: config.basePath + '/',
         destination: config.basePath,
         permanent: true,
         basePath: false,
-      })
+        locale: config.i18n ? false : undefined,
+        internal: true,
+      } as Redirect)
     }
   }
 

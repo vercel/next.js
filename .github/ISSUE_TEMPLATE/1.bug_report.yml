@@ -1,0 +1,73 @@
+name: Bug Report
+description: Create a bug report for the Next.js core
+labels: 'template: bug'
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time to file a bug report! Please fill out this form as completely as possible.
+  - type: markdown
+    attributes:
+      value: If you leave out sections there is a high likelihood it will be moved to the GitHub Discussions "Help" section.
+  - type: markdown
+    attributes:
+      value: 'Please first verify if your issue exists in the Next.js canary release line: `npm install next@canary`.'
+  - type: markdown
+    attributes:
+      value: 'next@canary is the beta version of Next.js. It includes all features and fixes that are pending to land on the stable release line.'
+  - type: input
+    attributes:
+      label: What version of Next.js are you using?
+      description: 'For example: 10.0.1'
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: What version of Node.js are you using?
+      description: 'For example: 12.0.0'
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: What browser are you using?
+      description: 'For example: Chrome, Safari'
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: What operating system are you using?
+      description: 'For example: macOS, Windows'
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: How are you deploying your application?
+      description: 'For example: next start, next export, Vercel, Other platform'
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Describe the Bug
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected Behavior
+      description: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: To Reproduce
+      description: Steps to reproduce the behavior, please provide a clear code snippets that always reproduces the issue or a GitHub repository. Screenshots can be provided in the issue body below.
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: Before posting the issue go through the steps you've written down to make sure the steps provided are detailed and clear.
+  - type: markdown
+    attributes:
+      value: Contributors should be able to follow the steps provided in order to reproduce the bug.
+  - type: markdown
+    attributes:
+      value: These steps are used to add integration tests to ensure the same issue does not happen again. Thanks in advance!

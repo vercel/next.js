@@ -20,7 +20,7 @@ describe('externalize next/dist/next-server', () => {
           escapeStringRegexp(
             `module.exports = require("next/dist/next-server/lib/head.js");`
           ) +
-          '$',
+          ';?$',
         'm'
       )
     )

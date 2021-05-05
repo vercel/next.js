@@ -40,6 +40,7 @@ export async function getAllPostsForHome(preview) {
   const params = {
     type: 'posts',
     props: 'title,slug,metadata,created_at',
+    sort: '-created_at',
     ...(preview && { status: 'all' }),
   }
   const data = await bucket.getObjects(params)

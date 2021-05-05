@@ -45,7 +45,7 @@ describe('SCSS Support', () => {
         'Run `npm i sass` or `yarn add sass` inside your workspace.'
       )
       expect(stderr).toContain(
-        'Learn more: https://err.sh/next.js/install-sass'
+        'Learn more: https://nextjs.org/docs/messages/install-sass'
       )
     })
   })
@@ -248,7 +248,7 @@ describe('SCSS Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `".redText ::-moz-placeholder{color:red}.redText :-ms-input-placeholder{color:red}.redText ::-ms-input-placeholder{color:red}.redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+        `".redText ::-moz-placeholder{color:red}.redText :-ms-input-placeholder{color:red}.redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
       )
 
       // Contains a source map
@@ -269,7 +269,7 @@ describe('SCSS Support', () => {
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
         Object {
-          "mappings": "AACA,4BAEI,SAHK,CACT,gCAEI,SAHK,CACT,iCAEI,SAHK,CACT,uBAEI,SAHK,CAIN,cAID,2CAA4C",
+          "mappings": "AACA,4BAEI,SAHK,CACT,gCAEI,SAHK,CACT,uBAEI,SAHK,CAIN,cAID,2CAA4C",
           "sourcesContent": Array [
             "$var: red;
         .redText {

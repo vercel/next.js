@@ -1,14 +1,16 @@
-import React, { Children } from 'react'
+import React, { Children, useEffect } from 'react'
 import { UrlObject } from 'url'
 import {
   addBasePath,
   addLocale,
+  getDomainLocale,
   isLocalURL,
   NextRouter,
   PrefetchOptions,
   resolveHref,
 } from '../next-server/lib/router/router'
 import { useRouter } from './router'
+import { useIntersection } from './use-intersection'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -31,59 +33,7 @@ export type LinkProps = {
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<LinkProps>
 
-let cachedObserver: IntersectionObserver
-const listeners = new Map<Element, () => void>()
-const IntersectionObserver =
-  typeof window !== 'undefined' ? window.IntersectionObserver : null
 const prefetched: { [cacheKey: string]: boolean } = {}
-
-function getObserver(): IntersectionObserver | undefined {
-  // Return shared instance of IntersectionObserver if already created
-  if (cachedObserver) {
-    return cachedObserver
-  }
-
-  // Only create shared IntersectionObserver if supported in browser
-  if (!IntersectionObserver) {
-    return undefined
-  }
-
-  return (cachedObserver = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (!listeners.has(entry.target)) {
-          return
-        }
-
-        const cb = listeners.get(entry.target)!
-        if (entry.isIntersecting || entry.intersectionRatio > 0) {
-          cachedObserver.unobserve(entry.target)
-          listeners.delete(entry.target)
-          cb()
-        }
-      })
-    },
-    { rootMargin: '200px' }
-  ))
-}
-
-const listenToIntersections = (el: Element, cb: () => void) => {
-  const observer = getObserver()
-  if (!observer) {
-    return () => {}
-  }
-
-  observer.observe(el)
-  listeners.set(el, cb)
-  return () => {
-    try {
-      observer.unobserve(el)
-    } catch (err) {
-      console.error(err)
-    }
-    listeners.delete(el)
-  }
-}
 
 function prefetch(
   router: NextRouter,
@@ -91,7 +41,7 @@ function prefetch(
   as: string,
   options?: PrefetchOptions
 ): void {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined' || !router) return
   if (!isLocalURL(href)) return
   // Prefetch the JSON page if asked (only in the client)
   // We need to handle a prefetch error here since we may be
@@ -103,11 +53,16 @@ function prefetch(
       throw err
     }
   })
+  const curLocale =
+    options && typeof options.locale !== 'undefined'
+      ? options.locale
+      : router && router.locale
+
   // Join on an invalid URI character
-  prefetched[href + '%' + as] = true
+  prefetched[href + '%' + as + (curLocale ? '%' + curLocale : '')] = true
 }
 
-function isModifiedEvent(event: React.MouseEvent) {
+function isModifiedEvent(event: React.MouseEvent): boolean {
   const { target } = event.currentTarget as HTMLAnchorElement
   return (
     (target && target !== '_self') ||
@@ -144,15 +99,11 @@ function linkClicked(
   }
 
   // replace state instead of push if prop is present
-  router[replace ? 'replace' : 'push'](href, as, { shallow, locale }).then(
-    (success: boolean) => {
-      if (!success) return
-      if (scroll) {
-        window.scrollTo(0, 0)
-        document.body.focus()
-      }
-    }
-  )
+  router[replace ? 'replace' : 'push'](href, as, {
+    shallow,
+    locale,
+    scroll,
+  })
 }
 
 function Link(props: React.PropsWithChildren<LinkProps>) {
@@ -255,16 +206,14 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     if (props.prefetch && !hasWarned.current) {
       hasWarned.current = true
       console.warn(
-        'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://err.sh/vercel/next.js/prefetch-true-deprecated'
+        'Next.js auto-prefetches automatically based on viewport. The prefetch attribute is no longer needed. More: https://nextjs.org/docs/messages/prefetch-true-deprecated'
       )
     }
   }
   const p = props.prefetch !== false
 
-  const [childElm, setChildElm] = React.useState<Element>()
-
   const router = useRouter()
-  const pathname = (router && router.pathname) || '/'
+  const pathname = (router && router.asPath) || '/'
 
   const { href, as } = React.useMemo(() => {
     const [resolvedHref, resolvedAs] = resolveHref(pathname, props.href, true)
@@ -276,25 +225,8 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     }
   }, [pathname, props.href, props.as])
 
-  React.useEffect(() => {
-    if (
-      p &&
-      IntersectionObserver &&
-      childElm &&
-      childElm.tagName &&
-      isLocalURL(href)
-    ) {
-      // Join on an invalid URI character
-      const isPrefetched = prefetched[href + '%' + as]
-      if (!isPrefetched) {
-        return listenToIntersections(childElm, () => {
-          prefetch(router, href, as)
-        })
-      }
-    }
-  }, [p, childElm, href, as, router])
-
   let { children, replace, shallow, scroll, locale } = props
+
   // Deprecated. Warning shown by propType check. If the children provided is a string (<Link>example</Link>) we wrap it in an <a> tag
   if (typeof children === 'string') {
     children = <a>{children}</a>
@@ -302,22 +234,43 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
 
   // This will return the first child, if multiple are provided it will throw an error
   const child: any = Children.only(children)
+  const childRef: any = child && typeof child === 'object' && child.ref
+
+  const [setIntersectionRef, isVisible] = useIntersection({
+    rootMargin: '200px',
+  })
+  const setRef = React.useCallback(
+    (el: Element) => {
+      setIntersectionRef(el)
+      if (childRef) {
+        if (typeof childRef === 'function') childRef(el)
+        else if (typeof childRef === 'object') {
+          childRef.current = el
+        }
+      }
+    },
+    [childRef, setIntersectionRef]
+  )
+  useEffect(() => {
+    const shouldPrefetch = isVisible && p && isLocalURL(href)
+    const curLocale =
+      typeof locale !== 'undefined' ? locale : router && router.locale
+    const isPrefetched =
+      prefetched[href + '%' + as + (curLocale ? '%' + curLocale : '')]
+    if (shouldPrefetch && !isPrefetched) {
+      prefetch(router, href, as, {
+        locale: curLocale,
+      })
+    }
+  }, [as, href, isVisible, locale, p, router])
+
   const childProps: {
     onMouseEnter?: React.MouseEventHandler
     onClick: React.MouseEventHandler
     href?: string
     ref?: any
   } = {
-    ref: (el: any) => {
-      if (el) setChildElm(el)
-
-      if (child && typeof child === 'object' && child.ref) {
-        if (typeof child.ref === 'function') child.ref(el)
-        else if (typeof child.ref === 'object') {
-          child.ref.current = el
-        }
-      }
-    },
+    ref: setRef,
     onClick: (e: React.MouseEvent) => {
       if (child.props && typeof child.props.onClick === 'function') {
         child.props.onClick(e)
@@ -328,26 +281,35 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
     },
   }
 
-  if (p) {
-    childProps.onMouseEnter = (e: React.MouseEvent) => {
-      if (!isLocalURL(href)) return
-      if (child.props && typeof child.props.onMouseEnter === 'function') {
-        child.props.onMouseEnter(e)
-      }
-      prefetch(router, href, as, { priority: true })
+  childProps.onMouseEnter = (e: React.MouseEvent) => {
+    if (!isLocalURL(href)) return
+    if (child.props && typeof child.props.onMouseEnter === 'function') {
+      child.props.onMouseEnter(e)
     }
+    prefetch(router, href, as, { priority: true })
   }
 
   // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
   // defined, we specify the current 'href', so that repetition is not needed by the user
   if (props.passHref || (child.type === 'a' && !('href' in child.props))) {
-    childProps.href = addBasePath(
-      addLocale(
+    const curLocale =
+      typeof locale !== 'undefined' ? locale : router && router.locale
+
+    // we only render domain locales if we are currently on a domain locale
+    // so that locale links are still visitable in development/preview envs
+    const localeDomain =
+      router &&
+      router.isLocaleDomain &&
+      getDomainLocale(
         as,
-        typeof locale !== 'undefined' ? locale : router && router.locale,
-        router && router.defaultLocale
+        curLocale,
+        router && router.locales,
+        router && router.domainLocales
       )
-    )
+
+    childProps.href =
+      localeDomain ||
+      addBasePath(addLocale(as, curLocale, router && router.defaultLocale))
   }
 
   return React.cloneElement(child, childProps)

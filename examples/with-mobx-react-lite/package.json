@@ -2,16 +2,19 @@
   "name": "with-mobx-react-lite",
   "version": "1.0.0",
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "mobx": "^5.9.0",
-    "mobx-react-lite": "^1.1.1",
+    "mobx": "^6.0.3",
+    "mobx-react-lite": "^3.1.5",
     "next": "latest",
-    "react": "^16.8.4",
-    "react-dom": "^16.8.4"
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1"
+  },
+  "devDependencies": {
+    "@babel/plugin-proposal-class-properties": "^7.1.0"
   },
   "license": "MIT"
 }

@@ -20,6 +20,8 @@ let app
 describe('distDir', () => {
   describe('With basic usage', () => {
     beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
+      await fs.remove(join(appDir, 'dist'))
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
@@ -37,9 +39,7 @@ describe('distDir', () => {
       ).toBeTruthy()
     })
     it('should not build the app within the default `.next` directory', async () => {
-      expect(
-        await fs.exists(join(__dirname, `/../.next/${BUILD_ID_FILE}`))
-      ).toBeFalsy()
+      expect(await fs.exists(join(__dirname, '/../.next'))).toBeFalsy()
     })
   })
 

@@ -1,5 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/router'
 
 export async function getServerSideProps({ query: { port } }) {
   if (!port) {
@@ -9,10 +10,14 @@ export async function getServerSideProps({ query: { port } }) {
 }
 
 export default function Page({ port }) {
+  const router = useRouter()
   return (
     <>
-      <Link href={`http://localhost:${port}/docs/something-else`}>
-        <a id="absolute-link">http://localhost:{port}/docs/something-else</a>
+      <Link href={`http://localhost:${port}${router.basePath}/something-else`}>
+        <a id="absolute-link">
+          http://localhost:{port}
+          {router.basePath}/something-else
+        </a>
       </Link>
     </>
   )

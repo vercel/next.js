@@ -22,12 +22,20 @@
               "path": "/docs/basic-features/built-in-css-support.md"
             },
             {
-              "title": "Fast Refresh",
-              "path": "/docs/basic-features/fast-refresh.md"
+              "title": "Image Optimization",
+              "path": "/docs/basic-features/image-optimization.md"
+            },
+            {
+              "title": "Font Optimization",
+              "path": "/docs/basic-features/font-optimization.md"
             },
             {
               "title": "Static File Serving",
               "path": "/docs/basic-features/static-file-serving.md"
+            },
+            {
+              "title": "Fast Refresh",
+              "path": "/docs/basic-features/fast-refresh.md"
             },
             {
               "title": "TypeScript",
@@ -88,6 +96,10 @@
         {
           "title": "Deployment",
           "path": "/docs/deployment.md"
+        },
+        {
+          "title": "Authentication",
+          "path": "/docs/authentication.md"
         },
         {
           "title": "Advanced Features",
@@ -178,8 +190,16 @@
               "path": "/docs/advanced-features/debugging.md"
             },
             {
+              "title": "Source Maps",
+              "path": "/docs/advanced-features/source-maps.md"
+            },
+            {
               "title": "Codemods",
               "path": "/docs/advanced-features/codemods.md"
+            },
+            {
+              "title": "Internationalized Routing",
+              "path": "/docs/advanced-features/i18n-routing.md"
             }
           ]
         },
@@ -191,8 +211,20 @@
           "title": "Migrating to Next.js",
           "routes": [
             {
+              "title": "Incrementally Adopting Next.js",
+              "path": "/docs/migrating/incremental-adoption.md"
+            },
+            {
               "title": "Migrating from Gatsby",
               "path": "/docs/migrating/from-gatsby.md"
+            },
+            {
+              "title": "Migrating from Create React App",
+              "path": "/docs/migrating/from-create-react-app.md"
+            },
+            {
+              "title": "Migrating from React Router",
+              "path": "/docs/migrating/from-react-router.md"
             }
           ]
         },
@@ -217,6 +249,10 @@
           "path": "/docs/api-reference/next/link.md"
         },
         {
+          "title": "next/image",
+          "path": "/docs/api-reference/next/image.md"
+        },
+        {
           "title": "next/head",
           "path": "/docs/api-reference/next/head.md"
         },
@@ -232,6 +268,10 @@
               "path": "/docs/api-reference/data-fetching/getInitialProps.md"
             }
           ]
+        },
+        {
+          "title": "Static Optimization Indicator",
+          "path": "/docs/api-reference/next.config.js/static-optimization-indicator.md"
         },
         {
           "title": "next.config.js",
@@ -269,20 +309,12 @@
               "path": "/docs/api-reference/next.config.js/cdn-support-with-asset-prefix.md"
             },
             {
-              "title": "Build Target",
-              "path": "/docs/api-reference/next.config.js/build-target.md"
-            },
-            {
               "title": "Custom Webpack Config",
               "path": "/docs/api-reference/next.config.js/custom-webpack-config.md"
             },
             {
               "title": "Compression",
               "path": "/docs/api-reference/next.config.js/compression.md"
-            },
-            {
-              "title": "Static Optimization Indicator",
-              "path": "/docs/api-reference/next.config.js/static-optimization-indicator.md"
             },
             {
               "title": "Runtime Configuration",

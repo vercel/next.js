@@ -4,11 +4,13 @@ This example serves as a conduit if you were using Apollo 1.X with Redux, and ar
 
 In 3.0.0, Apollo serves out-of-the-box support for redux in favor of Apollo's state management. This example aims to be an amalgamation of the [`with-apollo`](https://github.com/vercel/next.js/tree/master/examples/with-apollo) and [`with-redux`](https://github.com/vercel/next.js/tree/master/examples/with-redux) examples.
 
+To inspect the GraphQL API, use its [web IDE](https://nextjs-graphql-with-prisma-simple.vercel.app/api).
+
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-apollo-and-redux)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-apollo-and-redux&project-name=with-apollo-and-redux&repository-name=with-apollo-and-redux)
 
 ## How to use
 
@@ -20,4 +22,4 @@ npx create-next-app --example with-apollo-and-redux with-apollo-and-redux-app
 yarn create next-app --example with-apollo-and-redux with-apollo-and-redux-app
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
