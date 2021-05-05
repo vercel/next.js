@@ -2,7 +2,7 @@
 
 This project adds commenting functionality to [Next.js blog application](https://github.com/vercel/next.js/tree/canary/examples/blog) using Upstash and Auth0.
 
-The comment box requires Auth0 authentication for users to add new comments. A user can delete their own comment.
+The comment box requires Auth0 authentication for users to add new comments. A user can delete their own comment. Also admin user can delete any comment. 
 
 Comments are stored in Serverless Redis ([Upstash](http://upstash.com/)).
 
@@ -10,7 +10,7 @@ Comments are stored in Serverless Redis ([Upstash](http://upstash.com/)).
 
 [https://blog-with-comment.vercel.app/](https://blog-with-comment.vercel.app/)
 
-## `1` How to use
+## `1` Project set up
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app)
 with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the
@@ -52,6 +52,8 @@ Go to the [Upstash Console](https://console.upstash.com/) and create a new datab
 
 - `NEXT_PUBLIC_AUTH0_DOMAIN`: Can be found in the Auth0 dashboard under `settings`.
 - `NEXT_PUBLIC_AUTH0_CLIENT_ID`: Can be found in the Auth0 dashboard under `settings`.
+- `NEXT_PUBLIC_AUTH0_ADMIN_EMAIL`: This is the email of the admin user which you use while singing in Auth0. Admin is able to delete any comment. 
+
 
 ## Deploy Your Local Project
 
