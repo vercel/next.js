@@ -1,4 +1,5 @@
-import chalk from 'next/dist/compiled/chalk'
+/* @eslint-disable no-redeclare */
+import chalk from 'chalk'
 import {
   CONFORMANCE_ERROR_PREFIX,
   CONFORMANCE_WARNING_PREFIX,
@@ -9,11 +10,6 @@ import {
   IWebpackConformanceTest,
 } from '../TestInterface'
 import { deepEqual } from '../utils/utils'
-
-export interface GranularChunksConformanceCheck
-  extends IWebpackConformanceTest {
-  granularChunksConfig: any
-}
 
 function getWarningMessage(modifiedProp: string) {
   return (
@@ -33,7 +29,9 @@ function getErrorMessage(message: string) {
   )
 }
 
-export class GranularChunksConformanceCheck {
+/* @eslint-disable-next-line no-redeclare */
+export class GranularChunksConformanceCheck implements IWebpackConformanceTest {
+  granularChunksConfig: any
   constructor(granularChunksConfig: any) {
     this.granularChunksConfig = granularChunksConfig
   }

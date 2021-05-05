@@ -234,5 +234,113 @@ module.exports = (context) => {
         'url=https%3A%2F%2Fgoogle.com%2Fimage%3Fcrop%3Dfocalpoint%26w%3D24&w=1200&q=100'
       )
     })
+
+    it('should handle encoded value in the pathname correctly /', async () => {
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/redirect/me/to-about/%2fgoogle.com',
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const { pathname, hostname } = url.parse(
+        res.headers.get('location') || ''
+      )
+      expect(res.status).toBe(307)
+      expect(pathname).toBe('/%2fgoogle.com/about')
+      expect(hostname).not.toBe('google.com')
+    })
+
+    it('should handle encoded value in the pathname to query correctly (/)', async () => {
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/redirect-query-test/%2Fgoogle.com',
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const { pathname, hostname, query } = url.parse(
+        res.headers.get('location') || ''
+      )
+      expect(res.status).toBe(307)
+      expect(pathname).toBe('/about')
+      expect(query).toBe('foo=%2Fgoogle.com')
+      expect(hostname).not.toBe('google.com')
+      expect(hostname).not.toMatch(/google/)
+    })
+
+    it('should handle encoded / value for trailing slash correctly', async () => {
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/%2fexample.com/',
+        undefined,
+        { redirect: 'manual' }
+      )
+
+      const { pathname, hostname } = url.parse(
+        res.headers.get('location') || ''
+      )
+      expect(res.status).toBe(308)
+      expect(pathname).toBe('/%2fexample.com')
+      expect(hostname).not.toBe('example.com')
+    })
+
+    it('should handle encoded value in the pathname correctly /', async () => {
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/redirect/me/to-about/%2fgoogle.com',
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const { pathname, hostname } = url.parse(
+        res.headers.get('location') || ''
+      )
+      expect(res.status).toBe(307)
+      expect(pathname).toBe('/%2fgoogle.com/about')
+      expect(hostname).not.toBe('google.com')
+    })
+
+    it('should handle encoded value in the pathname to query correctly (/)', async () => {
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/redirect-query-test/%2Fgoogle.com',
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+
+      const { pathname, hostname, query } = url.parse(
+        res.headers.get('location') || ''
+      )
+      expect(res.status).toBe(307)
+      expect(pathname).toBe('/about')
+      expect(query).toBe('foo=%2Fgoogle.com')
+      expect(hostname).not.toBe('google.com')
+      expect(hostname).not.toMatch(/google/)
+    })
+
+    it('should handle encoded / value for trailing slash correctly', async () => {
+      const res = await fetchViaHTTP(
+        context.appPort,
+        '/%2fexample.com/',
+        undefined,
+        { redirect: 'manual' }
+      )
+
+      const { pathname, hostname } = url.parse(
+        res.headers.get('location') || ''
+      )
+      expect(res.status).toBe(308)
+      expect(pathname).toBe('/%2fexample.com')
+      expect(hostname).not.toBe('example.com')
+    })
   })
 }

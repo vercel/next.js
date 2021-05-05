@@ -1,4 +1,4 @@
-import loaderUtils from 'loader-utils'
+import loaderUtils from 'next/dist/compiled/loader-utils'
 
 module.exports = function (content, sourceMap) {
   this.cacheable()

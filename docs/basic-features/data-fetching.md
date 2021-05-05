@@ -9,21 +9,22 @@ description: 'Next.js has 2 pre-rendering modes: Static Generation and Server-si
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-wordpress">WordPress Example</a> (<a href="https://next-blog-wordpress.now.sh">Demo</a>)</li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/blog-starter">Blog Starter using markdown files</a> (<a href="https://next-blog-starter.now.sh/">Demo</a>)</li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-datocms">DatoCMS Example</a> (<a href="https://next-blog-datocms.now.sh/">Demo</a>)</li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-takeshape">TakeShape Example</a> (<a href="https://next-blog-takeshape.now.sh/">Demo</a>)</li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-sanity">Sanity Example</a> (<a href="https://next-blog-sanity.now.sh/">Demo</a>)</li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-prismic">Prismic Example</a> (<a href="https://next-blog-prismic.now.sh/">Demo</a>)</li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-contentful">Contentful Example</a> (<a href="https://next-blog-contentful.now.sh/">Demo</a>)</li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-strapi">Strapi Example</a> (<a href="https://next-blog-strapi.now.sh/">Demo</a>)</li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-agilitycms">Agility CMS Example</a> (<a href="https://next-blog-agilitycms.now.sh/">Demo</a>)</li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-cosmic">Cosmic Example</a> (<a href="https://next-blog-cosmic.now.sh/">Demo</a>)</li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-buttercms">ButterCMS Example</a> (<a href="https://next-blog-buttercms.now.sh/">Demo</a>)</li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-storyblok">Storyblok Example</a> (<a href="https://next-blog-storyblok.now.sh/">Demo</a>)</li>
-    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-graphcms">GraphCMS Example</a> (<a href="https://next-blog-graphcms.now.sh/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-wordpress">WordPress Example</a> (<a href="https://next-blog-wordpress.vercel.app">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/blog-starter">Blog Starter using markdown files</a> (<a href="https://next-blog-starter.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-datocms">DatoCMS Example</a> (<a href="https://next-blog-datocms.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-takeshape">TakeShape Example</a> (<a href="https://next-blog-takeshape.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-sanity">Sanity Example</a> (<a href="https://next-blog-sanity.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-prismic">Prismic Example</a> (<a href="https://next-blog-prismic.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-contentful">Contentful Example</a> (<a href="https://next-blog-contentful.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-strapi">Strapi Example</a> (<a href="https://next-blog-strapi.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-prepr">Prepr Example</a> (<a href="https://next-blog-prepr.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-agilitycms">Agility CMS Example</a> (<a href="https://next-blog-agilitycms.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-cosmic">Cosmic Example</a> (<a href="https://next-blog-cosmic.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-buttercms">ButterCMS Example</a> (<a href="https://next-blog-buttercms.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-storyblok">Storyblok Example</a> (<a href="https://next-blog-storyblok.vercel.app/">Demo</a>)</li>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-graphcms">GraphCMS Example</a> (<a href="https://next-blog-graphcms.vercel.app/">Demo</a>)</li>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/cms-kontent">Kontent Example</a> (<a href="https://next-blog-kontent.vercel.app/">Demo</a>)</li>
-    <li><a href="https://static-tweet.now.sh/">Static Tweet Demo</a></li>
+    <li><a href="https://static-tweet.vercel.app/">Static Tweet Demo</a></li>
   </ul>
 </details>
 
@@ -32,12 +33,23 @@ In the [Pages documentation](/docs/basic-features/pages.md), we’ve explained t
 We’ll talk about the three unique Next.js functions you can use to fetch data for pre-rendering:
 
 - [`getStaticProps`](#getstaticprops-static-generation) (Static Generation): Fetch data at **build time**.
-- [`getStaticPaths`](#getstaticpaths-static-generation) (Static Generation): Specify [dynamic routes](/docs/routing/dynamic-routes.md) to pre-render based on data.
+- [`getStaticPaths`](#getstaticpaths-static-generation) (Static Generation): Specify [dynamic routes](/docs/routing/dynamic-routes.md) to pre-render pages based on data.
 - [`getServerSideProps`](#getserversideprops-server-side-rendering) (Server-side Rendering): Fetch data on **each request**.
 
 In addition, we’ll talk briefly about how to fetch data on the client side.
 
 ## `getStaticProps` (Static Generation)
+
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes                                                                                                           |
+| --------- | ----------------------------------------------------------------------------------------------------------------- |
+| `v10.0.0` | `locale`, `locales`, `defaultLocale`, and `notFound` options added.                                               |
+| `v9.5.0`  | Stable [Incremental Static Regeneration](https://nextjs.org/blog/next-9-5#stable-incremental-static-regeneration) |
+| `v9.3.0`  | `getStaticProps` introduced.                                                                                      |
+
+</details>
 
 If you export an `async` function called `getStaticProps` from a page, Next.js will pre-render this page at build time using the props returned by `getStaticProps`.
 
@@ -62,8 +74,52 @@ The `context` parameter is an object containing the following keys:
 
 - `props` - A **required** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
 - `revalidate` - An **optional** amount in seconds after which a page re-generation can occur. More on [Incremental Static Regeneration](#incremental-static-regeneration)
-- `notFound` - An optional boolean value to allow the page to return a 404 status and page. More on [Incremental Static Regeneration](#incremental-static-regeneration)
-- `redirect` - An optional redirect value to allow redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean }`. In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both.
+- `notFound` - An **optional** boolean value to allow the page to return a 404 status and page. Below is an example of how it works:
+
+  ```js
+  export async function getStaticProps(context) {
+    const res = await fetch(`https://.../data`)
+    const data = await res.json()
+
+    if (!data) {
+      return {
+        notFound: true,
+      }
+    }
+
+    return {
+      props: { data }, // will be passed to the page component as props
+    }
+  }
+  ```
+
+  > **Note**: `notFound` is not needed for [`fallback: false`](#fallback-false) mode as only paths returned from `getStaticPaths` will be pre-rendered.
+
+  > **Note**: With `notFound: true` the page will return a 404 even if there was a successfully generated page before. This is meant to support use-cases like user generated content getting removed by its author.
+
+- `redirect` - An **optional** redirect value to allow redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean }`. In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. Below is an example of how it works:
+
+  ```js
+  export async function getStaticProps(context) {
+    const res = await fetch(`https://...`)
+    const data = await res.json()
+
+    if (!data) {
+      return {
+        redirect: {
+          destination: '/',
+          permanent: false,
+        },
+      }
+    }
+
+    return {
+      props: { data }, // will be passed to the page component as props
+    }
+  }
+  ```
+
+  > **Note**: Redirecting at build-time is currently not allowed and if the redirects are known at build-time they should be added in [`next.config.js`](/docs/api-reference/next.config.js/redirects.md).
 
 > **Note**: You can import modules in top-level scope for use in `getStaticProps`.
 > Imports used in `getStaticProps` will [not be bundled for the client-side](#write-server-side-code-directly).
@@ -72,8 +128,8 @@ The `context` parameter is an object containing the following keys:
 > This includes reading from the filesystem or a database.
 
 > **Note**: You should not use [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to
-> call an API route in your application.
-> Instead, directly import the API route and call its function yourself.
+> call an API route in `getStaticProps`.
+> Instead, directly import the logic used inside your API route.
 > You may need to slightly refactor your code for this approach.
 >
 > Fetching from an external API is fine!
@@ -103,7 +159,7 @@ export async function getStaticProps() {
   const res = await fetch('https://.../posts')
   const posts = await res.json()
 
-  // By returning { props: posts }, the Blog component
+  // By returning { props: { posts } }, the Blog component
   // will receive `posts` as a prop at build time
   return {
     props: {
@@ -171,7 +227,7 @@ export default Blog
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://reactions-demo.now.sh/">Static Reactions Demo</a></li>
+    <li><a href="https://reactions-demo.vercel.app/">Static Reactions Demo</a></li>
   </ul>
 </details>
 
@@ -236,7 +292,7 @@ Since Next.js compiles your code into a separate directory you can't use `__dirn
 Instead you can use `process.cwd()` which gives you the directory where Next.js is being executed.
 
 ```jsx
-import fs from 'fs'
+import { promises as fs } from 'fs'
 import path from 'path'
 
 // posts will be populated at build time by getStaticProps()
@@ -258,11 +314,11 @@ function Blog({ posts }) {
 // direct database queries. See the "Technical details" section.
 export async function getStaticProps() {
   const postsDirectory = path.join(process.cwd(), 'posts')
-  const filenames = fs.readdirSync(postsDirectory)
+  const filenames = await fs.readdir(postsDirectory)
 
-  const posts = filenames.map((filename) => {
+  const posts = filenames.map(async (filename) => {
     const filePath = path.join(postsDirectory, filename)
-    const fileContents = fs.readFileSync(filePath, 'utf8')
+    const fileContents = await fs.readFile(filePath, 'utf8')
 
     // Generally you would parse/transform the contents
     // For example you can transform markdown to HTML here
@@ -272,11 +328,11 @@ export async function getStaticProps() {
       content: fileContents,
     }
   })
-  // By returning { props: posts }, the Blog component
+  // By returning { props: { posts } }, the Blog component
   // will receive `posts` as a prop at build time
   return {
     props: {
-      posts,
+      posts: await Promise.all(posts),
     },
   }
 }
@@ -294,13 +350,15 @@ Because `getStaticProps` runs at build time, it does **not** receive data that�
 
 Note that `getStaticProps` runs only on the server-side. It will never be run on the client-side. It won’t even be included in the JS bundle for the browser. That means you can write code such as direct database queries without them being sent to browsers. You should not fetch an **API route** from `getStaticProps` — instead, you can write the server-side code directly in `getStaticProps`.
 
-You can use [this tool](https://next-code-elimination.now.sh/) to verify what Next.js eliminates from the client-side bundle.
+You can use [this tool](https://next-code-elimination.vercel.app/) to verify what Next.js eliminates from the client-side bundle.
 
 #### Statically Generates both HTML and JSON
 
 When a page with `getStaticProps` is pre-rendered at build time, in addition to the page HTML file, Next.js generates a JSON file holding the result of running `getStaticProps`.
 
 This JSON file will be used in client-side routing through `next/link` ([documentation](/docs/api-reference/next/link.md)) or `next/router` ([documentation](/docs/api-reference/next/router.md)). When you navigate to a page that’s pre-rendered using `getStaticProps`, Next.js fetches this JSON file (pre-computed at build time) and uses it as the props for the page component. This means that client-side page transitions will **not** call `getStaticProps` as only the exported JSON is used.
+
+When using Incremental Static Generation `getStaticProps` will be executed out of band to generate the JSON needed for client-side navigation. You may see this in the form of multiple requests being made for the same page, however, this is intended and has no impact on end-user performance
 
 #### Only allowed in a page
 
@@ -321,6 +379,16 @@ In some cases, you might want to temporarily bypass Static Generation and render
 This use case is supported by Next.js by the feature called **Preview Mode**. Learn more on the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 
 ## `getStaticPaths` (Static Generation)
+
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version  | Changes                                                                                                           |
+| -------- | ----------------------------------------------------------------------------------------------------------------- |
+| `v9.5.0` | Stable [Incremental Static Regeneration](https://nextjs.org/blog/next-9-5#stable-incremental-static-regeneration) |
+| `v9.3.0` | `getStaticPaths` introduced.                                                                                      |
+
+</details>
 
 If a page has dynamic routes ([documentation](/docs/routing/dynamic-routes.md)) and uses `getStaticProps` it needs to define a list of paths that have to be rendered to HTML at build time.
 
@@ -411,13 +479,13 @@ export default Post
 <details>
   <summary><b>Examples</b></summary>
   <ul>
-    <li><a href="https://static-tweet.now.sh">Static generation of a large number of pages</a></li>
+    <li><a href="https://static-tweet.vercel.app">Static generation of a large number of pages</a></li>
   </ul>
 </details>
 
 If `fallback` is `true`, then the behavior of `getStaticProps` changes:
 
-- The paths returned from `getStaticPaths` will be rendered to HTML at build time.
+- The paths returned from `getStaticPaths` will be rendered to HTML at build time by `getStaticProps`.
 - The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will serve a “fallback” version of the page on the first request to such a path (see [“Fallback pages”](#fallback-pages) below for details).
 - In the background, Next.js will statically generate the requested path HTML and JSON. This includes running `getStaticProps`.
 - When that’s done, the browser receives the JSON for the generated path. This will be used to automatically render the page with the required props. From the user’s perspective, the page will be swapped from the fallback page to the full page.
@@ -490,6 +558,21 @@ This ensures that users always have a fast experience while preserving fast buil
 
 `fallback: true` will not _update_ generated pages, for that take a look at [Incremental Static Regeneration](#incremental-static-regeneration).
 
+#### `fallback: 'blocking'`
+
+If `fallback` is `'blocking'`, new paths not returned by `getStaticPaths` will wait for the HTML to be generated, identical to SSR (hence why _blocking_), and then be cached for future requests so it only happens once per path.
+
+`getStaticProps` will behave as follows:
+
+- The paths returned from `getStaticPaths` will be rendered to HTML at build time by `getStaticProps`.
+- The paths that have not been generated at build time will **not** result in a 404 page. Instead, Next.js will SSR on the first request and return the generated HTML.
+- When that’s done, the browser receives the HTML for the generated path. From the user’s perspective, it will transition from "the browser is requesting the page" to "the full page is loaded". There is no flash of loading/fallback state.
+- At the same time, Next.js adds this path to the list of pre-rendered pages. Subsequent requests to the same path will serve the generated page, just like other pages pre-rendered at build time.
+
+`fallback: 'blocking'` will not _update_ generated pages by default. To update generated pages, use [Incremental Static Regeneration](#incremental-static-regeneration) in conjunction with `fallback: 'blocking'`.
+
+> `fallback: 'blocking'` is not supported when using [`next export`](/docs/advanced-features/static-html-export.md).
+
 ### When should I use `getStaticPaths`?
 
 You should use `getStaticPaths` if you’re statically pre-rendering pages that use dynamic routes.
@@ -530,6 +613,16 @@ In development (`next dev`), `getStaticPaths` will be called on every request.
 
 ## `getServerSideProps` (Server-side Rendering)
 
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes                                                             |
+| --------- | ------------------------------------------------------------------- |
+| `v10.0.0` | `locale`, `locales`, `defaultLocale`, and `notFound` options added. |
+| `v9.3.0`  | `getServerSideProps` introduced.                                    |
+
+</details>
+
 If you export an `async` function called `getServerSideProps` from a page, Next.js will pre-render this page on each request using the data returned by `getServerSideProps`.
 
 ```js
@@ -545,7 +638,7 @@ The `context` parameter is an object containing the following keys:
 - `params`: If this page uses a dynamic route, `params` contains the route parameters. If the page name is `[id].js` , then `params` will look like `{ id: ... }`. To learn more, take a look at the [Dynamic Routing documentation](/docs/routing/dynamic-routes.md).
 - `req`: [The HTTP IncomingMessage object](https://nodejs.org/api/http.html#http_class_http_incomingmessage).
 - `res`: [The HTTP response object](https://nodejs.org/api/http.html#http_class_http_serverresponse).
-- `query`: The query string.
+- `query`: An object representing the query string.
 - `preview`: `preview` is `true` if the page is in the preview mode and `false` otherwise. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `previewData`: The preview data set by `setPreviewData`. See the [Preview Mode documentation](/docs/advanced-features/preview-mode.md).
 - `resolvedUrl`: A normalized version of the request URL that strips the `_next/data` prefix for client transitions and includes original query values.
@@ -556,8 +649,46 @@ The `context` parameter is an object containing the following keys:
 `getServerSideProps` should return an object with:
 
 - `props` - A **required** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
-- `notFound` - An optional boolean value to allow the page to return a 404 status and page. More on [Incremental Static Regeneration](#incremental-static-regeneration)
-- `redirect` - An optional redirect value to allow redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean }`. In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both.
+- `notFound` - An **optional** boolean value to allow the page to return a 404 status and page. Below is an example of how it works:
+
+  ```js
+  export async function getServerSideProps(context) {
+    const res = await fetch(`https://...`)
+    const data = await res.json()
+
+    if (!data) {
+      return {
+        notFound: true,
+      }
+    }
+
+    return {
+      props: {}, // will be passed to the page component as props
+    }
+  }
+  ```
+
+- `redirect` - An **optional** redirect value to allow redirecting to internal and external resources. It should match the shape of `{ destination: string, permanent: boolean }`. In some rare cases, you might need to assign a custom status code for older HTTP Clients to properly redirect. In these cases, you can use the `statusCode` property instead of the `permanent` property, but not both. Below is an example of how it works:
+
+  ```js
+  export async function getServerSideProps(context) {
+    const res = await fetch(`https://.../data`)
+    const data = await res.json()
+
+    if (!data) {
+      return {
+        redirect: {
+          destination: '/',
+          permanent: false,
+        },
+      }
+    }
+
+    return {
+      props: {}, // will be passed to the page component as props
+    }
+  }
+  ```
 
 > **Note**: You can import modules in top-level scope for use in `getServerSideProps`.
 > Imports used in `getServerSideProps` will not be bundled for the client-side.
@@ -566,8 +697,8 @@ The `context` parameter is an object containing the following keys:
 > This includes reading from the filesystem or a database.
 
 > **Note**: You should not use [`fetch()`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API) to
-> call an API route in your application.
-> Instead, directly import the API route and call its function yourself.
+> call an API route in `getServerSideProps`.
+> Instead, directly import the logic used inside your API route.
 > You may need to slightly refactor your code for this approach.
 >
 > Fetching from an external API is fine!
@@ -646,7 +777,7 @@ export default Page
 - When you request this page directly, `getServerSideProps` runs at the request time, and this page will be pre-rendered with the returned props.
 - When you request this page on client-side page transitions through `next/link` ([documentation](/docs/api-reference/next/link.md)) or `next/router` ([documentation](/docs/api-reference/next/router.md)), Next.js sends an API request to the server, which runs `getServerSideProps`. It’ll return JSON that contains the result of running `getServerSideProps`, and the JSON will be used to render the page. All this work will be handled automatically by Next.js, so you don’t need to do anything extra as long as you have `getServerSideProps` defined.
 
-You can use [this tool](https://next-code-elimination.now.sh/) to verify what Next.js eliminates from the client-side bundle.
+You can use [this tool](https://next-code-elimination.vercel.app/) to verify what Next.js eliminates from the client-side bundle.
 
 #### Only allowed in a page
 
@@ -665,7 +796,7 @@ This approach works well for user dashboard pages, for example. Because a dashbo
 
 ### SWR
 
-The team behind Next.js has created a React hook for data fetching called [**SWR**](https://swr.now.sh/). We highly recommend it if you’re fetching data on the client side. It handles caching, revalidation, focus tracking, refetching on interval, and more. And you can use it like so:
+The team behind Next.js has created a React hook for data fetching called [**SWR**](https://swr.vercel.app/). We highly recommend it if you’re fetching data on the client side. It handles caching, revalidation, focus tracking, refetching on interval, and more. And you can use it like so:
 
 ```jsx
 import useSWR from 'swr'
@@ -679,7 +810,7 @@ function Profile() {
 }
 ```
 
-[Check out the SWR documentation to learn more](https://swr.now.sh/).
+[Check out the SWR documentation to learn more](https://swr.vercel.app/).
 
 ## Learn more
 

@@ -1,6 +1,1 @@
-module.exports = {
-  target: 'serverless',
-  experimental: {
-    modern: true,
-  },
-}
+module.exports = { target: 'serverless' }

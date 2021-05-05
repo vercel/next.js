@@ -1,6 +1,11 @@
 on:
   push:
     branches: [canary]
+    paths-ignore:
+      - 'bench/**'
+      - 'docs/**'
+      - 'errors/**'
+      - 'examples/**'
 
 name: Test macOS
 

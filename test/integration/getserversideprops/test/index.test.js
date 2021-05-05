@@ -144,6 +144,12 @@ const expectedManifestRoutes = () => [
   },
   {
     dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/slow.json$`
+    ),
+    page: '/slow',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/something.json$`
     ),
     page: '/something',
@@ -253,6 +259,12 @@ const navigateTest = (dev = false) => {
 const runTests = (dev = false) => {
   navigateTest(dev)
 
+  it('should render correctly when notFound is false (non-dynamic)', async () => {
+    const res = await fetchViaHTTP(appPort, '/not-found')
+
+    expect(res.status).toBe(200)
+  })
+
   it('should render 404 correctly when notFound is returned (non-dynamic)', async () => {
     const res = await fetchViaHTTP(appPort, '/not-found', { hiding: true })
 
@@ -271,7 +283,13 @@ const runTests = (dev = false) => {
     expect(await browser.elementByCss('html').text()).toContain(
       'This page could not be found'
     )
-    expect(await browser.eval('window.beforeNav')).toBe(null)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+  })
+
+  it('should render correctly when notFound is false (dynamic)', async () => {
+    const res = await fetchViaHTTP(appPort, '/not-found/first')
+
+    expect(res.status).toBe(200)
   })
 
   it('should render 404 correctly when notFound is returned (dynamic)', async () => {
@@ -294,7 +312,7 @@ const runTests = (dev = false) => {
     expect(await browser.elementByCss('html').text()).toContain(
       'This page could not be found'
     )
-    expect(await browser.eval('window.beforeNav')).toBe(null)
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should SSR normal page correctly', async () => {
@@ -602,6 +620,32 @@ const runTests = (dev = false) => {
 
     const curRandom = await browser.elementByCss('#random').text()
     expect(curRandom).toBe(initialRandom + '')
+  })
+
+  it('should dedupe server data requests', async () => {
+    const browser = await webdriver(appPort, '/')
+    await waitFor(2000)
+
+    // Keep clicking on the link
+    await browser.elementByCss('#slow').click()
+    await browser.elementByCss('#slow').click()
+    await browser.elementByCss('#slow').click()
+    await browser.elementByCss('#slow').click()
+
+    await check(() => getBrowserBodyText(browser), /a slow page/)
+
+    // Requests should be deduped
+    const hitCount = await browser.elementByCss('#hit').text()
+    expect(hitCount).toBe('hit: 1')
+
+    // Should send request again
+    await browser.elementByCss('#home').click()
+    await browser.waitForElementByCss('#slow')
+    await browser.elementByCss('#slow').click()
+    await check(() => getBrowserBodyText(browser), /a slow page/)
+
+    const newHitCount = await browser.elementByCss('#hit').text()
+    expect(newHitCount).toBe('hit: 2')
   })
 
   if (dev) {

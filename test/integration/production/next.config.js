@@ -1,3 +1,6 @@
+// intervals/open connections shouldn't block build from exiting
+setInterval(() => {}, 250)
+
 module.exports = {
   onDemandEntries: {
     // Make sure entries are not getting disposed.
@@ -27,6 +30,11 @@ module.exports = {
       {
         source: '/shadowed-page',
         destination: '/about',
+        permanent: false,
+      },
+      {
+        source: '/redirect-query-test/:path',
+        destination: '/about?foo=:path',
         permanent: false,
       },
     ]

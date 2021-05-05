@@ -4,13 +4,13 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-[https://next-blog-strapi.now.sh/](https://next-blog-strapi.now.sh/)
+[https://next-blog-strapi.vercel.app/](https://next-blog-strapi.vercel.app/)
 
 ## Deploy your own
 
 Once you have access to [the environment variables you'll need](#step-7-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-strapi&env=STRAPI_PREVIEW_SECRET,NEXT_PUBLIC_STRAPI_API_URL&envDescription=Required%20to%20connect%20the%20app%20with%20Strapi&envLink=https://vercel.link/cms-strapi-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-strapi&project-name=cms-strapi&repository-name=cms-strapi&env=STRAPI_PREVIEW_SECRET,NEXT_PUBLIC_STRAPI_API_URL&envDescription=Required%20to%20connect%20the%20app%20with%20Strapi&envLink=https://vercel.link/cms-strapi-env)
 
 ### Related examples
 
@@ -26,6 +26,7 @@ Once you have access to [the environment variables you'll need](#step-7-set-up-e
 - [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
+- [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use
@@ -42,7 +43,7 @@ yarn create next-app --example cms-strapi cms-strapi-app
 
 ### Step 1. Set up Strapi locally
 
-[Follow the instructions on this page](https://strapi.io/documentation/v3.x/installation/cli.html) to create a Strapi project locally.
+[Follow the instructions on this page](https://strapi.io/documentation/developer-docs/latest/getting-started/quick-start.html#_1-install-strapi-and-create-a-new-project) to create a Strapi project locally.
 
 ```bash
 npx create-strapi-app my-project --quickstart
@@ -178,7 +179,7 @@ You should now be able to see the draft post. To exit the preview mode, you can 
 
 ### Step 10. Deploy Strapi
 
-To deploy to production, you must first deploy your Strapi app. The Strapi app for our demo at https://next-blog-strapi.now.sh/ is deployed to Heroku ([here’s the documentation](https://strapi.io/documentation/v3.x/deployment/heroku.html)) and uses Cloudinary for image hosting ([see this file](https://github.com/strapi/strapi-starter-next-blog/blob/master/backend/extensions/upload/config/settings.js)).
+To deploy to production, you must first deploy your Strapi app. The Strapi app for our demo at https://next-blog-strapi.vercel.app/ is deployed to Heroku ([here’s the documentation](https://strapi.io/documentation/developer-docs/latest/setup-deployment-guides/deployment/hosting-guides/heroku.html)) and uses Cloudinary for image hosting ([see this file](https://github.com/strapi/strapi-starter-next-blog/blob/23b184781a3f219ad472f6a2c3a3d239a3d16513/backend/extensions/upload/config/settings.js)).
 
 ### Step 11. Deploy on Vercel
 
@@ -186,7 +187,7 @@ You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source
 
 #### Deploy Your Local Project
 
-To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
 **Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
 
@@ -194,4 +195,4 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-strapi&env=STRAPI_PREVIEW_SECRET,NEXT_PUBLIC_STRAPI_API_URL&envDescription=Required%20to%20connect%20the%20app%20with%20Strapi&envLink=https://vercel.link/cms-strapi-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-strapi&project-name=cms-strapi&repository-name=cms-strapi&env=STRAPI_PREVIEW_SECRET,NEXT_PUBLIC_STRAPI_API_URL&envDescription=Required%20to%20connect%20the%20app%20with%20Strapi&envLink=https://vercel.link/cms-strapi-env)

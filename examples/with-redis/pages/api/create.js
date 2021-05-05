@@ -1,33 +1,31 @@
-import redis from 'redis'
-import { promisify } from 'util'
 import { v4 as uuidv4 } from 'uuid'
 
-export default async function create(req, res) {
-  const client = redis.createClient({
-    url: process.env.REDIS_URL,
-  })
-  const hsetAsync = promisify(client.hset).bind(client)
-  const zaddAsync = promisify(client.zadd).bind(client)
+import redis from '../../lib/redis'
 
-  const body = req.body
-  const title = body['title']
-  const id = uuidv4()
+export default async function upvote(req, res) {
+  const { title } = req.body
 
-  client.on('error', function (err) {
-    throw err
-  })
+  if (!title) {
+    res.status(400).json({
+      error: 'Feature can not be empty',
+    })
+  } else if (title.length < 150) {
+    const id = uuidv4()
+    const newEntry = {
+      id,
+      title,
+      created_at: Date.now(),
+      score: 1,
+      ip: 'NA',
+    }
 
-  if (title) {
-    await zaddAsync('roadmap', 0, id)
-    await hsetAsync(id, 'title', title)
-    client.quit()
-    res.json({
+    await redis.hset('features', id, JSON.stringify(newEntry))
+    res.status(200).json({
       body: 'success',
     })
   } else {
-    client.quit()
-    res.json({
-      error: 'Feature can not be empty',
+    res.status(400).json({
+      error: 'Max 150 characters please.',
     })
   }
 }

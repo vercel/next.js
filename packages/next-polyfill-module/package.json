@@ -1,6 +1,6 @@
 {
   "name": "@next/polyfill-module",
-  "version": "10.0.1",
+  "version": "10.2.1-canary.2",
   "description": "A standard library polyfill for ES Modules supporting browsers (Edge 16+, Firefox 60+, Chrome 61+, Safari 10.1+)",
   "main": "dist/polyfill-module.js",
   "license": "MIT",
@@ -9,10 +9,10 @@
     "directory": "packages/next-polyfill-module"
   },
   "scripts": {
-    "prepublish": "microbundle src/index.js -f iife --no-sourcemap --external none",
-    "build": "microbundle watch src/index.js -f iife --no-sourcemap --external none"
+    "prepublish": "microbundle -i src/index.js -o dist/polyfill-module.js -f iife --no-sourcemap --external none --no-pkg-main",
+    "build": "microbundle watch -i src/index.js -o dist/polyfill-module.js -f iife --no-sourcemap --external none --no-pkg-main"
   },
   "devDependencies": {
-    "microbundle": "0.11.0"
+    "microbundle": "0.13.0"
   }
 }

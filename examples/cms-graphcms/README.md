@@ -4,10 +4,10 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-- **Live**: [https://next-blog-graphcms.now.sh/](https://next-blog-graphcms.now.sh/)
-- **Preview Mode**: [https://next-blog-graphcms.now.sh/api/preview...](https://next-blog-graphcms.now.sh/api/preview?secret=PHHsT9YmZjHxjxuzt8Jie2XkieME&slug=technical-seo-with-graphcms)
+- **Live**: [https://next-blog-graphcms.vercel.app/](https://next-blog-graphcms.vercel.app/)
+- **Preview Mode**: [https://next-blog-graphcms.vercel.app/api/preview...](https://next-blog-graphcms.vercel.app/api/preview?secret=PHHsT9YmZjHxjxuzt8Jie2XkieME&slug=technical-seo-with-graphcms)
 
-### [https://next-blog-graphcms.now.sh/](https://next-blog-graphcms.now.sh/)
+### [https://next-blog-graphcms.vercel.app/](https://next-blog-graphcms.vercel.app/)
 
 ### Related examples
 
@@ -23,17 +23,18 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 - [ButterCMS](/examples/cms-buttercms)
 - [Storyblok](/examples/cms-storyblok)
 - [Kontent](/examples/cms-kontent)
+- [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
 
 ## Deploy your own
 
 Once you have access to [the environment variables you'll need](#step-3-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-graphcms&env=GRAPHCMS_PROJECT_API,GRAPHCMS_PROD_AUTH_TOKEN,GRAPHCMS_DEV_AUTH_TOKEN,GRAPHCMS_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20GraphCMS&envLink=https://vercel.link/cms-graphcms-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-graphcms&project-name=cms-graphcms&repository-name=cms-graphcms&env=GRAPHCMS_PROJECT_API,GRAPHCMS_PROD_AUTH_TOKEN,GRAPHCMS_DEV_AUTH_TOKEN,GRAPHCMS_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20GraphCMS&envLink=https://vercel.link/cms-graphcms-env)
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/zeit/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-graphcms cms-graphcms-app
@@ -80,7 +81,7 @@ yarn install
 yarn dev
 ```
 
-Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/zeit/next.js/discussions).
+Your blog should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).
 
 ### Step 5. Try preview mode
 
@@ -101,7 +102,7 @@ You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source
 
 #### Deploy Your Local Project
 
-To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
 **Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
 
@@ -109,4 +110,4 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-graphcms&env=GRAPHCMS_PROJECT_API,GRAPHCMS_PROD_AUTH_TOKEN,GRAPHCMS_DEV_AUTH_TOKEN,GRAPHCMS_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20GraphCMS&envLink=https://vercel.link/cms-graphcms-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-graphcms&project-name=cms-graphcms&repository-name=cms-graphcms&env=GRAPHCMS_PROJECT_API,GRAPHCMS_PROD_AUTH_TOKEN,GRAPHCMS_DEV_AUTH_TOKEN,GRAPHCMS_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20GraphCMS&envLink=https://vercel.link/cms-graphcms-env)

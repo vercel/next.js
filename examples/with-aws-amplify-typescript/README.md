@@ -6,9 +6,9 @@ This example shows how to build a server rendered web application with NextJS an
 
 Two routes are implemented :
 
-- `/` : A static route that uses getStaticProps to load data from AppSync and renders it on the server (Code in [pages/index.tsx](pages/index.tsx))
+- `/` : A server-rendered route that uses `getServersideProps` to load data from AppSync and renders it on the server (Code in [pages/index.tsx](src/pages/index.tsx))
 
-- `/todo/[id]` : A dynamic route that uses `getStaticProps` and the id from the provided context to load a single todo from AppSync and render it on the server. (Code in [pages/todo/[id].tsx](pages/todo/[id].tsx))
+- `/todo/[id]` : A dynamic route that uses `getStaticPaths`, `getStaticProps` and the id from the provided context to load a single todo from AppSync and render it on the server. (Code in [pages/todo/[id].tsx](src/pages/todo/[id].tsx))
 
 ## How to use
 
@@ -59,15 +59,17 @@ $ amplify init
 ❯ javascript
 ? What javascript framework are you using react
 ? Source Directory Path:  src
-? Distribution Directory Path: out
-? Build Command:  (npm run-script build)
-? Start Command: (npm run-script start)
+? Distribution Directory Path: build
+? Build Command:  npm run build
+? Start Command: npm run start
 ? Do you want to use an AWS profile? Y
+? Select the authentication method you want to use: AWS Profile
+? Please choose the profile you want to use: <Your profile
 
 # </Interactive>
 ```
 
-#### Add the API
+#### Add the API and the Auth
 
 ```sh
 $ amplify add api
@@ -76,12 +78,64 @@ $ amplify add api
 ❯ GraphQL
   REST
 ? Provide API name: <API_NAME>
-? Choose an authorization type for the API (Use arrow keys)
+? Choose the default authorization type for the API (Use arrow keys)
 ❯ API key
   Amazon Cognito User Pool
-? Do you have an annotated GraphQL schema? (y/N) y
-? Provide your schema file path: ./schema.graphql
+  IAM
+  OpenID Connect
+? Enter a description for the API key: <API_DESCRIPTION>
+? After how many days from now the API key should expire (1-365): 7
+? Do you want to configure advanced settings for the GraphQL API:
+  No, I am done.
+❯ Yes, I want to make some additional changes.
+? Configure additional auth types? y
+? Choose the additional authorization types you want to configure for the API
+❯(*) Amazon Cognito User Pool
+ ( ) IAM
+ ( ) OpenID Connect
+Do you want to use the default authentication and security configuration? (Use arrow keys)
+❯ Default configuration
+  Default configuration with Social Provider (Federation)
+  Manual configuration
+  I want to learn more.
+How do you want users to be able to sign in? (Use arrow keys)
+  Username
+❯ Email
+  Phone Number
+  Email or Phone Number
+  I want to learn more.
+Do you want to configure advanced settings? (Use arrow keys)
+❯ No, I am done.
+  Yes, I want to make some additional changes.
+? Enable conflict detection? N
+? Do you have an annotated GraphQL schema? N
+? Choose a schema template: (Use arrow keys)
+❯ Single object with fields (e.g., “Todo” with ID, name, description)
+  One-to-many relationship (e.g., “Blogs” with “Posts” and “Comments”)
+  Objects with fine-grained access control (e.g., a project management app with owner-based authorization)
+? Do you want to edit the schema now? Y
 # </Interactive>
+```
+
+#### Edit GraphQL Schema
+
+Open [`amplify/backend/api/nextjswithamplifyts/schema.graphql`](amplify/backend/api/nextjswithamplifyts/schema.graphql) and change it to the following:
+
+```
+type Todo
+  @model
+  @auth(
+    rules: [
+      { allow: owner } # Allow the creator of a todo to perform Create, Update, Delete operations.
+      { allow: public, operations: [read] } # Allow public (guest users without an account) to Read todos.
+      { allow: private, operations: [read] } # Allow private (other signed in users) to Read todos.
+    ]
+  ) {
+  id: ID!
+  name: String!
+  description: String
+}
+
 ```
 
 #### Deploy infrastructure
@@ -95,10 +149,10 @@ $ amplify push
   javascript
 ❯ typescript
   flow
-? Enter the file name pattern of graphql queries, mutations and subscriptions (src/graphql/**/*.js)
+? Enter the file name pattern of graphql queries, mutations and subscriptions (src/graphql/**/*.ts)
 ? Do you want to generate/update all possible GraphQL operations - queries, mutations and subscriptions (Y/n) Y
 ? Enter maximum statement depth [increase from default if your schema is deeply nested] (2)
-
+? Enter the file name for the generated code: src\API.ts
 # </Interactive>
 ```
 
@@ -111,9 +165,3 @@ npm run dev
 yarn
 yarn dev
 ```
-
-### Edit GraphQL Schema
-
-1. Open [`amplify/backend/api/nextjswithamplifyts/schema.graphql`](amplify/backend/api/nextjswithamplifyts/schema.graphql) and change what you need to.
-2. Run `amplify push`
-3. 👍

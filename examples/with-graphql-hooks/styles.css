@@ -1,0 +1,104 @@
+* {
+  font-family: Menlo, Monaco, 'Lucida Console', 'Liberation Mono',
+    'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New', monospace,
+    serif;
+}
+body {
+  margin: 0;
+  padding: 25px 50px;
+}
+a {
+  color: #22bad9;
+}
+p {
+  font-size: 14px;
+  line-height: 24px;
+}
+article {
+  margin: 0 auto;
+  max-width: 650px;
+}
+form {
+  border-bottom: 1px solid #ececec;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+}
+h1 {
+  font-size: 20px;
+}
+input {
+  display: block;
+  margin-bottom: 10px;
+}
+section {
+  padding-bottom: 20px;
+}
+li {
+  display: block;
+  margin-bottom: 10px;
+}
+div {
+  align-items: center;
+  display: flex;
+}
+a {
+  font-size: 14px;
+  margin-right: 10px;
+  text-decoration: none;
+  padding-bottom: 0;
+  border: 0;
+}
+span {
+  font-size: 14px;
+  margin-right: 5px;
+}
+ul {
+  margin: 0;
+  padding: 0;
+}
+
+button:before {
+  align-self: center;
+  border-style: solid;
+  content: '';
+  height: 0;
+  margin-right: 5px;
+  width: 0;
+}
+
+button {
+  align-items: center;
+  background-color: #22bad9;
+  border: 0;
+  color: white;
+  display: flex;
+  padding: 5px 7px;
+}
+button:active {
+  background-color: #1b9db7;
+  transition: background-color 0.3s;
+}
+
+button:focus {
+  outline: none;
+}
+
+button:active {
+  background-color: transparent;
+}
+
+.upvote {
+  background-color: transparent;
+  border: 1px solid #e4e4e4;
+  color: #000;
+}
+
+.upvote:before {
+  border-width: 0 4px 6px 4px;
+  border-color: transparent transparent #000000 transparent;
+}
+
+.more:before {
+  border-width: 6px 4px 0 4px;
+  border-color: #ffffff transparent transparent transparent;
+}

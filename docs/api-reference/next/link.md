@@ -57,10 +57,11 @@ export default Home
 - `href` - The path or URL to navigate to. This is the only required prop
 - `as` - Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://nextjs.org/docs/tag/v9.5.2/api-reference/next/link#dynamic-routes) to see how it worked
 - [`passHref`](#if-the-child-is-a-custom-component-that-wraps-an-a-tag) - Forces `Link` to send the `href` property to its child. Defaults to `false`
-- `prefetch` - Prefetch the page in the background. Defaults to `true`. Any `<Link />` that is in the viewport (initially or through scroll) will be preloaded. Pages using [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) will preload `JSON` files with the data for faster page transitions
+- `prefetch` - Prefetch the page in the background. Defaults to `true`. Any `<Link />` that is in the viewport (initially or through scroll) will be preloaded. Prefetch can be disabled by passing `prefetch={false}`. When `prefetch` is set to `false`, prefetching will still occur on hover. Pages using [Static Generation](/docs/basic-features/data-fetching.md#getstaticprops-static-generation) will preload `JSON` files with the data for faster page transitions. Prefetching is only enabled in production.
 - [`replace`](#replace-the-url-instead-of-push) - Replace the current `history` state instead of adding a new url into the stack. Defaults to `false`
 - [`scroll`](#disable-scrolling-to-the-top-of-the-page) - Scroll to the top of the page after a navigation. Defaults to `true`
 - [`shallow`](/docs/routing/shallow-routing.md) - Update the path of the current page without rerunning [`getStaticProps`](/docs/basic-features/data-fetching.md#getstaticprops-static-generation), [`getServerSideProps`](/docs/basic-features/data-fetching.md#getserversideprops-server-side-rendering) or [`getInitialProps`](/docs/api-reference/data-fetching/getInitialProps.md). Defaults to `false`
+- `locale` - The active locale is automatically prepended. `locale` allows for providing a different locale. When `false` `href` has to include the locale as the default behavior is disabled.
 
 ## If the route has dynamic segments
 
@@ -113,7 +114,8 @@ function NavLink({ href, name }) {
 export default NavLink
 ```
 
-> **Note**: If you’re using [emotion](https://emotion.sh/)’s JSX pragma feature (`@jsx jsx`), you must use `passHref` even if you use an `<a>` tag directly.
+- If you’re using [emotion](https://emotion.sh/)’s JSX pragma feature (`@jsx jsx`), you must use `passHref` even if you use an `<a>` tag directly.
+- The component should support `onClick` property to trigger navigation correctly
 
 ## If the child is a function component
 
@@ -196,18 +198,6 @@ The default behavior of the `Link` component is to `push` a new URL into the `hi
   <a>About us</a>
 </Link>
 ```
-
-## Using a component that supports `onClick`
-
-`Link` supports any component that supports the `onClick` event, in the case you don't provide an `<a>` tag, consider the following example:
-
-```jsx
-<Link href="/about">
-  <img src="/static/image.png" alt="image" />
-</Link>
-```
-
-The child of `Link` is `<img>` instead of `<a>`. `Link` will send the `onClick` property to `<img>` but won't pass the `href` property.
 
 ## Disable scrolling to the top of the page
 

@@ -4,9 +4,9 @@ This simple Guestbook SPA example shows you how to use [FaunaDB's GraphQL endpoi
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-graphql-faunadb)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-graphql-faunadb&project-name=my-nextjs-guestbook&repository-name=my-nextjs-guestbook&env=NEXT_PUBLIC_FAUNADB_SECRET,NEXT_PUBLIC_FAUNADB_GRAPHQL_ENDPOINT&envDescription=Client%20secret%20and%20GraphQL%20endpoint%20needed%20for%20communicating%20with%20the%20live%20Fauna%20database&demo-title=Next.js%20Fauna%20Guestbook%20App&demo-description=A%20simple%20guestbook%20application%20built%20with%20Next.js%20and%20Fauna&demo-url=https%3A%2F%2Fnextjs-guestbook.vercel.app%2F)
 
 ## Why FaunaDB
 
@@ -21,6 +21,8 @@ To use a live FaunaDB database, create a database at [dashboard.fauna.com](https
 The database can then be set up with the delivered setup by running:
 
 ```
+npm run setup
+# or
 yarn setup
 ```
 
@@ -30,14 +32,14 @@ This script will ask for the admin token. Once you provide it with a valid token
 - **Create a role suitable for the Client**, FaunaDB has a security system that allows you to define which resources can be accessed for a specific token. That's how we limit our clients powers, feel free to look at the scripts/setup.js script to see how we make roles and tokens.
 - **Create a token for that role** which is printed, this is the token to be used in the frontend.
 
-At the end, the newly generated client token will be printed and should be used to replace the '< GRAPHQL_SECRET >' placeholder in the next.config.js config.
+At the end, a `.env.local` [file](https://nextjs.org/docs/basic-features/environment-variables) will be created for you with the newly generated client token assigned to an environment variable.
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```
-npx create-next-app --example with-graphql-faunadb with-graphql-faunadb
+npx create-next-app --example with-graphql-faunadb with-graphql-faunadb-app
 # or
-yarn create next-app --example with-graphql-faunadb with-graphql-faunadb
+yarn create next-app --example with-graphql-faunadb with-graphql-faunadb-app
 ```
 
 ### Run locally
@@ -56,4 +58,4 @@ Your app should be up and running on [http://localhost:3000](http://localhost:30
 
 ### Deploy
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-graphql-faunadb&project-name=my-nextjs-guestbook&repository-name=my-nextjs-guestbook&env=NEXT_PUBLIC_FAUNADB_SECRET,NEXT_PUBLIC_FAUNADB_GRAPHQL_ENDPOINT&envDescription=Client%20secret%20and%20GraphQL%20endpoint%20needed%20for%20communicating%20with%20the%20live%20Fauna%20database&demo-title=Next.js%20Fauna%20Guestbook%20App&demo-description=A%20simple%20guestbook%20application%20built%20with%20Next.js%20and%20Fauna&demo-url=https%3A%2F%2Fnextjs-guestbook.vercel.app%2F)

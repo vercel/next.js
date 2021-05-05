@@ -17,7 +17,7 @@ export default function withRouter<
 >(
   ComposedComponent: NextComponentType<C, any, P>
 ): React.ComponentType<ExcludeRouterProps<P>> {
-  function WithRouterWrapper(props: any) {
+  function WithRouterWrapper(props: any): JSX.Element {
     return <ComposedComponent router={useRouter()} {...props} />
   }
 

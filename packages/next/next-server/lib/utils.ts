@@ -3,10 +3,11 @@ import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
 import { UrlObject } from 'url'
 import { formatUrl } from './router/utils/format-url'
-import { ManifestItem } from '../server/load-components'
 import { NextRouter } from './router/router'
 import { Env } from '@next/env'
 import { BuildManifest } from '../server/get-page-files'
+import { DomainLocales } from '../server/config'
+import { PreviewData } from 'next/types'
 
 /**
  * Types used by both next and next-server
@@ -81,8 +82,6 @@ export type BaseContext = {
   [k: string]: any
 }
 
-export type HeadEntry = [string, { [key: string]: any }]
-
 export type NEXT_DATA = {
   props: Record<string, any>
   page: string
@@ -93,17 +92,19 @@ export type NEXT_DATA = {
   nextExport?: boolean
   autoExport?: boolean
   isFallback?: boolean
-  dynamicIds?: string[]
+  dynamicIds?: (string | number)[]
   err?: Error & { statusCode?: number }
   gsp?: boolean
   gssp?: boolean
   customServer?: boolean
   gip?: boolean
   appGip?: boolean
-  head: HeadEntry[]
   locale?: string
   locales?: string[]
   defaultLocale?: string
+  domainLocales?: DomainLocales
+  scriptLoader?: any[]
+  isPreview?: boolean
 }
 
 /**
@@ -183,12 +184,14 @@ export type DocumentProps = DocumentInitialProps & {
   inAmpMode: boolean
   hybridAmp: boolean
   isDevelopment: boolean
-  dynamicImports: ManifestItem[]
+  dynamicImports: string[]
   assetPrefix?: string
   canonicalBase: string
   headTags: any[]
   unstable_runtimeJS?: false
+  unstable_JsPreload?: false
   devOnlyCacheBusterQueryString: string
+  scriptLoader: { defer?: string[]; eager?: any[] }
   locale?: string
 }
 
@@ -217,7 +220,7 @@ export interface NextApiRequest extends IncomingMessage {
   /**
    * Preview data set on the request, if any
    * */
-  previewData?: any
+  previewData?: PreviewData
 }
 
 /**
@@ -315,7 +318,7 @@ export async function loadGetInitialProps<
     if (App.prototype?.getInitialProps) {
       const message = `"${getDisplayName(
         App
-      )}.getInitialProps()" is defined as an instance method - visit https://err.sh/vercel/next.js/get-initial-props-as-an-instance-method for more information.`
+      )}.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.`
       throw new Error(message)
     }
   }
@@ -350,7 +353,7 @@ export async function loadGetInitialProps<
       console.warn(
         `${getDisplayName(
           App
-        )} returned an empty object from \`getInitialProps\`. This de-optimizes and prevents automatic static optimization. https://err.sh/vercel/next.js/empty-object-getInitialProps`
+        )} returned an empty object from \`getInitialProps\`. This de-optimizes and prevents automatic static optimization. https://nextjs.org/docs/messages/empty-object-getInitialProps`
       )
     }
   }

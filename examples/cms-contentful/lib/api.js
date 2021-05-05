@@ -1,81 +1,116 @@
-import { createClient } from 'contentful'
-
-const client = createClient({
-  space: process.env.CONTENTFUL_SPACE_ID,
-  accessToken: process.env.CONTENTFUL_ACCESS_TOKEN,
-})
-
-const previewClient = createClient({
-  space: process.env.CONTENTFUL_SPACE_ID,
-  accessToken: process.env.CONTENTFUL_PREVIEW_ACCESS_TOKEN,
-  host: 'preview.contentful.com',
-})
-
-const getClient = (preview) => (preview ? previewClient : client)
-
-function parseAuthor({ fields }) {
-  return {
-    name: fields.name,
-    picture: fields.picture.fields.file,
+const POST_GRAPHQL_FIELDS = `
+slug
+title
+coverImage {
+  url
+}
+date
+author {
+  name
+  picture {
+    url
   }
 }
+excerpt
+content {
+  json
+}
+`
 
-function parsePost({ fields }) {
-  return {
-    title: fields.title,
-    slug: fields.slug,
-    date: fields.date,
-    content: fields.content,
-    excerpt: fields.excerpt,
-    coverImage: fields.coverImage.fields.file,
-    author: parseAuthor(fields.author),
-  }
+async function fetchGraphQL(query, preview = false) {
+  return fetch(
+    `https://graphql.contentful.com/content/v1/spaces/${process.env.CONTENTFUL_SPACE_ID}`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${
+          preview
+            ? process.env.CONTENTFUL_PREVIEW_ACCESS_TOKEN
+            : process.env.CONTENTFUL_ACCESS_TOKEN
+        }`,
+      },
+      body: JSON.stringify({ query }),
+    }
+  ).then((response) => response.json())
 }
 
-function parsePostEntries(entries, cb = parsePost) {
-  return entries?.items?.map(cb)
+function extractPost(fetchResponse) {
+  return fetchResponse?.data?.postCollection?.items?.[0]
+}
+
+function extractPostEntries(fetchResponse) {
+  return fetchResponse?.data?.postCollection?.items
 }
 
 export async function getPreviewPostBySlug(slug) {
-  const entries = await getClient(true).getEntries({
-    content_type: 'post',
-    limit: 1,
-    'fields.slug[in]': slug,
-  })
-  return parsePostEntries(entries)[0]
+  const entry = await fetchGraphQL(
+    `query {
+      postCollection(where: { slug: "${slug}" }, preview: true, limit: 1) {
+        items {
+          ${POST_GRAPHQL_FIELDS}
+        }
+      }
+    }`,
+    true
+  )
+  return extractPost(entry)
 }
 
 export async function getAllPostsWithSlug() {
-  const entries = await client.getEntries({
-    content_type: 'post',
-    select: 'fields.slug',
-  })
-  return parsePostEntries(entries, (post) => post.fields)
+  const entries = await fetchGraphQL(
+    `query {
+      postCollection(where: { slug_exists: true }, order: date_DESC) {
+        items {
+          ${POST_GRAPHQL_FIELDS}
+        }
+      }
+    }`
+  )
+  return extractPostEntries(entries)
 }
 
 export async function getAllPostsForHome(preview) {
-  const entries = await getClient(preview).getEntries({
-    content_type: 'post',
-    order: '-fields.date',
-  })
-  return parsePostEntries(entries)
+  const entries = await fetchGraphQL(
+    `query {
+      postCollection(order: date_DESC, preview: ${preview ? 'true' : 'false'}) {
+        items {
+          ${POST_GRAPHQL_FIELDS}
+        }
+      }
+    }`,
+    preview
+  )
+  return extractPostEntries(entries)
 }
 
 export async function getPostAndMorePosts(slug, preview) {
-  const entry = await getClient(preview).getEntries({
-    content_type: 'post',
-    limit: 1,
-    'fields.slug[in]': slug,
-  })
-  const entries = await getClient(preview).getEntries({
-    content_type: 'post',
-    limit: 2,
-    order: '-fields.date',
-    'fields.slug[nin]': slug,
-  })
-
+  const entry = await fetchGraphQL(
+    `query {
+      postCollection(where: { slug: "${slug}" }, preview: ${
+      preview ? 'true' : 'false'
+    }, limit: 1) {
+        items {
+          ${POST_GRAPHQL_FIELDS}
+        }
+      }
+    }`,
+    preview
+  )
+  const entries = await fetchGraphQL(
+    `query {
+      postCollection(where: { slug_not_in: "${slug}" }, order: date_DESC, preview: ${
+      preview ? 'true' : 'false'
+    }, limit: 2) {
+        items {
+          ${POST_GRAPHQL_FIELDS}
+        }
+      }
+    }`,
+    preview
+  )
   return {
-    post: parsePostEntries(entry)[0],
-    morePosts: parsePostEntries(entries),
+    post: extractPost(entry),
+    morePosts: extractPostEntries(entries),
   }
 }

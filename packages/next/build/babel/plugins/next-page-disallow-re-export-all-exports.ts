@@ -1,4 +1,4 @@
-import { NodePath, PluginObj, types } from '@babel/core'
+import { NodePath, PluginObj, types } from 'next/dist/compiled/babel/core'
 
 export default function NextPageDisallowReExportAllExports(): PluginObj<any> {
   return {
@@ -6,7 +6,7 @@ export default function NextPageDisallowReExportAllExports(): PluginObj<any> {
       ExportAllDeclaration(path: NodePath<types.ExportAllDeclaration>) {
         const err = new SyntaxError(
           `Using \`export * from '...'\` in a page is disallowed. Please use \`export { default } from '...'\` instead.\n` +
-            `Read more: https://err.sh/next.js/export-all-in-page`
+            `Read more: https://nextjs.org/docs/messages/export-all-in-page`
         )
         ;(err as any).code = 'BABEL_PARSE_ERROR'
         ;(err as any).loc =

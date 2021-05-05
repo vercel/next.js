@@ -37,8 +37,8 @@ function useLoggedEvent(event, serializeArgs = (...args) => args) {
   }, [event, router.events, serializeArgs])
 }
 
-function serializeErrorEventArgs(err, url) {
-  return [err.message, err.cancelled, url]
+function serializeErrorEventArgs(err, url, properties) {
+  return [err.message, err.cancelled, url, properties]
 }
 
 export default function MyApp({ Component, pageProps }) {

@@ -102,6 +102,10 @@ describe('Invalid hrefs', () => {
       await noError('/second')
     })
 
+    it('does not show error when internal href is used with external as', async () => {
+      await noError('/invalid-relative', true)
+    })
+
     it('shows error when dynamic route mismatch is used on Link', async () => {
       const browser = await webdriver(appPort, '/dynamic-route-mismatch')
       try {
@@ -117,7 +121,7 @@ describe('Invalid hrefs', () => {
         expect(
           errors.find((err) =>
             err.includes(
-              'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://err.sh/vercel/next.js/incompatible-href-as'
+              'The provided `as` value (/blog/post-1) is incompatible with the `href` value (/[post]). Read more: https://nextjs.org/docs/messages/incompatible-href-as'
             )
           )
         ).toBeTruthy()
@@ -162,6 +166,14 @@ describe('Invalid hrefs', () => {
       await showsError(
         '/dynamic-route-mismatch',
         /The provided `as` value \(\/blog\/post-1\) is incompatible with the `href` value \(\/\[post\]\)/,
+        true
+      )
+    })
+
+    it('shows error when internal href is used with external as', async () => {
+      await showsError(
+        '/invalid-relative',
+        /Invalid href: "\/second" and as: "mailto:hello@example\.com", received relative href and external as/,
         true
       )
     })

@@ -1,9 +1,6 @@
 {
-  "locales": ["en", "ca"],
+  "locales": ["en", "ca", "ar", "he"],
   "defaultLocale": "en",
-  "currentPagesDir": "_pages",
-  "finalPagesDir": "pages",
-  "localesPath": "locales",
   "pages": {
     "*": ["common"],
     "/": ["home"]

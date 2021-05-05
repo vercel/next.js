@@ -1,4 +1,4 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import { posix, join } from 'path'
 import { stringify } from 'querystring'
 import { API_ROUTE, DOT_NEXT_ALIAS, PAGES_DIR_ALIAS } from '../lib/constants'
@@ -9,6 +9,7 @@ import { warn } from './output/log'
 import { ClientPagesLoaderOptions } from './webpack/loaders/next-client-pages-loader'
 import { ServerlessLoaderQuery } from './webpack/loaders/next-serverless-loader'
 import { LoadedEnvFiles } from '@next/env'
+import { NextConfig } from '../next-server/server/config'
 
 type PagesMapping = {
   [page: string]: string
@@ -52,7 +53,13 @@ export function createPagesMapping(
 }
 
 export type WebpackEntrypoints = {
-  [bundle: string]: string | string[]
+  [bundle: string]:
+    | string
+    | string[]
+    | {
+        import: string | string[]
+        dependOn: string | string[]
+      }
 }
 
 type Entrypoints = {
@@ -65,7 +72,7 @@ export function createEntrypoints(
   target: 'server' | 'serverless' | 'experimental-serverless-trace',
   buildId: string,
   previewMode: __ApiPreviewProps,
-  config: any,
+  config: NextConfig,
   loadedEnvFiles: LoadedEnvFiles
 ): Entrypoints {
   const client: WebpackEntrypoints = {}
@@ -85,7 +92,7 @@ export function createEntrypoints(
     assetPrefix: config.assetPrefix,
     generateEtags: config.generateEtags,
     poweredByHeader: config.poweredByHeader,
-    canonicalBase: config.canonicalBase,
+    canonicalBase: config.amp.canonicalBase,
     basePath: config.basePath,
     runtimeConfig: hasRuntimeConfig
       ? JSON.stringify({

@@ -8,11 +8,10 @@
     "start": "next start"
   },
   "dependencies": {
-    "@sentry/browser": "^5.15.5",
-    "@sentry/integrations": "5.20.1",
-    "@sentry/node": "^5.15.5",
-    "@sentry/webpack-plugin": "^1.11.1",
-    "@zeit/next-source-maps": "0.0.4-canary.1",
+    "@sentry/browser": "^5.21.3",
+    "@sentry/integrations": "^5.21.3",
+    "@sentry/node": "^5.21.3",
+    "@sentry/webpack-plugin": "^1.12.1",
     "next": "latest",
     "react": "^16.8.6",
     "react-dom": "^16.8.6"

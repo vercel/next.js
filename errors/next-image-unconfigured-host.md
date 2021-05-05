@@ -19,4 +19,4 @@ module.exports = {
 
 ### Useful Links
 
-- [Image Optimization Documetnation](https://nextjs.org/docs/basic-features/image-optimization)
+- [Image Optimization Documentation](https://nextjs.org/docs/basic-features/image-optimization)

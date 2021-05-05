@@ -1,6 +1,4 @@
 /* global location */
-
-import fetch from 'next/dist/build/polyfills/unfetch'
 import { getEventSourceWrapper } from './error-overlay/eventsource'
 
 let evtSource
@@ -20,8 +18,10 @@ export function setupPing(assetPrefix, pathnameFn, retry) {
   // close current EventSource connection
   closePing()
 
-  const url = `${assetPrefix}/_next/webpack-hmr?page=${currentPage}`
-  evtSource = getEventSourceWrapper({ path: url, timeout: 5000, ondemand: 1 })
+  evtSource = getEventSourceWrapper({
+    path: `${assetPrefix}/_next/webpack-hmr?page=${currentPage}`,
+    timeout: 5000,
+  })
 
   evtSource.addMessageListener((event) => {
     if (event.data.indexOf('{') === -1) return

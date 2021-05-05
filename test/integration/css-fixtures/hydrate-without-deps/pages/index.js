@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import css from './index.module.css'
+import Link from 'next/link'
 
 export default function Home() {
   const [state, setState] = useState('')
@@ -12,6 +13,9 @@ export default function Home() {
         Black
       </h1>
       <p>{state}</p>
+      <Link href="/client">
+        <a id="link-client">To /client</a>
+      </Link>
     </main>
   )
 }

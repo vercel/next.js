@@ -1,41 +1,59 @@
 module.exports = {
   // target: 'experimental-serverless-trace',
+  // basePath: '/docs',
+  // trailingSlash: true,
   i18n: {
     // localeDetection: false,
-    locales: ['nl-NL', 'nl-BE', 'nl', 'fr-BE', 'fr', 'en-US', 'en'],
+    locales: [
+      'nl-NL',
+      'nl-BE',
+      'nl',
+      'fr-BE',
+      'fr',
+      'en-US',
+      'en',
+      'go',
+      'go-BE',
+      'do',
+      'do-BE',
+    ],
     defaultLocale: 'en-US',
     domains: [
       {
-        // used for testing, this should not be needed in most cases
-        // as production domains should always use https
         http: true,
-        domain: 'example.be',
-        defaultLocale: 'nl-BE',
-        locales: ['nl', 'nl-NL', 'nl-BE'],
+        domain: 'example.do',
+        defaultLocale: 'do',
+        locales: ['do-BE'],
       },
       {
-        http: true,
-        domain: 'example.fr',
-        defaultLocale: 'fr',
-        locales: ['fr-BE'],
+        domain: 'example.com',
+        defaultLocale: 'go',
+        locales: ['go-BE'],
       },
     ],
   },
   async redirects() {
     return [
       {
-        source: '/en-US/redirect',
+        source: '/en-US/redirect-1',
+        destination: '/somewhere-else',
+        permanent: false,
+        locale: false,
+      },
+      {
+        source: '/nl/redirect-2',
+        destination: '/somewhere-else',
+        permanent: false,
+        locale: false,
+      },
+      {
+        source: '/redirect-3',
         destination: '/somewhere-else',
         permanent: false,
       },
       {
-        source: '/nl/redirect',
-        destination: '/somewhere-else',
-        permanent: false,
-      },
-      {
-        source: '/redirect',
-        destination: '/somewhere-else',
+        source: '/redirect-4',
+        destination: '/',
         permanent: false,
       },
     ]
@@ -43,23 +61,39 @@ module.exports = {
   async rewrites() {
     return [
       {
-        source: '/en-US/rewrite',
+        source: '/en-US/rewrite-1',
+        destination: '/another',
+        locale: false,
+      },
+      {
+        source: '/nl/rewrite-2',
+        destination: '/nl/another',
+        locale: false,
+      },
+      {
+        source: '/fr/rewrite-3',
+        destination: '/nl/another',
+        locale: false,
+      },
+      {
+        source: '/rewrite-4',
         destination: '/another',
       },
       {
-        source: '/nl/rewrite',
-        destination: '/another',
+        source: '/rewrite-5',
+        destination: 'http://localhost:__EXTERNAL_PORT__',
       },
       {
-        source: '/rewrite',
-        destination: '/another',
+        source: '/sitemap.xml',
+        destination: '/api/hello',
       },
     ]
   },
   async headers() {
     return [
       {
-        source: '/en-US/add-header',
+        source: '/en-US/add-header-1',
+        locale: false,
         headers: [
           {
             key: 'x-hello',
@@ -68,7 +102,8 @@ module.exports = {
         ],
       },
       {
-        source: '/nl/add-header',
+        source: '/nl/add-header-2',
+        locale: false,
         headers: [
           {
             key: 'x-hello',
@@ -77,7 +112,7 @@ module.exports = {
         ],
       },
       {
-        source: '/add-header',
+        source: '/add-header-3',
         headers: [
           {
             key: 'x-hello',

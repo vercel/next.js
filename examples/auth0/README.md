@@ -16,9 +16,9 @@ Read more: [https://auth0.com/blog/ultimate-guide-nextjs-authentication-auth0/](
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example auth0 auth0
+npx create-next-app --example auth0 auth0-app
 # or
-yarn create next-app --example auth0 auth0
+yarn create next-app --example auth0 auth0-app
 ```
 
 ## Configuring Auth0
@@ -49,7 +49,7 @@ Then, open `.env.local` and add the missing environment variables:
 - `AUTH0_CLIENT_SECRET` - Can be found in the Auth0 dashboard under `settings`.
 - `NEXT_PUBLIC_REDIRECT_URI` - The url where Auth0 redirects back to, make sure a consistent url is used here.
 - `NEXT_PUBLIC_POST_LOGOUT_REDIRECT_URI` - Where to redirect after logging out
-- `SESSION_COOKIE_SECRET` - A unique secret used to encrypt the cookies, has to be at least 32 characters. You can use [this generator](https://generate-secret.now.sh/32) to generate a value.
+- `SESSION_COOKIE_SECRET` - A unique secret used to encrypt the cookies, has to be at least 32 characters. You can use [this generator](https://generate-secret.vercel.app/32) to generate a value.
 - `SESSION_COOKIE_LIFETIME` - How long a session lasts in seconds. The default is 2 hours.
 
 ## Deploy on Vercel
@@ -58,6 +58,6 @@ You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source
 
 ### Deploy Your Local Project
 
-To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
 **Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.

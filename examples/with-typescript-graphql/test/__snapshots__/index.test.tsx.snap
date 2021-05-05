@@ -6,7 +6,7 @@ exports[`Index renders the html we want 1`] = `
   Baa
    and you're 
   Healthy
-   go to the
+  . Go to the
    
   <a
     href="/about"
@@ -17,5 +17,17 @@ exports[`Index renders the html we want 1`] = `
   </a>
    
   page.
+  <div>
+    <input
+      onChange={[Function]}
+      placeholder="your new name..."
+      type="text"
+    />
+    <input
+      onClick={[Function]}
+      type="button"
+      value="change"
+    />
+  </div>
 </div>
 `;

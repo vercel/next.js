@@ -1,4 +1,4 @@
-import { css, Global, keyframes } from '@emotion/core'
+import { css, Global, keyframes } from '@emotion/react'
 import styled from '@emotion/styled'
 
 export const globalStyles = (

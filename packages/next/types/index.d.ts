@@ -15,6 +15,11 @@ import {
   // @ts-ignore This path is generated at build time and conflicts otherwise
 } from '../dist/next-server/lib/utils'
 
+import {
+  NextApiRequestCookies,
+  // @ts-ignore This path is generated at build time and conflicts otherwise
+} from '../dist/next-server/server/api-utils'
+
 // @ts-ignore This path is generated at build time and conflicts otherwise
 import next from '../dist/server/next'
 
@@ -36,6 +41,18 @@ declare module 'react' {
     global?: boolean
   }
 }
+
+export type Redirect =
+  | {
+      statusCode: 301 | 302 | 303 | 307 | 308
+      destination: string
+      basePath?: false
+    }
+  | {
+      permanent: boolean
+      destination: string
+      basePath?: false
+    }
 
 /**
  * `Page` type, use it as a guide to create `pages`.
@@ -62,6 +79,7 @@ export type PageConfig = {
   }
   env?: Array<string>
   unstable_runtimeJS?: false
+  unstable_JsPreload?: false
 }
 
 export {
@@ -72,15 +90,12 @@ export {
   NextApiHandler,
 }
 
-type Redirect = {
-  permanent: boolean
-  destination: string
-}
+export type PreviewData = string | false | object | undefined
 
 export type GetStaticPropsContext<Q extends ParsedUrlQuery = ParsedUrlQuery> = {
   params?: Q
   preview?: boolean
-  previewData?: any
+  previewData?: PreviewData
   locale?: string
   locales?: string[]
   defaultLocale?: string
@@ -121,12 +136,14 @@ export type GetStaticPaths<P extends ParsedUrlQuery = ParsedUrlQuery> = (
 export type GetServerSidePropsContext<
   Q extends ParsedUrlQuery = ParsedUrlQuery
 > = {
-  req: IncomingMessage
+  req: IncomingMessage & {
+    cookies: NextApiRequestCookies
+  }
   res: ServerResponse
   params?: Q
   query: ParsedUrlQuery
   preview?: boolean
-  previewData?: any
+  previewData?: PreviewData
   resolvedUrl: string
   locale?: string
   locales?: string[]

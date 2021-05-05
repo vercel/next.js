@@ -6,7 +6,7 @@ import PostList, {
   ALL_POSTS_QUERY,
   allPostsQueryVars,
 } from '../components/PostList'
-import { initializeApollo } from '../lib/apolloClient'
+import { initializeApollo, addApolloState } from '../lib/apolloClient'
 
 const IndexPage = () => (
   <App>
@@ -25,12 +25,10 @@ export async function getStaticProps() {
     variables: allPostsQueryVars,
   })
 
-  return {
-    props: {
-      initialApolloState: apolloClient.cache.extract(),
-    },
+  return addApolloState(apolloClient, {
+    props: {},
     revalidate: 1,
-  }
+  })
 }
 
 export default IndexPage

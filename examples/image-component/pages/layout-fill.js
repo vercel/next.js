@@ -1,14 +1,16 @@
 import Image from 'next/image'
+import ViewSource from '../components/view-source'
 
 const Fill = () => (
   <div>
+    <ViewSource pathname="pages/layout-fill.js" />
     <h1>Image Component With Layout Fill</h1>
     <div style={{ position: 'relative', width: '300px', height: '500px' }}>
       <Image
         alt="Mountains"
         src="/mountains.jpg"
         layout="fill"
-        className="cover"
+        objectFit="cover"
       />
     </div>
     <div style={{ position: 'relative', width: '300px', height: '500px' }}>
@@ -16,7 +18,7 @@ const Fill = () => (
         alt="Mountains"
         src="/mountains.jpg"
         layout="fill"
-        className="contain"
+        objectFit="contain"
       />
     </div>
     <div style={{ position: 'relative', width: '300px', height: '500px' }}>
@@ -24,27 +26,10 @@ const Fill = () => (
         alt="Mountains"
         src="/mountains.jpg"
         layout="fill"
-        className="none"
+        objectFit="none"
         quality={100}
       />
     </div>
-    <style jsx global>{`
-      body {
-        margin: 0;
-        padding: 0;
-        background: black;
-        color: white;
-      }
-      .contain {
-        object-fit: contain;
-      }
-      .cover {
-        object-fit: cover;
-      }
-      .none {
-        object-fit: none;
-      }
-    `}</style>
   </div>
 )
 

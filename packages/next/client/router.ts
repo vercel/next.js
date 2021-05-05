@@ -40,6 +40,9 @@ const urlPropertyFields = [
   'locale',
   'locales',
   'defaultLocale',
+  'isReady',
+  'isPreview',
+  'isLocaleDomain',
 ]
 const routerEvents = [
   'routeChangeStart',
@@ -65,7 +68,7 @@ Object.defineProperty(singletonRouter, 'events', {
   },
 })
 
-urlPropertyFields.forEach((field) => {
+urlPropertyFields.forEach((field: string) => {
   // Here we need to use Object.defineProperty because, we need to return
   // the property assigned to the actual router
   // The value might get changed as we change routes and this is the
@@ -78,7 +81,7 @@ urlPropertyFields.forEach((field) => {
   })
 })
 
-coreMethodFields.forEach((field) => {
+coreMethodFields.forEach((field: string) => {
   // We don't really know the types here, so we add them later instead
   ;(singletonRouter as any)[field] = (...args: any[]) => {
     const router = getRouter() as any
@@ -86,7 +89,7 @@ coreMethodFields.forEach((field) => {
   }
 })
 
-routerEvents.forEach((event) => {
+routerEvents.forEach((event: string) => {
   singletonRouter.ready(() => {
     Router.events.on(event, (...args) => {
       const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(

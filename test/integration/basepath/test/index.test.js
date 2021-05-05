@@ -1,32 +1,33 @@
 /* eslint-env jest */
 
+import assert from 'assert'
+import cheerio from 'cheerio'
+import fs, {
+  existsSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from 'fs-extra'
+import {
+  check,
+  fetchViaHTTP,
+  File,
+  findPort,
+  getBrowserBodyText,
+  getRedboxSource,
+  hasRedbox,
+  initNextServerScript,
+  killApp,
+  launchApp,
+  nextBuild,
+  nextStart,
+  renderViaHTTP,
+  startStaticServer,
+  waitFor,
+} from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join, resolve } from 'path'
 import url from 'url'
-import {
-  launchApp,
-  findPort,
-  killApp,
-  nextBuild,
-  waitFor,
-  check,
-  getBrowserBodyText,
-  renderViaHTTP,
-  File,
-  nextStart,
-  initNextServerScript,
-  getRedboxSource,
-  hasRedbox,
-  fetchViaHTTP,
-  startStaticServer,
-} from 'next-test-utils'
-import fs, {
-  readFileSync,
-  writeFileSync,
-  renameSync,
-  existsSync,
-} from 'fs-extra'
-import cheerio from 'cheerio'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -427,28 +428,35 @@ const runTests = (dev = false) => {
       const browser = await webdriver(appPort, `${basePath}/hello`)
       await browser.eval('window.next.router.prefetch("/gssp")')
 
-      await check(
-        async () => {
-          const links = await browser.elementsByCss('link[rel=prefetch]')
-          let found = new Set()
+      await check(async () => {
+        const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
+        hrefs.sort()
 
-          for (const link of links) {
-            const href = await link.getAttribute('href')
-            if (href.match(/(gsp|gssp|other-page)-.*?\.js$/)) {
-              found.add(href)
-            }
-            if (href.match(/gsp\.json$/)) {
-              found.add(href)
-            }
-          }
-          return found
-        },
-        {
-          test(result) {
-            return result.size === 4
-          },
-        }
-      )
+        assert.deepEqual(
+          hrefs.map((href) =>
+            new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, '')
+          ),
+          [
+            `${basePath}/gsp.json`,
+            `${basePath}/index.json`,
+            `${basePath}/index/index.json`,
+          ]
+        )
+
+        const prefetches = await browser.eval(
+          `[].slice.call(document.querySelectorAll("link[rel=prefetch]")).map((e) => new URL(e.href).pathname)`
+        )
+        expect(prefetches).toContainEqual(
+          expect.stringMatching(/\/gsp-[^./]+\.js/)
+        )
+        expect(prefetches).toContainEqual(
+          expect.stringMatching(/\/gssp-[^./]+\.js/)
+        )
+        expect(prefetches).toContainEqual(
+          expect.stringMatching(/\/other-page-[^./]+\.js/)
+        )
+        return 'yes'
+      }, 'yes')
     })
   }
 
@@ -602,23 +610,18 @@ const runTests = (dev = false) => {
     expect(await browser.elementByCss('#pathname').text()).toBe('/')
 
     if (!dev) {
-      const prefetches = await browser.elementsByCss('link[rel="prefetch"]')
-      let found = false
+      const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
+      hrefs.sort()
 
-      for (const prefetch of prefetches) {
-        const fullHref = await prefetch.getAttribute('href')
-        const href = url.parse(fullHref).pathname
-
-        if (
-          href.startsWith(`${basePath}/_next/data`) &&
-          href.endsWith('index.json') &&
-          !href.endsWith('index/index.json')
-        ) {
-          found = true
-        }
-      }
-
-      expect(found).toBe(true)
+      expect(
+        hrefs.map((href) =>
+          new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, '')
+        )
+      ).toEqual([
+        `${basePath}/gsp.json`,
+        `${basePath}/index.json`,
+        `${basePath}/index/index.json`,
+      ])
     }
   })
 
@@ -636,22 +639,18 @@ const runTests = (dev = false) => {
     expect(await browser.elementByCss('#pathname').text()).toBe('/index')
 
     if (!dev) {
-      const prefetches = await browser.elementsByCss('link[rel="prefetch"]')
-      let found = false
+      const hrefs = await browser.eval(`Object.keys(window.next.router.sdc)`)
+      hrefs.sort()
 
-      for (const prefetch of prefetches) {
-        const fullHref = await prefetch.getAttribute('href')
-        const href = url.parse(fullHref).pathname
-
-        if (
-          href.startsWith(`${basePath}/_next/data`) &&
-          href.endsWith('index/index.json')
-        ) {
-          found = true
-        }
-      }
-
-      expect(found).toBe(true)
+      expect(
+        hrefs.map((href) =>
+          new URL(href).pathname.replace(/\/_next\/data\/[^/]+/, '')
+        )
+      ).toEqual([
+        `${basePath}/gsp.json`,
+        `${basePath}/index.json`,
+        `${basePath}/index/index.json`,
+      ])
     }
   })
 
@@ -925,9 +924,9 @@ const runTests = (dev = false) => {
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
-        ['routeChangeStart', `${basePath}/other-page`],
-        ['beforeHistoryChange', `${basePath}/other-page`],
-        ['routeChangeComplete', `${basePath}/other-page`],
+        ['routeChangeStart', `${basePath}/other-page`, { shallow: false }],
+        ['beforeHistoryChange', `${basePath}/other-page`, { shallow: false }],
+        ['routeChangeComplete', `${basePath}/other-page`, { shallow: false }],
       ])
     } finally {
       await browser.close()
@@ -942,8 +941,12 @@ const runTests = (dev = false) => {
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
-        ['hashChangeStart', `${basePath}/hello#some-hash`],
-        ['hashChangeComplete', `${basePath}/hello#some-hash`],
+        ['hashChangeStart', `${basePath}/hello#some-hash`, { shallow: false }],
+        [
+          'hashChangeComplete',
+          `${basePath}/hello#some-hash`,
+          { shallow: false },
+        ],
       ])
     } finally {
       await browser.close()
@@ -963,11 +966,17 @@ const runTests = (dev = false) => {
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
-        ['routeChangeStart', `${basePath}/slow-route`],
-        ['routeChangeError', 'Route Cancelled', true, `${basePath}/slow-route`],
-        ['routeChangeStart', `${basePath}/other-page`],
-        ['beforeHistoryChange', `${basePath}/other-page`],
-        ['routeChangeComplete', `${basePath}/other-page`],
+        ['routeChangeStart', `${basePath}/slow-route`, { shallow: false }],
+        [
+          'routeChangeError',
+          'Route Cancelled',
+          true,
+          `${basePath}/slow-route`,
+          { shallow: false },
+        ],
+        ['routeChangeStart', `${basePath}/other-page`, { shallow: false }],
+        ['beforeHistoryChange', `${basePath}/other-page`, { shallow: false }],
+        ['routeChangeComplete', `${basePath}/other-page`, { shallow: false }],
       ])
     } finally {
       await browser.close()
@@ -984,12 +993,13 @@ const runTests = (dev = false) => {
 
       const eventLog = await browser.eval('window._getEventLog()')
       expect(eventLog).toEqual([
-        ['routeChangeStart', `${basePath}/error-route`],
+        ['routeChangeStart', `${basePath}/error-route`, { shallow: false }],
         [
           'routeChangeError',
           'Failed to load static props',
           null,
           `${basePath}/error-route`,
+          { shallow: false },
         ],
       ])
     } finally {
@@ -1010,6 +1020,38 @@ const runTests = (dev = false) => {
 
       const pathname = await browser.elementByCss('#pathname').text()
       expect(pathname).toBe('/hello')
+      expect(await browser.eval('window.location.pathname')).toBe(
+        `${basePath}/hello`
+      )
+      expect(await browser.eval('window.location.search')).toBe('?query=true')
+
+      if (dev) {
+        expect(await hasRedbox(browser, false)).toBe(false)
+      }
+    } finally {
+      await browser.close()
+    }
+  })
+
+  it('should allow URL query strings on index without refresh', async () => {
+    const browser = await webdriver(appPort, `${basePath}?query=true`)
+    try {
+      await browser.eval('window.itdidnotrefresh = "hello"')
+      await new Promise((resolve, reject) => {
+        // Timeout of EventSource created in setupPing()
+        // (on-demand-entries-utils.js) is 5000 ms (see #13132, #13560)
+        setTimeout(resolve, 10000)
+      })
+      expect(await browser.eval('window.itdidnotrefresh')).toBe('hello')
+
+      const pathname = await browser.elementByCss('#pathname').text()
+      expect(pathname).toBe('/')
+      expect(await browser.eval('window.location.pathname')).toBe(basePath)
+      expect(await browser.eval('window.location.search')).toBe('?query=true')
+
+      if (dev) {
+        expect(await hasRedbox(browser, false)).toBe(false)
+      }
     } finally {
       await browser.close()
     }

@@ -1,4 +1,8 @@
-import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
+import {
+  NodePath,
+  PluginObj,
+  types as BabelTypes,
+} from 'next/dist/compiled/babel/core'
 
 // matches any hook-like (the default)
 const isHook = /^use[A-Z]/

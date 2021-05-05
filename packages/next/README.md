@@ -1,4 +1,9 @@
-[![Next.js](https://assets.vercel.com/image/upload/v1538361091/repositories/next-js/next-js.png)](https://nextjs.org)
+<p align="center">
+  <a href="https://nextjs.org">
+    <img src="https://assets.vercel.com/image/upload/v1607554385/repositories/next-js/next-logo.png" height="128">
+    <h1 align="center">Next.js</h1>
+  </a>
+</p>
 
 <p align="center">
   <a aria-label="Vercel logo" href="https://vercel.com">
@@ -41,9 +46,9 @@ Please see our [contributing.md](/contributing.md).
 
 ## Authors
 
-- Arunoda Susiripala ([@arunoda](https://twitter.com/arunoda)) – [Vercel](https://vercel.com/about/arunoda-zeit)
 - Tim Neutkens ([@timneutkens](https://twitter.com/timneutkens)) – [Vercel](https://vercel.com/about/timneutkens)
 - Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa)) – [Vercel](https://vercel.com/about/nkzawa)
-- Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen)) – [Vercel](https://vercel.com)
 - Guillermo Rauch ([@rauchg](https://twitter.com/rauchg)) – [Vercel](https://vercel.com/about/rauchg)
-- Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable)) – Knight-Mozilla / Coral Project
+- Arunoda Susiripala ([@arunoda](https://twitter.com/arunoda))
+- Tony Kovanen ([@tonykovanen](https://twitter.com/tonykovanen))
+- Dan Zajdband ([@impronunciable](https://twitter.com/impronunciable))

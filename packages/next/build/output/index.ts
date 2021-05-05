@@ -1,21 +1,16 @@
-import chalk from 'next/dist/compiled/chalk'
+import chalk from 'chalk'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import textTable from 'next/dist/compiled/text-table'
 import createStore from 'next/dist/compiled/unistore'
 import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
 import { OutputState, store as consoleStore } from './store'
 
-export function startedDevelopmentServer(appUrl: string) {
-  consoleStore.setState({ appUrl })
+export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
+  consoleStore.setState({ appUrl, bindAddr })
 }
 
 let previousClient: import('webpack').Compiler | null = null
 let previousServer: import('webpack').Compiler | null = null
-
-type CompilerDiagnosticsWithFile = {
-  errors: { file: string | undefined; message: string }[] | null
-  warnings: { file: string | undefined; message: string }[] | null
-}
 
 type CompilerDiagnostics = {
   errors: string[] | null
@@ -44,6 +39,8 @@ type BuildStatusStore = {
   amp: AmpPageStatus
 }
 
+// eslint typescript has a bug with TS enums
+/* eslint-disable no-shadow */
 enum WebpackStatusPhase {
   COMPILING = 1,
   COMPILED_WITH_ERRORS = 2,

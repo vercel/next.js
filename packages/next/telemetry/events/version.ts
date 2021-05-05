@@ -32,12 +32,13 @@ type EventCliSessionStarted = {
   imageLoader: string | null
   trailingSlashEnabled: boolean
   reactStrictMode: boolean
+  webpackVersion: number | null
 }
 
 function hasBabelConfig(dir: string): boolean {
   try {
     const noopFile = path.join(dir, 'noop.js')
-    const res = require('@babel/core').loadPartialConfig({
+    const res = require('next/dist/compiled/babel/core').loadPartialConfig({
       cwd: dir,
       filename: noopFile,
       sourceFileName: noopFile,
@@ -138,6 +139,7 @@ export function eventCliSession(
     imageLoader: images?.loader,
     trailingSlashEnabled: !!userConfiguration?.trailingSlash,
     reactStrictMode: !!userConfiguration?.reactStrictMode,
+    webpackVersion: event.webpackVersion || null,
   }
   return [{ eventName: EVENT_VERSION, payload }]
 }

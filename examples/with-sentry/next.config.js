@@ -1,7 +1,3 @@
-// Use the hidden-source-map option when you don't want the source maps to be
-// publicly available on the servers, only to the error reporting
-const withSourceMaps = require('@zeit/next-source-maps')()
-
 // Use the SentryWebpack plugin to upload the source maps during build step
 const SentryWebpackPlugin = require('@sentry/webpack-plugin')
 const {
@@ -10,22 +6,19 @@ const {
   SENTRY_PROJECT,
   SENTRY_AUTH_TOKEN,
   NODE_ENV,
-  VERCEL_GITHUB_COMMIT_SHA,
-  VERCEL_GITLAB_COMMIT_SHA,
-  VERCEL_BITBUCKET_COMMIT_SHA,
+  VERCEL_GIT_COMMIT_SHA,
 } = process.env
-
-const COMMIT_SHA =
-  VERCEL_GITHUB_COMMIT_SHA ||
-  VERCEL_GITLAB_COMMIT_SHA ||
-  VERCEL_BITBUCKET_COMMIT_SHA
 
 process.env.SENTRY_DSN = SENTRY_DSN
 const basePath = ''
 
-module.exports = withSourceMaps({
-  serverRuntimeConfig: {
-    rootDir: __dirname,
+module.exports = {
+  productionBrowserSourceMaps: true,
+  env: {
+    // Make the COMMIT_SHA available to the client so that Sentry events can be
+    // marked for the release they belong to. It may be undefined if running
+    // outside of Vercel
+    NEXT_PUBLIC_COMMIT_SHA: VERCEL_GIT_COMMIT_SHA,
   },
   webpack: (config, options) => {
     // In `pages/_app.js`, Sentry is imported from @sentry/browser. While
@@ -46,6 +39,16 @@ module.exports = withSourceMaps({
       config.resolve.alias['@sentry/node'] = '@sentry/browser'
     }
 
+    // Define an environment variable so source code can check whether or not
+    // it's running on the server so we can correctly initialize Sentry
+    config.plugins.push(
+      new options.webpack.DefinePlugin({
+        'process.env.NEXT_IS_SERVER': JSON.stringify(
+          options.isServer.toString()
+        ),
+      })
+    )
+
     // When all the Sentry configuration env variables are available/configured
     // The Sentry webpack plugin gets pushed to the webpack plugins to build
     // and upload the source maps to sentry.
@@ -56,7 +59,7 @@ module.exports = withSourceMaps({
       SENTRY_ORG &&
       SENTRY_PROJECT &&
       SENTRY_AUTH_TOKEN &&
-      COMMIT_SHA &&
+      VERCEL_GIT_COMMIT_SHA &&
       NODE_ENV === 'production'
     ) {
       config.plugins.push(
@@ -65,11 +68,11 @@ module.exports = withSourceMaps({
           ignore: ['node_modules'],
           stripPrefix: ['webpack://_N_E/'],
           urlPrefix: `~${basePath}/_next`,
-          release: COMMIT_SHA,
+          release: VERCEL_GIT_COMMIT_SHA,
         })
       )
     }
     return config
   },
   basePath,
-})
+}

@@ -25,7 +25,6 @@ import {
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { dirname, join } from 'path'
-import url from 'url'
 
 jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '..')
@@ -59,7 +58,7 @@ const startServer = async (optEnv = {}) => {
 const expectedManifestRoutes = () => ({
   '/': {
     dataRoute: `/_next/data/${buildId}/index.json`,
-    initialRevalidateSeconds: 1,
+    initialRevalidateSeconds: 2,
     srcRoute: null,
   },
   '/blog/[post3]': {
@@ -522,6 +521,15 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
     expect(data.pageProps.post).toBe('post-3')
   })
 
+  if (!dev) {
+    it('should use correct caching headers for a revalidate page', async () => {
+      const initialRes = await fetchViaHTTP(appPort, '/')
+      expect(initialRes.headers.get('cache-control')).toBe(
+        's-maxage=2, stale-while-revalidate'
+      )
+    })
+  }
+
   it('should navigate to a normal page and back', async () => {
     const browser = await webdriver(appPort, '/')
     let text = await browser.elementByCss('p').text()
@@ -829,28 +837,18 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
           document.querySelector('#to-rewritten-ssg').scrollIntoView()
         )
 
-        await check(
-          async () => {
-            const links = await browser.elementsByCss('link[rel=prefetch]')
-            let found = false
-
-            for (const link of links) {
-              const href = await link.getAttribute('href')
-              const { pathname } = url.parse(href)
-
-              if (pathname.endsWith('/lang/en/about.json')) {
-                found = true
-                break
-              }
-            }
-            return found
-          },
-          {
-            test(result) {
-              return result === true
-            },
-          }
-        )
+        await check(async () => {
+          const hrefs = await browser.eval(
+            `Object.keys(window.next.router.sdc)`
+          )
+          hrefs.sort()
+          expect(
+            hrefs.map((href) =>
+              new URL(href).pathname.replace(/^\/_next\/data\/[^/]+/, '')
+            )
+          ).toContainEqual('/lang/en/about.json')
+          return 'yes'
+        }, 'yes')
       }
       await browser.eval('window.beforeNav = "hi"')
       await browser.elementByCss('#to-rewritten-ssg').click()
@@ -1436,7 +1434,7 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
         }
       })
 
-      expect(manifest.version).toBe(2)
+      expect(manifest.version).toBe(3)
       expect(manifest.routes).toEqual(expectedManifestRoutes())
       expect(manifest.dynamicRoutes).toEqual({
         '/api-docs/[...slug]': {
@@ -1796,6 +1794,11 @@ const runTests = (dev = false, isEmulatedServerless = false) => {
       })
     }
   }
+
+  // this should come very last
+  it('should not have attempted sending invalid payload', async () => {
+    expect(stderr).not.toContain('argument entity must be string')
+  })
 }
 
 describe('SSG Prerender', () => {

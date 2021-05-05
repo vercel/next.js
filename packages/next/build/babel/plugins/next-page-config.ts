@@ -1,4 +1,10 @@
-import { NodePath, PluginObj, types as BabelTypes } from '@babel/core'
+import {
+  NodePath,
+  PluginObj,
+  PluginPass,
+  types as BabelTypes,
+  Visitor,
+} from 'next/dist/compiled/babel/core'
 import { PageConfig } from 'next/types'
 import { STRING_LITERAL_DROP_BUNDLE } from '../../../next-server/lib/constants'
 
@@ -24,10 +30,10 @@ function replaceBundle(path: any, t: typeof BabelTypes): void {
 function errorMessage(state: any, details: string): string {
   const pageName =
     (state.filename || '').split(state.cwd || '').pop() || 'unknown'
-  return `Invalid page config export found. ${details} in file ${pageName}. See: https://err.sh/vercel/next.js/invalid-page-config`
+  return `Invalid page config export found. ${details} in file ${pageName}. See: https://nextjs.org/docs/messages/invalid-page-config`
 }
 
-interface ConfigState {
+interface ConfigState extends PluginPass {
   bundleDropped?: boolean
 }
 
@@ -40,7 +46,7 @@ export default function nextPageConfig({
   return {
     visitor: {
       Program: {
-        enter(path, state: ConfigState) {
+        enter(path, state) {
           path.traverse(
             {
               ExportDeclaration(exportPath, exportState) {
@@ -48,7 +54,11 @@ export default function nextPageConfig({
                   BabelTypes.isExportNamedDeclaration(exportPath) &&
                   (exportPath.node as BabelTypes.ExportNamedDeclaration).specifiers?.some(
                     (specifier) => {
-                      return specifier.exported.name === CONFIG_KEY
+                      return (
+                        (t.isIdentifier(specifier.exported)
+                          ? specifier.exported.name
+                          : specifier.exported.value) === CONFIG_KEY
+                      )
                     }
                   ) &&
                   BabelTypes.isStringLiteral(
@@ -77,13 +87,20 @@ export default function nextPageConfig({
                 }
 
                 const config: PageConfig = {}
-                const declarations = [
-                  ...(exportPath.node.declaration?.declarations || []),
-                  exportPath.scope.getBinding(CONFIG_KEY)?.path.node,
+                const declarations: BabelTypes.VariableDeclarator[] = [
+                  ...((exportPath.node
+                    .declaration as BabelTypes.VariableDeclaration)
+                    ?.declarations || []),
+                  exportPath.scope.getBinding(CONFIG_KEY)?.path
+                    .node as BabelTypes.VariableDeclarator,
                 ].filter(Boolean)
 
                 for (const specifier of exportPath.node.specifiers) {
-                  if (specifier.exported.name === CONFIG_KEY) {
+                  if (
+                    (t.isIdentifier(specifier.exported)
+                      ? specifier.exported.name
+                      : specifier.exported.value) === CONFIG_KEY
+                  ) {
                     // export {} from 'somewhere'
                     if (BabelTypes.isStringLiteral(exportPath.node.source)) {
                       throw new Error(
@@ -147,7 +164,7 @@ export default function nextPageConfig({
                         )
                       )
                     }
-                    const { name } = prop.key
+                    const { name } = prop.key as BabelTypes.Identifier
                     if (BabelTypes.isIdentifier(prop.key, { name: 'amp' })) {
                       if (!BabelTypes.isObjectProperty(prop)) {
                         throw new Error(
@@ -188,6 +205,6 @@ export default function nextPageConfig({
           )
         },
       },
-    },
+    } as Visitor<ConfigState>,
   }
 }

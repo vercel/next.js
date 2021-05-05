@@ -4,13 +4,13 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-### [https://next-blog-takeshape.now.sh/](https://next-blog-takeshape.now.sh/)
+### [https://next-blog-takeshape.vercel.app/](https://next-blog-takeshape.vercel.app/)
 
 ## Deploy your own
 
 Once you have access to [the environment variables you'll need](#step-5-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-takeshape&env=TAKESHAPE_PROJECT_ID,TAKESHAPE_API_KEY,TAKESHAPE_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20TakeShape&envLink=https://vercel.link/cms-takeshape-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-takeshape&project-name=cms-takeshape&repository-name=cms-takeshape&env=TAKESHAPE_PROJECT_ID,TAKESHAPE_API_KEY,TAKESHAPE_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20TakeShape&envLink=https://vercel.link/cms-takeshape-env)
 
 ### Related examples
 
@@ -26,6 +26,7 @@ Once you have access to [the environment variables you'll need](#step-5-set-up-e
 - [Storyblok](/examples/cms-storyblok)
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
+- [Ghost](/examples/cms-ghost)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use
@@ -160,7 +161,7 @@ You can deploy this app to the cloud with [Vercel](https://vercel.com?utm_source
 
 #### Deploy Your Local Project
 
-To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/import/git?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example).
 
 **Important**: When you import your project on Vercel, make sure to click on **Environment Variables** and set them to match your `.env.local` file.
 
@@ -168,4 +169,4 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/git?c=1&s=https://github.com/vercel/next.js/tree/canary/examples/cms-takeshape&env=TAKESHAPE_PROJECT_ID,TAKESHAPE_API_KEY,TAKESHAPE_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20TakeShape&envLink=https://vercel.link/cms-takeshape-env)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-takeshape&project-name=cms-takeshape&repository-name=cms-takeshape&env=TAKESHAPE_PROJECT_ID,TAKESHAPE_API_KEY,TAKESHAPE_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20TakeShape&envLink=https://vercel.link/cms-takeshape-env)

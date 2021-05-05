@@ -4,11 +4,11 @@
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/import/project?template=https://github.com/vercel/next.js/tree/canary/examples/with-react-multi-carousel)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-react-multi-carousel&project-name=with-react-multi-carousel&repository-name=with-react-multi-carousel)
 
-_Live Example: https://react-multi-carousel.now.sh_
+_Live Example: https://react-multi-carousel.vercel.app_
 
 ## How to use
 
@@ -20,7 +20,7 @@ npx create-next-app --example with-react-multi-carousel with-react-multi-carouse
 yarn create next-app --example with-react-multi-carousel with-react-multi-carousel-app
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/import?filter=next.js&utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
 ## How does it work with ssr?
 
