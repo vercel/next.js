@@ -1,6 +1,6 @@
 # Realm-Web SDK Example
 
-This example uses [Realm-Web SDK](https://docs.mongodb.com/realm/web/) to query a realm graphql endpoint using [swr](https://swr.now.sh/).
+This example uses [Realm-Web SDK](https://docs.mongodb.com/realm/web/) to query a realm graphql endpoint using [swr](https://swr.vercel.app/).
 
 This example relies on [MongoDB Realm](https://www.mongodb.com/realm) for its GraphQL backend.
 

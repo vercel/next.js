@@ -71,14 +71,10 @@ export function matchHas(
       if (matches) {
         if (matches.groups) {
           Object.keys(matches.groups).forEach((groupKey) => {
-            const safeKey = getSafeParamName(groupKey)
-
-            if (safeKey && matches.groups![groupKey]) {
-              params[safeKey] = matches.groups![groupKey]
-            }
+            params[groupKey] = matches.groups![groupKey]
           })
-        } else {
-          params[getSafeParamName(key || 'host')] = matches[0]
+        } else if (hasItem.type === 'host' && matches[0]) {
+          params.host = matches[0]
         }
         return true
       }

@@ -68,7 +68,7 @@ function withFuture<T>(
 export interface RouteLoader {
   whenEntrypoint(route: string): Promise<RouteEntrypoint>
   onEntrypoint(route: string, execute: () => unknown): void
-  loadRoute(route: string): Promise<RouteLoaderEntry>
+  loadRoute(route: string, prefetch?: boolean): Promise<RouteLoaderEntry>
   prefetch(route: string): Promise<void>
 }
 
@@ -305,33 +305,41 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
           if (old && 'resolve' in old) old.resolve(input)
         })
     },
-    loadRoute(route: string) {
-      return withFuture<RouteLoaderEntry>(route, routes, async () => {
-        try {
-          const { scripts, css } = await getFilesForRoute(assetPrefix, route)
-          const [, styles] = await Promise.all([
-            entrypoints.has(route)
-              ? []
-              : Promise.all(scripts.map(maybeExecuteScript)),
-            Promise.all(css.map(fetchStyleSheet)),
-          ] as const)
-
-          const entrypoint: RouteEntrypoint = await resolvePromiseWithTimeout(
-            this.whenEntrypoint(route),
-            MS_MAX_IDLE_DELAY,
-            markAssetError(
-              new Error(`Route did not complete loading: ${route}`)
-            )
-          )
-
-          const res: RouteLoaderEntry = Object.assign<
-            { styles: RouteStyleSheet[] },
-            RouteEntrypoint
-          >({ styles }, entrypoint)
-          return 'error' in entrypoint ? entrypoint : res
-        } catch (err) {
-          return { error: err }
-        }
+    loadRoute(route: string, prefetch?: boolean) {
+      return withFuture<RouteLoaderEntry>(route, routes, () => {
+        return resolvePromiseWithTimeout(
+          getFilesForRoute(assetPrefix, route)
+            .then(({ scripts, css }) => {
+              return Promise.all([
+                entrypoints.has(route)
+                  ? []
+                  : Promise.all(scripts.map(maybeExecuteScript)),
+                Promise.all(css.map(fetchStyleSheet)),
+              ] as const)
+            })
+            .then((res) => {
+              return this.whenEntrypoint(route).then((entrypoint) => ({
+                entrypoint,
+                styles: res[1],
+              }))
+            }),
+          MS_MAX_IDLE_DELAY,
+          markAssetError(new Error(`Route did not complete loading: ${route}`))
+        )
+          .then(({ entrypoint, styles }) => {
+            const res: RouteLoaderEntry = Object.assign<
+              { styles: RouteStyleSheet[] },
+              RouteEntrypoint
+            >({ styles: styles! }, entrypoint)
+            return 'error' in entrypoint ? entrypoint : res
+          })
+          .catch((err) => {
+            if (prefetch) {
+              // we don't want to cache errors during prefetch
+              throw err
+            }
+            return { error: err }
+          })
       })
     },
     prefetch(route: string): Promise<void> {
@@ -351,7 +359,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
           )
         )
         .then(() => {
-          requestIdleCallback(() => this.loadRoute(route))
+          requestIdleCallback(() => this.loadRoute(route, true).catch(() => {}))
         })
         .catch(
           // swallow prefetch errors

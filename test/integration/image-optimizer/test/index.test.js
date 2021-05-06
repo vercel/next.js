@@ -13,6 +13,7 @@ import {
 } from 'next-test-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
+import { createHash } from 'crypto'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -509,6 +510,35 @@ function runTests({ w, isDev, domains }) {
     expect(res.status).toBe(400)
     expect(await res.text()).toBe("The requested resource isn't a valid image.")
   })
+
+  it('should handle concurrent requests', async () => {
+    const query = { url: '/test.png', w, q: 80 }
+    const opts = { headers: { accept: 'image/webp,*/*' } }
+    const [res1, res2] = await Promise.all([
+      fetchViaHTTP(appPort, '/_next/image', query, opts),
+      fetchViaHTTP(appPort, '/_next/image', query, opts),
+    ])
+    expect(res1.status).toBe(200)
+    expect(res2.status).toBe(200)
+    expect(res1.headers.get('Content-Type')).toBe('image/webp')
+    expect(res2.headers.get('Content-Type')).toBe('image/webp')
+    await expectWidth(res1, w)
+    await expectWidth(res2, w)
+
+    // There should be only one image created in the cache directory.
+    const hashItems = [2, '/test.png', w, 80, 'image/webp']
+    const hash = createHash('sha256')
+    for (let item of hashItems) {
+      if (typeof item === 'number') hash.update(String(item))
+      else {
+        hash.update(item)
+      }
+    }
+    const hashDir = hash.digest('base64').replace(/\//g, '-')
+    const dir = join(imagesDir, hashDir)
+    const files = await fs.readdir(dir)
+    expect(files.length).toBe(1)
+  })
 }
 
 describe('Image Optimizer', () => {
@@ -764,6 +794,39 @@ describe('Image Optimizer', () => {
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res.status).toBe(404)
+    })
+  })
+
+  describe('External rewrite support with for serving static content in images', () => {
+    beforeAll(async () => {
+      const newConfig = `{
+        async rewrites() {
+          return [
+            {
+              source: '/:base(next-js)/:rest*',
+              destination: 'https://assets.vercel.com/image/upload/v1538361091/repositories/:base/:rest*',
+            },
+          ]
+        },
+      }`
+      nextConfig.replace('{ /* replaceme */ }', newConfig)
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+      await fs.remove(imagesDir)
+    })
+
+    it('should return response when image is served from an external rewrite', async () => {
+      const query = { url: '/next-js/next-js-bg.png', w: 64, q: 75 }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/webp')
+      await expectWidth(res, 64)
     })
   })
 })

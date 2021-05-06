@@ -13,6 +13,15 @@ description: Add custom HTTP headers to your Next.js app.
   </ul>
 </details>
 
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes      |
+| --------- | ------------ |
+| `v10.2.0` | `has` added. |
+
+</details>
+
 Headers allow you to set custom HTTP headers for an incoming request path.
 
 To set custom HTTP headers you can use the `headers` key in `next.config.js`:
@@ -154,9 +163,24 @@ module.exports = {
 }
 ```
 
-## Header, Cookie, and Query Matching
+The following characters `(`, `)`, `{`, `}`, `:`, `*`, `+`, `?` are used for regex path matching, so when used in the `source` as non-special values they must be escaped by adding `\\` before them:
 
-Note: this feature is still experimental and not covered by semver and is to be used at your own risk until it is made stable.
+```js
+module.exports = {
+  async redirects() {
+    return [
+      {
+        // this will match `/english(default)/something` being requested
+        source: '/english\\(default\\)/:slug',
+        destination: '/en-us/:slug',
+        permanent: false,
+      },
+    ]
+  },
+}
+```
+
+## Header, Cookie, and Query Matching
 
 To only apply a header when either header, cookie, or query values also match the `has` field can be used. Both the `source` and all `has` items must match for the header to be applied.
 
@@ -195,6 +219,9 @@ module.exports = {
           {
             type: 'query',
             key: 'page',
+            // the page value will not be available in the
+            // header key/values since value is provided and
+            // doesn't use a named capture group e.g. (?<page>home)
             value: 'home',
           },
           {

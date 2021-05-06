@@ -189,6 +189,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
         start: /started server/i,
       }
       if (
+        (opts.bootupMarker && opts.bootupMarker.test(message)) ||
         bootupMarkers[opts.nextStart || stdOut ? 'start' : 'dev'].test(message)
       ) {
         if (!didResolve) {

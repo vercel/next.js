@@ -72,6 +72,7 @@ For importing CSS required by a third party component, you can do so in your com
 // components/ExampleDialog.js
 import { useState } from 'react'
 import { Dialog } from '@reach/dialog'
+import VisuallyHidden from '@reach/visually-hidden'
 import '@reach/dialog/styles.css'
 
 function ExampleDialog(props) {
@@ -178,19 +179,6 @@ module.exports = {
     includePaths: [path.join(__dirname, 'styles')],
   },
 }
-```
-
-## Less and Stylus Support
-
-To support importing `.less` or `.styl` files you can use the following plugins:
-
-- [@zeit/next-less](https://github.com/vercel/next-plugins/tree/master/packages/next-less)
-- [@zeit/next-stylus](https://github.com/vercel/next-plugins/tree/master/packages/next-stylus)
-
-If using the less plugin, don't forget to add a dependency on less as well, otherwise you'll see an error like:
-
-```bash
-Error: Cannot find module 'less'
 ```
 
 ## CSS-in-JS
