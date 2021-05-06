@@ -3,7 +3,7 @@ import chalk from 'chalk'
 import { warn } from '../../build/output/log'
 import { promises } from 'fs'
 import { denormalizePagePath } from '../../next-server/server/normalize-page-path'
-import { fileExists } from '../../../next/lib/file-exists'
+import { fileExists } from '../../lib/file-exists'
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
   const pageSegments = normalize(pagePath).split(pathSeparator).filter(Boolean)
