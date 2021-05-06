@@ -203,11 +203,11 @@ export async function createApp({
     /**
      * Default dependencies.
      */
-    const dependencies = ['react', 'react-dom']
+    const dependencies = ['react', 'react-dom', 'next']
     /**
      * Default devDependencies.
      */
-    const devDependencies = ['next']
+    const devDependencies = []
     /**
      * TypeScript projects will have type definitions and other devDependencies.
      */
