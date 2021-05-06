@@ -18,7 +18,7 @@ description: Add rewrites to your Next.js app.
 
 | Version   | Changes      |
 | --------- | ------------ |
-| `v10.1.0` | `has` added. |
+| `v10.2.0` | `has` added. |
 
 </details>
 
