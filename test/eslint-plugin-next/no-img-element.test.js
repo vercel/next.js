@@ -53,7 +53,7 @@ ruleTester.run('no-img-element', rule, {
       errors: [
         {
           message:
-            "Do not use <img>. Use Image or StaticImage from 'next/image' instead. See https://nextjs.org/docs/messages/no-img-element.",
+            "Do not use <img>. Use Image from 'next/image' instead. See https://nextjs.org/docs/messages/no-img-element.",
           type: 'JSXOpeningElement',
         },
       ],

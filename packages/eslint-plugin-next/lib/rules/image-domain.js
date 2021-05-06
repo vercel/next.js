@@ -11,9 +11,10 @@ module.exports = {
       category: 'HTML',
       recommended: true,
     },
-    fixable: 'code',
   },
   create: nextImage((context, node) => {
+    const [customNextConfig] = context.options
+
     if (node.name.name !== 'Image') {
       return
     }
@@ -25,8 +26,9 @@ module.exports = {
       return
     }
 
+    const configFile = customNextConfig || `${context.getCwd()}/next.config.js`
+
     try {
-      const configFile = `${process.cwd()}/next.config.js`
       let config = require(configFile)
       delete require.cache[require.resolve(configFile)]
       config = require(configFile)
@@ -46,7 +48,6 @@ module.exports = {
         })
       }
     } catch (err) {
-      console.log(err)
       return
     }
   }),

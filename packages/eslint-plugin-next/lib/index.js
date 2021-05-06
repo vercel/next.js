@@ -5,7 +5,6 @@ module.exports = {
     'no-html-link-for-pages': require('./rules/no-html-link-for-pages'),
     'no-unwanted-polyfillio': require('./rules/no-unwanted-polyfillio'),
     'no-img-element': require('./rules/no-img-element'),
-    'no-static-image-for-external-image': require('./rules/no-static-image-for-external-image'),
     'image-domain': require('./rules/image-domain'),
   },
   configs: {
@@ -17,7 +16,6 @@ module.exports = {
         '@next/next/no-html-link-for-pages': 1,
         '@next/next/no-unwanted-polyfillio': 1,
         '@next/next/no-img-element': 1,
-        '@next/next/no-static-image-for-external-image': 1,
         '@next/next/image-domain': 1,
       },
     },

@@ -2,13 +2,11 @@
 
 ### Why This Error Occurred
 
-An HTML `<img>` element was used to display an image. For better performance and automatic image optimization, use one of Next.js' built-in image components instead.
+An HTML `<img>` element was used to display an image. For better performance and automatic image optimization, use Next.js' built-in image component instead.
 
 ### Possible Ways to Fix It
 
-#### Image
-
-If you are displaying an external image that is not stored locally on disk, import and use the `<Image />` component:
+Import and use the `<Image />` component:
 
 ```jsx
 import { Image } from 'next/image'
@@ -17,29 +15,11 @@ function Home() {
   return (
     <>
       <Image
-        src="https://picsum.photos/200"
+        src="https://example.com/test"
         alt="Landscape picture"
         width={500}
         height={500}
       />
-    </>
-  )
-}
-
-export default Home
-```
-
-#### StaticImage
-
-If you are displaying a local (on disk) image, import and use the `<StaticImage />` component:
-
-```jsx
-import { StaticImage } from 'next/image'
-
-function Home() {
-  return (
-    <>
-      <StaticImage src="/goat.png" alt="Mountain goat" />
     </>
   )
 }
