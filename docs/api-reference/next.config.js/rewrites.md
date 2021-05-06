@@ -13,6 +13,15 @@ description: Add rewrites to your Next.js app.
   </ul>
 </details>
 
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes      |
+| --------- | ------------ |
+| `v10.2.0` | `has` added. |
+
+</details>
+
 Rewrites allow you to map an incoming request path to a different destination path.
 
 Rewrites are only available on the Node.js environment and do not affect client-side routing.
