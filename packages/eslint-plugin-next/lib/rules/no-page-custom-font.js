@@ -10,7 +10,6 @@ module.exports = {
   },
   create: function (context) {
     let documentImport = false
-    let documentClass = false
     return {
       ImportDeclaration(node) {
         if (node.source.value === 'next/document') {
@@ -19,12 +18,16 @@ module.exports = {
           }
         }
       },
-      ClassDeclaration(node) {
-        if (node.superClass && node.superClass.name === 'Document') {
-          documentClass = true
-        }
-      },
       JSXOpeningElement(node) {
+        const documentClass = context
+          .getAncestors()
+          .find(
+            (ancestorNode) =>
+              ancestorNode.type === 'ClassDeclaration' &&
+              ancestorNode.superClass &&
+              ancestorNode.superClass.name === 'Document'
+          )
+
         if ((documentImport && documentClass) || node.name.name !== 'link') {
           return
         }
