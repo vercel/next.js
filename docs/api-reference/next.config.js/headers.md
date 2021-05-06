@@ -13,6 +13,15 @@ description: Add custom HTTP headers to your Next.js app.
   </ul>
 </details>
 
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes      |
+| --------- | ------------ |
+| `v10.2.0` | `has` added. |
+
+</details>
+
 Headers allow you to set custom HTTP headers for an incoming request path.
 
 To set custom HTTP headers you can use the `headers` key in `next.config.js`:
