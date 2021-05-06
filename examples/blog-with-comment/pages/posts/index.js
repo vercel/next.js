@@ -1,6 +1,7 @@
 import { getAllNodes } from 'next-mdx'
 import NextLink from 'next/link'
 import Container from '../../components/container'
+import distanceToNow from '../../lib/dateRelative'
 
 function NotePage({ posts }) {
   return (
@@ -15,7 +16,7 @@ function NotePage({ posts }) {
             </NextLink>
             <p>{post.frontMatter.excerpt}</p>
             <div className="text-gray-400">
-              <time>{post.frontMatter.date}</time>
+              <time>{distanceToNow(new Date(post.frontMatter.date))}</time>
             </div>
           </article>
         ))
