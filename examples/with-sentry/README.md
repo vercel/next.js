@@ -5,7 +5,7 @@ This is an example showing how to use [Sentry](https://sentry.io) to catch & rep
 - `_app.js` renders on both the server and client
 - `_error.js` is rendered by Next.js while handling certain types of exceptions for you. It is overridden so those exceptions can be passed along to Sentry
 - Each API route is handled with `withSentry`
-- `next.config.js` completes automatically the required config to use Sentry, through `withSentryConfig`
+- `next.config.js` automatically configures the app to use Sentry through `withSentry`
 
 ## Deploy your own
 
