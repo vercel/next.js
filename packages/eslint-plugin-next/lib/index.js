@@ -6,6 +6,7 @@ module.exports = {
     'no-unwanted-polyfillio': require('./rules/no-unwanted-polyfillio'),
     'no-title-in-document-head': require('./rules/no-title-in-document-head'),
     'google-font-display': require('./rules/google-font-display'),
+    'google-font-preconnect': require('./rules/google-font-preconnect'),
   },
   configs: {
     recommended: {
@@ -17,6 +18,7 @@ module.exports = {
         '@next/next/no-unwanted-polyfillio': 1,
         '@next/next/no-title-in-document-head': 1,
         '@next/next/google-font-display': 1,
+        '@next/next/google-font-preconnect': 1,
       },
     },
   },

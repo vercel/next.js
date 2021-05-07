@@ -111,6 +111,10 @@
           "path": "/errors/google-font-display.md"
         },
         {
+          "title": "google-font-preconnect",
+          "path": "/errors/google-font-preconnect.md"
+        },
+        {
           "title": "get-initial-props-as-an-instance-method",
           "path": "/errors/get-initial-props-as-an-instance-method.md"
         },
