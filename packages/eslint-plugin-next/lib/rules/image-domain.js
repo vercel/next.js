@@ -13,7 +13,7 @@ module.exports = {
     },
   },
   create: nextImage((context, node) => {
-    const [customNextConfig] = context.options
+    const [customNextConfigPath] = context.options
 
     if (node.name.name !== 'Image') {
       return
@@ -26,7 +26,12 @@ module.exports = {
       return
     }
 
-    const configFile = customNextConfig || `${context.getCwd()}/next.config.js`
+    const imgHost = new URL(srcValue).hostname
+    const configFile =
+      customNextConfigPath || `${context.getCwd()}/next.config.js`
+
+    let domainConfigured = false
+    let loaderConfigured = false
 
     try {
       let config = require(configFile)
@@ -34,21 +39,19 @@ module.exports = {
       config = require(configFile)
 
       const { images } = config
-      const imgHost = new URL(srcValue).hostname
 
-      const domainConfigured =
+      domainConfigured =
         images && images.domains && images.domains.includes(imgHost)
-      const loaderConfigured =
-        attributes.has('loader') || (images && !!images.loader)
-
-      if (!domainConfigured && !loaderConfigured) {
+      loaderConfigured = attributes.has('loader') || (images && !!images.loader)
+    } catch (err) {
+      return
+    } finally {
+      if (!configFile || (!domainConfigured && !loaderConfigured)) {
         context.report({
           node,
           message: `No domain or loader is specified in next.config.js for ${imgHost}. See https://nextjs.org/docs/messages/image-domain.`,
         })
       }
-    } catch (err) {
-      return
     }
   }),
 }

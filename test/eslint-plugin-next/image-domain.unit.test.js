@@ -3,7 +3,6 @@ const rule = require('@next/eslint-plugin-next/lib/rules/image-domain')
 const { Linter } = require('eslint')
 const assert = require('assert')
 const path = require('path')
-import { writeFile } from 'fs-extra'
 
 const linter = new Linter({ cwd: __dirname })
 const baseDir = `${__dirname}/custom-image`
@@ -35,51 +34,30 @@ const code = `
 `
 
 describe('image-domain', function () {
-  it('valid external image with loader specified', async function () {
+  it('valid external image with loader specified', function () {
     linterConfig.rules = {
-      'image-domain': [2, path.join(baseDir, 'next.config1.js')],
+      'image-domain': [2, path.join(baseDir, 'next.config.loader.js')],
     }
 
-    const nextConfig = path.join(baseDir, 'next.config1.js')
-    await writeFile(
-      nextConfig,
-      `module.exports = { images: { domains: ['example.com'], }, }`
-    )
-
-    const report = linter.verify(code, linterConfig, {
-      filename: 'foo.js',
-    })
+    const report = linter.verify(code, linterConfig)
     assert.deepEqual(report, [])
   })
 
-  it('valid external image with domain specified', async function () {
+  it('valid external image with domain specified', function () {
     linterConfig.rules = {
-      'image-domain': [2, path.join(baseDir, 'next.config1.js')],
+      'image-domain': [2, path.join(baseDir, 'next.config.domain.js')],
     }
 
-    const nextConfig = path.join(baseDir, 'next.config1.js')
-    await writeFile(
-      nextConfig,
-      `module.exports = { images: { domains: ['example.com'], }, }`
-    )
-
-    const report = linter.verify(code, linterConfig, {
-      filename: 'foo.js',
-    })
+    const report = linter.verify(code, linterConfig)
     assert.deepEqual(report, [])
   })
 
-  it('invalid external image without domain specified', async function () {
+  it('invalid external image without domain or loader specified', function () {
     linterConfig.rules = {
-      'image-domain': [2, path.join(baseDir, 'next.config2.js')],
+      'image-domain': 2,
     }
 
-    const nextConfig = path.join(baseDir, 'next.config2.js')
-    await writeFile(nextConfig, '')
-
-    const [report] = linter.verify(code, linterConfig, {
-      filename: 'foo.js',
-    })
+    const [report] = linter.verify(code, linterConfig)
 
     assert.notEqual(report, undefined, 'No lint errors found.')
     assert.equal(
