@@ -91,6 +91,37 @@ describe('create next app', () => {
     })
   })
 
+  it('should support typescript flag', async () => {
+    await usingTempDir(async (cwd) => {
+      const projectName = 'typescript'
+      const res = await run([projectName, '--typescript'], { cwd })
+      expect(res.exitCode).toBe(0)
+
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'package.json'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'pages/_app.tsx'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'pages/api/hello.ts'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'tsconfig.json'))
+      ).toBeTruthy()
+      expect(
+        fs.existsSync(path.join(cwd, projectName, 'next-env.d.ts'))
+      ).toBeTruthy()
+      // check we copied default `.gitignore`
+      expect(
+        fs.existsSync(path.join(cwd, projectName, '.gitignore'))
+      ).toBeTruthy()
+    })
+  })
+
   it('should allow example with GitHub URL', async () => {
     await usingTempDir(async (cwd) => {
       const projectName = 'github-app'

@@ -276,6 +276,10 @@
           "path": "/errors/no-sync-scripts.md"
         },
         {
+          "title": "no-title-in-document-head",
+          "path": "/errors/no-title-in-document-head.md"
+        },
+        {
           "title": "no-unwanted-polyfillio",
           "path": "/errors/no-unwanted-polyfillio.md"
         },
