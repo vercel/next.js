@@ -5,6 +5,7 @@ module.exports = {
     'no-html-link-for-pages': require('./rules/no-html-link-for-pages'),
     'no-unwanted-polyfillio': require('./rules/no-unwanted-polyfillio'),
     'no-page-custom-font': require('./rules/no-page-custom-font'),
+    'no-title-in-document-head': require('./rules/no-title-in-document-head'),
   },
   configs: {
     recommended: {
@@ -15,6 +16,7 @@ module.exports = {
         '@next/next/no-html-link-for-pages': 1,
         '@next/next/no-unwanted-polyfillio': 1,
         '@next/next/no-page-custom-font': 1,
+        '@next/next/no-title-in-document-head': 1,
       },
     },
   },
