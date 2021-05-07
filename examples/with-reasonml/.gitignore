@@ -21,7 +21,7 @@
 bs
 .merlin
 lib/
-*.bs.js
+src/*.bs.js
 .bsb.lock
 
 # debug
