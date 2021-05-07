@@ -198,15 +198,17 @@ export default async function build(
 
     const typeCheckEnd = process.hrtime(typeCheckStart)
 
-    telemetry.record(
-      eventTypeCheckCompleted({
-        durationInSeconds: typeCheckEnd[0],
-        typescriptVersion: verifyResult.version,
-        inputFilesCount: verifyResult.result?.inputFilesCount,
-        totalFilesCount: verifyResult.result?.totalFilesCount,
-        incremental: verifyResult.result?.incremental,
-      })
-    )
+    if (!ignoreTypeScriptErrors) {
+      telemetry.record(
+        eventTypeCheckCompleted({
+          durationInSeconds: typeCheckEnd[0],
+          typescriptVersion: verifyResult.version,
+          inputFilesCount: verifyResult.result?.inputFilesCount,
+          totalFilesCount: verifyResult.result?.totalFilesCount,
+          incremental: verifyResult.result?.incremental,
+        })
+      )
+    }
 
     if (typeCheckingSpinner) {
       typeCheckingSpinner.stopAndPersist()
