@@ -13,6 +13,8 @@ Once you have access to your [Sentry DSN](https://docs.sentry.io/product/sentry-
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-sentry&project-name=with-sentry&repository-name=with-sentry&env=NEXT_PUBLIC_SENTRY_DSN&envDescription=DSN%20Key%20required%20by%20Sentry&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-sentry%23step-1-enable-error-tracking)
 
+Check out [Sentry’s Vercel Integration](#sentry-integration).
+
 ## How To Use
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
@@ -43,3 +45,7 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-sentry&project-name=with-sentry&repository-name=with-sentry&env=NEXT_PUBLIC_SENTRY_DSN&envDescription=DSN%20Key%20required%20by%20Sentry&envLink=https://github.com/vercel/next.js/tree/canary/examples/with-sentry%23step-1-enable-error-tracking)
+
+## Sentry Integration
+
+Sentry’s Vercel Integration connects your Sentry and Vercel projects to automatically upload source maps and notify Sentry of release deployment. Learn more about this integration in [Sentry’s full documentation](https://docs.sentry.io/product/integrations/vercel/).
