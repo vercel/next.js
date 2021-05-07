@@ -13,6 +13,15 @@ description: Add rewrites to your Next.js app.
   </ul>
 </details>
 
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes      |
+| --------- | ------------ |
+| `v10.2.0` | `has` added. |
+
+</details>
+
 Rewrites allow you to map an incoming request path to a different destination path.
 
 Rewrites are only available on the Node.js environment and do not affect client-side routing.
@@ -196,8 +205,6 @@ module.exports = {
 ```
 
 ## Header, Cookie, and Query Matching
-
-Note: this feature is still experimental and not covered by semver and is to be used at your own risk until it is made stable.
 
 To only match a rewrite when header, cookie, or query values also match the `has` field can be used. Both the `source` and all `has` items must match for the rewrite to be applied.
 

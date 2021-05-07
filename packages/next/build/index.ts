@@ -26,6 +26,7 @@ import loadCustomRoutes, {
 } from '../lib/load-custom-routes'
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { verifyAndLint } from '../lib/verifyAndLint'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_ID_FILE,
@@ -65,6 +66,7 @@ import {
   eventBuildOptimize,
   eventCliSession,
   eventNextPlugins,
+  eventTypeCheckCompleted,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
@@ -90,6 +92,7 @@ import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
+import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -156,10 +159,6 @@ export default async function build(
       }
     }
 
-    const typeCheckingSpinner = createSpinner({
-      prefixText: `${Log.prefixes.info} Checking validity of types`,
-    })
-
     const telemetry = new Telemetry({ distDir })
     setGlobal('telemetry', telemetry)
 
@@ -169,6 +168,7 @@ export default async function build(
 
     telemetry.record(
       eventCliSession(PHASE_PRODUCTION_BUILD, dir, {
+        webpackVersion: isWebpack5 ? 5 : 4,
         cliCommand: 'build',
         isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),
@@ -181,14 +181,44 @@ export default async function build(
     )
 
     const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
-    await nextBuildSpan
+    const typeCheckStart = process.hrtime()
+    const typeCheckingSpinner = createSpinner({
+      prefixText: `${Log.prefixes.info} Checking validity of types`,
+    })
+
+    const verifyResult = await nextBuildSpan
       .traceChild('verify-typescript-setup')
       .traceAsyncFn(() =>
         verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors)
       )
 
+    const typeCheckEnd = process.hrtime(typeCheckStart)
+
+    telemetry.record(
+      eventTypeCheckCompleted({
+        durationInSeconds: typeCheckEnd[0],
+        typescriptVersion: verifyResult.version,
+        inputFilesCount: verifyResult.result?.inputFilesCount,
+        totalFilesCount: verifyResult.result?.totalFilesCount,
+        incremental: verifyResult.result?.incremental,
+      })
+    )
+
     if (typeCheckingSpinner) {
       typeCheckingSpinner.stopAndPersist()
+    }
+
+    if (config.experimental.eslint) {
+      await nextBuildSpan
+        .traceChild('verify-and-lint')
+        .traceAsyncFn(async () => {
+          await verifyAndLint(
+            dir,
+            pagesDir,
+            config.experimental.cpus,
+            config.experimental.workerThreads
+          )
+        })
     }
 
     const buildSpinner = createSpinner({

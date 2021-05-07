@@ -16,11 +16,10 @@ export function interopDefault(mod: any) {
 
 export type ManifestItem = {
   id: number | string
-  name: string
-  file: string
+  files: string[]
 }
 
-type ReactLoadableManifest = { [moduleId: string]: ManifestItem[] }
+type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
 
 export type LoadComponentsReturnType = {
   Component: React.ComponentType
@@ -45,8 +44,8 @@ export async function loadDefaultErrorComponents(distDir: string) {
     App,
     Document,
     Component,
-    buildManifest: require(join(distDir, BUILD_MANIFEST)),
-    reactLoadableManifest: require(join(distDir, REACT_LOADABLE_MANIFEST)),
+    buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
+    reactLoadableManifest: {},
     ComponentMod,
   }
 }

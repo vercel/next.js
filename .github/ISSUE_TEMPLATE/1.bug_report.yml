@@ -1,8 +1,6 @@
 name: Bug Report
-about: Create a bug report for the Next.js core
-title: ''
+description: Create a bug report for the Next.js core
 labels: 'template: bug'
-issue_body: true
 body:
   - type: markdown
     attributes:

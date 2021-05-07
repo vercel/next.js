@@ -242,6 +242,7 @@
           "path": "/errors/next-start-serverless.md"
         },
         { "title": "no-cache", "path": "/errors/no-cache.md" },
+        { "title": "no-css-tags", "path": "/errors/no-css-tags.md" },
         {
           "title": "no-document-title",
           "path": "/errors/no-document-title.md"
@@ -251,12 +252,28 @@
           "path": "/errors/no-document-viewport-meta.md"
         },
         {
+          "title": "no-html-link-for-pages",
+          "path": "/errors/no-html-link-for-pages.md"
+        },
+        {
           "title": "no-on-app-updated-hook",
           "path": "/errors/no-on-app-updated-hook.md"
         },
         {
           "title": "no-router-instance",
           "path": "/errors/no-router-instance.md"
+        },
+        {
+          "title": "no-sync-scripts",
+          "path": "/errors/no-sync-scripts.md"
+        },
+        {
+          "title": "no-title-in-document-head",
+          "path": "/errors/no-title-in-document-head.md"
+        },
+        {
+          "title": "no-unwanted-polyfillio",
+          "path": "/errors/no-unwanted-polyfillio.md"
         },
         {
           "title": "non-standard-node-env",
