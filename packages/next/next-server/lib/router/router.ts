@@ -1153,9 +1153,6 @@ export default class Router implements BaseRouter {
           !(routeInfo.Component as any).getInitialProps
       }
 
-      // shallow routing is only allowed for same page URL changes.
-      const isValidShallowRoute = options.shallow && this.route === route
-
       if (
         (options as any)._h &&
         pathname === '/_error' &&
@@ -1167,14 +1164,18 @@ export default class Router implements BaseRouter {
         props.pageProps.statusCode = 500
       }
 
+      // shallow routing is only allowed for same page URL changes.
+      const isValidShallowRoute = options.shallow && this.route === route
+      const resetScroll =
+        isValidShallowRoute && !options.scroll ? null : { x: 0, y: 0 }
+
       await this.set(
         route,
         pathname!,
         query,
         cleanedAs,
         routeInfo,
-        forcedScroll ||
-          (isValidShallowRoute || !options.scroll ? null : { x: 0, y: 0 })
+        forcedScroll ?? resetScroll
       ).catch((e) => {
         if (e.cancelled) error = error || e
         else throw e
