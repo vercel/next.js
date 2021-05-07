@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "storybook": "start-storybook -p 6006",
-    "build-storybook": "build-storybook"
+    "build-storybook": "build-storybook -s public/",
+    "serve-storybook": "serve storybook-static"
   },
   "dependencies": {
     "next": "latest",
@@ -19,6 +20,7 @@
     "@storybook/addon-essentials": "6.0.26",
     "@storybook/addon-links": "6.0.26",
     "@storybook/react": "6.0.26",
-    "babel-loader": "^8.0.5"
+    "babel-loader": "^8.0.5",
+    "serve": "11.3.2"
   }
 }

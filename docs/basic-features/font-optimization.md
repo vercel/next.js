@@ -74,7 +74,7 @@ class MyDocument extends Document {
 export default MyDocument
 ```
 
-Automatic Webfont Optimization currently supports Google Fonts, with support for other font providers coming soon. We're also planning to add control over [loading strategies](https://github.com/vercel/next.js/issues/21555) and `font-display` values.
+Automatic Webfont Optimization currently supports Google Fonts and Typekit with support for other font providers coming soon. We're also planning to add control over [loading strategies](https://github.com/vercel/next.js/issues/21555) and `font-display` values.
 
 ## Disabling Optimization
 
