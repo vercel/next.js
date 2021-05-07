@@ -4,12 +4,7 @@ import { apiResolver } from '../../../../next-server/server/api-utils'
 import { getUtils, vercelHeader, ServerlessHandlerCtx } from './utils'
 
 export function getApiHandler(ctx: ServerlessHandlerCtx) {
-  const {
-    pageModule,
-    encodedPreviewProps,
-    pageIsDynamic,
-    experimental: { initServer, onError },
-  } = ctx
+  const { pageModule, encodedPreviewProps, pageIsDynamic } = ctx
   const {
     handleRewrites,
     handleBasePath,
@@ -19,12 +14,10 @@ export function getApiHandler(ctx: ServerlessHandlerCtx) {
 
   return async (req: IncomingMessage, res: ServerResponse) => {
     try {
-      await initServer()
-
       // We need to trust the dynamic route params from the proxy
       // to ensure we are using the correct values
       const trustQuery = req.headers[vercelHeader]
-      const parsedUrl = handleRewrites(parseUrl(req.url!, true))
+      const parsedUrl = handleRewrites(req, parseUrl(req.url!, true))
 
       if (parsedUrl.query.nextInternalLocale) {
         delete parsedUrl.query.nextInternalLocale
@@ -52,12 +45,10 @@ export function getApiHandler(ctx: ServerlessHandlerCtx) {
         Object.assign({}, parsedUrl.query, params),
         await pageModule,
         encodedPreviewProps,
-        true,
-        onError
+        true
       )
     } catch (err) {
       console.error(err)
-      await onError(err)
 
       // TODO: better error for DECODE_FAILED?
       if (err.code === 'DECODE_FAILED') {

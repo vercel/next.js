@@ -32,6 +32,7 @@ type EventCliSessionStarted = {
   imageLoader: string | null
   trailingSlashEnabled: boolean
   reactStrictMode: boolean
+  webpackVersion: number | null
 }
 
 function hasBabelConfig(dir: string): boolean {
@@ -138,6 +139,7 @@ export function eventCliSession(
     imageLoader: images?.loader,
     trailingSlashEnabled: !!userConfiguration?.trailingSlash,
     reactStrictMode: !!userConfiguration?.reactStrictMode,
+    webpackVersion: event.webpackVersion || null,
   }
   return [{ eventName: EVENT_VERSION, payload }]
 }

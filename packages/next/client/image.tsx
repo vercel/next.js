@@ -45,6 +45,8 @@ const VALID_LAYOUT_VALUES = [
 ] as const
 type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
 
+type PlaceholderValue = 'blur' | 'empty'
+
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
 export type ImageProps = Omit<
@@ -72,6 +74,13 @@ export type ImageProps = Omit<
         height: number | string
         layout?: Exclude<LayoutValue, 'fill'>
       }
+  ) &
+  (
+    | {
+        placeholder?: Exclude<PlaceholderValue, 'blur'>
+        blurDataURL?: never
+      }
+    | { placeholder: 'blur'; blurDataURL: string }
   )
 
 const {
@@ -80,6 +89,7 @@ const {
   loader: configLoader,
   path: configPath,
   domains: configDomains,
+  enableBlurryPlaceholder: configEnableBlurryPlaceholder,
 } =
   ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
 // sort smallest to largest
@@ -94,9 +104,11 @@ function getWidths(
 ): { widths: number[]; kind: 'w' | 'x' } {
   if (sizes && (layout === 'fill' || layout === 'responsive')) {
     // Find all the "vw" percent sizes used in the sizes prop
-    const percentSizes = [...sizes.matchAll(/(^|\s)(1?\d?\d)vw/g)].map((m) =>
-      parseInt(m[2])
-    )
+    const viewportWidthRe = /(^|\s)(1?\d?\d)vw/g
+    const percentSizes = []
+    for (let match; (match = viewportWidthRe.exec(sizes)); match) {
+      percentSizes.push(parseInt(match[2]))
+    }
     if (percentSizes.length) {
       const smallestRatio = Math.min(...percentSizes) * 0.01
       return {
@@ -167,7 +179,6 @@ function generateImgAttrs({
   const last = widths.length - 1
 
   return {
-    src: loader({ src, quality, width: widths[last] }),
     sizes: !sizes && kind === 'w' ? '100vw' : sizes,
     srcSet: widths
       .map(
@@ -177,6 +188,14 @@ function generateImgAttrs({
           }${kind}`
       )
       .join(', '),
+
+    // It's intended to keep `src` the last attribute because React updates
+    // attributes in order. If we keep `src` the first one, Safari will
+    // immediately start to fetch `src`, before `sizes` and `srcSet` are even
+    // updated by React. That causes multiple unnecessary requests if `srcSet`
+    // and `sizes` are defined.
+    // This bug cannot be reproduced in Chrome or Firefox.
+    src: loader({ src, quality, width: widths[last] }),
   }
 }
 
@@ -202,6 +221,26 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
   )
 }
 
+// See https://stackoverflow.com/q/39777833/266535 for why we use this ref
+// handler instead of the img's onLoad attribute.
+function removePlaceholder(
+  element: HTMLImageElement | null,
+  placeholder: PlaceholderValue
+) {
+  if (placeholder === 'blur' && element) {
+    if (element.complete) {
+      // If the real image fails to load, this will still remove the placeholder.
+      // This is the desired behavior for now, and will be revisited when error
+      // handling is worked on for the image component itself.
+      element.style.backgroundImage = 'none'
+    } else {
+      element.onload = () => {
+        element.style.backgroundImage = 'none'
+      }
+    }
+  }
+}
+
 export default function Image({
   src,
   sizes,
@@ -215,6 +254,8 @@ export default function Image({
   objectFit,
   objectPosition,
   loader = defaultImageLoader,
+  placeholder = 'empty',
+  blurDataURL,
   ...all
 }: ImageProps) {
   let rest: Partial<ImageProps> = all
@@ -230,6 +271,10 @@ export default function Image({
 
     // Remove property so it's not spread into image:
     delete rest['layout']
+  }
+
+  if (!configEnableBlurryPlaceholder) {
+    placeholder = 'empty'
   }
 
   if (process.env.NODE_ENV !== 'production') {
@@ -284,12 +329,16 @@ export default function Image({
   const heightInt = getInt(height)
   const qualityInt = getInt(quality)
 
+  const MIN_IMG_SIZE_FOR_PLACEHOLDER = 5000
+  const tooSmallForBlurryPlaceholder =
+    widthInt && heightInt && widthInt * heightInt < MIN_IMG_SIZE_FOR_PLACEHOLDER
+  const shouldShowBlurryPlaceholder =
+    placeholder === 'blur' && !tooSmallForBlurryPlaceholder
+
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerSvg: string | undefined
   let imgStyle: ImgElementStyle | undefined = {
-    visibility: isVisible ? 'inherit' : 'hidden',
-
     position: 'absolute',
     top: 0,
     left: 0,
@@ -311,6 +360,13 @@ export default function Image({
 
     objectFit,
     objectPosition,
+
+    ...(shouldShowBlurryPlaceholder
+      ? {
+          backgroundSize: 'cover',
+          backgroundImage: `url("${blurDataURL}")`,
+        }
+      : undefined),
   }
   if (
     typeof widthInt !== 'undefined' &&
@@ -431,12 +487,36 @@ export default function Image({
           ) : null}
         </div>
       ) : null}
+      {!isVisible && (
+        <noscript>
+          <img
+            {...rest}
+            {...generateImgAttrs({
+              src,
+              unoptimized,
+              layout,
+              width: widthInt,
+              quality: qualityInt,
+              sizes,
+              loader,
+            })}
+            src={src}
+            decoding="async"
+            sizes={sizes}
+            style={imgStyle}
+            className={className}
+          />
+        </noscript>
+      )}
       <img
         {...rest}
         {...imgAttributes}
         decoding="async"
         className={className}
-        ref={setRef}
+        ref={(element) => {
+          setRef(element)
+          removePlaceholder(element, placeholder)
+        }}
         style={imgStyle}
       />
       {priority ? (
@@ -551,7 +631,7 @@ function defaultLoader({
       if (!configDomains.includes(parsedSrc.hostname)) {
         throw new Error(
           `Invalid src prop (${src}) on \`next/image\`, hostname "${parsedSrc.hostname}" is not configured under images in your \`next.config.js\`\n` +
-            `See more info: https://err.sh/next.js/next-image-unconfigured-host`
+            `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-host`
         )
       }
     }

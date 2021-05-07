@@ -13,6 +13,15 @@ description: Add custom HTTP headers to your Next.js app.
   </ul>
 </details>
 
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes      |
+| --------- | ------------ |
+| `v10.2.0` | `has` added. |
+
+</details>
+
 Headers allow you to set custom HTTP headers for an incoming request path.
 
 To set custom HTTP headers you can use the `headers` key in `next.config.js`:
@@ -43,6 +52,11 @@ module.exports = {
 
 - `source` is the incoming request path pattern.
 - `headers` is an array of header objects with the `key` and `value` properties.
+- `basePath`: `false` or `undefined` - if false the basePath won't be included when matching, can be used for external rewrites only.
+- `locale`: `false` or `undefined` - whether the locale should not be included when matching.
+- `has` is an array of [has objects](#header-cookie-and-query-matching) with the `type`, `key` and `value` properties.
+
+Headers are checked before the filesystem which includes pages and `/public` files.
 
 ## Header Overriding Behavior
 
@@ -145,6 +159,120 @@ module.exports = {
         ],
       },
     ],
+  },
+}
+```
+
+The following characters `(`, `)`, `{`, `}`, `:`, `*`, `+`, `?` are used for regex path matching, so when used in the `source` as non-special values they must be escaped by adding `\\` before them:
+
+```js
+module.exports = {
+  async redirects() {
+    return [
+      {
+        // this will match `/english(default)/something` being requested
+        source: '/english\\(default\\)/:slug',
+        destination: '/en-us/:slug',
+        permanent: false,
+      },
+    ]
+  },
+}
+```
+
+## Header, Cookie, and Query Matching
+
+To only apply a header when either header, cookie, or query values also match the `has` field can be used. Both the `source` and all `has` items must match for the header to be applied.
+
+`has` items have the following fields:
+
+- `type`: `String` - must be either `header`, `cookie`, `host`, or `query`.
+- `key`: `String` - the key from the selected type to match against.
+- `value`: `String` or `undefined` - the value to check for, if undefined any value will match. A regex like string can be used to capture a specific part of the value, e.g. if the value `first-(?<paramName>.*)` is used for `first-second` then `second` will be usable in the destination with `:paramName`.
+
+```js
+module.exports = {
+  async headers() {
+    return [
+      // if the header `x-add-header` is present,
+      // the `x-another-header` header will be applied
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'header',
+            key: 'x-add-header',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-another-header',
+            value: 'hello',
+          },
+        ],
+      },
+      // if the source, query, and cookie are matched,
+      // the `x-authorized` header will be applied
+      {
+        source: '/specific/:path*',
+        has: [
+          {
+            type: 'query',
+            key: 'page',
+            // the page value will not be available in the
+            // header key/values since value is provided and
+            // doesn't use a named capture group e.g. (?<page>home)
+            value: 'home',
+          },
+          {
+            type: 'cookie',
+            key: 'authorized',
+            value: 'true',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-authorized',
+            value: ':authorized',
+          },
+        ],
+      },
+      // if the header `x-authorized` is present and
+      // contains a matching value, the `x-another-header` will be applied
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'header',
+            key: 'x-authorized',
+            value: '(?<authorized>yes|true)',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-another-header',
+            value: ':authorized',
+          },
+        ],
+      },
+      // if the host is `example.com`,
+      // this header will be applied
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'host',
+            value: 'example.com',
+          },
+        ],
+        headers: [
+          {
+            key: 'x-another-header',
+            value: ':authorized',
+          },
+        ],
+      },
+    ]
   },
 }
 ```

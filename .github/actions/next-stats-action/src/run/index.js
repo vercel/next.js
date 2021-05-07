@@ -26,6 +26,7 @@ async function runConfigs(
       let curStats = {
         General: {
           buildDuration: null,
+          buildDurationCached: null,
           nodeModulesSize: null,
         },
       }
@@ -55,20 +56,25 @@ async function runConfigs(
         )
       }
 
-      const buildStart = new Date().getTime()
+      const buildStart = Date.now()
       await exec(`cd ${statsAppDir} && ${statsConfig.appBuildCommand}`, false, {
         env: yarnEnvValues,
       })
-      curStats.General.buildDuration = new Date().getTime() - buildStart
+      curStats.General.buildDuration = Date.now() - buildStart
 
       // apply renames to get deterministic output names
       for (const rename of config.renames) {
         const results = await glob(rename.srcGlob, { cwd: statsAppDir })
-        if (results.length === 0 || results[0] === rename.dest) continue
-        await fs.move(
-          path.join(statsAppDir, results[0]),
-          path.join(statsAppDir, rename.dest)
-        )
+        for (const result of results) {
+          let dest = rename.removeHash
+            ? result.replace(/(\.|-)[0-9a-f]{20}(\.|-)/g, '$1HASH$2')
+            : rename.dest
+          if (result === dest) continue
+          await fs.move(
+            path.join(statsAppDir, result),
+            path.join(statsAppDir, dest)
+          )
+        }
       }
 
       const collectedStats = await collectStats(config, statsConfig)
@@ -80,19 +86,17 @@ async function runConfigs(
       const applyRenames = (renames, stats) => {
         if (renames) {
           for (const rename of renames) {
-            Object.keys(stats).forEach((group) => {
-              Object.keys(stats[group]).forEach((item) => {
-                let { cur, prev } = rename
-                cur = path.basename(cur)
-                prev = path.basename(prev)
+            let { cur, prev } = rename
+            cur = path.basename(cur)
+            prev = path.basename(prev)
 
-                if (cur === item) {
-                  stats[group][prev] = stats[group][item]
-                  stats[group][prev + ' gzip'] = stats[group][item + ' gzip']
-                  delete stats[group][item]
-                  delete stats[group][item + ' gzip']
-                }
-              })
+            Object.keys(stats).forEach((group) => {
+              if (stats[group][cur]) {
+                stats[group][prev] = stats[group][cur]
+                stats[group][prev + ' gzip'] = stats[group][cur + ' gzip']
+                delete stats[group][cur]
+                delete stats[group][cur + ' gzip']
+              }
             })
           }
         }
@@ -146,6 +150,12 @@ async function runConfigs(
         /* eslint-disable-next-line */
         mainRepoStats = curStats
       }
+
+      const secondBuildStart = Date.now()
+      await exec(`cd ${statsAppDir} && ${statsConfig.appBuildCommand}`, false, {
+        env: yarnEnvValues,
+      })
+      curStats.General.buildDurationCached = Date.now() - secondBuildStart
     }
 
     logger(`Finished running: ${config.title}`)

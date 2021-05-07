@@ -1,0 +1,17 @@
+{
+  "name": "with-compiled-css",
+  "version": "1.0.0",
+  "license": "MIT",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@compiled/react": "^0.6.7",
+    "@compiled/webpack-loader": "^0.6.7",
+    "next": "latest",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1"
+  }
+}

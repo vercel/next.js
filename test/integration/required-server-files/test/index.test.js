@@ -87,6 +87,7 @@ describe('Required Server Files', () => {
     expect(requiredFilesManifest.ignore.length).toBeGreaterThan(0)
     expect(typeof requiredFilesManifest.config.configFile).toBe('undefined')
     expect(typeof requiredFilesManifest.config.trailingSlash).toBe('boolean')
+    expect(typeof requiredFilesManifest.appDir).toBe('string')
 
     for (const file of requiredFilesManifest.files) {
       console.log('checking', file)
@@ -507,5 +508,31 @@ describe('Required Server Files', () => {
     const json = await res.json()
     expect(json.query).toEqual({ another: 'value' })
     expect(json.url).toBe('/api/optional?another=value')
+  })
+
+  it('should match the index page correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/', undefined, {
+      headers: {
+        'x-matched-path': '/index',
+      },
+      redirect: 'manual',
+    })
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#index').text()).toBe('index page')
+  })
+
+  it('should match the root dyanmic page correctly', async () => {
+    const res = await fetchViaHTTP(appPort, '/index', undefined, {
+      headers: {
+        'x-matched-path': '/[slug]',
+      },
+      redirect: 'manual',
+    })
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#slug-page').text()).toBe('[slug] page')
   })
 })
