@@ -66,6 +66,7 @@ import {
   eventBuildOptimize,
   eventCliSession,
   eventNextPlugins,
+  eventTypeCheckCompleted,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
@@ -158,15 +159,6 @@ export default async function build(
       }
     }
 
-    const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
-    const typeCheckingSpinner = createSpinner({
-      prefixText: `${Log.prefixes.info} ${
-        ignoreTypeScriptErrors
-          ? 'Skipping validation of types'
-          : 'Checking validity of types'
-      }`,
-    })
-
     const telemetry = new Telemetry({ distDir })
     setGlobal('telemetry', telemetry)
 
@@ -188,11 +180,33 @@ export default async function build(
       telemetry.record(events)
     )
 
-    await nextBuildSpan
+    const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
+    const typeCheckStart = process.hrtime()
+    const typeCheckingSpinner = createSpinner({
+      prefixText: `${Log.prefixes.info} ${
+        ignoreTypeScriptErrors
+          ? 'Skipping validation of types'
+          : 'Checking validity of types'
+      }`,
+    })
+
+    const verifyResult = await nextBuildSpan
       .traceChild('verify-typescript-setup')
       .traceAsyncFn(() =>
         verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors)
       )
+
+    const typeCheckEnd = process.hrtime(typeCheckStart)
+
+    telemetry.record(
+      eventTypeCheckCompleted({
+        durationInSeconds: typeCheckEnd[0],
+        typescriptVersion: verifyResult.version,
+        inputFilesCount: verifyResult.result?.inputFilesCount,
+        totalFilesCount: verifyResult.result?.totalFilesCount,
+        incremental: verifyResult.result?.incremental,
+      })
+    )
 
     if (typeCheckingSpinner) {
       typeCheckingSpinner.stopAndPersist()

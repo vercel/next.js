@@ -27,6 +27,14 @@ npx create-next-app
 yarn create next-app
 ```
 
+If you want to start with a TypeScript project you can use the `--typescript` flag:
+
+```bash
+npx create-next-app --typescript
+# or
+yarn create next-app --typescript
+```
+
 After the installation is complete, follow the instructions to start the development server. Try editing `pages/index.js` and see the result on your browser.
 
 For more information on how to use `create-next-app`, you can review the [`create-next-app` documentation](/docs/api-reference/create-next-app.md)
