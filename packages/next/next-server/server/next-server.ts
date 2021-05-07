@@ -1315,6 +1315,11 @@ export default class Server {
       return this.handleRequest(req, res, parsedUrl)
     }
 
+    // Custom server users can run `app.render()` which needs compression.
+    if (this.renderOpts.customServer) {
+      this.handleCompression(req, res)
+    }
+
     if (isBlockedPage(pathname)) {
       return this.render404(req, res, parsedUrl)
     }
