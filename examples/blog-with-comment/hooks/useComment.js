@@ -13,7 +13,7 @@ export default function useComments() {
       return `/api/comment?${query.toString()}`
     },
     {
-      initialData: []
+      initialData: [],
     }
   )
 
@@ -32,8 +32,8 @@ export default function useComments() {
         body: JSON.stringify({ url, text }),
         headers: {
           Authorization: token,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       })
       setText('')
       await mutate()
@@ -51,8 +51,8 @@ export default function useComments() {
         body: JSON.stringify({ url, comment }),
         headers: {
           Authorization: token,
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       })
       await mutate()
     } catch (err) {

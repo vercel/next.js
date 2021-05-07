@@ -31,7 +31,7 @@ function PostPage({ post }) {
 export async function getStaticPaths() {
   return {
     paths: await getMdxPaths('post'),
-    fallback: false
+    fallback: false,
   }
 }
 
@@ -40,14 +40,14 @@ export async function getStaticProps(context) {
 
   if (!post) {
     return {
-      notFound: true
+      notFound: true,
     }
   }
 
   return {
     props: {
-      post
-    }
+      post,
+    },
   }
 }
 

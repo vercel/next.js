@@ -7,14 +7,14 @@ async function fetchUser(token) {
     {
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     }
   )
   return await response.json()
 }
 
-export default async (req, res) => {
+export default async function handler(req, res) {
   // FETCH COMMENTS
 
   if (req.method === 'GET') {
@@ -62,7 +62,7 @@ export default async (req, res) => {
         created_at: Date.now(),
         url,
         text,
-        user: { name, picture, sub, email }
+        user: { name, picture, sub, email },
       }
 
       // write data

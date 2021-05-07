@@ -8,7 +8,7 @@ export default class MyDocument extends NextDocument {
   render() {
     const meta = {
       title: 'Next.js Blog Starter Kit',
-      description: 'Clone and deploy your own Next.js portfolio in minutes.'
+      description: 'Clone and deploy your own Next.js portfolio in minutes.',
     }
 
     return (
