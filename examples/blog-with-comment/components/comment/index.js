@@ -3,11 +3,11 @@ import CommentList from './list'
 import useComments from '../../hooks/useComment'
 
 function Comment() {
-  const [text, textSet, comments, onSubmit, onDelete] = useComments()
+  const { text, setText, comments, onSubmit, onDelete } = useComments()
 
   return (
     <div className="mt-20">
-      <CommentForm onSubmit={onSubmit} text={text} textSet={textSet} />
+      <CommentForm onSubmit={onSubmit} text={text} setText={setText} />
       <CommentList comments={comments} onDelete={onDelete} />
     </div>
   )

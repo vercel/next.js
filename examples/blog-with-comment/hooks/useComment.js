@@ -4,8 +4,8 @@ import { useAuth0 } from '@auth0/auth0-react'
 
 export default function useComments() {
   const { getAccessTokenSilently } = useAuth0()
-  const [text, textSet] = useState('')
-  const [url, urlSet] = useState(null)
+  const [text, setText] = useState('')
+  const [url, setUrl] = useState(null)
 
   const { data: comments, mutate } = useSWR(
     () => {
@@ -19,7 +19,7 @@ export default function useComments() {
 
   useEffect(() => {
     const url = window.location.origin + window.location.pathname
-    urlSet(url)
+    setUrl(url)
   }, [])
 
   const onSubmit = async (e) => {
@@ -35,7 +35,7 @@ export default function useComments() {
           'Content-Type': 'application/json'
         }
       })
-      textSet('')
+      setText('')
       await mutate()
     } catch (err) {
       console.log(err)
@@ -60,5 +60,5 @@ export default function useComments() {
     }
   }
 
-  return [text, textSet, comments, onSubmit, onDelete]
+  return { text, setText, comments, onSubmit, onDelete }
 }

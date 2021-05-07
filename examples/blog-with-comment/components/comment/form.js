@@ -1,6 +1,6 @@
 import { useAuth0 } from '@auth0/auth0-react'
 
-function CommentForm({ text, textSet, onSubmit }) {
+function CommentForm({ text, setText, onSubmit }) {
   const { isAuthenticated, logout, loginWithPopup } = useAuth0()
 
   return (
@@ -13,7 +13,7 @@ function CommentForm({ text, textSet, onSubmit }) {
             ? `What are your thoughts?`
             : 'Please login to leave a comment'
         }
-        onChange={(e) => textSet(e.target.value)}
+        onChange={(e) => setText(e.target.value)}
         value={text}
         disabled={!isAuthenticated}
       />
