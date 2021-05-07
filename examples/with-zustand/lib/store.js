@@ -12,7 +12,7 @@ const initialState = {
 
 export const { Provider, useStore } = createContext(initialState)
 
-export const initializeStore = (preloadedState = initialState) => {
+export const initializeStore = (preloadedState = {}) => {
   return create((set, get) => ({
     ...initialState,
     ...preloadedState,
