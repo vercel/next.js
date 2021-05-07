@@ -1,26 +1,20 @@
 {
-  "name": "with-reasonml",
+  "name": "with-rescript-todo",
+  "reason": { "react-jsx": 3 },
   "sources": [
     {
-      "dir": "components",
-      "subdirs": true
-    },
-    {
-      "dir": "pages",
-      "subdirs": true
-    },
-    {
-      "dir": "bindings",
+      "dir": "src",
       "subdirs": true
     }
   ],
-  "bs-dependencies": ["reason-react"],
-  "reason": { "react-jsx": 3 },
+  "bs-dependencies": ["@rescript/react"],
   "package-specs": {
     "module": "es6",
     "in-source": true
   },
   "suffix": ".bs.js",
-  "bsc-flags": ["-bs-super-errors"],
-  "refmt": 3
+  "warnings": {
+    "number": "-3",
+    "error": "+101+8"
+  }
 }
