@@ -1,9 +1,8 @@
 import { join, sep as pathSeparator, normalize } from 'path'
 import chalk from 'chalk'
 import { warn } from '../../build/output/log'
-import { promises } from 'fs'
+import { promises, constants as fsConstants } from 'fs'
 import { denormalizePagePath } from '../../next-server/server/normalize-page-path'
-import { fileExists } from '../../lib/file-exists'
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
   const pageSegments = normalize(pagePath).split(pathSeparator).filter(Boolean)
@@ -15,6 +14,18 @@ async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
   })
 
   return (await Promise.all(segmentExistsPromises)).every(Boolean)
+}
+
+async function isReadable(directory: string): Promise<boolean> {
+  try {
+    await promises.access(directory, fsConstants.R_OK)
+    return true
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return false
+    }
+    throw err
+  }
 }
 
 export async function findPageFile(
@@ -31,14 +42,14 @@ export async function findPageFile(
       const relativePagePath = `${page}.${extension}`
       const pagePath = join(rootDir, relativePagePath)
 
-      if (await fileExists(pagePath)) {
+      if (await isReadable(pagePath)) {
         foundPagePaths.push(relativePagePath)
       }
     }
 
     const relativePagePathWithIndex = join(page, `index.${extension}`)
     const pagePathWithIndex = join(rootDir, relativePagePathWithIndex)
-    if (await fileExists(pagePathWithIndex)) {
+    if (await isReadable(pagePathWithIndex)) {
       foundPagePaths.push(relativePagePathWithIndex)
     }
   }
