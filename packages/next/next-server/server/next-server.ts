@@ -1255,7 +1255,7 @@ export default class Server {
         return
       }
     } catch (err) {
-      if (err.code === 'DECODE_FAILED') {
+      if (err.code === 'DECODE_FAILED' || err.code === 'ENAMETOOLONG') {
         res.statusCode = 400
         return this.renderError(null, req, res, '/_error', {})
       }
