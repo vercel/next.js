@@ -146,8 +146,8 @@ export default async function build(
 
     const { headers, rewrites, redirects } = customRoutes
 
+    const cacheDir = path.join(distDir, 'cache')
     if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
-      const cacheDir = path.join(distDir, 'cache')
       const hasCache = await fileExists(cacheDir)
 
       if (!hasCache) {
@@ -183,26 +183,32 @@ export default async function build(
     const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
     const typeCheckStart = process.hrtime()
     const typeCheckingSpinner = createSpinner({
-      prefixText: `${Log.prefixes.info} Checking validity of types`,
+      prefixText: `${Log.prefixes.info} ${
+        ignoreTypeScriptErrors
+          ? 'Skipping validation of types'
+          : 'Checking validity of types'
+      }`,
     })
 
     const verifyResult = await nextBuildSpan
       .traceChild('verify-typescript-setup')
       .traceAsyncFn(() =>
-        verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors)
+        verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors, cacheDir)
       )
 
     const typeCheckEnd = process.hrtime(typeCheckStart)
 
-    telemetry.record(
-      eventTypeCheckCompleted({
-        durationInSeconds: typeCheckEnd[0],
-        typescriptVersion: verifyResult.version,
-        inputFilesCount: verifyResult.result?.inputFilesCount,
-        totalFilesCount: verifyResult.result?.totalFilesCount,
-        incremental: verifyResult.result?.incremental,
-      })
-    )
+    if (!ignoreTypeScriptErrors) {
+      telemetry.record(
+        eventTypeCheckCompleted({
+          durationInSeconds: typeCheckEnd[0],
+          typescriptVersion: verifyResult.version,
+          inputFilesCount: verifyResult.result?.inputFilesCount,
+          totalFilesCount: verifyResult.result?.totalFilesCount,
+          incremental: verifyResult.result?.incremental,
+        })
+      )
+    }
 
     if (typeCheckingSpinner) {
       typeCheckingSpinner.stopAndPersist()

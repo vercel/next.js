@@ -4,8 +4,6 @@ description: Add redirects to your Next.js app.
 
 # Redirects
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
-
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
@@ -16,9 +14,10 @@ description: Add redirects to your Next.js app.
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes      |
-| --------- | ------------ |
-| `v10.2.0` | `has` added. |
+| Version   | Changes          |
+| --------- | ---------------- |
+| `v10.2.0` | `has` added.     |
+| `v9.5.0`  | Redirects added. |
 
 </details>
 
