@@ -30,9 +30,9 @@ npm run dev
 
 # You'll see instructions like these:
 #
-# Please install typescript, @types/react, and @types/node by running:
+# Please install typescript and @types/react by running:
 #
-#         yarn add --dev typescript @types/react @types/node
+#         yarn add --dev typescript @types/react
 #
 # ...
 ```
