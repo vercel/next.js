@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs'
 import chalk from 'chalk'
 import * as CommentJson from 'next/dist/compiled/comment-json'
+import semver from 'next/dist/compiled/semver'
 import os from 'os'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
 
@@ -28,6 +29,9 @@ function getDesiredCompilerOptions(
     strict: { suggested: false },
     forceConsistentCasingInFileNames: { suggested: true },
     noEmit: { suggested: true },
+    ...(semver.gte(ts.version, '4.3.0-beta')
+      ? { incremental: { suggested: true } }
+      : undefined),
 
     // These values are required and cannot be changed by the user
     // Keep this in sync with the webpack config
@@ -98,7 +102,7 @@ export async function writeConfigurationDefaults(
   const {
     options: tsOptions,
     raw: rawConfig,
-  } = await getTypeScriptConfiguration(ts, tsConfigPath)
+  } = await getTypeScriptConfiguration(ts, tsConfigPath, true)
 
   const userTsConfigContent = await fs.readFile(tsConfigPath, {
     encoding: 'utf8',
@@ -183,7 +187,7 @@ export async function writeConfigurationDefaults(
     chalk.green(
       `We detected TypeScript in your project and reconfigured your ${chalk.bold(
         'tsconfig.json'
-      )} file for you.`
+      )} file for you. Strict-mode is set to ${chalk.bold('false')} by default.`
     ) + '\n'
   )
   if (suggestedActions.length) {

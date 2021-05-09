@@ -7,11 +7,14 @@
     "start": "next start"
   },
   "dependencies": {
-    "@zeit/next-css": "^1.0.1",
-    "linaria": "2.0.0-alpha.5",
+    "linaria": "^2.1.0",
     "next": "latest",
+    "next-linaria": "^0.10.0",
     "react": "^16.13.1",
     "react-dom": "^16.13.1"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.13.10"
   },
   "license": "MIT"
 }

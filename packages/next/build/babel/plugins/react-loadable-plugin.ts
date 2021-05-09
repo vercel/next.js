@@ -29,6 +29,8 @@ import {
   types as BabelTypes,
 } from 'next/dist/compiled/babel/core'
 
+import { relative as relativePath } from 'path'
+
 export default function ({
   types: t,
 }: {
@@ -36,7 +38,10 @@ export default function ({
 }): PluginObj {
   return {
     visitor: {
-      ImportDeclaration(path: NodePath<BabelTypes.ImportDeclaration>) {
+      ImportDeclaration(
+        path: NodePath<BabelTypes.ImportDeclaration>,
+        state: any
+      ) {
         let source = path.node.source.value
         if (source !== 'next/dynamic') return
 
@@ -133,7 +138,8 @@ export default function ({
           if (!loader || Array.isArray(loader)) {
             return
           }
-          const dynamicImports: BabelTypes.StringLiteral[] = []
+          const dynamicImports: BabelTypes.Expression[] = []
+          const dynamicKeys: BabelTypes.Expression[] = []
 
           loader.traverse({
             Import(importPath) {
@@ -141,6 +147,20 @@ export default function ({
               if (!Array.isArray(importArguments)) return
               const node: any = importArguments[0].node
               dynamicImports.push(node)
+              dynamicKeys.push(
+                t.binaryExpression(
+                  '+',
+                  t.stringLiteral(
+                    (state.file.opts.caller.pagesDir
+                      ? relativePath(
+                          state.file.opts.caller.pagesDir,
+                          state.file.opts.filename
+                        )
+                      : state.file.opts.filename) + ' -> '
+                  ),
+                  node
+                )
+              )
             },
           })
 
@@ -169,7 +189,7 @@ export default function ({
                 ),
                 t.objectProperty(
                   t.identifier('modules'),
-                  t.arrayExpression(dynamicImports)
+                  t.arrayExpression(dynamicKeys)
                 ),
               ])
             )

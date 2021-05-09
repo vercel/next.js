@@ -1,4 +1,4 @@
-/* eslint-disable import/no-extraneous-dependencies, @typescript-eslint/no-unused-vars */
+/* eslint-disable import/no-extraneous-dependencies, @typescript-eslint/no-unused-vars , no-shadow */
 // Type definitions for webpack 4.39
 // Project: https://github.com/webpack/webpack
 // Definitions by: Qubo <https://github.com/tkqubo>
@@ -28,14 +28,14 @@ declare module 'next/dist/compiled/loader-utils'
 
 declare module 'next/dist/compiled/webpack/webpack' {
   import webpackSources from 'webpack-sources'
-  import webpack from 'webpack'
+  import webpack, { loader } from 'webpack'
   export let isWebpack5: boolean
   export function init(useWebpack5: boolean): void
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any
   export function onWebpackInit(cb: () => void): void
   export let sources: typeof webpackSources
-  export { webpack }
+  export { webpack, loader }
 }
 
 declare module 'webpack' {
