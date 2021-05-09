@@ -4,8 +4,6 @@ description: Add rewrites to your Next.js app.
 
 # Rewrites
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
-
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
@@ -13,7 +11,19 @@ description: Add rewrites to your Next.js app.
   </ul>
 </details>
 
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes         |
+| --------- | --------------- |
+| `v10.2.0` | `has` added.    |
+| `v9.5.0`  | Rewrites added. |
+
+</details>
+
 Rewrites allow you to map an incoming request path to a different destination path.
+
+Rewrites act as a URL proxy and mask the destination path, making it appear the user hasn't changed their location on the site. In contrast, [redirects](/docs/api-reference/next.config.js/redirects.md) will reroute to a new page a show the URL changes.
 
 Rewrites are only available on the Node.js environment and do not affect client-side routing.
 
@@ -197,8 +207,6 @@ module.exports = {
 
 ## Header, Cookie, and Query Matching
 
-Note: this feature is still experimental and not covered by semver and is to be used at your own risk until it is made stable.
-
 To only match a rewrite when header, cookie, or query values also match the `has` field can be used. Both the `source` and all `has` items must match for the rewrite to be applied.
 
 `has` items have the following fields:
@@ -319,7 +327,7 @@ module.exports = {
 }
 ```
 
-See additional information on incremental adoption [in the docs here](https://nextjs.org/docs/migrating/incremental-adoption).
+See additional information on incremental adoption [in the docs here](/docs/migrating/incremental-adoption.md).
 
 ### Rewrites with basePath support
 

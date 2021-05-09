@@ -1783,8 +1783,8 @@ describe('Custom routes', () => {
       )
     })
 
-    it('should show warning for experimental has usage', async () => {
-      expect(stderr).toContain(
+    it('should not show warning for experimental has usage', async () => {
+      expect(stderr).not.toContain(
         "'has' route field support is still experimental and not covered by semver, use at your own risk."
       )
     })
