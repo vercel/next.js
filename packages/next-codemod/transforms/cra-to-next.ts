@@ -186,26 +186,33 @@ export default function MyApp({ Component, pageProps}) {
         `
       )
 
+      const relativeIndexPath = path.join(
+        path.relative(
+          path.join(this.appDir, this.pagesDir),
+          path.join(this.appDir, 'src')
+        ),
+        'index.js'
+      )
+
       await fs.promises.writeFile(
         path.join(this.appDir, catchAllPage),
         `
+// import NextIndexWrapper from '${relativeIndexPath}'
+
 // next/dynamic is used to prevent breaking incompatibilities 
 // with SSR from window.SOME_VAR usage, if this is not used
 // next/dynamic can be removed to take advantage of SSR/prerendering
 import dynamic from 'next/dynamic'
 
-const App = dynamic(() => import('${path.join(
-          path.relative(
-            path.join(this.appDir, this.pagesDir),
-            path.join(this.appDir, 'src')
-          ),
-          'index.js'
-        )}'), { ssr: false })
+// try changing "ssr" to true below to test for incompatibilities, if
+// no errors occur the above static import can be used instead and the
+// below removed
+const NextIndexWrapper = dynamic(() => import('${relativeIndexPath}'), { ssr: false })
 
 export default function Page(props) {
-  return <App {...props} />
+  return <NextIndexWrapper {...props} />
 }
-        `
+`
       )
     }
     this.logCreate(appPage)
@@ -382,7 +389,7 @@ module.exports = craCompat({${
       PUBLIC_URL: '${this.packageJsonData.homepage || '/'}'
     },
 })
-        `
+`
       )
     }
     this.logCreate('next.config.js')

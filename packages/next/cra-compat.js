@@ -3,7 +3,7 @@ module.exports = function craCompat(config) {
     ...config,
 
     webpack(webpackCfg, ctx) {
-      const { webpack, isServer } = ctx
+      const { webpack } = ctx
 
       // CRA prevents loading all locales by default
       // https://github.com/facebook/create-react-app/blob/fddce8a9e21bf68f37054586deb0c8636a45f50b/packages/react-scripts/config/webpack.config.js#L721
@@ -12,37 +12,21 @@ module.exports = function craCompat(config) {
       )
 
       // CRA allows importing non-webpack handled files with file-loader
-      // which we need to ignore in server mode, these need to be the
-      // last rule to prevent catching other items
+      // these need to be the last rule to prevent catching other items
       // https://github.com/facebook/create-react-app/blob/fddce8a9e21bf68f37054586deb0c8636a45f50b/packages/react-scripts/config/webpack.config.js#L594
 
-      const fileLoaderExclude = [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/]
-      let fileLoader
-
-      if (isServer) {
-        fileLoader = {
-          loader: require.resolve('next/dist/compiled/file-loader'),
-          // Exclude `js` files to keep "css" loader working as it injects
-          // its runtime that would otherwise be processed through "file" loader.
-          // Also exclude `html` and `json` extensions so they get processed
-          // by webpacks internal loaders.
-          exclude: fileLoaderExclude,
-          options: {
-            name: 'static/media/[name].[hash:8].[ext]',
-          },
-        }
-      } else {
-        fileLoader = {
-          loader: require.resolve('next/dist/compiled/file-loader'),
-          // Exclude `js` files to keep "css" loader working as it injects
-          // its runtime that would otherwise be processed through "file" loader.
-          // Also exclude `html` and `json` extensions so they get processed
-          // by webpacks internal loaders.
-          exclude: fileLoaderExclude,
-          options: {
-            name: 'static/media/[name].[hash:8].[ext]',
-          },
-        }
+      const fileLoader = {
+        loader: require.resolve('next/dist/compiled/file-loader'),
+        // Exclude `js` files to keep "css" loader working as it injects
+        // its runtime that would otherwise be processed through "file" loader.
+        // Also exclude `html` and `json` extensions so they get processed
+        // by webpacks internal loaders.
+        exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
+        options: {
+          publicPath: '/_next/static/media',
+          outputPath: 'static/media',
+          name: '[name].[hash:8].[ext]',
+        },
       }
 
       webpackCfg.module.rules = [
