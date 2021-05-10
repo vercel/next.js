@@ -979,31 +979,7 @@ export default async function getBaseWebpackConfig(
             }
             return /node_modules/.test(excludePath)
           },
-          use: config.experimental.babelMultiThread
-            ? [
-                // Move Babel transpilation into a thread pool (2 workers, unlimited batch size).
-                // Applying a cache to the off-thread work avoids paying transfer costs for unchanged modules.
-                {
-                  loader: 'next/dist/compiled/cache-loader',
-                  options: {
-                    cacheContext: dir,
-                    cacheDirectory: path.join(distDir, 'cache', 'webpack'),
-                    cacheIdentifier: `webpack${isServer ? '-server' : ''}`,
-                  },
-                },
-                {
-                  loader: require.resolve('next/dist/compiled/thread-loader'),
-                  options: {
-                    workers: 2,
-                    workerParallelJobs: Infinity,
-                  },
-                },
-                hasReactRefresh
-                  ? require.resolve('@next/react-refresh-utils/loader')
-                  : '',
-                defaultLoaders.babel,
-              ].filter(Boolean)
-            : hasReactRefresh
+          use: hasReactRefresh
             ? [
                 require.resolve('@next/react-refresh-utils/loader'),
                 defaultLoaders.babel,
