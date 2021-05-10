@@ -59,7 +59,7 @@ export default function transformer(
             [],
             j.blockStatement([
               j.returnStatement(
-                // TODO remove React.StrictMode wrapper and use
+                // TODO: remove React.StrictMode wrapper and use
                 // next.config.js option instead?
                 path.node.arguments.find(
                   (a) => a.type === 'JSXElement'

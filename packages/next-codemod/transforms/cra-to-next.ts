@@ -103,7 +103,7 @@ class CraTransform {
     await this.createNextConfig()
     await this.updateGitIgnore()
 
-    // TODO: should we only create .babelrc even if {ReactComponent} svg import
+    // TODO: should we create .babelrc even if {ReactComponent} svg import
     // isn't used?
     if (globalCssContext.hasReactSvgImport) {
       await this.createBabelrc()
@@ -306,6 +306,9 @@ export default MyDocument
         path.join(this.appDir, 'src')
       )
 
+      // TODO: should we default to ssr: true below and recommend they
+      // set it to false if they encounter errors or prefer the more safe
+      // option to prevent their first start from having any errors?
       await fs.promises.writeFile(
         path.join(this.appDir, catchAllPage),
         `// import NextIndexWrapper from '${relativeIndexPath}'
@@ -488,21 +491,30 @@ const craCompat = require('/Users/jj/dev/vercel/next.js/packages/next/cra-compat
 module.exports = craCompat({${
           proxy
             ? `
-      async rewrites() {
-        return {
-          fallback: [
-            {
-              source: '/:path*',
-              destination: '${proxy}'
-            }
-          ]
+  async rewrites() {
+    return {
+      fallback: [
+        {
+          source: '/:path*',
+          destination: '${proxy}'
         }
-      },`
+      ]
+    }
+  },`
             : ''
         }
-    env: {
-      PUBLIC_URL: '${homepagePath === '/' ? '' : homepagePath || ''}'
-    }
+  env: {
+    PUBLIC_URL: '${homepagePath === '/' ? '' : homepagePath || ''}'
+  },${
+    globalCssContext.hasReactSvgImport
+      ? `
+  // @svgr/webpack does not support webpack 5 yet
+  // remove the custom .babelrc to enable the below config`
+      : ''
+  }
+  future: {
+    webpack5: ${JSON.stringify(!globalCssContext.hasReactSvgImport)}
+  }
 })
 `
       )

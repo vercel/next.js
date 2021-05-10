@@ -15,33 +15,54 @@ module.exports = function craCompat(config) {
       // these need to be the last rule to prevent catching other items
       // https://github.com/facebook/create-react-app/blob/fddce8a9e21bf68f37054586deb0c8636a45f50b/packages/react-scripts/config/webpack.config.js#L594
 
-      // TODO: update to handle webpack 5 variant of file loading as file-loader
-      // is not compatible to allow opting in to webpack 5 support
-      const fileLoader = {
-        loader: require.resolve('next/dist/compiled/file-loader'),
-        // Exclude `js` files to keep "css" loader working as it injects
-        // its runtime that would otherwise be processed through "file" loader.
-        // Also exclude `html` and `json` extensions so they get processed
-        // by webpacks internal loaders.
-        exclude: [/\.(js|mjs|jsx|ts|tsx)$/, /\.html$/, /\.json$/],
-        options: {
-          publicPath: '/_next/static/media',
-          outputPath: 'static/media',
-          name: '[name].[hash:8].[ext]',
-        },
+      const isWebpack5 = config.future && config.future.webpack5
+      const fileLoader = isWebpack5
+        ? {
+            exclude: [/\.(js|mjs|jsx|ts|tsx)$/],
+            issuer: [/\.(js|mjs|jsx|ts|tsx)$/],
+            type: 'asset/resource',
+            generator: {
+              publicPath: '/_next/',
+              filename: 'static/media/[name].[hash:8].[ext]',
+            },
+          }
+        : {
+            loader: require.resolve('next/dist/compiled/file-loader'),
+            // Exclude `js` files to keep "css" loader working as it injects
+            // its runtime that would otherwise be processed through "file" loader.
+            // Also exclude `html` and `json` extensions so they get processed
+            // by webpacks internal loaders.
+            exclude: [/\.(js|mjs|jsx|ts|tsx)$/],
+            issuer: [/\.(js|mjs|jsx|ts|tsx)$/],
+            options: {
+              publicPath: '/_next/static/media',
+              outputPath: 'static/media',
+              name: '[name].[hash:8].[ext]',
+            },
+          }
+
+      const topRules = []
+      const innerRules = []
+
+      for (const rule of webpackCfg.module.rules) {
+        if (rule.resolve) {
+          topRules.push(rule)
+        } else {
+          if (
+            rule.oneOf &&
+            !(rule.test || rule.exclude || rule.resource || rule.issuer)
+          ) {
+            rule.oneOf.forEach((r) => innerRules.push(r))
+          } else {
+            innerRules.push(rule)
+          }
+        }
       }
 
       webpackCfg.module.rules = [
+        ...topRules,
         {
-          oneOf: [
-            ...webpackCfg.module.rules.map((rule) => {
-              if (rule.oneOf) {
-                rule.oneOf.push(fileLoader)
-              }
-              return rule
-            }),
-            fileLoader,
-          ],
+          oneOf: [...innerRules, fileLoader],
         },
       ]
 
