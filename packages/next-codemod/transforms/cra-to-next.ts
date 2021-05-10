@@ -472,7 +472,7 @@ export default function Page(props) {
 
   private async createNextConfig() {
     if (!this.isDryRun) {
-      // TODO: enable webpack 5 support when @svgr/webpack isn't used
+      // TODO: auto enable webpack 5 support when @svgr/webpack isn't used?
 
       await fs.promises.writeFile(
         path.join(this.appDir, 'next.config.js'),
@@ -497,6 +497,11 @@ module.exports = craCompat({${
     env: {
       PUBLIC_URL: '${this.packageJsonData.homepage || ''}'
     },
+    // webpack 5 support can be enabled after removing the
+    // .babelrc file with "@svgr/webpack" as it's not yet compatible
+    future: {
+      webpack5: false
+    }
 })
 `
       )
