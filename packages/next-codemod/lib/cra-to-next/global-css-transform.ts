@@ -1,8 +1,10 @@
 import nodePath from 'path'
 import { API, FileInfo, Options } from 'jscodeshift'
 
-export const globalCssImports = new Set<string>()
-
+export const globalCssContext = {
+  cssImports: new Set<string>(),
+  hasReactSvgImport: false,
+}
 const globalStylesRegex = /(?<!\.module)\.(css|scss|sass)$/i
 
 export default function transformer(
@@ -23,24 +25,34 @@ export default function transformer(
         },
       } = path
 
-      if (typeof value === 'string' && globalStylesRegex.test(value)) {
-        const resolvedPath = nodePath.resolve(
-          nodePath.dirname(file.path),
-          value
-        )
-        globalCssImports.add(resolvedPath)
+      if (typeof value === 'string') {
+        if (globalStylesRegex.test(value)) {
+          const resolvedPath = nodePath.resolve(
+            nodePath.dirname(file.path),
+            value
+          )
+          globalCssContext.cssImports.add(resolvedPath)
 
-        const { start, end } = path.node as any
+          const { start, end } = path.node as any
 
-        if (!path.parentPath.node.comments) {
-          path.parentPath.node.comments = []
+          if (!path.parentPath.node.comments) {
+            path.parentPath.node.comments = []
+          }
+
+          path.parentPath.node.comments = [
+            j.commentLine(' ' + file.source.substring(start, end)),
+          ]
+          hasModifications = true
+          return true
+        } else if (value.endsWith('.svg')) {
+          const isComponentImport = path.node.specifiers.some((specifier) => {
+            return (specifier as any).imported?.name === 'ReactComponent'
+          })
+
+          if (isComponentImport) {
+            globalCssContext.hasReactSvgImport = true
+          }
         }
-
-        path.parentPath.node.comments = [
-          j.commentLine(' ' + file.source.substring(start, end)),
-        ]
-        hasModifications = true
-        return true
       }
       return false
     })

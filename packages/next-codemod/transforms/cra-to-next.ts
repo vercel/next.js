@@ -7,7 +7,7 @@ import { install } from '../lib/install'
 import runJscodeshift from '../lib/run-jscodeshift'
 import htmlToReactAttributes from '../lib/html-to-react-attributes'
 import { indexContext } from '../lib/cra-to-next/index-to-component'
-import { globalCssImports } from '../lib/cra-to-next/global-css-transform'
+import { globalCssContext } from '../lib/cra-to-next/global-css-transform'
 
 // log error and exit without new stacktrace
 function fatalMessage(...logs) {
@@ -103,10 +103,11 @@ class CraTransform {
     await this.createNextConfig()
     await this.updateGitIgnore()
 
-    // TODO: should we only create .babelrc if {ReactComponent} svg import is
-    // used? When @svgr/webpack is added it breaks webpack 5 support, x-ref:
-    // https://github.com/facebook/create-react-app/issues/9994
-    await this.createBabelrc()
+    // TODO: should we only create .babelrc even if {ReactComponent} svg import
+    // isn't used?
+    if (globalCssContext.hasReactSvgImport) {
+      await this.createBabelrc()
+    }
     await this.createPages()
   }
 
@@ -237,16 +238,16 @@ class CraTransform {
       await fs.promises.writeFile(
         path.join(this.appDir, appPage),
         `${
-          globalCssImports.size === 0
+          globalCssContext.cssImports.size === 0
             ? ''
-            : [...globalCssImports]
+            : [...globalCssContext.cssImports]
                 .map((file) => {
                   return `import '${path.relative(
                     path.join(this.appDir, this.pagesDir),
                     file
                   )}'`
                 })
-                .join('\n')
+                .join('\n') + '\n'
         }${titleTag ? `import Head from 'next/head'` : ''}
 
 export default function MyApp({ Component, pageProps}) {
@@ -342,14 +343,18 @@ export default function Page(props) {
         name: 'next',
         version: 'latest',
       },
-      {
-        name: 'babel-plugin-named-asset-import',
-        version: 'latest',
-      },
-      {
-        name: '@svgr/webpack',
-        version: 'latest',
-      },
+      ...(globalCssContext.hasReactSvgImport
+        ? [
+            {
+              name: 'babel-plugin-named-asset-import',
+              version: 'latest',
+            },
+            {
+              name: '@svgr/webpack',
+              version: 'latest',
+            },
+          ]
+        : []),
     ]
     const packagesToRemove = {
       'react-scripts': undefined,
@@ -497,11 +502,6 @@ module.exports = craCompat({${
         }
     env: {
       PUBLIC_URL: '${homepagePath === '/' ? '' : homepagePath || ''}'
-    },
-    // webpack 5 support can be enabled after removing the
-    // .babelrc file with "@svgr/webpack" as it's not yet compatible
-    future: {
-      webpack5: false
     }
 })
 `

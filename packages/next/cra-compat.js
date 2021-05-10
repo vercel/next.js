@@ -15,6 +15,8 @@ module.exports = function craCompat(config) {
       // these need to be the last rule to prevent catching other items
       // https://github.com/facebook/create-react-app/blob/fddce8a9e21bf68f37054586deb0c8636a45f50b/packages/react-scripts/config/webpack.config.js#L594
 
+      // TODO: update to handle webpack 5 variant of file loading as file-loader
+      // is not compatible to allow opting in to webpack 5 support
       const fileLoader = {
         loader: require.resolve('next/dist/compiled/file-loader'),
         // Exclude `js` files to keep "css" loader working as it injects
