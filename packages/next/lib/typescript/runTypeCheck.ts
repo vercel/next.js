@@ -1,3 +1,4 @@
+import path from 'path'
 import {
   DiagnosticCategory,
   getFormattedDiagnostic,
@@ -18,7 +19,8 @@ export interface TypeCheckResult {
 export async function runTypeCheck(
   ts: typeof import('typescript'),
   baseDir: string,
-  tsConfigPath: string
+  tsConfigPath: string,
+  cacheDir?: string
 ): Promise<TypeCheckResult> {
   const effectiveConfiguration = await getTypeScriptConfiguration(
     ts,
@@ -35,11 +37,28 @@ export async function runTypeCheck(
   }
   const requiredConfig = getRequiredConfiguration(ts)
 
-  const program = ts.createProgram(effectiveConfiguration.fileNames, {
+  const options = {
     ...effectiveConfiguration.options,
     ...requiredConfig,
     noEmit: true,
-  })
+  }
+
+  let program: import('typescript').Program
+  let incremental = false
+  if (options.incremental && cacheDir) {
+    incremental = true
+    const builderProgram = ts.createIncrementalProgram({
+      rootNames: effectiveConfiguration.fileNames,
+      options: {
+        ...options,
+        incremental: true,
+        tsBuildInfoFile: path.join(cacheDir, '.tsbuildinfo'),
+      },
+    })
+    program = builderProgram.getProgram()
+  } else {
+    program = ts.createProgram(effectiveConfiguration.fileNames, options)
+  }
   const result = program.emit()
 
   // Intended to match:
@@ -79,6 +98,6 @@ export async function runTypeCheck(
     warnings,
     inputFilesCount: effectiveConfiguration.fileNames.length,
     totalFilesCount: program.getSourceFiles().length,
-    incremental: false,
+    incremental,
   }
 }
