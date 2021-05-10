@@ -107,6 +107,14 @@
           "path": "/errors/generatebuildid-not-a-string.md"
         },
         {
+          "title": "google-font-display",
+          "path": "/errors/google-font-display.md"
+        },
+        {
+          "title": "google-font-preconnect",
+          "path": "/errors/google-font-preconnect.md"
+        },
+        {
           "title": "get-initial-props-as-an-instance-method",
           "path": "/errors/get-initial-props-as-an-instance-method.md"
         },
@@ -199,6 +207,10 @@
           "title": "invalid-webpack-5-version",
           "path": "/errors/invalid-webpack-5-version.md"
         },
+        {
+          "title": "link-passhref",
+          "path": "/errors/link-passhref.md"
+        },
         { "title": "manifest.json", "path": "/errors/manifest.json" },
         {
           "title": "minification-disabled",
@@ -260,12 +272,20 @@
           "path": "/errors/no-on-app-updated-hook.md"
         },
         {
+          "title": "no-page-custom-font",
+          "path": "/errors/no-page-custom-font.md"
+        },
+        {
           "title": "no-router-instance",
           "path": "/errors/no-router-instance.md"
         },
         {
           "title": "no-sync-scripts",
           "path": "/errors/no-sync-scripts.md"
+        },
+        {
+          "title": "no-title-in-document-head",
+          "path": "/errors/no-title-in-document-head.md"
         },
         {
           "title": "no-unwanted-polyfillio",
