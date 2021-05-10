@@ -34,7 +34,7 @@ describe('Script Loader', () => {
     stopApp(server)
   })
 
-  it('priority defer', async () => {
+  it('priority afterInteraction', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
@@ -58,10 +58,10 @@ describe('Script Loader', () => {
         expect(endPreloads.length).toBe(0)
       }
 
-      // Defer script in page
-      await test('scriptDefer')
-      // Defer script in _document
-      await test('documentDefer')
+      // afterInteraction script in page
+      await test('scriptAfterInteraction')
+      // afterInteraction script in _document
+      await test('documentAfterInteraction')
     } finally {
       if (browser) await browser.close()
     }
@@ -96,7 +96,7 @@ describe('Script Loader', () => {
     }
   })
 
-  it('priority eager', async () => {
+  it('priority beforeInteraction', async () => {
     const html = await renderViaHTTP(appPort, '/page1')
     const $ = cheerio.load(html)
 
@@ -130,17 +130,8 @@ describe('Script Loader', () => {
       ).toBeGreaterThan(0)
     }
 
-    test('scriptEager')
-    test('documentEager')
-  })
-
-  it('priority dangerouslyBlockRendering', async () => {
-    const html = await renderViaHTTP(appPort, '/page2')
-    const $ = cheerio.load(html)
-
-    // Script is inserted in place
-    expect($('.container #scriptBlock').length).toBeGreaterThan(0)
-    expect($('head #documentBlock').length).toBeGreaterThan(0)
+    test('scriptBeforeInteraction')
+    test('documentBeforeInteraction')
   })
 
   it('onload fires correctly', async () => {
