@@ -107,6 +107,14 @@
           "path": "/errors/generatebuildid-not-a-string.md"
         },
         {
+          "title": "google-font-display",
+          "path": "/errors/google-font-display.md"
+        },
+        {
+          "title": "google-font-preconnect",
+          "path": "/errors/google-font-preconnect.md"
+        },
+        {
           "title": "get-initial-props-as-an-instance-method",
           "path": "/errors/get-initial-props-as-an-instance-method.md"
         },
@@ -266,6 +274,10 @@
         {
           "title": "no-sync-scripts",
           "path": "/errors/no-sync-scripts.md"
+        },
+        {
+          "title": "no-title-in-document-head",
+          "path": "/errors/no-title-in-document-head.md"
         },
         {
           "title": "no-unwanted-polyfillio",

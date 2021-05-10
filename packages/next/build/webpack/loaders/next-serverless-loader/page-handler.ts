@@ -412,7 +412,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
       if (err.code === 'ENOENT') {
         res.statusCode = 404
-      } else if (err.code === 'DECODE_FAILED') {
+      } else if (err.code === 'DECODE_FAILED' || err.code === 'ENAMETOOLONG') {
         // TODO: better error?
         res.statusCode = 400
       } else {
