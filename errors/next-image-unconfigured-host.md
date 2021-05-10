@@ -6,7 +6,7 @@ On one of your pages that leverages the `next/image` component, you passed a `sr
 
 #### Possible Ways to Fix It
 
-Add the hostname of your URL to the `images.domains` config in your `next.config.js`:
+Add the hostname of your URL to the `images.domains` config in `next.config.js`:
 
 ```js
 // next.config.js
