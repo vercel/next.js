@@ -2,9 +2,10 @@ import fs from 'fs'
 import path from 'path'
 import execa from 'execa'
 import globby from 'globby'
-// import cheerio from 'cheerio'
+import cheerio from 'cheerio'
 import { install } from '../lib/install'
 import runJscodeshift from '../lib/run-jscodeshift'
+import htmlToReactAttributes from '../lib/html-to-react-attributes'
 import { indexContext } from '../lib/cra-to-next/index-to-component'
 import { globalCssImports } from '../lib/cra-to-next/global-css-transform'
 
@@ -99,7 +100,9 @@ class CraTransform {
     await this.createNextConfig()
     await this.updateGitIgnore()
 
-    // only create .babelrc if {ReactComponent} svg import is used
+    // TODO: should we only create .babelrc if {ReactComponent} svg import is
+    // used? When @svgr/webpack is added it breaks webpack 5 support, x-ref:
+    // https://github.com/facebook/create-react-app/issues/9994
     await this.createBabelrc()
     await this.createPages()
   }
@@ -138,44 +141,161 @@ class CraTransform {
 
   private async createPages() {
     // load public/index.html and add tags to _document
-    // const htmlContent = await fs.promises.readFile(
-    //   path.join(this.appDir, 'public/index.html'),
-    //   'utf8'
-    // )
-    // const $ = cheerio.load(htmlContent)
-    // note: title tag needs to be placed in _app not _document
-    // const headTags = $('head').children()
-    // const bodyTags = $('body').children()
-    // create _app and move reportWebVitals function here
-    // along with all global CSS
-    // we can use jscodeshift with runInBand set to collect all global
-    // CSS and comment it out migrating it into _app
+    const htmlContent = await fs.promises.readFile(
+      path.join(this.appDir, 'public/index.html'),
+      'utf8'
+    )
+    const $ = cheerio.load(htmlContent)
+    // note: title tag and meta[viewport] needs to be placed in _app
+    // not _document
+    const titleTag = $('title')[0]
+    const metaViewport = $('meta[name="viewport"]')[0]
+    const headTags = $('head').children()
+    const bodyTags = $('body').children()
+
     const pageExt = this.shouldUseTypeScript ? '.tsx' : 'js'
     const appPage = path.join(this.pagesDir, `_app.${pageExt}`)
-    // const documentPage = path.join(this.pagesDir, '_document.js')
+    const documentPage = path.join(this.pagesDir, `_document.${pageExt}`)
     const catchAllPage = path.join(this.pagesDir, `[[...slug]].${pageExt}`)
+
+    const gatherTextChildren = (children: CheerioElement[]) => {
+      return children
+        .map((child) => {
+          if (child.type === 'text') {
+            return child.data
+          }
+          return ''
+        })
+        .join('')
+    }
+
+    const serializeAttrs = (attrs: CheerioElement['attribs']) => {
+      const attrStr = Object.keys(attrs || {})
+        .map((name) => {
+          const reactName = htmlToReactAttributes[name] || name
+          const value = attrs[name]
+
+          // allow process.env access to work dynamically still
+          if (value.match(/%([a-zA-Z0-9_]{0,})%/)) {
+            return `${reactName}={\`${value.replace(
+              /%([a-zA-Z0-9_]{0,})%/g,
+              (subStr) => {
+                return `\${process.env.${subStr.substr(1, subStr.length - 2)}}`
+              }
+            )}\`}`
+          }
+          return `${reactName}="${value}"`
+        })
+        .join(' ')
+
+      return attrStr.length > 0 ? ` ${attrStr}` : ''
+    }
+    const serializedHeadTags: string[] = []
+    const serializedBodyTags: string[] = []
+
+    headTags.map((_index, element) => {
+      if (
+        element.tagName === 'title' ||
+        (element.tagName === 'meta' && element.attribs.name === 'viewport')
+      ) {
+        return element
+      }
+      const hasChildren = element.children.length > 0
+      const serializedAttrs = serializeAttrs(element.attribs)
+
+      serializedHeadTags.push(
+        hasChildren
+          ? `<${element.tagName}${serializedAttrs}></${element.tagName}>`
+          : `<${element.tagName}${serializedAttrs} />`
+      )
+
+      return element
+    })
+
+    bodyTags.map((_index, element) => {
+      if (element.tagName === 'div' && element.attribs.id === 'root') {
+        return element
+      }
+      const hasChildren = element.children.length > 0
+      const serializedAttrs = serializeAttrs(element.attribs)
+
+      serializedBodyTags.push(
+        hasChildren
+          ? `<${element.tagName}${serializedAttrs}>${gatherTextChildren(
+              element.children
+            )}</${element.tagName}>`
+          : `<${element.tagName}${serializedAttrs} />`
+      )
+
+      return element
+    })
 
     if (!this.isDryRun) {
       await fs.promises.writeFile(
         path.join(this.appDir, appPage),
-        `
-${
-  globalCssImports.size === 0
-    ? ''
-    : [...globalCssImports]
-        .map((file) => {
-          return `import "${path.relative(
-            path.join(this.appDir, this.pagesDir),
-            file
-          )}"`
-        })
-        .join('\n')
-}
+        `${
+          globalCssImports.size === 0
+            ? ''
+            : [...globalCssImports]
+                .map((file) => {
+                  return `import '${path.relative(
+                    path.join(this.appDir, this.pagesDir),
+                    file
+                  )}'`
+                })
+                .join('\n')
+        }
+${titleTag ? `import Head from 'next/head'` : ''}
 
 export default function MyApp({ Component, pageProps}) {
-  return <Component {...pageProps} />
+  ${
+    titleTag || metaViewport
+      ? `return (
+    <>
+      <Head>
+        ${
+          titleTag
+            ? `<title${serializeAttrs(titleTag.attribs)}>${gatherTextChildren(
+                titleTag.children
+              )}</title>`
+            : ''
+        }
+        ${metaViewport ? `<meta${serializeAttrs(metaViewport.attribs)} />` : ''}
+      </Head>
+      
+      <Component {...pageProps} />
+    </>
+  )`
+      : 'return <Component {...pageProps} />'
+  }
 }
-        `
+`
+      )
+
+      await fs.promises.writeFile(
+        path.join(this.appDir, documentPage),
+        `import Document, { Html, Head, Main, NextScript } from 'next/document'
+
+class MyDocument extends Document {
+  render() {
+    return (
+      <Html${serializeAttrs($('html').attr())}>
+        <Head>
+          ${serializedHeadTags.join('\n          ')}
+        </Head>
+        
+        <body${serializeAttrs($('body').attr())}>
+          <Main />
+          <NextScript />
+          ${serializedBodyTags.join('\n          ')}
+        </body>
+      </Html>
+    )
+  }
+}
+
+export default MyDocument      
+`
       )
 
       const relativeIndexPath = path.join(
@@ -188,8 +308,7 @@ export default function MyApp({ Component, pageProps}) {
 
       await fs.promises.writeFile(
         path.join(this.appDir, catchAllPage),
-        `
-// import NextIndexWrapper from '${relativeIndexPath}'
+        `// import NextIndexWrapper from '${relativeIndexPath}'
 
 // next/dynamic is used to prevent breaking incompatibilities 
 // with SSR from window.SOME_VAR usage, if this is not used
@@ -208,6 +327,7 @@ export default function Page(props) {
       )
     }
     this.logCreate(appPage)
+    this.logCreate(documentPage)
     this.logCreate(catchAllPage)
   }
 
@@ -351,12 +471,9 @@ export default function Page(props) {
   }
 
   private async createNextConfig() {
-    // create next.config.js with:
-    // - rewrite for fallback proxying if proxy is configured in package.json
-    // - custom webpack config to feature compatibility potentially required from `next/cra-compat`
-    // - expose the PUBLIC_URL value in the `env` config to prevent having to rename to NEXT_PUBLIC_URL
-
     if (!this.isDryRun) {
+      // TODO: enable webpack 5 support when @svgr/webpack isn't used
+
       await fs.promises.writeFile(
         path.join(this.appDir, 'next.config.js'),
         `
@@ -378,7 +495,7 @@ module.exports = craCompat({${
             : ''
         }
     env: {
-      PUBLIC_URL: '${this.packageJsonData.homepage || '/'}'
+      PUBLIC_URL: '${this.packageJsonData.homepage || ''}'
     },
 })
 `
