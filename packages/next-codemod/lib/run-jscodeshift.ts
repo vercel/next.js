@@ -12,6 +12,7 @@ export default function runJscodeshift(
     extensions: 'tsx,ts,jsx,js',
     parser: 'tsx',
     verbose: 2,
+    runInBand: true,
     ...flags,
   })
 }

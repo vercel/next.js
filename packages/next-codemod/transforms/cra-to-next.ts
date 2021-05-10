@@ -3,10 +3,10 @@ import path from 'path'
 import execa from 'execa'
 import globby from 'globby'
 // import cheerio from 'cheerio'
-import runJscodeshift from '../lib/run-jscodeshift'
-import { globalCssImports } from '../lib/cra-to-next/global-css-transform'
-import { indexContext } from '../lib/cra-to-next/index-to-component'
 import { install } from '../lib/install'
+import runJscodeshift from '../lib/run-jscodeshift'
+import { indexContext } from '../lib/cra-to-next/index-to-component'
+import { globalCssImports } from '../lib/cra-to-next/global-css-transform'
 
 // log error and exit without new stacktrace
 function fatalMessage(...logs) {
@@ -14,41 +14,38 @@ function fatalMessage(...logs) {
   process.exit(1)
 }
 
-/*
-  TODO:
-    - detect if should use typescript for created pages
-    - install needed modules: next, 
-*/
+const craTransformsPath = path.join('../lib/cra-to-next')
 
 const globalCssTransformPath = require.resolve(
-  '../lib/cra-to-next/global-css-transform.js'
+  path.join(craTransformsPath, 'global-css-transform.js')
 )
 const indexTransformPath = require.resolve(
-  '../lib/cra-to-next/index-to-component.js'
+  path.join(craTransformsPath, 'index-to-component.js')
 )
 
 class CraTransform {
   private appDir: string
-  private isDryRun: boolean
-  private jscodeShiftFlags: { [key: string]: boolean }
-  private packageJsonData: { [key: string]: any }
   private pagesDir: string
+  private isDryRun: boolean
+  private installClient: string
   private shouldLogInfo: boolean
   private packageJsonPath: string
-  private installClient: string
+  private shouldUseTypeScript: boolean
+  private packageJsonData: { [key: string]: any }
+  private jscodeShiftFlags: { [key: string]: boolean }
 
   constructor(files: string[], flags: { [key: string]: boolean }) {
     this.isDryRun = flags.dry
-    this.jscodeShiftFlags = {
-      ...flags,
-      runInBand: true,
-    }
+    this.jscodeShiftFlags = flags
     this.appDir = this.validateAppDir(files)
     this.packageJsonPath = path.join(this.appDir, 'package.json')
     this.packageJsonData = this.loadPackageJson()
     this.shouldLogInfo = flags.print || flags.dry
     this.pagesDir = this.getPagesDir()
     this.installClient = this.checkForYarn() ? 'yarn' : 'npm'
+    this.shouldUseTypeScript =
+      fs.existsSync(path.join(this.appDir, 'tsconfig.json')) ||
+      globby.sync('src/**/*.{ts,tsx}', { cwd: this.appDir }).length > 0
   }
 
   public async transform() {
@@ -93,8 +90,6 @@ class CraTransform {
       )
     }
 
-    console.log(globalCssImports)
-
     if (!this.isDryRun) {
       await fs.promises.mkdir(path.join(this.appDir, this.pagesDir))
     }
@@ -103,6 +98,8 @@ class CraTransform {
     await this.updatePackageJson()
     await this.createNextConfig()
     await this.updateGitIgnore()
+
+    // only create .babelrc if {ReactComponent} svg import is used
     await this.createBabelrc()
     await this.createPages()
   }
@@ -140,11 +137,6 @@ class CraTransform {
   }
 
   private async createPages() {
-    // modify src/index.js to instead a react component where ReactDOM.render
-    // is called
-    // create [[...slug]].js page that does a non-ssr next/dynamic import
-    // for the render items since there can be an incompatibility with SSR
-    // from window.SOME_VAR usage
     // load public/index.html and add tags to _document
     // const htmlContent = await fs.promises.readFile(
     //   path.join(this.appDir, 'public/index.html'),
@@ -158,10 +150,10 @@ class CraTransform {
     // along with all global CSS
     // we can use jscodeshift with runInBand set to collect all global
     // CSS and comment it out migrating it into _app
-
-    const appPage = path.join(this.pagesDir, '_app.js')
+    const pageExt = this.shouldUseTypeScript ? '.tsx' : 'js'
+    const appPage = path.join(this.pagesDir, `_app.${pageExt}`)
     // const documentPage = path.join(this.pagesDir, '_document.js')
-    const catchAllPage = path.join(this.pagesDir, '[[...slug]].js')
+    const catchAllPage = path.join(this.pagesDir, `[[...slug]].${pageExt}`)
 
     if (!this.isDryRun) {
       await fs.promises.writeFile(

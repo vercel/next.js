@@ -2,6 +2,11 @@ module.exports = function craCompat(config) {
   return {
     ...config,
 
+    future: {
+      webpack5: true,
+      ...config.future,
+    },
+
     webpack(webpackCfg, ctx) {
       const { webpack } = ctx
 
