@@ -256,12 +256,20 @@
         { "title": "no-cache", "path": "/errors/no-cache.md" },
         { "title": "no-css-tags", "path": "/errors/no-css-tags.md" },
         {
+          "title": "no-document-import-in-page",
+          "path": "/errors/no-document-import-in-page.md"
+        },
+        {
           "title": "no-document-title",
           "path": "/errors/no-document-title.md"
         },
         {
           "title": "no-document-viewport-meta",
           "path": "/errors/no-document-viewport-meta.md"
+        },
+        {
+          "title": "no-head-import-in-document",
+          "path": "/errors/no-head-import-in-document.md"
         },
         {
           "title": "no-html-link-for-pages",

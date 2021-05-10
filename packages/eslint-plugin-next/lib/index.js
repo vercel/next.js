@@ -9,6 +9,8 @@ module.exports = {
     'google-font-display': require('./rules/google-font-display'),
     'google-font-preconnect': require('./rules/google-font-preconnect'),
     'link-passhref': require('./rules/link-passhref'),
+    'no-document-import-in-page': require('./rules/no-document-import-in-page'),
+    'no-head-import-in-document': require('./rules/no-head-import-in-document'),
   },
   configs: {
     recommended: {
@@ -23,6 +25,8 @@ module.exports = {
         '@next/next/google-font-display': 1,
         '@next/next/google-font-preconnect': 1,
         '@next/next/link-passhref': 1,
+        '@next/next/no-document-import-in-page': 2,
+        '@next/next/no-head-import-in-document': 2,
       },
     },
   },
