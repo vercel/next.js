@@ -28,6 +28,7 @@ class CraTransform {
   private appDir: string
   private pagesDir: string
   private isDryRun: boolean
+  private indexPage: string
   private installClient: string
   private shouldLogInfo: boolean
   private packageJsonPath: string
@@ -46,33 +47,35 @@ class CraTransform {
     this.installClient = this.checkForYarn() ? 'yarn' : 'npm'
     this.shouldUseTypeScript =
       fs.existsSync(path.join(this.appDir, 'tsconfig.json')) ||
-      globby.sync('src/**/*.{ts,tsx}', { cwd: this.appDir }).length > 0
+      globby.sync('src/**/*.{ts,tsx}', {
+        cwd: path.join(this.appDir, 'src'),
+      }).length > 0
+
+    this.indexPage = globby.sync(['index.{js,jsx,ts,tsx}'], {
+      cwd: path.join(this.appDir, 'src'),
+    })[0]
   }
 
   public async transform() {
     console.log('Transforming CRA project at:', this.appDir)
-
-    const indexPagePath = globby.sync(['index.{js,jsx,ts,tsx}'], {
-      cwd: path.join(this.appDir, 'src'),
-    })[0]
 
     // convert src/index.js to a react component to render
     // inside of Next.js instead of the custom render root
     const indexTransformRes = await runJscodeshift(
       indexTransformPath,
       { ...this.jscodeShiftFlags, silent: true, verbose: 0 },
-      [path.join(this.appDir, 'src', indexPagePath)]
+      [path.join(this.appDir, 'src', this.indexPage)]
     )
 
     if (indexTransformRes.error > 0) {
       fatalMessage(
-        `Error: failed to apply transforms for src/${indexPagePath}, please check for syntax errors to continue`
+        `Error: failed to apply transforms for src/${this.indexPage}, please check for syntax errors to continue`
       )
     }
 
     if (indexContext.multipleRenderRoots) {
       fatalMessage(
-        `Error: multiple render roots in src/${indexPagePath}, migrate additional render roots to use portals instead to continue.\n` +
+        `Error: multiple render roots in src/${this.indexPage}, migrate additional render roots to use portals instead to continue.\n` +
           `See here for more info: https://reactjs.org/docs/portals.html`
       )
     }
@@ -87,7 +90,7 @@ class CraTransform {
 
     if (globalCssRes.error > 0) {
       fatalMessage(
-        `Error: failed to apply transforms for src/${indexPagePath}, please check for syntax errors to continue`
+        `Error: failed to apply transforms for src/${this.indexPage}, please check for syntax errors to continue`
       )
     }
 
@@ -153,7 +156,7 @@ class CraTransform {
     const headTags = $('head').children()
     const bodyTags = $('body').children()
 
-    const pageExt = this.shouldUseTypeScript ? '.tsx' : 'js'
+    const pageExt = this.shouldUseTypeScript ? 'tsx' : 'js'
     const appPage = path.join(this.pagesDir, `_app.${pageExt}`)
     const documentPage = path.join(this.pagesDir, `_document.${pageExt}`)
     const catchAllPage = path.join(this.pagesDir, `[[...slug]].${pageExt}`)
@@ -244,8 +247,7 @@ class CraTransform {
                   )}'`
                 })
                 .join('\n')
-        }
-${titleTag ? `import Head from 'next/head'` : ''}
+        }${titleTag ? `import Head from 'next/head'` : ''}
 
 export default function MyApp({ Component, pageProps}) {
   ${
@@ -298,12 +300,9 @@ export default MyDocument
 `
       )
 
-      const relativeIndexPath = path.join(
-        path.relative(
-          path.join(this.appDir, this.pagesDir),
-          path.join(this.appDir, 'src')
-        ),
-        'index.js'
+      const relativeIndexPath = path.relative(
+        path.join(this.appDir, this.pagesDir),
+        path.join(this.appDir, 'src')
       )
 
       await fs.promises.writeFile(
@@ -472,7 +471,9 @@ export default function Page(props) {
 
   private async createNextConfig() {
     if (!this.isDryRun) {
-      // TODO: auto enable webpack 5 support when @svgr/webpack isn't used?
+      const { proxy, homepage } = this.packageJsonData
+      const homepagePath = new URL(homepage || '/', 'http://example.com')
+        .pathname
 
       await fs.promises.writeFile(
         path.join(this.appDir, 'next.config.js'),
@@ -480,14 +481,14 @@ export default function Page(props) {
 const craCompat = require('/Users/jj/dev/vercel/next.js/packages/next/cra-compat.js')
 
 module.exports = craCompat({${
-          this.packageJsonData.proxy
+          proxy
             ? `
       async rewrites() {
         return {
           fallback: [
             {
               source: '/:path*',
-              destination: '${this.packageJsonData.proxy}'
+              destination: '${proxy}'
             }
           ]
         }
@@ -495,7 +496,7 @@ module.exports = craCompat({${
             : ''
         }
     env: {
-      PUBLIC_URL: '${this.packageJsonData.homepage || ''}'
+      PUBLIC_URL: '${homepagePath === '/' ? '' : homepagePath || ''}'
     },
     // webpack 5 support can be enabled after removing the
     // .babelrc file with "@svgr/webpack" as it's not yet compatible
