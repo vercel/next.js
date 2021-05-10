@@ -1260,6 +1260,7 @@ export default async function getBaseWebpackConfig(
       pageEnv: config.experimental.pageEnv,
       excludeDefaultMomentLocales: config.future.excludeDefaultMomentLocales,
       assetPrefix: config.assetPrefix,
+      disableOptimizedLoading: config.experimental.disableOptimizedLoading,
       target,
       reactProductionProfiling,
       webpack: !!config.webpack,

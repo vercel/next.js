@@ -193,6 +193,7 @@ export type DocumentProps = DocumentInitialProps & {
   devOnlyCacheBusterQueryString: string
   scriptLoader: { defer?: string[]; eager?: any[] }
   locale?: string
+  disableOptimizedLoading?: boolean
 }
 
 /**
