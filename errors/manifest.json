@@ -272,6 +272,10 @@
           "path": "/errors/no-on-app-updated-hook.md"
         },
         {
+          "title": "no-page-custom-font",
+          "path": "/errors/no-page-custom-font.md"
+        },
+        {
           "title": "no-router-instance",
           "path": "/errors/no-router-instance.md"
         },
