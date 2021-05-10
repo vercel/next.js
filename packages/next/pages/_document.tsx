@@ -917,5 +917,5 @@ export class NextScript extends Component<OriginProps> {
 }
 
 function getAmpPath(ampPath: string, asPath: string): string {
-  return ampPath || `${asPath}${asPath.includes('?') ? '&' : '  ?'}amp=1`
+  return ampPath || `${asPath}${asPath.includes('?') ? '&' : '?'}amp=1`
 }
