@@ -1,3 +1,4 @@
+// @ts-ignore internal module
 import Runner from 'jscodeshift/src/runner'
 
 export default function runJscodeshift(

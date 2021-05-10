@@ -9,7 +9,7 @@
 // also add them to this module to ensure casing and incorrect name
 // warnings.
 
-// PUlled from https://github.com/facebook/react/blob/master/packages/react-dom/src/shared/possibleStandardNames.js
+// Pulled from https://github.com/facebook/react/blob/master/packages/react-dom/src/shared/possibleStandardNames.js
 const possibleStandardNames = {
   // HTML
   accept: 'accept',
