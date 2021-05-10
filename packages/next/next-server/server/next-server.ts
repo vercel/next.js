@@ -1255,7 +1255,7 @@ export default class Server {
         return
       }
     } catch (err) {
-      if (err.code === 'DECODE_FAILED') {
+      if (err.code === 'DECODE_FAILED' || err.code === 'ENAMETOOLONG') {
         res.statusCode = 400
         return this.renderError(null, req, res, '/_error', {})
       }
@@ -1313,6 +1313,11 @@ export default class Server {
         (this.hasStaticDir && url.match(/^\/static\//)))
     ) {
       return this.handleRequest(req, res, parsedUrl)
+    }
+
+    // Custom server users can run `app.render()` which needs compression.
+    if (this.renderOpts.customServer) {
+      this.handleCompression(req, res)
     }
 
     if (isBlockedPage(pathname)) {
