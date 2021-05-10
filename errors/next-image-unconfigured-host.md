@@ -2,11 +2,11 @@
 
 #### Why This Error Occurred
 
-On one of your pages that leverages the `next/image` component, you passed a `src` value that uses a `domains` in the URL that isn't defined in the `images` config in `next.config.js`.
+On one of your pages that leverages the `next/image` component, you passed a `src` value that uses the hostname of the URL that isn't defined in the `images.domains` config in `next.config.js`.
 
 #### Possible Ways to Fix It
 
-Add the `domains` to your `images` config in `next.config.js`:
+Add the hostname of your URL to the `images.domains` config in your `next.config.js`:
 
 ```js
 // next.config.js
