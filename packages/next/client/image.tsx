@@ -49,11 +49,17 @@ type PlaceholderValue = 'blur' | 'empty'
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
+interface StaticImageData {
+  src: string
+  height: number
+  width: number
+}
+
 export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
 > & {
-  src: string
+  src: string | StaticImageData
   loader?: ImageLoader
   quality?: number | string
   priority?: boolean
@@ -273,9 +279,22 @@ export default function Image({
     delete rest['layout']
   }
 
+<<<<<<< HEAD
   if (!configEnableBlurryPlaceholder) {
     placeholder = 'empty'
   }
+=======
+  const isStatic = typeof src === 'object'
+  if (isStatic) {
+    const staticData = src as StaticImageData
+    if (!layout || layout !== 'fill') {
+      height = staticData.height
+      width = staticData.width
+    }
+  }
+  //static case is resolved, src is defintitely a string from here on.
+  src = (isStatic ? (src as StaticImageData).src : src) as string
+>>>>>>> f9bd659e4 (Add static image loading functionality with auto height and width)
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
@@ -310,7 +329,6 @@ export default function Image({
       )
     }
   }
-
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (src && src.startsWith('data:')) {
