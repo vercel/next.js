@@ -207,6 +207,10 @@
           "title": "invalid-webpack-5-version",
           "path": "/errors/invalid-webpack-5-version.md"
         },
+        {
+          "title": "link-passhref",
+          "path": "/errors/link-passhref.md"
+        },
         { "title": "manifest.json", "path": "/errors/manifest.json" },
         {
           "title": "minification-disabled",
@@ -274,6 +278,10 @@
         {
           "title": "no-on-app-updated-hook",
           "path": "/errors/no-on-app-updated-hook.md"
+        },
+        {
+          "title": "no-page-custom-font",
+          "path": "/errors/no-page-custom-font.md"
         },
         {
           "title": "no-router-instance",
