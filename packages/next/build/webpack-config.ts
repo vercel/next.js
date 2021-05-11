@@ -1263,6 +1263,7 @@ export default async function getBaseWebpackConfig(
       target,
       reactProductionProfiling,
       webpack: !!config.webpack,
+      hasRewrites,
     })
 
     const cache: any = {
