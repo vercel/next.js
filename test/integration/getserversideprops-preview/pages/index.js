@@ -1,3 +1,5 @@
+import { useRouter } from 'next/router'
+
 export function getServerSideProps({ res, preview, previewData }) {
   // test override in preview mode
   res.setHeader('Cache-Control', 'public, max-age=3600')
@@ -11,13 +13,14 @@ export function getServerSideProps({ res, preview, previewData }) {
 }
 
 export default function ({ hasProps, preview, previewData }) {
-  if (!hasProps) {
-    return <pre id="props-pre">Has No Props</pre>
-  }
-
   return (
-    <pre id="props-pre">
-      {JSON.stringify(preview) + ' and ' + JSON.stringify(previewData)}
-    </pre>
+    <>
+      <pre id="props-pre">
+        {hasProps
+          ? JSON.stringify(preview) + ' and ' + JSON.stringify(previewData)
+          : 'Has No Props'}
+      </pre>
+      <p id="router">{JSON.stringify(useRouter())}</p>
+    </>
   )
 }

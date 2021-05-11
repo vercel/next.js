@@ -2,13 +2,13 @@ import React, { useEffect, useContext } from 'react'
 import { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../next-server/lib/head-manager-context'
 import { DOMAttributeNames } from './head-manager'
-import requestIdleCallback from './request-idle-callback'
+import { requestIdleCallback } from './request-idle-callback'
 
 const ScriptCache = new Map()
 const LoadCache = new Set()
 
-interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
-  strategy?: 'defer' | 'lazy' | 'dangerouslyBlockRendering' | 'eager'
+export interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
+  strategy?: 'afterInteraction' | 'lazy' | 'beforeInteraction'
   id?: string
   onLoad?: () => void
   onError?: () => void
@@ -16,13 +16,22 @@ interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
   preload?: boolean
 }
 
+const ignoreProps = [
+  'onLoad',
+  'dangerouslySetInnerHTML',
+  'children',
+  'onError',
+  'strategy',
+  'preload',
+]
+
 const loadScript = (props: Props): void => {
   const {
-    src = '',
+    src,
+    id,
     onLoad = () => {},
     dangerouslySetInnerHTML,
     children = '',
-    id,
     onError,
   } = props
 
@@ -72,7 +81,7 @@ const loadScript = (props: Props): void => {
   }
 
   for (const [k, value] of Object.entries(props)) {
-    if (value === undefined) {
+    if (value === undefined || ignoreProps.includes(k)) {
       continue
     }
 
@@ -83,13 +92,37 @@ const loadScript = (props: Props): void => {
   document.body.appendChild(el)
 }
 
-export default function Script(props: Props): JSX.Element | null {
+function handleClientScriptLoad(props: Props) {
+  const { strategy = 'afterInteraction' } = props
+  if (strategy === 'afterInteraction') {
+    loadScript(props)
+  } else if (strategy === 'lazy') {
+    window.addEventListener('load', () => {
+      requestIdleCallback(() => loadScript(props))
+    })
+  }
+}
+
+function loadLazyScript(props: Props) {
+  if (document.readyState === 'complete') {
+    requestIdleCallback(() => loadScript(props))
+  } else {
+    window.addEventListener('load', () => {
+      requestIdleCallback(() => loadScript(props))
+    })
+  }
+}
+
+export function initScriptLoader(scriptLoaderItems: Props[]) {
+  scriptLoaderItems.forEach(handleClientScriptLoad)
+}
+
+function Script(props: Props): JSX.Element | null {
   const {
     src = '',
     onLoad = () => {},
     dangerouslySetInnerHTML,
-    children = '',
-    strategy = 'defer',
+    strategy = 'afterInteraction',
     onError,
     preload = false,
     ...restProps
@@ -99,51 +132,25 @@ export default function Script(props: Props): JSX.Element | null {
   const { updateScripts, scripts } = useContext(HeadManagerContext)
 
   useEffect(() => {
-    if (strategy === 'defer') {
+    if (strategy === 'afterInteraction') {
       loadScript(props)
     } else if (strategy === 'lazy') {
-      window.addEventListener('load', () => {
-        requestIdleCallback(() => loadScript(props))
-      })
+      loadLazyScript(props)
     }
-  }, [strategy, props])
+  }, [props, strategy])
 
-  if (strategy === 'dangerouslyBlockRendering') {
-    const syncProps: Props = { ...restProps }
+  if (!process.env.__NEXT_SCRIPT_LOADER) {
+    return null
+  }
 
-    for (const [k, value] of Object.entries({
-      src,
-      onLoad,
-      onError,
-      dangerouslySetInnerHTML,
-      children,
-    })) {
-      if (!value) {
-        continue
-      }
-      if (k === 'children') {
-        syncProps.dangerouslySetInnerHTML = {
-          __html:
-            typeof value === 'string'
-              ? value
-              : Array.isArray(value)
-              ? value.join('')
-              : '',
-        }
-      } else {
-        ;(syncProps as any)[k] = value
-      }
-    }
-
-    return <script {...syncProps} />
-  } else if (strategy === 'defer') {
+  if (strategy === 'afterInteraction') {
     if (updateScripts && preload) {
-      scripts.defer = (scripts.defer || []).concat([src])
+      scripts.afterInteraction = (scripts.afterInteraction || []).concat([src])
       updateScripts(scripts)
     }
-  } else if (strategy === 'eager') {
+  } else if (strategy === 'beforeInteraction') {
     if (updateScripts) {
-      scripts.eager = (scripts.eager || []).concat([
+      scripts.beforeInteraction = (scripts.beforeInteraction || []).concat([
         {
           src,
           onLoad,
@@ -157,3 +164,5 @@ export default function Script(props: Props): JSX.Element | null {
 
   return null
 }
+
+export default Script

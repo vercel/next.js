@@ -9,8 +9,8 @@ import {
 } from 'source-map'
 import { StackFrame } from 'stacktrace-parser'
 import url from 'url'
-// eslint-disable-next-line import/no-extraneous-dependencies
 // @ts-ignore
+// eslint-disable-next-line import/no-extraneous-dependencies
 import webpack from 'webpack'
 import { getRawSourceMap } from './internal/helpers/getRawSourceMap'
 import { launchEditor } from './internal/helpers/launchEditor'
@@ -114,12 +114,14 @@ export async function createOriginalStackFrame({
   line,
   column,
   source,
+  modulePath,
   rootDirectory,
   frame,
 }: {
   line: number
   column: number | null
   source: any
+  modulePath?: string
   rootDirectory: string
   frame: any
 }): Promise<OriginalStackFrameResponse | null> {
@@ -140,7 +142,7 @@ export async function createOriginalStackFrame({
 
   const filePath = path.resolve(
     rootDirectory,
-    getSourcePath(sourcePosition.source)
+    modulePath || getSourcePath(sourcePosition.source)
   )
 
   const originalFrame: StackFrame = {
@@ -285,6 +287,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           column: frameColumn,
           source,
           frame,
+          modulePath: moduleId,
           rootDirectory: options.rootDirectory,
         })
 

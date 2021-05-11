@@ -283,6 +283,18 @@ describe('Image Component Tests', () => {
         )
       ).toBe(false)
     })
+    it('should only be loaded once if `sizes` is set', async () => {
+      // Get all network requests
+      const resourceEntries = await browser.eval(
+        'window.performance.getEntries()'
+      )
+
+      // "test-sizes.jpg" should only occur once
+      const requests = resourceEntries.filter((entry) =>
+        entry.name.includes('test-sizes.jpg')
+      )
+      expect(requests.length).toBe(1)
+    })
     describe('Client-side Errors', () => {
       beforeAll(async () => {
         await browser.eval(`(function() {

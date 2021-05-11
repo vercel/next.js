@@ -53,7 +53,7 @@ export const css = curry(async function css(
     // To fix this, we use `resolve-url-loader` to rewrite the CSS
     // imports to real file paths.
     {
-      loader: require.resolve('resolve-url-loader'),
+      loader: require.resolve('next/dist/compiled/resolve-url-loader'),
       options: {
         // Source maps are not required here, but we may as well emit
         // them.

@@ -43,7 +43,10 @@ const Header = () => {
                   href="/api/logout"
                   onClick={async (e) => {
                     e.preventDefault()
-                    await mutateUser(fetchJson('/api/logout'))
+                    mutateUser(
+                      await fetchJson('/api/logout', { method: 'POST' }),
+                      false
+                    )
                     router.push('/login')
                   }}
                 >
@@ -54,7 +57,7 @@ const Header = () => {
           )}
           <li>
             <a href="https://github.com/vvo/next-iron-session">
-              <img src="/GitHub-Mark-Light-32px.png" widht="32" height="32" />
+              <img src="/GitHub-Mark-Light-32px.png" width="32" height="32" />
             </a>
           </li>
         </ul>

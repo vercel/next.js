@@ -30,6 +30,142 @@ const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
 function runTests(dev) {
+  it('should handle only hash on dynamic route', async () => {
+    const browser = await webdriver(appPort, '/post-1')
+    const parsedHref = url.parse(
+      await browser
+        .elementByCss('#dynamic-route-only-hash')
+        .getAttribute('href')
+    )
+    expect(parsedHref.pathname).toBe('/post-1')
+    expect(parsedHref.hash).toBe('#only-hash')
+
+    const parsedHref2 = url.parse(
+      await browser
+        .elementByCss('#dynamic-route-only-hash-obj')
+        .getAttribute('href')
+    )
+    expect(parsedHref2.pathname).toBe('/post-1')
+    expect(parsedHref2.hash).toBe('#only-hash-obj')
+    expect(await browser.eval('window.location.hash')).toBe('')
+
+    await browser.elementByCss('#dynamic-route-only-hash').click()
+    expect(await browser.eval('window.location.hash')).toBe('#only-hash')
+
+    await browser.elementByCss('#dynamic-route-only-hash-obj').click()
+    expect(await browser.eval('window.location.hash')).toBe('#only-hash-obj')
+  })
+
+  it('should navigate with hash to dynamic route with link', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval('window.beforeNav = 1')
+
+    await browser
+      .elementByCss('#view-post-1-hash-1')
+      .click()
+      .waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+
+    await browser
+      .back()
+      .waitForElementByCss('#view-post-1-hash-1-interpolated')
+      .elementByCss('#view-post-1-hash-1-interpolated')
+      .click('#view-post-1-hash-1-interpolated')
+      .waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+
+    await browser
+      .back()
+      .waitForElementByCss('#view-post-1-hash-1-href-only')
+      .elementByCss('#view-post-1-hash-1-href-only')
+      .click('#view-post-1-hash-1-href-only')
+      .waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+  })
+
+  it('should navigate with hash to dynamic route with router', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/[name]', '/post-1#my-hash')
+    })()`)
+
+    await browser.waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+
+    await browser.back().waitForElementByCss('#view-post-1-hash-1-interpolated')
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push({
+        hash: 'my-hash',
+        pathname: '/[name]',
+        query: {
+          name: 'post-1'
+        }
+      })
+    })()`)
+
+    await browser.waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/post-1#my-hash')
+    })()`)
+
+    await browser.waitForElementByCss('#asdf')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      name: 'post-1',
+    })
+    expect(await browser.eval('window.next.router.pathname')).toBe('/[name]')
+    expect(await browser.eval('window.location.pathname')).toBe('/post-1')
+    expect(await browser.eval('window.location.hash')).toBe('#my-hash')
+    expect(await browser.eval('window.location.search')).toBe('')
+  })
+
   it('should not have any query values when not defined', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)

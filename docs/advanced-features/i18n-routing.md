@@ -13,7 +13,7 @@ description: Next.js has built-in support for internationalized routing and lang
 
 Next.js has built-in support for internationalized ([i18n](https://en.wikipedia.org/wiki/Internationalization_and_localization#Naming)) routing since `v10.0.0`. You can provide a list of locales, the default locale, and domain-specific locales and Next.js will automatically handle the routing.
 
-The i18n routing support is currently meant to complement existing i18n library solutions like `react-intl`, `react-i18next`, `lingui`, `rosetta`, and others by streamlining the routes and locale parsing.
+The i18n routing support is currently meant to complement existing i18n library solutions like [`react-intl`](https://formatjs.io/docs/getting-started/installation), [`react-i18next`](https://react.i18next.com/), [`lingui`](https://lingui.js.org/), [`rosetta`](https://github.com/lukeed/rosetta), [`next-intl`](https://github.com/amannn/next-intl) and others by streamlining the routes and locale parsing.
 
 ## Getting started
 
@@ -39,6 +39,7 @@ module.exports = {
     defaultLocale: 'en-US',
     // This is a list of locale domains and the default locale they
     // should handle (these are only required when setting up domain routing)
+    // Note: subdomains must be included in the domain value to be matched e.g. "fr.example.com".
     domains: [
       {
         domain: 'example.com',
@@ -216,9 +217,9 @@ export default function IndexPage(props) {
 
 ## Leveraging the NEXT_LOCALE cookie
 
-Next.js supports overriding the accept-language header with a `NEXT_LOCALE=the-locale` cookie. This cookie can be set using a language switcher and then when a user comes back to the site it will leverage the locale specified in the cookie.
+Next.js supports overriding the accept-language header with a `NEXT_LOCALE=the-locale` cookie. This cookie can be set using a language switcher and then when a user comes back to the site it will leverage the locale specified in the cookie when redirecting from `/` to the correct locale location.
 
-For example, if a user prefers the locale `fr` but a `NEXT_LOCALE=en` cookie is set the `en` locale will be used instead until the cookie is removed or expired.
+For example, if a user prefers the locale `fr` in their accept-language header but a `NEXT_LOCALE=en` cookie is set the `en` locale when visiting `/` the user will be redirected to the `en` locale location until the cookie is removed or expired.
 
 ## Search Engine Optimization
 

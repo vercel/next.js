@@ -210,7 +210,7 @@ function getArgumentsForLineNumber(
   }
 }
 
-function guessEditor(): string | null {
+function guessEditor(): string[] {
   // Explicit config always wins
   if (process.env.REACT_EDITOR) {
     return shellQuote.parse(process.env.REACT_EDITOR)
@@ -226,7 +226,7 @@ function guessEditor(): string | null {
       for (let i = 0; i < processNames.length; i++) {
         const processName = processNames[i]
         if (output.indexOf(processName) !== -1) {
-          return (COMMON_EDITORS_MACOS as any)[processName]
+          return [(COMMON_EDITORS_MACOS as any)[processName]]
         }
       }
     } else if (process.platform === 'win32') {
@@ -242,7 +242,7 @@ function guessEditor(): string | null {
         const processPath = runningProcesses[i].trim()
         const processName = path.basename(processPath)
         if (COMMON_EDITORS_WIN.indexOf(processName) !== -1) {
-          return processPath
+          return [processPath]
         }
       }
     } else if (process.platform === 'linux') {
@@ -256,7 +256,7 @@ function guessEditor(): string | null {
       for (let i = 0; i < processNames.length; i++) {
         const processName = processNames[i]
         if (output.indexOf(processName) !== -1) {
-          return (COMMON_EDITORS_LINUX as any)[processName] as string
+          return [(COMMON_EDITORS_LINUX as any)[processName] as string]
         }
       }
     }
@@ -266,12 +266,12 @@ function guessEditor(): string | null {
 
   // Last resort, use old skool env vars
   if (process.env.VISUAL) {
-    return process.env.VISUAL
+    return [process.env.VISUAL]
   } else if (process.env.EDITOR) {
-    return process.env.EDITOR
+    return [process.env.EDITOR]
   }
 
-  return null
+  return []
 }
 
 function printInstructions(fileName: string, errorMessage: string | null) {
@@ -317,8 +317,7 @@ function launchEditor(fileName: string, lineNumber: number, colNumber: number) {
     colNumber = 1
   }
 
-  const editor = guessEditor()
-  let args: string[] = []
+  let [editor, ...args] = guessEditor()
 
   if (!editor) {
     printInstructions(fileName, null)

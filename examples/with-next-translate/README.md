@@ -4,7 +4,7 @@ This is an example of using [next-translate](https://github.com/vinissimus/next-
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-next-translate&project-name=with-next-translate&repository-name=with-next-translate)
 

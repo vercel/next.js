@@ -4,7 +4,7 @@ Next.js ships with [API routes](https://github.com/vercel/next.js#api-routes), w
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/api-routes-rest&project-name=api-routes-rest&repository-name=api-routes-rest)
 
@@ -18,6 +18,6 @@ npx create-next-app --example api-routes-rest api-routes-rest-app
 yarn create next-app --example api-routes-rest api-routes-rest-app
 ```
 
-### Deploy to Now
+### Deploy to Vercel
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).

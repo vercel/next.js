@@ -24,7 +24,7 @@ export function getGlobalCssLoader(
 
   // Resolve CSS `@import`s and `url()`s
   loaders.push({
-    loader: require.resolve('css-loader'),
+    loader: require.resolve('next/dist/compiled/css-loader'),
     options: {
       importLoaders: 1 + preProcessors.length,
       sourceMap: true,
