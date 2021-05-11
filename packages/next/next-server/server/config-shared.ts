@@ -119,7 +119,7 @@ export const defaultConfig: NextConfig = {
     eslint: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     enableBlurryPlaceholder: false,
-    disableOptimizedLoading: false,
+    disableOptimizedLoading: true,
   },
   future: {
     strictPostcssConfiguration: false,
