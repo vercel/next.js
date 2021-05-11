@@ -1,4 +1,10 @@
-import { findPort, killApp, nextBuild, nextStart } from 'next-test-utils'
+import {
+  findPort,
+  killApp,
+  nextBuild,
+  nextStart,
+  renderViaHTTP,
+} from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -8,26 +14,14 @@ const appDir = join(__dirname, '../')
 let appPort
 let app
 let browser
+let html
 
 const runTests = () => {
   it('Should allow an image with a static src to omit height and width', async () => {
     expect(await browser.elementById('basic-static')).toBeTruthy()
   })
   it('Should automatically provide an image height and width', async () => {
-    expect(
-      await browser.elementById('basic-static').getAttribute('height')
-    ).toBe('300')
-    expect(
-      await browser.elementById('basic-static').getAttribute('width')
-    ).toBe('400')
-  })
-  it('Should not provide image height and width for layout fill images', async () => {
-    expect(
-      await browser.elementById('fill-static').getAttribute('height')
-    ).toBe(undefined)
-    expect(await browser.elementById('fill-static').getAttribute('width')).toBe(
-      undefined
-    )
+    expect(html).toContain('width:400px;height:300px')
   })
 }
 
@@ -36,6 +30,7 @@ describe('Static Image Component Tests', () => {
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
+    html = await renderViaHTTP(appPort, '/')
     browser = await webdriver(appPort, '/')
   })
   afterAll(() => killApp(app))

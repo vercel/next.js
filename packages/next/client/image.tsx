@@ -279,11 +279,9 @@ export default function Image({
     delete rest['layout']
   }
 
-<<<<<<< HEAD
   if (!configEnableBlurryPlaceholder) {
     placeholder = 'empty'
   }
-=======
   const isStatic = typeof src === 'object'
   if (isStatic) {
     const staticData = src as StaticImageData
@@ -292,9 +290,8 @@ export default function Image({
       width = staticData.width
     }
   }
-  //static case is resolved, src is defintitely a string from here on.
+  //static case is resolved, src is definitely a string from here on.
   src = (isStatic ? (src as StaticImageData).src : src) as string
->>>>>>> f9bd659e4 (Add static image loading functionality with auto height and width)
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {

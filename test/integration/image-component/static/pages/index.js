@@ -6,7 +6,7 @@ const Page = () => {
   return (
     <div>
       <h1 id="page-header">Static Image</h1>
-      <Image id="basic-static" src={testImg} />
+      <Image id="basic-static" src={testImg} layout="fixed" />
       <div style={{ position: 'relative', width: '50vw', height: '50vh' }}>
         <Image id="fill-static" src={testImg} layout="fill" />
       </div>
