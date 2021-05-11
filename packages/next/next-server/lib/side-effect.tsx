@@ -2,7 +2,10 @@ import React, { Component } from 'react'
 
 const isServer = typeof window === 'undefined'
 
-type State = JSX.Element[] | undefined
+type State = {
+  components: JSX.Element[] | undefined
+  shouldWarn: boolean
+}
 
 type SideEffectProps = {
   reduceComponentsToState: <T>(
@@ -16,15 +19,26 @@ type SideEffectProps = {
 
 export default class extends Component<SideEffectProps> {
   private _hasHeadManager: boolean
+  private _hasWarned: boolean
 
   emitChange = (): void => {
     if (this._hasHeadManager) {
-      this.props.headManager.updateHead(
-        this.props.reduceComponentsToState(
-          [...this.props.headManager.mountedInstances],
-          this.props
-        )
+      const state = this.props.reduceComponentsToState(
+        [...this.props.headManager.mountedInstances],
+        this.props
       )
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        !this._hasWarned &&
+        state.shouldWarn
+      ) {
+        this._hasWarned = true
+        console.warn(
+          `The way you are using next/head might cause unexpected problems in React 18 and later.` +
+            '\nSee more: https://nextjs.org/docs/messages/next-head-modern'
+        )
+      }
+      this.props.headManager.updateHead(state.components)
     }
   }
 
@@ -32,6 +46,7 @@ export default class extends Component<SideEffectProps> {
     super(props)
     this._hasHeadManager =
       this.props.headManager && this.props.headManager.mountedInstances
+    this._hasWarned = false
 
     if (isServer && this._hasHeadManager) {
       this.props.headManager.mountedInstances.add(this)

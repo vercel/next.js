@@ -8,10 +8,14 @@ type WithInAmpMode = {
   inAmpMode?: boolean
 }
 
+const DEFAULT_CHARSET = <meta charSet="utf-8" />
+const DEFAULT_VIEWPORT = <meta name="viewport" content="width=device-width" />
+const ALLOWED_META_NAMES = /author|description|keywords|og:|twitter:/
+
 export function defaultHead(inAmpMode = false): JSX.Element[] {
-  const head = [<meta charSet="utf-8" />]
+  const head = [DEFAULT_CHARSET]
   if (!inAmpMode) {
-    head.push(<meta name="viewport" content="width=device-width" />)
+    head.push(DEFAULT_VIEWPORT)
   }
   return head
 }
@@ -120,8 +124,9 @@ function unique() {
 function reduceComponents(
   headElements: Array<React.ReactElement<any>>,
   props: WithInAmpMode
-) {
-  return headElements
+): { components: JSX.Element[]; shouldWarn: boolean } {
+  let shouldWarn = false
+  const components = headElements
     .reduce(
       (list: React.ReactChild[], headElement: React.ReactElement<any>) => {
         const headElementChildren = React.Children.toArray(
@@ -136,6 +141,17 @@ function reduceComponents(
     .concat(defaultHead(props.inAmpMode))
     .filter(unique())
     .reverse()
+    .map((c) => {
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        c !== DEFAULT_CHARSET &&
+        c !== DEFAULT_VIEWPORT &&
+        c.type !== 'title'
+      ) {
+        shouldWarn = c.type !== 'meta' || ALLOWED_META_NAMES.test(c.props.name)
+      }
+      return c
+    })
     .map((c: React.ReactElement<any>, i: number) => {
       const key = c.key || i
       if (
@@ -160,6 +176,7 @@ function reduceComponents(
       }
       return React.cloneElement(c, { key })
     })
+  return { components, shouldWarn }
 }
 
 /**
