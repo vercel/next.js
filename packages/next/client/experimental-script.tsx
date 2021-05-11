@@ -13,7 +13,6 @@ export interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
   onLoad?: () => void
   onError?: () => void
   children?: React.ReactNode
-  preload?: boolean
 }
 
 const ignoreProps = [
@@ -22,7 +21,6 @@ const ignoreProps = [
   'children',
   'onError',
   'strategy',
-  'preload',
 ]
 
 const loadScript = (props: Props): void => {
@@ -124,7 +122,6 @@ function Script(props: Props): JSX.Element | null {
     dangerouslySetInnerHTML,
     strategy = 'afterInteractive',
     onError,
-    preload = false,
     ...restProps
   } = props
 
@@ -143,12 +140,7 @@ function Script(props: Props): JSX.Element | null {
     return null
   }
 
-  if (strategy === 'afterInteractive') {
-    if (updateScripts && preload) {
-      scripts.afterInteractive = (scripts.afterInteractive || []).concat([src])
-      updateScripts(scripts)
-    }
-  } else if (strategy === 'beforeInteractive') {
+  if (strategy === 'beforeInteractive') {
     if (updateScripts) {
       scripts.beforeInteractive = (scripts.beforeInteractive || []).concat([
         {

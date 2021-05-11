@@ -282,18 +282,6 @@ export class Head extends Component<
           }
         />
       )),
-      ...(scriptLoader.afterInteractive || []).map((file: string) => (
-        <link
-          key={file}
-          nonce={this.props.nonce}
-          rel="preload"
-          href={file}
-          as="script"
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
-        />
-      )),
     ]
   }
 

@@ -6,7 +6,6 @@ const Page = () => {
       <Script
         id="scriptAfterInteractive"
         src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptAfterInteractive"
-        preload
       ></Script>
       <div>index</div>
     </div>
