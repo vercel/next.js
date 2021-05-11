@@ -356,7 +356,7 @@ export async function getStaticProps() {
   // will receive `posts` as a prop at build time
   return {
     props: {
-      posts: await Promise.all(posts),
+      posts: posts,
     },
   }
 }
