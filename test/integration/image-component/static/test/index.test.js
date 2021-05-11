@@ -23,6 +23,16 @@ const runTests = () => {
   it('Should automatically provide an image height and width', async () => {
     expect(html).toContain('width:400px;height:300px')
   })
+  it('Should append "&s=true" to URLs of static images', async () => {
+    expect(
+      await browser.elementById('basic-static').getAttribute('src')
+    ).toContain('&s=true')
+  })
+  it('Should not append "&s=true" to URLs of non-static images', async () => {
+    expect(
+      await browser.elementById('basic-non-static').getAttribute('src')
+    ).not.toContain('&s=true')
+  })
 }
 
 describe('Static Image Component Tests', () => {

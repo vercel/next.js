@@ -217,6 +217,13 @@ function runTests({ w, isDev, domains }) {
     )
   })
 
+  it('should fail when s is present and not "true"', async () => {
+    const query = { url: '/test.png', w, q: 100, s: 'foo' }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
+    expect(res.status).toBe(400)
+    expect(await res.text()).toBe(`"s" parameter must be "true" or omitted`)
+  })
+
   it('should fail when domain is not defined in next.config.js', async () => {
     const url = `http://vercel.com/button`
     const query = { url, w, q: 100 }
@@ -501,6 +508,14 @@ function runTests({ w, isDev, domains }) {
     // http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html
     const colorType = png.readUIntBE(25, 1)
     expect(colorType).toBe(4)
+  })
+
+  it('should set cache-control to immutable for static images', async () => {
+    const query = { url: '/test.jpg', w, q: 100, s: 'true' }
+    const opts = { headers: { accept: 'image/webp' } }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe('immutable')
   })
 
   it("should error if the resource isn't a valid image", async () => {

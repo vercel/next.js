@@ -7,9 +7,13 @@ const Page = () => {
     <div>
       <h1 id="page-header">Static Image</h1>
       <Image id="basic-static" src={testImg} layout="fixed" />
-      <div style={{ position: 'relative', width: '50vw', height: '50vh' }}>
-        <Image id="fill-static" src={testImg} layout="fill" />
-      </div>
+      <Image
+        id="basic-non-static"
+        src="/test-rect.jpg"
+        width="400"
+        height="300"
+        layout="fixed"
+      />
     </div>
   )
 }
