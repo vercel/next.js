@@ -152,7 +152,7 @@ export type GetServerSidePropsContext<
 
 export type GetServerSidePropsResult<P> =
   | { props: P }
-  | { redirect: Redirect }
+  | { redirect?: Redirect }
   | { notFound: true }
 
 export type GetServerSideProps<
