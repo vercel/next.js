@@ -987,10 +987,14 @@ export default async function getBaseWebpackConfig(
               ]
             : defaultLoaders.babel,
         },
-        {
-          test: /\.(png|svg|jpg|jpeg|gif)$/i,
-          loader: 'next-image-loader',
-        },
+        ...(config.experimental.staticImages
+          ? [
+              {
+                test: /\.(png|svg|jpg|jpeg|gif)$/i,
+                loader: 'next-image-loader',
+              },
+            ]
+          : []),
       ].filter(Boolean),
     },
     plugins: [

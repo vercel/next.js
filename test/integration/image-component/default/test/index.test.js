@@ -562,21 +562,47 @@ function runTests(mode) {
 describe('Image Component Tests', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `
+        module.exports = {
+          experimental: {
+            staticImages: true
+          },
+        }
+      `
+      )
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.unlink(nextConfig)
+      await killApp(app)
+    })
 
     runTests('dev')
   })
 
   describe('server mode', () => {
     beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `
+        module.exports = {
+          experimental: {
+            staticImages: true
+          },
+        }
+      `
+      )
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.unlink(nextConfig)
+      await killApp(app)
+    })
 
     runTests('server')
   })
@@ -590,6 +616,7 @@ describe('Image Component Tests', () => {
           target: 'serverless',
           experimental: {
             enableBlurryPlaceholder: true,
+            staticImages: true
           },
         }
       `
