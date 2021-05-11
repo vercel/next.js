@@ -3,7 +3,7 @@ const RuleTester = require('eslint').RuleTester
 
 RuleTester.setDefaultConfig({
   parserOptions: {
-    ecmaVersion: 2018,
+    ecmaVersion: 2020,
     sourceType: 'module',
     ecmaFeatures: {
       modules: true,
@@ -18,6 +18,14 @@ ruleTester.run('google-font-preconnect', rule, {
     `export const Test = () => (
         <div>
           <link rel="preconnect" href="https://fonts.gstatic.com"/>
+          <link
+            href={process.env.NEXT_PUBLIC_CANONICAL_URL}
+            rel="canonical"
+          />
+          <link
+            href={new URL("../public/favicon.ico", import.meta.url).toString()}
+            rel="icon"
+          />
         </div>
       )
     `,
