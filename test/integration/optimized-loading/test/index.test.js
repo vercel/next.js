@@ -40,7 +40,7 @@ function runTests(url) {
   })
 }
 
-describe('Optimal loading', () => {
+describe('Optimized loading', () => {
   describe('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
