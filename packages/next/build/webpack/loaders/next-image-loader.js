@@ -5,10 +5,8 @@ function nextImageLoader(content) {
   this.cacheable && this.cacheable(true)
   this.addDependency(this.resourcePath)
 
-  const query = loaderUtils.getOptions(this)
-  const context = query.context || this.rootContext || this.options.context
-  const regExp = query.regExp
-  const opts = { context, content, regExp }
+  const context = this.rootContext
+  const opts = { context, content }
   const interpolatedName = loaderUtils.interpolateName(
     this,
     '/[path][name].[ext]',
@@ -30,11 +28,7 @@ function nextImageLoader(content) {
     height: imageSize.height,
     width: imageSize.width,
   })
-
-  const esModule = typeof query.esModule !== 'undefined' ? query.esModule : true
-  return `${
-    esModule ? 'export default' : 'module.exports ='
-  } ${stringifiedData};`
+  return `${'export default '} ${stringifiedData};`
 }
 
 export default nextImageLoader
