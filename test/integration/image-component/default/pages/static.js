@@ -2,6 +2,13 @@ import React from 'react'
 import testImg from '../public/foo/test-rect.jpg'
 import Image from 'next/image'
 
+import testJPG from '../public/test.jpg'
+import testPNG from '../public/test.png'
+import testSVG from '../public/test.svg'
+import testGIF from '../public/test.gif'
+
+const testFiles = [testJPG, testPNG, testSVG, testGIF]
+
 const Page = () => {
   return (
     <div>
@@ -14,6 +21,9 @@ const Page = () => {
         height="300"
         layout="fixed"
       />
+      {testFiles.map((f, i) => (
+        <Image id={`format-test-${i}`} key={i} src={f} layout="fixed" />
+      ))}
     </div>
   )
 }

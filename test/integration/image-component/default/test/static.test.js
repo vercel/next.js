@@ -17,11 +17,15 @@ let app
 let browser
 let html
 
-const indexPage = new File(join(appDir, 'pages/index.js'))
+const indexPage = new File(join(appDir, 'pages/static.js'))
 
 const runTests = () => {
   it('Should allow an image with a static src to omit height and width', async () => {
     expect(await browser.elementById('basic-static')).toBeTruthy()
+    expect(await browser.elementById('format-test-0')).toBeTruthy()
+    expect(await browser.elementById('format-test-1')).toBeTruthy()
+    expect(await browser.elementById('format-test-2')).toBeTruthy()
+    expect(await browser.elementById('format-test-3')).toBeTruthy()
   })
   it('Should automatically provide an image height and width', async () => {
     expect(html).toContain('width:400px;height:300px')
@@ -58,8 +62,8 @@ describe('Static Image Component Tests', () => {
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
-    html = await renderViaHTTP(appPort, '/')
-    browser = await webdriver(appPort, '/')
+    html = await renderViaHTTP(appPort, '/static')
+    browser = await webdriver(appPort, '/static')
   })
   afterAll(() => killApp(app))
   runTests()
