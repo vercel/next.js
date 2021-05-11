@@ -8,7 +8,7 @@ const ScriptCache = new Map()
 const LoadCache = new Set()
 
 export interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
-  strategy?: 'afterInteraction' | 'lazy' | 'beforeInteraction'
+  strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive'
   id?: string
   onLoad?: () => void
   onError?: () => void
@@ -93,10 +93,10 @@ const loadScript = (props: Props): void => {
 }
 
 function handleClientScriptLoad(props: Props) {
-  const { strategy = 'afterInteraction' } = props
-  if (strategy === 'afterInteraction') {
+  const { strategy = 'afterInteractive' } = props
+  if (strategy === 'afterInteractive') {
     loadScript(props)
-  } else if (strategy === 'lazy') {
+  } else if (strategy === 'lazyOnload') {
     window.addEventListener('load', () => {
       requestIdleCallback(() => loadScript(props))
     })
@@ -122,7 +122,7 @@ function Script(props: Props): JSX.Element | null {
     src = '',
     onLoad = () => {},
     dangerouslySetInnerHTML,
-    strategy = 'afterInteraction',
+    strategy = 'afterInteractive',
     onError,
     preload = false,
     ...restProps
@@ -132,9 +132,9 @@ function Script(props: Props): JSX.Element | null {
   const { updateScripts, scripts } = useContext(HeadManagerContext)
 
   useEffect(() => {
-    if (strategy === 'afterInteraction') {
+    if (strategy === 'afterInteractive') {
       loadScript(props)
-    } else if (strategy === 'lazy') {
+    } else if (strategy === 'lazyOnload') {
       loadLazyScript(props)
     }
   }, [props, strategy])
@@ -143,14 +143,14 @@ function Script(props: Props): JSX.Element | null {
     return null
   }
 
-  if (strategy === 'afterInteraction') {
+  if (strategy === 'afterInteractive') {
     if (updateScripts && preload) {
-      scripts.afterInteraction = (scripts.afterInteraction || []).concat([src])
+      scripts.afterInteractive = (scripts.afterInteractive || []).concat([src])
       updateScripts(scripts)
     }
-  } else if (strategy === 'beforeInteraction') {
+  } else if (strategy === 'beforeInteractive') {
     if (updateScripts) {
-      scripts.beforeInteraction = (scripts.beforeInteraction || []).concat([
+      scripts.beforeInteractive = (scripts.beforeInteractive || []).concat([
         {
           src,
           onLoad,
