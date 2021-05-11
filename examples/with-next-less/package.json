@@ -8,9 +8,11 @@
   "dependencies": {
     "@zeit/next-less": "^1.0.1",
     "less": "^3.0.4",
-    "next": "latest",
+    "next": "10.0.6",
+    "next-compose-plugins": "^2.2.1",
     "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react-dom": "^16.7.0",
+    "webpack": "^4.46.0"
   },
   "license": "MIT"
 }
