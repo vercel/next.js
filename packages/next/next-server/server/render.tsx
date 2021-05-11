@@ -597,6 +597,9 @@ export async function renderToHTML(
     pathname,
     query,
     asPath,
+    locale: renderOpts.locale,
+    locales: renderOpts.locales,
+    defaultLocale: renderOpts.defaultLocale,
     AppTree: (props: any) => {
       return (
         <AppContainer>

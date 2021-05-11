@@ -80,17 +80,19 @@ function getPolyfillScripts(context: DocumentProps, props: OriginProps) {
 function getPreNextScripts(context: DocumentProps, props: OriginProps) {
   const { scriptLoader, disableOptimizedLoading } = context
 
-  return (scriptLoader.eager || []).map((file: ScriptLoaderProps) => {
-    const { strategy, ...scriptProps } = file
-    return (
-      <script
-        {...scriptProps}
-        defer={!disableOptimizedLoading}
-        nonce={props.nonce}
-        crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
-      />
-    )
-  })
+  return (scriptLoader.beforeInteraction || []).map(
+    (file: ScriptLoaderProps) => {
+      const { strategy, ...scriptProps } = file
+      return (
+        <script
+          {...scriptProps}
+          defer={!disableOptimizedLoading}
+          nonce={props.nonce}
+          crossOrigin={props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN}
+        />
+      )
+    }
+  )
 }
 
 function getDynamicChunks(
@@ -363,7 +365,7 @@ export class Head extends Component<
     })
 
     return [
-      ...(scriptLoader.eager || []).map((file) => (
+      ...(scriptLoader.beforeInteraction || []).map((file) => (
         <link
           key={file.src}
           nonce={this.props.nonce}
@@ -389,7 +391,7 @@ export class Head extends Component<
           }
         />
       )),
-      ...(scriptLoader.defer || []).map((file: string) => (
+      ...(scriptLoader.afterInteraction || []).map((file: string) => (
         <link
           key={file}
           nonce={this.props.nonce}
@@ -427,14 +429,18 @@ export class Head extends Component<
 
     React.Children.forEach(children, (child: any) => {
       if (child.type === Script) {
-        if (child.props.strategy === 'eager') {
-          scriptLoader.eager = (scriptLoader.eager || []).concat([
+        if (child.props.strategy === 'beforeInteraction') {
+          scriptLoader.beforeInteraction = (
+            scriptLoader.beforeInteraction || []
+          ).concat([
             {
               ...child.props,
             },
           ])
           return
-        } else if (['lazy', 'defer'].includes(child.props.strategy)) {
+        } else if (
+          ['lazy', 'afterInteraction'].includes(child.props.strategy)
+        ) {
           scriptLoaderItems.push(child.props)
           return
         }

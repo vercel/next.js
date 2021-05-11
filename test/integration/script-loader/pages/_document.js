@@ -21,9 +21,9 @@ export default class MyDocument extends Document {
             href="https://fonts.googleapis.com/css?family=Voces"
           />
           <Script
-            id="documentDefer"
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentDefer"
-            strategy="defer"
+            id="documentAfterInteraction"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentAfterInteraction"
+            strategy="afterInteraction"
           ></Script>
           <Script
             id="documentLazy"
@@ -36,9 +36,9 @@ export default class MyDocument extends Document {
             strategy="dangerouslyBlockRendering"
           ></Script>
           <Script
-            id="documentEager"
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentEager"
-            strategy="eager"
+            id="documentBeforeInteraction"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentBeforeInteraction"
+            strategy="beforeInteraction"
           ></Script>
         </Head>
         <body>
