@@ -122,7 +122,7 @@ describe('Build Output', () => {
       expect(parseFloat(webpackSize) - 952).toBeLessThanOrEqual(0)
       expect(webpackSize.endsWith(' B')).toBe(true)
 
-      expect(parseFloat(mainSize) - 19.3).toBeLessThanOrEqual(0)
+      expect(parseFloat(mainSize) - 19.4).toBeLessThanOrEqual(0)
       expect(mainSize.endsWith('kB')).toBe(true)
 
       expect(parseFloat(frameworkSize) - 42.1).toBeLessThanOrEqual(0)
