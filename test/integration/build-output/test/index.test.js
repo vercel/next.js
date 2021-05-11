@@ -105,10 +105,10 @@ describe('Build Output', () => {
       expect(parseFloat(err404Size)).toBeCloseTo(3.04, 1)
       expect(err404Size.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(err404FirstLoad)).toBeCloseTo(66.4, 0)
+      expect(parseFloat(err404FirstLoad)).toBeCloseTo(66.3, 0)
       expect(err404FirstLoad.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(sharedByAll)).toBeCloseTo(63.3, 1)
+      expect(parseFloat(sharedByAll)).toBeCloseTo(63.4, 1)
       expect(sharedByAll.endsWith('kB')).toBe(true)
 
       if (_appSize.endsWith('kB')) {
