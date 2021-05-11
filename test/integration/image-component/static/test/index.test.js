@@ -4,6 +4,7 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
+  File,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -15,6 +16,8 @@ let appPort
 let app
 let browser
 let html
+
+const indexPage = new File(join(appDir, 'pages/index.js'))
 
 const runTests = () => {
   it('Should allow an image with a static src to omit height and width', async () => {
@@ -35,6 +38,21 @@ const runTests = () => {
   })
 }
 
+describe('Build Error Tests', () => {
+  it('should throw build error when import statement is used with missing file', async () => {
+    await indexPage.replace(
+      '../public/foo/test-rect.jpg',
+      '../public/foo/test-rect-broken.jpg'
+    )
+
+    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+    await indexPage.restore()
+
+    expect(stderr).toContain(
+      "Error: Can't resolve '../public/foo/test-rect-broken.jpg"
+    )
+  })
+})
 describe('Static Image Component Tests', () => {
   beforeAll(async () => {
     await nextBuild(appDir)
