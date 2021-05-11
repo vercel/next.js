@@ -56,11 +56,17 @@ interface StaticImageData {
   width: number
 }
 
+interface StaticRequire {
+  default: StaticImageData
+}
+
+type StaticImport = StaticRequire | StaticImageData
+
 export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
 > & {
-  src: string | StaticImageData
+  src: string | StaticImport
   loader?: ImageLoader
   quality?: number | string
   priority?: boolean
@@ -286,15 +292,36 @@ export default function Image({
     placeholder = 'empty'
   }
   const isStatic = typeof src === 'object'
+  let staticSrc = ''
   if (isStatic) {
-    const staticData = src as StaticImageData
+    let staticImport = src as StaticImport
+    let staticImageData: StaticImageData
+    if ((staticImport as StaticRequire).default) {
+      staticImageData = (staticImport as StaticRequire).default
+    } else {
+      staticImageData = staticImport as StaticImageData
+    }
+    if (!staticImageData.src) {
+      throw new Error(
+        `An object should only be passed to the image component src parameter if it comes from a static image import. It must include src. Received ${JSON.stringify(
+          staticImageData
+        )}`
+      )
+    }
+    staticSrc = staticImageData.src
     if (!layout || layout !== 'fill') {
-      height = staticData.height
-      width = staticData.width
+      height = staticImageData.height
+      width = staticImageData.width
+      if (!height || !width) {
+        throw new Error(
+          `An object should only be passed to the image component src parameter if it comes from a static image import. It must include height and width. Received ${JSON.stringify(
+            staticImageData
+          )}`
+        )
+      }
     }
   }
-  //static case is resolved, src is definitely a string from here on.
-  src = (isStatic ? (src as StaticImageData).src : src) as string
+  src = (isStatic ? staticSrc : src) as string
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {

@@ -15,6 +15,11 @@ const Page = () => {
       <h1 id="page-header">Static Image</h1>
       <Image id="basic-static" src={testImg} layout="fixed" />
       <Image
+        id="require-static"
+        src={require('../public/foo/test-rect.jpg')}
+        layout="fixed"
+      />
+      <Image
         id="basic-non-static"
         src="/test-rect.jpg"
         width="400"
