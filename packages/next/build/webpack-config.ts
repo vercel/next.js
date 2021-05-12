@@ -503,7 +503,7 @@ export default async function getBaseWebpackConfig(
       // and all other chunk depend on them so there is no
       // duplication that need to be pulled out.
       chunks: isWebpack5
-        ? (chunk) => !/^(main|pages\/_app)$/.test(chunk.name)
+        ? (chunk) => !/^(polyfills|main|pages\/_app)$/.test(chunk.name)
         : 'all',
       cacheGroups: {
         framework: {
@@ -902,13 +902,13 @@ export default async function getBaseWebpackConfig(
         isServer && isWebpack5 && !dev
           ? path.join(outputPath, 'chunks')
           : outputPath,
-      // On the server we don't use the chunkhash
+      // On the server we don't use hashes
       filename: isServer
         ? isWebpack5 && !dev
           ? '../[name].js'
           : '[name].js'
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
-            dev ? '' : '-[chunkhash]'
+            dev ? '' : isWebpack5 ? '-[contenthash]' : '-[chunkhash]'
           }.js`,
       library: isServer ? undefined : '_N_E',
       libraryTarget: isServer ? 'commonjs2' : 'assign',
@@ -979,31 +979,7 @@ export default async function getBaseWebpackConfig(
             }
             return /node_modules/.test(excludePath)
           },
-          use: config.experimental.babelMultiThread
-            ? [
-                // Move Babel transpilation into a thread pool (2 workers, unlimited batch size).
-                // Applying a cache to the off-thread work avoids paying transfer costs for unchanged modules.
-                {
-                  loader: 'next/dist/compiled/cache-loader',
-                  options: {
-                    cacheContext: dir,
-                    cacheDirectory: path.join(distDir, 'cache', 'webpack'),
-                    cacheIdentifier: `webpack${isServer ? '-server' : ''}`,
-                  },
-                },
-                {
-                  loader: require.resolve('next/dist/compiled/thread-loader'),
-                  options: {
-                    workers: 2,
-                    workerParallelJobs: Infinity,
-                  },
-                },
-                hasReactRefresh
-                  ? require.resolve('@next/react-refresh-utils/loader')
-                  : '',
-                defaultLoaders.babel,
-              ].filter(Boolean)
-            : hasReactRefresh
+          use: hasReactRefresh
             ? [
                 require.resolve('@next/react-refresh-utils/loader'),
                 defaultLoaders.babel,
@@ -1287,6 +1263,7 @@ export default async function getBaseWebpackConfig(
       target,
       reactProductionProfiling,
       webpack: !!config.webpack,
+      hasRewrites,
     })
 
     const cache: any = {
@@ -1306,9 +1283,6 @@ export default async function getBaseWebpackConfig(
     }
 
     webpackConfig.cache = cache
-
-    // @ts-ignore TODO: remove ignore when webpack 5 is stable
-    webpackConfig.optimization.realContentHash = false
 
     if (process.env.NEXT_WEBPACK_LOGGING) {
       const logInfra = process.env.NEXT_WEBPACK_LOGGING.includes(
@@ -1647,7 +1621,12 @@ export default async function getBaseWebpackConfig(
 
       if (isWebpack5 && !isServer) {
         for (const name of Object.keys(entry)) {
-          if (name === 'main' || name === 'amp' || name === 'react-refresh')
+          if (
+            name === 'polyfills' ||
+            name === 'main' ||
+            name === 'amp' ||
+            name === 'react-refresh'
+          )
             continue
           const dependOn =
             name.startsWith('pages/') && name !== 'pages/_app'
