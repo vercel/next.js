@@ -8,12 +8,11 @@ const ScriptCache = new Map()
 const LoadCache = new Set()
 
 export interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
-  strategy?: 'defer' | 'lazy' | 'dangerouslyBlockRendering' | 'eager'
+  strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive'
   id?: string
   onLoad?: () => void
   onError?: () => void
   children?: React.ReactNode
-  preload?: boolean
 }
 
 const ignoreProps = [
@@ -22,7 +21,6 @@ const ignoreProps = [
   'children',
   'onError',
   'strategy',
-  'preload',
 ]
 
 const loadScript = (props: Props): void => {
@@ -93,10 +91,10 @@ const loadScript = (props: Props): void => {
 }
 
 function handleClientScriptLoad(props: Props) {
-  const { strategy = 'defer' } = props
-  if (strategy === 'defer') {
+  const { strategy = 'afterInteractive' } = props
+  if (strategy === 'afterInteractive') {
     loadScript(props)
-  } else if (strategy === 'lazy') {
+  } else if (strategy === 'lazyOnload') {
     window.addEventListener('load', () => {
       requestIdleCallback(() => loadScript(props))
     })
@@ -122,10 +120,8 @@ function Script(props: Props): JSX.Element | null {
     src = '',
     onLoad = () => {},
     dangerouslySetInnerHTML,
-    children = '',
-    strategy = 'defer',
+    strategy = 'afterInteractive',
     onError,
-    preload = false,
     ...restProps
   } = props
 
@@ -133,9 +129,9 @@ function Script(props: Props): JSX.Element | null {
   const { updateScripts, scripts } = useContext(HeadManagerContext)
 
   useEffect(() => {
-    if (strategy === 'defer') {
+    if (strategy === 'afterInteractive') {
       loadScript(props)
-    } else if (strategy === 'lazy') {
+    } else if (strategy === 'lazyOnload') {
       loadLazyScript(props)
     }
   }, [props, strategy])
@@ -144,42 +140,9 @@ function Script(props: Props): JSX.Element | null {
     return null
   }
 
-  if (strategy === 'dangerouslyBlockRendering') {
-    const syncProps: Props = { ...restProps }
-
-    for (const [k, value] of Object.entries({
-      src,
-      onLoad,
-      onError,
-      dangerouslySetInnerHTML,
-      children,
-    })) {
-      if (!value) {
-        continue
-      }
-      if (k === 'children') {
-        syncProps.dangerouslySetInnerHTML = {
-          __html:
-            typeof value === 'string'
-              ? value
-              : Array.isArray(value)
-              ? value.join('')
-              : '',
-        }
-      } else {
-        ;(syncProps as any)[k] = value
-      }
-    }
-
-    return <script {...syncProps} />
-  } else if (strategy === 'defer') {
-    if (updateScripts && preload) {
-      scripts.defer = (scripts.defer || []).concat([src])
-      updateScripts(scripts)
-    }
-  } else if (strategy === 'eager') {
+  if (strategy === 'beforeInteractive') {
     if (updateScripts) {
-      scripts.eager = (scripts.eager || []).concat([
+      scripts.beforeInteractive = (scripts.beforeInteractive || []).concat([
         {
           src,
           onLoad,

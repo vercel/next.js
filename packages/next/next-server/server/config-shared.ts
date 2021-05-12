@@ -51,7 +51,6 @@ export type NextConfig = { [key: string]: any } & {
     stats?: boolean
     externalDir?: boolean
     serialWebpackBuild?: boolean
-    babelMultiThread?: boolean
     conformance?: boolean
     amp?: {
       optimizer?: any

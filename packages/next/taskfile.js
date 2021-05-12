@@ -189,14 +189,6 @@ export async function ncc_cacache(task, opts) {
     .target('compiled/cacache')
 }
 // eslint-disable-next-line camelcase
-externals['cache-loader'] = 'next/dist/compiled/cache-loader'
-export async function ncc_cache_loader(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('cache-loader')))
-    .ncc({ packageName: 'cache-loader', externals })
-    .target('compiled/cache-loader')
-}
-// eslint-disable-next-line camelcase
 externals['ci-info'] = 'next/dist/compiled/ci-info'
 export async function ncc_ci_info(task, opts) {
   await task
@@ -592,14 +584,6 @@ export async function ncc_text_table(task, opts) {
     .target('compiled/text-table')
 }
 // eslint-disable-next-line camelcase
-externals['thread-loader'] = 'next/dist/compiled/thread-loader'
-export async function ncc_thread_loader(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('thread-loader')))
-    .ncc({ packageName: 'thread-loader', externals })
-    .target('compiled/thread-loader')
-}
-// eslint-disable-next-line camelcase
 externals['unistore'] = 'next/dist/compiled/unistore'
 export async function ncc_unistore(task, opts) {
   await task
@@ -715,7 +699,6 @@ export async function ncc(task, opts) {
         'ncc_babel_bundle_packages',
         'ncc_bfj',
         'ncc_cacache',
-        'ncc_cache_loader',
         'ncc_ci_info',
         'ncc_comment_json',
         'ncc_compression',
@@ -760,7 +743,6 @@ export async function ncc(task, opts) {
         'ncc_strip_ansi',
         'ncc_terser',
         'ncc_text_table',
-        'ncc_thread_loader',
         'ncc_unistore',
         'ncc_web_vitals',
         'ncc_webpack_bundle4',

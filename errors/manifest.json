@@ -107,6 +107,14 @@
           "path": "/errors/generatebuildid-not-a-string.md"
         },
         {
+          "title": "google-font-display",
+          "path": "/errors/google-font-display.md"
+        },
+        {
+          "title": "google-font-preconnect",
+          "path": "/errors/google-font-preconnect.md"
+        },
+        {
           "title": "get-initial-props-as-an-instance-method",
           "path": "/errors/get-initial-props-as-an-instance-method.md"
         },
@@ -199,6 +207,10 @@
           "title": "invalid-webpack-5-version",
           "path": "/errors/invalid-webpack-5-version.md"
         },
+        {
+          "title": "link-passhref",
+          "path": "/errors/link-passhref.md"
+        },
         { "title": "manifest.json", "path": "/errors/manifest.json" },
         {
           "title": "minification-disabled",
@@ -244,6 +256,10 @@
         { "title": "no-cache", "path": "/errors/no-cache.md" },
         { "title": "no-css-tags", "path": "/errors/no-css-tags.md" },
         {
+          "title": "no-document-import-in-page",
+          "path": "/errors/no-document-import-in-page.md"
+        },
+        {
           "title": "no-document-title",
           "path": "/errors/no-document-title.md"
         },
@@ -252,12 +268,20 @@
           "path": "/errors/no-document-viewport-meta.md"
         },
         {
+          "title": "no-head-import-in-document",
+          "path": "/errors/no-head-import-in-document.md"
+        },
+        {
           "title": "no-html-link-for-pages",
           "path": "/errors/no-html-link-for-pages.md"
         },
         {
           "title": "no-on-app-updated-hook",
           "path": "/errors/no-on-app-updated-hook.md"
+        },
+        {
+          "title": "no-page-custom-font",
+          "path": "/errors/no-page-custom-font.md"
         },
         {
           "title": "no-router-instance",
