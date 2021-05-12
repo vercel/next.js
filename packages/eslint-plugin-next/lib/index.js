@@ -6,7 +6,6 @@ module.exports = {
     'no-unwanted-polyfillio': require('./rules/no-unwanted-polyfillio'),
     'no-title-in-document-head': require('./rules/no-title-in-document-head'),
     'no-img-element': require('./rules/no-img-element'),
-    'image-domain': require('./rules/image-domain'),
   },
   configs: {
     recommended: {
@@ -18,7 +17,6 @@ module.exports = {
         '@next/next/no-unwanted-polyfillio': 1,
         '@next/next/no-title-in-document-head': 1,
         '@next/next/no-img-element': 1,
-        '@next/next/image-domain': 1,
       },
     },
   },
