@@ -177,13 +177,13 @@ export class FontStylesheetGatheringPlugin {
           let fontStylesheets = this.gatheredStylesheets
 
           if (isWebpack5) {
-            const fontUrls = new Set()
-            modules.forEach((module) => {
+            const fontUrls = new Set<string>()
+            modules.forEach((module: any) => {
               const fontDependencies = module?.buildInfo?.valueDependencies?.get(
                 FONT_MANIFEST
               )
               if (fontDependencies) {
-                fontDependencies.forEach((v) => fontUrls.add(v))
+                fontDependencies.forEach((v: string) => fontUrls.add(v))
               }
             })
 
