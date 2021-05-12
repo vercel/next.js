@@ -61,7 +61,7 @@ export type NextConfig = { [key: string]: any } & {
     eslint?: boolean
     reactRoot: boolean
     enableBlurryPlaceholder: boolean
-    disableOptimizedLoading?: boolean
+    disableOptimizedLoading: boolean
   }
 }
 

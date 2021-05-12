@@ -157,6 +157,7 @@ export default class Server {
     images: string
     fontManifest: FontManifest
     optimizeImages: boolean
+    disableOptimizedLoading: boolean
     optimizeCss: any
     locale?: string
     locales?: string[]
@@ -217,6 +218,8 @@ export default class Server {
           : null,
       optimizeImages: !!this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
+      disableOptimizedLoading: this.nextConfig.experimental
+        .disableOptimizedLoading,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
     }
