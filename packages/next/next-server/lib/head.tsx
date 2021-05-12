@@ -10,7 +10,15 @@ type WithInAmpMode = {
 
 const DEFAULT_CHARSET = <meta charSet="utf-8" />
 const DEFAULT_VIEWPORT = <meta name="viewport" content="width=device-width" />
-const ALLOWED_META_NAMES = /author|description|keywords|og:|twitter:/
+
+const SAFE_HEAD_CHECKS: Array<(e: React.ReactElement<any>) => boolean> = [
+  (e) => e === DEFAULT_CHARSET || e === DEFAULT_VIEWPORT,
+  (e) => e.type === 'title',
+  (e) =>
+    e.type === 'meta' &&
+    /author|description|keywords|og:|twitter:/.test(e.props.name),
+  (e) => e.type === 'link' && e.props.rel === 'preload',
+]
 
 export function defaultHead(inAmpMode = false): JSX.Element[] {
   const head = [DEFAULT_CHARSET]
@@ -142,17 +150,9 @@ function reduceComponents(
     .filter(unique())
     .reverse()
     .map((c) => {
-      if (
-        process.env.NODE_ENV !== 'production' &&
-        c !== DEFAULT_CHARSET &&
-        c !== DEFAULT_VIEWPORT &&
-        c.type !== 'title'
-      ) {
+      if (process.env.NODE_ENV !== 'production') {
         shouldWarn =
-          shouldWarn ||
-          typeof c.type !== 'string' ||
-          c.type !== 'meta' ||
-          ALLOWED_META_NAMES.test(c.props.name)
+          shouldWarn || !SAFE_HEAD_CHECKS.map((fn) => fn(c)).includes(true)
       }
       return c
     })

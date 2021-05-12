@@ -34,8 +34,8 @@ export default class extends Component<SideEffectProps> {
       ) {
         this._hasWarned = true
         console.warn(
-          `The way you are using next/head might cause unexpected problems in React 18 and later.` +
-            '\nSee more: https://nextjs.org/docs/messages/next-head-modern'
+          `You are using next/head in unsafe ways that may prevent you from using future React and Next.js features.` +
+            '\nLearn more here: https://nextjs.org/docs/messages/next-head-unsafe'
         )
       }
       this.props.headManager.updateHead(state.components)

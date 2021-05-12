@@ -1,10 +1,13 @@
-# Modern `next/head` Usage
+# Unsafe `next/head` Usage
 
 #### Why This Error Occurred
 
-You are using `next/head` in one or more ways which may not behave as expected in React 18 and later.
+You are using `next/head` in one or more ways that might be unsafe and cause unexpected behavior with
+upcoming features of React and Next.js, such as suspense.
 
 #### Possible Ways to Fix It
+
+Ensure your application adheres to the following guidelines.
 
 ##### Render `<Head>` once per Page
 
@@ -18,3 +21,8 @@ additional data or options if needed.
 
 You should only use `<Head>` for _cosmetic_ or _optional_ tags, such as `<title>`, or `<meta name="author|description|keywords|og:*|twitter:*" />`.
 All other tags should be put in a [custom `Document`](https://nextjs.org/docs/advanced-features/custom-document) component instead.
+
+##### Only use native DOM tags in `<Head>`
+
+Next.js does not currently support custom components like `<MyComponent />` on the client. Instead, you should render native
+tags like `<meta>` directly as children.
