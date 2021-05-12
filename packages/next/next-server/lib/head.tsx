@@ -148,7 +148,11 @@ function reduceComponents(
         c !== DEFAULT_VIEWPORT &&
         c.type !== 'title'
       ) {
-        shouldWarn = c.type !== 'meta' || ALLOWED_META_NAMES.test(c.props.name)
+        shouldWarn =
+          shouldWarn ||
+          typeof c.type !== 'string' ||
+          c.type !== 'meta' ||
+          ALLOWED_META_NAMES.test(c.props.name)
       }
       return c
     })
