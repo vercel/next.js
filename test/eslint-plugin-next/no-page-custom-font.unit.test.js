@@ -3,7 +3,7 @@ const RuleTester = require('eslint').RuleTester
 
 RuleTester.setDefaultConfig({
   parserOptions: {
-    ecmaVersion: 2018,
+    ecmaVersion: 2020,
     sourceType: 'module',
     ecmaFeatures: {
       modules: true,
@@ -25,6 +25,14 @@ ruleTester.run('no-page-custom-font', rule, {
               <link
                 href="https://fonts.googleapis.com/css2?family=Krona+One&display=swap"
                 rel="stylesheet"
+              />
+              <link
+                href={process.env.NEXT_PUBLIC_CANONICAL_URL}
+                rel="canonical"
+              />
+              <link
+                href={new URL("../public/favicon.ico", import.meta.url).toString()}
+                rel="icon"
               />
             </Head>
           </Html>

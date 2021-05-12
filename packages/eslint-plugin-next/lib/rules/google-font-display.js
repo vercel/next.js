@@ -23,7 +23,7 @@ module.exports = {
         }
 
         const hrefValue = attributes.value('href')
-        const isGoogleFont = hrefValue.includes(
+        const isGoogleFont = hrefValue?.startsWith(
           'https://fonts.googleapis.com/css'
         )
 
