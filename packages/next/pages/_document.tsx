@@ -256,7 +256,7 @@ export class Head extends Component<
     })
 
     return [
-      ...(scriptLoader.beforeInteraction || []).map((file) => (
+      ...(scriptLoader.beforeInteractive || []).map((file) => (
         <link
           key={file.src}
           nonce={this.props.nonce}
@@ -282,18 +282,6 @@ export class Head extends Component<
           }
         />
       )),
-      ...(scriptLoader.afterInteraction || []).map((file: string) => (
-        <link
-          key={file}
-          nonce={this.props.nonce}
-          rel="preload"
-          href={file}
-          as="script"
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
-        />
-      )),
     ]
   }
 
@@ -304,9 +292,9 @@ export class Head extends Component<
 
     React.Children.forEach(children, (child: any) => {
       if (child.type === Script) {
-        if (child.props.strategy === 'beforeInteraction') {
-          scriptLoader.beforeInteraction = (
-            scriptLoader.beforeInteraction || []
+        if (child.props.strategy === 'beforeInteractive') {
+          scriptLoader.beforeInteractive = (
+            scriptLoader.beforeInteractive || []
           ).concat([
             {
               ...child.props,
@@ -314,7 +302,7 @@ export class Head extends Component<
           ])
           return
         } else if (
-          ['lazy', 'afterInteraction'].includes(child.props.strategy)
+          ['lazyOnload', 'afterInteractive'].includes(child.props.strategy)
         ) {
           scriptLoaderItems.push(child.props)
           return
@@ -668,7 +656,7 @@ export class NextScript extends Component<OriginProps> {
   getPreNextScripts() {
     const { scriptLoader } = this.context
 
-    return (scriptLoader.beforeInteraction || []).map(
+    return (scriptLoader.beforeInteractive || []).map(
       (file: ScriptLoaderProps) => {
         const { strategy, ...props } = file
         return (
