@@ -33,6 +33,7 @@ function CommentList({ comments, onDelete }) {
                   <button
                     className="text-gray-400 hover:text-red-500"
                     onClick={() => onDelete(comment)}
+                    aria-label="Close"
                   >
                     x
                   </button>
