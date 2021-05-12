@@ -18,7 +18,7 @@ const SAFE_HEAD_CHECKS: Array<(e: React.ReactElement<any>) => boolean> =
         (e) => e.type === 'title',
         (e) =>
           e.type === 'meta' &&
-          /author|description|keywords|og:|twitter:/.test(e.props.name),
+          /author|description|keywords|og:|twitter:|robots/.test(e.props.name),
         (e) =>
           e.type === 'link' && ['preload', 'preconnect'].includes(e.props.rel),
       ]
