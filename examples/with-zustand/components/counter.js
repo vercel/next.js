@@ -1,4 +1,4 @@
-import { useStore } from '../lib/zustandProvider'
+import { useStore } from '../lib/store'
 import shallow from 'zustand/shallow'
 const useCounter = () => {
   const { count, increment, decrement, reset } = useStore(

@@ -256,7 +256,7 @@ export class Head extends Component<
     })
 
     return [
-      ...(scriptLoader.eager || []).map((file) => (
+      ...(scriptLoader.beforeInteractive || []).map((file) => (
         <link
           key={file.src}
           nonce={this.props.nonce}
@@ -282,18 +282,6 @@ export class Head extends Component<
           }
         />
       )),
-      ...(scriptLoader.defer || []).map((file: string) => (
-        <link
-          key={file}
-          nonce={this.props.nonce}
-          rel="preload"
-          href={file}
-          as="script"
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
-        />
-      )),
     ]
   }
 
@@ -304,14 +292,18 @@ export class Head extends Component<
 
     React.Children.forEach(children, (child: any) => {
       if (child.type === Script) {
-        if (child.props.strategy === 'eager') {
-          scriptLoader.eager = (scriptLoader.eager || []).concat([
+        if (child.props.strategy === 'beforeInteractive') {
+          scriptLoader.beforeInteractive = (
+            scriptLoader.beforeInteractive || []
+          ).concat([
             {
               ...child.props,
             },
           ])
           return
-        } else if (['lazy', 'defer'].includes(child.props.strategy)) {
+        } else if (
+          ['lazyOnload', 'afterInteractive'].includes(child.props.strategy)
+        ) {
           scriptLoaderItems.push(child.props)
           return
         }
@@ -664,18 +656,20 @@ export class NextScript extends Component<OriginProps> {
   getPreNextScripts() {
     const { scriptLoader } = this.context
 
-    return (scriptLoader.eager || []).map((file: ScriptLoaderProps) => {
-      const { strategy, ...props } = file
-      return (
-        <script
-          {...props}
-          nonce={this.props.nonce}
-          crossOrigin={
-            this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
-          }
-        />
-      )
-    })
+    return (scriptLoader.beforeInteractive || []).map(
+      (file: ScriptLoaderProps) => {
+        const { strategy, ...props } = file
+        return (
+          <script
+            {...props}
+            nonce={this.props.nonce}
+            crossOrigin={
+              this.props.crossOrigin || process.env.__NEXT_CROSS_ORIGIN
+            }
+          />
+        )
+      }
+    )
   }
 
   getScripts(files: DocumentFiles) {
