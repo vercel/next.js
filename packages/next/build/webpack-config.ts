@@ -503,7 +503,7 @@ export default async function getBaseWebpackConfig(
       // and all other chunk depend on them so there is no
       // duplication that need to be pulled out.
       chunks: isWebpack5
-        ? (chunk) => !/^(main|pages\/_app)$/.test(chunk.name)
+        ? (chunk) => !/^(polyfills|main|pages\/_app)$/.test(chunk.name)
         : 'all',
       cacheGroups: {
         framework: {
@@ -1624,7 +1624,12 @@ export default async function getBaseWebpackConfig(
 
       if (isWebpack5 && !isServer) {
         for (const name of Object.keys(entry)) {
-          if (name === 'main' || name === 'amp' || name === 'react-refresh')
+          if (
+            name === 'polyfills' ||
+            name === 'main' ||
+            name === 'amp' ||
+            name === 'react-refresh'
+          )
             continue
           const dependOn =
             name.startsWith('pages/') && name !== 'pages/_app'

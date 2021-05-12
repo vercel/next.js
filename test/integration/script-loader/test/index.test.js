@@ -34,7 +34,7 @@ describe('Script Loader', () => {
     stopApp(server)
   })
 
-  it('priority afterInteraction', async () => {
+  it('priority afterInteractive', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/')
@@ -58,16 +58,16 @@ describe('Script Loader', () => {
         expect(endPreloads.length).toBe(0)
       }
 
-      // afterInteraction script in page
-      await test('scriptAfterInteraction')
-      // afterInteraction script in _document
-      await test('documentAfterInteraction')
+      // afterInteractive script in page
+      await test('scriptAfterInteractive')
+      // afterInteractive script in _document
+      await test('documentAfterInteractive')
     } finally {
       if (browser) await browser.close()
     }
   })
 
-  it('priority lazy', async () => {
+  it('priority lazyOnload', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/page3')
@@ -87,16 +87,16 @@ describe('Script Loader', () => {
         expect(endScripts.length).toBe(0)
       }
 
-      // Lazy script in page
-      await test('scriptLazy')
-      // Lazy script in _document
-      await test('documentLazy')
+      // lazyOnload script in page
+      await test('scriptLazyOnload')
+      // lazyOnload script in _document
+      await test('documentLazyOnload')
     } finally {
       if (browser) await browser.close()
     }
   })
 
-  it('priority beforeInteraction', async () => {
+  it('priority beforeInteractive', async () => {
     const html = await renderViaHTTP(appPort, '/page1')
     const $ = cheerio.load(html)
 
@@ -130,8 +130,8 @@ describe('Script Loader', () => {
       ).toBeGreaterThan(0)
     }
 
-    test('scriptBeforeInteraction')
-    test('documentBeforeInteraction')
+    test('scriptBeforeInteractive')
+    test('documentBeforeInteractive')
   })
 
   it('onload fires correctly', async () => {

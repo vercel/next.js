@@ -38,9 +38,9 @@ module.exports = {
         }
 
         const hrefValue = attributes.value('href')
-        const isGoogleFont = hrefValue?.startsWith(
-          'https://fonts.googleapis.com/css'
-        )
+        const isGoogleFont =
+          typeof hrefValue === 'string' &&
+          hrefValue.startsWith('https://fonts.googleapis.com/css')
 
         if (isGoogleFont) {
           context.report({
