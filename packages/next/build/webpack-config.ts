@@ -902,13 +902,13 @@ export default async function getBaseWebpackConfig(
         isServer && isWebpack5 && !dev
           ? path.join(outputPath, 'chunks')
           : outputPath,
-      // On the server we don't use the chunkhash
+      // On the server we don't use hashes
       filename: isServer
         ? isWebpack5 && !dev
           ? '../[name].js'
           : '[name].js'
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
-            dev ? '' : '-[chunkhash]'
+            dev ? '' : isWebpack5 ? '-[contenthash]' : '-[chunkhash]'
           }.js`,
       library: isServer ? undefined : '_N_E',
       libraryTarget: isServer ? 'commonjs2' : 'assign',
@@ -1283,9 +1283,6 @@ export default async function getBaseWebpackConfig(
     }
 
     webpackConfig.cache = cache
-
-    // @ts-ignore TODO: remove ignore when webpack 5 is stable
-    webpackConfig.optimization.realContentHash = false
 
     if (process.env.NEXT_WEBPACK_LOGGING) {
       const logInfra = process.env.NEXT_WEBPACK_LOGGING.includes(
