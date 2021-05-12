@@ -26,7 +26,9 @@ class NodeAttributes {
           this.attributes[attribute.name.name].value = attribute.value.value
         } else if (attribute.value.expression) {
           this.attributes[attribute.name.name].value =
-            attribute.value.expression.value
+            typeof attribute.value.expression.value !== 'undefined'
+              ? attribute.value.expression.value
+              : attribute.value.expression.properties
         }
       }
     })
