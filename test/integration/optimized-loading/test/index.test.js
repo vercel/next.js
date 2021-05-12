@@ -60,15 +60,15 @@ describe('Optimized loading', () => {
   })
 
   describe('dev mode', () => {
-    let appPort
     let app
 
     beforeAll(async () => {
       context.appPort = await findPort()
-      app = await launchApp(join(__dirname, '../'), appPort)
+      app = await launchApp(join(__dirname, '../'), context.appPort)
     })
 
     afterAll(() => killApp(app))
+
     runTests('/')
     runTests('/page1')
   })
