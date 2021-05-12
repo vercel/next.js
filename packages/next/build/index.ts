@@ -734,7 +734,8 @@ export default async function build(
               const [selfSize, allSize] = await getJsPageSizeInKb(
                 actualPage,
                 distDir,
-                buildManifest
+                buildManifest,
+                config.experimental.gzipSize
               )
 
               let isSsg = false
@@ -1525,6 +1526,7 @@ export default async function build(
         useStatic404,
         pageExtensions: config.pageExtensions,
         buildManifest,
+        gzipSize: config.experimental.gzipSize,
       })
     )
 
