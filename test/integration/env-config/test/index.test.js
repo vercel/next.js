@@ -22,7 +22,11 @@ const appDir = join(__dirname, '../app')
 
 const getEnvFromHtml = async (path) => {
   const html = await renderViaHTTP(appPort, path)
-  return JSON.parse(cheerio.load(html)('p').text())
+  const $ = cheerio.load(html)
+  const env = JSON.parse($('p').text())
+  env.nextConfigEnv = $('#nextConfigEnv').text()
+  env.nextConfigPublicEnv = $('#nextConfigPublicEnv').text()
+  return env
 }
 
 const runTests = (mode = 'dev') => {
@@ -53,6 +57,9 @@ const runTests = (mode = 'dev') => {
     expect(data.ENV_FILE_KEY_EXCLAMATION).toBe('hello!')
     expect(data.ENV_FILE_EMPTY_FIRST).toBe(isTestEnv ? '' : '$escaped')
     expect(data.ENV_FILE_PROCESS_ENV).toBe('env-cli')
+
+    expect(data.nextConfigEnv).toBe('hello from next.config.js')
+    expect(data.nextConfigPublicEnv).toBe('hello again from next.config.js')
   }
 
   it('should have process environment override .env', async () => {

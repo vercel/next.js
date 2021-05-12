@@ -1,4 +1,4 @@
-import { getEventSourceWrapper } from './error-overlay/eventsource'
+import { addMessageListener } from './error-overlay/eventsource'
 
 export default function initializeBuildWatcher(toggleCallback) {
   const shadowHost = document.createElement('div')
@@ -39,8 +39,8 @@ export default function initializeBuildWatcher(toggleCallback) {
   let timeoutId = null
 
   // Handle events
-  const evtSource = getEventSourceWrapper({ path: '/_next/webpack-hmr' })
-  evtSource.addMessageListener((event) => {
+
+  addMessageListener((event) => {
     // This is the heartbeat event
     if (event.data === '\uD83D\uDC93') {
       return

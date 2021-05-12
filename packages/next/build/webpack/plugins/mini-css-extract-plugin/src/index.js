@@ -219,13 +219,30 @@ class MiniCssExtractPlugin {
 
           if (Object.keys(chunkMap).length > 0) {
             const chunkMaps = chunk.getChunkMaps()
-            const { crossOriginLoading } = mainTemplate.outputOptions
-            const linkHrefPath = mainTemplate.getAssetPath(
+            const { crossOriginLoading } = isWebpack5
+              ? compilation.outputOptions
+              : mainTemplate.outputOptions
+
+            const getHash = !isWebpack5
+              ? (...args) => mainTemplate.renderCurrentHashCode(...args)
+              : (curHash, length) => {
+                  if (length) {
+                    return `${webpack.RuntimeGlobals.getFullHash} ? ${
+                      webpack.RuntimeGlobals.getFullHash
+                    }().slice(0, ${length}) : ${curHash.slice(0, length)}`
+                  }
+                  return `${webpack.RuntimeGlobals.getFullHash} ? ${webpack.RuntimeGlobals.getFullHash}() : ${curHash}`
+                }
+
+            const getAssetPath = isWebpack5
+              ? (...args) => compilation.getAssetPath(...args)
+              : (...args) => mainTemplate.getAssetPath(...args)
+
+            const linkHrefPath = getAssetPath(
               JSON.stringify(this.options.chunkFilename),
               {
-                hash: `" + ${mainTemplate.renderCurrentHashCode(hash)} + "`,
-                hashWithLength: (length) =>
-                  `" + ${mainTemplate.renderCurrentHashCode(hash, length)} + "`,
+                hash: `" + ${getHash(hash)} + "`,
+                hashWithLength: (length) => `" + ${getHash(hash, length)} + "`,
                 chunk: {
                   id: '" + chunkId + "',
                   hash: `" + ${JSON.stringify(chunkMaps.hash)}[chunkId] + "`,
@@ -286,7 +303,9 @@ class MiniCssExtractPlugin {
                 'promises.push(installedCssChunks[chunkId] = new Promise(function(resolve, reject) {',
                 Template.indent([
                   `var href = ${linkHrefPath};`,
-                  `var fullhref = ${mainTemplate.requireFn}.p + href;`,
+                  `var fullhref = ${
+                    isWebpack5 ? '__webpack_require__' : mainTemplate.requireFn
+                  }.p + href;`,
                   'var existingLinkTags = document.getElementsByTagName("link");',
                   'for(var i = 0; i < existingLinkTags.length; i++) {',
                   Template.indent([

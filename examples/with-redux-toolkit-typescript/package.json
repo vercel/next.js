@@ -1,0 +1,34 @@
+{
+  "name": "with-redux-toolkit-typescript",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start",
+    "type-check": "tsc",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^1.3.6",
+    "next": "latest",
+    "react": "17.0.1",
+    "react-dom": "17.0.1",
+    "react-redux": "^7.2.0"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@testing-library/jest-dom": "^5.0.0",
+    "@testing-library/react": "^11.0.0",
+    "@testing-library/user-event": "^13.0.0",
+    "@types/jest": "^26.0.0",
+    "@types/node": "14.14.35",
+    "@types/react": "17.0.3",
+    "@types/react-dom": "17.0.2",
+    "@types/react-redux": "7.1.16",
+    "jest": "^26.0.0",
+    "jest-css-modules-transform": "^4.2.0",
+    "ts-jest": "^26.0.0",
+    "ts-node": "^9.0.0",
+    "typescript": "4.2.3"
+  }
+}

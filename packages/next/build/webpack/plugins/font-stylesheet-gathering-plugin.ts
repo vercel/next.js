@@ -16,26 +16,27 @@ import {
   OPTIMIZED_FONT_PROVIDERS,
 } from '../../../next-server/lib/constants'
 
-async function minifyCss(css: string): Promise<string> {
-  return new Promise((resolve) =>
-    postcss([
-      minifier({
-        excludeAll: true,
-        discardComments: true,
-        normalizeWhitespace: { exclude: false },
-      }),
-    ])
-      .process(css, { from: undefined })
-      .then((res) => {
-        resolve(res.css)
-      })
-  )
+function minifyCss(css: string): Promise<string> {
+  return postcss([
+    minifier({
+      excludeAll: true,
+      discardComments: true,
+      normalizeWhitespace: { exclude: false },
+    }),
+  ])
+    .process(css, { from: undefined })
+    .then((res) => res.css)
 }
 
 export class FontStylesheetGatheringPlugin {
   compiler?: webpack.Compiler
   gatheredStylesheets: Array<string> = []
   manifestContent: FontManifest = []
+  isLikeServerless: boolean
+
+  constructor({ isLikeServerless }: { isLikeServerless: boolean }) {
+    this.isLikeServerless = isLikeServerless
+  }
 
   private parserHandler = (
     factory: webpack.compilation.NormalModuleFactory
@@ -137,8 +138,7 @@ export class FontStylesheetGatheringPlugin {
       this.parserHandler
     )
     compiler.hooks.make.tapAsync(this.constructor.name, (compilation, cb) => {
-      // @ts-ignore
-      if (compilation.options.output.path.endsWith('serverless')) {
+      if (this.isLikeServerless) {
         /**
          * Inline font manifest for serverless case only.
          * For target: server drive the manifest through physical file and less of webpack magic.
@@ -169,11 +169,14 @@ export class FontStylesheetGatheringPlugin {
           this.manifestContent = []
           for (let promiseIndex in fontDefinitionPromises) {
             const css = await fontDefinitionPromises[promiseIndex]
-            const content = await minifyCss(css)
-            this.manifestContent.push({
-              url: this.gatheredStylesheets[promiseIndex],
-              content,
-            })
+
+            if (css) {
+              const content = await minifyCss(css)
+              this.manifestContent.push({
+                url: this.gatheredStylesheets[promiseIndex],
+                content,
+              })
+            }
           }
           if (!isWebpack5) {
             compilation.assets[FONT_MANIFEST] = new sources.RawSource(
@@ -196,7 +199,7 @@ export class FontStylesheetGatheringPlugin {
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
           },
           (assets: any) => {
-            assets[FONT_MANIFEST] = new sources.RawSource(
+            assets['../' + FONT_MANIFEST] = new sources.RawSource(
               JSON.stringify(this.manifestContent, null, '  ')
             )
           }

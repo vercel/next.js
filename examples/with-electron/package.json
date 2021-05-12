@@ -18,8 +18,8 @@
     ]
   },
   "devDependencies": {
-    "electron": "^7.1.7",
-    "electron-builder": "^21.2.0",
+    "electron": "^12.0.2",
+    "electron-builder": "^22.10.5",
     "next": "latest",
     "react": "^16.12.0",
     "react-dom": "^16.12.0"

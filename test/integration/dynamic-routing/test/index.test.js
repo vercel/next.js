@@ -30,6 +30,32 @@ const appDir = join(__dirname, '../')
 const buildIdPath = join(appDir, '.next/BUILD_ID')
 
 function runTests(dev) {
+  it('should handle only hash on dynamic route', async () => {
+    const browser = await webdriver(appPort, '/post-1')
+    const parsedHref = url.parse(
+      await browser
+        .elementByCss('#dynamic-route-only-hash')
+        .getAttribute('href')
+    )
+    expect(parsedHref.pathname).toBe('/post-1')
+    expect(parsedHref.hash).toBe('#only-hash')
+
+    const parsedHref2 = url.parse(
+      await browser
+        .elementByCss('#dynamic-route-only-hash-obj')
+        .getAttribute('href')
+    )
+    expect(parsedHref2.pathname).toBe('/post-1')
+    expect(parsedHref2.hash).toBe('#only-hash-obj')
+    expect(await browser.eval('window.location.hash')).toBe('')
+
+    await browser.elementByCss('#dynamic-route-only-hash').click()
+    expect(await browser.eval('window.location.hash')).toBe('#only-hash')
+
+    await browser.elementByCss('#dynamic-route-only-hash-obj').click()
+    expect(await browser.eval('window.location.hash')).toBe('#only-hash-obj')
+  })
+
   it('should navigate with hash to dynamic route with link', async () => {
     const browser = await webdriver(appPort, '/')
     await browser.eval('window.beforeNav = 1')
