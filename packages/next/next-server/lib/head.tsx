@@ -17,7 +17,7 @@ const SAFE_HEAD_CHECKS: Array<(e: React.ReactElement<any>) => boolean> = [
   (e) =>
     e.type === 'meta' &&
     /author|description|keywords|og:|twitter:/.test(e.props.name),
-  (e) => e.type === 'link' && e.props.rel === 'preload',
+  (e) => e.type === 'link' && ['preload', 'preconnect'].includes(e.props.rel),
 ]
 
 export function defaultHead(inAmpMode = false): JSX.Element[] {
