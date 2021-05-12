@@ -79,6 +79,7 @@ import { trace, setGlobal } from '../telemetry/trace'
 import {
   collectPages,
   detectConflictingPaths,
+  computeFromManifest,
   getJsPageSizeInKb,
   getNamedExports,
   hasCustomGetInitialProps,
@@ -724,6 +725,11 @@ export default async function build(
           )
         }
 
+        const computedManifestData = await computeFromManifest(
+          buildManifest,
+          distDir,
+          config.experimental.gzipSize
+        )
         await Promise.all(
           pageKeys.map(async (page) => {
             const checkPageSpan = staticCheckSpan.traceChild('check-page', {
@@ -735,7 +741,8 @@ export default async function build(
                 actualPage,
                 distDir,
                 buildManifest,
-                config.experimental.gzipSize
+                config.experimental.gzipSize,
+                computedManifestData
               )
 
               let isSsg = false

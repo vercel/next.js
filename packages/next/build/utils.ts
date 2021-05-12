@@ -395,7 +395,7 @@ let cachedBuildManifest: BuildManifest | undefined
 let lastCompute: ComputeManifestShape | undefined
 let lastComputePageInfo: boolean | undefined
 
-async function computeFromManifest(
+export async function computeFromManifest(
   manifest: BuildManifest,
   distPath: string,
   gzipSize: boolean = true,
@@ -507,9 +507,12 @@ export async function getJsPageSizeInKb(
   page: string,
   distPath: string,
   buildManifest: BuildManifest,
-  gzipSize: boolean = true
+  gzipSize: boolean = true,
+  computedManifestData?: ComputeManifestShape
 ): Promise<[number, number]> {
-  const data = await computeFromManifest(buildManifest, distPath, gzipSize)
+  const data =
+    computedManifestData ||
+    (await computeFromManifest(buildManifest, distPath, gzipSize))
 
   const fnFilterJs = (entry: string) => entry.endsWith('.js')
 
