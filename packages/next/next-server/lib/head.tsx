@@ -11,14 +11,18 @@ type WithInAmpMode = {
 const DEFAULT_CHARSET = <meta charSet="utf-8" />
 const DEFAULT_VIEWPORT = <meta name="viewport" content="width=device-width" />
 
-const SAFE_HEAD_CHECKS: Array<(e: React.ReactElement<any>) => boolean> = [
-  (e) => e === DEFAULT_CHARSET || e === DEFAULT_VIEWPORT,
-  (e) => e.type === 'title',
-  (e) =>
-    e.type === 'meta' &&
-    /author|description|keywords|og:|twitter:/.test(e.props.name),
-  (e) => e.type === 'link' && ['preload', 'preconnect'].includes(e.props.rel),
-]
+const SAFE_HEAD_CHECKS: Array<(e: React.ReactElement<any>) => boolean> =
+  process.env.NODE_ENV !== 'production'
+    ? [
+        (e) => e === DEFAULT_CHARSET || e === DEFAULT_VIEWPORT,
+        (e) => e.type === 'title',
+        (e) =>
+          e.type === 'meta' &&
+          /author|description|keywords|og:|twitter:/.test(e.props.name),
+        (e) =>
+          e.type === 'link' && ['preload', 'preconnect'].includes(e.props.rel),
+      ]
+    : []
 
 export function defaultHead(inAmpMode = false): JSX.Element[] {
   const head = [DEFAULT_CHARSET]
@@ -150,10 +154,8 @@ function reduceComponents(
     .filter(unique())
     .reverse()
     .map((c) => {
-      if (process.env.NODE_ENV !== 'production') {
-        shouldWarn =
-          shouldWarn || !SAFE_HEAD_CHECKS.map((fn) => fn(c)).includes(true)
-      }
+      shouldWarn =
+        shouldWarn || !SAFE_HEAD_CHECKS.map((fn) => fn(c)).includes(true)
       return c
     })
     .map((c: React.ReactElement<any>, i: number) => {
