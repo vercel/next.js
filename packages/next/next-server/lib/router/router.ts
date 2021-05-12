@@ -271,7 +271,14 @@ export function resolveHref(
   resolveAs?: boolean
 ): string {
   // we use a dummy base url for relative urls
-  const base = new URL(currentPath, 'http://n')
+  let base: URL
+
+  try {
+    base = new URL(currentPath, 'http://n')
+  } catch (_) {
+    // fallback to / for invalid asPath values e.g. //
+    base = new URL('/', 'http://n')
+  }
   const urlAsString =
     typeof href === 'string' ? href : formatWithValidation(href)
   // Return because it cannot be routed by the Next.js router
@@ -328,7 +335,7 @@ function stripOrigin(url: string) {
 function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
-  let [resolvedHref, resolvedAs] = resolveHref(router.pathname, url, true)
+  let [resolvedHref, resolvedAs] = resolveHref(router.asPath, url, true)
   const origin = getLocationOrigin()
   const hrefHadOrigin = resolvedHref.startsWith(origin)
   const asHadOrigin = resolvedAs && resolvedAs.startsWith(origin)
@@ -338,7 +345,7 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
 
   const preparedUrl = hrefHadOrigin ? resolvedHref : addBasePath(resolvedHref)
   const preparedAs = as
-    ? stripOrigin(resolveHref(router.pathname, as))
+    ? stripOrigin(resolveHref(router.asPath, as))
     : resolvedAs || resolvedHref
 
   return {
@@ -1371,6 +1378,9 @@ export default class Router implements BaseRouter {
                 pathname,
                 query,
                 asPath: as,
+                locale: this.locale,
+                locales: this.locales,
+                defaultLocale: this.defaultLocale,
               } as any
             )
       )
