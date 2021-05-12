@@ -4,7 +4,7 @@ const isServer = typeof window === 'undefined'
 
 type State = {
   components: JSX.Element[] | undefined
-  shouldWarn: boolean
+  safetyViolations: string[]
 }
 
 type SideEffectProps = {
@@ -30,11 +30,13 @@ export default class extends Component<SideEffectProps> {
       if (
         process.env.NODE_ENV !== 'production' &&
         !this._hasWarned &&
-        state.shouldWarn
+        state.safetyViolations.length > 0
       ) {
         this._hasWarned = true
+        const s = state.safetyViolations.length === 1 ? '' : 's'
         console.warn(
-          `You are using next/head in unsafe ways that may prevent you from using future React and Next.js features.` +
+          `You are using next/head in the following unsafe way${s} that may prevent you from using future React and Next.js features:\n` +
+            state.safetyViolations.map((v) => `- ${v}`).join('\n') +
             '\nLearn more here: https://nextjs.org/docs/messages/next-head-unsafe'
         )
       }

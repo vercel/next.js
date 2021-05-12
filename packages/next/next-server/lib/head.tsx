@@ -11,19 +11,6 @@ type WithInAmpMode = {
 const DEFAULT_CHARSET = <meta charSet="utf-8" />
 const DEFAULT_VIEWPORT = <meta name="viewport" content="width=device-width" />
 
-const SAFE_HEAD_CHECKS: Array<(e: React.ReactElement<any>) => boolean> =
-  process.env.NODE_ENV !== 'production'
-    ? [
-        (e) => e === DEFAULT_CHARSET || e === DEFAULT_VIEWPORT,
-        (e) => e.type === 'title',
-        (e) =>
-          e.type === 'meta' &&
-          /author|description|keywords|og:|twitter:|robots/.test(e.props.name),
-        (e) =>
-          e.type === 'link' && ['preload', 'preconnect'].includes(e.props.rel),
-      ]
-    : []
-
 export function defaultHead(inAmpMode = false): JSX.Element[] {
   const head = [DEFAULT_CHARSET]
   if (!inAmpMode) {
@@ -136,8 +123,11 @@ function unique() {
 function reduceComponents(
   headElements: Array<React.ReactElement<any>>,
   props: WithInAmpMode
-): { components: JSX.Element[]; shouldWarn: boolean } {
-  let shouldWarn = headElements.length > 1
+): { components: JSX.Element[]; safetyViolations: string[] } {
+  const safetyViolations: Set<string> = new Set()
+  if (process.env.NODE_ENV !== 'production' && headElements.length > 1) {
+    safetyViolations.add('More than one instance of <Head>')
+  }
   const components = headElements
     .reduce(
       (list: React.ReactChild[], headElement: React.ReactElement<any>) => {
@@ -154,8 +144,44 @@ function reduceComponents(
     .filter(unique())
     .reverse()
     .map((c) => {
-      shouldWarn =
-        shouldWarn || !SAFE_HEAD_CHECKS.map((fn) => fn(c)).includes(true)
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        !(c === DEFAULT_CHARSET || c === DEFAULT_VIEWPORT)
+      ) {
+        function isCustomReactElement(elem: React.ReactElement<any>) {
+          return typeof elem.type !== 'string'
+        }
+
+        function isSafeNativeElement(elem: React.ReactElement<any>) {
+          if (elem.type === 'title') {
+            return true
+          }
+          if (
+            elem.type === 'link' &&
+            ['preload', 'preconnect'].includes(elem.props.rel)
+          ) {
+            return true
+          }
+          if (
+            elem.type === 'meta' &&
+            /author|description|keywords|og:|twitter:|robots/.test(
+              elem.props.name
+            )
+          ) {
+            return true
+          }
+          return false
+        }
+
+        if (isCustomReactElement(c)) {
+          safetyViolations.add('Custom React Element')
+        } else if (!isSafeNativeElement(c)) {
+          const { renderToStaticMarkup } = require('react-dom/server')
+          safetyViolations.add(
+            `Behavioral Element (${renderToStaticMarkup(c)})`
+          )
+        }
+      }
       return c
     })
     .map((c: React.ReactElement<any>, i: number) => {
@@ -177,16 +203,12 @@ function reduceComponents(
           const newProps = { ...(c.props || {}) }
           newProps['data-href'] = newProps['href']
           newProps['href'] = undefined
-
-          // Add this attribute to make it easy to identify optimized tags
-          newProps['data-optimized-fonts'] = true
-
           return React.cloneElement(c, newProps)
         }
       }
       return React.cloneElement(c, { key })
     })
-  return { components, shouldWarn }
+  return { components, safetyViolations: Array.from(safetyViolations) }
 }
 
 /**

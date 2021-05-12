@@ -17,9 +17,11 @@ may differ depending on when they unsuspend. Instead, you should only render `<H
 You can put it anywhere in the tree and use [Context](https://reactjs.org/docs/context.html) to pass down
 additional data or options if needed.
 
-##### Only use `<Head>` for cosmetic tags
+##### Only use `<Head>` for non-behavioral tags
 
-You should only use `<Head>` for _cosmetic_ or _optional_ tags, such as `<title>`, or `<meta name="author|description|keywords|og:*|twitter:*" />`.
+You should only use `<Head>` for tags such as `<title>`, or `<meta name="author|description|keywords|og:*|twitter:*" />` that
+don't affect browser behavior.
+
 All other tags should be put in a [custom `Document`](https://nextjs.org/docs/advanced-features/custom-document) component instead.
 
 ##### Only use native DOM tags in `<Head>`

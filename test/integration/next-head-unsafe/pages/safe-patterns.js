@@ -6,7 +6,7 @@ export default function Safe() {
       <title>Foo</title>
       <link rel="preload" />
       <link rel="preconnect" />
-      <meta name="author" content="" />
+      <meta name="author" />
       <meta name="description" />
       <meta name="keywords" />
       <meta name="og:title" />
