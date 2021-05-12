@@ -137,7 +137,7 @@ function reduceComponents(
   headElements: Array<React.ReactElement<any>>,
   props: WithInAmpMode
 ): { components: JSX.Element[]; shouldWarn: boolean } {
-  let shouldWarn = false
+  let shouldWarn = headElements.length > 1
   const components = headElements
     .reduce(
       (list: React.ReactChild[], headElement: React.ReactElement<any>) => {
