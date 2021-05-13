@@ -16,7 +16,7 @@ import Script from 'next/experimental-script'
 const Home = () => {
   return (
     <div class="container">
-      <Script src="https://third-party-script.js" strategy="defer"></Script>
+      <Script src="https://third-party-script.js"></Script>
       <div>Home Page</div>
     </div>
   )
