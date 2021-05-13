@@ -147,13 +147,18 @@ function reduceComponents(
           c.type === 'link' &&
           c.props['href'] &&
           // TODO(prateekbh@): Replace this with const from `constants` when the tree shaking works.
-          ['https://fonts.googleapis.com/css'].some((url) =>
-            c.props['href'].startsWith(url)
-          )
+          [
+            'https://fonts.googleapis.com/css',
+            'https://use.typekit.net/',
+          ].some((url) => c.props['href'].startsWith(url))
         ) {
           const newProps = { ...(c.props || {}) }
           newProps['data-href'] = newProps['href']
           newProps['href'] = undefined
+
+          // Add this attribute to make it easy to identify optimized tags
+          newProps['data-optimized-fonts'] = true
+
           return React.cloneElement(c, newProps)
         }
       }

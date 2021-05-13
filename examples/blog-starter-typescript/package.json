@@ -8,7 +8,7 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "classnames": "2.2.6",
+    "classnames": "2.3.1",
     "date-fns": "2.10.0",
     "gray-matter": "4.0.2",
     "next": "latest",
@@ -19,7 +19,6 @@
     "typescript": "^4.0.3"
   },
   "devDependencies": {
-    "@types/classnames": "^2.2.10",
     "@types/jest": "^25.2.2",
     "@types/node": "^14.0.1",
     "@types/react": "^16.9.35",

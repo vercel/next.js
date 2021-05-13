@@ -1378,6 +1378,9 @@ export default class Router implements BaseRouter {
                 pathname,
                 query,
                 asPath: as,
+                locale: this.locale,
+                locales: this.locales,
+                defaultLocale: this.defaultLocale,
               } as any
             )
       )
