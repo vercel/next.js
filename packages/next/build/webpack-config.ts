@@ -287,7 +287,6 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/]next-server[\\/]lib/,
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
-    /[\\/](strip-ansi|ansi-regex)[\\/]/,
   ]
 
   // Support for NODE_PATH
@@ -1260,6 +1259,7 @@ export default async function getBaseWebpackConfig(
       pageEnv: config.experimental.pageEnv,
       excludeDefaultMomentLocales: config.future.excludeDefaultMomentLocales,
       assetPrefix: config.assetPrefix,
+      disableOptimizedLoading: config.experimental.disableOptimizedLoading,
       target,
       reactProductionProfiling,
       webpack: !!config.webpack,
