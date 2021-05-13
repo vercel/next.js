@@ -977,13 +977,6 @@ export default class Router implements BaseRouter {
       ? removePathTrailingSlash(delBasePath(pathname))
       : pathname
 
-    console.log({
-      shouldResolveHref,
-      pathname,
-      url,
-      as,
-    })
-
     if (shouldResolveHref && pathname !== '/_error') {
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
         const rewritesResult = resolveRewrites(
