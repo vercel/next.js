@@ -289,6 +289,7 @@ export default class Router {
       if (keepLocale) {
         if (
           !testRoute.internal &&
+          parsedUrl.query && 
           parsedUrl.query.__nextLocale &&
           !localePathResult.detectedLocale
         ) {
