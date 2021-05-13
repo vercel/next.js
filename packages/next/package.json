@@ -220,6 +220,7 @@
     "loader-utils": "2.0.0",
     "lodash.curry": "4.1.1",
     "lru-cache": "5.1.1",
+    "mini-css-extract-plugin": "1.5.0",
     "nanoid": "3.1.20",
     "neo-async": "2.6.1",
     "ora": "4.0.4",
