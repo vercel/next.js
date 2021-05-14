@@ -268,24 +268,24 @@ describe('SCSS Support', () => {
 
       const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
       expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
-        Object {
-          "mappings": "AACA,gCAEI,SAHK,CACT,uBAEI,SAHK,CAIN,cAID,2CAA4C",
-          "sourcesContent": Array [
-            "$var: red;
-        .redText {
-          ::placeholder {
-            color: $var;
-          }
-        }
+Object {
+  "mappings": "AACA,gCAEI,SAHK,CACT,uBAEI,SAHK,CAIN,cAID,2CAA4C",
+  "sourcesContent": Array [
+    "$var: red;
+.redText {
+  ::placeholder {
+    color: $var;
+  }
+}
 
-        .flex-parsing {
-          flex: 0 0 calc(50% - var(--vertical-gutter));
-        }
-        ",
-          ],
-          "version": 3,
-        }
-      `)
+.flex-parsing {
+  flex: 0 0 calc(50% - var(--vertical-gutter));
+}
+",
+  ],
+  "version": 3,
+}
+`)
     })
   })
 
