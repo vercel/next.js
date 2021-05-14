@@ -74,7 +74,7 @@
     "browserify-zlib": "0.2.0",
     "browserslist": "4.16.6",
     "buffer": "5.6.0",
-    "caniuse-lite": "^1.0.30001219",
+    "caniuse-lite": "^1.0.30001228",
     "chalk": "2.4.2",
     "chokidar": "3.5.1",
     "constants-browserify": "1.0.0",
