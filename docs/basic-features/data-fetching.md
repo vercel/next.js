@@ -72,7 +72,7 @@ The `context` parameter is an object containing the following keys:
 
 `getStaticProps` should return an object with:
 
-- `props` - A **required** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
+- `props` - An **optional** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
 - `revalidate` - An **optional** amount in seconds after which a page re-generation can occur. More on [Incremental Static Regeneration](#incremental-static-regeneration)
 - `notFound` - An **optional** boolean value to allow the page to return a 404 status and page. Below is an example of how it works:
 
@@ -672,7 +672,7 @@ The `context` parameter is an object containing the following keys:
 
 `getServerSideProps` should return an object with:
 
-- `props` - A **required** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
+- `props` - An **optional** object with the props that will be received by the page component. It should be a [serializable object](https://en.wikipedia.org/wiki/Serialization)
 - `notFound` - An **optional** boolean value to allow the page to return a 404 status and page. Below is an example of how it works:
 
   ```js
