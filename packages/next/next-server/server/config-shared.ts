@@ -61,6 +61,7 @@ export type NextConfig = { [key: string]: any } & {
     eslint?: boolean
     reactRoot: boolean
     enableBlurryPlaceholder: boolean
+    disableOptimizedLoading: boolean
     gzipSize: boolean
   }
 }
@@ -119,6 +120,7 @@ export const defaultConfig: NextConfig = {
     eslint: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     enableBlurryPlaceholder: false,
+    disableOptimizedLoading: true,
     gzipSize: true,
   },
   future: {
