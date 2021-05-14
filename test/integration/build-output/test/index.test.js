@@ -126,10 +126,10 @@ describe('Build Output', () => {
           expect(parseFloat(indexFirstLoad)).toBeCloseTo(gz ? 63.6 : 195, 1)
           expect(indexFirstLoad.endsWith('kB')).toBe(true)
 
-          expect(parseFloat(err404Size)).toBeCloseTo(gz ? 3.16 : 8.15, 1)
+          expect(parseFloat(err404Size)).toBeCloseTo(gz ? 3.16 : 8.34, 1)
           expect(err404Size.endsWith('kB')).toBe(true)
 
-          expect(parseFloat(err404FirstLoad)).toBeCloseTo(gz ? 66.4 : 203, 1)
+          expect(parseFloat(err404FirstLoad)).toBeCloseTo(gz ? 66.5 : 203, 1)
           expect(err404FirstLoad.endsWith('kB')).toBe(true)
 
           expect(parseFloat(sharedByAll)).toBeCloseTo(gz ? 63.4 : 195, 1)
