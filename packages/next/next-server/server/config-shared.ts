@@ -51,7 +51,6 @@ export type NextConfig = { [key: string]: any } & {
     stats?: boolean
     externalDir?: boolean
     serialWebpackBuild?: boolean
-    babelMultiThread?: boolean
     conformance?: boolean
     amp?: {
       optimizer?: any
@@ -62,6 +61,7 @@ export type NextConfig = { [key: string]: any } & {
     eslint?: boolean
     reactRoot: boolean
     enableBlurryPlaceholder: boolean
+    disableOptimizedLoading: boolean
   }
 }
 
@@ -119,6 +119,7 @@ export const defaultConfig: NextConfig = {
     eslint: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     enableBlurryPlaceholder: false,
+    disableOptimizedLoading: true,
   },
   future: {
     strictPostcssConfiguration: false,
