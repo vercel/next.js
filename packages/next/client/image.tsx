@@ -685,6 +685,6 @@ function defaultLoader({
   }
 
   return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}${
-    isStatic ? '&s=true' : ''
+    isStatic ? '&s=1' : ''
   }`
 }

@@ -111,9 +111,9 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  if (s && s !== 'true') {
+  if (s && s !== '1') {
     res.statusCode = 400
-    res.end('"s" parameter must be "true" or omitted')
+    res.end('"s" parameter must be "1" or omitted')
     return { finished: true }
   }
 
