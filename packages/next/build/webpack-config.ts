@@ -287,7 +287,6 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/]next-server[\\/]lib/,
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
-    /[\\/](strip-ansi|ansi-regex)[\\/]/,
   ]
 
   // Support for NODE_PATH
@@ -503,7 +502,7 @@ export default async function getBaseWebpackConfig(
       // and all other chunk depend on them so there is no
       // duplication that need to be pulled out.
       chunks: isWebpack5
-        ? (chunk) => !/^(main|pages\/_app)$/.test(chunk.name)
+        ? (chunk) => !/^(polyfills|main|pages\/_app)$/.test(chunk.name)
         : 'all',
       cacheGroups: {
         framework: {
@@ -902,13 +901,13 @@ export default async function getBaseWebpackConfig(
         isServer && isWebpack5 && !dev
           ? path.join(outputPath, 'chunks')
           : outputPath,
-      // On the server we don't use the chunkhash
+      // On the server we don't use hashes
       filename: isServer
         ? isWebpack5 && !dev
           ? '../[name].js'
           : '[name].js'
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
-            dev ? '' : '-[chunkhash]'
+            dev ? '' : isWebpack5 ? '-[contenthash]' : '-[chunkhash]'
           }.js`,
       library: isServer ? undefined : '_N_E',
       libraryTarget: isServer ? 'commonjs2' : 'assign',
@@ -1260,9 +1259,11 @@ export default async function getBaseWebpackConfig(
       pageEnv: config.experimental.pageEnv,
       excludeDefaultMomentLocales: config.future.excludeDefaultMomentLocales,
       assetPrefix: config.assetPrefix,
+      disableOptimizedLoading: config.experimental.disableOptimizedLoading,
       target,
       reactProductionProfiling,
       webpack: !!config.webpack,
+      hasRewrites,
     })
 
     const cache: any = {
@@ -1282,9 +1283,6 @@ export default async function getBaseWebpackConfig(
     }
 
     webpackConfig.cache = cache
-
-    // @ts-ignore TODO: remove ignore when webpack 5 is stable
-    webpackConfig.optimization.realContentHash = false
 
     if (process.env.NEXT_WEBPACK_LOGGING) {
       const logInfra = process.env.NEXT_WEBPACK_LOGGING.includes(
@@ -1623,7 +1621,12 @@ export default async function getBaseWebpackConfig(
 
       if (isWebpack5 && !isServer) {
         for (const name of Object.keys(entry)) {
-          if (name === 'main' || name === 'amp' || name === 'react-refresh')
+          if (
+            name === 'polyfills' ||
+            name === 'main' ||
+            name === 'amp' ||
+            name === 'react-refresh'
+          )
             continue
           const dependOn =
             name.startsWith('pages/') && name !== 'pages/_app'

@@ -1,38 +1,36 @@
-import { useRef, useState, useEffect } from 'react'
-import * as THREE from 'three'
+import { useEffect } from 'react'
+import { useFrame } from '@react-three/fiber'
+import { useAnimations, useGLTF } from '@react-three/drei'
 
-import { useFrame, useLoader } from 'react-three-fiber'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
+export default function Bird({ speed, factor, url, ...props }) {
+  const { nodes, animations } = useGLTF(url)
+  const { ref, mixer } = useAnimations(animations)
 
-const Bird = ({ speed, factor, url, ...props }) => {
-  const gltf = useLoader(GLTFLoader, url)
-  const group = useRef()
-  const [mixer] = useState(() => new THREE.AnimationMixer())
-
-  useEffect(
-    () => void mixer.clipAction(gltf.animations[0], group.current).play(),
-    [gltf.animations, mixer]
-  )
+  useEffect(() => void mixer.clipAction(animations[0], ref.current).play(), [
+    mixer,
+    animations,
+    ref,
+  ])
 
   useFrame((state, delta) => {
-    group.current.rotation.y +=
+    ref.current.rotation.y +=
       Math.sin((delta * factor) / 2) * Math.cos((delta * factor) / 2) * 1.5
     mixer.update(delta * speed)
   })
 
   return (
-    <group ref={group}>
+    <group ref={ref}>
       <scene name="Scene" {...props}>
         <mesh
           name="Object_0"
-          morphTargetDictionary={gltf.nodes.Object_0.morphTargetDictionary}
-          morphTargetInfluences={gltf.nodes.Object_0.morphTargetInfluences}
+          morphTargetDictionary={nodes.Object_0.morphTargetDictionary}
+          morphTargetInfluences={nodes.Object_0.morphTargetInfluences}
           rotation={[1.5707964611537577, 0, 0]}
         >
-          <bufferGeometry attach="geometry" {...gltf.nodes.Object_0.geometry} />
+          <bufferGeometry attach="geometry" {...nodes.Object_0.geometry} />
           <meshStandardMaterial
             attach="material"
-            {...gltf.nodes.Object_0.material}
+            {...nodes.Object_0.material}
             name="Material_0_COLOR_0"
           />
         </mesh>
@@ -40,5 +38,3 @@ const Bird = ({ speed, factor, url, ...props }) => {
     </group>
   )
 }
-
-export default Bird

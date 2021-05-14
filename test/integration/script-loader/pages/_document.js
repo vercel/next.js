@@ -21,14 +21,14 @@ export default class MyDocument extends Document {
             href="https://fonts.googleapis.com/css?family=Voces"
           />
           <Script
-            id="documentAfterInteraction"
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentAfterInteraction"
-            strategy="afterInteraction"
+            id="documentAfterInteractive"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentAfterInteractive"
+            strategy="afterInteractive"
           ></Script>
           <Script
-            id="documentLazy"
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentLazy"
-            strategy="lazy"
+            id="documentLazyOnload"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentLazyOnload"
+            strategy="lazyOnload"
           ></Script>
           <Script
             id="documentBlock"
@@ -36,9 +36,9 @@ export default class MyDocument extends Document {
             strategy="dangerouslyBlockRendering"
           ></Script>
           <Script
-            id="documentBeforeInteraction"
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentBeforeInteraction"
-            strategy="beforeInteraction"
+            id="documentBeforeInteractive"
+            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentBeforeInteractive"
+            strategy="beforeInteractive"
           ></Script>
         </Head>
         <body>

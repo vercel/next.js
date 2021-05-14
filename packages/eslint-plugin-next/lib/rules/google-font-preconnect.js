@@ -26,7 +26,8 @@ module.exports = {
           attributes.value('rel') !== 'preconnect'
 
         if (
-          hrefValue.includes('https://fonts.gstatic.com') &&
+          typeof hrefValue === 'string' &&
+          hrefValue.startsWith('https://fonts.gstatic.com') &&
           preconnectMissing
         ) {
           context.report({
