@@ -56,7 +56,11 @@ function assignDefaults(userConfig: { [key: string]: any }) {
         return currentConfig
       }
 
-      if (key === 'experimental' && value && value !== defaultConfig[key]) {
+      if (
+        key === 'experimental' &&
+        value !== undefined &&
+        value !== defaultConfig[key]
+      ) {
         experimentalWarning()
       }
 
