@@ -31,15 +31,15 @@ const runTests = () => {
   it('Should automatically provide an image height and width', async () => {
     expect(html).toContain('width:400px;height:300px')
   })
-  it('Should append "&s=true" to URLs of static images', async () => {
+  it('Should append "&s=1" to URLs of static images', async () => {
     expect(
       await browser.elementById('basic-static').getAttribute('src')
-    ).toContain('&s=true')
+    ).toContain('&s=1')
   })
-  it('Should not append "&s=true" to URLs of non-static images', async () => {
+  it('Should not append "&s=1" to URLs of non-static images', async () => {
     expect(
       await browser.elementById('basic-non-static').getAttribute('src')
-    ).not.toContain('&s=true')
+    ).not.toContain('&s=1')
   })
 }
 
