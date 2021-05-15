@@ -1050,20 +1050,20 @@ export default class Router implements BaseRouter {
                   ', '
                 )} in the \`href\`'s \`query\``
             )
-          }
 
-          throw new Error(
-            (shouldInterpolate
-              ? `The provided \`href\` (${url}) value is missing query values (${missingParams.join(
-                  ', '
-                )}) to be interpolated properly. `
-              : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) +
-              `Read more: https://nextjs.org/docs/messages/${
-                shouldInterpolate
-                  ? 'href-interpolation-failed'
-                  : 'incompatible-href-as'
-              }`
-          )
+            throw new Error(
+              (shouldInterpolate
+                ? `The provided \`href\` (${url}) value is missing query values (${missingParams.join(
+                    ', '
+                  )}) to be interpolated properly. `
+                : `The provided \`as\` value (${asPathname}) is incompatible with the \`href\` value (${route}). `) +
+                `Read more: https://nextjs.org/docs/messages/${
+                  shouldInterpolate
+                    ? 'href-interpolation-failed'
+                    : 'incompatible-href-as'
+                }`
+            )
+          }
         }
       } else if (shouldInterpolate) {
         as = formatWithValidation(
