@@ -63,7 +63,7 @@
   },
   "dependencies": {
     "@babel/runtime": "7.12.5",
-    "@hapi/accept": "5.0.1",
+    "@hapi/accept": "5.0.2",
     "@next/env": "10.2.1-canary.8",
     "@next/polyfill-module": "10.2.1-canary.8",
     "@next/react-dev-overlay": "10.2.1-canary.8",
