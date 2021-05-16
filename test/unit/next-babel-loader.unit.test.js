@@ -11,10 +11,13 @@ const path = require('path')
 
 const dir = path.resolve(os.tmpdir())
 
-const babel = async (
-  code,
-  { isServer = false, resourcePath = 'index.js', development = false } = {}
-) => {
+const babel = async (code, queryOpts = {}) => {
+  const {
+    isServer = false,
+    resourcePath = 'index.js',
+    development = false,
+  } = queryOpts
+
   let isAsync = false
   return new Promise((resolve, reject) => {
     function callback(err, content) {
@@ -47,9 +50,11 @@ const babel = async (
         cwd: dir,
         isServer,
         distDir: path.resolve(dir, '.next'),
-        pagesDir: path.resolve(dir, 'pages'),
+        pagesDir:
+          'pagesDir' in queryOpts
+            ? queryOpts.pagesDir
+            : path.resolve(dir, 'pages'),
         cache: false,
-        babelPresetPlugins: [],
         development,
         hasReactRefresh: Boolean(!isServer && development),
       },
@@ -195,6 +200,28 @@ describe('next-babel-loader', () => {
     it('should replace NODE_ENV in !== statement (prod)', async () => {
       const code = await babel(`if (process.env.NODE_ENV !== 'production') {}`)
       expect(code).toMatchInlineSnapshot(`"if(false){}"`)
+    })
+
+    it('should handle no pagesDir', async () => {
+      const code = await babel(
+        `
+        import dynamic from 'next/dynamic'
+        
+        const Comp = dynamic(() => import('comp'))
+        
+        export default function Page(props) {
+          return <Comp />
+        }
+      `,
+        {
+          pagesDir: undefined,
+        }
+      )
+      expect(
+        code.replace(/modules:\[".*?"/, 'modules:["/path/to/page"')
+      ).toMatchInlineSnapshot(
+        `"import React from\\"react\\";var __jsx=React.createElement;import dynamic from'next/dynamic';var Comp=dynamic(function(){return import('comp');},{loadableGenerated:{webpack:function webpack(){return[require.resolveWeak('comp')];},modules:[\\"/path/to/page\\"+'comp']}});export default function Page(props){return __jsx(Comp,null);}"`
+      )
     })
 
     it('should not drop unused exports by default', async () => {

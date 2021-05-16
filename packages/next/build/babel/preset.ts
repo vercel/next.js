@@ -41,7 +41,6 @@ type NextBabelPresetOptions = {
   'preset-react'?: any
   'class-properties'?: any
   'transform-runtime'?: any
-  'experimental-modern-preset'?: PluginItem
   'styled-jsx'?: StyledJsxBabelOptions
   'preset-typescript'?: any
 }
@@ -89,10 +88,6 @@ export default (
     (Boolean(api.caller((caller: any) => !!caller && caller.hasJsxRuntime)) &&
       options['preset-react']?.runtime !== 'classic')
 
-  const isLaxModern =
-    options['preset-env']?.targets &&
-    options['preset-env'].targets.esmodules === true
-
   const presetEnvConfig = {
     // In the test environment `modules` is often needed to be set to true, babel figures that out by itself using the `'auto'` option
     // In production/development this option is set to `false` so that webpack can handle import/export with tree-shaking
@@ -122,17 +117,10 @@ export default (
     }
   }
 
-  // specify a preset to use instead of @babel/preset-env
-  const customModernPreset =
-    isLaxModern && options['experimental-modern-preset']
-
   return {
     sourceType: 'unambiguous',
     presets: [
-      customModernPreset || [
-        require('next/dist/compiled/babel/preset-env'),
-        presetEnvConfig,
-      ],
+      [require('next/dist/compiled/babel/preset-env'), presetEnvConfig],
       [
         require('next/dist/compiled/babel/preset-react'),
         {

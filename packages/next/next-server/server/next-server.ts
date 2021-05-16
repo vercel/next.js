@@ -92,6 +92,7 @@ import cookie from 'next/dist/compiled/cookie'
 import escapePathDelimiters from '../lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../../build/webpack/loaders/next-serverless-loader/utils'
 import { PreviewData } from 'next/types'
+import HotReloader from '../../server/hot-reloader'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -156,6 +157,7 @@ export default class Server {
     images: string
     fontManifest: FontManifest
     optimizeImages: boolean
+    disableOptimizedLoading: boolean
     optimizeCss: any
     locale?: string
     locales?: string[]
@@ -164,7 +166,6 @@ export default class Server {
     distDir: string
   }
   private compression?: Middleware
-  private onErrorMiddleware?: ({ err }: { err: Error }) => Promise<void>
   private incrementalCache: IncrementalCache
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
@@ -217,6 +218,8 @@ export default class Server {
           : null,
       optimizeImages: !!this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
+      disableOptimizedLoading: this.nextConfig.experimental
+        .disableOptimizedLoading,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
     }
@@ -251,18 +254,6 @@ export default class Server {
     this.router = new Router(this.generateRoutes())
     this.setAssetPrefix(assetPrefix)
 
-    // call init-server middleware, this is also handled
-    // individually in serverless bundles when deployed
-    if (!dev && this.nextConfig.experimental.plugins) {
-      const initServer = require(join(this.serverBuildDir, 'init-server.js'))
-        .default
-      this.onErrorMiddleware = require(join(
-        this.serverBuildDir,
-        'on-error-server.js'
-      )).default
-      initServer()
-    }
-
     this.incrementalCache = new IncrementalCache({
       dev,
       distDir: this.distDir,
@@ -293,9 +284,6 @@ export default class Server {
   }
 
   public logError(err: Error): void {
-    if (this.onErrorMiddleware) {
-      this.onErrorMiddleware({ err })
-    }
     if (this.quiet) return
     console.error(err)
   }
@@ -830,28 +818,30 @@ export default class Server {
     }
 
     // Headers come very first
-    const headers = this.customRoutes.headers.map((r) => {
-      const headerRoute = getCustomRoute(r, 'header')
-      return {
-        match: headerRoute.match,
-        has: headerRoute.has,
-        type: headerRoute.type,
-        name: `${headerRoute.type} ${headerRoute.source} header route`,
-        fn: async (_req, res, params, _parsedUrl) => {
-          const hasParams = Object.keys(params).length > 0
+    const headers = this.minimalMode
+      ? []
+      : this.customRoutes.headers.map((r) => {
+          const headerRoute = getCustomRoute(r, 'header')
+          return {
+            match: headerRoute.match,
+            has: headerRoute.has,
+            type: headerRoute.type,
+            name: `${headerRoute.type} ${headerRoute.source} header route`,
+            fn: async (_req, res, params, _parsedUrl) => {
+              const hasParams = Object.keys(params).length > 0
 
-          for (const header of (headerRoute as Header).headers) {
-            let { key, value } = header
-            if (hasParams) {
-              key = compileNonPath(key, params)
-              value = compileNonPath(value, params)
-            }
-            res.setHeader(key, value)
-          }
-          return { finished: false }
-        },
-      } as Route
-    })
+              for (const header of (headerRoute as Header).headers) {
+                let { key, value } = header
+                if (hasParams) {
+                  key = compileNonPath(key, params)
+                  value = compileNonPath(value, params)
+                }
+                res.setHeader(key, value)
+              }
+              return { finished: false }
+            },
+          } as Route
+        })
 
     // since initial query values are decoded by querystring.parse
     // we need to re-encode them here but still allow passing through
@@ -939,12 +929,29 @@ export default class Server {
               target,
               changeOrigin: true,
               ignorePath: true,
+              proxyTimeout: 30_000, // limit proxying to 30 seconds
             })
-            proxy.web(req, res)
 
-            proxy.on('error', (err: Error) => {
-              console.error(`Error occurred proxying ${target}`, err)
+            await new Promise((proxyResolve, proxyReject) => {
+              let finished = false
+
+              proxy.on('proxyReq', (proxyReq) => {
+                proxyReq.on('close', () => {
+                  if (!finished) {
+                    finished = true
+                    proxyResolve(true)
+                  }
+                })
+              })
+              proxy.on('error', (err) => {
+                if (!finished) {
+                  finished = true
+                  proxyReject(err)
+                }
+              })
+              proxy.web(req, res)
             })
+
             return {
               finished: true,
             }
@@ -966,12 +973,14 @@ export default class Server {
     let afterFiles: Route[] = []
     let fallback: Route[] = []
 
-    if (Array.isArray(this.customRoutes.rewrites)) {
-      afterFiles = this.customRoutes.rewrites.map(buildRewrite)
-    } else {
-      beforeFiles = this.customRoutes.rewrites.beforeFiles.map(buildRewrite)
-      afterFiles = this.customRoutes.rewrites.afterFiles.map(buildRewrite)
-      fallback = this.customRoutes.rewrites.fallback.map(buildRewrite)
+    if (!this.minimalMode) {
+      if (Array.isArray(this.customRoutes.rewrites)) {
+        afterFiles = this.customRoutes.rewrites.map(buildRewrite)
+      } else {
+        beforeFiles = this.customRoutes.rewrites.beforeFiles.map(buildRewrite)
+        afterFiles = this.customRoutes.rewrites.afterFiles.map(buildRewrite)
+        fallback = this.customRoutes.rewrites.fallback.map(buildRewrite)
+      }
     }
 
     const catchAllRoute: Route = {
@@ -1156,8 +1165,7 @@ export default class Server {
       query,
       pageModule,
       this.renderOpts.previewProps,
-      false,
-      this.onErrorMiddleware
+      false
     )
     return true
   }
@@ -1254,7 +1262,7 @@ export default class Server {
         return
       }
     } catch (err) {
-      if (err.code === 'DECODE_FAILED') {
+      if (err.code === 'DECODE_FAILED' || err.code === 'ENAMETOOLONG') {
         res.statusCode = 400
         return this.renderError(null, req, res, '/_error', {})
       }
@@ -1312,6 +1320,11 @@ export default class Server {
         (this.hasStaticDir && url.match(/^\/static\//)))
     ) {
       return this.handleRequest(req, res, parsedUrl)
+    }
+
+    // Custom server users can run `app.render()` which needs compression.
+    if (this.renderOpts.customServer) {
+      this.handleCompression(req, res)
     }
 
     if (isBlockedPage(pathname)) {
@@ -2051,6 +2064,8 @@ export default class Server {
       res.statusCode = 500
 
       if (this.renderOpts.dev) {
+        await ((this as any).hotReloader as HotReloader).buildFallbackError()
+
         const fallbackResult = await loadDefaultErrorComponents(this.distDir)
         return this.renderToHTMLWithComponents(
           req,
