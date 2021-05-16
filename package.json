@@ -134,8 +134,8 @@
     "worker-loader": "3.0.7"
   },
   "resolutions": {
-    "browserslist": "4.16.1",
-    "caniuse-lite": "1.0.30001179"
+    "browserslist": "4.16.6",
+    "caniuse-lite": "1.0.30001228"
   },
   "engines": {
     "node": ">= 10.13.0"
