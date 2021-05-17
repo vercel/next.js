@@ -289,7 +289,13 @@ export function getUtils({
       // on the parsed params, this is used to signal if we need
       // to parse x-now-route-matches or not
       const isDefaultValue = Array.isArray(value)
-        ? value.every((val, idx) => val === defaultRouteMatches![key][idx])
+        ? value.some((val) => {
+            const defaultValue = defaultRouteMatches![key]
+
+            return Array.isArray(defaultValue)
+              ? defaultValue.includes(val)
+              : defaultValue === val
+          })
         : value === defaultRouteMatches![key]
 
       if (isDefaultValue || typeof value === 'undefined') {
