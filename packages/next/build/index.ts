@@ -79,6 +79,7 @@ import { trace, setGlobal } from '../telemetry/trace'
 import {
   collectPages,
   detectConflictingPaths,
+  computeFromManifest,
   getJsPageSizeInKb,
   PageInfo,
   printCustomRoutes,
@@ -715,6 +716,11 @@ export default async function build(
       // eslint-disable-next-line no-shadow
       let hasSsrAmpPages = false
 
+      const computedManifestData = await computeFromManifest(
+        buildManifest,
+        distDir,
+        config.experimental.gzipSize
+      )
       await Promise.all(
         pageKeys.map(async (page) => {
           const checkPageSpan = staticCheckSpan.traceChild('check-page', {
@@ -725,7 +731,9 @@ export default async function build(
             const [selfSize, allSize] = await getJsPageSizeInKb(
               actualPage,
               distDir,
-              buildManifest
+              buildManifest,
+              config.experimental.gzipSize,
+              computedManifestData
             )
 
             let isSsg = false
@@ -1531,6 +1539,7 @@ export default async function build(
         useStatic404,
         pageExtensions: config.pageExtensions,
         buildManifest,
+        gzipSize: config.experimental.gzipSize,
       })
     )
 
