@@ -287,6 +287,7 @@ export default async function getBaseWebpackConfig(
     /next[\\/]dist[\\/]next-server[\\/]lib/,
     /next[\\/]dist[\\/]client/,
     /next[\\/]dist[\\/]pages/,
+    /[\\/](strip-ansi|ansi-regex)[\\/]/,
   ]
 
   // Support for NODE_PATH
