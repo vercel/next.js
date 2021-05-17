@@ -25,6 +25,18 @@ function runTests() {
   describe('On an SSR page', () => {
     checkImagesOnPage('/stars')
   })
+
+  describe('On a static page with querystring ', () => {
+    it('should preload exactly eligible image', async () => {
+      const html = await renderViaHTTP(appPort, '/with-querystring')
+      expect(html).toContain(
+        '<link rel="preload" href="https://image.example.org/?lang[]=c++" as="image"/>'
+      )
+      expect(html).toContain(
+        '<link rel="preload" href="/api/image?lang[]=c++" as="image"/>'
+      )
+    })
+  })
 }
 
 function checkImagesOnPage(path) {

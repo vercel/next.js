@@ -140,7 +140,7 @@ module.exports = {
       // if the header `x-redirect-me` is present,
       // this redirect will be applied
       {
-        source: '/:path*',
+        source: '/:path((?!another-page$).*)',
         has: [
           {
             type: 'header',
@@ -170,12 +170,12 @@ module.exports = {
           },
         ],
         permanent: false,
-        destination: '/:path*/:page',
+        destination: '/another/:path*',
       },
       // if the header `x-authorized` is present and
       // contains a matching value, this redirect will be applied
       {
-        source: '/:path*',
+        source: '/',
         has: [
           {
             type: 'header',
@@ -189,7 +189,7 @@ module.exports = {
       // if the host is `example.com`,
       // this redirect will be applied
       {
-        source: '/:path*',
+        source: '/:path((?!another-page$).*)',,
         has: [
           {
             type: 'host',
