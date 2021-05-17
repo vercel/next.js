@@ -48,7 +48,7 @@ initNext({ webpackHMR })
         const { pages } = JSON.parse(event.data)
         const router = window.next.router
 
-        if (pages.includes(router.pathname)) {
+        if (!router.clc && pages.includes(router.pathname)) {
           console.log('Refreshing page data due to server-side change')
 
           buildIndicatorHandler('building')
