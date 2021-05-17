@@ -14,7 +14,7 @@ Once you have [configured the Next.js module for Drupal](https://next-drupal.org
 
 ### Related examples
 
-- [drupal](/examples/cms-drupal)
+- [WordPress](/examples/cms-wordpress)
 - [DatoCMS](/examples/cms-datocms)
 - [Sanity](/examples/cms-sanity)
 - [TakeShape](/examples/cms-takeshape)
@@ -22,11 +22,12 @@ Once you have [configured the Next.js module for Drupal](https://next-drupal.org
 - [Contentful](/examples/cms-contentful)
 - [Strapi](/examples/cms-strapi)
 - [Agility CMS](/examples/cms-agilitycms)
+- [Cosmic](/examples/cms-cosmic)
 - [ButterCMS](/examples/cms-buttercms)
 - [Storyblok](/examples/cms-storyblok)
-- [GraphCMS](/examples/cms-graphcms)
 - [Kontent](/examples/cms-kontent)
 - [Ghost](/examples/cms-ghost)
+- [GraphCMS](/examples/cms-graphcms)
 - [Blog Starter](/examples/blog-starter)
 
 ## How to use
