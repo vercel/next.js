@@ -219,7 +219,7 @@ export default class Server {
       optimizeImages: !!this.nextConfig.experimental.optimizeImages,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
       disableOptimizedLoading: this.nextConfig.experimental
-        ?.disableOptimizedLoading,
+        .disableOptimizedLoading,
       domainLocales: this.nextConfig.i18n?.domains,
       distDir: this.distDir,
     }
