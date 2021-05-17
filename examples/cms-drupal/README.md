@@ -42,7 +42,7 @@ yarn create next-app --example cms-drupal cms-drupal-app
 
 ## Setup Drupal
 
-See the get started [here](https://next-drupal.org/guides/decoupled-drupal-nextjs).
+See the Get Started guide [here](https://next-drupal.org/guides/decoupled-drupal-nextjs).
 
 #### Deploy from Our Template
 
