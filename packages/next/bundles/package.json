@@ -5,7 +5,7 @@
     "webpack5": "npm:webpack@5"
   },
   "resolutions": {
-    "browserslist": "4.16.1",
-    "caniuse-lite": "1.0.30001179"
+    "browserslist": "4.16.6",
+    "caniuse-lite": "1.0.30001228"
   }
 }

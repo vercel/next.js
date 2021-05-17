@@ -8,22 +8,23 @@ import { CompileError } from './compile-error'
 import { FatalError } from './fatal-error'
 
 import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
-import type { TypeCheckResult } from './typescript/runTypeCheck'
+import { TypeCheckResult } from './typescript/runTypeCheck'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
 
 export async function verifyTypeScriptSetup(
   dir: string,
   pagesDir: string,
-  typeCheckPreflight: boolean
-): Promise<TypeCheckResult | boolean> {
+  typeCheckPreflight: boolean,
+  cacheDir?: string
+): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const tsConfigPath = path.join(dir, 'tsconfig.json')
 
   try {
     // Check if the project uses TypeScript:
     const intent = await getTypeScriptIntent(dir, pagesDir)
     if (!intent) {
-      return false
+      return { version: null }
     }
     const firstTimeSetup = intent.firstTimeSetup
 
@@ -43,13 +44,14 @@ export async function verifyTypeScriptSetup(
     // Next.js' types:
     await writeAppTypeDeclarations(dir)
 
+    let result
     if (typeCheckPreflight) {
       const { runTypeCheck } = require('./typescript/runTypeCheck')
 
       // Verify the project passes type-checking before we go to webpack phase:
-      return await runTypeCheck(ts, dir, tsConfigPath)
+      result = await runTypeCheck(ts, dir, tsConfigPath, cacheDir)
     }
-    return true
+    return { result, version: ts.version }
   } catch (err) {
     // These are special errors that should not show a stack trace:
     if (err instanceof CompileError) {

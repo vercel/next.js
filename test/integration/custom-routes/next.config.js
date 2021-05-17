@@ -1,6 +1,7 @@
 module.exports = {
   // target: 'serverless',
   async rewrites() {
+    // no-rewrites comment
     return {
       afterFiles: [
         ...(process.env.ADD_NOOP_REWRITE === 'true'

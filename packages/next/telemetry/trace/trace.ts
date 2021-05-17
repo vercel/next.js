@@ -71,7 +71,7 @@ export class Span {
     }
   }
 
-  async traceAsyncFn(fn: any) {
+  async traceAsyncFn<T>(fn: () => T | Promise<T>): Promise<T> {
     try {
       return await fn()
     } finally {
