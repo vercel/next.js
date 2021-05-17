@@ -2,6 +2,10 @@
 
 This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Drupal](https://drupal.org/) as the data source.
 
+## Demo
+
+### [https://cms-drupal.vercel.app](https://cms-drupal.vercel.app)
+
 ## Deploy your own
 
 Once you have [configured the Next.js module for Drupal](https://next-drupal.org/guides/decoupled-drupal-nextjs) have access to the environment variables you'll need, deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
