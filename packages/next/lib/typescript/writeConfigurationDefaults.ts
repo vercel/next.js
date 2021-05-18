@@ -98,7 +98,7 @@ export async function writeConfigurationDefaults(
   const {
     options: tsOptions,
     raw: rawConfig,
-  } = await getTypeScriptConfiguration(ts, tsConfigPath)
+  } = await getTypeScriptConfiguration(ts, tsConfigPath, true)
 
   const userTsConfigContent = await fs.readFile(tsConfigPath, {
     encoding: 'utf8',
@@ -183,7 +183,7 @@ export async function writeConfigurationDefaults(
     chalk.green(
       `We detected TypeScript in your project and reconfigured your ${chalk.bold(
         'tsconfig.json'
-      )} file for you.`
+      )} file for you. Strict-mode is set to ${chalk.bold('false')} by default.`
     ) + '\n'
   )
   if (suggestedActions.length) {

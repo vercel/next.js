@@ -2,19 +2,15 @@ import { getOverlayMiddleware } from '@next/react-dev-overlay/lib/middleware'
 import { NextHandleFunction } from 'connect'
 import { IncomingMessage, ServerResponse } from 'http'
 import { WebpackHotMiddleware } from './hot-middleware'
-import { join, relative as relativePath } from 'path'
+import { join } from 'path'
 import { UrlObject } from 'url'
 import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import { createEntrypoints, createPagesMapping } from '../build/entries'
 import { watchCompilers } from '../build/output'
 import getBaseWebpackConfig from '../build/webpack-config'
-import { API_ROUTE, NEXT_PROJECT_ROOT_DIST_CLIENT } from '../lib/constants'
+import { API_ROUTE } from '../lib/constants'
 import { recursiveDelete } from '../lib/recursive-delete'
-import {
-  BLOCKED_PAGES,
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
-  CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-} from '../next-server/lib/constants'
+import { BLOCKED_PAGES } from '../next-server/lib/constants'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import { route } from '../next-server/server/router'
 import { findPageFile } from './lib/find-page-file'
@@ -30,9 +26,9 @@ import getRouteFromEntrypoint from '../next-server/server/get-route-from-entrypo
 import { isWriteable } from '../build/is-writeable'
 import { ClientPagesLoaderOptions } from '../build/webpack/loaders/next-client-pages-loader'
 import { stringify } from 'querystring'
-import { Rewrite } from '../lib/load-custom-routes'
 import { difference } from '../build/utils'
 import { NextConfig } from '../next-server/server/config'
+import { CustomRoutes } from '../lib/load-custom-routes'
 
 export async function renderScriptError(
   res: ServerResponse,
@@ -45,10 +41,7 @@ export async function renderScriptError(
     'no-cache, no-store, max-age=0, must-revalidate'
   )
 
-  if (
-    (error as any).code === 'ENOENT' ||
-    error.message === 'INVALID_BUILD_ID'
-  ) {
+  if ((error as any).code === 'ENOENT') {
     res.statusCode = 404
     res.end('404 - Not Found')
     return
@@ -118,10 +111,6 @@ function erroredPages(compilation: webpack.compilation.Compilation) {
     }
 
     // Only pages have to be reloaded
-    if (!getRouteFromEntrypoint(name)) {
-      continue
-    }
-
     const enhancedName = getRouteFromEntrypoint(name)
 
     if (!enhancedName) {
@@ -154,7 +143,9 @@ export default class HotReloader {
   private onDemandEntries: any
   private previewProps: __ApiPreviewProps
   private watcher: any
-  private rewrites: Rewrite[]
+  private rewrites: CustomRoutes['rewrites']
+  private fallbackWatcher: any
+  public isWebpack5: any
 
   constructor(
     dir: string,
@@ -169,7 +160,7 @@ export default class HotReloader {
       pagesDir: string
       buildId: string
       previewProps: __ApiPreviewProps
-      rewrites: Rewrite[]
+      rewrites: CustomRoutes['rewrites']
     }
   ) {
     this.buildId = buildId
@@ -184,6 +175,7 @@ export default class HotReloader {
     this.config = config
     this.previewProps = previewProps
     this.rewrites = rewrites
+    this.isWebpack5 = isWebpack5
   }
 
   public async run(
@@ -253,7 +245,7 @@ export default class HotReloader {
     const { finished } = await handlePageBundleRequest(res, parsedUrl)
 
     for (const fn of this.middlewares) {
-      await new Promise((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         fn(req, res, (err: Error) => {
           if (err) return reject(err)
           resolve()
@@ -287,18 +279,6 @@ export default class HotReloader {
       []
     )
 
-    let additionalClientEntrypoints: { [file: string]: string } = {}
-    additionalClientEntrypoints[CLIENT_STATIC_FILES_RUNTIME_AMP] =
-      `./` +
-      relativePath(
-        this.dir,
-        join(NEXT_PROJECT_ROOT_DIST_CLIENT, 'dev', 'amp-dev')
-      ).replace(/\\/g, '/')
-
-    additionalClientEntrypoints[
-      CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH
-    ] = require.resolve(`@next/react-refresh-utils/runtime`)
-
     return Promise.all([
       getBaseWebpackConfig(this.dir, {
         dev: true,
@@ -307,7 +287,7 @@ export default class HotReloader {
         buildId: this.buildId,
         pagesDir: this.pagesDir,
         rewrites: this.rewrites,
-        entrypoints: { ...entrypoints.client, ...additionalClientEntrypoints },
+        entrypoints: entrypoints.client,
       }),
       getBaseWebpackConfig(this.dir, {
         dev: true,
@@ -319,6 +299,51 @@ export default class HotReloader {
         entrypoints: entrypoints.server,
       }),
     ])
+  }
+
+  public async buildFallbackError(): Promise<void> {
+    if (this.fallbackWatcher) return
+
+    const fallbackConfig = await getBaseWebpackConfig(this.dir, {
+      dev: true,
+      isServer: false,
+      config: this.config,
+      buildId: this.buildId,
+      pagesDir: this.pagesDir,
+      rewrites: {
+        beforeFiles: [],
+        afterFiles: [],
+        fallback: [],
+      },
+      isDevFallback: true,
+      entrypoints: createEntrypoints(
+        {
+          '/_app': 'next/dist/pages/_app',
+          '/_error': 'next/dist/pages/_error',
+        },
+        'server',
+        this.buildId,
+        this.previewProps,
+        this.config,
+        []
+      ).client,
+    })
+    const fallbackCompiler = webpack(fallbackConfig)
+
+    this.fallbackWatcher = await new Promise((resolve) => {
+      let bootedFallbackCompiler = false
+      fallbackCompiler.watch(
+        // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
+        fallbackConfig.watchOptions,
+        // Errors are handled separately
+        (_err: any) => {
+          if (!bootedFallbackCompiler) {
+            bootedFallbackCompiler = true
+            resolve(true)
+          }
+        }
+      )
+    })
   }
 
   public async start(): Promise<void> {
@@ -513,7 +538,7 @@ export default class HotReloader {
     )
 
     this.webpackHotMiddleware = new WebpackHotMiddleware(
-      multiCompiler.compilers[0]
+      multiCompiler.compilers
     )
 
     let booted = false
@@ -555,9 +580,17 @@ export default class HotReloader {
   }
 
   public async stop(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      this.watcher.close((err: any) => (err ? reject(err) : resolve()))
+    await new Promise((resolve, reject) => {
+      this.watcher.close((err: any) => (err ? reject(err) : resolve(true)))
     })
+
+    if (this.fallbackWatcher) {
+      await new Promise((resolve, reject) => {
+        this.fallbackWatcher.close((err: any) =>
+          err ? reject(err) : resolve(true)
+        )
+      })
+    }
   }
 
   public async getCompilationErrors(page: string) {
@@ -579,6 +612,20 @@ export default class HotReloader {
 
       // If none were found we still have to show the other errors
       return this.stats.compilation.errors
+    } else if (this.serverStats?.hasErrors()) {
+      const { compilation } = this.serverStats
+      const failedPages = erroredPages(compilation)
+
+      // If there is an error related to the requesting page we display it instead of the first error
+      if (
+        failedPages[normalizedPage] &&
+        failedPages[normalizedPage].length > 0
+      ) {
+        return failedPages[normalizedPage]
+      }
+
+      // If none were found we still have to show the other errors
+      return this.serverStats.compilation.errors
     }
 
     return []

@@ -1,6 +1,7 @@
 import spawn from 'cross-spawn'
 import express from 'express'
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
+import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import http from 'http'
 // `next` here is the symlink in `test/node_modules/next` which points to the root directory.
@@ -120,6 +121,10 @@ export function runNextCommand(argv, options = {}) {
     if (options.stderr) {
       instance.stderr.on('data', function (chunk) {
         stderrOutput += chunk
+
+        if (options.stderr === 'log') {
+          console.log(chunk.toString())
+        }
       })
     }
 
@@ -127,6 +132,10 @@ export function runNextCommand(argv, options = {}) {
     if (options.stdout) {
       instance.stdout.on('data', function (chunk) {
         stdoutOutput += chunk
+
+        if (options.stdout === 'log') {
+          console.log(chunk.toString())
+        }
       })
     }
 
@@ -157,7 +166,9 @@ export function runNextCommand(argv, options = {}) {
 }
 
 export function runNextCommandDev(argv, stdOut, opts = {}) {
-  const cwd = path.dirname(require.resolve('next/package'))
+  const nextDir = path.dirname(require.resolve('next/package'))
+  const nextBin = path.join(nextDir, 'dist/bin/next')
+  const cwd = opts.cwd || nextDir
   const env = {
     ...process.env,
     NODE_ENV: undefined,
@@ -166,11 +177,10 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
   }
 
   return new Promise((resolve, reject) => {
-    const instance = spawn(
-      'node',
-      ['--no-deprecation', 'dist/bin/next', ...argv],
-      { cwd, env }
-    )
+    const instance = spawn('node', ['--no-deprecation', nextBin, ...argv], {
+      cwd,
+      env,
+    })
     let didResolve = false
 
     function handleStdout(data) {
@@ -180,6 +190,7 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
         start: /started server/i,
       }
       if (
+        (opts.bootupMarker && opts.bootupMarker.test(message)) ||
         bootupMarkers[opts.nextStart || stdOut ? 'start' : 'dev'].test(message)
       ) {
         if (!didResolve) {
@@ -584,6 +595,18 @@ export function getPagesManifest(dir) {
     return readJson(serverFile)
   }
   return readJson(path.join(dir, '.next/serverless/pages-manifest.json'))
+}
+
+export function updatePagesManifest(dir, content) {
+  const serverFile = path.join(dir, '.next/server/pages-manifest.json')
+
+  if (existsSync(serverFile)) {
+    return writeFile(serverFile, content)
+  }
+  return writeFile(
+    path.join(dir, '.next/serverless/pages-manifest.json'),
+    content
+  )
 }
 
 export function getPageFileFromPagesManifest(dir, page) {

@@ -1,5 +1,6 @@
 import Head from 'next/head'
 import { styled } from 'linaria/react'
+import { css } from 'linaria'
 
 const Box = styled.div`
   margin-top: 40px;
@@ -20,13 +21,17 @@ const Box = styled.div`
   }
 `
 
+const anotherClass = css`
+  color: blue;
+`
+
 export default function Home() {
   return (
     <>
       <Head>
         <title>With Linaria</title>
       </Head>
-      <Box>Zero runtime CSS in JS</Box>
+      <Box className={anotherClass}>Zero runtime CSS in JS</Box>
     </>
   )
 }
