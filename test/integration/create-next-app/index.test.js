@@ -97,9 +97,9 @@ describe('create next app', () => {
       const res = await run([projectName, '--typescript'], { cwd })
       expect(res.exitCode).toBe(0)
 
-      expect(
-        fs.existsSync(path.join(cwd, projectName, 'package.json'))
-      ).toBeTruthy()
+      const pkgJSONPath = path.join(cwd, projectName, 'package.json')
+
+      expect(fs.existsSync(pkgJSONPath)).toBeTruthy()
       expect(
         fs.existsSync(path.join(cwd, projectName, 'pages/index.tsx'))
       ).toBeTruthy()
@@ -119,6 +119,18 @@ describe('create next app', () => {
       expect(
         fs.existsSync(path.join(cwd, projectName, '.gitignore'))
       ).toBeTruthy()
+
+      // Assert for dependencies specific to the typescript template
+      const pkgJSON = require(pkgJSONPath)
+      expect(Object.keys(pkgJSON.dependencies)).toEqual([
+        'next',
+        'react',
+        'react-dom',
+      ])
+      expect(Object.keys(pkgJSON.devDependencies)).toEqual([
+        '@types/react',
+        'typescript',
+      ])
     })
   })
 
