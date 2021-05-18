@@ -127,3 +127,21 @@ export default MyApp
 Next.js automatically supports the `tsconfig.json` `"paths"` and `"baseUrl"` options.
 
 You can learn more about this feature on the [Module Path aliases documentation](/docs/advanced-features/module-path-aliases.md).
+
+
+## Type checking next.config.js
+
+The `next.config.js` file must be a JavaScript file as it does not get parsed by Babel or TypeScript, however you can add some type checking in your IDE using JSDoc as below:
+
+```js
+// @ts-check
+
+/**
+ * @type {import('next/dist/next-server/server/config').NextConfig}
+ **/
+const nextConfig = {
+  /* config options here */
+}
+
+module.exports = nextConfig
+```
