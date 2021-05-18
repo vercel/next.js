@@ -822,7 +822,18 @@ export default async function getBaseWebpackConfig(
       ...(isWebpack5 ? { emitOnErrors: !dev } : { noEmitOnErrors: dev }),
       checkWasmTypes: false,
       nodeEnv: false,
-      splitChunks: isServer ? false : splitChunksConfig,
+      splitChunks: isServer
+        ? isWebpack5
+          ? ({
+              filename: `${dev ? '[name]' : '[name].[contenthash]'}.js`,
+              // allow to split entrypoints
+              chunks: 'all',
+              // size of files is not so relevant for server build
+              // we want to prefer deduplication to load less code
+              minSize: 1000,
+            } as any)
+          : false
+        : splitChunksConfig,
       runtimeChunk: isServer
         ? isWebpack5 && !isLikeServerless
           ? { name: 'webpack-runtime' }

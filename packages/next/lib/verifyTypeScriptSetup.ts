@@ -8,7 +8,7 @@ import { CompileError } from './compile-error'
 import { FatalError } from './fatal-error'
 
 import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
-import type { TypeCheckResult } from './typescript/runTypeCheck'
+import { TypeCheckResult } from './typescript/runTypeCheck'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
 
