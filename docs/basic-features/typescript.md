@@ -128,7 +128,6 @@ Next.js automatically supports the `tsconfig.json` `"paths"` and `"baseUrl"` opt
 
 You can learn more about this feature on the [Module Path aliases documentation](/docs/advanced-features/module-path-aliases.md).
 
-
 ## Type checking next.config.js
 
 The `next.config.js` file must be a JavaScript file as it does not get parsed by Babel or TypeScript, however you can add some type checking in your IDE using JSDoc as below:
