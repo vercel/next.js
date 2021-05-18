@@ -1,3 +1,4 @@
+import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
 import { parse, HTMLElement } from 'node-html-parser'
 import { OPTIMIZED_FONT_PROVIDERS } from './constants'
 
@@ -188,7 +189,8 @@ function isImgEligible(imgElement: HTMLElement): boolean {
 }
 
 function preloadTagAlreadyExists(html: string, href: string) {
-  const regex = new RegExp(`<link[^>]*href[^>]*${href}`)
+  const escapedHref = escapeRegexp(href)
+  const regex = new RegExp(`<link[^>]*href[^>]*${escapedHref}`)
   return html.match(regex)
 }
 

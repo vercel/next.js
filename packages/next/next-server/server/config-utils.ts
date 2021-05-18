@@ -1,7 +1,7 @@
 import path from 'path'
 import { Worker } from 'jest-worker'
 import * as Log from '../../build/output/log'
-import type { CheckReasons, CheckResult } from './config-utils-worker'
+import { CheckReasons, CheckResult } from './config-utils-worker'
 import { install, shouldLoadWithWebpack5 } from './config-utils-worker'
 
 export { install, shouldLoadWithWebpack5 }

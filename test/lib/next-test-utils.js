@@ -166,7 +166,9 @@ export function runNextCommand(argv, options = {}) {
 }
 
 export function runNextCommandDev(argv, stdOut, opts = {}) {
-  const cwd = path.dirname(require.resolve('next/package'))
+  const nextDir = path.dirname(require.resolve('next/package'))
+  const nextBin = path.join(nextDir, 'dist/bin/next')
+  const cwd = opts.cwd || nextDir
   const env = {
     ...process.env,
     NODE_ENV: undefined,
@@ -175,11 +177,10 @@ export function runNextCommandDev(argv, stdOut, opts = {}) {
   }
 
   return new Promise((resolve, reject) => {
-    const instance = spawn(
-      'node',
-      ['--no-deprecation', 'dist/bin/next', ...argv],
-      { cwd, env }
-    )
+    const instance = spawn('node', ['--no-deprecation', nextBin, ...argv], {
+      cwd,
+      env,
+    })
     let didResolve = false
 
     function handleStdout(data) {
