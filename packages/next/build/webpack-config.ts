@@ -924,6 +924,7 @@ export default async function getBaseWebpackConfig(
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}${
             dev ? '[name]' : '[name].[contenthash]'
           }.js`,
+      assetModuleFilename: 'static/[contenthash].[ext]',
       strictModuleExceptionHandling: true,
       crossOriginLoading: crossOrigin,
       futureEmitAssets: !dev,

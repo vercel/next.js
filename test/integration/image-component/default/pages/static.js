@@ -20,6 +20,11 @@ const Page = () => {
         layout="fixed"
       />
       <Image
+        id="new-url-static"
+        src={new URL('../public/foo/test.gif', import.meta.url)}
+        layout="fixed"
+      />
+      <Image
         id="basic-non-static"
         src="/test-rect.jpg"
         width="400"
