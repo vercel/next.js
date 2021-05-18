@@ -210,6 +210,17 @@ describe('Font Optimization', () => {
 
           expect(testCss).toStrictEqual(snapshotCss)
         })
+
+        // Re-run build to check if it works when build is cached
+        it('should work when build is cached', async () => {
+          await nextBuild(appDir)
+          const testJson = JSON.parse(
+            await fs.readFile(builtPage('font-manifest.json'), {
+              encoding: 'utf-8',
+            })
+          )
+          expect(testJson.length).toBeGreaterThan(0)
+        })
       }
 
       describe('Font optimization for SSR apps', () => {
@@ -227,32 +238,6 @@ describe('Font Optimization', () => {
         })
         afterAll(() => killApp(app))
         runTests()
-
-        // Re-run build to check if it works when build is cached
-        it('should work when build is cached', async () => {
-          let cachedAppDir = join(fixturesDir, 'with-google')
-          await nextBuild(cachedAppDir)
-          let testJson = JSON.parse(
-            await fs.readFile(
-              join(cachedAppDir, '.next', 'server', 'font-manifest.json'),
-              {
-                encoding: 'utf-8',
-              }
-            )
-          )
-          expect(testJson.length).toBeGreaterThan(0)
-          cachedAppDir = join(fixturesDir, 'with-typekit')
-          await nextBuild(cachedAppDir)
-          testJson = JSON.parse(
-            await fs.readFile(
-              join(cachedAppDir, '.next', 'server', 'font-manifest.json'),
-              {
-                encoding: 'utf-8',
-              }
-            )
-          )
-          expect(testJson.length).toBeGreaterThan(0)
-        })
       })
 
       describe('Font optimization for serverless apps', () => {
