@@ -9,7 +9,7 @@ const fallbackSection = 'Misc Changes'
 
 // --------------------------------------------------
 
-const prNumberRegex = /\(#([-0-9]+)\)/
+const prNumberRegex = /\(#([-0-9]+)\)$/
 
 const getCommitPullRequest = async (commit, github) => {
   const match = prNumberRegex.exec(commit.title)

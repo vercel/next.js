@@ -101,8 +101,7 @@ When `responsive`, the image will scale the dimensions down for smaller
 viewports and scale up for larger viewports.
 
 When `fill`, the image will stretch both width and height to the dimensions of
-the parent element, usually paired with
-[object-fit](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit).
+the parent element, usually paired with the [`objectFit`](#objectFit) property.
 
 Try it out:
 

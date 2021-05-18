@@ -1,6 +1,6 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
-const { relative, basename, resolve, join, dirname } = require('path')
+const { relative, basename, resolve } = require('path')
 const { Module } = require('module')
 
 // Note:
@@ -161,6 +161,7 @@ const babelBundlePackages = {
   '@babel/preset-env': 'next/dist/compiled/babel/preset-env',
   '@babel/preset-react': 'next/dist/compiled/babel/preset-react',
   '@babel/preset-typescript': 'next/dist/compiled/babel/preset-typescript',
+  '@babel/eslint-parser': 'next/dist/compiled/babel/eslint-parser',
 }
 
 Object.assign(externals, babelBundlePackages)
@@ -186,14 +187,6 @@ export async function ncc_cacache(task, opts) {
     .source(opts.src || relative(__dirname, require.resolve('cacache')))
     .ncc({ packageName: 'cacache' })
     .target('compiled/cacache')
-}
-// eslint-disable-next-line camelcase
-externals['cache-loader'] = 'next/dist/compiled/cache-loader'
-export async function ncc_cache_loader(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('cache-loader')))
-    .ncc({ packageName: 'cache-loader', externals })
-    .target('compiled/cache-loader')
 }
 // eslint-disable-next-line camelcase
 externals['ci-info'] = 'next/dist/compiled/ci-info'
@@ -591,14 +584,6 @@ export async function ncc_text_table(task, opts) {
     .target('compiled/text-table')
 }
 // eslint-disable-next-line camelcase
-externals['thread-loader'] = 'next/dist/compiled/thread-loader'
-export async function ncc_thread_loader(task, opts) {
-  await task
-    .source(opts.src || relative(__dirname, require.resolve('thread-loader')))
-    .ncc({ packageName: 'thread-loader', externals })
-    .target('compiled/thread-loader')
-}
-// eslint-disable-next-line camelcase
 externals['unistore'] = 'next/dist/compiled/unistore'
 export async function ncc_unistore(task, opts) {
   await task
@@ -631,6 +616,40 @@ export async function ncc_webpack_sources2(task, opts) {
     )
     .ncc({ packageName: 'webpack-sources2', externals, target: 'es5' })
     .target('compiled/webpack-sources2')
+}
+// eslint-disable-next-line camelcase
+externals['mini-css-extract-plugin'] =
+  'next/dist/compiled/mini-css-extract-plugin'
+export async function ncc_mini_css_extract_plugin(task, opts) {
+  await task
+    .source(
+      relative(
+        __dirname,
+        resolve(require.resolve('mini-css-extract-plugin'), '../index.js')
+      )
+    )
+    .ncc({
+      externals: {
+        ...externals,
+        './index': './index.js',
+        'schema-utils': 'next/dist/compiled/schema-utils3',
+      },
+    })
+    .target('compiled/mini-css-extract-plugin')
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('mini-css-extract-plugin'))
+    )
+    .ncc({
+      packageName: 'mini-css-extract-plugin',
+      externals: {
+        ...externals,
+        './index': './index.js',
+        'schema-utils': 'next/dist/compiled/schema-utils3',
+      },
+    })
+    .target('compiled/mini-css-extract-plugin')
 }
 
 // eslint-disable-next-line camelcase
@@ -687,20 +706,9 @@ export async function path_to_regexp(task, opts) {
     .target('dist/compiled/path-to-regexp')
 }
 
-export async function copy_regexr_lexer(task, opts) {
-  await task
-    .source(
-      join(
-        relative(__dirname, dirname(require.resolve('regexr/package.json'))),
-        'lexer-dist/**/*'
-      )
-    )
-    .target('dist/compiled/regexr-lexer')
-}
-
 export async function precompile(task, opts) {
   await task.parallel(
-    ['browser_polyfills', 'path_to_regexp', 'copy_ncced', 'copy_regexr_lexer'],
+    ['browser_polyfills', 'path_to_regexp', 'copy_ncced'],
     opts
   )
 }
@@ -725,7 +733,6 @@ export async function ncc(task, opts) {
         'ncc_babel_bundle_packages',
         'ncc_bfj',
         'ncc_cacache',
-        'ncc_cache_loader',
         'ncc_ci_info',
         'ncc_comment_json',
         'ncc_compression',
@@ -770,7 +777,6 @@ export async function ncc(task, opts) {
         'ncc_strip_ansi',
         'ncc_terser',
         'ncc_text_table',
-        'ncc_thread_loader',
         'ncc_unistore',
         'ncc_web_vitals',
         'ncc_webpack_bundle4',
@@ -778,6 +784,7 @@ export async function ncc(task, opts) {
         'ncc_webpack_bundle_packages',
         'ncc_webpack_sources',
         'ncc_webpack_sources2',
+        'ncc_mini_css_extract_plugin',
       ],
       opts
     )

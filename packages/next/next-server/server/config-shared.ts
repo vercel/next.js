@@ -51,7 +51,6 @@ export type NextConfig = { [key: string]: any } & {
     stats?: boolean
     externalDir?: boolean
     serialWebpackBuild?: boolean
-    babelMultiThread?: boolean
     conformance?: boolean
     amp?: {
       optimizer?: any
@@ -59,7 +58,11 @@ export type NextConfig = { [key: string]: any } & {
       skipValidation?: boolean
     }
     turboMode: boolean
+    eslint?: boolean
     reactRoot: boolean
+    enableBlurryPlaceholder: boolean
+    disableOptimizedLoading: boolean
+    gzipSize: boolean
   }
 }
 
@@ -114,7 +117,11 @@ export const defaultConfig: NextConfig = {
     externalDir: false,
     serialWebpackBuild: false,
     turboMode: false,
+    eslint: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
+    enableBlurryPlaceholder: false,
+    disableOptimizedLoading: true,
+    gzipSize: true,
   },
   future: {
     strictPostcssConfiguration: false,

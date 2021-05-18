@@ -1,5 +1,5 @@
 import '../next-server/server/node-polyfill-fetch'
-import type {
+import {
   default as Server,
   ServerConstructor,
 } from '../next-server/server/next-server'
