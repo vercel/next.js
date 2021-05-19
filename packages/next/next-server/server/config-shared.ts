@@ -57,12 +57,12 @@ export type NextConfig = { [key: string]: any } & {
       validator?: string
       skipValidation?: boolean
     }
-    turboMode: boolean
+    turboMode?: boolean
     eslint?: boolean
-    reactRoot: boolean
-    enableBlurryPlaceholder: boolean
-    disableOptimizedLoading: boolean
-    gzipSize: boolean
+    reactRoot?: boolean
+    enableBlurryPlaceholder?: boolean
+    disableOptimizedLoading?: boolean
+    gzipSize?: boolean
   }
 }
 
