@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test":"jest"
   },
   "dependencies": {
     "next": "10.2.0",
@@ -14,6 +15,7 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.2.5",
+    "jest": "^26.6.3",
     "postcss": "^8.2.15",
     "tailwindcss": "^2.1.2"
   }
