@@ -43,12 +43,13 @@ export default function resolveRewrites(
           headers: {
             host: document.location.hostname,
           },
-          cookies: Object.fromEntries(
-            document.cookie.split('; ').map((item) => {
+          cookies: document.cookie
+            .split('; ')
+            .reduce<Record<string, string>>((acc, item) => {
               const [key, ...value] = item.split('=')
-              return [key, value.join('=')]
-            })
-          ),
+              acc[key] = value.join('=')
+              return acc
+            }, {}),
         } as any,
         rewrite.has,
         parsedAs.query
