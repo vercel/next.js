@@ -144,3 +144,10 @@ const nextConfig = {
 
 module.exports = nextConfig
 ```
+
+## Incremental type checking
+
+Since `v10.2.1` Next.js supports [incremental type checking](https://www.typescriptlang.org/tsconfig#incremental) when enabled in your `tsconfig.json`, this can help speed up type checking in larger applications.
+
+It is highly recommended to be on at least `v4.3.0-beta` of TypeScript to experience the best performance when leveraging this feature.
+
