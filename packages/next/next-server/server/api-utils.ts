@@ -217,7 +217,7 @@ export function redirect(
     )
   }
   res.writeHead(statusOrUrl, { Location: url })
-  res.write('')
+  res.write(url)
   res.end()
   return res
 }
