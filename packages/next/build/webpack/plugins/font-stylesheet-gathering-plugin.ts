@@ -114,7 +114,19 @@ export class FontStylesheetGatheringPlugin {
             }
 
             this.gatheredStylesheets.push(props.href)
+
+            if (isWebpack5) {
+              const buildInfo = parser?.state?.module?.buildInfo
+
+              if (buildInfo) {
+                buildInfo.valueDependencies.set(
+                  FONT_MANIFEST,
+                  this.gatheredStylesheets
+                )
+              }
+            }
           }
+
           // React JSX transform:
           parser.hooks.call
             .for('_jsx')
@@ -161,8 +173,24 @@ export class FontStylesheetGatheringPlugin {
       }
       compilation.hooks.finishModules.tapAsync(
         this.constructor.name,
-        async (_: any, modulesFinished: Function) => {
-          const fontDefinitionPromises = this.gatheredStylesheets.map((url) =>
+        async (modules: any, modulesFinished: Function) => {
+          let fontStylesheets = this.gatheredStylesheets
+
+          if (isWebpack5) {
+            const fontUrls = new Set<string>()
+            modules.forEach((module: any) => {
+              const fontDependencies = module?.buildInfo?.valueDependencies?.get(
+                FONT_MANIFEST
+              )
+              if (fontDependencies) {
+                fontDependencies.forEach((v: string) => fontUrls.add(v))
+              }
+            })
+
+            fontStylesheets = Array.from(fontUrls)
+          }
+
+          const fontDefinitionPromises = fontStylesheets.map((url) =>
             getFontDefinitionFromNetwork(url)
           )
 
@@ -173,7 +201,7 @@ export class FontStylesheetGatheringPlugin {
             if (css) {
               const content = await minifyCss(css)
               this.manifestContent.push({
-                url: this.gatheredStylesheets[promiseIndex],
+                url: fontStylesheets[promiseIndex],
                 content,
               })
             }
