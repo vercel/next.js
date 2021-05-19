@@ -226,7 +226,7 @@
     "ora": "4.0.4",
     "path-to-regexp": "6.1.0",
     "postcss-flexbugs-fixes": "5.0.2",
-    "postcss-loader": "4.0.3",
+    "postcss-loader": "4.3.0",
     "postcss-preset-env": "6.7.0",
     "postcss-scss": "3.0.5",
     "recast": "0.18.5",
