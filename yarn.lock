@@ -2383,11 +2383,6 @@
     call-me-maybe "^1.0.1"
     glob-to-regexp "^0.3.0"
 
-"@next/eslint-plugin-next@^10.1.3":
-  version "10.1.3"
-  resolved "https://registry.yarnpkg.com/@next/eslint-plugin-next/-/eslint-plugin-next-10.1.3.tgz#739743aa33aed28d97e670b9f80b84440cf2a3c7"
-  integrity sha512-KrZUb6cHXt/rPhN9bSrlVLAq+9LyNOWurqbrUww3OXmrFlXBDI8W6Z0ToDkQMkIH6gTtmpGbuctxCkQ2pgeXzQ==
-
 "@nodelib/fs.scandir@2.1.3":
   version "2.1.3"
   resolved "https://registry.yarnpkg.com/@nodelib/fs.scandir/-/fs.scandir-2.1.3.tgz#3a582bdb53804c6ba6d146579c46e52130cf4a3b"
