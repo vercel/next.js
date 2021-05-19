@@ -825,7 +825,7 @@ export default async function getBaseWebpackConfig(
       splitChunks: isServer
         ? isWebpack5
           ? ({
-              filename: `${dev ? '[name]' : '[name].[contenthash]'}.js`,
+              filename: '[name].js',
               // allow to split entrypoints
               chunks: 'all',
               // size of files is not so relevant for server build
@@ -931,7 +931,7 @@ export default async function getBaseWebpackConfig(
         : 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
-        ? `${dev ? '[name]' : '[name].[contenthash]'}.js`
+        ? '[name].js'
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}${
             dev ? '[name]' : '[name].[contenthash]'
           }.js`,
