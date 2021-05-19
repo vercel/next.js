@@ -243,7 +243,7 @@
     "text-table": "0.2.0",
     "typescript": "3.8.3",
     "unistore": "3.4.1",
-    "web-vitals": "0.2.4",
+    "web-vitals": "1.1.2",
     "webpack": "4.44.1",
     "webpack-sources": "1.4.3"
   },
