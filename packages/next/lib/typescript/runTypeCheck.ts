@@ -43,11 +43,13 @@ export async function runTypeCheck(
     noEmit: true,
   }
 
-  let program: import('typescript').Program
+  let program:
+    | import('typescript').Program
+    | import('typescript').BuilderProgram
   let incremental = false
   if (options.incremental && cacheDir) {
     incremental = true
-    const builderProgram = ts.createIncrementalProgram({
+    program = ts.createIncrementalProgram({
       rootNames: effectiveConfiguration.fileNames,
       options: {
         ...options,
@@ -55,7 +57,6 @@ export async function runTypeCheck(
         tsBuildInfoFile: path.join(cacheDir, '.tsbuildinfo'),
       },
     })
-    program = builderProgram.getProgram()
   } else {
     program = ts.createProgram(effectiveConfiguration.fileNames, options)
   }
@@ -73,7 +74,7 @@ export async function runTypeCheck(
   //
   const regexIgnoredFile = /[\\/]__(?:tests|mocks)__[\\/]|(?<=[\\/.])(?:spec|test)\.[^\\/]+$/
   const allDiagnostics = ts
-    .getPreEmitDiagnostics(program)
+    .getPreEmitDiagnostics(program as import('typescript').Program)
     .concat(result.diagnostics)
     .filter((d) => !(d.file && regexIgnoredFile.test(d.file.fileName)))
 
