@@ -69,7 +69,7 @@
     "coveralls": "3.0.3",
     "critters": "0.0.6",
     "cross-env": "6.0.3",
-    "cross-spawn": "6.0.5",
+    "cross-spawn": "7.0.3",
     "escape-string-regexp": "2.0.0",
     "eslint": "7.24.0",
     "eslint-plugin-import": "2.22.1",
