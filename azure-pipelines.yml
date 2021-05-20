@@ -117,13 +117,13 @@ stages:
           vmImage: 'windows-2019'
         strategy:
           matrix:
-            node-12-1:
+            node-10-1:
               group: 1/4
-            node-12-2:
+            node-10-2:
               group: 2/4
-            node-12-3:
+            node-10-3:
               group: 3/4
-            node-12-4:
+            node-10-4:
               group: 4/4
         steps:
           - checkout: none
