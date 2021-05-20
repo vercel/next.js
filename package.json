@@ -118,7 +118,7 @@
     "rimraf": "2.6.3",
     "seedrandom": "3.0.5",
     "selenium-standalone": "6.18.0",
-    "selenium-webdriver": "4.0.0-alpha.7",
+    "selenium-webdriver": "4.0.0-beta.3",
     "shell-quote": "1.7.2",
     "sqlite": "4.0.22",
     "sqlite3": "5.0.2",
