@@ -157,7 +157,7 @@ export default class Server {
     images: string
     fontManifest: FontManifest
     optimizeImages: boolean
-    disableOptimizedLoading: boolean
+    disableOptimizedLoading?: boolean
     optimizeCss: any
     locale?: string
     locales?: string[]
