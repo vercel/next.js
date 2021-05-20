@@ -19,7 +19,7 @@ const Index = () => (
     <Hero />
     <Main>
       <Text>
-        Example repository of <Code>Next.js</Code> + <Code>chakra-ui</Code>.
+        A quadratic DAO for the Metaverse
       </Text>
 
       <List spacing={3} my={0}>
