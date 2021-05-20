@@ -34,7 +34,7 @@ pr:
 variables:
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
   NEXT_TELEMETRY_DISABLED: '1'
-  node_version: ^12.0.0
+  node_version: ^12.13.0
 
 stages:
   - stage: Build
@@ -117,13 +117,13 @@ stages:
           vmImage: 'windows-2019'
         strategy:
           matrix:
-            node-10-1:
+            node-12-1:
               group: 1/4
-            node-10-2:
+            node-12-2:
               group: 2/4
-            node-10-3:
+            node-12-3:
               group: 3/4
-            node-10-4:
+            node-12-4:
               group: 4/4
         steps:
           - checkout: none
