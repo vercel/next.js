@@ -1,9 +1,6 @@
 import * as React from 'react'
 /// @ts-ignore
 import Document, { Main, NextScript, Head } from 'next/document'
-
-const Component = () => null
-
 export default class MyDocument extends Document {
   static async getInitialProps(ctx) {
     const initialProps = await Document.getInitialProps(ctx)
@@ -19,7 +16,6 @@ export default class MyDocument extends Document {
             href="https://fonts.googleapis.com/css?family=Voces"
           />
           {false && <script data-href="test"></script>}
-          <Component />
         </Head>
         <body>
           <Main />
