@@ -2,13 +2,12 @@ import * as React from 'react'
 /// @ts-ignore
 import Document, { Main, NextScript, Head } from 'next/document'
 
+const Component = () => null
+
 export default class MyDocument extends Document {
-  constructor(props) {
-    super(props)
-    const { __NEXT_DATA__, ids } = props
-    if (ids) {
-      __NEXT_DATA__.ids = ids
-    }
+  static async getInitialProps(ctx) {
+    const initialProps = await Document.getInitialProps(ctx)
+    return { ...initialProps }
   }
 
   render() {
@@ -20,6 +19,7 @@ export default class MyDocument extends Document {
             href="https://fonts.googleapis.com/css?family=Voces"
           />
           {false && <script data-href="test"></script>}
+          <Component />
         </Head>
         <body>
           <Main />

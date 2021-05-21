@@ -82,7 +82,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         (tag: HTMLElement) =>
           tag.getAttribute('rel') === 'stylesheet' &&
           tag.hasAttribute('data-href') &&
-          OPTIMIZED_FONT_PROVIDERS.some((url) => {
+          OPTIMIZED_FONT_PROVIDERS.some(({ url }) => {
             const dataHref = tag.getAttribute('data-href')
             return dataHref ? dataHref.startsWith(url) : false
           })
@@ -104,6 +104,8 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
     options: renderOptions
   ) => {
     let result = markup
+    let preconnectUrls = new Set<string>()
+
     if (!options.getFontDefinition) {
       return markup
     }
@@ -132,8 +134,23 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
           '</head>',
           `<style data-href="${url}"${nonceStr}>${fontContent}</style></head>`
         )
+
+        const preconnect = OPTIMIZED_FONT_PROVIDERS.find((provider) =>
+          url.startsWith(provider.url)
+        ).preconnect
+        preconnectUrls.add(preconnect)
       }
     })
+
+    let preconnectTag = ''
+    preconnectUrls.forEach((url) => {
+      preconnectTag += `<link rel="preconnect" href="${url}" crossorigin />`
+    })
+
+    result = result.replace(
+      '<meta name="next-font-preconnect"/>',
+      preconnectTag
+    )
 
     return result
   }
