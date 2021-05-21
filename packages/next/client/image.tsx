@@ -6,6 +6,8 @@ import {
   imageConfigDefault,
   LoaderValue,
   VALID_LOADERS,
+  ImageFormat,
+  VALID_FORMATS,
 } from '../next-server/server/image-config'
 import { useIntersection } from './use-intersection'
 
@@ -22,6 +24,7 @@ export type ImageLoaderProps = {
   src: string
   width: number
   quality?: number
+  format?: ImageFormat
 }
 
 type DefaultImageLoaderProps = ImageLoaderProps & { root: string }
@@ -90,12 +93,18 @@ const {
   path: configPath,
   domains: configDomains,
   enableBlurryPlaceholder: configEnableBlurryPlaceholder,
+  formats: configFormats,
 } =
   ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
 // sort smallest to largest
 const allSizes = [...configDeviceSizes, ...configImageSizes]
 configDeviceSizes.sort((a, b) => a - b)
 allSizes.sort((a, b) => a - b)
+
+const imageFormats =
+  configFormats?.filter(
+    (format) => format !== 'auto' && VALID_FORMATS.includes(format)
+  ) || []
 
 function getWidths(
   width: number | undefined,
@@ -154,12 +163,14 @@ type GenImgAttrsData = {
   width?: number
   quality?: number
   sizes?: string
+  format?: ImageFormat
 }
 
 type GenImgAttrsResult = {
   src: string
   srcSet: string | undefined
   sizes: string | undefined
+  type?: string
 }
 
 function generateImgAttrs({
@@ -170,6 +181,7 @@ function generateImgAttrs({
   quality,
   sizes,
   loader,
+  format = 'auto',
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
     return { src, srcSet: undefined, sizes: undefined }
@@ -179,11 +191,12 @@ function generateImgAttrs({
   const last = widths.length - 1
 
   return {
+    type: format && format !== 'auto' ? `image/${format}` : undefined,
     sizes: !sizes && kind === 'w' ? '100vw' : sizes,
     srcSet: widths
       .map(
         (w, i) =>
-          `${loader({ src, quality, width: w })} ${
+          `${loader({ src, quality, width: w, format })} ${
             kind === 'w' ? w : i + 1
           }${kind}`
       )
@@ -195,7 +208,7 @@ function generateImgAttrs({
     // updated by React. That causes multiple unnecessary requests if `srcSet`
     // and `sizes` are defined.
     // This bug cannot be reproduced in Chrome or Firefox.
-    src: loader({ src, quality, width: widths[last] }),
+    src: loader({ src, quality, width: widths[last], format }),
   }
 }
 
@@ -442,6 +455,8 @@ export default function Image({
     }
   }
 
+  const usePictureTag = !unoptimized && imageFormats.length
+
   let imgAttributes: GenImgAttrsResult = {
     src:
       'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
@@ -460,6 +475,20 @@ export default function Image({
       loader,
     })
   }
+
+  const img = (
+    <img
+      {...rest}
+      {...imgAttributes}
+      decoding="async"
+      className={className}
+      ref={(element) => {
+        setRef(element)
+        removePlaceholder(element, placeholder)
+      }}
+      style={imgStyle}
+    />
+  )
 
   if (unsized) {
     wrapperStyle = undefined
@@ -508,23 +537,38 @@ export default function Image({
           />
         </noscript>
       )}
-      <img
-        {...rest}
-        {...imgAttributes}
-        decoding="async"
-        className={className}
-        ref={(element) => {
-          setRef(element)
-          removePlaceholder(element, placeholder)
-        }}
-        style={imgStyle}
-      />
-      {priority ? (
+      {usePictureTag ? (
+        <picture>
+          {isVisible &&
+            imageFormats.map((format) => (
+              <source
+                key={format}
+                {...generateImgAttrs({
+                  src,
+                  unoptimized,
+                  layout,
+                  width: widthInt,
+                  quality: qualityInt,
+                  sizes,
+                  loader,
+                  format,
+                })}
+              />
+            ))}
+          {img}
+        </picture>
+      ) : (
+        img
+      )}
+      {priority && !usePictureTag ? (
         // Note how we omit the `href` attribute, as it would only be relevant
         // for browsers that do not support `imagesrcset`, and in those cases
         // it would likely cause the incorrect image to be preloaded.
         //
         // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-imagesrcset
+        //
+        // This is also skipped when using a picture tag, because currently there's no
+        // way to ensure it only downloads the correct format
         <Head>
           <link
             key={
@@ -558,14 +602,20 @@ function imgixLoader({
   src,
   width,
   quality,
+  format = 'auto',
 }: DefaultImageLoaderProps): string {
-  // Demo: https://static.imgix.net/daisy.png?format=auto&fit=max&w=300
-  const params = ['auto=format', 'fit=max', 'w=' + width]
-  let paramsString = ''
+  // Demo: https://static.imgix.net/daisy.png?auto=format&fit=max&w=300
+  const params = []
+  if (format === 'auto') {
+    params.push('auto=format')
+  } else {
+    params.push('fm=' + format)
+  }
+  params.push('fit=max', 'w=' + width)
   if (quality) {
     params.push('q=' + quality)
   }
-
+  let paramsString = ''
   if (params.length) {
     paramsString = '?' + params.join('&')
   }
@@ -581,9 +631,15 @@ function cloudinaryLoader({
   src,
   width,
   quality,
+  format = 'auto',
 }: DefaultImageLoaderProps): string {
   // Demo: https://res.cloudinary.com/demo/image/upload/w_300,c_limit,q_auto/turtles.jpg
-  const params = ['f_auto', 'c_limit', 'w_' + width, 'q_' + (quality || 'auto')]
+  const params = [
+    'f_' + format,
+    'c_limit',
+    'w_' + width,
+    'q_' + (quality || 'auto'),
+  ]
   let paramsString = params.join(',') + '/'
   return `${root}${paramsString}${normalizeSrc(src)}`
 }
@@ -593,6 +649,7 @@ function defaultLoader({
   src,
   width,
   quality,
+  format = 'auto',
 }: DefaultImageLoaderProps): string {
   if (process.env.NODE_ENV !== 'production') {
     const missingValues = []
@@ -637,5 +694,7 @@ function defaultLoader({
     }
   }
 
-  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
+  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}${
+    format && format !== 'auto' ? `&f=${format}` : ''
+  }`
 }

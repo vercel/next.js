@@ -46,8 +46,8 @@ export async function imageOptimizer(
   }
 
   const { headers } = req
-  const { url, w, q } = parsedUrl.query
-  const mimeType = getSupportedMimeType(MODERN_TYPES, headers.accept)
+  const { url, w, q, f } = parsedUrl.query
+  let mimeType = getSupportedMimeType(MODERN_TYPES, headers.accept)
   let href: string
 
   if (!url) {
@@ -109,6 +109,14 @@ export async function imageOptimizer(
     res.statusCode = 400
     res.end('"q" parameter (quality) cannot be an array')
     return { finished: true }
+  }
+
+  if (
+    f &&
+    !Array.isArray(f) &&
+    MODERN_TYPES.includes(`image/${f.toLowerCase()}`)
+  ) {
+    mimeType = `image/${f.toLowerCase()}`
   }
 
   const width = parseInt(w, 10)

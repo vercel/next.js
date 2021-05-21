@@ -1102,6 +1102,7 @@ export default async function getBaseWebpackConfig(
               }
             : {}),
           enableBlurryPlaceholder: config.experimental.enableBlurryPlaceholder,
+          formats: config.images.formats,
         }),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),

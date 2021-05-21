@@ -7,6 +7,10 @@ export const VALID_LOADERS = [
 
 export type LoaderValue = typeof VALID_LOADERS[number]
 
+export const VALID_FORMATS = ['webp', 'avif', 'auto'] as const
+
+export type ImageFormat = typeof VALID_FORMATS[number]
+
 export type ImageConfig = {
   deviceSizes: number[]
   imageSizes: number[]
@@ -14,6 +18,7 @@ export type ImageConfig = {
   path: string
   domains?: string[]
   enableBlurryPlaceholder: boolean
+  formats?: ImageFormat[]
 }
 
 export const imageConfigDefault: ImageConfig = {
@@ -23,4 +28,5 @@ export const imageConfigDefault: ImageConfig = {
   loader: 'default',
   domains: [],
   enableBlurryPlaceholder: false,
+  formats: [],
 }

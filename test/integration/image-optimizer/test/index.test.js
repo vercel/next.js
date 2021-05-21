@@ -123,6 +123,28 @@ function runTests({ w, isDev, domains }) {
     expect(actual).toMatch(expected)
   })
 
+  it('should return requested format if valid', async () => {
+    const query = { w, q: 90, url: '/test.jpg', f: 'webp' }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/webp')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
+  })
+
+  it('should ignore requested format if invalid', async () => {
+    const query = { w, q: 90, url: '/test.jpg', f: 'bmp' }
+    const res = await fetchViaHTTP(appPort, '/_next/image', query)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toContain('image/jpeg')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, max-age=0, must-revalidate'
+    )
+    expect(res.headers.get('etag')).toBeTruthy()
+  })
+
   it('should maintain jpg format for old Safari', async () => {
     const accept =
       'image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5'
