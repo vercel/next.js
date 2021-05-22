@@ -60,6 +60,10 @@ If a new page (with an old version) has already been prefetched by `next/link`, 
 
 ## Other hosting options
 
+### Netlify
+
+See the blog post on [How to Deploy Next.js Sites to Netlify](https://www.netlify.com/blog/2020/11/30/how-to-deploy-next.js-sites-to-netlify)
+
 ### Node.js Server
 
 Next.js can be deployed to any hosting provider that supports Node.js. This is the approach you should take if you’re using a [custom server](/docs/advanced-features/custom-server.md).
