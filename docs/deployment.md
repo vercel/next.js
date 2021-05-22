@@ -68,6 +68,10 @@ See the blog post on [How to Deploy Next.js Sites to Netlify](https://www.netlif
 
 See the documentation on [How to Deploy Next.js Sites to Cloudfare Pages](https://developers.cloudflare.com/pages/how-to/deploy-a-nextjs-site)
 
+### Azure Static Web Apps
+
+See the documentation on how to [Deploy static-rendered Next.js websites on Azure Static Web Apps](https://docs.microsoft.com/en-us/azure/static-web-apps/deploy-nextjs)
+
 ### Node.js Server
 
 Next.js can be deployed to any hosting provider that supports Node.js. This is the approach you should take if you’re using a [custom server](/docs/advanced-features/custom-server.md).
