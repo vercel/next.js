@@ -6,6 +6,13 @@ The easiest way to get started with Next.js is by using `create-next-app`. This 
 npx create-next-app
 ```
 
+Or, for a [TypeScript project](https://github.com/vercel/next.js/blob/canary/docs/basic-features/typescript.md):
+
+```bash
+npx create-next-app --typescript
+```
+
+
 To create a new app in a specific folder, you can send a name as an argument. For example, the following command will create a new Next.js app called `blog-app` in a folder with the same name:
 
 ```bash
