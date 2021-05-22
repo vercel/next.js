@@ -11,9 +11,21 @@ description: Next.js supports TypeScript by default and has built-in types for p
   </ul>
 </details>
 
-Next.js provides an integrated [TypeScript](https://www.typescriptlang.org/) experience out of the box, similar to an IDE.
+Next.js provides an integrated [TypeScript](https://www.typescriptlang.org/)
+experience out of the box, similar to an IDE.
 
-To get started, create an empty `tsconfig.json` file in the root of your project:
+## `create-next-app` support
+You can create a TypeScript project with [`create-next-app`](https://nextjs.org/docs/api-reference/create-next-app) using the `--ts, --typescript` flag like so:
+
+```
+npx create-next-app --ts
+# or
+yarn create next-app --typescript
+```
+
+## Existing projects
+To get started in an existing project, create an empty `tsconfig.json` file in
+the root folder:
 
 ```bash
 touch tsconfig.json
