@@ -135,10 +135,13 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
           `<style data-href="${url}"${nonceStr}>${fontContent}</style></head>`
         )
 
-        const preconnect = OPTIMIZED_FONT_PROVIDERS.find((provider) =>
-          url.startsWith(provider.url)
-        ).preconnect
-        preconnectUrls.add(preconnect)
+        const provider = OPTIMIZED_FONT_PROVIDERS.find((p) =>
+          url.startsWith(p.url)
+        )
+
+        if (provider) {
+          preconnectUrls.add(provider.preconnect)
+        }
       }
     })
 
