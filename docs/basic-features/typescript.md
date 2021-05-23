@@ -15,6 +15,7 @@ Next.js provides an integrated [TypeScript](https://www.typescriptlang.org/)
 experience out of the box, similar to an IDE.
 
 ## `create-next-app` support
+
 You can create a TypeScript project with [`create-next-app`](https://nextjs.org/docs/api-reference/create-next-app) using the `--ts, --typescript` flag like so:
 
 ```
@@ -24,6 +25,7 @@ yarn create next-app --typescript
 ```
 
 ## Existing projects
+
 To get started in an existing project, create an empty `tsconfig.json` file in
 the root folder:
 
