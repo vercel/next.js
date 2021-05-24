@@ -28,9 +28,6 @@ const runTests = () => {
     expect(await browser.elementById('format-test-2')).toBeTruthy()
     expect(await browser.elementById('format-test-3')).toBeTruthy()
   })
-  it('Should allow an image with an in-line URL object src to omit height and width', async () => {
-    expect(await browser.elementById('new-url-static')).toBeTruthy()
-  })
   it('Should automatically provide an image height and width', async () => {
     expect(html).toContain('width:400px;height:300px')
   })

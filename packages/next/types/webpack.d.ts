@@ -176,8 +176,6 @@ declare module 'webpack' {
       filename?: string | Function
       /** The filename of non-entry chunks as relative path inside the output.path directory. */
       chunkFilename?: string
-      /** The filename of asset modules as relative path inside the output.path */
-      assetModuleFilename: string
       /** Number of milliseconds before chunk request expires, defaults to 120,000. */
       chunkLoadTimeout?: number
       /** This option enables cross-origin loading of chunks. */

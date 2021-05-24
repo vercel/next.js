@@ -19,10 +19,6 @@ const getNewUrlSrc = (attribute: types.JSXAttribute) => {
   )
 }
 
-const transformPublicImagePath = (publicPath: string): string => {
-  return publicPath.replace('../public', '')
-}
-
 export default function ({ types: t }: { types: typeof types }): PluginObj {
   let imageComponent: string | null = null
   let newUrlUsages: UrlUsageData[] = []
@@ -58,9 +54,6 @@ export default function ({ types: t }: { types: typeof types }): PluginObj {
           if (url) {
             const metaName = 'meta' + newUrlUsages.length
             newUrlUsages.push({ url, metaName })
-            ;(attribute as types.JSXAttribute).value = t.stringLiteral(
-              transformPublicImagePath(url)
-            )
             attributes.push(
               t.jsxAttribute(
                 t.jsxIdentifier('meta'),

@@ -50,14 +50,11 @@ type PlaceholderValue = 'blur' | 'empty'
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
-interface ImageMetaData {
+interface StaticImageData {
+  src: string
   height: number
   width: number
 }
-
-type StaticImageData = {
-  src: string
-} & ImageMetaData
 
 interface StaticRequire {
   default: StaticImageData
@@ -65,21 +62,11 @@ interface StaticRequire {
 
 type StaticImport = StaticRequire | StaticImageData
 
-function isStaticRequire(
-  data: StaticRequire | StaticImageData
-): data is StaticRequire {
-  return data && (data as StaticRequire).default !== undefined
-}
-
-function isUrl(data: string | StaticImport | URL): data is URL {
-  return !!data && (data as URL).href !== undefined
-}
-
 export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
 > & {
-  src: string | StaticImport | URL
+  src: string | StaticImport
   loader?: ImageLoader
   quality?: number | string
   priority?: boolean
@@ -87,7 +74,6 @@ export type ImageProps = Omit<
   unoptimized?: boolean
   objectFit?: ImgElementStyle['objectFit']
   objectPosition?: ImgElementStyle['objectPosition']
-  meta?: ImageMetaData
 } & (
     | {
         width?: never
@@ -285,7 +271,6 @@ export default function Image({
   loader = defaultImageLoader,
   placeholder = 'empty',
   blurDataURL,
-  meta,
   ...all
 }: ImageProps) {
   let rest: Partial<ImageProps> = all
@@ -306,42 +291,37 @@ export default function Image({
   if (!configEnableBlurryPlaceholder) {
     placeholder = 'empty'
   }
-  height = height || meta?.height
-  width = width || meta?.width
-  let isStatic = false
+  const isStatic = typeof src === 'object'
   let staticSrc = ''
-  if (typeof src !== 'string' && typeof src !== 'undefined') {
-    isStatic = true
-    // Handle static image import
+  if (isStatic) {
     let staticImport = src as StaticImport
     let staticImageData: StaticImageData
-    if (isStaticRequire(staticImport)) {
-      staticImageData = staticImport.default
+    if ((staticImport as StaticRequire).default) {
+      staticImageData = (staticImport as StaticRequire).default
     } else {
-      staticImageData = staticImport
+      staticImageData = staticImport as StaticImageData
     }
-    staticSrc = isUrl(src) ? src.href : staticImageData.src
-
-    height = height || staticImageData.height
-    width = width || staticImageData.width
-
-    if (!staticSrc) {
+    if (!staticImageData.src) {
       throw new Error(
         `An object should only be passed to the image component src parameter if it comes from a static image import. It must include src. Received ${JSON.stringify(
           staticImport
         )}`
       )
     }
-
-    if ((!layout || layout !== 'fill') && (!height || !width)) {
-      throw new Error(
-        `An object should only be passed to the image component src parameter if it comes from a static image import. It must include height and width. Received ${JSON.stringify(
-          staticImageData
-        )}`
-      )
+    staticSrc = staticImageData.src
+    if (!layout || layout !== 'fill') {
+      height = staticImageData.height
+      width = staticImageData.width
+      if (!height || !width) {
+        throw new Error(
+          `An object should only be passed to the image component src parameter if it comes from a static image import. It must include height and width. Received ${JSON.stringify(
+            staticImageData
+          )}`
+        )
+      }
     }
   }
-  src = isStatic ? staticSrc : (src as string)
+  src = (isStatic ? staticSrc : src) as string
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {

@@ -168,6 +168,7 @@ export default (
           lib: true,
         },
       ],
+      require('./plugins/image-import-transforms'),
       require('next/dist/compiled/babel/plugin-syntax-dynamic-import'),
       require('./plugins/react-loadable-plugin'),
       [
@@ -211,7 +212,6 @@ export default (
       // smaller.
       require('next/dist/compiled/babel/plugin-proposal-numeric-separator'),
       require('next/dist/compiled/babel/plugin-proposal-export-namespace-from'),
-      require('./plugins/image-import-transforms'),
     ].filter(Boolean),
   }
 }
