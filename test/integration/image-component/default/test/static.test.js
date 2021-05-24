@@ -77,7 +77,7 @@ describe('Static Image Component Tests', () => {
       `
         module.exports = {
           experimental: {
-            staticImages: true,
+            enableStaticImages: true,
             enableBlurryPlaceholder: true,
           },
         }

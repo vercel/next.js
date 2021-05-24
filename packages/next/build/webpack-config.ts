@@ -998,7 +998,7 @@ export default async function getBaseWebpackConfig(
               ]
             : defaultLoaders.babel,
         },
-        ...(config.experimental.staticImages
+        ...(config.experimental.enableStaticImages
           ? [
               {
                 test: /\.(png|svg|jpg|jpeg|gif|webp|ico|bmp)$/i,

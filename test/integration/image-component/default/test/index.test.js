@@ -567,7 +567,7 @@ describe('Image Component Tests', () => {
         `
         module.exports = {
           experimental: {
-            staticImages: true
+            enableStaticImages: true
           },
         }
       `
@@ -590,7 +590,7 @@ describe('Image Component Tests', () => {
         `
         module.exports = {
           experimental: {
-            staticImages: true
+            enableStaticImages: true
           },
         }
       `
@@ -616,7 +616,7 @@ describe('Image Component Tests', () => {
           target: 'serverless',
           experimental: {
             enableBlurryPlaceholder: true,
-            staticImages: true
+            enableStaticImages: true
           },
         }
       `

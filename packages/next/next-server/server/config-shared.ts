@@ -45,7 +45,7 @@ export type NextConfig = { [key: string]: any } & {
     workerThreads?: boolean
     pageEnv?: boolean
     optimizeImages?: boolean
-    staticImages?: boolean
+    enableStaticImages?: boolean
     optimizeCss?: boolean
     scrollRestoration?: boolean
     scriptLoader?: boolean
@@ -111,7 +111,7 @@ export const defaultConfig: NextConfig = {
     workerThreads: false,
     pageEnv: false,
     optimizeImages: false,
-    staticImages: false,
+    enableStaticImages: false,
     optimizeCss: false,
     scrollRestoration: false,
     scriptLoader: false,
