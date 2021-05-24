@@ -1001,7 +1001,7 @@ export default async function getBaseWebpackConfig(
         ...(config.experimental.staticImages
           ? [
               {
-                test: /\.(png|svg|jpg|jpeg|gif)$/i,
+                test: /\.(png|svg|jpg|jpeg|gif|webp|ico|bmp)$/i,
                 loader: 'next-image-loader',
               },
             ]

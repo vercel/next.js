@@ -27,6 +27,9 @@ const runTests = () => {
     expect(await browser.elementById('format-test-1')).toBeTruthy()
     expect(await browser.elementById('format-test-2')).toBeTruthy()
     expect(await browser.elementById('format-test-3')).toBeTruthy()
+    expect(await browser.elementById('format-test-4')).toBeTruthy()
+    expect(await browser.elementById('format-test-5')).toBeTruthy()
+    expect(await browser.elementById('format-test-6')).toBeTruthy()
   })
   it('Should automatically provide an image height and width', async () => {
     expect(html).toContain('width:400px;height:300px')

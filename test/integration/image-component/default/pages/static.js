@@ -6,8 +6,19 @@ import testJPG from '../public/test.jpg'
 import testPNG from '../public/test.png'
 import testSVG from '../public/test.svg'
 import testGIF from '../public/test.gif'
+import testBMP from '../public/test.bmp'
+import testICO from '../public/test.ico'
+import testWEBP from '../public/test.webp'
 
-const testFiles = [testJPG, testPNG, testSVG, testGIF]
+const testFiles = [
+  testJPG,
+  testPNG,
+  testSVG,
+  testGIF,
+  testBMP,
+  testICO,
+  testWEBP,
+]
 
 const Page = () => {
   return (
