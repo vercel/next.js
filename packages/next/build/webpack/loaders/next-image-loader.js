@@ -26,6 +26,7 @@ async function nextImageLoader(content) {
         interpolatedName
     )
     this.emitError(err)
+    return
   }
 
   const src = interpolatedName.slice(7)
