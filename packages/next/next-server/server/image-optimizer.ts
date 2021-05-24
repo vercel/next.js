@@ -117,7 +117,7 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  const isStaticImage = !!s
+  const isStatic = !!s
 
   const width = parseInt(w, 10)
 
@@ -269,7 +269,7 @@ export async function imageOptimizer(
         ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
       if (vector || animate) {
         await writeToCacheDir(hashDir, upstreamType, expireAt, upstreamBuffer)
-        sendResponse(req, res, upstreamType, upstreamBuffer, isStaticImage)
+        sendResponse(req, res, upstreamType, upstreamBuffer, isStatic)
         return { finished: true }
       }
 
@@ -341,12 +341,12 @@ export async function imageOptimizer(
 
       if (optimizedBuffer) {
         await writeToCacheDir(hashDir, contentType, expireAt, optimizedBuffer)
-        sendResponse(req, res, contentType, optimizedBuffer, isStaticImage)
+        sendResponse(req, res, contentType, optimizedBuffer, isStatic)
       } else {
         throw new Error('Unable to optimize buffer')
       }
     } catch (error) {
-      sendResponse(req, res, upstreamType, upstreamBuffer, isStaticImage)
+      sendResponse(req, res, upstreamType, upstreamBuffer, isStatic)
     }
 
     return { finished: true }
