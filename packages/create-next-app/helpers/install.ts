@@ -30,7 +30,7 @@ export function install(
   /**
    * NPM-specific command-line flags.
    */
-  const npmFlags: string[] = ['--logLevel', 'error']
+  const npmFlags: string[] = []
   /**
    * Yarn-specific command-line flags.
    */

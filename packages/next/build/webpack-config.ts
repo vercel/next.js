@@ -822,7 +822,18 @@ export default async function getBaseWebpackConfig(
       ...(isWebpack5 ? { emitOnErrors: !dev } : { noEmitOnErrors: dev }),
       checkWasmTypes: false,
       nodeEnv: false,
-      splitChunks: isServer ? false : splitChunksConfig,
+      splitChunks: isServer
+        ? isWebpack5
+          ? ({
+              filename: '[name].js',
+              // allow to split entrypoints
+              chunks: 'all',
+              // size of files is not so relevant for server build
+              // we want to prefer deduplication to load less code
+              minSize: 1000,
+            } as any)
+          : false
+        : splitChunksConfig,
       runtimeChunk: isServer
         ? isWebpack5 && !isLikeServerless
           ? { name: 'webpack-runtime' }
@@ -920,7 +931,7 @@ export default async function getBaseWebpackConfig(
         : 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
-        ? `${dev ? '[name]' : '[name].[contenthash]'}.js`
+        ? '[name].js'
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}${
             dev ? '[name]' : '[name].[contenthash]'
           }.js`,
@@ -1235,6 +1246,47 @@ export default async function getBaseWebpackConfig(
     }
     // webpack 5 no longer polyfills Node.js modules:
     if (webpackConfig.node) delete webpackConfig.node.setImmediate
+
+    // Due to bundling of webpack the default values can't be correctly detected
+    // This restores the webpack defaults
+    // @ts-ignore webpack 5
+    webpackConfig.snapshot = {}
+    if (process.versions.pnp === '3') {
+      const match = /^(.+?)[\\/]cache[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
+        require.resolve('jest-worker')
+      )
+      if (match) {
+        // @ts-ignore webpack 5
+        webpackConfig.snapshot.managedPaths = [
+          path.resolve(match[1], 'unplugged'),
+        ]
+      }
+    } else {
+      const match = /^(.+?[\\/]node_modules)[\\/]/.exec(
+        require.resolve('jest-worker')
+      )
+      if (match) {
+        // @ts-ignore webpack 5
+        webpackConfig.snapshot.managedPaths = [match[1]]
+      }
+    }
+    if (process.versions.pnp === '1') {
+      const match = /^(.+?[\\/]v4)[\\/]npm-jest-worker-[^\\/]+-[\da-f]{40}[\\/]node_modules[\\/]/.exec(
+        require.resolve('jest-worker')
+      )
+      if (match) {
+        // @ts-ignore webpack 5
+        webpackConfig.snapshot.immutablePaths = [match[1]]
+      }
+    } else if (process.versions.pnp === '3') {
+      const match = /^(.+?)[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
+        require.resolve('jest-worker')
+      )
+      if (match) {
+        // @ts-ignore webpack 5
+        webpackConfig.snapshot.immutablePaths = [match[1]]
+      }
+    }
 
     if (dev) {
       if (!webpackConfig.optimization) {
