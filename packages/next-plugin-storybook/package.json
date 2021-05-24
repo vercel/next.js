@@ -1,6 +1,6 @@
 {
   "name": "@next/plugin-storybook",
-  "version": "10.2.1-canary.4",
+  "version": "10.2.3",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/next-plugin-storybook"
