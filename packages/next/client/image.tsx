@@ -54,6 +54,7 @@ interface StaticImageData {
   src: string
   height: number
   width: number
+  dataURI?: string
 }
 
 interface StaticRequire {
@@ -307,6 +308,9 @@ export default function Image({
           staticImageData
         )}`
       )
+    }
+    if (staticImageData.dataURI) {
+      blurDataURL = staticImageData.dataURI
     }
     staticSrc = staticImageData.src
     if (!layout || layout !== 'fill') {

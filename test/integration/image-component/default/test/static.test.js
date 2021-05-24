@@ -41,6 +41,16 @@ const runTests = () => {
       await browser.elementById('basic-non-static').getAttribute('src')
     ).not.toContain('&s=1')
   })
+  it('Should add a blurry placeholder to statically imported jpg', async () => {
+    expect(html).toContain(
+      `style="position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-image:url(&quot;data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wEEEAMgAyADIAMgA1IDIAOEA+gD6AOEBOIFRgSwBUYE4gc6BqQGDgYOBqQHOgrwB9AIZgfQCGYH0ArwEJoKWgwcCloKWgwcCloQmg6mEcYOdA16DnQRxg6mGl4UtBJcElwUtBpeHngZlhg4GZYeeCTqIQIhAiTqLnwsJC58PL48vlGkEQMgAyADIAMgA1IDIAOEA+gD6AOEBOIFRgSwBUYE4gc6BqQGDgYOBqQHOgrwB9AIZgfQCGYH0ArwEJoKWgwcCloKWgwcCloQmg6mEcYOdA16DnQRxg6mGl4UtBJcElwUtBpeHngZlhg4GZYeeCTqIQIhAiTqLnwsJC58PL48vlGk/8IAEQgABgAGAwEiAAIRAQMRAf/EABQAAQAAAAAAAAAAAAAAAAAAAAH/2gAIAQEAAAAAP//EABQBAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIQAAAAf//EABQBAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMQAAAAf//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAT8Af//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Af//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Af//Z&quot;)"`
+    )
+  })
+  it('Should add a blurry placeholder to statically imported png', async () => {
+    expect(html).toContain(
+      `style="position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-image:url(&quot;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAYAAAAGCAQAAABKxSfDAAAAOklEQVR42jXLsQ2AMADEQINYIT2ZgP2VfTLGmy+gObkxeImfhyXU1pSsrDoDPm53RfDOyKiE839y+gIFlSgsTCgClAAAAABJRU5ErkJggg==&quot;)"`
+    )
+  })
 }
 
 describe('Build Error Tests', () => {
@@ -65,6 +75,7 @@ describe('Static Image Component Tests', () => {
         module.exports = {
           experimental: {
             staticImages: true,
+            enableBlurryPlaceholder: true,
           },
         }
       `

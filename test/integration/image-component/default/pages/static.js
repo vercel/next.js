@@ -13,7 +13,12 @@ const Page = () => {
   return (
     <div>
       <h1 id="page-header">Static Image</h1>
-      <Image id="basic-static" src={testImg} layout="fixed" />
+      <Image
+        id="basic-static"
+        src={testImg}
+        layout="fixed"
+        placeholder="blur"
+      />
       <Image
         id="require-static"
         src={require('../public/foo/test-rect.jpg')}
@@ -27,7 +32,13 @@ const Page = () => {
         layout="fixed"
       />
       {testFiles.map((f, i) => (
-        <Image id={`format-test-${i}`} key={i} src={f} layout="fixed" />
+        <Image
+          id={`format-test-${i}`}
+          key={i}
+          src={f}
+          layout="fixed"
+          placeholder="blur"
+        />
       ))}
     </div>
   )
