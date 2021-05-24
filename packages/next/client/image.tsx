@@ -304,7 +304,7 @@ export default function Image({
     if (!staticImageData.src) {
       throw new Error(
         `An object should only be passed to the image component src parameter if it comes from a static image import. It must include src. Received ${JSON.stringify(
-          staticImport
+          staticImageData
         )}`
       )
     }

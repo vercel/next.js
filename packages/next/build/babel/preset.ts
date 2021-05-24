@@ -168,7 +168,6 @@ export default (
           lib: true,
         },
       ],
-      require('./plugins/image-import-transforms'),
       require('next/dist/compiled/babel/plugin-syntax-dynamic-import'),
       require('./plugins/react-loadable-plugin'),
       [
