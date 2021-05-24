@@ -543,7 +543,7 @@ export default function Page(props) {
       await fs.promises.writeFile(
         path.join(this.appDir, 'next.config.js'),
         `
-const craCompat = require('/Users/jj/dev/vercel/next.js/packages/next/cra-compat.js')
+const craCompat = require('next/cra-compat.js')
 
 module.exports = craCompat({${
           proxy
