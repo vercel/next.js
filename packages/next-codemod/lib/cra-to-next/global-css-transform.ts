@@ -27,10 +27,11 @@ export default function transformer(
 
       if (typeof value === 'string') {
         if (globalStylesRegex.test(value)) {
-          const resolvedPath = nodePath.resolve(
-            nodePath.dirname(file.path),
-            value
-          )
+          let resolvedPath = value
+
+          if (value.startsWith('.')) {
+            resolvedPath = nodePath.resolve(nodePath.dirname(file.path), value)
+          }
           globalCssContext.cssImports.add(resolvedPath)
 
           const { start, end } = path.node as any

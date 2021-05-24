@@ -27,6 +27,8 @@ const indexTransformPath = require.resolve(
 class CraTransform {
   private appDir: string
   private pagesDir: string
+  private isVite: boolean
+  private isCra: boolean
   private isDryRun: boolean
   private indexPage: string
   private installClient: string
@@ -45,15 +47,35 @@ class CraTransform {
     this.shouldLogInfo = flags.print || flags.dry
     this.pagesDir = this.getPagesDir()
     this.installClient = this.checkForYarn() ? 'yarn' : 'npm'
+
+    const { dependencies, devDependencies } = this.packageJsonData
+    const hasDep = (dep) => dependencies?.[dep] || devDependencies?.[dep]
+
+    this.isCra = hasDep('react-scripts')
+    this.isVite = !this.isCra && hasDep('vite')
+
+    if (!this.isCra && !this.isVite) {
+      fatalMessage(
+        `Error: react-scripts was not detected, is this a CRA project?`
+      )
+    }
+
     this.shouldUseTypeScript =
       fs.existsSync(path.join(this.appDir, 'tsconfig.json')) ||
       globby.sync('src/**/*.{ts,tsx}', {
         cwd: path.join(this.appDir, 'src'),
       }).length > 0
 
-    this.indexPage = globby.sync(['index.{js,jsx,ts,tsx}'], {
-      cwd: path.join(this.appDir, 'src'),
-    })[0]
+    this.indexPage = globby.sync(
+      [`${this.isCra ? 'index' : 'main'}.{js,jsx,ts,tsx}`],
+      {
+        cwd: path.join(this.appDir, 'src'),
+      }
+    )[0]
+
+    if (!this.indexPage) {
+      fatalMessage('Error: unable to find `src/index`')
+    }
   }
 
   public async transform() {
@@ -75,8 +97,14 @@ class CraTransform {
 
     if (indexContext.multipleRenderRoots) {
       fatalMessage(
-        `Error: multiple render roots in src/${this.indexPage}, migrate additional render roots to use portals instead to continue.\n` +
+        `Error: multiple ReactDOM.render roots in src/${this.indexPage}, migrate additional render roots to use portals instead to continue.\n` +
           `See here for more info: https://reactjs.org/docs/portals.html`
+      )
+    }
+
+    if (indexContext.nestedRender) {
+      fatalMessage(
+        `Error: nested ReactDOM.render found in src/${this.indexPage}, please migrate this to a top-level render (no wrapping functions) to continue`
       )
     }
 
@@ -146,7 +174,7 @@ class CraTransform {
   private async createPages() {
     // load public/index.html and add tags to _document
     const htmlContent = await fs.promises.readFile(
-      path.join(this.appDir, 'public/index.html'),
+      path.join(this.appDir, `${this.isCra ? 'public/' : ''}index.html`),
       'utf8'
     )
     const $ = cheerio.load(htmlContent)
@@ -204,12 +232,21 @@ class CraTransform {
       ) {
         return element
       }
-      const hasChildren = element.children.length > 0
-      const serializedAttrs = serializeAttrs(element.attribs)
+      let hasChildren = element.children.length > 0
+      let serializedAttrs = serializeAttrs(element.attribs)
+
+      if (element.tagName === 'script' || element.tagName === 'style') {
+        hasChildren = false
+        serializedAttrs += ` dangerouslySetInnerHTML={{ __html: \`${gatherTextChildren(
+          element.children
+        ).replace(/`/g, '\\`')}\` }}`
+      }
 
       serializedHeadTags.push(
         hasChildren
-          ? `<${element.tagName}${serializedAttrs}></${element.tagName}>`
+          ? `<${element.tagName}${serializedAttrs}>${gatherTextChildren(
+              element.children
+            )}</${element.tagName}>`
           : `<${element.tagName}${serializedAttrs} />`
       )
 
@@ -220,10 +257,17 @@ class CraTransform {
       if (element.tagName === 'div' && element.attribs.id === 'root') {
         return element
       }
-      const hasChildren = element.children.length > 0
-      const serializedAttrs = serializeAttrs(element.attribs)
+      let hasChildren = element.children.length > 0
+      let serializedAttrs = serializeAttrs(element.attribs)
 
-      serializedBodyTags.push(
+      if (element.tagName === 'script' || element.tagName === 'style') {
+        hasChildren = false
+        serializedAttrs += ` dangerouslySetInnerHTML={{ __html: \`${gatherTextChildren(
+          element.children
+        ).replace(/`/g, '\\`')}\` }}`
+      }
+
+      serializedHeadTags.push(
         hasChildren
           ? `<${element.tagName}${serializedAttrs}>${gatherTextChildren(
               element.children
@@ -242,10 +286,18 @@ class CraTransform {
             ? ''
             : [...globalCssContext.cssImports]
                 .map((file) => {
-                  return `import '${path.relative(
-                    path.join(this.appDir, this.pagesDir),
-                    file
-                  )}'`
+                  if (!this.isCra) {
+                    file = file.startsWith('/') ? file.substr(1) : file
+                  }
+
+                  return `import '${
+                    file.startsWith('/')
+                      ? path.relative(
+                          path.join(this.appDir, this.pagesDir),
+                          file
+                        )
+                      : file
+                  }'`
                 })
                 .join('\n') + '\n'
         }${titleTag ? `import Head from 'next/head'` : ''}
@@ -303,7 +355,7 @@ export default MyDocument
 
       const relativeIndexPath = path.relative(
         path.join(this.appDir, this.pagesDir),
-        path.join(this.appDir, 'src')
+        path.join(this.appDir, 'src', this.isCra ? '' : 'main')
       )
 
       // TODO: should we default to ssr: true below and recommend they
@@ -359,8 +411,9 @@ export default function Page(props) {
           ]
         : []),
     ]
+    const packageName = this.isCra ? 'react-scripts' : 'vite'
     const packagesToRemove = {
-      'react-scripts': undefined,
+      [packageName]: undefined,
     }
     const neededDependencies: string[] = []
     const { devDependencies, dependencies, scripts } = this.packageJsonData
@@ -385,10 +438,14 @@ export default function Page(props) {
               const command = scripts[cur]
               prev[cur] = command
 
-              if (command.includes('react-scripts ')) {
+              if (command === packageName) {
+                prev[cur] = 'next dev'
+              }
+
+              if (command.includes(`${packageName} `)) {
                 prev[cur] = command.replace(
-                  'react-scripts ',
-                  command.includes('react-scripts test') ? 'jest ' : 'next '
+                  `${packageName} `,
+                  command.includes(`${packageName} test`) ? 'jest ' : 'next '
                 )
               }
               if (cur === 'eject') {
@@ -486,7 +543,7 @@ export default function Page(props) {
       await fs.promises.writeFile(
         path.join(this.appDir, 'next.config.js'),
         `
-const craCompat = require('next/cra-compat.js')
+const craCompat = require('/Users/jj/dev/vercel/next.js/packages/next/cra-compat.js')
 
 module.exports = craCompat({${
           proxy
@@ -549,14 +606,6 @@ module.exports = craCompat({${
     } catch (err) {
       fatalMessage(
         `Error: failed to load package.json from ${this.packageJsonPath}, ensure provided directory is root of CRA project`
-      )
-    }
-
-    const { dependencies, devDependencies } = packageJsonData
-
-    if (!dependencies['react-scripts'] && !devDependencies['react-scripts']) {
-      fatalMessage(
-        `Error: react-scripts was not detected, is this a CRA project?`
       )
     }
 

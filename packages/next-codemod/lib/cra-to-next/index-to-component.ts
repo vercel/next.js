@@ -2,6 +2,7 @@ import { API, FileInfo, JSXElement, Options } from 'jscodeshift'
 
 export const indexContext = {
   multipleRenderRoots: false,
+  nestedRender: false,
 }
 
 export default function transformer(
@@ -53,6 +54,11 @@ export default function transformer(
         foundReactRender++
         hasModifications = true
 
+        if (!Array.isArray(path.parentPath?.parentPath?.value)) {
+          indexContext.nestedRender = true
+          return false
+        }
+
         const newNode = j.exportDefaultDeclaration(
           j.functionDeclaration(
             j.identifier('NextIndexWrapper'),
@@ -77,7 +83,10 @@ export default function transformer(
     .remove()
 
   indexContext.multipleRenderRoots = foundReactRender > 1
-  hasModifications = hasModifications && !indexContext.multipleRenderRoots
+  hasModifications =
+    hasModifications &&
+    !indexContext.nestedRender &&
+    !indexContext.multipleRenderRoots
 
   // TODO: move function passed to reportWebVitals if present to
   // _app reportWebVitals and massage values to expected shape
