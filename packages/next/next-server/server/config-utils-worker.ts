@@ -50,6 +50,13 @@ export async function shouldLoadWithWebpack5(
     }
   }
 
+  if (Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0) {
+    return {
+      enabled: false,
+      reason: 'test-mode',
+    }
+  }
+
   // No `next.config.js`:
   if (!path?.length) {
     // Uncomment to add auto-enable when there is no next.config.js
