@@ -1522,7 +1522,7 @@ export default class Router implements BaseRouter {
         // if this directly matches a page we need to update the href to
         // allow the correct page chunk to be loaded
         pathname = rewritesResult.resolvedHref
-        parsed.pathname = addBasePath(pathname)
+        parsed.pathname = pathname
         url = formatWithValidation(parsed)
       }
     } else {
@@ -1530,7 +1530,7 @@ export default class Router implements BaseRouter {
 
       if (parsed.pathname !== pathname) {
         pathname = parsed.pathname
-        parsed.pathname = addBasePath(pathname)
+        parsed.pathname = pathname
         url = formatWithValidation(parsed)
       }
     }
