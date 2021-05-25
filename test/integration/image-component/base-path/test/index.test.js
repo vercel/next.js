@@ -414,15 +414,6 @@ function runTests(mode) {
         'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
       )
     })
-
-    it('should show invalid unsized error', async () => {
-      const browser = await webdriver(appPort, '/docs/invalid-unsized')
-
-      expect(await hasRedbox(browser)).toBe(true)
-      expect(await getRedboxHeader(browser)).toContain(
-        'Image with src "/docs/test.png" has deprecated "unsized" property, which was removed in favor of the "layout=\'fill\'" property'
-      )
-    })
   }
 
   it('should correctly ignore prose styles', async () => {
