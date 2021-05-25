@@ -43,6 +43,7 @@ const externals = {
 
   chalk: 'chalk',
   'node-fetch': 'node-fetch',
+  'abort-controller': 'abort-controller',
   // postcss: 'postcss',
 
   // webpack

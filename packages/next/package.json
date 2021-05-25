@@ -69,6 +69,7 @@
     "@next/react-dev-overlay": "10.2.3",
     "@next/react-refresh-utils": "10.2.3",
     "@opentelemetry/api": "0.14.0",
+    "abort-controller": "3.0.0",
     "assert": "2.0.0",
     "ast-types": "0.13.2",
     "browserify-zlib": "0.2.0",
@@ -111,7 +112,8 @@
     "use-subscription": "1.5.1",
     "util": "0.12.3",
     "vm-browserify": "1.1.2",
-    "watchpack": "2.1.1"
+    "watchpack": "2.1.1",
+    "yet-another-abortcontroller-polyfill": "0.0.4"
   },
   "peerDependencies": {
     "fibers": ">= 3.1.0",

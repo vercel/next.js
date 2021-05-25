@@ -55,5 +55,6 @@ import 'core-js/features/promise/finally'
 
 // Specialized Packages:
 import 'whatwg-fetch'
+import 'yet-another-abortcontroller-polyfill'
 import assign from 'object-assign'
 Object.assign = assign
