@@ -17,9 +17,7 @@ import {
 } from '../next-server/server/get-page-files'
 import { cleanAmpPath } from '../next-server/server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
-import Script, {
-  Props as ScriptLoaderProps,
-} from '../client/experimental-script'
+import Script, { Props as ScriptLoaderProps } from '../client/script'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -534,9 +532,7 @@ export class Head extends Component<
       children = this.makeStylesheetInert(children)
     }
 
-    if (process.env.__NEXT_SCRIPT_LOADER) {
-      children = this.handleDocumentScriptLoaderItems(children)
-    }
+    children = this.handleDocumentScriptLoaderItems(children)
 
     let hasAmphtmlRel = false
     let hasCanonicalRel = false

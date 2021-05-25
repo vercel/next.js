@@ -141,8 +141,8 @@ if (process.env.__NEXT_I18N_SUPPORT) {
   }
 }
 
-if (process.env.__NEXT_SCRIPT_LOADER && data.scriptLoader) {
-  const { initScriptLoader } = require('./experimental-script')
+if (data.scriptLoader) {
+  const { initScriptLoader } = require('./script')
   initScriptLoader(data.scriptLoader)
 }
 

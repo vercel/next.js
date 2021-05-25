@@ -47,7 +47,6 @@ export type NextConfig = { [key: string]: any } & {
     optimizeImages?: boolean
     optimizeCss?: boolean
     scrollRestoration?: boolean
-    scriptLoader?: boolean
     stats?: boolean
     externalDir?: boolean
     serialWebpackBuild?: boolean
@@ -112,7 +111,6 @@ export const defaultConfig: NextConfig = {
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
-    scriptLoader: false,
     stats: false,
     externalDir: false,
     serialWebpackBuild: false,
