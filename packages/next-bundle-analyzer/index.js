@@ -1,4 +1,4 @@
-module.exports = ({ enabled = true } = {}) => (nextConfig = {}) => {
+module.exports = ({ enabled = true, options: bundleAnalyzerOptions } = {}) => (nextConfig = {}) => {
   return Object.assign({}, nextConfig, {
     webpack(config, options) {
       if (enabled) {
@@ -9,6 +9,7 @@ module.exports = ({ enabled = true } = {}) => (nextConfig = {}) => {
             reportFilename: options.isServer
               ? '../analyze/server.html'
               : './analyze/client.html',
+            ...bundleAnalyzerOptions
           })
         )
       }

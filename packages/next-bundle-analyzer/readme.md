@@ -57,3 +57,17 @@ module.exports = withPlugins([
   // your other plugins here
 ])
 ```
+
+### Configuring the bundle analyzer
+
+The analyzer is configured with sensible defaults. You can tune the the options
+to your needs by using the `{ options }` field. Options are documented at [webpack-bundle-analyzer#options-for-plugin](https://github.com/webpack-contrib/webpack-bundle-analyzer#options-for-plugin).
+
+```js
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+  options: {
+    generateStatsFile: true
+  }
+})
+```
