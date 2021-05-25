@@ -25,8 +25,7 @@ export async function apiResolver(
   query: any,
   resolverModule: any,
   apiContext: __ApiPreviewProps,
-  propagateError: boolean,
-  onError?: ({ err }: { err: any }) => Promise<void>
+  propagateError: boolean
 ): Promise<void> {
   const apiReq = req as NextApiRequest
   const apiRes = res as NextApiResponse
@@ -99,7 +98,6 @@ export async function apiResolver(
       sendError(apiRes, err.statusCode, err.message)
     } else {
       console.error(err)
-      if (onError) await onError({ err })
       if (propagateError) {
         throw err
       }
@@ -116,7 +114,12 @@ export async function parseBody(
   req: NextApiRequest,
   limit: string | number
 ): Promise<any> {
-  const contentType = parse(req.headers['content-type'] || 'text/plain')
+  let contentType
+  try {
+    contentType = parse(req.headers['content-type'] || 'text/plain')
+  } catch {
+    contentType = parse('text/plain')
+  }
   const { type, parameters } = contentType
   const encoding = parameters.charset || 'utf-8'
 

@@ -44,8 +44,8 @@ export async function loadDefaultErrorComponents(distDir: string) {
     App,
     Document,
     Component,
-    buildManifest: require(join(distDir, BUILD_MANIFEST)),
-    reactLoadableManifest: require(join(distDir, REACT_LOADABLE_MANIFEST)),
+    buildManifest: require(join(distDir, `fallback-${BUILD_MANIFEST}`)),
+    reactLoadableManifest: {},
     ComponentMod,
   }
 }

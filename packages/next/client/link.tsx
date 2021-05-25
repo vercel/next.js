@@ -213,7 +213,7 @@ export function Link(props: React.PropsWithChildren<LinkProps>) {
   const p = props.prefetch !== false
 
   const router = useRouter()
-  const pathname = (router && router.pathname) || '/'
+  const pathname = (router && router.asPath) || '/'
 
   const { href, as } = React.useMemo(() => {
     const [resolvedHref, resolvedAs] = resolveHref(pathname, props.href, true)

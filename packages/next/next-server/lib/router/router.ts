@@ -1,4 +1,3 @@
-/* global __NEXT_DATA__ */
 // tslint:disable:no-console
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
@@ -113,7 +112,8 @@ export function addLocale(
   defaultLocale?: string
 ) {
   if (process.env.__NEXT_I18N_SUPPORT) {
-    const pathLower = path.toLowerCase()
+    const pathname = pathNoQueryHash(path)
+    const pathLower = pathname.toLowerCase()
     const localeLower = locale && locale.toLowerCase()
 
     return locale &&
@@ -271,7 +271,14 @@ export function resolveHref(
   resolveAs?: boolean
 ): string {
   // we use a dummy base url for relative urls
-  const base = new URL(currentPath, 'http://n')
+  let base: URL
+
+  try {
+    base = new URL(currentPath, 'http://n')
+  } catch (_) {
+    // fallback to / for invalid asPath values e.g. //
+    base = new URL('/', 'http://n')
+  }
   const urlAsString =
     typeof href === 'string' ? href : formatWithValidation(href)
   // Return because it cannot be routed by the Next.js router
@@ -328,7 +335,7 @@ function stripOrigin(url: string) {
 function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
-  let [resolvedHref, resolvedAs] = resolveHref(router.pathname, url, true)
+  let [resolvedHref, resolvedAs] = resolveHref(router.asPath, url, true)
   const origin = getLocationOrigin()
   const hrefHadOrigin = resolvedHref.startsWith(origin)
   const asHadOrigin = resolvedAs && resolvedAs.startsWith(origin)
@@ -338,7 +345,7 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
 
   const preparedUrl = hrefHadOrigin ? resolvedHref : addBasePath(resolvedHref)
   const preparedAs = as
-    ? stripOrigin(resolveHref(router.pathname, as))
+    ? stripOrigin(resolveHref(router.asPath, as))
     : resolvedAs || resolvedHref
 
   return {
@@ -553,7 +560,7 @@ export default class Router implements BaseRouter {
       pageLoader: any
       Component: ComponentType
       App: AppComponent
-      wrapApp: (App: AppComponent) => any
+      wrapApp: (WrapAppComponent: AppComponent) => any
       err?: Error
       isFallback: boolean
       locale?: string
@@ -793,6 +800,7 @@ export default class Router implements BaseRouter {
       window.location.href = url
       return false
     }
+    const shouldResolveHref = url === as || (options as any)._h
 
     // for static pages with query params in the URL we delay
     // marking the router ready until after the query is updated
@@ -969,7 +977,7 @@ export default class Router implements BaseRouter {
       ? removePathTrailingSlash(delBasePath(pathname))
       : pathname
 
-    if (pathname !== '/_error') {
+    if (shouldResolveHref && pathname !== '/_error') {
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
         const rewritesResult = resolveRewrites(
           addBasePath(addLocale(cleanedAs, this.locale)),
@@ -1371,6 +1379,9 @@ export default class Router implements BaseRouter {
                 pathname,
                 query,
                 asPath: as,
+                locale: this.locale,
+                locales: this.locales,
+                defaultLocale: this.defaultLocale,
               } as any
             )
       )

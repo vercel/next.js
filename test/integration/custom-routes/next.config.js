@@ -1,6 +1,7 @@
 module.exports = {
   // target: 'serverless',
   async rewrites() {
+    // no-rewrites comment
     return {
       afterFiles: [
         ...(process.env.ADD_NOOP_REWRITE === 'true'
@@ -11,6 +12,10 @@ module.exports = {
               },
             ]
           : []),
+        {
+          source: '/to-nowhere',
+          destination: 'http://localhost:12233',
+        },
         {
           source: '/rewriting-to-auto-export',
           destination: '/auto-export/hello?rewrite=1',
@@ -185,6 +190,10 @@ module.exports = {
           ],
           destination: '/with-params?idk=:idk',
         },
+        {
+          source: '/blog/about',
+          destination: '/hello',
+        },
       ],
       beforeFiles: [
         {
@@ -196,6 +205,10 @@ module.exports = {
             },
           ],
           destination: '/with-params?overridden=1',
+        },
+        {
+          source: '/old-blog/:path*',
+          destination: '/blog/:path*',
         },
       ],
     }

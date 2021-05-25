@@ -38,6 +38,33 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
+  it('should continue in beforeFiles rewrites', async () => {
+    const res = await fetchViaHTTP(appPort, '/old-blog/about')
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect($('#hello').text()).toContain('Hello')
+
+    const browser = await webdriver(appPort, '/nav')
+
+    await browser.eval('window.beforeNav = 1')
+    await browser
+      .elementByCss('#to-old-blog')
+      .click()
+      .waitForElementByCss('#hello')
+    expect(await browser.elementByCss('#hello').text()).toContain('Hello')
+  })
+
+  it('should not hang when proxy rewrite fails', async () => {
+    const res = await fetchViaHTTP(appPort, '/to-nowhere', undefined, {
+      timeout: 5000,
+    })
+
+    expect(res.status).toBe(500)
+  })
+
   it('should parse params correctly for rewrite to auto-export dynamic page', async () => {
     const browser = await webdriver(appPort, '/rewriting-to-auto-export')
     const text = await browser.eval(() => document.documentElement.innerHTML)
@@ -773,6 +800,20 @@ const runTests = (isDev = false) => {
       overrideMe: '1',
       overridden: '1',
     })
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser.elementByCss('#to-overridden').click()
+    await browser.waitForElementByCss('#query')
+
+    expect(await browser.eval('window.next.router.pathname')).toBe(
+      '/with-params'
+    )
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      overridden: '1',
+      overrideMe: '1',
+    })
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should match has header redirect correctly', async () => {
@@ -1393,8 +1434,20 @@ const runTests = (isDev = false) => {
               regex: normalizeRegEx('^\\/hello$'),
               source: '/hello',
             },
+            {
+              destination: '/blog/:path*',
+              regex: normalizeRegEx(
+                '^\\/old-blog(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+              ),
+              source: '/old-blog/:path*',
+            },
           ],
           afterFiles: [
+            {
+              destination: 'http://localhost:12233',
+              regex: normalizeRegEx('^\\/to-nowhere$'),
+              source: '/to-nowhere',
+            },
             {
               destination: '/auto-export/hello?rewrite=1',
               regex: normalizeRegEx('^\\/rewriting-to-auto-export$'),
@@ -1617,6 +1670,11 @@ const runTests = (isDev = false) => {
               regex: normalizeRegEx('^\\/has-rewrite-7$'),
               source: '/has-rewrite-7',
             },
+            {
+              destination: '/hello',
+              regex: normalizeRegEx('^\\/blog\\/about$'),
+              source: '/blog/about',
+            },
           ],
           fallback: [],
         },
@@ -1718,12 +1776,33 @@ describe('Custom routes', () => {
   })
 
   describe('dev mode', () => {
+    let nextConfigContent
+
     beforeAll(async () => {
+      // ensure cache with rewrites disabled doesn't persist
+      // after enabling rewrites
+      await fs.remove(join(appDir, '.next'))
+      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
+      await fs.writeFile(
+        nextConfigPath,
+        nextConfigContent.replace('// no-rewrites comment', 'return []')
+      )
+
+      const tempPort = await findPort()
+      const tempApp = await launchApp(appDir, tempPort)
+      await renderViaHTTP(tempPort, '/')
+
+      await killApp(tempApp)
+      await fs.writeFile(nextConfigPath, nextConfigContent)
+
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
       buildId = 'development'
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(nextConfigPath, nextConfigContent)
+      await killApp(app)
+    })
     runTests(true)
   })
 
@@ -1770,8 +1849,8 @@ describe('Custom routes', () => {
       )
     })
 
-    it('should show warning for experimental has usage', async () => {
-      expect(stderr).toContain(
+    it('should not show warning for experimental has usage', async () => {
+      expect(stderr).not.toContain(
         "'has' route field support is still experimental and not covered by semver, use at your own risk."
       )
     })

@@ -190,6 +190,7 @@ export type RenderOptsPartial = {
   locales?: string[]
   defaultLocale?: string
   domainLocales?: DomainLocales
+  disableOptimizedLoading?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType & RenderOptsPartial
@@ -234,6 +235,7 @@ function renderDocument(
     defaultLocale,
     domainLocales,
     isPreview,
+    disableOptimizedLoading,
   }: RenderOpts & {
     props: any
     docComponentsRendered: DocumentProps['docComponentsRendered']
@@ -305,6 +307,7 @@ function renderDocument(
           devOnlyCacheBusterQueryString,
           scriptLoader,
           locale,
+          disableOptimizedLoading,
           ...docProps,
         })}
       </AmpStateContext.Provider>
@@ -594,6 +597,9 @@ export async function renderToHTML(
     pathname,
     query,
     asPath,
+    locale: renderOpts.locale,
+    locales: renderOpts.locales,
+    defaultLocale: renderOpts.defaultLocale,
     AppTree: (props: any) => {
       return (
         <AppContainer>
