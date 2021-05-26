@@ -4,9 +4,6 @@ import { processBuffer } from '../../../next-server/server/lib/squoosh/main'
 import fs from 'fs'
 
 async function nextImageLoader(content) {
-  this.cacheable && this.cacheable(true)
-  this.addDependency(this.resourcePath)
-
   const context = this.rootContext
   const opts = { context, content }
   const interpolatedName = loaderUtils.interpolateName(
