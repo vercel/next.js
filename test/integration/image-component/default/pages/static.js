@@ -31,25 +31,21 @@ const Page = () => {
         placeholder="blur"
       />
       <Image
-        id="require-static"
-        src={require('../public/foo/test-rect.jpg')}
+        id="defined-size-static"
+        src={testPNG}
         layout="fixed"
+        height="200"
+        width="200"
       />
+      <Image id="require-static" src={require('../public/foo/test-rect.jpg')} />
       <Image
         id="basic-non-static"
         src="/test-rect.jpg"
         width="400"
         height="300"
-        layout="fixed"
       />
       {testFiles.map((f, i) => (
-        <Image
-          id={`format-test-${i}`}
-          key={i}
-          src={f}
-          layout="fixed"
-          placeholder="blur"
-        />
+        <Image id={`format-test-${i}`} key={i} src={f} placeholder="blur" />
       ))}
     </div>
   )

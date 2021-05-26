@@ -34,6 +34,10 @@ const runTests = () => {
   it('Should automatically provide an image height and width', async () => {
     expect(html).toContain('width:400px;height:300px')
   })
+  it('Should allow provided width and height to override intrinsic', async () => {
+    expect(html).toContain('width:200px;height:200px')
+    expect(html).not.toContain('width:400px;height:400px')
+  })
   it('Should append "&s=1" to URLs of static images', async () => {
     expect(
       await browser.elementById('basic-static').getAttribute('src')

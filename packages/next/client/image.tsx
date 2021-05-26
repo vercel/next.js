@@ -314,9 +314,9 @@ export default function Image({
     }
     staticSrc = staticImageData.src
     if (!layout || layout !== 'fill') {
-      height = staticImageData.height
-      width = staticImageData.width
-      if (!height || !width) {
+      height = height || staticImageData.height
+      width = width || staticImageData.width
+      if (!staticImageData.height || !staticImageData.width) {
         throw new Error(
           `An object should only be passed to the image component src parameter if it comes from a static image import. It must include height and width. Received ${JSON.stringify(
             staticImageData
