@@ -198,6 +198,18 @@ You can either use [FirebaseUI](https://github.com/firebase/firebaseui-web-react
 [SuperTokens](https://supertokens.io) is a highly customizable, open-source solution split into modules (so you only use what you need).
 SuperTokens currently supports credentials login, email verification, password reset flows, third-party logins, and cookie based sessions with rotating refresh tokens.
 
+### Nhost
+
+<details open>
+  <summary><b>Examples</b></summary>
+  <ul>
+    <li><a href="https://github.com/vercel/next.js/tree/canary/examples/with-nhost-auth-realtime-graphql">with-nhost-auth-realtime-graphql</a></li>
+  </ul>
+</details>
+
+[Nhost](https://nhost.io) is an open source Firebase alternative with GraphQL. Nhost support login via email/password, Magic Link, and multiple OAuth providers such as Google, Facebook, GitHub and LinkedIn. Email verification, password reset and other standard features related to authentication is also included.
+
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:
