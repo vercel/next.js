@@ -217,7 +217,7 @@ function runTests({ w, isDev, domains }) {
     )
   })
 
-  it('should fail when s is present and not "true"', async () => {
+  it('should fail when s is present and not "1"', async () => {
     const query = { url: '/test.png', w, q: 100, s: 'foo' }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
