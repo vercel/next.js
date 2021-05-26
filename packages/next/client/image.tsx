@@ -43,7 +43,7 @@ const VALID_LAYOUT_VALUES = [
   'responsive',
   undefined,
 ] as const
-type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
+export type LayoutValue = typeof VALID_LAYOUT_VALUES[number]
 
 type PlaceholderValue = 'blur' | 'empty'
 
