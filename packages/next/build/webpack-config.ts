@@ -233,10 +233,11 @@ export default async function getBaseWebpackConfig(
   const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })
   const hasReactRefresh: boolean = dev && !isServer
   const hasJsxRuntime: boolean =
-    Boolean(reactVersion) &&
-    // 17.0.0-rc.0 had a breaking change not compatible with Next.js, but was
-    // fixed in rc.1.
-    semver.gte(reactVersion!, '17.0.0-rc.1')
+    config.experimental.reactRoot ||
+    (Boolean(reactVersion) &&
+      // 17.0.0-rc.0 had a breaking change not compatible with Next.js, but was
+      // fixed in rc.1.
+      semver.gte(reactVersion!, '17.0.0-rc.1'))
 
   const babelConfigFile = await [
     '.babelrc',
