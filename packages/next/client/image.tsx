@@ -63,6 +63,26 @@ interface StaticRequire {
 
 type StaticImport = StaticRequire | StaticImageData
 
+function isStaticRequire(
+  src: StaticRequire | StaticImageData
+): src is StaticRequire {
+  return (src as StaticRequire).default !== undefined
+}
+
+function isStaticImageData(
+  src: StaticRequire | StaticImageData
+): src is StaticImageData {
+  return (src as StaticImageData).src !== undefined
+}
+
+function isStaticImport(src: string | StaticImport): src is StaticImport {
+  return (
+    typeof src === 'object' &&
+    (isStaticRequire(src as StaticImport) ||
+      isStaticImageData(src as StaticImport))
+  )
+}
+
 export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
@@ -294,14 +314,9 @@ export default function Image({
   }
   const isStatic = typeof src === 'object'
   let staticSrc = ''
-  if (isStatic) {
-    let staticImport = src as StaticImport
-    let staticImageData: StaticImageData
-    if ((staticImport as StaticRequire).default) {
-      staticImageData = (staticImport as StaticRequire).default
-    } else {
-      staticImageData = staticImport as StaticImageData
-    }
+  if (isStaticImport(src)) {
+    const staticImageData = isStaticRequire(src) ? src.default : src
+
     if (!staticImageData.src) {
       throw new Error(
         `An object should only be passed to the image component src parameter if it comes from a static image import. It must include src. Received ${JSON.stringify(
