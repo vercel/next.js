@@ -38,6 +38,25 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
+  it('should continue in beforeFiles rewrites', async () => {
+    const res = await fetchViaHTTP(appPort, '/old-blog/about')
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect($('#hello').text()).toContain('Hello')
+
+    const browser = await webdriver(appPort, '/nav')
+
+    await browser.eval('window.beforeNav = 1')
+    await browser
+      .elementByCss('#to-old-blog')
+      .click()
+      .waitForElementByCss('#hello')
+    expect(await browser.elementByCss('#hello').text()).toContain('Hello')
+  })
+
   it('should not hang when proxy rewrite fails', async () => {
     const res = await fetchViaHTTP(appPort, '/to-nowhere', undefined, {
       timeout: 5000,
@@ -781,6 +800,20 @@ const runTests = (isDev = false) => {
       overrideMe: '1',
       overridden: '1',
     })
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser.elementByCss('#to-overridden').click()
+    await browser.waitForElementByCss('#query')
+
+    expect(await browser.eval('window.next.router.pathname')).toBe(
+      '/with-params'
+    )
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      overridden: '1',
+      overrideMe: '1',
+    })
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should match has header redirect correctly', async () => {
@@ -1401,6 +1434,13 @@ const runTests = (isDev = false) => {
               regex: normalizeRegEx('^\\/hello$'),
               source: '/hello',
             },
+            {
+              destination: '/blog/:path*',
+              regex: normalizeRegEx(
+                '^\\/old-blog(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+              ),
+              source: '/old-blog/:path*',
+            },
           ],
           afterFiles: [
             {
@@ -1629,6 +1669,11 @@ const runTests = (isDev = false) => {
               ],
               regex: normalizeRegEx('^\\/has-rewrite-7$'),
               source: '/has-rewrite-7',
+            },
+            {
+              destination: '/hello',
+              regex: normalizeRegEx('^\\/blog\\/about$'),
+              source: '/blog/about',
             },
           ],
           fallback: [],
