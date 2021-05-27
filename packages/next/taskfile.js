@@ -574,6 +574,14 @@ export async function ncc_strip_ansi(task, opts) {
     .target('compiled/strip-ansi')
 }
 // eslint-disable-next-line camelcase
+externals['@vercel/nft'] = 'next/dist/compiled/@vercel/nft'
+export async function ncc_nft(task, opts) {
+  await task
+    .source(opts.src || relative(__dirname, require.resolve('@vercel/nft')))
+    .ncc({ packageName: '@vercel/nft', externals })
+    .target('compiled/@vercel/nft')
+}
+// eslint-disable-next-line camelcase
 externals['terser'] = 'next/dist/compiled/terser'
 export async function ncc_terser(task, opts) {
   await task
@@ -781,6 +789,7 @@ export async function ncc(task, opts) {
         'ncc_source_map',
         'ncc_string_hash',
         'ncc_strip_ansi',
+        'ncc_nft',
         'ncc_terser',
         'ncc_text_table',
         'ncc_unistore',

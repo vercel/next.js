@@ -186,6 +186,7 @@
     "@types/webpack": "5.28.0",
     "@types/webpack-sources": "0.1.5",
     "@vercel/ncc": "0.27.0",
+    "@vercel/nft": "0.12.2",
     "amphtml-validator": "1.0.33",
     "arg": "4.1.0",
     "ast-types": "0.13.2",
