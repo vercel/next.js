@@ -15,7 +15,7 @@ class MyDocument extends Document {
     }
 
     return (
-      <Html>
+      <Html lang="en">
         <Head>
           <meta name="robots" content="follow, index" />
           <meta name="description" content={meta.description} />

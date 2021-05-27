@@ -18,15 +18,51 @@ export type NextConfig = { [key: string]: any } & {
   } | null
 
   headers?: () => Promise<Header[]>
-  rewrites?: () => Promise<Rewrite[]>
+  rewrites?: () => Promise<
+    | Rewrite[]
+    | {
+        beforeFiles: Rewrite[]
+        afterFiles: Rewrite[]
+        fallback: Rewrite[]
+      }
+  >
   redirects?: () => Promise<Redirect[]>
 
   trailingSlash?: boolean
 
   future: {
-    strictPostcssConfiguration: boolean
-    excludeDefaultMomentLocales: boolean
-    webpack5: boolean
+    strictPostcssConfiguration?: boolean
+    excludeDefaultMomentLocales?: boolean
+    webpack5?: boolean
+  }
+
+  experimental: {
+    cpus?: number
+    plugins?: boolean
+    profiling?: boolean
+    sprFlushToDisk?: boolean
+    reactMode?: 'legacy' | 'concurrent' | 'blocking'
+    workerThreads?: boolean
+    pageEnv?: boolean
+    optimizeImages?: boolean
+    optimizeCss?: boolean
+    scrollRestoration?: boolean
+    scriptLoader?: boolean
+    stats?: boolean
+    externalDir?: boolean
+    serialWebpackBuild?: boolean
+    conformance?: boolean
+    amp?: {
+      optimizer?: any
+      validator?: string
+      skipValidation?: boolean
+    }
+    turboMode?: boolean
+    eslint?: boolean
+    reactRoot?: boolean
+    enableBlurryPlaceholder?: boolean
+    disableOptimizedLoading?: boolean
+    gzipSize?: boolean
   }
 }
 
@@ -61,6 +97,7 @@ export const defaultConfig: NextConfig = {
   trailingSlash: false,
   i18n: null,
   productionBrowserSourceMaps: false,
+  optimizeFonts: true,
   experimental: {
     cpus: Math.max(
       1,
@@ -70,16 +107,21 @@ export const defaultConfig: NextConfig = {
     plugins: false,
     profiling: false,
     sprFlushToDisk: true,
-    reactMode: 'legacy',
     workerThreads: false,
     pageEnv: false,
-    optimizeFonts: false,
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
     scriptLoader: false,
     stats: false,
     externalDir: false,
+    serialWebpackBuild: false,
+    turboMode: false,
+    eslint: false,
+    reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
+    enableBlurryPlaceholder: false,
+    disableOptimizedLoading: true,
+    gzipSize: true,
   },
   future: {
     strictPostcssConfiguration: false,
@@ -97,7 +139,7 @@ export function normalizeConfig(phase: string, config: any) {
 
     if (typeof config.then === 'function') {
       throw new Error(
-        '> Promise returned in next config. https://err.sh/vercel/next.js/promise-in-next-config'
+        '> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config'
       )
     }
   }

@@ -8,7 +8,6 @@ import {
   writeFileSync,
 } from 'fs'
 import { Worker } from 'jest-worker'
-import { cpus } from 'os'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
@@ -154,7 +153,7 @@ export default async function exportApp(
       (await nextExportSpan
         .traceChild('load-next-config')
         .traceAsyncFn(() => loadConfig(PHASE_EXPORT, dir)))
-    const threads = options.threads || Math.max(cpus().length - 1, 1)
+    const threads = options.threads || nextConfig.experimental.cpus
     const distDir = join(dir, nextConfig.distDir)
 
     const telemetry = options.buildExport ? null : new Telemetry({ distDir })
@@ -162,6 +161,7 @@ export default async function exportApp(
     if (telemetry) {
       telemetry.record(
         eventCliSession(PHASE_EXPORT, distDir, {
+          webpackVersion: null,
           cliCommand: 'export',
           isSrcDir: null,
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
@@ -181,7 +181,7 @@ export default async function exportApp(
 
     if (!existsSync(buildIdFile)) {
       throw new Error(
-        `Could not find a production build in the '${distDir}' directory. Try building your app with 'next build' before starting the static export. https://err.sh/vercel/next.js/next-export-no-build-id`
+        `Could not find a production build in the '${distDir}' directory. Try building your app with 'next build' before starting the static export. https://nextjs.org/docs/messages/next-export-no-build-id`
       )
     }
 
@@ -197,7 +197,7 @@ export default async function exportApp(
       Log.warn(
         `rewrites, redirects, and headers are not applied when exporting your application, detected (${customRoutesDetected.join(
           ', '
-        )}). See more info here: https://err.sh/next.js/export-no-custom-routes`
+        )}). See more info here: https://nextjs.org/docs/messages/export-no-custom-routes`
       )
     }
 
@@ -251,13 +251,13 @@ export default async function exportApp(
 
     if (outDir === join(dir, 'public')) {
       throw new Error(
-        `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/vercel/next.js/can-not-output-to-public`
+        `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://nextjs.org/docs/messages/can-not-output-to-public`
       )
     }
 
     if (outDir === join(dir, 'static')) {
       throw new Error(
-        `The 'static' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/vercel/next.js/can-not-output-to-static`
+        `The 'static' directory is reserved in Next.js and can not be used as the export out directory. https://nextjs.org/docs/messages/can-not-output-to-static`
       )
     }
 
@@ -345,7 +345,7 @@ export default async function exportApp(
     - Use any provider which supports Image Optimization (like Vercel).
     - Configure a third-party loader in \`next.config.js\`.
     - Use the \`loader\` prop for \`next/image\`.
-  Read more: https://err.sh/next.js/export-image-api`
+  Read more: https://nextjs.org/docs/messages/export-image-api`
         )
       }
     }
@@ -369,6 +369,7 @@ export default async function exportApp(
       defaultLocale: i18n?.defaultLocale,
       domainLocales: i18n?.domains,
       trailingSlash: nextConfig.trailingSlash,
+      disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -425,6 +426,10 @@ export default async function exportApp(
       hasApiRoutes = true
     }
 
+    if (filteredPaths.length === 0) {
+      return
+    }
+
     if (prerenderManifest && !options.buildExport) {
       const fallbackEnabledPages = new Set()
 
@@ -467,7 +472,7 @@ export default async function exportApp(
             ) +
             `\n` +
             chalk.yellow(
-              `Learn more: https://err.sh/vercel/next.js/api-routes-static-export`
+              `Learn more: https://nextjs.org/docs/messages/api-routes-static-export`
             )
         )
       }
@@ -507,7 +512,7 @@ export default async function exportApp(
     const worker = new Worker(require.resolve('./worker'), {
       maxRetries: 0,
       numWorkers: threads,
-      enableWorkerThreads: true,
+      enableWorkerThreads: nextConfig.experimental.workerThreads,
       exposedMethods: ['default'],
     }) as Worker & { default: typeof exportPage }
 
@@ -534,9 +539,11 @@ export default async function exportApp(
             subFolders,
             buildExport: options.buildExport,
             serverless: isTargetLikeServerless(nextConfig.target),
-            optimizeFonts: nextConfig.experimental.optimizeFonts,
+            optimizeFonts: nextConfig.optimizeFonts,
             optimizeImages: nextConfig.experimental.optimizeImages,
             optimizeCss: nextConfig.experimental.optimizeCss,
+            disableOptimizedLoading:
+              nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
           })
 
@@ -619,7 +626,7 @@ export default async function exportApp(
     }
     if (hadValidationError) {
       throw new Error(
-        `AMP Validation caused the export to fail. https://err.sh/vercel/next.js/amp-export-validation`
+        `AMP Validation caused the export to fail. https://nextjs.org/docs/messages/amp-export-validation`
       )
     }
 

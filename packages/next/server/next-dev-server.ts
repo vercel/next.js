@@ -1,4 +1,3 @@
-import { ReactDevOverlay } from '@next/react-dev-overlay/lib/client'
 import crypto from 'crypto'
 import fs from 'fs'
 import { IncomingMessage, ServerResponse } from 'http'
@@ -43,8 +42,18 @@ import { NextConfig } from '../next-server/server/config'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
-    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://err.sh/vercel/next.js/invalid-react-version`
+    `The version of React you are using is lower than the minimum required version needed for Next.js. Please upgrade "react" and "react-dom": "npm install react react-dom" https://nextjs.org/docs/messages/invalid-react-version`
   )
+}
+
+// Load ReactDevOverlay only when needed
+let ReactDevOverlayImpl: React.FunctionComponent
+const ReactDevOverlay = (props: any) => {
+  if (ReactDevOverlayImpl === undefined) {
+    ReactDevOverlayImpl = require('@next/react-dev-overlay/lib/client')
+      .ReactDevOverlay
+  }
+  return ReactDevOverlayImpl(props)
 }
 
 export default class DevServer extends Server {
@@ -94,7 +103,7 @@ export default class DevServer extends Server {
     }
     if (fs.existsSync(pathJoin(this.dir, 'static'))) {
       console.warn(
-        `The static directory has been deprecated in favor of the public directory. https://err.sh/vercel/next.js/static-dir-deprecated`
+        `The static directory has been deprecated in favor of the public directory. https://nextjs.org/docs/messages/static-dir-deprecated`
       )
     }
     this.isCustomServer = !options.isNextDevCommand
@@ -272,7 +281,14 @@ export default class DevServer extends Server {
 
     // reload router
     const { redirects, rewrites, headers } = this.customRoutes
-    if (redirects.length || rewrites.length || headers.length) {
+
+    if (
+      rewrites.beforeFiles.length ||
+      rewrites.afterFiles.length ||
+      rewrites.fallback.length ||
+      redirects.length ||
+      headers.length
+    ) {
       this.router = new Router(this.generateRoutes())
     }
 
@@ -281,7 +297,7 @@ export default class DevServer extends Server {
       config: this.nextConfig,
       previewProps: this.getPreviewProps(),
       buildId: this.buildId,
-      rewrites: this.customRoutes.rewrites,
+      rewrites,
     })
     await super.prepare()
     await this.addExportPathMapRoutes()
@@ -292,6 +308,7 @@ export default class DevServer extends Server {
     const telemetry = new Telemetry({ distDir: this.distDir })
     telemetry.record(
       eventCliSession(PHASE_DEVELOPMENT_SERVER, this.distDir, {
+        webpackVersion: this.hotReloader.isWebpack5 ? 5 : 4,
         cliCommand: 'dev',
         isSrcDir: relative(this.dir, this.pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: this.dir })),
@@ -355,7 +372,7 @@ export default class DevServer extends Server {
     if (await this.hasPublicFile(decodedPath)) {
       if (await this.hasPage(pathname!)) {
         const err = new Error(
-          `A conflicting public file and page file was found for path ${pathname} https://err.sh/vercel/next.js/conflicting-public-file-page`
+          `A conflicting public file and page file was found for path ${pathname} https://nextjs.org/docs/messages/conflicting-public-file-page`
         )
         res.statusCode = 500
         await this.renderError(err, req, res, pathname!, {})
@@ -415,7 +432,11 @@ export default class DevServer extends Server {
   // override production loading of routes-manifest
   protected getCustomRoutes(): CustomRoutes {
     // actual routes will be loaded asynchronously during .prepare()
-    return { redirects: [], rewrites: [], headers: [] }
+    return {
+      redirects: [],
+      rewrites: { beforeFiles: [], afterFiles: [], fallback: [] },
+      headers: [],
+    }
   }
 
   private _devCachedPreviewProps: __ApiPreviewProps | undefined
@@ -651,7 +672,7 @@ export default class DevServer extends Server {
     if (!err && res.statusCode === 500) {
       err = new Error(
         'An undefined error was thrown sometime during render... ' +
-          'See https://err.sh/vercel/next.js/threw-undefined'
+          'See https://nextjs.org/docs/messages/threw-undefined'
       )
     }
 

@@ -17,6 +17,7 @@ import { requireFontManifest } from '../next-server/server/require'
 import { FontManifest } from '../next-server/server/font-utils'
 import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
 import { trace } from '../telemetry/trace'
+import { isInAmpMode } from '../next-server/lib/amp'
 
 const envConfig = require('../next-server/lib/runtime-config')
 
@@ -49,8 +50,9 @@ interface ExportPageInput {
   subFolders?: boolean
   serverless: boolean
   optimizeFonts: boolean
-  optimizeImages: boolean
+  optimizeImages?: boolean
   optimizeCss: any
+  disableOptimizedLoading: any
   parentSpanId: any
 }
 
@@ -67,10 +69,9 @@ interface RenderOpts {
   ampPath?: string
   ampValidatorPath?: string
   ampSkipValidation?: boolean
-  hybridAmp?: boolean
-  inAmpMode?: boolean
   optimizeFonts?: boolean
   optimizeImages?: boolean
+  disableOptimizedLoading?: boolean
   optimizeCss?: any
   fontManifest?: FontManifest
   locales?: string[]
@@ -99,6 +100,7 @@ export default async function exportPage({
   optimizeFonts,
   optimizeImages,
   optimizeCss,
+  disableOptimizedLoading,
 }: ExportPageInput): Promise<ExportPageResults> {
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
@@ -147,7 +149,10 @@ export default async function exportPage({
       }
 
       // Check if the page is a specified dynamic route
-      if (isDynamic && page !== path) {
+      const nonLocalizedPath = normalizeLocalePath(path, renderOpts.locales)
+        .pathname
+
+      if (isDynamic && page !== nonLocalizedPath) {
         params = getRouteMatcher(getRouteRegex(page))(updatedPath) || undefined
         if (params) {
           // we have to pass these separately for serverless
@@ -159,7 +164,7 @@ export default async function exportPage({
           }
         } else {
           throw new Error(
-            `The provided export path '${updatedPath}' doesn't match the '${page}' page.\nRead more: https://err.sh/vercel/next.js/export-path-mismatch`
+            `The provided export path '${updatedPath}' doesn't match the '${page}' page.\nRead more: https://nextjs.org/docs/messages/export-path-mismatch`
           )
         }
       }
@@ -215,6 +220,8 @@ export default async function exportPage({
       let html
       let curRenderOpts: RenderOpts = {}
       let renderMethod = renderToHTML
+      let inAmpMode = false,
+        hybridAmp = false
 
       const renderedDuringBuild = (getStaticProps: any) => {
         return !buildExport && getStaticProps && !isDynamicRoute(path)
@@ -229,11 +236,18 @@ export default async function exportPage({
             ...query,
           },
         })
-        const { Component: mod, getServerSideProps } = await loadComponents(
-          distDir,
-          page,
-          serverless
-        )
+        const {
+          Component: mod,
+          getServerSideProps,
+          pageConfig,
+        } = await loadComponents(distDir, page, serverless)
+        const ampState = {
+          ampFirst: pageConfig?.amp === true,
+          hasQuery: Boolean(query.amp),
+          hybrid: pageConfig?.amp === 'hybrid',
+        }
+        inAmpMode = isInAmpMode(ampState)
+        hybridAmp = ampState.hybrid
 
         if (getServerSideProps) {
           throw new Error(
@@ -273,6 +287,7 @@ export default async function exportPage({
               optimizeImages,
               /// @ts-ignore
               optimizeCss,
+              disableOptimizedLoading,
               distDir,
               fontManifest: optimizeFonts
                 ? requireFontManifest(distDir, serverless)
@@ -292,6 +307,13 @@ export default async function exportPage({
         }
       } else {
         const components = await loadComponents(distDir, page, serverless)
+        const ampState = {
+          ampFirst: components.pageConfig?.amp === true,
+          hasQuery: Boolean(query.amp),
+          hybrid: components.pageConfig?.amp === 'hybrid',
+        }
+        inAmpMode = isInAmpMode(ampState)
+        hybridAmp = ampState.hybrid
 
         if (components.getServerSideProps) {
           throw new Error(
@@ -339,6 +361,7 @@ export default async function exportPage({
             optimizeFonts,
             optimizeImages,
             optimizeCss,
+            disableOptimizedLoading,
             fontManifest: optimizeFonts
               ? requireFontManifest(distDir, serverless)
               : null,
@@ -371,11 +394,11 @@ export default async function exportPage({
         }
       }
 
-      if (curRenderOpts.inAmpMode && !curRenderOpts.ampSkipValidation) {
+      if (inAmpMode && !curRenderOpts.ampSkipValidation) {
         if (!results.ssgNotFound) {
           await validateAmp(html, path, curRenderOpts.ampValidatorPath)
         }
-      } else if (curRenderOpts.hybridAmp) {
+      } else if (hybridAmp) {
         // we need to render the AMP version
         let ampHtmlFilename = `${ampPath}${sep}index.html`
         if (!subFolders) {
@@ -433,7 +456,7 @@ export default async function exportPage({
           'utf8'
         )
 
-        if (curRenderOpts.hybridAmp) {
+        if (hybridAmp) {
           await promises.writeFile(
             dataFile.replace(/\.json$/, '.amp.json'),
             JSON.stringify((curRenderOpts as any).pageData),
@@ -451,7 +474,7 @@ export default async function exportPage({
       return results
     } catch (error) {
       console.error(
-        `\nError occurred prerendering page "${path}". Read more: https://err.sh/next.js/prerender-error\n` +
+        `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
           error.stack
       )
       return { ...results, error: true }

@@ -8,6 +8,14 @@
       "packages/react-dev-overlay/**",
       "packages/react-refresh-utils/**",
       "packages/next-codemod/**"
+    ],
+    "type: chrome": [
+      { "type": "user", "pattern": "spanicker" },
+      { "type": "user", "pattern": "housseindjirdeh" },
+      { "type": "user", "pattern": "devknoll" },
+      { "type": "user", "pattern": "janicklas-ralph" },
+      { "type": "user", "pattern": "atcastle" },
+      { "type": "user", "pattern": "Joonpark13" }
     ]
   }
 }

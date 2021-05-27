@@ -1,8 +1,9 @@
 import '../next-server/server/node-polyfill-fetch'
 import chalk from 'chalk'
-import gzipSize from 'next/dist/compiled/gzip-size'
+import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
+import { promises as fs } from 'fs'
 import { isValidElementType } from 'react-is'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
@@ -32,11 +33,20 @@ import * as Log from './output/log'
 import { loadComponents } from '../next-server/server/load-components'
 import { trace } from '../telemetry/trace'
 
-const fileGzipStats: { [k: string]: Promise<number> } = {}
+const fileGzipStats: { [k: string]: Promise<number> | undefined } = {}
 const fsStatGzip = (file: string) => {
-  if (fileGzipStats[file]) return fileGzipStats[file]
-  fileGzipStats[file] = gzipSize.file(file)
-  return fileGzipStats[file]
+  const cached = fileGzipStats[file]
+  if (cached) return cached
+  return (fileGzipStats[file] = getGzipSize.file(file))
+}
+
+const fileSize = async (file: string) => (await fs.stat(file)).size
+
+const fileStats: { [k: string]: Promise<number> | undefined } = {}
+const fsStat = (file: string) => {
+  const cached = fileStats[file]
+  if (cached) return cached
+  return (fileStats[file] = fileSize(file))
 }
 
 export function collectPages(
@@ -70,6 +80,7 @@ export async function printTreeView(
     pageExtensions,
     buildManifest,
     useStatic404,
+    gzipSize = true,
   }: {
     distPath: string
     buildId: string
@@ -77,6 +88,7 @@ export async function printTreeView(
     pageExtensions: string[]
     buildManifest: BuildManifest
     useStatic404: boolean
+    gzipSize?: boolean
   }
 ) {
   const getPrettySize = (_size: number): string => {
@@ -96,7 +108,7 @@ export async function printTreeView(
       // Re-add `static/` for root files
       .replace(/^<buildId>/, 'static')
       // Remove file hash
-      .replace(/[.-]([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
+      .replace(/(?:^|[.-])([0-9a-z]{6})[0-9a-z]{14}(?=\.)/, '.$1')
 
   const messages: [string, string, string][] = [
     ['Page', 'Size', 'First Load JS'].map((entry) =>
@@ -115,7 +127,12 @@ export async function printTreeView(
     list = [...list, '/404']
   }
 
-  const sizeData = await computeFromManifest(buildManifest, distPath, pageInfos)
+  const sizeData = await computeFromManifest(
+    buildManifest,
+    distPath,
+    gzipSize,
+    pageInfos
+  )
 
   const pageList = list
     .slice()
@@ -351,11 +368,17 @@ export function printCustomRoutes({
   if (redirects.length) {
     printRoutes(redirects, 'Redirects')
   }
-  if (rewrites.length) {
-    printRoutes(rewrites, 'Rewrites')
-  }
   if (headers.length) {
     printRoutes(headers, 'Headers')
+  }
+
+  const combinedRewrites = [
+    ...rewrites.beforeFiles,
+    ...rewrites.afterFiles,
+    ...rewrites.fallback,
+  ]
+  if (combinedRewrites.length) {
+    printRoutes(combinedRewrites, 'Rewrites')
   }
 }
 
@@ -372,9 +395,10 @@ let cachedBuildManifest: BuildManifest | undefined
 let lastCompute: ComputeManifestShape | undefined
 let lastComputePageInfo: boolean | undefined
 
-async function computeFromManifest(
+export async function computeFromManifest(
   manifest: BuildManifest,
   distPath: string,
+  gzipSize: boolean = true,
   pageInfos?: Map<string, PageInfo>
 ): Promise<ComputeManifestShape> {
   if (
@@ -408,6 +432,8 @@ async function computeFromManifest(
     })
   })
 
+  const getSize = gzipSize ? fsStatGzip : fsStat
+
   const commonFiles = [...files.entries()]
     .filter(([, len]) => len === expected || len === Infinity)
     .map(([f]) => f)
@@ -420,7 +446,7 @@ async function computeFromManifest(
     stats = await Promise.all(
       commonFiles.map(
         async (f) =>
-          [f, await fsStatGzip(path.join(distPath, f))] as [string, number]
+          [f, await getSize(path.join(distPath, f))] as [string, number]
       )
     )
   } catch (_) {
@@ -432,7 +458,7 @@ async function computeFromManifest(
     uniqueStats = await Promise.all(
       uniqueFiles.map(
         async (f) =>
-          [f, await fsStatGzip(path.join(distPath, f))] as [string, number]
+          [f, await getSize(path.join(distPath, f))] as [string, number]
       )
     )
   } catch (_) {
@@ -480,9 +506,13 @@ function sum(a: number[]): number {
 export async function getJsPageSizeInKb(
   page: string,
   distPath: string,
-  buildManifest: BuildManifest
+  buildManifest: BuildManifest,
+  gzipSize: boolean = true,
+  computedManifestData?: ComputeManifestShape
 ): Promise<[number, number]> {
-  const data = await computeFromManifest(buildManifest, distPath)
+  const data =
+    computedManifestData ||
+    (await computeFromManifest(buildManifest, distPath, gzipSize))
 
   const fnFilterJs = (entry: string) => entry.endsWith('.js')
 
@@ -501,11 +531,13 @@ export async function getJsPageSizeInKb(
     data.commonFiles
   ).map(fnMapRealPath)
 
+  const getSize = gzipSize ? fsStatGzip : fsStat
+
   try {
     // Doesn't use `Promise.all`, as we'd double compute duplicate files. This
     // function is memoized, so the second one will instantly resolve.
-    const allFilesSize = sum(await Promise.all(allFilesReal.map(fsStatGzip)))
-    const selfFilesSize = sum(await Promise.all(selfFilesReal.map(fsStatGzip)))
+    const allFilesSize = sum(await Promise.all(allFilesReal.map(getSize)))
+    const selfFilesSize = sum(await Promise.all(selfFilesReal.map(getSize)))
 
     return [selfFilesSize, allFilesSize]
   } catch (_) {}
@@ -535,7 +567,7 @@ export async function buildStaticPaths(
 
   const expectedReturnVal =
     `Expected: { paths: [], fallback: boolean }\n` +
-    `See here for more info: https://err.sh/vercel/next.js/invalid-getstaticpaths-value`
+    `See here for more info: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
 
   if (
     !staticPathsResult ||
@@ -801,7 +833,7 @@ export async function isPageStatic(
       if (hasStaticProps && pageIsDynamic && !hasStaticPaths) {
         throw new Error(
           `getStaticPaths is required for dynamic SSG pages and is missing for '${page}'.` +
-            `\nRead more: https://err.sh/next.js/invalid-getstaticpaths-value`
+            `\nRead more: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
         )
       }
 
@@ -944,7 +976,7 @@ export function detectConflictingPaths(
 
     Log.error(
       'Conflicting paths returned from getStaticPaths, paths must unique per page.\n' +
-        'See more info here: https://err.sh/next.js/conflicting-ssg-paths\n\n' +
+        'See more info here: https://nextjs.org/docs/messages/conflicting-ssg-paths\n\n' +
         conflictingPathsOutput
     )
     process.exit(1)

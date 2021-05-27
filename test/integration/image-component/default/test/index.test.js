@@ -17,7 +17,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 30)
+jest.setTimeout(1000 * 60)
 
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
@@ -40,23 +40,6 @@ async function hasImageMatchingUrl(browser, url) {
 
 async function getComputed(browser, id, prop) {
   const val = await browser.eval(`document.getElementById('${id}').${prop}`)
-  if (typeof val === 'number') {
-    return val
-  }
-  if (typeof val === 'string') {
-    const v = parseInt(val, 10)
-    if (isNaN(v)) {
-      return val
-    }
-    return v
-  }
-  return null
-}
-
-async function getComputedStyle(browser, id, prop) {
-  const val = await browser.eval(
-    `window.getComputedStyle(document.getElementById('${id}')).${prop}`
-  )
   if (typeof val === 'number') {
     return val
   }
@@ -161,9 +144,12 @@ function runTests(mode) {
     const $html = cheerio.load(html)
 
     const els = [].slice.apply($html('img'))
-    expect(els.length).toBe(1)
+    expect(els.length).toBe(2)
 
-    const [el] = els
+    const [noscriptEl, el] = els
+    expect(noscriptEl.attribs.src).toBeDefined()
+    expect(noscriptEl.attribs.srcset).toBeDefined()
+
     expect(el.attribs.src).toBeDefined()
     expect(el.attribs.srcset).toBeUndefined()
     expect(el.attribs.srcSet).toBeUndefined()
@@ -505,44 +491,6 @@ function runTests(mode) {
     })
   }
 
-  it('should correctly inherit the visibilty of the parent component', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/hidden-parent')
-
-      const id = 'hidden-image'
-
-      // Wait for image to load:
-      await check(async () => {
-        const result = await browser.eval(
-          `document.getElementById(${JSON.stringify(id)}).naturalWidth`
-        )
-
-        if (result < 1) {
-          throw new Error('Image not ready')
-        }
-
-        return 'result-correct'
-      }, /result-correct/)
-
-      await waitFor(1000)
-
-      const desiredVisibilty = await getComputed(
-        browser,
-        id,
-        'style.visibility'
-      )
-      expect(desiredVisibilty).toBe('inherit')
-
-      const actualVisibility = await getComputedStyle(browser, id, 'visibility')
-      expect(actualVisibility).toBe('hidden')
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
-  })
-
   it('should correctly ignore prose styles', async () => {
     let browser
     try {
@@ -639,7 +587,10 @@ describe('Image Component Tests', () => {
         nextConfig,
         `
         module.exports = {
-          target: 'serverless'
+          target: 'serverless',
+          experimental: {
+            enableBlurryPlaceholder: true,
+          },
         }
       `
       )
@@ -650,6 +601,29 @@ describe('Image Component Tests', () => {
     afterAll(async () => {
       await fs.unlink(nextConfig)
       await killApp(app)
+    })
+
+    it('should have blurry placeholder when enabled', async () => {
+      const html = await renderViaHTTP(appPort, '/blurry-placeholder')
+      expect(html).toContain(
+        'background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; width=&#x27;400&#x27; height=&#x27;400&#x27; viewBox=&#x27;0 0 400 400&#x27;%3E%3Cfilter id=&#x27;blur&#x27; filterUnits=&#x27;userSpaceOnUse&#x27; color-interpolation-filters=&#x27;sRGB&#x27;%3E%3CfeGaussianBlur stdDeviation=&#x27;20&#x27; edgeMode=&#x27;duplicate&#x27; /%3E%3CfeComponentTransfer%3E%3CfeFuncA type=&#x27;discrete&#x27; tableValues=&#x27;1 1&#x27; /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter=&#x27;url(%23blur)&#x27; href=&#x27;data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==&#x27; x=&#x27;0&#x27; y=&#x27;0&#x27; height=&#x27;100%25&#x27; width=&#x27;100%25&#x27;/%3E%3C/svg%3E&quot;)'
+      )
+    })
+
+    it('should remove blurry placeholder after image loads', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/blurry-placeholder')
+        const id = 'blurry-placeholder'
+        const backgroundImage = await browser.eval(
+          `window.getComputedStyle(document.getElementById('${id}')).getPropertyValue('background-image')`
+        )
+        expect(backgroundImage).toBe('none')
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
     })
 
     runTests('serverless')

@@ -1,7 +1,7 @@
 declare -a testCases=(
   # Tests the webpack require hook
   "progressive-web-app"
-
+  "with-eslint"
   "with-typescript"
   "with-next-sass"
   # Tests @next/mdx
