@@ -176,6 +176,7 @@ const WEBPACK_RESOLVE_OPTIONS = {
   // Otherwise combined ESM+CJS packages will never be external
   // as resolving mismatch would lead to opt-out from being external.
   dependencyType: 'commonjs',
+  symlinks: true,
 }
 
 const NODE_RESOLVE_OPTIONS = {
@@ -738,12 +739,14 @@ export default async function getBaseWebpackConfig(
     if (baseRes !== res) {
       return
     }
+    const isNextExternal = res.match(/next[/\\]dist[/\\]next-server[/\\]/)
 
     // Default pages have to be transpiled
     if (
-      res.match(/[/\\]next[/\\]dist[/\\]/) ||
-      // This is the @babel/plugin-transform-runtime "helpers: true" option
-      res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/)
+      !isNextExternal &&
+      (res.match(/[/\\]next[/\\]dist[/\\]/) ||
+        // This is the @babel/plugin-transform-runtime "helpers: true" option
+        res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/))
     ) {
       return
     }
@@ -758,7 +761,7 @@ export default async function getBaseWebpackConfig(
 
     // Anything else that is standard JavaScript within `node_modules`
     // can be externalized.
-    if (/node_modules[/\\].*\.c?js$/.test(res)) {
+    if (isNextExternal || /node_modules[/\\].*\.c?js$/.test(res)) {
       return `commonjs ${request}`
     }
 
