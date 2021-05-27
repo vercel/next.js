@@ -1,22 +1,20 @@
-import { getAllNodes } from 'next-mdx'
-import NextLink from 'next/link'
+import Link from 'next/link'
 import Container from '../../components/container'
 import distanceToNow from '../../lib/dateRelative'
+import { getAllPosts } from '../../lib/getPost'
 
-function NotePage({ posts }) {
+export default function NotePage({ allPosts }) {
   return (
     <Container>
-      {posts.length ? (
-        posts.map((post) => (
+      {allPosts.length ? (
+        allPosts.map((post) => (
           <article key={post.slug} className="mb-10">
-            <NextLink href={post.url} passHref>
-              <a className="text-lg leading-6 font-bold">
-                {post.frontMatter.title}
-              </a>
-            </NextLink>
-            <p>{post.frontMatter.excerpt}</p>
+            <Link as={`/posts/${post.slug}`} href="/posts/[slug]">
+              <a className="text-lg leading-6 font-bold">{post.title}</a>
+            </Link>
+            <p>{post.excerpt}</p>
             <div className="text-gray-400">
-              <time>{distanceToNow(new Date(post.frontMatter.date))}</time>
+              <time>{distanceToNow(new Date(post.date))}</time>
             </div>
           </article>
         ))
@@ -28,13 +26,9 @@ function NotePage({ posts }) {
 }
 
 export async function getStaticProps() {
-  const posts = await getAllNodes('post')
+  const allPosts = getAllPosts(['slug', 'title', 'excerpt', 'date'])
 
   return {
-    props: {
-      posts,
-    },
+    props: { allPosts },
   }
 }
-
-export default NotePage
