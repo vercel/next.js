@@ -694,7 +694,7 @@ export async function ncc_webpack_bundle5(task, opts) {
 }
 
 const webpackBundlePackages = {
-  webpack: 'next/dist/compiled/webpack/webpack',
+  webpack: 'next/dist/compiled/webpack/webpack-lib',
 }
 
 Object.assign(externals, webpackBundlePackages)
