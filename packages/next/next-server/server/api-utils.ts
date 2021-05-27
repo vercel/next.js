@@ -10,8 +10,8 @@ import { interopDefault } from './load-components'
 import { sendEtagResponse } from './send-payload'
 import generateETag from 'etag'
 
-export type NextApiRequestCookies = { [key: string]: string }
-export type NextApiRequestQuery = { [key: string]: string | string[] }
+export type NextApiRequestCookies = Partial<{ [key: string]: string }>
+export type NextApiRequestQuery = Partial<{ [key: string]: string | string[] }>
 
 export type __ApiPreviewProps = {
   previewModeId: string
@@ -330,7 +330,7 @@ export function tryGetPreviewData(
     return false
   }
 
-  const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA]
+  const tokenPreviewData = cookies[COOKIE_NAME_PRERENDER_DATA] as string
 
   const jsonwebtoken = require('next/dist/compiled/jsonwebtoken') as typeof import('jsonwebtoken')
   let encryptedPreviewData: {
