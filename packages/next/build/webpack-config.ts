@@ -739,14 +739,20 @@ export default async function getBaseWebpackConfig(
     if (baseRes !== res) {
       return
     }
-    const isNextExternal = res.match(/next[/\\]dist[/\\]next-server[/\\]/)
+
+    if (
+      res.match(
+        /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/
+      )
+    ) {
+      return `commonjs ${request}`
+    }
 
     // Default pages have to be transpiled
     if (
-      !isNextExternal &&
-      (res.match(/[/\\]next[/\\]dist[/\\]/) ||
-        // This is the @babel/plugin-transform-runtime "helpers: true" option
-        res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/))
+      res.match(/[/\\]next[/\\]dist[/\\]/) ||
+      // This is the @babel/plugin-transform-runtime "helpers: true" option
+      res.match(/node_modules[/\\]@babel[/\\]runtime[/\\]/)
     ) {
       return
     }
@@ -761,7 +767,7 @@ export default async function getBaseWebpackConfig(
 
     // Anything else that is standard JavaScript within `node_modules`
     // can be externalized.
-    if (isNextExternal || /node_modules[/\\].*\.c?js$/.test(res)) {
+    if (/node_modules[/\\].*\.c?js$/.test(res)) {
       return `commonjs ${request}`
     }
 
