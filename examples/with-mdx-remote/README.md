@@ -48,7 +48,7 @@ export function SomePage({ mdxSource, componentNames }) {
       : null,
   }
 
-  return <MDXRemote {...mdxSource} components={components}/>
+  return <MDXRemote {...mdxSource} components={components} />
 }
 
 export async function getStaticProps() {
