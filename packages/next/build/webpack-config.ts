@@ -939,6 +939,7 @@ export default async function getBaseWebpackConfig(
       crossOriginLoading: crossOrigin,
       futureEmitAssets: !dev,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
+      assetModuleFilename: 'static/[name].[hash].[ext]',
     },
     performance: false,
     resolve: resolveConfig,
@@ -1003,7 +1004,7 @@ export default async function getBaseWebpackConfig(
               {
                 test: /\.(png|svg|jpg|jpeg|gif|webp|ico|bmp)$/i,
                 loader: 'next-image-loader',
-                dependency: { not: 'url' },
+                dependency: { not: ['url'] },
               },
             ]
           : []),

@@ -10,6 +10,7 @@ import testBMP from '../public/test.bmp'
 import testICO from '../public/test.ico'
 import testWEBP from '../public/test.webp'
 
+import TallImage from '../components/TallImage'
 const testFiles = [
   testJPG,
   testPNG,
@@ -30,6 +31,7 @@ const Page = () => {
         layout="fixed"
         placeholder="blur"
       />
+      <TallImage />
       <Image
         id="defined-size-static"
         src={testPNG}

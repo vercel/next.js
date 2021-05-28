@@ -10,7 +10,7 @@ async function nextImageLoader(content) {
   const opts = { context, content }
   const interpolatedName = loaderUtils.interpolateName(
     this,
-    '/[path][name].[ext]',
+    '/static/image/[path][name].[hash].[ext]',
     opts
   )
 
@@ -19,20 +19,10 @@ async function nextImageLoader(content) {
     extension = 'jpeg'
   }
 
-  if (interpolatedName.slice(0, 7) !== '/public') {
-    const err = new Error(
-      'Static Image loader used with filepath not in the /public directory: ' +
-        interpolatedName
-    )
-    this.emitError(err)
-    return
-  }
-
-  const src = interpolatedName.slice(7)
   const imageSize = sizeOf(this.resourcePath)
   let placeholder
+  const fileBuffer = Buffer.from(fs.readFileSync(this.resourcePath))
   if (extension === 'jpeg' || extension === 'png') {
-    const fileBuffer = Buffer.from(fs.readFileSync(this.resourcePath))
     // Shrink the image's largest dimension to 6 pixels
     const resizeOperationOpts =
       imageSize.width >= imageSize.height
@@ -50,13 +40,15 @@ async function nextImageLoader(content) {
   }
 
   const stringifiedData = JSON.stringify({
-    src,
+    src: '/_next' + interpolatedName,
     height: imageSize.height,
     width: imageSize.width,
     placeholder,
   })
 
+  this.emitFile(interpolatedName, fileBuffer, null)
+
   return `${'export default '} ${stringifiedData};`
 }
-
+nextImageLoader.raw = true
 export default nextImageLoader
