@@ -30,7 +30,7 @@ async function nextImageLoader(content) {
 
   const src = interpolatedName.slice(7)
   const imageSize = sizeOf(this.resourcePath)
-  let dataURI
+  let placeholder
   if (extension === 'jpeg' || extension === 'png') {
     const fileBuffer = Buffer.from(fs.readFileSync(this.resourcePath))
     // Shrink the image's largest dimension to 6 pixels
@@ -44,7 +44,7 @@ async function nextImageLoader(content) {
       extension,
       0
     )
-    dataURI = `data:image/${extension};base64,${resizedImage.toString(
+    placeholder = `data:image/${extension};base64,${resizedImage.toString(
       'base64'
     )}`
   }
@@ -53,7 +53,7 @@ async function nextImageLoader(content) {
     src,
     height: imageSize.height,
     width: imageSize.width,
-    dataURI,
+    placeholder,
   })
 
   return `${'export default '} ${stringifiedData};`
