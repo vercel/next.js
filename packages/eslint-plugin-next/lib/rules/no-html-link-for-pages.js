@@ -13,6 +13,10 @@ const pagesDirWarning = execOnce((pagesDirs) => {
   )
 })
 
+// Cache for fs.existsSync lookup.
+// Prevent multiple blocking IO requests that have already been calculated.
+const fsExistsSyncCache = {}
+
 module.exports = {
   meta: {
     docs: {
@@ -47,7 +51,12 @@ module.exports = {
           path.join(context.getCwd(), 'pages'),
           path.join(context.getCwd(), 'src', 'pages'),
         ]
-    const foundPagesDirs = pagesDirs.filter((dir) => fs.existsSync(dir))
+    const foundPagesDirs = pagesDirs.filter((dir) => {
+      if (fsExistsSyncCache[dir] === undefined) {
+        fsExistsSyncCache[dir] = fs.existsSync(dir)
+      }
+      return fsExistsSyncCache[dir]
+    })
     if (foundPagesDirs.length === 0) {
       pagesDirWarning(pagesDirs)
       return {}
