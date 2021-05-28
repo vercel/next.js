@@ -20,13 +20,21 @@ function isSymlink(source) {
 /**
  * Gets the possible URLs from a directory.
  * @param {string} urlprefix
- * @param {string} directory
+ * @param {string[]} directories
  */
-function getUrlFromPagesDirectory(urlPrefix, directory) {
-  return parseUrlForPages(urlPrefix, directory).map(
-    // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
-    (url) => new RegExp(`^${normalizeURL(url)}$`)
-  )
+function getUrlFromPagesDirectories(urlPrefix, directories) {
+  return Array.from(
+    // De-duplicate similar pages across multiple directories.
+    new Set(
+      directories
+        .map((directory) => parseUrlForPages(urlPrefix, directory))
+        .flat()
+        .map(
+          // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
+          (url) => `^${normalizeURL(url)}$`
+        )
+    )
+  ).map((urlReg) => new RegExp(urlReg))
 }
 
 /**
@@ -90,7 +98,7 @@ function execOnce(fn) {
 }
 
 module.exports = {
-  getUrlFromPagesDirectory,
+  getUrlFromPagesDirectories,
   normalizeURL,
   execOnce,
 }

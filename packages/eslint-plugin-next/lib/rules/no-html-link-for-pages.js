@@ -1,7 +1,7 @@
 const path = require('path')
 const fs = require('fs')
 const {
-  getUrlFromPagesDirectory,
+  getUrlFromPagesDirectories,
   normalizeURL,
   execOnce,
 } = require('../utils/url')
@@ -27,18 +27,18 @@ module.exports = {
   create: function (context) {
     const [customPagesDirectory] = context.options
     const pagesDirs = customPagesDirectory
-      ? [customPagesDirectory]
+      ? [customPagesDirectory].flat()
       : [
           path.join(context.getCwd(), 'pages'),
           path.join(context.getCwd(), 'src', 'pages'),
         ]
-    const pagesDir = pagesDirs.find((dir) => fs.existsSync(dir))
-    if (!pagesDir) {
+    const foundPagesDirs = pagesDirs.filter((dir) => fs.existsSync(dir))
+    if (foundPagesDirs.length === 0) {
       pagesDirWarning(pagesDirs)
       return {}
     }
 
-    const urls = getUrlFromPagesDirectory('/', pagesDir)
+    const urls = getUrlFromPagesDirectories('/', foundPagesDirs)
     return {
       JSXOpeningElement(node) {
         if (node.name.name !== 'a') {
