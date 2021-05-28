@@ -3,6 +3,8 @@ import sizeOf from 'image-size'
 import { processBuffer } from '../../../next-server/server/lib/squoosh/main'
 import fs from 'fs'
 
+const PLACEHOLDER_SIZE = 6
+
 async function nextImageLoader(content) {
   const context = this.rootContext
   const opts = { context, content }
@@ -31,9 +33,14 @@ async function nextImageLoader(content) {
   let dataURI
   if (extension === 'jpeg' || extension === 'png') {
     const fileBuffer = Buffer.from(fs.readFileSync(this.resourcePath))
+    // Shrink the image's largest dimension to 6 pixels
+    const resizeOperationOpts =
+      imageSize.width >= imageSize.height
+        ? { type: 'resize', width: PLACEHOLDER_SIZE }
+        : { type: 'resize', height: PLACEHOLDER_SIZE }
     const resizedImage = await processBuffer(
       fileBuffer,
-      [{ type: 'resize', width: 6 }],
+      [resizeOperationOpts],
       extension,
       0
     )
