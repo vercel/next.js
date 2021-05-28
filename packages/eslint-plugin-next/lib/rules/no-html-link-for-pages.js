@@ -21,7 +21,22 @@ module.exports = {
       recommended: true,
     },
     fixable: null, // or "code" or "whitespace"
-    schema: ['pagesDirectory'],
+    schema: [
+      {
+        oneOf: [
+          {
+            type: 'string',
+          },
+          {
+            type: 'array',
+            uniqueItems: true,
+            items: {
+              type: 'string',
+            },
+          },
+        ],
+      },
+    ],
   },
 
   create: function (context) {
