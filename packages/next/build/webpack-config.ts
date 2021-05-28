@@ -1127,7 +1127,6 @@ export default async function getBaseWebpackConfig(
           pagesDir,
         }),
       !isServer && new DropClientPage(),
-      // TODO: update to trace only in production
       !isLikeServerless &&
         isServer &&
         !dev &&

@@ -9,10 +9,8 @@ import { TRACE_OUTPUT_VERSION } from '../../../next-server/lib/constants'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 const TRACE_IGNORES = [
-  '**/*/node_modules/next/dist/compiled/webpack/(bundle4|bundle5).js',
   '**/*/node_modules/react/**/*.development.js',
   '**/*/node_modules/react-dom/**/*.development.js',
-  '**/*/node_modules/next/dist/next-server/server/lib/squoosh/**/*.wasm',
 ]
 
 function getChunkGroupFromBlock(
