@@ -121,7 +121,7 @@ export class TraceEntryPointsPlugin implements webpack.Plugin {
             const depModMap = new Map<string, any>()
 
             compilation.entries.forEach((entry) => {
-              const name = entry?.options?.name
+              const name = entry.name || entry.options?.name
 
               if (name?.startsWith('pages/') && entry.dependencies[0]) {
                 const entryMod = getModuleFromDependency(
