@@ -2,7 +2,6 @@
 
 This example uses `@tiptap/react` package for the editor and `@tailwindcss/typography` plugin to style the editor
 
-
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
