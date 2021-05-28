@@ -176,6 +176,7 @@ const WEBPACK_RESOLVE_OPTIONS = {
   // Otherwise combined ESM+CJS packages will never be external
   // as resolving mismatch would lead to opt-out from being external.
   dependencyType: 'commonjs',
+  symlinks: true,
 }
 
 const NODE_RESOLVE_OPTIONS = {
@@ -737,6 +738,14 @@ export default async function getBaseWebpackConfig(
     // but the resolver will resolve symlinks so this is already handled
     if (baseRes !== res) {
       return
+    }
+
+    if (
+      res.match(
+        /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/
+      )
+    ) {
+      return `commonjs ${request}`
     }
 
     // Default pages have to be transpiled
