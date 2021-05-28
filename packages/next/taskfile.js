@@ -1,6 +1,9 @@
+const fs = require('fs')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const notifier = require('node-notifier')
-const { relative, basename, resolve } = require('path')
+// eslint-disable-next-line import/no-extraneous-dependencies
+const { nodeFileTrace } = require('@vercel/nft')
+const { join, relative, basename, resolve } = require('path')
 const { Module } = require('module')
 
 // Note:
@@ -728,6 +731,47 @@ export async function precompile(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+export async function trace_next_server(task) {
+  const {
+    TRACE_OUTPUT_VERSION,
+  } = require('next/dist/next-server/lib/constants')
+  const root = join(__dirname, '../../')
+
+  const result = await nodeFileTrace(
+    [require.resolve('next/dist/next-server/server/next-server')],
+    {
+      base: root,
+      processCwd: __dirname,
+      ignore: [
+        'packages/next/dist/compiled/webpack/(bundle4|bundle5).js',
+        'node_modules/react/**/*.development.js',
+        'node_modules/react-dom/**/*.development.js',
+        'node_modules/use-subscription/**/*.development.js',
+        'node_modules/next/dist/next-server/server/lib/squoosh/**/*.wasm',
+        'packages/next/dist/pages/**/*',
+      ],
+    }
+  )
+
+  const tracedDeps = []
+
+  for (const file of result.fileList) {
+    if (result.reasons[file].type === 'initial') {
+      continue
+    }
+    tracedDeps.push(join(root, file))
+  }
+
+  fs.writeFileSync(
+    join(__dirname, 'dist/next-server/server/next-server.nft.json'),
+    JSON.stringify({
+      version: TRACE_OUTPUT_VERSION,
+      files: tracedDeps,
+    })
+  )
+}
+
+// eslint-disable-next-line camelcase
 export async function copy_ncced(task) {
   // we don't ncc every time we build since these won't change
   // that often and can be committed to the repo saving build time
@@ -918,7 +962,7 @@ export async function telemetry(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(['precompile', 'compile'], opts)
+  await task.serial(['precompile', 'compile', 'trace_next_server'], opts)
 }
 
 export default async function (task) {
