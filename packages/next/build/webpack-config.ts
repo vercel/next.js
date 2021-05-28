@@ -1128,7 +1128,10 @@ export default async function getBaseWebpackConfig(
         }),
       !isServer && new DropClientPage(),
       // TODO: update to trace only in production
-      isServer && !dev && new TraceEntryPointsPlugin({ appDir: dir }),
+      !isLikeServerless &&
+        isServer &&
+        !dev &&
+        new TraceEntryPointsPlugin({ appDir: dir }),
       // Moment.js is an extremely popular library that bundles large locale files
       // by default due to how Webpack interprets its code. This is a practical
       // solution that requires the user to opt into importing specific locales.
