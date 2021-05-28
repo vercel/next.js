@@ -176,6 +176,7 @@ const WEBPACK_RESOLVE_OPTIONS = {
   // Otherwise combined ESM+CJS packages will never be external
   // as resolving mismatch would lead to opt-out from being external.
   dependencyType: 'commonjs',
+  symlinks: true,
 }
 
 const NODE_RESOLVE_OPTIONS = {
@@ -233,10 +234,11 @@ export default async function getBaseWebpackConfig(
   const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })
   const hasReactRefresh: boolean = dev && !isServer
   const hasJsxRuntime: boolean =
-    Boolean(reactVersion) &&
-    // 17.0.0-rc.0 had a breaking change not compatible with Next.js, but was
-    // fixed in rc.1.
-    semver.gte(reactVersion!, '17.0.0-rc.1')
+    config.experimental.reactRoot ||
+    (Boolean(reactVersion) &&
+      // 17.0.0-rc.0 had a breaking change not compatible with Next.js, but was
+      // fixed in rc.1.
+      semver.gte(reactVersion!, '17.0.0-rc.1'))
 
   const babelConfigFile = await [
     '.babelrc',
@@ -737,6 +739,14 @@ export default async function getBaseWebpackConfig(
     // but the resolver will resolve symlinks so this is already handled
     if (baseRes !== res) {
       return
+    }
+
+    if (
+      res.match(
+        /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/
+      )
+    ) {
+      return `commonjs ${request}`
     }
 
     // Default pages have to be transpiled
