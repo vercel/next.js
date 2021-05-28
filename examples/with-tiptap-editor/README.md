@@ -15,6 +15,7 @@ Deploy the example using [Vercel](https://vercel.com/)
 ## Get started
 
 Execute the following command with `npm` or `yarn`
+
 ```bash
 npx create-next-app --example with-tiptap-editor nextjs-tiptap
 # or

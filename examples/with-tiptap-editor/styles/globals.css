@@ -20,5 +20,5 @@ a {
 }
 
 button {
-	@apply px-2 py-1 mx-1 my-2 rounded bg-red-50 hover:bg-red-200;
+  @apply px-2 py-1 mx-1 my-2 rounded bg-red-50 hover:bg-red-200;
 }
