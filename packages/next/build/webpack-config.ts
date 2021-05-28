@@ -939,7 +939,6 @@ export default async function getBaseWebpackConfig(
       crossOriginLoading: crossOrigin,
       futureEmitAssets: !dev,
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
-      assetModuleFilename: 'static/[name].[hash].[ext]',
     },
     performance: false,
     resolve: resolveConfig,
