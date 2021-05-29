@@ -1,7 +1,8 @@
 /* eslint-env jest */
 /* global browserName */
 import cheerio from 'cheerio'
-import { existsSync } from 'fs'
+import fs, { existsSync } from 'fs-extra'
+import globOriginal from 'glob'
 import {
   nextServer,
   renderViaHTTP,
@@ -24,6 +25,10 @@ import { join } from 'path'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
 import security from './security'
+import { promisify } from 'util'
+
+const glob = promisify(globOriginal)
+
 const appDir = join(__dirname, '../')
 let appPort
 let server
@@ -62,6 +67,23 @@ describe('Production Usage', () => {
     expect(output).toContain('Generating static pages (37/37)')
     // we should only have 4 segments and the initial message logged out
     expect(output.match(/Generating static pages/g).length).toBe(5)
+  })
+
+  it('should not contain currentScript usage for publicPath', async () => {
+    const globResult = await glob('webpack-*.js', {
+      cwd: join(appDir, '.next/static/chunks'),
+    })
+
+    if (!globResult || globResult.length !== 1) {
+      throw new Error('could not find webpack-hash.js chunk')
+    }
+
+    const content = await fs.readFile(
+      join(appDir, '.next/static/chunks', globResult[0]),
+      'utf8'
+    )
+
+    expect(content).not.toContain('.currentScript')
   })
 
   describe('With basic usage', () => {
