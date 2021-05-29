@@ -123,7 +123,7 @@ describe('Build Output', () => {
           )
           expect(indexSize.endsWith('B')).toBe(true)
 
-          expect(parseFloat(indexFirstLoad)).toBeCloseTo(gz ? 63.4 : 195, 1)
+          expect(parseFloat(indexFirstLoad)).toBeCloseTo(gz ? 63.5 : 195, 1)
           expect(indexFirstLoad.endsWith('kB')).toBe(true)
 
           expect(parseFloat(err404Size)).toBeCloseTo(gz ? 3.06 : 8.15, 1)
