@@ -902,11 +902,11 @@ export default class Server {
           } as Route
         })
 
-    const buildRewrite = (rewrite: Rewrite) => {
+    const buildRewrite = (rewrite: Rewrite, check = true) => {
       const rewriteRoute = getCustomRoute(rewrite, 'rewrite')
       return {
         ...rewriteRoute,
-        check: true,
+        check,
         type: rewriteRoute.type,
         name: `Rewrite route ${rewriteRoute.source}`,
         match: rewriteRoute.match,
@@ -975,11 +975,17 @@ export default class Server {
 
     if (!this.minimalMode) {
       if (Array.isArray(this.customRoutes.rewrites)) {
-        afterFiles = this.customRoutes.rewrites.map(buildRewrite)
+        afterFiles = this.customRoutes.rewrites.map((r) => buildRewrite(r))
       } else {
-        beforeFiles = this.customRoutes.rewrites.beforeFiles.map(buildRewrite)
-        afterFiles = this.customRoutes.rewrites.afterFiles.map(buildRewrite)
-        fallback = this.customRoutes.rewrites.fallback.map(buildRewrite)
+        beforeFiles = this.customRoutes.rewrites.beforeFiles.map((r) =>
+          buildRewrite(r, false)
+        )
+        afterFiles = this.customRoutes.rewrites.afterFiles.map((r) =>
+          buildRewrite(r)
+        )
+        fallback = this.customRoutes.rewrites.fallback.map((r) =>
+          buildRewrite(r)
+        )
       }
     }
 

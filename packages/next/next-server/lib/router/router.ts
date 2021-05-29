@@ -173,7 +173,8 @@ export function delBasePath(path: string): string {
  */
 export function isLocalURL(url: string): boolean {
   // prevent a hydration mismatch on href for url with anchor refs
-  if (url.startsWith('/') || url.startsWith('#')) return true
+  if (url.startsWith('/') || url.startsWith('#') || url.startsWith('?'))
+    return true
   try {
     // absolute urls can be local if they are on the same origin
     const locationOrigin = getLocationOrigin()
@@ -266,21 +267,24 @@ function omitParmsFromQuery(query: ParsedUrlQuery, params: string[]) {
  * Preserves absolute urls.
  */
 export function resolveHref(
-  currentPath: string,
+  router: NextRouter,
   href: Url,
   resolveAs?: boolean
 ): string {
   // we use a dummy base url for relative urls
   let base: URL
+  const urlAsString =
+    typeof href === 'string' ? href : formatWithValidation(href)
 
   try {
-    base = new URL(currentPath, 'http://n')
+    base = new URL(
+      urlAsString.startsWith('#') ? router.asPath : router.pathname,
+      'http://n'
+    )
   } catch (_) {
     // fallback to / for invalid asPath values e.g. //
     base = new URL('/', 'http://n')
   }
-  const urlAsString =
-    typeof href === 'string' ? href : formatWithValidation(href)
   // Return because it cannot be routed by the Next.js router
   if (!isLocalURL(urlAsString)) {
     return (resolveAs ? [urlAsString] : urlAsString) as string
@@ -335,7 +339,7 @@ function stripOrigin(url: string) {
 function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   // If url and as provided as an object representation,
   // we'll format them into the string version here.
-  let [resolvedHref, resolvedAs] = resolveHref(router.asPath, url, true)
+  let [resolvedHref, resolvedAs] = resolveHref(router, url, true)
   const origin = getLocationOrigin()
   const hrefHadOrigin = resolvedHref.startsWith(origin)
   const asHadOrigin = resolvedAs && resolvedAs.startsWith(origin)
@@ -345,7 +349,7 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
 
   const preparedUrl = hrefHadOrigin ? resolvedHref : addBasePath(resolvedHref)
   const preparedAs = as
-    ? stripOrigin(resolveHref(router.asPath, as))
+    ? stripOrigin(resolveHref(router, as))
     : resolvedAs || resolvedHref
 
   return {
@@ -993,7 +997,7 @@ export default class Router implements BaseRouter {
           // if this directly matches a page we need to update the href to
           // allow the correct page chunk to be loaded
           pathname = rewritesResult.resolvedHref
-          parsed.pathname = pathname
+          parsed.pathname = addBasePath(pathname)
           url = formatWithValidation(parsed)
         }
       } else {
@@ -1001,6 +1005,7 @@ export default class Router implements BaseRouter {
 
         if (parsed.pathname !== pathname) {
           pathname = parsed.pathname
+          parsed.pathname = addBasePath(pathname)
           url = formatWithValidation(parsed)
         }
       }
@@ -1529,6 +1534,7 @@ export default class Router implements BaseRouter {
 
       if (parsed.pathname !== pathname) {
         pathname = parsed.pathname
+        parsed.pathname = pathname
         url = formatWithValidation(parsed)
       }
     }
