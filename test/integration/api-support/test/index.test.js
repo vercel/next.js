@@ -262,6 +262,8 @@ function runTests(dev = false) {
     })
 
     expect(res.status).toEqual(307)
+    const text = await res.text()
+    expect(text).toEqual('/login')
   })
 
   it('should redirect to login', async () => {
@@ -277,6 +279,8 @@ function runTests(dev = false) {
     })
 
     expect(res.status).toEqual(301)
+    const text = await res.text()
+    expect(text).toEqual('/login')
   })
 
   it('should return empty query object', async () => {
