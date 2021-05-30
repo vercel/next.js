@@ -43,7 +43,7 @@ export default async function handler(
 
     case 'DELETE' /* Delete a model by its ID */:
       try {
-        const deletedPet = await Pet.deleteOne({ _id: id })
+        const deletedPet = await Pet.deleteOne({ _id: id as string })
         if (!deletedPet) {
           return res.status(400).json({ success: false })
         }

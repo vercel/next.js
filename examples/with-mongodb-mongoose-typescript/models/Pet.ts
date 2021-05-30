@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 
 export interface IPet {
+  _id?: string
   name: string
   owner_name: string
   species: string

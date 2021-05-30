@@ -1,7 +1,8 @@
 import Form from '../components/Form'
+import { IPet } from '../models/Pet'
 
 const NewPet = () => {
-  const petForm = {
+  const petForm: IPet = {
     name: '',
     owner_name: '',
     species: '',

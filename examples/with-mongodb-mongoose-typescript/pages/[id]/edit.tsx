@@ -1,8 +1,9 @@
 import { useRouter } from 'next/router'
 import useSWR from 'swr'
 import Form from '../../components/Form'
+import { IPet } from '../../models/Pet'
 
-const fetcher = (url) =>
+const fetcher = (url: string) =>
   fetch(url)
     .then((res) => res.json())
     .then((json) => json.data)
@@ -10,12 +11,15 @@ const fetcher = (url) =>
 const EditPet = () => {
   const router = useRouter()
   const { id } = router.query
-  const { data: pet, error } = useSWR(id ? `/api/pets/${id}` : null, fetcher)
+  const { data: pet, error } = useSWR<IPet>(
+    id ? `/api/pets/${id}` : null,
+    fetcher
+  )
 
   if (error) return <p>Failed to load</p>
   if (!pet) return <p>Loading...</p>
 
-  const petForm = {
+  const petForm: Required<Omit<IPet, '_id'>> = {
     name: pet.name,
     owner_name: pet.owner_name,
     species: pet.species,

@@ -3,7 +3,13 @@ import { useRouter } from 'next/router'
 import { mutate } from 'swr'
 import { IPet } from '../models/Pet'
 
-const Form = ({ formId, petForm, forNewPet = true }) => {
+interface FormProps {
+  formId: string
+  petForm: IPet
+  forNewPet?: boolean
+}
+
+const Form = ({ formId, petForm, forNewPet = true }: FormProps) => {
   const router = useRouter()
   const contentType = 'application/json'
   const [errors, setErrors] = useState({})

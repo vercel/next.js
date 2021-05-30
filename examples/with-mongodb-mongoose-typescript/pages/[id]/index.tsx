@@ -2,10 +2,15 @@ import { useState } from 'react'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
 import dbConnect from '../../utils/dbConnect'
-import Pet from '../../models/Pet'
+import Pet, { IPet } from '../../models/Pet'
+
+interface PetPageProps {
+  pet: IPet
+}
 
 /* Allows you to view pet card info and delete pet card*/
-const PetPage = ({ pet }) => {
+const PetPage = ({ pet }: PetPageProps) => {
+  console.log(pet)
   const router = useRouter()
   const [message, setMessage] = useState('')
   const handleDelete = async () => {
