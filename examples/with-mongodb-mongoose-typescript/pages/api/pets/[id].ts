@@ -1,7 +1,11 @@
 import dbConnect from '../../../utils/dbConnect'
 import Pet from '../../../models/Pet'
+import type { NextApiRequest, NextApiResponse } from 'next'
 
-export default async function handler(req, res) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   const {
     query: { id },
     method,

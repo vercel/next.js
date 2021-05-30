@@ -1,7 +1,11 @@
 import dbConnect from '../../../utils/dbConnect'
-import Pet from '../../../models/Pet'
+import Pet, { IPet } from '../../../models/Pet'
+import { NextApiRequest, NextApiResponse } from 'next'
 
-export default async function handler(req, res) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   const { method } = req
 
   await dbConnect()
@@ -18,7 +22,7 @@ export default async function handler(req, res) {
     case 'POST':
       try {
         const pet = await Pet.create(
-          req.body
+          req.body as IPet
         ) /* create a new model in the database */
         res.status(201).json({ success: true, data: pet })
       } catch (error) {

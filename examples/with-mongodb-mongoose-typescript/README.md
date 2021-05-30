@@ -1,6 +1,6 @@
-# MongoDB and Mongoose with Next.js
+# MongoDB and Mongoose with Next.js with Typescript
 
-This example shows how you can use a MongoDB database to support your Next.js application.
+This example shows how you can use a MongoDB database to support your Next.js application with Typescript.
 
 **Pet** is an application that allows users to add their pets' information (e.g., name, owner's name, diet, age, dislikes, likes, and photo). They can also delete it or edit it anytime.
 
@@ -15,9 +15,9 @@ Once you have access to [the environment variables you'll need](#step-2-set-up-e
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-mongodb-mongoose with-mongodb-mongoose-app
+npx create-next-app --example with-mongodb-mongoose-typescript with-mongodb-mongoose-typescript-app
 # or
-yarn create next-app --example with-mongodb-mongoose with-mongodb-mongoose-app
+yarn create next-app --example with-mongodb-mongoose-typescript with-mongodb-mongoose-typescript-app
 ```
 
 ## Configuration

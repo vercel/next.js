@@ -1,15 +1,15 @@
 import mongoose from 'mongoose'
 
-interface IPet {
+export interface IPet {
   name: string
   owner_name: string
   species: string
-  age: number
-  poddy_trained: boolean
-  diet: string[]
+  age?: number
+  poddy_trained?: boolean
+  diet?: string[]
   image_url: string
-  likes: string[]
-  dislikes: string[]
+  likes?: string[]
+  dislikes?: string[]
 }
 
 /* PetSchema will correspond to a collection in your MongoDB database. */
@@ -68,4 +68,5 @@ const PetSchema = new mongoose.Schema<IPet>({
   ],
 })
 
-export default mongoose.models.Pet || mongoose.model<IPet>('Pet', PetSchema)
+export default (mongoose.models.Pet as mongoose.Model<IPet>) ||
+  mongoose.model<IPet>('Pet', PetSchema)

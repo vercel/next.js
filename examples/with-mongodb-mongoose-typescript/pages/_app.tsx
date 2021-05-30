@@ -2,8 +2,9 @@ import '../css/style.css'
 import '../css/form.css'
 import Head from 'next/head'
 import Link from 'next/link'
+import { AppProps } from 'next/app'
 
-function MyApp({ Component, pageProps }) {
+function MyApp({ Component, pageProps }: AppProps) {
   return (
     <>
       <Head>
