@@ -103,11 +103,19 @@ const Form = ({ formId, petForm, forNewPet = true }: FormProps) => {
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const errs = formValidate()
+    handleFormClean()
     if (Object.keys(errs).length === 0) {
       forNewPet ? postData(form) : putData(form)
     } else {
       setErrors({ errs })
     }
+  }
+
+  /* Makes sure data is cleaned up before saving/updating into db*/
+  const handleFormClean = () => {
+    form.diet = form.diet.filter(Boolean) // Removes items from array that are empty
+    form.likes = form.likes.filter(Boolean)
+    form.dislikes = form.dislikes.filter(Boolean)
   }
 
   /* Makes sure pet info is filled for pet name, owner name, species, and image url*/
