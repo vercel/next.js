@@ -229,7 +229,21 @@ function Link(props: React.PropsWithChildren<LinkProps>) {
   }
 
   // This will return the first child, if multiple are provided it will throw an error
-  const child: any = Children.only(children)
+  let child: any
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      child = Children.only(children)
+    } catch (err) {
+      throw new Error(
+        `Multiple children were passed to <Link> with \`href\` of \`${props.href}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
+          (typeof window !== 'undefined'
+            ? "\nOpen your browser's console to view the Component stack trace."
+            : '')
+      )
+    }
+  } else {
+    child = Children.only(children)
+  }
   const childRef: any = child && typeof child === 'object' && child.ref
 
   const [setIntersectionRef, isVisible] = useIntersection({
