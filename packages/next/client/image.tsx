@@ -74,14 +74,10 @@ export type ImageProps = Omit<
         height: number | string
         layout?: Exclude<LayoutValue, 'fill'>
       }
-  ) &
-  (
-    | {
-        placeholder?: Exclude<PlaceholderValue, 'blur'>
-        blurDataURL?: never
-      }
-    | { placeholder: 'blur'; blurDataURL: string }
-  )
+  ) & {
+    placeholder?: PlaceholderValue
+    blurDataURL?: string
+  }
 
 const {
   deviceSizes: configDeviceSizes,
