@@ -1,7 +1,6 @@
 import loaderUtils from 'next/dist/compiled/loader-utils'
 import sizeOf from 'image-size'
 import { processBuffer } from '../../../next-server/server/lib/squoosh/main'
-import fs from 'fs'
 
 const PLACEHOLDER_SIZE = 6
 
@@ -19,9 +18,8 @@ async function nextImageLoader(content) {
     extension = 'jpeg'
   }
 
-  const imageSize = sizeOf(this.resourcePath)
+  const imageSize = sizeOf(content)
   let placeholder
-  const fileBuffer = Buffer.from(fs.readFileSync(this.resourcePath))
   if (extension === 'jpeg' || extension === 'png') {
     // Shrink the image's largest dimension to 6 pixels
     const resizeOperationOpts =
@@ -29,7 +27,7 @@ async function nextImageLoader(content) {
         ? { type: 'resize', width: PLACEHOLDER_SIZE }
         : { type: 'resize', height: PLACEHOLDER_SIZE }
     const resizedImage = await processBuffer(
-      fileBuffer,
+      content,
       [resizeOperationOpts],
       extension,
       0
@@ -46,9 +44,9 @@ async function nextImageLoader(content) {
     placeholder,
   })
 
-  this.emitFile(interpolatedName, fileBuffer, null)
+  this.emitFile(interpolatedName, content, null)
 
   return `${'export default '} ${stringifiedData};`
 }
-nextImageLoader.raw = true
+export const raw = true
 export default nextImageLoader
