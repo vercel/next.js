@@ -1,0 +1,17 @@
+{
+  "name": "with-mongodb-mongoose-typescript",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "mongoose": "^5.12.12",
+    "next": "latest",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "swr": "0.5.6"
+  },
+  "license": "MIT"
+}
