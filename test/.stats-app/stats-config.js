@@ -65,9 +65,6 @@ module.exports = {
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
-              future: {
-                webpack5: true
-              },
               webpack(config) {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
@@ -138,9 +135,7 @@ module.exports = {
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
-              future: {
-                webpack5: false
-              },
+              webpack5: false
               webpack(config) {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
@@ -157,9 +152,7 @@ module.exports = {
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
-              future: {
-                webpack5: false
-              }
+              webpack5: false
             }
           `,
         },
