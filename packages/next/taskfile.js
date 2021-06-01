@@ -626,6 +626,7 @@ export async function ncc_webpack_sources2(task, opts) {
 // eslint-disable-next-line camelcase
 externals['mini-css-extract-plugin'] =
   'next/dist/compiled/mini-css-extract-plugin'
+
 export async function ncc_mini_css_extract_plugin(task, opts) {
   await task
     .source(
@@ -642,6 +643,24 @@ export async function ncc_mini_css_extract_plugin(task, opts) {
       },
     })
     .target('compiled/mini-css-extract-plugin')
+  await task
+    .source(
+      relative(
+        __dirname,
+        resolve(
+          require.resolve('mini-css-extract-plugin'),
+          '../hmr/hotModuleReplacement.js'
+        )
+      )
+    )
+    .ncc({
+      externals: {
+        ...externals,
+        './hmr': './hmr',
+        'schema-utils': 'next/dist/compiled/schema-utils3',
+      },
+    })
+    .target('compiled/mini-css-extract-plugin/hmr')
   await task
     .source(
       opts.src ||
