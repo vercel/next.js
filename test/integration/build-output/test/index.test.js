@@ -123,16 +123,16 @@ describe('Build Output', () => {
           )
           expect(indexSize.endsWith('B')).toBe(true)
 
-          expect(parseFloat(indexFirstLoad)).toBeCloseTo(gz ? 63.5 : 195, 1)
+          expect(parseFloat(indexFirstLoad)).toBeCloseTo(gz ? 64.2 : 197, 1)
           expect(indexFirstLoad.endsWith('kB')).toBe(true)
 
           expect(parseFloat(err404Size)).toBeCloseTo(gz ? 3.06 : 8.15, 1)
           expect(err404Size.endsWith('kB')).toBe(true)
 
-          expect(parseFloat(err404FirstLoad)).toBeCloseTo(gz ? 66.3 : 202, 1)
+          expect(parseFloat(err404FirstLoad)).toBeCloseTo(gz ? 67 : 205, 1)
           expect(err404FirstLoad.endsWith('kB')).toBe(true)
 
-          expect(parseFloat(sharedByAll)).toBeCloseTo(gz ? 63.2 : 194, 1)
+          expect(parseFloat(sharedByAll)).toBeCloseTo(gz ? 63.9 : 194, 1)
           expect(sharedByAll.endsWith('kB')).toBe(true)
 
           const appSizeValue = _appSize.endsWith('kB')
