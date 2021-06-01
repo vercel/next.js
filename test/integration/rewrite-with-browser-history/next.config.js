@@ -3,7 +3,7 @@ module.exports = {
     return [
       {
         source: '/:pagePrefix/:path*',
-        destination: '/dynamic-page/:path*',
+        destination: '/dynamic-page/:pagePrefix/:path*',
       },
     ]
   },

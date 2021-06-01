@@ -19,7 +19,7 @@ let app
 
 const runTests = () => {
   it('back-button should go back to rewritten path successfully', async () => {
-    const browser = await webdriver(appPort, '/rewrite-me')
+    const browser = await webdriver(appPort, '/rewrite-me/path')
 
     expect(await browser.elementByCss('#another').text()).toBe('another page')
 
