@@ -23,6 +23,8 @@ const runTests = () => {
 
     expect(await browser.elementByCss('#another').text()).toBe('another page')
 
+    await browser.eval('window.beforeNav = 1')
+
     await browser
       .elementByCss('#to-index')
       .click()
@@ -31,6 +33,8 @@ const runTests = () => {
     await browser.back()
 
     expect(await browser.elementByCss('#another').text()).toBe('another page')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 }
 
