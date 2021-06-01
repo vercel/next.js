@@ -72,7 +72,13 @@ The Next.js base ESLint configuration is automatically generated when `next lint
 }
 ```
 
-This configuration extends recommended rule sets from [`eslint-plugin-react`](https://www.npmjs.com/package/eslint-plugin-react), [`eslint-plugin-react-hooks`](https://www.npmjs.com/package/eslint-plugin-react-hooks), and [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next). You can see the full details of the shareable configuration in the [`eslint-config-next`](https://www.npmjs.com/package/eslint-config-next) package.
+This configuration extends recommended rule sets from various Eslint plugins:
+
+- [`eslint-plugin-react`](https://www.npmjs.com/package/eslint-plugin-react)
+- [`eslint-plugin-react-hooks`](https://www.npmjs.com/package/eslint-plugin-react-hooks)
+- [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next)
+
+You can see the full details of the shareable configuration in the [`eslint-config-next`](https://www.npmjs.com/package/eslint-config-next) package.
 
 If you would like to modify any rules provided by the supported plugins (`react`, `react-hooks`, `next`), you can directly modify them using the `rules` property:
 
