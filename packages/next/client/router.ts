@@ -1,6 +1,9 @@
 /* global window */
 import React from 'react'
-import Router, { NextRouter } from '../next-server/lib/router/router'
+import Router, {
+  NextRouter,
+  RouterEvents,
+} from '../next-server/lib/router/router'
 import { RouterContext } from '../next-server/lib/router-context'
 
 type ClassArguments<T> = T extends new (...args: infer U) => any ? U : any
@@ -44,7 +47,7 @@ const urlPropertyFields = [
   'isPreview',
   'isLocaleDomain',
 ]
-const routerEvents = [
+const routerEvents: RouterEvents[] = [
   'routeChangeStart',
   'beforeHistoryChange',
   'routeChangeComplete',
@@ -89,7 +92,7 @@ coreMethodFields.forEach((field: string) => {
   }
 })
 
-routerEvents.forEach((event: string) => {
+routerEvents.forEach((event: RouterEvents) => {
   singletonRouter.ready(() => {
     Router.events.on(event, (...args) => {
       const eventField = `on${event.charAt(0).toUpperCase()}${event.substring(

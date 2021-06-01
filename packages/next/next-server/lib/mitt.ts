@@ -14,29 +14,32 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // It's been edited for the needs of this script
 // See the LICENSE at the top of the file
 
-type Handler = (...evts: any[]) => void
+type Handler<Event = any> = (...evts: Event[]) => void
 
-export type MittEmitter = {
-  on(type: string, handler: Handler): void
-  off(type: string, handler: Handler): void
-  emit(type: string, ...evts: any[]): void
+export type MittEmitter<EventType extends string = string, Event = any> = {
+  on(type: EventType, handler: Handler<Event>): void
+  off(type: EventType, handler: Handler<Event>): void
+  emit(type: EventType, ...evts: Event[]): void
 }
 
-export default function mitt(): MittEmitter {
+export default function mitt<
+  EventType extends string = string,
+  Event = any
+>(): MittEmitter<EventType, Event> {
   const all: { [s: string]: Handler[] } = Object.create(null)
 
   return {
-    on(type: string, handler: Handler) {
+    on(type: EventType, handler: Handler<Event>) {
       ;(all[type] || (all[type] = [])).push(handler)
     },
 
-    off(type: string, handler: Handler) {
+    off(type: EventType, handler: Handler<Event>) {
       if (all[type]) {
         all[type].splice(all[type].indexOf(handler) >>> 0, 1)
       }
     },
 
-    emit(type: string, ...evts: any[]) {
+    emit(type: EventType, ...evts: Event[]) {
       // eslint-disable-next-line array-callback-return
       ;(all[type] || []).slice().map((handler: Handler) => {
         handler(...evts)

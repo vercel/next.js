@@ -442,6 +442,14 @@ type ComponentLoadCancel = (() => void) | null
 
 type HistoryMethod = 'replaceState' | 'pushState'
 
+export type RouterEvents =
+  | 'routeChangeStart'
+  | 'routeChangeComplete'
+  | 'routeChangeError'
+  | 'beforeHistoryChange'
+  | 'hashChangeStart'
+  | 'hashChangeComplete'
+
 const manualScrollRestoration =
   process.env.__NEXT_SCROLL_RESTORATION &&
   typeof window !== 'undefined' &&
@@ -522,7 +530,7 @@ export default class Router implements BaseRouter {
   clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
-  events: MittEmitter
+  events: MittEmitter<RouterEvents>
   _wrapApp: (App: AppComponent) => any
   isSsr: boolean
   isFallback: boolean
@@ -538,7 +546,7 @@ export default class Router implements BaseRouter {
 
   private _idx: number = 0
 
-  static events: MittEmitter = mitt()
+  static events: MittEmitter<RouterEvents> = mitt()
 
   constructor(
     pathname: string,

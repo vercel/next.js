@@ -4,13 +4,13 @@ import Router, { withRouter } from 'next/router'
 
 export default withRouter(({ router }) => {
   React.useEffect(() => {
-    Router.events.on('event', () => {})
+    Router.events.on('routeChangeStart', () => {})
     Router.prefetch('/page')
     Router.push
     Router.back
     Router.reload
 
-    router.events.on('event', () => {})
+    router.events.on('routeChangeStart', () => {})
     router.prefetch('/page')
     router.push
     router.back
