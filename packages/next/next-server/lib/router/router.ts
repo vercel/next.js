@@ -804,7 +804,8 @@ export default class Router implements BaseRouter {
       window.location.href = url
       return false
     }
-    const shouldResolveHref = url === as || (options as any)._h
+    const shouldResolveHref =
+      url === as || (options as any)._h || (options as any)._shouldResolveHref
 
     // for static pages with query params in the URL we delay
     // marking the router ready until after the query is updated
@@ -982,6 +983,8 @@ export default class Router implements BaseRouter {
       : pathname
 
     if (shouldResolveHref && pathname !== '/_error') {
+      ;(options as any)._shouldResolveHref = true
+
       if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
         const rewritesResult = resolveRewrites(
           addBasePath(addLocale(cleanedAs, this.locale)),
