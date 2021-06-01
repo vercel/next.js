@@ -508,11 +508,7 @@ function renderReactElement(
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
   if (process.env.__NEXT_REACT_ROOT) {
     if (!reactRoot) {
-      const createRootName =
-        typeof (ReactDOM as any).unstable_createRoot === 'function'
-          ? 'unstable_createRoot'
-          : 'createRoot'
-      reactRoot = (ReactDOM as any)[createRootName](domEl, {
+      reactRoot = (ReactDOM as any).createRoot(domEl, {
         hydrate: shouldHydrate,
       })
     }
