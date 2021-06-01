@@ -114,6 +114,6 @@ A stricter `next/core-web-vitals` entrypoint can also be specified in `.eslintrc
 }
 ```
 
-This does not include any additional rules not already provided by the base `eslint-config-next` configuration, but will error on a number of important rules in `eslint-plugin-next` instead of provide a warning if they are likely to affect [Core Web Vitals](https://web.dev/vitals/).
+`next/core-web-vitals` updates `eslint-plugin-next` to error on a number of rules that are warnings by default if they affect [Core Web Vitals](https://web.dev/vitals/).
 
 > Both `next` and `next/core-web-vitals` entry points are automatically included for new applications built with [Create Next App](/docs/api-reference/create-next-app.md).
