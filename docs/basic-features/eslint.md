@@ -32,7 +32,7 @@ If no ESLint configuration is present, Next.js will create an `.eslintrc` file i
 }
 ```
 
-Now you can run `next lint` every time you want to run ESLint to catch
+Now you can run `next lint` every time you want to run ESLint to catch errors
 
 > The default base configuration (`"extends": "next"`) can be updated at any time and will only be included if no ESLint configuration is present.
 
