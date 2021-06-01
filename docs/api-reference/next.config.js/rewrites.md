@@ -79,7 +79,7 @@ module.exports = {
         // and dynamic routes are checked
         {
           source: '/:path*',
-          destination: 'https://my-old-site.com',
+          destination: `https://my-old-site.com/:path*`,
         },
       ],
     }
