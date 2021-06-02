@@ -447,7 +447,9 @@ export class Head extends Component<
       if (
         c.type === 'link' &&
         c.props['href'] &&
-        OPTIMIZED_FONT_PROVIDERS.some((url) => c.props['href'].startsWith(url))
+        OPTIMIZED_FONT_PROVIDERS.some(({ url }) =>
+          c.props['href'].startsWith(url)
+        )
       ) {
         const newProps = { ...(c.props || {}) }
         newProps['data-href'] = newProps['href']
@@ -639,6 +641,9 @@ export class Head extends Component<
           </>
         )}
         {children}
+        {process.env.__NEXT_OPTIMIZE_FONTS && (
+          <meta name="next-font-preconnect" />
+        )}
         {head}
         <meta
           name="next-head-count"
