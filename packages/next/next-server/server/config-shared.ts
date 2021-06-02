@@ -50,7 +50,6 @@ export type NextConfig = { [key: string]: any } & {
     scriptLoader?: boolean
     stats?: boolean
     externalDir?: boolean
-    serialWebpackBuild?: boolean
     conformance?: boolean
     amp?: {
       optimizer?: any
@@ -114,7 +113,6 @@ export const defaultConfig: NextConfig = {
     scriptLoader: false,
     stats: false,
     externalDir: false,
-    serialWebpackBuild: false,
     eslint: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     enableBlurryPlaceholder: false,
