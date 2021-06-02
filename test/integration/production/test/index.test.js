@@ -276,11 +276,13 @@ describe('Production Usage', () => {
       const manifestKey = Object.keys(reactLoadableManifest).find((item) => {
         return item
           .replace(/\\/g, '/')
-          .endsWith('bundle.js -> ../../components/hello1')
+          .endsWith('dynamic/css.js -> ../../components/dynamic-css/with-css')
       })
 
       // test dynamic chunk
-      resources.add(url + reactLoadableManifest[manifestKey].files[0])
+      reactLoadableManifest[manifestKey].files.forEach((f) => {
+        resources.add(url + f)
+      })
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/']) {
