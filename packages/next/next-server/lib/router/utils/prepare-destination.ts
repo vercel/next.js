@@ -60,7 +60,7 @@ export function matchHas(
         // preserve initial encoding of query values
         value = query[key!]
 
-        if (initialQueryValues.includes(value)) {
+        if (initialQueryValues.includes(value || '')) {
           value = encodeURIComponent(value!)
         }
         break
