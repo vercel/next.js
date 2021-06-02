@@ -216,6 +216,20 @@ describe('Required Server Files', () => {
     expect($2('#slug').text()).toBe('second')
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
+
+    const html3 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
+      headers: {
+        'x-matched-path': '/dynamic/[slug]?slug=%5Bslug%5D.json',
+        'x-now-route-matches': '1=second&slug=second',
+      },
+    })
+    const $3 = cheerio.load(html3)
+    const data3 = JSON.parse($3('#props').text())
+
+    expect($3('#dynamic').text()).toBe('dynamic page')
+    expect($3('#slug').text()).toBe('second')
+    expect(isNaN(data3.random)).toBe(false)
+    expect(data3.random).not.toBe(data.random)
   })
 
   it('should render fallback page correctly with x-matched-path and routes-matches', async () => {

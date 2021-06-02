@@ -210,15 +210,22 @@ describe('Font Optimization', () => {
 
           expect(testCss).toStrictEqual(snapshotCss)
         })
+
+        // Re-run build to check if it works when build is cached
+        it('should work when build is cached', async () => {
+          await nextBuild(appDir)
+          const testJson = JSON.parse(
+            await fs.readFile(builtPage('font-manifest.json'), {
+              encoding: 'utf-8',
+            })
+          )
+          expect(testJson.length).toBeGreaterThan(0)
+        })
       }
 
       describe('Font optimization for SSR apps', () => {
         beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = { experimental: {optimizeFonts: true} }`,
-            'utf8'
-          )
+          await fs.writeFile(nextConfig, `module.exports = { }`, 'utf8')
 
           if (fs.pathExistsSync(join(appDir, '.next'))) {
             await fs.remove(join(appDir, '.next'))
@@ -237,7 +244,7 @@ describe('Font Optimization', () => {
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `module.exports = { target: 'serverless', experimental: {optimizeFonts: true} }`,
+            `module.exports = { target: 'serverless' }`,
             'utf8'
           )
           await nextBuild(appDir)
@@ -254,7 +261,7 @@ describe('Font Optimization', () => {
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `module.exports = { target: 'experimental-serverless-trace', experimental: {optimizeFonts: true} }`,
+            `module.exports = { target: 'experimental-serverless-trace' }`,
             'utf8'
           )
           await nextBuild(appDir)
