@@ -20,6 +20,7 @@ import {
   normalizeRegEx,
   initNextServerScript,
   nextExport,
+  hasRedbox,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -38,6 +39,42 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
+  it('should resolveHref correctly navigating through history', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval('window.beforeNav = 1')
+
+    expect(await browser.eval('document.documentElement.innerHTML')).toContain(
+      'multi-rewrites'
+    )
+
+    await browser.eval('next.router.push("/rewriting-to-auto-export")')
+    await browser.waitForElementByCss('#auto-export')
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'hello',
+      rewrite: '1',
+    })
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    await browser.eval('next.router.push("/nav")')
+    await browser.waitForElementByCss('#nav')
+
+    expect(await browser.elementByCss('#nav').text()).toBe('Nav')
+
+    await browser.back()
+    await browser.waitForElementByCss('#auto-export')
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'hello',
+      rewrite: '1',
+    })
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    if (isDev) {
+      expect(await hasRedbox(browser, false)).toBe(false)
+    }
+  })
+
   it('should continue in beforeFiles rewrites', async () => {
     const res = await fetchViaHTTP(appPort, '/old-blog/about')
     expect(res.status).toBe(200)
