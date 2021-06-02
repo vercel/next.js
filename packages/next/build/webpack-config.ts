@@ -260,7 +260,9 @@ export default async function getBaseWebpackConfig(
 
   const distDir = path.join(dir, config.distDir)
 
-  const babelLoader = config.experimental.turboMode
+  // Webpack 5 can use the faster babel loader, webpack 5 has built-in caching for loaders
+  // For webpack 4 the old loader is used as it has external caching
+  const babelLoader = isWebpack5
     ? require.resolve('./babel/loader/index')
     : 'next-babel-loader'
   const defaultLoaders = {

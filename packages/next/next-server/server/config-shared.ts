@@ -49,14 +49,12 @@ export type NextConfig = { [key: string]: any } & {
     scrollRestoration?: boolean
     stats?: boolean
     externalDir?: boolean
-    serialWebpackBuild?: boolean
     conformance?: boolean
     amp?: {
       optimizer?: any
       validator?: string
       skipValidation?: boolean
     }
-    turboMode?: boolean
     eslint?: boolean
     reactRoot?: boolean
     enableBlurryPlaceholder?: boolean
@@ -113,8 +111,6 @@ export const defaultConfig: NextConfig = {
     scrollRestoration: false,
     stats: false,
     externalDir: false,
-    serialWebpackBuild: false,
-    turboMode: false,
     eslint: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     enableBlurryPlaceholder: false,
