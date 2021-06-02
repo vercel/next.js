@@ -41,9 +41,9 @@ export async function shouldLoadWithWebpack5(
     cwd: dir,
   })
 
-  if (Number(process.env.NEXT_PRIVATE_TEST_WEBPACK5_MODE) > 0) {
+  if (Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0) {
     return {
-      enabled: true,
+      enabled: false,
       reason: 'test-mode',
     }
   }

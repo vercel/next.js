@@ -122,10 +122,11 @@ export const defaultConfig: NextConfig = {
     disableOptimizedLoading: true,
     gzipSize: true,
   },
+  webpack5:
+    Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0 ? false : undefined,
   future: {
     strictPostcssConfiguration: false,
     excludeDefaultMomentLocales: false,
-    webpack5: Number(process.env.NEXT_PRIVATE_TEST_WEBPACK5_MODE) > 0,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},

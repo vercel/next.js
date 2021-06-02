@@ -157,14 +157,14 @@ jobs:
       - run: exit 0
 
   testFutureDependencies:
-    name: Webpack 5 (Basic, Production, Acceptance)
+    name: Webpack 4 (Basic, Production, Acceptance)
     runs-on: ubuntu-latest
     needs: build
     env:
       NEXT_TELEMETRY_DISABLED: 1
       NEXT_TEST_JOB: 1
       HEADLESS: true
-      NEXT_PRIVATE_TEST_WEBPACK5_MODE: 1
+      NEXT_PRIVATE_TEST_WEBPACK4_MODE: 1
 
     steps:
       - uses: actions/cache@v2
