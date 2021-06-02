@@ -138,6 +138,23 @@ module.exports = {
 }
 ```
 
+### Image formats
+
+By default the server uses [content negotiation](https://developer.mozilla.org/en-US/docs/Web/HTTP/Content_negotiation) to automatically deliver next generation image formats to browsers that support them. This means that the format is determined by the `Accept` header sent by the browser. In some cases you may prefer to use the URL to specify the format, such as if your host doesn't support content negotiation, you need to cache based on the URL, or you want to include formats that your host doesn't generate by default. In this situation you can add an array of formats in the `formats` property.
+
+```js
+module.exports = {
+  images: {
+    formats: ['jxl', 'avif', 'webp'],
+    loader: 'cloudinary',
+  },
+}
+```
+
+If these are included then the `next/image` component generates a [`<picture>` tag](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/picture) with a `<source>` element for each format. The browser will choose a supported format from the available options. For browsers that do not support any next generation formats or that don't support the `<picture>` tag, it will fall back to an `<img>` tag.
+
+The supported formats depend on the chosen loader. By default, the only supported format is `'webp'`, but other loaders will support more. You do not need to specify fallback formats such as `jpeg` or `png`, as these are delivered automatically.
+
 ## Related
 
 For more information on what to do next, we recommend the following sections:
