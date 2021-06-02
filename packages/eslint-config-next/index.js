@@ -12,10 +12,17 @@ module.exports = {
     'plugin:react-hooks/recommended',
     'plugin:@next/next/recommended',
   ],
-  plugins: ['import', 'react'],
+  plugins: ['import', 'react', 'jsx-a11y'],
   rules: {
     'import/no-anonymous-default-export': 'warn',
     'react/react-in-jsx-scope': 'off',
+    'jsx-a11y/alt-text': [
+      'warn',
+      {
+        elements: ['img'],
+        img: ['Image'],
+      },
+    ],
   },
   parser: './parser.js',
   parserOptions: {
