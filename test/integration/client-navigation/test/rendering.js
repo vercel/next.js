@@ -209,7 +209,7 @@ export default function (render, fetch, ctx) {
     })
 
     it('should render the page without `nextExport` property', async () => {
-      const html = await render('/')
+      const html = await render('/async-props')
       expect(html).not.toContain('"nextExport"')
     })
 

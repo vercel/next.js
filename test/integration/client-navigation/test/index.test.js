@@ -42,7 +42,6 @@ describe('Client Navigation', () => {
       '/styled-jsx-external',
       '/with-cdm',
       '/url-prop',
-      '/url-prop-override',
 
       '/dynamic/ssr',
       '/dynamic/[slug]/route',
