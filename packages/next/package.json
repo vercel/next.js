@@ -248,6 +248,6 @@
     "webpack-sources": "1.4.3"
   },
   "engines": {
-    "node": ">=10.13.0"
+    "node": ">=12.0.0"
   }
 }
