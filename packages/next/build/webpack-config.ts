@@ -1408,6 +1408,7 @@ export default async function getBaseWebpackConfig(
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
     future: config.future,
+    isCraCompat: config.NEXT_INTERNAL_CRA_COMPAT,
   })
 
   let originalDevtool = webpackConfig.devtool

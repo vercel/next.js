@@ -198,10 +198,12 @@ export const css = curry(async function css(
             include: { and: [/node_modules/] },
             // Global CSS is only supported in the user's application, not in
             // node_modules.
-            issuer: {
-              and: [ctx.rootDirectory],
-              not: [/node_modules/],
-            },
+            issuer: ctx.isCraCompat
+              ? undefined
+              : {
+                  and: [ctx.rootDirectory],
+                  not: [/node_modules/],
+                },
             use: getGlobalCssLoader(ctx, postCssPlugins),
           },
         ],
@@ -245,22 +247,24 @@ export const css = curry(async function css(
   }
 
   // Throw an error for Global CSS used inside of `node_modules`
-  fns.push(
-    loader({
-      oneOf: [
-        {
-          test: [regexCssGlobal, regexSassGlobal],
-          issuer: { and: [/node_modules/] },
-          use: {
-            loader: 'error-loader',
-            options: {
-              reason: getGlobalModuleImportError(),
+  if (!ctx.isCraCompat) {
+    fns.push(
+      loader({
+        oneOf: [
+          {
+            test: [regexCssGlobal, regexSassGlobal],
+            issuer: { and: [/node_modules/] },
+            use: {
+              loader: 'error-loader',
+              options: {
+                reason: getGlobalModuleImportError(),
+              },
             },
           },
-        },
-      ],
-    })
-  )
+        ],
+      })
+    )
+  }
 
   // Throw an error for Global CSS used outside of our custom <App> file
   fns.push(
