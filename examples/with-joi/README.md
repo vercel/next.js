@@ -1,6 +1,6 @@
 # Example application using [`joi`](https://github.com/sideway/joi) and [`next-joi`](https://github.com/codecoolture/next-joi)
 
-This example shows how to validate Next.js API routes by using the joi and next-joi packages. It contains samples for both API routes using a Connect middleware (see `/api/people`) and regular API routes (see `/api/cars`).
+This example shows how to validate Next.js API routes by using the `joi` and `next-joi` packages. It contains samples for both API routes using a [Connect middleware](https://github.com/hoangvvo/next-connect) (see `/api/people`) and regular API routes (see `/api/cars`).
 
 ## Deploy your own
 
