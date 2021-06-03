@@ -164,13 +164,15 @@ function resolvePromiseWithTimeout<T>(
       resolve(r)
     }).catch(reject)
 
-    requestIdleCallback(() =>
-      setTimeout(() => {
-        if (!cancelled) {
-          reject(err)
-        }
-      }, ms)
-    )
+    if (process.env.NODE_ENV !== 'development') {
+      requestIdleCallback(() =>
+        setTimeout(() => {
+          if (!cancelled) {
+            reject(err)
+          }
+        }, ms)
+      )
+    }
   })
 }
 
