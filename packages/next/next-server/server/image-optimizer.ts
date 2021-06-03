@@ -380,7 +380,9 @@ function sendResponse(
   const etag = getHash([buffer])
   res.setHeader(
     'Cache-Control',
-    isStatic ? 'public, immutable, max-age=315360000' : 'public, max-age=0, must-revalidate'
+    isStatic
+      ? 'public, immutable, max-age=315360000'
+      : 'public, max-age=0, must-revalidate'
   )
   if (sendEtagResponse(req, res, etag)) {
     return
