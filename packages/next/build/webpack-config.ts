@@ -835,7 +835,7 @@ export default async function getBaseWebpackConfig(
       checkWasmTypes: false,
       nodeEnv: false,
       splitChunks: isServer
-        ? isWebpack5
+        ? isWebpack5 && !dev
           ? ({
               filename: '[name].js',
               // allow to split entrypoints
@@ -1085,9 +1085,6 @@ export default async function getBaseWebpackConfig(
         ),
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
           config.experimental.optimizeCss && !dev
-        ),
-        'process.env.__NEXT_SCRIPT_LOADER': JSON.stringify(
-          !!config.experimental.scriptLoader
         ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
