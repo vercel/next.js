@@ -221,7 +221,7 @@ function runTests({ w, isDev, domains }) {
     const query = { url: '/test.png', w, q: 100, s: 'foo' }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
-    expect(await res.text()).toBe(`"s" parameter must be "true" or omitted`)
+    expect(await res.text()).toBe(`"s" parameter must be "1" or omitted`)
   })
 
   it('should fail when domain is not defined in next.config.js', async () => {
@@ -511,11 +511,13 @@ function runTests({ w, isDev, domains }) {
   })
 
   it('should set cache-control to immutable for static images', async () => {
-    const query = { url: '/test.jpg', w, q: 100, s: 'true' }
+    const query = { url: '/test.jpg', w, q: 100, s: '1' }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe('immutable')
+    expect(res.headers.get('cache-control')).toBe(
+      'public, immutable, max-age=315360000'
+    )
   })
 
   it("should error if the resource isn't a valid image", async () => {
