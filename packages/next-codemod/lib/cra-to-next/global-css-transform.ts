@@ -3,7 +3,7 @@ import { API, FileInfo, Options } from 'jscodeshift'
 
 export const globalCssContext = {
   cssImports: new Set<string>(),
-  hasReactSvgImport: false,
+  reactSvgImports: new Set<string>(),
 }
 const globalStylesRegex = /(?<!\.module)\.(css|scss|sass)$/i
 
@@ -51,7 +51,7 @@ export default function transformer(
           })
 
           if (isComponentImport) {
-            globalCssContext.hasReactSvgImport = true
+            globalCssContext.reactSvgImports.add(file.path)
           }
         }
       }

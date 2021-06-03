@@ -131,10 +131,15 @@ class CraTransform {
     await this.createNextConfig()
     await this.updateGitIgnore()
 
-    // TODO: should we create .babelrc even if {ReactComponent} svg import
-    // isn't used?
-    if (globalCssContext.hasReactSvgImport) {
-      await this.createBabelrc()
+    if (globalCssContext.reactSvgImports.size > 0) {
+      // This de-opts webpack 5 since svg/webpack doesn't support webpack 5 yet,
+      // so we don't support this automatically
+      fatalMessage(
+        `Error: import {ReactComponent} from './logo.svg' is not supported, please use normal SVG imports to continue.\n` +
+          `React SVG imports found in:\n${[
+            ...globalCssContext.reactSvgImports,
+          ].join('\n')}`
+      )
     }
     await this.createPages()
   }
@@ -398,18 +403,6 @@ export default function Page(props) {
         name: 'next',
         version: 'latest',
       },
-      ...(globalCssContext.hasReactSvgImport
-        ? [
-            {
-              name: 'babel-plugin-named-asset-import',
-              version: 'latest',
-            },
-            {
-              name: '@svgr/webpack',
-              version: 'latest',
-            },
-          ]
-        : []),
     ]
     const packageName = this.isCra ? 'react-scripts' : 'vite'
     const packagesToRemove = {
@@ -505,35 +498,6 @@ export default function Page(props) {
     this.logModify('.gitignore')
   }
 
-  private async createBabelrc() {
-    if (!this.isDryRun) {
-      await fs.promises.writeFile(
-        path.join(this.appDir, '.babelrc'),
-        JSON.stringify(
-          {
-            presets: ['next/babel'],
-            plugins: [
-              [
-                'babel-plugin-named-asset-import',
-                {
-                  loaderMap: {
-                    svg: {
-                      ReactComponent:
-                        '@svgr/webpack?-svgo,+titleProp,+ref![path]',
-                    },
-                  },
-                },
-              ],
-            ],
-          },
-          null,
-          2
-        )
-      )
-    }
-    this.logCreate('.babelrc')
-  }
-
   private async createNextConfig() {
     if (!this.isDryRun) {
       const { proxy, homepage } = this.packageJsonData
@@ -562,15 +526,9 @@ module.exports = craCompat({${
         }
   env: {
     PUBLIC_URL: '${homepagePath === '/' ? '' : homepagePath || ''}'
-  },${
-    globalCssContext.hasReactSvgImport
-      ? `
-  // @svgr/webpack does not support webpack 5 yet
-  // remove the custom .babelrc to enable the below config`
-      : ''
-  }
+  },
   future: {
-    webpack5: ${JSON.stringify(!globalCssContext.hasReactSvgImport)}
+    webpack5: true
   }
 })
 `
