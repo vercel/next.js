@@ -135,7 +135,7 @@ module.exports = {
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
-              webpack5: false
+              webpack5: false,
               webpack(config) {
                 config.optimization.minimize = false
                 config.optimization.minimizer = undefined
