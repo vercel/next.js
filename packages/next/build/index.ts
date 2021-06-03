@@ -119,7 +119,8 @@ export default async function build(
   dir: string,
   conf = null,
   reactProductionProfiling = false,
-  debugOutput = false
+  debugOutput = false,
+  runLint = true
 ): Promise<void> {
   const nextBuildSpan = trace('next-build')
 
@@ -212,13 +213,12 @@ export default async function build(
       typeCheckingSpinner.stopAndPersist()
     }
 
-    if (config.experimental.eslint) {
+    if (runLint) {
       await nextBuildSpan
         .traceChild('verify-and-lint')
         .traceAsyncFn(async () => {
           await verifyAndLint(
             dir,
-            pagesDir,
             config.experimental.cpus,
             config.experimental.workerThreads
           )
