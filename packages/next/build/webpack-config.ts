@@ -835,7 +835,7 @@ export default async function getBaseWebpackConfig(
       checkWasmTypes: false,
       nodeEnv: false,
       splitChunks: isServer
-        ? isWebpack5
+        ? isWebpack5 && !dev
           ? ({
               filename: '[name].js',
               // allow to split entrypoints
