@@ -35,7 +35,6 @@ export type NextConfig = { [key: string]: any } & {
     excludeDefaultMomentLocales?: boolean
     webpack5?: boolean
   }
-
   experimental: {
     cpus?: number
     plugins?: boolean
@@ -47,18 +46,14 @@ export type NextConfig = { [key: string]: any } & {
     optimizeImages?: boolean
     optimizeCss?: boolean
     scrollRestoration?: boolean
-    scriptLoader?: boolean
     stats?: boolean
     externalDir?: boolean
-    serialWebpackBuild?: boolean
     conformance?: boolean
     amp?: {
       optimizer?: any
       validator?: string
       skipValidation?: boolean
     }
-    turboMode?: boolean
-    eslint?: boolean
     reactRoot?: boolean
     enableBlurryPlaceholder?: boolean
     disableOptimizedLoading?: boolean
@@ -112,12 +107,8 @@ export const defaultConfig: NextConfig = {
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
-    scriptLoader: false,
     stats: false,
     externalDir: false,
-    serialWebpackBuild: false,
-    turboMode: false,
-    eslint: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
     enableBlurryPlaceholder: false,
     disableOptimizedLoading: true,

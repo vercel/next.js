@@ -136,10 +136,6 @@ function Script(props: Props): JSX.Element | null {
     }
   }, [props, strategy])
 
-  if (!process.env.__NEXT_SCRIPT_LOADER) {
-    return null
-  }
-
   if (strategy === 'beforeInteractive') {
     if (updateScripts) {
       scripts.beforeInteractive = (scripts.beforeInteractive || []).concat([

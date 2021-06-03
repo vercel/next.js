@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { runNextCommand } from 'next-test-utils'
+import { nextBuild, nextLint } from 'next-test-utils'
 import { writeFile, readFile } from 'fs-extra'
 
 import semver from 'next/dist/compiled/semver'
@@ -19,50 +19,87 @@ async function eslintVersion() {
 }
 
 describe('ESLint', () => {
-  it('should populate eslint config automatically for first time setup', async () => {
-    const eslintrc = join(dirFirstTimeSetup, '.eslintrc')
-    await writeFile(eslintrc, '')
+  describe('Next Build', () => {
+    test('first time setup', async () => {
+      const eslintrc = join(dirFirstTimeSetup, '.eslintrc')
+      await writeFile(eslintrc, '')
 
-    const { stdout } = await runNextCommand(['build', dirFirstTimeSetup], {
-      stdout: true,
-    })
-
-    const eslintrcContent = await readFile(eslintrc, 'utf8')
-
-    expect(stdout).toContain(
-      'We detected ESLint in your project and updated the .eslintrc file for you.'
-    )
-    expect(eslintrcContent.trim().replace(/\s/g, '')).toMatch(
-      '{"extends":"next"}'
-    )
-  })
-
-  test('shows warnings and errors', async () => {
-    let output = ''
-
-    const { stdout, stderr } = await runNextCommand(
-      ['build', dirCustomConfig],
-      {
+      const { stdout, stderr } = await nextBuild(dirFirstTimeSetup, [], {
         stdout: true,
         stderr: true,
+      })
+      const output = stdout + stderr
+      const eslintrcContent = await readFile(eslintrc, 'utf8')
+
+      expect(output).toContain(
+        'We detected an empty ESLint configuration file (.eslintrc) and updated it for you to include the base Next.js ESLint configuration.'
+      )
+      expect(eslintrcContent.trim().replace(/\s/g, '')).toMatch(
+        '{"extends":"next"}'
+      )
+    })
+
+    test('shows warnings and errors', async () => {
+      const { stdout, stderr } = await nextBuild(dirCustomConfig, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      const version = await eslintVersion()
+
+      if (!version || (version && semver.lt(version, '7.0.0'))) {
+        expect(output).toContain(
+          'Your project has an older version of ESLint installed'
+        )
+        expect(output).toContain('Please upgrade to v7 or later')
+      } else {
+        expect(output).toContain(
+          'Error: Comments inside children section of tag should be placed inside braces'
+        )
       }
-    )
+    })
+  })
 
-    output = stdout + stderr
-    const version = await eslintVersion()
+  describe('Next Lint', () => {
+    test('first time setup', async () => {
+      const eslintrc = join(dirFirstTimeSetup, '.eslintrc')
+      await writeFile(eslintrc, '')
 
-    if (!version || (version && semver.lt(version, '7.0.0'))) {
+      const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
+        stdout: true,
+        stderr: true,
+      })
+      const output = stdout + stderr
+      const eslintrcContent = await readFile(eslintrc, 'utf8')
+
       expect(output).toContain(
-        'Your project has an older version of ESLint installed'
+        'We detected an empty ESLint configuration file (.eslintrc) and updated it for you to include the base Next.js ESLint configuration.'
       )
-      expect(output).toContain(
-        'Please upgrade to v7 or later to run ESLint during the build process'
+      expect(eslintrcContent.trim().replace(/\s/g, '')).toMatch(
+        '{"extends":"next"}'
       )
-    } else {
-      expect(output).toContain('Failed to compile')
-      expect(output).toContain(
-        'Error: Comments inside children section of tag should be placed inside braces'
-      )
-    }
+    })
+
+    test('shows warnings and errors', async () => {
+      const { stdout, stderr } = await nextLint(dirCustomConfig, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      const version = await eslintVersion()
+
+      if (!version || (version && semver.lt(version, '7.0.0'))) {
+        expect(output).toContain(
+          'Your project has an older version of ESLint installed'
+        )
+        expect(output).toContain('Please upgrade to v7 or later')
+      } else {
+        expect(output).toContain(
+          'Error: Comments inside children section of tag should be placed inside braces'
+        )
+      }
+    })
   })
 })
