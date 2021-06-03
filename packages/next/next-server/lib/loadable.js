@@ -53,59 +53,8 @@ function load(loader) {
   return state
 }
 
-function loadMap(obj) {
-  let state = {
-    loading: false,
-    loaded: {},
-    error: null,
-  }
-
-  let promises = []
-
-  try {
-    Object.keys(obj).forEach((key) => {
-      let result = load(obj[key])
-
-      if (!result.loading) {
-        state.loaded[key] = result.loaded
-        state.error = result.error
-      } else {
-        state.loading = true
-      }
-
-      promises.push(result.promise)
-
-      result.promise
-        .then((res) => {
-          state.loaded[key] = res
-        })
-        .catch((err) => {
-          state.error = err
-        })
-    })
-  } catch (err) {
-    state.error = err
-  }
-
-  state.promise = Promise.all(promises)
-    .then((res) => {
-      state.loading = false
-      return res
-    })
-    .catch((err) => {
-      state.loading = false
-      throw err
-    })
-
-  return state
-}
-
 function resolve(obj) {
   return obj && obj.__esModule ? obj.default : obj
-}
-
-function render(loaded, props) {
-  return React.createElement(resolve(loaded), props)
 }
 
 function createLoadableComponent(loadFn, options) {
@@ -115,7 +64,6 @@ function createLoadableComponent(loadFn, options) {
       loading: null,
       delay: 200,
       timeout: null,
-      render: render,
       webpack: null,
       modules: null,
     },
@@ -188,7 +136,7 @@ function createLoadableComponent(loadFn, options) {
           retry: subscription.retry,
         })
       } else if (state.loaded) {
-        return opts.render(state.loaded, props)
+        return React.createElement(resolve(state.loaded), props)
       } else {
         return null
       }
@@ -290,16 +238,6 @@ class LoadableSubscription {
 function Loadable(opts) {
   return createLoadableComponent(load, opts)
 }
-
-function LoadableMap(opts) {
-  if (typeof opts.render !== 'function') {
-    throw new Error('LoadableMap requires a `render(loaded, props)` function')
-  }
-
-  return createLoadableComponent(loadMap, opts)
-}
-
-Loadable.Map = LoadableMap
 
 function flushInitializers(initializers, ids) {
   let promises = []

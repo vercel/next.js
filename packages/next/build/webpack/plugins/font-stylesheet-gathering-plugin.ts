@@ -106,7 +106,7 @@ export class FontStylesheetGatheringPlugin {
               !props.rel ||
               props.rel !== 'stylesheet' ||
               !props.href ||
-              !OPTIMIZED_FONT_PROVIDERS.some((url) =>
+              !OPTIMIZED_FONT_PROVIDERS.some(({ url }) =>
                 props.href.startsWith(url)
               )
             ) {
