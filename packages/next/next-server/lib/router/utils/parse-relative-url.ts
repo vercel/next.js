@@ -12,8 +12,9 @@ export function parseRelativeUrl(url: string, base?: string) {
     typeof window === 'undefined' ? 'http://n' : getLocationOrigin()
   )
   const resolvedBase = base ? new URL(base, globalBase) : globalBase
+  const correctUrl = url === "//" ? "/" : url;
   const { pathname, searchParams, search, hash, href, origin } = new URL(
-    url,
+    correctUrl,
     resolvedBase
   )
   if (origin !== globalBase.origin) {
