@@ -1,13 +1,14 @@
-import { promises } from 'fs'
-import { extname } from 'path'
+import { promises as fs } from 'fs'
+import chalk from 'chalk'
 
 import findUp from 'next/dist/compiled/find-up'
 import semver from 'next/dist/compiled/semver'
+import * as CommentJson from 'next/dist/compiled/comment-json'
 
 import { formatResults } from './customFormatter'
-import { getLintIntent } from './getLintIntent'
 import { writeDefaultConfig } from './writeDefaultConfig'
 import { getPackageVersion } from '../get-package-version'
+import { findPagesDir } from '../find-pages-dir'
 
 import { CompileError } from '../compile-error'
 import {
@@ -22,12 +23,14 @@ type Config = {
   rules: { [key: string]: Array<number | string> }
 }
 
-const linteableFileTypes = ['jsx', 'js', 'ts', 'tsx']
+const linteableFiles = (dir: string) => {
+  return `${dir}/**/*.{${['jsx', 'js', 'ts', 'tsx'].join(',')}}`
+}
 
 async function lint(
   deps: NecessaryDependencies,
   baseDir: string,
-  pagesDir: string,
+  lintDirs: string[] | null,
   eslintrcFile: string | null,
   pkgJsonPath: string | null
 ): Promise<string | null> {
@@ -41,8 +44,8 @@ async function lint(
     })
 
     if (eslintVersion && semver.lt(eslintVersion, '7.0.0')) {
-      Log.warn(
-        `Your project has an older version of ESLint installed (${eslintVersion}). Please upgrade to v7 or later to run ESLint during the build process.`
+      Log.error(
+        `Your project has an older version of ESLint installed (${eslintVersion}). Please upgrade to v7 or later`
       )
     }
     return null
@@ -70,6 +73,8 @@ async function lint(
     }
   }
 
+  const pagesDir = findPagesDir(baseDir)
+
   if (nextEslintPluginIsEnabled) {
     let updatedPagesDir = false
 
@@ -93,9 +98,12 @@ async function lint(
     }
   }
 
-  const results = await eslint.lintFiles([
-    `${pagesDir}/**/*.{${linteableFileTypes.join(',')}}`,
-  ])
+  // If no directories to lint are provided, only the pages directory will be linted
+  const filesToLint = lintDirs
+    ? lintDirs.map(linteableFiles)
+    : linteableFiles(pagesDir)
+
+  const results = await eslint.lintFiles(filesToLint)
 
   if (ESLint.getErrorResults(results)?.length > 0) {
     throw new CompileError(await formatResults(baseDir, results))
@@ -105,19 +113,10 @@ async function lint(
 
 export async function runLintCheck(
   baseDir: string,
-  pagesDir: string
+  lintDirs: string[] | null,
+  lintDuringBuild: boolean = false
 ): Promise<string | null> {
   try {
-    // Check if any pages exist that can be linted
-    const pages = await promises.readdir(pagesDir)
-    if (
-      !pages.some((page) =>
-        linteableFileTypes.includes(extname(page).replace('.', ''))
-      )
-    ) {
-      return null
-    }
-
     // Find user's .eslintrc file
     const eslintrcFile =
       (await findUp(
@@ -134,33 +133,39 @@ export async function runLintCheck(
       )) ?? null
 
     const pkgJsonPath = (await findUp('package.json', { cwd: baseDir })) ?? null
-
-    const { eslintConfig: pkgJsonEslintConfig = null } = !!pkgJsonPath
-      ? await import(pkgJsonPath!)
-      : {}
-
-    // Check if the project uses ESLint
-    const eslintIntent = await getLintIntent(eslintrcFile, pkgJsonEslintConfig)
-
-    if (!eslintIntent) {
-      return null
+    let packageJsonConfig = null
+    if (pkgJsonPath) {
+      const pkgJsonContent = await fs.readFile(pkgJsonPath, {
+        encoding: 'utf8',
+      })
+      packageJsonConfig = CommentJson.parse(pkgJsonContent)
     }
 
-    const firstTimeSetup = eslintIntent.firstTimeSetup
+    // Warning displayed if no ESLint configuration is present during build
+    if (lintDuringBuild && !eslintrcFile && !packageJsonConfig.eslintConfig) {
+      Log.warn(
+        `No ESLint configuration detected. Run ${chalk.bold.cyan(
+          'next lint'
+        )} to begin setup`
+      )
+      return null
+    }
 
     // Ensure ESLint and necessary plugins and configs are installed:
     const deps: NecessaryDependencies = await hasNecessaryDependencies(
       baseDir,
       false,
-      !!eslintIntent,
-      eslintrcFile
+      true,
+      eslintrcFile ?? '',
+      !!packageJsonConfig.eslintConfig,
+      lintDuringBuild
     )
 
-    // Create the user's eslintrc config for them
-    if (firstTimeSetup) await writeDefaultConfig(eslintrcFile, pkgJsonPath)
+    // Write default ESLint config if none is present
+    await writeDefaultConfig(eslintrcFile, pkgJsonPath, packageJsonConfig)
 
     // Run ESLint
-    return await lint(deps, baseDir, pagesDir, eslintrcFile, pkgJsonPath)
+    return await lint(deps, baseDir, lintDirs, eslintrcFile, pkgJsonPath)
   } catch (err) {
     throw err
   }
