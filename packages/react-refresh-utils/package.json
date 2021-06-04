@@ -19,7 +19,7 @@
     "dev": "tsc -d -w -p tsconfig.json"
   },
   "peerDependencies": {
-    "react-refresh": "0.8.3",
+    "react-refresh": "0.10.0",
     "webpack": "^4 || ^5"
   },
   "peerDependenciesMeta": {
@@ -28,6 +28,6 @@
     }
   },
   "devDependencies": {
-    "react-refresh": "0.8.3"
+    "react-refresh": "0.10.0"
   }
 }
