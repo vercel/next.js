@@ -553,16 +553,6 @@ function runTests(mode) {
 describe('Image Component Tests', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          experimental: {
-            enableStaticImages: true
-          },
-        }
-      `
-      )
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -576,16 +566,6 @@ describe('Image Component Tests', () => {
 
   describe('server mode', () => {
     beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          experimental: {
-            enableStaticImages: true
-          },
-        }
-      `
-      )
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
@@ -607,7 +587,6 @@ describe('Image Component Tests', () => {
           target: 'serverless',
           experimental: {
             enableBlurryPlaceholder: true,
-            enableStaticImages: true
           },
         }
       `
