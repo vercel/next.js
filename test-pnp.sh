@@ -39,5 +39,5 @@ do
   yarn config set enableGlobalCache true
   yarn link --all --private -r ../..
 
-  yarn build
+  yarn build --no-lint
 done

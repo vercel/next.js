@@ -38,6 +38,10 @@
               "path": "/docs/basic-features/fast-refresh.md"
             },
             {
+              "title": "ESLint",
+              "path": "/docs/basic-features/eslint.md"
+            },
+            {
               "title": "TypeScript",
               "path": "/docs/basic-features/typescript.md"
             },
