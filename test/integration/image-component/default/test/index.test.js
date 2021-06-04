@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import fs from 'fs-extra'
 import {
   check,
   findPort,
@@ -20,7 +19,6 @@ import { join } from 'path'
 jest.setTimeout(1000 * 60)
 
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
 
 let appPort
 let app
@@ -557,7 +555,6 @@ describe('Image Component Tests', () => {
       app = await launchApp(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.unlink(nextConfig)
       await killApp(app)
     })
 
@@ -571,7 +568,6 @@ describe('Image Component Tests', () => {
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.unlink(nextConfig)
       await killApp(app)
     })
 
@@ -580,23 +576,11 @@ describe('Image Component Tests', () => {
 
   describe('serverless mode', () => {
     beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          target: 'serverless',
-          experimental: {
-            enableBlurryPlaceholder: true,
-          },
-        }
-      `
-      )
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.unlink(nextConfig)
       await killApp(app)
     })
 

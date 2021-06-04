@@ -13,7 +13,6 @@ export type ImageConfig = {
   loader: LoaderValue
   path: string
   domains?: string[]
-  enableBlurryPlaceholder: boolean
   disableStaticImages: boolean
 }
 
@@ -23,6 +22,5 @@ export const imageConfigDefault: ImageConfig = {
   path: '/_next/image',
   loader: 'default',
   domains: [],
-  enableBlurryPlaceholder: false,
   disableStaticImages: false,
 }
