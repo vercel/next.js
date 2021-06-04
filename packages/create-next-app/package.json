@@ -1,6 +1,6 @@
 {
   "name": "create-next-app",
-  "version": "10.2.3",
+  "version": "10.2.4-canary.4",
   "keywords": [
     "react",
     "next",
@@ -48,6 +48,6 @@
     "validate-npm-package-name": "3.0.0"
   },
   "engines": {
-    "node": ">=10.13.0"
+    "node": ">=12.0.0"
   }
 }
