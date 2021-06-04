@@ -1,7 +1,13 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import { renderViaHTTP, findPort, launchApp, killApp } from 'next-test-utils'
+import {
+  renderViaHTTP,
+  findPort,
+  launchApp,
+  killApp,
+  check,
+} from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
 // test suits
@@ -36,7 +42,10 @@ describe('Basic Features', () => {
 
   it('should polyfill Node.js modules', async () => {
     const browser = await webdriver(context.appPort, '/node-browser-polyfills')
-    await browser.waitForCondition('window.didRender')
+    await check(async () => {
+      const result = await browser.eval('window.didRender')
+      return result ? 'yes' : 'fail'
+    }, 'yes')
 
     const data = await browser
       .waitForElementByCss('#node-browser-polyfills')
