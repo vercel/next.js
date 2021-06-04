@@ -174,7 +174,7 @@ jobs:
           path: ./*
           key: ${{ github.sha }}
 
-      - run: xvfb-run node run-tests.js test/integration/{fallback-modules,link-ref,production,basic,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
+      - run: xvfb-run node run-tests.js test/integration/{basic,fallback-modules,link-ref,production,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
   testLegacyReact:
