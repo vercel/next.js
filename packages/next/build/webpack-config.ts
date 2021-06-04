@@ -964,6 +964,7 @@ export default async function getBaseWebpackConfig(
         'error-loader',
         'next-babel-loader',
         'next-client-pages-loader',
+        'next-image-loader',
         'next-serverless-loader',
         'noop-loader',
         'next-style-loader',
@@ -1012,6 +1013,15 @@ export default async function getBaseWebpackConfig(
               ]
             : defaultLoaders.babel,
         },
+        ...(config.experimental.enableStaticImages
+          ? [
+              {
+                test: /\.(png|svg|jpg|jpeg|gif|webp|ico|bmp)$/i,
+                loader: 'next-image-loader',
+                dependency: { not: ['url'] },
+              },
+            ]
+          : []),
       ].filter(Boolean),
     },
     plugins: [
