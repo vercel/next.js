@@ -1,5 +1,7 @@
 import React from 'react'
-import Image from 'next/image'
+import Image, { StaticImageData } from 'next/image'
+// @ts-ignore This path is generated at build time and conflicts otherwise
+import testTall from '../public/tall.png'
 
 const Page = () => {
   return (
@@ -57,6 +59,20 @@ const Page = () => {
         layout="fill"
         objectFit="scale-down"
         objectPosition="50px"
+      />
+      <Image
+        id="placeholder-and-blur-data-url"
+        src="https://via.placeholder.com/500"
+        width={500}
+        height={500}
+        placeholder="blur"
+        blurDataURL="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="
+      />
+      <Image id="no-width-and-height" src={testTall as StaticImageData} />
+      <Image
+        id="object-src-with-placeholder"
+        src={testTall as StaticImageData}
+        placeholder="blur"
       />
       <p id="stubtext">This is valid usage of the Image component</p>
     </div>
