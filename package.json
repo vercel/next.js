@@ -33,7 +33,7 @@
     "publish-canary": "lerna version prerelease --preid canary --force-publish && release --pre --skip-questions",
     "publish-stable": "lerna version --force-publish",
     "lint-staged": "lint-staged",
-    "next": "node --trace-deprecation packages/next/dist/bin/next",
+    "next": "node --trace-deprecation --enable-source-maps packages/next/dist/bin/next",
     "debug": "node --inspect packages/next/dist/bin/next"
   },
   "pre-commit": "lint-staged",
@@ -134,10 +134,10 @@
     "worker-loader": "3.0.7"
   },
   "resolutions": {
-    "browserslist": "4.16.1",
-    "caniuse-lite": "1.0.30001179"
+    "browserslist": "4.16.6",
+    "caniuse-lite": "1.0.30001228"
   },
   "engines": {
-    "node": ">= 10.13.0"
+    "node": ">=12.0.0"
   }
 }

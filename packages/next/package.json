@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "10.2.1-canary.8",
+  "version": "10.2.4-canary.4",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -28,8 +28,8 @@
     "dynamic.d.ts",
     "error.js",
     "error.d.ts",
-    "experimental-script.js",
-    "experimental-script.d.ts",
+    "script.js",
+    "script.d.ts",
     "head.js",
     "head.d.ts",
     "image.js",
@@ -63,18 +63,18 @@
   },
   "dependencies": {
     "@babel/runtime": "7.12.5",
-    "@hapi/accept": "5.0.1",
-    "@next/env": "10.2.1-canary.8",
-    "@next/polyfill-module": "10.2.1-canary.8",
-    "@next/react-dev-overlay": "10.2.1-canary.8",
-    "@next/react-refresh-utils": "10.2.1-canary.8",
+    "@hapi/accept": "5.0.2",
+    "@next/env": "10.2.4-canary.4",
+    "@next/polyfill-module": "10.2.4-canary.4",
+    "@next/react-dev-overlay": "10.2.4-canary.4",
+    "@next/react-refresh-utils": "10.2.4-canary.4",
     "@opentelemetry/api": "0.14.0",
     "assert": "2.0.0",
     "ast-types": "0.13.2",
     "browserify-zlib": "0.2.0",
-    "browserslist": "4.16.1",
+    "browserslist": "4.16.6",
     "buffer": "5.6.0",
-    "caniuse-lite": "^1.0.30001179",
+    "caniuse-lite": "^1.0.30001228",
     "chalk": "2.4.2",
     "chokidar": "3.5.1",
     "constants-browserify": "1.0.0",
@@ -86,6 +86,7 @@
     "find-cache-dir": "3.3.1",
     "get-orientation": "1.1.2",
     "https-browserify": "1.0.0",
+    "image-size": "1.0.0",
     "jest-worker": "27.0.0-next.5",
     "native-url": "0.3.4",
     "node-fetch": "2.6.1",
@@ -151,7 +152,7 @@
     "@babel/preset-typescript": "7.12.7",
     "@babel/traverse": "^7.12.10",
     "@babel/types": "7.12.12",
-    "@next/polyfill-nomodule": "10.2.1-canary.8",
+    "@next/polyfill-nomodule": "10.2.4-canary.4",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@taskr/watch": "1.1.0",
@@ -226,7 +227,7 @@
     "ora": "4.0.4",
     "path-to-regexp": "6.1.0",
     "postcss-flexbugs-fixes": "5.0.2",
-    "postcss-loader": "4.0.3",
+    "postcss-loader": "4.3.0",
     "postcss-preset-env": "6.7.0",
     "postcss-scss": "3.0.5",
     "recast": "0.18.5",
@@ -248,6 +249,6 @@
     "webpack-sources": "1.4.3"
   },
   "engines": {
-    "node": ">=10.13.0"
+    "node": ">=12.0.0"
   }
 }

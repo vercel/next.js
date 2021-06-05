@@ -46,7 +46,7 @@ export async function imageOptimizer(
   }
 
   const { headers } = req
-  const { url, w, q } = parsedUrl.query
+  const { url, w, q, s } = parsedUrl.query
   const mimeType = getSupportedMimeType(MODERN_TYPES, headers.accept)
   let href: string
 
@@ -110,6 +110,14 @@ export async function imageOptimizer(
     res.end('"q" parameter (quality) cannot be an array')
     return { finished: true }
   }
+
+  if (s && s !== '1') {
+    res.statusCode = 400
+    res.end('"s" parameter must be "1" or omitted')
+    return { finished: true }
+  }
+
+  const isStatic = !!s
 
   const width = parseInt(w, 10)
 
@@ -261,7 +269,7 @@ export async function imageOptimizer(
         ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
       if (vector || animate) {
         await writeToCacheDir(hashDir, upstreamType, expireAt, upstreamBuffer)
-        sendResponse(req, res, upstreamType, upstreamBuffer)
+        sendResponse(req, res, upstreamType, upstreamBuffer, isStatic)
         return { finished: true }
       }
 
@@ -333,12 +341,12 @@ export async function imageOptimizer(
 
       if (optimizedBuffer) {
         await writeToCacheDir(hashDir, contentType, expireAt, optimizedBuffer)
-        sendResponse(req, res, contentType, optimizedBuffer)
+        sendResponse(req, res, contentType, optimizedBuffer, isStatic)
       } else {
         throw new Error('Unable to optimize buffer')
       }
     } catch (error) {
-      sendResponse(req, res, upstreamType, upstreamBuffer)
+      sendResponse(req, res, upstreamType, upstreamBuffer, isStatic)
     }
 
     return { finished: true }
@@ -366,10 +374,16 @@ function sendResponse(
   req: IncomingMessage,
   res: ServerResponse,
   contentType: string | null,
-  buffer: Buffer
+  buffer: Buffer,
+  isStatic: boolean
 ) {
   const etag = getHash([buffer])
-  res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+  res.setHeader(
+    'Cache-Control',
+    isStatic
+      ? 'public, immutable, max-age=315360000'
+      : 'public, max-age=0, must-revalidate'
+  )
   if (sendEtagResponse(req, res, etag)) {
     return
   }
