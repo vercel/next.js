@@ -1,4 +1,5 @@
 // tslint:disable:no-console
+import getConfig from 'next/config'
 import { ParsedUrlQuery } from 'querystring'
 import { ComponentType } from 'react'
 import { UrlObject } from 'url'
@@ -1568,6 +1569,13 @@ export default class Router implements BaseRouter {
       cancelled = true
     })
 
+    const manifest = await getClientBuildManifest()
+    const { publicRuntimeConfig } = getConfig()
+    const defaultRoute = route.replace(
+      new RegExp('^/[^/]*'),
+      '/' + publicRuntimeConfig.defaultTemplate
+    )
+    route = route in manifest ? route : defaultRoute
     const componentResult = await this.pageLoader.loadPage(route)
 
     if (cancelled) {
