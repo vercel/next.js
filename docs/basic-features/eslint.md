@@ -1,5 +1,5 @@
 ---
-description: Next.js supports ESLint by default. You can get started with ESLint in Next.js here.
+description: Next.js provides an integrated ESLint experience by default. These conformance rules help you use Next.js in the optimal way.
 ---
 
 # ESLint
@@ -10,7 +10,7 @@ Since version **11.0.0**, Next.js provides an integrated [ESLint](https://eslint
 next lint
 ```
 
-If you don't already have ESLint configured in your application, you will be guided through the installation of any required packages.
+If you don't already have ESLint configured in your application, you will be guided through the installation of the required packages.
 
 ```bash
 next lint
@@ -26,13 +26,13 @@ next lint
 
 If no ESLint configuration is present, Next.js will create an `.eslintrc` file in the root of your project and automatically configure it with the base configuration:
 
-```
+```js
 {
   "extends": "next"
 }
 ```
 
-Now you can run `next lint` every time you want to run ESLint to catch errors
+You can now run `next lint` every time you want to run ESLint to catch errors.
 
 > The default base configuration (`"extends": "next"`) can be updated at any time and will only be included if no ESLint configuration is present.
 
@@ -40,7 +40,7 @@ We recommend using an appropriate [integration](https://eslint.org/docs/user-gui
 
 ## Linting During Builds
 
-Once ESLint has been set up, it will automatically run during every build (`next build`). Errors will fail the build while warnings will not.
+Once ESLint has been set up, it will automatically run during every build (`next build`). Errors will fail the build, while warnings will not.
 
 If you do not want ESLint to run as a build step, it can be disabled using the `--no-lint` flag:
 
@@ -48,7 +48,7 @@ If you do not want ESLint to run as a build step, it can be disabled using the `
 next build --no-lint
 ```
 
-This is not recommended unless you have configured ESLint to run in a separate part of your workflow (for example, in CI or a pre-commit hook).
+**This is not recommended** unless you have configured ESLint to run in a separate part of your workflow (for example, in CI or a pre-commit hook).
 
 ## Linting Custom Directories
 
@@ -60,19 +60,19 @@ next lint --dir components --dir lib
 
 ## ESLint Plugin
 
-Next.js provides an ESLint plugin, [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next), that makes it easier to catch common issues and problems in a Next.js application. The full set of rules can be found in the [package repository](https://github.com/vercel/next.js/tree/master/packages/eslint-plugin-next/lib/rules).
+Next.js provides an ESLint plugin, [`eslint-plugin-next`](https://www.npmjs.com/package/@next/eslint-plugin-next), making it easier to catch common issues and problems in a Next.js application. The full set of rules can be found in the [package repository](https://github.com/vercel/next.js/tree/master/packages/eslint-plugin-next/lib/rules).
 
 ## Base Configuration
 
 The Next.js base ESLint configuration is automatically generated when `next lint` is run for the first time:
 
-```
+```js
 {
   "extends": "next"
 }
 ```
 
-This configuration extends recommended rule sets from various Eslint plugins:
+This configuration extends recommended rule sets from various ESLint plugins:
 
 - [`eslint-plugin-react`](https://www.npmjs.com/package/eslint-plugin-react)
 - [`eslint-plugin-react-hooks`](https://www.npmjs.com/package/eslint-plugin-react-hooks)
@@ -80,9 +80,11 @@ This configuration extends recommended rule sets from various Eslint plugins:
 
 You can see the full details of the shareable configuration in the [`eslint-config-next`](https://www.npmjs.com/package/eslint-config-next) package.
 
-If you would like to modify any rules provided by the supported plugins (`react`, `react-hooks`, `next`), you can directly modify them using the `rules` property:
+## Disabling Rules
 
-```
+If you would like to modify any rules provided by the supported plugins (`react`, `react-hooks`, `next`), you can directly modify them using the `rules` property in your `.eslintrc`:
+
+```js
 {
   "extends": "next",
   "rules": {
@@ -106,7 +108,7 @@ If you would like to modify any rules provided by the supported plugins (`react`
 
 ### Core Web Vitals
 
-A stricter `next/core-web-vitals` entrypoint can also be specified in `.eslintrc`:
+A stricter `next/core-web-vitals` rule set can also be added in `.eslintrc`:
 
 ```
 {
