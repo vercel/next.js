@@ -128,6 +128,7 @@ export default class PageLoader {
   loadPage(route: string): Promise<GoodPageCache> {
     return this.routeLoader.loadRoute(route).then((res) => {
       if ('component' in res) {
+        debugger
         return {
           page: res.component,
           mod: res.exports,

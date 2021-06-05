@@ -212,6 +212,7 @@ function getFilesForRoute(
   route: string
 ): Promise<RouteFiles> {
   if (process.env.NODE_ENV === 'development') {
+    debugger
     return Promise.resolve({
       scripts: [
         assetPrefix +
@@ -223,6 +224,7 @@ function getFilesForRoute(
     })
   }
   return getClientBuildManifest().then((manifest) => {
+    debugger
     if (!(route in manifest)) {
       throw markAssetError(new Error(`Failed to lookup route: ${route}`))
     }
@@ -310,6 +312,7 @@ function createRouteLoader(assetPrefix: string): RouteLoader {
         return resolvePromiseWithTimeout(
           getFilesForRoute(assetPrefix, route)
             .then(({ scripts, css }) => {
+              debugger
               return Promise.all([
                 entrypoints.has(route)
                   ? []

@@ -984,7 +984,6 @@ export default class Router implements BaseRouter {
     pathname = pathname
       ? removePathTrailingSlash(delBasePath(pathname))
       : pathname
-
     if (shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
 
@@ -998,7 +997,6 @@ export default class Router implements BaseRouter {
           this.locales
         )
         resolvedAs = rewritesResult.asPath
-
         if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
           // if this directly matches a page we need to update the href to
           // allow the correct page chunk to be loaded
@@ -1018,7 +1016,6 @@ export default class Router implements BaseRouter {
     }
 
     const route = removePathTrailingSlash(pathname)
-
     if (!isLocalURL(as)) {
       if (process.env.NODE_ENV !== 'production') {
         throw new Error(
@@ -1026,7 +1023,6 @@ export default class Router implements BaseRouter {
             `\nSee more info: https://nextjs.org/docs/messages/invalid-relative-url-external-as`
         )
       }
-
       window.location.href = as
       return false
     }
@@ -1090,7 +1086,6 @@ export default class Router implements BaseRouter {
     }
 
     Router.events.emit('routeChangeStart', as, routeProps)
-
     try {
       let routeInfo = await this.getRouteInfo(
         route,
@@ -1126,13 +1121,11 @@ export default class Router implements BaseRouter {
               return this.change(method, newUrl, newAs, options)
             }
           }
-
           window.location.href = destination
           return new Promise(() => {})
         }
 
         this.isPreview = !!props.__N_PREVIEW
-
         // handle SSG data 404
         if (props.notFound === SSG_DATA_NOT_FOUND) {
           let notFoundRoute
@@ -1191,7 +1184,6 @@ export default class Router implements BaseRouter {
         if (e.cancelled) error = error || e
         else throw e
       })
-
       if (error) {
         Router.events.emit('routeChangeError', error, cleanedAs, routeProps)
         throw error
@@ -1203,7 +1195,6 @@ export default class Router implements BaseRouter {
         }
       }
       Router.events.emit('routeChangeComplete', as, routeProps)
-
       return true
     } catch (err) {
       if (err.cancelled) {
@@ -1376,6 +1367,7 @@ export default class Router implements BaseRouter {
           __N_SSG,
           this.locale
         )
+        debugger
       }
 
       const props = await this._getData<CompletePrivateRouteInfo>(() =>
