@@ -136,7 +136,7 @@ The `next.config.js` file must be a JavaScript file as it does not get parsed by
 // @ts-check
 
 /**
- * @type {import('next/dist/next-server/server/config').NextConfig}
+ * @type {Partial<import('next/dist/next-server/server/config').NextConfig>}
  **/
 const nextConfig = {
   /* config options here */
