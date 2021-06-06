@@ -13,7 +13,7 @@
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
     "rebass": "^4.0.7",
-    "styled-components": "^2.1.1"
+    "styled-components": "^5.3.0"
   },
   "license": "MIT"
 }
