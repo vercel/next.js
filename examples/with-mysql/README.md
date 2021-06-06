@@ -14,7 +14,7 @@ Once you have access to [the environment variables you'll need](#step-5-set-up-e
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-mysql next-mysql-app
@@ -38,7 +38,7 @@ cp .env.local.example .env.local
 
 Set each variable on `.env.local`:
 
-- `MYSQL_HOST` - Your MySQL host URL.
+- `MYSQL_HOST` - Your MySQL database URL.
 - `MYSQL_DATABASE` - The name of the MySQL database you want to use.
 - `MYSQL_USERNAME` - The name of the MySQL user with access to database.
 - `MYSQL_PASSWORD` - The passowrd of the MySQL user.

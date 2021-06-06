@@ -1,6 +1,6 @@
 # Why did you render
 
-This is a simple example of how to use [why-did-you-render](https://github.com/welldone-software/why-did-you-render).
+This is an example of how to use [why-did-you-render](https://github.com/welldone-software/why-did-you-render).
 
 The header component will rerender despite the state staying the same.
 
@@ -71,7 +71,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-why-did-you-render with-why-did-you-render-app

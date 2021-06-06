@@ -31,7 +31,7 @@ Once you have access to [the environment variables you'll need](#step-6-set-up-e
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-storyblok cms-storyblok-app
@@ -111,7 +111,7 @@ cp .env.local.example .env.local
 
 Then set each variable on `.env.local`:
 
-- `STORYBLOK_API_KEY` should be the API key you just copied.
+- `STORYBLOK_API_KEY` should be the API key you copied.
 - `STORYBLOK_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 
 ### Step 7. Run Next.js in development mode
@@ -130,7 +130,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 
 ### Step 8. Try preview mode
 
-To try preview mode, create another post like before (you can try duplicating), but **do not publish it - just save it**:
+To try preview mode, create another post like before (you can try duplicating), but **do not publish it - save it instead**:
 
 Now, if you go to the post page on localhost, you won't see this post because it’s not published. However, if you use the **Preview Mode**, you'll be able to see the change ([Documentation](https://nextjs.org/docs/advanced-features/preview-mode)).
 

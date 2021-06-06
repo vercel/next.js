@@ -15,7 +15,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example amp-first amp-first-app
@@ -37,7 +37,7 @@ Things you need to do after installing the boilerplate:
 
 ## Tips & Tricks
 
-- **Using AMP Components:** you can import AMP components using `next/head`. Checkout `components/amp/AmpCustomElement` for a simple way to import AMP components. Once the component is imported, you can use it like any other HTML element.
+- **Using AMP Components:** you can import AMP components using `next/head`. Checkout `components/amp/AmpCustomElement` for a way to import AMP components. Once the component is imported, you can use it like any other HTML element.
 - **amp-bind & amp-state:** it's no problem to use `amp-bind` and `amp-state` with Next.js. There are two things to be aware of:
 
   1.  The `[...]` binding syntax, e.g. `[text]="myStateVariable"`, is not supported in JSX. Use `data-amp-bind-text="myStateVariable"` instead.
@@ -59,7 +59,7 @@ Things you need to do after installing the boilerplate:
       <AmpState id="message" value={ message: 'Hello World' }/>
       ```
 
-- **amp-list & amp-mustache:** mustache templates conflict with JSX and it's template literals need to be escaped. A simple approach is to escape them via back ticks: `` src={`{{imageUrl}}`} ``.
+- **amp-list & amp-mustache:** mustache templates conflict with JSX and it's template literals need to be escaped. An approach is to escape them via back ticks: `` src={`{{imageUrl}}`} ``.
 - **amp-script:** you can use [amp-script](https://amp.dev/documentation/components/amp-script/) to add custom JavaScript to your AMP pages. The boilerplate includes a helper [`components/amp/AmpScript.js`](components/amp/AmpScript.js) to simplify using `amp-script`. The helper also supports embedding inline scripts. Good to know: Next.js uses [AMP Optimizer](https://github.com/ampproject/amp-toolbox/tree/master/packages/optimizer) under the hood, which automatically adds the needed script hashes for [inline amp-scripts](https://amp.dev/documentation/components/amp-script/#load-javascript-from-a-local-element).
 
 ## Deployment

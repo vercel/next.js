@@ -16,7 +16,7 @@ The greater React ecosystem treats `NODE_ENV` as a convention, only permitting t
 - `development`: When your application is ran with `next dev`
 - `test`: When your application is being tested (e.g. `jest`)
 
-Setting a non-standard `NODE_ENV` value may cause dependencies to behave unexpectedly, or worse, **break dead code elimination**.
+Setting a non-standard `NODE_ENV` value may cause dependencies to behave unexpectedly, or worse, **break dead-code elimination**.
 
 #### Possible Ways to Fix It
 

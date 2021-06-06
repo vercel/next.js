@@ -1,7 +1,7 @@
 # With env From next.config.js
 
 This example demonstrates setting parameters that will be used by your application and set at build time (not run time).
-More specifically, what that means, is that environmental variables are programmed into the special configuration file `next.config.js` and then
+More specifically, what that means, is that environmental variables are programmed into the configuration file `next.config.js` and then
 returned to your react components when the program is built with `next build`.
 
 As the build process (`next build`) is proceeding, `next.config.js` is processed and passed in as a parameter is the variable `phase`.
@@ -26,7 +26,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-env-from-next-config-js with-env-from-next-config-js-app
@@ -36,7 +36,7 @@ yarn create next-app --example with-env-from-next-config-js with-env-from-next-c
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-> ## Special note
+> ## Note
 >
 > `next build` does a hard coded variable substitution into your JavaScript before the final bundle is created. This means
 > that if you change your environmental variables outside of your running app, such as in windows with `set` or lunix with `setenv`
@@ -45,7 +45,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 ## Discussion regarding this example
 
 This example is not meant to be a reference standard for how to do development, staging and
-production builds with Next. This is just one possible scenario that could be used if you want the
+production builds with Next. This is one possible scenario that could be used if you want the
 following behavior while you are doing development.
 
 - When your run `next dev` or `npm run dev`, you will always use the environmental variables assigned when `isDev` is true in the example.

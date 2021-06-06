@@ -10,4 +10,4 @@ In a function Component you can move the code into the `useEffect` hook.
 
 In a class Component, move any calls to router methods to the `componentDidMount` lifecycle method.
 
-This way the calls to the router methods are only executed in the browser.
+This way the calls to the router methods are only ran in the browser.

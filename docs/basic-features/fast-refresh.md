@@ -57,7 +57,7 @@ the error did occur during rendering, React will remount your application using
 the updated code.
 
 If you have [error boundaries](https://reactjs.org/docs/error-boundaries.html)
-in your app (which is a good idea for graceful failures in production), they
+in your app (which is a good idea for graceful error handling in production), they
 will retry rendering on the next edit after a rendering error. This means having
 an error boundary can prevent you from always getting reset to the root app
 state. However, keep in mind that error boundaries shouldn't be _too_ granular.

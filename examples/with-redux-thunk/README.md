@@ -18,7 +18,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-redux-thunk with-redux-thunk-app
@@ -34,7 +34,7 @@ The Redux `Provider` is implemented in `pages/_app.js`. The `MyApp` component is
 
 Every initial server-side request will utilize a new `store`. However, every `Router` or `Link` action will persist the same `store` as a user navigates through the `pages`. To demonstrate this example, we can navigate back and forth to `/show-redux-state` using the provided `Link`s. However, if we navigate directly to `/show-redux-state` (or refresh the page), this will cause a server-side render, which will then utilize a new store.
 
-In the `clock` component, we are going to display a digital clock that updates every second. The first render is happening on the server and then the browser will take over. To illustrate this, the server rendered clock will initially have a black background; then, once the component has been mounted in the browser, it changes from black to a grey background.
+In the `clock` component, we are going to display a digital clock that updates every second. The first render is happening on the server and then the browser will take over. To illustrate this, the server rendered clock will initially have a dark background; then, once the component has been mounted in the browser, it changes from dark to a lighter background.
 
 In the `counter` component, we are going to display a user-interactive counter that can be increased or decreased when the provided buttons are pressed.
 

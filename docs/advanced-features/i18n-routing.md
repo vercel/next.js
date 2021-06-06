@@ -138,7 +138,7 @@ When using Sub-path Routing, the user would be redirected to `/fr`.
 
 ### Disabling Automatic Locale Detection
 
-The automatic locale detection can be disabled with:
+The automatic locale detection can be turned off with:
 
 ```js
 // next.config.js
@@ -153,7 +153,7 @@ When `localeDetection` is set to `false` Next.js will no longer automatically re
 
 ## Accessing the locale information
 
-You can access the locale information via the Next.js router. For example, using the [`useRouter()`](/docs/api-reference/next/router.md#userouter) hook the following properties are available:
+You can access the locale information via the Next.js router. For example, using [`useRouter()`](/docs/api-reference/next/router.md#userouter) the following properties are available:
 
 - `locale` contains the currently active locale.
 - `locales` contains all configured locales.

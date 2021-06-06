@@ -31,7 +31,7 @@ Once you have access to [the environment variables you'll need](#step-7-set-up-e
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-strapi cms-strapi-app
@@ -103,14 +103,14 @@ Then select: `count`, `find`, and `findone` permissions for both **Author** and 
 
 Select **Author** and click **Add New Author**.
 
-- You just need **1 Author entry**.
-- Use dummy data for the name.
+- You need **1 Author entry**.
+- Use mock data for the name.
 - For the image, you can download one from [Unsplash](https://unsplash.com/).
 
 Next, select **Posts** and click **Add New Post**.
 
 - We recommend creating at least **2 Post records**.
-- Use dummy data for the text.
+- Use mock data for the text.
 - You can write markdown for the **content** field.
 - For the images, you can download ones from [Unsplash](https://unsplash.com/).
 - Pick the **Author** you created earlier.

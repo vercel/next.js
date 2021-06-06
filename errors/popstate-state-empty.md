@@ -3,7 +3,7 @@
 #### Why This Error Occurred
 
 When using the browser back button the popstate event is triggered. Next.js sees a
-`popstate` event being triggered but `event.state` did not have `url` or `as`, causing a route change failure.
+`popstate` event being triggered but `event.state` did not have `url` or `as`, causing a route change error.
 
 #### Possible Ways to Fix It
 

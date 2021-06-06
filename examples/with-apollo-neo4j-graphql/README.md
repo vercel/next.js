@@ -1,6 +1,6 @@
 # Neo4j Example with GraphQL and Apollo
 
-This is a simple set up for Next using Neo4j Database with GraphQL and Apollo. Neo4j's Movies dataset example is used to run the example.
+This is a set up for Next using Neo4j Database with GraphQL and Apollo. Neo4j's Movies dataset example is used to run the example.
 
 ## Deploy your own
 
@@ -10,7 +10,7 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-apollo-neo4j-graphql with-apollo-neo4j-graphql-app

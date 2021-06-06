@@ -4,7 +4,7 @@
 
 In your project you have `dotenv` listed as a `dependency` or a `devDependency` which opts-out of Next.js' automatic loading to prevent creating a conflict with any existing `dotenv` behavior in your project.
 
-This is also disabled if a `package.json` isn't able to found in your project somehow.
+This is also turned off if a `package.json` isn't able to found in your project somehow.
 
 #### Possible Ways to Fix It
 

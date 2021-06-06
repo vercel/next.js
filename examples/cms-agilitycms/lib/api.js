@@ -161,7 +161,7 @@ export async function getAgilityPageProps({ params, preview }) {
         let moduleData = null
 
         if (ModuleComponentToRender.getCustomInitialProps) {
-          //we have some additional data in the module we'll need, execute that method now, so it can be included in SSG
+          //we have some additional data in the module we'll need, User that method now, so it can be included in SSG
           console.log(
             `Agility CMS => Fetching additional data via getCustomInitialProps for ${moduleItem.module}...`
           )

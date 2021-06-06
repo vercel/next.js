@@ -8,7 +8,7 @@ To use Tesfy there are only two mandatory things needed. A `userId` and a config
 
 The `userId` must uniquely identify a user even if not logged in, for that reason a [uuid](https://en.wikipedia.org/wiki/Universally_unique_identifier) is created and stored in a cookie so the next time a page is requested a new `userId` won't be created, instead the cookie one will be used.
 
-The `datafile` is just a `json` that defines the configuration of the experiments and features available. It must be fetched from Tesfy CDN or from your own servers at least everytime a request is performed, later on this configuration could also be fetched if wanted (e.g. during page transitions).
+The `datafile` is a JSON that defines the configuration of the experiments and features available. It must be fetched from Tesfy CDN or from your own servers at least everytime a request is performed, later on this configuration could also be fetched if wanted (e.g. during page transitions).
 
 ## Preview
 
@@ -24,7 +24,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-tesfy with-tesfy-app

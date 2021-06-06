@@ -2,7 +2,7 @@
 
 This example showcases Next.js's [Static Generation](https://nextjs.org/docs/basic-features/pages) feature using [Ghost](https://ghost.org/) as the data source.
 
-> This boilerplate demonstrates simple usage and best practices. If you are looking for a more feature rich Next.js generator for Ghost including the Casper theme,
+> This boilerplate demonstrates usage and best practices. If you are looking for a more feature rich Next.js generator for Ghost including the Casper theme,
 > check out [next-cms-ghost](https://github.com/styxlab/next-cms-ghost).
 
 ## Deploy your own
@@ -29,7 +29,7 @@ Once you have access to [the environment variables you'll need](#step-2-set-up-e
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-ghost cms-ghost-app

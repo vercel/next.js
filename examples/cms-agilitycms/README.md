@@ -34,7 +34,7 @@ Once you have access to [the environment variables you'll need](#step-15-set-up-
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-agilitycms cms-agilitycms-app
@@ -50,7 +50,7 @@ The key principle behind Agility CMS is that **Editors** should have full contro
 
 This means you'll not only be defining **Content** for your `Posts` and `Authors`, but you'll also be defining UI Components to compose your pages. This site will consist of a single **Page Template** and a collection of **Modules** that represent the UI components you see on the page.
 
-> **NOTE** - `Modules` and `Page Templates` in Agility CMS simply correspond to `React Components` in your website.
+> **NOTE** - `Modules` and `Page Templates` in Agility CMS correspond to `React Components` in your website.
 
 Once you've gone through the steps below, you'll be able to dynamically manage pages (and what is on them) directly through the CMS without requiring a developer.
 
@@ -118,8 +118,8 @@ From within the Agility CMS Content Manager, navigate to **Shared Content** and 
 
 Go to **Shared Content**, select the **Authors** list and click the **+ New** button to create a new content item:
 
-- You just need **1 Author content item**.
-- Use dummy data for the text.
+- You need **1 Author content item**.
+- Use mock data for the text.
 - For the image, you can download one from [Unsplash](https://unsplash.com/).
 
 Click on **Save** and **Publish** once you're done.
@@ -127,7 +127,7 @@ Click on **Save** and **Publish** once you're done.
 Next, select the **Posts** list and click the **+ New** button to create a new content item:
 
 - We recommend creating at least **2 Post content items**.
-- Use dummy data for the text.
+- Use mock data for the text.
 - You can write markdown for the **Content** field.
 - For the images, you can download ones from [Unsplash](https://unsplash.com/).
 - Pick the **Author** you created earlier.

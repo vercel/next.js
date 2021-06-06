@@ -1,8 +1,8 @@
 # Firebase Example
 
-This is a simple set up for Firebase for client side applications.
+This is a set up for Firebase for client side applications.
 
-The firebase app is initialized in `firebase/clientApp.js`, to use you just have to import it anywhere in the app
+The firebase app is initialized in `firebase/clientApp.js`, to use you have to import it anywhere in the app.
 
 The React Context API is used to provide user state.
 
@@ -14,7 +14,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-firebase with-firebase-app

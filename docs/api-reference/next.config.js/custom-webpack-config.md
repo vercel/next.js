@@ -29,7 +29,7 @@ module.exports = {
 }
 ```
 
-> The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property.
+> The `webpack` function is called twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property.
 
 The second argument to the `webpack` function is an object with the following properties:
 

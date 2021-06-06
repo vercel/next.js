@@ -286,7 +286,7 @@ export default function Page() {
 
 ### router.back
 
-Navigate back in history. Equivalent to clicking the browser’s back button. It executes `window.history.back()`.
+Navigate back in history. Equivalent to clicking the browser’s back button. It calls `window.history.back()`.
 
 #### Usage
 
@@ -306,7 +306,7 @@ export default function Page() {
 
 ### router.reload
 
-Reload the current URL. Equivalent to clicking the browser’s refresh button. It executes `window.location.reload()`.
+Reload the current URL. Equivalent to clicking the browser’s refresh button. It calls `window.location.reload()`.
 
 #### Usage
 
@@ -335,13 +335,13 @@ export default function Page() {
 
 You can listen to different events happening inside the Next.js Router. Here's a list of supported events:
 
-- `routeChangeStart(url, { shallow })` - Fires when a route starts to change
-- `routeChangeComplete(url, { shallow })` - Fires when a route changed completely
-- `routeChangeError(err, url, { shallow })` - Fires when there's an error when changing routes, or a route load is cancelled
-  - `err.cancelled` - Indicates if the navigation was cancelled
-- `beforeHistoryChange(url, { shallow })` - Fires just before changing the browser's history
-- `hashChangeStart(url, { shallow })` - Fires when the hash will change but not the page
-- `hashChangeComplete(url, { shallow })` - Fires when the hash has changed but not the page
+- `routeChangeStart(url, { shallow })` - When a route starts to change.
+- `routeChangeComplete(url, { shallow })` - When a route changed completely.
+- `routeChangeError(err, url, { shallow })` - When there's an error when changing routes, or a route load is cancelled
+  - `err.cancelled` - Indicates if the navigation was cancelled.
+- `beforeHistoryChange(url, { shallow })` - Before changing the browser's history.
+- `hashChangeStart(url, { shallow })` - When the hash will change but not the page.
+- `hashChangeComplete(url, { shallow })` - When the hash has changed but not the page.
 
 > **Note:** Here `url` is the URL shown in the browser, including the [`basePath`](/docs/api-reference/next.config.js/basepath.md).
 
@@ -382,7 +382,7 @@ export default function MyApp({ Component, pageProps }) {
 
 Router events should be registered when a component mounts ([useEffect](https://reactjs.org/docs/hooks-effect.html) or [componentDidMount](https://reactjs.org/docs/react-component.html#componentdidmount) / [componentWillUnmount](https://reactjs.org/docs/react-component.html#componentwillunmount)) or imperatively when an event happens.
 
-If a route load is cancelled (for example, by clicking two links rapidly in succession), `routeChangeError` will fire. And the passed `err` will contain a `cancelled` property set to `true`, as in the following example:
+If a route load is cancelled (for example, by clicking two links rapidly in succession), the `routeChangeError` event will be triggered. And the passed `err` will contain a `cancelled` property set to `true`, as in the following example:
 
 ```jsx
 import { useEffect } from 'react'

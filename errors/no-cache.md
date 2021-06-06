@@ -114,7 +114,7 @@ Using Heroku's [custom cache](https://devcenter.heroku.com/articles/nodejs-suppo
 
 #### Azure Pipelines
 
-Using Azure Pipelines' [Cache task](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/utility/cache), add the following task to your pipeline yaml file somewhere prior to the task that executes `next build`:
+Using Azure Pipelines' [Cache task](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/utility/cache), add the following task to your pipeline yaml file somewhere prior to the task that runs `next build`:
 
 ```yaml
 - task: Cache@2

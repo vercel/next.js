@@ -28,7 +28,7 @@ On the next-iron-session repository (https://github.com/vvo/next-iron-session) y
 [`next-iron-session`](https://github.com/vvo/next-iron-session) also supports:
 
 - Express / Connect middlewares
-- Multiple encryption keys (passwords) to allow for seamless updates or just password rotation
+- Multiple encryption keys (passwords) to allow for seamless updates or password rotation
 
 ## Preview
 
@@ -44,7 +44,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-iron-session with-iron-session-app

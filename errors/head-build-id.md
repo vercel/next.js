@@ -1,3 +1,5 @@
+<!-- alex ignore failed -->
+
 # Failed to load `BUILD_ID` from Server
 
 #### Why This Error Occurred

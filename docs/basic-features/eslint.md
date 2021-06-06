@@ -50,7 +50,7 @@ We recommend using an appropriate [integration](https://eslint.org/docs/user-gui
 
 Once ESLint has been set up, it will automatically run during every build (`next build`). Errors will fail the build, while warnings will not.
 
-If you do not want ESLint to run as a build step, refer to the documentation for [Ignoring ESLint](/docs/api-reference/next.config.js/ignoring-eslint.md):
+If you do not want ESLint to run as a build step, refer to the documentation for [Ignoring ESLint](/docs/api-reference/next.config.js/ignoring-eslint.md).
 
 ## Linting Custom Directories
 

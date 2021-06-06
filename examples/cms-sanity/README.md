@@ -31,7 +31,7 @@ Once you have access to [the environment variables you'll need](#step-4-set-up-e
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-sanity cms-sanity-app
@@ -57,7 +57,7 @@ When going through the init phase make sure to select **Yes** to the **Use the d
 
 ### Step 3. Generate an API token
 
-Log into https://manage.sanity.io/ and choose the project you just created. Then from **Settings**, select **API**, then click **Add New Token** and create a token with the **Read** permission.
+Log into https://manage.sanity.io/ and choose the project you created. Then from **Settings**, select **API**, then click **Add New Token** and create a token with the **Read** permission.
 
 ### Step 4. Set up environment variables
 
@@ -110,14 +110,14 @@ To add some content go to your Sanity studio project directory and run `sanity s
 
 After the project has started and you have navigated to the URL given in the terminal, select **Author** and create a new record.
 
-- You just need **1 Author record**.
-- Use dummy data for the text.
+- You need **1 Author record**.
+- Use mock data for the text.
 - For the image, you can download one from [Unsplash](https://unsplash.com/).
 
 Next, select **Post** and create a new record.
 
 - We recommend creating at least **2 Post records**.
-- Use dummy data for the text.
+- Use mock data for the text.
 - You can write markdown for the **Content** field.
 - For the images, you can download ones from [Unsplash](https://unsplash.com/).
 - Pick the **Author** you created earlier.

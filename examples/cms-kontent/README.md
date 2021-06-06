@@ -31,7 +31,7 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-kontent cms-kontent-app
@@ -45,7 +45,7 @@ yarn create next-app --example cms-kontent cms-kontent-app
 
 First, [create an account on Kontent.ai](https://app.kontent.ai/sign-up?utm_source=nextjs_docs_example&utm_medium=devrel&utm_campaign=extended_trial).
 
-> The link above will provide you with the 90-days trial. Once you finish the trial, or even during the trial period, you could switch to the [**developer plan**](https://kontent.ai/developer-plan) which is **free of charge** and offers all the features you'll need to test out the example capabilities.
+> The link above will provide you with the 90-days trial. Once you finish the trial, or even during the trial, you could switch to the [**developer plan**](https://kontent.ai/developer-plan) which is **free of charge** and offers all the features you'll need to test out the example capabilities.
 
 After signing up, [create an empty project](https://docs.kontent.ai/tutorials/set-up-kontent/projects/manage-projects#a-creating-projects).
 
@@ -119,14 +119,14 @@ The content type should look like this:
 
 Go to `Content & Assets` section in your project and click `Create new` on the `Content` tab and select `Author` content type.
 
-- You just need **1 author item** first.
-- Use dummy data for his name.
+- You need **1 author item** first.
+- Use mock data for author name.
 - For the image, you can download one from [Unsplash](https://unsplash.com/).
 
 Next, create another item based on **Post** content type:
 
 - It's recommend to create at least **2 post items**.
-- Use dummy data for the text.
+- Use mock data for the text.
 - For images, you can download them from [Unsplash](https://unsplash.com/).
 - Pick the **author** you created earlier.
 

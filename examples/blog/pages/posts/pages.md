@@ -67,7 +67,7 @@ Note that this page does not need to fetch any external data to be pre-rendered.
 
 ### Static Generation with data
 
-Some pages require fetching external data for pre-rendering. There are two scenarios, and one or both might apply. In each case, you can use a special function Next.js provides:
+Some pages require fetching external data for pre-rendering. There are two scenarios, and one or both might apply. In each case, you can use a function Next.js provides:
 
 1. Your page **content** depends on external data: Use `getStaticProps`.
 2. Your page **paths** depend on external data: Use `getStaticPaths` (usually in addition to `getStaticProps`).

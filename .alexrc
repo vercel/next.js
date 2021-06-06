@@ -1,0 +1,7 @@
+{
+  "allow": [
+    "invalid",
+    "hook",
+    "hooks"
+  ]
+}

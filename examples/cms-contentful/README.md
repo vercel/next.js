@@ -31,7 +31,7 @@ Once you have access to [the environment variables you'll need](#step-5-set-up-e
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-contentful cms-contentful-app
@@ -144,14 +144,14 @@ After setting up the content model (either manually or by running `npm run setup
 
 Go to the **Content** section in your space, then click on **Add entry** and select the **Author** content type:
 
-- You just need **1 author entry**.
-- Use dummy data for the text.
+- You need **1 author entry**.
+- Use mock data for the text.
 - For the image, you can download one from [Unsplash](https://unsplash.com/).
 
 Next, create another entry with the content type **Post**:
 
 - We recommend creating at least **2 post entries**.
-- Use dummy data for the text.
+- Use mock data for the text.
 - For images, you can download them from [Unsplash](https://unsplash.com/).
 - Pick the **author** you created earlier.
 

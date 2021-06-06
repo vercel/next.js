@@ -31,7 +31,7 @@ Once you have access to [the environment variables you'll need](#step-2-set-up-e
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-buttercms cms-buttercms-app
@@ -81,7 +81,7 @@ Your blog should be up and running on [http://localhost:3000](http://localhost:3
 To try preview mode, [create a blog post](https://buttercms.com/post/):
 
 - Set the **Title** as `Draft Post Test`.
-- Fill the content and summary with dummy text.
+- Fill the content and summary with mock text.
 - Set the **Featured Image** by downloading some image from [Unsplash](https://unsplash.com/).
 
 Most importantly, **do not publish** the blog post. Instead, click **Save Draft**.

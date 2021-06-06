@@ -1,6 +1,6 @@
 # TypeScript & Styled Components Next.js example
 
-This is a really simple project that show the usage of Next.js with TypeScript and Styled Components.
+This is a project that show the usage of Next.js with TypeScript and Styled Components.
 
 ## Preview
 
@@ -16,7 +16,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use it?
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-typescript-styled-components with-typescript-styled-components-app

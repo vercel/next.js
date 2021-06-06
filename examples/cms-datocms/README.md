@@ -31,7 +31,7 @@ Once you have access to [the environment variables you'll need](#step-5-set-up-e
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-datocms cms-datocms-app
@@ -79,14 +79,14 @@ Next, add these fields (you don't have to modify the settings unless specified):
 
 From the **Content** menu at the top, select **Author** and create a new record.
 
-- You just need **1 Author record**.
-- Use dummy data for the text.
+- You need **1 Author record**.
+- Use mock data for the text.
 - For the image, you can download one from [Unsplash](https://unsplash.com/).
 
 Next, select **Post** and create a new record.
 
 - We recommend creating at least **2 Post records**.
-- Use dummy data for the text.
+- Use mock data for the text.
 - You can write markdown for the **Content** field.
 - For the images, you can download ones from [Unsplash](https://unsplash.com/).
 - Pick the **Author** you created earlier.
@@ -107,7 +107,7 @@ cp .env.local.example .env.local
 
 Then set each variable on `.env.local`:
 
-- `DATOCMS_API_TOKEN` should be the API token you just copied.
+- `DATOCMS_API_TOKEN` should be the API token you copied.
 - `DATOCMS_PREVIEW_SECRET` can be any random string (but avoid spaces), like `MY_SECRET` - this is used for [the Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode).
 
 Your `.env.local` file should look like this:

@@ -1,6 +1,6 @@
 # API Routes Rate Limiting Example
 
-This example uses `lru-cache` to implement a simple rate limiter for API routes ([Serverless Functions](https://vercel.com/docs/serverless-functions/introduction)).
+This example uses `lru-cache` to implement a rate limiter for API routes ([Serverless Functions](https://vercel.com/docs/serverless-functions/introduction)).
 
 **Demo: https://nextjs-rate-limit.vercel.app/**
 
@@ -30,7 +30,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example api-routes-rate-limit api-routes-rate-limit-app

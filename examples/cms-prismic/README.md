@@ -30,7 +30,7 @@ Once you have access to [the environment variables you'll need](#step-5-set-up-e
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-prismic cms-prismic-app
@@ -85,14 +85,14 @@ Save the type and continue.
 
 Go to the **Content** page, it's in the menu at the top left, then click on **Create new** and select the **author** type:
 
-- You just need **1 author document**.
-- Use dummy data for the text.
+- You need **1 author document**.
+- Use mock data for the text.
 - For the image, you can download one from [Unsplash](https://unsplash.com/).
 
 Next, select **Post** and create a new document.
 
 - We recommend creating at least **2 Post documents**.
-- Use dummy data for the text.
+- Use mock data for the text.
 - You can write markdown for the **content** field.
 - For images, you can download them from [Unsplash](https://unsplash.com/).
 - Pick the **author** you created earlier.
@@ -111,7 +111,7 @@ cp .env.local.example .env.local
 
 Then set each variable on `.env.local`:
 
-- `PRISMIC_API_TOKEN` should be the **Permanent access token** you just created
+- `PRISMIC_API_TOKEN` should be the **Permanent access token** you created
 - `PRISMIC_REPOSITORY_NAME` is the name of your repository (the one in the URL)
 - `PRISMIC_REPOSITORY_LOCALE` is the locale of your repository. Defaults to `en-us`
 

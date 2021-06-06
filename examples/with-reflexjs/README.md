@@ -1,5 +1,7 @@
 # Next.js + Reflexjs Example
 
+<!-- alex ignore color -->
+
 Reflexjs is a library for rapid UI development with style props, color modes, themes and variants.
 
 This example shows how to use [Reflexjs](https://github.com/reflexjs/reflexjs) with Next.js.
@@ -18,7 +20,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-reflexjs with-reflexjs-app

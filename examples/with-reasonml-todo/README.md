@@ -3,7 +3,7 @@
 This example builds upon the original `with-reasonml` example to show how a
 global state object can be used to track state across page within the application.
 
-It is intended to show how to build a simple, stateful application using hooks
+It is intended to show how to build a stateful application using hooks
 without the added complexity of a redux type library.
 
 This example features:
@@ -22,7 +22,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-reasonml-todo with-reasonml-app
@@ -35,7 +35,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 ### Recommendation:
 
 Run BuckleScript build system `bsb -w` and `next -w` separately. For the sake
-of simple convention, `npm run dev` run both `bsb` and `next` concurrently.
+of convention, `npm run dev` run both `bsb` and `next` concurrently.
 However, this doesn't offer the full [colorful and very, very, veeeery nice
 error
 output](https://reasonml.github.io/blog/2017/08/25/way-nicer-error-messages.html)

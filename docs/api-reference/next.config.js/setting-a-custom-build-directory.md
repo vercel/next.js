@@ -16,7 +16,7 @@ module.exports = {
 
 Now if you run `next build` Next.js will use `build` instead of the default `.next` folder.
 
-> `distDir` **should not** leave your project directory. For example, `../build` is an **invalid** directory.
+> `distDir` **should not** leave your project directory. For example, `../build` will not work.
 
 ## Related
 

@@ -1,6 +1,6 @@
 # with Firebase Hosting example
 
-The goal is to host the Next.js app on Firebase Cloud Functions with Firebase Hosting rewrite rules so our app is served from our Firebase Hosting URL. Each individual `page` bundle is served in a new call to the Cloud Function which performs the initial server render.
+The goal is to serve the Next.js app on Firebase Cloud Functions with Firebase Hosting rewrite rules so our app is served from our Firebase Hosting URL. Each individual `page` bundle is served in a new call to the Cloud Function which performs the initial server render.
 
 If you are having issues, feel free to tag @jthegedus in the [issue you create on the next.js repo](https://github.com/vercel/next.js/issues/new)
 
@@ -15,7 +15,7 @@ If you are having issues, feel free to tag @jthegedus in the [issue you create o
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-firebase-hosting with-firebase-hosting-app
@@ -43,13 +43,13 @@ yarn deploy
 
 ## Typescript
 
-To use Typescript, simply follow [Typescript setup](https://nextjs.org/learn/excel/typescript/setup) as normal (package.json scripts are already set).
+To use Typescript, follow [Typescript setup](https://nextjs.org/learn/excel/typescript/setup) as normal (package.json scripts are already set).
 
 i.e: `npm install --save-dev typescript @types/react @types/node`
 
 Then you can create components and pages in `.tsx` or `.ts`
 
-**Only `src/next.config.js` and `firebaseFunctions.js` must remain in `*.js` format.**
+**Only `src/next.config.js` and `firebaseFunctions.js` must stay as `*.js` format.**
 
 ## Good to know
 
@@ -71,6 +71,8 @@ The crucial files for the setup:
 - In `package.json`: `firebase-*` packages.
 
 ## References
+
+<!--alex ignore crash-->
 
 - [geovanisouza92/serverless-firebase](https://github.com/geovanisouza92/serverless-firebase) repo
 - [jthegedus/firebase-functions-next-example](https://github.com/jthegedus/firebase-functions-next-example) repo

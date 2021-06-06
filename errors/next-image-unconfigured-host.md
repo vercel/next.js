@@ -1,3 +1,5 @@
+<!-- alex ignore host -->
+
 # next/image Un-configured Host
 
 #### Why This Error Occurred

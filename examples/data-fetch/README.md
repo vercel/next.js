@@ -1,7 +1,7 @@
 # Data fetch example
 
-Next.js was conceived to make it easy to create universal apps. That's why fetching data
-on the server and the client when necessary is so easy with Next.js.
+Next.js was conceived to make it straightforward to create universal apps. That's why fetching data
+on the server and the client when necessary is smooth with Next.js.
 
 By using `getStaticProps` Next.js will fetch data at build time from a page, and pre-render the page to static assets.
 
@@ -19,7 +19,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example data-fetch data-fetch-app

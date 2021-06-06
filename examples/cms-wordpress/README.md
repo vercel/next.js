@@ -31,7 +31,7 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+Use [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-wordpress cms-wordpress-app
@@ -73,7 +73,7 @@ The process to add WPGraphiQL is the same as the one for WPGraphQL: Go to the [W
 Inside your WordPress admin, go to **Posts** and start adding new posts:
 
 - We recommend creating at least **2 posts**
-- Use dummy data for the content
+- Use mock data for the content
 - Pick an author from your WordPress users
 - Add a **Featured Image**. You can download one from [Unsplash](https://unsplash.com/)
 - Fill the **Excerpt** field
@@ -157,7 +157,7 @@ mutation Login {
 
 Copy the `refreshToken` returned by the mutation, then open `.env.local`, and make the following changes:
 
-- Uncomment `WORDPRESS_AUTH_REFRESH_TOKEN` and set it to be the `refreshToken` you just received.
+- Uncomment `WORDPRESS_AUTH_REFRESH_TOKEN` and set it to be the `refreshToken` you received.
 - Uncomment `WORDPRESS_PREVIEW_SECRET` and set it to be any random string (ideally URL friendly).
 
 Your `.env.local` file should look like this:

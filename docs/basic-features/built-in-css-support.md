@@ -142,6 +142,8 @@ export function Button() {
 CSS Modules are an _optional feature_ and are **only enabled for files with the `.module.css` extension**.
 Regular `<link>` stylesheets and global CSS files are still supported.
 
+<!--alex ignore execution-->
+
 In production, all CSS Module files will be automatically concatenated into **many minified and code-split** `.css` files.
 These `.css` files represent hot execution paths in your application, ensuring the minimal amount of CSS is loaded for your application to paint.
 
@@ -252,9 +254,9 @@ Please see the [styled-jsx documentation](https://github.com/vercel/styled-jsx) 
 
 ## FAQ
 
-### Does it work with JavaScript disabled?
+### Does it work with JavaScript turned off?
 
-Yes, if you disable JavaScript the CSS will still be loaded in the production build (`next start`). During development, we require JavaScript to be enabled to provide the best developer experience with [Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh).
+Yes, if you turned off JavaScript the CSS will still be loaded in the production build (`next start`). During development, we require JavaScript to be enabled to provide the best developer experience with [Fast Refresh](https://nextjs.org/blog/next-9-4#fast-refresh).
 
 ## Related
 
