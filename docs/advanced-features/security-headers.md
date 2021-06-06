@@ -1,5 +1,5 @@
 ---
-description: Improve the security of your Next.js application by add HTTP response headers.
+description: Improve the security of your Next.js application by adding HTTP response headers.
 ---
 
 # Security Headers
