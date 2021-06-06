@@ -17,6 +17,7 @@
     "typescript": "^3.0.1"
   },
   "devDependencies": {
+    "@babel/core": "7.14.3",
     "@babel/plugin-proposal-decorators": "^7.3.0",
     "@types/node": "^14.0.23",
     "@types/react": "^16.4.12"
