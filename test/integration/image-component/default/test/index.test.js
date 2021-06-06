@@ -480,15 +480,6 @@ function runTests(mode) {
         'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
       )
     })
-
-    it('should show invalid unsized error', async () => {
-      const browser = await webdriver(appPort, '/invalid-unsized')
-
-      expect(await hasRedbox(browser)).toBe(true)
-      expect(await getRedboxHeader(browser)).toContain(
-        'Image with src "/test.png" has deprecated "unsized" property, which was removed in favor of the "layout=\'fill\'" property'
-      )
-    })
   }
 
   it('should correctly ignore prose styles', async () => {
@@ -549,7 +540,7 @@ function runTests(mode) {
 
         const computedWidth = await getComputed(browser, id, 'width')
         const computedHeight = await getComputed(browser, id, 'height')
-        expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1.333, 1)
+        expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(0.5625, 1)
       } finally {
         if (browser) {
           await browser.close()
@@ -562,32 +553,36 @@ function runTests(mode) {
 describe('Image Component Tests', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `
+        module.exports = {
+          experimental: {
+            enableStaticImages: true
+          },
+        }
+      `
+      )
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.unlink(nextConfig)
+      await killApp(app)
+    })
 
     runTests('dev')
   })
 
   describe('server mode', () => {
     beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-
-    runTests('server')
-  })
-
-  describe('serverless mode', () => {
-    beforeAll(async () => {
       await fs.writeFile(
         nextConfig,
         `
         module.exports = {
-          target: 'serverless'
+          experimental: {
+            enableStaticImages: true
+          },
         }
       `
       )
@@ -598,6 +593,55 @@ describe('Image Component Tests', () => {
     afterAll(async () => {
       await fs.unlink(nextConfig)
       await killApp(app)
+    })
+
+    runTests('server')
+  })
+
+  describe('serverless mode', () => {
+    beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `
+        module.exports = {
+          target: 'serverless',
+          experimental: {
+            enableBlurryPlaceholder: true,
+            enableStaticImages: true
+          },
+        }
+      `
+      )
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await fs.unlink(nextConfig)
+      await killApp(app)
+    })
+
+    it('should have blurry placeholder when enabled', async () => {
+      const html = await renderViaHTTP(appPort, '/blurry-placeholder')
+      expect(html).toContain(
+        'background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; width=&#x27;400&#x27; height=&#x27;400&#x27; viewBox=&#x27;0 0 400 400&#x27;%3E%3Cfilter id=&#x27;blur&#x27; filterUnits=&#x27;userSpaceOnUse&#x27; color-interpolation-filters=&#x27;sRGB&#x27;%3E%3CfeGaussianBlur stdDeviation=&#x27;20&#x27; edgeMode=&#x27;duplicate&#x27; /%3E%3CfeComponentTransfer%3E%3CfeFuncA type=&#x27;discrete&#x27; tableValues=&#x27;1 1&#x27; /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter=&#x27;url(%23blur)&#x27; href=&#x27;data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==&#x27; x=&#x27;0&#x27; y=&#x27;0&#x27; height=&#x27;100%25&#x27; width=&#x27;100%25&#x27;/%3E%3C/svg%3E&quot;)'
+      )
+    })
+
+    it('should remove blurry placeholder after image loads', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/blurry-placeholder')
+        const id = 'blurry-placeholder'
+        const backgroundImage = await browser.eval(
+          `window.getComputedStyle(document.getElementById('${id}')).getPropertyValue('background-image')`
+        )
+        expect(backgroundImage).toBe('none')
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
     })
 
     runTests('serverless')

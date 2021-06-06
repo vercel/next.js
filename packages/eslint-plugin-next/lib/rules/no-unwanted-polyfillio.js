@@ -95,9 +95,11 @@ module.exports = {
           if (unwantedFeatures.length > 0) {
             context.report({
               node,
-              message: `You're requesting polyfills from polyfill.io which are already shipped with NextJS. Please remove ${unwantedFeatures.join(
+              message: `No duplicate polyfills from Polyfill.io are allowed. ${unwantedFeatures.join(
                 ', '
-              )} from the features list.`,
+              )} ${
+                unwantedFeatures.length > 1 ? 'are' : 'is'
+              } already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio.`,
             })
           }
         }

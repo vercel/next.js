@@ -35,7 +35,6 @@ export type NextConfig = { [key: string]: any } & {
     excludeDefaultMomentLocales?: boolean
     webpack5?: boolean
   }
-
   experimental: {
     cpus?: number
     plugins?: boolean
@@ -44,23 +43,22 @@ export type NextConfig = { [key: string]: any } & {
     reactMode?: 'legacy' | 'concurrent' | 'blocking'
     workerThreads?: boolean
     pageEnv?: boolean
-    optimizeFonts?: boolean
     optimizeImages?: boolean
+    enableStaticImages?: boolean
     optimizeCss?: boolean
     scrollRestoration?: boolean
-    scriptLoader?: boolean
     stats?: boolean
     externalDir?: boolean
-    serialWebpackBuild?: boolean
-    babelMultiThread?: boolean
     conformance?: boolean
     amp?: {
       optimizer?: any
       validator?: string
       skipValidation?: boolean
     }
-    turboMode: boolean
-    reactRoot: boolean
+    reactRoot?: boolean
+    enableBlurryPlaceholder?: boolean
+    disableOptimizedLoading?: boolean
+    gzipSize?: boolean
   }
 }
 
@@ -108,14 +106,15 @@ export const defaultConfig: NextConfig = {
     workerThreads: false,
     pageEnv: false,
     optimizeImages: false,
+    enableStaticImages: false,
     optimizeCss: false,
     scrollRestoration: false,
-    scriptLoader: false,
     stats: false,
     externalDir: false,
-    serialWebpackBuild: false,
-    turboMode: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
+    enableBlurryPlaceholder: false,
+    disableOptimizedLoading: true,
+    gzipSize: true,
   },
   future: {
     strictPostcssConfiguration: false,

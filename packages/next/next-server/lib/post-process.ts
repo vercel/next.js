@@ -1,3 +1,4 @@
+import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
 import { parse, HTMLElement } from 'node-html-parser'
 import { OPTIMIZED_FONT_PROVIDERS } from './constants'
 
@@ -13,24 +14,9 @@ type postProcessOptions = {
 type renderOptions = {
   getFontDefinition?: (url: string) => string
 }
-
-type PostProcessData = {
-  preloads: {
-    images: Array<string>
-  }
-}
-
 interface PostProcessMiddleware {
-  inspect: (
-    originalDom: HTMLElement,
-    data: PostProcessData,
-    options: renderOptions
-  ) => void
-  mutate: (
-    markup: string,
-    data: PostProcessData,
-    options: renderOptions
-  ) => Promise<string>
+  inspect: (originalDom: HTMLElement, options: renderOptions) => any
+  mutate: (markup: string, data: any, options: renderOptions) => Promise<string>
 }
 
 type middlewareSignature = {
@@ -58,18 +44,13 @@ async function processHTML(
   if (!middlewareRegistry[0]) {
     return html
   }
-  const postProcessData: PostProcessData = {
-    preloads: {
-      images: [],
-    },
-  }
   const root: HTMLElement = parse(html)
   let document = html
   // Calls the middleware, with some instrumentation and logging
   async function callMiddleWare(middleware: PostProcessMiddleware) {
     // let timer = Date.now()
-    middleware.inspect(root, postProcessData, data)
-    document = await middleware.mutate(document, postProcessData, data)
+    const inspectData = middleware.inspect(root, data)
+    document = await middleware.mutate(document, inspectData, data)
     // timer = Date.now() - timer
     // if (timer > MIDDLEWARE_TIME_BUDGET) {
     // TODO: Identify a correct upper limit for the postprocess step
@@ -89,15 +70,11 @@ async function processHTML(
 }
 
 class FontOptimizerMiddleware implements PostProcessMiddleware {
-  fontDefinitions: (string | undefined)[][] = []
-  inspect(
-    originalDom: HTMLElement,
-    _data: PostProcessData,
-    options: renderOptions
-  ) {
+  inspect(originalDom: HTMLElement, options: renderOptions) {
     if (!options.getFontDefinition) {
       return
     }
+    const fontDefinitions: (string | undefined)[][] = []
     // collecting all the requested font definitions
     originalDom
       .querySelectorAll('link')
@@ -105,7 +82,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         (tag: HTMLElement) =>
           tag.getAttribute('rel') === 'stylesheet' &&
           tag.hasAttribute('data-href') &&
-          OPTIMIZED_FONT_PROVIDERS.some((url) => {
+          OPTIMIZED_FONT_PROVIDERS.some(({ url }) => {
             const dataHref = tag.getAttribute('data-href')
             return dataHref ? dataHref.startsWith(url) : false
           })
@@ -115,30 +92,37 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         const nonce = element.getAttribute('nonce')
 
         if (url) {
-          this.fontDefinitions.push([url, nonce])
+          fontDefinitions.push([url, nonce])
         }
       })
+
+    return fontDefinitions
   }
   mutate = async (
     markup: string,
-    _data: PostProcessData,
+    fontDefinitions: string[][],
     options: renderOptions
   ) => {
     let result = markup
+    let preconnectUrls = new Set<string>()
+
     if (!options.getFontDefinition) {
       return markup
     }
-    for (const key in this.fontDefinitions) {
-      const [url, nonce] = this.fontDefinitions[key]
+
+    fontDefinitions.forEach((fontDef) => {
+      const [url, nonce] = fontDef
       const fallBackLinkTag = `<link rel="stylesheet" href="${url}"/>`
       if (
         result.indexOf(`<style data-href="${url}">`) > -1 ||
         result.indexOf(fallBackLinkTag) > -1
       ) {
         // The font is already optimized and probably the response is cached
-        continue
+        return
       }
-      const fontContent = options.getFontDefinition(url as string)
+      const fontContent = options.getFontDefinition
+        ? options.getFontDefinition(url as string)
+        : null
       if (!fontContent) {
         /**
          * In case of unreachable font definitions, fallback to default link tag.
@@ -150,14 +134,34 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
           '</head>',
           `<style data-href="${url}"${nonceStr}>${fontContent}</style></head>`
         )
+
+        const provider = OPTIMIZED_FONT_PROVIDERS.find((p) =>
+          url.startsWith(p.url)
+        )
+
+        if (provider) {
+          preconnectUrls.add(provider.preconnect)
+        }
       }
-    }
+    })
+
+    let preconnectTag = ''
+    preconnectUrls.forEach((url) => {
+      preconnectTag += `<link rel="preconnect" href="${url}" crossorigin />`
+    })
+
+    result = result.replace(
+      '<meta name="next-font-preconnect"/>',
+      preconnectTag
+    )
+
     return result
   }
 }
 
 class ImageOptimizerMiddleware implements PostProcessMiddleware {
-  inspect(originalDom: HTMLElement, _data: PostProcessData) {
+  inspect(originalDom: HTMLElement) {
+    const imgPreloads = []
     const imgElements = originalDom.querySelectorAll('img')
     let eligibleImages: Array<HTMLElement> = []
     for (let i = 0; i < imgElements.length; i++) {
@@ -169,18 +173,18 @@ class ImageOptimizerMiddleware implements PostProcessMiddleware {
       }
     }
 
-    _data.preloads.images = []
-
     for (const imgEl of eligibleImages) {
       const src = imgEl.getAttribute('src')
       if (src) {
-        _data.preloads.images.push(src)
+        imgPreloads.push(src)
       }
     }
+
+    return imgPreloads
   }
-  mutate = async (markup: string, _data: PostProcessData) => {
+  mutate = async (markup: string, imgPreloads: string[]) => {
     let result = markup
-    let imagePreloadTags = _data.preloads.images
+    let imagePreloadTags = imgPreloads
       .filter((imgHref) => !preloadTagAlreadyExists(markup, imgHref))
       .reduce(
         (acc, imgHref) =>
@@ -205,7 +209,8 @@ function isImgEligible(imgElement: HTMLElement): boolean {
 }
 
 function preloadTagAlreadyExists(html: string, href: string) {
-  const regex = new RegExp(`<link[^>]*href[^>]*${href}`)
+  const escapedHref = escapeRegexp(href)
+  const regex = new RegExp(`<link[^>]*href[^>]*${escapedHref}`)
   return html.match(regex)
 }
 

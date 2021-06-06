@@ -114,7 +114,12 @@ export async function parseBody(
   req: NextApiRequest,
   limit: string | number
 ): Promise<any> {
-  const contentType = parse(req.headers['content-type'] || 'text/plain')
+  let contentType
+  try {
+    contentType = parse(req.headers['content-type'] || 'text/plain')
+  } catch {
+    contentType = parse('text/plain')
+  }
   const { type, parameters } = contentType
   const encoding = parameters.charset || 'utf-8'
 

@@ -127,3 +127,26 @@ export default MyApp
 Next.js automatically supports the `tsconfig.json` `"paths"` and `"baseUrl"` options.
 
 You can learn more about this feature on the [Module Path aliases documentation](/docs/advanced-features/module-path-aliases.md).
+
+## Type checking next.config.js
+
+The `next.config.js` file must be a JavaScript file as it does not get parsed by Babel or TypeScript, however you can add some type checking in your IDE using JSDoc as below:
+
+```js
+// @ts-check
+
+/**
+ * @type {import('next/dist/next-server/server/config').NextConfig}
+ **/
+const nextConfig = {
+  /* config options here */
+}
+
+module.exports = nextConfig
+```
+
+## Incremental type checking
+
+Since `v10.2.1` Next.js supports [incremental type checking](https://www.typescriptlang.org/tsconfig#incremental) when enabled in your `tsconfig.json`, this can help speed up type checking in larger applications.
+
+It is highly recommended to be on at least `v4.3.2` of TypeScript to experience the [best performance](https://devblogs.microsoft.com/typescript/announcing-typescript-4-3/#lazier-incremental) when leveraging this feature.

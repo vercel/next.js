@@ -4,13 +4,21 @@ description: Add custom HTTP headers to your Next.js app.
 
 # Headers
 
-> This feature was introduced in [Next.js 9.5](https://nextjs.org/blog/next-9-5) and up. If you’re using older versions of Next.js, please upgrade before trying it out.
-
 <details open>
   <summary><b>Examples</b></summary>
   <ul>
     <li><a href="https://github.com/vercel/next.js/tree/canary/examples/headers">Headers</a></li>
   </ul>
+</details>
+
+<details>
+  <summary><b>Version History</b></summary>
+
+| Version   | Changes        |
+| --------- | -------------- |
+| `v10.2.0` | `has` added.   |
+| `v9.5.0`  | Headers added. |
+
 </details>
 
 Headers allow you to set custom HTTP headers for an incoming request path.
@@ -172,8 +180,6 @@ module.exports = {
 ```
 
 ## Header, Cookie, and Query Matching
-
-Note: this feature is still experimental and not covered by semver and is to be used at your own risk until it is made stable.
 
 To only apply a header when either header, cookie, or query values also match the `has` field can be used. Both the `source` and all `has` items must match for the header to be applied.
 

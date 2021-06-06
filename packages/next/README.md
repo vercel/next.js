@@ -44,6 +44,10 @@ Our [Code of Conduct](https://github.com/vercel/next.js/blob/canary/CODE_OF_COND
 
 Please see our [contributing.md](/contributing.md).
 
+### Good First Issues
+
+We have a list of [good first issues](https://github.com/vercel/next.js/labels/good%20first%20issue) that contain bugs which have a relatively limited scope. This is a great place to get started, gain experience, and get familiar with our contribution process.
+
 ## Authors
 
 - Tim Neutkens ([@timneutkens](https://twitter.com/timneutkens)) – [Vercel](https://vercel.com/about/timneutkens)

@@ -1,0 +1,31 @@
+{
+  "name": "eslint-config-next",
+  "version": "10.2.4-canary.4",
+  "description": "ESLint configuration used by NextJS.",
+  "main": "index.js",
+  "license": "MIT",
+  "repository": {
+    "url": "vercel/next.js",
+    "directory": "packages/eslint-config-next"
+  },
+  "dependencies": {
+    "@next/eslint-plugin-next": "10.2.4-canary.4",
+    "@rushstack/eslint-patch": "^1.0.6",
+    "@typescript-eslint/parser": "^4.20.0",
+    "eslint-import-resolver-node": "^0.3.4",
+    "eslint-plugin-import": "^2.22.1",
+    "eslint-plugin-jsx-a11y": "^6.4.1",
+    "eslint-plugin-react": "^7.23.1",
+    "eslint-plugin-react-hooks": "^4.2.0"
+  },
+  "peerDependencies": {
+    "eslint": "^7.23.0",
+    "next": ">=10.2.0",
+    "typescript": ">=3.3.1"
+  },
+  "peerDependenciesMeta": {
+    "typescript": {
+      "optional": true
+    }
+  }
+}

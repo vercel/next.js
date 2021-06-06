@@ -1,8 +1,9 @@
 import path from 'path'
 import { Worker } from 'jest-worker'
 import * as Log from '../../build/output/log'
-import type { CheckReasons, CheckResult } from './config-utils-worker'
+import { CheckReasons, CheckResult } from './config-utils-worker'
 import { install, shouldLoadWithWebpack5 } from './config-utils-worker'
+import { PHASE_PRODUCTION_SERVER } from '../lib/constants'
 
 export { install, shouldLoadWithWebpack5 }
 
@@ -36,11 +37,15 @@ export async function loadWebpackHook(phase: string, dir: string) {
   )
   try {
     const result: CheckResult = await worker.shouldLoadWithWebpack5(phase, dir)
-    Log.info(
-      `Using webpack ${result.enabled ? '5' : '4'}. Reason: ${reasonMessage(
-        result.reason
-      )} https://nextjs.org/docs/messages/webpack5`
-    )
+    // Don't log which webpack version is being used when booting production server as it's not used after build
+    if (phase !== PHASE_PRODUCTION_SERVER) {
+      Log.info(
+        `Using webpack ${result.enabled ? '5' : '4'}. Reason: ${reasonMessage(
+          result.reason
+        )} https://nextjs.org/docs/messages/webpack5`
+      )
+    }
+
     useWebpack5 = Boolean(result.enabled)
   } catch {
     // If this errors, it likely will do so again upon boot, so we just swallow
