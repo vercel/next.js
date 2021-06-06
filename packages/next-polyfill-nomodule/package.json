@@ -15,6 +15,7 @@
   "devDependencies": {
     "core-js": "3.6.5",
     "microbundle": "0.13.0",
+    "nodelist-foreach-polyfill": "1.2.0",
     "object-assign": "4.1.1",
     "whatwg-fetch": "3.0.0"
   }

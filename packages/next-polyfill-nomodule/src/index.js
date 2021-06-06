@@ -55,5 +55,6 @@ import 'core-js/features/promise/finally'
 
 // Specialized Packages:
 import 'whatwg-fetch'
+import 'nodelist-foreach-polyfill'
 import assign from 'object-assign'
 Object.assign = assign
