@@ -27,15 +27,17 @@ export type NextConfig = { [key: string]: any } & {
       }
   >
   redirects?: () => Promise<Redirect[]>
-
   trailingSlash?: boolean
+  webpack5?: false
 
   future: {
+    /**
+     * @deprecated this options was moved to the top level
+     */
+    webpack5?: false
     strictPostcssConfiguration?: boolean
     excludeDefaultMomentLocales?: boolean
-    webpack5?: boolean
   }
-
   experimental: {
     cpus?: number
     plugins?: boolean
@@ -47,20 +49,17 @@ export type NextConfig = { [key: string]: any } & {
     optimizeImages?: boolean
     optimizeCss?: boolean
     scrollRestoration?: boolean
-    scriptLoader?: boolean
     stats?: boolean
     externalDir?: boolean
-    serialWebpackBuild?: boolean
-    babelMultiThread?: boolean
     conformance?: boolean
     amp?: {
       optimizer?: any
       validator?: string
       skipValidation?: boolean
     }
-    turboMode: boolean
-    eslint?: boolean
-    reactRoot: boolean
+    reactRoot?: boolean
+    disableOptimizedLoading?: boolean
+    gzipSize?: boolean
   }
 }
 
@@ -110,18 +109,17 @@ export const defaultConfig: NextConfig = {
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
-    scriptLoader: false,
     stats: false,
     externalDir: false,
-    serialWebpackBuild: false,
-    turboMode: false,
-    eslint: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
+    disableOptimizedLoading: true,
+    gzipSize: true,
   },
+  webpack5:
+    Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0 ? false : undefined,
   future: {
     strictPostcssConfiguration: false,
     excludeDefaultMomentLocales: false,
-    webpack5: Number(process.env.NEXT_PRIVATE_TEST_WEBPACK5_MODE) > 0,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},

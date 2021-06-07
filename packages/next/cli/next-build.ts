@@ -13,6 +13,7 @@ const nextBuild: cliCommand = (argv) => {
     '--help': Boolean,
     '--profile': Boolean,
     '--debug': Boolean,
+    '--no-lint': Boolean,
     // Aliases
     '-h': '--help',
     '-d': '--debug',
@@ -41,12 +42,16 @@ const nextBuild: cliCommand = (argv) => {
 
       Options
       --profile     Can be used to enable React Production Profiling
+      --no-lint     Disable linting
     `,
       0
     )
   }
   if (args['--profile']) {
     Log.warn('Profiling is enabled. Note: This may affect performance')
+  }
+  if (args['--no-lint']) {
+    Log.warn('Linting is disabled')
   }
   const dir = resolve(args._[0] || '.')
 
@@ -93,7 +98,9 @@ const nextBuild: cliCommand = (argv) => {
   }
 
   return preflight()
-    .then(() => build(dir, null, args['--profile'], args['--debug']))
+    .then(() =>
+      build(dir, null, args['--profile'], args['--debug'], !args['--no-lint'])
+    )
     .catch((err) => {
       console.error('')
       console.error('> Build error occurred')

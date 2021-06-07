@@ -43,12 +43,13 @@ export default function resolveRewrites(
           headers: {
             host: document.location.hostname,
           },
-          cookies: Object.fromEntries(
-            document.cookie.split('; ').map((item) => {
+          cookies: document.cookie
+            .split('; ')
+            .reduce<Record<string, string>>((acc, item) => {
               const [key, ...value] = item.split('=')
-              return [key, value.join('=')]
-            })
-          ),
+              acc[key] = value.join('=')
+              return acc
+            }, {}),
         } as any,
         rewrite.has,
         parsedAs.query
@@ -100,19 +101,16 @@ export default function resolveRewrites(
   let finished = false
 
   for (let i = 0; i < rewrites.beforeFiles.length; i++) {
-    const rewrite = rewrites.beforeFiles[i]
-
-    if (handleRewrite(rewrite)) {
-      finished = true
-      break
-    }
+    // we don't end after match in beforeFiles to allow
+    // continuing through all beforeFiles rewrites
+    handleRewrite(rewrites.beforeFiles[i])
   }
+  matchedPage = pages.includes(fsPathname)
 
-  if (!pages.includes(fsPathname)) {
+  if (!matchedPage) {
     if (!finished) {
       for (let i = 0; i < rewrites.afterFiles.length; i++) {
-        const rewrite = rewrites.afterFiles[i]
-        if (handleRewrite(rewrite)) {
+        if (handleRewrite(rewrites.afterFiles[i])) {
           finished = true
           break
         }
@@ -128,8 +126,7 @@ export default function resolveRewrites(
 
     if (!finished) {
       for (let i = 0; i < rewrites.fallback.length; i++) {
-        const rewrite = rewrites.fallback[i]
-        if (handleRewrite(rewrite)) {
+        if (handleRewrite(rewrites.fallback[i])) {
           finished = true
           break
         }

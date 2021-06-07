@@ -27,6 +27,14 @@ npx create-next-app
 yarn create next-app
 ```
 
+If you want to start with a TypeScript project you can use the `--typescript` flag:
+
+```bash
+npx create-next-app --typescript
+# or
+yarn create next-app --typescript
+```
+
 After the installation is complete, follow the instructions to start the development server. Try editing `pages/index.js` and see the result on your browser.
 
 For more information on how to use `create-next-app`, you can review the [`create-next-app` documentation](/docs/api-reference/create-next-app.md)
@@ -47,7 +55,8 @@ Open `package.json` and add the following `scripts`:
 "scripts": {
   "dev": "next dev",
   "build": "next build",
-  "start": "next start"
+  "start": "next start",
+  "lint": "next lint"
 }
 ```
 
@@ -56,6 +65,7 @@ These scripts refer to the different stages of developing an application:
 - `dev` - Runs [`next dev`](/docs/api-reference/cli.md#development) which starts Next.js in development mode
 - `build` - Runs [`next build`](/docs/api-reference/cli.md#build) which builds the application for production usage
 - `start` - Runs [`next start`](/docs/api-reference/cli.md#production) which starts a Next.js production server
+- `lint` - Runs [`next lint`](/docs/api-reference/cli.md#lint) which sets up Next.js' built-in ESLint configuration
 
 Next.js is built around the concept of [pages](/docs/basic-features/pages.md). A page is a [React Component](https://reactjs.org/docs/components-and-props.html) exported from a `.js`, `.jsx`, `.ts`, or `.tsx` file in the `pages` directory.
 

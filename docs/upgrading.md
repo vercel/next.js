@@ -4,6 +4,54 @@ description: Learn how to upgrade Next.js.
 
 # Upgrade Guide
 
+## Upgrading from version 10 to 11
+
+## Upgrade React version to latest
+
+Most applications already use the latest version of React, with Next.js 11 the minimum React version has been updated to 17.0.2.
+
+To upgrade you can run the following command:
+
+```
+npm install react@latest react-dom@latest
+```
+
+Or using `yarn`:
+
+```
+yarn add next@latest react-dom@latest
+```
+
+### Remove `super.componentDidCatch()` from `pages/_app.js`
+
+The `next/app` component's `componentDidCatch` has been deprecated since Next.js 9 as it's no longer needed and has since been a no-op, in Next.js 11 it has been removed.
+
+If your `pages/_app.js` has a custom `componentDidCatch` method you can remove `super.componentDidCatch` as it is no longer needed.
+
+### Remove `Container` from `pages/_app.js`
+
+This export has been deprecated since Next.js 9 as it's no longer needed and has since been a no-op with a warning during development. In Next.js 11 it has been removed.
+
+If your `pages/_app.js` imports `Container` from `next/app` you can remove `Container` as it has been removed. Learn more in [the documentation](https://nextjs.org/docs/messages/app-container-deprecated).
+
+### Remove `props.url` usage from page components
+
+This property has been deprecated since Next.js 4 and has since shown a warning during development. With the introduction of `getStaticProps` / `getServerSideProps` these methods already disallowed usage of `props.url`. In Next.js 11 it has been removed completely.
+
+You can learn more in [the documentation](https://nextjs.org/docs/messages/url-deprecated).
+
+### Remove `unsized` property on `next/image`
+
+The `unsized` property on `next/image` was deprecated in Next.js 10.0.1. You can use `layout="fill"` instead. In Next.js 11 `unsized` was removed.
+
+### Remove `modules` property on `next/dynamic`
+
+The `modules` and `render` option for `next/dynamic` have been deprecated since Next.js 9.5 showing a warning that it has been deprecated. This was done in order to make `next/dynamic` close to `React.lazy` in API surface. In Next.js 11 the `modules` and `render` options have been removed.
+
+This option hasn't been mentioned in the documentation since Next.js 8 so it's less likely that your application is using it.
+
+If you application does use `modules` and `render` you can refer to [the documentation](https://nextjs.org/docs/messages/next-dynamic-modules).
+
 ## React 16 to 17
 
 React 17 introduced a new [JSX Transform](https://reactjs.org/blog/2020/09/22/introducing-the-new-jsx-transform.html) that brings a long-time Next.js feature to the wider React ecosystem: Not having to `import React from 'react'` when using JSX. When using React 17 Next.js will automatically use the new transform. This transform does not make the `React` variable global, which was an unintended side-effect of the previous Next.js implementation. A [codemod is available](/docs/advanced-features/codemods.md#add-missing-react-import) to automatically fix cases where you accidentally used `React` without importing it.
