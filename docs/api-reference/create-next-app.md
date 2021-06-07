@@ -19,7 +19,7 @@ yarn create next-app
 - **-e, --example [name]|[github-url]** - An example to bootstrap the app with. You can use an example name from the [Next.js repo](https://github.com/vercel/next.js/tree/master/examples) or a GitHub URL. The URL can use any branch and/or subdirectory.
 - **--example-path [path-to-example]** - In a rare case, your GitHub URL might contain a branch name with a slash (e.g. bug/fix-1) and the path to the example (e.g. foo/bar). In this case, you must specify the path to the example separately: `--example-path foo/bar`
 - **--use-npm** - Explicitly tell the CLI to bootstrap the app using npm. To bootstrap using yarn we recommend to run `yarn create next-app`
-- **--typescript or --ts** - Gives you next.js starter with typescript out of the box no need for extra steps `yarn create next-app --typescript`
+- **--typescript or --ts** - Creates the default template with TypeScript instead of JavaScript.
 
 ### Why use Create Next App?
 
