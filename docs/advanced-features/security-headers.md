@@ -49,7 +49,7 @@ This header informs browsers it should only be accessed using HTTPS, instead of 
 
 ### [X-XSS-Protection](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-XSS-Protection)
 
-This header stops pages from loading when they detect reflected cross-site scripting (XSS) attacks. Although these protections are not as necessary when sites implement a strong `Content-Security-Policy` disabling the use of inline JavaScript (`'unsafe-inline'`), they can still provide protections for older web browsers that don't yet support CSP.
+This header stops pages from loading when they detect reflected cross-site scripting (XSS) attacks. Although these protections are not as necessary when sites implement a strong [`Content-Security-Policy`](#content-security-policy) disabling the use of inline JavaScript (`'unsafe-inline'`), they can still provide protections for older web browsers that don't yet support CSP.
 
 ```jsx
 {
