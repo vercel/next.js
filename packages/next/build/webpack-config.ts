@@ -51,6 +51,7 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
+import { regexLikeCss } from './webpack/config/blocks/css'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -260,7 +261,9 @@ export default async function getBaseWebpackConfig(
 
   const distDir = path.join(dir, config.distDir)
 
-  const babelLoader = config.experimental.turboMode
+  // Webpack 5 can use the faster babel loader, webpack 5 has built-in caching for loaders
+  // For webpack 4 the old loader is used as it has external caching
+  const babelLoader = isWebpack5
     ? require.resolve('./babel/loader/index')
     : 'next-babel-loader'
   const defaultLoaders = {
@@ -833,7 +836,7 @@ export default async function getBaseWebpackConfig(
       checkWasmTypes: false,
       nodeEnv: false,
       splitChunks: isServer
-        ? isWebpack5
+        ? isWebpack5 && !dev
           ? ({
               filename: '[name].js',
               // allow to split entrypoints
@@ -962,6 +965,7 @@ export default async function getBaseWebpackConfig(
         'error-loader',
         'next-babel-loader',
         'next-client-pages-loader',
+        'next-image-loader',
         'next-serverless-loader',
         'noop-loader',
         'next-style-loader',
@@ -1010,6 +1014,16 @@ export default async function getBaseWebpackConfig(
               ]
             : defaultLoaders.babel,
         },
+        ...(!config.images.disableStaticImages && isWebpack5
+          ? [
+              {
+                test: /\.(png|svg|jpg|jpeg|gif|webp|ico|bmp)$/i,
+                loader: 'next-image-loader',
+                issuer: { not: regexLikeCss },
+                dependency: { not: ['url'] },
+              },
+            ]
+          : []),
       ].filter(Boolean),
     },
     plugins: [
@@ -1084,9 +1098,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
           config.experimental.optimizeCss && !dev
         ),
-        'process.env.__NEXT_SCRIPT_LOADER': JSON.stringify(
-          !!config.experimental.scriptLoader
-        ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),
@@ -1101,7 +1112,6 @@ export default async function getBaseWebpackConfig(
                 domains: config.images.domains,
               }
             : {}),
-          enableBlurryPlaceholder: config.experimental.enableBlurryPlaceholder,
         }),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
