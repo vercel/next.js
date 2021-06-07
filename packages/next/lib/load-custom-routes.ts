@@ -476,7 +476,7 @@ function processRoutes<T>(
     base: string
   }> = []
 
-  if (config.i18n && type === 'redirect') {
+  if (config.i18n && ['redirect', 'rewrite'].includes(type)) {
     for (const item of config.i18n?.domains || []) {
       defaultLocales.push({
         locale: item.defaultLocale,
@@ -519,15 +519,22 @@ function processRoutes<T>(
         r.source === '/' && !config.trailingSlash ? '' : r.source
       }`
 
-      if (r.destination && r.destination?.startsWith('/')) {
-        r.destination = `/:nextInternalLocale${
-          r.destination === '/' && !config.trailingSlash ? '' : r.destination
-        }`
+      if (r.destination) {
+        if (isExternal) {
+          r.destination = [
+            r.destination.split('/:path*')[0],
+            '/:nextInternalLocale/:path*',
+          ].join('')
+        } else {
+          r.destination = `/:nextInternalLocale${
+            r.destination === '/' && !config.trailingSlash ? '' : r.destination
+          }`
+        }
       }
     }
     r.source = `${srcBasePath}${r.source}`
 
-    if (r.destination) {
+    if (r.destination && !isExternal) {
       r.destination = `${destBasePath}${r.destination}`
     }
     newRoutes.push(r)
