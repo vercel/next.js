@@ -29,7 +29,12 @@ export async function rotate(
   return await m(image.data, image.width, image.height, { numRotations })
 }
 
-export async function resize(image: ImageData, width: number) {
+type ResizeOpts = { image: ImageData } & (
+  | { width: number; height?: never }
+  | { height: number; width?: never }
+)
+
+export async function resize({ image, width, height }: ResizeOpts) {
   image = ImageData.from(image)
 
   const p = preprocessors['resize']
@@ -37,6 +42,7 @@ export async function resize(image: ImageData, width: number) {
   return await m(image.data, image.width, image.height, {
     ...p.defaultOptions,
     width,
+    height,
   })
 }
 
