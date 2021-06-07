@@ -117,7 +117,6 @@ const {
   loader: configLoader,
   path: configPath,
   domains: configDomains,
-  enableBlurryPlaceholder: configEnableBlurryPlaceholder,
 } =
   ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
 // sort smallest to largest
@@ -298,9 +297,6 @@ export default function Image({
     delete rest['layout']
   }
 
-  if (!configEnableBlurryPlaceholder) {
-    placeholder = 'empty'
-  }
   const isStatic = typeof src === 'object'
   let staticSrc = ''
   if (isStaticImport(src)) {

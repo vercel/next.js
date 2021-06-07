@@ -51,6 +51,7 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
+import { regexLikeCss } from './webpack/config/blocks/css'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -1013,11 +1014,12 @@ export default async function getBaseWebpackConfig(
               ]
             : defaultLoaders.babel,
         },
-        ...(config.experimental.enableStaticImages
+        ...(!config.images.disableStaticImages && isWebpack5
           ? [
               {
                 test: /\.(png|svg|jpg|jpeg|gif|webp|ico|bmp)$/i,
                 loader: 'next-image-loader',
+                issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
               },
             ]
@@ -1110,7 +1112,6 @@ export default async function getBaseWebpackConfig(
                 domains: config.images.domains,
               }
             : {}),
-          enableBlurryPlaceholder: config.experimental.enableBlurryPlaceholder,
         }),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
