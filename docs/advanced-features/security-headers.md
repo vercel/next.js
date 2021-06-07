@@ -115,7 +115,11 @@ You can read about the many different CSP options [here](https://developer.mozil
 }
 ```
 
-Thank you to MDN and [these](https://blog.vnaik.com/posts/web-attacks.html) [resources](https://scotthelme.co.uk/) for helping with the content of this document.
+### References
+
+- [MDN](https://developer.mozilla.org)
+- [Varun Naik](https://blog.vnaik.com/posts/web-attacks.html)
+- [Scott Helme](https://scotthelme.co.uk)
 
 ## Related
 
