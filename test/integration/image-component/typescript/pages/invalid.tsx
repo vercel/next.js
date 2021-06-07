@@ -9,6 +9,13 @@ const Invalid = () => {
         id="no-width-or-height"
         src="https://via.placeholder.com/500"
       ></Image>
+      <Image
+        id="no-blur-data-url"
+        src="https://via.placeholder.com/500"
+        width={500}
+        height={500}
+        placeholder="blur"
+      ></Image>
       <p id="stubtext">This is the invalid usage</p>
     </div>
   )
