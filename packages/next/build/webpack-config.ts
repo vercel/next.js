@@ -1013,7 +1013,7 @@ export default async function getBaseWebpackConfig(
               ]
             : defaultLoaders.babel,
         },
-        ...(!config.images.disableStaticImages
+        ...(!config.images.disableStaticImages && isWebpack5
           ? [
               {
                 test: /\.(png|svg|jpg|jpeg|gif|webp|ico|bmp)$/i,
