@@ -17,9 +17,7 @@ import {
 } from '../next-server/server/get-page-files'
 import { cleanAmpPath } from '../next-server/server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
-import Script, {
-  Props as ScriptLoaderProps,
-} from '../client/experimental-script'
+import Script, { Props as ScriptLoaderProps } from '../client/script'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -447,7 +445,9 @@ export class Head extends Component<
       if (
         c.type === 'link' &&
         c.props['href'] &&
-        OPTIMIZED_FONT_PROVIDERS.some((url) => c.props['href'].startsWith(url))
+        OPTIMIZED_FONT_PROVIDERS.some(({ url }) =>
+          c.props['href'].startsWith(url)
+        )
       ) {
         const newProps = { ...(c.props || {}) }
         newProps['data-href'] = newProps['href']
@@ -534,9 +534,7 @@ export class Head extends Component<
       children = this.makeStylesheetInert(children)
     }
 
-    if (process.env.__NEXT_SCRIPT_LOADER) {
-      children = this.handleDocumentScriptLoaderItems(children)
-    }
+    children = this.handleDocumentScriptLoaderItems(children)
 
     let hasAmphtmlRel = false
     let hasCanonicalRel = false
@@ -639,6 +637,9 @@ export class Head extends Component<
           </>
         )}
         {children}
+        {process.env.__NEXT_OPTIMIZE_FONTS && (
+          <meta name="next-font-preconnect" />
+        )}
         {head}
         <meta
           name="next-head-count"

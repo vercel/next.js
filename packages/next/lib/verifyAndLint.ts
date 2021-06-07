@@ -3,7 +3,6 @@ import { Worker } from 'jest-worker'
 
 export async function verifyAndLint(
   dir: string,
-  pagesDir: string,
   numWorkers: number | undefined,
   enableWorkerThreads: boolean | undefined
 ): Promise<void> {
@@ -18,7 +17,7 @@ export async function verifyAndLint(
     lintWorkers.getStdout().pipe(process.stdout)
     lintWorkers.getStderr().pipe(process.stderr)
 
-    const lintResults = await lintWorkers.runLintCheck(dir, pagesDir)
+    const lintResults = await lintWorkers.runLintCheck(dir, null, true)
     if (lintResults) {
       console.log(lintResults)
     }

@@ -1,4 +1,5 @@
 import * as Log from '../../build/output/log'
+import { GOOGLE_FONT_PROVIDER } from '../lib/constants'
 const https = require('https')
 
 const CHROME_UA =
@@ -9,6 +10,10 @@ export type FontManifest = Array<{
   url: string
   content: string
 }>
+
+function isGoogleFont(url: string): boolean {
+  return url.startsWith(GOOGLE_FONT_PROVIDER)
+}
 
 function getFontForUA(url: string, UA: string): Promise<String> {
   return new Promise((resolve, reject) => {
@@ -45,7 +50,9 @@ export async function getFontDefinitionFromNetwork(
    * CSS cascading 🤷‍♂️.
    */
   try {
-    result += await getFontForUA(url, IE_UA)
+    if (isGoogleFont(url)) {
+      result += await getFontForUA(url, IE_UA)
+    }
     result += await getFontForUA(url, CHROME_UA)
   } catch (e) {
     Log.warn(

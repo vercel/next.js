@@ -54,6 +54,7 @@ describe('Font Optimization', () => {
         /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Roboto:wght@700">.*<\/style>/,
         /<style data-href="https:\/\/fonts.googleapis.com\/css2\?family=Roboto:wght@400;700;900&display=swap">.*<\/style>/,
       ],
+      'https://fonts.gstatic.com',
     ],
     [
       'typekit',
@@ -69,13 +70,15 @@ describe('Font Optimization', () => {
         /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
         /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
       ],
+      'https://use.typekit.net',
     ],
   ])(
     'with-%s',
     (
       property,
       [staticFont, staticHeadFont, starsFont, withFont],
-      [staticPattern, staticHeadPattern, starsPattern, withFontPattern]
+      [staticPattern, staticHeadPattern, starsPattern, withFontPattern],
+      preconnectUrl
     ) => {
       const appDir = join(fixturesDir, `with-${property}`)
       const nextConfig = join(appDir, 'next.config.js')
@@ -150,6 +153,14 @@ describe('Font Optimization', () => {
             $(`link[rel=stylesheet][data-href="${starsFont}"]`).length
           ).toBe(1)
           expect(html).toMatch(starsPattern)
+        })
+
+        it(`should add preconnect tag`, async () => {
+          const html = await renderViaHTTP(appPort, '/stars')
+          const $ = cheerio.load(html)
+          expect(
+            $(`link[rel=preconnect][href="${preconnectUrl}"]`).length
+          ).toBe(1)
         })
 
         it('should skip this optimization for AMP pages', async () => {
