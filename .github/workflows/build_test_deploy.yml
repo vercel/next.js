@@ -177,8 +177,8 @@ jobs:
       - run: xvfb-run node run-tests.js test/integration/{fallback-modules,link-ref,production,basic,async-modules,font-optimization,ssr-ctx}/test/index.test.js test/acceptance/*.test.js
         if: ${{needs.build.outputs.docsChange != 'docs only change'}}
 
-  testLegacyReact:
-    name: React 16 + Webpack 4 (Basic, Production, Acceptance)
+  testLegacyWebpack:
+    name: Webpack 4 (Basic, Production, Acceptance)
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -194,12 +194,6 @@ jobs:
         id: docs-change
 
       - run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-
-      - run: cat package.json | jq '.resolutions.react = "^16.14.0"' > package.json.tmp && mv package.json.tmp package.json
-        if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
-
-      - run: cat package.json | jq '.resolutions."react-dom" = "^16.14.0"' > package.json.tmp && mv package.json.tmp package.json
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE != 'docs only change' }}
 
       - run: yarn install --check-files
