@@ -50,7 +50,7 @@ type PlaceholderValue = 'blur' | 'empty'
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
-export interface StaticImageData {
+interface StaticImageData {
   src: string
   height: number
   width: number
