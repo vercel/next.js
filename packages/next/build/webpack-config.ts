@@ -51,6 +51,7 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
+import { regexLikeCss } from './webpack/config/blocks/css'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -1018,6 +1019,7 @@ export default async function getBaseWebpackConfig(
               {
                 test: /\.(png|svg|jpg|jpeg|gif|webp|ico|bmp)$/i,
                 loader: 'next-image-loader',
+                issuer: { not: regexLikeCss },
                 dependency: { not: ['url'] },
               },
             ]
