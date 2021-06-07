@@ -84,5 +84,35 @@ ruleTester.run('no-head-import-in-document', rule, {
         },
       ],
     },
+    {
+      code: `
+      import Document, { Html, Main, NextScript } from 'next/document'
+      import Head from 'next/head'
+      
+      class MyDocument extends Document {
+        render() {
+          return (
+            <Html>
+              <Head />
+              <body>
+                <Main />
+                <NextScript />
+              </body>
+            </Html>
+          )
+        }
+      }
+      
+      export default MyDocument
+      `,
+      filename: 'pages/_document.page.tsx',
+      errors: [
+        {
+          message:
+            'next/head should not be imported in pages/_document.page.tsx. Import Head from next/document instead. See https://nextjs.org/docs/messages/no-head-import-in-document.',
+          type: 'ImportDeclaration',
+        },
+      ],
+    },
   ],
 })
