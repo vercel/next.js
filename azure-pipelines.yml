@@ -34,7 +34,7 @@ pr:
 variables:
   YARN_CACHE_FOLDER: $(Pipeline.Workspace)/.yarn
   NEXT_TELEMETRY_DISABLED: '1'
-  node_version: ^10.10.0
+  node_version: ^12.0.0
 
 stages:
   - stage: Build
@@ -86,7 +86,7 @@ stages:
               path: $(System.DefaultWorkingDirectory)
             displayName: Cache Build
           - script: |
-              yarn testie --forceExit test/integration/production/ test/integration/css-client-nav/
+              yarn testie --forceExit test/integration/production/ test/integration/css-client-nav/ test/integration/rewrites-has-condition/
             displayName: 'Run tests'
 
       - job: test_unit
@@ -117,13 +117,13 @@ stages:
           vmImage: 'windows-2019'
         strategy:
           matrix:
-            node-10-1:
+            nodejs-1:
               group: 1/4
-            node-10-2:
+            nodejs-2:
               group: 2/4
-            node-10-3:
+            nodejs-3:
               group: 3/4
-            node-10-4:
+            nodejs-4:
               group: 4/4
         steps:
           - checkout: none

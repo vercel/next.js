@@ -1,3 +1,4 @@
+import escapeRegexp from 'next/dist/compiled/escape-string-regexp'
 import { parse, HTMLElement } from 'node-html-parser'
 import { OPTIMIZED_FONT_PROVIDERS } from './constants'
 
@@ -81,7 +82,7 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
         (tag: HTMLElement) =>
           tag.getAttribute('rel') === 'stylesheet' &&
           tag.hasAttribute('data-href') &&
-          OPTIMIZED_FONT_PROVIDERS.some((url) => {
+          OPTIMIZED_FONT_PROVIDERS.some(({ url }) => {
             const dataHref = tag.getAttribute('data-href')
             return dataHref ? dataHref.startsWith(url) : false
           })
@@ -103,6 +104,8 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
     options: renderOptions
   ) => {
     let result = markup
+    let preconnectUrls = new Set<string>()
+
     if (!options.getFontDefinition) {
       return markup
     }
@@ -131,8 +134,26 @@ class FontOptimizerMiddleware implements PostProcessMiddleware {
           '</head>',
           `<style data-href="${url}"${nonceStr}>${fontContent}</style></head>`
         )
+
+        const provider = OPTIMIZED_FONT_PROVIDERS.find((p) =>
+          url.startsWith(p.url)
+        )
+
+        if (provider) {
+          preconnectUrls.add(provider.preconnect)
+        }
       }
     })
+
+    let preconnectTag = ''
+    preconnectUrls.forEach((url) => {
+      preconnectTag += `<link rel="preconnect" href="${url}" crossorigin />`
+    })
+
+    result = result.replace(
+      '<meta name="next-font-preconnect"/>',
+      preconnectTag
+    )
 
     return result
   }
@@ -188,7 +209,8 @@ function isImgEligible(imgElement: HTMLElement): boolean {
 }
 
 function preloadTagAlreadyExists(html: string, href: string) {
-  const regex = new RegExp(`<link[^>]*href[^>]*${href}`)
+  const escapedHref = escapeRegexp(href)
+  const regex = new RegExp(`<link[^>]*href[^>]*${escapedHref}`)
   return html.match(regex)
 }
 

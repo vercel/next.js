@@ -8,14 +8,15 @@ import { CompileError } from './compile-error'
 import { FatalError } from './fatal-error'
 
 import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
-import type { TypeCheckResult } from './typescript/runTypeCheck'
+import { TypeCheckResult } from './typescript/runTypeCheck'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
 
 export async function verifyTypeScriptSetup(
   dir: string,
   pagesDir: string,
-  typeCheckPreflight: boolean
+  typeCheckPreflight: boolean,
+  cacheDir?: string
 ): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const tsConfigPath = path.join(dir, 'tsconfig.json')
 
@@ -48,7 +49,7 @@ export async function verifyTypeScriptSetup(
       const { runTypeCheck } = require('./typescript/runTypeCheck')
 
       // Verify the project passes type-checking before we go to webpack phase:
-      result = await runTypeCheck(ts, dir, tsConfigPath)
+      result = await runTypeCheck(ts, dir, tsConfigPath, cacheDir)
     }
     return { result, version: ts.version }
   } catch (err) {

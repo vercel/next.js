@@ -480,15 +480,6 @@ function runTests(mode) {
         'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
       )
     })
-
-    it('should show invalid unsized error', async () => {
-      const browser = await webdriver(appPort, '/invalid-unsized')
-
-      expect(await hasRedbox(browser)).toBe(true)
-      expect(await getRedboxHeader(browser)).toContain(
-        'Image with src "/test.png" has deprecated "unsized" property, which was removed in favor of the "layout=\'fill\'" property'
-      )
-    })
   }
 
   it('should correctly ignore prose styles', async () => {
@@ -549,7 +540,7 @@ function runTests(mode) {
 
         const computedWidth = await getComputed(browser, id, 'width')
         const computedHeight = await getComputed(browser, id, 'height')
-        expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1.333, 1)
+        expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(0.5625, 1)
       } finally {
         if (browser) {
           await browser.close()
@@ -562,21 +553,47 @@ function runTests(mode) {
 describe('Image Component Tests', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `
+        module.exports = {
+          experimental: {
+            enableStaticImages: true
+          },
+        }
+      `
+      )
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.unlink(nextConfig)
+      await killApp(app)
+    })
 
     runTests('dev')
   })
 
   describe('server mode', () => {
     beforeAll(async () => {
+      await fs.writeFile(
+        nextConfig,
+        `
+        module.exports = {
+          experimental: {
+            enableStaticImages: true
+          },
+        }
+      `
+      )
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.unlink(nextConfig)
+      await killApp(app)
+    })
 
     runTests('server')
   })
@@ -590,6 +607,7 @@ describe('Image Component Tests', () => {
           target: 'serverless',
           experimental: {
             enableBlurryPlaceholder: true,
+            enableStaticImages: true
           },
         }
       `

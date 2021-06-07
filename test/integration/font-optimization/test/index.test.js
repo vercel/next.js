@@ -10,7 +10,9 @@ import {
   nextBuild,
   renderViaHTTP,
   initNextServerScript,
+  waitFor,
 } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 
 jest.setTimeout(1000 * 60 * 2)
 
@@ -33,7 +35,7 @@ const startServerlessEmulator = async (dir, port) => {
     { ...process.env },
     { PORT: port, BUILD_ID: await getBuildId(dir) }
   )
-  return initNextServerScript(scriptPath, /ready on/i, env)
+  return initNextServerScript(scriptPath, /ready on/i, env, false, {})
 }
 
 describe('Font Optimization', () => {
@@ -52,6 +54,7 @@ describe('Font Optimization', () => {
         /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Roboto:wght@700">.*<\/style>/,
         /<style data-href="https:\/\/fonts.googleapis.com\/css2\?family=Roboto:wght@400;700;900&display=swap">.*<\/style>/,
       ],
+      'https://fonts.gstatic.com',
     ],
     [
       'typekit',
@@ -67,13 +70,15 @@ describe('Font Optimization', () => {
         /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
         /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
       ],
+      'https://use.typekit.net',
     ],
   ])(
     'with-%s',
     (
       property,
       [staticFont, staticHeadFont, starsFont, withFont],
-      [staticPattern, staticHeadPattern, starsPattern, withFontPattern]
+      [staticPattern, staticHeadPattern, starsPattern, withFontPattern],
+      preconnectUrl
     ) => {
       const appDir = join(fixturesDir, `with-${property}`)
       const nextConfig = join(appDir, 'next.config.js')
@@ -122,36 +127,76 @@ describe('Font Optimization', () => {
 
         it(`should inline the ${property} fonts for static pages`, async () => {
           const html = await renderViaHTTP(appPort, '/index')
+          const $ = cheerio.load(html)
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
-          expect(html).toContain(
-            `<link rel="stylesheet" data-href="${staticFont}"/>`
-          )
+          expect(
+            $(`link[rel=stylesheet][data-href="${staticFont}"]`).length
+          ).toBe(1)
           expect(html).toMatch(staticPattern)
         })
 
         it(`should inline the ${property} fonts for static pages with Next/Head`, async () => {
           const html = await renderViaHTTP(appPort, '/static-head')
+          const $ = cheerio.load(html)
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
-          expect(html).toContain(
-            `<link rel="stylesheet" data-href="${staticHeadFont}"/>`
-          )
+          expect(
+            $(`link[rel=stylesheet][data-href="${staticHeadFont}"]`).length
+          ).toBe(1)
           expect(html).toMatch(staticHeadPattern)
         })
 
         it(`should inline the ${property} fonts for SSR pages`, async () => {
           const html = await renderViaHTTP(appPort, '/stars')
+          const $ = cheerio.load(html)
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
-          expect(html).toContain(
-            `<link rel="stylesheet" data-href="${starsFont}"/>`
-          )
+          expect(
+            $(`link[rel=stylesheet][data-href="${starsFont}"]`).length
+          ).toBe(1)
           expect(html).toMatch(starsPattern)
+        })
+
+        it(`should add preconnect tag`, async () => {
+          const html = await renderViaHTTP(appPort, '/stars')
+          const $ = cheerio.load(html)
+          expect(
+            $(`link[rel=preconnect][href="${preconnectUrl}"]`).length
+          ).toBe(1)
         })
 
         it('should skip this optimization for AMP pages', async () => {
           const html = await renderViaHTTP(appPort, '/amp')
+          const $ = cheerio.load(html)
           expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
-          expect(html).toContain(`<link rel="stylesheet" href="${staticFont}">`)
+          expect($(`link[rel=stylesheet][href="${staticFont}"]`).length).toBe(1)
           expect(html).not.toMatch(staticPattern)
+        })
+
+        it('should work for fonts loaded on navigation', async () => {
+          let browser
+          try {
+            browser = await webdriver(appPort, '/')
+            await waitFor(1000)
+
+            const baseFont = await browser.elementByCss(
+              `style[data-href="${staticFont}"]`
+            )
+            expect(baseFont).toBeDefined()
+
+            await browser.waitForElementByCss('#with-font')
+            await browser.click('#with-font')
+
+            await browser.waitForElementByCss('#with-font-container')
+            const pageFontCss = await browser.elementsByCss(
+              `style[data-href="${withFont}"]`
+            )
+            expect(pageFontCss.length).toBe(0)
+            const pageFont = await browser.elementByCss(
+              `link[href="${withFont}"]`
+            )
+            expect(pageFont).toBeDefined()
+          } finally {
+            if (browser) await browser.close()
+          }
         })
 
         it('should minify the css', async () => {
@@ -176,15 +221,22 @@ describe('Font Optimization', () => {
 
           expect(testCss).toStrictEqual(snapshotCss)
         })
+
+        // Re-run build to check if it works when build is cached
+        it('should work when build is cached', async () => {
+          await nextBuild(appDir)
+          const testJson = JSON.parse(
+            await fs.readFile(builtPage('font-manifest.json'), {
+              encoding: 'utf-8',
+            })
+          )
+          expect(testJson.length).toBeGreaterThan(0)
+        })
       }
 
       describe('Font optimization for SSR apps', () => {
         beforeAll(async () => {
-          await fs.writeFile(
-            nextConfig,
-            `module.exports = { experimental: {optimizeFonts: true} }`,
-            'utf8'
-          )
+          await fs.writeFile(nextConfig, `module.exports = { }`, 'utf8')
 
           if (fs.pathExistsSync(join(appDir, '.next'))) {
             await fs.remove(join(appDir, '.next'))
@@ -203,7 +255,7 @@ describe('Font Optimization', () => {
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `module.exports = { target: 'serverless', experimental: {optimizeFonts: true} }`,
+            `module.exports = { target: 'serverless' }`,
             'utf8'
           )
           await nextBuild(appDir)
@@ -220,17 +272,18 @@ describe('Font Optimization', () => {
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `module.exports = { target: 'experimental-serverless-trace', experimental: {optimizeFonts: true} }`,
+            `module.exports = { target: 'experimental-serverless-trace' }`,
             'utf8'
           )
           await nextBuild(appDir)
           appPort = await findPort()
-          await startServerlessEmulator(appDir, appPort)
+          app = await startServerlessEmulator(appDir, appPort)
           builtServerPagesDir = join(appDir, '.next', 'serverless')
           builtPage = (file) => join(builtServerPagesDir, file)
         })
         afterAll(async () => {
           await fs.remove(nextConfig)
+          await killApp(app)
         })
         runTests()
       })

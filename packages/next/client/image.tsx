@@ -22,6 +22,7 @@ export type ImageLoaderProps = {
   src: string
   width: number
   quality?: number
+  isStatic?: boolean
 }
 
 type DefaultImageLoaderProps = ImageLoaderProps & { root: string }
@@ -49,11 +50,44 @@ type PlaceholderValue = 'blur' | 'empty'
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
+interface StaticImageData {
+  src: string
+  height: number
+  width: number
+  placeholder?: string
+}
+
+interface StaticRequire {
+  default: StaticImageData
+}
+
+type StaticImport = StaticRequire | StaticImageData
+
+function isStaticRequire(
+  src: StaticRequire | StaticImageData
+): src is StaticRequire {
+  return (src as StaticRequire).default !== undefined
+}
+
+function isStaticImageData(
+  src: StaticRequire | StaticImageData
+): src is StaticImageData {
+  return (src as StaticImageData).src !== undefined
+}
+
+function isStaticImport(src: string | StaticImport): src is StaticImport {
+  return (
+    typeof src === 'object' &&
+    (isStaticRequire(src as StaticImport) ||
+      isStaticImageData(src as StaticImport))
+  )
+}
+
 export type ImageProps = Omit<
   JSX.IntrinsicElements['img'],
   'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
 > & {
-  src: string
+  src: string | StaticImport
   loader?: ImageLoader
   quality?: number | string
   priority?: boolean
@@ -62,12 +96,6 @@ export type ImageProps = Omit<
   objectFit?: ImgElementStyle['objectFit']
   objectPosition?: ImgElementStyle['objectPosition']
 } & (
-    | {
-        width?: never
-        height?: never
-        /** @deprecated Use `layout="fill"` instead */
-        unsized: true
-      }
     | { width?: never; height?: never; layout: 'fill' }
     | {
         width: number | string
@@ -151,6 +179,7 @@ type GenImgAttrsData = {
   unoptimized: boolean
   layout: LayoutValue
   loader: ImageLoader
+  isStatic?: boolean
   width?: number
   quality?: number
   sizes?: string
@@ -170,6 +199,7 @@ function generateImgAttrs({
   quality,
   sizes,
   loader,
+  isStatic,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
     return { src, srcSet: undefined, sizes: undefined }
@@ -183,7 +213,7 @@ function generateImgAttrs({
     srcSet: widths
       .map(
         (w, i) =>
-          `${loader({ src, quality, width: w })} ${
+          `${loader({ src, quality, isStatic, width: w })} ${
             kind === 'w' ? w : i + 1
           }${kind}`
       )
@@ -195,7 +225,7 @@ function generateImgAttrs({
     // updated by React. That causes multiple unnecessary requests if `srcSet`
     // and `sizes` are defined.
     // This bug cannot be reproduced in Chrome or Firefox.
-    src: loader({ src, quality, width: widths[last] }),
+    src: loader({ src, quality, isStatic, width: widths[last] }),
   }
 }
 
@@ -260,12 +290,7 @@ export default function Image({
 }: ImageProps) {
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
-  let unsized = false
-  if ('unsized' in rest) {
-    unsized = Boolean(rest.unsized)
-    // Remove property so it's not spread into image:
-    delete rest['unsized']
-  } else if ('layout' in rest) {
+  if ('layout' in rest) {
     // Override default layout if the user specified one:
     if (rest.layout) layout = rest.layout
 
@@ -276,6 +301,35 @@ export default function Image({
   if (!configEnableBlurryPlaceholder) {
     placeholder = 'empty'
   }
+  const isStatic = typeof src === 'object'
+  let staticSrc = ''
+  if (isStaticImport(src)) {
+    const staticImageData = isStaticRequire(src) ? src.default : src
+
+    if (!staticImageData.src) {
+      throw new Error(
+        `An object should only be passed to the image component src parameter if it comes from a static image import. It must include src. Received ${JSON.stringify(
+          staticImageData
+        )}`
+      )
+    }
+    if (staticImageData.placeholder) {
+      blurDataURL = staticImageData.placeholder
+    }
+    staticSrc = staticImageData.src
+    if (!layout || layout !== 'fill') {
+      height = height || staticImageData.height
+      width = width || staticImageData.width
+      if (!staticImageData.height || !staticImageData.width) {
+        throw new Error(
+          `An object should only be passed to the image component src parameter if it comes from a static image import. It must include height and width. Received ${JSON.stringify(
+            staticImageData
+          )}`
+        )
+      }
+    }
+  }
+  src = (isStatic ? staticSrc : src) as string
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
@@ -304,13 +358,7 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
-    if (unsized) {
-      throw new Error(
-        `Image with src "${src}" has deprecated "unsized" property, which was removed in favor of the "layout='fill'" property`
-      )
-    }
   }
-
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (src && src.startsWith('data:')) {
@@ -458,14 +506,10 @@ export default function Image({
       quality: qualityInt,
       sizes,
       loader,
+      isStatic,
     })
   }
 
-  if (unsized) {
-    wrapperStyle = undefined
-    sizerStyle = undefined
-    imgStyle = undefined
-  }
   return (
     <div style={wrapperStyle}>
       {sizerStyle ? (
@@ -590,6 +634,7 @@ function cloudinaryLoader({
 
 function defaultLoader({
   root,
+  isStatic,
   src,
   width,
   quality,
@@ -637,5 +682,7 @@ function defaultLoader({
     }
   }
 
-  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
+  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}${
+    isStatic ? '&s=1' : ''
+  }`
 }
