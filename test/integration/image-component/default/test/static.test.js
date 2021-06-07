@@ -18,7 +18,6 @@ let browser
 let html
 
 const indexPage = new File(join(appDir, 'pages/static.js'))
-const nextConfig = new File(join(appDir, 'next.config.js'))
 
 const runTests = () => {
   it('Should allow an image with a static src to omit height and width', async () => {
@@ -77,17 +76,6 @@ describe('Build Error Tests', () => {
 })
 describe('Static Image Component Tests', () => {
   beforeAll(async () => {
-    nextConfig.write(
-      `
-        module.exports = {
-          experimental: {
-            enableStaticImages: true,
-            enableBlurryPlaceholder: true,
-          },
-        }
-      `
-    )
-
     await nextBuild(appDir)
     appPort = await findPort()
     app = await nextStart(appDir, appPort)
@@ -95,7 +83,6 @@ describe('Static Image Component Tests', () => {
     browser = await webdriver(appPort, '/static')
   })
   afterAll(() => {
-    nextConfig.delete()
     killApp(app)
   })
   runTests()
