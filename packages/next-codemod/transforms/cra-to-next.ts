@@ -9,9 +9,11 @@ import htmlToReactAttributes from '../lib/html-to-react-attributes'
 import { indexContext } from '../lib/cra-to-next/index-to-component'
 import { globalCssContext } from '../lib/cra-to-next/global-css-transform'
 
+const feedbackMessage = `Please share any feedback on the migration here: https://github.com/vercel/next.js/discussions/25858`
+
 // log error and exit without new stacktrace
 function fatalMessage(...logs) {
-  console.error(...logs)
+  console.error(...logs, `\n${feedbackMessage}`)
   process.exit(1)
 }
 
@@ -127,10 +129,6 @@ class CraTransform {
     }
     this.logCreate(this.pagesDir)
 
-    await this.updatePackageJson()
-    await this.createNextConfig()
-    await this.updateGitIgnore()
-
     if (globalCssContext.reactSvgImports.size > 0) {
       // This de-opts webpack 5 since svg/webpack doesn't support webpack 5 yet,
       // so we don't support this automatically
@@ -141,6 +139,9 @@ class CraTransform {
           ].join('\n')}`
       )
     }
+    await this.updatePackageJson()
+    await this.createNextConfig()
+    await this.updateGitIgnore()
     await this.createPages()
   }
 
@@ -466,7 +467,7 @@ export default function Page(props) {
         )
       )
 
-      install(this.appDir, neededDependencies, {
+      await install(this.appDir, neededDependencies, {
         useYarn: this.installClient === 'yarn',
         // do we want to detect offline as well? they might not
         // have next in the local cache already
@@ -600,6 +601,8 @@ export default async function transformer(files, flags) {
   try {
     const craTransform = new CraTransform(files, flags)
     await craTransform.transform()
+
+    console.log(`CRA to Next.js migration complete`, `\n${feedbackMessage}`)
   } catch (err) {
     fatalMessage(`Error: failed to complete transform`, err)
   }

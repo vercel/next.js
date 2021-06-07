@@ -59,5 +59,7 @@ export default function transformer(
     })
     .remove()
 
-  return hasModifications ? root.toSource(options) : null
+  return hasModifications && globalCssContext.reactSvgImports.size === 0
+    ? root.toSource(options)
+    : null
 }
