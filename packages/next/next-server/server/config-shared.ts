@@ -27,13 +27,16 @@ export type NextConfig = { [key: string]: any } & {
       }
   >
   redirects?: () => Promise<Redirect[]>
-
   trailingSlash?: boolean
+  webpack5?: false
 
   future: {
+    /**
+     * @deprecated this options was moved to the top level
+     */
+    webpack5?: false
     strictPostcssConfiguration?: boolean
     excludeDefaultMomentLocales?: boolean
-    webpack5?: boolean
   }
   experimental: {
     cpus?: number
@@ -112,10 +115,11 @@ export const defaultConfig: NextConfig = {
     disableOptimizedLoading: true,
     gzipSize: true,
   },
+  webpack5:
+    Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0 ? false : undefined,
   future: {
     strictPostcssConfiguration: false,
     excludeDefaultMomentLocales: false,
-    webpack5: Number(process.env.NEXT_PRIVATE_TEST_WEBPACK5_MODE) > 0,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},

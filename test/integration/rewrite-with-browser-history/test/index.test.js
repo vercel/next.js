@@ -30,7 +30,7 @@ const runTests = () => {
       .click()
       .waitForElementByCss('#index')
 
-    await browser.back()
+    await browser.back().waitForElementByCss('#another')
 
     expect(await browser.waitForElementByCss('#another').text()).toBe(
       'another page'
