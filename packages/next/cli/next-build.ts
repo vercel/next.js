@@ -98,7 +98,9 @@ const nextBuild: cliCommand = (argv) => {
   }
 
   return preflight()
-    .then(() => build(dir, null, args['--profile'], args['--debug']))
+    .then(() =>
+      build(dir, null, args['--profile'], args['--debug'], !args['--no-lint'])
+    )
     .catch((err) => {
       console.error('')
       console.error('> Build error occurred')

@@ -119,7 +119,8 @@ export default async function build(
   dir: string,
   conf = null,
   reactProductionProfiling = false,
-  debugOutput = false
+  debugOutput = false,
+  runLint = true
 ): Promise<void> {
   const nextBuildSpan = trace('next-build')
 
@@ -214,7 +215,7 @@ export default async function build(
 
     const ignoreESLint = Boolean(config.eslint?.ignoreDuringBuilds)
     const lintDirs = config.eslint?.dirs
-    if (!ignoreESLint) {
+    if (!ignoreESLint && runLint) {
       await nextBuildSpan
         .traceChild('verify-and-lint')
         .traceAsyncFn(async () => {
