@@ -816,11 +816,6 @@ export default class Router implements BaseRouter {
       this.isReady = true
     }
 
-    // Default to scroll reset behavior unless explicitly specified to be
-    // `false`! This makes the behavior between using `Router#push` and a
-    // `<Link />` consistent.
-    options.scroll = !!(options.scroll ?? true)
-
     let localeChange = options.locale !== this.locale
 
     if (process.env.__NEXT_I18N_SUPPORT) {
@@ -1178,9 +1173,9 @@ export default class Router implements BaseRouter {
 
       // shallow routing is only allowed for same page URL changes.
       const isValidShallowRoute = options.shallow && this.route === route
-      const resetScroll =
-        isValidShallowRoute && !options.scroll ? null : { x: 0, y: 0 }
 
+      const shouldScroll = options.scroll ?? !isValidShallowRoute
+      const resetScroll = shouldScroll ? { x: 0, y: 0 } : null
       await this.set(
         route,
         pathname!,

@@ -94,8 +94,8 @@ function linkClicked(
   e.preventDefault()
 
   //  avoid scroll for urls with anchor refs
-  if (scroll == null) {
-    scroll = as.indexOf('#') < 0
+  if (scroll == null && as.indexOf('#') >= 0) {
+    scroll = false
   }
 
   // replace state instead of push if prop is present

@@ -881,6 +881,22 @@ describe('Client Navigation', () => {
     })
   })
 
+  it('should scroll to top when the scroll option is set to true', async () => {
+    const browser = await webdriver(context.appPort, '/nav/shallow-routing')
+    await browser.eval(() =>
+      document.querySelector('#increaseWithScroll').scrollIntoView()
+    )
+    const scrollPosition = await browser.eval('window.pageYOffset')
+
+    expect(scrollPosition).toBeGreaterThan(3000)
+
+    await browser.elementByCss('#increaseWithScroll').click()
+    await waitFor(500)
+    const newScrollPosition = await browser.eval('window.pageYOffset')
+
+    expect(newScrollPosition).toBe(0)
+  })
+
   describe('with URL objects', () => {
     it('should work with <Link/>', async () => {
       const browser = await webdriver(context.appPort, '/nav')
