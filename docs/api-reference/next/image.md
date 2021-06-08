@@ -99,6 +99,7 @@ but maintain the original dimensions for larger viewports.
 
 When `responsive`, the image will scale the dimensions down for smaller
 viewports and scale up for larger viewports.
+Warning, the parent element must not have style `display: flex`.
 
 When `fill`, the image will stretch both width and height to the dimensions of
 the parent element, usually paired with the [`objectFit`](#objectFit) property.
