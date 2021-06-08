@@ -19,7 +19,7 @@ npm install react@latest react-dom@latest
 Or using `yarn`:
 
 ```
-yarn add next@latest react-dom@latest
+yarn add react@latest react-dom@latest
 ```
 
 ### Remove `super.componentDidCatch()` from `pages/_app.js`
