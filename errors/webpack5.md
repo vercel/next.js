@@ -2,17 +2,17 @@
 
 #### Why This Message Occurred
 
-Next.js will soon adopt webpack 5 as the default for compilation. We've spent a lot of effort into ensuring the transition from webpack 4 to 5 will be as smooth as possible. For example Next.js now comes with both webpack 4 and 5 allowing you to adopt webpack 5 by adding a flag to your `next.config.js`:
+Next.js has adopted webpack 5 as the default for compilation. We've spent a lot of effort into ensuring the transition from webpack 4 to 5 will be as smooth as possible. For example Next.js now comes with both webpack 4 and 5 allowing you to adopt webpack 5 by adding a flag to your `next.config.js`:
 
 ```js
 module.exports = {
-  future: {
-    webpack5: true,
-  },
+  // Webpack 5 is enabled by default
+  // You can still use webpack 4 while upgrading to the latest version of Next.js by adding the "webpack5: false" flag
+  webpack5: false,
 }
 ```
 
-Adopting webpack 5 in your application has many benefits, notably:
+Using webpack 5 in your application has many benefits, notably:
 
 - Improved Disk Caching: `next build` is significantly faster on subsequent builds
 - Improved Fast Refresh: Fast Refresh work is prioritized
@@ -22,11 +22,13 @@ Adopting webpack 5 in your application has many benefits, notably:
 - Support for web workers using `new Worker(new URL("worker.js", import.meta.url))`
 - Support for `exports`/`imports` field in `package.json`
 
-In upcoming releases we'll gradually roll out webpack 5 to applications that are compatible with webpack 5:
+In the past releases we have gradually rolled out webpack 5 to Next.js applications:
 
-- In the next minor version we'll automatically opt-in applications without custom webpack configuration in `next.config.js`
-- In the next minor version we'll automatically opt-in applications that do not have a `next.config.js`
-- In the next major version we'll enable webpack 5 by default. You'll still be able to opt-out and use webpack 4 to help with backwards compatibility
+- In Next.js 10.2 we automatically opted-in applications without custom webpack configuration in `next.config.js`
+- In Next.js 10.2 we automatically opted-in applications that do not have a `next.config.js`
+- In Next.js 11 webpack 5 was enabled by default for all applications. You can still opt-out and use webpack 4 to help with backwards compatibility using `webpack5: false` in `next.config.js`
+
+In the next major version webpack 4 support will be removed.
 
 #### Custom webpack configuration
 

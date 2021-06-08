@@ -51,6 +51,7 @@ import WebpackConformancePlugin, {
   ReactSyncScriptsConformanceCheck,
 } from './webpack/plugins/webpack-conformance-plugin'
 import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin'
+import { regexLikeCss } from './webpack/config/blocks/css'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 
@@ -176,6 +177,7 @@ const WEBPACK_RESOLVE_OPTIONS = {
   // Otherwise combined ESM+CJS packages will never be external
   // as resolving mismatch would lead to opt-out from being external.
   dependencyType: 'commonjs',
+  symlinks: true,
 }
 
 const NODE_RESOLVE_OPTIONS = {
@@ -233,10 +235,11 @@ export default async function getBaseWebpackConfig(
   const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })
   const hasReactRefresh: boolean = dev && !isServer
   const hasJsxRuntime: boolean =
-    Boolean(reactVersion) &&
-    // 17.0.0-rc.0 had a breaking change not compatible with Next.js, but was
-    // fixed in rc.1.
-    semver.gte(reactVersion!, '17.0.0-rc.1')
+    config.experimental.reactRoot ||
+    (Boolean(reactVersion) &&
+      // 17.0.0-rc.0 had a breaking change not compatible with Next.js, but was
+      // fixed in rc.1.
+      semver.gte(reactVersion!, '17.0.0-rc.1'))
 
   const babelConfigFile = await [
     '.babelrc',
@@ -258,7 +261,9 @@ export default async function getBaseWebpackConfig(
 
   const distDir = path.join(dir, config.distDir)
 
-  const babelLoader = config.experimental.turboMode
+  // Webpack 5 can use the faster babel loader, webpack 5 has built-in caching for loaders
+  // For webpack 4 the old loader is used as it has external caching
+  const babelLoader = isWebpack5
     ? require.resolve('./babel/loader/index')
     : 'next-babel-loader'
   const defaultLoaders = {
@@ -739,6 +744,14 @@ export default async function getBaseWebpackConfig(
       return
     }
 
+    if (
+      res.match(
+        /next[/\\]dist[/\\]next-server[/\\](?!lib[/\\]router[/\\]router)/
+      )
+    ) {
+      return `commonjs ${request}`
+    }
+
     // Default pages have to be transpiled
     if (
       res.match(/[/\\]next[/\\]dist[/\\]/) ||
@@ -823,9 +836,9 @@ export default async function getBaseWebpackConfig(
       checkWasmTypes: false,
       nodeEnv: false,
       splitChunks: isServer
-        ? isWebpack5
+        ? isWebpack5 && !dev
           ? ({
-              filename: `${dev ? '[name]' : '[name].[contenthash]'}.js`,
+              filename: '[name].js',
               // allow to split entrypoints
               chunks: 'all',
               // size of files is not so relevant for server build
@@ -909,6 +922,9 @@ export default async function getBaseWebpackConfig(
             },
           }
         : {}),
+      // we must set publicPath to an empty value to override the default of
+      // auto which doesn't work in IE11
+      publicPath: '',
       path:
         isServer && isWebpack5 && !dev
           ? path.join(outputPath, 'chunks')
@@ -931,7 +947,7 @@ export default async function getBaseWebpackConfig(
         : 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
-        ? `${dev ? '[name]' : '[name].[contenthash]'}.js`
+        ? '[name].js'
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}${
             dev ? '[name]' : '[name].[contenthash]'
           }.js`,
@@ -949,6 +965,7 @@ export default async function getBaseWebpackConfig(
         'error-loader',
         'next-babel-loader',
         'next-client-pages-loader',
+        'next-image-loader',
         'next-serverless-loader',
         'noop-loader',
         'next-style-loader',
@@ -997,6 +1014,16 @@ export default async function getBaseWebpackConfig(
               ]
             : defaultLoaders.babel,
         },
+        ...(!config.images.disableStaticImages && isWebpack5
+          ? [
+              {
+                test: /\.(png|svg|jpg|jpeg|gif|webp|ico|bmp)$/i,
+                loader: 'next-image-loader',
+                issuer: { not: regexLikeCss },
+                dependency: { not: ['url'] },
+              },
+            ]
+          : []),
       ].filter(Boolean),
     },
     plugins: [
@@ -1071,9 +1098,6 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_OPTIMIZE_CSS': JSON.stringify(
           config.experimental.optimizeCss && !dev
         ),
-        'process.env.__NEXT_SCRIPT_LOADER': JSON.stringify(
-          !!config.experimental.scriptLoader
-        ),
         'process.env.__NEXT_SCROLL_RESTORATION': JSON.stringify(
           config.experimental.scrollRestoration
         ),
@@ -1088,7 +1112,6 @@ export default async function getBaseWebpackConfig(
                 domains: config.images.domains,
               }
             : {}),
-          enableBlurryPlaceholder: config.experimental.enableBlurryPlaceholder,
         }),
         'process.env.__NEXT_ROUTER_BASEPATH': JSON.stringify(config.basePath),
         'process.env.__NEXT_HAS_REWRITES': JSON.stringify(hasRewrites),
@@ -1246,6 +1269,47 @@ export default async function getBaseWebpackConfig(
     }
     // webpack 5 no longer polyfills Node.js modules:
     if (webpackConfig.node) delete webpackConfig.node.setImmediate
+
+    // Due to bundling of webpack the default values can't be correctly detected
+    // This restores the webpack defaults
+    // @ts-ignore webpack 5
+    webpackConfig.snapshot = {}
+    if (process.versions.pnp === '3') {
+      const match = /^(.+?)[\\/]cache[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
+        require.resolve('jest-worker')
+      )
+      if (match) {
+        // @ts-ignore webpack 5
+        webpackConfig.snapshot.managedPaths = [
+          path.resolve(match[1], 'unplugged'),
+        ]
+      }
+    } else {
+      const match = /^(.+?[\\/]node_modules)[\\/]/.exec(
+        require.resolve('jest-worker')
+      )
+      if (match) {
+        // @ts-ignore webpack 5
+        webpackConfig.snapshot.managedPaths = [match[1]]
+      }
+    }
+    if (process.versions.pnp === '1') {
+      const match = /^(.+?[\\/]v4)[\\/]npm-jest-worker-[^\\/]+-[\da-f]{40}[\\/]node_modules[\\/]/.exec(
+        require.resolve('jest-worker')
+      )
+      if (match) {
+        // @ts-ignore webpack 5
+        webpackConfig.snapshot.immutablePaths = [match[1]]
+      }
+    } else if (process.versions.pnp === '3') {
+      const match = /^(.+?)[\\/]jest-worker-npm-[^\\/]+\.zip[\\/]node_modules[\\/]/.exec(
+        require.resolve('jest-worker')
+      )
+      if (match) {
+        // @ts-ignore webpack 5
+        webpackConfig.snapshot.immutablePaths = [match[1]]
+      }
+    }
 
     if (dev) {
       if (!webpackConfig.optimization) {
