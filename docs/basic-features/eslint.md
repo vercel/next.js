@@ -67,7 +67,7 @@ module.exports = {
 Similarly, the `--dir` flag can be used for `next lint`:
 
 ```bash
-npx next lint --dir pages --dir utils
+yarn lint --dir pages --dir utils
 ```
 
 ## ESLint Plugin
