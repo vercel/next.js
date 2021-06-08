@@ -891,10 +891,10 @@ describe('Client Navigation', () => {
     expect(scrollPosition).toBeGreaterThan(3000)
 
     await browser.elementByCss('#increaseWithScroll').click()
-    await waitFor(500)
-    const newScrollPosition = await browser.eval('window.pageYOffset')
-
-    expect(newScrollPosition).toBe(0)
+    await check(async () => {
+      const newScrollPosition = await browser.eval('window.pageYOffset')
+      return newScrollPosition === 0 ? 'success' : 'fail'
+    }, 'success')
   })
 
   describe('with URL objects', () => {
