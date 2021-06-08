@@ -2,7 +2,7 @@ import loaderUtils from 'next/dist/compiled/loader-utils'
 import sizeOf from 'image-size'
 import { processBuffer } from '../../../next-server/server/lib/squoosh/main'
 
-const PLACEHOLDER_SIZE = 6
+const PLACEHOLDER_SIZE = 8
 
 async function nextImageLoader(content) {
   const context = this.rootContext
@@ -30,7 +30,7 @@ async function nextImageLoader(content) {
       content,
       [resizeOperationOpts],
       extension,
-      0
+      70
     )
     placeholder = `data:image/${extension};base64,${resizedImage.toString(
       'base64'
