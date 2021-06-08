@@ -23,13 +23,21 @@ function reasonMessage(reason: CheckReasons) {
 export async function loadWebpackHook(phase: string, dir: string) {
   let useWebpack5 = true
   let usesRemovedFlag = false
-  const worker: any = new Worker(
+  const worker = new Worker(
     path.resolve(__dirname, './config-utils-worker.js'),
     {
       enableWorkerThreads: false,
       numWorkers: 1,
+      forkOptions: {
+        env: {
+          ...process.env,
+          NODE_OPTIONS: '',
+        },
+      },
     }
-  )
+  ) as Worker & {
+    shouldLoadWithWebpack5: typeof import('./config-utils-worker').shouldLoadWithWebpack5
+  }
   try {
     const result: CheckResult = await worker.shouldLoadWithWebpack5(phase, dir)
     if (result.reason === 'future-flag') {
