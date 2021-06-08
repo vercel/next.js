@@ -607,7 +607,7 @@ describe('Image Component Tests', () => {
       let browser
       try {
         browser = await webdriver(appPort, '/blurry-placeholder')
-
+        await waitFor(1550)
         expect(
           await getComputedStyle(
             browser,
