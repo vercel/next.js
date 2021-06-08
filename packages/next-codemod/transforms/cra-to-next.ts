@@ -507,10 +507,7 @@ export default function Page(props) {
 
       await fs.promises.writeFile(
         path.join(this.appDir, 'next.config.js'),
-        `
-const craCompat = require('next/cra-compat.js')
-
-module.exports = craCompat({${
+        `module.exports = {${
           proxy
             ? `
   async rewrites() {
@@ -528,10 +525,15 @@ module.exports = craCompat({${
   env: {
     PUBLIC_URL: '${homepagePath === '/' ? '' : homepagePath || ''}'
   },
-  future: {
-    webpack5: true
-  }
-})
+  experimental: {
+    craCompat: true,
+  },
+  // Remove this to leverage Next.js' static image handling
+  // read more here: https://nextjs.org/docs/api-reference/next/image
+  images: {
+    disableStaticImages: true
+  }  
+}
 `
       )
     }
