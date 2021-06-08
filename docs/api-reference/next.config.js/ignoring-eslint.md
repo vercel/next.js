@@ -1,5 +1,5 @@
 ---
-description: Next.js reports ESLint errors and warnings during builds by default. Learn to opt-out of this behavior here.
+description: Next.js reports ESLint errors and warnings during builds by default. Learn how to opt-out of this behavior here.
 ---
 
 # Ignoring ESLint
@@ -15,10 +15,8 @@ Open `next.config.js` and enable the `ignoreDuringBuilds` option in the `eslint`
 ```js
 module.exports = {
   eslint: {
-    // !! WARN !!
-    // Dangerously allow production builds to successfully complete even if
+    // Warning: Dangerously allow production builds to successfully complete even if
     // your project has ESLint errors.
-    // !! WARN !!
     ignoreDuringBuilds: true,
   },
 }
