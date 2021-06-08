@@ -55,3 +55,30 @@ You can start editing the page by modifying `pages/index.js`. The page auto-upda
 [API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.js`.
 
 The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+
+
+## Static HTML export
+Nextjs apps can be [exported to static HTML](https://nextjs.org/docs/advanced-features/static-html-export)  using `next export`
+
+Your docker file should look like
+```
+WORKDIR /app
+# # install dependencies
+COPY package.json yarn.lock ./
+RUN yarn --production --frozen-lockfile
+
+# # Copy the directory after install is done
+COPY . .
+
+# # export
+RUN next build && next export
+
+# # Stage 2: setup your favourite webserver
+.
+...
+.....
+
+# # Copy static files to the public(html) directory
+COPY --from=builder /app/out <Path/to/html>
+
+```
