@@ -6,6 +6,22 @@ description: Learn how to upgrade Next.js.
 
 ## Upgrading from version 10 to 11
 
+## Upgrade React version to latest
+
+Most applications already use the latest version of React, with Next.js 11 the minimum React version has been updated to 17.0.2.
+
+To upgrade you can run the following command:
+
+```
+npm install react@latest react-dom@latest
+```
+
+Or using `yarn`:
+
+```
+yarn add react@latest react-dom@latest
+```
+
 ### Remove `super.componentDidCatch()` from `pages/_app.js`
 
 The `next/app` component's `componentDidCatch` has been deprecated since Next.js 9 as it's no longer needed and has since been a no-op, in Next.js 11 it has been removed.

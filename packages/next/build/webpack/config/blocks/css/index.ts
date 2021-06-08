@@ -14,7 +14,7 @@ import {
 import { getPostCssPlugins } from './plugins'
 
 // RegExps for all Style Sheet variants
-const regexLikeCss = /\.(css|scss|sass)(\.webpack\[javascript\/auto\])?$/
+export const regexLikeCss = /\.(css|scss|sass)(\.webpack\[javascript\/auto\])?$/
 
 // RegExps for Style Sheets
 const regexCssGlobal = /(?<!\.module)\.css$/
