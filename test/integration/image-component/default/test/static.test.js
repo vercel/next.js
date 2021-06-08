@@ -37,16 +37,6 @@ const runTests = () => {
     expect(html).toContain('width:200px;height:200px')
     expect(html).not.toContain('width:400px;height:400px')
   })
-  it('Should append "&s=1" to URLs of static images', async () => {
-    expect(
-      await browser.elementById('basic-static').getAttribute('src')
-    ).toContain('&s=1')
-  })
-  it('Should not append "&s=1" to URLs of non-static images', async () => {
-    expect(
-      await browser.elementById('basic-non-static').getAttribute('src')
-    ).not.toContain('&s=1')
-  })
   it('Should add a blurry placeholder to statically imported jpg', async () => {
     expect(html).toContain(
       `style="position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-image:url(&quot;data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAoKCgoKCgsMDAsPEA4QDxYUExMUFiIYGhgaGCIzICUgICUgMy03LCksNy1RQDg4QFFeT0pPXnFlZXGPiI+7u/sBCgoKCgoKCwwMCw8QDhAPFhQTExQWIhgaGBoYIjMgJSAgJSAzLTcsKSw3LVFAODhAUV5PSk9ecWVlcY+Ij7u7+//CABEIAAgACAMBIgACEQEDEQH/xAAUAAEAAAAAAAAAAAAAAAAAAAAH/9oACAEBAAAAADX/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/9oACAECEAAAAH//xAAUAQEAAAAAAAAAAAAAAAAAAAAA/9oACAEDEAAAAH//xAAdEAABAgcAAAAAAAAAAAAAAAATEhUAAwUUIzLS/9oACAEBAAE/AB0ZlUac43GqMYuo/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwB//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwB//9k=&quot;)"`

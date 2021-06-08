@@ -7,8 +7,6 @@ import * as CommentJson from 'next/dist/compiled/comment-json'
 
 import { formatResults } from './customFormatter'
 import { writeDefaultConfig } from './writeDefaultConfig'
-
-import { getPackageVersion } from '../get-package-version'
 import { findPagesDir } from '../find-pages-dir'
 import { CompileError } from '../compile-error'
 import {
@@ -35,19 +33,25 @@ async function lint(
   pkgJsonPath: string | null
 ): Promise<string | null> {
   // Load ESLint after we're sure it exists:
-  const { ESLint } = await import(deps.resolved)
+  const mod = await import(deps.resolved)
+
+  const { ESLint } = mod
 
   if (!ESLint) {
-    const eslintVersion: string | null = await getPackageVersion({
-      cwd: baseDir,
-      name: 'eslint',
-    })
+    const eslintVersion: string | undefined = mod?.CLIEngine?.version
 
-    if (eslintVersion && semver.lt(eslintVersion, '7.0.0')) {
+    if (!eslintVersion || semver.lt(eslintVersion, '7.0.0')) {
       Log.error(
-        `Your project has an older version of ESLint installed (${eslintVersion}). Please upgrade to v7 or later`
+        `Your project has an older version of ESLint installed${
+          eslintVersion ? ' (' + eslintVersion + ')' : ''
+        }. Please upgrade to ESLint version 7 or later`
       )
+      return null
     }
+
+    Log.error(
+      `ESLint class not found. Please upgrade to ESLint version 7 or later`
+    )
     return null
   }
 
