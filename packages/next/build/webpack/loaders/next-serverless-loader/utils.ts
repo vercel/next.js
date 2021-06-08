@@ -58,10 +58,6 @@ export type ServerlessHandlerCtx = {
   canonicalBase: string
   encodedPreviewProps: __ApiPreviewProps
   i18n?: NextConfig['i18n']
-  experimental: {
-    initServer: () => Promise<any>
-    onError: ({ err }: { err: Error }) => Promise<any>
-  }
 }
 
 export function getUtils({
@@ -284,7 +280,7 @@ export function getUtils({
 
   function normalizeDynamicRouteParams(params: ParsedUrlQuery) {
     let hasValidParams = true
-    if (!defaultRouteRegex) return { params, hasValidParams }
+    if (!defaultRouteRegex) return { params, hasValidParams: false }
 
     params = Object.keys(defaultRouteRegex.groups).reduce((prev, key) => {
       let value: string | string[] | undefined = params[key]
@@ -292,9 +288,15 @@ export function getUtils({
       // if the value matches the default value we can't rely
       // on the parsed params, this is used to signal if we need
       // to parse x-now-route-matches or not
-      const isDefaultValue = Array.isArray(value)
-        ? value.every((val, idx) => val === defaultRouteMatches![key][idx])
-        : value === defaultRouteMatches![key]
+      const defaultValue = defaultRouteMatches![key]
+
+      const isDefaultValue = Array.isArray(defaultValue)
+        ? defaultValue.some((defaultVal) => {
+            return Array.isArray(value)
+              ? value.some((val) => val.includes(defaultVal))
+              : value?.includes(defaultVal)
+          })
+        : value?.includes(defaultValue as string)
 
       if (isDefaultValue || typeof value === 'undefined') {
         hasValidParams = false

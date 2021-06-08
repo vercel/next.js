@@ -1,5 +1,7 @@
 /* eslint-env jest */
 
+import http from 'http'
+import httpProxy from 'http-proxy'
 import cheerio from 'cheerio'
 import { remove } from 'fs-extra'
 import {
@@ -18,6 +20,8 @@ jest.setTimeout(1000 * 60 * 1)
 const fixturesDir = join(__dirname, '../../css-fixtures')
 const appDir = join(fixturesDir, 'multi-module')
 
+let proxyServer
+let stallCss
 let appPort
 let app
 
@@ -152,12 +156,69 @@ describe('CSS Module client-side navigation', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
       await nextBuild(appDir)
+      const port = await findPort()
+      app = await nextStart(appDir, port)
       appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+
+      const proxy = httpProxy.createProxyServer({
+        target: `http://localhost:${port}`,
+      })
+
+      proxyServer = http.createServer(async (req, res) => {
+        if (stallCss && req.url.endsWith('.css')) {
+          console.log('stalling request for', req.url)
+          await new Promise((resolve) => setTimeout(resolve, 5 * 1000))
+        }
+        proxy.web(req, res)
+      })
+
+      proxy.on('error', (err) => {
+        console.warn('Failed to proxy', err)
+      })
+
+      await new Promise((resolve) => {
+        proxyServer.listen(appPort, () => resolve())
+      })
     })
     afterAll(async () => {
+      proxyServer.close()
       await killApp(app)
     })
+
+    it('should time out and hard navigate for stalled CSS request', async () => {
+      let browser
+      stallCss = true
+
+      try {
+        browser = await webdriver(appPort, '/red')
+        browser.eval('window.beforeNav = "hello"')
+
+        const redColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-red')).color`
+        )
+        expect(redColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+        expect(await browser.eval('window.beforeNav')).toBe('hello')
+
+        await browser.elementByCss('#link-blue').click()
+
+        await browser.waitForElementByCss('#verify-blue')
+
+        const blueColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-blue')).color`
+        )
+        expect(blueColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+
+        // the timeout should have been reached and we did a hard
+        // navigation
+        expect(await browser.eval('window.beforeNav')).toBe(null)
+      } finally {
+        stallCss = false
+        if (browser) {
+          await browser.close()
+        }
+      }
+    })
+
     runTests()
   })
 

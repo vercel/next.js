@@ -50,8 +50,9 @@ interface ExportPageInput {
   subFolders?: boolean
   serverless: boolean
   optimizeFonts: boolean
-  optimizeImages: boolean
+  optimizeImages?: boolean
   optimizeCss: any
+  disableOptimizedLoading: any
   parentSpanId: any
 }
 
@@ -70,6 +71,7 @@ interface RenderOpts {
   ampSkipValidation?: boolean
   optimizeFonts?: boolean
   optimizeImages?: boolean
+  disableOptimizedLoading?: boolean
   optimizeCss?: any
   fontManifest?: FontManifest
   locales?: string[]
@@ -98,6 +100,7 @@ export default async function exportPage({
   optimizeFonts,
   optimizeImages,
   optimizeCss,
+  disableOptimizedLoading,
 }: ExportPageInput): Promise<ExportPageResults> {
   const exportPageSpan = trace('export-page-worker', parentSpanId)
 
@@ -284,6 +287,7 @@ export default async function exportPage({
               optimizeImages,
               /// @ts-ignore
               optimizeCss,
+              disableOptimizedLoading,
               distDir,
               fontManifest: optimizeFonts
                 ? requireFontManifest(distDir, serverless)
@@ -357,6 +361,7 @@ export default async function exportPage({
             optimizeFonts,
             optimizeImages,
             optimizeCss,
+            disableOptimizedLoading,
             fontManifest: optimizeFonts
               ? requireFontManifest(distDir, serverless)
               : null,

@@ -1,4 +1,4 @@
-/* eslint-disable import/no-extraneous-dependencies, @typescript-eslint/no-unused-vars */
+/* eslint-disable import/no-extraneous-dependencies, @typescript-eslint/no-unused-vars , no-shadow */
 // Type definitions for webpack 4.39
 // Project: https://github.com/webpack/webpack
 // Definitions by: Qubo <https://github.com/tkqubo>

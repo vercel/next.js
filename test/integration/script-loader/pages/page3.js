@@ -1,4 +1,4 @@
-import Script from 'next/experimental-script'
+import Script from 'next/script'
 
 const Page = () => {
   return (
@@ -11,9 +11,9 @@ const Page = () => {
           })`}
       </Script>
       <Script
-        id="scriptLazy"
-        src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptLazy"
-        strategy="lazy"
+        id="scriptLazyOnload"
+        src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptLazyOnload"
+        strategy="lazyOnload"
       ></Script>
       <div>page3</div>
     </div>
