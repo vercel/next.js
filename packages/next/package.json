@@ -68,7 +68,6 @@
     "@next/polyfill-module": "10.2.4-canary.7",
     "@next/react-dev-overlay": "10.2.4-canary.7",
     "@next/react-refresh-utils": "10.2.4-canary.7",
-    "@opentelemetry/api": "0.14.0",
     "assert": "2.0.0",
     "ast-types": "0.13.2",
     "browserify-zlib": "0.2.0",
