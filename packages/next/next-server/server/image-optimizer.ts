@@ -163,7 +163,12 @@ export async function imageOptimizer(
         const contentType = getContentType(extension)
         const fsPath = join(hashDir, file)
         if (now < expireAt) {
-          res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+          res.setHeader(
+            'Cache-Control',
+            isStatic
+              ? 'public, max-age=315360000, immutable'
+              : 'public, max-age=0, must-revalidate'
+          )
           if (sendEtagResponse(req, res, etag)) {
             return { finished: true }
           }

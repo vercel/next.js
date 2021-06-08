@@ -512,11 +512,21 @@ function runTests({ w, isDev, domains }) {
         q: 100,
       }
       const opts = { headers: { accept: 'image/webp' } }
-      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-      expect(res.status).toBe(200)
-      expect(res.headers.get('cache-control')).toBe(
+
+      const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res1.status).toBe(200)
+      expect(res1.headers.get('cache-control')).toBe(
         'public, max-age=315360000, immutable'
       )
+      await expectWidth(res1, w)
+
+      // Ensure subsequent request also has immutable header
+      const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res2.status).toBe(200)
+      expect(res2.headers.get('cache-control')).toBe(
+        'public, max-age=315360000, immutable'
+      )
+      await expectWidth(res2, w)
     }
   })
 
