@@ -8,7 +8,6 @@ import * as CommentJson from 'next/dist/compiled/comment-json'
 import { formatResults } from './customFormatter'
 import { writeDefaultConfig } from './writeDefaultConfig'
 import { findPagesDir } from '../find-pages-dir'
-
 import { CompileError } from '../compile-error'
 import {
   hasNecessaryDependencies,
@@ -29,7 +28,7 @@ const linteableFiles = (dir: string) => {
 async function lint(
   deps: NecessaryDependencies,
   baseDir: string,
-  lintDirs: string[] | null,
+  lintDirs: string[],
   eslintrcFile: string | null,
   pkgJsonPath: string | null
 ): Promise<string | null> {
@@ -103,13 +102,7 @@ async function lint(
     }
   }
 
-  // If no directories to lint are provided, only the pages directory will be linted
-  const filesToLint = lintDirs
-    ? lintDirs.map(linteableFiles)
-    : linteableFiles(pagesDir)
-
-  const results = await eslint.lintFiles(filesToLint)
-
+  const results = await eslint.lintFiles(lintDirs.map(linteableFiles))
   if (ESLint.getErrorResults(results)?.length > 0) {
     throw new CompileError(await formatResults(baseDir, results))
   }
@@ -118,7 +111,7 @@ async function lint(
 
 export async function runLintCheck(
   baseDir: string,
-  lintDirs: string[] | null,
+  lintDirs: string[],
   lintDuringBuild: boolean = false
 ): Promise<string | null> {
   try {
