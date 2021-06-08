@@ -4,16 +4,24 @@ description: Next.js provides an integrated ESLint experience by default. These 
 
 # ESLint
 
-Since version **11.0.0**, Next.js provides an integrated [ESLint](https://eslint.org/) experience out of the box. To get started, run `next lint`:
+Since version **11.0.0**, Next.js provides an integrated [ESLint](https://eslint.org/) experience out of the box. Add `next lint` as a script to `package.json`:
+
+```json
+"scripts": {
+  "lint": "next lint"
+}
+```
+
+Then run `npm run lint` or `yarn lint`:
 
 ```bash
-npx next lint
+yarn lint
 ```
 
 If you don't already have ESLint configured in your application, you will be guided through the installation of the required packages.
 
 ```bash
-npx next lint
+yarn lint
 
 # You'll see instructions like these:
 #
