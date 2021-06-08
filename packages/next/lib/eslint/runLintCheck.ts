@@ -7,9 +7,10 @@ import * as CommentJson from 'next/dist/compiled/comment-json'
 
 import { formatResults } from './customFormatter'
 import { writeDefaultConfig } from './writeDefaultConfig'
-import { getPackageVersion } from '../get-package-version'
-import { findPagesDir } from '../find-pages-dir'
 
+import { getPackageVersion } from '../get-package-version'
+import { findDir } from '../find-dir'
+import { findPagesDir } from '../find-pages-dir'
 import { CompileError } from '../compile-error'
 import {
   hasNecessaryDependencies,
@@ -74,6 +75,8 @@ async function lint(
   }
 
   const pagesDir = findPagesDir(baseDir)
+  const componentsDir = findDir(baseDir, 'components')
+  const libDir = findDir(baseDir, 'lib')
 
   if (nextEslintPluginIsEnabled) {
     let updatedPagesDir = false
@@ -98,10 +101,12 @@ async function lint(
     }
   }
 
-  // If no directories to lint are provided, only the pages directory will be linted
+  // If no directories to lint are provided, the pages, components, and lib directories will be linted
   const filesToLint = lintDirs
     ? lintDirs.map(linteableFiles)
-    : linteableFiles(pagesDir)
+    : [pagesDir, componentsDir, libDir]
+        .filter((dir) => dir && dir.length > 0)
+        .map(linteableFiles)
 
   const results = await eslint.lintFiles(filesToLint)
 

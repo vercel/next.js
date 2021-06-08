@@ -2,6 +2,8 @@
 import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
 import { resolve, join } from 'path'
+import chalk from 'chalk'
+
 import { cliCommand } from '../bin/next'
 import { runLintCheck } from '../lib/eslint/runLintCheck'
 import { printAndExit } from '../server/lib/utils'
@@ -66,7 +68,11 @@ const nextLint: cliCommand = (argv) => {
 
   runLintCheck(baseDir, lintDirs)
     .then((results) => {
-      if (results) console.log(results)
+      if (results) {
+        console.log(results)
+      } else {
+        console.log(chalk.green('✔ No ESLint warnings or errors'))
+      }
     })
     .catch((err) => {
       printAndExit(err.message)
