@@ -57,14 +57,15 @@ const nextLint: cliCommand = (argv) => {
   }
 
   const dirs: string[] = args['--dir']
-  const lintDirs = dirs
-    ? dirs.reduce((res: string[], d: string) => {
-        const currDir = join(baseDir, d)
-        if (!existsSync(currDir)) return res
-        res.push(currDir)
-        return res
-      }, [])
-    : null
+  const lintDirs = (dirs ?? ['pages', 'components', 'lib']).reduce(
+    (res: string[], d: string) => {
+      const currDir = join(baseDir, d)
+      if (!existsSync(currDir)) return res
+      res.push(currDir)
+      return res
+    },
+    []
+  )
 
   runLintCheck(baseDir, lintDirs)
     .then((results) => {

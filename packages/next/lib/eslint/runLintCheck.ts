@@ -9,7 +9,6 @@ import { formatResults } from './customFormatter'
 import { writeDefaultConfig } from './writeDefaultConfig'
 
 import { getPackageVersion } from '../get-package-version'
-import { findDir } from '../find-dir'
 import { findPagesDir } from '../find-pages-dir'
 import { CompileError } from '../compile-error'
 import {
@@ -31,7 +30,7 @@ const linteableFiles = (dir: string) => {
 async function lint(
   deps: NecessaryDependencies,
   baseDir: string,
-  lintDirs: string[] | null,
+  lintDirs: string[],
   eslintrcFile: string | null,
   pkgJsonPath: string | null
 ): Promise<string | null> {
@@ -75,8 +74,6 @@ async function lint(
   }
 
   const pagesDir = findPagesDir(baseDir)
-  const componentsDir = findDir(baseDir, 'components')
-  const libDir = findDir(baseDir, 'lib')
 
   if (nextEslintPluginIsEnabled) {
     let updatedPagesDir = false
@@ -101,15 +98,7 @@ async function lint(
     }
   }
 
-  // If no directories to lint are provided, the pages, components, and lib directories will be linted
-  const filesToLint = lintDirs
-    ? lintDirs.map(linteableFiles)
-    : [pagesDir, componentsDir, libDir]
-        .filter((dir) => dir && dir.length > 0)
-        .map(linteableFiles)
-
-  const results = await eslint.lintFiles(filesToLint)
-
+  const results = await eslint.lintFiles(lintDirs.map(linteableFiles))
   if (ESLint.getErrorResults(results)?.length > 0) {
     throw new CompileError(await formatResults(baseDir, results))
   }
@@ -118,7 +107,7 @@ async function lint(
 
 export async function runLintCheck(
   baseDir: string,
-  lintDirs: string[] | null,
+  lintDirs: string[],
   lintDuringBuild: boolean = false
 ): Promise<string | null> {
   try {

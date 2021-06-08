@@ -212,12 +212,15 @@ export default async function build(
       typeCheckingSpinner.stopAndPersist()
     }
 
-    if (!Boolean(config.eslint?.ignoreDuringBuilds)) {
+    const ignoreESLint = Boolean(config.eslint?.ignoreDuringBuilds)
+    const lintDirs = config.eslint?.dirs
+    if (!ignoreESLint) {
       await nextBuildSpan
         .traceChild('verify-and-lint')
         .traceAsyncFn(async () => {
           await verifyAndLint(
             dir,
+            lintDirs,
             config.experimental.cpus,
             config.experimental.workerThreads
           )

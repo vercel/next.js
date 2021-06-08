@@ -2,13 +2,12 @@ import { join } from 'path'
 import { nextBuild, nextLint } from 'next-test-utils'
 import { writeFile, readFile } from 'fs-extra'
 
-import semver from 'next/dist/compiled/semver'
-
 jest.setTimeout(1000 * 60 * 2)
 
 const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
 const dirCustomConfig = join(__dirname, '../custom-config')
 const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
+const dirCustomDirectories = join(__dirname, '../custom-directories')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -55,6 +54,22 @@ describe('ESLint', () => {
         'Error: Comments inside children section of tag should be placed inside braces'
       )
     })
+
+    test('custom directories', async () => {
+      const { stdout, stderr } = await nextBuild(dirCustomDirectories, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).toContain('Failed to compile')
+      expect(output).toContain(
+        'Error: Comments inside children section of tag should be placed inside braces'
+      )
+      expect(output).toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
+    })
   })
 
   describe('Next Lint', () => {
@@ -87,6 +102,16 @@ describe('ESLint', () => {
       expect(output).toContain(
         'Error: Comments inside children section of tag should be placed inside braces'
       )
+    })
+
+    test('success message when no warnings or errors', async () => {
+      const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).toContain('No ESLint warnings or errors')
     })
   })
 })
