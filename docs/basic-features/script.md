@@ -12,7 +12,7 @@ Example of usage
 import Script from 'next/script'
 
 // Before
-<cript
+<Script
   async
   src="https://www.google-analytics.com/analytics.js"
 />
