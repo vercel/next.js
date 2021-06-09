@@ -154,8 +154,6 @@ export async function runLintCheck(
       baseDir,
       false,
       true,
-      eslintrcFile ?? '',
-      !!packageJsonConfig.eslintConfig,
       lintDuringBuild
     )
 
