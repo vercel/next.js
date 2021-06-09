@@ -2,7 +2,6 @@
   "name": "with-ant-design-mobile",
   "version": "1.1.0",
   "dependencies": {
-    "@zeit/next-css": "1.0.1",
     "antd-mobile": "2.2.5",
     "babel-plugin-import": "^1.2.1",
     "next": "latest",
