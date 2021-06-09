@@ -64,12 +64,10 @@ The `<Image />` component requires the following properties.
 
 ### src
 
-Can be either:
-1) A statically imported image file, as in the example code above, or
-2) A path to a remotely hosted image. This can be either an absolute URL,
-  or a relative path to be used with a [loader.](/docs/basic-features/image-optimization.md#loader)
-
-This is required.
+Required and must be one of the following:
+1. A statically imported image file, as in the example code above, or
+2. A path string. This can be either an absolute external URL,
+  or an internal path depending on the [loader](#loader).
 
 When using an external URL, you must add it to
 [domains](/docs/basic-features/image-optimization.md#domains) in
