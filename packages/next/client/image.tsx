@@ -22,7 +22,6 @@ export type ImageLoaderProps = {
   src: string
   width: number
   quality?: number
-  isStatic?: boolean
 }
 
 type DefaultImageLoaderProps = ImageLoaderProps & { root: string }
@@ -83,26 +82,16 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
   )
 }
 
-export type ImageProps = Omit<
-  JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
-> & {
-  src: string | StaticImport
-  loader?: ImageLoader
-  quality?: number | string
-  priority?: boolean
-  loading?: LoadingValue
-  unoptimized?: boolean
-  objectFit?: ImgElementStyle['objectFit']
-  objectPosition?: ImgElementStyle['objectPosition']
+type StringImageProps = {
+  src: string
 } & (
-    | { width?: never; height?: never; layout: 'fill' }
-    | {
-        width: number | string
-        height: number | string
-        layout?: Exclude<LayoutValue, 'fill'>
-      }
-  ) &
+  | { width?: never; height?: never; layout: 'fill' }
+  | {
+      width: number | string
+      height: number | string
+      layout?: Exclude<LayoutValue, 'fill'>
+    }
+) &
   (
     | {
         placeholder?: Exclude<PlaceholderValue, 'blur'>
@@ -111,13 +100,34 @@ export type ImageProps = Omit<
     | { placeholder: 'blur'; blurDataURL: string }
   )
 
+type ObjectImageProps = {
+  src: StaticImport
+  width?: number | string
+  height?: number | string
+  layout?: LayoutValue
+  placeholder?: PlaceholderValue
+  blurDataURL?: never
+}
+
+export type ImageProps = Omit<
+  JSX.IntrinsicElements['img'],
+  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
+> & {
+  loader?: ImageLoader
+  quality?: number | string
+  priority?: boolean
+  loading?: LoadingValue
+  unoptimized?: boolean
+  objectFit?: ImgElementStyle['objectFit']
+  objectPosition?: ImgElementStyle['objectPosition']
+} & (StringImageProps | ObjectImageProps)
+
 const {
   deviceSizes: configDeviceSizes,
   imageSizes: configImageSizes,
   loader: configLoader,
   path: configPath,
   domains: configDomains,
-  enableBlurryPlaceholder: configEnableBlurryPlaceholder,
 } =
   ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
 // sort smallest to largest
@@ -179,7 +189,6 @@ type GenImgAttrsData = {
   unoptimized: boolean
   layout: LayoutValue
   loader: ImageLoader
-  isStatic?: boolean
   width?: number
   quality?: number
   sizes?: string
@@ -199,7 +208,6 @@ function generateImgAttrs({
   quality,
   sizes,
   loader,
-  isStatic,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
     return { src, srcSet: undefined, sizes: undefined }
@@ -213,7 +221,7 @@ function generateImgAttrs({
     srcSet: widths
       .map(
         (w, i) =>
-          `${loader({ src, quality, isStatic, width: w })} ${
+          `${loader({ src, quality, width: w })} ${
             kind === 'w' ? w : i + 1
           }${kind}`
       )
@@ -225,7 +233,7 @@ function generateImgAttrs({
     // updated by React. That causes multiple unnecessary requests if `srcSet`
     // and `sizes` are defined.
     // This bug cannot be reproduced in Chrome or Firefox.
-    src: loader({ src, quality, isStatic, width: widths[last] }),
+    src: loader({ src, quality, width: widths[last] }),
   }
 }
 
@@ -253,19 +261,27 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 
 // See https://stackoverflow.com/q/39777833/266535 for why we use this ref
 // handler instead of the img's onLoad attribute.
+// 1500ms delay in removing placeholder is to prevent flash of white between
+// image load and image render.
 function removePlaceholder(
   element: HTMLImageElement | null,
   placeholder: PlaceholderValue
 ) {
   if (placeholder === 'blur' && element) {
-    if (element.complete) {
+    if (element.complete && !element.src.startsWith('data:')) {
       // If the real image fails to load, this will still remove the placeholder.
       // This is the desired behavior for now, and will be revisited when error
       // handling is worked on for the image component itself.
-      element.style.backgroundImage = 'none'
+      setTimeout(() => {
+        element.style.backgroundImage = 'none'
+      }, 1500)
     } else {
       element.onload = () => {
-        element.style.backgroundImage = 'none'
+        if (!element.src.startsWith('data:')) {
+          setTimeout(() => {
+            element.style.backgroundImage = 'none'
+          }, 1500)
+        }
       }
     }
   }
@@ -298,10 +314,6 @@ export default function Image({
     delete rest['layout']
   }
 
-  if (!configEnableBlurryPlaceholder) {
-    placeholder = 'empty'
-  }
-  const isStatic = typeof src === 'object'
   let staticSrc = ''
   if (isStaticImport(src)) {
     const staticImageData = isStaticRequire(src) ? src.default : src
@@ -329,7 +341,7 @@ export default function Image({
       }
     }
   }
-  src = (isStatic ? staticSrc : src) as string
+  src = typeof src === 'string' ? src : staticSrc
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
@@ -506,7 +518,6 @@ export default function Image({
       quality: qualityInt,
       sizes,
       loader,
-      isStatic,
     })
   }
 
@@ -634,7 +645,6 @@ function cloudinaryLoader({
 
 function defaultLoader({
   root,
-  isStatic,
   src,
   width,
   quality,
@@ -682,7 +692,5 @@ function defaultLoader({
     }
   }
 
-  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}${
-    isStatic ? '&s=1' : ''
-  }`
+  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
 }

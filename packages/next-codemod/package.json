@@ -1,9 +1,10 @@
 {
   "name": "@next/codemod",
-  "version": "10.2.4-canary.4",
+  "version": "10.2.4-canary.11",
   "license": "MIT",
   "dependencies": {
     "chalk": "4.1.0",
+    "cheerio": "1.0.0-rc.9",
     "execa": "4.0.3",
     "globby": "11.0.1",
     "inquirer": "7.3.3",
@@ -20,5 +21,8 @@
     "dev": "yarn tsc -d -w -p tsconfig.json",
     "test": "jest"
   },
-  "bin": "./bin/next-codemod.js"
+  "bin": "./bin/next-codemod.js",
+  "devDependencies": {
+    "@types/jscodeshift": "0.11.0"
+  }
 }

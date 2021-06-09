@@ -22,11 +22,9 @@ export function install(useWebpack5: boolean) {
 
 export type CheckReasons =
   | 'test-mode'
-  | 'no-config'
+  | 'default'
+  | 'flag-disabled'
   | 'future-flag'
-  | 'no-future-flag'
-  | 'no-webpack-config'
-  | 'webpack-config'
 
 export type CheckResult = {
   enabled: boolean
@@ -43,20 +41,18 @@ export async function shouldLoadWithWebpack5(
     cwd: dir,
   })
 
-  if (Number(process.env.NEXT_PRIVATE_TEST_WEBPACK5_MODE) > 0) {
+  if (Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0) {
     return {
-      enabled: true,
+      enabled: false,
       reason: 'test-mode',
     }
   }
 
-  // No `next.config.js`:
+  // Use webpack 5 by default in apps that do not have next.config.js
   if (!path?.length) {
-    // Uncomment to add auto-enable when there is no next.config.js
-    // Use webpack 5 by default in new apps:
     return {
       enabled: true,
-      reason: 'no-config',
+      reason: 'default',
     }
   }
 
@@ -69,33 +65,21 @@ export async function shouldLoadWithWebpack5(
     userConfigModule.default || userConfigModule
   )
 
-  // Opted-in manually
-  if (userConfig.future?.webpack5 === true) {
+  if (userConfig.future?.webpack5) {
     return {
-      enabled: true,
+      enabled: false,
       reason: 'future-flag',
     }
   }
-
-  // Opted-out manually
-  if (userConfig.future?.webpack5 === false) {
+  if (userConfig.webpack5 === false) {
     return {
       enabled: false,
-      reason: 'no-future-flag',
-    }
-  }
-
-  // Uncomment to add auto-enable when there is no custom webpack config
-  // The user isn't configuring webpack
-  if (!userConfig.webpack) {
-    return {
-      enabled: true,
-      reason: 'no-webpack-config',
+      reason: 'flag-disabled',
     }
   }
 
   return {
-    enabled: false,
-    reason: 'webpack-config',
+    enabled: true,
+    reason: 'default',
   }
 }
