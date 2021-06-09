@@ -14,11 +14,12 @@ description: Enable Image Optimization with the built-in Image component.
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                  |
-| --------- | ------------------------ |
-| `v10.0.5` | `loader` prop added.     |
-| `v10.0.1` | `layout` prop added.     |
-| `v10.0.0` | `next/image` introduced. |
+| Version   | Changes                                          |
+| --------- | ------------------------------------------------ |
+| `v11.0.0` | Static image support and blur placeholder added. |
+| `v10.0.5` | `loader` prop added.                             |
+| `v10.0.1` | `layout` prop added.                             |
+| `v10.0.0` | `next/image` introduced.                         |
 
 </details>
 
@@ -39,16 +40,15 @@ We can serve an optimized image like so:
 
 ```jsx
 import Image from 'next/image'
+import profilePic from '../me.png'
 
 function Home() {
   return (
     <>
       <h1>My Homepage</h1>
       <Image
-        src="/me.png"
+        src={profilePic}
         alt="Picture of the author"
-        width={500}
-        height={500}
       />
       <p>Welcome to my homepage!</p>
     </>
@@ -64,7 +64,12 @@ The `<Image />` component requires the following properties.
 
 ### src
 
-The path or URL to the source image. This is required.
+Can be either:
+1) A statically imported image file, as in the example code above, or
+2) A path to a remotely hosted image. This can be either an absolute URL,
+  or a relative path to be used with a [loader.](/docs/basic-features/image-optimization.md#loader)
+
+This is required.
 
 When using an external URL, you must add it to
 [domains](/docs/basic-features/image-optimization.md#domains) in
@@ -74,13 +79,13 @@ When using an external URL, you must add it to
 
 The width of the image, in pixels. Must be an integer without a unit.
 
-Required unless [`layout="fill"`](#layout).
+Required, except for statically imported images, or those with [`layout="fill"`](#layout).
 
 ### height
 
 The height of the image, in pixels. Must be an integer without a unit.
 
-Required unless [`layout="fill"`](#layout).
+Required, except for statically imported images, or those with [`layout="fill"`](#layout).
 
 ## Optional Props
 
@@ -162,6 +167,15 @@ When true, the image will be considered high priority and
 Should only be used when the image is visible above the fold. Defaults to
 `false`.
 
+### placeholder
+
+Setting `placeholder="blur"` enables an automatic placeholder effect for the image, 
+which is rendered on the page until the image is fully loaded.
+
+Blurry placeholder images are generated automatically for **statically imported** images.
+If you wish to use `placeholder="blur"` with any other image, you must provide a value for 
+the [`blurDataURL` property](#blurDataURL).
+
 ## Advanced Props
 
 In some cases, you may need more advanced usage. The `<Image />` component
@@ -195,6 +209,15 @@ the viewport.
 When `eager`, load the image immediately.
 
 [Learn more](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-loading)
+
+### blurDataURL
+
+A [data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs) to 
+be used as a placeholder image while the final image loads. Only has any effect when combined 
+with [`placeholder="blur"`](#placeholder). 
+
+Must be a base64-encoded image. It will be enlarged and blurred, so a very small image (10px or
+less) is recommended. Including larger images as placeholders may harm your application performance.
 
 ### unoptimized
 
