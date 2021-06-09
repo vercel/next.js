@@ -4,6 +4,12 @@ This example shows a Next.js application using the built-in ESLint setup with th
 
 Note: ESLint running during build (`next build`) is still experimental and needs to be enabled via an `{ experimental: eslint }` flag in `next.config.js`.
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-eslint)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):

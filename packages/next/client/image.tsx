@@ -22,7 +22,6 @@ export type ImageLoaderProps = {
   src: string
   width: number
   quality?: number
-  isStatic?: boolean
 }
 
 type DefaultImageLoaderProps = ImageLoaderProps & { root: string }
@@ -190,7 +189,6 @@ type GenImgAttrsData = {
   unoptimized: boolean
   layout: LayoutValue
   loader: ImageLoader
-  isStatic?: boolean
   width?: number
   quality?: number
   sizes?: string
@@ -210,7 +208,6 @@ function generateImgAttrs({
   quality,
   sizes,
   loader,
-  isStatic,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
     return { src, srcSet: undefined, sizes: undefined }
@@ -224,7 +221,7 @@ function generateImgAttrs({
     srcSet: widths
       .map(
         (w, i) =>
-          `${loader({ src, quality, isStatic, width: w })} ${
+          `${loader({ src, quality, width: w })} ${
             kind === 'w' ? w : i + 1
           }${kind}`
       )
@@ -236,7 +233,7 @@ function generateImgAttrs({
     // updated by React. That causes multiple unnecessary requests if `srcSet`
     // and `sizes` are defined.
     // This bug cannot be reproduced in Chrome or Firefox.
-    src: loader({ src, quality, isStatic, width: widths[last] }),
+    src: loader({ src, quality, width: widths[last] }),
   }
 }
 
@@ -311,7 +308,6 @@ export default function Image({
     delete rest['layout']
   }
 
-  const isStatic = typeof src === 'object'
   let staticSrc = ''
   if (isStaticImport(src)) {
     const staticImageData = isStaticRequire(src) ? src.default : src
@@ -339,7 +335,7 @@ export default function Image({
       }
     }
   }
-  src = (isStatic ? staticSrc : src) as string
+  src = typeof src === 'string' ? src : staticSrc
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
@@ -516,7 +512,6 @@ export default function Image({
       quality: qualityInt,
       sizes,
       loader,
-      isStatic,
     })
   }
 
@@ -644,7 +639,6 @@ function cloudinaryLoader({
 
 function defaultLoader({
   root,
-  isStatic,
   src,
   width,
   quality,
@@ -692,7 +686,5 @@ function defaultLoader({
     }
   }
 
-  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}${
-    isStatic ? '&s=1' : ''
-  }`
+  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
 }
