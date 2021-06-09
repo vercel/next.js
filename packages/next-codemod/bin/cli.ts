@@ -122,7 +122,7 @@ const TRANSFORMER_INQUIRER_CHOICES = [
   },
   {
     name:
-      'cra-to-next: automatically migrates a create-react-app project to leverage Next.js instead',
+      'cra-to-next (experimental): automatically migrates a Create React App project to Next.js',
     value: 'cra-to-next',
   },
 ]
