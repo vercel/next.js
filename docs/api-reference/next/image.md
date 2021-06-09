@@ -211,7 +211,7 @@ When `eager`, load the image immediately.
 ### blurDataURL
 
 A [Data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs) to 
-be used as a placeholder image while the final image loads. Only has any effect when combined 
+be used as a placeholder image before the `src` image successfully loads. Only takes effect when combined 
 with [`placeholder="blur"`](#placeholder). 
 
 Must be a base64-encoded image. It will be enlarged and blurred, so a very small image (10px or
