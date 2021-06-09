@@ -172,7 +172,7 @@ which is rendered on the page until the image is fully loaded.
 
 Blurry placeholder images are generated automatically for **statically imported** images.
 If you wish to use `placeholder="blur"` with any other image, you must provide a value for 
-the [`blurDataURL` property](#blurDataURL).
+the [`blurDataURL` property](#blurdataurl).
 
 ## Advanced Props
 
