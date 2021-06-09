@@ -49,32 +49,49 @@ type PlaceholderValue = 'blur' | 'empty'
 
 type ImgElementStyle = NonNullable<JSX.IntrinsicElements['img']['style']>
 
-export type ImageProps = Omit<
-  JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
-> & {
+interface StaticImageData {
   src: string
-  loader?: ImageLoader
-  quality?: number | string
-  priority?: boolean
-  loading?: LoadingValue
-  unoptimized?: boolean
-  objectFit?: ImgElementStyle['objectFit']
-  objectPosition?: ImgElementStyle['objectPosition']
+  height: number
+  width: number
+  placeholder?: string
+}
+
+interface StaticRequire {
+  default: StaticImageData
+}
+
+type StaticImport = StaticRequire | StaticImageData
+
+function isStaticRequire(
+  src: StaticRequire | StaticImageData
+): src is StaticRequire {
+  return (src as StaticRequire).default !== undefined
+}
+
+function isStaticImageData(
+  src: StaticRequire | StaticImageData
+): src is StaticImageData {
+  return (src as StaticImageData).src !== undefined
+}
+
+function isStaticImport(src: string | StaticImport): src is StaticImport {
+  return (
+    typeof src === 'object' &&
+    (isStaticRequire(src as StaticImport) ||
+      isStaticImageData(src as StaticImport))
+  )
+}
+
+type StringImageProps = {
+  src: string
 } & (
-    | {
-        width?: never
-        height?: never
-        /** @deprecated Use `layout="fill"` instead */
-        unsized: true
-      }
-    | { width?: never; height?: never; layout: 'fill' }
-    | {
-        width: number | string
-        height: number | string
-        layout?: Exclude<LayoutValue, 'fill'>
-      }
-  ) &
+  | { width?: never; height?: never; layout: 'fill' }
+  | {
+      width: number | string
+      height: number | string
+      layout?: Exclude<LayoutValue, 'fill'>
+    }
+) &
   (
     | {
         placeholder?: Exclude<PlaceholderValue, 'blur'>
@@ -83,13 +100,34 @@ export type ImageProps = Omit<
     | { placeholder: 'blur'; blurDataURL: string }
   )
 
+type ObjectImageProps = {
+  src: StaticImport
+  width?: number | string
+  height?: number | string
+  layout?: LayoutValue
+  placeholder?: PlaceholderValue
+  blurDataURL?: never
+}
+
+export type ImageProps = Omit<
+  JSX.IntrinsicElements['img'],
+  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
+> & {
+  loader?: ImageLoader
+  quality?: number | string
+  priority?: boolean
+  loading?: LoadingValue
+  unoptimized?: boolean
+  objectFit?: ImgElementStyle['objectFit']
+  objectPosition?: ImgElementStyle['objectPosition']
+} & (StringImageProps | ObjectImageProps)
+
 const {
   deviceSizes: configDeviceSizes,
   imageSizes: configImageSizes,
   loader: configLoader,
   path: configPath,
   domains: configDomains,
-  enableBlurryPlaceholder: configEnableBlurryPlaceholder,
 } =
   ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
 // sort smallest to largest
@@ -228,14 +266,16 @@ function removePlaceholder(
   placeholder: PlaceholderValue
 ) {
   if (placeholder === 'blur' && element) {
-    if (element.complete) {
+    if (element.complete && !element.src.startsWith('data:')) {
       // If the real image fails to load, this will still remove the placeholder.
       // This is the desired behavior for now, and will be revisited when error
       // handling is worked on for the image component itself.
       element.style.backgroundImage = 'none'
     } else {
       element.onload = () => {
-        element.style.backgroundImage = 'none'
+        if (!element.src.startsWith('data:')) {
+          element.style.backgroundImage = 'none'
+        }
       }
     }
   }
@@ -260,12 +300,7 @@ export default function Image({
 }: ImageProps) {
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
-  let unsized = false
-  if ('unsized' in rest) {
-    unsized = Boolean(rest.unsized)
-    // Remove property so it's not spread into image:
-    delete rest['unsized']
-  } else if ('layout' in rest) {
+  if ('layout' in rest) {
     // Override default layout if the user specified one:
     if (rest.layout) layout = rest.layout
 
@@ -273,9 +308,34 @@ export default function Image({
     delete rest['layout']
   }
 
-  if (!configEnableBlurryPlaceholder) {
-    placeholder = 'empty'
+  let staticSrc = ''
+  if (isStaticImport(src)) {
+    const staticImageData = isStaticRequire(src) ? src.default : src
+
+    if (!staticImageData.src) {
+      throw new Error(
+        `An object should only be passed to the image component src parameter if it comes from a static image import. It must include src. Received ${JSON.stringify(
+          staticImageData
+        )}`
+      )
+    }
+    if (staticImageData.placeholder) {
+      blurDataURL = staticImageData.placeholder
+    }
+    staticSrc = staticImageData.src
+    if (!layout || layout !== 'fill') {
+      height = height || staticImageData.height
+      width = width || staticImageData.width
+      if (!staticImageData.height || !staticImageData.width) {
+        throw new Error(
+          `An object should only be passed to the image component src parameter if it comes from a static image import. It must include height and width. Received ${JSON.stringify(
+            staticImageData
+          )}`
+        )
+      }
+    }
   }
+  src = typeof src === 'string' ? src : staticSrc
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
@@ -304,13 +364,7 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
-    if (unsized) {
-      throw new Error(
-        `Image with src "${src}" has deprecated "unsized" property, which was removed in favor of the "layout='fill'" property`
-      )
-    }
   }
-
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (src && src.startsWith('data:')) {
@@ -461,11 +515,6 @@ export default function Image({
     })
   }
 
-  if (unsized) {
-    wrapperStyle = undefined
-    sizerStyle = undefined
-    imgStyle = undefined
-  }
   return (
     <div style={wrapperStyle}>
       {sizerStyle ? (

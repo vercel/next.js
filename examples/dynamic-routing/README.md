@@ -10,6 +10,12 @@ This example shows how to do [dynamic routing](https://nextjs.org/docs/routing/d
 These routes are automatically matched by the server.
 You can use `next/link` as displayed in this example to route to these pages client side.
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/dynamic-routing)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):

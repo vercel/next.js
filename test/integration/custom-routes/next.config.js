@@ -190,6 +190,10 @@ module.exports = {
           ],
           destination: '/with-params?idk=:idk',
         },
+        {
+          source: '/blog/about',
+          destination: '/hello',
+        },
       ],
       beforeFiles: [
         {
@@ -201,6 +205,10 @@ module.exports = {
             },
           ],
           destination: '/with-params?overridden=1',
+        },
+        {
+          source: '/old-blog/:path*',
+          destination: '/blog/:path*',
         },
       ],
     }
