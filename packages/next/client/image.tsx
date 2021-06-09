@@ -53,7 +53,7 @@ interface StaticImageData {
   src: string
   height: number
   width: number
-  placeholder?: string
+  blurDataURL?: string
 }
 
 interface StaticRequire {
@@ -329,8 +329,8 @@ export default function Image({
         )}`
       )
     }
-    if (staticImageData.placeholder) {
-      blurDataURL = staticImageData.placeholder
+    if (staticImageData.blurDataURL) {
+      blurDataURL = staticImageData.blurDataURL
     }
     staticSrc = staticImageData.src
     if (!layout || layout !== 'fill') {
@@ -346,6 +346,10 @@ export default function Image({
     }
   }
   src = typeof src === 'string' ? src : staticSrc
+
+  const widthInt = getInt(width)
+  const heightInt = getInt(height)
+  const qualityInt = getInt(quality)
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
@@ -374,6 +378,18 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
+    if (placeholder === 'blur') {
+      if ((widthInt || 0) * (heightInt || 0) < 1600) {
+        console.warn(
+          `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
+        )
+      }
+      if (!blurDataURL) {
+        throw new Error(
+          `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.`
+        )
+      }
+    }
   }
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
@@ -388,14 +404,6 @@ export default function Image({
     disabled: !isLazy,
   })
   const isVisible = !isLazy || isIntersected
-
-  const widthInt = getInt(width)
-  const heightInt = getInt(height)
-  const qualityInt = getInt(quality)
-
-  // Show blur if larger than 5000px such as 100 x 50
-  const showBlurPlaceholder =
-    placeholder === 'blur' && (widthInt || 0) * (heightInt || 0) > 5000
 
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
@@ -423,7 +431,7 @@ export default function Image({
     objectFit,
     objectPosition,
 
-    ...(showBlurPlaceholder
+    ...(placeholder === 'blur'
       ? {
           filter: 'blur(20px)',
           backgroundSize: 'cover',
