@@ -484,6 +484,27 @@ function runTests(mode) {
         'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
       )
     })
+
+    it('should show invalid placeholder when blurDataUrl is missing', async () => {
+      const browser = await webdriver(appPort, '/invalid-placeholder-blur')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.png" has "placeholder='blur'" property but is missing the "blurDataURL" property.`
+      )
+    })
+
+    it('should warn when using a very small image with placeholder=blur', async () => {
+      const browser = await webdriver(appPort, '/small-img-import')
+
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
+      )
+    })
   }
 
   it('should correctly ignore prose styles', async () => {
