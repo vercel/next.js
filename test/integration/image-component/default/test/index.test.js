@@ -16,7 +16,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60)
+jest.setTimeout(1000 * 80)
 
 const appDir = join(__dirname, '../')
 
@@ -607,14 +607,15 @@ describe('Image Component Tests', () => {
       let browser
       try {
         browser = await webdriver(appPort, '/blurry-placeholder')
-
-        expect(
-          await getComputedStyle(
-            browser,
-            'blurry-placeholder',
-            'background-image'
-          )
-        ).toBe('none')
+        await check(
+          async () =>
+            await getComputedStyle(
+              browser,
+              'blurry-placeholder',
+              'background-image'
+            ),
+          'none'
+        )
         expect(
           await getComputedStyle(
             browser,
@@ -627,13 +628,15 @@ describe('Image Component Tests', () => {
 
         await browser.eval('document.getElementById("spacer").remove()')
 
-        expect(
-          await getComputedStyle(
-            browser,
-            'blurry-placeholder-with-lazy',
-            'background-image'
-          )
-        ).toBe('none')
+        await check(
+          async () =>
+            await getComputedStyle(
+              browser,
+              'blurry-placeholder-with-lazy',
+              'background-image'
+            ),
+          'none'
+        )
       } finally {
         if (browser) {
           await browser.close()
