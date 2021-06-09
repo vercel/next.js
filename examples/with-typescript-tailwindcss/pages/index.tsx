@@ -2,11 +2,11 @@ import Head from 'next/head'
 
 const Landing = () => (
   <div className="flex flex-col items-center justify-center min-h-screen py-2">
-		<Head>
+    <Head>
       <title>Create Next App</title>
-		</Head>
+    </Head>
 
-		<p className="text-lg font-semibold">Hello Next!</p>
+    <p className="text-lg font-semibold">Hello Next!</p>
   </div>
 )
 
