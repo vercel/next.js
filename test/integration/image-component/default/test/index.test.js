@@ -16,7 +16,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 60)
+jest.setTimeout(1000 * 80)
 
 const appDir = join(__dirname, '../')
 
