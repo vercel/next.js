@@ -2,6 +2,8 @@
 import { existsSync } from 'fs'
 import arg from 'next/dist/compiled/arg/index.js'
 import { resolve, join } from 'path'
+import chalk from 'chalk'
+
 import { cliCommand } from '../bin/next'
 import { runLintCheck } from '../lib/eslint/runLintCheck'
 import { printAndExit } from '../server/lib/utils'
@@ -55,18 +57,23 @@ const nextLint: cliCommand = (argv) => {
   }
 
   const dirs: string[] = args['--dir']
-  const lintDirs = dirs
-    ? dirs.reduce((res: string[], d: string) => {
-        const currDir = join(baseDir, d)
-        if (!existsSync(currDir)) return res
-        res.push(currDir)
-        return res
-      }, [])
-    : null
+  const lintDirs = (dirs ?? ['pages', 'components', 'lib']).reduce(
+    (res: string[], d: string) => {
+      const currDir = join(baseDir, d)
+      if (!existsSync(currDir)) return res
+      res.push(currDir)
+      return res
+    },
+    []
+  )
 
   runLintCheck(baseDir, lintDirs)
     .then((results) => {
-      if (results) console.log(results)
+      if (results) {
+        console.log(results)
+      } else {
+        console.log(chalk.green('✔ No ESLint warnings or errors'))
+      }
     })
     .catch((err) => {
       printAndExit(err.message)
