@@ -1,4 +1,4 @@
-import Script from 'next/experimental-script'
+import Script from 'next/script'
 
 const Page = () => {
   return (

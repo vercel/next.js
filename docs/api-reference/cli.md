@@ -21,7 +21,7 @@ Usage
   $ next <command>
 
 Available commands
-  build, start, export, dev, telemetry
+  build, start, export, dev, lint, telemetry
 
 Options
   --version, -v   Version number
@@ -82,6 +82,19 @@ The application will start at `http://localhost:3000` by default. The default po
 
 ```bash
 npx next start -p 4000
+```
+
+## Lint
+
+`next lint` runs ESLint for all files in the `pages`, `components`, and `lib` directories. It also
+provides a guided setup to install any required dependencies if ESLint is not already configured in
+your application.
+
+If you have other directories that you would like to lint, you can specify them using the `--dir`
+flag:
+
+```bash
+next lint --dir utils
 ```
 
 ## Telemetry

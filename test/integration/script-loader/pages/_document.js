@@ -1,7 +1,7 @@
 import * as React from 'react'
 /// @ts-ignore
 import Document, { Main, NextScript, Head } from 'next/document'
-import Script from 'next/experimental-script'
+import Script from 'next/script'
 
 export default class MyDocument extends Document {
   constructor(props) {
