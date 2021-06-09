@@ -5,7 +5,8 @@
     "dev": "next",
     "build": "next build",
     "start": "next start",
-    "analyze": "cross-env ANALYZE=true yarn build"
+    "analyze": "cross-env ANALYZE=true yarn build",
+    "serve": "serve .next/analyze"
   },
   "dependencies": {
     "@next/bundle-analyzer": "^9.1.4",
@@ -14,6 +15,9 @@
     "next": "latest",
     "react": "^16.8.0",
     "react-dom": "^16.8.0"
+  },
+  "devDependencies": {
+    "serve": "^11.3.2"
   },
   "license": "MIT"
 }

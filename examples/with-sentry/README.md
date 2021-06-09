@@ -7,6 +7,12 @@ This is an example showing how to use [Sentry](https://sentry.io) to catch & rep
 - Each API route is handled with `withSentry`
 - `next.config.js` automatically configures the app to use Sentry through `withSentry`
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-sentry)
+
 ## Deploy your own
 
 Once you have access to your [Sentry DSN](https://docs.sentry.io/product/sentry-basics/dsn-explainer/#where-to-find-your-dsn), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
