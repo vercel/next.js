@@ -273,12 +273,16 @@ function removePlaceholder(
       // This is the desired behavior for now, and will be revisited when error
       // handling is worked on for the image component itself.
       setTimeout(() => {
+        element.style.filter = 'none'
+        element.style.backgroundSize = 'none'
         element.style.backgroundImage = 'none'
       }, 1500)
     } else {
       element.onload = () => {
         if (!element.src.startsWith('data:')) {
           setTimeout(() => {
+            element.style.filter = 'none'
+            element.style.backgroundSize = 'none'
             element.style.backgroundImage = 'none'
           }, 1500)
         }
@@ -389,11 +393,9 @@ export default function Image({
   const heightInt = getInt(height)
   const qualityInt = getInt(quality)
 
-  const MIN_IMG_SIZE_FOR_PLACEHOLDER = 5000
-  const tooSmallForBlurryPlaceholder =
-    widthInt && heightInt && widthInt * heightInt < MIN_IMG_SIZE_FOR_PLACEHOLDER
-  const shouldShowBlurryPlaceholder =
-    placeholder === 'blur' && !tooSmallForBlurryPlaceholder
+  // Show blur if larger than 5000px such as 100 x 50
+  const showBlurPlaceholder =
+    placeholder === 'blur' && (widthInt || 0) * (heightInt || 0) > 5000
 
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
@@ -421,8 +423,9 @@ export default function Image({
     objectFit,
     objectPosition,
 
-    ...(shouldShowBlurryPlaceholder
+    ...(showBlurPlaceholder
       ? {
+          filter: 'blur(20px)',
           backgroundSize: 'cover',
           backgroundImage: `url("${blurDataURL}")`,
         }
