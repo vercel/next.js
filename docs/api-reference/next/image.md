@@ -16,7 +16,7 @@ description: Enable Image Optimization with the built-in Image component.
 
 | Version   | Changes                                          |
 | --------- | ------------------------------------------------ |
-| `v11.0.0` | Static image support and blur placeholder added. |
+| `v11.0.0` | Added static imports for `src`. Added `placeholder` and  `blurDataURL` props. |
 | `v10.0.5` | `loader` prop added.                             |
 | `v10.0.1` | `layout` prop added.                             |
 | `v10.0.0` | `next/image` introduced.                         |
@@ -170,7 +170,7 @@ Should only be used when the image is visible above the fold. Defaults to
 Setting `placeholder="blur"` enables an automatic placeholder effect for the image, 
 which is rendered on the page until the image is fully loaded.
 
-Blurry placeholder images are generated automatically for **statically imported** images.
+When `placeholder="blur"` is set on an image, a placeholder image is required. These are automatically generated for **statically imported** images only.
 If you wish to use `placeholder="blur"` with any other image, you must provide a value for 
 the [`blurDataURL` property](#blurdataurl).
 
