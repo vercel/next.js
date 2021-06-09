@@ -12,6 +12,6 @@
     "next": "latest",
     "react": "^16.12.0",
     "react-dom": "^16.12.0",
-    "tslib": "^2.2.0
+    "tslib": "^2.2.0"
   }
 }
