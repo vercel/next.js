@@ -70,18 +70,15 @@ export async function hasNecessaryDependencies(
   const removalLintMsg =
     `\n\n` +
     (lintDuringBuild
-      ? `If you do not want to run ESLint during builds, run ${chalk.bold.cyan(
-          'next build --no-lint'
-        )}` +
+      ? `If you do not want to run ESLint during builds, ` +
         (!!eslintrcFile
-          ? ` or remove the ${chalk.bold(
+          ? `remove the ${chalk.bold(
               basename(eslintrcFile)
-            )} file from your package root.`
+            )} file from your package root`
           : pkgJsonEslintConfig
-          ? ` or remove the ${chalk.bold(
-              'eslintConfig'
-            )} field from package.json.`
-          : '')
+          ? `remove the ${chalk.bold('eslintConfig')} field from package.json`
+          : '') +
+        ' or disable it in next.config.js.\n\nSee https://nextjs.org/docs/api-reference/next.config.js/ignoring-eslint.'
       : `Once installed, run ${chalk.bold.cyan('next lint')} again.`)
   const removalMsg = checkTSDeps ? removalTSMsg : removalLintMsg
 

@@ -70,12 +70,15 @@ function formatMessage(
 }
 
 export function formatResults(baseDir: string, results: LintResult[]): string {
-  return (
-    results
-      .filter(({ messages }) => messages?.length)
-      .map(({ messages, filePath }) =>
-        formatMessage(baseDir, messages, filePath)
-      )
-      .join('\n') + '\n'
-  )
+  const formattedResults = results
+    .filter(({ messages }) => messages?.length)
+    .map(({ messages, filePath }) => formatMessage(baseDir, messages, filePath))
+    .join('\n')
+
+  return formattedResults.length > 0
+    ? formattedResults +
+        `\n\n${chalk.bold(
+          'Need to disable some ESLint rules? Learn more here:'
+        )} https://nextjs.org/docs/basic-features/eslint#disabling-rules\n`
+    : ''
 }
