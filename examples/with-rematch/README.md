@@ -4,6 +4,12 @@ This example has two pages. The first page has a counter which can be incremente
 
 Since rematch is utility which uses redux under the hood, some elements like `store.js` and `withRematch` are very similar to the `with-redux` example. Please go through the [`with-redux` example](https://github.com/vercel/next.js/tree/master/examples/with-redux) before reading further if you are not familiar with how redux is integrated with Next.js. Rematch is just an extension for Redux so a lot of elements are the same.
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-rematch)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):

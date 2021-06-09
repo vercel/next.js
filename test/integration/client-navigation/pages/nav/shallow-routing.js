@@ -22,10 +22,10 @@ export default withRouter(
       return router.query.counter ? parseInt(router.query.counter) : 0
     }
 
-    increase() {
+    increase(scroll) {
       const counter = this.getCurrentCounter()
       const href = `/nav/shallow-routing?counter=${counter + 1}`
-      Router.push(href, href, { shallow: true })
+      Router.push(href, href, { shallow: true, scroll })
     }
 
     increaseNonShallow() {
@@ -55,6 +55,9 @@ export default withRouter(
           </div>
           <button id="increase" onClick={() => this.increase()}>
             Increase
+          </button>
+          <button id="increaseWithScroll" onClick={() => this.increase(true)}>
+            Increase with scroll
           </button>
           <button id="increase2" onClick={() => this.increaseNonShallow()}>
             Increase Non-Shallow

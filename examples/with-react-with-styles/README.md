@@ -8,6 +8,12 @@ For this purpose we are extending the `<Document />` and injecting the server si
 
 We are using `pages/_index.js` from this example [with-aphrodite](https://github.com/vercel/next.js/tree/master/examples/with-aphrodite).
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-react-with-styles)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):

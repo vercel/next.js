@@ -86,12 +86,15 @@ npx next start -p 4000
 
 ## Lint
 
-`next lint` runs ESLint for all files in the `pages` directory and provides a guided setup to install any required dependencies if ESLint is not already configured in your application.
+`next lint` runs ESLint for all files in the `pages`, `components`, and `lib` directories. It also
+provides a guided setup to install any required dependencies if ESLint is not already configured in
+your application.
 
-You can also run ESLint on other directories with the `--dir` flag:
+If you have other directories that you would like to lint, you can specify them using the `--dir`
+flag:
 
 ```bash
-next lint --dir components
+next lint --dir utils
 ```
 
 ## Telemetry

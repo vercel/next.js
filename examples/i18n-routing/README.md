@@ -4,6 +4,12 @@ This example shows how to create internationalized pages using Next.js and the i
 
 For further documentation on this feature see the [Internationalized Routing docs](https://nextjs.org/docs/advanced-features/i18n-routing).
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/i18n-routing)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
