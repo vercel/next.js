@@ -217,13 +217,6 @@ function runTests({ w, isDev, domains }) {
     )
   })
 
-  it('should fail when s is present and not "1"', async () => {
-    const query = { url: '/test.png', w, q: 100, s: 'foo' }
-    const res = await fetchViaHTTP(appPort, '/_next/image', query, {})
-    expect(res.status).toBe(400)
-    expect(await res.text()).toBe(`"s" parameter must be "1" or omitted`)
-  })
-
   it('should fail when domain is not defined in next.config.js', async () => {
     const url = `http://vercel.com/button`
     const query = { url, w, q: 100 }
@@ -511,13 +504,30 @@ function runTests({ w, isDev, domains }) {
   })
 
   it('should set cache-control to immutable for static images', async () => {
-    const query = { url: '/test.jpg', w, q: 100, s: '1' }
-    const opts = { headers: { accept: 'image/webp' } }
-    const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
-    expect(res.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe(
-      'public, immutable, max-age=315360000'
-    )
+    if (!isDev) {
+      const query = {
+        url:
+          '/_next/static/image/public/test.480a01e5ea850d0231aec0fa94bd23a0.jpg',
+        w,
+        q: 100,
+      }
+      const opts = { headers: { accept: 'image/webp' } }
+
+      const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res1.status).toBe(200)
+      expect(res1.headers.get('cache-control')).toBe(
+        'public, max-age=315360000, immutable'
+      )
+      await expectWidth(res1, w)
+
+      // Ensure subsequent request also has immutable header
+      const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res2.status).toBe(200)
+      expect(res2.headers.get('cache-control')).toBe(
+        'public, max-age=315360000, immutable'
+      )
+      await expectWidth(res2, w)
+    }
   })
 
   it("should error if the resource isn't a valid image", async () => {

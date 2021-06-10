@@ -2,6 +2,12 @@
 
 This example features how to use [Compiled](https://github.com/atlassian-labs/compiled) as the build time CSS-in-JS styling solution instead of [styled-jsx](https://github.com/zeit/styled-jsx).
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-compiled-css)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):

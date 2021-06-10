@@ -2,21 +2,12 @@ import { join } from 'path'
 import { nextBuild, nextLint } from 'next-test-utils'
 import { writeFile, readFile } from 'fs-extra'
 
-import semver from 'next/dist/compiled/semver'
-
 jest.setTimeout(1000 * 60 * 2)
 
 const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
 const dirCustomConfig = join(__dirname, '../custom-config')
-
-async function eslintVersion() {
-  const eslint = require.resolve('eslint')
-  const { ESLint, Linter } = await import(eslint)
-
-  if (!ESLint && !Linter) return null // A very old version (<v4) if both ESLint and Linter properties are not present
-
-  return ESLint ? ESLint.version : Linter.version
-}
+const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
+const dirCustomDirectories = join(__dirname, '../custom-directories')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -46,18 +37,38 @@ describe('ESLint', () => {
       })
 
       const output = stdout + stderr
-      const version = await eslintVersion()
+      expect(output).toContain(
+        'Error: Comments inside children section of tag should be placed inside braces'
+      )
+    })
 
-      if (!version || (version && semver.lt(version, '7.0.0'))) {
-        expect(output).toContain(
-          'Your project has an older version of ESLint installed'
-        )
-        expect(output).toContain('Please upgrade to v7 or later')
-      } else {
-        expect(output).toContain(
-          'Error: Comments inside children section of tag should be placed inside braces'
-        )
-      }
+    test('ignore during builds', async () => {
+      const { stdout, stderr } = await nextBuild(dirIgnoreDuringBuilds, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).not.toContain('Failed to compile')
+      expect(output).not.toContain(
+        'Error: Comments inside children section of tag should be placed inside braces'
+      )
+    })
+
+    test('custom directories', async () => {
+      const { stdout, stderr } = await nextBuild(dirCustomDirectories, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).toContain('Failed to compile')
+      expect(output).toContain(
+        'Error: Comments inside children section of tag should be placed inside braces'
+      )
+      expect(output).toContain(
+        'Warning: External synchronous scripts are forbidden'
+      )
     })
   })
 
@@ -88,18 +99,19 @@ describe('ESLint', () => {
       })
 
       const output = stdout + stderr
-      const version = await eslintVersion()
+      expect(output).toContain(
+        'Error: Comments inside children section of tag should be placed inside braces'
+      )
+    })
 
-      if (!version || (version && semver.lt(version, '7.0.0'))) {
-        expect(output).toContain(
-          'Your project has an older version of ESLint installed'
-        )
-        expect(output).toContain('Please upgrade to v7 or later')
-      } else {
-        expect(output).toContain(
-          'Error: Comments inside children section of tag should be placed inside braces'
-        )
-      }
+    test('success message when no warnings or errors', async () => {
+      const { stdout, stderr } = await nextLint(dirFirstTimeSetup, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).toContain('No ESLint warnings or errors')
     })
   })
 })
