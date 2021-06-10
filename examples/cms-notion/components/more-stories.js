@@ -14,7 +14,7 @@ export default function MoreStories({ posts }) {
             coverImageUrl={`/cover-images/${post.id}.jpeg`}
             date={post.date}
             author={post.author}
-            slug={post.title}
+            slug={post.slug}
             excerpt={post.blocks[0].text}
           />
         ))}

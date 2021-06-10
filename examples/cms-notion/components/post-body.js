@@ -5,7 +5,7 @@ export default function PostBody({ content }) {
   return (
     <div className="max-w-2xl mx-auto">
       <div className={markdownStyles['markdown']}>
-        {content}
+        {content.map(contentItem => contentItem.text).join('')}
         {/* <RichText render={content} /> */}
       </div>
     </div>

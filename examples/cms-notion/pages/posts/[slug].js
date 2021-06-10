@@ -14,9 +14,11 @@ import { CMS_NAME } from '../../lib/constants'
 
 export default function Post({ post, morePosts, preview }) {
   const router = useRouter()
-  if (!router.isFallback && !post?._meta?.uid) {
+  if (!router.isFallback && !post?.id) {
     return <ErrorPage statusCode={404} />
   }
+
+  const coverImageUrl = `/cover-images/${post.id}.jpeg`;
 
   return (
     <Layout preview={preview}>
@@ -29,17 +31,17 @@ export default function Post({ post, morePosts, preview }) {
             <article>
               <Head>
                 <title>
-                  {post.title[0].text} | Next.js Blog Example with {CMS_NAME}
+                  {post.title} | Next.js Blog Example with {CMS_NAME}
                 </title>
-                <meta property="og:image" content={post.coverimage.url} />
+                <meta property="og:image" content={coverImageUrl} />
               </Head>
               <PostHeader
                 title={post.title}
-                coverImage={post.coverimage}
+                coverImageUrl={coverImageUrl}
                 date={post.date}
                 author={post.author}
               />
-              <PostBody content={post.content} />
+              <PostBody content={post.blocks} />
             </article>
             <SectionSeparator />
             {morePosts && morePosts.length > 0 && (
@@ -65,9 +67,9 @@ export async function getStaticProps({ params, preview = false, previewData }) {
 }
 
 export async function getStaticPaths() {
-  const allPosts = await getAllPostsWithSlug()
+  const allPosts = await getAllPostsWithSlug();
   return {
-    paths: allPosts?.map(({ node }) => `/posts/${node._meta.uid}`) || [],
+    paths: allPosts?.map(post => `/posts/${post.slug}`) || [],
     fallback: true,
   }
 }
