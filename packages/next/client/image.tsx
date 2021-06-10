@@ -261,32 +261,28 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 
 // See https://stackoverflow.com/q/39777833/266535 for why we use this ref
 // handler instead of the img's onLoad attribute.
-// 1500ms delay in removing placeholder is to prevent flash of white between
-// image load and image render.
 function removePlaceholder(
-  element: HTMLImageElement | null,
+  img: HTMLImageElement | null,
   placeholder: PlaceholderValue
 ) {
-  if (placeholder === 'blur' && element) {
-    if (element.complete && !element.src.startsWith('data:')) {
+  if (placeholder === 'blur' && img) {
+    const handleLoad = () => {
+      if (!img.src.startsWith('data:')) {
+        const p = 'decode' in img ? img.decode() : Promise.resolve()
+        p.then(() => {
+          img.style.filter = 'none'
+          img.style.backgroundSize = 'none'
+          img.style.backgroundImage = 'none'
+        })
+      }
+    }
+    if (img.complete) {
       // If the real image fails to load, this will still remove the placeholder.
       // This is the desired behavior for now, and will be revisited when error
       // handling is worked on for the image component itself.
-      setTimeout(() => {
-        element.style.filter = 'none'
-        element.style.backgroundSize = 'none'
-        element.style.backgroundImage = 'none'
-      }, 1500)
+      handleLoad()
     } else {
-      element.onload = () => {
-        if (!element.src.startsWith('data:')) {
-          setTimeout(() => {
-            element.style.filter = 'none'
-            element.style.backgroundSize = 'none'
-            element.style.backgroundImage = 'none'
-          }, 1500)
-        }
-      }
+      img.onload = handleLoad
     }
   }
 }
