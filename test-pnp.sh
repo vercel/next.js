@@ -1,7 +1,7 @@
 declare -a testCases=(
   # Tests the webpack require hook
   "progressive-web-app"
-
+  "with-eslint"
   "with-typescript"
   "with-next-sass"
   # Tests @next/mdx
@@ -39,5 +39,5 @@ do
   yarn config set enableGlobalCache true
   yarn link --all --private -r ../..
 
-  yarn build
+  yarn build --no-lint
 done

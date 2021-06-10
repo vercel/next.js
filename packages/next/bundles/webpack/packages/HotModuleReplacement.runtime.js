@@ -101,6 +101,7 @@ module.exports = function () {
 	}
 
 	function createModuleHotObject(moduleId, me) {
+		var _main = currentChildModule !== moduleId;
 		var hot = {
 			// private stuff
 			_acceptedDependencies: {},
@@ -110,10 +111,10 @@ module.exports = function () {
 			_selfDeclined: false,
 			_selfInvalidated: false,
 			_disposeHandlers: [],
-			_main: currentChildModule !== moduleId,
+			_main: _main,
 			_requireSelf: function () {
 				currentParents = me.parents.slice();
-				currentChildModule = moduleId;
+				currentChildModule = _main ? undefined : moduleId;
 				__webpack_require__(moduleId);
 			},
 

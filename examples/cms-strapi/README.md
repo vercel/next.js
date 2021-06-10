@@ -4,7 +4,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Demo
 
-[https://next-blog-strapi.now.sh/](https://next-blog-strapi.now.sh/)
+[https://next-blog-strapi.vercel.app/](https://next-blog-strapi.vercel.app/)
 
 ## Deploy your own
 
@@ -179,7 +179,7 @@ You should now be able to see the draft post. To exit the preview mode, you can 
 
 ### Step 10. Deploy Strapi
 
-To deploy to production, you must first deploy your Strapi app. The Strapi app for our demo at https://next-blog-strapi.now.sh/ is deployed to Heroku ([here’s the documentation](https://strapi.io/documentation/v3.x/deployment/heroku.html)) and uses Cloudinary for image hosting ([see this file](https://github.com/strapi/strapi-starter-next-blog/blob/master/backend/extensions/upload/config/settings.js)).
+To deploy to production, you must first deploy your Strapi app. The Strapi app for our demo at https://next-blog-strapi.vercel.app/ is deployed to Heroku ([here’s the documentation](https://strapi.io/documentation/developer-docs/latest/setup-deployment-guides/deployment/hosting-guides/heroku.html)) and uses Cloudinary for image hosting ([see this file](https://github.com/strapi/strapi-starter-next-blog/blob/23b184781a3f219ad472f6a2c3a3d239a3d16513/backend/extensions/upload/config/settings.js)).
 
 ### Step 11. Deploy on Vercel
 

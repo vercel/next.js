@@ -20,6 +20,7 @@ import {
   normalizeRegEx,
   initNextServerScript,
   nextExport,
+  hasRedbox,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -38,10 +39,92 @@ let appPort
 let app
 
 const runTests = (isDev = false) => {
+  it('should resolveHref correctly navigating through history', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval('window.beforeNav = 1')
+
+    expect(await browser.eval('document.documentElement.innerHTML')).toContain(
+      'multi-rewrites'
+    )
+
+    await browser.eval('next.router.push("/rewriting-to-auto-export")')
+    await browser.waitForElementByCss('#auto-export')
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'hello',
+      rewrite: '1',
+    })
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    await browser.eval('next.router.push("/nav")')
+    await browser.waitForElementByCss('#nav')
+
+    expect(await browser.elementByCss('#nav').text()).toBe('Nav')
+
+    await browser.back()
+    await browser.waitForElementByCss('#auto-export')
+
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      slug: 'hello',
+      rewrite: '1',
+    })
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    if (isDev) {
+      expect(await hasRedbox(browser, false)).toBe(false)
+    }
+  })
+
+  it('should continue in beforeFiles rewrites', async () => {
+    const res = await fetchViaHTTP(appPort, '/old-blog/about')
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect($('#hello').text()).toContain('Hello')
+
+    const browser = await webdriver(appPort, '/nav')
+
+    await browser.eval('window.beforeNav = 1')
+    await browser
+      .elementByCss('#to-old-blog')
+      .click()
+      .waitForElementByCss('#hello')
+    expect(await browser.elementByCss('#hello').text()).toContain('Hello')
+  })
+
+  it('should not hang when proxy rewrite fails', async () => {
+    const res = await fetchViaHTTP(appPort, '/to-nowhere', undefined, {
+      timeout: 5000,
+    })
+
+    expect(res.status).toBe(500)
+  })
+
   it('should parse params correctly for rewrite to auto-export dynamic page', async () => {
     const browser = await webdriver(appPort, '/rewriting-to-auto-export')
     const text = await browser.eval(() => document.documentElement.innerHTML)
     expect(text).toContain('auto-export hello')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      rewrite: '1',
+      slug: 'hello',
+    })
+  })
+
+  it('should provide params correctly for rewrite to auto-export non-dynamic page', async () => {
+    const browser = await webdriver(
+      appPort,
+      '/rewriting-to-another-auto-export/first'
+    )
+
+    expect(await browser.elementByCss('#auto-export-another').text()).toBe(
+      'auto-export another'
+    )
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      rewrite: '1',
+      path: ['first'],
+    })
   })
 
   it('should handle one-to-one rewrite successfully', async () => {
@@ -692,6 +775,53 @@ const runTests = (isDev = false) => {
     expect(res2.status).toBe(404)
   })
 
+  it('should pass has segment for rewrite correctly', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/has-rewrite-5')
+    expect(res1.status).toBe(404)
+
+    const res = await fetchViaHTTP(appPort, '/has-rewrite-5', {
+      hasParam: 'with-params',
+    })
+
+    expect(res.status).toBe(200)
+    const $ = cheerio.load(await res.text())
+
+    expect(JSON.parse($('#query').text())).toEqual({
+      hasParam: 'with-params',
+    })
+  })
+
+  it('should not pass non captured has value for rewrite correctly', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/has-rewrite-6')
+    expect(res1.status).toBe(404)
+
+    const res = await fetchViaHTTP(appPort, '/has-rewrite-6', undefined, {
+      headers: {
+        hasParam: 'with-params',
+      },
+    })
+    expect(res.status).toBe(200)
+
+    const $ = cheerio.load(await res.text())
+    expect(JSON.parse($('#query').text())).toEqual({})
+  })
+
+  it('should pass captured has value for rewrite correctly', async () => {
+    const res1 = await fetchViaHTTP(appPort, '/has-rewrite-7')
+    expect(res1.status).toBe(404)
+
+    const res = await fetchViaHTTP(appPort, '/has-rewrite-7', {
+      hasParam: 'with-params',
+    })
+    expect(res.status).toBe(200)
+
+    const $ = cheerio.load(await res.text())
+    expect(JSON.parse($('#query').text())).toEqual({
+      hasParam: 'with-params',
+      idk: 'with-params',
+    })
+  })
+
   it('should match has rewrite correctly before files', async () => {
     const res1 = await fetchViaHTTP(appPort, '/hello')
     expect(res1.status).toBe(200)
@@ -707,6 +837,20 @@ const runTests = (isDev = false) => {
       overrideMe: '1',
       overridden: '1',
     })
+
+    const browser = await webdriver(appPort, '/nav')
+    await browser.eval('window.beforeNav = 1')
+    await browser.elementByCss('#to-overridden').click()
+    await browser.waitForElementByCss('#query')
+
+    expect(await browser.eval('window.next.router.pathname')).toBe(
+      '/with-params'
+    )
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      overridden: '1',
+      overrideMe: '1',
+    })
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
   it('should match has header redirect correctly', async () => {
@@ -1327,12 +1471,31 @@ const runTests = (isDev = false) => {
               regex: normalizeRegEx('^\\/hello$'),
               source: '/hello',
             },
+            {
+              destination: '/blog/:path*',
+              regex: normalizeRegEx(
+                '^\\/old-blog(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+              ),
+              source: '/old-blog/:path*',
+            },
           ],
           afterFiles: [
             {
-              destination: '/auto-export/hello',
+              destination: 'http://localhost:12233',
+              regex: normalizeRegEx('^\\/to-nowhere$'),
+              source: '/to-nowhere',
+            },
+            {
+              destination: '/auto-export/hello?rewrite=1',
               regex: normalizeRegEx('^\\/rewriting-to-auto-export$'),
               source: '/rewriting-to-auto-export',
+            },
+            {
+              destination: '/auto-export/another?rewrite=1',
+              regex: normalizeRegEx(
+                '^\\/rewriting-to-another-auto-export(?:\\/((?:[^\\/]+?)(?:\\/(?:[^\\/]+?))*))?$'
+              ),
+              source: '/rewriting-to-another-auto-export/:path*',
             },
             {
               destination: '/another/one',
@@ -1492,7 +1655,7 @@ const runTests = (isDev = false) => {
                 {
                   key: 'loggedIn',
                   type: 'cookie',
-                  value: 'true',
+                  value: '(?<loggedIn>true)',
                 },
               ],
               regex: normalizeRegEx('^\\/has-rewrite-3$'),
@@ -1508,6 +1671,46 @@ const runTests = (isDev = false) => {
               ],
               regex: '^\\/has-rewrite-4$',
               source: '/has-rewrite-4',
+            },
+            {
+              destination: '/:hasParam',
+              has: [
+                {
+                  key: 'hasParam',
+                  type: 'query',
+                },
+              ],
+              regex: normalizeRegEx('^\\/has-rewrite-5$'),
+              source: '/has-rewrite-5',
+            },
+            {
+              destination: '/with-params',
+              has: [
+                {
+                  key: 'hasParam',
+                  type: 'header',
+                  value: 'with-params',
+                },
+              ],
+              regex: normalizeRegEx('^\\/has-rewrite-6$'),
+              source: '/has-rewrite-6',
+            },
+            {
+              destination: '/with-params?idk=:idk',
+              has: [
+                {
+                  key: 'hasParam',
+                  type: 'query',
+                  value: '(?<idk>with-params|hello)',
+                },
+              ],
+              regex: normalizeRegEx('^\\/has-rewrite-7$'),
+              source: '/has-rewrite-7',
+            },
+            {
+              destination: '/hello',
+              regex: normalizeRegEx('^\\/blog\\/about$'),
+              source: '/blog/about',
             },
           ],
           fallback: [],
@@ -1610,12 +1813,33 @@ describe('Custom routes', () => {
   })
 
   describe('dev mode', () => {
+    let nextConfigContent
+
     beforeAll(async () => {
+      // ensure cache with rewrites disabled doesn't persist
+      // after enabling rewrites
+      await fs.remove(join(appDir, '.next'))
+      nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
+      await fs.writeFile(
+        nextConfigPath,
+        nextConfigContent.replace('// no-rewrites comment', 'return []')
+      )
+
+      const tempPort = await findPort()
+      const tempApp = await launchApp(appDir, tempPort)
+      await renderViaHTTP(tempPort, '/')
+
+      await killApp(tempApp)
+      await fs.writeFile(nextConfigPath, nextConfigContent)
+
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
       buildId = 'development'
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await fs.writeFile(nextConfigPath, nextConfigContent)
+      await killApp(app)
+    })
     runTests(true)
   })
 
@@ -1662,8 +1886,8 @@ describe('Custom routes', () => {
       )
     })
 
-    it('should show warning for experimental has usage', async () => {
-      expect(stderr).toContain(
+    it('should not show warning for experimental has usage', async () => {
+      expect(stderr).not.toContain(
         "'has' route field support is still experimental and not covered by semver, use at your own risk."
       )
     })

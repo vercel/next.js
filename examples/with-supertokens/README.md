@@ -2,10 +2,6 @@
 
 This is a simple set up for applications protected by SuperTokens.
 
-The SuperTokens back end configurations are in `supertokens.js`.
-
-The SuperTokens front end configurations are in `pages/_app.js`.
-
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com):
@@ -14,7 +10,7 @@ Deploy the example using [Vercel](https://vercel.com):
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
+- Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init) or [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-supertokens with-supertokens-app
@@ -22,13 +18,21 @@ npx create-next-app --example with-supertokens with-supertokens-app
 yarn create next-app --example with-supertokens with-supertokens-app
 ```
 
+- Run `yarn install`
+
+- Run `npm run dev` to start the application on `http://localhost:3000`.
+
 ## Configuration
 
-Create a `.env.local` file and copy the content of `.env.local.example` into it:
+> Until you do this, social login will not work. But you can still try out email password sign up / in.
 
-```bash
-cp .env.local.example .env.local
-```
+- Create a `.env.local` file and copy the content of `.env.local.example` into it:
+
+  ```bash
+  cp .env.local.example .env.local
+  ```
+
+- Fill in the values for your social login secrets
 
 ## Deploy on Vercel
 
@@ -42,6 +46,4 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 ## Notes
 
-Take a look at [SuperTokens documentation](https://supertokens.io/docs/emailpassword/introduction) to configure SuperTokens for your project.
-
-Especially, you will want to replace the use of the demo SuperTokens core with your own SuperTokens core instance. See https://supertokens.io/docs/emailpassword/quick-setup/supertokens-core/overview.
+Take a look at [SuperTokens documentation](https://supertokens.io/docs/community/introduction).
