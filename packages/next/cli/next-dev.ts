@@ -62,36 +62,6 @@ const nextDev: cliCommand = (argv) => {
       (res) => res.default
     )
 
-    const reactVersion: string | null = await getPackageVersion({
-      cwd: dir,
-      name: 'react',
-    })
-    if (
-      reactVersion &&
-      semver.lt(reactVersion, '17.0.1') &&
-      semver.coerce(reactVersion)?.version !== '0.0.0'
-    ) {
-      Log.warn(
-        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.' +
-          ' Read more: https://nextjs.org/docs/messages/react-version'
-      )
-    } else {
-      const reactDomVersion: string | null = await getPackageVersion({
-        cwd: dir,
-        name: 'react-dom',
-      })
-      if (
-        reactDomVersion &&
-        semver.lt(reactDomVersion, '17.0.1') &&
-        semver.coerce(reactDomVersion)?.version !== '0.0.0'
-      ) {
-        Log.warn(
-          'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.' +
-            ' Read more: https://nextjs.org/docs/messages/react-version'
-        )
-      }
-    }
-
     const [sassVersion, nodeSassVersion] = await Promise.all([
       getPackageVersion({ cwd: dir, name: 'sass' }),
       getPackageVersion({ cwd: dir, name: 'node-sass' }),
