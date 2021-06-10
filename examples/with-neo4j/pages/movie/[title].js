@@ -33,7 +33,7 @@ export default function Movie() {
             </div>
             <div>
               <strong>Released: </strong>
-              {data.movie.released?.low}
+              {data.movie.released.toNumber()}
             </div>
           </div>
           <div className="actors">
