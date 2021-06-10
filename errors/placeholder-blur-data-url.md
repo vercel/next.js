@@ -4,6 +4,10 @@
 
 You are attempting use the `next/image` component with `placeholder=blur` property but no `blurDataURL` property.
 
+The `blurDataURL` might be missing because your using a string for `src` instead of a static import.
+
+Or `blurDataURL` might be missing because the static import is an unsupported image format.
+
 #### Possible Ways to Fix It
 
 - Add a [`blurDataURL`](https://nextjs.org/docs/api-reference/next/image#blurdataurl) property, the contents should be a small Data URL to represent the image
