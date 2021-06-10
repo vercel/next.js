@@ -51,7 +51,7 @@ export default function Home() {
                       <a className="link">{movie.title}</a>
                     </Link>
                   </td>
-                  <td>{movie.released.low}</td>
+                  <td>{movie.released?.low}</td>
                   <td>{movie.tagline}</td>
                   <td>
                     <ul>

@@ -13,11 +13,10 @@ export default async function handler(req, res) {
           async (transaction) => {
             const cypher = `
               MATCH (movie:Movie)
-              MATCH (actor:Person)
-              WHERE (movie)<-[:ACTED_IN]-(actor)
-              MATCH (director:Person)
-              WHERE (movie)<-[:DIRECTED]-(director)
-              RETURN movie {.*, actors: collect(DISTINCT actor.name), directed: collect(DISTINCT director.name)} as movie
+              RETURN movie {.*,
+                actors: [ (movie)<-[:ACTED_IN]-(actor) | actor.name ],
+                directed: [ (movie)<-[:DIRECTED]-(director) | director.name ]
+              } as movie
             `
 
             const moviesTxResponse = await transaction.run(cypher)
