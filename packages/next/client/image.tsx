@@ -268,7 +268,7 @@ function removePlaceholder(
   if (placeholder === 'blur' && element) {
     const handleLoad = () => {
       if (!element.src.startsWith('data:')) {
-        (element.decode || Promise.resolve)().then(() => {
+        ;(element.decode || Promise.resolve)().then(() => {
           element.style.filter = 'none'
           element.style.backgroundSize = 'none'
           element.style.backgroundImage = 'none'
