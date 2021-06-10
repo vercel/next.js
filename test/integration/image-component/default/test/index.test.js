@@ -485,7 +485,7 @@ function runTests(mode) {
       )
     })
 
-    it('should show invalid placeholder when blurDataUrl is missing', async () => {
+    it('should show error when string src and placeholder=blur and blurDataURL is missing', async () => {
       const browser = await webdriver(appPort, '/invalid-placeholder-blur')
 
       expect(await hasRedbox(browser)).toBe(true)
@@ -494,7 +494,7 @@ function runTests(mode) {
       )
     })
 
-    it('should show invalid placeholder when blurDataUrl is missing', async () => {
+    it('should show error when static import and placeholder=blur and blurDataUrl is missing', async () => {
       const browser = await webdriver(
         appPort,
         '/invalid-placeholder-blur-static'
