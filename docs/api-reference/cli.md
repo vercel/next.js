@@ -80,7 +80,6 @@ Similarly, you can also set the hostname to be different from the default of `0.
 npx next dev -H 192.168.1.2
 ```
 
-
 ## Production
 
 `next start` starts the application in production mode. The application should be compiled with [`next build`](#build) first.
