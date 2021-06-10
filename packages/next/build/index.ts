@@ -26,6 +26,7 @@ import loadCustomRoutes, {
 } from '../lib/load-custom-routes'
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
+import { verifyAndLint } from '../lib/verifyAndLint'
 import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
 import {
   BUILD_ID_FILE,
@@ -65,6 +66,7 @@ import {
   eventBuildOptimize,
   eventCliSession,
   eventNextPlugins,
+  eventTypeCheckCompleted,
 } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { CompilerResult, runCompiler } from './compiler'
@@ -77,10 +79,8 @@ import { trace, setGlobal } from '../telemetry/trace'
 import {
   collectPages,
   detectConflictingPaths,
+  computeFromManifest,
   getJsPageSizeInKb,
-  getNamedExports,
-  hasCustomGetInitialProps,
-  isPageStatic,
   PageInfo,
   printCustomRoutes,
   printTreeView,
@@ -90,7 +90,7 @@ import getBaseWebpackConfig from './webpack-config'
 import { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../next-server/lib/i18n/normalize-locale-path'
-import { UnwrapPromise } from '../lib/coalesced-function'
+import { isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 
 const staticCheckWorker = require.resolve('./utils')
 
@@ -119,7 +119,8 @@ export default async function build(
   dir: string,
   conf = null,
   reactProductionProfiling = false,
-  debugOutput = false
+  debugOutput = false,
+  runLint = true
 ): Promise<void> {
   const nextBuildSpan = trace('next-build')
 
@@ -144,8 +145,8 @@ export default async function build(
 
     const { headers, rewrites, redirects } = customRoutes
 
+    const cacheDir = path.join(distDir, 'cache')
     if (ciEnvironment.isCI && !ciEnvironment.hasNextSupport) {
-      const cacheDir = path.join(distDir, 'cache')
       const hasCache = await fileExists(cacheDir)
 
       if (!hasCache) {
@@ -157,10 +158,6 @@ export default async function build(
       }
     }
 
-    const typeCheckingSpinner = createSpinner({
-      prefixText: `${Log.prefixes.info} Checking validity of types`,
-    })
-
     const telemetry = new Telemetry({ distDir })
     setGlobal('telemetry', telemetry)
 
@@ -170,6 +167,7 @@ export default async function build(
 
     telemetry.record(
       eventCliSession(PHASE_PRODUCTION_BUILD, dir, {
+        webpackVersion: isWebpack5 ? 5 : 4,
         cliCommand: 'build',
         isSrcDir: path.relative(dir, pagesDir!).startsWith('src'),
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),
@@ -182,14 +180,52 @@ export default async function build(
     )
 
     const ignoreTypeScriptErrors = Boolean(config.typescript?.ignoreBuildErrors)
-    await nextBuildSpan
+    const typeCheckStart = process.hrtime()
+    const typeCheckingSpinner = createSpinner({
+      prefixText: `${Log.prefixes.info} ${
+        ignoreTypeScriptErrors
+          ? 'Skipping validation of types'
+          : 'Checking validity of types'
+      }`,
+    })
+
+    const verifyResult = await nextBuildSpan
       .traceChild('verify-typescript-setup')
       .traceAsyncFn(() =>
-        verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors)
+        verifyTypeScriptSetup(dir, pagesDir, !ignoreTypeScriptErrors, cacheDir)
       )
+
+    const typeCheckEnd = process.hrtime(typeCheckStart)
+
+    if (!ignoreTypeScriptErrors) {
+      telemetry.record(
+        eventTypeCheckCompleted({
+          durationInSeconds: typeCheckEnd[0],
+          typescriptVersion: verifyResult.version,
+          inputFilesCount: verifyResult.result?.inputFilesCount,
+          totalFilesCount: verifyResult.result?.totalFilesCount,
+          incremental: verifyResult.result?.incremental,
+        })
+      )
+    }
 
     if (typeCheckingSpinner) {
       typeCheckingSpinner.stopAndPersist()
+    }
+
+    const ignoreESLint = Boolean(config.eslint?.ignoreDuringBuilds)
+    const lintDirs = config.eslint?.dirs
+    if (!ignoreESLint && runLint) {
+      await nextBuildSpan
+        .traceChild('verify-and-lint')
+        .traceAsyncFn(async () => {
+          await verifyAndLint(
+            dir,
+            lintDirs,
+            config.experimental.cpus,
+            config.experimental.workerThreads
+          )
+        })
     }
 
     const buildSpinner = createSpinner({
@@ -230,7 +266,7 @@ export default async function build(
       )
     const pageKeys = Object.keys(mappedPages)
     const conflictingPublicFiles: string[] = []
-    const hasCustomErrorPage = mappedPages['/_error'].startsWith(
+    const hasCustomErrorPage: boolean = mappedPages['/_error'].startsWith(
       'private-next-pages'
     )
     const hasPages404 = Boolean(
@@ -454,7 +490,7 @@ export default async function build(
           BUILD_MANIFEST,
           PRERENDER_MANIFEST,
           REACT_LOADABLE_MANIFEST,
-          config.experimental.optimizeFonts
+          config.optimizeFonts
             ? path.join(
                 isLikeServerless ? SERVERLESS_DIRECTORY : SERVER_DIRECTORY,
                 FONT_MANIFEST
@@ -510,33 +546,25 @@ export default async function build(
     const webpackBuildStart = process.hrtime()
 
     let result: CompilerResult = { warnings: [], errors: [] }
-    // We run client and server compilation separately when configured for
-    // memory constraint and for serverless to be able to load manifests
-    // produced in the client build
-    if (isLikeServerless || config.experimental.serialWebpackBuild) {
-      await nextBuildSpan
-        .traceChild('run-webpack-compiler')
-        .traceAsyncFn(async () => {
-          const clientResult = await runCompiler(clientConfig)
-          // Fail build if clientResult contains errors
-          if (clientResult.errors.length > 0) {
-            result = {
-              warnings: [...clientResult.warnings],
-              errors: [...clientResult.errors],
-            }
-          } else {
-            const serverResult = await runCompiler(configs[1])
-            result = {
-              warnings: [...clientResult.warnings, ...serverResult.warnings],
-              errors: [...clientResult.errors, ...serverResult.errors],
-            }
+    // We run client and server compilation separately to optimize for memory usage
+    await nextBuildSpan
+      .traceChild('run-webpack-compiler')
+      .traceAsyncFn(async () => {
+        const clientResult = await runCompiler(clientConfig)
+        // Fail build if clientResult contains errors
+        if (clientResult.errors.length > 0) {
+          result = {
+            warnings: [...clientResult.warnings],
+            errors: [...clientResult.errors],
           }
-        })
-    } else {
-      result = await nextBuildSpan
-        .traceChild('run-webpack-compiler')
-        .traceAsyncFn(() => runCompiler(configs))
-    }
+        } else {
+          const serverResult = await runCompiler(configs[1])
+          result = {
+            warnings: [...clientResult.warnings, ...serverResult.warnings],
+            errors: [...clientResult.errors, ...serverResult.errors],
+          }
+        }
+      })
 
     const webpackBuildEnd = process.hrtime(webpackBuildStart)
     if (buildSpinner) {
@@ -620,230 +648,248 @@ export default async function build(
       await promises.readFile(buildManifestPath, 'utf8')
     ) as BuildManifest
 
-    let customAppGetInitialProps: boolean | undefined
-    let namedExports: Array<string> | undefined
-    let isNextImageImported: boolean | undefined
     const analysisBegin = process.hrtime()
-    let hasSsrAmpPages = false
 
     const staticCheckSpan = nextBuildSpan.traceChild('static-check')
-    const { hasNonStaticErrorPage } = await staticCheckSpan.traceAsyncFn(
-      async () => {
-        process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
+    const {
+      customAppGetInitialProps,
+      namedExports,
+      isNextImageImported,
+      hasSsrAmpPages,
+      hasNonStaticErrorPage,
+    } = await staticCheckSpan.traceAsyncFn(async () => {
+      process.env.NEXT_PHASE = PHASE_PRODUCTION_BUILD
 
-        const staticCheckWorkers = new Worker(staticCheckWorker, {
-          numWorkers: config.experimental.cpus,
-          enableWorkerThreads: config.experimental.workerThreads,
-        }) as Worker & { isPageStatic: typeof isPageStatic }
+      const staticCheckWorkers = new Worker(staticCheckWorker, {
+        numWorkers: config.experimental.cpus,
+        enableWorkerThreads: config.experimental.workerThreads,
+      }) as Worker & typeof import('./utils')
 
-        staticCheckWorkers.getStdout().pipe(process.stdout)
-        staticCheckWorkers.getStderr().pipe(process.stderr)
+      staticCheckWorkers.getStdout().pipe(process.stdout)
+      staticCheckWorkers.getStderr().pipe(process.stderr)
 
-        const runtimeEnvConfig = {
-          publicRuntimeConfig: config.publicRuntimeConfig,
-          serverRuntimeConfig: config.serverRuntimeConfig,
-        }
+      const runtimeEnvConfig = {
+        publicRuntimeConfig: config.publicRuntimeConfig,
+        serverRuntimeConfig: config.serverRuntimeConfig,
+      }
 
-        const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
-          'check-static-error-page'
-        )
-        const errorPageHasCustomGetInitialProps = await nonStaticErrorPageSpan.traceAsyncFn(
-          async () =>
-            hasCustomErrorPage &&
-            (await hasCustomGetInitialProps(
-              '/_error',
+      const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
+        'check-static-error-page'
+      )
+      const errorPageHasCustomGetInitialProps = nonStaticErrorPageSpan.traceAsyncFn(
+        async () =>
+          hasCustomErrorPage &&
+          (await staticCheckWorkers.hasCustomGetInitialProps(
+            '/_error',
+            distDir,
+            isLikeServerless,
+            runtimeEnvConfig,
+            false
+          ))
+      )
+
+      const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
+        async () =>
+          hasCustomErrorPage &&
+          staticCheckWorkers.isPageStatic(
+            '/_error',
+            distDir,
+            isLikeServerless,
+            runtimeEnvConfig,
+            config.i18n?.locales,
+            config.i18n?.defaultLocale
+          )
+      )
+
+      // we don't output _app in serverless mode so use _app export
+      // from _error instead
+      const appPageToCheck = isLikeServerless ? '/_error' : '/_app'
+
+      const customAppGetInitialPropsPromise = staticCheckWorkers.hasCustomGetInitialProps(
+        appPageToCheck,
+        distDir,
+        isLikeServerless,
+        runtimeEnvConfig,
+        true
+      )
+
+      const namedExportsPromise = staticCheckWorkers.getNamedExports(
+        appPageToCheck,
+        distDir,
+        isLikeServerless,
+        runtimeEnvConfig
+      )
+
+      // eslint-disable-next-line no-shadow
+      let isNextImageImported: boolean | undefined
+      // eslint-disable-next-line no-shadow
+      let hasSsrAmpPages = false
+
+      const computedManifestData = await computeFromManifest(
+        buildManifest,
+        distDir,
+        config.experimental.gzipSize
+      )
+      await Promise.all(
+        pageKeys.map(async (page) => {
+          const checkPageSpan = staticCheckSpan.traceChild('check-page', {
+            page,
+          })
+          return checkPageSpan.traceAsyncFn(async () => {
+            const actualPage = normalizePagePath(page)
+            const [selfSize, allSize] = await getJsPageSizeInKb(
+              actualPage,
               distDir,
-              isLikeServerless,
-              runtimeEnvConfig,
-              false
-            ))
-        )
-        const errorPageStaticResult: UnwrapPromise<ReturnType<
-          typeof isPageStatic
-        >> = await nonStaticErrorPageSpan.traceAsyncFn(
-          async () =>
-            hasCustomErrorPage &&
-            isPageStatic(
-              '/_error',
-              distDir,
-              isLikeServerless,
-              runtimeEnvConfig,
-              config.i18n?.locales,
-              config.i18n?.defaultLocale
+              buildManifest,
+              config.experimental.gzipSize,
+              computedManifestData
             )
-        )
-        const nonStaticErrorPage =
-          errorPageHasCustomGetInitialProps ||
-          errorPageStaticResult.hasServerProps
 
-        // we don't output _app in serverless mode so use _app export
-        // from _error instead
-        const appPageToCheck = isLikeServerless ? '/_error' : '/_app'
+            let isSsg = false
+            let isStatic = false
+            let isHybridAmp = false
+            let ssgPageRoutes: string[] | null = null
 
-        customAppGetInitialProps = await hasCustomGetInitialProps(
-          appPageToCheck,
-          distDir,
-          isLikeServerless,
-          runtimeEnvConfig,
-          true
-        )
+            const nonReservedPage = !page.match(
+              /^\/(_app|_error|_document|api(\/|$))/
+            )
 
-        namedExports = await getNamedExports(
-          appPageToCheck,
-          distDir,
-          isLikeServerless,
-          runtimeEnvConfig
-        )
-
-        if (customAppGetInitialProps) {
-          console.warn(
-            chalk.bold.yellow(`Warning: `) +
-              chalk.yellow(
-                `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`. This does not opt-out pages with \`getStaticProps\``
-              )
-          )
-          console.warn(
-            'Read more: https://nextjs.org/docs/messages/opt-out-auto-static-optimization\n'
-          )
-        }
-
-        await Promise.all(
-          pageKeys.map(async (page) => {
-            const checkPageSpan = staticCheckSpan.traceChild('check-page', {
-              page,
-            })
-            return checkPageSpan.traceAsyncFn(async () => {
-              const actualPage = normalizePagePath(page)
-              const [selfSize, allSize] = await getJsPageSizeInKb(
-                actualPage,
-                distDir,
-                buildManifest
-              )
-
-              let isSsg = false
-              let isStatic = false
-              let isHybridAmp = false
-              let ssgPageRoutes: string[] | null = null
-
-              const nonReservedPage = !page.match(
-                /^\/(_app|_error|_document|api(\/|$))/
-              )
-
-              if (nonReservedPage) {
-                try {
-                  let isPageStaticSpan = checkPageSpan.traceChild(
-                    'is-page-static'
+            if (nonReservedPage) {
+              try {
+                let isPageStaticSpan = checkPageSpan.traceChild(
+                  'is-page-static'
+                )
+                let workerResult = await isPageStaticSpan.traceAsyncFn(() => {
+                  return staticCheckWorkers.isPageStatic(
+                    page,
+                    distDir,
+                    isLikeServerless,
+                    runtimeEnvConfig,
+                    config.i18n?.locales,
+                    config.i18n?.defaultLocale,
+                    isPageStaticSpan.id
                   )
-                  let workerResult = await isPageStaticSpan.traceAsyncFn(() => {
-                    return staticCheckWorkers.isPageStatic(
+                })
+
+                if (
+                  workerResult.isStatic === false &&
+                  (workerResult.isHybridAmp || workerResult.isAmpOnly)
+                ) {
+                  hasSsrAmpPages = true
+                }
+
+                if (workerResult.isHybridAmp) {
+                  isHybridAmp = true
+                  hybridAmpPages.add(page)
+                }
+
+                if (workerResult.isNextImageImported) {
+                  isNextImageImported = true
+                }
+
+                if (workerResult.hasStaticProps) {
+                  ssgPages.add(page)
+                  isSsg = true
+
+                  if (
+                    workerResult.prerenderRoutes &&
+                    workerResult.encodedPrerenderRoutes
+                  ) {
+                    additionalSsgPaths.set(page, workerResult.prerenderRoutes)
+                    additionalSsgPathsEncoded.set(
                       page,
-                      distDir,
-                      isLikeServerless,
-                      runtimeEnvConfig,
-                      config.i18n?.locales,
-                      config.i18n?.defaultLocale,
-                      isPageStaticSpan.id
-                    )
-                  })
-
-                  if (
-                    workerResult.isStatic === false &&
-                    (workerResult.isHybridAmp || workerResult.isAmpOnly)
-                  ) {
-                    hasSsrAmpPages = true
-                  }
-
-                  if (workerResult.isHybridAmp) {
-                    isHybridAmp = true
-                    hybridAmpPages.add(page)
-                  }
-
-                  if (workerResult.isNextImageImported) {
-                    isNextImageImported = true
-                  }
-
-                  if (workerResult.hasStaticProps) {
-                    ssgPages.add(page)
-                    isSsg = true
-
-                    if (
-                      workerResult.prerenderRoutes &&
                       workerResult.encodedPrerenderRoutes
-                    ) {
-                      additionalSsgPaths.set(page, workerResult.prerenderRoutes)
-                      additionalSsgPathsEncoded.set(
-                        page,
-                        workerResult.encodedPrerenderRoutes
-                      )
-                      ssgPageRoutes = workerResult.prerenderRoutes
-                    }
-
-                    if (workerResult.prerenderFallback === 'blocking') {
-                      ssgBlockingFallbackPages.add(page)
-                    } else if (workerResult.prerenderFallback === true) {
-                      ssgStaticFallbackPages.add(page)
-                    }
-                  } else if (workerResult.hasServerProps) {
-                    serverPropsPages.add(page)
-                  } else if (
-                    workerResult.isStatic &&
-                    customAppGetInitialProps === false
-                  ) {
-                    staticPages.add(page)
-                    isStatic = true
+                    )
+                    ssgPageRoutes = workerResult.prerenderRoutes
                   }
 
-                  if (hasPages404 && page === '/404') {
-                    if (
-                      !workerResult.isStatic &&
-                      !workerResult.hasStaticProps
-                    ) {
-                      throw new Error(
-                        `\`pages/404\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
-                      )
-                    }
-                    // we need to ensure the 404 lambda is present since we use
-                    // it when _app has getInitialProps
-                    if (
-                      customAppGetInitialProps &&
-                      !workerResult.hasStaticProps
-                    ) {
-                      staticPages.delete(page)
-                    }
+                  if (workerResult.prerenderFallback === 'blocking') {
+                    ssgBlockingFallbackPages.add(page)
+                  } else if (workerResult.prerenderFallback === true) {
+                    ssgStaticFallbackPages.add(page)
                   }
+                } else if (workerResult.hasServerProps) {
+                  serverPropsPages.add(page)
+                } else if (
+                  workerResult.isStatic &&
+                  (await customAppGetInitialPropsPromise) === false
+                ) {
+                  staticPages.add(page)
+                  isStatic = true
+                }
 
+                if (hasPages404 && page === '/404') {
+                  if (!workerResult.isStatic && !workerResult.hasStaticProps) {
+                    throw new Error(
+                      `\`pages/404\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
+                    )
+                  }
+                  // we need to ensure the 404 lambda is present since we use
+                  // it when _app has getInitialProps
                   if (
-                    STATIC_STATUS_PAGES.includes(page) &&
-                    !workerResult.isStatic &&
+                    (await customAppGetInitialPropsPromise) &&
                     !workerResult.hasStaticProps
                   ) {
-                    throw new Error(
-                      `\`pages${page}\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
-                    )
+                    staticPages.delete(page)
                   }
-                } catch (err) {
-                  if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
-                  invalidPages.add(page)
                 }
-              }
 
-              pageInfos.set(page, {
-                size: selfSize,
-                totalSize: allSize,
-                static: isStatic,
-                isSsg,
-                isHybridAmp,
-                ssgPageRoutes,
-                initialRevalidateSeconds: false,
-              })
+                if (
+                  STATIC_STATUS_PAGES.includes(page) &&
+                  !workerResult.isStatic &&
+                  !workerResult.hasStaticProps
+                ) {
+                  throw new Error(
+                    `\`pages${page}\` ${STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR}`
+                  )
+                }
+              } catch (err) {
+                if (err.message !== 'INVALID_DEFAULT_EXPORT') throw err
+                invalidPages.add(page)
+              }
+            }
+
+            pageInfos.set(page, {
+              size: selfSize,
+              totalSize: allSize,
+              static: isStatic,
+              isSsg,
+              isHybridAmp,
+              ssgPageRoutes,
+              initialRevalidateSeconds: false,
             })
           })
-        )
-        staticCheckWorkers.end()
+        })
+      )
 
-        return { hasNonStaticErrorPage: nonStaticErrorPage }
+      const errorPageResult = await errorPageStaticResult
+      const nonStaticErrorPage =
+        (await errorPageHasCustomGetInitialProps) ||
+        (errorPageResult && errorPageResult.hasServerProps)
+
+      const returnValue = {
+        customAppGetInitialProps: await customAppGetInitialPropsPromise,
+        namedExports: await namedExportsPromise,
+        isNextImageImported,
+        hasSsrAmpPages,
+        hasNonStaticErrorPage: nonStaticErrorPage,
       }
-    )
+
+      staticCheckWorkers.end()
+      return returnValue
+    })
+
+    if (customAppGetInitialProps) {
+      console.warn(
+        chalk.bold.yellow(`Warning: `) +
+          chalk.yellow(
+            `You have opted-out of Automatic Static Optimization due to \`getInitialProps\` in \`pages/_app\`. This does not opt-out pages with \`getStaticProps\``
+          )
+      )
+      console.warn(
+        'Read more: https://nextjs.org/docs/messages/opt-out-auto-static-optimization\n'
+      )
+    }
 
     if (!hasSsrAmpPages) {
       requiredServerFiles.ignore.push(
@@ -963,13 +1009,15 @@ export default async function build(
         mappedPages[page] && mappedPages[page].startsWith('private-next-pages')
     )
     usedStaticStatusPages.forEach((page) => {
-      if (!ssgPages.has(page)) {
+      if (!ssgPages.has(page) && !customAppGetInitialProps) {
         staticPages.add(page)
       }
     })
 
     const hasPages500 = usedStaticStatusPages.includes('/500')
-    const useDefaultStatic500 = !hasPages500 && !hasNonStaticErrorPage
+    const useDefaultStatic500 =
+      !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
+
     const combinedPages = [...staticPages, ...ssgPages]
 
     if (combinedPages.length > 0 || useStatic404 || useDefaultStatic500) {
@@ -1508,6 +1556,7 @@ export default async function build(
         useStatic404,
         pageExtensions: config.pageExtensions,
         buildManifest,
+        gzipSize: config.experimental.gzipSize,
       })
     )
 
