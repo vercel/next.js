@@ -2,18 +2,19 @@ import Image from 'next/image'
 import ViewSource from '../components/view-source'
 import mountains from '../public/mountains.jpg'
 
-const Intrinsic = () => (
+const Responsive = () => (
   <div>
-    <ViewSource pathname="pages/layout-intrinsic.js" />
-    <h1>Image Component With Layout Intrinsic</h1>
+    <ViewSource pathname="pages/layout-responsive.js" />
+    <h1>Image Component With Layout Responsive</h1>
     <Image
       alt="Mountains"
       src={mountains}
-      layout="intrinsic"
+      layout="responsive"
+      placeholder="blur"
       width={700}
       height={475}
     />
   </div>
 )
 
-export default Intrinsic
+export default Responsive

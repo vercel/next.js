@@ -74,6 +74,12 @@ The application will start at `http://localhost:3000` by default. The default po
 npx next dev -p 4000
 ```
 
+Similarly, you can also set the hostname to be different from the default of `0.0.0.0`, this can be useful for making the application available for other devices on the network. The default hostname can be changed with `-H`, like so:
+
+```bash
+npx next dev -H 192.168.1.2
+```
+
 ## Production
 
 `next start` starts the application in production mode. The application should be compiled with [`next build`](#build) first.
