@@ -12,7 +12,7 @@ import { getAllPostsWithSlug, getPostAndMorePosts } from '../../lib/api'
 import PostTitle from '../../components/post-title'
 import { CMS_NAME } from '../../lib/constants'
 
-export default function Post({ post, morePosts, preview }) {
+export default function Post({ post, morePosts }) {
   const router = useRouter()
   if (!router.isFallback && !post?.id) {
     return <ErrorPage statusCode={404} />
@@ -21,7 +21,7 @@ export default function Post({ post, morePosts, preview }) {
   const coverImageUrl = `/cover-images/${post.id}.jpeg`;
 
   return (
-    <Layout preview={preview}>
+    <Layout>
       <Container>
         <Header />
         {router.isFallback ? (
@@ -54,12 +54,10 @@ export default function Post({ post, morePosts, preview }) {
   )
 }
 
-export async function getStaticProps({ params, preview = false, previewData }) {
-  const data = await getPostAndMorePosts(params.slug, previewData)
-
+export async function getStaticProps({ params }) {
+  const data = await getPostAndMorePosts(params.slug)
   return {
     props: {
-      preview,
       post: data?.post ?? null,
       morePosts: data?.morePosts ?? [],
     },
@@ -67,7 +65,7 @@ export async function getStaticProps({ params, preview = false, previewData }) {
 }
 
 export async function getStaticPaths() {
-  const allPosts = await getAllPostsWithSlug();
+  const allPosts = await getAllPostsWithSlug()
   return {
     paths: allPosts?.map(post => `/posts/${post.slug}`) || [],
     fallback: true,
