@@ -202,11 +202,13 @@ export default async function exportPage({
           // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
           if (pageExt !== pathExt && pathExt !== '') {
             // If the path has an extension, use that as the filename instead
-            htmlFilename = path
+            // htmlFilename = path
           } else if (path === '/') {
             // If the path is the root, just use index.html
             htmlFilename = 'index.html'
           }
+
+          console.log("creating htmlFilename", htmlFilename)
 
           const baseDir = join(outDir, dirname(htmlFilename))
           let htmlFilepath = join(outDir, htmlFilename)
