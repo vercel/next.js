@@ -494,6 +494,18 @@ function runTests(mode) {
       )
     })
 
+    it('should show invalid placeholder when blurDataUrl is missing', async () => {
+      const browser = await webdriver(
+        appPort,
+        '/invalid-placeholder-blur-static'
+      )
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toMatch(
+        /Image with src "(.*)bmp" has "placeholder='blur'" property but is missing the "blurDataURL" property/
+      )
+    })
+
     it('should warn when using a very small image with placeholder=blur', async () => {
       const browser = await webdriver(appPort, '/small-img-import')
 

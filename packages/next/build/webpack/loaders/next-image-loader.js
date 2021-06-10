@@ -3,7 +3,8 @@ import sizeOf from 'image-size'
 import { processBuffer } from '../../../next-server/server/lib/squoosh/main'
 
 const BLUR_IMG_SIZE = 8
-const VALID_IMAGE_TYPES = ['jpeg', 'png']
+const BLUR_QUALITY = 70
+const VALID_BLUR_EXT = ['jpeg', 'png', 'webp']
 
 async function nextImageLoader(content) {
   const context = this.rootContext
@@ -21,8 +22,8 @@ async function nextImageLoader(content) {
 
   const imageSize = sizeOf(content)
   let blurDataURL
-  if (VALID_IMAGE_TYPES.includes(extension)) {
-    // Shrink the image's largest dimension to 6 pixels
+  if (VALID_BLUR_EXT.includes(extension)) {
+    // Shrink the image's largest dimension
     const resizeOperationOpts =
       imageSize.width >= imageSize.height
         ? { type: 'resize', width: BLUR_IMG_SIZE }
@@ -31,7 +32,7 @@ async function nextImageLoader(content) {
       content,
       [resizeOperationOpts],
       extension,
-      70
+      BLUR_QUALITY
     )
     blurDataURL = `data:image/${extension};base64,${resizedImage.toString(
       'base64'

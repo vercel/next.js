@@ -329,9 +329,7 @@ export default function Image({
         )}`
       )
     }
-    if (staticImageData.blurDataURL) {
-      blurDataURL = staticImageData.blurDataURL
-    }
+    blurDataURL = blurDataURL || staticImageData.blurDataURL
     staticSrc = staticImageData.src
     if (!layout || layout !== 'fill') {
       height = height || staticImageData.height
@@ -385,8 +383,17 @@ export default function Image({
         )
       }
       if (!blurDataURL) {
+        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp'] // should match next-image-loader
+
         throw new Error(
-          `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.`
+          `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
+          Possible solutions:
+            - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
+            - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(
+              ','
+            )}
+            - Remove the "placeholder" property, effectively no blur effect
+          Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
         )
       }
     }
