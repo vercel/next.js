@@ -111,6 +111,9 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
+  // Should match output from next-image-loader
+  const isStatic = url.startsWith('/_next/static/image')
+
   const width = parseInt(w, 10)
 
   if (!width || isNaN(width)) {
@@ -160,7 +163,12 @@ export async function imageOptimizer(
         const contentType = getContentType(extension)
         const fsPath = join(hashDir, file)
         if (now < expireAt) {
-          res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+          res.setHeader(
+            'Cache-Control',
+            isStatic
+              ? 'public, max-age=315360000, immutable'
+              : 'public, max-age=0, must-revalidate'
+          )
           if (sendEtagResponse(req, res, etag)) {
             return { finished: true }
           }
@@ -261,7 +269,7 @@ export async function imageOptimizer(
         ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
       if (vector || animate) {
         await writeToCacheDir(hashDir, upstreamType, expireAt, upstreamBuffer)
-        sendResponse(req, res, upstreamType, upstreamBuffer)
+        sendResponse(req, res, upstreamType, upstreamBuffer, isStatic)
         return { finished: true }
       }
 
@@ -333,12 +341,12 @@ export async function imageOptimizer(
 
       if (optimizedBuffer) {
         await writeToCacheDir(hashDir, contentType, expireAt, optimizedBuffer)
-        sendResponse(req, res, contentType, optimizedBuffer)
+        sendResponse(req, res, contentType, optimizedBuffer, isStatic)
       } else {
         throw new Error('Unable to optimize buffer')
       }
     } catch (error) {
-      sendResponse(req, res, upstreamType, upstreamBuffer)
+      sendResponse(req, res, upstreamType, upstreamBuffer, isStatic)
     }
 
     return { finished: true }
@@ -366,10 +374,16 @@ function sendResponse(
   req: IncomingMessage,
   res: ServerResponse,
   contentType: string | null,
-  buffer: Buffer
+  buffer: Buffer,
+  isStatic: boolean
 ) {
   const etag = getHash([buffer])
-  res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+  res.setHeader(
+    'Cache-Control',
+    isStatic
+      ? 'public, max-age=315360000, immutable'
+      : 'public, max-age=0, must-revalidate'
+  )
   if (sendEtagResponse(req, res, etag)) {
     return
   }

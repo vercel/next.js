@@ -42,7 +42,6 @@ describe('Client Navigation', () => {
       '/styled-jsx-external',
       '/with-cdm',
       '/url-prop',
-      '/url-prop-override',
 
       '/dynamic/ssr',
       '/dynamic/[slug]/route',
@@ -57,7 +56,6 @@ describe('Client Navigation', () => {
       '/nav/redirect',
       '/nav/as-path',
       '/nav/as-path-using-router',
-      '/nav/url-prop-change',
 
       '/nested-cdm',
     ]
@@ -166,30 +164,6 @@ describe('Client Navigation', () => {
         'hello'
       )
       expect(await browser.eval(() => window._didNotNavigate)).toBe(true)
-    })
-  })
-
-  describe('With url property', () => {
-    it('Should keep immutable pathname, asPath and query', async () => {
-      const browser = await webdriver(context.appPort, '/nav/url-prop-change')
-      await browser.elementByCss('#add-query').click()
-      const urlResult = await browser.elementByCss('#url-result').text()
-      const previousUrlResult = await browser
-        .elementByCss('#previous-url-result')
-        .text()
-
-      expect(JSON.parse(urlResult)).toMatchObject({
-        query: { added: 'yes' },
-        pathname: '/nav/url-prop-change',
-        asPath: '/nav/url-prop-change?added=yes',
-      })
-      expect(JSON.parse(previousUrlResult)).toMatchObject({
-        query: {},
-        pathname: '/nav/url-prop-change',
-        asPath: '/nav/url-prop-change',
-      })
-
-      await browser.close()
     })
   })
 
@@ -905,6 +879,22 @@ describe('Client Navigation', () => {
 
       expect(newScrollPosition3).toBe(0)
     })
+  })
+
+  it('should scroll to top when the scroll option is set to true', async () => {
+    const browser = await webdriver(context.appPort, '/nav/shallow-routing')
+    await browser.eval(() =>
+      document.querySelector('#increaseWithScroll').scrollIntoView()
+    )
+    const scrollPosition = await browser.eval('window.pageYOffset')
+
+    expect(scrollPosition).toBeGreaterThan(3000)
+
+    await browser.elementByCss('#increaseWithScroll').click()
+    await check(async () => {
+      const newScrollPosition = await browser.eval('window.pageYOffset')
+      return newScrollPosition === 0 ? 'success' : 'fail'
+    }, 'success')
   })
 
   describe('with URL objects', () => {

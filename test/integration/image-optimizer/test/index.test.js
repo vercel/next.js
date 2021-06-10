@@ -503,6 +503,33 @@ function runTests({ w, isDev, domains }) {
     expect(colorType).toBe(4)
   })
 
+  it('should set cache-control to immutable for static images', async () => {
+    if (!isDev) {
+      const query = {
+        url:
+          '/_next/static/image/public/test.480a01e5ea850d0231aec0fa94bd23a0.jpg',
+        w,
+        q: 100,
+      }
+      const opts = { headers: { accept: 'image/webp' } }
+
+      const res1 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res1.status).toBe(200)
+      expect(res1.headers.get('cache-control')).toBe(
+        'public, max-age=315360000, immutable'
+      )
+      await expectWidth(res1, w)
+
+      // Ensure subsequent request also has immutable header
+      const res2 = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res2.status).toBe(200)
+      expect(res2.headers.get('cache-control')).toBe(
+        'public, max-age=315360000, immutable'
+      )
+      await expectWidth(res2, w)
+    }
+  })
+
   it("should error if the resource isn't a valid image", async () => {
     const query = { url: '/test.txt', w, q: 80 }
     const opts = { headers: { accept: 'image/webp' } }

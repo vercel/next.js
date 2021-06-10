@@ -1,14 +1,14 @@
-import { promises } from 'fs'
-import { extname } from 'path'
+import { promises as fs } from 'fs'
+import chalk from 'chalk'
+import path from 'path'
 
 import findUp from 'next/dist/compiled/find-up'
 import semver from 'next/dist/compiled/semver'
+import * as CommentJson from 'next/dist/compiled/comment-json'
 
 import { formatResults } from './customFormatter'
-import { getLintIntent } from './getLintIntent'
 import { writeDefaultConfig } from './writeDefaultConfig'
-import { getPackageVersion } from '../get-package-version'
-
+import { existsSync, findPagesDir } from '../find-pages-dir'
 import { CompileError } from '../compile-error'
 import {
   hasNecessaryDependencies,
@@ -22,35 +22,40 @@ type Config = {
   rules: { [key: string]: Array<number | string> }
 }
 
-const linteableFileTypes = ['jsx', 'js', 'ts', 'tsx']
-
 async function lint(
   deps: NecessaryDependencies,
   baseDir: string,
-  pagesDir: string,
+  lintDirs: string[],
   eslintrcFile: string | null,
-  pkgJsonPath: string | null
+  pkgJsonPath: string | null,
+  eslintOptions: any = null
 ): Promise<string | null> {
   // Load ESLint after we're sure it exists:
-  const { ESLint } = await import(deps.resolved)
+  const mod = await import(deps.resolved)
+
+  const { ESLint } = mod
 
   if (!ESLint) {
-    const eslintVersion: string | null = await getPackageVersion({
-      cwd: baseDir,
-      name: 'eslint',
-    })
+    const eslintVersion: string | undefined = mod?.CLIEngine?.version
 
-    if (eslintVersion && semver.lt(eslintVersion, '7.0.0')) {
-      Log.warn(
-        `Your project has an older version of ESLint installed (${eslintVersion}). Please upgrade to v7 or later to run ESLint during the build process.`
-      )
+    if (!eslintVersion || semver.lt(eslintVersion, '7.0.0')) {
+      return `${chalk.red(
+        'error'
+      )} - Your project has an older version of ESLint installed${
+        eslintVersion ? ' (' + eslintVersion + ')' : ''
+      }. Please upgrade to ESLint version 7 or later`
     }
-    return null
+
+    return `${chalk.red(
+      'error'
+    )} - ESLint class not found. Please upgrade to ESLint version 7 or later`
   }
 
   let options: any = {
     useEslintrc: true,
     baseConfig: {},
+    extensions: ['.js', '.jsx', '.ts', '.tsx'],
+    ...eslintOptions,
   }
   let eslint = new ESLint(options)
 
@@ -69,6 +74,8 @@ async function lint(
       break
     }
   }
+
+  const pagesDir = findPagesDir(baseDir)
 
   if (nextEslintPluginIsEnabled) {
     let updatedPagesDir = false
@@ -92,32 +99,23 @@ async function lint(
       eslint = new ESLint(options)
     }
   }
-
-  const results = await eslint.lintFiles([
-    `${pagesDir}/**/*.{${linteableFileTypes.join(',')}}`,
-  ])
+  const results = await eslint.lintFiles(lintDirs)
+  if (options.fix) await ESLint.outputFixes(results)
 
   if (ESLint.getErrorResults(results)?.length > 0) {
     throw new CompileError(await formatResults(baseDir, results))
   }
+
   return results?.length > 0 ? formatResults(baseDir, results) : null
 }
 
 export async function runLintCheck(
   baseDir: string,
-  pagesDir: string
+  lintDirs: string[],
+  lintDuringBuild: boolean = false,
+  eslintOptions: any = null
 ): Promise<string | null> {
   try {
-    // Check if any pages exist that can be linted
-    const pages = await promises.readdir(pagesDir)
-    if (
-      !pages.some((page) =>
-        linteableFileTypes.includes(extname(page).replace('.', ''))
-      )
-    ) {
-      return null
-    }
-
     // Find user's .eslintrc file
     const eslintrcFile =
       (await findUp(
@@ -134,33 +132,50 @@ export async function runLintCheck(
       )) ?? null
 
     const pkgJsonPath = (await findUp('package.json', { cwd: baseDir })) ?? null
-
-    const { eslintConfig: pkgJsonEslintConfig = null } = !!pkgJsonPath
-      ? await import(pkgJsonPath!)
-      : {}
-
-    // Check if the project uses ESLint
-    const eslintIntent = await getLintIntent(eslintrcFile, pkgJsonEslintConfig)
-
-    if (!eslintIntent) {
-      return null
+    let packageJsonConfig = null
+    if (pkgJsonPath) {
+      const pkgJsonContent = await fs.readFile(pkgJsonPath, {
+        encoding: 'utf8',
+      })
+      packageJsonConfig = CommentJson.parse(pkgJsonContent)
     }
 
-    const firstTimeSetup = eslintIntent.firstTimeSetup
+    // Warning displayed if no ESLint configuration is present during build
+    if (lintDuringBuild && !eslintrcFile && !packageJsonConfig.eslintConfig) {
+      Log.warn(
+        `No ESLint configuration detected. Run ${chalk.bold.cyan(
+          'next lint'
+        )} to begin setup`
+      )
+      return null
+    }
 
     // Ensure ESLint and necessary plugins and configs are installed:
     const deps: NecessaryDependencies = await hasNecessaryDependencies(
       baseDir,
       false,
-      !!eslintIntent,
-      eslintrcFile
+      true,
+      lintDuringBuild
     )
 
-    // Create the user's eslintrc config for them
-    if (firstTimeSetup) await writeDefaultConfig(eslintrcFile, pkgJsonPath)
+    // Write default ESLint config if none is present
+    // Check for /pages and src/pages is to make sure this happens in Next.js folder
+    if (
+      existsSync(path.join(baseDir, 'pages')) ||
+      existsSync(path.join(baseDir, 'src/pages'))
+    ) {
+      await writeDefaultConfig(eslintrcFile, pkgJsonPath, packageJsonConfig)
+    }
 
     // Run ESLint
-    return await lint(deps, baseDir, pagesDir, eslintrcFile, pkgJsonPath)
+    return await lint(
+      deps,
+      baseDir,
+      lintDirs,
+      eslintrcFile,
+      pkgJsonPath,
+      eslintOptions
+    )
   } catch (err) {
     throw err
   }
