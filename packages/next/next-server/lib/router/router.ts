@@ -1112,7 +1112,12 @@ export default class Router implements BaseRouter {
               pages
             )
 
-            if (pages.includes(parsedHref.pathname)) {
+            const isDestinationAKnownPage = pages.includes(parsedHref.pathname)
+            const isDestinationARewrittenUrl = rewrites.afterFiles.some(
+              (x: any) => x.source === parsedHref.pathname
+            )
+
+            if (isDestinationAKnownPage || isDestinationARewrittenUrl) {
               const { url: newUrl, as: newAs } = prepareUrlAs(
                 this,
                 destination,

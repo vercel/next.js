@@ -1,0 +1,57 @@
+/* eslint-env jest */
+
+import { join } from 'path'
+import {
+  renderViaHTTP,
+  findPort,
+  launchApp,
+  killApp,
+  waitFor,
+} from 'next-test-utils'
+import webdriver from 'next-webdriver'
+
+// test suites
+
+const context = {}
+jest.setTimeout(1000 * 60 * 5)
+
+describe('getServerSideProps redirects', () => {
+  beforeAll(async () => {
+    context.appPort = await findPort()
+    context.server = await launchApp(join(__dirname, '../'), context.appPort, {
+      env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
+    })
+
+    // pre-build all pages at the start
+    await Promise.all([
+      renderViaHTTP(context.appPort, '/'),
+      renderViaHTTP(context.appPort, '/some-page'),
+    ])
+  })
+  afterAll(() => killApp(context.server))
+
+  it('should use a client-side navigation for a rewritten URL', async () => {
+    const browser = await webdriver(context.appPort, '/')
+
+    await browser.executeScript(function () {
+      // During a browser navigation global variables are reset,
+      // So by chaking that the __SAME_PAGE variable is still defined
+      // then the client-side navigation has happened
+      window.__SAME_PAGE = true
+    })
+
+    await browser.elementByCss('#link-with-rewritten-url').click()
+
+    // Wait for a potential page reload
+    await waitFor(1000)
+
+    // Wait until the new props are rendered
+    await browser.elementByCss('.refreshed')
+
+    const isSamePage = await browser.executeScript(function () {
+      return window.__SAME_PAGE || false
+    })
+
+    expect(isSamePage).toBe(true)
+  })
+})
