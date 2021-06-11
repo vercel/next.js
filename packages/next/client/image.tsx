@@ -269,7 +269,7 @@ function removePlaceholder(
     const handleLoad = () => {
       if (!img.src.startsWith('data:')) {
         const p = 'decode' in img ? img.decode() : Promise.resolve()
-        p.then(() => {
+        p.catch(() => {}).then(() => {
           img.style.filter = 'none'
           img.style.backgroundSize = 'none'
           img.style.backgroundImage = 'none'
