@@ -15,7 +15,8 @@
   "files": [
     "transforms/*.js",
     "bin/*.js",
-    "lib/**/*.js"
+    "lib/**/*.js",
+    "lib/cra-to-next/gitignore"
   ],
   "scripts": {
     "prepublish": "yarn tsc -d -p tsconfig.json",
