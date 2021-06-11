@@ -78,28 +78,33 @@ describe('Production Usage', () => {
   })
 
   it('should contain generated page count in output', async () => {
-    expect(output).toContain('Generating static pages (0/38)')
-    expect(output).toContain('Generating static pages (38/38)')
+    const pageCount = process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE ? 37 : 38
+    expect(output).toContain(`Generating static pages (0/${pageCount})`)
+    expect(output).toContain(
+      `Generating static pages (${pageCount}/${pageCount})`
+    )
     // we should only have 4 segments and the initial message logged out
     expect(output.match(/Generating static pages/g).length).toBe(5)
   })
 
-  it('should not contain currentScript usage for publicPath', async () => {
-    const globResult = await glob('webpack-*.js', {
-      cwd: join(appDir, '.next/static/chunks'),
+  if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+    it('should not contain currentScript usage for publicPath', async () => {
+      const globResult = await glob('webpack-*.js', {
+        cwd: join(appDir, '.next/static/chunks'),
+      })
+
+      if (!globResult || globResult.length !== 1) {
+        throw new Error('could not find webpack-hash.js chunk')
+      }
+
+      const content = await fs.readFile(
+        join(appDir, '.next/static/chunks', globResult[0]),
+        'utf8'
+      )
+
+      expect(content).not.toContain('.currentScript')
     })
-
-    if (!globResult || globResult.length !== 1) {
-      throw new Error('could not find webpack-hash.js chunk')
-    }
-
-    const content = await fs.readFile(
-      join(appDir, '.next/static/chunks', globResult[0]),
-      'utf8'
-    )
-
-    expect(content).not.toContain('.currentScript')
-  })
+  }
 
   describe('With basic usage', () => {
     it('should render the page', async () => {
