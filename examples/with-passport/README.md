@@ -4,7 +4,7 @@ This example show how to use [Passport.js](http://www.passportjs.org) with Next.
 
 The example shows how to do a login, signup and logout; and to get the user info using a hook with [SWR](https://swr.vercel.app).
 
-A DB is not included. You can use any db you want and add it [here](lib/user.js).
+A database is not included. You can use any database you want and add it [in this file](lib/user.js).
 
 The login cookie is httpOnly, meaning it can only be accessed by the API, and it's encrypted using [@hapi/iron](https://hapi.dev/family/iron) for more security.
 

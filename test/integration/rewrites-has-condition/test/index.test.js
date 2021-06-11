@@ -18,33 +18,32 @@ let appPort
 let app
 
 const runTests = () => {
-  it('should load page rewrite without browser errors', async () => {
-    const browser = await webdriver(appPort, '/rewrite-simple')
+  it('should navigate to a simple rewrite without error', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval('window.beforeNav = 1')
 
-    expect(await browser.waitForElementByCss('#another').text()).toBe(
-      'another page'
-    )
-
-    const browserLogs = await browser.log('browser')
-    const errorLogs = browserLogs.filter((log) => {
-      return log.level.name === 'SEVERE' && log.message.includes('Error:')
-    })
-    expect(errorLogs).toEqual([])
+    await browser
+      .elementByCss('#to-simple')
+      .click()
+      .waitForElementByCss('#another')
+    expect(await browser.elementByCss('#pathname').text()).toBe('/another')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 
-  // Regression test for https://github.com/vercel/next.js/issues/25207
-  it('should load page rewrite, with "has" condition, without browser errors', async () => {
-    const browser = await webdriver(appPort, '/rewrite-with-has?hasQuery=123')
+  it('should navigate to a has rewrite without error', async () => {
+    const browser = await webdriver(appPort, '/')
+    await browser.eval('window.beforeNav = 1')
 
-    expect(await browser.waitForElementByCss('#another').text()).toBe(
-      'another page'
-    )
-
-    const browserLogs = await browser.log('browser')
-    const errorLogs = browserLogs.filter((log) => {
-      return log.level.name === 'SEVERE' && log.message.includes('Error:')
+    await browser
+      .elementByCss('#to-has-rewrite')
+      .click()
+      .waitForElementByCss('#another')
+    expect(await browser.elementByCss('#pathname').text()).toBe('/another')
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      hasQuery: 'true',
     })
-    expect(errorLogs).toEqual([])
+    expect(await browser.eval('window.beforeNav')).toBe(1)
   })
 }
 
