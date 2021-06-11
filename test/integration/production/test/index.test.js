@@ -530,7 +530,9 @@ describe('Production Usage', () => {
       const browser = await webdriver(appPort, '/error-in-browser-render')
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
-      expect(text).toMatch(/An unexpected error has occurred\./)
+      expect(text).toMatch(
+        /Application error: a client-side exception has occurred/
+      )
       await browser.close()
     })
 
