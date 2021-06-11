@@ -917,6 +917,55 @@ describe('Production Usage', () => {
     expect(await browser.eval('window.location.pathname')).toBe('/non-existent')
   })
 
+  it('should remove placeholder for next/image correctly', async () => {
+    const browser = await webdriver(context.appPort, '/')
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/static-image')
+    })()`)
+    await browser.waitForElementByCss('#static-image')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    await check(
+      () => browser.elementByCss('img').getComputedCss('background-image'),
+      'none'
+    )
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/')
+    })()`)
+    await browser.waitForElementByCss('.index-page')
+    await waitFor(1000)
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/static-image')
+    })()`)
+    await browser.waitForElementByCss('#static-image')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    await check(
+      () =>
+        browser
+          .elementByCss('#static-image')
+          .getComputedCss('background-image'),
+      'none'
+    )
+
+    for (let i = 0; i < 5; i++) {
+      expect(
+        await browser
+          .elementByCss('#static-image')
+          .getComputedCss('background-image')
+      ).toBe('none')
+      await waitFor(500)
+    }
+  })
+
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
   processEnv(context)
