@@ -53,7 +53,7 @@ interface StaticImageData {
   src: string
   height: number
   width: number
-  placeholder?: string
+  blurDataURL?: string
 }
 
 interface StaticRequire {
@@ -261,28 +261,28 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 
 // See https://stackoverflow.com/q/39777833/266535 for why we use this ref
 // handler instead of the img's onLoad attribute.
-// 1500ms delay in removing placeholder is to prevent flash of white between
-// image load and image render.
 function removePlaceholder(
-  element: HTMLImageElement | null,
+  img: HTMLImageElement | null,
   placeholder: PlaceholderValue
 ) {
-  if (placeholder === 'blur' && element) {
-    if (element.complete && !element.src.startsWith('data:')) {
+  if (placeholder === 'blur' && img) {
+    const handleLoad = () => {
+      if (!img.src.startsWith('data:')) {
+        const p = 'decode' in img ? img.decode() : Promise.resolve()
+        p.then(() => {
+          img.style.filter = 'none'
+          img.style.backgroundSize = 'none'
+          img.style.backgroundImage = 'none'
+        })
+      }
+    }
+    if (img.complete) {
       // If the real image fails to load, this will still remove the placeholder.
       // This is the desired behavior for now, and will be revisited when error
       // handling is worked on for the image component itself.
-      setTimeout(() => {
-        element.style.backgroundImage = 'none'
-      }, 1500)
+      handleLoad()
     } else {
-      element.onload = () => {
-        if (!element.src.startsWith('data:')) {
-          setTimeout(() => {
-            element.style.backgroundImage = 'none'
-          }, 1500)
-        }
-      }
+      img.onload = handleLoad
     }
   }
 }
@@ -325,9 +325,7 @@ export default function Image({
         )}`
       )
     }
-    if (staticImageData.placeholder) {
-      blurDataURL = staticImageData.placeholder
-    }
+    blurDataURL = blurDataURL || staticImageData.blurDataURL
     staticSrc = staticImageData.src
     if (!layout || layout !== 'fill') {
       height = height || staticImageData.height
@@ -342,6 +340,10 @@ export default function Image({
     }
   }
   src = typeof src === 'string' ? src : staticSrc
+
+  const widthInt = getInt(width)
+  const heightInt = getInt(height)
+  const qualityInt = getInt(quality)
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
@@ -370,6 +372,27 @@ export default function Image({
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
+    if (placeholder === 'blur') {
+      if ((widthInt || 0) * (heightInt || 0) < 1600) {
+        console.warn(
+          `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
+        )
+      }
+      if (!blurDataURL) {
+        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp'] // should match next-image-loader
+
+        throw new Error(
+          `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
+          Possible solutions:
+            - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
+            - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(
+              ','
+            )}
+            - Remove the "placeholder" property, effectively no blur effect
+          Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
+        )
+      }
+    }
   }
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
@@ -384,16 +407,6 @@ export default function Image({
     disabled: !isLazy,
   })
   const isVisible = !isLazy || isIntersected
-
-  const widthInt = getInt(width)
-  const heightInt = getInt(height)
-  const qualityInt = getInt(quality)
-
-  const MIN_IMG_SIZE_FOR_PLACEHOLDER = 5000
-  const tooSmallForBlurryPlaceholder =
-    widthInt && heightInt && widthInt * heightInt < MIN_IMG_SIZE_FOR_PLACEHOLDER
-  const shouldShowBlurryPlaceholder =
-    placeholder === 'blur' && !tooSmallForBlurryPlaceholder
 
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
@@ -421,8 +434,9 @@ export default function Image({
     objectFit,
     objectPosition,
 
-    ...(shouldShowBlurryPlaceholder
+    ...(placeholder === 'blur'
       ? {
+          filter: 'blur(20px)',
           backgroundSize: 'cover',
           backgroundImage: `url("${blurDataURL}")`,
         }
