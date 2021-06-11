@@ -59,7 +59,7 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
                 <>
                   Application error: a client-side exception has occurred (
                   <a href="https://nextjs.org/docs/messages/client-side-exception-occurred">
-                    read more
+                    developer guidance
                   </a>
                   )
                 </>
