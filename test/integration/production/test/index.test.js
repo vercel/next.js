@@ -63,8 +63,8 @@ describe('Production Usage', () => {
   afterAll(() => stopApp(server))
 
   it('should contain generated page count in output', async () => {
-    expect(output).toContain('Generating static pages (0/37)')
-    expect(output).toContain('Generating static pages (37/37)')
+    expect(output).toContain('Generating static pages (0/38)')
+    expect(output).toContain('Generating static pages (38/38)')
     // we should only have 4 segments and the initial message logged out
     expect(output.match(/Generating static pages/g).length).toBe(5)
   })
@@ -915,6 +915,55 @@ describe('Production Usage', () => {
     expect(await browser.eval('window.location.hash')).toBe('')
     expect(await browser.eval('window.location.search')).toBe('?hello=world')
     expect(await browser.eval('window.location.pathname')).toBe('/non-existent')
+  })
+
+  it('should remove placeholder for next/image correctly', async () => {
+    const browser = await webdriver(context.appPort, '/')
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/static-image')
+    })()`)
+    await browser.waitForElementByCss('#static-image')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    await check(
+      () => browser.elementByCss('img').getComputedCss('background-image'),
+      'none'
+    )
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/')
+    })()`)
+    await browser.waitForElementByCss('.index-page')
+    await waitFor(1000)
+
+    await browser.eval(`(function() {
+      window.beforeNav = 1
+      window.next.router.push('/static-image')
+    })()`)
+    await browser.waitForElementByCss('#static-image')
+
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+
+    await check(
+      () =>
+        browser
+          .elementByCss('#static-image')
+          .getComputedCss('background-image'),
+      'none'
+    )
+
+    for (let i = 0; i < 5; i++) {
+      expect(
+        await browser
+          .elementByCss('#static-image')
+          .getComputedCss('background-image')
+      ).toBe('none')
+      await waitFor(500)
+    }
   })
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
