@@ -676,7 +676,7 @@ export default async function build(
       const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
         'check-static-error-page'
       )
-      const nonStaticErrorPagePromise = nonStaticErrorPageSpan.traceAsyncFn(
+      const errorPageHasCustomGetInitialProps = nonStaticErrorPageSpan.traceAsyncFn(
         async () =>
           hasCustomErrorPage &&
           (await staticCheckWorkers.hasCustomGetInitialProps(
@@ -687,6 +687,20 @@ export default async function build(
             false
           ))
       )
+
+      const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
+        async () =>
+          hasCustomErrorPage &&
+          staticCheckWorkers.isPageStatic(
+            '/_error',
+            distDir,
+            isLikeServerless,
+            runtimeEnvConfig,
+            config.i18n?.locales,
+            config.i18n?.defaultLocale
+          )
+      )
+
       // we don't output _app in serverless mode so use _app export
       // from _error instead
       const appPageToCheck = isLikeServerless ? '/_error' : '/_app'
@@ -847,12 +861,18 @@ export default async function build(
           })
         })
       )
+
+      const errorPageResult = await errorPageStaticResult
+      const nonStaticErrorPage =
+        (await errorPageHasCustomGetInitialProps) ||
+        (errorPageResult && errorPageResult.hasServerProps)
+
       const returnValue = {
         customAppGetInitialProps: await customAppGetInitialPropsPromise,
         namedExports: await namedExportsPromise,
         isNextImageImported,
         hasSsrAmpPages,
-        hasNonStaticErrorPage: await nonStaticErrorPagePromise,
+        hasNonStaticErrorPage: nonStaticErrorPage,
       }
 
       staticCheckWorkers.end()
@@ -989,13 +1009,15 @@ export default async function build(
         mappedPages[page] && mappedPages[page].startsWith('private-next-pages')
     )
     usedStaticStatusPages.forEach((page) => {
-      if (!ssgPages.has(page)) {
+      if (!ssgPages.has(page) && !customAppGetInitialProps) {
         staticPages.add(page)
       }
     })
 
     const hasPages500 = usedStaticStatusPages.includes('/500')
-    const useDefaultStatic500 = !hasPages500 && !hasNonStaticErrorPage
+    const useDefaultStatic500 =
+      !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
+
     const combinedPages = [...staticPages, ...ssgPages]
 
     if (combinedPages.length > 0 || useStatic404 || useDefaultStatic500) {
