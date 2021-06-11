@@ -183,7 +183,7 @@ jobs:
     needs: build
     env:
       HEADLESS: true
-      BROWSERNAME: 'firefox'
+      BROWSER_NAME: 'firefox'
       NEXT_TELEMETRY_DISABLED: 1
     steps:
       - uses: actions/cache@v2
@@ -201,7 +201,7 @@ jobs:
     needs: build
     env:
       BROWSERSTACK: true
-      BROWSERNAME: 'safari'
+      BROWSER_NAME: 'safari'
       NEXT_TELEMETRY_DISABLED: 1
       SKIP_LOCAL_SELENIUM_SERVER: true
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
@@ -223,7 +223,7 @@ jobs:
     env:
       BROWSERSTACK: true
       LEGACY_SAFARI: true
-      BROWSERNAME: 'safari'
+      BROWSER_NAME: 'safari'
       NEXT_TELEMETRY_DISABLED: 1
       SKIP_LOCAL_SELENIUM_SERVER: true
       BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
