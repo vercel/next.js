@@ -63,8 +63,8 @@ describe('Production Usage', () => {
   afterAll(() => stopApp(server))
 
   it('should contain generated page count in output', async () => {
-    expect(output).toContain('Generating static pages (0/37)')
-    expect(output).toContain('Generating static pages (37/37)')
+    expect(output).toContain('Generating static pages (0/38)')
+    expect(output).toContain('Generating static pages (38/38)')
     // we should only have 4 segments and the initial message logged out
     expect(output.match(/Generating static pages/g).length).toBe(5)
   })
