@@ -6,7 +6,7 @@ In your production application a client-side error occurred that was not caught 
 
 #### Possible Ways to Fix It
 
-Add error boundaries in your react tree to gracefully handle client-side errors and render a fallback view when they occur.
+Add error boundaries in your React tree to gracefully handle client-side errors and render a fallback view when they occur.
 
 ### Useful Links
 
