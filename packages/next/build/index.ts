@@ -119,7 +119,8 @@ export default async function build(
   dir: string,
   conf = null,
   reactProductionProfiling = false,
-  debugOutput = false
+  debugOutput = false,
+  runLint = true
 ): Promise<void> {
   const nextBuildSpan = trace('next-build')
 
@@ -212,13 +213,15 @@ export default async function build(
       typeCheckingSpinner.stopAndPersist()
     }
 
-    if (config.experimental.eslint) {
+    const ignoreESLint = Boolean(config.eslint?.ignoreDuringBuilds)
+    const lintDirs = config.eslint?.dirs
+    if (!ignoreESLint && runLint) {
       await nextBuildSpan
         .traceChild('verify-and-lint')
         .traceAsyncFn(async () => {
           await verifyAndLint(
             dir,
-            pagesDir,
+            lintDirs,
             config.experimental.cpus,
             config.experimental.workerThreads
           )
@@ -543,33 +546,25 @@ export default async function build(
     const webpackBuildStart = process.hrtime()
 
     let result: CompilerResult = { warnings: [], errors: [] }
-    // We run client and server compilation separately when configured for
-    // memory constraint and for serverless to be able to load manifests
-    // produced in the client build
-    if (isLikeServerless || config.experimental.serialWebpackBuild) {
-      await nextBuildSpan
-        .traceChild('run-webpack-compiler')
-        .traceAsyncFn(async () => {
-          const clientResult = await runCompiler(clientConfig)
-          // Fail build if clientResult contains errors
-          if (clientResult.errors.length > 0) {
-            result = {
-              warnings: [...clientResult.warnings],
-              errors: [...clientResult.errors],
-            }
-          } else {
-            const serverResult = await runCompiler(configs[1])
-            result = {
-              warnings: [...clientResult.warnings, ...serverResult.warnings],
-              errors: [...clientResult.errors, ...serverResult.errors],
-            }
+    // We run client and server compilation separately to optimize for memory usage
+    await nextBuildSpan
+      .traceChild('run-webpack-compiler')
+      .traceAsyncFn(async () => {
+        const clientResult = await runCompiler(clientConfig)
+        // Fail build if clientResult contains errors
+        if (clientResult.errors.length > 0) {
+          result = {
+            warnings: [...clientResult.warnings],
+            errors: [...clientResult.errors],
           }
-        })
-    } else {
-      result = await nextBuildSpan
-        .traceChild('run-webpack-compiler')
-        .traceAsyncFn(() => runCompiler(configs))
-    }
+        } else {
+          const serverResult = await runCompiler(configs[1])
+          result = {
+            warnings: [...clientResult.warnings, ...serverResult.warnings],
+            errors: [...clientResult.errors, ...serverResult.errors],
+          }
+        }
+      })
 
     const webpackBuildEnd = process.hrtime(webpackBuildStart)
     if (buildSpinner) {
@@ -681,7 +676,7 @@ export default async function build(
       const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
         'check-static-error-page'
       )
-      const nonStaticErrorPagePromise = nonStaticErrorPageSpan.traceAsyncFn(
+      const errorPageHasCustomGetInitialProps = nonStaticErrorPageSpan.traceAsyncFn(
         async () =>
           hasCustomErrorPage &&
           (await staticCheckWorkers.hasCustomGetInitialProps(
@@ -692,6 +687,20 @@ export default async function build(
             false
           ))
       )
+
+      const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
+        async () =>
+          hasCustomErrorPage &&
+          staticCheckWorkers.isPageStatic(
+            '/_error',
+            distDir,
+            isLikeServerless,
+            runtimeEnvConfig,
+            config.i18n?.locales,
+            config.i18n?.defaultLocale
+          )
+      )
+
       // we don't output _app in serverless mode so use _app export
       // from _error instead
       const appPageToCheck = isLikeServerless ? '/_error' : '/_app'
@@ -852,12 +861,18 @@ export default async function build(
           })
         })
       )
+
+      const errorPageResult = await errorPageStaticResult
+      const nonStaticErrorPage =
+        (await errorPageHasCustomGetInitialProps) ||
+        (errorPageResult && errorPageResult.hasServerProps)
+
       const returnValue = {
         customAppGetInitialProps: await customAppGetInitialPropsPromise,
         namedExports: await namedExportsPromise,
         isNextImageImported,
         hasSsrAmpPages,
-        hasNonStaticErrorPage: await nonStaticErrorPagePromise,
+        hasNonStaticErrorPage: nonStaticErrorPage,
       }
 
       staticCheckWorkers.end()
@@ -994,13 +1009,15 @@ export default async function build(
         mappedPages[page] && mappedPages[page].startsWith('private-next-pages')
     )
     usedStaticStatusPages.forEach((page) => {
-      if (!ssgPages.has(page)) {
+      if (!ssgPages.has(page) && !customAppGetInitialProps) {
         staticPages.add(page)
       }
     })
 
     const hasPages500 = usedStaticStatusPages.includes('/500')
-    const useDefaultStatic500 = !hasPages500 && !hasNonStaticErrorPage
+    const useDefaultStatic500 =
+      !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
+
     const combinedPages = [...staticPages, ...ssgPages]
 
     if (combinedPages.length > 0 || useStatic404 || useDefaultStatic500) {

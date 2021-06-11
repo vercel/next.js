@@ -1,9 +1,12 @@
 import chalk from 'chalk'
 import { Worker } from 'jest-worker'
+import { existsSync } from 'fs'
+import { join } from 'path'
+import { ESLINT_DEFAULT_DIRS } from './constants'
 
 export async function verifyAndLint(
   dir: string,
-  pagesDir: string,
+  configLintDirs: string[] | undefined,
   numWorkers: number | undefined,
   enableWorkerThreads: boolean | undefined
 ): Promise<void> {
@@ -18,7 +21,17 @@ export async function verifyAndLint(
     lintWorkers.getStdout().pipe(process.stdout)
     lintWorkers.getStderr().pipe(process.stderr)
 
-    const lintResults = await lintWorkers.runLintCheck(dir, pagesDir)
+    const lintDirs = (configLintDirs ?? ESLINT_DEFAULT_DIRS).reduce(
+      (res: string[], d: string) => {
+        const currDir = join(dir, d)
+        if (!existsSync(currDir)) return res
+        res.push(currDir)
+        return res
+      },
+      []
+    )
+
+    const lintResults = await lintWorkers.runLintCheck(dir, lintDirs, true)
     if (lintResults) {
       console.log(lintResults)
     }

@@ -276,11 +276,13 @@ describe('Production Usage', () => {
       const manifestKey = Object.keys(reactLoadableManifest).find((item) => {
         return item
           .replace(/\\/g, '/')
-          .endsWith('bundle.js -> ../../components/hello1')
+          .endsWith('dynamic/css.js -> ../../components/dynamic-css/with-css')
       })
 
       // test dynamic chunk
-      resources.add(url + reactLoadableManifest[manifestKey].files[0])
+      reactLoadableManifest[manifestKey].files.forEach((f) => {
+        resources.add(url + f)
+      })
 
       // test main.js runtime etc
       for (const item of buildManifest.pages['/']) {
@@ -528,7 +530,9 @@ describe('Production Usage', () => {
       const browser = await webdriver(appPort, '/error-in-browser-render')
       await waitFor(2000)
       const text = await browser.elementByCss('body').text()
-      expect(text).toMatch(/An unexpected error has occurred\./)
+      expect(text).toMatch(
+        /Application error: a client-side exception has occurred/
+      )
       await browser.close()
     })
 

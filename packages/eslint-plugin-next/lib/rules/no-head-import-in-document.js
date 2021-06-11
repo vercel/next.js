@@ -15,7 +15,7 @@ module.exports = {
         }
 
         const document = context.getFilename().split('pages')[1]
-        if (!document || path.parse(document).name !== '_document') {
+        if (!document || !path.parse(document).name.startsWith('_document')) {
           return
         }
 

@@ -1,8 +1,5 @@
 module.exports = {
-  future: {
-    webpack5: true,
-  },
-  webpack(config, options) {
+  webpack(config) {
     console.log('Initialized config')
     if (
       require('webpack/lib/node/NodeTargetPlugin') !==
