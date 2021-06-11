@@ -4,23 +4,13 @@ import Image from 'next/image'
 
 import testJPG from '../public/test.jpg'
 import testPNG from '../public/test.png'
+import testWEBP from '../public/test.webp'
 import testSVG from '../public/test.svg'
 import testGIF from '../public/test.gif'
 import testBMP from '../public/test.bmp'
 import testICO from '../public/test.ico'
-import testWEBP from '../public/test.webp'
 
 import TallImage from '../components/TallImage'
-const testFiles = [
-  testJPG,
-  testPNG,
-  testSVG,
-  testGIF,
-  testBMP,
-  testICO,
-  testWEBP,
-]
-
 const Page = () => {
   return (
     <div>
@@ -46,9 +36,14 @@ const Page = () => {
         width="400"
         height="300"
       />
-      {testFiles.map((f, i) => (
-        <Image id={`format-test-${i}`} key={i} src={f} placeholder="blur" />
-      ))}
+      <br />
+      <Image id="blur-png" src={testPNG} placeholder="blur" />
+      <Image id="blur-jpg" src={testJPG} placeholder="blur" />
+      <Image id="blur-webp" src={testWEBP} placeholder="blur" />
+      <Image id="static-svg" src={testSVG} />
+      <Image id="static-gif" src={testGIF} />
+      <Image id="static-bmp" src={testBMP} />
+      <Image id="static-ico" src={testICO} />
     </div>
   )
 }
