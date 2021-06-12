@@ -895,7 +895,7 @@ describe('Production Usage', () => {
     }
   })
 
-  it('should have async on all script tags', async () => {
+  it('should have defer on all script tags', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
     let missing = false
@@ -909,7 +909,7 @@ describe('Production Usage', () => {
         continue
       }
 
-      if (script.attribs.defer === '' || script.attribs.async !== '') {
+      if (script.attribs.defer !== '' || script.attribs.async === '') {
         missing = true
       }
     }
