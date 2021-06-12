@@ -40,6 +40,13 @@ const context = {}
 describe('Production Usage', () => {
   let output = ''
   beforeAll(async () => {
+    if (process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+      await fs.rename(
+        join(appDir, 'pages/static-image.js'),
+        join(appDir, 'pages/static-image.js.bak')
+      )
+    }
+
     const result = await runNextCommand(['build', appDir], {
       stderr: true,
       stdout: true,
@@ -60,31 +67,44 @@ describe('Production Usage', () => {
     server = await startApp(app)
     context.appPort = appPort = server.address().port
   })
-  afterAll(() => stopApp(server))
+  afterAll(async () => {
+    if (process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+      await fs.rename(
+        join(appDir, 'pages/static-image.js.bak'),
+        join(appDir, 'pages/static-image.js')
+      )
+    }
+    await stopApp(server)
+  })
 
   it('should contain generated page count in output', async () => {
-    expect(output).toContain('Generating static pages (0/37)')
-    expect(output).toContain('Generating static pages (37/37)')
+    const pageCount = process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE ? 37 : 38
+    expect(output).toContain(`Generating static pages (0/${pageCount})`)
+    expect(output).toContain(
+      `Generating static pages (${pageCount}/${pageCount})`
+    )
     // we should only have 4 segments and the initial message logged out
     expect(output.match(/Generating static pages/g).length).toBe(5)
   })
 
-  it('should not contain currentScript usage for publicPath', async () => {
-    const globResult = await glob('webpack-*.js', {
-      cwd: join(appDir, '.next/static/chunks'),
+  if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+    it('should not contain currentScript usage for publicPath', async () => {
+      const globResult = await glob('webpack-*.js', {
+        cwd: join(appDir, '.next/static/chunks'),
+      })
+
+      if (!globResult || globResult.length !== 1) {
+        throw new Error('could not find webpack-hash.js chunk')
+      }
+
+      const content = await fs.readFile(
+        join(appDir, '.next/static/chunks', globResult[0]),
+        'utf8'
+      )
+
+      expect(content).not.toContain('.currentScript')
     })
-
-    if (!globResult || globResult.length !== 1) {
-      throw new Error('could not find webpack-hash.js chunk')
-    }
-
-    const content = await fs.readFile(
-      join(appDir, '.next/static/chunks', globResult[0]),
-      'utf8'
-    )
-
-    expect(content).not.toContain('.currentScript')
-  })
+  }
 
   describe('With basic usage', () => {
     it('should render the page', async () => {
@@ -660,7 +680,7 @@ describe('Production Usage', () => {
       if (browserName === 'safari') {
         const elements = await browser.elementsByCss('link[rel=preload]')
         // 4 page preloads and 5 existing preloads for _app, commons, main, etc
-        expect(elements.length).toBe(11)
+        expect(elements.length).toBe(5)
       } else {
         const elements = await browser.elementsByCss('link[rel=prefetch]')
         expect(elements.length).toBe(4)
@@ -916,6 +936,57 @@ describe('Production Usage', () => {
     expect(await browser.eval('window.location.search')).toBe('?hello=world')
     expect(await browser.eval('window.location.pathname')).toBe('/non-existent')
   })
+
+  if (!process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) {
+    it('should remove placeholder for next/image correctly', async () => {
+      const browser = await webdriver(context.appPort, '/')
+
+      await browser.eval(`(function() {
+        window.beforeNav = 1
+        window.next.router.push('/static-image')
+      })()`)
+      await browser.waitForElementByCss('#static-image')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      await check(
+        () => browser.elementByCss('img').getComputedCss('background-image'),
+        'none'
+      )
+
+      await browser.eval(`(function() {
+        window.beforeNav = 1
+        window.next.router.push('/')
+      })()`)
+      await browser.waitForElementByCss('.index-page')
+      await waitFor(1000)
+
+      await browser.eval(`(function() {
+        window.beforeNav = 1
+        window.next.router.push('/static-image')
+      })()`)
+      await browser.waitForElementByCss('#static-image')
+
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      await check(
+        () =>
+          browser
+            .elementByCss('#static-image')
+            .getComputedCss('background-image'),
+        'none'
+      )
+
+      for (let i = 0; i < 5; i++) {
+        expect(
+          await browser
+            .elementByCss('#static-image')
+            .getComputedCss('background-image')
+        ).toBe('none')
+        await waitFor(500)
+      }
+    })
+  }
 
   dynamicImportTests(context, (p, q) => renderViaHTTP(context.appPort, p, q))
 
