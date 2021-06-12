@@ -113,7 +113,7 @@ export const defaultConfig: NextConfig = {
     stats: false,
     externalDir: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
-    disableOptimizedLoading: true,
+    disableOptimizedLoading: false,
     gzipSize: true,
     craCompat: false,
   },
