@@ -1,4 +1,4 @@
-export default function SomeOtherPage() {
+export default function Redirector() {
   return (
     <main>
       <h1>Hello world</h1>

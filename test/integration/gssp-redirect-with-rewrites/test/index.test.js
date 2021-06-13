@@ -24,14 +24,14 @@ describe('getServerSideProps redirects', () => {
 
     // pre-build all pages at the start
     await Promise.all([
-      renderViaHTTP(context.appPort, '/'),
-      renderViaHTTP(context.appPort, '/some-page'),
+      renderViaHTTP(context.appPort, '/alias-to-main-content'),
+      renderViaHTTP(context.appPort, '/main-content'),
     ])
   })
   afterAll(() => killApp(context.server))
 
   it('should use a client-side navigation for a rewritten URL', async () => {
-    const browser = await webdriver(context.appPort, '/')
+    const browser = await webdriver(context.appPort, '/alias-to-main-content')
 
     await browser.executeScript(function () {
       // During a browser navigation global variables are reset,

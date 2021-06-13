@@ -40,7 +40,7 @@ const SomeHeavyComponent = dynamic(() => import('SomeHeavyComponent'))
 
 const defaultComponents = { Test }
 
-export function SomePage({ mdxSource, componentNames }) {
+export function Page2({ mdxSource, componentNames }) {
   const components = {
     ...defaultComponents,
     SomeHeavyComponent: componentNames.includes('SomeHeavyComponent')
