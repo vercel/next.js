@@ -8,7 +8,7 @@ export default function Page() {
       <Image
         priority
         id="blurry-placeholder"
-        src="/test.jpg"
+        src="/test.ico"
         width="400"
         height="400"
         placeholder="blur"
@@ -19,7 +19,7 @@ export default function Page() {
 
       <Image
         id="blurry-placeholder-with-lazy"
-        src="/test.jpg"
+        src="/test.bmp"
         width="400"
         height="400"
         placeholder="blur"
