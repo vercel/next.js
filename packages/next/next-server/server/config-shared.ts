@@ -60,6 +60,7 @@ export type NextConfig = { [key: string]: any } & {
     reactRoot?: boolean
     disableOptimizedLoading?: boolean
     gzipSize?: boolean
+    craCompat?: boolean
   }
 }
 
@@ -112,8 +113,9 @@ export const defaultConfig: NextConfig = {
     stats: false,
     externalDir: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
-    disableOptimizedLoading: true,
+    disableOptimizedLoading: false,
     gzipSize: true,
+    craCompat: false,
   },
   webpack5:
     Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0 ? false : undefined,

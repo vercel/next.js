@@ -48,7 +48,7 @@ const Profile = () => {
 export default Profile
 ```
 
-You can view this example in action [here](https://next-with-iron-session.vercel.app/). Check out the [`with-iron-session`](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session) example to see how it works.
+You can view this [example in action](https://next-with-iron-session.vercel.app/). Check out the [`with-iron-session`](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session) example to see how it works.
 
 ### Authenticating Server-Rendered Pages
 

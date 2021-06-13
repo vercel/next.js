@@ -1,9 +1,10 @@
 {
   "name": "@next/codemod",
-  "version": "10.2.4-canary.9",
+  "version": "10.2.4-canary.16",
   "license": "MIT",
   "dependencies": {
     "chalk": "4.1.0",
+    "cheerio": "1.0.0-rc.9",
     "execa": "4.0.3",
     "globby": "11.0.1",
     "inquirer": "7.3.3",
@@ -13,12 +14,17 @@
   },
   "files": [
     "transforms/*.js",
-    "bin/*.js"
+    "bin/*.js",
+    "lib/**/*.js",
+    "lib/cra-to-next/gitignore"
   ],
   "scripts": {
     "prepublish": "yarn tsc -d -p tsconfig.json",
     "dev": "yarn tsc -d -w -p tsconfig.json",
     "test": "jest"
   },
-  "bin": "./bin/next-codemod.js"
+  "bin": "./bin/next-codemod.js",
+  "devDependencies": {
+    "@types/jscodeshift": "0.11.0"
+  }
 }
