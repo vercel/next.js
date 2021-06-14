@@ -2,7 +2,7 @@
 
 This example shows how to integrate [Unstated Next](https://github.com/jamiebuilds/unstated-next) with Next.js.
 
-There are two pages, `/` and `/about`, both render a counter and a timer, the state is saved for the current page and resetted when switching to a different page. To keep a shared state between pages you can add the state providers to `pages/_app.js` instead of using the page.
+There are two pages, `/` and `/about`, both render a counter and a timer, the state is saved for the current page and reset when switching to a different page. To keep a shared state between pages you can add the state providers to `pages/_app.js` instead of using the page.
 
 ## Preview
 

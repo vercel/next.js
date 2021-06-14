@@ -15,6 +15,6 @@
     "react-md": "^2.1.1"
   },
   "devDependencies": {
-    "node-sass": "^4.14.1"
+    "sass": "^1.34.1"
   }
 }
