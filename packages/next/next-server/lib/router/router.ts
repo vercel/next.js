@@ -400,11 +400,12 @@ export type NextRouter = BaseRouter &
     | 'back'
     | 'prefetch'
     | 'beforePopState'
-    | 'events'
     | 'isFallback'
     | 'isReady'
     | 'isPreview'
-  >
+  > & {
+    events: typeof Router.events
+  }
 
 export type PrefetchOptions = {
   priority?: boolean
