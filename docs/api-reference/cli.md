@@ -80,7 +80,9 @@ Or using the `PORT` environment variable:
 PORT=4000 npx next dev
 ```
 
-Similarly, you can also set the hostname to be different from the default of `0.0.0.0`, this can be useful for making the application available for other devices on the network. The default hostname can be changed with `-H`, like so:
+> Note: `PORT` can not be set in `.env` as booting up the HTTP server happens before any other code is initialized.
+
+You can also set the hostname to be different from the default of `0.0.0.0`, this can be useful for making the application available for other devices on the network. The default hostname can be changed with `-H`, like so:
 
 ```bash
 npx next dev -H 192.168.1.2
@@ -101,6 +103,8 @@ Or using the `PORT` environment variable:
 ```bash
 PORT=4000 npx next start
 ```
+
+> Note: `PORT` can not be set in `.env` as booting up the HTTP server happens before any other code is initialized.
 
 ## Lint
 
