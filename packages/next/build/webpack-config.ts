@@ -3,7 +3,6 @@ import chalk from 'chalk'
 import crypto from 'crypto'
 import { readFileSync } from 'fs'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
-import semver from 'next/dist/compiled/semver'
 import { isWebpack5, webpack } from 'next/dist/compiled/webpack/webpack'
 import path, { join as pathJoin, relative as relativePath } from 'path'
 import {
@@ -13,7 +12,6 @@ import {
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
-import { getPackageVersion } from '../lib/get-package-version'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import {
@@ -231,15 +229,7 @@ export default async function getBaseWebpackConfig(
     rewrites.beforeFiles.length > 0 ||
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
-
-  const reactVersion = await getPackageVersion({ cwd: dir, name: 'react' })
   const hasReactRefresh: boolean = dev && !isServer
-  const hasJsxRuntime: boolean =
-    config.experimental.reactRoot ||
-    (Boolean(reactVersion) &&
-      // 17.0.0-rc.0 had a breaking change not compatible with Next.js, but was
-      // fixed in rc.1.
-      semver.gte(reactVersion!, '17.0.0-rc.1'))
 
   const babelConfigFile = await [
     '.babelrc',
@@ -279,7 +269,7 @@ export default async function getBaseWebpackConfig(
         cache: !isWebpack5,
         development: dev,
         hasReactRefresh,
-        hasJsxRuntime,
+        hasJsxRuntime: true,
       },
     },
     // Backwards compat
@@ -1153,7 +1143,7 @@ export default async function getBaseWebpackConfig(
       // by default due to how Webpack interprets its code. This is a practical
       // solution that requires the user to opt into importing specific locales.
       // https://github.com/jmblog/how-to-optimize-momentjs-with-webpack
-      config.future.excludeDefaultMomentLocales &&
+      config.excludeDefaultMomentLocales &&
         new webpack.IgnorePlugin({
           resourceRegExp: /^\.\/locale$/,
           contextRegExp: /moment$/,
@@ -1333,7 +1323,7 @@ export default async function getBaseWebpackConfig(
       scrollRestoration: config.experimental.scrollRestoration,
       basePath: config.basePath,
       pageEnv: config.experimental.pageEnv,
-      excludeDefaultMomentLocales: config.future.excludeDefaultMomentLocales,
+      excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
       assetPrefix: config.assetPrefix,
       disableOptimizedLoading: config.experimental.disableOptimizedLoading,
       target,

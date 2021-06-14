@@ -14,6 +14,7 @@
     "react-dom": "^17.0.1"
   },
   "devDependencies": {
+    "@babel/core": "7.14.5",
     "@babel/plugin-proposal-class-properties": "^7.1.0"
   },
   "license": "MIT"

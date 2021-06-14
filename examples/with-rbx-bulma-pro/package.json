@@ -7,10 +7,13 @@
   },
   "dependencies": {
     "bulma-pro": "^0.1.7",
-    "next": "^9.1.8-canary.11",
+    "next": "latest",
     "rbx": "^2.2.0",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1"
+    "react": "^17.0.3",
+    "react-dom": "^17.0.3"
+  },
+  "devDependencies": {
+    "tslib": "2.3.0"
   },
   "license": "MIT"
 }
