@@ -13,7 +13,6 @@
   "author": "arnarkari93@gmail.com",
   "license": "MIT",
   "dependencies": {
-    "@zeit/next-css": "1.0.1",
     "bs-fetch": "0.5.2",
     "bs-platform": "7.2.2",
     "graphql": "15.0.0",
