@@ -3,12 +3,16 @@ import { Worker } from 'jest-worker'
 import { existsSync } from 'fs'
 import { join } from 'path'
 import { ESLINT_DEFAULT_DIRS } from './constants'
+import { Telemetry } from '../telemetry/storage'
+import { eventLintCheckCompleted } from '../telemetry/events'
+import { CompileError } from './compile-error'
 
 export async function verifyAndLint(
   dir: string,
   configLintDirs: string[] | undefined,
   numWorkers: number | undefined,
-  enableWorkerThreads: boolean | undefined
+  enableWorkerThreads: boolean | undefined,
+  telemetry: Telemetry
 ): Promise<void> {
   try {
     const lintWorkers = new Worker(require.resolve('./eslint/runLintCheck'), {
@@ -32,8 +36,25 @@ export async function verifyAndLint(
     )
 
     const lintResults = await lintWorkers.runLintCheck(dir, lintDirs, true)
-    if (lintResults) {
-      console.log(lintResults)
+    const lintOutput =
+      typeof lintResults === 'string' ? lintResults : lintResults?.output
+
+    if (typeof lintResults !== 'string' && lintResults?.eventInfo) {
+      telemetry.record(
+        eventLintCheckCompleted({
+          ...lintResults.eventInfo,
+          buildLint: true,
+        })
+      )
+    }
+
+    if (typeof lintResults !== 'string' && lintResults?.isError && lintOutput) {
+      await telemetry.flush()
+      throw new CompileError(lintOutput)
+    }
+
+    if (lintOutput) {
+      console.log(lintOutput)
     }
 
     lintWorkers.end()

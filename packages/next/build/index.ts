@@ -223,7 +223,8 @@ export default async function build(
             dir,
             lintDirs,
             config.experimental.cpus,
-            config.experimental.workerThreads
+            config.experimental.workerThreads,
+            telemetry
           )
         })
     }
