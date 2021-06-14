@@ -36,7 +36,7 @@ export async function imageOptimizer(
   parsedUrl: UrlWithParsedQuery,
   nextConfig: NextConfig,
   distDir: string,
-  imageCacheDir: string | undefined
+  imageCacheDir: string | undefined,
 ) {
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
   const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
