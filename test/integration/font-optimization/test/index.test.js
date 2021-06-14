@@ -236,7 +236,11 @@ describe('Font Optimization', () => {
 
       describe('Font optimization for SSR apps', () => {
         beforeAll(async () => {
-          await fs.writeFile(nextConfig, `module.exports = { }`, 'utf8')
+          await fs.writeFile(
+            nextConfig,
+            `module.exports = { cleanDistDir: false }`,
+            'utf8'
+          )
 
           if (fs.pathExistsSync(join(appDir, '.next'))) {
             await fs.remove(join(appDir, '.next'))
@@ -255,7 +259,7 @@ describe('Font Optimization', () => {
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `module.exports = { target: 'serverless' }`,
+            `module.exports = { target: 'serverless', cleanDistDir: false }`,
             'utf8'
           )
           await nextBuild(appDir)
@@ -272,7 +276,7 @@ describe('Font Optimization', () => {
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `module.exports = { target: 'experimental-serverless-trace' }`,
+            `module.exports = { target: 'experimental-serverless-trace', cleanDistDir: false }`,
             'utf8'
           )
           await nextBuild(appDir)
@@ -290,7 +294,11 @@ describe('Font Optimization', () => {
 
       describe('Font optimization for unreachable font definitions.', () => {
         beforeAll(async () => {
-          await fs.writeFile(nextConfig, `module.exports = { }`, 'utf8')
+          await fs.writeFile(
+            nextConfig,
+            `module.exports = { cleanDistDir: false }`,
+            'utf8'
+          )
           await nextBuild(appDir)
           await fs.writeFile(
             join(appDir, '.next', 'server', 'font-manifest.json'),

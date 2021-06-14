@@ -1,6 +1,6 @@
 # Contributing to Next.js
 
-Our Commitment to Open Source can be found [here](https://vercel.com/oss).
+Read about our [Commitment to Open Source](https://vercel.com/oss).
 
 1. [Fork](https://help.github.com/articles/fork-a-repo/) this repository to your own GitHub account and then [clone](https://help.github.com/articles/cloning-a-repository/) it to your local device.
 2. Create a new branch: `git checkout -b MY_BRANCH_NAME`
