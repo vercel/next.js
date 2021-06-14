@@ -679,8 +679,9 @@ describe('Production Usage', () => {
 
       if (browserName === 'safari') {
         const elements = await browser.elementsByCss('link[rel=preload]')
-        // 4 page preloads and 5 existing preloads for _app, commons, main, etc
-        expect(elements.length).toBe(5)
+        // optimized preloading uses defer instead of preloading and prefetches
+        // aren't generated client-side since safari does not support prefetch
+        expect(elements.length).toBe(0)
       } else {
         const elements = await browser.elementsByCss('link[rel=prefetch]')
         expect(elements.length).toBe(4)
