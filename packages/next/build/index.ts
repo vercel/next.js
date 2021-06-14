@@ -456,6 +456,10 @@ export default async function build(
       )
     }
 
+    if (config.cleanDistDir) {
+      await recursiveDelete(distDir, /^cache/)
+    }
+
     // We need to write the manifest with rewrites before build
     // so serverless can import the manifest
     await nextBuildSpan
