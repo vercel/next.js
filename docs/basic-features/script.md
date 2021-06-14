@@ -1,5 +1,5 @@
 ---
-description: Next.js supports built-in third-party Script loading optimization
+description: Next.js helps you optimize loading third-party scripts with the built-in next/script component.
 ---
 
 # Script Component
