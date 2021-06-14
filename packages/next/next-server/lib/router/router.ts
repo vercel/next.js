@@ -400,12 +400,11 @@ export type NextRouter = BaseRouter &
     | 'back'
     | 'prefetch'
     | 'beforePopState'
+    | 'events'
     | 'isFallback'
     | 'isReady'
     | 'isPreview'
-  > & {
-    events: typeof Router.events
-  }
+  >
 
 export type PrefetchOptions = {
   priority?: boolean
@@ -523,6 +522,7 @@ export default class Router implements BaseRouter {
   clc: ComponentLoadCancel
   pageLoader: any
   _bps: BeforePopStateCallback | undefined
+  events: MittEmitter
   _wrapApp: (App: AppComponent) => any
   isSsr: boolean
   isFallback: boolean
@@ -599,6 +599,10 @@ export default class Router implements BaseRouter {
         /* /_app does not need its stylesheets managed */
       ],
     }
+
+    // Backwards compat for Router.router.events
+    // TODO: Should be remove the following major version as it was never documented
+    this.events = Router.events
 
     this.pageLoader = pageLoader
     this.pathname = pathname
