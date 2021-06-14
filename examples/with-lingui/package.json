@@ -15,6 +15,7 @@
     "react-dom": "^17.0.2"
   },
   "devDependencies": {
+    "@babel/core": "7.14.5",
     "@lingui/cli": "latest",
     "@lingui/loader": "latest",
     "@lingui/macro": "latest",
