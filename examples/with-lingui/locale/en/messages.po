@@ -36,7 +36,3 @@ msgstr "Page two."
 #: components/LangSwitcher.js:7
 msgid "Swedish"
 msgstr "Swedish"
-
-#: components/LangSwitcher.js:26
-#~ msgid "Switch language"
-#~ msgstr "Switch language"

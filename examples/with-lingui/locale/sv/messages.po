@@ -36,7 +36,3 @@ msgstr "Sida två."
 #: components/LangSwitcher.js:7
 msgid "Swedish"
 msgstr "Svenska"
-
-#: components/LangSwitcher.js:26
-#~ msgid "Switch language"
-#~ msgstr "Byt Språk"
