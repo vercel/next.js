@@ -37,3 +37,6 @@ test-timings.json
 # Vercel
 .vercel
 .now
+
+@ Visual Studio Files
+/.vs/slnx.sqlite

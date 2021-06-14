@@ -98,7 +98,9 @@ If you need a different provider, you can use the [`loader`](/docs/api-reference
 
 The following describes the caching algorithm for the default [loader](#loader). For all other loaders, please refer to your cloud provider's documentation.
 
-Images are optimized dynamically upon request and stored in the `<distDir>/cache/images` directory. The optimized image file will be served for subsequent requests until the expiration is reached. When a request is made that matches a cached but expired file, the cached file is deleted before generating a new optimized image and caching the new file.
+Images are optimized dynamically upon request and stored in the cache folder defined in the `NEXT_IMAGE_CACHE_PATH` environment variable. This folder can be outside of your project, as long as the location is writable. If the folder does not exist, the Image Optimizer will try to create it. If the `NEXT_IMAGE_CACHE_PATH` envrironment variable is not defined, then the path defaults to `<distDir>/cache/images`.
+
+The optimized image file will be served for subsequent requests until the expiration is reached. When a request is made that matches a cached but expired file, the cached file is deleted before generating a new optimized image and caching the new file.
 
 The expiration (or rather Max Age) is defined by the upstream server's `Cache-Control` header.
 
