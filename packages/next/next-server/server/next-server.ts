@@ -783,7 +783,8 @@ export default class Server {
             res,
             parsedUrl,
             server.nextConfig,
-            server.distDir
+            server.distDir,
+            process.env.NEXT_IMAGE_CACHE_PATH // If this is undefined, then ImageOptimizer will use join(distDir, 'cache', 'images') instead
           ),
       },
       {

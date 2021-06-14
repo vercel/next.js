@@ -35,7 +35,8 @@ export async function imageOptimizer(
   res: ServerResponse,
   parsedUrl: UrlWithParsedQuery,
   nextConfig: NextConfig,
-  distDir: string
+  distDir: string,
+  imageCacheDir: string | undefined
 ) {
   const imageData: ImageConfig = nextConfig.images || imageConfigDefault
   const { deviceSizes = [], imageSizes = [], domains = [], loader } = imageData
@@ -139,7 +140,7 @@ export async function imageOptimizer(
   }
 
   const hash = getHash([CACHE_VERSION, href, width, quality, mimeType])
-  const imagesDir = join(distDir, 'cache', 'images')
+  const imagesDir = imageCacheDir || join(distDir, 'cache', 'images')
   const hashDir = join(imagesDir, hash)
   const now = Date.now()
 
