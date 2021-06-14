@@ -1153,7 +1153,7 @@ export default async function getBaseWebpackConfig(
       // by default due to how Webpack interprets its code. This is a practical
       // solution that requires the user to opt into importing specific locales.
       // https://github.com/jmblog/how-to-optimize-momentjs-with-webpack
-      config.future.excludeDefaultMomentLocales &&
+      config.excludeDefaultMomentLocales &&
         new webpack.IgnorePlugin({
           resourceRegExp: /^\.\/locale$/,
           contextRegExp: /moment$/,
@@ -1333,7 +1333,7 @@ export default async function getBaseWebpackConfig(
       scrollRestoration: config.experimental.scrollRestoration,
       basePath: config.basePath,
       pageEnv: config.experimental.pageEnv,
-      excludeDefaultMomentLocales: config.future.excludeDefaultMomentLocales,
+      excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
       assetPrefix: config.assetPrefix,
       disableOptimizedLoading: config.experimental.disableOptimizedLoading,
       target,
