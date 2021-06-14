@@ -13,6 +13,10 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: \n"
 
+#: pages/two.js:9
+msgid "Back home"
+msgstr "Tillbaka hem"
+
 #: components/LangSwitcher.js:6
 msgid "English"
 msgstr "Engelska"
@@ -21,11 +25,11 @@ msgstr "Engelska"
 msgid "Go to page 2"
 msgstr "Gå till sida 2"
 
-#: pages/index.js:8
+#: pages/index.js:6
 msgid "Hello World."
 msgstr "Hej Världen. "
 
-#: pages/two.js:8
+#: pages/two.js:6
 msgid "Page two."
 msgstr "Sida två."
 
@@ -34,6 +38,5 @@ msgid "Swedish"
 msgstr "Svenska"
 
 #: components/LangSwitcher.js:26
-msgid "Switch language"
-msgstr "Byt Språk"
-
+#~ msgid "Switch language"
+#~ msgstr "Byt Språk"
