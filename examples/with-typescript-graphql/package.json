@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@graphql-codegen/cli": "^1.17.8",
+    "@graphql-codegen/import-types-preset": "1.18.2",
     "@graphql-codegen/plugin-helpers": "^1.17.8",
     "@graphql-codegen/typescript": "^1.17.8",
     "@graphql-codegen/typescript-operations": "^1.17.8",
