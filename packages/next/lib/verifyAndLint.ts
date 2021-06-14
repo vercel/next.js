@@ -59,7 +59,7 @@ export async function verifyAndLint(
 
     lintWorkers.end()
   } catch (err) {
-    if (err.type === 'CompileError') {
+    if (err.type === 'CompileError' || err instanceof CompileError) {
       console.error(chalk.red('\nFailed to compile.'))
       console.error(err.message)
       process.exit(1)
