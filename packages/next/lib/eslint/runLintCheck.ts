@@ -124,10 +124,12 @@ async function lint(
       eslintVersion: eslintVersion,
       lintedFilesCount: results.length,
       lintFix: !!options.fix,
-      nextEslintPluginVersion: require(path.join(
-        path.dirname(deps.resolved.get('eslint-config-next')!),
-        'package.json'
-      )).version,
+      nextEslintPluginVersion: nextEslintPluginIsEnabled
+        ? require(path.join(
+            path.dirname(deps.resolved.get('eslint-config-next')!),
+            'package.json'
+          )).version
+        : null,
       nextEslintPluginErrorsCount: formattedResult.totalNextPluginErrorCount,
       nextEslintPluginWarningsCount:
         formattedResult.totalNextPluginWarningCount,
