@@ -15,10 +15,6 @@ import http from 'http'
 jest.setTimeout(1000 * 60 * 5)
 
 const dir = join(__dirname, '..')
-const dirOldReact = join(__dirname, '../old-react')
-const dirOldReactDom = join(__dirname, '../old-react-dom')
-const dirExperimentalReact = join(__dirname, '../experimental-react')
-const dirExperimentalReactDom = join(__dirname, '../experimental-react-dom')
 const dirDuplicateSass = join(__dirname, '../duplicate-sass')
 
 describe('CLI Usage', () => {
@@ -287,114 +283,6 @@ describe('CLI Usage', () => {
         stderr: true,
       })
       expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
-    })
-
-    test('too old of react version', async () => {
-      const port = await findPort()
-
-      let stderr = ''
-      let instance = await launchApp(dirOldReact, port, {
-        stderr: true,
-        onStderr(msg) {
-          stderr += msg
-        },
-      })
-
-      expect(stderr).toMatch(
-        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
-      )
-
-      await killApp(instance)
-    })
-
-    test('too old of react-dom version', async () => {
-      const port = await findPort()
-
-      let stderr = ''
-      let instance = await launchApp(dirOldReactDom, port, {
-        stderr: true,
-        onStderr(msg) {
-          stderr += msg
-        },
-      })
-
-      expect(stderr).toMatch(
-        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
-      )
-
-      await killApp(instance)
-    })
-
-    test('experimental react version', async () => {
-      const port = await findPort()
-
-      let stderr = ''
-      let instance = await launchApp(dirExperimentalReact, port, {
-        stderr: true,
-        onStderr(msg) {
-          stderr += msg
-        },
-      })
-
-      expect(stderr).not.toMatch(
-        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
-      )
-
-      await killApp(instance)
-    })
-
-    test('experimental react-dom version', async () => {
-      const port = await findPort()
-
-      let stderr = ''
-      let instance = await launchApp(dirExperimentalReactDom, port, {
-        stderr: true,
-        onStderr(msg) {
-          stderr += msg
-        },
-      })
-
-      expect(stderr).not.toMatch(
-        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
-      )
-
-      await killApp(instance)
-    })
-
-    test('recommended react version', async () => {
-      const port = await findPort()
-
-      let stderr = ''
-      let instance = await launchApp(dir, port, {
-        stderr: true,
-        onStderr(msg) {
-          stderr += msg
-        },
-      })
-
-      expect(stderr).not.toMatch(
-        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
-      )
-
-      await killApp(instance)
-    })
-
-    test('recommended react-dom version', async () => {
-      const port = await findPort()
-
-      let stderr = ''
-      let instance = await launchApp(dir, port, {
-        stderr: true,
-        onStderr(msg) {
-          stderr += msg
-        },
-      })
-
-      expect(stderr).not.toMatch(
-        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
-      )
-
-      await killApp(instance)
     })
 
     test('duplicate sass deps', async () => {
