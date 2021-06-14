@@ -45,8 +45,6 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
     assetPrefix,
     canonicalBase,
     escapedBuildId,
-
-    experimental: { initServer, onError },
   } = ctx
   const {
     handleLocale,
@@ -140,7 +138,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
       }
       const origQuery = Object.assign({}, parsedUrl.query)
 
-      parsedUrl = handleRewrites(parsedUrl)
+      parsedUrl = handleRewrites(req, parsedUrl)
       handleBasePath(req, parsedUrl)
 
       // remove ?amp=1 from request URL if rendering for export
@@ -363,7 +361,11 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
             }
             const statusCode = getRedirectStatus(redirect)
 
-            if (basePath && redirect.basePath !== false) {
+            if (
+              basePath &&
+              redirect.basePath !== false &&
+              redirect.destination.startsWith('/')
+            ) {
               redirect.destination = `${basePath}${redirect.destination}`
             }
 
@@ -410,7 +412,7 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
 
       if (err.code === 'ENOENT') {
         res.statusCode = 404
-      } else if (err.code === 'DECODE_FAILED') {
+      } else if (err.code === 'DECODE_FAILED' || err.code === 'ENAMETOOLONG') {
         // TODO: better error?
         res.statusCode = 400
       } else {
@@ -473,7 +475,6 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
     renderReqToHTML,
     render: async function render(req: IncomingMessage, res: ServerResponse) {
       try {
-        await initServer()
         const html = await renderReqToHTML(req, res)
         if (html) {
           sendPayload(req, res, html, 'html', {
@@ -483,7 +484,6 @@ export function getPageHandler(ctx: ServerlessHandlerCtx) {
         }
       } catch (err) {
         console.error(err)
-        await onError(err)
         // Throw the error to crash the serverless function
         throw err
       }

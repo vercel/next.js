@@ -19,6 +19,10 @@ describe('Build Output', () => {
     })
 
     it('should not include crypto', async () => {
+      if (process.env.NEXT_PRIVATE_SKIP_SIZE_TESTS) {
+        return
+      }
+
       ;({ stdout } = await nextBuild(appDir, [], {
         stdout: true,
       }))
@@ -44,7 +48,9 @@ describe('Build Output', () => {
       expect(parseFloat(indexSize)).toBeGreaterThanOrEqual(2)
       expect(indexSize.endsWith('kB')).toBe(true)
 
-      expect(parseFloat(indexFirstLoad)).toBeLessThanOrEqual(67.5)
+      expect(parseFloat(indexFirstLoad)).toBeLessThanOrEqual(
+        process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE ? 68 : 67.9
+      )
       expect(parseFloat(indexFirstLoad)).toBeGreaterThanOrEqual(60)
       expect(indexFirstLoad.endsWith('kB')).toBe(true)
     })

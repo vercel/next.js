@@ -2,6 +2,7 @@ import styles from '../styles.module.css'
 import Image from 'next/image'
 import Link from 'next/link'
 import ViewSource from '../components/view-source'
+import vercel from '../public/vercel.png'
 
 const Code = (p) => <code className={styles.inlineCode} {...p} />
 
@@ -20,7 +21,7 @@ const Index = () => (
       <p>
         This component is designed to{' '}
         <a href="https://nextjs.org/docs/basic-features/image-optimization">
-          automatically optimizate
+          automatically optimize
         </a>{' '}
         images on-demand as the browser requests them.
       </p>
@@ -62,6 +63,17 @@ const Index = () => (
         </li>
       </ul>
       <hr className={styles.hr} />
+      <h2 id="placeholder">Placeholder</h2>
+      <p>
+        Adding <Code>placeholder="blur"</Code> to an image enables a blurry
+        placeholder effect while that image loads.
+      </p>
+      <p>
+        <Link href="/background">
+          <a>See an example of the blurry placeholder.</a>
+        </Link>
+      </p>
+      <hr className={styles.hr} />
       <h2 id="internal">Internal Image</h2>
       <p>
         The following is an example of a reference to an interal image from the{' '}
@@ -71,7 +83,7 @@ const Index = () => (
         This image is intentionally large so you have to scroll down to the next
         image.
       </p>
-      <Image alt="Vercel logo" src="/vercel.png" width={1000} height={1000} />
+      <Image alt="Vercel logo" src={vercel} width={1000} height={1000} />
       <hr className={styles.hr} />
       <h2 id="external">External Image</h2>
       <p>

@@ -30,25 +30,48 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 
 When using `next-mdx-remote`, you can pass custom components to the MDX renderer. However, some pages/MDX files might use components that are used infrequently, or only on a single page. To avoid loading those components on every MDX page, you can use `next/dynamic` to conditionally load them.
 
-For example, here's how you can change `getStaticProps` to conditionally add certain components:
+For example, here's how you can change `getStaticProps` to pass a list of component names, checking the names in the page render function to see which components need to be dynamically loaded.
 
 ```js
 import dynamic from 'next/dynamic'
+import Test from '../components/test'
 
-// ...
+const SomeHeavyComponent = dynamic(() => import('SomeHeavyComponent'))
 
-export async function getStaticProps() {
-  const { content, data } = matter(source)
+const defaultComponents = { Test }
 
+export function SomePage({ mdxSource, componentNames }) {
   const components = {
     ...defaultComponents,
-    SomeHeavyComponent: /<SomeHeavyComponent/.test(content)
-      ? dynamic(() => import('SomeHeavyComponent'))
+    SomeHeavyComponent: componentNames.includes('SomeHeavyComponent')
+      ? SomeHeavyComponent
       : null,
   }
 
-  const mdxSource = await renderToString(content, { components })
+  return <MDXRemote {...mdxSource} components={components} />
+}
+
+export async function getStaticProps() {
+  const source = `---
+  title: Conditional custom components
+  ---
+
+  Some **mdx** text, with a default component <Test name={title}/> and a Heavy component <SomeHeavyComponent />
+  `
+
+  const { content, data } = matter(source)
+
+  const componentNames = [
+    /<SomeHeavyComponent/.test(content) ? 'SomeHeavyComponent' : null,
+  ].filter(Boolean)
+
+  const mdxSource = await serialize(content)
+
+  return {
+    props: {
+      mdxSource,
+      componentNames,
+    },
+  }
 }
 ```
-
-If you do this, you'll also need to check in the page render function which components need to be dynamically loaded. You can pass a list of component names via `getStaticProps` to accomplish this.

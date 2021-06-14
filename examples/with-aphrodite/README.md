@@ -4,6 +4,12 @@ This example features how to use a different styling solution than [styled-jsx](
 
 For this purpose we are extending the `<Document />` and injecting the server side rendered styles into the `<head>`.
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-aphrodite)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):

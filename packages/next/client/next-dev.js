@@ -5,7 +5,7 @@ import initOnDemandEntries from './dev/on-demand-entries-client'
 import initWebpackHMR from './dev/webpack-hot-middleware-client'
 import initializeBuildWatcher from './dev/dev-build-watcher'
 import { displayContent } from './dev/fouc'
-import { getEventSourceWrapper } from './dev/error-overlay/eventsource'
+import { addMessageListener } from './dev/error-overlay/eventsource'
 import * as querystring from '../next-server/lib/router/utils/querystring'
 
 // Temporary workaround for the issue described here:
@@ -25,7 +25,7 @@ const {
 } = window
 
 const prefix = assetPrefix || ''
-const webpackHMR = initWebpackHMR({ assetPrefix: prefix })
+const webpackHMR = initWebpackHMR()
 
 window.next = next
 initNext({ webpackHMR })
@@ -48,7 +48,7 @@ initNext({ webpackHMR })
         const { pages } = JSON.parse(event.data)
         const router = window.next.router
 
-        if (pages.includes(router.pathname)) {
+        if (!router.clc && pages.includes(router.pathname)) {
           console.log('Refreshing page data due to server-side change')
 
           buildIndicatorHandler('building')
@@ -72,7 +72,7 @@ initNext({ webpackHMR })
       }
     }
     devPagesManifestListener.unfiltered = true
-    getEventSourceWrapper({}).addMessageListener(devPagesManifestListener)
+    addMessageListener(devPagesManifestListener)
 
     if (process.env.__NEXT_BUILD_INDICATOR) {
       initializeBuildWatcher((handler) => {

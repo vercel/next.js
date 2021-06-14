@@ -1,0 +1,380 @@
+{
+  "routes": [
+    {
+      "title": "Messages",
+      "heading": true,
+      "routes": [
+        {
+          "title": "404-get-initial-props",
+          "path": "/errors/404-get-initial-props.md"
+        },
+        { "title": "amp-bind-jsx-alt", "path": "/errors/amp-bind-jsx-alt.md" },
+        {
+          "title": "amp-export-validation",
+          "path": "/errors/amp-export-validation.md"
+        },
+        {
+          "title": "api-routes-static-export",
+          "path": "/errors/api-routes-static-export.md"
+        },
+        {
+          "title": "app-container-deprecated",
+          "path": "/errors/app-container-deprecated.md"
+        },
+        {
+          "title": "build-dir-not-writeable",
+          "path": "/errors/build-dir-not-writeable.md"
+        },
+        {
+          "title": "built-in-css-disabled",
+          "path": "/errors/built-in-css-disabled.md"
+        },
+        {
+          "title": "can-not-output-to-public",
+          "path": "/errors/can-not-output-to-public.md"
+        },
+        {
+          "title": "can-not-output-to-static",
+          "path": "/errors/can-not-output-to-static.md"
+        },
+        {
+          "title": "cant-override-next-props",
+          "path": "/errors/cant-override-next-props.md"
+        },
+        {
+          "title": "circular-structure",
+          "path": "/errors/circular-structure.md"
+        },
+        {
+          "title": "config-resolve-alias",
+          "path": "/errors/config-resolve-alias.md"
+        },
+        {
+          "title": "conflicting-amp-tag",
+          "path": "/errors/conflicting-amp-tag.md"
+        },
+        {
+          "title": "conflicting-public-file-page",
+          "path": "/errors/conflicting-public-file-page.md"
+        },
+        {
+          "title": "conflicting-ssg-paths",
+          "path": "/errors/conflicting-ssg-paths.md"
+        },
+        { "title": "css-global", "path": "/errors/css-global.md" },
+        { "title": "css-modules-npm", "path": "/errors/css-modules-npm.md" },
+        { "title": "css-npm", "path": "/errors/css-npm.md" },
+        {
+          "title": "custom-error-no-custom-404",
+          "path": "/errors/custom-error-no-custom-404.md"
+        },
+        {
+          "title": "doc-crossorigin-deprecated",
+          "path": "/errors/doc-crossorigin-deprecated.md"
+        },
+        { "title": "duplicate-sass", "path": "/errors/duplicate-sass.md" },
+        {
+          "title": "empty-configuration",
+          "path": "/errors/empty-configuration.md"
+        },
+        {
+          "title": "empty-object-getInitialProps",
+          "path": "/errors/empty-object-getInitialProps.md"
+        },
+        {
+          "title": "env-key-not-allowed",
+          "path": "/errors/env-key-not-allowed.md"
+        },
+        {
+          "title": "env-loading-disabled",
+          "path": "/errors/env-loading-disabled.md"
+        },
+        {
+          "title": "export-all-in-page",
+          "path": "/errors/export-all-in-page.md"
+        },
+        { "title": "export-image-api", "path": "/errors/export-image-api.md" },
+        {
+          "title": "export-no-custom-routes",
+          "path": "/errors/export-no-custom-routes.md"
+        },
+        {
+          "title": "export-path-mismatch",
+          "path": "/errors/export-path-mismatch.md"
+        },
+        {
+          "title": "generatebuildid-not-a-string",
+          "path": "/errors/generatebuildid-not-a-string.md"
+        },
+        {
+          "title": "google-font-display",
+          "path": "/errors/google-font-display.md"
+        },
+        {
+          "title": "google-font-preconnect",
+          "path": "/errors/google-font-preconnect.md"
+        },
+        {
+          "title": "get-initial-props-as-an-instance-method",
+          "path": "/errors/get-initial-props-as-an-instance-method.md"
+        },
+        {
+          "title": "gsp-redirect-during-prerender",
+          "path": "/errors/gsp-redirect-during-prerender.md"
+        },
+        {
+          "title": "gssp-component-member",
+          "path": "/errors/gssp-component-member.md"
+        },
+        { "title": "gssp-export", "path": "/errors/gssp-export.md" },
+        {
+          "title": "gssp-mixed-not-found-redirect",
+          "path": "/errors/gssp-mixed-not-found-redirect.md"
+        },
+        { "title": "head-build-id", "path": "/errors/head-build-id.md" },
+        {
+          "title": "href-interpolation-failed",
+          "path": "/errors/href-interpolation-failed.md"
+        },
+        { "title": "improper-devtool", "path": "/errors/improper-devtool.md" },
+        {
+          "title": "incompatible-href-as",
+          "path": "/errors/incompatible-href-as.md"
+        },
+        { "title": "install-sass", "path": "/errors/install-sass.md" },
+        { "title": "install-sharp", "path": "/errors/install-sharp.md" },
+        {
+          "title": "invalid-assetprefix",
+          "path": "/errors/invalid-assetprefix.md"
+        },
+        {
+          "title": "invalid-external-rewrite",
+          "path": "/errors/invalid-external-rewrite.md"
+        },
+        {
+          "title": "invalid-getstaticpaths-value",
+          "path": "/errors/invalid-getstaticpaths-value.md"
+        },
+        {
+          "title": "invalid-getstaticprops-value",
+          "path": "/errors/invalid-getstaticprops-value.md"
+        },
+        {
+          "title": "invalid-href-passed",
+          "path": "/errors/invalid-href-passed.md"
+        },
+        {
+          "title": "invalid-i18n-config",
+          "path": "/errors/invalid-i18n-config.md"
+        },
+        {
+          "title": "invalid-images-config",
+          "path": "/errors/invalid-images-config.md"
+        },
+        {
+          "title": "invalid-multi-match",
+          "path": "/errors/invalid-multi-match.md"
+        },
+        {
+          "title": "invalid-page-config",
+          "path": "/errors/invalid-page-config.md"
+        },
+        {
+          "title": "invalid-react-version",
+          "path": "/errors/invalid-react-version.md"
+        },
+        {
+          "title": "invalid-redirect-gssp",
+          "path": "/errors/invalid-redirect-gssp.md"
+        },
+        {
+          "title": "invalid-relative-url-external-as",
+          "path": "/errors/invalid-relative-url-external-as.md"
+        },
+        {
+          "title": "invalid-resolve-alias",
+          "path": "/errors/invalid-resolve-alias.md"
+        },
+        {
+          "title": "invalid-route-source",
+          "path": "/errors/invalid-route-source.md"
+        },
+        {
+          "title": "invalid-server-options",
+          "path": "/errors/invalid-server-options.md"
+        },
+        {
+          "title": "invalid-webpack-5-version",
+          "path": "/errors/invalid-webpack-5-version.md"
+        },
+        {
+          "title": "link-passhref",
+          "path": "/errors/link-passhref.md"
+        },
+        { "title": "manifest.json", "path": "/errors/manifest.json" },
+        {
+          "title": "minification-disabled",
+          "path": "/errors/minification-disabled.md"
+        },
+        {
+          "title": "missing-document-component",
+          "path": "/errors/missing-document-component.md"
+        },
+        {
+          "title": "missing-env-value",
+          "path": "/errors/missing-env-value.md"
+        },
+        { "title": "multi-tabs", "path": "/errors/multi-tabs.md" },
+        {
+          "title": "nested-reserved-page",
+          "path": "/errors/nested-reserved-page.md"
+        },
+        {
+          "title": "next-dynamic-modules",
+          "path": "/errors/next-dynamic-modules.md"
+        },
+        {
+          "title": "next-export-no-build-id",
+          "path": "/errors/next-export-no-build-id.md"
+        },
+        {
+          "title": "next-export-serverless",
+          "path": "/errors/next-export-serverless.md"
+        },
+        {
+          "title": "next-head-count-missing",
+          "path": "/errors/next-head-count-missing.md"
+        },
+        {
+          "title": "next-image-unconfigured-host",
+          "path": "/errors/next-image-unconfigured-host.md"
+        },
+        {
+          "title": "next-start-serverless",
+          "path": "/errors/next-start-serverless.md"
+        },
+        { "title": "no-cache", "path": "/errors/no-cache.md" },
+        { "title": "no-css-tags", "path": "/errors/no-css-tags.md" },
+        {
+          "title": "no-document-import-in-page",
+          "path": "/errors/no-document-import-in-page.md"
+        },
+        {
+          "title": "no-document-title",
+          "path": "/errors/no-document-title.md"
+        },
+        {
+          "title": "no-document-viewport-meta",
+          "path": "/errors/no-document-viewport-meta.md"
+        },
+        {
+          "title": "no-head-import-in-document",
+          "path": "/errors/no-head-import-in-document.md"
+        },
+        {
+          "title": "no-html-link-for-pages",
+          "path": "/errors/no-html-link-for-pages.md"
+        },
+        {
+          "title": "no-on-app-updated-hook",
+          "path": "/errors/no-on-app-updated-hook.md"
+        },
+        {
+          "title": "no-page-custom-font",
+          "path": "/errors/no-page-custom-font.md"
+        },
+        {
+          "title": "no-router-instance",
+          "path": "/errors/no-router-instance.md"
+        },
+        {
+          "title": "no-sync-scripts",
+          "path": "/errors/no-sync-scripts.md"
+        },
+        {
+          "title": "no-title-in-document-head",
+          "path": "/errors/no-title-in-document-head.md"
+        },
+        {
+          "title": "no-unwanted-polyfillio",
+          "path": "/errors/no-unwanted-polyfillio.md"
+        },
+        {
+          "title": "non-standard-node-env",
+          "path": "/errors/non-standard-node-env.md"
+        },
+        {
+          "title": "opt-out-auto-static-optimization",
+          "path": "/errors/opt-out-auto-static-optimization.md"
+        },
+        {
+          "title": "opt-out-automatic-prerendering",
+          "path": "/errors/opt-out-automatic-prerendering.md"
+        },
+        {
+          "title": "page-without-valid-component",
+          "path": "/errors/page-without-valid-component.md"
+        },
+        {
+          "title": "popstate-state-empty",
+          "path": "/errors/popstate-state-empty.md"
+        },
+        { "title": "postcss-function", "path": "/errors/postcss-function.md" },
+        {
+          "title": "postcss-ignored-plugin",
+          "path": "/errors/postcss-ignored-plugin.md"
+        },
+        { "title": "postcss-shape", "path": "/errors/postcss-shape.md" },
+        {
+          "title": "prefetch-true-deprecated",
+          "path": "/errors/prefetch-true-deprecated.md"
+        },
+        { "title": "prerender-error", "path": "/errors/prerender-error.md" },
+        {
+          "title": "production-start-no-build-id",
+          "path": "/errors/production-start-no-build-id.md"
+        },
+        {
+          "title": "promise-in-next-config",
+          "path": "/errors/promise-in-next-config.md"
+        },
+        {
+          "title": "public-next-folder-conflict",
+          "path": "/errors/public-next-folder-conflict.md"
+        },
+        { "title": "react-version", "path": "/errors/react-version.md" },
+        {
+          "title": "render-no-starting-slash",
+          "path": "/errors/render-no-starting-slash.md"
+        },
+        {
+          "title": "reserved-page-prop",
+          "path": "/errors/reserved-page-prop.md"
+        },
+        {
+          "title": "rewrite-auto-export-fallback",
+          "path": "/errors/rewrite-auto-export-fallback.md"
+        },
+        {
+          "title": "routes-must-be-array",
+          "path": "/errors/routes-must-be-array.md"
+        },
+        {
+          "title": "ssg-fallback-true-export",
+          "path": "/errors/ssg-fallback-true-export.md"
+        },
+        {
+          "title": "static-dir-deprecated",
+          "path": "/errors/static-dir-deprecated.md"
+        },
+        { "title": "threw-undefined", "path": "/errors/threw-undefined.md" },
+        {
+          "title": "undefined-webpack-config",
+          "path": "/errors/undefined-webpack-config.md"
+        },
+        { "title": "url-deprecated", "path": "/errors/url-deprecated.md" },
+        { "title": "webpack5", "path": "/errors/webpack5.md" }
+      ]
+    }
+  ]
+}

@@ -1,9 +1,9 @@
 # Contributing to Next.js
 
-Our Commitment to Open Source can be found [here](https://vercel.com/oss).
+Read about our [Commitment to Open Source](https://vercel.com/oss).
 
 1. [Fork](https://help.github.com/articles/fork-a-repo/) this repository to your own GitHub account and then [clone](https://help.github.com/articles/cloning-a-repository/) it to your local device.
-2. Create a new branch `git checkout -b MY_BRANCH_NAME`
+2. Create a new branch: `git checkout -b MY_BRANCH_NAME`
 3. Install yarn: `npm install -g yarn`
 4. Install the dependencies: `yarn`
 5. Run `yarn dev` to build and watch for code changes
@@ -124,11 +124,18 @@ When you add an example to the [examples](examples) directory, don’t forget to
 - To add additional installation instructions, please add it where appropriate.
 - To add additional notes, add `## Notes` section at the end.
 - Remove the `Deploy your own` section if your example can’t be immediately deployed to Vercel.
+- Remove the `Preview` section if the example doesn't work on [StackBlitz](http://stackblitz.com/) and file an issue [here](https://github.com/stackblitz/webcontainer-core).
 
 ````markdown
 # Example Name
 
 Description
+
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/DIRECTORY_NAME)
 
 ## Deploy your own
 
