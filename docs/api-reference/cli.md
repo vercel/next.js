@@ -74,6 +74,12 @@ The application will start at `http://localhost:3000` by default. The default po
 npx next dev -p 4000
 ```
 
+Or using the `PORT` environment variable:
+
+```bash
+PORT=4000 npx next dev
+```
+
 Similarly, you can also set the hostname to be different from the default of `0.0.0.0`, this can be useful for making the application available for other devices on the network. The default hostname can be changed with `-H`, like so:
 
 ```bash
@@ -88,6 +94,12 @@ The application will start at `http://localhost:3000` by default. The default po
 
 ```bash
 npx next start -p 4000
+```
+
+Or using the `PORT` environment variable:
+
+```bash
+PORT=4000 npx next start
 ```
 
 ## Lint
