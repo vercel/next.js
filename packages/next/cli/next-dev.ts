@@ -105,7 +105,8 @@ const nextDev: cliCommand = (argv) => {
     }
   }
 
-  const port = args['--port'] || 3000
+  const port =
+    args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
   const host = args['--hostname'] || '0.0.0.0'
   const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
 
