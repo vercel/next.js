@@ -116,8 +116,6 @@ async function lint(
   const formattedResult = formatResults(baseDir, results)
   const lintEnd = process.hrtime(lintStart)
 
-  console.log('idk')
-
   return {
     output: formattedResult.output,
     isError: ESLint.getErrorResults(results)?.length > 0,
