@@ -952,20 +952,6 @@ function runTests(dev) {
     expect(res.status).toBe(400)
   })
 
-  it('should preload buildManifest for auto-export dynamic pages', async () => {
-    const html = await renderViaHTTP(appPort, '/on-mount/hello')
-    const $ = cheerio.load(html)
-    let found = 0
-
-    for (const el of Array.from($('link[rel="preload"]'))) {
-      const { href } = el.attribs
-      if (href.includes('_buildManifest')) {
-        found++
-      }
-    }
-    expect(found).toBe(1)
-  })
-
   it('should not preload buildManifest for non-auto export dynamic pages', async () => {
     const html = await renderViaHTTP(appPort, '/hello')
     const $ = cheerio.load(html)

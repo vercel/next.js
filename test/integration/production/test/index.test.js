@@ -679,8 +679,9 @@ describe('Production Usage', () => {
 
       if (browserName === 'safari') {
         const elements = await browser.elementsByCss('link[rel=preload]')
-        // 4 page preloads and 5 existing preloads for _app, commons, main, etc
-        expect(elements.length).toBe(5)
+        // optimized preloading uses defer instead of preloading and prefetches
+        // aren't generated client-side since safari does not support prefetch
+        expect(elements.length).toBe(0)
       } else {
         const elements = await browser.elementsByCss('link[rel=prefetch]')
         expect(elements.length).toBe(4)
@@ -895,7 +896,7 @@ describe('Production Usage', () => {
     }
   })
 
-  it('should have async on all script tags', async () => {
+  it('should have defer on all script tags', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
     let missing = false
@@ -909,7 +910,7 @@ describe('Production Usage', () => {
         continue
       }
 
-      if (script.attribs.defer === '' || script.attribs.async !== '') {
+      if (script.attribs.defer !== '' || script.attribs.async === '') {
         missing = true
       }
     }
