@@ -115,69 +115,6 @@ describe('CLI Usage', () => {
       expect(code).toBe(expectedExitCode)
       expect(signal).toBe(expectedExitSignal)
     })
-
-    test('too old of react version', async () => {
-      const { stderr } = await runNextCommand(['build', dirOldReact], {
-        stderr: true,
-      })
-
-      expect(stderr).toMatch(
-        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
-      )
-    })
-
-    test('too old of react-dom version', async () => {
-      const { stderr } = await runNextCommand(['build', dirOldReactDom], {
-        stderr: true,
-      })
-
-      expect(stderr).toMatch(
-        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
-      )
-    })
-
-    test('experimental react version', async () => {
-      const { stderr } = await runNextCommand(['build', dirExperimentalReact], {
-        stderr: true,
-      })
-
-      expect(stderr).not.toMatch(
-        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
-      )
-    })
-
-    test('experimental react-dom version', async () => {
-      const { stderr } = await runNextCommand(
-        ['build', dirExperimentalReactDom],
-        {
-          stderr: true,
-        }
-      )
-
-      expect(stderr).not.toMatch(
-        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
-      )
-    })
-
-    test('recommended react version', async () => {
-      const { stderr } = await runNextCommand(['build'], {
-        stderr: true,
-      })
-
-      expect(stderr).not.toMatch(
-        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
-      )
-    })
-
-    test('recommended react-dom version', async () => {
-      const { stderr } = await runNextCommand(['build'], {
-        stderr: true,
-      })
-
-      expect(stderr).not.toMatch(
-        'React 17.0.1 or newer will be required to leverage all of the upcoming features in Next.js 11.'
-      )
-    })
   })
 
   describe('dev', () => {

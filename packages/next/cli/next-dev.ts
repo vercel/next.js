@@ -58,10 +58,6 @@ const nextDev: cliCommand = (argv) => {
 
   async function preflight() {
     const { getPackageVersion } = await import('../lib/get-package-version')
-    const semver = await import('next/dist/compiled/semver').then(
-      (res) => res.default
-    )
-
     const [sassVersion, nodeSassVersion] = await Promise.all([
       getPackageVersion({ cwd: dir, name: 'sass' }),
       getPackageVersion({ cwd: dir, name: 'node-sass' }),
