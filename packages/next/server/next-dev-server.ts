@@ -608,20 +608,18 @@ export default class DevServer extends Server {
     params: Params | null = null
   ): Promise<FindComponentsResult | null> {
     await this.devReady
-
-    const compilationErr = await this.getCompilationError(pathname)
-    if (compilationErr) {
-      throw compilationErr
-    }
-
     try {
       await this.hotReloader!.ensurePage(pathname)
+      const compilationErr = await this.getCompilationError(pathname)
+      if (compilationErr) {
+        throw compilationErr
+      }
       return super.findPageComponents(pathname, query, params)
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
+        if (!this.quiet) console.error(err)
         throw err
       }
-      if (!this.quiet) console.error(err)
       return null
     }
   }
