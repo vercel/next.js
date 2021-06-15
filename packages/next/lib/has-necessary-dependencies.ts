@@ -17,7 +17,7 @@ const requiredLintPackages = [
 ]
 
 export type NecessaryDependencies = {
-  resolved: string
+  resolved: Map<string, string>
 }
 
 export async function hasNecessaryDependencies(
@@ -46,9 +46,7 @@ export async function hasNecessaryDependencies(
 
   if (missingPackages.length < 1) {
     return {
-      resolved: checkESLintDeps
-        ? resolutions.get('eslint')!
-        : resolutions.get('typescript')!,
+      resolved: resolutions,
     }
   }
 

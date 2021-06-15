@@ -223,7 +223,8 @@ export default async function build(
             dir,
             lintDirs,
             config.experimental.cpus,
-            config.experimental.workerThreads
+            config.experimental.workerThreads,
+            telemetry
           )
         })
     }
@@ -454,6 +455,10 @@ export default async function build(
       throw new Error(
         '> Build directory is not writeable. https://nextjs.org/docs/messages/build-dir-not-writeable'
       )
+    }
+
+    if (config.cleanDistDir) {
+      await recursiveDelete(distDir, /^cache/)
     }
 
     // We need to write the manifest with rewrites before build
