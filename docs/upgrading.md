@@ -121,6 +121,17 @@ If your application uses `router.router.events` which was an internal property t
 
 React 17 introduced a new [JSX Transform](https://reactjs.org/blog/2020/09/22/introducing-the-new-jsx-transform.html) that brings a long-time Next.js feature to the wider React ecosystem: Not having to `import React from 'react'` when using JSX. When using React 17 Next.js will automatically use the new transform. This transform does not make the `React` variable global, which was an unintended side-effect of the previous Next.js implementation. A [codemod is available](/docs/advanced-features/codemods.md#add-missing-react-import) to automatically fix cases where you accidentally used `React` without importing it.
 
+### Upgrading `next` package from version 10 to 11
+
+```
+npm install next@latest
+```
+Or using `yarn`:
+
+```
+yarn add next@latest
+```
+
 ## Upgrading from version 9 to 10
 
 There were no breaking changes between version 9 and 10.
@@ -128,7 +139,12 @@ There were no breaking changes between version 9 and 10.
 To upgrade run the following command:
 
 ```
-npm install next@latest
+npm install next@10
+```
+Or using `yarn`:
+
+```
+yarn add next@10
 ```
 
 ## Upgrading from version 8 to 9
