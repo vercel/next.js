@@ -34,7 +34,7 @@ describe('getServerSideProps redirects', () => {
     const browser = await webdriver(context.appPort, '/alias-to-main-content')
 
     // During a browser navigation global variables are reset,
-    // So by chaking that the __SAME_PAGE variable is still defined
+    // So by checking that the __SAME_PAGE variable is still defined
     // then the client-side navigation has happened
     await browser.eval('window.__SAME_PAGE = true')
 
