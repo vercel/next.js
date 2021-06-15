@@ -9,13 +9,13 @@ import * as CommentJson from 'next/dist/compiled/comment-json'
 import { formatResults } from './customFormatter'
 import { writeDefaultConfig } from './writeDefaultConfig'
 import { existsSync, findPagesDir } from '../find-pages-dir'
-import { CompileError } from '../compile-error'
 import {
   hasNecessaryDependencies,
   NecessaryDependencies,
 } from '../has-necessary-dependencies'
 
 import * as Log from '../../build/output/log'
+import { EventLintCheckCompleted } from '../../telemetry/events/build'
 
 type Config = {
   plugins: string[]
@@ -29,14 +29,23 @@ async function lint(
   eslintrcFile: string | null,
   pkgJsonPath: string | null,
   eslintOptions: any = null
-): Promise<string | null> {
+): Promise<
+  | string
+  | null
+  | {
+      output: string | null
+      isError: boolean
+      eventInfo: EventLintCheckCompleted
+    }
+> {
   // Load ESLint after we're sure it exists:
-  const mod = await import(deps.resolved)
+  const mod = await import(deps.resolved.get('eslint')!)
 
   const { ESLint } = mod
+  let eslintVersion = ESLint.version
 
   if (!ESLint) {
-    const eslintVersion: string | undefined = mod?.CLIEngine?.version
+    eslintVersion = mod?.CLIEngine?.version
 
     if (!eslintVersion || semver.lt(eslintVersion, '7.0.0')) {
       return `${chalk.red(
@@ -99,14 +108,33 @@ async function lint(
       eslint = new ESLint(options)
     }
   }
+  const lintStart = process.hrtime()
+
   const results = await eslint.lintFiles(lintDirs)
   if (options.fix) await ESLint.outputFixes(results)
 
-  if (ESLint.getErrorResults(results)?.length > 0) {
-    throw new CompileError(await formatResults(baseDir, results))
-  }
+  const formattedResult = formatResults(baseDir, results)
+  const lintEnd = process.hrtime(lintStart)
 
-  return results?.length > 0 ? formatResults(baseDir, results) : null
+  return {
+    output: formattedResult.output,
+    isError: ESLint.getErrorResults(results)?.length > 0,
+    eventInfo: {
+      durationInSeconds: lintEnd[0],
+      eslintVersion: eslintVersion,
+      lintedFilesCount: results.length,
+      lintFix: !!options.fix,
+      nextEslintPluginVersion: nextEslintPluginIsEnabled
+        ? require(path.join(
+            path.dirname(deps.resolved.get('eslint-config-next')!),
+            'package.json'
+          )).version
+        : null,
+      nextEslintPluginErrorsCount: formattedResult.totalNextPluginErrorCount,
+      nextEslintPluginWarningsCount:
+        formattedResult.totalNextPluginWarningCount,
+    },
+  }
 }
 
 export async function runLintCheck(
@@ -114,7 +142,7 @@ export async function runLintCheck(
   lintDirs: string[],
   lintDuringBuild: boolean = false,
   eslintOptions: any = null
-): Promise<string | null> {
+): ReturnType<typeof lint> {
   try {
     // Find user's .eslintrc file
     const eslintrcFile =
