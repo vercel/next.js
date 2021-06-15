@@ -38,7 +38,9 @@ export async function verifyTypeScriptSetup(
     )
 
     // Load TypeScript after we're sure it exists:
-    const ts = (await import(deps.resolved)) as typeof import('typescript')
+    const ts = (await import(
+      deps.resolved.get('typescript')!
+    )) as typeof import('typescript')
 
     if (semver.lt(ts.version, '4.3.2')) {
       log.warn(
