@@ -15,7 +15,7 @@ interface LintMessage {
   column: number
 }
 
-interface LintResult {
+export interface LintResult {
   filePath: string
   messages: LintMessage[]
   errorCount: number
@@ -28,7 +28,11 @@ function formatMessage(
   dir: string,
   messages: LintMessage[],
   filePath: string
-): string | void {
+): {
+  output: string
+  nextPluginErrorCount: number
+  nextPluginWarningCount: number
+} {
   let fileName = path.posix.normalize(
     path.relative(dir, filePath).replace(/\\/g, '/')
   )
@@ -38,6 +42,8 @@ function formatMessage(
   }
 
   let output = '\n' + chalk.cyan(fileName)
+  let nextPluginWarningCount = 0
+  let nextPluginErrorCount = 0
 
   for (let i = 0; i < messages.length; i++) {
     const { message, severity, line, column, ruleId } = messages[i]
@@ -53,6 +59,14 @@ function formatMessage(
         '  '
     }
 
+    if (ruleId?.includes('@next/next')) {
+      if (severity === MessageSeverity.Warning) {
+        nextPluginWarningCount += 1
+      } else {
+        nextPluginErrorCount += 1
+      }
+    }
+
     if (severity === MessageSeverity.Warning) {
       output += chalk.yellow.bold('Warning') + ': '
     } else {
@@ -66,19 +80,43 @@ function formatMessage(
     }
   }
 
-  return output
+  return {
+    output,
+    nextPluginErrorCount,
+    nextPluginWarningCount,
+  }
 }
 
-export function formatResults(baseDir: string, results: LintResult[]): string {
+export function formatResults(
+  baseDir: string,
+  results: LintResult[]
+): {
+  output: string
+  totalNextPluginErrorCount: number
+  totalNextPluginWarningCount: number
+} {
+  let totalNextPluginErrorCount = 0
+  let totalNextPluginWarningCount = 0
+
   const formattedResults = results
     .filter(({ messages }) => messages?.length)
-    .map(({ messages, filePath }) => formatMessage(baseDir, messages, filePath))
+    .map(({ messages, filePath }) => {
+      const res = formatMessage(baseDir, messages, filePath)
+      totalNextPluginErrorCount += res.nextPluginErrorCount
+      totalNextPluginWarningCount += res.nextPluginWarningCount
+      return res.output
+    })
     .join('\n')
 
-  return formattedResults.length > 0
-    ? formattedResults +
-        `\n\n${chalk.bold(
-          'Need to disable some ESLint rules? Learn more here:'
-        )} https://nextjs.org/docs/basic-features/eslint#disabling-rules\n`
-    : ''
+  return {
+    output:
+      formattedResults.length > 0
+        ? formattedResults +
+          `\n\n${chalk.bold(
+            'Need to disable some ESLint rules? Learn more here:'
+          )} https://nextjs.org/docs/basic-features/eslint#disabling-rules\n`
+        : '',
+    totalNextPluginErrorCount,
+    totalNextPluginWarningCount,
+  }
 }

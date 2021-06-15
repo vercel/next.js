@@ -219,7 +219,7 @@ export default (context, render) => {
         const $ = await get$('/dynamic/multiple-modules')
         const html = $('html').html()
         try {
-          expect(html.match(/chunks[\\/]hello1\.js/g).length).toBe(2) // one for preload, one for the script tag
+          expect(html.match(/chunks[\\/]hello1\.js/g).length).toBe(1)
           expect(html).not.toMatch(/hello2\.js/)
         } catch (err) {
           console.error(html)
