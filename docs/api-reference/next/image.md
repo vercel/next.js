@@ -166,13 +166,8 @@ Should only be used when the image is visible above the fold. Defaults to
 `false`.
 
 ### placeholder
-
-Setting `placeholder="blur"` enables an automatic placeholder effect for the image, 
-which is rendered on the page until the image is fully loaded.
-
-When `placeholder="blur"` is set on an image, a placeholder image is required. These are automatically generated for **statically imported** images only.
-If you wish to use `placeholder="blur"` with any other image, you must provide a value for 
-the [`blurDataURL` property](#blurdataurl).
+A placeholder to use while the image is loading, possible values are `blur` or `empty`. Defaults to `empty`.
+When `placeholder="blur"`, the `blurDataURL` will be used as the placeholder. If the `src` is an object from a static import, then `blurDataURL` will automatically be populated. If the `src` is a string, then you must provide the [`blurDataURL` property](#blurdataurl).
 
 ## Advanced Props
 
