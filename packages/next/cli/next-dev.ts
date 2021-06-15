@@ -10,7 +10,7 @@ import { cliCommand } from '../bin/next'
 import detectPortAlt from 'detect-port-alt'
 import prompts, { PromptObject } from 'prompts'
 
-const nextDev: cliCommand = (argv) => {
+const nextDev: cliCommand = async (argv) => {
   const validArgs: arg.Spec = {
     // Types
     '--help': Boolean,
@@ -73,75 +73,80 @@ const nextDev: cliCommand = (argv) => {
     }
   }
 
+  async function choosePort(
+    defaultPort: number,
+    host?: string
+  ): Promise<number> {
+    const availablePort: number = await detectPortAlt(defaultPort, host)
+
+    if (defaultPort === availablePort) return defaultPort
+
+    // Default port is not free,
+    // prompt user to allow another port
+
+    const isTerminalInteractive = process.stdout.isTTY
+
+    // Simply log instructions if terminal is not interactive
+    if (!isTerminalInteractive) {
+      let message = `Something is already running on port ${defaultPort}.`
+      const packageJsonPath = require('next/dist/compiled/find-up').sync(
+        'package.json',
+        { cwd: dir }
+      )
+      const { scripts } = require(packageJsonPath)
+      if (scripts) {
+        const scriptsArray = Object.entries(scripts)
+        const nextScript = scriptsArray.find(([_, cmd]) => cmd === 'next')
+        if (nextScript) {
+          message += `\`npm run ${nextScript[0]} -- -p <some other port>\``
+        }
+      }
+      console.error(message)
+    }
+
+    // Terimal is interactive
+    // prompt to run on another port
+
+    const isRoot = process.getuid && process.getuid() === 0
+    const isAdminRequired =
+      process.platform !== 'win32' && defaultPort < 1024 && !isRoot
+
+    const message = isAdminRequired
+      ? `Admin permissions are required to run a server on a port below 1024.`
+      : `Something is already running on port ${defaultPort}.`
+
+    const question: PromptObject = {
+      type: 'confirm',
+      name: 'shouldChangePort',
+      message: `${message}\n\nWould you like to run the app on another port instead?`,
+      initial: true,
+    }
+
+    console.clear()
+    const answer = await prompts(question)
+
+    if (answer.shouldChangePort) {
+      console.clear()
+      return availablePort
+    }
+    process.exit()
+  }
+
   const defaultPort =
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
   const host = args['--hostname'] || '0.0.0.0'
-  const appUrl = `http://${
-    host === '0.0.0.0' ? 'localhost' : host
-  }:${defaultPort}`
+  const port = await choosePort(defaultPort, host)
+  const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
 
-  main(defaultPort)
-
-  function main(port: number) {
-    startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
-      .then(async (app) => {
-        startedDevelopmentServer(appUrl, `${host}:${port}`)
-        // Start preflight after server is listening and ignore errors:
-        preflight().catch(() => {})
-        // Finalize server bootup:
-        await app.prepare()
-      })
-      .catch(async (err) => {
-        if (err.code !== 'EADDRINUSE') console.error(err)
-        // Network address already in use,
-        // need to use another address
-
-        const isTerminalInteractive = process.stdout.isTTY
-
-        // Simply log instructions if terminal is not interactive
-        if (!isTerminalInteractive) {
-          let message = `Something is already running on port ${port}.`
-          const packageJsonPath = require('next/dist/compiled/find-up').sync(
-            'package.json',
-            { cwd: dir }
-          )
-          const { scripts } = require(packageJsonPath)
-          if (scripts) {
-            const scriptsArray = Object.entries(scripts)
-            const nextScript = scriptsArray.find(([_, cmd]) => cmd === 'next')
-            if (nextScript) {
-              message += `\`npm run ${nextScript[0]} -- -p <some other port>\``
-            }
-          }
-          return console.error(message)
-        }
-
-        // Terimal is interactive
-        // ask to run on another port
-
-        const altPort: number = await detectPortAlt(port)
-
-        const isRoot = process.getuid && process.getuid() === 0
-        const isAdminRequired =
-          process.platform !== 'win32' && port < 1024 && !isRoot
-
-        const message = isAdminRequired
-          ? `Admin permissions are required to run a server on a port below 1024.`
-          : `Something is already running on port ${port}.`
-
-        const question: PromptObject = {
-          type: 'confirm',
-          name: 'shouldChangePort',
-          message: `${message}\n\nWould you like to run the app on another port instead?`,
-          initial: true,
-        }
-
-        const answer = await prompts(question)
-        console.log(answer)
-
-        process.nextTick(() => process.exit(1))
-      })
-  }
+  startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
+    .then(async (app) => {
+      startedDevelopmentServer(appUrl, `${host}:${port}`)
+      // Start preflight after server is listening and ignore errors:
+      preflight().catch(() => {})
+      // Finalize server bootup:
+      await app.prepare()
+    })
+    .catch(() => process.nextTick(() => process.exit(1)))
 }
 
 export { nextDev }
