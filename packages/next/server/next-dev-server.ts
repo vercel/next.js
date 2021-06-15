@@ -623,10 +623,7 @@ export default class DevServer extends Server {
     }
   }
 
-  protected async handleRenderErrorFallback(
-    err: Error
-  ): Promise<LoadComponentsReturnType | null> {
-    if (!this.quiet) Log.error(err as any)
+  protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
     await this.hotReloader!.buildFallbackError()
     return loadDefaultErrorComponents(this.distDir)
   }
