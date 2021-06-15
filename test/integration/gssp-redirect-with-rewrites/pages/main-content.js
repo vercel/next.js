@@ -21,8 +21,8 @@ export default function MainContent({ message }) {
         </li>
 
         <li>
-          <Link href="/unknown-route">
-            <a>Link to unknown internal navigation</a>
+          <Link href="/redirector?redirect=/unknown-route">
+            <a id="link-unknown-url">Link to unknown internal navigation</a>
           </Link>
         </li>
       </ul>

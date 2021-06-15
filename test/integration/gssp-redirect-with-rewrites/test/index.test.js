@@ -45,4 +45,19 @@ describe('getServerSideProps redirects', () => {
 
     expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
   })
+
+  it('should fallback to browser navigation for an unknown URL', async () => {
+    const browser = await webdriver(context.appPort, '/alias-to-main-content')
+
+    // then the client-side navigation has happened
+    await browser.eval('window.__SAME_PAGE = true')
+
+    await browser.elementByCss('#link-unknown-url').click()
+
+    // Wait until the page has be reloaded
+    await waitFor(1000)
+    await browser.elementById('__next')
+
+    expect(await browser.eval('window.__SAME_PAGE')).toBeNull()
+  })
 })
