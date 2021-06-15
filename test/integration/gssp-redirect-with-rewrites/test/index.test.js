@@ -42,11 +42,8 @@ describe('getServerSideProps redirects', () => {
 
     await browser.elementByCss('#link-with-rewritten-url').click()
 
-    // Wait for a potential page reload
-    await waitFor(1000)
-
     // Wait until the new props are rendered
-    await browser.elementByCss('.refreshed')
+    await browser.waitForElementByCss('.refreshed')
 
     const isSamePage = await browser.executeScript(function () {
       return window.__SAME_PAGE || false
