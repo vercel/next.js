@@ -6,7 +6,7 @@ description: Learn how to upgrade Next.js.
 
 ## Upgrading from version 10 to 11
 
-## Upgrade React version to latest
+### Upgrade React version to latest
 
 Most applications already use the latest version of React, with Next.js 11 the minimum React version has been updated to 17.0.2.
 
@@ -20,6 +20,18 @@ Or using `yarn`:
 
 ```
 yarn add react@latest react-dom@latest
+```
+
+### Upgrade Next version to latest
+
+To upgrade you can run the following command in the terminal:
+
+```
+npm install next@latest
+```
+or
+```
+yarn add next@latest
 ```
 
 ### Webpack 5
