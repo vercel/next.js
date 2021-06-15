@@ -2071,7 +2071,9 @@ export default class Server {
     } catch (renderToHtmlError) {
       console.error(renderToHtmlError)
       res.statusCode = 500
-      const fallbackResult = await this.getFallbackErrorComponents()
+      const fallbackResult = await this.handleRenderErrorFallback(
+        renderToHtmlError
+      )
 
       if (fallbackResult) {
         return this.renderToHTMLWithComponents(
@@ -2094,7 +2096,9 @@ export default class Server {
   }
 
   // Internal
-  protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
+  protected async handleRenderErrorFallback(
+    _err: Error
+  ): Promise<LoadComponentsReturnType | null> {
     // The development server will provide an implementation for this
     return null
   }

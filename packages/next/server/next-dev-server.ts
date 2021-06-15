@@ -9,6 +9,7 @@ import React from 'react'
 import { UrlWithParsedQuery } from 'url'
 import Watchpack from 'watchpack'
 import { ampValidation } from '../build/output/index'
+import * as Log from '../build/output/log'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -622,7 +623,10 @@ export default class DevServer extends Server {
     }
   }
 
-  protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
+  protected async handleRenderErrorFallback(
+    err: Error
+  ): Promise<LoadComponentsReturnType | null> {
+    if (!this.quiet) Log.error(err as any)
     await this.hotReloader!.buildFallbackError()
     return loadDefaultErrorComponents(this.distDir)
   }
