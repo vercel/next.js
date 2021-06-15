@@ -617,6 +617,7 @@ export default class DevServer extends Server {
       return super.findPageComponents(pathname, query, params)
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
+        if (!this.quiet) console.error(err)
         throw err
       }
       return null
