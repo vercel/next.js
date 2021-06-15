@@ -7,6 +7,8 @@ import { printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
+import detectPortAlt from 'detect-port-alt'
+import prompts, { PromptObject } from 'prompts'
 
 const nextDev: cliCommand = (argv) => {
   const validArgs: arg.Spec = {
@@ -71,43 +73,75 @@ const nextDev: cliCommand = (argv) => {
     }
   }
 
-  const port =
+  const defaultPort =
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
   const host = args['--hostname'] || '0.0.0.0'
-  const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
+  const appUrl = `http://${
+    host === '0.0.0.0' ? 'localhost' : host
+  }:${defaultPort}`
 
-  startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
-    .then(async (app) => {
-      startedDevelopmentServer(appUrl, `${host}:${port}`)
-      // Start preflight after server is listening and ignore errors:
-      preflight().catch(() => {})
-      // Finalize server bootup:
-      await app.prepare()
-    })
-    .catch((err) => {
-      if (err.code === 'EADDRINUSE') {
-        let errorMessage = `Port ${port} is already in use.`
-        const pkgAppPath = require('next/dist/compiled/find-up').sync(
-          'package.json',
-          {
-            cwd: dir,
-          }
-        )
-        const appPackage = require(pkgAppPath)
-        if (appPackage.scripts) {
-          const nextScript = Object.entries(appPackage.scripts).find(
-            (scriptLine) => scriptLine[1] === 'next'
+  main(defaultPort)
+
+  function main(port: number) {
+    startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
+      .then(async (app) => {
+        startedDevelopmentServer(appUrl, `${host}:${port}`)
+        // Start preflight after server is listening and ignore errors:
+        preflight().catch(() => {})
+        // Finalize server bootup:
+        await app.prepare()
+      })
+      .catch(async (err) => {
+        if (err.code !== 'EADDRINUSE') console.error(err)
+        // Network address already in use,
+        // need to use another address
+
+        const isTerminalInteractive = process.stdout.isTTY
+
+        // Simply log instructions if terminal is not interactive
+        if (!isTerminalInteractive) {
+          let message = `Something is already running on port ${port}.`
+          const packageJsonPath = require('next/dist/compiled/find-up').sync(
+            'package.json',
+            { cwd: dir }
           )
-          if (nextScript) {
-            errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
+          const { scripts } = require(packageJsonPath)
+          if (scripts) {
+            const scriptsArray = Object.entries(scripts)
+            const nextScript = scriptsArray.find(([_, cmd]) => cmd === 'next')
+            if (nextScript) {
+              message += `\`npm run ${nextScript[0]} -- -p <some other port>\``
+            }
           }
+          return console.error(message)
         }
-        console.error(errorMessage)
-      } else {
-        console.error(err)
-      }
-      process.nextTick(() => process.exit(1))
-    })
+
+        // Terimal is interactive
+        // ask to run on another port
+
+        const altPort: number = await detectPortAlt(port)
+
+        const isRoot = process.getuid && process.getuid() === 0
+        const isAdminRequired =
+          process.platform !== 'win32' && port < 1024 && !isRoot
+
+        const message = isAdminRequired
+          ? `Admin permissions are required to run a server on a port below 1024.`
+          : `Something is already running on port ${port}.`
+
+        const question: PromptObject = {
+          type: 'confirm',
+          name: 'shouldChangePort',
+          message: `${message}\n\nWould you like to run the app on another port instead?`,
+          initial: true,
+        }
+
+        const answer = await prompts(question)
+        console.log(answer)
+
+        process.nextTick(() => process.exit(1))
+      })
+  }
 }
 
 export { nextDev }
