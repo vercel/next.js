@@ -4,7 +4,7 @@ description: Next.js helps you optimize loading third-party scripts with the bui
 
 # Script Component
 
-Since version **11**, Next.js has built-in Script component.
+Since version **11**, Next.js has a built-in Script component.
 
 Example of usage
 
@@ -32,7 +32,7 @@ Three loading strategies will be initially supported for wrapping third-party sc
   - script is fetched and executed _after_ page is interactive (i.e. after self-bundled javascript is executed)
   - script is injected during hydration and will execute soon after hydration
 - lazyOnload
-  - script is injected at onload, and will execute in a subsequent idle period (using rIC)
+  - script is injected at onload, and will execute in a subsequent idle period (using `requestIdleCallback`)
 
 NOTE: above strategies work the same for inline scripts wrapped with ScriptLoader.
 
@@ -85,7 +85,7 @@ import Script from 'next/script'
 
 We recommend the following Script Loader strategies for these categories of third-party scripts
 
-| Loading strategy  | 3P categories                                                                                |
+| Loading strategy  | third-party categories                                                                       |
 | ----------------- | -------------------------------------------------------------------------------------------- |
 | beforeInteractive | polyfill.io<br>Bot detection, security & authentication<br>User consent management (GDPR)    |
 | afterInteractive  | Tag-managers<br>Analytics                                                                    |
