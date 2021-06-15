@@ -1112,19 +1112,12 @@ export default class Router implements BaseRouter {
               pages
             )
 
-            const isDestinationAKnownPage = pages.includes(parsedHref.pathname)
-            const isDestinationARewrittenUrl = rewrites.afterFiles.some(
-              (x: any) => x.source === parsedHref.pathname
+            const { url: newUrl, as: newAs } = prepareUrlAs(
+              this,
+              destination,
+              destination
             )
-
-            if (isDestinationAKnownPage || isDestinationARewrittenUrl) {
-              const { url: newUrl, as: newAs } = prepareUrlAs(
-                this,
-                destination,
-                destination
-              )
-              return this.change(method, newUrl, newAs, options)
-            }
+            return this.change(method, newUrl, newAs, options)
           }
 
           window.location.href = destination
