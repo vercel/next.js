@@ -148,3 +148,18 @@ A stricter `next/core-web-vitals` rule set can also be added in `.eslintrc`:
 `next/core-web-vitals` updates `eslint-plugin-next` to error on a number of rules that are warnings by default if they affect [Core Web Vitals](https://web.dev/vitals/).
 
 > Both `next` and `next/core-web-vitals` entry points are automatically included for new applications built with [Create Next App](/docs/api-reference/create-next-app.md).
+
+## Migrating Existing Config
+
+If you already have ESLint configured in your application, we recommend extending directly from the Next.js ESLint plugin instead of the shareable configuration.
+
+```js
+module.exports = {
+  extends: [
+    //...
+    'plugin:@next/next/recommended',
+  ],
+}
+```
+
+This eliminates any risk of collisions that can occur due to importing the same plugin or parser across multiple configurations.
