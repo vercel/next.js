@@ -100,34 +100,35 @@ const nextDev: cliCommand = async (argv) => {
         }
       }
       console.error(message)
-    }
+    } else {
+      // Terimal is interactive
+      // prompt to run on another port
 
-    // Terimal is interactive
-    // prompt to run on another port
+      const isRoot = process.getuid && process.getuid() === 0
+      const isAdminRequired =
+        process.platform !== 'win32' && defaultPort < 1024 && !isRoot
 
-    const isRoot = process.getuid && process.getuid() === 0
-    const isAdminRequired =
-      process.platform !== 'win32' && defaultPort < 1024 && !isRoot
+      const message = isAdminRequired
+        ? `Admin permissions are required to run a server on a port below 1024.`
+        : `Something is already running on port ${defaultPort}.`
 
-    const message = isAdminRequired
-      ? `Admin permissions are required to run a server on a port below 1024.`
-      : `Something is already running on port ${defaultPort}.`
+      const question: PromptObject = {
+        type: 'confirm',
+        name: 'shouldChangePort',
+        message: `${message}\n\nWould you like to run the app on another port instead?`,
+        initial: true,
+      }
 
-    const question: PromptObject = {
-      type: 'confirm',
-      name: 'shouldChangePort',
-      message: `${message}\n\nWould you like to run the app on another port instead?`,
-      initial: true,
-    }
-
-    clearConsole()
-    const answer = await prompts(question)
-
-    if (answer.shouldChangePort) {
       clearConsole()
-      return availablePort
+      const answer = await prompts(question)
+
+      if (answer.shouldChangePort) {
+        clearConsole()
+        return availablePort
+      } else process.exit()
     }
-    process.exit()
+
+    process.exit(1)
   }
 
   const defaultPort =
