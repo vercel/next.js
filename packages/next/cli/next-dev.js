@@ -1,74 +1,88 @@
 #!/usr/bin/env node
-'use strict'
+'use strict';
 
-exports.__esModule = true
-exports.nextDev = void 0
+exports.__esModule = true;
+exports.nextDev = void 0;
 
-var _path = require('path')
+var _path = require('path');
 
-var _index = _interopRequireDefault(require('next/dist/compiled/arg/index.js'))
+var _index = _interopRequireDefault(require('next/dist/compiled/arg/index.js'));
 
-var _fs = require('fs')
+var _fs = require('fs');
 
-var _startServer = _interopRequireDefault(require('../server/lib/start-server'))
+var _startServer = _interopRequireDefault(require('../server/lib/start-server'));
 
-var _utils = require('../server/lib/utils')
+var _utils = require('../server/lib/utils');
 
-var Log = _interopRequireWildcard(require('../build/output/log'))
+var Log = _interopRequireWildcard(require('../build/output/log'));
 
-var _output = require('../build/output')
+var _output = require('../build/output');
 
-var _detectPortAlt = _interopRequireDefault(require('detect-port-alt'))
+var _detectPort = _interopRequireDefault(require('detect-port'));
 
-var _prompts = _interopRequireDefault(require('prompts'))
+var _prompts = _interopRequireDefault(require('prompts'));
+
+var _clearConsole = _interopRequireDefault(require('../server/lib/clearConsole'));
 
 function _interopRequireDefault(obj) {
-  return obj && obj.__esModule ? obj : { default: obj }
+  return obj && obj.__esModule ? obj : {
+    default: obj
+  };
 }
 
 function _getRequireWildcardCache() {
-  if (typeof WeakMap !== 'function') return null
-  var cache = new WeakMap()
+  if (typeof WeakMap !== 'function') return null;
+  var cache = new WeakMap();
+
   _getRequireWildcardCache = function () {
-    return cache
-  }
-  return cache
+    return cache;
+  };
+
+  return cache;
 }
 
 function _interopRequireWildcard(obj) {
   if (obj && obj.__esModule) {
-    return obj
+    return obj;
   }
-  if (obj === null || (typeof obj !== 'object' && typeof obj !== 'function')) {
-    return { default: obj }
+
+  if (obj === null || typeof obj !== 'object' && typeof obj !== 'function') {
+    return {
+      default: obj
+    };
   }
-  var cache = _getRequireWildcardCache()
+
+  var cache = _getRequireWildcardCache();
+
   if (cache && cache.has(obj)) {
-    return cache.get(obj)
+    return cache.get(obj);
   }
-  var newObj = {}
-  var hasPropertyDescriptor =
-    Object.defineProperty && Object.getOwnPropertyDescriptor
+
+  var newObj = {};
+  var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
+
   for (var key in obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      var desc = hasPropertyDescriptor
-        ? Object.getOwnPropertyDescriptor(obj, key)
-        : null
+      var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null;
+
       if (desc && (desc.get || desc.set)) {
-        Object.defineProperty(newObj, key, desc)
+        Object.defineProperty(newObj, key, desc);
       } else {
-        newObj[key] = obj[key]
+        newObj[key] = obj[key];
       }
     }
   }
-  newObj.default = obj
+
+  newObj.default = obj;
+
   if (cache) {
-    cache.set(obj, newObj)
+    cache.set(obj, newObj);
   }
-  return newObj
+
+  return newObj;
 }
 
-const nextDev = (argv) => {
+const nextDev = async argv => {
   const validArgs = {
     // Types
     '--help': Boolean,
@@ -77,20 +91,20 @@ const nextDev = (argv) => {
     // Aliases
     '-h': '--help',
     '-p': '--port',
-    '-H': '--hostname',
-  }
-  let args
+    '-H': '--hostname'
+  };
+  let args;
 
   try {
     args = (0, _index.default)(validArgs, {
-      argv,
-    })
+      argv
+    });
   } catch (error) {
     if (error.code === 'ARG_UNKNOWN_OPTION') {
-      return (0, _utils.printAndExit)(error.message, 1)
+      return (0, _utils.printAndExit)(error.message, 1);
     }
 
-    throw error
+    throw error;
   }
 
   if (args['--help']) {
@@ -109,117 +123,104 @@ const nextDev = (argv) => {
         --port, -p      A port number on which to start the application
         --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
         --help, -h      Displays this message
-    `)
-    process.exit(0)
+    `);
+    process.exit(0);
   }
 
-  const dir = (0, _path.resolve)(args._[0] || '.') // Check if pages dir exists and warn if not
+  const dir = (0, _path.resolve)(args._[0] || '.'); // Check if pages dir exists and warn if not
 
   if (!(0, _fs.existsSync)(dir)) {
-    ;(0, _utils.printAndExit)(
-      `> No such directory exists as the project root: ${dir}`
-    )
+    ;
+    (0, _utils.printAndExit)(`> No such directory exists as the project root: ${dir}`);
   }
 
   async function preflight() {
-    const { getPackageVersion } = await Promise.resolve().then(() =>
-      _interopRequireWildcard(require('../lib/get-package-version'))
-    )
-    const [sassVersion, nodeSassVersion] = await Promise.all([
-      getPackageVersion({
-        cwd: dir,
-        name: 'sass',
-      }),
-      getPackageVersion({
-        cwd: dir,
-        name: 'node-sass',
-      }),
-    ])
+    const {
+      getPackageVersion
+    } = await Promise.resolve().then(() => _interopRequireWildcard(require('../lib/get-package-version')));
+    const [sassVersion, nodeSassVersion] = await Promise.all([getPackageVersion({
+      cwd: dir,
+      name: 'sass'
+    }), getPackageVersion({
+      cwd: dir,
+      name: 'node-sass'
+    })]);
 
     if (sassVersion && nodeSassVersion) {
-      Log.warn(
-        'Your project has both `sass` and `node-sass` installed as dependencies, but should only use one or the other. ' +
-          'Please remove the `node-sass` dependency from your project. ' +
-          ' Read more: https://nextjs.org/docs/messages/duplicate-sass'
-      )
+      Log.warn('Your project has both `sass` and `node-sass` installed as dependencies, but should only use one or the other. ' + 'Please remove the `node-sass` dependency from your project. ' + ' Read more: https://nextjs.org/docs/messages/duplicate-sass');
     }
   }
 
-  const defaultPort =
-    args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
-  const host = args['--hostname'] || '0.0.0.0'
-  const appUrl = `http://${
-    host === '0.0.0.0' ? 'localhost' : host
-  }:${defaultPort}`
-  main(defaultPort)
+  async function choosePort(defaultPort) {
+    const availablePort = await (0, _detectPort.default)(defaultPort);
+    if (defaultPort === availablePort) return defaultPort; // Default port is not free,
+    // prompt user to allow another port
 
-  function main(port) {
-    ;(0, _startServer.default)(
-      {
-        dir,
-        dev: true,
-        isNextDevCommand: true,
-      },
-      port,
-      host
-    )
-      .then(async (app) => {
-        ;(0, _output.startedDevelopmentServer)(appUrl, `${host}:${port}`) // Start preflight after server is listening and ignore errors:
+    const isTerminalInteractive = process.stdout.isTTY; // Simply log instructions if terminal is not interactive
 
-        preflight().catch(() => {}) // Finalize server bootup:
+    if (!isTerminalInteractive) {
+      let message = `Something is already running on port ${defaultPort}.`;
 
-        await app.prepare()
-      })
-      .catch(async (err) => {
-        if (err.code === 'EADDRINUSE') {
-          let errorMessage = `Port ${port} is already in use.`
+      const packageJsonPath = require('next/dist/compiled/find-up').sync('package.json', {
+        cwd: dir
+      });
 
-          const pkgAppPath = require('next/dist/compiled/find-up').sync(
-            'package.json',
-            {
-              cwd: dir,
-            }
-          )
+      const {
+        scripts
+      } = require(packageJsonPath);
 
-          const appPackage = require(pkgAppPath)
+      if (scripts) {
+        const scriptsArray = Object.entries(scripts);
+        const nextScript = scriptsArray.find(([_, cmd]) => cmd === 'next');
 
-          if (appPackage.scripts) {
-            const nextScript = Object.entries(appPackage.scripts).find(
-              (scriptLine) => scriptLine[1] === 'next'
-            )
-
-            if (nextScript) {
-              errorMessage += `\nUse \`npm run ${nextScript[0]} -- -p <some other port>\`.`
-            }
-          } // console.error(errorMessage)
-          // Terminate early if ternimal not interactive
-
-          const isTerminalInteractive = process.stdout.isTTY
-          if (!isTerminalInteractive) return
-          const altPort = (0, _detectPortAlt.default)(port)
-
-          const isRoot = () => true
-
-          const message =
-            process.platform !== 'win32' && port < 1024 && !isRoot()
-              ? `Admin permissions are required to run a server on a port below 1024.`
-              : `Something is already running on port ${port}.`
-          const question = {
-            type: 'confirm',
-            name: 'shouldChangePort',
-            message: `${message}\n\nWould you like to run the app on another port instead?`,
-            initial: true,
-          }
-          const answer = await (0, _prompts.default)(question)
-          if (answer.shouldChangePort) main(altPort)
-        } else {
-          console.error(err)
+        if (nextScript) {
+          message += `\`npm run ${nextScript[0]} -- -p <some other port>\``;
         }
+      }
 
-        process.nextTick(() => process.exit(1))
-      })
+      console.error(message);
+    } // Terimal is interactive
+    // prompt to run on another port
+
+
+    const isRoot = process.getuid && process.getuid() === 0;
+    const isAdminRequired = process.platform !== 'win32' && defaultPort < 1024 && !isRoot;
+    const message = isAdminRequired ? `Admin permissions are required to run a server on a port below 1024.` : `Something is already running on port ${defaultPort}.`;
+    const question = {
+      type: 'confirm',
+      name: 'shouldChangePort',
+      message: `${message}\n\nWould you like to run the app on another port instead?`,
+      initial: true
+    };
+    (0, _clearConsole.default)();
+    const answer = await (0, _prompts.default)(question);
+
+    if (answer.shouldChangePort) {
+      ;
+      (0, _clearConsole.default)();
+      return availablePort;
+    }
+
+    process.exit();
   }
-}
 
-exports.nextDev = nextDev
+  const defaultPort = args['--port'] || process.env.PORT && parseInt(process.env.PORT) || 3000;
+  const port = await choosePort(defaultPort);
+  const host = args['--hostname'] || '0.0.0.0';
+  const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`;
+  (0, _startServer.default)({
+    dir,
+    dev: true,
+    isNextDevCommand: true
+  }, port, host).then(async app => {
+    ;
+    (0, _output.startedDevelopmentServer)(appUrl, `${host}:${port}`); // Start preflight after server is listening and ignore errors:
+
+    preflight().catch(() => {}); // Finalize server bootup:
+
+    await app.prepare();
+  }).catch(() => process.nextTick(() => process.exit(1)));
+};
+
+exports.nextDev = nextDev;
 //# sourceMappingURL=next-dev.js.map

@@ -7,8 +7,9 @@ import { printAndExit } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { startedDevelopmentServer } from '../build/output'
 import { cliCommand } from '../bin/next'
-import detectPortAlt from 'detect-port-alt'
+import detectPort from 'detect-port'
 import prompts, { PromptObject } from 'prompts'
+import clearConsole from '../server/lib/clearConsole'
 
 const nextDev: cliCommand = async (argv) => {
   const validArgs: arg.Spec = {
@@ -73,11 +74,8 @@ const nextDev: cliCommand = async (argv) => {
     }
   }
 
-  async function choosePort(
-    defaultPort: number,
-    host?: string
-  ): Promise<number> {
-    const availablePort: number = await detectPortAlt(defaultPort, host)
+  async function choosePort(defaultPort: number): Promise<number> {
+    const availablePort: number = await detectPort(defaultPort)
 
     if (defaultPort === availablePort) return defaultPort
 
@@ -122,11 +120,11 @@ const nextDev: cliCommand = async (argv) => {
       initial: true,
     }
 
-    console.clear()
+    clearConsole()
     const answer = await prompts(question)
 
     if (answer.shouldChangePort) {
-      console.clear()
+      clearConsole()
       return availablePort
     }
     process.exit()
@@ -134,8 +132,8 @@ const nextDev: cliCommand = async (argv) => {
 
   const defaultPort =
     args['--port'] || (process.env.PORT && parseInt(process.env.PORT)) || 3000
+  const port = await choosePort(defaultPort)
   const host = args['--hostname'] || '0.0.0.0'
-  const port = await choosePort(defaultPort, host)
   const appUrl = `http://${host === '0.0.0.0' ? 'localhost' : host}:${port}`
 
   startServer({ dir, dev: true, isNextDevCommand: true }, port, host)
