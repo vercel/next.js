@@ -69,7 +69,7 @@ const Index = () => (
         placeholder effect while that image loads.
       </p>
       <p>
-        <Link href="/background">
+        <Link href="/placeholder">
           <a>See an example of the blurry placeholder.</a>
         </Link>
       </p>
