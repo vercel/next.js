@@ -2006,12 +2006,19 @@ export default class Server {
   })
 
   public async renderErrorToHTML(
-    err: Error | null,
+    _err: Error | null,
     req: IncomingMessage,
     res: ServerResponse,
     _pathname: string,
     query: ParsedUrlQuery = {}
   ) {
+    let err = _err
+    if (this.renderOpts.dev && !err && res.statusCode === 500) {
+      err = new Error(
+        'An undefined error was thrown sometime during render... ' +
+          'See https://nextjs.org/docs/messages/threw-undefined'
+      )
+    }
     let html: string | null
     try {
       let result: null | FindComponentsResult = null
