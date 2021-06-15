@@ -45,10 +45,6 @@ describe('getServerSideProps redirects', () => {
     // Wait until the new props are rendered
     await browser.waitForElementByCss('.refreshed')
 
-    const isSamePage = await browser.executeScript(function () {
-      return window.__SAME_PAGE || false
-    })
-
-    expect(isSamePage).toBe(true)
+    expect(await browser.eval('window.__SAME_PAGE')).toBe(true)
   })
 })
