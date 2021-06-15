@@ -19,7 +19,6 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   CLIENT_STATIC_FILES_PATH,
   DEV_CLIENT_PAGES_MANIFEST,
-  STATIC_STATUS_PAGES,
 } from '../next-server/lib/constants'
 import {
   getRouteMatcher,
