@@ -28,7 +28,10 @@ import {
   isDynamicRoute,
 } from '../next-server/lib/router/utils'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
-import Server, { ServerConstructor } from '../next-server/server/next-server'
+import Server, {
+  FindComponentsResult,
+  ServerConstructor,
+} from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import Router, { Params, route } from '../next-server/server/router'
 import { eventCliSession } from '../telemetry/events'
@@ -39,6 +42,11 @@ import { findPageFile } from './lib/find-page-file'
 import { getNodeOptionsWithoutInspect } from './lib/utils'
 import { withCoalescedInvoke } from '../lib/coalesced-function'
 import { NextConfig } from '../next-server/server/config'
+import { ParsedUrlQuery } from 'querystring'
+import {
+  LoadComponentsReturnType,
+  loadDefaultErrorComponents,
+} from '../next-server/server/load-components'
 
 if (typeof React.Suspense === 'undefined') {
   throw new Error(
@@ -595,95 +603,36 @@ export default class DevServer extends Server {
     return this.hotReloader!.ensurePage(pathname)
   }
 
-  async renderToHTML(
-    req: IncomingMessage,
-    res: ServerResponse,
+  protected async findPageComponents(
     pathname: string,
-    query: { [key: string]: string }
-  ): Promise<string | null> {
+    query: ParsedUrlQuery = {},
+    params: Params | null = null
+  ): Promise<FindComponentsResult | null> {
     await this.devReady
+
     const compilationErr = await this.getCompilationError(pathname)
     if (compilationErr) {
-      res.statusCode = 500
-      return this.renderErrorToHTML(compilationErr, req, res, pathname, query)
+      throw compilationErr
     }
 
-    // In dev mode we use on demand entries to compile the page before rendering
     try {
-      await this.hotReloader!.ensurePage(pathname).catch(async (err: Error) => {
-        if ((err as any).code !== 'ENOENT') {
-          throw err
-        }
-
-        for (const dynamicRoute of this.dynamicRoutes || []) {
-          const params = dynamicRoute.match(pathname)
-          if (!params) {
-            continue
-          }
-
-          return this.hotReloader!.ensurePage(dynamicRoute.page)
-        }
-        throw err
-      })
+      await this.hotReloader!.ensurePage(pathname)
+      return super.findPageComponents(pathname, query, params)
     } catch (err) {
-      if (err.code === 'ENOENT') {
-        try {
-          await this.hotReloader!.ensurePage('/404')
-        } catch (hotReloaderError) {
-          if (hotReloaderError.code !== 'ENOENT') {
-            throw hotReloaderError
-          }
-        }
-
-        res.statusCode = 404
-        return this.renderErrorToHTML(null, req, res, pathname, query)
+      if ((err as any).code !== 'ENOENT') {
+        throw err
       }
       if (!this.quiet) console.error(err)
+      return null
     }
-    const html = await super.renderToHTML(req, res, pathname, query)
-    return html
   }
 
-  async renderErrorToHTML(
-    err: Error | null,
-    req: IncomingMessage,
-    res: ServerResponse,
-    pathname: string,
-    query: { [key: string]: string }
-  ): Promise<string | null> {
-    await this.devReady
-    if (res.statusCode === 404 && (await this.hasPage('/404'))) {
-      await this.hotReloader!.ensurePage('/404')
-    } else if (
-      STATIC_STATUS_PAGES.includes(`/${res.statusCode}`) &&
-      (await this.hasPage(`/${res.statusCode}`))
-    ) {
-      await this.hotReloader!.ensurePage(`/${res.statusCode}`)
-    } else {
-      await this.hotReloader!.ensurePage('/_error')
-    }
-
-    const compilationErr = await this.getCompilationError(pathname)
-    if (compilationErr) {
-      res.statusCode = 500
-      return super.renderErrorToHTML(compilationErr, req, res, pathname, query)
-    }
-
-    if (!err && res.statusCode === 500) {
-      err = new Error(
-        'An undefined error was thrown sometime during render... ' +
-          'See https://nextjs.org/docs/messages/threw-undefined'
-      )
-    }
-
-    try {
-      const out = await super.renderErrorToHTML(err, req, res, pathname, query)
-      return out
-    } catch (err2) {
-      if (!this.quiet) Log.error(err2)
-      res.statusCode = 500
-      return super.renderErrorToHTML(err2, req, res, pathname, query)
-    }
+  protected async handleRenderErrorFailure(
+    err: Error
+  ): Promise<LoadComponentsReturnType | null> {
+    if (!this.quiet) Log.error(err as any)
+    await this.hotReloader!.buildFallbackError()
+    return loadDefaultErrorComponents(this.distDir)
   }
 
   sendHTML(

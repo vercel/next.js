@@ -52,11 +52,7 @@ import {
 import { DomainLocales, isTargetLikeServerless, NextConfig } from './config'
 import pathMatch from '../lib/router/utils/path-match'
 import { recursiveReadDirSync } from './lib/recursive-readdir-sync'
-import {
-  loadComponents,
-  LoadComponentsReturnType,
-  loadDefaultErrorComponents,
-} from './load-components'
+import { loadComponents, LoadComponentsReturnType } from './load-components'
 import { normalizePagePath } from './normalize-page-path'
 import { RenderOpts, RenderOptsPartial, renderToHTML } from './render'
 import { getPagePath, requireFontManifest } from './require'
@@ -92,7 +88,6 @@ import cookie from 'next/dist/compiled/cookie'
 import escapePathDelimiters from '../lib/router/utils/escape-path-delimiters'
 import { getUtils } from '../../build/webpack/loaders/next-serverless-loader/utils'
 import { PreviewData } from 'next/types'
-import HotReloader from '../../server/hot-reloader'
 
 const getCustomRouteMatcher = pathMatch(true)
 
@@ -102,7 +97,7 @@ type Middleware = (
   next: (err?: Error) => void
 ) => void
 
-type FindComponentsResult = {
+export type FindComponentsResult = {
   components: LoadComponentsReturnType
   query: ParsedUrlQuery
 }
@@ -1346,7 +1341,7 @@ export default class Server {
     return this.sendHTML(req, res, html)
   }
 
-  private async findPageComponents(
+  protected async findPageComponents(
     pathname: string,
     query: ParsedUrlQuery = {},
     params: Params | null = null
@@ -2067,13 +2062,12 @@ export default class Server {
         throw maybeFallbackError
       }
     } catch (renderToHtmlError) {
-      console.error(renderToHtmlError)
       res.statusCode = 500
+      const fallbackResult = await this.handleRenderErrorFailure(
+        renderToHtmlError
+      )
 
-      if (this.renderOpts.dev) {
-        await ((this as any).hotReloader as HotReloader).buildFallbackError()
-
-        const fallbackResult = await loadDefaultErrorComponents(this.distDir)
+      if (fallbackResult) {
         return this.renderToHTMLWithComponents(
           req,
           res,
@@ -2091,6 +2085,13 @@ export default class Server {
       html = 'Internal Server Error'
     }
     return html
+  }
+
+  protected async handleRenderErrorFailure(
+    err: Error
+  ): Promise<LoadComponentsReturnType | null> {
+    console.error(err)
+    return null
   }
 
   public async render404(
