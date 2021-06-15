@@ -4,16 +4,9 @@ import mountains from '../public/mountains.jpg'
 
 const Responsive = () => (
   <div>
-    <ViewSource pathname="pages/layout-responsive.js" />
-    <h1>Image Component With Layout Responsive</h1>
-    <Image
-      alt="Mountains"
-      src={mountains}
-      layout="responsive"
-      placeholder="blur"
-      width={700}
-      height={475}
-    />
+    <ViewSource pathname="pages/placeholder.js" />
+    <h1>Image Component With Placeholder</h1>
+    <Image alt="Mountains" src={mountains} placeholder="blur" />
   </div>
 )
 
