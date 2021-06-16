@@ -52,7 +52,9 @@ export default Home
 
 ## Image Imports
 
-You can `import` images that live in your project. When doing so `width`, `height`, and `blurDataURL` will be automatically provided to the image component.
+You can `import` images that live in your project. (Note that `require` is not supported—only `import`.)
+
+With direct `import`s, `width`, `height`, and `blurDataURL` will be automatically provided to the image component. Alt text is still needed separately.
 
 ```js
 import Image from 'next/image'
