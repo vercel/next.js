@@ -29,7 +29,9 @@ To upgrade you can run the following command in the terminal:
 ```
 npm install next@latest
 ```
+
 or
+
 ```
 yarn add next@latest
 ```
