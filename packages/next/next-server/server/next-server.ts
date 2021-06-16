@@ -2078,8 +2078,10 @@ export default class Server {
         throw maybeFallbackError
       }
     } catch (renderToHtmlError) {
-      if (!(renderToHtmlError instanceof WrappedBuildError))
+      const isWrappedError = renderToHtmlError instanceof WrappedBuildError
+      if (!isWrappedError) {
         this.logError(renderToHtmlError)
+      }
       res.statusCode = 500
       const fallbackComponents = await this.getFallbackErrorComponents()
 
@@ -2094,7 +2096,9 @@ export default class Server {
           },
           {
             ...this.renderOpts,
-            err,
+            err: isWrappedError
+              ? renderToHtmlError.innerError
+              : renderToHtmlError,
           }
         )
       }
@@ -2269,6 +2273,8 @@ function prepareServerlessUrl(
 
 class NoFallbackError extends Error {}
 
+// Internal wrapper around build errors at development
+// time, to prevent us from propagating or logging them
 export class WrappedBuildError extends Error {
   innerError: Error
 
