@@ -31,14 +31,13 @@ To add an image to your application, import the [`next/image`](/docs/api-referen
 
 ```jsx
 import Image from 'next/image'
-import profilePic from '../public/me.png'
 
 function Home() {
   return (
     <>
       <h1>My Homepage</h1>
       <Image
-        src={profilePic}
+        src="/me.png"
         alt="Picture of the author"
         width={500}
         height={500}
@@ -50,6 +49,37 @@ function Home() {
 
 export default Home
 ```
+
+## Image Imports
+
+You can `import` images that live in your project. When doing so `width`, `height`, and `blurDataURL` will be automatically provided to the image component.
+
+```js
+import Image from 'next/image'
+import profilePic from '../public/me.png'
+
+function Home() {
+  return (
+    <>
+      <h1>My Homepage</h1>
+      <Image
+        src={profilePic}
+        alt="Picture of the author"
+        // width={500} automatically provided
+        // height={500} automatically provided
+        // blurDataURL="data:..." automatically provided
+        // Optionally allows to add a blurred version of the image while loading
+        // placeholder="blur"
+      />
+      <p>Welcome to my homepage!</p>
+    </>
+  )
+}
+```
+
+For dynamic images you have to provide `width`, `height` and `blurDataURL` manually.
+
+## Properties
 
 [View all properties](/docs/api-reference/next/image.md) available to the `next/image` component.
 
