@@ -171,6 +171,11 @@ When `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the plac
 
 When `empty`, there will be no placeholder while the image is loading, only empty space.
 
+Try it out:
+
+- [Demo the `blur` placeholder](https://image-component.nextjs.gallery/placeholder)
+- [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
+
 ## Advanced Props
 
 In some cases, you may need more advanced usage. The `<Image />` component
@@ -213,6 +218,11 @@ with [`placeholder="blur"`](#placeholder).
 
 Must be a base64-encoded image. It will be enlarged and blurred, so a very small image (10px or
 less) is recommended. Including larger images as placeholders may harm your application performance.
+
+Try it out:
+
+- [Demo the default `blurDataURL` prop](https://image-component.nextjs.gallery/placeholder)
+- [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
 
 ### unoptimized
 
