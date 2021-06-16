@@ -6,7 +6,6 @@ import {
   findPort,
   launchApp,
   killApp,
-  waitFor,
   check,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
