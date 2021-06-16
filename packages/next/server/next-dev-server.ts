@@ -27,6 +27,7 @@ import {
 } from '../next-server/lib/router/utils'
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import Server, {
+  WrappedBuildError,
   FindComponentsResult,
   ServerConstructor,
 } from '../next-server/server/next-server'
@@ -607,16 +608,17 @@ export default class DevServer extends Server {
     params: Params | null = null
   ): Promise<FindComponentsResult | null> {
     await this.devReady
+    const compilationErr = await this.getCompilationError(pathname)
+    if (compilationErr) {
+      // Wrap build errors so that they don't get logged again
+      throw new WrappedBuildError(compilationErr)
+    }
     try {
       await this.hotReloader!.ensurePage(pathname)
-      const compilationErr = await this.getCompilationError(pathname)
-      if (compilationErr) {
-        throw compilationErr
-      }
       return super.findPageComponents(pathname, query, params)
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
-        throw this.markRethrownError(err)
+        throw err
       }
       return null
     }
@@ -624,7 +626,10 @@ export default class DevServer extends Server {
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
     await this.hotReloader!.buildFallbackError()
-    return loadDefaultErrorComponents(this.distDir)
+    // Build the error page to ensure the fallback is built too.
+    // TODO: See if this can be moved into hotReloader or removed.
+    await this.hotReloader!.ensurePage('/_error')
+    return await loadDefaultErrorComponents(this.distDir)
   }
 
   sendHTML(

@@ -165,7 +165,6 @@ export default class Server {
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes
-  private rethrownErrors: WeakSet<Error>
 
   public constructor({
     dir = '.',
@@ -175,7 +174,6 @@ export default class Server {
     minimalMode = false,
     customServer = true,
   }: ServerConstructor & { conf: NextConfig; minimalMode?: boolean }) {
-    this.rethrownErrors = new WeakSet()
     this.dir = resolve(dir)
     this.quiet = quiet
     loadEnvConfig(this.dir, dev, Log)
@@ -281,7 +279,7 @@ export default class Server {
   }
 
   public logError(err: Error): void {
-    if (this.quiet || this.rethrownErrors.has(err)) return
+    if (this.quiet) return
     console.error(err)
   }
 
@@ -619,11 +617,6 @@ export default class Server {
 
   protected getPreviewProps(): __ApiPreviewProps {
     return this.getPrerenderManifest().preview
-  }
-
-  protected markRethrownError<T extends Error>(error: T): T {
-    this.rethrownErrors.add(error)
-    return error
   }
 
   protected generateRoutes(): {
@@ -1960,18 +1953,25 @@ export default class Server {
       if (isNoFallbackError && bubbleNoFallback) {
         throw err
       }
+
       if (err && err.code === 'DECODE_FAILED') {
-        this.logError(err)
         res.statusCode = 400
         return await this.renderErrorToHTML(err, req, res, pathname, query)
       }
       res.statusCode = 500
-      const html = await this.renderErrorToHTML(err, req, res, pathname, query)
+      const isWrappedError = err instanceof WrappedBuildError
+      const html = await this.renderErrorToHTML(
+        isWrappedError ? err.innerError : err,
+        req,
+        res,
+        pathname,
+        query
+      )
 
       if (this.minimalMode) {
         throw err
       }
-      this.logError(err)
+      if (!isWrappedError) this.logError(err)
       return html
     }
     res.statusCode = 404
@@ -2076,7 +2076,8 @@ export default class Server {
         throw maybeFallbackError
       }
     } catch (renderToHtmlError) {
-      this.logError(renderToHtmlError)
+      if (!(renderToHtmlError instanceof WrappedBuildError))
+        this.logError(renderToHtmlError)
       res.statusCode = 500
       const fallbackResult = await this.getFallbackErrorComponents()
 
@@ -2265,3 +2266,12 @@ function prepareServerlessUrl(
 }
 
 class NoFallbackError extends Error {}
+
+export class WrappedBuildError extends Error {
+  innerError: Error
+
+  constructor(innerError: Error) {
+    super()
+    this.innerError = innerError
+  }
+}
