@@ -52,6 +52,10 @@
             {
               "title": "Supported Browsers and Features",
               "path": "/docs/basic-features/supported-browsers-features.md"
+            },
+            {
+              "title": "Script",
+              "path": "/docs/basic-features/script.md"
             }
           ]
         },
