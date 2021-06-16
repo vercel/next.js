@@ -608,18 +608,18 @@ export default class DevServer extends Server {
   ): Promise<FindComponentsResult | null> {
     await this.devReady
     try {
-      await this.hotReloader!.ensurePage(pathname)
       const compilationErr = await this.getCompilationError(pathname)
       if (compilationErr) {
-        throw this.markRethrownError(compilationErr)
+        throw compilationErr
       }
-      return super.findPageComponents(pathname, query, params)
+      await this.hotReloader!.ensurePage(pathname)
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
-        throw err
+        throw this.markRethrownError(err)
       }
       return null
     }
+    return super.findPageComponents(pathname, query, params)
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
