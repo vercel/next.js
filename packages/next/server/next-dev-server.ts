@@ -608,11 +608,11 @@ export default class DevServer extends Server {
   ): Promise<FindComponentsResult | null> {
     await this.devReady
     try {
+      await this.hotReloader!.ensurePage(pathname)
       const compilationErr = await this.getCompilationError(pathname)
       if (compilationErr) {
         throw compilationErr
       }
-      await this.hotReloader!.ensurePage(pathname)
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
         throw this.markRethrownError(err)
