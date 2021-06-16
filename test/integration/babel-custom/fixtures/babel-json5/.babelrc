@@ -4,9 +4,9 @@
       "next/babel",
       {
         "preset-env": {
-          "modules": "commonjs", // Here's a comment
-        },
-      },
-    ],
-  ],
+          "modules": "commonjs" // Here's a comment
+        }
+      }
+    ]
+  ]
 }
