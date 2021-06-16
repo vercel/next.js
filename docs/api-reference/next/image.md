@@ -14,12 +14,12 @@ description: Enable Image Optimization with the built-in Image component.
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                                      |
-| --------- | ---------------------------------------------------------------------------- |
-| `v11.0.0` | Added static imports for `src`. Added `placeholder` and `blurDataURL` props. |
-| `v10.0.5` | `loader` prop added.                                                         |
-| `v10.0.1` | `layout` prop added.                                                         |
-| `v10.0.0` | `next/image` introduced.                                                     |
+| Version   | Changes                                                                                           |
+| --------- | ------------------------------------------------------------------------------------------------- |
+| `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
+| `v10.0.5` | `loader` prop added.                                                                              |
+| `v10.0.1` | `layout` prop added.                                                                              |
+| `v10.0.0` | `next/image` introduced.                                                                          |
 
 </details>
 
