@@ -2,10 +2,10 @@ import Image from 'next/image'
 import ViewSource from '../components/view-source'
 import mountains from '../public/mountains.jpg'
 
-const Responsive = () => (
+const PlaceholderBlur = () => (
   <div>
     <ViewSource pathname="pages/placeholder.js" />
-    <h1>Image Component With Placeholder</h1>
+    <h1>Image Component With Placeholder Blur</h1>
     <Image
       alt="Mountains"
       src={mountains}
@@ -16,4 +16,4 @@ const Responsive = () => (
   </div>
 )
 
-export default Responsive
+export default PlaceholderBlur
