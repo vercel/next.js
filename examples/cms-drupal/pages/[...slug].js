@@ -2,22 +2,22 @@ import { useRouter } from 'next/router'
 import ErrorPage from 'next/error'
 import Head from 'next/head'
 import {
-  getEntitiesFromContext,
-  getEntityFromContext,
-  getPathsForEntityType,
+  getPathsFromContext,
+  getResourceCollectionFromContext,
+  getResourceFromContext,
 } from 'next-drupal'
 
-import Container from '../../components/container'
-import PostBody from '../../components/post-body'
-import MoreStories from '../../components/more-stories'
-import Header from '../../components/header'
-import PostHeader from '../../components/post-header'
-import SectionSeparator from '../../components/section-separator'
-import Layout from '../../components/layout'
-import PostTitle from '../../components/post-title'
+import Container from '../components/container'
+import PostBody from '../components/post-body'
+import MoreStories from '../components/more-stories'
+import Header from '../components/header'
+import PostHeader from '../components/post-header'
+import SectionSeparator from '../components/section-separator'
+import Layout from '../components/layout'
+import PostTitle from '../components/post-title'
 
-import { CMS_NAME } from '../../lib/constants'
-import { absoluteURL } from '../../lib/api'
+import { CMS_NAME } from '../lib/constants'
+import { absoluteURL } from '../lib/api'
 
 export default function Post({ post, morePosts, preview }) {
   const router = useRouter()
@@ -67,8 +67,7 @@ export default function Post({ post, morePosts, preview }) {
 }
 
 export async function getStaticProps(context) {
-  const post = await getEntityFromContext('node', 'article', context, {
-    prefix: '/posts',
+  const post = await getResourceFromContext('node--article', context, {
     params: {
       include: 'field_image,uid,uid.user_picture',
     },
@@ -76,15 +75,19 @@ export async function getStaticProps(context) {
 
   let morePosts = []
   if (post) {
-    morePosts = await getEntitiesFromContext('node', 'article', context, {
-      params: {
-        include: 'field_image,uid,uid.user_picture',
-        sort: '-created',
-        'filter[id][condition][path]': 'id',
-        'filter[id][condition][operator]': '<>',
-        'filter[id][condition][value]': post.id,
-      },
-    })
+    morePosts = await getResourceCollectionFromContext(
+      'node--article',
+      context,
+      {
+        params: {
+          include: 'field_image,uid,uid.user_picture',
+          sort: '-created',
+          'filter[id][condition][path]': 'id',
+          'filter[id][condition][operator]': '<>',
+          'filter[id][condition][value]': post.id,
+        },
+      }
+    )
   }
 
   return {
@@ -96,9 +99,9 @@ export async function getStaticProps(context) {
   }
 }
 
-export async function getStaticPaths() {
+export async function getStaticPaths(context) {
   return {
-    paths: await getPathsForEntityType('node', 'article'),
+    paths: await getPathsFromContext('node--article', context),
     fallback: true,
   }
 }
