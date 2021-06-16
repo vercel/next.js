@@ -1,12 +1,10 @@
-import { StoreProvider } from '../lib/zustandProvider'
-import { useHydrate } from '../lib/store'
+import { useHydrate, Provider } from '../lib/store'
 
 export default function App({ Component, pageProps }) {
   const store = useHydrate(pageProps.initialZustandState)
-
   return (
-    <StoreProvider store={store}>
+    <Provider initialStore={store}>
       <Component {...pageProps} />
-    </StoreProvider>
+    </Provider>
   )
 }

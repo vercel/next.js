@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import fs from 'fs-extra'
 import {
   check,
   findPort,
@@ -17,10 +16,9 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-jest.setTimeout(1000 * 30)
+jest.setTimeout(1000 * 80)
 
 const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
 
 let appPort
 let app
@@ -54,20 +52,9 @@ async function getComputed(browser, id, prop) {
 }
 
 async function getComputedStyle(browser, id, prop) {
-  const val = await browser.eval(
-    `window.getComputedStyle(document.getElementById('${id}')).${prop}`
+  return browser.eval(
+    `window.getComputedStyle(document.getElementById('${id}')).getPropertyValue('${prop}')`
   )
-  if (typeof val === 'number') {
-    return val
-  }
-  if (typeof val === 'string') {
-    const v = parseInt(val, 10)
-    if (isNaN(v)) {
-      return val
-    }
-    return v
-  }
-  return null
 }
 
 async function getSrc(browser, id) {
@@ -161,9 +148,12 @@ function runTests(mode) {
     const $html = cheerio.load(html)
 
     const els = [].slice.apply($html('img'))
-    expect(els.length).toBe(1)
+    expect(els.length).toBe(2)
 
-    const [el] = els
+    const [noscriptEl, el] = els
+    expect(noscriptEl.attribs.src).toBeDefined()
+    expect(noscriptEl.attribs.srcset).toBeDefined()
+
     expect(el.attribs.src).toBeDefined()
     expect(el.attribs.srcset).toBeUndefined()
     expect(el.attribs.srcSet).toBeUndefined()
@@ -410,6 +400,14 @@ function runTests(mode) {
       )
       expect(objectFit).toBe('cover')
       expect(objectPosition).toBe('left center')
+      await browser.eval(`document.getElementById("fill3").scrollIntoView()`)
+      expect(await browser.elementById('fill3').getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+      )
+      await browser.eval(`document.getElementById("fill4").scrollIntoView()`)
+      expect(await browser.elementById('fill4').getAttribute('srcset')).toBe(
+        '/_next/image?url=%2Fwide.png&w=16&q=75 16w, /_next/image?url=%2Fwide.png&w=32&q=75 32w, /_next/image?url=%2Fwide.png&w=48&q=75 48w, /_next/image?url=%2Fwide.png&w=64&q=75 64w, /_next/image?url=%2Fwide.png&w=96&q=75 96w, /_next/image?url=%2Fwide.png&w=128&q=75 128w, /_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+      )
     } finally {
       if (browser) {
         await browser.close()
@@ -429,7 +427,7 @@ function runTests(mode) {
         '/_next/image?url=%2Fwide.png&w=3840&q=75'
       )
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-        '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+        '/_next/image?url=%2Fwide.png&w=16&q=75 16w, /_next/image?url=%2Fwide.png&w=32&q=75 32w, /_next/image?url=%2Fwide.png&w=48&q=75 48w, /_next/image?url=%2Fwide.png&w=64&q=75 64w, /_next/image?url=%2Fwide.png&w=96&q=75 96w, /_next/image?url=%2Fwide.png&w=128&q=75 128w, /_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
       )
       expect(await browser.elementById(id).getAttribute('sizes')).toBe(
         '(max-width: 2048px) 1200px, 3840px'
@@ -487,53 +485,39 @@ function runTests(mode) {
       )
     })
 
-    it('should show invalid unsized error', async () => {
-      const browser = await webdriver(appPort, '/invalid-unsized')
+    it('should show error when string src and placeholder=blur and blurDataURL is missing', async () => {
+      const browser = await webdriver(appPort, '/invalid-placeholder-blur')
 
       expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
-        'Image with src "/test.png" has deprecated "unsized" property, which was removed in favor of the "layout=\'fill\'" property'
+        `Image with src "/test.png" has "placeholder='blur'" property but is missing the "blurDataURL" property.`
+      )
+    })
+
+    it('should show error when static import and placeholder=blur and blurDataUrl is missing', async () => {
+      const browser = await webdriver(
+        appPort,
+        '/invalid-placeholder-blur-static'
+      )
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toMatch(
+        /Image with src "(.*)bmp" has "placeholder='blur'" property but is missing the "blurDataURL" property/
+      )
+    })
+
+    it('should warn when using a very small image with placeholder=blur', async () => {
+      const browser = await webdriver(appPort, '/small-img-import')
+
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(await hasRedbox(browser)).toBe(false)
+      expect(warnings).toMatch(
+        /Image with src (.*)jpg(.*) is smaller than 40x40. Consider removing(.*)/gm
       )
     })
   }
-
-  it('should correctly inherit the visibilty of the parent component', async () => {
-    let browser
-    try {
-      browser = await webdriver(appPort, '/hidden-parent')
-
-      const id = 'hidden-image'
-
-      // Wait for image to load:
-      await check(async () => {
-        const result = await browser.eval(
-          `document.getElementById(${JSON.stringify(id)}).naturalWidth`
-        )
-
-        if (result < 1) {
-          throw new Error('Image not ready')
-        }
-
-        return 'result-correct'
-      }, /result-correct/)
-
-      await waitFor(1000)
-
-      const desiredVisibilty = await getComputed(
-        browser,
-        id,
-        'style.visibility'
-      )
-      expect(desiredVisibilty).toBe('inherit')
-
-      const actualVisibility = await getComputedStyle(browser, id, 'visibility')
-      expect(actualVisibility).toBe('hidden')
-    } finally {
-      if (browser) {
-        await browser.close()
-      }
-    }
-  })
 
   it('should correctly ignore prose styles', async () => {
     let browser
@@ -593,7 +577,7 @@ function runTests(mode) {
 
         const computedWidth = await getComputed(browser, id, 'width')
         const computedHeight = await getComputed(browser, id, 'height')
-        expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(1.333, 1)
+        expect(getRatio(computedWidth, computedHeight)).toBeCloseTo(0.5625, 1)
       } finally {
         if (browser) {
           await browser.close()
@@ -609,7 +593,9 @@ describe('Image Component Tests', () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await killApp(app)
+    })
 
     runTests('dev')
   })
@@ -620,28 +606,75 @@ describe('Image Component Tests', () => {
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
-    afterAll(() => killApp(app))
+    afterAll(async () => {
+      await killApp(app)
+    })
 
     runTests('server')
   })
 
   describe('serverless mode', () => {
     beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        `
-        module.exports = {
-          target: 'serverless'
-        }
-      `
-      )
       await nextBuild(appDir)
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })
     afterAll(async () => {
-      await fs.unlink(nextConfig)
       await killApp(app)
+    })
+
+    it('should have blurry placeholder when enabled', async () => {
+      const html = await renderViaHTTP(appPort, '/blurry-placeholder')
+      const $html = cheerio.load(html)
+
+      expect($html('#blurry-placeholder')[0].attribs.style).toContain(
+        `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
+      )
+
+      expect($html('#blurry-placeholder-with-lazy')[0].attribs.style).toContain(
+        `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
+      )
+    })
+
+    it('should remove blurry placeholder after image loads', async () => {
+      let browser
+      try {
+        browser = await webdriver(appPort, '/blurry-placeholder')
+        await check(
+          async () =>
+            await getComputedStyle(
+              browser,
+              'blurry-placeholder',
+              'background-image'
+            ),
+          'none'
+        )
+        expect(
+          await getComputedStyle(
+            browser,
+            'blurry-placeholder-with-lazy',
+            'background-image'
+          )
+        ).toBe(
+          `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'%3E%3Cfilter id='blur' filterUnits='userSpaceOnUse' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20' edgeMode='duplicate' /%3E%3CfeComponentTransfer%3E%3CfeFuncA type='discrete' tableValues='1 1' /%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cimage filter='url(%23blur)' href='data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMDAwMDAwQEBAQFBQUFBQcHBgYHBwsICQgJCAsRCwwLCwwLEQ8SDw4PEg8bFRMTFRsfGhkaHyYiIiYwLTA+PlT/wAALCAAKAAoBAREA/8QAMwABAQEAAAAAAAAAAAAAAAAAAAcJEAABAwUAAwAAAAAAAAAAAAAFAAYRAQMEEyEVMlH/2gAIAQEAAD8Az1bLPaxhiuk0QdeCOLDtHixN2dmd2bsc5FPX7VTREX//2Q==' x='0' y='0' height='100%25' width='100%25'/%3E%3C/svg%3E")`
+        )
+
+        await browser.eval('document.getElementById("spacer").remove()')
+
+        await check(
+          async () =>
+            await getComputedStyle(
+              browser,
+              'blurry-placeholder-with-lazy',
+              'background-image'
+            ),
+          'none'
+        )
+      } finally {
+        if (browser) {
+          await browser.close()
+        }
+      }
     })
 
     runTests('serverless')

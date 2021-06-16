@@ -28,7 +28,7 @@
 
 import * as DevOverlay from '@next/react-dev-overlay/lib/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { getEventSourceWrapper } from './eventsource'
+import { addMessageListener } from './eventsource'
 import formatWebpackMessages from './format-webpack-messages'
 
 // This alternative WebpackDevServer combines the functionality of:
@@ -42,10 +42,10 @@ import formatWebpackMessages from './format-webpack-messages'
 
 let hadRuntimeError = false
 let customHmrEventHandler
-export default function connect(options) {
+export default function connect() {
   DevOverlay.register()
 
-  getEventSourceWrapper(options).addMessageListener((event) => {
+  addMessageListener((event) => {
     // This is the heartbeat event
     if (event.data === '\uD83D\uDC93') {
       return
@@ -179,7 +179,11 @@ function onFastRefresh(hasUpdates) {
     DevOverlay.onRefresh()
   }
 
-  console.log('[Fast Refresh] done')
+  const latency = Date.now() - startLatency
+  console.log(`[Fast Refresh] done in ${latency}ms`)
+  if (self.__NEXT_HMR_LATENCY_CB) {
+    self.__NEXT_HMR_LATENCY_CB(latency)
+  }
 }
 
 // There is a newer version of the code available.
@@ -188,11 +192,14 @@ function handleAvailableHash(hash) {
   mostRecentCompilationHash = hash
 }
 
+let startLatency = undefined
+
 // Handle messages from the server.
 function processMessage(e) {
   const obj = JSON.parse(e.data)
   switch (obj.action) {
     case 'building': {
+      startLatency = Date.now()
       console.log('[Fast Refresh] rebuilding')
       break
     }

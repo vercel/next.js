@@ -31,13 +31,14 @@ To add an image to your application, import the [`next/image`](/docs/api-referen
 
 ```jsx
 import Image from 'next/image'
+import profilePic from '../public/me.png'
 
 function Home() {
   return (
     <>
       <h1>My Homepage</h1>
       <Image
-        src="/me.png"
+        src={profilePic}
         alt="Picture of the author"
         width={500}
         height={500}
@@ -92,6 +93,8 @@ The following Image Optimization cloud providers are included:
 
 If you need a different provider, you can use the [`loader`](/docs/api-reference/next/image.md#loader) prop with `next/image`.
 
+> The `next/image` component's default loader is not supported when using [`next export`](/docs/advanced-features/static-html-export.md). However, other loader options will work.
+
 ## Caching
 
 The following describes the caching algorithm for the default [loader](#loader). For all other loaders, please refer to your cloud provider's documentation.
@@ -132,6 +135,22 @@ If no configuration is provided, the default below is used.
 module.exports = {
   images: {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  },
+}
+```
+
+### Disable Static Imports
+
+The default behavior allows you to import static files such as `import icon from './icon.png` and then pass that to the `src` property.
+
+In some cases, you may wish to disable this feature if it conflicts with other plugins that expect the import to behave differently.
+
+You can disable static image imports with the following configuration below.
+
+```js
+module.exports = {
+  images: {
+    disableStaticImages: true,
   },
 }
 ```

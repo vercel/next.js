@@ -2,12 +2,11 @@ import { IncomingMessage, ServerResponse } from 'http'
 import { parse } from 'next/dist/compiled/content-type'
 import { CookieSerializeOptions } from 'next/dist/compiled/cookie'
 import getRawBody from 'raw-body'
-import { PageConfig } from 'next/types'
+import { PageConfig, PreviewData } from 'next/types'
 import { Stream } from 'stream'
 import { isResSent, NextApiRequest, NextApiResponse } from '../lib/utils'
 import { decryptWithSecret, encryptWithSecret } from './crypto-utils'
 import { interopDefault } from './load-components'
-import { Params } from './router'
 import { sendEtagResponse } from './send-payload'
 import generateETag from 'etag'
 
@@ -26,8 +25,7 @@ export async function apiResolver(
   query: any,
   resolverModule: any,
   apiContext: __ApiPreviewProps,
-  propagateError: boolean,
-  onError?: ({ err }: { err: any }) => Promise<void>
+  propagateError: boolean
 ): Promise<void> {
   const apiReq = req as NextApiRequest
   const apiRes = res as NextApiResponse
@@ -100,7 +98,6 @@ export async function apiResolver(
       sendError(apiRes, err.statusCode, err.message)
     } else {
       console.error(err)
-      if (onError) await onError({ err })
       if (propagateError) {
         throw err
       }
@@ -117,7 +114,12 @@ export async function parseBody(
   req: NextApiRequest,
   limit: string | number
 ): Promise<any> {
-  const contentType = parse(req.headers['content-type'] || 'text/plain')
+  let contentType
+  try {
+    contentType = parse(req.headers['content-type'] || 'text/plain')
+  } catch {
+    contentType = parse('text/plain')
+  }
   const { type, parameters } = contentType
   const encoding = parameters.charset || 'utf-8'
 
@@ -293,7 +295,7 @@ export function tryGetPreviewData(
   req: IncomingMessage,
   res: ServerResponse,
   options: __ApiPreviewProps
-): object | string | false {
+): PreviewData {
   // Read cached preview data if present
   if (SYMBOL_PREVIEW_DATA in req) {
     return (req as any)[SYMBOL_PREVIEW_DATA] as any
@@ -517,7 +519,6 @@ export function sendError(
 
 interface LazyProps {
   req: NextApiRequest
-  params?: Params | boolean
 }
 
 /**
@@ -527,7 +528,7 @@ interface LazyProps {
  * @param getter function to get data
  */
 export function setLazyProp<T>(
-  { req, params }: LazyProps,
+  { req }: LazyProps,
   prop: string,
   getter: () => T
 ): void {
@@ -537,10 +538,7 @@ export function setLazyProp<T>(
   Object.defineProperty(req, prop, {
     ...opts,
     get: () => {
-      let value = getter()
-      if (params && typeof params !== 'boolean') {
-        value = { ...value, ...params }
-      }
+      const value = getter()
       // we set the property on the object to avoid recalculating it
       Object.defineProperty(req, prop, { ...optsReset, value })
       return value

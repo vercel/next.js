@@ -17,6 +17,14 @@ Codemods are transformations that run on your codebase programmatically. This al
 - `--dry` Do a dry-run, no code will be edited
 - `--print` Prints the changed output for comparison
 
+## Next.js 11
+
+### `cra-to-next` (experimental)
+
+Migrates a Create React App project to Next.js; creating a pages directory and necessary config to match behavior. Client-side only rendering is leveraged initially to prevent breaking compatibility due to `window` usage during SSR and can be enabled seamlessly to allow gradual adoption of Next.js specific features.
+
+Please share any feedback related to this transform [in this discussion](https://github.com/vercel/next.js/discussions/25858).
+
 ## Next.js 10
 
 ### `add-missing-react-import`
@@ -132,7 +140,7 @@ npx @next/codemod withamp-to-config
 
 ### `url-to-withrouter`
 
-Transforms the deprecated automatically injected `url` property on top level pages to using `withRouter` and the `router` property it injects. Read more here: [err.sh/next.js/url-deprecated](https://err.sh/next.js/url-deprecated)
+Transforms the deprecated automatically injected `url` property on top level pages to using `withRouter` and the `router` property it injects. Read more here: [https://nextjs.org/docs/messages/url-deprecated](https://nextjs.org/docs/messages/url-deprecated)
 
 For example:
 

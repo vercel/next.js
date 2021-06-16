@@ -48,7 +48,7 @@ function updateElements(type: string, components: JSX.Element[]): void {
   if (process.env.NODE_ENV !== 'production') {
     if (!headCountEl) {
       console.error(
-        'Warning: next-head-count is missing. https://err.sh/next.js/next-head-count-missing'
+        'Warning: next-head-count is missing. https://nextjs.org/docs/messages/next-head-count-missing'
       )
       return
     }
@@ -100,6 +100,18 @@ export default function initHeadManager(): {
         const tags: Record<string, JSX.Element[]> = {}
 
         head.forEach((h) => {
+          if (
+            // If the font tag is loaded only on client navigation
+            // it won't be inlined. In this case revert to the original behavior
+            h.type === 'link' &&
+            h.props['data-optimized-fonts'] &&
+            !document.querySelector(
+              `style[data-href="${h.props['data-href']}"]`
+            )
+          ) {
+            h.props.href = h.props['data-href']
+            h.props['data-href'] = undefined
+          }
           const components = tags[h.type] || []
           components.push(h)
           tags[h.type] = components

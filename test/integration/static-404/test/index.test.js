@@ -59,15 +59,18 @@ describe('Static 404 page', () => {
         `
         import Error from 'next/error'
         export default class MyError extends Error {
-          static getInitialProps() {
+          static getInitialProps({ statusCode, req }) {
+            if (req.url === '/404' || req.url === '/404.html') {
+              throw new Error('exported 404 unexpectedly!!!')
+            }
             return {
-              statusCode: 404
+              statusCode,
             }
           }
         }
       `
       )
-      await nextBuild(appDir)
+      await nextBuild(appDir, undefined, { stderr: true, stdout: true })
       await fs.remove(errorPage)
     })
 
