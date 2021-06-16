@@ -9,8 +9,7 @@ type RotateOperation = {
 }
 type ResizeOperation = {
   type: 'resize'
-  width: number
-}
+} & ({ width: number; height?: never } | { height: number; width?: never })
 export type Operation = RotateOperation | ResizeOperation
 export type Encoding = 'jpeg' | 'png' | 'webp'
 
@@ -38,8 +37,24 @@ export async function processBuffer(
     if (operation.type === 'rotate') {
       imageData = await worker.rotate(imageData, operation.numRotations)
     } else if (operation.type === 'resize') {
-      if (imageData.width && imageData.width > operation.width) {
-        imageData = await worker.resize(imageData, operation.width)
+      if (
+        operation.width &&
+        imageData.width &&
+        imageData.width > operation.width
+      ) {
+        imageData = await worker.resize({
+          image: imageData,
+          width: operation.width,
+        })
+      } else if (
+        operation.height &&
+        imageData.height &&
+        imageData.height > operation.height
+      ) {
+        imageData = await worker.resize({
+          image: imageData,
+          height: operation.height,
+        })
       }
     }
   }

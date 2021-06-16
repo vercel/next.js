@@ -16,7 +16,7 @@
     "carbon-icons": "^7.0.7",
     "next": "latest",
     "sass": "^1.32.4",
-    "react": "^16.7.0",
-    "react-dom": "^16.7.0"
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2"
   }
 }
