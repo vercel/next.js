@@ -8,7 +8,7 @@ const About = () => (
         <a>Go Back</a>
       </Link>
     </div>
-    <img width={200} src="/static/zeit.png" />
+    <img width={200} src="/static/vercel.png" />
   </div>
 )
 

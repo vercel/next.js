@@ -1,4 +1,6 @@
+import fs from 'fs-extra'
 import { join } from 'path'
+import findUp from 'next/dist/compiled/find-up'
 import { nextBuild, nextLint } from 'next-test-utils'
 import { writeFile, readFile } from 'fs-extra'
 
@@ -8,6 +10,7 @@ const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
 const dirCustomConfig = join(__dirname, '../custom-config')
 const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
 const dirCustomDirectories = join(__dirname, '../custom-directories')
+const dirConfigInPackageJson = join(__dirname, '../config-in-package-json')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -112,6 +115,44 @@ describe('ESLint', () => {
 
       const output = stdout + stderr
       expect(output).toContain('No ESLint warnings or errors')
+    })
+
+    test("don't create .eslintrc file if package.json has eslintConfig field", async () => {
+      const eslintrcFile =
+        (await findUp(
+          [
+            '.eslintrc.js',
+            '.eslintrc.yaml',
+            '.eslintrc.yml',
+            '.eslintrc.json',
+            '.eslintrc',
+          ],
+          {
+            cwd: '.',
+          }
+        )) ?? null
+
+      try {
+        // If we found a .eslintrc file, it's probably config from root Next.js directory. Rename it during the test
+        if (eslintrcFile) {
+          await fs.move(eslintrcFile, `${eslintrcFile}.original`)
+        }
+
+        const { stdout, stderr } = await nextLint(dirConfigInPackageJson, [], {
+          stdout: true,
+          stderr: true,
+        })
+
+        const output = stdout + stderr
+        expect(output).not.toContain(
+          'We created the .eslintrc file for you and included the base Next.js ESLint configuration'
+        )
+      } finally {
+        // Restore original .eslintrc file
+        if (eslintrcFile) {
+          await fs.move(`${eslintrcFile}.original`, eslintrcFile)
+        }
+      }
     })
   })
 })

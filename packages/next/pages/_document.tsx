@@ -705,6 +705,9 @@ export class Head extends Component<
             {!process.env.__NEXT_OPTIMIZE_CSS && (
               <noscript data-n-css={this.props.nonce ?? ''} />
             )}
+            {process.env.__NEXT_OPTIMIZE_IMAGES && (
+              <meta name="next-image-preload" />
+            )}
             {!disableRuntimeJS &&
               !disableJsPreload &&
               this.getPreloadDynamicChunks()}

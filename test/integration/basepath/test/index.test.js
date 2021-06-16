@@ -219,7 +219,7 @@ const runTests = (dev = false) => {
         })
 
         // Added because of a regression in react-hot-loader, see issues: #4246 #4273
-        // Also: https://github.com/zeit/styled-jsx/issues/425
+        // Also: https://github.com/vercel/styled-jsx/issues/425
         it('should update styles correctly', async () => {
           let browser
           try {
@@ -258,7 +258,7 @@ const runTests = (dev = false) => {
         })
 
         // Added because of a regression in react-hot-loader, see issues: #4246 #4273
-        // Also: https://github.com/zeit/styled-jsx/issues/425
+        // Also: https://github.com/vercel/styled-jsx/issues/425
         it('should update styles in a stateful component correctly', async () => {
           let browser
           const pagePath = join(
@@ -297,7 +297,7 @@ const runTests = (dev = false) => {
         })
 
         // Added because of a regression in react-hot-loader, see issues: #4246 #4273
-        // Also: https://github.com/zeit/styled-jsx/issues/425
+        // Also: https://github.com/vercel/styled-jsx/issues/425
         it('should update styles in a dynamic component correctly', async () => {
           let browser = null
           let secondBrowser = null

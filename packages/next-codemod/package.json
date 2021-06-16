@@ -1,6 +1,6 @@
 {
   "name": "@next/codemod",
-  "version": "10.2.4-canary.13",
+  "version": "11.0.1-canary.0",
   "license": "MIT",
   "dependencies": {
     "chalk": "4.1.0",
@@ -14,7 +14,9 @@
   },
   "files": [
     "transforms/*.js",
-    "bin/*.js"
+    "bin/*.js",
+    "lib/**/*.js",
+    "lib/cra-to-next/gitignore"
   ],
   "scripts": {
     "prepublish": "yarn tsc -d -p tsconfig.json",

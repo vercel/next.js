@@ -31,11 +31,6 @@ export default class MyDocument extends Document {
             strategy="lazyOnload"
           ></Script>
           <Script
-            id="documentBlock"
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentBlock"
-            strategy="dangerouslyBlockRendering"
-          ></Script>
-          <Script
             id="documentBeforeInteractive"
             src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentBeforeInteractive"
             strategy="beforeInteractive"
