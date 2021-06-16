@@ -11,6 +11,7 @@ const dirCustomConfig = join(__dirname, '../custom-config')
 const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
 const dirCustomDirectories = join(__dirname, '../custom-directories')
 const dirConfigInPackageJson = join(__dirname, '../config-in-package-json')
+const dirInvalidEslintVersion = join(__dirname, '../invalid-eslint-version')
 
 describe('ESLint', () => {
   describe('Next Build', () => {
@@ -71,6 +72,18 @@ describe('ESLint', () => {
       )
       expect(output).toContain(
         'Warning: External synchronous scripts are forbidden'
+      )
+    })
+
+    test.only('invalid eslint version', async () => {
+      const { stdout, stderr } = await nextBuild(dirInvalidEslintVersion, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).toContain(
+        'Your project has an older version of ESLint installed'
       )
     })
   })
