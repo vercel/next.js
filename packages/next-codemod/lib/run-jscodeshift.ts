@@ -1,5 +1,5 @@
 // @ts-ignore internal module
-import Runner from 'jscodeshift/src/runner'
+import Runner from 'jscodeshift/src/Runner'
 
 export default function runJscodeshift(
   transformerPath: string,
