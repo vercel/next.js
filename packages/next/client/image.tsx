@@ -353,6 +353,9 @@ export default function Image({
         )}`
       )
     }
+    if (Number.isNaN(widthInt) || Number.isNaN(heightInt)){
+      throw new Error(`Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`);
+    }
     if (!VALID_LAYOUT_VALUES.includes(layout)) {
       throw new Error(
         `Image with src "${src}" has invalid "layout" property. Provided "${layout}" should be one of ${VALID_LAYOUT_VALUES.map(
