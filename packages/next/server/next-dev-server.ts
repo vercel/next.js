@@ -622,9 +622,7 @@ export default class DevServer extends Server {
     return super.findPageComponents(pathname, query, params)
   }
 
-  protected async handleRenderErrorFallback(
-    err: Error
-  ): Promise<LoadComponentsReturnType | null> {
+  protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
     await this.hotReloader!.buildFallbackError()
     return loadDefaultErrorComponents(this.distDir)
   }
