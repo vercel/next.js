@@ -494,6 +494,15 @@ function runTests(mode) {
       )
     })
 
+    it('should show error when not numeric string width or height', async () => {
+      const browser = await webdriver(appPort, '/invalid-weight-or-height')
+
+      expect(await hasRedbox(browser)).toBe(true)
+      expect(await getRedboxHeader(browser)).toContain(
+        `Image with src "/test.jpg" has invalid "width" or "height" property. These should be numeric values.`
+      )
+    })
+
     it('should show error when static import and placeholder=blur and blurDataUrl is missing', async () => {
       const browser = await webdriver(
         appPort,
