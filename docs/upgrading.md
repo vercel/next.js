@@ -22,7 +22,7 @@ Or using `yarn`:
 yarn add react@latest react-dom@latest
 ```
 
-### Upgrade Next version to latest
+### Upgrade Next.js version to latest
 
 To upgrade you can run the following command in the terminal:
 
