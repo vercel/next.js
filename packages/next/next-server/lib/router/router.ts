@@ -932,7 +932,11 @@ export default class Router implements BaseRouter {
     // WARNING: `_h` is an internal option for handing Next.js client-side
     // hydration. Your app should _never_ use this property. It may change at
     // any time without notice.
-    if (!(options as any)._h && this.onlyAHashChange(cleanedAs)) {
+    if (
+      !(options as any)._h &&
+      this.onlyAHashChange(cleanedAs) &&
+      !localeChange
+    ) {
       this.asPath = cleanedAs
       Router.events.emit('hashChangeStart', as, routeProps)
       // TODO: do we need the resolved href when only a hash change?
