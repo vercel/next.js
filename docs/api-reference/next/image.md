@@ -224,6 +224,8 @@ Try it out:
 - [Demo the default `blurDataURL` prop](https://image-component.nextjs.gallery/placeholder)
 - [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
 
+You can also [generate a solid color Data URL](https://png-pixel.com) to match the image.
+
 ### unoptimized
 
 When true, the source image will be served as-is instead of changing quality,
