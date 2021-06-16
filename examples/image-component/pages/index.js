@@ -82,6 +82,11 @@ const Index = () => (
             <a>placeholder="blur"</a>
           </Link>
         </li>
+        <li>
+          <Link href="/shimmer">
+            <a>placeholder="blur" with custom blurDataURL</a>
+          </Link>
+        </li>
       </ul>
       <hr className={styles.hr} />
       <h2 id="internal">Internal Image</h2>
