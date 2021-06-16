@@ -614,6 +614,9 @@ export default class DevServer extends Server {
       }
       await this.hotReloader!.ensurePage(pathname)
     } catch (err) {
+      if ((err as any).code === 'ENOENT') {
+        return null
+      }
       // Development compilation errors have already been logged,
       // so we mark them before throwing so they aren't logged again.
       throw this.markRethrownError(err)
