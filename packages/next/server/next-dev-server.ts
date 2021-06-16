@@ -613,13 +613,13 @@ export default class DevServer extends Server {
       if (compilationErr) {
         throw compilationErr
       }
+      return super.findPageComponents(pathname, query, params)
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
         throw this.markRethrownError(err)
       }
       return null
     }
-    return super.findPageComponents(pathname, query, params)
   }
 
   protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
