@@ -2096,6 +2096,8 @@ export default class Server {
           },
           {
             ...this.renderOpts,
+            // We render `renderToHtmlError` here because `err` is
+            // already captured in the stacktrace.
             err: isWrappedError
               ? renderToHtmlError.innerError
               : renderToHtmlError,
