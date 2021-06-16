@@ -166,7 +166,10 @@ Should only be used when the image is visible above the fold. Defaults to
 ### placeholder
 
 A placeholder to use while the image is loading, possible values are `blur` or `empty`. Defaults to `empty`.
-When `placeholder="blur"`, the `blurDataURL` will be used as the placeholder. If the `src` is an object from a static import, then `blurDataURL` will automatically be populated. If the `src` is a string, then you must provide the [`blurDataURL` property](#blurdataurl).
+
+When `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the placeholder. If `src` is an object from a static import and the imported image is jpg, png, or webp, then `blurDataURL` will automatically be populated. Otherwise you must provide the [`blurDataURL`](#blurdataurl) property.
+
+When `empty`, there will be no placeholder while the image is loading, only empty space.
 
 ## Advanced Props
 

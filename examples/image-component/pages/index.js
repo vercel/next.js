@@ -65,18 +65,28 @@ const Index = () => (
       <hr className={styles.hr} />
       <h2 id="placeholder">Placeholder</h2>
       <p>
-        Adding <Code>placeholder="blur"</Code> to an image enables a blurry
-        placeholder effect while that image loads.
+        The <Code>placeholder</Code> property tells the image what to do while
+        loading.
       </p>
       <p>
-        <Link href="/placeholder">
-          <a>See an example of the blurry placeholder.</a>
-        </Link>
+        You can optionally enable a blur-up placeholder while the high
+        resolution image loads.
       </p>
+      <p>
+        Try it out below (you may need to disable cache in dev tools to see the
+        effect if you already visited):
+      </p>
+      <ul>
+        <li>
+          <Link href="/placeholder">
+            <a>placeholder="blur"</a>
+          </Link>
+        </li>
+      </ul>
       <hr className={styles.hr} />
       <h2 id="internal">Internal Image</h2>
       <p>
-        The following is an example of a reference to an interal image from the{' '}
+        The following is an example of a reference to an internal image from the{' '}
         <Code>public</Code> directory.
       </p>
       <p>
