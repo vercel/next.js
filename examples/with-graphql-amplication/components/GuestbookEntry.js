@@ -1,4 +1,5 @@
 import styles from './GuestbookEntry.module.css'
+import Image from 'next/image'
 
 export default function GuestbookEntry(props) {
   return (
@@ -11,8 +12,9 @@ export default function GuestbookEntry(props) {
               rel="noopener noreferrer"
               href={`https://twitter.com/${props.twitter_handle}/`}
             >
-              <img
+              <Image
                 className={styles.guestbookEntryUserDetailAvatarImg}
+                alt="Twitter profile image of guestbook entry author"
                 src={`https://unavatar.now.sh/twitter/${props.twitter_handle}/`}
               />
             </a>
@@ -41,12 +43,14 @@ export default function GuestbookEntry(props) {
           rel="noopener noreferrer"
           className={styles.guestbookEntryShareTwitterButton}
         >
-          <img
+          <Image
             src="/static/twitter_icon_black.png"
+            alt="Twitter share button"
             className={styles.guestbookEntryShareTwitterButtonLogo1}
           />
-          <img
+          <Image
             className={styles.guestbookEntryShareTwitterButtonLogo2}
+            alt="Twitter share button"
             src="/static/twitter_icon_blue.png"
           />
         </a>
