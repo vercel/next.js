@@ -34,7 +34,7 @@ Three loading strategies will be initially supported for wrapping third-party sc
 - lazyOnload
   - script is injected at onload, and will execute in a subsequent idle period (using `requestIdleCallback`)
 
-NOTE: above strategies work the same for inline scripts wrapped with ScriptLoader.
+> Note: above strategies work the same for inline scripts wrapped with `<Script>`.
 
 ## Example scenarios
 
