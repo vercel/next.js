@@ -42,7 +42,7 @@ async function lint(
   const mod = await import(deps.resolved.get('eslint')!)
 
   const { ESLint } = mod
-  let eslintVersion = ESLint.version
+  let eslintVersion = ESLint?.version
 
   if (!ESLint) {
     eslintVersion = mod?.CLIEngine?.version
