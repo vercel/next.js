@@ -1968,10 +1968,12 @@ export default class Server {
         query
       )
 
-      if (this.minimalMode) {
-        throw err
+      if (!isWrappedError) {
+        if (this.minimalMode) {
+          throw err
+        }
+        this.logError(err)
       }
-      if (!isWrappedError) this.logError(err)
       return html
     }
     res.statusCode = 404
@@ -2079,16 +2081,16 @@ export default class Server {
       if (!(renderToHtmlError instanceof WrappedBuildError))
         this.logError(renderToHtmlError)
       res.statusCode = 500
-      const fallbackResult = await this.getFallbackErrorComponents()
+      const fallbackComponents = await this.getFallbackErrorComponents()
 
-      if (fallbackResult) {
+      if (fallbackComponents) {
         return this.renderToHTMLWithComponents(
           req,
           res,
           '/_error',
           {
             query,
-            components: fallbackResult,
+            components: fallbackComponents,
           },
           {
             ...this.renderOpts,

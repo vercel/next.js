@@ -28,8 +28,8 @@ import {
 import { __ApiPreviewProps } from '../next-server/server/api-utils'
 import Server, {
   WrappedBuildError,
-  FindComponentsResult,
   ServerConstructor,
+  FindComponentsResult,
 } from '../next-server/server/next-server'
 import { normalizePagePath } from '../next-server/server/normalize-page-path'
 import Router, { Params, route } from '../next-server/server/router'
