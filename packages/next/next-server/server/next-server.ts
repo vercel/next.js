@@ -165,6 +165,7 @@ export default class Server {
   protected router: Router
   protected dynamicRoutes?: DynamicRoutes
   protected customRoutes: CustomRoutes
+  private rethrownErrors: WeakSet<Error>
 
   public constructor({
     dir = '.',
@@ -174,6 +175,7 @@ export default class Server {
     minimalMode = false,
     customServer = true,
   }: ServerConstructor & { conf: NextConfig; minimalMode?: boolean }) {
+    this.rethrownErrors = new WeakSet()
     this.dir = resolve(dir)
     this.quiet = quiet
     loadEnvConfig(this.dir, dev, Log)
@@ -279,7 +281,7 @@ export default class Server {
   }
 
   public logError(err: Error): void {
-    if (this.quiet) return
+    if (this.quiet || this.rethrownErrors.has(err)) return
     console.error(err)
   }
 
@@ -617,6 +619,11 @@ export default class Server {
 
   protected getPreviewProps(): __ApiPreviewProps {
     return this.getPrerenderManifest().preview
+  }
+
+  protected markRethrownError<T extends Error>(error: T): T {
+    this.rethrownErrors.add(error)
+    return error
   }
 
   protected generateRoutes(): {
@@ -2069,7 +2076,7 @@ export default class Server {
         throw maybeFallbackError
       }
     } catch (renderToHtmlError) {
-      console.error(renderToHtmlError)
+      this.logError(renderToHtmlError)
       res.statusCode = 500
       const fallbackResult = await this.handleRenderErrorFallback(
         renderToHtmlError
