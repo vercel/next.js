@@ -187,6 +187,7 @@ export async function createApp({
         dev: 'next dev',
         build: 'next build',
         start: 'next start',
+        lint: 'next lint',
       },
     }
     /**
@@ -207,7 +208,7 @@ export async function createApp({
     /**
      * Default devDependencies.
      */
-    const devDependencies = []
+    const devDependencies = ['eslint', 'eslint-config-next']
     /**
      * TypeScript projects will have type definitions and other devDependencies.
      */
@@ -250,11 +251,12 @@ export async function createApp({
       cwd: path.join(__dirname, 'templates', template),
       rename: (name) => {
         switch (name) {
-          case 'gitignore': {
+          case 'gitignore':
+          case 'eslintrc': {
             return '.'.concat(name)
           }
           // README.md is ignored by webpack-asset-relocator-loader used by ncc:
-          // https://github.com/zeit/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
+          // https://github.com/vercel/webpack-asset-relocator-loader/blob/e9308683d47ff507253e37c9bcbb99474603192b/src/asset-relocator.js#L227
           case 'README-template.md': {
             return 'README.md'
           }

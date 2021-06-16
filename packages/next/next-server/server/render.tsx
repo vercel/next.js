@@ -28,7 +28,6 @@ import { defaultHead } from '../lib/head'
 import { HeadManagerContext } from '../lib/head-manager-context'
 import Loadable from '../lib/loadable'
 import { LoadableContext } from '../lib/loadable-context'
-import mitt, { MittEmitter } from '../lib/mitt'
 import postProcess from '../lib/post-process'
 import { RouterContext } from '../lib/router-context'
 import { NextRouter } from '../lib/router/router'
@@ -83,8 +82,6 @@ class ServerRouter implements NextRouter {
   domainLocales?: DomainLocales
   isPreview: boolean
   isLocaleDomain: boolean
-  // TODO: Remove in the next major version, as this would mean the user is adding event listeners in server-side `render` method
-  static events: MittEmitter = mitt()
 
   constructor(
     pathname: string,

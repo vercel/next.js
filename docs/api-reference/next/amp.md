@@ -11,7 +11,7 @@ description: Enable AMP in a page, and control the way Next.js adds AMP to the p
   </ul>
 </details>
 
-> AMP support is one of our advanced features, you can read more about it [here](/docs/advanced-features/amp-support/introduction.md).
+> AMP support is one of our advanced features, you can [read more about AMP here](/docs/advanced-features/amp-support/introduction.md).
 
 To enable AMP, add the following config to your page:
 

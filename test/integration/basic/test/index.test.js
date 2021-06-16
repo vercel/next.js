@@ -36,6 +36,12 @@ describe('Basic Features', () => {
 
   it('should polyfill Node.js modules', async () => {
     const browser = await webdriver(context.appPort, '/node-browser-polyfills')
+
+    console.error({
+      logs: await browser.log('browser'),
+      content: await browser.eval('document.documentElement.innerHTML'),
+    })
+
     await browser.waitForCondition('window.didRender')
 
     const data = await browser

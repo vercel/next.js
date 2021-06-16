@@ -8,8 +8,8 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "16.13.1",
-    "react-dom": "16.13.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "react-modal": "3.11.2"
   },
   "license": "MIT"
