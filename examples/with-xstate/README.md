@@ -1,6 +1,6 @@
 # XState example
 
-This example shows how to integrate XState in Next.js. For more info about XState you can visit [here](https://xstate.js.org/).
+This example shows how to integrate XState in Next.js. [Learn more about XState](https://xstate.js.org/).
 
 ## Preview
 

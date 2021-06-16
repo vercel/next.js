@@ -10,6 +10,7 @@ export type DomainLocales = Array<{
 }>
 
 export type NextConfig = { [key: string]: any } & {
+  cleanDistDir?: boolean
   i18n?: {
     locales: string[]
     defaultLocale: string
@@ -29,6 +30,7 @@ export type NextConfig = { [key: string]: any } & {
   redirects?: () => Promise<Redirect[]>
   trailingSlash?: boolean
   webpack5?: false
+  excludeDefaultMomentLocales?: boolean
 
   future: {
     /**
@@ -36,7 +38,6 @@ export type NextConfig = { [key: string]: any } & {
      */
     webpack5?: false
     strictPostcssConfiguration?: boolean
-    excludeDefaultMomentLocales?: boolean
   }
   experimental: {
     cpus?: number
@@ -60,6 +61,7 @@ export type NextConfig = { [key: string]: any } & {
     reactRoot?: boolean
     disableOptimizedLoading?: boolean
     gzipSize?: boolean
+    craCompat?: boolean
   }
 }
 
@@ -68,6 +70,7 @@ export const defaultConfig: NextConfig = {
   webpack: null,
   webpackDevMiddleware: null,
   distDir: '.next',
+  cleanDistDir: true,
   assetPrefix: '',
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
@@ -112,14 +115,15 @@ export const defaultConfig: NextConfig = {
     stats: false,
     externalDir: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
-    disableOptimizedLoading: true,
+    disableOptimizedLoading: false,
     gzipSize: true,
+    craCompat: false,
   },
   webpack5:
     Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0 ? false : undefined,
+  excludeDefaultMomentLocales: true,
   future: {
     strictPostcssConfiguration: false,
-    excludeDefaultMomentLocales: false,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
