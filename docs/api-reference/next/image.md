@@ -14,12 +14,12 @@ description: Enable Image Optimization with the built-in Image component.
 <details>
   <summary><b>Version History</b></summary>
 
-| Version   | Changes                                                                      |
-| --------- | ---------------------------------------------------------------------------- |
-| `v11.0.0` | Added static imports for `src`. Added `placeholder` and `blurDataURL` props. |
-| `v10.0.5` | `loader` prop added.                                                         |
-| `v10.0.1` | `layout` prop added.                                                         |
-| `v10.0.0` | `next/image` introduced.                                                     |
+| Version   | Changes                                                                                           |
+| --------- | ------------------------------------------------------------------------------------------------- |
+| `v11.0.0` | `src` prop support for static import.<br/>`placeholder` prop added.<br/>`blurDataURL` prop added. |
+| `v10.0.5` | `loader` prop added.                                                                              |
+| `v10.0.1` | `layout` prop added.                                                                              |
+| `v10.0.0` | `next/image` introduced.                                                                          |
 
 </details>
 
@@ -40,7 +40,7 @@ We can serve an optimized image like so:
 
 ```jsx
 import Image from 'next/image'
-import profilePic from '../me.png'
+import profilePic from '../public/me.png'
 
 function Home() {
   return (
@@ -166,7 +166,15 @@ Should only be used when the image is visible above the fold. Defaults to
 ### placeholder
 
 A placeholder to use while the image is loading, possible values are `blur` or `empty`. Defaults to `empty`.
-When `placeholder="blur"`, the `blurDataURL` will be used as the placeholder. If the `src` is an object from a static import, then `blurDataURL` will automatically be populated. If the `src` is a string, then you must provide the [`blurDataURL` property](#blurdataurl).
+
+When `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the placeholder. If `src` is an object from a static import and the imported image is jpg, png, or webp, then `blurDataURL` will automatically be populated. Otherwise you must provide the [`blurDataURL`](#blurdataurl) property.
+
+When `empty`, there will be no placeholder while the image is loading, only empty space.
+
+Try it out:
+
+- [Demo the `blur` placeholder](https://image-component.nextjs.gallery/placeholder)
+- [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
 
 ## Advanced Props
 
@@ -210,6 +218,13 @@ with [`placeholder="blur"`](#placeholder).
 
 Must be a base64-encoded image. It will be enlarged and blurred, so a very small image (10px or
 less) is recommended. Including larger images as placeholders may harm your application performance.
+
+Try it out:
+
+- [Demo the default `blurDataURL` prop](https://image-component.nextjs.gallery/placeholder)
+- [Demo the shimmer effect with `blurDataURL` prop](https://image-component.nextjs.gallery/shimmer)
+
+You can also [generate a solid color Data URL](https://png-pixel.com) to match the image.
 
 ### unoptimized
 
