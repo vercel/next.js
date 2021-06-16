@@ -1,4 +1,5 @@
 import { readFileSync } from 'fs'
+import JSON5 from 'json5';
 
 import { createConfigItem, loadOptions } from 'next/dist/compiled/babel/core'
 import loadConfig from 'next/dist/compiled/babel/core-lib-config'
@@ -151,7 +152,7 @@ const isJsFile = /\.js$/
 function getCustomBabelConfig(configFilePath: string) {
   if (isJsonFile.exec(configFilePath)) {
     const babelConfigRaw = readFileSync(configFilePath, 'utf8')
-    return JSON.parse(babelConfigRaw)
+    return JSON5.parse(babelConfigRaw)
   } else if (isJsFile.exec(configFilePath)) {
     return require(configFilePath)
   }
