@@ -20,7 +20,7 @@ function Home() {
       <Head>
         <script async src="https://www.google-analytics.com/analytics.js" />
       </Head>
-    </Head>
+    </>
   )
 }
 
