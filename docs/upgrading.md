@@ -144,7 +144,9 @@ To upgrade run the following command:
 ```
 npm install next@10
 ```
+
 Or using `yarn`:
+
 ```
 yarn add next@10
 ```
