@@ -18,7 +18,7 @@ export default function NoAnonymousDefaultExport({
     return { visitor: {} }
   }
 
-  const warn = onWarning!
+  const warn: any = onWarning
   return {
     visitor: {
       ExportDefaultDeclaration(path) {
