@@ -15,14 +15,16 @@ module.exports = {
         }
 
         const document = context.getFilename().split('pages')[1]
-        if (!document || !path.parse(document).name.startsWith('_document')) {
-          return
+        const { name, dir } = path.parse(document)
+        if (
+          (document && name.startsWith('_document')) ||
+          (dir === '/_document' && name === 'index')
+        ) {
+          context.report({
+            node,
+            message: `next/head should not be imported in pages${document}. Import Head from next/document instead. See https://nextjs.org/docs/messages/no-head-import-in-document.`,
+          })
         }
-
-        context.report({
-          node,
-          message: `next/head should not be imported in pages${document}. Import Head from next/document instead. See https://nextjs.org/docs/messages/no-head-import-in-document.`,
-        })
       },
     }
   },
