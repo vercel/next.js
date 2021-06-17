@@ -4,7 +4,7 @@ import Image from 'next/image'
 const Page = () => {
   return (
     <div>
-      <Image 
+      <Image
         id="invalid-placeholder-blur"
         src="/test.png"
         placeholder="blur"
