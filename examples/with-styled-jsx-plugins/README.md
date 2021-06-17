@@ -1,12 +1,12 @@
 # With styled-jsx plugins
 
-Next.js ships with [styled-jsx](https://github.com/zeit/styled-jsx) allowing you
+Next.js ships with [styled-jsx](https://github.com/vercel/styled-jsx) allowing you
 to write scope styled components with full css support. This is important for
 the modularity and code size of your bundles and also for the learning curve of the framework. If you know css you can write styled-jsx right away.
 
 This example shows how to configure styled-jsx to use external plugins to modify the output. Using this you can use PostCSS, SASS (SCSS), LESS, or any other pre-processor with styled-jsx. You can define plugins in `.babelrc`. In this case PostCSS was used as an example. PostCSS plugins are defined in `package.json`.
 
-More details about how plugins work can be found in the [styled-jsx readme](https://github.com/zeit/styled-jsx#css-preprocessing-via-plugins)
+More details about how plugins work can be found in the [styled-jsx readme](https://github.com/vercel/styled-jsx#css-preprocessing-via-plugins)
 
 ## Deploy your own
 
