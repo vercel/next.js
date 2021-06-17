@@ -1112,14 +1112,12 @@ export default class Router implements BaseRouter {
               pages
             )
 
-            if (pages.includes(parsedHref.pathname)) {
-              const { url: newUrl, as: newAs } = prepareUrlAs(
-                this,
-                destination,
-                destination
-              )
-              return this.change(method, newUrl, newAs, options)
-            }
+            const { url: newUrl, as: newAs } = prepareUrlAs(
+              this,
+              destination,
+              destination
+            )
+            return this.change(method, newUrl, newAs, options)
           }
 
           window.location.href = destination
