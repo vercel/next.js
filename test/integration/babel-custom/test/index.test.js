@@ -17,4 +17,8 @@ describe('Babel', () => {
   it('should allow setting targets to a string', async () => {
     await nextBuild(join(__dirname, '../fixtures/targets-string'))
   })
+
+  it('should allow babelrc JSON5 syntax', async () => {
+    await nextBuild(join(__dirname, '../fixtures/babel-json5'))
+  })
 })

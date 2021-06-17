@@ -50,6 +50,39 @@ function Home() {
 export default Home
 ```
 
+## Image Imports
+
+You can `import` images that live in your project. (Note that `require` is not supported—only `import`.)
+
+With direct `import`s, `width`, `height`, and `blurDataURL` will be automatically provided to the image component. Alt text is still needed separately.
+
+```js
+import Image from 'next/image'
+import profilePic from '../public/me.png'
+
+function Home() {
+  return (
+    <>
+      <h1>My Homepage</h1>
+      <Image
+        src={profilePic}
+        alt="Picture of the author"
+        // width={500} automatically provided
+        // height={500} automatically provided
+        // blurDataURL="data:..." automatically provided
+        // Optionally allows to add a blurred version of the image while loading
+        // placeholder="blur"
+      />
+      <p>Welcome to my homepage!</p>
+    </>
+  )
+}
+```
+
+For dynamic images you have to provide `width`, `height` and `blurDataURL` manually.
+
+## Properties
+
 [View all properties](/docs/api-reference/next/image.md) available to the `next/image` component.
 
 ## Configuration
@@ -134,6 +167,22 @@ If no configuration is provided, the default below is used.
 module.exports = {
   images: {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  },
+}
+```
+
+### Disable Static Imports
+
+The default behavior allows you to import static files such as `import icon from './icon.png` and then pass that to the `src` property.
+
+In some cases, you may wish to disable this feature if it conflicts with other plugins that expect the import to behave differently.
+
+You can disable static image imports with the following configuration below.
+
+```js
+module.exports = {
+  images: {
+    disableStaticImages: true,
   },
 }
 ```
