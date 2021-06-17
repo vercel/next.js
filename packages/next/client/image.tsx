@@ -362,7 +362,7 @@ export default function Image({
     }
     if (
       layout !== 'fill' &&
-      (Number.isNaN(widthInt) || Number.isNaN(heightInt))
+      (isNaN(widthInt) || isNaN(heightInt))
     ) {
       throw new Error(
         `Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`
