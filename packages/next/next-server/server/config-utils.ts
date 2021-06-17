@@ -9,16 +9,10 @@ export { install, shouldLoadWithWebpack5 }
 
 function reasonMessage(reason: CheckReasons) {
   switch (reason) {
-    case 'future-flag':
-      return 'future.webpack5 option enabled'
-    case 'no-future-flag':
-      return 'future.webpack5 option disabled'
-    case 'no-config':
-      return 'no next.config.js'
-    case 'webpack-config':
-      return 'custom webpack configuration in next.config.js'
-    case 'no-webpack-config':
-      return 'no custom webpack configuration in next.config.js'
+    case 'default':
+      return 'Enabled by default'
+    case 'flag-disabled':
+      return 'webpack5 flag is set to false in next.config.js'
     case 'test-mode':
       return 'internal test mode'
     default:
@@ -27,23 +21,35 @@ function reasonMessage(reason: CheckReasons) {
 }
 
 export async function loadWebpackHook(phase: string, dir: string) {
-  let useWebpack5 = false
-  const worker: any = new Worker(
+  let useWebpack5 = true
+  let usesRemovedFlag = false
+  const worker = new Worker(
     path.resolve(__dirname, './config-utils-worker.js'),
     {
       enableWorkerThreads: false,
       numWorkers: 1,
+      forkOptions: {
+        env: {
+          ...process.env,
+          NODE_OPTIONS: '',
+        },
+      },
     }
-  )
+  ) as Worker & {
+    shouldLoadWithWebpack5: typeof import('./config-utils-worker').shouldLoadWithWebpack5
+  }
   try {
     const result: CheckResult = await worker.shouldLoadWithWebpack5(phase, dir)
-    // Don't log which webpack version is being used when booting production server as it's not used after build
-    if (phase !== PHASE_PRODUCTION_SERVER) {
-      Log.info(
-        `Using webpack ${result.enabled ? '5' : '4'}. Reason: ${reasonMessage(
-          result.reason
-        )} https://nextjs.org/docs/messages/webpack5`
-      )
+    if (result.reason === 'future-flag') {
+      usesRemovedFlag = true
+    } else {
+      if (phase !== PHASE_PRODUCTION_SERVER) {
+        Log.info(
+          `Using webpack ${result.enabled ? '5' : '4'}. Reason: ${reasonMessage(
+            result.reason
+          )} https://nextjs.org/docs/messages/webpack5`
+        )
+      }
     }
 
     useWebpack5 = Boolean(result.enabled)
@@ -52,6 +58,12 @@ export async function loadWebpackHook(phase: string, dir: string) {
     // it here.
   } finally {
     worker.end()
+  }
+
+  if (usesRemovedFlag) {
+    throw new Error(
+      '`future.webpack5` in `next.config.js` has moved to the top level `webpack5` flag https://nextjs.org/docs/messages/future-webpack5-moved-to-webpack5'
+    )
   }
 
   install(useWebpack5)

@@ -6,6 +6,56 @@ description: Learn how to upgrade Next.js.
 
 ## Upgrading from version 10 to 11
 
+### Upgrade React version to latest
+
+Most applications already use the latest version of React, with Next.js 11 the minimum React version has been updated to 17.0.2.
+
+To upgrade you can run the following command:
+
+```
+npm install react@latest react-dom@latest
+```
+
+Or using `yarn`:
+
+```
+yarn add react@latest react-dom@latest
+```
+
+### Upgrade Next.js version to latest
+
+To upgrade you can run the following command in the terminal:
+
+```
+npm install next@latest
+```
+
+or
+
+```
+yarn add next@latest
+```
+
+### Webpack 5
+
+Webpack 5 is now the default for all Next.js applications. If you did not have custom webpack configuration your application is already using webpack 5. If you do have custom webpack configuration you can refer to the [Next.js webpack 5 documentation](https://nextjs.org/docs/messages/webpack5) for upgrading guidance.
+
+### Cleaning the `distDir` is now a default
+
+The build output directory (defaults to `.next`) is now cleared by default except for the Next.js caches. You can refer to [the cleaning `distDir` RFC](https://github.com/vercel/next.js/discussions/6009) for more information.
+
+If your application was relying on this behavior previously you can disable the new default behavior by adding the `cleanDistDir: false` flag in `next.config.js`.
+
+### `PORT` is now supported for `next dev` and `next start`
+
+Next.js 11 supports the `PORT` environment variable to set the port the application has to run on. Using `-p`/`--port` is still recommended but if you were prohibited from using `-p` in any way you can now use `PORT` as an alternative:
+
+Example:
+
+```
+PORT=4000 next start
+```
+
 ### Remove `super.componentDidCatch()` from `pages/_app.js`
 
 The `next/app` component's `componentDidCatch` has been deprecated since Next.js 9 as it's no longer needed and has since been a no-op, in Next.js 11 it has been removed.
@@ -35,6 +85,51 @@ The `modules` and `render` option for `next/dynamic` have been deprecated since 
 This option hasn't been mentioned in the documentation since Next.js 8 so it's less likely that your application is using it.
 
 If you application does use `modules` and `render` you can refer to [the documentation](https://nextjs.org/docs/messages/next-dynamic-modules).
+
+### Remove `Head.rewind`
+
+`Head.rewind` has been a no-op since Next.js 9.5, in Next.js 11 it was removed. You can safely remove your usage of `Head.rewind`.
+
+### Moment.js locales excluded by default
+
+Moment.js includes translations for a lot of locales by default. Next.js now automatically excludes these locales by default to optimize bundle size for applications using Moment.js.
+
+To load a specific locale use this snippet:
+
+```js
+import moment from 'moment'
+import 'moment/locale/ja'
+
+moment.locale('ja')
+```
+
+You can opt-out of this new default by adding `excludeDefaultMomentLocales: false` to `next.config.js` if you do not want the new behavior, do note it's highly recommended to not disable this new optimization as it significantly reduces the size of Moment.js.
+
+### Update usage of `router.events`
+
+In case you're accessing `router.events` during rendering, in Next.js 11 `router.events` is no longer provided during pre-rendering. Ensure you're accessing `router.events` in `useEffect`:
+
+```js
+useEffect(() => {
+  const handleRouteChange = (url, { shallow }) => {
+    console.log(
+      `App is changing to ${url} ${
+        shallow ? 'with' : 'without'
+      } shallow routing`
+    )
+  }
+
+  router.events.on('routeChangeStart', handleRouteChange)
+
+  // If the component is unmounted, unsubscribe
+  // from the event with the `off` method:
+  return () => {
+    router.events.off('routeChangeStart', handleRouteChange)
+  }
+}, [router])
+```
+
+If your application uses `router.router.events` which was an internal property that was not public please make sure to use `router.events` as well.
 
 ## React 16 to 17
 

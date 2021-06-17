@@ -17,9 +17,7 @@ import {
 } from '../next-server/server/get-page-files'
 import { cleanAmpPath } from '../next-server/server/utils'
 import { htmlEscapeJsonString } from '../server/htmlescape'
-import Script, {
-  Props as ScriptLoaderProps,
-} from '../client/experimental-script'
+import Script, { Props as ScriptLoaderProps } from '../client/script'
 
 export { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -536,9 +534,7 @@ export class Head extends Component<
       children = this.makeStylesheetInert(children)
     }
 
-    if (process.env.__NEXT_SCRIPT_LOADER) {
-      children = this.handleDocumentScriptLoaderItems(children)
-    }
+    children = this.handleDocumentScriptLoaderItems(children)
 
     let hasAmphtmlRel = false
     let hasCanonicalRel = false
@@ -708,6 +704,9 @@ export class Head extends Component<
             {!process.env.__NEXT_OPTIMIZE_CSS && this.getCssLinks(files)}
             {!process.env.__NEXT_OPTIMIZE_CSS && (
               <noscript data-n-css={this.props.nonce ?? ''} />
+            )}
+            {process.env.__NEXT_OPTIMIZE_IMAGES && (
+              <meta name="next-image-preload" />
             )}
             {!disableRuntimeJS &&
               !disableJsPreload &&

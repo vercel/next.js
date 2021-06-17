@@ -10,6 +10,7 @@ export type DomainLocales = Array<{
 }>
 
 export type NextConfig = { [key: string]: any } & {
+  cleanDistDir?: boolean
   i18n?: {
     locales: string[]
     defaultLocale: string
@@ -27,15 +28,17 @@ export type NextConfig = { [key: string]: any } & {
       }
   >
   redirects?: () => Promise<Redirect[]>
-
   trailingSlash?: boolean
+  webpack5?: false
+  excludeDefaultMomentLocales?: boolean
 
   future: {
+    /**
+     * @deprecated this options was moved to the top level
+     */
+    webpack5?: false
     strictPostcssConfiguration?: boolean
-    excludeDefaultMomentLocales?: boolean
-    webpack5?: boolean
   }
-
   experimental: {
     cpus?: number
     plugins?: boolean
@@ -47,7 +50,6 @@ export type NextConfig = { [key: string]: any } & {
     optimizeImages?: boolean
     optimizeCss?: boolean
     scrollRestoration?: boolean
-    scriptLoader?: boolean
     stats?: boolean
     externalDir?: boolean
     conformance?: boolean
@@ -56,11 +58,10 @@ export type NextConfig = { [key: string]: any } & {
       validator?: string
       skipValidation?: boolean
     }
-    eslint?: boolean
     reactRoot?: boolean
-    enableBlurryPlaceholder?: boolean
     disableOptimizedLoading?: boolean
     gzipSize?: boolean
+    craCompat?: boolean
   }
 }
 
@@ -69,6 +70,7 @@ export const defaultConfig: NextConfig = {
   webpack: null,
   webpackDevMiddleware: null,
   distDir: '.next',
+  cleanDistDir: true,
   assetPrefix: '',
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
@@ -110,19 +112,18 @@ export const defaultConfig: NextConfig = {
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
-    scriptLoader: false,
     stats: false,
     externalDir: false,
-    eslint: false,
     reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
-    enableBlurryPlaceholder: false,
-    disableOptimizedLoading: true,
+    disableOptimizedLoading: false,
     gzipSize: true,
+    craCompat: false,
   },
+  webpack5:
+    Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0 ? false : undefined,
+  excludeDefaultMomentLocales: true,
   future: {
     strictPostcssConfiguration: false,
-    excludeDefaultMomentLocales: false,
-    webpack5: Number(process.env.NEXT_PRIVATE_TEST_WEBPACK5_MODE) > 0,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
