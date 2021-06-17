@@ -495,7 +495,7 @@ function runTests(mode) {
     })
 
     it('should show error when not numeric string width or height', async () => {
-      const browser = await webdriver(appPort, '/invalid-weight-or-height')
+      const browser = await webdriver(appPort, '/invalid-width-or-height')
 
       expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
