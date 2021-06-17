@@ -4,7 +4,7 @@ import Image from 'next/image'
 export default function Page() {
   return (
     <div>
-      <p>Invalid weight or height</p>
+      <p>Invalid width or height</p>
 
       <Image
         src="/test.jpg"
