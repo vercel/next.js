@@ -79,7 +79,7 @@ function Home() {
 }
 ```
 
-For dynamic images you have to provide `width`, `height` and `blurDataURL` manually.
+For dynamic or remote images, you'll have to provide `width`, `height` and `blurDataURL` manually. Solutions such as [Plaiceholder](https://github.com/joe-bell/plaiceholder) can help with this.
 
 ## Properties
 
