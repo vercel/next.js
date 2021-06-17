@@ -9,6 +9,8 @@ const Page = () => {
         id="invalid-placeholder-blur-static"
         src={testBMP}
         placeholder="blur"
+        width={200}
+        height={200}
       />
     </div>
   )
