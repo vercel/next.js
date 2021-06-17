@@ -353,14 +353,19 @@ export default function Image({
         )}`
       )
     }
-    if (Number.isNaN(widthInt) || Number.isNaN(heightInt)){
-      throw new Error(`Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`);
-    }
     if (!VALID_LAYOUT_VALUES.includes(layout)) {
       throw new Error(
         `Image with src "${src}" has invalid "layout" property. Provided "${layout}" should be one of ${VALID_LAYOUT_VALUES.map(
           String
         ).join(',')}.`
+      )
+    }
+    if (
+      layout !== 'fill' &&
+      (Number.isNaN(widthInt) || Number.isNaN(heightInt))
+    ) {
+      throw new Error(
+        `Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`
       )
     }
     if (!VALID_LOADING_VALUES.includes(loading)) {
@@ -376,7 +381,7 @@ export default function Image({
       )
     }
     if (placeholder === 'blur') {
-      if ((widthInt || 0) * (heightInt || 0) < 1600) {
+      if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
         console.warn(
           `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
         )
