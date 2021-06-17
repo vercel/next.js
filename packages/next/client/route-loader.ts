@@ -93,7 +93,7 @@ function prefetchViaDom(
   as: string,
   link?: HTMLLinkElement
 ): Promise<any> {
-  return new Promise((res, rej) => {
+  return new Promise<void>((res, rej) => {
     if (document.querySelector(`link[rel="prefetch"][href^="${href}"]`)) {
       return res()
     }
@@ -104,7 +104,7 @@ function prefetchViaDom(
     if (as) link!.as = as
     link!.rel = `prefetch`
     link!.crossOrigin = process.env.__NEXT_CROSS_ORIGIN!
-    link!.onload = res
+    link!.onload = res as any
     link!.onerror = rej
 
     // `href` should always be last:

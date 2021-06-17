@@ -127,7 +127,7 @@
     "tailwindcss": "1.1.3",
     "taskr": "1.1.0",
     "tree-kill": "1.2.2",
-    "typescript": "4.3.0-beta",
+    "typescript": "4.3.4",
     "wait-port": "0.2.2",
     "web-streams-polyfill": "2.1.1",
     "webpack-bundle-analyzer": "4.3.0",
