@@ -486,7 +486,12 @@ export default async function getBaseWebpackConfig(
   const splitChunksConfigs: {
     [propName: string]: webpack.Options.SplitChunksOptions | false
   } = {
-    dev: false,
+    dev: {
+      cacheGroups: {
+        default: false,
+        vendors: false,
+      },
+    },
     prodGranular: {
       // Keep main and _app chunks unsplitted in webpack 5
       // as we don't need a separate vendor chunk from that
@@ -582,7 +587,7 @@ export default async function getBaseWebpackConfig(
   // Select appropriate SplitChunksPlugin config for this build
   let splitChunksConfig: webpack.Options.SplitChunksOptions | false
   if (dev) {
-    splitChunksConfig = splitChunksConfigs.dev
+    splitChunksConfig = isWebpack5 ? false : splitChunksConfigs.dev
   } else {
     splitChunksConfig = splitChunksConfigs.prodGranular
   }
