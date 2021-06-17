@@ -577,9 +577,7 @@ export default function Image({
               sizes,
               loader,
             })}
-            src={src}
             decoding="async"
-            sizes={sizes}
             style={imgStyle}
             className={className}
           />
