@@ -16,6 +16,7 @@
   "license": "MIT",
   "devDependencies": {
     "eslint": "7.28.0",
-    "eslint-config-next": "11.0.0"
+    "eslint-config-next": "11.0.0",
+    "eslint-plugin-jest": "24.3.6"
   }
 }
