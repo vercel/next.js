@@ -46,7 +46,7 @@ module.exports = {
           context.report({
             node,
             message:
-              'Custom fonts should be added at the document level. See https://nextjs.org/docs/messages/no-page-custom-font.',
+              'Custom fonts not added at the document level will only load for a single page. This is discouraged. See https://nextjs.org/docs/messages/no-page-custom-font.',
           })
         }
       },

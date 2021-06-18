@@ -369,6 +369,7 @@ export default async function exportApp(
       defaultLocale: i18n?.defaultLocale,
       domainLocales: i18n?.domains,
       trailingSlash: nextConfig.trailingSlash,
+      disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -511,7 +512,7 @@ export default async function exportApp(
     const worker = new Worker(require.resolve('./worker'), {
       maxRetries: 0,
       numWorkers: threads,
-      enableWorkerThreads: true,
+      enableWorkerThreads: nextConfig.experimental.workerThreads,
       exposedMethods: ['default'],
     }) as Worker & { default: typeof exportPage }
 
@@ -541,6 +542,8 @@ export default async function exportApp(
             optimizeFonts: nextConfig.optimizeFonts,
             optimizeImages: nextConfig.experimental.optimizeImages,
             optimizeCss: nextConfig.experimental.optimizeCss,
+            disableOptimizedLoading:
+              nextConfig.experimental.disableOptimizedLoading,
             parentSpanId: pageExportSpan.id,
           })
 

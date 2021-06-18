@@ -436,7 +436,13 @@ externals['postcss-loader'] = 'next/dist/compiled/postcss-loader'
 export async function ncc_postcss_loader(task, opts) {
   await task
     .source(opts.src || relative(__dirname, require.resolve('postcss-loader')))
-    .ncc({ packageName: 'postcss-loader', externals })
+    .ncc({
+      packageName: 'postcss-loader',
+      externals: {
+        ...externals,
+        'schema-utils': 'next/dist/compiled/schema-utils3',
+      },
+    })
     .target('compiled/postcss-loader')
 }
 // eslint-disable-next-line camelcase
@@ -617,6 +623,40 @@ export async function ncc_webpack_sources2(task, opts) {
     .ncc({ packageName: 'webpack-sources2', externals, target: 'es5' })
     .target('compiled/webpack-sources2')
 }
+// eslint-disable-next-line camelcase
+externals['mini-css-extract-plugin'] =
+  'next/dist/compiled/mini-css-extract-plugin'
+export async function ncc_mini_css_extract_plugin(task, opts) {
+  await task
+    .source(
+      relative(
+        __dirname,
+        resolve(require.resolve('mini-css-extract-plugin'), '../index.js')
+      )
+    )
+    .ncc({
+      externals: {
+        ...externals,
+        './index': './index.js',
+        'schema-utils': 'next/dist/compiled/schema-utils3',
+      },
+    })
+    .target('compiled/mini-css-extract-plugin')
+  await task
+    .source(
+      opts.src ||
+        relative(__dirname, require.resolve('mini-css-extract-plugin'))
+    )
+    .ncc({
+      packageName: 'mini-css-extract-plugin',
+      externals: {
+        ...externals,
+        './index': './index.js',
+        'schema-utils': 'next/dist/compiled/schema-utils3',
+      },
+    })
+    .target('compiled/mini-css-extract-plugin')
+}
 
 // eslint-disable-next-line camelcase
 export async function ncc_webpack_bundle4(task, opts) {
@@ -654,7 +694,7 @@ export async function ncc_webpack_bundle5(task, opts) {
 }
 
 const webpackBundlePackages = {
-  webpack: 'next/dist/compiled/webpack/webpack',
+  webpack: 'next/dist/compiled/webpack/webpack-lib',
 }
 
 Object.assign(externals, webpackBundlePackages)
@@ -750,6 +790,7 @@ export async function ncc(task, opts) {
         'ncc_webpack_bundle_packages',
         'ncc_webpack_sources',
         'ncc_webpack_sources2',
+        'ncc_mini_css_extract_plugin',
       ],
       opts
     )

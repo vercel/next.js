@@ -34,10 +34,12 @@ For example, here's how you can change `getStaticProps` to pass a list of compon
 
 ```js
 import dynamic from 'next/dynamic'
+import Test from '../components/test'
 
 const SomeHeavyComponent = dynamic(() => import('SomeHeavyComponent'))
 
-// ...
+const defaultComponents = { Test }
+
 export function SomePage({ mdxSource, componentNames }) {
   const components = {
     ...defaultComponents,
@@ -46,10 +48,17 @@ export function SomePage({ mdxSource, componentNames }) {
       : null,
   }
 
-  return <MDXRemote {...mdxSource} />
+  return <MDXRemote {...mdxSource} components={components} />
 }
 
 export async function getStaticProps() {
+  const source = `---
+  title: Conditional custom components
+  ---
+
+  Some **mdx** text, with a default component <Test name={title}/> and a Heavy component <SomeHeavyComponent />
+  `
+
   const { content, data } = matter(source)
 
   const componentNames = [

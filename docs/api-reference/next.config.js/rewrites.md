@@ -23,9 +23,7 @@ description: Add rewrites to your Next.js app.
 
 Rewrites allow you to map an incoming request path to a different destination path.
 
-Rewrites act as a URL proxy and mask the destination path, making it appear the user hasn't changed their location on the site. In contrast, [redirects](/docs/api-reference/next.config.js/redirects.md) will reroute to a new page a show the URL changes.
-
-Rewrites are only available on the Node.js environment and do not affect client-side routing.
+Rewrites act as a URL proxy and mask the destination path, making it appear the user hasn't changed their location on the site. In contrast, [redirects](/docs/api-reference/next.config.js/redirects.md) will reroute to a new page and show the URL changes.
 
 To use rewrites you can use the `rewrites` key in `next.config.js`:
 
@@ -41,6 +39,8 @@ module.exports = {
   },
 }
 ```
+
+Rewrites are applied to client-side routing, a `<Link href="/about">` will have the rewrite applied in the above example.
 
 `rewrites` is an async function that expects an array to be returned holding objects with `source` and `destination` properties:
 
@@ -58,8 +58,8 @@ module.exports = {
     return {
       beforeFiles: [
         // These rewrites are checked after headers/redirects
-        // and before pages/public files which allows overriding
-        // page files
+        // and before all files including _next/public files which
+        // allows overriding page files
         {
           source: '/some-page',
           destination: '/somewhere-else',
@@ -79,7 +79,7 @@ module.exports = {
         // and dynamic routes are checked
         {
           source: '/:path*',
-          destination: 'https://my-old-site.com',
+          destination: `https://my-old-site.com/:path*`,
         },
       ],
     }
