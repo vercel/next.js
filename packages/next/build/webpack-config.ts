@@ -3,6 +3,7 @@ import chalk from 'chalk'
 import crypto from 'crypto'
 import { readFileSync } from 'fs'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
+import semver from 'next/dist/compiled/semver'
 import { isWebpack5, webpack } from 'next/dist/compiled/webpack/webpack'
 import path, { join as pathJoin, relative as relativePath } from 'path'
 import {
@@ -12,6 +13,7 @@ import {
   PAGES_DIR_ALIAS,
 } from '../lib/constants'
 import { fileExists } from '../lib/file-exists'
+import { getPackageVersion } from '../lib/get-package-version'
 import { CustomRoutes } from '../lib/load-custom-routes.js'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
 import {
@@ -230,6 +232,30 @@ export default async function getBaseWebpackConfig(
     rewrites.afterFiles.length > 0 ||
     rewrites.fallback.length > 0
   const hasReactRefresh: boolean = dev && !isServer
+  const reactDomVersion = await getPackageVersion({
+    cwd: dir,
+    name: 'react-dom',
+  })
+  const hasReact18: boolean =
+    Boolean(reactDomVersion) &&
+    (semver.gte(reactDomVersion!, '18.0.0') ||
+      semver.coerce(reactDomVersion)?.version === '18.0.0')
+  const hasReactPrerelease =
+    Boolean(reactDomVersion) && semver.prerelease(reactDomVersion!) != null
+  const hasReactRoot: boolean = config.experimental.reactRoot || hasReact18
+
+  // Only inform during one of the builds
+  if (!isServer) {
+    if (hasReactRoot) {
+      Log.info('Using the createRoot API for React')
+    }
+    if (hasReactPrerelease) {
+      Log.warn(
+        `You are using an unsupported prerelease of 'react-dom' which may cause ` +
+          `unexpected or broken application behavior. Continue at your own risk.`
+      )
+    }
+  }
 
   const babelConfigFile = await [
     '.babelrc',
@@ -1004,16 +1030,6 @@ export default async function getBaseWebpackConfig(
               ]
             : defaultLoaders.babel,
         },
-        ...(!config.images.disableStaticImages && isWebpack5
-          ? [
-              {
-                test: /\.(png|svg|jpg|jpeg|gif|webp|ico|bmp)$/i,
-                loader: 'next-image-loader',
-                issuer: { not: regexLikeCss },
-                dependency: { not: ['url'] },
-              },
-            ]
-          : []),
       ].filter(Boolean),
     },
     plugins: [
@@ -1076,9 +1092,7 @@ export default async function getBaseWebpackConfig(
         'process.env.__NEXT_STRICT_MODE': JSON.stringify(
           config.reactStrictMode
         ),
-        'process.env.__NEXT_REACT_ROOT': JSON.stringify(
-          config.experimental.reactRoot
-        ),
+        'process.env.__NEXT_REACT_ROOT': JSON.stringify(hasReactRoot),
         'process.env.__NEXT_OPTIMIZE_FONTS': JSON.stringify(
           config.optimizeFonts && !dev
         ),
@@ -1442,6 +1456,30 @@ export default async function getBaseWebpackConfig(
         '> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config'
       )
     }
+  }
+
+  if (!config.images.disableStaticImages && isWebpack5) {
+    if (!webpackConfig.module) {
+      webpackConfig.module = { rules: [] }
+    }
+
+    const hasSvg = webpackConfig.module.rules.some(
+      (rule) =>
+        'test' in rule && rule.test instanceof RegExp && rule.test.test('.svg')
+    )
+
+    // Exclude svg if the user already defined it in custom
+    // webpack config such as `@svgr/webpack` plugin or
+    // the `babel-plugin-inline-react-svg` plugin.
+    webpackConfig.module.rules.push({
+      test: hasSvg
+        ? /\.(png|jpg|jpeg|gif|webp|ico|bmp)$/i
+        : /\.(png|svg|jpg|jpeg|gif|webp|ico|bmp)$/i,
+      loader: 'next-image-loader',
+      dependency: { not: ['url'] },
+      // @ts-ignore
+      issuer: { not: regexLikeCss },
+    })
   }
 
   if (
