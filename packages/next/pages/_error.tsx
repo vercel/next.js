@@ -52,19 +52,19 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
           <style dangerouslySetInnerHTML={{ __html: 'body { margin: 0 }' }} />
           {statusCode ? <h1 style={styles.h1}>{statusCode}</h1> : null}
           <h2 style={styles.h2}>
-              {this.props.title || statusCode ? (
-                title
-              ) : (
-                <>
-                  Application error: a client-side exception has occurred (
-                  <a href="https://nextjs.org/docs/messages/client-side-exception-occurred">
-                    developer guidance
-                  </a>
-                  )
-                </>
-              )}
-              .
-            </h2>
+            {this.props.title || statusCode ? (
+              title
+            ) : (
+              <>
+                Application error: a client-side exception has occurred (
+                <a href="https://nextjs.org/docs/messages/client-side-exception-occurred">
+                  developer guidance
+                </a>
+                )
+              </>
+            )}
+            .
+          </h2>
         </div>
       </div>
     )
