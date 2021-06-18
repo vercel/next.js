@@ -449,6 +449,7 @@ export default function Image({
           backgroundImage: `url("${blurDataURL}")`,
         }
       : undefined),
+    ...(objectPosition && { backgroundPosition: objectPosition }),
   }
   if (
     typeof widthInt !== 'undefined' &&

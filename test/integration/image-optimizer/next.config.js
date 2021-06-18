@@ -1,2 +1,2 @@
 // prettier-ignore
-module.exports = { /* replaceme */ }
+module.exports = {"images":{"domains":["google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com","google.com"]}}
