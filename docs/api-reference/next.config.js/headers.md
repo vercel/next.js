@@ -373,3 +373,14 @@ module.exports = {
 ### Cache-Control
 
 Cache-Control headers set in next.config.js will be overwritten in production to ensure that static assets can be cached effectively. If you need to revalidate the cache of a page that has been [statically generated](https://nextjs.org/docs/basic-features/pages#static-generation-recommended), you can do so by setting `revalidate` in the page's [`getStaticProps`](https://nextjs.org/docs/basic-features/data-fetching#getstaticprops-static-generation) function.
+
+## Related
+
+For more information, we recommend the following sections:
+
+<div class="card">
+  <a href="/docs/advanced-features/security-headers.md">
+    <b>Security Headers:</b>
+    <small>Improve the security of your Next.js application by add HTTP response headers.</small>
+  </a>
+</div>
