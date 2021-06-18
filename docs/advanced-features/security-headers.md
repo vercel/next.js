@@ -4,7 +4,7 @@ description: Improve the security of your Next.js application by adding HTTP res
 
 # Security Headers
 
-To improve the security of your application, you can use `headers` in `next.config.js` to apply HTTP response headers to all routes in your application.
+To improve the security of your application, you can use [`headers`](/docs/api-reference/next.config.js/headers.md) in `next.config.js` to apply HTTP response headers to all routes in your application.
 
 ```jsx
 // next.config.js
@@ -40,6 +40,8 @@ This header controls DNS prefetching, allowing browsers to proactively perform d
 
 This header informs browsers it should only be accessed using HTTPS, instead of using HTTP. Using the configuration below, all present and future subdomains will use HTTPS for a `max-age` of 2 years. This blocks access to pages or subdomains that can only be served over HTTP.
 
+If you're deploying to [Vercel](https://vercel.com/docs/edge-network/headers#strict-transport-security), this header is not necessary as it's automatically added to all deployments.
+
 ```jsx
 {
   key: 'Strict-Transport-Security',
@@ -49,7 +51,7 @@ This header informs browsers it should only be accessed using HTTPS, instead of 
 
 ### [X-XSS-Protection](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-XSS-Protection)
 
-This header stops pages from loading when they detect reflected cross-site scripting (XSS) attacks. Although these protections are not as necessary when sites implement a strong [`Content-Security-Policy`](#content-security-policy) disabling the use of inline JavaScript (`'unsafe-inline'`), they can still provide protections for older web browsers that don't yet support CSP.
+This header stops pages from loading when they detect reflected cross-site scripting (XSS) attacks. Although this protection is not necessary when sites implement a strong [`Content-Security-Policy`](#content-security-policy) disabling the use of inline JavaScript (`'unsafe-inline'`), it can still provide protection for older web browsers that don't support CSP.
 
 ```jsx
 {
@@ -82,7 +84,7 @@ This header allows you to control which features and APIs can be used in the bro
 
 ### [X-Content-Type-Options](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options)
 
-This header prevents the browser from attempting to guess the type of content if the `content-type` header is not explicitly set. This can prevent XSS exploits for websites that allow users to upload and share files. For example, a user trying to download an image, but having it treated as a different `content-type` like an executable, which could be malicious. This header also applies to downloading browser extensions. The only valid value for this header is `nosniff`.
+This header prevents the browser from attempting to guess the type of content if the `Content-Type` header is not explicitly set. This can prevent XSS exploits for websites that allow users to upload and share files. For example, a user trying to download an image, but having it treated as a different `Content-Type` like an executable, which could be malicious. This header also applies to downloading browser extensions. The only valid value for this header is `nosniff`.
 
 ```jsx
 {
@@ -93,7 +95,7 @@ This header prevents the browser from attempting to guess the type of content if
 
 ### [Referrer-Policy](https://scotthelme.co.uk/a-new-security-header-referrer-policy/)
 
-This header controls how much information the browser includes with navigations away from their pages. You can read about the different options [here](https://scotthelme.co.uk/a-new-security-header-referrer-policy/).
+This header controls how much information the browser includes when navigating from the current website (origin) to another. You can read about the different options [here](https://scotthelme.co.uk/a-new-security-header-referrer-policy/).
 
 ```jsx
 {
@@ -104,7 +106,7 @@ This header controls how much information the browser includes with navigations 
 
 ### [Content-Security-Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
 
-This header helps prevent cross-site scripting (XSS), clickjacking and other code injection attacks. CSP can specify allowed origins for content including scripts, stylesheets, images, fonts, objects, media (audio, video), iframes, and more.
+This header helps prevent cross-site scripting (XSS), clickjacking and other code injection attacks. Content Security Policy (CSP) can specify allowed origins for content including scripts, stylesheets, images, fonts, objects, media (audio, video), iframes, and more.
 
 You can read about the many different CSP options [here](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP).
 
