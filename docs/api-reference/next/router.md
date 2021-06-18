@@ -112,6 +112,8 @@ export default function Page() {
 }
 ```
 
+Note: when navigating to the same page in Next.js the page's state will not be reset by default as the top-level react component is the same. You can manually ensure the state is updated using `useEffect` or adding a `key` prop with the `asPath` to the components who's state should be reset.
+
 Redirecting the user to `pages/login.js`, useful for pages behind [authentication](/docs/authentication):
 
 ```jsx
