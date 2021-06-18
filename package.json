@@ -79,6 +79,7 @@
     "eslint-plugin-react-hooks": "4.2.0",
     "execa": "2.0.3",
     "express": "4.17.0",
+    "faker": "5.5.3",
     "faunadb": "2.6.1",
     "firebase": "7.14.5",
     "fs-extra": "9.0.0",
