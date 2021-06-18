@@ -38,9 +38,9 @@ async function tryApplyUpdates() {
   }
   try {
     const res = await fetch(
-      typeof __webpack_runtime__ !== 'undefined'
+      typeof __webpack_runtime_id__ !== 'undefined'
         ? // eslint-disable-next-line no-undef
-          `${hotUpdatePath}${curHash}.${__webpack_runtime__}.hot-update.json`
+          `${hotUpdatePath}${curHash}.${__webpack_runtime_id__}.hot-update.json`
         : `${hotUpdatePath}${curHash}.hot-update.json`
     )
     const jsonData = await res.json()
