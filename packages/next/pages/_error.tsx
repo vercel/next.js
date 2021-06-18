@@ -48,11 +48,10 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
               : 'Application error: a client-side exception has occurred'}
           </title>
         </Head>
-        <div>
+        <div style={styles.wrap}>
           <style dangerouslySetInnerHTML={{ __html: 'body { margin: 0 }' }} />
           {statusCode ? <h1 style={styles.h1}>{statusCode}</h1> : null}
-          <div style={styles.desc}>
-            <h2 style={styles.h2}>
+          <h2 style={styles.h2}>
               {this.props.title || statusCode ? (
                 title
               ) : (
@@ -66,7 +65,6 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
               )}
               .
             </h2>
-          </div>
         </div>
       </div>
     )
@@ -87,12 +85,9 @@ const styles: { [k: string]: React.CSSProperties } = {
     justifyContent: 'center',
   },
 
-  desc: {
-    display: 'inline-block',
-    textAlign: 'left',
-    lineHeight: '49px',
-    height: '49px',
-    verticalAlign: 'middle',
+  wrap: {
+    display: 'flex',
+    alignItems: 'center';
   },
 
   h1: {
