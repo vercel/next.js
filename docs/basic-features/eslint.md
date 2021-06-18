@@ -42,7 +42,7 @@ If no ESLint configuration is present, Next.js will create an `.eslintrc` file i
 
 You can now run `next lint` every time you want to run ESLint to catch errors.
 
-> The default base configuration (`"extends": "next"`) can be updated at any time and will only be included if no ESLint configuration is present.
+> The default base configuration (`"extends": "next"`) can be updated at any time and will only be included if no ESLint configuration is present. If you already have an existing ESLint configuration, refer to the [Migrating Existing Config](/docs/basic-features/eslint#migrating-existing-config) section to find the best way to include Next.js rules directly in your application.
 
 We recommend using an appropriate [integration](https://eslint.org/docs/user-guide/integrations#editors) to view warnings and errors directly in your code editor during development.
 
@@ -126,18 +126,6 @@ If you would like to modify or disable any rules provided by the supported plugi
 }
 ```
 
-> **Note**: If you need to also include a separate, custom ESLint configuration, it is highly recommended that `eslint-config-next` is extended last after other configurations. For example:
->
-> ```
-> {
->   "extends": ["eslint:recommended", "next"]
-> }
-> ```
->
-> The `next` configuration already handles setting default values for the `parser`, `plugins` and `settings` properties.
-> There is no need to manually re-declare any of these properties unless you need a different configuration for your use case.
-> If you include any other shareable configurations, you will need to make sure that these properties are not overwritten or modified.
-
 ### Core Web Vitals
 
 A stricter `next/core-web-vitals` rule set can also be added in `.eslintrc`:
@@ -164,7 +152,19 @@ ESLint also contains code formatting rules, which can conflict with your existin
 
 ## Migrating Existing Config
 
-If you already have ESLint configured in your application, we recommend extending directly from the Next.js ESLint plugin instead of the shareable configuration.
+### Recommended Plugin Ruleset
+
+If you already have ESLint configured in your application and any of the following conditions are true:
+
+- You have one or more of the following plugins already installed (either separately or through a different config such as `airbnb` or `react-app`):
+  - `react`
+  - `react-hooks`
+  - `jsx-a11y`
+  - `import`
+- You've defined specific `parserOptions` that need to be different how Babel is configured within Next.js
+- You have `eslint-plugin-import` installed with Node and/or TypeScript resolvers defined
+
+Then we recommend either removing these settings if you prefer how these properties have been configured within [`eslint-config-next`](https://github.com/vercel/next.js/blob/canary/packages/eslint-config-next/index.js) or extending directly from the Next.js ESLint plugin instead:
 
 ```js
 module.exports = {
@@ -175,4 +175,16 @@ module.exports = {
 }
 ```
 
-This eliminates any risk of collisions that can occur due to importing the same plugin or parser across multiple configurations.
+This eliminates any risk of collisions or errors that can occur due to importing the same plugin or parser across multiple configurations.
+
+### Additional Configurations
+
+If you already use a separate ESLint configuration and want to include `eslint-config-next`, ensure that is extended last after other configurations. For example:
+
+```
+{
+  "extends": ["eslint:recommended", "next"]
+}
+```
+
+The `next` configuration already handles setting default values for the `parser`, `plugins` and `settings` properties. There is no need to manually re-declare any of these properties unless you need a different configuration for your use case. If you include any other shareable configurations, **you will need to make sure that these properties are not overwritten or modified**. Otherwise, we recommend removing any configurations that share behavior with the `next` configuration or extending directly from the Next.js ESLint plugin as mentioned above.
