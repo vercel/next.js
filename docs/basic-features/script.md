@@ -69,8 +69,7 @@ function Home() {
 
 ```js
 import Script from 'next/script'
-
-<Script
+;<Script
   src="https://polyfill.io/v3/polyfill.min.js?features=IntersectionObserverEntry%2CIntersectionObserver"
   strategy="beforeInteractive"
 />
@@ -80,8 +79,7 @@ import Script from 'next/script'
 
 ```js
 import Script from 'next/script'
-
-<Script
+;<Script
   src="https://connect.facebook.net/en_US/sdk.js"
   strategy="lazyOnload"
 />
@@ -91,8 +89,7 @@ import Script from 'next/script'
 
 ```js
 import Script from 'next/script'
-
-<Script
+;<Script
   id="stripe-js"
   src="https://js.stripe.com/v3/"
   onLoad={() => {
@@ -123,8 +120,7 @@ import Script from 'next/script'
 
 ```js
 import Script from 'next/script'
-
-<Script
+;<Script
   src="https://www.google-analytics.com/analytics.js"
   id="analytics"
   nonce="XUENAJFW"
