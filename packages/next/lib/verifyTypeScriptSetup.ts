@@ -4,8 +4,10 @@ import {
   hasNecessaryDependencies,
   NecessaryDependencies,
 } from './has-necessary-dependencies'
+import semver from 'next/dist/compiled/semver'
 import { CompileError } from './compile-error'
 import { FatalError } from './fatal-error'
+import * as log from '../build/output/log'
 
 import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
 import { TypeCheckResult } from './typescript/runTypeCheck'
@@ -36,7 +38,15 @@ export async function verifyTypeScriptSetup(
     )
 
     // Load TypeScript after we're sure it exists:
-    const ts = (await import(deps.resolved)) as typeof import('typescript')
+    const ts = (await import(
+      deps.resolved.get('typescript')!
+    )) as typeof import('typescript')
+
+    if (semver.lt(ts.version, '4.3.2')) {
+      log.warn(
+        `Minimum recommended TypeScript version is v4.3.2, older versions can potentially be incompatible with Next.js. Detected: ${ts.version}`
+      )
+    }
 
     // Reconfigure (or create) the user's `tsconfig.json` for them:
     await writeConfigurationDefaults(ts, tsConfigPath, firstTimeSetup)

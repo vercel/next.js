@@ -54,6 +54,7 @@ describe('Font Optimization', () => {
         /<style data-href="https:\/\/fonts\.googleapis\.com\/css2\?family=Roboto:wght@700">.*<\/style>/,
         /<style data-href="https:\/\/fonts.googleapis.com\/css2\?family=Roboto:wght@400;700;900&display=swap">.*<\/style>/,
       ],
+      'https://fonts.gstatic.com',
     ],
     [
       'typekit',
@@ -69,13 +70,15 @@ describe('Font Optimization', () => {
         /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
         /<style data-href="https:\/\/use.typekit.net\/ucs7mcf.css">.*<\/style>/,
       ],
+      'https://use.typekit.net',
     ],
   ])(
     'with-%s',
     (
       property,
       [staticFont, staticHeadFont, starsFont, withFont],
-      [staticPattern, staticHeadPattern, starsPattern, withFontPattern]
+      [staticPattern, staticHeadPattern, starsPattern, withFontPattern],
+      preconnectUrl
     ) => {
       const appDir = join(fixturesDir, `with-${property}`)
       const nextConfig = join(appDir, 'next.config.js')
@@ -152,6 +155,14 @@ describe('Font Optimization', () => {
           expect(html).toMatch(starsPattern)
         })
 
+        it(`should add preconnect tag`, async () => {
+          const html = await renderViaHTTP(appPort, '/stars')
+          const $ = cheerio.load(html)
+          expect(
+            $(`link[rel=preconnect][href="${preconnectUrl}"]`).length
+          ).toBe(1)
+        })
+
         it('should skip this optimization for AMP pages', async () => {
           const html = await renderViaHTTP(appPort, '/amp')
           const $ = cheerio.load(html)
@@ -225,7 +236,11 @@ describe('Font Optimization', () => {
 
       describe('Font optimization for SSR apps', () => {
         beforeAll(async () => {
-          await fs.writeFile(nextConfig, `module.exports = { }`, 'utf8')
+          await fs.writeFile(
+            nextConfig,
+            `module.exports = { cleanDistDir: false }`,
+            'utf8'
+          )
 
           if (fs.pathExistsSync(join(appDir, '.next'))) {
             await fs.remove(join(appDir, '.next'))
@@ -244,7 +259,7 @@ describe('Font Optimization', () => {
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `module.exports = { target: 'serverless' }`,
+            `module.exports = { target: 'serverless', cleanDistDir: false }`,
             'utf8'
           )
           await nextBuild(appDir)
@@ -261,7 +276,7 @@ describe('Font Optimization', () => {
         beforeAll(async () => {
           await fs.writeFile(
             nextConfig,
-            `module.exports = { target: 'experimental-serverless-trace' }`,
+            `module.exports = { target: 'experimental-serverless-trace', cleanDistDir: false }`,
             'utf8'
           )
           await nextBuild(appDir)
@@ -279,7 +294,11 @@ describe('Font Optimization', () => {
 
       describe('Font optimization for unreachable font definitions.', () => {
         beforeAll(async () => {
-          await fs.writeFile(nextConfig, `module.exports = { }`, 'utf8')
+          await fs.writeFile(
+            nextConfig,
+            `module.exports = { cleanDistDir: false }`,
+            'utf8'
+          )
           await nextBuild(appDir)
           await fs.writeFile(
             join(appDir, '.next', 'server', 'font-manifest.json'),

@@ -1099,6 +1099,34 @@ test('logbox: anchors links in error messages', async () => {
   await cleanup()
 })
 
+test('<Link> with multiple children', async () => {
+  const [session, cleanup] = await sandbox()
+
+  console.log({ SANDBOX: session.sandboxDirectory })
+  await session.patch(
+    'index.js',
+    `
+      import Link from 'next/link'
+
+      export default function Index() {
+        return (
+          <Link href="/">
+            <p>One</p>
+            <p>Two</p>
+          </Link>
+        )
+      }
+    `
+  )
+
+  expect(await session.hasRedbox(true)).toBe(true)
+  expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+    `"Error: Multiple children were passed to <Link> with \`href\` of \`/\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children"`
+  )
+
+  await cleanup()
+})
+
 test('<Link> component props errors', async () => {
   const [session, cleanup] = await sandbox()
 

@@ -1509,7 +1509,7 @@ describe('CSS Support', () => {
           await browser.waitForElementByCss('#link-other').click()
           await check(
             () => browser.eval(`document.body.innerText`),
-            'An unexpected error has occurred.',
+            'Application error: a client-side exception has occurred (developer guidance).',
             true
           )
 
