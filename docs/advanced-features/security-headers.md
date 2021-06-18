@@ -120,6 +120,7 @@ You can read about the many different CSP options [here](https://developer.mozil
 - [MDN](https://developer.mozilla.org)
 - [Varun Naik](https://blog.vnaik.com/posts/web-attacks.html)
 - [Scott Helme](https://scotthelme.co.uk)
+- [Mozilla Observatory](https://observatory.mozilla.org/)
 
 ## Related
 
