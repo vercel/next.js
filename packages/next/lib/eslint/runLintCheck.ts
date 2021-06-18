@@ -28,7 +28,8 @@ async function lint(
   lintDirs: string[],
   eslintrcFile: string | null,
   pkgJsonPath: string | null,
-  eslintOptions: any = null
+  eslintOptions: any = null,
+  reportErrorsOnly: boolean = false
 ): Promise<
   | string
   | null
@@ -59,7 +60,6 @@ async function lint(
       'error'
     )} - ESLint class not found. Please upgrade to ESLint version 7 or later`
   }
-
   let options: any = {
     useEslintrc: true,
     baseConfig: {},
@@ -110,8 +110,9 @@ async function lint(
   }
   const lintStart = process.hrtime()
 
-  const results = await eslint.lintFiles(lintDirs)
+  let results = await eslint.lintFiles(lintDirs)
   if (options.fix) await ESLint.outputFixes(results)
+  if (reportErrorsOnly) results = await ESLint.getErrorResults(results) // Only return errors if --quiet flag is used
 
   const formattedResult = formatResults(baseDir, results)
   const lintEnd = process.hrtime(lintStart)
@@ -141,7 +142,8 @@ export async function runLintCheck(
   baseDir: string,
   lintDirs: string[],
   lintDuringBuild: boolean = false,
-  eslintOptions: any = null
+  eslintOptions: any = null,
+  reportErrorsOnly: boolean = false
 ): ReturnType<typeof lint> {
   try {
     // Find user's .eslintrc file
@@ -202,7 +204,8 @@ export async function runLintCheck(
       lintDirs,
       eslintrcFile,
       pkgJsonPath,
-      eslintOptions
+      eslintOptions,
+      reportErrorsOnly
     )
   } catch (err) {
     throw err
