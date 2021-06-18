@@ -12,8 +12,8 @@
     "mobx-react-lite": "^2.0.7",
     "mobx-state-tree": "^3.11.0",
     "next": "latest",
-    "react": "16.13.1",
-    "react-dom": "16.13.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "typescript": "^3.0.1"
   },
   "devDependencies": {
