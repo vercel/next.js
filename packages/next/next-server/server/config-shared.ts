@@ -10,6 +10,7 @@ export type DomainLocales = Array<{
 }>
 
 export type NextConfig = { [key: string]: any } & {
+  cleanDistDir?: boolean
   i18n?: {
     locales: string[]
     defaultLocale: string
@@ -18,15 +19,49 @@ export type NextConfig = { [key: string]: any } & {
   } | null
 
   headers?: () => Promise<Header[]>
-  rewrites?: () => Promise<Rewrite[]>
+  rewrites?: () => Promise<
+    | Rewrite[]
+    | {
+        beforeFiles: Rewrite[]
+        afterFiles: Rewrite[]
+        fallback: Rewrite[]
+      }
+  >
   redirects?: () => Promise<Redirect[]>
-
   trailingSlash?: boolean
+  webpack5?: false
+  excludeDefaultMomentLocales?: boolean
 
   future: {
-    strictPostcssConfiguration: boolean
-    excludeDefaultMomentLocales: boolean
-    webpack5: boolean
+    /**
+     * @deprecated this options was moved to the top level
+     */
+    webpack5?: false
+    strictPostcssConfiguration?: boolean
+  }
+  experimental: {
+    cpus?: number
+    plugins?: boolean
+    profiling?: boolean
+    sprFlushToDisk?: boolean
+    reactMode?: 'legacy' | 'concurrent' | 'blocking'
+    workerThreads?: boolean
+    pageEnv?: boolean
+    optimizeImages?: boolean
+    optimizeCss?: boolean
+    scrollRestoration?: boolean
+    stats?: boolean
+    externalDir?: boolean
+    conformance?: boolean
+    amp?: {
+      optimizer?: any
+      validator?: string
+      skipValidation?: boolean
+    }
+    reactRoot?: boolean
+    disableOptimizedLoading?: boolean
+    gzipSize?: boolean
+    craCompat?: boolean
   }
 }
 
@@ -35,6 +70,7 @@ export const defaultConfig: NextConfig = {
   webpack: null,
   webpackDevMiddleware: null,
   distDir: '.next',
+  cleanDistDir: true,
   assetPrefix: '',
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
@@ -61,6 +97,7 @@ export const defaultConfig: NextConfig = {
   trailingSlash: false,
   i18n: null,
   productionBrowserSourceMaps: false,
+  optimizeFonts: true,
   experimental: {
     cpus: Math.max(
       1,
@@ -70,20 +107,23 @@ export const defaultConfig: NextConfig = {
     plugins: false,
     profiling: false,
     sprFlushToDisk: true,
-    reactMode: 'legacy',
     workerThreads: false,
     pageEnv: false,
-    optimizeFonts: false,
     optimizeImages: false,
     optimizeCss: false,
     scrollRestoration: false,
-    scriptLoader: false,
     stats: false,
+    externalDir: false,
+    reactRoot: Number(process.env.NEXT_PRIVATE_REACT_ROOT) > 0,
+    disableOptimizedLoading: false,
+    gzipSize: true,
+    craCompat: false,
   },
+  webpack5:
+    Number(process.env.NEXT_PRIVATE_TEST_WEBPACK4_MODE) > 0 ? false : undefined,
+  excludeDefaultMomentLocales: true,
   future: {
     strictPostcssConfiguration: false,
-    excludeDefaultMomentLocales: false,
-    webpack5: Number(process.env.NEXT_PRIVATE_TEST_WEBPACK5_MODE) > 0,
   },
   serverRuntimeConfig: {},
   publicRuntimeConfig: {},
@@ -96,7 +136,7 @@ export function normalizeConfig(phase: string, config: any) {
 
     if (typeof config.then === 'function') {
       throw new Error(
-        '> Promise returned in next config. https://err.sh/vercel/next.js/promise-in-next-config'
+        '> Promise returned in next config. https://nextjs.org/docs/messages/promise-in-next-config'
       )
     }
   }

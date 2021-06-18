@@ -111,3 +111,15 @@ Using Heroku's [custom cache](https://devcenter.heroku.com/articles/nodejs-suppo
 ```javascript
 "cacheDirectories": [".next/cache"]
 ```
+
+#### Azure Pipelines
+
+Using Azure Pipelines' [Cache task](https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/utility/cache), add the following task to your pipeline yaml file somewhere prior to the task that executes `next build`:
+
+```yaml
+- task: Cache@2
+  displayName: 'Cache .next/cache'
+  inputs:
+    key: next | $(Agent.OS) | yarn.lock
+    path: '$(System.DefaultWorkingDirectory)/.next/cache'
+```

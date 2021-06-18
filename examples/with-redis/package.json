@@ -1,19 +1,26 @@
 {
   "name": "with-redis",
-  "version": "0.1.1",
+  "version": "0.1.0",
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "ioredis": "^4.22.0",
+    "autoprefixer": "^10.0.4",
+    "clsx": "^1.1.1",
+    "ioredis": "^4.23.0",
     "next": "latest",
-    "react": "17.0.1",
-    "react-dom": "17.0.1",
-    "react-toastify": "^6.0.8"
+    "postcss": "^8.1.10",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-hot-toast": "^1.0.2",
+    "swr": "^0.5.1",
+    "tailwindcss": "^2.0.2",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "prettier": "^2.2.1"
+    "@tailwindcss/jit": "0.1.1"
   }
 }

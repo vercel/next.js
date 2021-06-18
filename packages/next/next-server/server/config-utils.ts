@@ -1,60 +1,69 @@
-import Worker from 'jest-worker'
-import findUp from 'next/dist/compiled/find-up'
-import { init as initWebpack } from 'next/dist/compiled/webpack/webpack'
-import { CONFIG_FILE } from '../lib/constants'
-import { NextConfig, normalizeConfig } from './config-shared'
+import path from 'path'
+import { Worker } from 'jest-worker'
+import * as Log from '../../build/output/log'
+import { CheckReasons, CheckResult } from './config-utils-worker'
+import { install, shouldLoadWithWebpack5 } from './config-utils-worker'
+import { PHASE_PRODUCTION_SERVER } from '../lib/constants'
 
-let installed: boolean = false
+export { install, shouldLoadWithWebpack5 }
 
-export function install(useWebpack5: boolean) {
-  if (installed) {
-    return
+function reasonMessage(reason: CheckReasons) {
+  switch (reason) {
+    case 'default':
+      return 'Enabled by default'
+    case 'flag-disabled':
+      return 'webpack5 flag is set to false in next.config.js'
+    case 'test-mode':
+      return 'internal test mode'
+    default:
+      return ''
   }
-  installed = true
-
-  initWebpack(useWebpack5)
-
-  // hook the Node.js require so that webpack requires are
-  // routed to the bundled and now initialized webpack version
-  require('../../build/webpack/require-hook')
-}
-
-export async function shouldLoadWithWebpack5(
-  phase: string,
-  dir: string
-): Promise<boolean> {
-  const path = await findUp(CONFIG_FILE, {
-    cwd: dir,
-  })
-
-  // No `next.config.js`:
-  if (!path?.length) {
-    return false // TODO: return true to default to webpack 5
-  }
-
-  // Default to webpack 4 for backwards compatibility on boot:
-  install(false)
-
-  const userConfigModule = require(path)
-  const userConfig: Partial<NextConfig> = normalizeConfig(
-    phase,
-    userConfigModule.default || userConfigModule
-  )
-
-  // TODO: enable commented branch to enable webpack 5
-  return userConfig.future?.webpack5 === true /* || !userConfig.webpack */
 }
 
 export async function loadWebpackHook(phase: string, dir: string) {
-  let useWebpack5 = false
-  const worker: any = new Worker(__filename, { enableWorkerThreads: true })
+  let useWebpack5 = true
+  let usesRemovedFlag = false
+  const worker = new Worker(
+    path.resolve(__dirname, './config-utils-worker.js'),
+    {
+      enableWorkerThreads: false,
+      numWorkers: 1,
+      forkOptions: {
+        env: {
+          ...process.env,
+          NODE_OPTIONS: '',
+        },
+      },
+    }
+  ) as Worker & {
+    shouldLoadWithWebpack5: typeof import('./config-utils-worker').shouldLoadWithWebpack5
+  }
   try {
-    useWebpack5 = Boolean(await worker.shouldLoadWithWebpack5(phase, dir))
+    const result: CheckResult = await worker.shouldLoadWithWebpack5(phase, dir)
+    if (result.reason === 'future-flag') {
+      usesRemovedFlag = true
+    } else {
+      if (phase !== PHASE_PRODUCTION_SERVER) {
+        Log.info(
+          `Using webpack ${result.enabled ? '5' : '4'}. Reason: ${reasonMessage(
+            result.reason
+          )} https://nextjs.org/docs/messages/webpack5`
+        )
+      }
+    }
+
+    useWebpack5 = Boolean(result.enabled)
   } catch {
     // If this errors, it likely will do so again upon boot, so we just swallow
     // it here.
   } finally {
     worker.end()
+  }
+
+  if (usesRemovedFlag) {
+    throw new Error(
+      '`future.webpack5` in `next.config.js` has moved to the top level `webpack5` flag https://nextjs.org/docs/messages/future-webpack5-moved-to-webpack5'
+    )
   }
 
   install(useWebpack5)

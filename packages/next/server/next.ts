@@ -1,4 +1,8 @@
-import Server, { ServerConstructor } from '../next-server/server/next-server'
+import '../next-server/server/node-polyfill-fetch'
+import {
+  default as Server,
+  ServerConstructor,
+} from '../next-server/server/next-server'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import * as log from '../build/output/log'
 import loadConfig, { NextConfig } from '../next-server/server/config'
@@ -15,6 +19,14 @@ type NextServerConstructor = ServerConstructor & {
    * Whether to launch Next.js in dev mode - @default false
    */
   dev?: boolean
+}
+
+let ServerImpl: typeof Server
+
+const getServerImpl = async () => {
+  if (ServerImpl === undefined)
+    ServerImpl = (await import('../next-server/server/next-server')).default
+  return ServerImpl
 }
 
 export class NextServer {
@@ -93,17 +105,17 @@ export class NextServer {
     return (server as any).close()
   }
 
-  private createServer(
+  private async createServer(
     options: NextServerConstructor & {
       conf: NextConfig
       isNextDevCommand?: boolean
     }
-  ): Server {
+  ): Promise<Server> {
     if (options.dev) {
       const DevServer = require('./next-dev-server').default
       return new DevServer(options)
     }
-    return new Server(options)
+    return new (await getServerImpl())(options)
   }
 
   private async loadConfig() {
@@ -117,8 +129,9 @@ export class NextServer {
 
   private async getServer() {
     if (!this.serverPromise) {
+      setTimeout(getServerImpl, 10)
       this.serverPromise = this.loadConfig().then(async (conf) => {
-        this.server = this.createServer({
+        this.server = await this.createServer({
           ...this.options,
           conf,
         })
@@ -148,7 +161,7 @@ function createServer(options: NextServerConstructor): NextServer {
 
   if (options == null) {
     throw new Error(
-      'The server has not been instantiated properly. https://err.sh/next.js/invalid-server-options'
+      'The server has not been instantiated properly. https://nextjs.org/docs/messages/invalid-server-options'
     )
   }
 
@@ -163,7 +176,7 @@ function createServer(options: NextServerConstructor): NextServer {
   if (options.dev) {
     if (typeof options.dev !== 'boolean') {
       console.warn(
-        "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://err.sh/next.js/invalid-server-options"
+        "Warning: 'dev' is not a boolean which could introduce unexpected behavior. https://nextjs.org/docs/messages/invalid-server-options"
       )
     }
   }

@@ -2,7 +2,7 @@ import { EventEmitter } from 'events'
 import { IncomingMessage, ServerResponse } from 'http'
 import { join, posix } from 'path'
 import { parse } from 'url'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import { webpack, isWebpack5 } from 'next/dist/compiled/webpack/webpack'
 import * as Log from '../build/output/log'
 import {
   normalizePagePath,
@@ -175,7 +175,7 @@ export default function onDemandEntryHandler(
 
       page = posix.normalize(pageUrl)
 
-      return new Promise((resolve, reject) => {
+      return new Promise<void>((resolve, reject) => {
         // Makes sure the page that is being kept in on-demand-entries matches the webpack output
         const normalizedPage = normalizePathSep(page)
         const entryInfo = entries[normalizedPage]
@@ -293,12 +293,14 @@ class Invalidator {
     }
 
     this.building = true
-    // Work around a bug in webpack, calling `invalidate` on Watching.js
-    // doesn't trigger the invalid call used to keep track of the `.done` hook on multiCompiler
-    for (const compiler of this.multiCompiler.compilers) {
-      // @ts-ignore TODO: Check if this is still needed with webpack 5
-      compiler.hooks.invalid.call()
+    if (!isWebpack5) {
+      // Work around a bug in webpack, calling `invalidate` on Watching.js
+      // doesn't trigger the invalid call used to keep track of the `.done` hook on multiCompiler
+      for (const compiler of this.multiCompiler.compilers) {
+        compiler.hooks.invalid.call()
+      }
     }
+
     this.watcher.invalidate()
   }
 

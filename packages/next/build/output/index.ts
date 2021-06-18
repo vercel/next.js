@@ -12,11 +12,6 @@ export function startedDevelopmentServer(appUrl: string, bindAddr: string) {
 let previousClient: import('webpack').Compiler | null = null
 let previousServer: import('webpack').Compiler | null = null
 
-type CompilerDiagnosticsWithFile = {
-  errors: { file: string | undefined; message: string }[] | null
-  warnings: { file: string | undefined; message: string }[] | null
-}
-
 type CompilerDiagnostics = {
   errors: string[] | null
   warnings: string[] | null
@@ -44,6 +39,8 @@ type BuildStatusStore = {
   amp: AmpPageStatus
 }
 
+// eslint typescript has a bug with TS enums
+/* eslint-disable no-shadow */
 enum WebpackStatusPhase {
   COMPILING = 1,
   COMPILED_WITH_ERRORS = 2,

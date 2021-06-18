@@ -27,24 +27,61 @@ import http from 'http'
 export class WebpackHotMiddleware {
   eventStream: EventStream
   latestStats: webpack.Stats | null
+  clientLatestStats: webpack.Stats | null
   closed: boolean
+  serverError: boolean
 
-  constructor(compiler: webpack.Compiler) {
+  constructor(compilers: webpack.Compiler[]) {
     this.eventStream = new EventStream()
     this.latestStats = null
+    this.clientLatestStats = null
+    this.serverError = false
     this.closed = false
 
-    compiler.hooks.invalid.tap('webpack-hot-middleware', this.onInvalid)
-    compiler.hooks.done.tap('webpack-hot-middleware', this.onDone)
+    compilers[0].hooks.invalid.tap(
+      'webpack-hot-middleware',
+      this.onClientInvalid
+    )
+    compilers[0].hooks.done.tap('webpack-hot-middleware', this.onClientDone)
+
+    compilers[1].hooks.invalid.tap(
+      'webpack-hot-middleware',
+      this.onServerInvalid
+    )
+    compilers[1].hooks.done.tap('webpack-hot-middleware', this.onServerDone)
   }
 
-  onInvalid = () => {
-    if (this.closed) return
+  onServerInvalid = () => {
+    if (!this.serverError) return
+
+    this.serverError = false
+
+    if (this.clientLatestStats) {
+      this.latestStats = this.clientLatestStats
+      this.publishStats('built', this.latestStats)
+    }
+  }
+  onClientInvalid = () => {
+    if (this.closed || this.serverError) return
     this.latestStats = null
     this.eventStream.publish({ action: 'building' })
   }
-  onDone = (statsResult: webpack.Stats) => {
+  onServerDone = (statsResult: webpack.Stats) => {
     if (this.closed) return
+    // Keep hold of latest stats so they can be propagated to new clients
+    // this.latestStats = statsResult
+    // this.publishStats('built', this.latestStats)
+    this.serverError = statsResult.hasErrors()
+
+    if (this.serverError) {
+      this.latestStats = statsResult
+      this.publishStats('built', this.latestStats)
+    }
+  }
+  onClientDone = (statsResult: webpack.Stats) => {
+    this.clientLatestStats = statsResult
+
+    if (this.closed || this.serverError) return
     // Keep hold of latest stats so they can be propagated to new clients
     this.latestStats = statsResult
     this.publishStats('built', this.latestStats)

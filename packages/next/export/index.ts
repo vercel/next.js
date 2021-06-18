@@ -7,8 +7,7 @@ import {
   readFileSync,
   writeFileSync,
 } from 'fs'
-import Worker from 'jest-worker'
-import { cpus } from 'os'
+import { Worker } from 'jest-worker'
 import { dirname, join, resolve, sep } from 'path'
 import { promisify } from 'util'
 import { AmpPageStatus, formatAmpMessages } from '../build/output/index'
@@ -46,8 +45,7 @@ import { PrerenderManifest } from '../build'
 import exportPage from './worker'
 import { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import { getPagePath } from '../next-server/server/require'
-import { tracer, traceFn, traceAsyncFn } from '../build/tracer'
-import opentelemetryApi from '@opentelemetry/api'
+import { trace } from '../telemetry/trace'
 
 const exists = promisify(existsOrig)
 
@@ -67,6 +65,9 @@ function divideSegments(number: number, segments: number): number[] {
 const createProgress = (total: number, label: string) => {
   const segments = divideSegments(total, 4)
 
+  if (total === 0) {
+    throw new Error('invariant: progress total can not be zero')
+  }
   let currentSegmentTotal = segments.shift()
   let currentSegmentCount = 0
   let curProgress = 0
@@ -137,21 +138,22 @@ export default async function exportApp(
   options: ExportOptions,
   configuration?: NextConfig
 ): Promise<void> {
-  const nextExportSpan = tracer.startSpan('next-export')
-  return traceAsyncFn(nextExportSpan, async () => {
+  const nextExportSpan = trace('next-export')
+
+  return nextExportSpan.traceAsyncFn(async () => {
     dir = resolve(dir)
 
     // attempt to load global env values so they are available in next.config.js
-    traceFn(tracer.startSpan('load-dotenv'), () =>
-      loadEnvConfig(dir, false, Log)
-    )
+    nextExportSpan
+      .traceChild('load-dotenv')
+      .traceFn(() => loadEnvConfig(dir, false, Log))
 
     const nextConfig =
       configuration ||
-      (await traceAsyncFn(tracer.startSpan('load-next-config'), () =>
-        loadConfig(PHASE_EXPORT, dir)
-      ))
-    const threads = options.threads || Math.max(cpus().length - 1, 1)
+      (await nextExportSpan
+        .traceChild('load-next-config')
+        .traceAsyncFn(() => loadConfig(PHASE_EXPORT, dir)))
+    const threads = options.threads || nextConfig.experimental.cpus
     const distDir = join(dir, nextConfig.distDir)
 
     const telemetry = options.buildExport ? null : new Telemetry({ distDir })
@@ -159,6 +161,7 @@ export default async function exportApp(
     if (telemetry) {
       telemetry.record(
         eventCliSession(PHASE_EXPORT, distDir, {
+          webpackVersion: null,
           cliCommand: 'export',
           isSrcDir: null,
           hasNowJson: !!(await findUp('now.json', { cwd: dir })),
@@ -167,7 +170,7 @@ export default async function exportApp(
       )
     }
 
-    const subFolders = nextConfig.trailingSlash
+    const subFolders = nextConfig.trailingSlash && !options.buildExport
     const isLikeServerless = nextConfig.target !== 'server'
 
     if (!options.silent && !options.buildExport) {
@@ -178,7 +181,7 @@ export default async function exportApp(
 
     if (!existsSync(buildIdFile)) {
       throw new Error(
-        `Could not find a production build in the '${distDir}' directory. Try building your app with 'next build' before starting the static export. https://err.sh/vercel/next.js/next-export-no-build-id`
+        `Could not find a production build in the '${distDir}' directory. Try building your app with 'next build' before starting the static export. https://nextjs.org/docs/messages/next-export-no-build-id`
       )
     }
 
@@ -194,7 +197,7 @@ export default async function exportApp(
       Log.warn(
         `rewrites, redirects, and headers are not applied when exporting your application, detected (${customRoutesDetected.join(
           ', '
-        )}). See more info here: https://err.sh/next.js/export-no-custom-routes`
+        )}). See more info here: https://nextjs.org/docs/messages/export-no-custom-routes`
       )
     }
 
@@ -248,13 +251,13 @@ export default async function exportApp(
 
     if (outDir === join(dir, 'public')) {
       throw new Error(
-        `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/vercel/next.js/can-not-output-to-public`
+        `The 'public' directory is reserved in Next.js and can not be used as the export out directory. https://nextjs.org/docs/messages/can-not-output-to-public`
       )
     }
 
     if (outDir === join(dir, 'static')) {
       throw new Error(
-        `The 'static' directory is reserved in Next.js and can not be used as the export out directory. https://err.sh/vercel/next.js/can-not-output-to-static`
+        `The 'static' directory is reserved in Next.js and can not be used as the export out directory. https://nextjs.org/docs/messages/can-not-output-to-static`
       )
     }
 
@@ -276,9 +279,11 @@ export default async function exportApp(
       if (!options.silent) {
         Log.info('Copying "static" directory')
       }
-      await traceAsyncFn(tracer.startSpan('copy-static-directory'), () =>
-        recursiveCopy(join(dir, 'static'), join(outDir, 'static'))
-      )
+      await nextExportSpan
+        .traceChild('copy-static-directory')
+        .traceAsyncFn(() =>
+          recursiveCopy(join(dir, 'static'), join(outDir, 'static'))
+        )
     }
 
     // Copy .next/static directory
@@ -289,12 +294,14 @@ export default async function exportApp(
       if (!options.silent) {
         Log.info('Copying "static build" directory')
       }
-      await traceAsyncFn(tracer.startSpan('copy-next-static-directory'), () =>
-        recursiveCopy(
-          join(distDir, CLIENT_STATIC_FILES_PATH),
-          join(outDir, '_next', CLIENT_STATIC_FILES_PATH)
+      await nextExportSpan
+        .traceChild('copy-next-static-directory')
+        .traceAsyncFn(() =>
+          recursiveCopy(
+            join(distDir, CLIENT_STATIC_FILES_PATH),
+            join(outDir, '_next', CLIENT_STATIC_FILES_PATH)
+          )
         )
-      )
     }
 
     // Get the exportPathMap from the config file
@@ -321,23 +328,24 @@ export default async function exportApp(
     }
 
     if (!options.buildExport) {
-      const { isNextImageImported } = await traceAsyncFn(
-        tracer.startSpan('is-next-image-imported'),
-        () =>
+      const { isNextImageImported } = await nextExportSpan
+        .traceChild('is-next-image-imported')
+        .traceAsyncFn(() =>
           promises
             .readFile(join(distDir, EXPORT_MARKER), 'utf8')
             .then((text) => JSON.parse(text))
             .catch(() => ({}))
-      )
+        )
 
       if (isNextImageImported && loader === 'default' && !hasNextSupport) {
         throw new Error(
           `Image Optimization using Next.js' default loader is not compatible with \`next export\`.
   Possible solutions:
-    - Use \`next start\`, which starts the Image Optimization API.
-    - Use Vercel to deploy, which supports Image Optimization.
+    - Use \`next start\` to run a server, which includes the Image Optimization API.
+    - Use any provider which supports Image Optimization (like Vercel).
     - Configure a third-party loader in \`next.config.js\`.
-  Read more: https://err.sh/next.js/export-image-api`
+    - Use the \`loader\` prop for \`next/image\`.
+  Read more: https://nextjs.org/docs/messages/export-image-api`
         )
       }
     }
@@ -360,6 +368,8 @@ export default async function exportApp(
       locale: i18n?.defaultLocale,
       defaultLocale: i18n?.defaultLocale,
       domainLocales: i18n?.domains,
+      trailingSlash: nextConfig.trailingSlash,
+      disableOptimizedLoading: nextConfig.experimental.disableOptimizedLoading,
     }
 
     const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -376,9 +386,9 @@ export default async function exportApp(
     if (!options.silent && !options.buildExport) {
       Log.info(`Launching ${threads} workers`)
     }
-    const exportPathMap = await traceAsyncFn(
-      tracer.startSpan('run-export-path-map'),
-      () =>
+    const exportPathMap = await nextExportSpan
+      .traceChild('run-export-path-map')
+      .traceAsyncFn(() =>
         nextConfig.exportPathMap(defaultPathMap, {
           dev: false,
           dir,
@@ -386,9 +396,13 @@ export default async function exportApp(
           distDir,
           buildId,
         })
-    )
+      )
 
-    if (!exportPathMap['/404'] && !exportPathMap['/404.html']) {
+    if (
+      !options.buildExport &&
+      !exportPathMap['/404'] &&
+      !exportPathMap['/404.html']
+    ) {
       exportPathMap['/404'] = exportPathMap['/404.html'] = {
         page: '/_error',
       }
@@ -410,6 +424,10 @@ export default async function exportApp(
 
     if (filteredPaths.length !== exportPaths.length) {
       hasApiRoutes = true
+    }
+
+    if (filteredPaths.length === 0) {
+      return
     }
 
     if (prerenderManifest && !options.buildExport) {
@@ -454,7 +472,7 @@ export default async function exportApp(
             ) +
             `\n` +
             chalk.yellow(
-              `Learn more: https://err.sh/vercel/next.js/api-routes-static-export`
+              `Learn more: https://nextjs.org/docs/messages/api-routes-static-export`
             )
         )
       }
@@ -479,20 +497,22 @@ export default async function exportApp(
       if (!options.silent) {
         Log.info('Copying "public" directory')
       }
-      await traceAsyncFn(tracer.startSpan('copy-public-directory'), () =>
-        recursiveCopy(publicDir, outDir, {
-          filter(path) {
-            // Exclude paths used by pages
-            return !exportPathMap[path]
-          },
-        })
-      )
+      await nextExportSpan
+        .traceChild('copy-public-directory')
+        .traceAsyncFn(() =>
+          recursiveCopy(publicDir, outDir, {
+            filter(path) {
+              // Exclude paths used by pages
+              return !exportPathMap[path]
+            },
+          })
+        )
     }
 
     const worker = new Worker(require.resolve('./worker'), {
       maxRetries: 0,
       numWorkers: threads,
-      enableWorkerThreads: true,
+      enableWorkerThreads: nextConfig.experimental.workerThreads,
       exposedMethods: ['default'],
     }) as Worker & { default: typeof exportPage }
 
@@ -504,17 +524,10 @@ export default async function exportApp(
 
     await Promise.all(
       filteredPaths.map(async (path) => {
-        const pageExportSpan = tracer.startSpan('export-page', {
-          attributes: { path },
-        })
-        return traceAsyncFn(pageExportSpan, async () => {
-          const spanContext = {}
+        const pageExportSpan = nextExportSpan.traceChild('export-page')
+        pageExportSpan.setAttribute('path', path)
 
-          opentelemetryApi.propagation.inject(
-            opentelemetryApi.context.active(),
-            spanContext
-          )
-
+        return pageExportSpan.traceAsyncFn(async () => {
           const result = await worker.default({
             path,
             pathMap: exportPathMap[path],
@@ -526,10 +539,12 @@ export default async function exportApp(
             subFolders,
             buildExport: options.buildExport,
             serverless: isTargetLikeServerless(nextConfig.target),
-            optimizeFonts: nextConfig.experimental.optimizeFonts,
+            optimizeFonts: nextConfig.optimizeFonts,
             optimizeImages: nextConfig.experimental.optimizeImages,
             optimizeCss: nextConfig.experimental.optimizeCss,
-            spanContext,
+            disableOptimizedLoading:
+              nextConfig.experimental.disableOptimizedLoading,
+            parentSpanId: pageExportSpan.id,
           })
 
           for (const validation of result.ampValidations || []) {
@@ -611,7 +626,7 @@ export default async function exportApp(
     }
     if (hadValidationError) {
       throw new Error(
-        `AMP Validation caused the export to fail. https://err.sh/vercel/next.js/amp-export-validation`
+        `AMP Validation caused the export to fail. https://nextjs.org/docs/messages/amp-export-validation`
       )
     }
 
