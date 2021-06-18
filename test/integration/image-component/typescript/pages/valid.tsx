@@ -1,6 +1,7 @@
 import React from 'react'
 import Image from 'next/image'
 import testTall from '../public/tall.png'
+import svg from '../public/test.svg'
 
 const Page = () => {
   return (
@@ -73,6 +74,7 @@ const Page = () => {
         src={testTall}
         placeholder="blur"
       />
+      <Image id="object-src-with-svg" src={svg} />
       <p id="stubtext">This is valid usage of the Image component</p>
     </div>
   )

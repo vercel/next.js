@@ -79,7 +79,7 @@ function Home() {
 }
 ```
 
-For dynamic images you have to provide `width`, `height` and `blurDataURL` manually.
+For dynamic or remote images, you'll have to provide [`width`](/docs/api-reference/next/image#width), [`height`](/docs/api-reference/next/image#height) and [`blurDataURL`](/docs/api-reference/next/image#blurdataurl) manually.
 
 ## Properties
 

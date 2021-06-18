@@ -6,22 +6,40 @@ description: Next.js helps you optimize loading third-party scripts with the bui
 
 Since version **11**, Next.js has a built-in Script component.
 
-Example of usage
+Example of usage:
 
 ```js
-import Script from 'next/script'
-
 // Before
-<script
-  async
-  src="https://www.google-analytics.com/analytics.js"
-/>
+
+// pages/index.js
+import Head from 'next/head'
+
+function Home() {
+  return (
+    <>
+      <Head>
+        <script async src="https://www.google-analytics.com/analytics.js" />
+      </Head>
+    </>
+  )
+}
 
 // After
-<Script
-  src="https://www.google-analytics.com/analytics.js"
-/>
+
+// pages/index.js
+
+function Home() {
+  return (
+    <>
+      <Script src="https://www.google-analytics.com/analytics.js" />
+    </>
+  )
+}
 ```
+
+> Note: `next/script` should **not** be wrapped in `next/head`.
+
+> Note: `next/script` should **not** be used in `pages/_document.js` as `next/script` has client-side functionality to ensure loading order.
 
 Three loading strategies will be initially supported for wrapping third-party scripts:
 
