@@ -13,9 +13,9 @@
     "react": "^17.0.1",
     "react-dom": "^17.0.1"
   },
+  "license": "MIT",
   "devDependencies": {
-    "request": "2.88.0",
-    "stream-to-promise": "2.2.0"
-  },
-  "license": "MIT"
+    "eslint": "7.28.0",
+    "eslint-config-next": "11.0.0"
+  }
 }
