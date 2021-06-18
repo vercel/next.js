@@ -13,6 +13,7 @@ export interface Props extends ScriptHTMLAttributes<HTMLScriptElement> {
   onLoad?: () => void
   onError?: () => void
   children?: React.ReactNode
+  [propName: string]: any
 }
 
 const ignoreProps = [
