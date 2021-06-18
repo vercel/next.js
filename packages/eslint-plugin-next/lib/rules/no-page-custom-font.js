@@ -9,12 +9,15 @@ module.exports = {
     },
   },
   create: function (context) {
-    let documentImport = false
+    let documentImportName = null
     return {
       ImportDeclaration(node) {
         if (node.source.value === 'next/document') {
-          if (node.specifiers.some(({ local }) => local.name === 'Document')) {
-            documentImport = true
+          const defaultImportNode = node.specifiers.filter(
+            ({ type }) => type === 'ImportDefaultSpecifier'
+          )[0]
+          if (defaultImportNode) {
+            documentImportName = defaultImportNode.local.name
           }
         }
       },
@@ -25,10 +28,13 @@ module.exports = {
             (ancestorNode) =>
               ancestorNode.type === 'ClassDeclaration' &&
               ancestorNode.superClass &&
-              ancestorNode.superClass.name === 'Document'
+              ancestorNode.superClass.name === documentImportName
           )
 
-        if ((documentImport && documentClass) || node.name.name !== 'link') {
+        if (
+          (documentImportName && documentClass) ||
+          node.name.name !== 'link'
+        ) {
           return
         }
 
