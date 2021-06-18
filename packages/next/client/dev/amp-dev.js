@@ -41,7 +41,7 @@ async function tryApplyUpdates() {
       typeof __webpack_runtime__ !== 'undefined'
         ? // eslint-disable-next-line no-undef
           `${hotUpdatePath}${curHash}.${__webpack_runtime__}.hot-update.json`
-        : `${hotUpdatePath}${curHash}..hot-update.json`
+        : `${hotUpdatePath}${curHash}.hot-update.json`
     )
     const jsonData = await res.json()
     const curPage = page === '/' ? 'index' : page
