@@ -69,7 +69,7 @@ Object.defineProperty(singletonRouter, 'events', {
 })
 
 urlPropertyFields.forEach((field: string) => {
-  // Here we need to use Object.defineProperty because, we need to return
+  // Here we need to use Object.defineProperty because we need to return
   // the property assigned to the actual router
   // The value might get changed as we change routes and this is the
   // proper way to access it
@@ -112,7 +112,7 @@ function getRouter(): Router {
   if (!singletonRouter.router) {
     const message =
       'No router instance found.\n' +
-      'You should only use "next/router" inside the client side of your app.\n'
+      'You should only use "next/router" on the client side of your app.\n'
     throw new Error(message)
   }
   return singletonRouter.router
@@ -134,7 +134,7 @@ export function useRouter(): NextRouter {
 
 // Create a router and assign it as the singleton instance.
 // This is used in client side when we are initilizing the app.
-// This should **not** use inside the server.
+// This should **not** be used inside the server.
 export const createRouter = (...args: RouterArgs): Router => {
   singletonRouter.router = new Router(...args)
   singletonRouter.readyCallbacks.forEach((cb) => cb())

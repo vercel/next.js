@@ -2,7 +2,9 @@ import loaderUtils from 'next/dist/compiled/loader-utils'
 import sizeOf from 'image-size'
 import { processBuffer } from '../../../next-server/server/lib/squoosh/main'
 
-const PLACEHOLDER_SIZE = 6
+const BLUR_IMG_SIZE = 8
+const BLUR_QUALITY = 70
+const VALID_BLUR_EXT = ['jpeg', 'png', 'webp']
 
 async function nextImageLoader(content) {
   const context = this.rootContext
@@ -19,20 +21,20 @@ async function nextImageLoader(content) {
   }
 
   const imageSize = sizeOf(content)
-  let placeholder
-  if (extension === 'jpeg' || extension === 'png') {
-    // Shrink the image's largest dimension to 6 pixels
+  let blurDataURL
+  if (VALID_BLUR_EXT.includes(extension)) {
+    // Shrink the image's largest dimension
     const resizeOperationOpts =
       imageSize.width >= imageSize.height
-        ? { type: 'resize', width: PLACEHOLDER_SIZE }
-        : { type: 'resize', height: PLACEHOLDER_SIZE }
+        ? { type: 'resize', width: BLUR_IMG_SIZE }
+        : { type: 'resize', height: BLUR_IMG_SIZE }
     const resizedImage = await processBuffer(
       content,
       [resizeOperationOpts],
       extension,
-      0
+      BLUR_QUALITY
     )
-    placeholder = `data:image/${extension};base64,${resizedImage.toString(
+    blurDataURL = `data:image/${extension};base64,${resizedImage.toString(
       'base64'
     )}`
   }
@@ -41,7 +43,7 @@ async function nextImageLoader(content) {
     src: '/_next' + interpolatedName,
     height: imageSize.height,
     width: imageSize.width,
-    placeholder,
+    blurDataURL,
   })
 
   this.emitFile(interpolatedName, content, null)

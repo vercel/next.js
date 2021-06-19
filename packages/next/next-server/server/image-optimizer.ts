@@ -46,7 +46,7 @@ export async function imageOptimizer(
   }
 
   const { headers } = req
-  const { url, w, q, s } = parsedUrl.query
+  const { url, w, q } = parsedUrl.query
   const mimeType = getSupportedMimeType(MODERN_TYPES, headers.accept)
   let href: string
 
@@ -111,13 +111,8 @@ export async function imageOptimizer(
     return { finished: true }
   }
 
-  if (s && s !== '1') {
-    res.statusCode = 400
-    res.end('"s" parameter must be "1" or omitted')
-    return { finished: true }
-  }
-
-  const isStatic = !!s
+  // Should match output from next-image-loader
+  const isStatic = url.startsWith('/_next/static/image')
 
   const width = parseInt(w, 10)
 
@@ -168,7 +163,12 @@ export async function imageOptimizer(
         const contentType = getContentType(extension)
         const fsPath = join(hashDir, file)
         if (now < expireAt) {
-          res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
+          res.setHeader(
+            'Cache-Control',
+            isStatic
+              ? 'public, max-age=315360000, immutable'
+              : 'public, max-age=0, must-revalidate'
+          )
           if (sendEtagResponse(req, res, etag)) {
             return { finished: true }
           }
@@ -381,7 +381,7 @@ function sendResponse(
   res.setHeader(
     'Cache-Control',
     isStatic
-      ? 'public, immutable, max-age=315360000'
+      ? 'public, max-age=315360000, immutable'
       : 'public, max-age=0, must-revalidate'
   )
   if (sendEtagResponse(req, res, etag)) {

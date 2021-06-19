@@ -373,7 +373,28 @@
           "path": "/errors/undefined-webpack-config.md"
         },
         { "title": "url-deprecated", "path": "/errors/url-deprecated.md" },
-        { "title": "webpack5", "path": "/errors/webpack5.md" }
+        { "title": "webpack5", "path": "/errors/webpack5.md" },
+        {
+          "title": "client-side-exception-occurred",
+          "path": "/errors/client-side-exception-occurred.md"
+        },
+        {
+          "title": "future-webpack5-moved-to-webpack5",
+          "path": "/errors/future-webpack5-moved-to-webpack5.md"
+        },
+        {
+          "title": "link-multiple-children",
+          "path": "/errors/link-multiple-children.md"
+        },
+        { "title": "no-img-element", "path": "/errors/no-img-element.md" },
+        {
+          "title": "non-dynamic-getstaticpaths-usage",
+          "path": "/errors/non-dynamic-getstaticpaths-usage.md"
+        },
+        {
+          "title": "placeholder-blur-data-url",
+          "path": "/errors/placeholder-blur-data-url.md"
+        }
       ]
     }
   ]

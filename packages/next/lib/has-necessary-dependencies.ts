@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { basename, join } from 'path'
+import { join } from 'path'
 
 import { fileExists } from './file-exists'
 import { getOxfordCommaList } from './oxford-comma-list'
@@ -17,15 +17,13 @@ const requiredLintPackages = [
 ]
 
 export type NecessaryDependencies = {
-  resolved: string
+  resolved: Map<string, string>
 }
 
 export async function hasNecessaryDependencies(
   baseDir: string,
   checkTSDeps: boolean,
   checkESLintDeps: boolean,
-  eslintrcFile: string = '',
-  pkgJsonEslintConfig: boolean = false,
   lintDuringBuild: boolean = false
 ): Promise<NecessaryDependencies> {
   if (!checkTSDeps && !checkESLintDeps) {
@@ -48,9 +46,7 @@ export async function hasNecessaryDependencies(
 
   if (missingPackages.length < 1) {
     return {
-      resolved: checkESLintDeps
-        ? resolutions.get('eslint')!
-        : resolutions.get('typescript')!,
+      resolved: resolutions,
     }
   }
 
@@ -70,18 +66,7 @@ export async function hasNecessaryDependencies(
   const removalLintMsg =
     `\n\n` +
     (lintDuringBuild
-      ? `If you do not want to run ESLint during builds, run ${chalk.bold.cyan(
-          'next build --no-lint'
-        )}` +
-        (!!eslintrcFile
-          ? ` or remove the ${chalk.bold(
-              basename(eslintrcFile)
-            )} file from your package root.`
-          : pkgJsonEslintConfig
-          ? ` or remove the ${chalk.bold(
-              'eslintConfig'
-            )} field from package.json.`
-          : '')
+      ? `If you do not want to run ESLint during builds, disable it in next.config.js. See https://nextjs.org/docs/api-reference/next.config.js/ignoring-eslint`
       : `Once installed, run ${chalk.bold.cyan('next lint')} again.`)
   const removalMsg = checkTSDeps ? removalTSMsg : removalLintMsg
 
