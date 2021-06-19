@@ -4116,6 +4116,13 @@
   version "2.0.1"
   resolved "https://registry.yarnpkg.com/@types/prompts/-/prompts-2.0.1.tgz#afae5a8b0616a33cd31557bec74e2fd4a32f4afe"
 
+"@types/prompts@2.0.13":
+  version "2.0.13"
+  resolved "https://registry.yarnpkg.com/@types/prompts/-/prompts-2.0.13.tgz#007b0cb1731174ce7ea328e3cd4d84de9bb2e8ba"
+  integrity sha512-jwMOIGy49VruR/gYehhJYgpVzB+EVpEE7t7j9m1oTo4HMpOe7KmsyqdBuoxAzA5B4caUgx0cKrWr7wUEqMXJ7Q==
+  dependencies:
+    "@types/node" "*"
+
 "@types/prop-types@*":
   version "15.7.3"
   resolved "https://registry.yarnpkg.com/@types/prop-types/-/prop-types-15.7.3.tgz#2ab0d5da2e5815f94b0b9d4b95d1e5f243ab2ca7"
