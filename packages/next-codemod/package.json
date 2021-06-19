@@ -20,7 +20,7 @@
   ],
   "scripts": {
     "prepublish": "yarn tsc -d -p tsconfig.json",
-    "dev": "yarn tsc -d -w -p tsconfig.dev.json",
+    "dev": "yarn tsc -d -w --sourceMap -p tsconfig.json",
     "test": "jest"
   },
   "bin": "./bin/next-codemod.js",

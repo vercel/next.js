@@ -16,7 +16,7 @@
   "license": "MIT",
   "scripts": {
     "prepublish": "tsc -d -p tsconfig.json",
-    "dev": "tsc -d -w -p tsconfig.dev.json"
+    "dev": "tsc -d -w --sourceMap -p tsconfig.json"
   },
   "peerDependencies": {
     "react-refresh": "0.8.3",
