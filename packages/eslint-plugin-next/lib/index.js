@@ -12,6 +12,8 @@ module.exports = {
     'link-passhref': require('./rules/link-passhref'),
     'no-document-import-in-page': require('./rules/no-document-import-in-page'),
     'no-head-import-in-document': require('./rules/no-head-import-in-document'),
+    'no-script-in-document': require('./rules/no-script-in-document'),
+    'no-script-in-head': require('./rules/no-script-in-head'),
   },
   configs: {
     recommended: {
@@ -29,6 +31,8 @@ module.exports = {
         '@next/next/link-passhref': 1,
         '@next/next/no-document-import-in-page': 2,
         '@next/next/no-head-import-in-document': 2,
+        '@next/next/no-script-in-document': 2,
+        '@next/next/no-script-in-head': 2,
       },
     },
   },
