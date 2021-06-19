@@ -9,6 +9,13 @@ export default class NextJsSsrImportPlugin {
       compilation.mainTemplate.hooks.requireEnsure.tap(
         'NextJsSSRImport',
         (code: string, chunk: any) => {
+          // If we're on a chunk without a name, skip it. It's likely a dynamic import
+          // that will be handled by Webpack, i.e. a WASM module.
+          // See https://github.com/vercel/next.js/issues/22581
+          if (!chunk.name) {
+            return; 
+          }
+          
           // Update to load chunks from our custom chunks directory
           const outputPath = resolve('/')
           const pagePath = join('/', dirname(chunk.name))
