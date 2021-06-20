@@ -175,7 +175,7 @@ export default function onDemandEntryHandler(
 
       page = posix.normalize(pageUrl)
 
-      return new Promise((resolve, reject) => {
+      return new Promise<void>((resolve, reject) => {
         // Makes sure the page that is being kept in on-demand-entries matches the webpack output
         const normalizedPage = normalizePathSep(page)
         const entryInfo = entries[normalizedPage]
