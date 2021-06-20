@@ -22,7 +22,6 @@ export type ImageLoaderProps = {
   src: string
   width: number
   quality?: number
-  isStatic?: boolean
 }
 
 type DefaultImageLoaderProps = ImageLoaderProps & { root: string }
@@ -54,7 +53,7 @@ interface StaticImageData {
   src: string
   height: number
   width: number
-  placeholder?: string
+  blurDataURL?: string
 }
 
 interface StaticRequire {
@@ -83,26 +82,16 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
   )
 }
 
-export type ImageProps = Omit<
-  JSX.IntrinsicElements['img'],
-  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
-> & {
-  src: string | StaticImport
-  loader?: ImageLoader
-  quality?: number | string
-  priority?: boolean
-  loading?: LoadingValue
-  unoptimized?: boolean
-  objectFit?: ImgElementStyle['objectFit']
-  objectPosition?: ImgElementStyle['objectPosition']
+type StringImageProps = {
+  src: string
 } & (
-    | { width?: never; height?: never; layout: 'fill' }
-    | {
-        width: number | string
-        height: number | string
-        layout?: Exclude<LayoutValue, 'fill'>
-      }
-  ) &
+  | { width?: never; height?: never; layout: 'fill' }
+  | {
+      width: number | string
+      height: number | string
+      layout?: Exclude<LayoutValue, 'fill'>
+    }
+) &
   (
     | {
         placeholder?: Exclude<PlaceholderValue, 'blur'>
@@ -111,13 +100,34 @@ export type ImageProps = Omit<
     | { placeholder: 'blur'; blurDataURL: string }
   )
 
+type ObjectImageProps = {
+  src: StaticImport
+  width?: number | string
+  height?: number | string
+  layout?: LayoutValue
+  placeholder?: PlaceholderValue
+  blurDataURL?: never
+}
+
+export type ImageProps = Omit<
+  JSX.IntrinsicElements['img'],
+  'src' | 'srcSet' | 'ref' | 'width' | 'height' | 'loading' | 'style'
+> & {
+  loader?: ImageLoader
+  quality?: number | string
+  priority?: boolean
+  loading?: LoadingValue
+  unoptimized?: boolean
+  objectFit?: ImgElementStyle['objectFit']
+  objectPosition?: ImgElementStyle['objectPosition']
+} & (StringImageProps | ObjectImageProps)
+
 const {
   deviceSizes: configDeviceSizes,
   imageSizes: configImageSizes,
   loader: configLoader,
   path: configPath,
   domains: configDomains,
-  enableBlurryPlaceholder: configEnableBlurryPlaceholder,
 } =
   ((process.env.__NEXT_IMAGE_OPTS as any) as ImageConfig) || imageConfigDefault
 // sort smallest to largest
@@ -179,7 +189,6 @@ type GenImgAttrsData = {
   unoptimized: boolean
   layout: LayoutValue
   loader: ImageLoader
-  isStatic?: boolean
   width?: number
   quality?: number
   sizes?: string
@@ -199,7 +208,6 @@ function generateImgAttrs({
   quality,
   sizes,
   loader,
-  isStatic,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
     return { src, srcSet: undefined, sizes: undefined }
@@ -213,7 +221,7 @@ function generateImgAttrs({
     srcSet: widths
       .map(
         (w, i) =>
-          `${loader({ src, quality, isStatic, width: w })} ${
+          `${loader({ src, quality, width: w })} ${
             kind === 'w' ? w : i + 1
           }${kind}`
       )
@@ -225,7 +233,7 @@ function generateImgAttrs({
     // updated by React. That causes multiple unnecessary requests if `srcSet`
     // and `sizes` are defined.
     // This bug cannot be reproduced in Chrome or Firefox.
-    src: loader({ src, quality, isStatic, width: widths[last] }),
+    src: loader({ src, quality, width: widths[last] }),
   }
 }
 
@@ -254,19 +262,27 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 // See https://stackoverflow.com/q/39777833/266535 for why we use this ref
 // handler instead of the img's onLoad attribute.
 function removePlaceholder(
-  element: HTMLImageElement | null,
+  img: HTMLImageElement | null,
   placeholder: PlaceholderValue
 ) {
-  if (placeholder === 'blur' && element) {
-    if (element.complete) {
+  if (placeholder === 'blur' && img) {
+    const handleLoad = () => {
+      if (!img.src.startsWith('data:')) {
+        const p = 'decode' in img ? img.decode() : Promise.resolve()
+        p.catch(() => {}).then(() => {
+          img.style.filter = 'none'
+          img.style.backgroundSize = 'none'
+          img.style.backgroundImage = 'none'
+        })
+      }
+    }
+    if (img.complete) {
       // If the real image fails to load, this will still remove the placeholder.
       // This is the desired behavior for now, and will be revisited when error
       // handling is worked on for the image component itself.
-      element.style.backgroundImage = 'none'
+      handleLoad()
     } else {
-      element.onload = () => {
-        element.style.backgroundImage = 'none'
-      }
+      img.onload = handleLoad
     }
   }
 }
@@ -298,10 +314,6 @@ export default function Image({
     delete rest['layout']
   }
 
-  if (!configEnableBlurryPlaceholder) {
-    placeholder = 'empty'
-  }
-  const isStatic = typeof src === 'object'
   let staticSrc = ''
   if (isStaticImport(src)) {
     const staticImageData = isStaticRequire(src) ? src.default : src
@@ -313,9 +325,7 @@ export default function Image({
         )}`
       )
     }
-    if (staticImageData.placeholder) {
-      blurDataURL = staticImageData.placeholder
-    }
+    blurDataURL = blurDataURL || staticImageData.blurDataURL
     staticSrc = staticImageData.src
     if (!layout || layout !== 'fill') {
       height = height || staticImageData.height
@@ -329,7 +339,11 @@ export default function Image({
       }
     }
   }
-  src = (isStatic ? staticSrc : src) as string
+  src = typeof src === 'string' ? src : staticSrc
+
+  const widthInt = getInt(width)
+  const heightInt = getInt(height)
+  const qualityInt = getInt(quality)
 
   if (process.env.NODE_ENV !== 'production') {
     if (!src) {
@@ -346,6 +360,14 @@ export default function Image({
         ).join(',')}.`
       )
     }
+    if (
+      (typeof widthInt !== 'undefined' && isNaN(widthInt)) ||
+      (typeof heightInt !== 'undefined' && isNaN(heightInt))
+    ) {
+      throw new Error(
+        `Image with src "${src}" has invalid "width" or "height" property. These should be numeric values.`
+      )
+    }
     if (!VALID_LOADING_VALUES.includes(loading)) {
       throw new Error(
         `Image with src "${src}" has invalid "loading" property. Provided "${loading}" should be one of ${VALID_LOADING_VALUES.map(
@@ -357,6 +379,27 @@ export default function Image({
       throw new Error(
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
+    }
+    if (placeholder === 'blur') {
+      if (layout !== 'fill' && (widthInt || 0) * (heightInt || 0) < 1600) {
+        console.warn(
+          `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
+        )
+      }
+      if (!blurDataURL) {
+        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp'] // should match next-image-loader
+
+        throw new Error(
+          `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
+          Possible solutions:
+            - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
+            - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(
+              ','
+            )}
+            - Remove the "placeholder" property, effectively no blur effect
+          Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
+        )
+      }
     }
   }
   let isLazy =
@@ -372,16 +415,6 @@ export default function Image({
     disabled: !isLazy,
   })
   const isVisible = !isLazy || isIntersected
-
-  const widthInt = getInt(width)
-  const heightInt = getInt(height)
-  const qualityInt = getInt(quality)
-
-  const MIN_IMG_SIZE_FOR_PLACEHOLDER = 5000
-  const tooSmallForBlurryPlaceholder =
-    widthInt && heightInt && widthInt * heightInt < MIN_IMG_SIZE_FOR_PLACEHOLDER
-  const shouldShowBlurryPlaceholder =
-    placeholder === 'blur' && !tooSmallForBlurryPlaceholder
 
   let wrapperStyle: JSX.IntrinsicElements['div']['style'] | undefined
   let sizerStyle: JSX.IntrinsicElements['div']['style'] | undefined
@@ -409,8 +442,9 @@ export default function Image({
     objectFit,
     objectPosition,
 
-    ...(shouldShowBlurryPlaceholder
+    ...(placeholder === 'blur'
       ? {
+          filter: 'blur(20px)',
           backgroundSize: 'cover',
           backgroundImage: `url("${blurDataURL}")`,
         }
@@ -506,7 +540,6 @@ export default function Image({
       quality: qualityInt,
       sizes,
       loader,
-      isStatic,
     })
   }
 
@@ -544,9 +577,7 @@ export default function Image({
               sizes,
               loader,
             })}
-            src={src}
             decoding="async"
-            sizes={sizes}
             style={imgStyle}
             className={className}
           />
@@ -634,7 +665,6 @@ function cloudinaryLoader({
 
 function defaultLoader({
   root,
-  isStatic,
   src,
   width,
   quality,
@@ -682,7 +712,5 @@ function defaultLoader({
     }
   }
 
-  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}${
-    isStatic ? '&s=1' : ''
-  }`
+  return `${root}?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
 }

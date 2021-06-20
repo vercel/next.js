@@ -10,7 +10,11 @@ const initialState = {
   count: 0,
 }
 
-export const { Provider, useStore } = createContext(initialState)
+const zustandContext = createContext()
+export const Provider = zustandContext.Provider
+// An example of how to get types
+/** @type {import('zustand/index').UseStore<typeof initialState>} */
+export const useStore = zustandContext.useStore
 
 export const initializeStore = (preloadedState = {}) => {
   return create((set, get) => ({

@@ -44,6 +44,20 @@ ruleTester.run('no-document-import-in-page', rule, {
     `,
       filename: 'pages/_document.tsx',
     },
+    {
+      code: `import Document from "next/document"
+
+    export default class MyDocument extends Document {
+      render() {
+        return (
+          <Html>
+          </Html>
+        );
+      }
+    }
+    `,
+      filename: 'pages/_document.page.tsx',
+    },
   ],
   invalid: [
     {

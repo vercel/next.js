@@ -74,6 +74,20 @@ The application will start at `http://localhost:3000` by default. The default po
 npx next dev -p 4000
 ```
 
+Or using the `PORT` environment variable:
+
+```bash
+PORT=4000 npx next dev
+```
+
+> Note: `PORT` can not be set in `.env` as booting up the HTTP server happens before any other code is initialized.
+
+You can also set the hostname to be different from the default of `0.0.0.0`, this can be useful for making the application available for other devices on the network. The default hostname can be changed with `-H`, like so:
+
+```bash
+npx next dev -H 192.168.1.2
+```
+
 ## Production
 
 `next start` starts the application in production mode. The application should be compiled with [`next build`](#build) first.
@@ -84,14 +98,25 @@ The application will start at `http://localhost:3000` by default. The default po
 npx next start -p 4000
 ```
 
-## Lint
-
-`next lint` runs ESLint for all files in the `pages` directory and provides a guided setup to install any required dependencies if ESLint is not already configured in your application.
-
-You can also run ESLint on other directories with the `--dir` flag:
+Or using the `PORT` environment variable:
 
 ```bash
-next lint --dir components
+PORT=4000 npx next start
+```
+
+> Note: `PORT` can not be set in `.env` as booting up the HTTP server happens before any other code is initialized.
+
+## Lint
+
+`next lint` runs ESLint for all files in the `pages`, `components`, and `lib` directories. It also
+provides a guided setup to install any required dependencies if ESLint is not already configured in
+your application.
+
+If you have other directories that you would like to lint, you can specify them using the `--dir`
+flag:
+
+```bash
+next lint --dir utils
 ```
 
 ## Telemetry

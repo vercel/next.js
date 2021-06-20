@@ -213,14 +213,18 @@ export default async function build(
       typeCheckingSpinner.stopAndPersist()
     }
 
-    if (runLint) {
+    const ignoreESLint = Boolean(config.eslint?.ignoreDuringBuilds)
+    const lintDirs = config.eslint?.dirs
+    if (!ignoreESLint && runLint) {
       await nextBuildSpan
         .traceChild('verify-and-lint')
         .traceAsyncFn(async () => {
           await verifyAndLint(
             dir,
+            lintDirs,
             config.experimental.cpus,
-            config.experimental.workerThreads
+            config.experimental.workerThreads,
+            telemetry
           )
         })
     }
@@ -453,6 +457,10 @@ export default async function build(
       )
     }
 
+    if (config.cleanDistDir) {
+      await recursiveDelete(distDir, /^cache/)
+    }
+
     // We need to write the manifest with rewrites before build
     // so serverless can import the manifest
     await nextBuildSpan
@@ -673,7 +681,7 @@ export default async function build(
       const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
         'check-static-error-page'
       )
-      const nonStaticErrorPagePromise = nonStaticErrorPageSpan.traceAsyncFn(
+      const errorPageHasCustomGetInitialProps = nonStaticErrorPageSpan.traceAsyncFn(
         async () =>
           hasCustomErrorPage &&
           (await staticCheckWorkers.hasCustomGetInitialProps(
@@ -684,6 +692,20 @@ export default async function build(
             false
           ))
       )
+
+      const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
+        async () =>
+          hasCustomErrorPage &&
+          staticCheckWorkers.isPageStatic(
+            '/_error',
+            distDir,
+            isLikeServerless,
+            runtimeEnvConfig,
+            config.i18n?.locales,
+            config.i18n?.defaultLocale
+          )
+      )
+
       // we don't output _app in serverless mode so use _app export
       // from _error instead
       const appPageToCheck = isLikeServerless ? '/_error' : '/_app'
@@ -844,12 +866,18 @@ export default async function build(
           })
         })
       )
+
+      const errorPageResult = await errorPageStaticResult
+      const nonStaticErrorPage =
+        (await errorPageHasCustomGetInitialProps) ||
+        (errorPageResult && errorPageResult.hasServerProps)
+
       const returnValue = {
         customAppGetInitialProps: await customAppGetInitialPropsPromise,
         namedExports: await namedExportsPromise,
         isNextImageImported,
         hasSsrAmpPages,
-        hasNonStaticErrorPage: await nonStaticErrorPagePromise,
+        hasNonStaticErrorPage: nonStaticErrorPage,
       }
 
       staticCheckWorkers.end()
@@ -986,13 +1014,15 @@ export default async function build(
         mappedPages[page] && mappedPages[page].startsWith('private-next-pages')
     )
     usedStaticStatusPages.forEach((page) => {
-      if (!ssgPages.has(page)) {
+      if (!ssgPages.has(page) && !customAppGetInitialProps) {
         staticPages.add(page)
       }
     })
 
     const hasPages500 = usedStaticStatusPages.includes('/500')
-    const useDefaultStatic500 = !hasPages500 && !hasNonStaticErrorPage
+    const useDefaultStatic500 =
+      !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
+
     const combinedPages = [...staticPages, ...ssgPages]
 
     if (combinedPages.length > 0 || useStatic404 || useDefaultStatic500) {

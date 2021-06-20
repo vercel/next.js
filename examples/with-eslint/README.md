@@ -4,6 +4,12 @@ This example shows a Next.js application using the built-in ESLint setup with th
 
 Learn more about the integrated ESLint configuration [in the docs](https://nextjs.org/docs/basic-features/eslint).
 
+## Preview
+
+Preview the example live on [StackBlitz](http://stackblitz.com/):
+
+[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-eslint)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
