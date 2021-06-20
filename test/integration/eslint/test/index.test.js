@@ -188,5 +188,20 @@ describe('ESLint', () => {
         'Warning: External synchronous scripts are forbidden'
       )
     })
+
+    test('custom directories', async () => {
+      const { stdout, stderr } = await nextLint(dirCustomDirectories, [], {
+        stdout: true,
+        stderr: true,
+      })
+
+      const output = stdout + stderr
+      expect(output).toContain(
+          'Error: Comments inside children section of tag should be placed inside braces'
+      )
+      expect(output).toContain(
+          'Warning: External synchronous scripts are forbidden'
+      )
+    })
   })
 })

@@ -31,7 +31,7 @@ const eslintOptions = (args: arg.Spec) => ({
   errorOnUnmatchedPattern: !Boolean(args['--no-error-on-unmatched-pattern']),
 })
 
-const nextLint: cliCommand = (argv) => {
+const nextLint: cliCommand = async (argv) => {
   const validArgs: arg.Spec = {
     // Types
     '--help': Boolean,
@@ -131,7 +131,9 @@ const nextLint: cliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${baseDir}`)
   }
 
-  const dirs: string[] = args['--dir']
+  const conf = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir)
+
+  const dirs: string[] = args['--dir'] ?? conf.eslint?.dirs
   const lintDirs = (dirs ?? ESLINT_DEFAULT_DIRS).reduce(
     (res: string[], d: string) => {
       const currDir = join(baseDir, d)
@@ -150,7 +152,6 @@ const nextLint: cliCommand = (argv) => {
         typeof lintResults === 'string' ? lintResults : lintResults?.output
 
       if (typeof lintResults !== 'string' && lintResults?.eventInfo) {
-        const conf = await loadConfig(PHASE_PRODUCTION_BUILD, baseDir)
         const telemetry = new Telemetry({
           distDir: join(baseDir, conf.distDir),
         })
