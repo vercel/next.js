@@ -20,6 +20,7 @@ async headers() {
       source: '/(.*)',
       headers: securityHeaders
     }
+  ]
 }
 ```
 
