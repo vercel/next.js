@@ -149,11 +149,11 @@ A stricter `next/core-web-vitals` rule set can also be added in `.eslintrc`:
 
 > Both `next` and `next/core-web-vitals` entry points are automatically included for new applications built with [Create Next App](/docs/api-reference/create-next-app.md).
 
-## Prettier
+## Usage with Prettier
 
-ESLint doesn't contain only code quality rules, but also stylistic rules that are unnecessary and conflicting if you have you been using [Prettier](https://prettier.io/). We recommend including [eslint-config-prettier](https://github.com/prettier/eslint-config-prettier) in your ESLint config to make ESLint and Prettier be harmonious with each other.
+ESLint also contains code formatting rules, which can conflict with your existing [Prettier](https://prettier.io/) setup. We recommend including [eslint-config-prettier](https://github.com/prettier/eslint-config-prettier) in your ESLint config to make ESLint and Prettier work together.
 
-```
+```js
 {
   "extends": ["next", "prettier"]
 }
