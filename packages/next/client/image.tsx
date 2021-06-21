@@ -263,16 +263,19 @@ function defaultImageLoader(loaderProps: ImageLoaderProps) {
 // handler instead of the img's onLoad attribute.
 function removePlaceholder(
   img: HTMLImageElement | null,
-  placeholder: PlaceholderValue
+  placeholder: PlaceholderValue,
+  placeholderRef: any
 ) {
   if (placeholder === 'blur' && img) {
     const handleLoad = () => {
       if (!img.src.startsWith('data:')) {
         const p = 'decode' in img ? img.decode() : Promise.resolve()
         p.catch(() => {}).then(() => {
-          img.style.filter = 'none'
-          img.style.backgroundSize = 'none'
-          img.style.backgroundImage = 'none'
+          if (placeholderRef.current) {
+            placeholderRef.current.style.backgroundImage = 'none'
+            placeholderRef.current.style.filter = 'none'
+            placeholderRef.current.style.backgroundSize = 'none'
+          }
         })
       }
     }
@@ -304,6 +307,8 @@ export default function Image({
   blurDataURL,
   ...all
 }: ImageProps) {
+  const placeholderRef = React.useRef(null)
+
   let rest: Partial<ImageProps> = all
   let layout: NonNullable<LayoutValue> = sizes ? 'responsive' : 'intrinsic'
   if ('layout' in rest) {
@@ -417,6 +422,7 @@ export default function Image({
     left: 0,
     bottom: 0,
     right: 0,
+    zIndex: 2,
 
     boxSizing: 'border-box',
     padding: 0,
@@ -433,14 +439,6 @@ export default function Image({
 
     objectFit,
     objectPosition,
-
-    ...(placeholder === 'blur'
-      ? {
-          filter: 'blur(20px)',
-          backgroundSize: 'cover',
-          backgroundImage: `url("${blurDataURL}")`,
-        }
-      : undefined),
   }
   if (
     typeof widthInt !== 'undefined' &&
@@ -577,6 +575,20 @@ export default function Image({
           />
         </noscript>
       )}
+      {placeholder === 'blur' ? (
+        <div
+          className={className}
+          ref={placeholderRef}
+          style={{
+            ...imgStyle,
+            filter: 'blur(20px)',
+            backgroundSize: 'cover',
+            backgroundImage: `url("${blurDataURL}")`,
+            overflow: 'hidden',
+            zIndex: 0,
+          }}
+        />
+      ) : null}
       <img
         {...rest}
         {...imgAttributes}
@@ -584,7 +596,7 @@ export default function Image({
         className={className}
         ref={(element) => {
           setRef(element)
-          removePlaceholder(element, placeholder)
+          removePlaceholder(element, placeholder, placeholderRef)
         }}
         style={imgStyle}
       />
