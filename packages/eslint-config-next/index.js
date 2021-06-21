@@ -49,9 +49,12 @@ module.exports = {
     {
       files: ['**/pages/api/**/*.[jt]s'],
       rules: {
-        'import/no-anonymous-default-export': ['warn', {'allowArrowFunction': true}]
-      }
-    }
+        'import/no-anonymous-default-export': [
+          'warn',
+          { allowArrowFunction: true },
+        ],
+      },
+    },
   ],
   settings: {
     react: {
