@@ -1,7 +1,7 @@
 import * as React from 'react'
 /// @ts-ignore
 import Document, { Main, NextScript, Head } from 'next/document'
-import Script from 'next/experimental-script'
+import Script from 'next/script'
 
 export default class MyDocument extends Document {
   constructor(props) {
@@ -29,11 +29,6 @@ export default class MyDocument extends Document {
             id="documentLazyOnload"
             src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentLazyOnload"
             strategy="lazyOnload"
-          ></Script>
-          <Script
-            id="documentBlock"
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=documentBlock"
-            strategy="dangerouslyBlockRendering"
           ></Script>
           <Script
             id="documentBeforeInteractive"

@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import path from 'path'
+import { join } from 'path'
 
 import { fileExists } from './file-exists'
 import { getOxfordCommaList } from './oxford-comma-list'
@@ -17,14 +17,14 @@ const requiredLintPackages = [
 ]
 
 export type NecessaryDependencies = {
-  resolved: string
+  resolved: Map<string, string>
 }
 
 export async function hasNecessaryDependencies(
   baseDir: string,
   checkTSDeps: boolean,
   checkESLintDeps: boolean,
-  eslintrcFile: string | null = null
+  lintDuringBuild: boolean = false
 ): Promise<NecessaryDependencies> {
   if (!checkTSDeps && !checkESLintDeps) {
     return { resolved: undefined! }
@@ -46,37 +46,35 @@ export async function hasNecessaryDependencies(
 
   if (missingPackages.length < 1) {
     return {
-      resolved: checkESLintDeps
-        ? resolutions.get('eslint')!
-        : resolutions.get('typescript')!,
+      resolved: resolutions,
     }
   }
 
   const packagesHuman = getOxfordCommaList(missingPackages.map((p) => p.pkg))
   const packagesCli = missingPackages.map((p) => p.pkg).join(' ')
 
-  const yarnLockFile = path.join(baseDir, 'yarn.lock')
+  const yarnLockFile = join(baseDir, 'yarn.lock')
   const isYarn = await fileExists(yarnLockFile).catch(() => false)
-  const removalMsg = checkTSDeps
-    ? chalk.bold(
-        'If you are not trying to use TypeScript, please remove the ' +
-          chalk.cyan('tsconfig.json') +
-          ' file from your package root (and any TypeScript files in your pages directory).'
-      )
-    : chalk.bold(
-        `If you are not trying to use ESLint, please remove the ${
-          eslintrcFile
-            ? chalk.cyan(path.basename(eslintrcFile)) +
-              ' file from your application'
-            : chalk.cyan('eslintConfig') + ' field from your package.json file'
-        }.`
-      )
+
+  const removalTSMsg =
+    '\n\n' +
+    chalk.bold(
+      'If you are not trying to use TypeScript, please remove the ' +
+        chalk.cyan('tsconfig.json') +
+        ' file from your package root (and any TypeScript files in your pages directory).'
+    )
+  const removalLintMsg =
+    `\n\n` +
+    (lintDuringBuild
+      ? `If you do not want to run ESLint during builds, disable it in next.config.js. See https://nextjs.org/docs/api-reference/next.config.js/ignoring-eslint.`
+      : `Once installed, run ${chalk.bold.cyan('next lint')} again.`)
+  const removalMsg = checkTSDeps ? removalTSMsg : removalLintMsg
 
   throw new FatalError(
     chalk.bold.red(
-      `It looks like you're trying to use ${
-        checkTSDeps ? 'TypeScript' : 'ESLint'
-      } but do not have the required package(s) installed.`
+      checkTSDeps
+        ? `It looks like you're trying to use TypeScript but do not have the required package(s) installed.`
+        : `To use ESLint, additional required package(s) must be installed.`
     ) +
       '\n\n' +
       chalk.bold(`Please install ${chalk.bold(packagesHuman)} by running:`) +
@@ -86,7 +84,6 @@ export async function hasNecessaryDependencies(
           ' ' +
           packagesCli
       )}` +
-      '\n\n' +
       removalMsg +
       '\n'
   )
