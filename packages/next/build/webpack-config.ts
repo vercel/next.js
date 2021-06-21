@@ -510,7 +510,7 @@ export default async function getBaseWebpackConfig(
 
   // Contains various versions of the Webpack SplitChunksPlugin used in different build types
   const splitChunksConfigs: {
-    [propName: string]: webpack.Options.SplitChunksOptions
+    [propName: string]: webpack.Options.SplitChunksOptions | false
   } = {
     dev: {
       cacheGroups: {
@@ -611,9 +611,9 @@ export default async function getBaseWebpackConfig(
   }
 
   // Select appropriate SplitChunksPlugin config for this build
-  let splitChunksConfig: webpack.Options.SplitChunksOptions
+  let splitChunksConfig: webpack.Options.SplitChunksOptions | false
   if (dev) {
-    splitChunksConfig = splitChunksConfigs.dev
+    splitChunksConfig = isWebpack5 ? false : splitChunksConfigs.dev
   } else {
     splitChunksConfig = splitChunksConfigs.prodGranular
   }
@@ -940,7 +940,7 @@ export default async function getBaseWebpackConfig(
         : {}),
       // we must set publicPath to an empty value to override the default of
       // auto which doesn't work in IE11
-      publicPath: '',
+      publicPath: `${config.assetPrefix || ''}/_next/`,
       path:
         isServer && isWebpack5 && !dev
           ? path.join(outputPath, 'chunks')
@@ -959,7 +959,7 @@ export default async function getBaseWebpackConfig(
         ? 'static/webpack/[id].[fullhash].hot-update.js'
         : 'static/webpack/[id].[hash].hot-update.js',
       hotUpdateMainFilename: isWebpack5
-        ? 'static/webpack/[fullhash].hot-update.json'
+        ? 'static/webpack/[fullhash].[runtime].hot-update.json'
         : 'static/webpack/[hash].hot-update.json',
       // This saves chunks with the name given via `import()`
       chunkFilename: isServer
