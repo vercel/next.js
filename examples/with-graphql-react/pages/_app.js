@@ -1,10 +1,6 @@
-import { GraphQLProvider } from 'graphql-react'
-import { withGraphQLApp } from 'next-graphql-react'
+import '../node-polyfills'
+import withGraphQLReact from 'next-graphql-react/public/withGraphQLReact.js'
+import withServerContext from 'next-server-context/public/withServerContext.js'
+import App from 'next/app'
 
-const App = ({ Component, pageProps, graphql }) => (
-  <GraphQLProvider graphql={graphql}>
-    <Component {...pageProps} />
-  </GraphQLProvider>
-)
-
-export default withGraphQLApp(App)
+export default withGraphQLReact(withServerContext(App))

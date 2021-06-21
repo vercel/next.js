@@ -1,6 +1,13 @@
 # Next.js example with [`graphql-react`](https://github.com/jaydenseric/graphql-react)
 
-[`graphql-react`](https://github.com/jaydenseric/graphql-react) is a [GraphQL](https://graphql.org) client for [React](https://reactjs.org) using modern [context](https://reactjs.org/docs/context) and [hooks](https://reactjs.org/docs/hooks-intro) APIs that is lightweight (&lt; 3 KB [size limited](https://github.com/ai/size-limit)) but powerful; the first [Relay](https://facebook.github.io/relay) and [Apollo](https://apollographql.com/docs/react) alternative with server side rendering.
+[`graphql-react`](https://github.com/jaydenseric/graphql-react) is a [GraphQL](https://graphql.org) client for [React](https://reactjs.org) using modern [context](https://reactjs.org/docs/context) and [hooks](https://reactjs.org/docs/hooks-intro) APIs that is lightweight (< 4 kB) but powerful; the first [Relay](https://relay.dev) and [Apollo](https://apollographql.com/docs/react) alternative with server side rendering. It can also be used to custom load, cache and server side render any data, even from non-GraphQL sources.
+
+This example demonstrates:
+
+- Polyfilling [required globals](https://github.com/jaydenseric/graphql-react#support) missing in Node.js.
+- Loading and rendering GraphQL data in pages.
+- Using Next.js [dynamic route](https://nextjs.org/docs/routing/dynamic-routes) parameters in GraphQL query variables.
+- Using [`next-server-context`](https://github.com/jaydenseric/next-server-context) to set a HTTP response status code (e.g. 404) for the server side rendered page according to GraphQL query results.
 
 ## Deploy your own
 
@@ -19,8 +26,3 @@ yarn create next-app --example with-graphql-react with-graphql-react-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
-
-## Notes
-
-- In `pages/_app.js` a [custom `App` component](https://github.com/vercel/next.js#custom-app) is decorated with the [`withGraphQLApp`](https://github.com/jaydenseric/next-graphql-react/#function-withgraphqlapp) [higher-order component](https://reactjs.org/docs/higher-order-components) from [`next-graphql-react`](https://github.com/jaydenseric/next-graphql-react), generating a `graphql` prop that populates the [`GraphQLProvider`](https://github.com/jaydenseric/graphql-react#function-graphqlprovider) component from [`graphql-react`](https://github.com/jaydenseric/graphql-react).
-- In `pages/index.js` the [`useGraphQL`](https://github.com/jaydenseric/graphql-react#function-usegraphql) React hook from [`graphql-react`](https://github.com/jaydenseric/graphql-react) is used to query the [GraphQL Pokémon API](https://github.com/lucasbento/graphql-pokemon) and show a picture of Pikachu.

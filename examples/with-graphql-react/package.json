@@ -2,10 +2,16 @@
   "name": "with-graphql-react",
   "private": true,
   "license": "MIT",
+  "engines": {
+    "node": "^12.20 || >= 14.13"
+  },
   "dependencies": {
-    "graphql-react": "^11.0.1",
+    "abort-controller": "^3.0.0",
+    "event-target-shim": "^6.0.2",
+    "graphql-react": "^15.0.0",
     "next": "latest",
-    "next-graphql-react": "^8.0.0",
+    "next-graphql-react": "^11.0.0",
+    "next-server-context": "^3.0.1",
     "react": "^17.0.2",
     "react-dom": "^17.0.2"
   },
